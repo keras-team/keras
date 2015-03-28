@@ -2,12 +2,12 @@
 
 ## You have just found Keras.
 
-Keras is a minimalist, highly modular neural network library in the spirit of Torch, written in Python / Theano so as not to have to deal with the derth of ecosystem in Lua. It was developed with a focus on enabling fast experimentation. Being able to go from idea to result with the least possible delay is key to doing good research.
+Keras is a minimalist, highly modular neural network library in the spirit of Torch, written in Python / Theano so as not to have to deal with the dearth of ecosystem in Lua. It was developed with a focus on enabling fast experimentation. Being able to go from idea to result with the least possible delay is key to doing good research.
 
 Use Keras if you need a deep learning library that:
 - allows for easy and fast prototyping (through total modularity, minimalism, and extensibility).
 - supports both convolutional networks (for vision) and recurrent networks (for sequence data). As well as combinations of the two. 
-- runs seemlessly on the CPU and the GPU.
+- runs seamlessly on the CPU and the GPU.
 
 ## Guiding principles
 
