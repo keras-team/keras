@@ -1,4 +1,4 @@
-# Keras - Theano-based Deep Learning library
+# Keras: Theano-based Deep Learning library
 
 ## You have just found Keras.
 
@@ -52,7 +52,6 @@ model = Sequential()
 model.add(Dense(20, 64, init='uniform', activation='tanh'))
 model.add(Dropout(0.5))
 model.add(Dense(64, 64, init='uniform', activation='tanh'))
-model.add(Activation('tanh'))
 model.add(Dropout(0.5))
 model.add(Dense(64, 1, init='uniform', activation='sigmoid')
 
@@ -60,7 +59,7 @@ sgd = SGD(lr=0.1, decay=1e-6, momentum=0.9, nesterov=True)
 model.compile(loss='mean_squared_error', optimizer=sgd)
 ```
 
-### VGG-like net:
+### VGG-like convnet:
 
 ```python
 from keras.models import Sequential
