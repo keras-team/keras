@@ -53,7 +53,7 @@ model.add(Dense(20, 64, init='uniform', activation='tanh'))
 model.add(Dropout(0.5))
 model.add(Dense(64, 64, init='uniform', activation='tanh'))
 model.add(Dropout(0.5))
-model.add(Dense(64, 1, init='uniform', activation='sigmoid')
+model.add(Dense(64, 1, init='uniform', activation='softmax')
 
 sgd = SGD(lr=0.1, decay=1e-6, momentum=0.9, nesterov=True)
 model.compile(loss='mean_squared_error', optimizer=sgd)
@@ -106,7 +106,7 @@ from keras.layers.recurrent import LSTM
 
 model = Sequential()
 model.add(Embedding(max_features, 256))
-model.add(LSTM(256, 128), activation='sigmoid', inner_activation='hard_sigmoid')
+model.add(LSTM(256, 128, activation='sigmoid', inner_activation='hard_sigmoid'))
 model.add(Dropout(0.5))
 model.add(Dense(128, 1))
 model.add(Activation('sigmoid'))
@@ -152,7 +152,7 @@ model.add(Dropout(0.5))
 
 model.add(Repeat(max_caption_len)) 
 # the GRU below returns sequences of max_caption_len vectors of size 256 (our word embedding size)
-model.add(GRU(256, 256), return_sequences=True)
+model.add(GRU(256, 256, return_sequences=True))
 
 model.compile(loss='mean_squared_error', optimizer='rmsprop')
 
@@ -164,9 +164,9 @@ model.fit(images, captions, batch_size=16, nb_epoch=100)
 ```
 
 In the examples folder, you will find example models for real datasets:
-    - CIFAR10 small images classification: convnet with realtime data augmentation
-    - IMDB movie reviews: sentiment classification
-    - Reuters newswires: topic classification
+- CIFAR10 small images classification: convnet with realtime data augmentation
+- IMDB movie reviews: sentiment classification
+- Reuters newswires: topic classification
 
 ## Warning
 
