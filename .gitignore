@@ -1,0 +1,5 @@
+*.DS_Store
+*.pyc
+temp/*
+datasets/data/*
+datasets/temp/*
