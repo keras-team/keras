@@ -33,7 +33,7 @@ class Sequential(object):
         self.y_train = self.layers[-1].output(train=True)
         self.y_test = self.layers[-1].output(train=False)
 
-        Y = T.matrix() # ouput of model
+        Y = T.matrix() # output of model
         self.Y = Y
 
         train_loss = self.loss(self.Y, self.y_train)
