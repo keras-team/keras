@@ -30,7 +30,7 @@ def get_file(fname, origin, untar=False):
         progbar = None
 
     if untar:
-        if os.path.exists(fpath):
+        if os.path.exists(untar_fpath):
             pass
         else:
             print 'Unraring file...'
