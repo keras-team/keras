@@ -30,10 +30,8 @@ def get_file(fname, origin, untar=False):
         progbar = None
 
     if untar:
-        if os.path.exists(untar_fpath):
-            pass
-        else:
-            print 'Unraring file...'
+        if not os.path.exists(untar_fpath):
+            print 'Untaring file...'
             tfile = tarfile.open(fpath, 'r:gz')
             tfile.extractall(path=datadir)
             tfile.close()
