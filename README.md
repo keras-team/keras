@@ -252,6 +252,10 @@ Keras uses the following dependencies:
 
 - Optional but recommended if you use CNNs: cuDNN.
 
+Once you have the dependencies installed, cd to the Keras folder and run the install command:
+```
+sudo python setup.py install
+```
 
 ## Why this name, Keras?
 
