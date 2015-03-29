@@ -1,5 +1,5 @@
-from layers.core import Layer
-from utils.theano_utils import shared_zeros
+from ..layers.core import Layer
+from ..utils.theano_utils import shared_zeros
 
 class LeakyReLU(Layer):
     def __init__(self, alpha=0.3):
@@ -26,11 +26,3 @@ class PReLU(Layer):
         pos = ((X + abs(X)) / 2.0)
         neg = self.alphas * ((X - abs(X)) / 2.0)
         return pos + neg
-
-
-# class Maxout(Layer):
-#     '''
-#         Reference: http://www-etud.iro.umontreal.ca/~goodfeli/maxout.html
-#     '''
-#     def __init__(self):
-#         pass

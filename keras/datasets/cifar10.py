@@ -1,4 +1,4 @@
-from datasets import data_utils
+from data_utils import get_file
 import random
 import cPickle
 import numpy as np
@@ -7,7 +7,7 @@ from PIL import Image
 def load_data(test_split=0.1, seed=113):
     dirname = "cifar-10-batches-py"
     origin = "http://www.cs.toronto.edu/~kriz/cifar-10-python.tar.gz"
-    path = data_utils.get_file(dirname, origin=origin, untar=True)
+    path = get_file(dirname, origin=origin, untar=True)
 
     nb_samples = 50000
     X = np.zeros((nb_samples, 3, 32, 32), dtype="uint8")

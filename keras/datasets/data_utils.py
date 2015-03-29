@@ -1,6 +1,6 @@
 import urllib, tarfile
 import inspect, os
-from utils.generic_utils import Progbar
+from ..utils.generic_utils import Progbar
 
 def get_file(fname, origin, untar=False):
     datadir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))

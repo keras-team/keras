@@ -3,9 +3,9 @@ import theano
 import theano.tensor as T
 from theano.tensor.signal import downsample
 
-import activations, initializations
-from utils.theano_utils import shared_zeros
-from layers.core import Layer
+from .. import activations, initializations
+from ..utils.theano_utils import shared_zeros
+from ..layers.core import Layer
 
 
 # class Convolution1D(Layer): TODO
@@ -56,9 +56,5 @@ class MaxPooling2D(Layer):
         return output
 
 
-class ZeroPadding2D(Layer):
-    '''
-        TODO
-    '''
-    pass
+# class ZeroPadding2D(Layer): TODO
         

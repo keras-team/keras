@@ -3,9 +3,9 @@ import theano
 import theano.tensor as T
 import numpy as np
 
-import activations, initializations
-from utils.theano_utils import shared_zeros, alloc_zeros_matrix
-from layers.core import Layer
+from .. import activations, initializations
+from ..utils.theano_utils import shared_zeros, alloc_zeros_matrix
+from ..layers.core import Layer
 
 class SimpleRNN(Layer):
     '''

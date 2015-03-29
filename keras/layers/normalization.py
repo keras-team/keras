@@ -1,6 +1,6 @@
-from layers.core import Layer
-from utils.theano_utils import shared_zeros
-import initializations
+from ..layers.core import Layer
+from ..utils.theano_utils import shared_zeros
+from .. import initializations
 
 class BatchNormalization(Layer):
     '''

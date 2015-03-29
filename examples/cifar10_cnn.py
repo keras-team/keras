@@ -1,7 +1,3 @@
-import sys
-sys.path.insert(0, '../')
-sys.path.insert(0, '../../')
-
 from keras.datasets import cifar10
 from keras.preprocessing.image import ImageDataGenerator
 from keras.models import Sequential
@@ -10,13 +6,11 @@ from keras.layers.convolutional import Convolution2D, MaxPooling2D
 from keras.optimizers import SGD, Adadelta, Adagrad
 from keras.utils import np_utils, generic_utils
 
-from theano import tensor as T
-
 '''
     Train a (fairly simple) deep CNN on the CIFAR10 small images dataset.
 
     GPU run command:
-        THEANO_FLAGS=mode=FAST_RUN,device=gpu,floatX=float32 python examples/cifar10_cnn.py
+        THEANO_FLAGS=mode=FAST_RUN,device=gpu,floatX=float32 python cifar10_cnn.py
 
     It gets to 0.65 test logloss in 25 epochs (still way underfitting at that point, though)
 '''
