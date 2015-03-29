@@ -5,6 +5,8 @@ from ..utils.generic_utils import Progbar
 def get_file(fname, origin, untar=False):
     datadir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
     datadir = os.path.join(datadir, 'data')
+    if not os.path.exists(datadir):
+        os.makedirs(datadir)
 
     if untar:
         untar_fpath = os.path.join(datadir, fname)
