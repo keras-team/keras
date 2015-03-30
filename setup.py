@@ -1,6 +1,9 @@
 #!/usr/bin/env python
 
-from setuptools import setup
+try:
+    from setuptools import setup
+except ImportError:
+    from distutils.core import setup
 
 setup(name='Keras',
       version='0.0.1',
