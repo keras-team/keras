@@ -20,6 +20,8 @@ def categorical_crossentropy(y_true, y_pred):
     '''Expects a binary class matrix instead of a vector of scalar classes
     '''
     y_pred = T.clip(y_pred, epsilon, 1.0 - epsilon)
+    # scale preds so that the class probas of each sample sum to 1
+    y_pred /= y_pred.sum(axis=1, keepdims=True) 
     return T.nnet.categorical_crossentropy(y_pred, y_true).mean()
 
 def binary_crossentropy(y_true, y_pred):
