@@ -2,6 +2,8 @@ import theano
 import theano.tensor as T
 import numpy as np
 
+epsilon = 1.0e-15
+
 def mean_squared_error(y_true, y_pred):
     return T.sqr(y_pred - y_true).mean()
 
@@ -17,9 +19,11 @@ def hinge(y_true, y_pred):
 def categorical_crossentropy(y_true, y_pred):
     '''Expects a binary class matrix instead of a vector of scalar classes
     '''
+    y_pred = T.clip(y_pred, epsilon, 1.0 - epsilon)
     return T.nnet.categorical_crossentropy(y_pred, y_true).mean()
 
 def binary_crossentropy(y_true, y_pred):
+    y_pred = T.clip(y_pred, epsilon, 1.0 - epsilon)
     return T.nnet.binary_crossentropy(y_pred, y_true).mean()
 
 # aliases
