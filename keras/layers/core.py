@@ -116,7 +116,7 @@ class RepeatVector(Layer):
 
 class Dense(Layer):
     '''
-        Just your regular fully connecter NN layer.
+        Just your regular fully connected NN layer.
     '''
     def __init__(self, input_dim, output_dim, init='uniform', activation='linear', weights=None):
         self.init = initializations.get(init)
@@ -141,7 +141,7 @@ class Dense(Layer):
 
 class Embedding(Layer):
     '''
-        Turns a list of integers into a dense vector of fixed size. 
+        Turn a list of integers >=0 into a dense vector of fixed size. 
         eg. [4, 50, 123, 26] -> [0.25, 0.1]
 
         @input_dim: size of vocabulary (highest input integer + 1)

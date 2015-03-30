@@ -164,9 +164,9 @@ model.fit(images, captions, batch_size=16, nb_epoch=100)
 ```
 
 In the examples folder, you will find example models for real datasets:
-- CIFAR10 small images classification: convnet with realtime data augmentation
-- IMDB movie reviews: sentiment classification
-- Reuters newswires: topic classification
+- CIFAR10 small images classification: Convnet with realtime data augmentation
+- IMDB movie review sentiment classification: LSTM over sequences of words
+- Reuters newswires topic classification: Multilayer Perceptron
 
 ## Warning
 
@@ -175,17 +175,17 @@ This is a 0.0.1 alpha release. Feature scope is limited, and wild bugs may appea
 ## Current capabilities
 
 - model architectures:
-    sequential (pipeline of layers)
+    - Sequential (pipeline of layers)
 
 - layers: 
     - layers.core:
         - Dense
         - Dropout
         - Activation
+        - Embedding
         - Reshape
         - Flatten
-        - Embedding
-        - Repeat
+        - RepeatVector
     - layers.convolutional:
         - Convolution2D
         - MaxPooling2D
@@ -259,7 +259,7 @@ sudo python setup.py install
 
 ## Why this name, Keras?
 
-Keras (κέρας) means _horn_ in Greek. It is a reference to a literary image from ancient Greek and Latin literature, first found in the _Odyssee_, where dream spirits (_Oneiroi_, singular _Oneiros_) are divided between those who deceive men with false visions, who arrive to Earth through a gate of ivory, and those who announce a future that will come to pass, who arrive through a gate of horn. It's a play on the words κέρας (horn) / κραίνω (fulfill), and ἐλέφας (ivory) / ἐλεφαίρομαι (deceive).
+Keras (κέρας) means _horn_ in Greek. It is a reference to a literary image from ancient Greek and Latin literature, first found in the _Odyssey_, where dream spirits (_Oneiroi_, singular _Oneiros_) are divided between those who deceive men with false visions, who arrive to Earth through a gate of ivory, and those who announce a future that will come to pass, who arrive through a gate of horn. It's a play on the words κέρας (horn) / κραίνω (fulfill), and ἐλέφας (ivory) / ἐλεφαίρομαι (deceive).
 
 Keras was developed as part of the research effort of project ONEIROS (Open-ended Neuro-Electronic Intelligent Robot Operating System).
 
