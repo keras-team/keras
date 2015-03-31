@@ -7,6 +7,7 @@ from .. import activations, initializations
 from ..utils.theano_utils import shared_zeros, alloc_zeros_matrix
 from ..layers.core import Layer
 
+
 class SimpleRNN(Layer):
     '''
         Fully connected RNN where output is to fed back to input.
@@ -64,6 +65,76 @@ class SimpleRNN(Layer):
         if self.return_sequences:
             return outputs.dimshuffle((1,0,2))
         return outputs[-1]
+
+
+
+class SimpleBRNN2(Layer):
+    '''
+        Fully connected Bi-directional RNN where:
+            Output at time=t is fed back to input for time=t+1 in a forward pass
+            Output at time=t is fed back to input for time=t-1 in a backward pass
+    '''
+    def __init__(self, input_dim, output_dim,
+        init='uniform', inner_init='orthogonal', activation='sigmoid', weights=None,
+        truncate_gradient=-1,  return_sequences=False):
+        self.init = initializations.get(init)
+        self.inner_init = initializations.get(inner_init)
+        self.input_dim = input_dim
+        self.input_dim = input_dim
+        self.output_dim = output_dim
+        self.truncate_gradient = truncate_gradient
+        self.activation = activations.get(activation)
+        self.return_sequences = return_sequences
+        self.input = T.tensor3()
+
+        self.W_if = self.init((self.input_dim, self.output_dim/2))    # Input -> Forward
+        self.W_ff = self.init((self.output_dim/2, self.output_dim/2))   # Forward tm1 -> Forward t
+        self.W_ib = self.init((self.input_dim, self.output_dim/2))    # Input -> Backward
+        self.W_bb = self.init((self.output_dim/2, self.output_dim/2))   # Backward t -> Backward tm1
+        self.b_f = shared_zeros((self.output_dim/2))
+        self.b_b = shared_zeros((self.output_dim/2))
+        self.params = [self.W_if, self.W_ff, self.W_ib, self.W_bb, self.b_f, self.b_b]
+
+        if weights is not None:
+            self.set_weights(weights)
+
+    def _step(self, x_t, h_tm1, u):
+        return self.activation(x_t + T.dot(h_tm1, u))
+
+    def output(self, train):
+        X = self.get_input(train) # shape: (nb_samples, time (padded with zeros at the end), input_dim)
+        # new shape: (time, nb_samples, input_dim) -> because theano.scan iterates over main dimension
+        X = X.dimshuffle((1, 0, 2))
+
+        xf = T.dot(X, self.W_if) + self.b_f
+        xb = T.dot(X, self.W_ib) + self.b_b
+
+        # Iterate forward over the first dimension of the x array (=time).
+        outputs_f, updates_f = theano.scan(
+            self._step,  # this will be called with arguments (sequences[i], outputs[i-1], non_sequences[i])
+            sequences=xf,  # tensors to iterate over, inputs to _step
+            # initialization of the output. Input to _step with default tap=-1.
+            outputs_info=alloc_zeros_matrix(X.shape[1], self.output_dim),
+            non_sequences=self.W_ff,  # static inputs to _step
+            truncate_gradient=self.truncate_gradient
+        )
+        # Iterate backward over the first dimension of the x array (=time).
+        outputs_b, updates_b = theano.scan(
+            self._step,  # this will be called with arguments (sequences[i], outputs[i-1], non_sequences[i])
+            sequences=xb,  # tensors to iterate over, inputs to _step
+            # initialization of the output. Input to _step with default tap=-1.
+            outputs_info=alloc_zeros_matrix(X.shape[1], self.output_dim),
+            non_sequences=self.W_bb,  # static inputs to _step
+            truncate_gradient=self.truncate_gradient,
+            go_backwards=True  # Iterate backwards through time
+        )
+        return outputs_f.dimshuffle((1, 0, 2))
+        if self.return_sequences:
+            return T.concatenate((outputs_f.dimshuffle((1, 0, 2)),
+                                  outputs_b[::-1].dimshuffle((1,0,2))),  # reverse the backwards output through time
+                                 axis=2)
+        return T.concatenate((outputs_f[-1], outputs_b[0]))
+
 
 
 class SimpleDeepRNN(Layer):
