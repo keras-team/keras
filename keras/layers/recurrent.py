@@ -25,7 +25,7 @@ class SimpleRNN(Layer):
         self.truncate_gradient = truncate_gradient
         self.activation = activations.get(activation)
         self.return_sequences = return_sequences
-        self.input = T.matrix()
+        self.input = T.tensor3()
 
         self.W = self.init((self.input_dim, self.output_dim))
         self.U = self.init((self.output_dim, self.output_dim))
@@ -89,7 +89,7 @@ class SimpleDeepRNN(Layer):
         self.inner_activation = activations.get(inner_activation)
         self.depth = depth
         self.return_sequences = return_sequences
-        self.input = T.matrix()
+        self.input = T.tensor3()
 
         self.W = self.init((self.input_dim, self.output_dim))
         self.Us = [self.init((self.output_dim, self.output_dim)) for _ in range(self.depth)]
@@ -163,7 +163,7 @@ class GRU(Layer):
         self.inner_init = initializations.get(inner_init)
         self.activation = activations.get(activation)
         self.inner_activation = activations.get(inner_activation)
-        self.input = T.matrix()
+        self.input = T.tensor3()
 
         self.W_z = self.init((self.input_dim, self.output_dim))
         self.U_z = self.inner_init((self.output_dim, self.output_dim))
@@ -255,7 +255,7 @@ class LSTM(Layer):
         self.inner_init = initializations.get(inner_init)
         self.activation = activations.get(activation)
         self.inner_activation = activations.get(inner_activation)
-        self.input = T.matrix()
+        self.input = T.tensor3()
 
         self.W_i = self.init((self.input_dim, self.output_dim))
         self.U_i = self.inner_init((self.output_dim, self.output_dim))
