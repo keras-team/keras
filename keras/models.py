@@ -63,7 +63,9 @@ class Sequential(object):
         # If a validation split size is given (e.g. validation_split=0.2)
         # then split X into smaller X and X_val,
         # and split y into smaller y and y_val.
+        do_validation = False
         if validation_split is not None and validation_split > 0 and validation_split < 1:
+            do_validation = True
             split_at = int(len(X) * (1 - validation_split))
             (X, X_val) = (X[0:split_at], X[split_at:])
             (y, y_val) = (y[0:split_at], y[split_at:])
