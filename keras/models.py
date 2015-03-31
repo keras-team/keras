@@ -1,11 +1,15 @@
+from __future__ import absolute_import
+from __future__ import print_function
+from __future__ import division
 import theano
 import theano.tensor as T
 import numpy as np
 
-import optimizers
-import objectives
+from . import optimizers
+from . import objectives
 import time, copy
-from utils.generic_utils import Progbar
+from .utils.generic_utils import Progbar
+from six.moves import range
 
 def standardize_y(y):
     y = np.asarray(y)
@@ -28,7 +32,7 @@ class Sequential(object):
         self.optimizer = optimizers.get(optimizer)
         self.loss = objectives.get(loss)
 
-        self.X = self.layers[0].input # input of model 
+        self.X = self.layers[0].input # input of model
         # (first layer must have an "input" attribute!)
         self.y_train = self.layers[-1].output(train=True)
         self.y_test = self.layers[-1].output(train=False)
@@ -40,11 +44,11 @@ class Sequential(object):
         test_score = self.loss(self.Y, self.y_test)
         updates = self.optimizer.get_updates(self.params, train_loss)
 
-        self._train = theano.function([self.X, self.Y], train_loss, 
+        self._train = theano.function([self.X, self.Y], train_loss,
             updates=updates, allow_input_downcast=True)
-        self._predict = theano.function([self.X], self.y_test, 
+        self._predict = theano.function([self.X], self.y_test,
             allow_input_downcast=True)
-        self._test = theano.function([self.X, self.Y], test_score, 
+        self._test = theano.function([self.X, self.Y], test_score,
             allow_input_downcast=True)
 
     def train(self, X, y):
@@ -62,13 +66,13 @@ class Sequential(object):
         index_array = np.arange(len(X))
         for epoch in range(nb_epoch):
             if verbose:
-                print 'Epoch', epoch
+                print('Epoch', epoch)
             if shuffle:
                 np.random.shuffle(index_array)
-            nb_batch = len(X)/batch_size+1
+            nb_batch = len(X)//batch_size+1
             progbar = Progbar(target=len(X))
             for batch_index in range(0, nb_batch):
-                batch = range(batch_index*batch_size, min(len(X), (batch_index+1)*batch_size))
+                batch = list(range(batch_index*batch_size, min(len(X), (batch_index+1)*batch_size)))
                 if not batch:
                     break
                 prog = batch[-1]+1
@@ -76,10 +80,10 @@ class Sequential(object):
                 loss = self._train(X[batch], y[batch])
                 if verbose:
                     progbar.update(prog, [('loss', loss)])
-            
+
     def predict_proba(self, X, batch_size=128):
-        for batch_index in range(0, len(X)/batch_size+1):
-            batch = range(batch_index*batch_size, min(len(X), (batch_index+1)*batch_size))
+        for batch_index in range(0, len(X)//batch_size+1):
+            batch = list(range(batch_index*batch_size, min(len(X), (batch_index+1)*batch_size)))
             if not batch:
                 break
             batch_preds = self._predict(X[batch])
@@ -100,13 +104,11 @@ class Sequential(object):
         y = standardize_y(y)
         av_score = 0.
         samples = 0
-        for batch_index in range(0, len(X)/batch_size+1):
-            batch = range(batch_index*batch_size, min(len(X), (batch_index+1)*batch_size))
+        for batch_index in range(0, len(X)//batch_size+1):
+            batch = list(range(batch_index*batch_size, min(len(X), (batch_index+1)*batch_size)))
             if not batch:
                 break
             score = self._test(X[batch], y[batch])
             av_score += len(batch)*score
             samples += len(batch)
         return av_score/samples
-
-

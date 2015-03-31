@@ -1,8 +1,11 @@
+from __future__ import absolute_import
+from __future__ import print_function
 # -*- coding: utf-8 -*-
-from data_utils import get_file
+from .data_utils import get_file
 import string
 import random
-import cPickle
+import six.moves.cPickle
+from six.moves import zip
 
 def make_reuters_dataset(path='datasets/temp/reuters21578/', min_samples_per_topic=15):
     import os
@@ -34,15 +37,15 @@ def make_reuters_dataset(path='datasets/temp/reuters21578/', min_samples_per_top
                 wire_bodies.append(body)
 
     # only keep most common topics
-    items = topic_counts.items()
+    items = list(topic_counts.items())
     items.sort(key = lambda x: x[1])
     kept_topics = set()
     for x in items:
-        print x[0] + ': ' + str(x[1])
+        print(x[0] + ': ' + str(x[1]))
         if x[1] >= min_samples_per_topic:
             kept_topics.add(x[0])
-    print '-'
-    print 'Kept topics:', len(kept_topics)
+    print('-')
+    print('Kept topics:', len(kept_topics))
 
     # filter wires with rare topics
     kept_wires = []
@@ -64,14 +67,14 @@ def make_reuters_dataset(path='datasets/temp/reuters21578/', min_samples_per_top
     tokenizer.fit(kept_wires)
     X = tokenizer.transform(kept_wires)
 
-    print 'Sanity check:'
+    print('Sanity check:')
     for w in ["banana", "oil", "chocolate", "the", "dsft"]:
-        print '...index of', w, ':', tokenizer.word_index.get(w)
+        print('...index of', w, ':', tokenizer.word_index.get(w))
 
     dataset = (X, labels) 
-    print '-'
-    print 'Saving...'
-    cPickle.dump(dataset, open('datasets/data/reuters.pkl', 'w'))
+    print('-')
+    print('Saving...')
+    six.moves.cPickle.dump(dataset, open('datasets/data/reuters.pkl', 'w'))
 
 
 
@@ -79,7 +82,7 @@ def load_data(path="reuters.pkl", nb_words=100000, maxlen=None, test_split=0.2, 
     path = get_file(path, origin="https://s3.amazonaws.com/text-datasets/reuters.pkl")
     f = open(path, 'rb')
 
-    X, labels = cPickle.load(f)
+    X, labels = six.moves.cPickle.load(f)
     f.close()
     random.seed(seed)
     random.shuffle(X)
