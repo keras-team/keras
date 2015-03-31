@@ -68,7 +68,7 @@ class SimpleRNN(Layer):
 
 
 
-class SimpleBRNN2(Layer):
+class SimpleBRNN(Layer):
     '''
         Fully connected Bi-directional RNN where:
             Output at time=t is fed back to input for time=t+1 in a forward pass
@@ -114,7 +114,7 @@ class SimpleBRNN2(Layer):
             self._step,  # this will be called with arguments (sequences[i], outputs[i-1], non_sequences[i])
             sequences=xf,  # tensors to iterate over, inputs to _step
             # initialization of the output. Input to _step with default tap=-1.
-            outputs_info=alloc_zeros_matrix(X.shape[1], self.output_dim),
+            outputs_info=alloc_zeros_matrix(X.shape[1], self.output_dim/2),
             non_sequences=self.W_ff,  # static inputs to _step
             truncate_gradient=self.truncate_gradient
         )
@@ -123,12 +123,11 @@ class SimpleBRNN2(Layer):
             self._step,  # this will be called with arguments (sequences[i], outputs[i-1], non_sequences[i])
             sequences=xb,  # tensors to iterate over, inputs to _step
             # initialization of the output. Input to _step with default tap=-1.
-            outputs_info=alloc_zeros_matrix(X.shape[1], self.output_dim),
+            outputs_info=alloc_zeros_matrix(X.shape[1], self.output_dim/2),
             non_sequences=self.W_bb,  # static inputs to _step
             truncate_gradient=self.truncate_gradient,
             go_backwards=True  # Iterate backwards through time
         )
-        return outputs_f.dimshuffle((1, 0, 2))
         if self.return_sequences:
             return T.concatenate((outputs_f.dimshuffle((1, 0, 2)),
                                   outputs_b[::-1].dimshuffle((1,0,2))),  # reverse the backwards output through time
