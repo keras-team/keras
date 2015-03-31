@@ -57,21 +57,25 @@ class Sequential(object):
         score = self._test(X, y)
         return score
 
-    def fit(self, X, y, batch_size=128, nb_epoch=100, verbose=1):
+    def fit(self, X, y, batch_size=128, nb_epoch=100, verbose=1, shuffle=True):
         y = standardize_y(y)
+        index_array = np.arange(len(X))
         for epoch in range(nb_epoch):
             if verbose:
                 print 'Epoch', epoch
-            
+            if shuffle:
+                np.random.shuffle(index_array)
             nb_batch = len(X)/batch_size+1
             progbar = Progbar(target=len(X))
             for batch_index in range(0, nb_batch):
                 batch = range(batch_index*batch_size, min(len(X), (batch_index+1)*batch_size))
                 if not batch:
                     break
+                prog = batch[-1]+1
+                batch = index_array[batch]
                 loss = self._train(X[batch], y[batch])
-                if verbose:                
-                    progbar.update(batch[-1]+1, [('loss', loss)])
+                if verbose:
+                    progbar.update(prog, [('loss', loss)])
             
     def predict_proba(self, X, batch_size=128):
         for batch_index in range(0, len(X)/batch_size+1):
