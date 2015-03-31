@@ -1,9 +1,6 @@
 #!/usr/bin/env python
 
-try:
-    from setuptools import setup
-except ImportError:
-    from distutils.core import setup
+from distutils.core import setup
 
 setup(name='Keras',
       version='0.0.1',
@@ -13,15 +10,11 @@ setup(name='Keras',
       url='https://github.com/fchollet/keras',
       license='MIT',
       packages=[
-          'keras',
-          'keras.layers',
-          'keras.preprocessing',
-          'keras.datasets',
-          'keras.utils',
+        'keras', 
+        'keras.layers', 
+        'keras.preprocessing', 
+        'keras.datasets', 
+        'keras.utils',
       ],
-      install_requires=['numpy', 'scipy', 'theano'],
-      extras_require={
-          'images': ['pil'], # working with images
-          'CNNs': ['cudnn-python-wrappers'], # working with CNNs
-      }
+      # TODO: dependencies
 )
