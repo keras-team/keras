@@ -90,7 +90,7 @@ class Sequential(object):
                 
                 if verbose:
                     is_last_batch = (batch_index == nb_batch - 1)
-                    if not is_last_batch:
+                    if not is_last_batch or not do_validation:
                         progbar.update(batch_end, [('loss', loss)])
                     else:
                         progbar.update(batch_end, [('loss', loss), ('val. loss', self.test(X_val, y_val))])
