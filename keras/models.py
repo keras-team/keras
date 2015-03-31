@@ -233,17 +233,6 @@ class Sequential(object):
                             progbar.update(chunk_start + batch_end, [('loss', loss)])
     
     def predict_proba(self, X, batch_size=128):
-        for batch_index in range(0, len(X)/batch_size+1):
-            batch = range(batch_index*batch_size, min(len(X), (batch_index+1)*batch_size))
-            if not batch:
-                break
-            batch_preds = self._predict(X[batch])
-
-            if batch_index == 0:
-                preds = np.zeros((len(X), batch_preds.shape[1]))
-            preds[batch] = batch_preds
-        return preds
-        
         nb_batch = int(ceil(len(X)/batch_size))
         for batch_index in range(0, nb_batch):
             batch_start = batch_index*batch_size
@@ -266,13 +255,14 @@ class Sequential(object):
         y = standardize_y(y)
         av_score = 0.
         samples = 0
-        for batch_index in range(0, len(X)/batch_size+1):
-            batch = range(batch_index*batch_size, min(len(X), (batch_index+1)*batch_size))
-            if not batch:
-                break
-            score = self._test(X[batch], y[batch])
-            av_score += len(batch)*score
-            samples += len(batch)
+        nb_batch = int(ceil(len(X)/batch_size))
+        for batch_index in range(0, nb_batch):
+            batch_start = batch_index*batch_size
+            batch_end = min(len(X), (batch_index+1)*batch_size)
+            score = self._test(X[batch_start:batch_end], y[batch_start:batch_end])
+            batchLen = batchEnd-batchStart
+            av_score += batchLen*score
+            samples += batchLen
         return av_score/samples
 
 
