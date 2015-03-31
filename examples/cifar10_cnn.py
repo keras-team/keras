@@ -12,7 +12,8 @@ from keras.utils import np_utils, generic_utils
     GPU run command:
         THEANO_FLAGS=mode=FAST_RUN,device=gpu,floatX=float32 python cifar10_cnn.py
 
-    It gets to 0.65 test logloss in 25 epochs (still way underfitting at that point, though)
+    It gets down to 0.65 test logloss in 25 epochs, and down to 0.55 after 50 epochs.
+    (it's still underfitting at that point, though).
 '''
 
 batch_size = 32
