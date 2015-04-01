@@ -57,25 +57,46 @@ class Sequential(object):
         score = self._test(X, y)
         return score
 
-    def fit(self, X, y, batch_size=128, nb_epoch=100, verbose=1, shuffle=True):
+    def fit(self, X, y, batch_size=128, nb_epoch=100, verbose=1,
+            validation_split=0., shuffle=True):
+        # If a validation split size is given (e.g. validation_split=0.2)
+        # then split X into smaller X and X_val,
+        # and split y into smaller y and y_val.
         y = standardize_y(y)
+
+        do_validation = False
+        if validation_split > 0 and validation_split < 1:
+            do_validation = True
+            split_at = int(len(X) * (1 - validation_split))
+            (X, X_val) = (X[0:split_at], X[split_at:])
+            (y, y_val) = (y[0:split_at], y[split_at:])
+            if verbose:
+                print "Train on %d samples, validate on %d samples" % (len(y), len(y_val))
+        
         index_array = np.arange(len(X))
         for epoch in range(nb_epoch):
             if verbose:
                 print 'Epoch', epoch
             if shuffle:
                 np.random.shuffle(index_array)
+
             nb_batch = len(X)/batch_size+1
             progbar = Progbar(target=len(X))
             for batch_index in range(0, nb_batch):
-                batch = range(batch_index*batch_size, min(len(X), (batch_index+1)*batch_size))
-                if not batch:
-                    break
-                prog = batch[-1]+1
-                batch = index_array[batch]
-                loss = self._train(X[batch], y[batch])
+                batch_start = batch_index*batch_size
+                batch_end = min(len(X), (batch_index+1)*batch_size)
+                batch_ids = index_array[batch_start:batch_end]
+
+                X_batch = X[batch_ids]
+                y_batch = y[batch_ids]
+                loss = self._train(X_batch, y_batch)
+                
                 if verbose:
-                    progbar.update(prog, [('loss', loss)])
+                    is_last_batch = (batch_index == nb_batch - 1)
+                    if not is_last_batch or not do_validation:
+                        progbar.update(batch_end, [('loss', loss)])
+                    else:
+                        progbar.update(batch_end, [('loss', loss), ('val. loss', self.test(X_val, y_val))])
             
     def predict_proba(self, X, batch_size=128):
         for batch_index in range(0, len(X)/batch_size+1):
