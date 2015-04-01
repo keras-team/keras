@@ -45,7 +45,7 @@ class SGD(Optimizer):
 
     def get_updates(self, params, cost):
         grads = self.get_gradients(cost, params)
-        lr = self.lr - self.decay * self.iterations
+        lr = self.lr * (1.0 / (1.0 + self.decay * self.iterations))
         updates = [(self.iterations, self.iterations+1.)]
 
         for p, g in zip(params, grads):

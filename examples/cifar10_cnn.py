@@ -55,17 +55,16 @@ model.add(Dense(512, nb_classes, init='normal'))
 model.add(Activation('softmax'))
 
 # let's train the model using SGD + momentum (how original).
-sgd = SGD(lr=0.01, decay=1e-7, momentum=0.9, nesterov=True)
+sgd = SGD(lr=0.01, decay=1e-6, momentum=0.9, nesterov=True)
 model.compile(loss='categorical_crossentropy', optimizer=sgd)
 
 if not data_augmentation:
     print "Not using data augmentation or normalization"
 
     X_train = X_train.astype("float32")
-    X_test = X_train.astype("float32")
+    X_test = X_test.astype("float32")
     X_train /= 255
     X_test /= 255
-    print X_train[0]
     model.fit(X_train, Y_train, batch_size=batch_size, nb_epoch=10)
     score = model.evaluate(X_test, Y_test, batch_size=batch_size)
     print 'Test score:', score
