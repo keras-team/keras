@@ -20,6 +20,18 @@ def lecun_uniform(shape):
     scale = 1./np.sqrt(m)
     return uniform(shape, scale)
 
+def glorot_normal(shape):
+    ''' Reference: Glorot & Bengio, AISTATS 2010
+    '''
+    s = np.sqrt(2 / (shape[0] + shape[1]))
+    return normal(shape, s)
+
+def he_normal(shape):
+    ''' Reference:  He et al., http://arxiv.org/abs/1502.01852
+    '''
+    s = np.sqrt(2 / (shape[1]))
+    return normal(shape, s)
+
 def orthogonal(shape, scale=1.1):
     ''' From Lasagne
     '''
