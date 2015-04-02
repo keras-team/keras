@@ -1,4 +1,7 @@
-import urllib, tarfile
+from __future__ import absolute_import
+from __future__ import print_function
+import tarfile
+from six.moves.urllib import request
 import inspect, os
 from ..utils.generic_utils import Progbar
 
@@ -17,7 +20,7 @@ def get_file(fname, origin, untar=False):
     try:
         f = open(fpath)
     except:
-        print 'Downloading data from',  origin
+        print('Downloading data from',  origin)
 
         global progbar
         progbar = None
@@ -28,18 +31,15 @@ def get_file(fname, origin, untar=False):
             else:
                 progbar.update(count*block_size)
 
-        urllib.urlretrieve(origin, fpath, dl_progress)
+        request.urlretrieve(origin, fpath, dl_progress)
         progbar = None
 
     if untar:
         if not os.path.exists(untar_fpath):
-            print 'Untaring file...'
+            print('Untaring file...')
             tfile = tarfile.open(fpath, 'r:gz')
             tfile.extractall(path=datadir)
             tfile.close()
         return untar_fpath
 
     return fpath
-
-
-

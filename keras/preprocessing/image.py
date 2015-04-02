@@ -1,3 +1,4 @@
+from __future__ import absolute_import
 from PIL import Image
 import numpy as np
 from scipy import ndimage
@@ -6,6 +7,7 @@ from scipy import linalg
 from os import listdir
 from os.path import isfile, join
 import random, math
+from six.moves import range
 
 '''
     Fairly basic set of tools for realtime data augmentation on image data.

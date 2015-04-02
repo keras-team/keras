@@ -1,8 +1,10 @@
+from __future__ import absolute_import
 import theano
 import theano.tensor as T
 import numpy as np
 
-from utils.theano_utils import shared_zeros, shared_scalar
+from .utils.theano_utils import shared_zeros, shared_scalar
+from six.moves import zip
 
 def clip_norm(g, c, n):
     if c > 0:
@@ -131,6 +133,6 @@ rmsprop = RMSprop
 adagrad = Adagrad
 adadelta = Adadelta
 
-from utils.generic_utils import get_from_module
+from .utils.generic_utils import get_from_module
 def get(identifier):
     return get_from_module(identifier, globals(), 'optimizer', instantiate=True)

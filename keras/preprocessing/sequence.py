@@ -1,3 +1,4 @@
+from __future__ import absolute_import
 import numpy as np
 
 def pad_sequences(seqs, maxlen=None, dtype='int32'):
