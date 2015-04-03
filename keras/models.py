@@ -106,16 +106,19 @@ class Sequential(object):
             batch_preds = self._predict(X[batch])
 
             if batch_index == 0:
-                preds = np.zeros((len(X), batch_preds.shape[1]))
+                shape = (len(X),) + batch_preds.shape[1:]
+                preds = np.zeros(shape)
             preds[batch] = batch_preds
         return preds
 
     def predict_classes(self, X, batch_size=128):
         proba = self.predict_proba(X, batch_size=batch_size)
-        if proba.shape[1] > 1:
-            return proba.argmax(axis=1)
+        # The last dimension is the one containing the class probas
+        classes_dim = proba.ndim - 1
+        if proba.shape[classes_dim] > 1:
+            return proba.argmax(axis=classes_dim)
         else:
-            return np.array([1 if p > 0.5 else 0 for p in proba])
+            return (proba>0.5).astype('int32')
 
     def evaluate(self, X, y, batch_size=128):
         y = standardize_y(y)
