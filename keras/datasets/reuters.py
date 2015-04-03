@@ -7,7 +7,7 @@ import cPickle
 def make_reuters_dataset(path='datasets/temp/reuters21578/', min_samples_per_topic=15):
     import os
     import re
-    from preprocessing.text import Tokenizer
+    from ..preprocessing.text import Tokenizer
 
     wire_topics = []
     topic_counts = {}
@@ -61,8 +61,8 @@ def make_reuters_dataset(path='datasets/temp/reuters21578/', min_samples_per_top
 
     # vectorize wires
     tokenizer = Tokenizer()
-    tokenizer.fit(kept_wires)
-    X = tokenizer.transform(kept_wires)
+    tokenizer.fit_on_texts(kept_wires)
+    X = tokenizer.texts_to_sequences(kept_wires)
 
     print 'Sanity check:'
     for w in ["banana", "oil", "chocolate", "the", "dsft"]:
@@ -72,6 +72,7 @@ def make_reuters_dataset(path='datasets/temp/reuters21578/', min_samples_per_top
     print '-'
     print 'Saving...'
     cPickle.dump(dataset, open('datasets/data/reuters.pkl', 'w'))
+    cPickle.dump(tokenizer.word_index, open('datasets/data/reuters_word_index.pkl', 'w'))
 
 
 
@@ -104,6 +105,12 @@ def load_data(path="reuters.pkl", nb_words=100000, maxlen=None, test_split=0.2, 
     y_test = labels[int(len(X)*(1-test_split)):]
 
     return (X_train, y_train), (X_test, y_test)
+
+
+def get_word_index(path="reuters_word_index.pkl"):
+    path = get_file(path, origin="https://s3.amazonaws.com/text-datasets/reuters_word_index.pkl")
+    f = open(path, 'rb')
+    return cPickle.load(f)
 
 
 if __name__ == "__main__":
