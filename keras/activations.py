@@ -5,6 +5,11 @@ import types
 def softmax(x):
     return T.nnet.softmax(x)
 
+def time_distributed_softmax(x):
+    xshape = x.shape
+    X = x.reshape((xshape[0] * xshape[1], xshape[2]))
+    return T.nnet.softmax(X).reshape(xshape)
+
 def softplus(x):
     return T.nnet.softplus(x)
 
