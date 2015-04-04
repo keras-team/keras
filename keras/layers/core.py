@@ -62,6 +62,10 @@ class Activation(Layer):
 
     def output(self, train):
         X = self.get_input(train)
+        if X.ndim == 3:
+            xshape = X.shape
+            X = X.reshape((xshape[0]*xshape[1], xshape[2]))
+            return self.activation(X).reshape(xshape)
         return self.activation(X)
 
 
