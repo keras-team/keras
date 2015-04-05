@@ -30,8 +30,8 @@ class Sequential(object):
 
         self.X = self.layers[0].input # input of model 
         # (first layer must have an "input" attribute!)
-        self.y_train = self.layers[-1].output(train=True)
-        self.y_test = self.layers[-1].output(train=False)
+        self.y_train = self.layers[-1].output(train=True, batch_size=self.X.shape[0])
+        self.y_test = self.layers[-1].output(train=False, batch_size=self.X.shape[0])
 
         # output of model
         self.Y = T.matrix() # TODO: support for custom output shapes
@@ -80,7 +80,7 @@ class Sequential(object):
             if shuffle:
                 np.random.shuffle(index_array)
 
-            nb_batch = len(X)/batch_size+1
+            nb_batch = int(np.ceil(len(X)/float(batch_size)))
             progbar = Progbar(target=len(X))
             for batch_index in range(0, nb_batch):
                 batch_start = batch_index*batch_size
@@ -92,6 +92,7 @@ class Sequential(object):
                 loss = self._train(X_batch, y_batch)
                 
                 if verbose:
+                    print "BI:,", batch_index, "m1:,", nb_batch - 1, "\n"
                     is_last_batch = (batch_index == nb_batch - 1)
                     if not is_last_batch or not do_validation:
                         progbar.update(batch_end, [('loss', loss)])

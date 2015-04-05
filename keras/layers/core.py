@@ -16,9 +16,9 @@ class Layer(object):
     def output(self, train):
         raise NotImplementedError
 
-    def get_input(self, train):
+    def get_input(self, train, batch_size):
         if hasattr(self, 'previous_layer'):
-            return self.previous_layer.output(train=train)
+            return self.previous_layer.output(train=train, batch_size=batch_size)
         else:
             return self.input
 
@@ -63,8 +63,8 @@ class Activation(Layer):
         self.activation = activations.get(activation)
         self.params = []
 
-    def output(self, train):
-        X = self.get_input(train)
+    def output(self, train, batch_size):
+        X = self.get_input(train, batch_size)
         return self.activation(X)
 
 
@@ -96,9 +96,9 @@ class AdvancedReshape(Layer):
         self.new_shape_fn = new_shape_fn
         self.params = []
 
-    def output(self, train):
-        X = self.get_input(train)
-        nshape = self.new_shape_fn(self.get_nb_samples(), X.shape)
+    def output(self, train, batch_size):
+        X = self.get_input(train, batch_size)
+        nshape = self.new_shape_fn(batch_size, X.shape)
         return theano.tensor.reshape(X, nshape)
 
 
@@ -154,8 +154,8 @@ class Dense(Layer):
         if weights is not None:
             self.set_weights(weights)
 
-    def output(self, train):
-        X = self.get_input(train)
+    def output(self, train, batch_size):
+        X = self.get_input(train, batch_size)
         output = self.activation(T.dot(X, self.W) + self.b)
         return output
 
