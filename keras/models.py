@@ -30,8 +30,8 @@ class Sequential(object):
 
         self.X = self.layers[0].input # input of model 
         # (first layer must have an "input" attribute!)
-        self.y_train = self.layers[-1].output(train=True, batch_size=self.X.shape[0])
-        self.y_test = self.layers[-1].output(train=False, batch_size=self.X.shape[0])
+        self.y_train = self.layers[-1].output(train=True, current_batch_size=self.X.shape[0])
+        self.y_test = self.layers[-1].output(train=False, current_batch_size=self.X.shape[0])
 
         # output of model
         self.Y = T.matrix() # TODO: support for custom output shapes

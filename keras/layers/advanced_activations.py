@@ -6,8 +6,8 @@ class LeakyReLU(Layer):
         self.alpha = alpha
         self.params = []
 
-    def output(self, train, batch_size):
-        X = self.get_input(train, batch_size)
+    def output(self, train, current_batch_size):
+        X = self.get_input(train, current_batch_size)
         return ((X + abs(X)) / 2.0) + self.alpha * ((X - abs(X)) / 2.0)
 
 
@@ -21,8 +21,8 @@ class PReLU(Layer):
         self.alphas = shared_zeros(input_shape)
         self.params = [self.alphas]
 
-    def output(self, train, batch_size):
-        X = self.get_input(train, batch_size)
+    def output(self, train, current_batch_size):
+        X = self.get_input(train, current_batch_size)
         pos = ((X + abs(X)) / 2.0)
         neg = self.alphas * ((X - abs(X)) / 2.0)
         return pos + neg

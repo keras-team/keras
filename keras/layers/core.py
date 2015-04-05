@@ -16,9 +16,9 @@ class Layer(object):
     def output(self, train):
         raise NotImplementedError
 
-    def get_input(self, train, batch_size):
+    def get_input(self, train, current_batch_size):
         if hasattr(self, 'previous_layer'):
-            return self.previous_layer.output(train=train, batch_size=batch_size)
+            return self.previous_layer.output(train=train, current_batch_size=current_batch_size)
         else:
             return self.input
 
@@ -41,8 +41,8 @@ class Dropout(Layer):
         self.p = p
         self.params = []
 
-    def output(self, train, batch_size):
-        X = self.get_input(train, batch_size)
+    def output(self, train, current_batch_size):
+        X = self.get_input(train, current_batch_size)
         if self.p > 0.:
             retain_prob = 1. - self.p
             if train:
@@ -60,8 +60,8 @@ class Activation(Layer):
         self.activation = activations.get(activation)
         self.params = []
 
-    def output(self, train, batch_size):
-        X = self.get_input(train, batch_size)
+    def output(self, train, current_batch_size):
+        X = self.get_input(train, current_batch_size)
         return self.activation(X)
 
 
@@ -75,8 +75,8 @@ class Reshape(Layer):
         self.dims = dims
         self.params = []
 
-    def output(self, train, batch_size):
-        X = self.get_input(train, batch_size)
+    def output(self, train, current_batch_size):
+        X = self.get_input(train, current_batch_size)
         nshape = make_tuple(X.shape[0], *self.dims)
         return theano.tensor.reshape(X, nshape)
 
@@ -87,15 +87,16 @@ class AdvancedReshape(Layer):
             with no other restrictions.
         Can't be used as first layer in a model (no fixed input!)
         Example of usage: Reshaping a 2D batch of inputs into a tensor3 (and/or back again)
+            lambda current_batch_size, current_shape: (current_batch_size, current_shape[0]/current_batch_size, current_shape[1])
     '''
     def __init__(self, new_shape_fn):
         assert(callable(new_shape_fn))
         self.new_shape_fn = new_shape_fn
         self.params = []
 
-    def output(self, train, batch_size):
-        X = self.get_input(train, batch_size)
-        nshape = self.new_shape_fn(batch_size, X.shape)
+    def output(self, train, current_batch_size):
+        X = self.get_input(train, current_batch_size)
+        nshape = self.new_shape_fn(current_batch_size, X.shape)
         return theano.tensor.reshape(X, nshape)
 
 
@@ -108,8 +109,8 @@ class Flatten(Layer):
         self.size = size
         self.params = []
 
-    def output(self, train, batch_size):
-        X = self.get_input(train, batch_size)
+    def output(self, train, current_batch_size):
+        X = self.get_input(train, current_batch_size)
         nshape = (X.shape[0], self.size)
         return theano.tensor.reshape(X, nshape)
 
@@ -125,8 +126,8 @@ class RepeatVector(Layer):
         self.n = n
         self.params = []
 
-    def output(self, train, batch_size):
-        X = self.get_input(train, batch_size)
+    def output(self, train, current_batch_size):
+        X = self.get_input(train, current_batch_size)
         tensors = [X]*self.n
         stacked = theano.tensor.stack(*tensors)
         return stacked.dimshuffle((1,0,2))
@@ -151,8 +152,8 @@ class Dense(Layer):
         if weights is not None:
             self.set_weights(weights)
 
-    def output(self, train, batch_size):
-        X = self.get_input(train, batch_size)
+    def output(self, train, current_batch_size):
+        X = self.get_input(train, current_batch_size)
         output = self.activation(T.dot(X, self.W) + self.b)
         return output
 
@@ -177,7 +178,7 @@ class Embedding(Layer):
         if weights is not None:
             self.set_weights(weights)
 
-    def output(self, train, batch_size):
-        X = self.get_input(train, batch_size)
+    def output(self, train, current_batch_size):
+        X = self.get_input(train, current_batch_size)
         return self.W[X]
 
