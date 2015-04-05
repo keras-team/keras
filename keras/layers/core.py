@@ -32,8 +32,6 @@ class Layer(object):
             weights.append(p.get_value())
         return weights
 
-    def get_nb_samples(self):
-        return 2
 
 
 class Dropout(Layer):
