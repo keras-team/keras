@@ -4,6 +4,14 @@ import numpy as np
 
 from utils.theano_utils import sharedX
 
+def example_normal(shape):
+    rng = np.random.RandomState(1234)
+    return sharedX(rng.normal(size=shape))
+
+def example_uniform(shape):
+    rng = np.random.RandomState(1234)
+    return sharedX(rng.uniform(size=shape))
+
 def uniform(shape, scale=0.05):
     return sharedX(np.random.uniform(low=-scale, high=scale, size=shape))
 
