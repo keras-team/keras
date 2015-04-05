@@ -65,6 +65,24 @@ class Activation(Layer):
         return self.activation(X)
 
 
+class Clip(Layer):
+    '''
+        Apply a clipping (low, high or both) to an activation
+    '''
+    def __init__(self, low=None, high=None):
+        self.low = low
+        self.high = high
+        self.params = []
+
+    def output(self, train):#, current_batch_size):
+        X = self.get_input(train)#, current_batch_size)
+        if self.low is not None:
+            X = activations.clip_low(X, self.low)
+        if self.high is not None:
+            X = activations.clip_high(X, self.high)
+        return X
+
+
 class Reshape(Layer):
     '''
         Reshape an output to a certain shape.
