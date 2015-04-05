@@ -80,7 +80,7 @@ class Sequential(object):
             if shuffle:
                 np.random.shuffle(index_array)
 
-            nb_batch = np.ceil(len(X)/float(batch_size))
+            nb_batch = int(np.ceil(len(X)/float(batch_size)))
             progbar = Progbar(target=len(X))
             for batch_index in range(0, nb_batch):
                 batch_start = batch_index*batch_size
