@@ -32,6 +32,9 @@ class Layer(object):
             weights.append(p.get_value())
         return weights
 
+    def get_nb_samples(self):
+        return 2
+
 
 class Dropout(Layer):
     '''
@@ -78,6 +81,24 @@ class Reshape(Layer):
     def output(self, train):
         X = self.get_input(train)
         nshape = make_tuple(X.shape[0], *self.dims)
+        return theano.tensor.reshape(X, nshape)
+
+class AdvancedReshape(Layer):
+    '''
+        Reshape an output to a certain shape.
+        Allows advanced reshaping, such that the total size of the array is maintained before and after reshaping,
+            with no other restrictions.
+        Can't be used as first layer in a model (no fixed input!)
+        Example of usage: Reshaping a 2D batch of inputs into a tensor3 (and/or back again)
+    '''
+    def __init__(self, new_shape_fn):
+        assert(callable(new_shape_fn))
+        self.new_shape_fn = new_shape_fn
+        self.params = []
+
+    def output(self, train):
+        X = self.get_input(train)
+        nshape = self.new_shape_fn(self.get_nb_samples(), X.shape)
         return theano.tensor.reshape(X, nshape)
 
 
