@@ -13,6 +13,11 @@ def to_categorical(y, nb_classes=None):
         Y[i, y[i]] = 1.
     return Y
 
+def normalize(a, axis=-1, order=2):
+    l2 = np.atleast_1d(np.linalg.norm(a, order, axis))
+    l2[l2==0] = 1
+    return a / np.expand_dims(l2, axis)
+
 
 def binary_logloss(p, y):
     epsilon = 1e-15
