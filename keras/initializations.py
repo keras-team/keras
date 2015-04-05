@@ -2,7 +2,7 @@ import theano
 import theano.tensor as T
 import numpy as np
 
-from utils.theano_utils import sharedX
+from utils.theano_utils import sharedX, shared_zeros
 
 def uniform(shape, scale=0.05):
     return sharedX(np.random.uniform(low=-scale, high=scale, size=shape))
@@ -29,6 +29,9 @@ def orthogonal(shape, scale=1.1):
     q = u if u.shape == flat_shape else v # pick the one with the correct shape
     q = q.reshape(shape)
     return sharedX(scale * q[:shape[0], :shape[1]])
+
+def zero(shape):
+    return shared_zeros(shape)
 
 
 from utils.generic_utils import get_from_module
