@@ -44,8 +44,8 @@ class Dropout(Layer):
         self.p = p
         self.params = []
 
-    def output(self, train):
-        X = self.get_input(train)
+    def output(self, train, batch_size):
+        X = self.get_input(train, batch_size)
         if self.p > 0.:
             retain_prob = 1. - self.p
             if train:
@@ -78,8 +78,8 @@ class Reshape(Layer):
         self.dims = dims
         self.params = []
 
-    def output(self, train):
-        X = self.get_input(train)
+    def output(self, train, batch_size):
+        X = self.get_input(train, batch_size)
         nshape = make_tuple(X.shape[0], *self.dims)
         return theano.tensor.reshape(X, nshape)
 
@@ -111,8 +111,8 @@ class Flatten(Layer):
         self.size = size
         self.params = []
 
-    def output(self, train):
-        X = self.get_input(train)
+    def output(self, train, batch_size):
+        X = self.get_input(train, batch_size)
         nshape = (X.shape[0], self.size)
         return theano.tensor.reshape(X, nshape)
 
@@ -128,8 +128,8 @@ class RepeatVector(Layer):
         self.n = n
         self.params = []
 
-    def output(self, train):
-        X = self.get_input(train)
+    def output(self, train, batch_size):
+        X = self.get_input(train, batch_size)
         tensors = [X]*self.n
         stacked = theano.tensor.stack(*tensors)
         return stacked.dimshuffle((1,0,2))
@@ -180,7 +180,7 @@ class Embedding(Layer):
         if weights is not None:
             self.set_weights(weights)
 
-    def output(self, train):
-        X = self.get_input(train)
+    def output(self, train, batch_size):
+        X = self.get_input(train, batch_size)
         return self.W[X]
 

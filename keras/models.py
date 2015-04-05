@@ -92,7 +92,6 @@ class Sequential(object):
                 loss = self._train(X_batch, y_batch)
                 
                 if verbose:
-                    print "BI:,", batch_index, "m1:,", nb_batch - 1, "\n"
                     is_last_batch = (batch_index == nb_batch - 1)
                     if not is_last_batch or not do_validation:
                         progbar.update(batch_end, [('loss', loss)])

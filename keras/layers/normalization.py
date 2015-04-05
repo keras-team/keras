@@ -20,8 +20,8 @@ class BatchNormalization(Layer):
         if weights is not None:
             self.set_weights(weights)
 
-    def output(self, train):
-        X = self.get_input(train)
+    def output(self, train, batch_size):
+        X = self.get_input(train, batch_size)
         X_normed = (X - X.mean(keepdims=True)) / (X.std(keepdims=True) + self.epsilon)
         out = self.gamma * X_normed + self.beta
         return out
