@@ -33,7 +33,6 @@ class Layer(object):
         return weights
 
 
-
 class Dropout(Layer):
     '''
         Hinton's dropout. 
