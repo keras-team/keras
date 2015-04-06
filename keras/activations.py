@@ -28,12 +28,6 @@ def hard_sigmoid(x):
 def linear(x):
     return x
 
-def clip_high(x, high):
-    return T.minimum(x, high)
-
-def clip_low(x, low):
-    return T.maximum(x, low)
-
 from utils.generic_utils import get_from_module
 def get(identifier):
     return get_from_module(identifier, globals(), 'activation function')
