@@ -47,7 +47,7 @@ Note: this is base class for building optimizers, not an actual optimizer that c
 
 `keras.optimizers.Adagrad(lr=0.01, epsilon=1e-6)` [[source](https://github.com/fchollet/keras/blob/master/keras/optimizers.py)]
 
-It is recommended to leave the parameters of this optimizer at their default value.
+It is recommended to leave the parameters of this optimizer at their default values.
 
 - __lr__: float >= 0. Learning rate. 
 - __epsilon__: float >= 0. 
@@ -57,7 +57,7 @@ It is recommended to leave the parameters of this optimizer at their default val
 
 `keras.optimizers.Adadelta(lr=1.0, rho=0.95, epsilon=1e-6)` [[source](https://github.com/fchollet/keras/blob/master/keras/optimizers.py)]
 
-It is recommended to leave the parameters of this optimizer at their default value.
+It is recommended to leave the parameters of this optimizer at their default values.
 
 - __lr__: float >= 0. Learning rate. It is recommended to leave it at the default value.
 - __rho__: float >= 0. 
@@ -69,7 +69,7 @@ For more info, see *"Adadelta: an adaptive learning rate method"* by Matthew Zei
 
 `keras.optimizers.RMSprop(lr=0.001, rho=0.9, epsilon=1e-6)` [[source](https://github.com/fchollet/keras/blob/master/keras/optimizers.py)]
 
-It is recommended to leave the parameters of this optimizer at their default value.
+It is recommended to leave the parameters of this optimizer at their default values.
 
 - __lr__: float >= 0. Learning rate. 
 - __rho__: float >= 0.

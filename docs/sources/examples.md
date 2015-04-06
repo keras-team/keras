@@ -1,5 +1,7 @@
 ## Examples
 
+Here are a few examples to get you started!
+
 ### Multilayer Perceptron (MLP):
 
 ```python
