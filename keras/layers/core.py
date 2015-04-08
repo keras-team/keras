@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import theano
 import theano.tensor as T
+import numpy as np
 
 from .. import activations, initializations
 from ..utils.theano_utils import shared_zeros, floatX
@@ -63,6 +64,20 @@ class Activation(Layer):
     def output(self, train):
         X = self.get_input(train)
         return self.activation(X)
+
+
+class Clip(Layer):
+    '''
+        Apply a clipping (low, high or both) to an activation
+    '''
+    def __init__(self, low=-np.inf, high=np.inf):
+        self.low = low
+        self.high = high
+        self.params = []
+
+    def output(self, train):#, current_batch_size):
+        X = self.get_input(train)#, current_batch_size)
+        return T.maximum(T.minimum(X, self.high), self.low)
 
 
 class Reshape(Layer):
