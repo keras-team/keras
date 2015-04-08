@@ -43,8 +43,8 @@ class SimpleRNN(Layer):
         '''
         return self.activation(x_t + T.dot(h_tm1, u))
 
-    def output(self, train):
-        X = self.get_input(train) # shape: (nb_samples, time (padded with zeros at the end), input_dim)
+    def output(self, train, current_batch_size):
+        X = self.get_input(train, current_batch_size) # shape: (nb_samples, time (padded with zeros at the end), input_dim)
         # new shape: (time, nb_samples, input_dim) -> because theano.scan iterates over main dimension
         X = X.dimshuffle((1,0,2)) 
 
@@ -105,8 +105,8 @@ class SimpleDeepRNN(Layer):
             o += self.inner_activation(T.dot(args[i], args[i+self.depth]))
         return o        
 
-    def output(self, train):
-        X = self.get_input(train)
+    def output(self, train, current_batch_size):
+        X = self.get_input(train, current_batch_size)
         X = X.dimshuffle((1,0,2)) 
 
         x = T.dot(X, self.W) + self.b
@@ -196,8 +196,8 @@ class GRU(Layer):
         h_t = z * h_tm1 + (1 - z) * hh_t
         return h_t
 
-    def output(self, train):
-        X = self.get_input(train) 
+    def output(self, train, current_batch_size):
+        X = self.get_input(train, current_batch_size)
         X = X.dimshuffle((1,0,2)) 
 
         x_z = T.dot(X, self.W_z) + self.b_z
@@ -294,8 +294,8 @@ class LSTM(Layer):
         h_t = o_t * self.activation(c_t)
         return h_t, c_t
 
-    def output(self, train):
-        X = self.get_input(train) 
+    def output(self, train, current_batch_size):
+        X = self.get_input(train, current_batch_size)
         X = X.dimshuffle((1,0,2))
 
         xi = T.dot(X, self.W_i) + self.b_i
