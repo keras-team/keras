@@ -9,6 +9,7 @@ import numpy as np
 
 def base_filter():
     f = string.punctuation
+    f = f.replace("'", '')
     f += '\t\n'
     return f
 
@@ -17,8 +18,9 @@ def text_to_word_sequence(text, filters=base_filter(), lower=True, split=" "):
     '''
     if lower:
         text = text.lower()
-    text = text.translate(string.maketrans("",""), filters)
-    return text.split(split)
+    text = text.translate(string.maketrans(filters, split*len(filters)))
+    seq = text.split(split)
+    return filter(None, seq)
 
 
 def one_hot(text, n):
@@ -38,8 +40,11 @@ class Tokenizer(object):
     def fit_on_texts(self, texts):
         '''
             required before using texts_to_sequences or texts_to_matrix
+            @param texts: can be a list or a generator (for memory-efficiency)
         '''
+        self.document_count = 0
         for text in texts:
+            self.document_count += 1
             seq = text_to_word_sequence(text, self.filters, self.lower)
             for w in seq:
                 if w in self.word_counts:
@@ -51,12 +56,11 @@ class Tokenizer(object):
                     self.word_docs[w] += 1
                 else:
                     self.word_docs[w] = 1
-        self.document_count = len(texts)
 
         wcounts = self.word_counts.items()
         wcounts.sort(key = lambda x: x[1], reverse=True)
         sorted_voc = [wc[0] for wc in wcounts]
-        self.word_index = dict(zip(sorted_voc, range(len(sorted_voc))))
+        self.word_index = dict(zip(sorted_voc, range(1, len(sorted_voc)+1)))
 
         self.index_docs = {}
         for w, c in self.word_docs.items():
@@ -83,10 +87,24 @@ class Tokenizer(object):
         '''
             Transform each text in texts in a sequence of integers.
             Only top "nb_words" most frequent words will be taken into account.
-            Only words know by the tokenizer will be taken into account.
+            Only words known by the tokenizer will be taken into account.
+
+            Returns a list of sequences.
+        '''
+        res = []
+        for vect in self.texts_to_sequences_generator(texts):
+            res.append(vect)
+        return res
+
+    def texts_to_sequences_generator(self, texts):
+        '''
+            Transform each text in texts in a sequence of integers.
+            Only top "nb_words" most frequent words will be taken into account.
+            Only words known by the tokenizer will be taken into account.
+
+            Yields individual sequences.
         '''
         nb_words = self.nb_words
-        res = []
         for text in texts:
             seq = text_to_word_sequence(text, self.filters, self.lower)
             vect = []
@@ -97,8 +115,8 @@ class Tokenizer(object):
                         pass
                     else:
                         vect.append(i)
-            res.append(vect)
-        return res
+            yield vect
+
 
     def texts_to_matrix(self, texts, mode="binary"):
         '''
