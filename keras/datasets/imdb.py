@@ -3,7 +3,7 @@ import gzip
 from data_utils import get_file
 import random
 
-def load_data(path="imdb.pkl", nb_words=100000, maxlen=None, test_split=0.2, seed=113):
+def load_data(path="imdb.pkl", nb_words=None, skip_top=0, maxlen=None, test_split=0.2, seed=113):
     path = get_file(path, origin="https://s3.amazonaws.com/text-datasets/imdb.pkl")
 
     if path.endswith(".gz"):
@@ -29,7 +29,10 @@ def load_data(path="imdb.pkl", nb_words=100000, maxlen=None, test_split=0.2, see
         X = new_X
         labels = new_labels
 
-    X = [[1 if w >= nb_words else w for w in x] for x in X]
+    if not nb_words:
+        nb_words = max([max(x) for x in X])
+
+    X = [[0 if (w >= nb_words or w < skip_top) else w for w in x] for x in X]
     X_train = X[:int(len(X)*(1-test_split))]
     y_train = labels[:int(len(X)*(1-test_split))]
 

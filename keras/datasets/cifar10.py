@@ -11,7 +11,7 @@ def load_data(test_split=0.1, seed=113):
 
     nb_samples = 50000
     X = np.zeros((nb_samples, 3, 32, 32), dtype="uint8")
-    y = np.zeros((nb_samples,))
+    y = np.zeros((nb_samples,), dtype="uint8")
     for i in range(1, 6):
         fpath = path + '/data_batch_' + str(i)
         f = open(fpath, 'rb')
