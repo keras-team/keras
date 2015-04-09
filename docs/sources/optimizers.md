@@ -23,7 +23,10 @@ model.compile(loss='mean_squared_error', optimizer='sgd')
 
 ## Base class
 
-`keras.optimizers.Optimizer(**kwargs)` [[source](https://github.com/fchollet/keras/blob/master/keras/optimizers.py)]
+```python
+keras.optimizers.Optimizer(**kwargs)
+```
+[[source](https://github.com/fchollet/keras/blob/master/keras/optimizers.py)]
 
 All optimizers descended from this class support the following keyword arguments:
 
@@ -36,7 +39,10 @@ Note: this is base class for building optimizers, not an actual optimizer that c
 
 ##  SGD
 
-`keras.optimizers.SGD(lr=0.01, momentum=0., decay=0., nesterov=False)` [[source](https://github.com/fchollet/keras/blob/master/keras/optimizers.py)]
+```python
+keras.optimizers.SGD(lr=0.01, momentum=0., decay=0., nesterov=False)
+``` 
+[[source](https://github.com/fchollet/keras/blob/master/keras/optimizers.py)]
 
 - __lr__: float >= 0. Learning rate.
 - __momentum__: float >= 0. Parameter updates momentum.
@@ -45,7 +51,10 @@ Note: this is base class for building optimizers, not an actual optimizer that c
 
 ##  Adagrad
 
-`keras.optimizers.Adagrad(lr=0.01, epsilon=1e-6)` [[source](https://github.com/fchollet/keras/blob/master/keras/optimizers.py)]
+```python
+keras.optimizers.Adagrad(lr=0.01, epsilon=1e-6)
+```
+[[source](https://github.com/fchollet/keras/blob/master/keras/optimizers.py)]
 
 It is recommended to leave the parameters of this optimizer at their default values.
 
@@ -55,7 +64,10 @@ It is recommended to leave the parameters of this optimizer at their default val
 
 ##  Adadelta
 
-`keras.optimizers.Adadelta(lr=1.0, rho=0.95, epsilon=1e-6)` [[source](https://github.com/fchollet/keras/blob/master/keras/optimizers.py)]
+```python
+keras.optimizers.Adadelta(lr=1.0, rho=0.95, epsilon=1e-6)
+```
+[[source](https://github.com/fchollet/keras/blob/master/keras/optimizers.py)]
 
 It is recommended to leave the parameters of this optimizer at their default values.
 
@@ -67,7 +79,10 @@ For more info, see *"Adadelta: an adaptive learning rate method"* by Matthew Zei
 
 ##  RMSprop
 
-`keras.optimizers.RMSprop(lr=0.001, rho=0.9, epsilon=1e-6)` [[source](https://github.com/fchollet/keras/blob/master/keras/optimizers.py)]
+```python
+keras.optimizers.RMSprop(lr=0.001, rho=0.9, epsilon=1e-6)
+```
+[[source](https://github.com/fchollet/keras/blob/master/keras/optimizers.py)]
 
 It is recommended to leave the parameters of this optimizer at their default values.
 

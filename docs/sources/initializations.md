@@ -13,6 +13,7 @@ model.add(Dense(64, 64, init='uniform'))
 ## Available initializations
 
 - __uniform__
+- __lecun_uniform__: Uniform initialization scaled by the square root of the number of inputs (LeCun 98).
 - __normal__
-- __orthogonal__: use with square 2D layers (`shape[0] == shape[1]`).
+- __orthogonal__: Use with square 2D layers (`shape[0] == shape[1]`).
 - __zero__
