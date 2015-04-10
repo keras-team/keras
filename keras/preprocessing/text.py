@@ -23,16 +23,17 @@ def text_to_word_sequence(text, filters=base_filter(), lower=True, split=" "):
     return filter(None, seq)
 
 
-def one_hot(text, n):
+def one_hot(text, n, filters=base_filter(), lower=True, split=" "):
     seq = text_to_word_sequence(text)
-    return [abs(hash(w))%n for w in seq]
+    return [(abs(hash(w))%(n-1)+1) for w in seq]
 
 
 class Tokenizer(object):
-    def __init__(self, filters=base_filter(), lower=True, nb_words=None):
+    def __init__(self, nb_words=None, filters=base_filter(), lower=True, split=" "):
         self.word_counts = {}
         self.word_docs = {}
         self.filters = filters
+        self.split = split
         self.lower = lower
         self.nb_words = nb_words
         self.document_count = 0
@@ -45,7 +46,7 @@ class Tokenizer(object):
         self.document_count = 0
         for text in texts:
             self.document_count += 1
-            seq = text_to_word_sequence(text, self.filters, self.lower)
+            seq = text_to_word_sequence(text, self.filters, self.lower, self.split)
             for w in seq:
                 if w in self.word_counts:
                     self.word_counts[w] += 1
@@ -106,7 +107,7 @@ class Tokenizer(object):
         '''
         nb_words = self.nb_words
         for text in texts:
-            seq = text_to_word_sequence(text, self.filters, self.lower)
+            seq = text_to_word_sequence(text, self.filters, self.lower, self.split)
             vect = []
             for w in seq:
                 i = self.word_index.get(w)
