@@ -77,6 +77,8 @@ Standard 1D fully-connect layer.
 
 - __Input shape__: 2D tensor with shape: `(nb_samples, input_dim)`.
 
+- __Output shape__: 2D tensor with shape: `(nb_samples, output_dim)`.
+
 - __Arguments__:
 
     - __input_dim__: int >= 0. 
@@ -96,6 +98,8 @@ Apply an activation function to the input.
 
 - __Input shape__: This layer does not assume a specific input shape. As a result, it cannot be used as the first layer in a model.
 
+- __Output shape__: Same as input.
+
 - __Arguments__:
 
     - __activation__: name of activation function to use (see: [activations](../activations.md)), or alternatively, elementwise Theano function.
@@ -110,6 +114,8 @@ keras.layers.core.Dropout(p)
 Apply dropout to the input. Dropout consists in randomly setting a fraction `p` of input units to 0 at each update during training time, which helps prevent overfitting. Reference: [Dropout: A Simple Way to Prevent Neural Networks from Overfitting](http://www.cs.toronto.edu/~rsalakhu/papers/srivastava14a.pdf)
 
 - __Input shape__: This layer does not assume a specific input shape. As a result, it cannot be used as the first layer in a model.
+
+- __Output shape__: Same as input.
 
 - __Arguments__:
 
@@ -126,6 +132,8 @@ keras.layers.core.Reshape(*dims)
 Reshape the input to a new shape containing the same number of units. 
 
 - __Input shape__: This layer does not assume a specific input shape. As a result, it cannot be used as the first layer in a model.
+
+- __Output shape__: `(nb_samples, *dims)`.
 
 - __Arguments__:
 
@@ -149,6 +157,8 @@ Convert a nD input to 1D.
 
 - __Input shape__: (nb_samples, *). This layer cannot be used as the first layer in a model.
 
+- __Output shape__: `(nb_samples, nb_input_units)`.
+
 ---
 
 ## RepeatVector
@@ -159,6 +169,8 @@ keras.layers.core.RepeatVector(n)
 Repeat the 1D input n times. Dimensions of input are assumed to be (nb_samples, dim). Output will have the shape (nb_samples, n, dim).
 
 - __Input shape__: This layer does not assume a specific input shape. As a result, it cannot be used as the first layer in a model.
+
+- __Output shape__: `(nb_samples, n, input_dims)`.
 
 - __Arguments__:
     - __n__: int. 
