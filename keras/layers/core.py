@@ -152,7 +152,7 @@ class TimeDistributedDense(Layer):
         self.input_dim = input_dim
         self.output_dim = output_dim
 
-        self.input = T.matrix()
+        self.input = T.tensor3()
         self.W = self.init((self.input_dim, self.output_dim))
         self.b = shared_zeros((self.output_dim))
 
