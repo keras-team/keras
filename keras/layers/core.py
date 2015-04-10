@@ -86,13 +86,13 @@ class Flatten(Layer):
         Reshape input to flat shape.
         First dimension is assumed to be nb_samples.
     '''
-    def __init__(self, size):
-        self.size = size
+    def __init__(self):
         self.params = []
 
     def output(self, train):
         X = self.get_input(train)
-        nshape = (X.shape[0], self.size)
+        size = theano.tensor.prod(X.shape) / X.shape[0]
+        nshape = (X.shape[0], size)
         return theano.tensor.reshape(X, nshape)
 
 
