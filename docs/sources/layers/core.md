@@ -94,7 +94,7 @@ Standard 1D fully-connect layer.
 keras.layers.core.TimeDistributedDense(input_dim, output_dim, init='uniform', activation='linear', weights=None)
 ```
 
-Fully-connect layer distributed over time dimension. Useful after a recurrent network with `return_sequence=True`
+Fully-connect layer distributed over time dimension. Useful after a recurrent network with `return_sequences=True`.
 
 - __Input shape__: 3D tensor with shape: `(nb_samples, time_dimension, input_dim)`.
 
@@ -108,12 +108,10 @@ Fully-connect layer distributed over time dimension. Useful after a recurrent ne
 
 - __Example__:
 ```python
-# input shape: (nb_samples, 10)
-model.add(Dense(10, 10)) # output shape: (nb_samples, 10)
-model.add(Repeat(2))  # output shape: (nb_samples, 2, 10)
-model.add(TimeDistributedDense(10, 100)) # output shape: (nb_samples, 2, 100)
+# input shape: (nb_samples, nb_timesteps, 10)
+model.add(LSTM(10, 5, return_sequences=True)) # output shape: (nb_samples, nb_timesteps, 5)
+model.add(TimeDistributedDense(5, 10)) # output shape: (nb_samples, nb_timesteps, 10)
 ```
-
 
 
 ---
@@ -208,6 +206,6 @@ Repeat the 1D input n times. Dimensions of input are assumed to be (nb_samples, 
 ```python
 # input shape: (nb_samples, 10)
 model.add(Dense(10, 100)) # output shape: (nb_samples, 100)
-model.add(Repeat(2))  # output shape: (nb_samples, 2, 10)
+model.add(RepeatVector(2))  # output shape: (nb_samples, 2, 10)
 ```
 
