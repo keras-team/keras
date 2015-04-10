@@ -103,7 +103,7 @@ class SimpleDeepRNN(Layer):
         o = args[0]
         for i in range(1, self.depth+1):
             o += self.inner_activation(T.dot(args[i], args[i+self.depth]))
-        return o        
+        return self.activation(o)
 
     def output(self, train):
         X = self.get_input(train)
@@ -152,7 +152,7 @@ class GRU(Layer):
     def __init__(self, input_dim, output_dim=128, 
         init='uniform', inner_init='orthogonal',
         activation='sigmoid', inner_activation='hard_sigmoid',
-        truncate_gradient=-1, weights=None, return_sequences=False):
+        weights=None, truncate_gradient=-1, return_sequences=False):
 
         self.input_dim = input_dim
         self.output_dim = output_dim
@@ -244,7 +244,7 @@ class LSTM(Layer):
     def __init__(self, input_dim, output_dim=128, 
         init='uniform', inner_init='orthogonal', 
         activation='tanh', inner_activation='hard_sigmoid',
-        truncate_gradient=-1, weights=None, return_sequences=False):
+        weights=None, truncate_gradient=-1, return_sequences=False):
 
         self.input_dim = input_dim
         self.output_dim = output_dim
