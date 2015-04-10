@@ -172,27 +172,4 @@ class TimeDistributedDense(Layer):
                                 outputs_info=None)
         return output.dimshuffle(1,0,2)
 
-class Embedding(Layer):
-    '''
-        Turn a list of integers >=0 into a dense vector of fixed size. 
-        eg. [4, 50, 123, 26] -> [0.25, 0.1]
-
-        @input_dim: size of vocabulary (highest input integer + 1)
-        @out_dim: size of dense representation
-    '''
-    def __init__(self, input_dim, output_dim, init='uniform', weights=None):
-        self.init = initializations.get(init)
-        self.input_dim = input_dim
-        self.output_dim = output_dim
-
-        self.input = T.imatrix()
-        self.W = self.init((self.input_dim, self.output_dim))
-        self.params = [self.W]
-
-        if weights is not None:
-            self.set_weights(weights)
-
-    def output(self, train):
-        X = self.get_input(train)
-        return self.W[X]
 

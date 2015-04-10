@@ -4,7 +4,8 @@ from keras.preprocessing import sequence
 from keras.optimizers import SGD, RMSprop, Adagrad
 from keras.utils import np_utils
 from keras.models import Sequential
-from keras.layers.core import Dense, Dropout, Activation, Embedding
+from keras.layers.core import Dense, Dropout, Activation
+from keras.layers.embeddings import Embedding
 from keras.layers.recurrent import LSTM, GRU
 from keras.datasets import imdb
 

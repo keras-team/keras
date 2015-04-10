@@ -45,7 +45,7 @@ print "Building model..."
 model = Sequential()
 model.add(Dense(max_words, 256, init='normal'))
 model.add(Activation('relu'))
-#model.add(BatchNormalization(input_shape=(256,))) # try without batch normalization (doesn't work as well!)
+model.add(BatchNormalization(input_shape=(256,))) # try without batch normalization (doesn't work as well!)
 model.add(Dropout(0.5))
 model.add(Dense(256, nb_classes, init='normal'))
 model.add(Activation('softmax'))
