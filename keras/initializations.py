@@ -25,7 +25,7 @@ def glorot_normal(shape):
     '''
     fan_in = shape[0] if len(shape) == 2 else np.prod(shape[1:])
     fan_out = shape[1] if len(shape) == 2 else shape[0]
-    s = np.sqrt(2. / (fan_in + fan_out)
+    s = np.sqrt(2. / (fan_in + fan_out))
     return normal(shape, s)
 
 def he_normal(shape):
