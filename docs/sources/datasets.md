@@ -12,15 +12,15 @@ Dataset of 50,000 32x32 color images, labeled over 10 categories.
 (X_train, y_train), (X_test, y_test) = cifar10.load_data(test_split=0.1, seed=113)
 ```
 
-__Returns:__
+- __Return:__
+    - 2 tuples:
+        - __X_train, X_test__: uint8 array of RGB image data with shape (nb_samples, 3, 32, 32).
+        - __y_train, y_test__: uint8 array of category labels (integers in range 0-9) with shape (nb_samples,).
 
-- X_train, X_test: uint8 array of RGB image data with shape (nb_samples, 3, 32, 32).
-- y_train, y_test: uint8 array of category labels (integers in range 0-9) with shape (nb_samples,).
+- __Arguments:__
 
-__Arguments:__
-
-- test_split: float. Fraction of the dataset to be used as test data.
-- seed: int. Seed for reproducible data shuffling.
+    - __test_split__: float. Fraction of the dataset to be used as test data.
+    - __seed__: int. Seed for reproducible data shuffling.
 
 ---
 
@@ -38,19 +38,19 @@ As a convention, "0" does not stand for a specific word, but instead is used to 
 (X_train, y_train), (X_test, y_test) = imdb.load_data(path="imdb.pkl", \
 nb_words=None, skip_top=0, maxlen=None, test_split=0.1, seed=113)`
 ```
-__Returns:__
+- __Return:__
+    - 2 tuples:
+        - __X_train, X_test__: list of sequences, which are lists of indexes (integers). If the nb_words argument was specific, the maximum possible index value is nb_words-1. If the maxlen argument was specified, the largest possible sequence length is maxlen.
+        - __y_train, y_test__: list of integer labels (1 or 0). 
 
-- X_train, X_test: list of sequences, which are lists of indexes (integers). If the nb_words argument was specific, the maximum possible index value is nb_words-1. If the maxlen argument was specified, the largest possible sequence length is maxlen.
-- y_train, y_test: list of integer labels (1 or 0). 
+- __Arguments:__
 
-__Arguments:__
-
-- path: if you do have the data locally (at `'~/.keras/datasets/' + path`), if will be downloaded to this location (in cPickle format).
-- nb_words: integer or None. Top most frequent words to consider. Any less frequent word will appear as 0 in the sequence data.
-- skip_top: integer. Top most frequent words to ignore (they will appear as 0s in the sequence data).
-- maxlen: int. Maximum sequence length. Any longer sequence will be truncated.
-- test_split: float. Fraction of the dataset to be used as test data.
-- seed: int. Seed for reproducible data shuffling.
+    - __path__: if you do have the data locally (at `'~/.keras/datasets/' + path`), if will be downloaded to this location (in cPickle format).
+    - __nb_words__: integer or None. Top most frequent words to consider. Any less frequent word will appear as 0 in the sequence data.
+    - __skip_top__: integer. Top most frequent words to ignore (they will appear as 0s in the sequence data).
+    - __maxlen__: int. Maximum sequence length. Any longer sequence will be truncated.
+    - __test_split__: float. Fraction of the dataset to be used as test data.
+    - __seed__: int. Seed for reproducible data shuffling.
 
 ---
 
@@ -75,8 +75,8 @@ This dataset also makes available the word index used for encoding the sequences
 word_index = reuters.get_word_index(path="reuters_word_index.pkl")
 ```
 
-__Returns:__ A dictionary where key are words (str) and values are indexes (integer). eg. `word_index["giraffe"]` might return `1234`. 
+- __Return:__ A dictionary where key are words (str) and values are indexes (integer). eg. `word_index["giraffe"]` might return `1234`. 
 
-__Arguments:__
+- __Arguments:__
 
-- path: if you do have the index file locally (at `'~/.keras/datasets/' + path`), if will be downloaded to this location (in cPickle format).
+    - __path__: if you do have the index file locally (at `'~/.keras/datasets/' + path`), if will be downloaded to this location (in cPickle format).
