@@ -7,12 +7,12 @@ keras.layers.core.Layer()
 __Methods__:
 
 ```python
-connect(self, previous_layer)
+connect(previous_layer)
 ```
 
-- Connect the input of the current layer to the output of the argument layer.
+Connect the input of the current layer to the output of the argument layer.
 
-- __Returns__: None.
+- __Return__: None.
 
 - __Arguments__: 
     - __previous_layer__: Layer object.
@@ -20,12 +20,12 @@ connect(self, previous_layer)
 
 
 ```python
-output(self, train)
+output(train)
 ```
 
-- Get the output of the layer.
+Get the output of the layer.
 
-- __Returns__: Theano tensor.
+- __Return__: Theano tensor.
 
 - __Arguments__: 
     - __train__: Boolean. Specifies whether output is computed in training mode or in testing mode, which can change the logic, for instance in there are any `Dropout` layers in the network. 
@@ -33,12 +33,12 @@ output(self, train)
 
 
 ```python
-get_input(self, train)
+get_input(train)
 ```
 
-- Get the input of the layer.
+Get the input of the layer.
 
-- __Returns__: Theano tensor.
+- __Return__: Theano tensor.
 
 - __Arguments__: 
     - __train__: Boolean. Specifies whether output is computed in training mode or in testing mode, which can change the logic, for instance in there are any `Dropout` layers in the network. 
@@ -46,20 +46,20 @@ get_input(self, train)
 
 
 ```python
-get_weights(self)
+get_weights()
 ```
 
-- Get the weights of the parameters of the layer.
+Get the weights of the parameters of the layer.
 
-- __Returns__: List of numpy arrays (one per layer parameter). 
+- __Return__: List of numpy arrays (one per layer parameter). 
 
 
 
 ```python
-set_weights(self, weights)
+set_weights(weights)
 ```
 
-- Set the weights of the parameters of the layer.
+Set the weights of the parameters of the layer.
 
 - __Arguments__: 
     - __weights__: List of numpy arrays (one per layer parameter). Should be in the same order as what `get_weights(self)` returns.
@@ -73,9 +73,9 @@ set_weights(self, weights)
 keras.layers.core.Dense(input_dim, output_dim, init='uniform', activation='linear', weights=None)
 ```
 
-- Standard 1D fully-connect layer. 
+Standard 1D fully-connect layer. 
 
-- __Input shape__: `(nb_samples, input_dim)`.
+- __Input shape__: 2D tensor with shape: `(nb_samples, input_dim)`.
 
 - __Arguments__:
 
@@ -92,7 +92,7 @@ keras.layers.core.Dense(input_dim, output_dim, init='uniform', activation='linea
 ```python
 keras.layers.core.Activation(activation)
 ```
-- Apply an activation function to the input. 
+Apply an activation function to the input. 
 
 - __Input shape__: This layer does not assume a specific input shape. As a result, it cannot be used as the first layer in a model.
 
@@ -107,7 +107,7 @@ keras.layers.core.Activation(activation)
 ```python
 keras.layers.core.Dropout(p)
 ```
-- Apply dropout to the input. Dropout consists in randomly setting a fraction `p` of input units to 0 at each update during training time, which helps prevent overfitting. Reference: [Dropout: A Simple Way to Prevent Neural Networks from Overfitting](http://www.cs.toronto.edu/~rsalakhu/papers/srivastava14a.pdf)
+Apply dropout to the input. Dropout consists in randomly setting a fraction `p` of input units to 0 at each update during training time, which helps prevent overfitting. Reference: [Dropout: A Simple Way to Prevent Neural Networks from Overfitting](http://www.cs.toronto.edu/~rsalakhu/papers/srivastava14a.pdf)
 
 - __Input shape__: This layer does not assume a specific input shape. As a result, it cannot be used as the first layer in a model.
 
@@ -123,7 +123,7 @@ keras.layers.core.Dropout(p)
 keras.layers.core.Reshape(*dims)
 ```
 
-- Reshape the input to a new shape containing the same number of units. 
+Reshape the input to a new shape containing the same number of units. 
 
 - __Input shape__: This layer does not assume a specific input shape. As a result, it cannot be used as the first layer in a model.
 
@@ -145,7 +145,8 @@ model.add(Reshape(10, 10))  # output shape: (nb_samples, 10, 10)
 keras.layers.core.Flatten()
 ```
 
-- Convert a nD input to 1D. 
+Convert a nD input to 1D. 
+
 - __Input shape__: (nb_samples, *). This layer cannot be used as the first layer in a model.
 
 ---
@@ -155,7 +156,7 @@ keras.layers.core.Flatten()
 keras.layers.core.RepeatVector(n)
 ```
 
-- Repeat the 1D input n times. Dimensions of input are assumed to be (nb_samples, dim). Output will have the shape (nb_samples, n, dim).
+Repeat the 1D input n times. Dimensions of input are assumed to be (nb_samples, dim). Output will have the shape (nb_samples, n, dim).
 
 - __Input shape__: This layer does not assume a specific input shape. As a result, it cannot be used as the first layer in a model.
 

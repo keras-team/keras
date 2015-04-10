@@ -22,6 +22,8 @@ __Arguments:__
 - test_split: float. Fraction of the dataset to be used as test data.
 - seed: int. Seed for reproducible data shuffling.
 
+---
+
 ## IMDB Movie reviews sentiment classification
 
 `keras.datasets.imdb`
@@ -49,6 +51,8 @@ __Arguments:__
 - maxlen: int. Maximum sequence length. Any longer sequence will be truncated.
 - test_split: float. Fraction of the dataset to be used as test data.
 - seed: int. Seed for reproducible data shuffling.
+
+---
 
 ## Reuters newswire topics classification
 
