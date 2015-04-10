@@ -1,7 +1,7 @@
 import numpy as np
 import random
 
-def pad_sequences(seqs, maxlen=None, dtype='int32'):
+def pad_sequences(sequences, maxlen=None, dtype='int32'):
     """
         Pad each sequence to the same lenght: 
         the lenght of the longuest sequence.
@@ -9,16 +9,15 @@ def pad_sequences(seqs, maxlen=None, dtype='int32'):
         If maxlen is provided, any sequence longer
         than maxlen is truncated to maxlen.
     """
-    lengths = [len(s) for s in seqs]
+    lengths = [len(s) for s in sequences]
 
-    nb_samples = len(seqs)
+    nb_samples = len(sequences)
     if maxlen is None:
         maxlen = np.max(lengths)
 
     x = np.zeros((nb_samples, maxlen)).astype(dtype)
-    for idx, s in enumerate(seqs):
+    for idx, s in enumerate(sequences):
         x[idx, :lengths[idx]] = s[:maxlen]
-
     return x
 
 
@@ -45,7 +44,8 @@ def make_sampling_table(size, sampling_factor=1e-5):
 
 
 def skipgrams(sequence, vocabulary_size, 
-    window_size=4, negative_samples=1., shuffle=True, categorical=False, seed=None, sampling_table=None):
+    window_size=4, negative_samples=1., shuffle=True, 
+    categorical=False, sampling_table=None):
     ''' 
         Take a sequence (list of indexes of words), 
         returns couples of [word_index, other_word index] and labels (1s or 0s),
@@ -94,8 +94,7 @@ def skipgrams(sequence, vocabulary_size,
             labels += [0]*nb_negative_samples
 
     if shuffle:
-        if not seed:
-            seed = random.randint(0,10e6)
+        seed = random.randint(0,10e6)
         random.seed(seed)
         random.shuffle(couples)
         random.seed(seed)
