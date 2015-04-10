@@ -138,6 +138,39 @@ class Dense(Layer):
         output = self.activation(T.dot(X, self.W) + self.b)
         return output
 
+class TimeDistributedDense(Layer):
+    '''
+       Apply a same DenseLayer for each dimension[1] (shared_dimension) input 
+       Especially useful after a recurrent network with 'return_sequence=True'
+       Tensor input dimensions:   (nb_sample, shared_dimension, input_dim)
+       Tensor output dimensions:  (nb_sample, shared_dimension, output_dim)
+
+    '''
+    def __init__(self, input_dim, output_dim, init='uniform', activation='linear', weights=None):
+        self.init = initializations.get(init)
+        self.activation = activations.get(activation)
+        self.input_dim = input_dim
+        self.output_dim = output_dim
+
+        self.input = T.matrix()
+        self.W = self.init((self.input_dim, self.output_dim))
+        self.b = shared_zeros((self.output_dim))
+
+        self.params = [self.W, self.b]
+
+        if weights is not None:
+            self.set_weights(weights)
+
+    def output(self, train):
+        X = self.get_input(train)
+
+        def act_func(X):
+            return self.activation(T.dot(X, self.W) + self.b)
+
+        output, _ = theano.scan(fn = act_func,
+                                sequences = X.dimshuffle(1,0,2),
+                                outputs_info=None)
+        return output.dimshuffle(1,0,2)
 
 class Embedding(Layer):
     '''
