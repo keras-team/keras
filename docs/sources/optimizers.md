@@ -1,4 +1,3 @@
-# Optimizers
 
 ## Usage of optimizers
 
@@ -28,7 +27,6 @@ model.compile(loss='mean_squared_error', optimizer='sgd')
 ```python
 keras.optimizers.Optimizer(**kwargs)
 ```
-[[source](https://github.com/fchollet/keras/blob/master/keras/optimizers.py)]
 
 All optimizers descended from this class support the following keyword arguments:
 
@@ -46,7 +44,6 @@ Note: this is base class for building optimizers, not an actual optimizer that c
 ```python
 keras.optimizers.SGD(lr=0.01, momentum=0., decay=0., nesterov=False)
 ``` 
-[[source](https://github.com/fchollet/keras/blob/master/keras/optimizers.py)]
 
 __Arguments__:
 
@@ -62,7 +59,6 @@ __Arguments__:
 ```python
 keras.optimizers.Adagrad(lr=0.01, epsilon=1e-6)
 ```
-[[source](https://github.com/fchollet/keras/blob/master/keras/optimizers.py)]
 
 It is recommended to leave the parameters of this optimizer at their default values.
 
@@ -78,7 +74,6 @@ __Arguments__:
 ```python
 keras.optimizers.Adadelta(lr=1.0, rho=0.95, epsilon=1e-6)
 ```
-[[source](https://github.com/fchollet/keras/blob/master/keras/optimizers.py)]
 
 It is recommended to leave the parameters of this optimizer at their default values.
 
@@ -92,12 +87,11 @@ For more info, see *"Adadelta: an adaptive learning rate method"* by Matthew Zei
 
 ---
 
-##  RMSprop
+##  RMSprop 
 
 ```python
 keras.optimizers.RMSprop(lr=0.001, rho=0.9, epsilon=1e-6)
 ```
-[[source](https://github.com/fchollet/keras/blob/master/keras/optimizers.py)]
 
 It is recommended to leave the parameters of this optimizer at their default values.
 

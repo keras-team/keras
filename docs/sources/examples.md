@@ -1,8 +1,7 @@
-## Examples
 
 Here are a few examples to get you started!
 
-### Multilayer Perceptron (MLP):
+### Multilayer Perceptron (MLP)
 
 ```python
 from keras.models import Sequential
@@ -26,7 +25,9 @@ model.fit(X_train, y_train, nb_epoch=20, batch_size=16)
 score = model.evaluate(X_test, y_test, batch_size=16)
 ```
 
-### Alternative implementation of MLP:
+---
+
+### Alternative implementation of MLP
 
 ```python
 model = Sequential()
@@ -40,7 +41,9 @@ sgd = SGD(lr=0.1, decay=1e-6, momentum=0.9, nesterov=True)
 model.compile(loss='mean_squared_error', optimizer=sgd)
 ```
 
-### VGG-like convnet:
+---
+
+### VGG-like convnet
 
 ```python
 from keras.models import Sequential
@@ -78,7 +81,9 @@ model.fit(X_train, Y_train, batch_size=32, nb_epoch=1)
 
 ```
 
-### Sequence classification with LSTM:
+---
+
+### Sequence classification with LSTM
 
 ```python
 from keras.models import Sequential
@@ -98,7 +103,9 @@ model.fit(X_train, Y_train, batch_size=16, nb_epoch=10)
 score = model.evaluate(X_test, Y_test, batch_size=16)
 ```
 
-### Architecture for learning image captions with a convnet and a Gated Recurrent Unit:
+---
+
+### Architecture for learning image captions with a convnet and a Gated Recurrent Unit
 (word-level embedding, caption of maximum length 16 words).
 
 Note that getting this to actually "work" will require using a bigger convnet, initialized with pre-trained weights.
@@ -143,6 +150,8 @@ model.compile(loss='mean_squared_error', optimizer='rmsprop')
 model.fit(images, captions, batch_size=16, nb_epoch=100)
     
 ```
+
+---
 
 In the [examples folder](https://github.com/fchollet/keras/tree/master/examples), you will find example models for real datasets:
 

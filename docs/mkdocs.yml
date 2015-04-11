@@ -3,8 +3,8 @@ theme: readthedocs
 docs_dir: sources
 repo_url: http://github.com/fchollet/keras
 site_url: /
+theme_dir: theme
 site_description: Documentation for fast and lightweight Keras Deep Learning library.
-include_search: true
 
 dev_addr: '0.0.0.0:8000'
 google_analytics: ['UA-61785484-1', 'keras.io']

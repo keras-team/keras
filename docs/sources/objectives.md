@@ -1,4 +1,3 @@
-# Objectives
 
 ## Usage of objectives
 

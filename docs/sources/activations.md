@@ -1,4 +1,3 @@
-# Activations
 
 ## Usage of activations
 
