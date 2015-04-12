@@ -1,8 +1,8 @@
-# Keras: Python/Theano Deep Learning library
+# Keras: Theano-based Deep Learning library
 
 ## Overview
 
-Keras is a minimalist, highly modular neural network library in the spirit of Torch, written in Python, and using [Theano](http://deeplearning.net/software/theano/) for fast tensor manipulation on GPU and CPU. It was developed with a focus on enabling fast experimentation. 
+Keras is a minimalist, highly modular neural network library in the spirit of Torch, written in Python, that uses [Theano](http://deeplearning.net/software/theano/) under the hood for fast tensor manipulation on GPU and CPU. It was developed with a focus on enabling fast experimentation. 
 
 Use Keras if you need a deep learning library that:
 
@@ -54,20 +54,20 @@ Once your model looks good, configure its learning process with `.compile()`:
 model.compile(loss='categorical_crossentropy', optimizer='sgd')
 ```
 
-Alernatively, further configure your optimizer:
+If you need to, you can further configure your optimizer. A core principle of Keras is make things things reasonably simple, while allowing the user to be fully in control when they need to (the ultimate control being the easy extensibility of the source code).
 ```python
 from keras.optimizers import SGD
 model.compile(loss='categorical_crossentropy', optimizer=SGD(lr=0.01, momentum=0.9, nesterov=True))
 ```
 
-You can now iterate on your learning data in batches:
+You can now iterate on your training data in batches:
 ```python
 model.fit(X_train, Y_train, nb_epoch=5, batch_size=32)
 ```
 
 Alternatively, you can feed batches to your model manually:
 ```python
-model.fit(X_batch, Y_batch)
+model.train(X_batch, Y_batch)
 ```
 
 Evaluate your performance in one line:
@@ -75,24 +75,51 @@ Evaluate your performance in one line:
 objective_score = model.evaluate(X_test, Y_test, batch_size=32)
 ```
 
-Or just generate predictions on new data:
+Or generate predictions on new data:
 ```python
 classes = model.predict_classes(X_test, batch_size=32)
 proba = model.predict_proba(X_test, batch_size=32)
 ```
 
-Building a network of LSTMs, a deep CNN, a word2vec embedder or any other model is just as fast. The ideas behind deep learning are simple, so why should their implementation be complicated?
+Building a network of LSTMs, a deep CNN, a word2vec embedder or any other model is just as fast. The ideas behind deep learning are simple, so why should their implementation be painful?
 
 Have a look at the [examples](examples.md).
 
+## Installation
+
+Keras uses the following dependencies:
+
+- numpy, scipy
+- Theano
+    - See [installation instructions](http://deeplearning.net/software/theano/install.html#install).
+- PIL (optional, required if you use preprocessing.image)
+- Optional but recommended if you use CNNs: cuDNN.
+
+Once you have the dependencies installed, clone the repo:
+```bash
+git clone https://github.com/fchollet/keras.git
+```
+Go to the Keras folder and run the install command:
+```bash
+cd keras
+sudo python setup.py install
+```
 
 ## Contribution Guidelines
 
 Keras welcomes all contributions from the community. 
 
-- Keep a pragmatic mindset and avoid bloat. Only add to the source if that is the only path forward. Every additional line of code is a liability.
+- Keep a pragmatic mindset and avoid bloat. Only add to the source if that is the only path forward.
 - New features should be documented. Make sure you update the documentation along with your Pull Request.
 - The documentation for every new feature should include a usage example in the form of a code snippet. 
 - All changes should be tested. A formal test process will be introduced very soon.
 - Even if you don't contribute to the Keras source code, if you have an application of Keras that is concise and powerful, please consider adding it to our collection of [examples](https://github.com/fchollet/keras/tree/master/examples).
 
+
+## Why this name, Keras?
+
+Keras (κέρας) means _horn_ in Greek. It is a reference to a literary image from ancient Greek and Latin literature, first found in the _Odyssey_, where dream spirits (_Oneiroi_, singular _Oneiros_) are divided between those who deceive men with false visions, who arrive to Earth through a gate of ivory, and those who announce a future that will come to pass, who arrive through a gate of horn. It's a play on the words κέρας (horn) / κραίνω (fulfill), and ἐλέφας (ivory) / ἐλεφαίρομαι (deceive).
+
+Keras was developed as part of the research effort of project ONEIROS (Open-ended Neuro-Electronic Intelligent Robot Operating System).
+
+_"Oneiroi are beyond our unravelling --who can be sure what tale they tell? Not all that men look for comes to pass. Two gates there are that give passage to fleeting Oneiroi; one is made of horn, one of ivory. The Oneiroi that pass through sawn ivory are deceitful, bearing a message that will not be fulfilled; those that come out through polished horn have truth behind them, to be accomplished for men who see them."_ Homer, Odyssey 19. 562 ff (Shewring translation).
