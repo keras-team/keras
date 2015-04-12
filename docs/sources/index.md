@@ -28,7 +28,7 @@ Find the code on Github: [fchollet/keras](https://github.com/fchollet/keras).
 
 Keras is licensed under the [MIT license](http://opensource.org/licenses/MIT). 
 
-## Getting started: 30 seconds to Deep Learning with Keras
+## Getting started: 30 seconds to Keras
 
 The core datastructure of Keras is a __model__, a way to organize layers. Here's a sequential model (a linear pile of layers).
 

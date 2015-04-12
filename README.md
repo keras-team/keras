@@ -9,6 +9,8 @@ Use Keras if you need a deep learning library that:
 - supports both convolutional networks (for vision) and recurrent networks (for sequence data). As well as combinations of the two. 
 - runs seamlessly on the CPU and the GPU.
 
+Read the documentation at [Keras.io](http://keras.io).
+
 ## Guiding principles
 
 - __Modularity.__ A model is understood as a sequence of standalone, fully-configurable modules that can be plugged together with as little restrictions as possible. In particular, neural layers, cost functions, optimizers, initialization schemes, activation functions and dropout are all standalone modules that you can combine to create new models. 
@@ -174,70 +176,9 @@ This is a 0.0.1 alpha release. Feature scope is limited, and wild bugs may appea
 
 ## Current capabilities
 
-- model architectures:
-    - Sequential (pipeline of layers)
+For complete coverage of the API, check out [the Keras documentation](http://keras.io).
 
-- layers: 
-    - layers.core:
-        - Dense
-        - Dropout
-        - Activation
-        - Embedding
-        - Reshape
-        - Flatten
-        - RepeatVector
-    - layers.convolutional:
-        - Convolution2D
-        - MaxPooling2D
-    - layers.recurrent:
-        - SimpleRNN
-        - SimpleDeepRNN
-        - GRU
-        - LSTM
-    - layers.advanced_activations:
-        - LeakyReLU
-        - PReLU
-    - layers.normalization:
-        - BatchNormalization
-
-- optimizers: 
-    - SGD (supports decay, momentum, Nesterov momentum)
-    - RMSprop
-    - Adagrad
-    - Adadelta
-
-- datasets:
-    - CIFAR10: thumbnail image classification
-    - Reuters: newswire topic classification
-    - IMDB: sentiment classification
-
-- preprocessing:
-    - image:
-        - ImageDataGenerator: realtime image data augmentation and preprocessing (normalization, ZCA whitening)
-        - random_rotation
-        - random_shift
-        - horizontal_flip
-        - vertical_flip
-    - text:
-        - Tokenizer
-        - one_hot
-    - sequence:
-        - pad_sequences
-
-- objectives:
-    - mean_squared_error
-    - mean_absolute_error
-    - hinge
-    - squared_hinge
-    - binary_crossentropy
-    - categorical_crossentropy
-
-- activation functions:
-    softmax, softplus, relu, sigmoid, hard_sigmoid, linear
-
-- initialization functions:
-    normal, uniform, lecun_uniform, orthogonal
-
+A few highlights: convnets, LSTM, GRU, word2vec-style embeddings, PReLU, batch normalization...
 
 ## Installation
 
