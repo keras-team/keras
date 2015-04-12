@@ -8,9 +8,9 @@
     and compute a proximity score between the embeddings (= p(context|word)),
     trained with our positive and negative labels.
 
-    We then use the weights computed by WordContextProduct to instantiate
-    a simple Embedding, which we use to encode words and demonstrate
-    that the geometry of the embedding space captures certain useful semantic properties.
+    We then use the weights computed by WordContextProduct to encode words 
+    and demonstrate that the geometry of the embedding space 
+    captures certain useful semantic properties.
 
     Read more about skip-gram in this particularly gnomic paper by Mikolov et al.: 
         http://arxiv.org/pdf/1301.3781v3.pdf
@@ -49,7 +49,7 @@ load = False
 train_model = True
 save_dir = os.path.expanduser("~/.keras/models")
 model_load_fname = "HN_skipgram_model_full_256.pkl"
-model_save_fname = "HN_skipgram_model_full_256-0.pkl"
+model_save_fname = "HN_skipgram_model_full_256.pkl"
 tokenizer_fname = "HN_tokenizer.pkl"
 
 data_path = os.path.expanduser("~/")+"HNCommentsAll.1perline.json"
@@ -162,7 +162,7 @@ def closest_to_point(point, nb_closest=10):
     tups.sort(key=lambda x: x[1], reverse=True)
     return [(reverse_word_index.get(t[0]), t[1]) for t in tups[:nb_closest]]  
 
-def closest_to_word(word, nb_closest=10):
+def closest_to_word(w, nb_closest=10):
     i = word_index.get(w)
     if (not i) or (i<skip_top) or (i>=max_features):
         return []
