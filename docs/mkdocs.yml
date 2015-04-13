@@ -29,6 +29,7 @@ pages:
 - [layers/recurrent.md, Layers, Recurrent Layers]
 - [layers/advanced_activations.md, Layers, Advanced Activations Layers]
 - [layers/normalization.md, Layers, Normalization Layers]
+- [layers/embeddings.md, Layers, Embedding Layers]
 
 - [preprocessing/sequence.md, Preprocessing, Sequence Preprocessing]
 - [preprocessing/text.md, Preprocessing, Text Preprocessing]

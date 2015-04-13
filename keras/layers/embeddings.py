@@ -7,8 +7,8 @@ from ..layers.core import Layer
 
 class Embedding(Layer):
     '''
-        Turn a list of integers >=0 into a dense vector of fixed size. 
-        eg. [4, 50, 123, 26] -> [0.25, 0.1]
+        Turn positive integers (indexes) into denses vectors of fixed size. 
+        eg. [[4], [20]] -> [[0.25, 0.1], [0.6, -0.2]]
 
         @input_dim: size of vocabulary (highest input integer + 1)
         @out_dim: size of dense representation

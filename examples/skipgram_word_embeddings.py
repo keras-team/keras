@@ -189,7 +189,7 @@ words = ["article", # post, story, hn, read, comments
 "data", # information, memory, database
 "money", # company, pay, customers, spend
 "years", # ago, year, months, hours, week, days
-"android", # ios, release, os, mobible, beta
+"android", # ios, release, os, mobile, beta
 "javascript", # js, css, compiler, library, jquery, ruby
 "look", # looks, looking
 "business", # industry, professional, customers
