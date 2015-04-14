@@ -100,3 +100,22 @@ __Arguments__:
 - __lr__: float >= 0. Learning rate. 
 - __rho__: float >= 0.
 - __epsilon__: float >= 0. Fuzz factor.
+
+---
+
+## Adam
+
+```python
+keras.optimizers.Adam(lr=0.001, beta_1=0.9, beta_2=0.999, epsilon=1e-8, kappa=1-1e-8)
+```
+
+Adam optimizer, proposed by Kingma and Lei Ba in [Adam: A Method For Stochastic Optimization](http://arxiv.org/pdf/1412.6980v4.pdf). Default parameters are those suggested in the paper. The parameter "lambda" from the paper has been renamed kappa, for syntactic reasons.
+
+__Arguments__:
+
+- __lr__: float >= 0. Learning rate. 
+- __beta_1__, __beta_2__: floats, 0 < beta < 1. Generally close to 1.
+- __epsilon__: float >= 0. Fuzz factor.
+- __kappa__: float 0 < kappa < 1. Lambda parameter in the original paper.
+
+---

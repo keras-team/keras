@@ -100,7 +100,9 @@ class Adagrad(Optimizer):
 
 
 class Adadelta(Optimizer):
-    
+    '''
+        Reference: http://arxiv.org/abs/1212.5701
+    '''
     def __init__(self, lr=1.0, rho=0.95, epsilon=1e-6, *args, **kwargs):
         self.__dict__.update(locals())
 
@@ -125,11 +127,52 @@ class Adadelta(Optimizer):
             updates.append((d_a, new_d_a))
         return updates
 
+
+class Adam(Optimizer):
+    '''
+        Reference: http://arxiv.org/abs/1412.6980
+
+        Default parameters follow those provided in the original paper
+
+        lambda is renamed kappa.
+    '''
+    def __init__(self, lr=0.001, beta_1=0.9, beta_2=0.999, epsilon=1e-8, kappa=1-1e-8, *args, **kwargs):
+        self.__dict__.update(locals())
+        self.iterations = shared_scalar(0)
+
+    def get_updates(self, params, cost):
+        grads = self.get_gradients(cost, params)
+        updates = [(self.iterations, self.iterations+1.)]
+
+        i = self.iterations
+        beta_1_t = self.beta_1 * (self.kappa**i)
+
+        # the update below seems missing from the paper, but is obviously required
+        beta_2_t = self.beta_2 * (self.kappa**i) 
+
+        for p, g in zip(params, grads):
+            m = theano.shared(p.get_value() * 0.) # zero init of moment
+            v = theano.shared(p.get_value() * 0.) # zero init of velocity
+
+            m_t = ((1. - self.beta_1) * m) + (self.beta_1 * g)
+            v_t = (self.beta_2 * v) + (1 - self.beta_2) * (g**2)
+
+            m_b_t = m_t / (1 - beta_1_t)
+            v_b_t = v_t / (1 - beta_2_t)
+
+            p_t = p - self.lr * m_b_t / (T.sqrt(v_t) + self.epsilon)
+
+            updates.append((m, m_t))
+            updates.append((v, v_t))
+            updates.append((p, p_t))
+        return updates
+
 # aliases
 sgd = SGD
 rmsprop = RMSprop
 adagrad = Adagrad
 adadelta = Adadelta
+adam = Adam
 
 from utils.generic_utils import get_from_module
 def get(identifier):
