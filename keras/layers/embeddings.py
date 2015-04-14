@@ -17,7 +17,6 @@ class Embedding(Layer):
         self.init = initializations.get(init)
         self.input_dim = input_dim
         self.output_dim = output_dim
-        self.normalize = normalize
 
         self.input = T.imatrix()
         self.W = self.init((self.input_dim, self.output_dim))
@@ -60,7 +59,6 @@ class WordContextProduct(Layer):
         init='uniform', activation='sigmoid', weights=None):
         self.input_dim = input_dim
         self.proj_dim = proj_dim
-        self.normalize = normalize
         self.init = initializations.get(init)
         self.activation = activations.get(activation)
 

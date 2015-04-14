@@ -24,6 +24,7 @@
 - [Recurrent](layers/recurrent.md)
 - [Advanced Activations](layers/advanced_activations.md)
 - [Normalization](layers/normalization.md)
+- [Embeddings](layers/embeddings.md)
 
 ---
 
