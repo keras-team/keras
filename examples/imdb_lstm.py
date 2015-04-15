@@ -24,6 +24,11 @@ from keras.datasets import imdb
     - LSTM loss decrease during training can be quite different 
     from what you see with CNNs/MLPs/etc. It's more or less a sigmoid
     instead of an inverse exponential.
+
+    GPU command:
+        THEANO_FLAGS=mode=FAST_RUN,device=gpu,floatX=float32 python imdb_lstm.py
+
+    180s/epoch on GPU (GT 650M), vs. 400s/epoch on CPU (2.4Ghz Core i7).
 '''
 
 max_features=20000
@@ -50,10 +55,10 @@ model.add(Dense(128, 1))
 model.add(Activation('sigmoid'))
 
 # try using different optimizers and different optimizer configs
-model.compile(loss='binary_crossentropy', optimizer='rmsprop')
+model.compile(loss='binary_crossentropy', optimizer='adam')
 
 print "Train..."
-model.fit(X_train, y_train, batch_size=batch_size, nb_epoch=10, verbose=1)
+model.fit(X_train, y_train, batch_size=batch_size, nb_epoch=5, verbose=1)
 score = model.evaluate(X_test, y_test, batch_size=batch_size)
 print 'Test score:', score
 
