@@ -160,7 +160,7 @@ class Adam(Optimizer):
             m_b_t = m_t / (1 - beta_1_t)
             v_b_t = v_t / (1 - beta_2_t)
 
-            p_t = p - self.lr * m_b_t / (T.sqrt(v_t) + self.epsilon)
+            p_t = p - self.lr * m_b_t / (T.sqrt(v_b_t) + self.epsilon)
 
             updates.append((m, m_t))
             updates.append((v, v_t))
