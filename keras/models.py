@@ -8,7 +8,8 @@ import time, copy
 from utils.generic_utils import Progbar
 
 def standardize_y(y):
-    y = np.asarray(y)
+    if not hasattr(y, 'shape'):
+        y = np.asarray(y)
     if len(y.shape) == 1:
         y = np.reshape(y, (len(y), 1))
     return y
@@ -85,7 +86,10 @@ class Sequential(object):
             for batch_index in range(0, nb_batch):
                 batch_start = batch_index*batch_size
                 batch_end = min(len(X), (batch_index+1)*batch_size)
-                batch_ids = index_array[batch_start:batch_end]
+                if shuffle:
+                    batch_ids = index_array[batch_start:batch_end]
+                else:
+                    batch_ids = slice(batch_start, batch_end)
 
                 X_batch = X[batch_ids]
                 y_batch = y[batch_ids]
