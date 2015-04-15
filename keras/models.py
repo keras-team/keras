@@ -8,7 +8,8 @@ import time, copy
 from utils.generic_utils import Progbar
 
 def standardize_y(y):
-    y = np.asarray(y)
+    if not hasattr(y, 'shape'):
+        y = np.asarray(y)
     if len(y.shape) == 1:
         y = np.reshape(y, (len(y), 1))
     return y
@@ -119,7 +120,10 @@ class Sequential(object):
             batches = make_batches(len(X), batch_size)
             progbar = Progbar(target=len(X))
             for batch_index, (batch_start, batch_end) in enumerate(batches):
-                batch_ids = index_array[batch_start:batch_end]
+                if shuffle:
+                    batch_ids = index_array[batch_start:batch_end]
+                else:
+                    batch_ids = slice(batch_start, batch_end)
                 X_batch = X[batch_ids]
                 y_batch = y[batch_ids]
 
