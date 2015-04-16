@@ -53,7 +53,7 @@ model.add(Activation('relu'))
 model.add(MaxPooling2D(poolsize=(2, 2)))
 model.add(Dropout(0.25))
 
-model.add(Flatten(64*8*8))
+model.add(Flatten())
 model.add(Dense(64*8*8, 512, init='normal'))
 model.add(Activation('relu'))
 model.add(Dropout(0.5))
