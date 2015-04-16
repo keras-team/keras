@@ -121,7 +121,8 @@ class Sequential(object):
                 np.random.shuffle(index_array)
 
             batches = make_batches(len(X), batch_size)
-            progbar = Progbar(target=len(X))
+            if verbose==1:
+                progbar = Progbar(target=len(X))
             for batch_index, (batch_start, batch_end) in enumerate(batches):
                 if shuffle:
                     batch_ids = index_array[batch_start:batch_end]
@@ -138,23 +139,30 @@ class Sequential(object):
                 # logging
                 if verbose:
                     is_last_batch = (batch_index == len(batches) - 1)
-                    if not is_last_batch or not do_validation:
-                        if show_accuracy:
-                            progbar.update(batch_end, [('loss', loss), ('acc.', acc)])
-                        else:
-                            progbar.update(batch_end, [('loss', loss)])
+                    if (not is_last_batch or not do_validation):
+                        if verbose==1:
+                            if show_accuracy:
+                                progbar.update(batch_end, [('loss', loss), ('acc.', acc)])
+                            else:
+                                progbar.update(batch_end, [('loss', loss)])
                     else:
                         if show_accuracy:
                             val_loss, val_acc = self.test(X_val, y_val, accuracy=True)
-                            progbar.update(batch_end, [('loss', loss), ('acc.', acc), ('val. loss', val_loss), ('val. acc.', val_acc)])
+                            if verbose==1:
+                                progbar.update(batch_end, [('loss', loss), ('acc.', acc), ('val. loss', val_loss), ('val. acc.', val_acc)])
+                            if verbose==2:
+                                print("loss: %.4f - acc.: %.4f - val. loss: %.4f - val. acc.: %.4f" % (loss, acc, val_loss, val_acc))
                         else:
                             val_loss = self.test(X_val, y_val, accuracy=False)
-                            progbar.update(batch_end, [('loss', loss), ('val. loss', val_loss)])
+                            if verbose==1:
+                                progbar.update(batch_end, [('loss', loss), ('val. loss', val_loss)])
+                            if verbose==2:
+                                print("loss: %.4f - acc.: %.4f" % (loss, acc))
 
             
     def predict_proba(self, X, batch_size=128, verbose=1):
         batches = make_batches(len(X), batch_size)
-        if verbose:
+        if verbose==1:
             progbar = Progbar(target=len(X))
         for batch_index, (batch_start, batch_end) in enumerate(batches):
             X_batch = X[batch_start:batch_end]
@@ -165,8 +173,9 @@ class Sequential(object):
                 preds = np.zeros(shape)
             preds[batch_start:batch_end] = batch_preds
 
-            if verbose:
+            if verbose==1:
                 progbar.update(batch_end)
+
         return preds
 
 
@@ -199,10 +208,16 @@ class Sequential(object):
             tot_score += loss
 
             if verbose:
-                if show_accuracy:
-                    progbar.update(batch_end, [('loss', loss), ('acc.', acc)])
-                else:
-                    progbar.update(batch_end, [('loss', loss)])
+                if verbose==1:
+                    if show_accuracy:
+                        progbar.update(batch_end, [('loss', loss), ('acc.', acc)])
+                    else:
+                        progbar.update(batch_end, [('loss', loss)])
+                if batch_index == len(batches) and verbose==2:
+                    if show_accuracy:
+                        print("loss: %.4f - acc.: %.4f" % (loss, acc))
+                    else:
+                        print("loss: %.4f")
 
         if show_accuracy:
             return tot_score/len(batches), tot_acc/len(batches)
