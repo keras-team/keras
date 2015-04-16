@@ -46,21 +46,3 @@ def probas_to_classes(y_pred):
 
 def categorical_probas_to_classes(p):
     return np.argmax(p, axis=1)
-
-
-def save_array(array, name):
-    import tables
-    f = tables.open_file(name, 'w')
-    atom = tables.Atom.from_dtype(array.dtype)
-    ds = f.createCArray(f.root, 'data', atom, array.shape)
-    ds[:] = array
-    f.close()
-
-def load_array(name):
-    import tables
-    f = tables.open_file(name)
-    array = f.root.data
-    a=np.empty(shape=array.shape, dtype=array.dtype)
-    a[:]=array[:]
-    f.close()
-    return a
