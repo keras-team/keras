@@ -1,5 +1,8 @@
+from __future__ import absolute_import
 import numpy as np
 import scipy as sp
+from six.moves import range
+from six.moves import zip
 
 def to_categorical(y, nb_classes=None):
     '''Convert class vector (integers from 0 to nb_classes)

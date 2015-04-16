@@ -1,3 +1,5 @@
+from __future__ import absolute_import
+from __future__ import print_function
 import urllib, tarfile
 import inspect, os
 from ..utils.generic_utils import Progbar
@@ -16,7 +18,7 @@ def get_file(fname, origin, untar=False):
     try:
         f = open(fpath)
     except:
-        print 'Downloading data from',  origin
+        print('Downloading data from',  origin)
 
         global progbar
         progbar = None
@@ -32,7 +34,7 @@ def get_file(fname, origin, untar=False):
 
     if untar:
         if not os.path.exists(untar_fpath):
-            print 'Untaring file...'
+            print('Untaring file...')
             tfile = tarfile.open(fpath, 'r:gz')
             tfile.extractall(path=datadir)
             tfile.close()

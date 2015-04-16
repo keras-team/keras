@@ -1,8 +1,9 @@
+from __future__ import absolute_import
 import theano
 import theano.tensor as T
 import numpy as np
 
-from utils.theano_utils import sharedX, shared_zeros
+from .utils.theano_utils import sharedX, shared_zeros
 
 def uniform(shape, scale=0.05):
     return sharedX(np.random.uniform(low=-scale, high=scale, size=shape))
@@ -49,6 +50,6 @@ def zero(shape):
     return shared_zeros(shape)
 
 
-from utils.generic_utils import get_from_module
+from .utils.generic_utils import get_from_module
 def get(identifier):
     return get_from_module(identifier, globals(), 'initialization')

@@ -1,7 +1,9 @@
-import cPickle
+from __future__ import absolute_import
+import six.moves.cPickle
 import gzip
-from data_utils import get_file
+from .data_utils import get_file
 import random
+from six.moves import zip
 
 def load_data(path="imdb.pkl", nb_words=None, skip_top=0, maxlen=None, test_split=0.2, seed=113):
     path = get_file(path, origin="https://s3.amazonaws.com/text-datasets/imdb.pkl")
@@ -11,7 +13,7 @@ def load_data(path="imdb.pkl", nb_words=None, skip_top=0, maxlen=None, test_spli
     else:
         f = open(path, 'rb')
 
-    X, labels = cPickle.load(f)
+    X, labels = six.moves.cPickle.load(f)
     f.close()
 
     random.seed(seed)

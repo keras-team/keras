@@ -1,6 +1,8 @@
+from __future__ import absolute_import
 # -*- coding: utf-8 -*-
 import numpy as np
 import random
+from six.moves import range
 
 def pad_sequences(sequences, maxlen=None, dtype='int32'):
     """
@@ -37,7 +39,7 @@ def make_sampling_table(size, sampling_factor=1e-5):
         where gamma is the Euler–Mascheroni constant.
     '''
     gamma = 0.577
-    rank = np.array(range(size))
+    rank = np.array(list(range(size)))
     rank[0] = 1
     inv_fq = rank * (np.log(rank) + gamma) + 0.5 - 1./(12.*rank)
     f = sampling_factor * inv_fq

@@ -3,9 +3,12 @@
     These preprocessing utils would greatly benefit
     from a fast Cython rewrite.
 '''
+from __future__ import absolute_import
 
 import string
 import numpy as np
+from six.moves import range
+from six.moves import zip
 
 def base_filter():
     f = string.punctuation
@@ -20,7 +23,7 @@ def text_to_word_sequence(text, filters=base_filter(), lower=True, split=" "):
         text = text.lower()
     text = text.translate(string.maketrans(filters, split*len(filters)))
     seq = text.split(split)
-    return filter(None, seq)
+    return [_f for _f in seq if _f]
 
 
 def one_hot(text, n, filters=base_filter(), lower=True, split=" "):
@@ -58,13 +61,13 @@ class Tokenizer(object):
                 else:
                     self.word_docs[w] = 1
 
-        wcounts = self.word_counts.items()
+        wcounts = list(self.word_counts.items())
         wcounts.sort(key = lambda x: x[1], reverse=True)
         sorted_voc = [wc[0] for wc in wcounts]
-        self.word_index = dict(zip(sorted_voc, range(1, len(sorted_voc)+1)))
+        self.word_index = dict(list(zip(sorted_voc, list(range(1, len(sorted_voc)+1)))))
 
         self.index_docs = {}
-        for w, c in self.word_docs.items():
+        for w, c in list(self.word_docs.items()):
             self.index_docs[self.word_index[w]] = c
 
 
@@ -153,7 +156,7 @@ class Tokenizer(object):
                     counts[j] = 1.
                 else:
                     counts[j] += 1
-            for j, c in counts.items():
+            for j, c in list(counts.items()):
                 if mode == "count":
                     X[i][j] = c
                 elif mode == "freq":

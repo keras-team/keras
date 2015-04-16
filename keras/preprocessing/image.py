@@ -1,4 +1,5 @@
-from PIL import Image
+from __future__ import absolute_import
+
 import numpy as np
 from scipy import ndimage
 from scipy import linalg
@@ -6,6 +7,7 @@ from scipy import linalg
 from os import listdir
 from os.path import isfile, join
 import random, math
+from six.moves import range
 
 '''
     Fairly basic set of tools for realtime data augmentation on image data.
@@ -74,6 +76,7 @@ def random_zoom(x, rg, fill_mode="nearest", cval=0.):
 
 
 def array_to_img(x, scale=True):
+    from PIL import Image
     x = x.transpose(1, 2, 0) 
     if scale:
         x += max(-np.min(x), 0)
@@ -93,6 +96,7 @@ def img_to_array(img):
 
 
 def load_img(path, grayscale=False):
+    from PIL import Image
     img = Image.open(open(path))
     if grayscale:
         img = img.convert('L')

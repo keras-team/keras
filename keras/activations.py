@@ -1,3 +1,4 @@
+from __future__ import absolute_import
 import theano
 import theano.tensor as T
 import types
@@ -28,6 +29,6 @@ def hard_sigmoid(x):
 def linear(x):
     return x
 
-from utils.generic_utils import get_from_module
+from .utils.generic_utils import get_from_module
 def get(identifier):
     return get_from_module(identifier, globals(), 'activation function')
