@@ -27,10 +27,12 @@
         https://mega.co.nz/#F!YohlwD7R!wec0yNO86SeaNGIYQBOR0A 
         (HNCommentsAll.1perline.json.bz2)
 '''
+from __future__ import absolute_import
+from __future__ import print_function
 
 import numpy as np
 import theano
-import cPickle
+import six.moves.cPickle
 import os, re, json
 
 from keras.preprocessing import sequence, text
@@ -38,6 +40,8 @@ from keras.optimizers import SGD, RMSprop, Adagrad
 from keras.utils import np_utils, generic_utils
 from keras.models import Sequential
 from keras.layers.embeddings import WordContextProduct, Embedding
+from six.moves import range
+from six.moves import zip
 
 max_features = 50000 # vocabulary size: top 50,000 most common words in data
 skip_top = 100 # ignore top 100 most common words
@@ -74,30 +78,30 @@ def text_generator(path=data_path):
         comment_text = comment_data["comment_text"]
         comment_text = clean_comment(comment_text)
         if i % 10000 == 0:
-            print i
+            print(i)
         yield comment_text
     f.close()
 
 # model management
 if load:
-    print 'Load tokenizer...'
-    tokenizer = cPickle.load(open(os.path.join(save_dir, tokenizer_fname)))
-    print 'Load model...'
-    model = cPickle.load(open(os.path.join(save_dir, model_load_fname)))
+    print('Load tokenizer...')
+    tokenizer = six.moves.cPickle.load(open(os.path.join(save_dir, tokenizer_fname)))
+    print('Load model...')
+    model = six.moves.cPickle.load(open(os.path.join(save_dir, model_load_fname)))
 else:
-    print "Fit tokenizer..."
+    print("Fit tokenizer...")
     tokenizer = text.Tokenizer(nb_words=max_features)
     tokenizer.fit_on_texts(text_generator())
     if save:
-        print "Save tokenizer..."
+        print("Save tokenizer...")
         if not os.path.exists(save_dir):
             os.makedirs(save_dir)
-        cPickle.dump(tokenizer, open(os.path.join(save_dir, tokenizer_fname), "w"))
+        six.moves.cPickle.dump(tokenizer, open(os.path.join(save_dir, tokenizer_fname), "w"))
 
 # training process
 if train_model:
     if not load:
-        print 'Build model...'
+        print('Build model...')
         model = Sequential()
         model.add(WordContextProduct(max_features, proj_dim=dim_proj, init="normal"))
         model.compile(loss='mse', optimizer='rmsprop')
@@ -105,9 +109,9 @@ if train_model:
     sampling_table = sequence.make_sampling_table(max_features)
 
     for e in range(nb_epoch):
-        print '-'*40
-        print 'Epoch', e
-        print '-'*40
+        print('-'*40)
+        print('Epoch', e)
+        print('-'*40)
 
         progbar = generic_utils.Progbar(tokenizer.document_count)
         samples_seen = 0
@@ -125,17 +129,17 @@ if train_model:
                     progbar.update(i, values=[("loss", np.mean(losses))])
                     losses = []
                 samples_seen += len(labels)
-        print 'Samples seen:', samples_seen
-    print "Training completed!"
+        print('Samples seen:', samples_seen)
+    print("Training completed!")
 
     if save:
-        print "Saving model..."
+        print("Saving model...")
         if not os.path.exists(save_dir):
             os.makedirs(save_dir)
-        cPickle.dump(model, open(os.path.join(save_dir, model_save_fname), "w"))
+        six.moves.cPickle.dump(model, open(os.path.join(save_dir, model_save_fname), "w"))
 
 
-print "It's test time!"
+print("It's test time!")
 
 # recover the embedding weights trained with skipgram:
 weights = model.layers[0].get_weights()[0]
@@ -147,7 +151,7 @@ weights[:skip_top] = np.zeros((skip_top, dim_proj))
 norm_weights = np_utils.normalize(weights)
 
 word_index = tokenizer.word_index
-reverse_word_index = dict([(v, k) for k, v in word_index.items()])
+reverse_word_index = dict([(v, k) for k, v in list(word_index.items())])
 word_index = tokenizer.word_index
 
 def embed_word(w):
@@ -158,7 +162,7 @@ def embed_word(w):
 
 def closest_to_point(point, nb_closest=10):
     proximities = np.dot(norm_weights, point)
-    tups = zip(range(len(proximities)), proximities)
+    tups = list(zip(list(range(len(proximities))), proximities))
     tups.sort(key=lambda x: x[1], reverse=True)
     return [(reverse_word_index.get(t[0]), t[1]) for t in tups[:nb_closest]]  
 
@@ -203,7 +207,7 @@ words = ["article", # post, story, hn, read, comments
 
 for w in words:
     res = closest_to_word(w)
-    print '====', w
+    print('====', w)
     for r in res:
-        print r
+        print(r)
 

@@ -105,6 +105,10 @@ cd keras
 sudo python setup.py install
 ```
 
+## Support
+
+You can ask questions and join the development discussion on the [Keras Google group](https://groups.google.com/forum/#!forum/keras-users).
+
 ## Contribution Guidelines
 
 Keras welcomes all contributions from the community. 

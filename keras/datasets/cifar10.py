@@ -1,8 +1,10 @@
-from data_utils import get_file
+# -*- coding: utf-8 -*-
+from __future__ import absolute_import
+from .data_utils import get_file
 import random
-import cPickle
 import numpy as np
-from PIL import Image
+import six.moves.cPickle
+from six.moves import range
 
 def load_data(test_split=0.1, seed=113):
     dirname = "cifar-10-batches-py"
@@ -15,7 +17,7 @@ def load_data(test_split=0.1, seed=113):
     for i in range(1, 6):
         fpath = path + '/data_batch_' + str(i)
         f = open(fpath, 'rb')
-        d = cPickle.load(f)
+        d = six.moves.cPickle.load(f)
         f.close()
         data = d["data"]
         labels = d["labels"]

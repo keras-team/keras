@@ -1,9 +1,5 @@
-#!/usr/bin/env python
-
-try:
-    from setuptools import setup
-except ImportError:
-    from distutils.core import setup
+from setuptools import setup
+from setuptools import find_packages
 
 setup(name='Keras',
       version='0.0.1',
@@ -12,12 +8,6 @@ setup(name='Keras',
       author_email='francois.chollet@gmail.com',
       url='https://github.com/fchollet/keras',
       license='MIT',
-      packages=[
-        'keras', 
-        'keras.layers', 
-        'keras.preprocessing', 
-        'keras.datasets', 
-        'keras.utils',
-      ],
+      packages=find_packages(),
       # TODO: dependencies
 )

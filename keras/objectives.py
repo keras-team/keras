@@ -1,6 +1,8 @@
+from __future__ import absolute_import
 import theano
 import theano.tensor as T
 import numpy as np
+from six.moves import range
 
 epsilon = 1.0e-15
 
@@ -32,7 +34,7 @@ def binary_crossentropy(y_true, y_pred):
 mse = MSE = mean_squared_error
 mae = MAE = mean_absolute_error
 
-from utils.generic_utils import get_from_module
+from .utils.generic_utils import get_from_module
 def get(identifier):
     return get_from_module(identifier, globals(), 'objective')
 

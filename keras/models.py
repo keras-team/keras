@@ -1,11 +1,14 @@
+from __future__ import absolute_import
+from __future__ import print_function
 import theano
 import theano.tensor as T
 import numpy as np
 
-import optimizers
-import objectives
+from . import optimizers
+from . import objectives
 import time, copy
-from utils.generic_utils import Progbar
+from .utils.generic_utils import Progbar
+from six.moves import range
 
 def standardize_y(y):
     if not hasattr(y, 'shape'):
@@ -97,7 +100,7 @@ class Sequential(object):
             do_validation = True
             y_val = standardize_y(y_val)
             if verbose:
-                print "Train on %d samples, validate on %d samples" % (len(y), len(y_val))
+                print("Train on %d samples, validate on %d samples" % (len(y), len(y_val)))
         else:
             if 0 < validation_split < 1:
                 # If a validation split size is given (e.g. validation_split=0.2)
@@ -108,12 +111,12 @@ class Sequential(object):
                 (X, X_val) = (X[0:split_at], X[split_at:])
                 (y, y_val) = (y[0:split_at], y[split_at:])
                 if verbose:
-                    print "Train on %d samples, validate on %d samples" % (len(y), len(y_val))
+                    print("Train on %d samples, validate on %d samples" % (len(y), len(y_val)))
         
         index_array = np.arange(len(X))
         for epoch in range(nb_epoch):
             if verbose:
-                print 'Epoch', epoch
+                print('Epoch', epoch)
             if shuffle:
                 np.random.shuffle(index_array)
 
