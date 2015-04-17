@@ -157,7 +157,7 @@ class Sequential(object):
                             if verbose==1:
                                 progbar.update(batch_end, [('loss', loss), ('val. loss', val_loss)])
                             if verbose==2:
-                                print("loss: %.4f - acc.: %.4f" % (loss, acc))
+                                print("loss: %.4f - val. loss: %.4f" % (loss, val_loss))
 
             
     def predict_proba(self, X, batch_size=128, verbose=1):
