@@ -5,6 +5,12 @@ import numpy as np
 
 from .utils.theano_utils import sharedX, shared_zeros
 
+def get_fans(shape):
+    fan_in = shape[0] if len(shape) == 2 else np.prod(shape[1:])
+    fan_out = shape[1] if len(shape) == 2 else shape[0]
+    return fan_in, fan_out
+
+
 def uniform(shape, scale=0.05):
     return sharedX(np.random.uniform(low=-scale, high=scale, size=shape))
 
@@ -15,26 +21,33 @@ def lecun_uniform(shape):
     ''' Reference: LeCun 98, Efficient Backprop
         http://yann.lecun.com/exdb/publis/pdf/lecun-98b.pdf
     '''
-    m = 1
-    for s in shape:
-        m *= s
-    scale = 1./np.sqrt(m)
+    fan_in, fan_out = get_fans(shape)
+    scale = 1./np.sqrt(fan_in)
     return uniform(shape, scale)
 
 def glorot_normal(shape):
     ''' Reference: Glorot & Bengio, AISTATS 2010
     '''
-    fan_in = shape[0] if len(shape) == 2 else np.prod(shape[1:])
-    fan_out = shape[1] if len(shape) == 2 else shape[0]
+    fan_in, fan_out = get_fans(shape)
     s = np.sqrt(2. / (fan_in + fan_out))
     return normal(shape, s)
 
+def glorot_uniform(shape):
+    fan_in, fan_out = get_fans(shape)
+    s = np.sqrt(2. / (fan_in + fan_out))
+    return uniform(shape, s)
+    
 def he_normal(shape):
     ''' Reference:  He et al., http://arxiv.org/abs/1502.01852
     '''
-    fan_in = shape[1] if len(shape) == 2 else np.prod(shape[1:])
+    fan_in, fan_out = get_fans(shape)
     s = np.sqrt(2. / fan_in)
     return normal(shape, s)
+
+def he_uniform(shape):
+    fan_in, fan_out = get_fans(shape)
+    s = np.sqrt(2. / fan_in)
+    return uniform(shape, s)
 
 def orthogonal(shape, scale=1.1):
     ''' From Lasagne
