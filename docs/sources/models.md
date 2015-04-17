@@ -46,20 +46,37 @@ model.add(Activation('softmax'))
 
 model.compile(loss='mse', optimizer='sgd')
 
-# demonstration of verbose modes 1 and 2
-model.fit(X_train, y_train, nb_epoch=3, batch_size=16, validation_split=0.1, verbose=1)
+'''
+Demonstration of verbose modes 1 and 2
+'''
+model.fit(X_train, y_train, nb_epoch=3, batch_size=16, verbose=1)
 # outputs
 '''
 Train on 37800 samples, validate on 4200 samples
 Epoch 0
-37800/37800 [==============================] - 7s - loss: 0.0385 - acc.: 0.7258
+37800/37800 [==============================] - 7s - loss: 0.0385
 Epoch 1
-37800/37800 [==============================] - 8s - loss: 0.0140 - acc.: 0.9265
+37800/37800 [==============================] - 8s - loss: 0.0140
 Epoch 2
-10960/37800 [=======>......................] - ETA: 4s - loss: 0.0109 - acc.: 0.9420
+10960/37800 [=======>......................] - ETA: 4s - loss: 0.0109
 '''
 
 model.fit(X_train, y_train, nb_epoch=3, batch_size=16, verbose=2)
+# outputs
+'''
+Train on 37800 samples, validate on 4200 samples
+Epoch 0
+loss: 0.0190
+Epoch 1
+loss: 0.0146
+Epoch 2
+loss: 0.0049
+'''
+
+'''
+Demonstration of show_accuracy
+'''
+model.fit(X_train, y_train, nb_epoch=3, batch_size=16, verbose=2, show_accuracy=True)
 # outputs
 '''
 Train on 37800 samples, validate on 4200 samples
@@ -71,7 +88,9 @@ Epoch 2
 loss: 0.0049 - acc.: 1.0000
 '''
 
-# demonstration of show_accuracy
+'''
+Demonstration of validation_split
+'''
 model.fit(X_train, y_train, nb_epoch=3, batch_size=16, validation_split=0.1, show_accuracy=True, verbose=1)
 # outputs
 '''
