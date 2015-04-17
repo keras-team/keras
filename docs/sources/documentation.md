@@ -12,6 +12,7 @@
 
 - [Optimizers](optimizers.md)
 - [Objectives](objectives.md)
+- [Models](models.md)
 - [Activations](activations.md)
 - [Initializations](initializations.md)
 - [Datasets](datasets.md)

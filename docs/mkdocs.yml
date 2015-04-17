@@ -19,6 +19,7 @@ pages:
 - [examples.md, Examples]
 - [optimizers.md, Optimizers]
 - [objectives.md, Objectives]
+- [models.md, Models]
 - [activations.md, Activations]
 - [initializations.md, Initializations]
 
