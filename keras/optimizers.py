@@ -156,8 +156,8 @@ class Adam(Optimizer):
             m = theano.shared(p.get_value() * 0.) # zero init of moment
             v = theano.shared(p.get_value() * 0.) # zero init of velocity
 
-            m_t = ((1. - self.beta_1) * m) + (self.beta_1 * g)
-            v_t = (self.beta_2 * v) + (1 - self.beta_2) * (g**2)
+            m_t = (beta_1_t * m) + (1 - beta_1_t) * g
+            v_t = (beta_2_t * v) + (1 - beta_2_t) * (g**2)
 
             m_b_t = m_t / (1 - beta_1_t)
             v_b_t = v_t / (1 - beta_2_t)
