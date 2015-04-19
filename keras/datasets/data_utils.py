@@ -41,6 +41,3 @@ def get_file(fname, origin, untar=False):
         return untar_fpath
 
     return fpath
-
-
-
