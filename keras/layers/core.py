@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from __future__ import absolute_import
+from __future__ import absolute_import, division
 
 import theano
 import theano.tensor as T
@@ -38,7 +38,7 @@ class Layer(object):
 
 class Dropout(Layer):
     '''
-        Hinton's dropout. 
+        Hinton's dropout.
     '''
     def __init__(self, p):
         self.p = p
@@ -94,7 +94,7 @@ class Flatten(Layer):
 
     def output(self, train):
         X = self.get_input(train)
-        size = theano.tensor.prod(X.shape) / X.shape[0]
+        size = theano.tensor.prod(X.shape) // X.shape[0]
         nshape = (X.shape[0], size)
         return theano.tensor.reshape(X, nshape)
 
@@ -143,7 +143,7 @@ class Dense(Layer):
 
 class TimeDistributedDense(Layer):
     '''
-       Apply a same DenseLayer for each dimension[1] (shared_dimension) input 
+       Apply a same DenseLayer for each dimension[1] (shared_dimension) input
        Especially useful after a recurrent network with 'return_sequence=True'
        Tensor input dimensions:   (nb_sample, shared_dimension, input_dim)
        Tensor output dimensions:  (nb_sample, shared_dimension, output_dim)
@@ -174,5 +174,3 @@ class TimeDistributedDense(Layer):
                                 sequences = X.dimshuffle(1,0,2),
                                 outputs_info=None)
         return output.dimshuffle(1,0,2)
-
-
