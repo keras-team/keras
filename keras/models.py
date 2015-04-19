@@ -210,27 +210,6 @@ class Sequential(object):
         else:
             return tot_score/len(batches)
 
-    def save(self, fpath):
-        import cPickle
-        import types
-
-        weights = []
-        for l in self.layers:
-            weights.append(l.get_weights())
-            
-            attributes = []
-            for a in dir(l):
-                if a[:2] != '__' and a not in ['params', 'previous_layer', 'input']:
-                    if type(getattr(l, a)) != types.MethodType:
-                        attributes.append((a, getattr(l, a)))
-
-        print('Pickle model...')
-        cPickle.dump(self, open(fpath + '.pkl', 'w'))
-        print('Pickle weights...')
-        cPickle.dump(weights, open(fpath + '.h5', 'w'))
-
-        #save_weights_to_hdf5(fpath + '.h5', weights)
-
 
                 
 
