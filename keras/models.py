@@ -117,12 +117,11 @@ class Sequential(object):
         for epoch in range(nb_epoch):
             if verbose:
                 print('Epoch', epoch)
+                progbar = Progbar(target=len(X), verbose=verbose)
             if shuffle:
                 np.random.shuffle(index_array)
 
             batches = make_batches(len(X), batch_size)
-            if verbose==1:
-                progbar = Progbar(target=len(X))
             for batch_index, (batch_start, batch_end) in enumerate(batches):
                 if shuffle:
                     batch_ids = index_array[batch_start:batch_end]
@@ -133,31 +132,23 @@ class Sequential(object):
 
                 if show_accuracy:
                     loss, acc = self._train_with_acc(X_batch, y_batch)
+                    log_values = [('loss', loss), ('acc.', acc)]
                 else:
                     loss = self._train(X_batch, y_batch)
+                    log_values = [('loss', loss)]
+
+                # validation
+                if do_validation and (batch_index == len(batches) - 1):
+                    if show_accuracy:
+                        val_loss, val_acc = self.test(X_val, y_val, accuracy=True)
+                        log_values += [('val. loss', val_loss), ('val. acc.', val_acc)]
+                    else:
+                        val_loss = self.test(X_val, y_val)
+                        log_values += [('val. loss', val_loss)]
                 
                 # logging
                 if verbose:
-                    is_last_batch = (batch_index == len(batches) - 1)
-                    if (not is_last_batch or not do_validation):
-                        if verbose==1:
-                            if show_accuracy:
-                                progbar.update(batch_end, [('loss', loss), ('acc.', acc)])
-                            else:
-                                progbar.update(batch_end, [('loss', loss)])
-                    else:
-                        if show_accuracy:
-                            val_loss, val_acc = self.test(X_val, y_val, accuracy=True)
-                            if verbose==1:
-                                progbar.update(batch_end, [('loss', loss), ('acc.', acc), ('val. loss', val_loss), ('val. acc.', val_acc)])
-                            if verbose==2:
-                                print("loss: %.4f - acc.: %.4f - val. loss: %.4f - val. acc.: %.4f" % (loss, acc, val_loss, val_acc))
-                        else:
-                            val_loss = self.test(X_val, y_val, accuracy=False)
-                            if verbose==1:
-                                progbar.update(batch_end, [('loss', loss), ('val. loss', val_loss)])
-                            if verbose==2:
-                                print("loss: %.4f - val. loss: %.4f" % (loss, val_loss))
+                    progbar.update(batch_end, log_values)
 
             
     def predict_proba(self, X, batch_size=128, verbose=1):
@@ -195,7 +186,8 @@ class Sequential(object):
         tot_score = 0.
 
         batches = make_batches(len(X), batch_size)
-        progbar = Progbar(target=len(X))
+        if verbose:
+            progbar = Progbar(target=len(X), verbose=verbose)
         for batch_index, (batch_start, batch_end) in enumerate(batches):
             X_batch = X[batch_start:batch_end]
             y_batch = y[batch_start:batch_end]
@@ -203,26 +195,43 @@ class Sequential(object):
             if show_accuracy:
                 loss, acc = self._test_with_acc(X_batch, y_batch)
                 tot_acc += acc
+                log_values = [('loss', loss), ('acc.', acc)]
             else:
                 loss = self._test(X_batch, y_batch)
+                log_values = [('loss', loss)]
             tot_score += loss
 
+            # logging
             if verbose:
-                if verbose==1:
-                    if show_accuracy:
-                        progbar.update(batch_end, [('loss', loss), ('acc.', acc)])
-                    else:
-                        progbar.update(batch_end, [('loss', loss)])
-                if batch_index == len(batches) and verbose==2:
-                    if show_accuracy:
-                        print("loss: %.4f - acc.: %.4f" % (loss, acc))
-                    else:
-                        print("loss: %.4f")
+                progbar.update(batch_end, log_values)
 
         if show_accuracy:
             return tot_score/len(batches), tot_acc/len(batches)
         else:
             return tot_score/len(batches)
+
+    def save(self, fpath):
+        import cPickle
+        import types
+
+        weights = []
+        for l in self.layers:
+            weights.append(l.get_weights())
+            
+            attributes = []
+            for a in dir(l):
+                if a[:2] != '__' and a not in ['params', 'previous_layer', 'input']:
+                    if type(getattr(l, a)) != types.MethodType:
+                        attributes.append((a, getattr(l, a)))
+
+        print('Pickle model...')
+        cPickle.dump(self, open(fpath + '.pkl', 'w'))
+        print('Pickle weights...')
+        cPickle.dump(weights, open(fpath + '.h5', 'w'))
+
+        #save_weights_to_hdf5(fpath + '.h5', weights)
+
+
                 
 
 
