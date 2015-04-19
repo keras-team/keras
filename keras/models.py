@@ -210,6 +210,17 @@ class Sequential(object):
         else:
             return tot_score/len(batches)
 
+    def describe(self, verbose=1):
+        layers = []
+        for i, l in enumerate(self.layers):
+            config = l.get_config()
+            layers.append(config)
+            if verbose:
+                print('Layer %d: %s' % (i, config.get('name', '?')))
+                for k, v in config.items():
+                    if k != 'name':
+                        print('... ' + k + ' = ' + str(v))
+        return layers
 
     def save_weights(self, filepath):
         # Save weights from all layers to HDF5

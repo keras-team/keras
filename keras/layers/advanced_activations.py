@@ -10,6 +10,10 @@ class LeakyReLU(Layer):
         X = self.get_input(train)
         return ((X + abs(X)) / 2.0) + self.alpha * ((X - abs(X)) / 2.0)
 
+    def get_config(self):
+        return {"name":self.__class__.__name__,
+            "alpha":self.alpha}
+
 
 class PReLU(Layer):
     '''
@@ -26,3 +30,7 @@ class PReLU(Layer):
         pos = ((X + abs(X)) / 2.0)
         neg = self.alphas * ((X - abs(X)) / 2.0)
         return pos + neg
+
+    def get_config(self):
+        return {"name":self.__class__.__name__,
+            "input_shape":self.input_shape}

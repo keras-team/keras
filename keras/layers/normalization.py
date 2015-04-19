@@ -25,3 +25,8 @@ class BatchNormalization(Layer):
         X_normed = (X - X.mean(keepdims=True)) / (X.std(keepdims=True) + self.epsilon)
         out = self.gamma * X_normed + self.beta
         return out
+
+    def get_config(self):
+        return {"name":self.__class__.__name__,
+            "input_shape":self.input_shape,
+            "epsilon":self.epsilon}

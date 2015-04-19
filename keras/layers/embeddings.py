@@ -31,6 +31,12 @@ class Embedding(Layer):
         out = self.W[X]
         return out
 
+    def get_config(self):
+        return {"name":self.__class__.__name__,
+            "input_dim":self.input_dim,
+            "output_dim":self.output_dim,
+            "init":self.init.__name__}
+
 
 class WordContextProduct(Layer):
     '''
@@ -83,4 +89,11 @@ class WordContextProduct(Layer):
         dot = T.sum(w * c, axis=1)
         dot = theano.tensor.reshape(dot, (X.shape[0], 1))
         return self.activation(dot)
+
+    def get_config(self):
+        return {"name":self.__class__.__name__,
+            "input_dim":self.input_dim,
+            "proj_dim":self.proj_dim,
+            "init":self.init.__name__,
+            "activation":self.activation.__name__}
 

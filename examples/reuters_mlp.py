@@ -57,15 +57,20 @@ model.compile(loss='categorical_crossentropy', optimizer='adam')
 # import cPickle
 # model = cPickle.load(open('testsave.m.pkl'))
 
-# print("Training...")
-# model.fit(X_train, Y_train, nb_epoch=1, batch_size=batch_size, verbose=2)
-# score = model.evaluate(X_test, Y_test, batch_size=batch_size, verbose=2)
-# print('Test score:', score)
+for v in range(3):
+    for sa in [True, False]:
+        for vs in [0, 0.1]:
+            print('='*40)
+            print('v:%d, sa:%r, vs:%f' % (v, sa, vs))
+            print("Training...")
+            model.fit(X_train, Y_train, nb_epoch=2, batch_size=batch_size, verbose=v, show_accuracy=sa, validation_split=vs)
+            score = model.evaluate(X_test, Y_test, batch_size=batch_size, verbose=v, show_accuracy=sa)
+            print('Test score:', score)
 
-classes = model.predict_classes(X_test, batch_size=batch_size, verbose=2)
-acc = np_utils.accuracy(classes, y_test)
-print('Test accuracy:', acc)
+            classes = model.predict_classes(X_test, batch_size=batch_size, verbose=v)
+            acc = np_utils.accuracy(classes, y_test)
+            print('Test accuracy:', acc)
 
-model.save('testsave.m')
+# model.save('testsave.m')
 
 

@@ -67,6 +67,16 @@ class SimpleRNN(Layer):
             return outputs.dimshuffle((1,0,2))
         return outputs[-1]
 
+    def get_config(self):
+        return {"name":self.__class__.__name__,
+            "input_dim":self.input_dim,
+            "output_dim":self.output_dim,
+            "init":self.init.__name__,
+            "inner_init":self.inner_init.__name__,
+            "activation":self.activation.__name__,
+            "truncate_gradient":self.truncate_gradient,
+            "return_sequences":self.return_sequences}
+
 
 class SimpleDeepRNN(Layer):
     '''
@@ -126,6 +136,17 @@ class SimpleDeepRNN(Layer):
         if self.return_sequences:
             return outputs.dimshuffle((1,0,2))
         return outputs[-1]
+
+    def get_config(self):
+        return {"name":self.__class__.__name__,
+            "input_dim":self.input_dim,
+            "output_dim":self.output_dim,
+            "depth":self.depth,
+            "init":self.init.__name__,
+            "inner_init":self.inner_init.__name__,
+            "activation":self.activation.__name__,
+            "truncate_gradient":self.truncate_gradient,
+            "return_sequences":self.return_sequences}
 
 
 
@@ -215,6 +236,16 @@ class GRU(Layer):
         if self.return_sequences:
             return outputs.dimshuffle((1,0,2))
         return outputs[-1]
+
+    def get_config(self):
+        return {"name":self.__class__.__name__,
+            "input_dim":self.input_dim,
+            "output_dim":self.output_dim,
+            "init":self.init.__name__,
+            "inner_init":self.inner_init.__name__,
+            "activation":self.activation.__name__,
+            "truncate_gradient":self.truncate_gradient,
+            "return_sequences":self.return_sequences}
 
 
 
@@ -318,5 +349,15 @@ class LSTM(Layer):
         if self.return_sequences:
             return outputs.dimshuffle((1,0,2))
         return outputs[-1]
+
+    def get_config(self):
+        return {"name":self.__class__.__name__,
+            "input_dim":self.input_dim,
+            "output_dim":self.output_dim,
+            "init":self.init.__name__,
+            "inner_init":self.inner_init.__name__,
+            "activation":self.activation.__name__,
+            "truncate_gradient":self.truncate_gradient,
+            "return_sequences":self.return_sequences}
         
 

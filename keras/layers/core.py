@@ -35,6 +35,9 @@ class Layer(object):
             weights.append(p.get_value())
         return weights
 
+    def get_config(self):
+        return {"name":self.__class__.__name__}
+
 
 class Dropout(Layer):
     '''
@@ -54,6 +57,10 @@ class Dropout(Layer):
                 X *= retain_prob
         return X
 
+    def get_config(self):
+        return {"name":self.__class__.__name__,
+            "p":self.p}
+
 
 class Activation(Layer):
     '''
@@ -66,6 +73,10 @@ class Activation(Layer):
     def output(self, train):
         X = self.get_input(train)
         return self.activation(X)
+
+    def get_config(self):
+        return {"name":self.__class__.__name__,
+            "activation":self.activation.__name__}
 
 
 class Reshape(Layer):
@@ -82,6 +93,10 @@ class Reshape(Layer):
         X = self.get_input(train)
         nshape = make_tuple(X.shape[0], *self.dims)
         return theano.tensor.reshape(X, nshape)
+
+    def get_config(self):
+        return {"name":self.__class__.__name__,
+            "p":self.p}
 
 
 class Flatten(Layer):
@@ -116,6 +131,10 @@ class RepeatVector(Layer):
         stacked = theano.tensor.stack(*tensors)
         return stacked.dimshuffle((1,0,2))
 
+    def get_config(self):
+        return {"name":self.__class__.__name__,
+            "n":self.n}
+
 
 class Dense(Layer):
     '''
@@ -140,6 +159,14 @@ class Dense(Layer):
         X = self.get_input(train)
         output = self.activation(T.dot(X, self.W) + self.b)
         return output
+
+    def get_config(self):
+        return {"name":self.__class__.__name__,
+            "input_dim":self.input_dim,
+            "output_dim":self.output_dim,
+            "init":self.init.__name__,
+            "activation":self.activation.__name__}
+
 
 class TimeDistributedDense(Layer):
     '''
@@ -174,3 +201,10 @@ class TimeDistributedDense(Layer):
                                 sequences = X.dimshuffle(1,0,2),
                                 outputs_info=None)
         return output.dimshuffle(1,0,2)
+
+    def get_config(self):
+        return {"name":self.__class__.__name__,
+            "input_dim":self.input_dim,
+            "output_dim":self.output_dim,
+            "init":self.init.__name__,
+            "activation":self.activation.__name__}
