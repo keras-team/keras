@@ -1,7 +1,7 @@
 from __future__ import absolute_import
 from __future__ import print_function
-import urllib, tarfile
-import inspect, os
+import tarfile, inspect, os
+from six.moves.urllib.request import urlretrieve
 from ..utils.generic_utils import Progbar
 
 def get_file(fname, origin, untar=False):
@@ -29,7 +29,7 @@ def get_file(fname, origin, untar=False):
             else:
                 progbar.update(count*block_size)
 
-        urllib.urlretrieve(origin, fpath, dl_progress)
+        urlretrieve(origin, fpath, dl_progress)
         progbar = None
 
     if untar:
