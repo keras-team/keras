@@ -5,10 +5,15 @@
 '''
 from __future__ import absolute_import
 
-import string
+import string, sys
 import numpy as np
 from six.moves import range
 from six.moves import zip
+
+if sys.version_info < (3,):
+    maketrans = string.maketrans
+else:
+    maketrans = str.maketrans
 
 def base_filter():
     f = string.punctuation
@@ -21,7 +26,7 @@ def text_to_word_sequence(text, filters=base_filter(), lower=True, split=" "):
     '''
     if lower:
         text = text.lower()
-    text = text.translate(string.maketrans(filters, split*len(filters)))
+    text = text.translate(maketrans(filters, split*len(filters)))
     seq = text.split(split)
     return [_f for _f in seq if _f]
 
