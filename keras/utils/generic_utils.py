@@ -48,6 +48,7 @@ class Progbar(object):
         now = time.time()
         if self.verbose == 1:
             prev_total_width = self.total_width
+            sys.stdout.write("\b" * (self.total_width+1))
             sys.stdout.write("\r")
 
             bar = '%d/%d [' % (current, self.target)
@@ -63,7 +64,7 @@ class Progbar(object):
             bar += ']'
             sys.stdout.write(bar)
             self.total_width = len(bar)
-
+            
             if current:
                 time_per_unit = (now - self.start) / current
             else:
