@@ -170,9 +170,6 @@ In the examples folder, you will find example models for real datasets:
 - IMDB movie review sentiment classification: LSTM over sequences of words
 - Reuters newswires topic classification: Multilayer Perceptron
 
-## Warning
-
-This is a 0.0.1 alpha release. Feature scope is limited, and wild bugs may appear.
 
 ## Current capabilities
 
