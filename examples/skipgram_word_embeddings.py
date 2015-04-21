@@ -48,12 +48,13 @@ skip_top = 100 # ignore top 100 most common words
 nb_epoch = 1
 dim_proj = 256 # embedding space dimension
 
-save = False
-load = False
+save = True
+load_model = False
+load_tokenizer = False
 train_model = True
 save_dir = os.path.expanduser("~/.keras/models")
-model_load_fname = "HN_skipgram_model_full_256.pkl"
-model_save_fname = "HN_skipgram_model_full_256.pkl"
+model_load_fname = "HN_skipgram_model.pkl"
+model_save_fname = "HN_skipgram_model.pkl"
 tokenizer_fname = "HN_tokenizer.pkl"
 
 data_path = os.path.expanduser("~/")+"HNCommentsAll.1perline.json"
@@ -83,11 +84,9 @@ def text_generator(path=data_path):
     f.close()
 
 # model management
-if load:
+if load_tokenizer:
     print('Load tokenizer...')
-    tokenizer = six.moves.cPickle.load(open(os.path.join(save_dir, tokenizer_fname)))
-    print('Load model...')
-    model = six.moves.cPickle.load(open(os.path.join(save_dir, model_load_fname)))
+    tokenizer = six.moves.cPickle.load(open(os.path.join(save_dir, tokenizer_fname), 'rb'))
 else:
     print("Fit tokenizer...")
     tokenizer = text.Tokenizer(nb_words=max_features)
@@ -96,15 +95,18 @@ else:
         print("Save tokenizer...")
         if not os.path.exists(save_dir):
             os.makedirs(save_dir)
-        six.moves.cPickle.dump(tokenizer, open(os.path.join(save_dir, tokenizer_fname), "w"))
+        six.moves.cPickle.dump(tokenizer, open(os.path.join(save_dir, tokenizer_fname), "wb"))
 
 # training process
 if train_model:
-    if not load:
+    if load_model:
+        print('Load model...')
+        model = six.moves.cPickle.load(open(os.path.join(save_dir, model_load_fname), 'rb'))
+    else:
         print('Build model...')
         model = Sequential()
         model.add(WordContextProduct(max_features, proj_dim=dim_proj, init="normal"))
-        model.compile(loss='mse', optimizer='rmsprop')
+        model.compile(loss='hinge', optimizer='adam')
 
     sampling_table = sequence.make_sampling_table(max_features)
 
@@ -136,7 +138,7 @@ if train_model:
         print("Saving model...")
         if not os.path.exists(save_dir):
             os.makedirs(save_dir)
-        six.moves.cPickle.dump(model, open(os.path.join(save_dir, model_save_fname), "w"))
+        six.moves.cPickle.dump(model, open(os.path.join(save_dir, model_save_fname), "wb"))
 
 
 print("It's test time!")
