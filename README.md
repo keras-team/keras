@@ -11,6 +11,8 @@ Use Keras if you need a deep learning library that:
 
 Read the documentation at [Keras.io](http://keras.io).
 
+Keras is compatible with __Python 2.7-3.4__.
+
 ## Guiding principles
 
 - __Modularity.__ A model is understood as a sequence of standalone, fully-configurable modules that can be plugged together with as little restrictions as possible. In particular, neural layers, cost functions, optimizers, initialization schemes, activation functions and dropout are all standalone modules that you can combine to create new models. 
