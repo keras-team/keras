@@ -21,7 +21,7 @@ from sklearn.preprocessing import StandardScaler
 
     Recommended to run on GPU: 
         Command: THEANO_FLAGS=mode=FAST_RUN,device=gpu,floatX=float32 python kaggle_otto_nn.py
-        On EC2 g2.2xlarge instance: 10s/epoch. 6-7 minutes total training time.
+        On EC2 g2.2xlarge instance: 19s/epoch. 6-7 minutes total training time.
 
     Best validation score at epoch 21: 0.4881 
 
