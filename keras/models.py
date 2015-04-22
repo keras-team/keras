@@ -237,7 +237,8 @@ class Sequential(object):
                 param_dset = g.create_dataset(param_name, param.shape, dtype='float64')
                 param_dset[:] = param
             for k, v in l.get_config().items():
-                g.attrs[k] = v
+                if v is not None:
+                    g.attrs[k] = v
         f.flush()
         f.close()
 
