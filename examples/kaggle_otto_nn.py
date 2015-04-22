@@ -80,7 +80,7 @@ X, scaler = preprocess_data(X)
 y, encoder = preprocess_labels(labels)
 
 X_test, ids = load_data('test.csv', train=False)
-X_test, _ = preprocess_data(X_test)
+X_test, _ = preprocess_data(X_test, scaler)
 
 nb_classes = y.shape[1]
 print(nb_classes, 'classes')
