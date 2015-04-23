@@ -4,11 +4,11 @@ from __future__ import print_function
 from .data_utils import get_file
 import string
 import random
+import os
 import six.moves.cPickle
 from six.moves import zip
 
-def make_reuters_dataset(path='datasets/temp/reuters21578/', min_samples_per_topic=15):
-    import os
+def make_reuters_dataset(path=os.path.join('datasets', 'temp', 'reuters21578'), min_samples_per_topic=15):
     import re
     from ..preprocessing.text import Tokenizer
 
@@ -74,8 +74,8 @@ def make_reuters_dataset(path='datasets/temp/reuters21578/', min_samples_per_top
     dataset = (X, labels) 
     print('-')
     print('Saving...')
-    six.moves.cPickle.dump(dataset, open('datasets/data/reuters.pkl', 'w'))
-    six.moves.cPickle.dump(tokenizer.word_index, open('datasets/data/reuters_word_index.pkl', 'w'))
+    six.moves.cPickle.dump(dataset, open(os.path.join('datasets', 'data', 'reuters.pkl'), 'w'))
+    six.moves.cPickle.dump(tokenizer.word_index, open(os.path.join('datasets','data', 'reuters_word_index.pkl'), 'w'))
 
 
 
