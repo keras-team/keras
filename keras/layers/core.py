@@ -12,6 +12,34 @@ from theano.sandbox.rng_mrg import MRG_RandomStreams as RandomStreams
 from six.moves import zip
 srng = RandomStreams()
 
+def l1(lam):
+    def l1wrap(g,p):
+        g += T.sgn(p) * lam
+        return g
+    return l1wrap
+
+def l2(lam):
+    def l2wrap(g,p):
+        g += p * lam
+        return g
+    return l2wrap
+
+def maxnorm(m):
+    def maxnorm_wrap(p):
+        norms = T.sqrt(T.sum(T.sqr(p), axis=0))
+        desired = T.clip(norms, 0, m)
+        p = p * (desired / (1e-7 + norms))
+        return p
+    return maxnorm_wrap
+
+def nonneg(p):
+    p *= T.ge(p,0)
+    return p
+
+def ident(g,*l):
+    return g
+
+
 class Layer(object):
     def connect(self, previous_layer):
         self.previous_layer = previous_layer
@@ -46,6 +74,8 @@ class Dropout(Layer):
     def __init__(self, p):
         self.p = p
         self.params = []
+        self.regularizer = []
+        self.constraint = []
 
     def output(self, train):
         X = self.get_input(train)
@@ -69,6 +99,8 @@ class Activation(Layer):
     def __init__(self, activation):
         self.activation = activations.get(activation)
         self.params = []
+        self.regularizer = []
+        self.constraint = []
 
     def output(self, train):
         X = self.get_input(train)
@@ -88,6 +120,8 @@ class Reshape(Layer):
     def __init__(self, *dims):
         self.dims = dims
         self.params = []
+        self.regularizer = []
+        self.constraint = []
 
     def output(self, train):
         X = self.get_input(train)
@@ -106,6 +140,8 @@ class Flatten(Layer):
     '''
     def __init__(self):
         self.params = []
+        self.regularizer = []
+        self.constraint = []
 
     def output(self, train):
         X = self.get_input(train)
@@ -124,6 +160,8 @@ class RepeatVector(Layer):
     def __init__(self, n):
         self.n = n
         self.params = []
+        self.regularizer = []
+        self.constraint = []
 
     def output(self, train):
         X = self.get_input(train)
@@ -140,7 +178,7 @@ class Dense(Layer):
     '''
         Just your regular fully connected NN layer.
     '''
-    def __init__(self, input_dim, output_dim, init='uniform', activation='linear', weights=None):
+    def __init__(self, input_dim, output_dim, init='uniform', activation='linear', weights=None, regularizer=[ident, ident], constraint=[ident, ident]):
         self.init = initializations.get(init)
         self.activation = activations.get(activation)
         self.input_dim = input_dim
@@ -151,6 +189,9 @@ class Dense(Layer):
         self.b = shared_zeros((self.output_dim))
 
         self.params = [self.W, self.b]
+
+        self.regularizer = regularizer
+        self.constraint = constraint
 
         if weights is not None:
             self.set_weights(weights)
@@ -176,7 +217,7 @@ class TimeDistributedDense(Layer):
        Tensor output dimensions:  (nb_sample, shared_dimension, output_dim)
 
     '''
-    def __init__(self, input_dim, output_dim, init='uniform', activation='linear', weights=None):
+    def __init__(self, input_dim, output_dim, init='uniform', activation='linear', weights=None, regularizer=[ident, ident], constraint=[ident, ident]):
         self.init = initializations.get(init)
         self.activation = activations.get(activation)
         self.input_dim = input_dim
@@ -187,6 +228,9 @@ class TimeDistributedDense(Layer):
         self.b = shared_zeros((self.output_dim))
 
         self.params = [self.W, self.b]
+
+        self.regularizer = regularizer
+        self.constraint = constraint
 
         if weights is not None:
             self.set_weights(weights)
