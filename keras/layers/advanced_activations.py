@@ -32,5 +32,4 @@ class PReLU(Layer):
         return pos + neg
 
     def get_config(self):
-        return {"name":self.__class__.__name__,
-            "input_shape":self.input_shape}
+        return {"name":self.__class__.__name__}
