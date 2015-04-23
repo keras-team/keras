@@ -2,7 +2,7 @@
 from __future__ import absolute_import
 from .data_utils import get_file
 import random
-import sys
+import sys, os
 import numpy as np
 import six.moves.cPickle
 from six.moves import range
@@ -16,7 +16,7 @@ def load_data(test_split=0.1, seed=113):
     X = np.zeros((nb_samples, 3, 32, 32), dtype="uint8")
     y = np.zeros((nb_samples,), dtype="uint8")
     for i in range(1, 6):
-        fpath = path + '/data_batch_' + str(i)
+        fpath = os.path.join(path, 'data_batch_' + str(i))
         f = open(fpath, 'rb')
         if sys.version_info < (3,):
             d = six.moves.cPickle.load(f)
