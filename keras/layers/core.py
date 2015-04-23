@@ -5,6 +5,7 @@ import theano
 import theano.tensor as T
 
 from .. import activations, initializations
+from ..regularizers import ident
 from ..utils.theano_utils import shared_zeros, floatX
 from ..utils.generic_utils import make_tuple
 
@@ -46,6 +47,8 @@ class Dropout(Layer):
     def __init__(self, p):
         self.p = p
         self.params = []
+        self.regularizer = []
+        self.constraint = []
 
     def output(self, train):
         X = self.get_input(train)
@@ -69,6 +72,8 @@ class Activation(Layer):
     def __init__(self, activation):
         self.activation = activations.get(activation)
         self.params = []
+        self.regularizer = []
+        self.constraint = []
 
     def output(self, train):
         X = self.get_input(train)
@@ -88,6 +93,8 @@ class Reshape(Layer):
     def __init__(self, *dims):
         self.dims = dims
         self.params = []
+        self.regularizer = []
+        self.constraint = []
 
     def output(self, train):
         X = self.get_input(train)
@@ -106,6 +113,8 @@ class Flatten(Layer):
     '''
     def __init__(self):
         self.params = []
+        self.regularizer = []
+        self.constraint = []
 
     def output(self, train):
         X = self.get_input(train)
@@ -124,6 +133,8 @@ class RepeatVector(Layer):
     def __init__(self, n):
         self.n = n
         self.params = []
+        self.regularizer = []
+        self.constraint = []
 
     def output(self, train):
         X = self.get_input(train)
@@ -140,7 +151,7 @@ class Dense(Layer):
     '''
         Just your regular fully connected NN layer.
     '''
-    def __init__(self, input_dim, output_dim, init='uniform', activation='linear', weights=None):
+    def __init__(self, input_dim, output_dim, init='uniform', activation='linear', weights=None, W_regularizer=ident, b_regularizer=ident, W_constraint=ident, b_constraint=ident):
         self.init = initializations.get(init)
         self.activation = activations.get(activation)
         self.input_dim = input_dim
@@ -151,6 +162,9 @@ class Dense(Layer):
         self.b = shared_zeros((self.output_dim))
 
         self.params = [self.W, self.b]
+
+        self.regularizer = [W_regularizer, b_regularizer]
+        self.constraint = [W_constraint, b_constraint]
 
         if weights is not None:
             self.set_weights(weights)
@@ -176,7 +190,7 @@ class TimeDistributedDense(Layer):
        Tensor output dimensions:  (nb_sample, shared_dimension, output_dim)
 
     '''
-    def __init__(self, input_dim, output_dim, init='uniform', activation='linear', weights=None):
+    def __init__(self, input_dim, output_dim, init='uniform', activation='linear', weights=None, W_regularizer=ident, b_regularizer=ident, W_constraint=ident, b_constraint=ident):
         self.init = initializations.get(init)
         self.activation = activations.get(activation)
         self.input_dim = input_dim
@@ -187,6 +201,9 @@ class TimeDistributedDense(Layer):
         self.b = shared_zeros((self.output_dim))
 
         self.params = [self.W, self.b]
+
+        self.regularizer = [W_regularizer, b_regularizer]
+        self.constraint = [W_constraint, b_constraint]
 
         if weights is not None:
             self.set_weights(weights)
