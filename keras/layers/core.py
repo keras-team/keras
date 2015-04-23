@@ -5,40 +5,13 @@ import theano
 import theano.tensor as T
 
 from .. import activations, initializations
+from ..regularizers import ident
 from ..utils.theano_utils import shared_zeros, floatX
 from ..utils.generic_utils import make_tuple
 
 from theano.sandbox.rng_mrg import MRG_RandomStreams as RandomStreams
 from six.moves import zip
 srng = RandomStreams()
-
-def l1(lam):
-    def l1wrap(g,p):
-        g += T.sgn(p) * lam
-        return g
-    return l1wrap
-
-def l2(lam):
-    def l2wrap(g,p):
-        g += p * lam
-        return g
-    return l2wrap
-
-def maxnorm(m):
-    def maxnorm_wrap(p):
-        norms = T.sqrt(T.sum(T.sqr(p), axis=0))
-        desired = T.clip(norms, 0, m)
-        p = p * (desired / (1e-7 + norms))
-        return p
-    return maxnorm_wrap
-
-def nonneg(p):
-    p *= T.ge(p,0)
-    return p
-
-def ident(g,*l):
-    return g
-
 
 class Layer(object):
     def connect(self, previous_layer):
@@ -178,7 +151,7 @@ class Dense(Layer):
     '''
         Just your regular fully connected NN layer.
     '''
-    def __init__(self, input_dim, output_dim, init='uniform', activation='linear', weights=None, regularizer=[ident, ident], constraint=[ident, ident]):
+    def __init__(self, input_dim, output_dim, init='uniform', activation='linear', weights=None, W_regularizer=ident, b_regularizer=ident, W_constraint=ident, b_constraint=ident):
         self.init = initializations.get(init)
         self.activation = activations.get(activation)
         self.input_dim = input_dim
@@ -190,8 +163,8 @@ class Dense(Layer):
 
         self.params = [self.W, self.b]
 
-        self.regularizer = regularizer
-        self.constraint = constraint
+        self.regularizer = [W_regularizer, b_regularizer]
+        self.constraint = [W_constraint, b_constraint]
 
         if weights is not None:
             self.set_weights(weights)
@@ -217,7 +190,7 @@ class TimeDistributedDense(Layer):
        Tensor output dimensions:  (nb_sample, shared_dimension, output_dim)
 
     '''
-    def __init__(self, input_dim, output_dim, init='uniform', activation='linear', weights=None, regularizer=[ident, ident], constraint=[ident, ident]):
+    def __init__(self, input_dim, output_dim, init='uniform', activation='linear', weights=None, W_regularizer=ident, b_regularizer=ident, W_constraint=ident, b_constraint=ident):
         self.init = initializations.get(init)
         self.activation = activations.get(activation)
         self.input_dim = input_dim
@@ -229,8 +202,8 @@ class TimeDistributedDense(Layer):
 
         self.params = [self.W, self.b]
 
-        self.regularizer = regularizer
-        self.constraint = constraint
+        self.regularizer = [W_regularizer, b_regularizer]
+        self.constraint = [W_constraint, b_constraint]
 
         if weights is not None:
             self.set_weights(weights)
