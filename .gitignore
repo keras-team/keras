@@ -4,3 +4,5 @@ temp/*
 build/*
 keras/datasets/data/*
 keras/datasets/temp/*
+Keras.egg-info/*
+
