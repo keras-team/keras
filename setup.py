@@ -9,5 +9,10 @@ setup(name='Keras',
       url='https://github.com/fchollet/keras',
       license='MIT',
       packages=find_packages(),
-      # TODO: dependencies
+      install_requires=['numpy', 'scipy', 'pillow'],
+      classifiers=[
+          'Development Status :: 3 - Alpha',
+          'License :: OSI Approved :: MIT License',
+          'Intended Audience :: Science/Research'
+      ]
 )
