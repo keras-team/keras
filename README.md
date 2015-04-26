@@ -2,16 +2,20 @@
 
 ## You have just found Keras.
 
-Keras is a minimalist, highly modular neural network library in the spirit of Torch, written in Python / Theano so as not to have to deal with the derth of ecosystem in Lua. It was developed with a focus on enabling fast experimentation. Being able to go from idea to result with the least possible delay is key to doing good research.
+Keras is a minimalist, highly modular neural network library in the spirit of Torch, written in Python / Theano so as not to have to deal with the dearth of ecosystem in Lua. It was developed with a focus on enabling fast experimentation. Being able to go from idea to result with the least possible delay is key to doing good research.
 
 Use Keras if you need a deep learning library that:
 - allows for easy and fast prototyping (through total modularity, minimalism, and extensibility).
 - supports both convolutional networks (for vision) and recurrent networks (for sequence data). As well as combinations of the two. 
-- runs seemlessly on the CPU and the GPU.
+- runs seamlessly on the CPU and the GPU.
+
+Read the documentation at [Keras.io](http://keras.io).
+
+Keras is compatible with __Python 2.7-3.4__.
 
 ## Guiding principles
 
-- __Modularity.__ A model is understood as a sequence of standalone, fully-configurable modules that can be plugged together with as little restrictions as possible. In particular, neural layers, cost functions, optimizers, initialization schemes, activation functions and dropout are all standlone modules that you can combine to create new models. 
+- __Modularity.__ A model is understood as a sequence of standalone, fully-configurable modules that can be plugged together with as little restrictions as possible. In particular, neural layers, cost functions, optimizers, initialization schemes, activation functions and dropout are all standalone modules that you can combine to create new models. 
 
 - __Minimalism.__ Each module should be kept short and simple (<100 lines of code). Every piece of code should be transparent upon first reading. No black magic: it hurts iteration speed and ability to innovate. 
 
@@ -82,7 +86,7 @@ model.add(Activation('relu'))
 model.add(MaxPooling2D(poolsize=(2, 2)))
 model.add(Dropout(0.25))
 
-model.add(Flatten(64*8*8))
+model.add(Flatten())
 model.add(Dense(64*8*8, 256))
 model.add(Activation('relu'))
 model.add(Dropout(0.5))
@@ -145,7 +149,7 @@ model.add(Convolution2D(128, 128, 3, 3))
 model.add(Activation('relu'))
 model.add(MaxPooling2D(poolsize=(2, 2)))
 
-model.add(Flatten(128*4*4))
+model.add(Flatten())
 model.add(Dense(128*4*4, 256))
 model.add(Activation('relu'))
 model.add(Dropout(0.5))
@@ -164,80 +168,16 @@ model.fit(images, captions, batch_size=16, nb_epoch=100)
 ```
 
 In the examples folder, you will find example models for real datasets:
-- CIFAR10 small images classification: convnet with realtime data augmentation
-- IMDB movie reviews: sentiment classification
-- Reuters newswires: topic classification
+- CIFAR10 small images classification: Convnet with realtime data augmentation
+- IMDB movie review sentiment classification: LSTM over sequences of words
+- Reuters newswires topic classification: Multilayer Perceptron
 
-## Warning
-
-This is a 0.0.1 alpha release. Feature scope is limited, and wild bugs may appear.
 
 ## Current capabilities
 
-- model architectures:
-    sequential (pipeline of layers)
+For complete coverage of the API, check out [the Keras documentation](http://keras.io).
 
-- layers: 
-    - layers.core:
-        - Dense
-        - Dropout
-        - Activation
-        - Reshape
-        - Flatten
-        - Embedding
-        - Repeat
-    - layers.convolutional:
-        - Convolution2D
-        - MaxPooling2D
-    - layers.recurrent:
-        - SimpleRNN
-        - SimpleDeepRNN
-        - GRU
-        - LSTM
-    - layers.advanced_activations:
-        - LeakyReLU
-        - PReLU
-    - layers.normalization:
-        - BatchNormalization
-
-- optimizers: 
-    - SGD (supports decay, momentum, Nesterov momentum)
-    - RMSprop
-    - Adagrad
-    - Adadelta
-
-- datasets:
-    - CIFAR10: thumbnail image classification
-    - Reuters: newswire topic classification
-    - IMDB: sentiment classification
-
-- preprocessing:
-    - image:
-        - ImageDataGenerator: realtime image data augmentation and preprocessing (normalization, ZCA whitening)
-        - random_rotation
-        - random_shift
-        - horizontal_flip
-        - vertical_flip
-    - text:
-        - Tokenizer
-        - one_hot
-    - sequence:
-        - pad_sequences
-
-- objectives:
-    - mean_squared_error
-    - mean_absolute_error
-    - hinge
-    - squared_hinge
-    - binary_crossentropy
-    - categorical_crossentropy
-
-- activation functions:
-    softmax, softplus, relu, sigmoid, hard_sigmoid, linear
-
-- initialization functions:
-    normal, uniform, lecun_uniform, orthogonal
-
+A few highlights: convnets, LSTM, GRU, word2vec-style embeddings, PReLU, batch normalization...
 
 ## Installation
 
@@ -252,10 +192,14 @@ Keras uses the following dependencies:
 
 - Optional but recommended if you use CNNs: cuDNN.
 
+Once you have the dependencies installed, cd to the Keras folder and run the install command:
+```
+sudo python setup.py install
+```
 
 ## Why this name, Keras?
 
-Keras (κέρας) means _horn_ in Greek. It is a reference to a literary image from ancient Greek and Latin literature, first found in the _Odyssee_, where dream spirits (_Oneiroi_, singular _Oneiros_) are divided between those who deceive men with false visions, who arrive to Earth through a gate of ivory, and those who anounce a future that will come to pass, who arrive through a gate of horn. It's a play on the words κέρας (horn) / κραίνω (fulfill), and ἐλέφας (ivory) / ἐλεφαίρομαι (deceive).
+Keras (κέρας) means _horn_ in Greek. It is a reference to a literary image from ancient Greek and Latin literature, first found in the _Odyssey_, where dream spirits (_Oneiroi_, singular _Oneiros_) are divided between those who deceive men with false visions, who arrive to Earth through a gate of ivory, and those who announce a future that will come to pass, who arrive through a gate of horn. It's a play on the words κέρας (horn) / κραίνω (fulfill), and ἐλέφας (ivory) / ἐλεφαίρομαι (deceive).
 
 Keras was developed as part of the research effort of project ONEIROS (Open-ended Neuro-Electronic Intelligent Robot Operating System).
 

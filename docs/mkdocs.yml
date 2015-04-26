@@ -1,0 +1,37 @@
+site_name: Keras Documentation
+theme: readthedocs
+docs_dir: sources
+repo_url: http://github.com/fchollet/keras
+site_url: /
+theme_dir: theme
+site_description: Documentation for fast and lightweight Keras Deep Learning library.
+include_404: true
+include_search: true
+
+dev_addr: '0.0.0.0:8000'
+google_analytics: ['UA-61785484-1', 'keras.io']
+
+
+pages:
+- [index.md, Home]
+- [documentation.md, Index]
+
+- [examples.md, Examples]
+- [optimizers.md, Optimizers]
+- [objectives.md, Objectives]
+- [models.md, Models]
+- [activations.md, Activations]
+- [initializations.md, Initializations]
+
+- [datasets.md, Datasets]
+
+- [layers/core.md, Layers, Core Layers]
+- [layers/convolutional.md, Layers, Convolutional Layers]
+- [layers/recurrent.md, Layers, Recurrent Layers]
+- [layers/advanced_activations.md, Layers, Advanced Activations Layers]
+- [layers/normalization.md, Layers, Normalization Layers]
+- [layers/embeddings.md, Layers, Embedding Layers]
+
+- [preprocessing/sequence.md, Preprocessing, Sequence Preprocessing]
+- [preprocessing/text.md, Preprocessing, Text Preprocessing]
+- [preprocessing/image.md, Preprocessing, Image Preprocessing]
