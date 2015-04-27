@@ -53,8 +53,5 @@ model.compile(loss='categorical_crossentropy', optimizer='adam')
 
 model.fit(X_train, Y_train, nb_epoch=4, batch_size=batch_size, verbose=1, show_accuracy=True, validation_split=0.1)
 score = model.evaluate(X_test, Y_test, batch_size=batch_size, verbose=1, show_accuracy=True)
-print('Test score:', score)
-
-classes = model.predict_classes(X_test, batch_size=batch_size, verbose=0)
-acc = np_utils.accuracy(classes, y_test)
-print('Test accuracy:', acc)
+print('Test score:', score[0])
+print('Test accuracy:', score[1])
