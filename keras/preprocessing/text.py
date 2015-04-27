@@ -149,7 +149,7 @@ class Tokenizer(object):
         if mode == "tfidf" and not self.document_count:
             raise Exception("Fit the Tokenizer on some data before using tfidf mode")
 
-        X = np.zeros((len(sequences), nb_words+1))
+        X = np.zeros((len(sequences), nb_words))
         for i, seq in enumerate(sequences):
             if not seq:
                 pass
