@@ -20,6 +20,7 @@ class SimpleRNN(Layer):
     def __init__(self, input_dim, output_dim, 
         init='uniform', inner_init='orthogonal', activation='sigmoid', weights=None,
         truncate_gradient=-1, return_sequences=False):
+        super(SimpleRNN,self).__init__()
         self.init = initializations.get(init)
         self.inner_init = initializations.get(inner_init)
         self.input_dim = input_dim
@@ -92,6 +93,7 @@ class SimpleDeepRNN(Layer):
         init='uniform', inner_init='orthogonal', 
         activation='sigmoid', inner_activation='hard_sigmoid',
         weights=None, truncate_gradient=-1, return_sequences=False):
+        super(SimpleDeepRNN,self).__init__()
         self.init = initializations.get(init)
         self.inner_init = initializations.get(inner_init)
         self.input_dim = input_dim
@@ -177,6 +179,7 @@ class GRU(Layer):
         activation='sigmoid', inner_activation='hard_sigmoid',
         weights=None, truncate_gradient=-1, return_sequences=False):
 
+        super(GRU,self).__init__()
         self.input_dim = input_dim
         self.output_dim = output_dim
         self.truncate_gradient = truncate_gradient
@@ -278,7 +281,8 @@ class LSTM(Layer):
         init='uniform', inner_init='orthogonal', 
         activation='tanh', inner_activation='hard_sigmoid',
         weights=None, truncate_gradient=-1, return_sequences=False):
-
+    
+        super(LSTM,self).__init__()
         self.input_dim = input_dim
         self.output_dim = output_dim
         self.truncate_gradient = truncate_gradient

@@ -14,6 +14,11 @@ from six.moves import zip
 srng = RandomStreams()
 
 class Layer(object):
+    def __init__(self):
+        self.params = []
+        self.regularizer = []
+        self.constraint = []
+
     def connect(self, previous_layer):
         self.previous_layer = previous_layer
 
@@ -45,10 +50,8 @@ class Dropout(Layer):
         Hinton's dropout.
     '''
     def __init__(self, p):
+        super(Dropout,self).__init__()
         self.p = p
-        self.params = []
-        self.regularizer = []
-        self.constraint = []
 
     def output(self, train):
         X = self.get_input(train)
@@ -70,10 +73,8 @@ class Activation(Layer):
         Apply an activation function to an output.
     '''
     def __init__(self, activation):
+        super(Activation,self).__init__()
         self.activation = activations.get(activation)
-        self.params = []
-        self.regularizer = []
-        self.constraint = []
 
     def output(self, train):
         X = self.get_input(train)
@@ -91,10 +92,8 @@ class Reshape(Layer):
         First dimension is assumed to be nb_samples.
     '''
     def __init__(self, *dims):
+        super(Reshape,self).__init__()
         self.dims = dims
-        self.params = []
-        self.regularizer = []
-        self.constraint = []
 
     def output(self, train):
         X = self.get_input(train)
@@ -112,9 +111,7 @@ class Flatten(Layer):
         First dimension is assumed to be nb_samples.
     '''
     def __init__(self):
-        self.params = []
-        self.regularizer = []
-        self.constraint = []
+        super(Flatten,self).__init__()
 
     def output(self, train):
         X = self.get_input(train)
@@ -131,10 +128,8 @@ class RepeatVector(Layer):
         Return tensor of shape (nb_samples, n, dim).
     '''
     def __init__(self, n):
+        super(RepeatVector,self).__init__()
         self.n = n
-        self.params = []
-        self.regularizer = []
-        self.constraint = []
 
     def output(self, train):
         X = self.get_input(train)
@@ -152,6 +147,7 @@ class Dense(Layer):
         Just your regular fully connected NN layer.
     '''
     def __init__(self, input_dim, output_dim, init='uniform', activation='linear', weights=None, W_regularizer=ident, b_regularizer=ident, W_constraint=ident, b_constraint=ident):
+        super(Dense,self).__init__()
         self.init = initializations.get(init)
         self.activation = activations.get(activation)
         self.input_dim = input_dim
@@ -191,6 +187,7 @@ class TimeDistributedDense(Layer):
 
     '''
     def __init__(self, input_dim, output_dim, init='uniform', activation='linear', weights=None, W_regularizer=ident, b_regularizer=ident, W_constraint=ident, b_constraint=ident):
+        super(TimeDistributedDense,self).__init__()
         self.init = initializations.get(init)
         self.activation = activations.get(activation)
         self.input_dim = input_dim

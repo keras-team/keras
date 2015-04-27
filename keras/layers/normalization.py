@@ -9,6 +9,7 @@ class BatchNormalization(Layer):
                 http://arxiv.org/pdf/1502.03167v3.pdf
     '''
     def __init__(self, input_shape, epsilon=1e-6, weights=None):
+        super(BatchNormalization,self).__init__()
         self.init = initializations.get("uniform")
         self.input_shape = input_shape
         self.epsilon = epsilon
