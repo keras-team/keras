@@ -17,7 +17,7 @@ from ..layers.core import Layer
 
 class Convolution2D(Layer):
     def __init__(self, nb_filter, stack_size, nb_row, nb_col, 
-        init='uniform', activation='linear', weights=None, 
+        init='glorot_uniform', activation='linear', weights=None, 
         image_shape=None, border_mode='valid', subsample=(1,1)):
 
         self.init = initializations.get(init)

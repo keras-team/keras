@@ -18,7 +18,7 @@ class SimpleRNN(Layer):
         (demonstrates how to use theano.scan to build a basic RNN).
     '''
     def __init__(self, input_dim, output_dim, 
-        init='uniform', inner_init='orthogonal', activation='sigmoid', weights=None,
+        init='glorot_uniform', inner_init='orthogonal', activation='sigmoid', weights=None,
         truncate_gradient=-1, return_sequences=False):
         self.init = initializations.get(init)
         self.inner_init = initializations.get(inner_init)
@@ -89,7 +89,7 @@ class SimpleDeepRNN(Layer):
         Also (probably) not a super useful model.
     '''
     def __init__(self, input_dim, output_dim, depth=3,
-        init='uniform', inner_init='orthogonal', 
+        init='glorot_uniform', inner_init='orthogonal', 
         activation='sigmoid', inner_activation='hard_sigmoid',
         weights=None, truncate_gradient=-1, return_sequences=False):
         self.init = initializations.get(init)
@@ -173,7 +173,7 @@ class GRU(Layer):
                 http://arxiv.org/pdf/1412.3555v1.pdf
     '''
     def __init__(self, input_dim, output_dim=128, 
-        init='uniform', inner_init='orthogonal',
+        init='glorot_uniform', inner_init='orthogonal',
         activation='sigmoid', inner_activation='hard_sigmoid',
         weights=None, truncate_gradient=-1, return_sequences=False):
 
@@ -275,7 +275,7 @@ class LSTM(Layer):
                 http://www.cs.toronto.edu/~graves/preprint.pdf
     '''
     def __init__(self, input_dim, output_dim=128, 
-        init='uniform', inner_init='orthogonal', 
+        init='glorot_uniform', inner_init='orthogonal', 
         activation='tanh', inner_activation='hard_sigmoid',
         weights=None, truncate_gradient=-1, return_sequences=False):
 

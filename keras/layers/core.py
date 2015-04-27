@@ -140,7 +140,7 @@ class Dense(Layer):
     '''
         Just your regular fully connected NN layer.
     '''
-    def __init__(self, input_dim, output_dim, init='uniform', activation='linear', weights=None):
+    def __init__(self, input_dim, output_dim, init='glorot_uniform', activation='linear', weights=None):
         self.init = initializations.get(init)
         self.activation = activations.get(activation)
         self.input_dim = input_dim
@@ -176,7 +176,7 @@ class TimeDistributedDense(Layer):
        Tensor output dimensions:  (nb_sample, shared_dimension, output_dim)
 
     '''
-    def __init__(self, input_dim, output_dim, init='uniform', activation='linear', weights=None):
+    def __init__(self, input_dim, output_dim, init='glorot_uniform', activation='linear', weights=None):
         self.init = initializations.get(init)
         self.activation = activations.get(activation)
         self.input_dim = input_dim

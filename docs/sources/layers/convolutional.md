@@ -3,7 +3,7 @@
 
 ```python
 keras.layers.convolutional.Convolution2D(nb_filter, stack_size, nb_row, nb_col, 
-        init='uniform', activation='linear', weights=None, 
+        init='glorot_uniform', activation='linear', weights=None, 
         image_shape=None, border_mode='valid', subsample=(1,1))
 ```
 
