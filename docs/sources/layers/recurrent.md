@@ -3,7 +3,7 @@
 
 ```python
 keras.layers.recurrent.SimpleRNN(input_dim, output_dim, 
-        init='uniform', inner_init='orthogonal', activation='sigmoid', weights=None,
+        init='glorot_uniform', inner_init='orthogonal', activation='sigmoid', weights=None,
         truncate_gradient=-1, return_sequences=False)
 ```
 Fully connected RNN where output is to fed back to input. Not a particularly useful model, included for demonstration purposes.
@@ -29,7 +29,7 @@ Fully connected RNN where output is to fed back to input. Not a particularly use
 
 ```python
 keras.layers.recurrent.SimpleDeepRNN(input_dim, output_dim, depth=3,
-        init='uniform', inner_init='orthogonal', 
+        init='glorot_uniform', inner_init='orthogonal', 
         activation='sigmoid', inner_activation='hard_sigmoid',
         weights=None, truncate_gradient=-1, return_sequences=False)
 ```
@@ -66,7 +66,7 @@ Not a particularly useful model, included for demonstration purposes.
 
 ```python
 keras.layers.recurrent.GRU(input_dim, output_dim=128, 
-        init='uniform', inner_init='orthogonal',
+        init='glorot_uniform', inner_init='orthogonal',
         activation='sigmoid', inner_activation='hard_sigmoid',
         weights=None, truncate_gradient=-1, return_sequences=False)
 ```
@@ -100,7 +100,7 @@ Gated Recurrent Unit - Cho et al. 2014.
 
 ```python
 keras.layers.recurrent.LSTM(input_dim, output_dim=128, 
-        init='uniform', inner_init='orthogonal', 
+        init='glorot_uniform', inner_init='orthogonal', 
         activation='tanh', inner_activation='hard_sigmoid',
         weights=None, truncate_gradient=-1, return_sequences=False)
 ```

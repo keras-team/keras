@@ -188,7 +188,7 @@ Keras uses the following dependencies:
 - Theano
     - See installation instructions: http://deeplearning.net/software/theano/install.html#install
 
-- PIL (optional, required if you use preprocessing.image)
+- h5py (optional, required if you use model saving/loading functions)
 
 - Optional but recommended if you use CNNs: cuDNN.
 

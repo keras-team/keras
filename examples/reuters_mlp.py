@@ -11,10 +11,8 @@ from keras.preprocessing.text import Tokenizer
 
 '''
     Train and evaluate a simple MLP on the Reuters newswire topic classification task.
-
     GPU run command:
         THEANO_FLAGS=mode=FAST_RUN,device=gpu,floatX=float32 python examples/reuters_mlp.py
-
     CPU run command:
         python examples/reuters_mlp.py
 '''
@@ -47,30 +45,13 @@ print("Building model...")
 model = Sequential()
 model.add(Dense(max_words, 256, init='normal'))
 model.add(Activation('relu'))
-model.add(BatchNormalization(input_shape=(256,))) # try without batch normalization (doesn't work as well!)
 model.add(Dropout(0.5))
 model.add(Dense(256, nb_classes, init='normal'))
 model.add(Activation('softmax'))
 
 model.compile(loss='categorical_crossentropy', optimizer='adam')
 
-# import cPickle
-# model = cPickle.load(open('testsave.m.pkl'))
-
-for v in range(3):
-    for sa in [True, False]:
-        for vs in [0, 0.1]:
-            print('='*40)
-            print('v:%d, sa:%r, vs:%f' % (v, sa, vs))
-            print("Training...")
-            model.fit(X_train, Y_train, nb_epoch=2, batch_size=batch_size, verbose=v, show_accuracy=sa, validation_split=vs)
-            score = model.evaluate(X_test, Y_test, batch_size=batch_size, verbose=v, show_accuracy=sa)
-            print('Test score:', score)
-
-            classes = model.predict_classes(X_test, batch_size=batch_size, verbose=v)
-            acc = np_utils.accuracy(classes, y_test)
-            print('Test accuracy:', acc)
-
-# model.save('testsave.m')
-
-
+model.fit(X_train, Y_train, nb_epoch=4, batch_size=batch_size, verbose=1, show_accuracy=True, validation_split=0.1)
+score = model.evaluate(X_test, Y_test, batch_size=batch_size, verbose=1, show_accuracy=True)
+print('Test score:', score[0])
+print('Test accuracy:', score[1])

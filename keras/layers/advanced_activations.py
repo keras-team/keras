@@ -25,6 +25,7 @@ class PReLU(Layer):
         super(PReLU,self).__init__()
         self.alphas = shared_zeros(input_shape)
         self.params = [self.alphas]
+        self.input_shape = input_shape
 
     def output(self, train):
         X = self.get_input(train)
@@ -34,4 +35,4 @@ class PReLU(Layer):
 
     def get_config(self):
         return {"name":self.__class__.__name__,
-            "input_shape":self.input_shape}
+        "input_shape":self.input_shape}

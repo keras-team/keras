@@ -70,7 +70,7 @@ Set the weights of the parameters of the layer.
 
 ## Dense
 ```python
-keras.layers.core.Dense(input_dim, output_dim, init='uniform', activation='linear', weights=None)
+keras.layers.core.Dense(input_dim, output_dim, init='glorot_uniform', activation='linear', weights=None)
 ```
 
 Standard 1D fully-connect layer. 
@@ -91,7 +91,7 @@ Standard 1D fully-connect layer.
 
 ## TimeDistributedDense
 ```python
-keras.layers.core.TimeDistributedDense(input_dim, output_dim, init='uniform', activation='linear', weights=None)
+keras.layers.core.TimeDistributedDense(input_dim, output_dim, init='glorot_uniform', activation='linear', weights=None)
 ```
 
 Fully-connected layer distributed over the time dimension. Useful after a recurrent network set to `return_sequences=True`.

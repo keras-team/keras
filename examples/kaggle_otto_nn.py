@@ -65,7 +65,7 @@ def preprocess_labels(y, encoder=None, categorical=True):
 def make_submission(y_prob, ids, encoder, fname):
     with open(fname, 'w') as f:
         f.write('id,')
-        f.write(','.join(encoder.classes_))
+        f.write(','.join([str(i) for i in encoder.classes_]))
         f.write('\n')
         for i, probs in zip(ids, y_prob):
             probas = ','.join([i] + [str(p) for p in probs.tolist()])
