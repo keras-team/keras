@@ -62,7 +62,7 @@ class Sequential(object):
             raise Exception("Invalid class mode:" + str(class_mode))
         self.class_mode = class_mode
 
-        updates = self.optimizer.get_updates(self.params, self.regularizer, self.constraint, train_loss)
+        updates = self.optimizer.get_updates(self.params, self.regularizer, self.constraint, self.layers, train_loss)
 
         self._train = theano.function([self.X, self.y], train_loss, 
             updates=updates, allow_input_downcast=True)

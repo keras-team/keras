@@ -5,7 +5,7 @@ import theano
 import theano.tensor as T
 
 from .. import activations, initializations
-from ..regularizers import ident
+from ..regularizers import identity
 from ..utils.theano_utils import shared_zeros, floatX
 from ..utils.generic_utils import make_tuple
 
@@ -72,9 +72,11 @@ class Activation(Layer):
     '''
         Apply an activation function to an output.
     '''
-    def __init__(self, activation):
+    def __init__(self, activation, target=0, beta=0.1):
         super(Activation,self).__init__()
         self.activation = activations.get(activation)
+        self.target = target
+        self.beta = beta
 
     def output(self, train):
         X = self.get_input(train)
@@ -146,7 +148,7 @@ class Dense(Layer):
     '''
         Just your regular fully connected NN layer.
     '''
-    def __init__(self, input_dim, output_dim, init='glorot_uniform', activation='linear', weights=None, W_regularizer=ident, b_regularizer=ident, W_constraint=ident, b_constraint=ident):
+    def __init__(self, input_dim, output_dim, init='glorot_uniform', activation='linear', weights=None, W_regularizer=identity, b_regularizer=identity, W_constraint=identity, b_constraint=identity):
         super(Dense,self).__init__()
         self.init = initializations.get(init)
         self.activation = activations.get(activation)
@@ -186,7 +188,7 @@ class TimeDistributedDense(Layer):
        Tensor output dimensions:  (nb_sample, shared_dimension, output_dim)
 
     '''
-    def __init__(self, input_dim, output_dim, init='glorot_uniform', activation='linear', weights=None, W_regularizer=ident, b_regularizer=ident, W_constraint=ident, b_constraint=ident):
+    def __init__(self, input_dim, output_dim, init='glorot_uniform', activation='linear', weights=None, W_regularizer=identity, b_regularizer=identity, W_constraint=identity, b_constraint=identity):
         super(TimeDistributedDense,self).__init__()
         self.init = initializations.get(init)
         self.activation = activations.get(activation)

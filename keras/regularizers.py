@@ -15,5 +15,5 @@ def l2(lam=.01):
         return g
     return l2wrap
 
-def ident(g,*l):
+def identity(g,*l):
     return g
