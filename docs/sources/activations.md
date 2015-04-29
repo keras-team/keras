@@ -28,7 +28,7 @@ You can also specifiy a desired `target` for the average activation of hidden un
 This is accomplished by a generalized KL divergence penalty on the activations. The weighting of this penalty is determined by `beta`:
 
 ```python
-model.add(Activation('tanh', target=.05, beta=.1))
+model.add(Activation('relu', target=.05, beta=.1))
 ```
 
 ## Available activations
