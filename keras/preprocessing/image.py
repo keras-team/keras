@@ -229,7 +229,7 @@ class ImageDataGenerator(object):
             self.mean = np.mean(X, axis=0)
             X -= self.mean
         if self.featurewise_std_normalization:
-            self.std = np.std(X)
+            self.std = np.std(X, axis=0)
             X /= self.std
 
         if self.zca_whitening:
