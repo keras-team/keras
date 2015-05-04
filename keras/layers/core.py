@@ -84,7 +84,9 @@ class Activation(Layer):
 
     def get_config(self):
         return {"name":self.__class__.__name__,
-            "activation":self.activation.__name__}
+            "activation":self.activation.__name__,
+            "target":self.target,
+            "beta":self.beta}
 
 
 class Reshape(Layer):
@@ -104,7 +106,7 @@ class Reshape(Layer):
 
     def get_config(self):
         return {"name":self.__class__.__name__,
-            "p":self.p}
+            "dims":self.dims}
 
 
 class Flatten(Layer):
