@@ -15,6 +15,7 @@ class Embedding(Layer):
         @out_dim: size of dense representation
     '''
     def __init__(self, input_dim, output_dim, init='uniform', weights=None):
+        super(Embedding,self).__init__()
         self.init = initializations.get(init)
         self.input_dim = input_dim
         self.output_dim = output_dim
@@ -64,6 +65,7 @@ class WordContextProduct(Layer):
     '''
     def __init__(self, input_dim, proj_dim=128, 
         init='uniform', activation='sigmoid', weights=None):
+        super(WordContextProduct,self).__init__()
         self.input_dim = input_dim
         self.proj_dim = proj_dim
         self.init = initializations.get(init)
