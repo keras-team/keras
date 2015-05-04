@@ -8,6 +8,7 @@ from .. import activations, initializations
 from ..regularizers import identity
 from ..utils.theano_utils import shared_zeros, floatX
 from ..utils.generic_utils import make_tuple
+from ..layers.core import Layer
 
 from theano.sandbox.rng_mrg import MRG_RandomStreams as RandomStreams
 from six.moves import zip
