@@ -22,6 +22,9 @@ pages:
 - [models.md, Models]
 - [activations.md, Activations]
 - [initializations.md, Initializations]
+- [regularizers.md, Regularizers]
+- [constraints.md, Constraints]
+- [initializations.md, Initializations]
 
 - [datasets.md, Datasets]
 
