@@ -3,7 +3,7 @@ from __future__ import print_function
 from keras.datasets import mnist
 from keras.models import Sequential
 from keras.layers.core import Dense, Activation
-from keras.layers.noise import Dropout
+from keras.layers.noise import Dropout, GaussianNoise
 from keras.regularizers import l2, l1
 from keras.constraints import maxnorm
 from keras.optimizers import SGD, Adam, RMSprop
@@ -39,10 +39,10 @@ Y_test = np_utils.to_categorical(y_test, nb_classes)
 model = Sequential()
 model.add(Dense(784, 128))
 model.add(Activation('relu'))
-model.add(Dropout(0.2))
+model.add(GaussianNoise(0.2))
 model.add(Dense(128, 128))
 model.add(Activation('relu'))
-model.add(Dropout(0.2))
+model.add(GaussianNoise(0.2))
 model.add(Dense(128, 10))
 model.add(Activation('softmax'))
 
