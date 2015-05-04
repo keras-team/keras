@@ -5,7 +5,8 @@ Here are a few examples to get you started!
 
 ```python
 from keras.models import Sequential
-from keras.layers.core import Dense, Dropout, Activation
+from keras.layers.core import Dense, Activation
+from keras.layers.noise import Dropout
 from keras.optimizers import SGD
 
 model = Sequential()
@@ -47,7 +48,8 @@ model.compile(loss='mean_squared_error', optimizer=sgd)
 
 ```python
 from keras.models import Sequential
-from keras.layers.core import Dense, Dropout, Activation, Flatten
+from keras.layers.core import Dense, Activation, Flatten
+from keras.layers.noise import Dropout
 from keras.layers.convolutional import Convolution2D, MaxPooling2D
 from keras.optimizers import SGD
 
@@ -87,7 +89,8 @@ model.fit(X_train, Y_train, batch_size=32, nb_epoch=1)
 
 ```python
 from keras.models import Sequential
-from keras.layers.core import Dense, Dropout, Activation, Embedding
+from keras.layers.core import Dense, Activation, Embedding
+from keras.layers.noise import Dropout
 from keras.layers.recurrent import LSTM
 
 model = Sequential()

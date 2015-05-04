@@ -2,7 +2,8 @@ from __future__ import absolute_import
 from __future__ import print_function
 from keras.datasets import mnist
 from keras.models import Sequential
-from keras.layers.core import Dense, Dropout, Activation
+from keras.layers.core import Dense, Activation
+from keras.layers.noise import Dropout
 from keras.regularizers import l2, l1
 from keras.constraints import maxnorm
 from keras.optimizers import SGD, Adam, RMSprop
