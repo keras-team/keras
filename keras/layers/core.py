@@ -5,6 +5,7 @@ import theano
 import theano.tensor as T
 
 from .. import activations, initializations
+from ..regularizers import identity
 from ..utils.theano_utils import shared_zeros, floatX
 from ..utils.generic_utils import make_tuple
 
@@ -13,6 +14,11 @@ from six.moves import zip
 srng = RandomStreams()
 
 class Layer(object):
+    def __init__(self):
+        self.params = []
+        self.regularizer = []
+        self.constraint = []
+
     def connect(self, previous_layer):
         self.previous_layer = previous_layer
 
@@ -44,8 +50,8 @@ class Dropout(Layer):
         Hinton's dropout.
     '''
     def __init__(self, p):
+        super(Dropout,self).__init__()
         self.p = p
-        self.params = []
 
     def output(self, train):
         X = self.get_input(train)
@@ -66,9 +72,11 @@ class Activation(Layer):
     '''
         Apply an activation function to an output.
     '''
-    def __init__(self, activation):
+    def __init__(self, activation, target=0, beta=0.1):
+        super(Activation,self).__init__()
         self.activation = activations.get(activation)
-        self.params = []
+        self.target = target
+        self.beta = beta
 
     def output(self, train):
         X = self.get_input(train)
@@ -86,8 +94,8 @@ class Reshape(Layer):
         First dimension is assumed to be nb_samples.
     '''
     def __init__(self, *dims):
+        super(Reshape,self).__init__()
         self.dims = dims
-        self.params = []
 
     def output(self, train):
         X = self.get_input(train)
@@ -105,7 +113,7 @@ class Flatten(Layer):
         First dimension is assumed to be nb_samples.
     '''
     def __init__(self):
-        self.params = []
+        super(Flatten,self).__init__()
 
     def output(self, train):
         X = self.get_input(train)
@@ -122,8 +130,8 @@ class RepeatVector(Layer):
         Return tensor of shape (nb_samples, n, dim).
     '''
     def __init__(self, n):
+        super(RepeatVector,self).__init__()
         self.n = n
-        self.params = []
 
     def output(self, train):
         X = self.get_input(train)
@@ -140,7 +148,8 @@ class Dense(Layer):
     '''
         Just your regular fully connected NN layer.
     '''
-    def __init__(self, input_dim, output_dim, init='glorot_uniform', activation='linear', weights=None):
+    def __init__(self, input_dim, output_dim, init='glorot_uniform', activation='linear', weights=None, W_regularizer=identity, b_regularizer=identity, W_constraint=identity, b_constraint=identity):
+        super(Dense,self).__init__()
         self.init = initializations.get(init)
         self.activation = activations.get(activation)
         self.input_dim = input_dim
@@ -151,6 +160,9 @@ class Dense(Layer):
         self.b = shared_zeros((self.output_dim))
 
         self.params = [self.W, self.b]
+
+        self.regularizer = [W_regularizer, b_regularizer]
+        self.constraint = [W_constraint, b_constraint]
 
         if weights is not None:
             self.set_weights(weights)
@@ -176,7 +188,8 @@ class TimeDistributedDense(Layer):
        Tensor output dimensions:  (nb_sample, shared_dimension, output_dim)
 
     '''
-    def __init__(self, input_dim, output_dim, init='glorot_uniform', activation='linear', weights=None):
+    def __init__(self, input_dim, output_dim, init='glorot_uniform', activation='linear', weights=None, W_regularizer=identity, b_regularizer=identity, W_constraint=identity, b_constraint=identity):
+        super(TimeDistributedDense,self).__init__()
         self.init = initializations.get(init)
         self.activation = activations.get(activation)
         self.input_dim = input_dim
@@ -187,6 +200,9 @@ class TimeDistributedDense(Layer):
         self.b = shared_zeros((self.output_dim))
 
         self.params = [self.W, self.b]
+
+        self.regularizer = [W_regularizer, b_regularizer]
+        self.constraint = [W_constraint, b_constraint]
 
         if weights is not None:
             self.set_weights(weights)

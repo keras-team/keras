@@ -14,6 +14,7 @@ class BatchNormalization(Layer):
                   1 -> samplewise normalization (may sometimes outperform featurewise mode)
     '''
     def __init__(self, input_shape, epsilon=1e-6, mode=0, weights=None):
+        super(BatchNormalization,self).__init__()
         self.init = initializations.get("uniform")
         self.input_shape = input_shape
         self.epsilon = epsilon

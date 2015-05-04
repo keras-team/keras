@@ -24,6 +24,13 @@ model.add(Dense(20, 64, init='uniform', activation=tanh))
 model.add(Activation(tanh))
 ```
 
+You can also specifiy a desired `target` for the average activation of hidden units in a layer.
+This is accomplished by a generalized KL divergence penalty on the activations. The weighting of this penalty is determined by `beta`:
+
+```python
+model.add(Activation('relu', target=.05, beta=.1))
+```
+
 ## Available activations
 
 - __softmax__: Should only be applied to 2D layers (expected shape: `(nb_samples, nb_dims)`).
