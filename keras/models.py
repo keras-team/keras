@@ -25,16 +25,12 @@ class Sequential(object):
     def __init__(self):
         self.layers = []
         self.params = []
-        self.regularizer = []
-        self.constraint = []
 
     def add(self, layer):
         self.layers.append(layer)
         if len(self.layers) > 1:
             self.layers[-1].connect(self.layers[-2])
         self.params += [p for p in layer.params]
-        self.regularizer += [r for r in layer.regularizer]
-        self.constraint += [c for c in layer.constraint]
 
     def compile(self, optimizer, loss, class_mode="categorical"):
         self.optimizer = optimizers.get(optimizer)
@@ -62,7 +58,7 @@ class Sequential(object):
             raise Exception("Invalid class mode:" + str(class_mode))
         self.class_mode = class_mode
 
-        updates = self.optimizer.get_updates(self.params, self.regularizer, self.constraint, self.layers, train_loss)
+        updates = self.optimizer.get_updates(self.params, train_loss)
 
         self._train = theano.function([self.X, self.y], train_loss, 
             updates=updates, allow_input_downcast=True)
@@ -255,5 +251,3 @@ class Sequential(object):
             weights = [g['param_{}'.format(p)] for p in range(g.attrs['nb_params'])]
             self.layers[k].set_weights(weights)
         f.close()
-
-
