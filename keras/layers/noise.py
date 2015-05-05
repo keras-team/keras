@@ -46,10 +46,8 @@ class GaussianNoise(Layer):
             Srivastava, Hinton, et al. 2014
     '''
     def __init__(self, p):
+        super(GaussianNoise,self).__init__()
         self.p = p
-        self.params = []
-        self.regularizer = []
-        self.constraint = []
 
     def output(self, train):
         X = self.get_input(train)
