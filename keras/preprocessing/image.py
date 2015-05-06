@@ -87,12 +87,18 @@ def array_to_img(x, scale=True):
         return Image.fromarray(x.astype("uint8"), "RGB")
     else:
         # grayscale
-        return Image.fromarray(x.astype("uint8"), "L")
+        return Image.fromarray(x[:,:,0].astype("uint8"), "L")
 
 
 def img_to_array(img):
     x = np.asarray(img, dtype='float32')
-    return x.transpose(2, 0, 1)
+    if len(x.shape)==3:
+        # RGB: height, width, channel -> channel, height, width
+        x = x.transpose(2, 0, 1)
+    else:
+        # grayscale: height, width -> channel, height, width
+        x = x.reshape((1, x.shape[0], x.shape[1]))
+    return x
 
 
 def load_img(path, grayscale=False):
@@ -100,6 +106,8 @@ def load_img(path, grayscale=False):
     img = Image.open(open(path))
     if grayscale:
         img = img.convert('L')
+    else: # Assure 3 channel even when loaded image is grayscale
+        img = img.convert('RGB')
     return img
 
 
