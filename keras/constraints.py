@@ -14,3 +14,6 @@ def maxnorm(m=2):
 def nonneg(p):
     p *= T.ge(p,0)
     return p
+
+def identity(g):
+    return g

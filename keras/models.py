@@ -6,6 +6,8 @@ import numpy as np
 
 from . import optimizers
 from . import objectives
+from . import regularizers
+from . import constraints
 import time, copy
 from .utils.generic_utils import Progbar
 from six.moves import range
@@ -25,16 +27,37 @@ class Sequential(object):
     def __init__(self):
         self.layers = []
         self.params = []
-        self.regularizer = []
-        self.constraint = []
+        self.regularizers = []
+        self.constraints = []
 
     def add(self, layer):
         self.layers.append(layer)
         if len(self.layers) > 1:
             self.layers[-1].connect(self.layers[-2])
         self.params += [p for p in layer.params]
-        self.regularizer += [r for r in layer.regularizer]
-        self.constraint += [c for c in layer.constraint]
+        
+        if hasattr(layer, 'regularizers'):
+            for r in layer.regularizers:
+                if r:
+                    self.regularizers.append(r)
+                else:
+                    self.regularizers.append(regularizers.identity)
+        elif hasattr(layer, 'regularizer') and layer.regularizer:
+            self.regularizers += [layer.regularizer for _ in range(len(layer.params))]
+        else:
+            self.regularizers += [regularizers.identity for _ in range(len(layer.params))]
+
+        if hasattr(layer, 'constraints'):
+            for c in layer.constraints:
+                if c:
+                    self.constraints.append(c)
+                else:
+                    self.constraints.append(constraints.identity)
+        elif hasattr(layer, 'constraint') and layer.constraint:
+            self.constraints += [layer.constraint for _ in range(len(layer.params))]
+        else:
+            self.constraints += [constraints.identity for _ in range(len(layer.params))]
+        
 
     def compile(self, optimizer, loss, class_mode="categorical"):
         self.optimizer = optimizers.get(optimizer)
@@ -62,7 +85,7 @@ class Sequential(object):
             raise Exception("Invalid class mode:" + str(class_mode))
         self.class_mode = class_mode
 
-        updates = self.optimizer.get_updates(self.params, self.regularizer, self.constraint, self.layers, train_loss)
+        updates = self.optimizer.get_updates(self.params, self.regularizers, self.constraints, train_loss)
 
         self._train = theano.function([self.X, self.y], train_loss, 
             updates=updates, allow_input_downcast=True)
