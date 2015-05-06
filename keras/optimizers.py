@@ -11,12 +11,14 @@ def clip_norm(g, c, n):
         g = T.switch(T.ge(n, c), g*c/n, g)
     return g
 
+def kl_divergence(p, p_hat):
+    return p_hat - p + p*T.log(p/p_hat)
+
 class Optimizer(object):
     def get_updates(self, params, grads):
         raise NotImplementedError
 
     def get_gradients(self, cost, params, regularizers):
-
         grads = T.grad(cost, params)
 
         if hasattr(self, 'clipnorm') and self.clipnorm > 0:
@@ -34,16 +36,16 @@ class Optimizer(object):
 class SGD(Optimizer):
 
     def __init__(self, lr=0.01, momentum=0., decay=0., nesterov=False, *args, **kwargs):
+        self.__dict__.update(kwargs)
         self.__dict__.update(locals())
         self.iterations = shared_scalar(0)
 
     def get_updates(self, params, regularizers, constraints, cost):
         grads = self.get_gradients(cost, params, regularizers)
-
         lr = self.lr * (1.0 / (1.0 + self.decay * self.iterations))
         updates = [(self.iterations, self.iterations+1.)]
 
-        for p, g in zip(params, grads):
+        for p, g, c in zip(params, grads, constraints):
             m = shared_zeros(p.get_value().shape) # momentum
             v = self.momentum * m - lr * g # velocity
             updates.append((m, v)) 
@@ -60,20 +62,19 @@ class SGD(Optimizer):
 class RMSprop(Optimizer):
 
     def __init__(self, lr=0.001, rho=0.9, epsilon=1e-6, *args, **kwargs):
+        self.__dict__.update(kwargs)
         self.__dict__.update(locals())
 
     def get_updates(self, params, regularizers, constraints, cost):
         grads = self.get_gradients(cost, params, regularizers)
-
         accumulators = [shared_zeros(p.get_value().shape) for p in params]
         updates = []
 
-        for p, g, a in zip(params, grads, accumulators):
+        for p, g, a, c in zip(params, grads, accumulators, constraints):
             new_a = self.rho * a + (1 - self.rho) * g ** 2 # update accumulator
             updates.append((a, new_a))
 
             new_p = p - self.lr * g / T.sqrt(new_a + self.epsilon)
-
             updates.append((p, c(new_p))) # apply constraints
             
         return updates
@@ -82,15 +83,15 @@ class RMSprop(Optimizer):
 class Adagrad(Optimizer):
 
     def __init__(self, lr=0.01, epsilon=1e-6, *args, **kwargs):
+        self.__dict__.update(kwargs)
         self.__dict__.update(locals())
 
     def get_updates(self, params, regularizers, constraints, cost):
         grads = self.get_gradients(cost, params, regularizers)
-
         accumulators = [shared_zeros(p.get_value().shape) for p in params]
         updates = []
 
-        for p, g, a in zip(params, grads, accumulators):
+        for p, g, a, c in zip(params, grads, accumulators, constraints):
             new_a = a + g ** 2 # update accumulator
             updates.append((a, new_a))
 
@@ -104,16 +105,16 @@ class Adadelta(Optimizer):
         Reference: http://arxiv.org/abs/1212.5701
     '''
     def __init__(self, lr=1.0, rho=0.95, epsilon=1e-6, *args, **kwargs):
+        self.__dict__.update(kwargs)
         self.__dict__.update(locals())
 
     def get_updates(self, params, regularizers, constraints, cost):
         grads = self.get_gradients(cost, params, regularizers)
-
         accumulators = [shared_zeros(p.get_value().shape) for p in params]
         delta_accumulators = [shared_zeros(p.get_value().shape) for p in params]
         updates = []
 
-        for p, g, a, d_a in zip(params, grads, accumulators, delta_accumulators):
+        for p, g, a, d_a, c in zip(params, grads, accumulators, delta_accumulators, constraints):
             new_a = self.rho * a + (1 - self.rho) * g ** 2 # update accumulator
             updates.append((a, new_a))
 
@@ -132,10 +133,13 @@ class Adadelta(Optimizer):
 class Adam(Optimizer):
     '''
         Reference: http://arxiv.org/abs/1412.6980
+
         Default parameters follow those provided in the original paper
+
         lambda is renamed kappa.
     '''
     def __init__(self, lr=0.001, beta_1=0.9, beta_2=0.999, epsilon=1e-8, kappa=1-1e-8, *args, **kwargs):
+        self.__dict__.update(kwargs)
         self.__dict__.update(locals())
         self.iterations = shared_scalar(0)
 
@@ -149,7 +153,7 @@ class Adam(Optimizer):
         # the update below seems missing from the paper, but is obviously required
         beta_2_t = self.beta_2 * (self.kappa**i) 
 
-        for p, g in zip(params, grads):
+        for p, g, c in zip(params, grads, constraints):
             m = theano.shared(p.get_value() * 0.) # zero init of moment
             v = theano.shared(p.get_value() * 0.) # zero init of velocity
 
@@ -160,10 +164,9 @@ class Adam(Optimizer):
             v_b_t = v_t / (1 - beta_2_t)
 
             p_t = p - self.lr * m_b_t / (T.sqrt(v_b_t) + self.epsilon)
-
+            
             updates.append((m, m_t))
             updates.append((v, v_t))
-
             updates.append((p, c(p_t))) # apply constraints
         return updates
 
