@@ -12,7 +12,7 @@ def maxnorm(m=2):
     return maxnorm_wrap
 
 def nonneg(p):
-    p *= T.ge(p,0)
+    p *= T.ge(p, 0)
     return p
 
 def identity(g):
