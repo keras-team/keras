@@ -23,6 +23,15 @@ def make_batches(size, batch_size):
     nb_batch = int(np.ceil(size/float(batch_size)))
     return [(i*batch_size, min(size, (i+1)*batch_size)) for i in range(0, nb_batch)]
 
+def ndim_tensor(ndim):
+    if ndim == 2:
+        return T.matrix()
+    elif ndim == 3:
+        return T.tensor3()
+    elif ndim == 4:
+        return T.tensor4()
+    return T.matrix()
+
 class Sequential(object):
     def __init__(self):
         self.layers = []
@@ -59,17 +68,24 @@ class Sequential(object):
             self.constraints += [constraints.identity for _ in range(len(layer.params))]
         
 
-    def compile(self, optimizer, loss, class_mode="categorical"):
+    def compile(self, optimizer, loss, class_mode="categorical", y_dim_components=1):
         self.optimizer = optimizers.get(optimizer)
         self.loss = objectives.get(loss)
 
-        self.X = self.layers[0].input # input of model 
-        # (first layer must have an "input" attribute!)
+        # input of model 
+        if not hasattr(self.layers[0], 'input'):
+            for l in self.layers:
+                if hasattr(l, 'input'):
+                    break
+            ndim = l.input.ndim 
+            self.layers[0].input = ndim_tensor(ndim)
+        self.X = self.layers[0].input
+
         self.y_train = self.layers[-1].output(train=True)
         self.y_test = self.layers[-1].output(train=False)
 
         # output of model
-        self.y = T.matrix() # TODO: support for custom output shapes
+        self.y = ndim_tensor(y_dim_components+1)
 
         train_loss = self.loss(self.y, self.y_train)
         test_score = self.loss(self.y, self.y_test)
