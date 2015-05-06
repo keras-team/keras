@@ -4,7 +4,8 @@ import keras
 from keras.datasets import mnist
 import keras.models
 from keras.models import Sequential
-from keras.layers.core import Dense, Dropout, Activation
+from keras.layers.core import Dense, Activation
+from keras.layers.noise import Dropout
 from keras.regularizers import l2, l1
 from keras.constraints import maxnorm, nonneg
 from keras.optimizers import SGD, Adam, RMSprop

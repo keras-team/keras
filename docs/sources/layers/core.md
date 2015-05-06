@@ -132,23 +132,6 @@ Apply an activation function to the input.
 
 ---
 
-## Dropout
-```python
-keras.layers.core.Dropout(p)
-```
-Apply dropout to the input. Dropout consists in randomly setting a fraction `p` of input units to 0 at each update during training time, which helps prevent overfitting. Reference: [Dropout: A Simple Way to Prevent Neural Networks from Overfitting](http://www.cs.toronto.edu/~rsalakhu/papers/srivastava14a.pdf)
-
-- __Input shape__: This layer does not assume a specific input shape. As a result, it cannot be used as the first layer in a model.
-
-- __Output shape__: Same as input.
-
-- __Arguments__:
-
-    - __p__: float (0 <= p < 1). Fraction of the input that gets dropped out at training time. 
-
-
----
-
 ## Reshape
 ```python
 keras.layers.core.Reshape(*dims)
