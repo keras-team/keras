@@ -36,7 +36,7 @@ class Sequential(object):
             self.layers[-1].connect(self.layers[-2])
         self.params += [p for p in layer.params]
         
-        if hasattr(layer, 'regularizers'):
+        if hasattr(layer, 'regularizers') and len(layer.regularizers) == len(layer.params):
             for r in layer.regularizers:
                 if r:
                     self.regularizers.append(r)
@@ -47,7 +47,7 @@ class Sequential(object):
         else:
             self.regularizers += [regularizers.identity for _ in range(len(layer.params))]
 
-        if hasattr(layer, 'constraints'):
+        if hasattr(layer, 'constraints') and len(layer.constraints) == len(layer.params):
             for c in layer.constraints:
                 if c:
                     self.constraints.append(c)
