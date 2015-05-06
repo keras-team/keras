@@ -70,7 +70,8 @@ Set the weights of the parameters of the layer.
 
 ## Dense
 ```python
-keras.layers.core.Dense(input_dim, output_dim, init='glorot_uniform', activation='linear', weights=None)
+keras.layers.core.Dense(input_dim, output_dim, init='glorot_uniform', activation='linear', weights=None \
+W_regularizer=None, b_regularizer=None, W_constraint=None, b_constraint=None)
 ```
 
 Standard 1D fully-connect layer. 
@@ -86,12 +87,17 @@ Standard 1D fully-connect layer.
     - __init__: name of initialization function for the weights of the layer (see: [initializations](../initializations.md)), or alternatively, Theano function to use for weights initialization. This parameter is only relevant if you don't pass a `weights` argument.
     - __activation__: name of activation function to use (see: [activations](../activations.md)), or alternatively, elementwise Theano function. If you don't specify anything, no activation is applied (ie. "linear" activation: a(x) = x).
     - __weights__: list of numpy arrays to set as initial weights. The list should have 1 element, of shape `(input_dim, output_dim)`.
+    - __W_regularizer__: instance of the [regularizers](../regularizers.md) module (eg. L1 or L2 regularization), applied to the main weights matrix.
+    - __b_regularizer__: instance of the [regularizers](../regularizers.md) module, applied to the bias.
+    - __W_constraint__: instance of the [constraints](../constraints.md) module (eg. maxnorm, nonneg), applied to the main weights matrix.
+    - __b_constraint__: instance of the [constraints](../constraints.md) module, applied to the bias.
 
 ---
 
 ## TimeDistributedDense
 ```python
-keras.layers.core.TimeDistributedDense(input_dim, output_dim, init='glorot_uniform', activation='linear', weights=None)
+keras.layers.core.TimeDistributedDense(input_dim, output_dim, init='glorot_uniform', activation='linear', weights=None \
+W_regularizer=None, b_regularizer=None, W_constraint=None, b_constraint=None)
 ```
 
 Fully-connected layer distributed over the time dimension. Useful after a recurrent network set to `return_sequences=True`.
@@ -104,6 +110,10 @@ Fully-connected layer distributed over the time dimension. Useful after a recurr
     - __init__: name of initialization function for the weights of the layer (see: [initializations](../initializations.md)), or alternatively, Theano function to use for weights initialization. This parameter is only relevant if you don't pass a `weights` argument.
     - __activation__: name of activation function to use (see: [activations](../activations.md)), or alternatively, elementwise Theano function. If you don't specify anything, no activation is applied (ie. "linear" activation: a(x) = x).
     - __weights__: list of numpy arrays to set as initial weights. The list should have 1 element, of shape `(input_dim, output_dim)`.
+    - __W_regularizer__: instance of the [regularizers](../regularizers.md) module (eg. L1 or L2 regularization), applied to the main weights matrix.
+    - __b_regularizer__: instance of the [regularizers](../regularizers.md) module, applied to the bias.
+    - __W_constraint__: instance of the [constraints](../constraints.md) module (eg. maxnorm, nonneg), applied to the main weights matrix.
+    - __b_constraint__: instance of the [constraints](../constraints.md) module, applied to the bias.
 
 - __Example__:
 ```python
@@ -138,7 +148,7 @@ keras.layers.core.Dropout(p)
 ```
 Apply dropout to the input. Dropout consists in randomly setting a fraction `p` of input units to 0 at each update during training time, which helps prevent overfitting. Reference: [Dropout: A Simple Way to Prevent Neural Networks from Overfitting](http://www.cs.toronto.edu/~rsalakhu/papers/srivastava14a.pdf)
 
-- __Input shape__: This layer does not assume a specific input shape. As a result, it cannot be used as the first layer in a model.
+- __Input shape__: This layer does not assume a specific input shape. 
 
 - __Output shape__: Same as input.
 
@@ -156,7 +166,7 @@ keras.layers.core.Reshape(*dims)
 
 Reshape the input to a new shape containing the same number of units. 
 
-- __Input shape__: This layer does not assume a specific input shape. As a result, it cannot be used as the first layer in a model.
+- __Input shape__: This layer does not assume a specific input shape. 
 
 - __Output shape__: `(nb_samples, *dims)`.
 
@@ -193,7 +203,7 @@ keras.layers.core.RepeatVector(n)
 
 Repeat the 1D input n times. Dimensions of input are assumed to be (nb_samples, dim). Output will have the shape (nb_samples, n, dim).
 
-- __Input shape__: This layer does not assume a specific input shape. As a result, it cannot be used as the first layer in a model.
+- __Input shape__: This layer does not assume a specific input shape. This layer cannot be used as the first layer in a model.
 
 - __Output shape__: `(nb_samples, n, input_dims)`.
 
