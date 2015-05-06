@@ -5,7 +5,6 @@ import theano
 import theano.tensor as T
 
 from .. import activations, initializations
-from ..regularizers import identity
 from ..utils.theano_utils import shared_zeros, floatX
 from ..utils.generic_utils import make_tuple
 
@@ -16,8 +15,6 @@ srng = RandomStreams()
 class Layer(object):
     def __init__(self):
         self.params = []
-        self.regularizer = []
-        self.constraint = []
 
     def connect(self, previous_layer):
         self.previous_layer = previous_layer
@@ -150,7 +147,9 @@ class Dense(Layer):
     '''
         Just your regular fully connected NN layer.
     '''
-    def __init__(self, input_dim, output_dim, init='glorot_uniform', activation='linear', weights=None, W_regularizer=identity, b_regularizer=identity, W_constraint=identity, b_constraint=identity):
+    def __init__(self, input_dim, output_dim, init='glorot_uniform', activation='linear', weights=None, 
+        W_regularizer=None, b_regularizer=None, W_constraint=None, b_constraint=None):
+
         super(Dense,self).__init__()
         self.init = initializations.get(init)
         self.activation = activations.get(activation)
@@ -163,8 +162,8 @@ class Dense(Layer):
 
         self.params = [self.W, self.b]
 
-        self.regularizer = [W_regularizer, b_regularizer]
-        self.constraint = [W_constraint, b_constraint]
+        self.regularizers = [W_regularizer, b_regularizer]
+        self.constraints = [W_constraint, b_constraint]
 
         if weights is not None:
             self.set_weights(weights)
@@ -190,7 +189,9 @@ class TimeDistributedDense(Layer):
        Tensor output dimensions:  (nb_sample, shared_dimension, output_dim)
 
     '''
-    def __init__(self, input_dim, output_dim, init='glorot_uniform', activation='linear', weights=None, W_regularizer=identity, b_regularizer=identity, W_constraint=identity, b_constraint=identity):
+    def __init__(self, input_dim, output_dim, init='glorot_uniform', activation='linear', weights=None, 
+        W_regularizer=None, b_regularizer=None, W_constraint=None, b_constraint=None):
+
         super(TimeDistributedDense,self).__init__()
         self.init = initializations.get(init)
         self.activation = activations.get(activation)
@@ -203,8 +204,8 @@ class TimeDistributedDense(Layer):
 
         self.params = [self.W, self.b]
 
-        self.regularizer = [W_regularizer, b_regularizer]
-        self.constraint = [W_constraint, b_constraint]
+        self.regularizers = [W_regularizer, b_regularizer]
+        self.constraints = [W_constraint, b_constraint]
 
         if weights is not None:
             self.set_weights(weights)
