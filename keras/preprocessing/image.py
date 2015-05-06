@@ -106,6 +106,8 @@ def load_img(path, grayscale=False):
     img = Image.open(open(path))
     if grayscale:
         img = img.convert('L')
+    else: # Assure 3 channel even when loaded image is grayscale
+        img = img.convert('RGB')
     return img
 
 
