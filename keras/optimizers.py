@@ -15,6 +15,7 @@ def kl_divergence(p, p_hat):
     return p_hat - p + p*T.log(p/p_hat)
 
 class Optimizer(object):
+    
     def get_updates(self, params, grads):
         raise NotImplementedError
 
