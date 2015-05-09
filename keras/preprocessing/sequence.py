@@ -6,8 +6,8 @@ from six.moves import range
 
 def pad_sequences(sequences, maxlen=None, dtype='int32'):
     """
-        Pad each sequence to the same lenght: 
-        the lenght of the longuest sequence.
+        Pad each sequence to the same length: 
+        the length of the longuest sequence.
 
         If maxlen is provided, any sequence longer
         than maxlen is truncated to maxlen.
