@@ -105,8 +105,8 @@ if train_model:
     else:
         print('Build model...')
         model = Sequential()
-        model.add(WordContextProduct(max_features, proj_dim=dim_proj, init="normal"))
-        model.compile(loss='hinge', optimizer='adam')
+        model.add(WordContextProduct(max_features, proj_dim=dim_proj, init="uniform"))
+        model.compile(loss='mse', optimizer='rmsprop')
 
     sampling_table = sequence.make_sampling_table(max_features)
 
