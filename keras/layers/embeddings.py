@@ -27,7 +27,7 @@ class Embedding(Layer):
         if weights is not None:
             self.set_weights(weights)
 
-    def output(self, train=False):
+    def get_output(self, train=False):
         X = self.get_input(train)
         out = self.W[X]
         return out
@@ -83,7 +83,7 @@ class WordContextProduct(Layer):
             self.set_weights(weights)
 
 
-    def output(self, train=False):
+    def get_output(self, train=False):
         X = self.get_input(train)
         w = self.W_w[X[:, 0]] # nb_samples, proj_dim
         c = self.W_c[X[:, 1]] # nb_samples, proj_dim

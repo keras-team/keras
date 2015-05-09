@@ -41,7 +41,7 @@ class Convolution2D(Layer):
         if weights is not None:
             self.set_weights(weights)
 
-    def output(self, train):
+    def get_output(self, train):
         X = self.get_input(train)
 
         conv_out = theano.tensor.nnet.conv.conv2d(X, self.W, 
@@ -69,7 +69,7 @@ class MaxPooling2D(Layer):
         self.poolsize = poolsize
         self.ignore_border = ignore_border
 
-    def output(self, train):
+    def get_output(self, train):
         X = self.get_input(train)
         output = downsample.max_pool_2d(X, self.poolsize, ignore_border=self.ignore_border)
         return output

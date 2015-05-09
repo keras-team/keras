@@ -16,15 +16,15 @@ class Layer(object):
     def __init__(self):
         self.params = []
 
-    def connect(self, previous_layer):
-        self.previous_layer = previous_layer
+    def connect(self, node):
+        self.previous = node
 
-    def output(self, train):
+    def get_output(self, train):
         raise NotImplementedError
 
     def get_input(self, train):
-        if hasattr(self, 'previous_layer'):
-            return self.previous_layer.output(train=train)
+        if hasattr(self, 'previous'):
+            return self.previous.get_output(train=train)
         else:
             return self.input
 
@@ -50,7 +50,7 @@ class Dropout(Layer):
         super(Dropout,self).__init__()
         self.p = p
 
-    def output(self, train):
+    def get_output(self, train):
         X = self.get_input(train)
         if self.p > 0.:
             retain_prob = 1. - self.p
@@ -75,7 +75,7 @@ class Activation(Layer):
         self.target = target
         self.beta = beta
 
-    def output(self, train):
+    def get_output(self, train):
         X = self.get_input(train)
         return self.activation(X)
 
@@ -96,7 +96,7 @@ class Reshape(Layer):
         super(Reshape,self).__init__()
         self.dims = dims
 
-    def output(self, train):
+    def get_output(self, train):
         X = self.get_input(train)
         nshape = make_tuple(X.shape[0], *self.dims)
         return theano.tensor.reshape(X, nshape)
@@ -114,7 +114,7 @@ class Flatten(Layer):
     def __init__(self):
         super(Flatten,self).__init__()
 
-    def output(self, train):
+    def get_output(self, train):
         X = self.get_input(train)
         size = theano.tensor.prod(X.shape) // X.shape[0]
         nshape = (X.shape[0], size)
@@ -132,7 +132,7 @@ class RepeatVector(Layer):
         super(RepeatVector,self).__init__()
         self.n = n
 
-    def output(self, train):
+    def get_output(self, train):
         X = self.get_input(train)
         tensors = [X]*self.n
         stacked = theano.tensor.stack(*tensors)
@@ -168,7 +168,7 @@ class Dense(Layer):
         if weights is not None:
             self.set_weights(weights)
 
-    def output(self, train):
+    def get_output(self, train):
         X = self.get_input(train)
         output = self.activation(T.dot(X, self.W) + self.b)
         return output
@@ -210,7 +210,7 @@ class TimeDistributedDense(Layer):
         if weights is not None:
             self.set_weights(weights)
 
-    def output(self, train):
+    def get_output(self, train):
         X = self.get_input(train)
 
         def act_func(X):

@@ -66,7 +66,9 @@ class Sequential(object):
             self.constraints += [layer.constraint for _ in range(len(layer.params))]
         else:
             self.constraints += [constraints.identity for _ in range(len(layer.params))]
-        
+
+    def get_output(self, train):
+        return self.layers[-1].get_output(train)
 
     def compile(self, optimizer, loss, class_mode="categorical", y_dim_components=1):
         self.optimizer = optimizers.get(optimizer)
@@ -81,8 +83,8 @@ class Sequential(object):
             self.layers[0].input = ndim_tensor(ndim)
         self.X = self.layers[0].input
 
-        self.y_train = self.layers[-1].output(train=True)
-        self.y_test = self.layers[-1].output(train=False)
+        self.y_train = self.get_output(train=True)
+        self.y_test = self.get_output(train=False)
 
         # output of model
         self.y = ndim_tensor(y_dim_components+1)
@@ -113,6 +115,7 @@ class Sequential(object):
             allow_input_downcast=True)
         self._test_with_acc = theano.function([self.X, self.y], [test_score, test_accuracy], 
             allow_input_downcast=True)
+
 
     def train(self, X, y, accuracy=False):
         y = standardize_y(y)

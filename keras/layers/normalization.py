@@ -27,7 +27,7 @@ class BatchNormalization(Layer):
         if weights is not None:
             self.set_weights(weights)
 
-    def output(self, train):
+    def get_output(self, train):
         X = self.get_input(train)
 
         if self.mode == 0:
