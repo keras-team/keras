@@ -15,3 +15,4 @@ model.add(Dense(64, 64, W_regularizer = l2(.01)))
 
 - __l1__(l=0.01): L1 regularization penalty, also known as LASSO
 - __l2__(l=0.01): L2 regularization penalty, also known as weight decay, or Ridge
+- __l1l2__(l1=0.01, l2=0.01): L1-L2 regularization penalty, also known as ElasticNet
