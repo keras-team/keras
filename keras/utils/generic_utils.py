@@ -39,11 +39,12 @@ class Progbar(object):
         '''
         for k, v in values:
             if k not in self.sum_values:
-                self.sum_values[k] = [v, 1]
+                self.sum_values[k] = [v * (current-self.seen_so_far), current-self.seen_so_far]
                 self.unique_values.append(k)
             else:
                 self.sum_values[k][0] += v * (current-self.seen_so_far)
                 self.sum_values[k][1] += (current-self.seen_so_far)
+        self.seen_so_far = current
 
         now = time.time()
         if self.verbose == 1:
@@ -84,7 +85,6 @@ class Progbar(object):
 
             sys.stdout.write(info)
             sys.stdout.flush()
-            self.seen_so_far = current
 
             if current >= self.target:
                 sys.stdout.write("\n")
