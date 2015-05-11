@@ -106,7 +106,7 @@ class SimpleDeepRNN(Layer):
         self.input = T.tensor3()
 
         self.W = self.init((self.input_dim, self.output_dim))
-        self.Us = [self.init((self.output_dim, self.output_dim)) for _ in range(self.depth)]
+        self.Us = [self.inner_init((self.output_dim, self.output_dim)) for _ in range(self.depth)]
         self.b = shared_zeros((self.output_dim))
         self.params = [self.W] + self.Us + [self.b]
 
