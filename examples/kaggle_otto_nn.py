@@ -53,7 +53,7 @@ def preprocess_data(X, scaler=None):
     X = scaler.transform(X)
     return X, scaler
 
-def preprocess_labels(y, encoder=None, categorical=True):
+def preprocess_labels(labels, encoder=None, categorical=True):
     if not encoder:
         encoder = LabelEncoder()
         encoder.fit(labels)

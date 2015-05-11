@@ -15,5 +15,12 @@ def l2(l=.01):
         return g
     return l2wrap
 
+def l1l2(l1=.01, l2=.01):
+    def l1l2wrap(g, p):
+        g += T.sgn(p) * l1
+        g += p * l2
+        return g
+    return l1l2wrap
+
 def identity(g, p):
     return g
