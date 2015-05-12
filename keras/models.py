@@ -169,58 +169,63 @@ class Sequential(object):
                 history['val_acc'] = []
 
         index_array = np.arange(len(X))
-        for epoch in range(nb_epoch):
-            if verbose:
-                print('Epoch', epoch)
-                progbar = Progbar(target=len(X), verbose=verbose)
-            if shuffle:
-                np.random.shuffle(index_array)
 
-            av_loss = 0.
-            av_acc = 0.
-            seen = 0
-
-            batches = make_batches(len(X), batch_size)
-            for batch_index, (batch_start, batch_end) in enumerate(batches):
-                if shuffle:
-                    batch_ids = index_array[batch_start:batch_end]
-                else:
-                    batch_ids = slice(batch_start, batch_end)
-                seen += len(batch_ids)
-                X_batch = X[batch_ids]
-                y_batch = y[batch_ids]
-
-                if show_accuracy:
-                    loss, acc = self._train_with_acc(X_batch, y_batch)
-                    log_values = [('loss', loss), ('acc.', acc)]
-                    av_loss += loss * len(batch_ids)
-                    av_acc += acc * len(batch_ids)
-                else:
-                    loss = self._train(X_batch, y_batch)
-                    log_values = [('loss', loss)]
-                    av_loss += loss * len(batch_ids)
-
-                # validation
-                if do_validation and (batch_index == len(batches) - 1):
-                    if show_accuracy:
-                        val_loss, val_acc = self.test(X_val, y_val, accuracy=True)
-                        log_values += [('val. loss', val_loss), ('val. acc.', val_acc)]
-                    else:
-                        val_loss = self.test(X_val, y_val)
-                        log_values += [('val. loss', val_loss)]
-                
-                # logging
+        # -- allow user to terminate training
+        try:
+            for epoch in range(nb_epoch):
                 if verbose:
-                    progbar.update(batch_end, log_values)
+                    print('Epoch', epoch)
+                    progbar = Progbar(target=len(X), verbose=verbose)
+                if shuffle:
+                    np.random.shuffle(index_array)
 
-            history['epoch'].append(epoch)
-            history['loss'].append(av_loss/seen)
-            if do_validation:
-                history['val_loss'].append(float(val_loss))
-            if show_accuracy:
-                history['acc'].append(av_acc/seen)
+                av_loss = 0.
+                av_acc = 0.
+                seen = 0
+
+                batches = make_batches(len(X), batch_size)
+                for batch_index, (batch_start, batch_end) in enumerate(batches):
+                    if shuffle:
+                        batch_ids = index_array[batch_start:batch_end]
+                    else:
+                        batch_ids = slice(batch_start, batch_end)
+                    seen += len(batch_ids)
+                    X_batch = X[batch_ids]
+                    y_batch = y[batch_ids]
+
+                    if show_accuracy:
+                        loss, acc = self._train_with_acc(X_batch, y_batch)
+                        log_values = [('loss', loss), ('acc.', acc)]
+                        av_loss += loss * len(batch_ids)
+                        av_acc += acc * len(batch_ids)
+                    else:
+                        loss = self._train(X_batch, y_batch)
+                        log_values = [('loss', loss)]
+                        av_loss += loss * len(batch_ids)
+
+                    # validation
+                    if do_validation and (batch_index == len(batches) - 1):
+                        if show_accuracy:
+                            val_loss, val_acc = self.test(X_val, y_val, accuracy=True)
+                            log_values += [('val. loss', val_loss), ('val. acc.', val_acc)]
+                        else:
+                            val_loss = self.test(X_val, y_val)
+                            log_values += [('val. loss', val_loss)]
+                    
+                    # logging
+                    if verbose:
+                        progbar.update(batch_end, log_values)
+
+                history['epoch'].append(epoch)
+                history['loss'].append(av_loss/seen)
                 if do_validation:
-                    history['val_acc'].append(float(val_acc))
+                    history['val_loss'].append(float(val_loss))
+                if show_accuracy:
+                    history['acc'].append(av_acc/seen)
+                    if do_validation:
+                        history['val_acc'].append(float(val_acc))
+        except KeyboardInterrupt:
+            print('Terminating on KeyboardInterrupt at Epoch', epoch)
         return history
 
     def predict(self, X, batch_size=128, verbose=1):
