@@ -6,7 +6,7 @@ Keras is a minimalist, highly modular neural network library in the spirit of To
 
 Use Keras if you need a deep learning library that:
 - allows for easy and fast prototyping (through total modularity, minimalism, and extensibility).
-- supports both convolutional networks (for vision) and recurrent networks (for sequence data). As well as combinations of the two. 
+- supports both convolutional networks (for vision) and recurrent networks (for sequence data). As well as combinations of the two.
 - runs seamlessly on the CPU and the GPU.
 
 Read the documentation at [Keras.io](http://keras.io).
@@ -15,9 +15,9 @@ Keras is compatible with __Python 2.7-3.4__.
 
 ## Guiding principles
 
-- __Modularity.__ A model is understood as a sequence of standalone, fully-configurable modules that can be plugged together with as little restrictions as possible. In particular, neural layers, cost functions, optimizers, initialization schemes, activation functions and dropout are all standalone modules that you can combine to create new models. 
+- __Modularity.__ A model is understood as a sequence of standalone, fully-configurable modules that can be plugged together with as little restrictions as possible. In particular, neural layers, cost functions, optimizers, initialization schemes, activation functions and dropout are all standalone modules that you can combine to create new models.
 
-- __Minimalism.__ Each module should be kept short and simple (<100 lines of code). Every piece of code should be transparent upon first reading. No black magic: it hurts iteration speed and ability to innovate. 
+- __Minimalism.__ Each module should be kept short and simple (<100 lines of code). Every piece of code should be transparent upon first reading. No black magic: it hurts iteration speed and ability to innovate.
 
 - __Easy extensibility.__ New features (a new module, per the above definition, or a new way to combine modules together) are dead simple to add (as new classes/functions), and existing modules provide ample examples.
 
@@ -39,7 +39,7 @@ model.add(Dropout(0.5))
 model.add(Dense(64, 64, init='uniform'))
 model.add(Activation('tanh'))
 model.add(Dropout(0.5))
-model.add(Dense(64, 1, init='uniform'))
+model.add(Dense(64, 2, init='uniform'))
 model.add(Activation('softmax'))
 
 sgd = SGD(lr=0.1, decay=1e-6, momentum=0.9, nesterov=True)
@@ -50,6 +50,7 @@ score = model.evaluate(X_test, y_test, batch_size=16)
 ```
 
 ### Alternative implementation of MLP:
+(Single-neuron output and activation as keyword.)
 
 ```python
 model = Sequential()
@@ -57,10 +58,10 @@ model.add(Dense(20, 64, init='uniform', activation='tanh'))
 model.add(Dropout(0.5))
 model.add(Dense(64, 64, init='uniform', activation='tanh'))
 model.add(Dropout(0.5))
-model.add(Dense(64, 1, init='uniform', activation='softmax'))
+model.add(Dense(64, 1, init='uniform', activation='sigmoid'))
 
 sgd = SGD(lr=0.1, decay=1e-6, momentum=0.9, nesterov=True)
-model.compile(loss='mean_squared_error', optimizer=sgd)
+model.compile(loss='mean_squared_error', optimizer=sgd, class_mode="binary")
 ```
 
 ### VGG-like convnet:
@@ -72,16 +73,16 @@ from keras.layers.convolutional import Convolution2D, MaxPooling2D
 from keras.optimizers import SGD
 
 model = Sequential()
-model.add(Convolution2D(32, 3, 3, 3, border_mode='full')) 
+model.add(Convolution2D(32, 3, 3, 3, border_mode='full'))
 model.add(Activation('relu'))
 model.add(Convolution2D(32, 32, 3, 3))
 model.add(Activation('relu'))
 model.add(MaxPooling2D(poolsize=(2, 2)))
 model.add(Dropout(0.25))
 
-model.add(Convolution2D(64, 32, 3, 3, border_mode='full')) 
+model.add(Convolution2D(64, 32, 3, 3, border_mode='full'))
 model.add(Activation('relu'))
-model.add(Convolution2D(64, 64, 3, 3)) 
+model.add(Convolution2D(64, 64, 3, 3))
 model.add(Activation('relu'))
 model.add(MaxPooling2D(poolsize=(2, 2)))
 model.add(Dropout(0.25))
@@ -131,21 +132,21 @@ Displaying readable results will also require an embedding decoder.
 max_caption_len = 16
 
 model = Sequential()
-model.add(Convolution2D(32, 3, 3, 3, border_mode='full')) 
+model.add(Convolution2D(32, 3, 3, 3, border_mode='full'))
 model.add(Activation('relu'))
 model.add(Convolution2D(32, 32, 3, 3))
 model.add(Activation('relu'))
 model.add(MaxPooling2D(poolsize=(2, 2)))
 
-model.add(Convolution2D(64, 32, 3, 3, border_mode='full')) 
+model.add(Convolution2D(64, 32, 3, 3, border_mode='full'))
 model.add(Activation('relu'))
-model.add(Convolution2D(64, 64, 3, 3)) 
+model.add(Convolution2D(64, 64, 3, 3))
 model.add(Activation('relu'))
 model.add(MaxPooling2D(poolsize=(2, 2)))
 
-model.add(Convolution2D(128, 64, 3, 3, border_mode='full')) 
+model.add(Convolution2D(128, 64, 3, 3, border_mode='full'))
 model.add(Activation('relu'))
-model.add(Convolution2D(128, 128, 3, 3)) 
+model.add(Convolution2D(128, 128, 3, 3))
 model.add(Activation('relu'))
 model.add(MaxPooling2D(poolsize=(2, 2)))
 
@@ -154,17 +155,17 @@ model.add(Dense(128*4*4, 256))
 model.add(Activation('relu'))
 model.add(Dropout(0.5))
 
-model.add(Repeat(max_caption_len)) 
+model.add(Repeat(max_caption_len))
 # the GRU below returns sequences of max_caption_len vectors of size 256 (our word embedding size)
 model.add(GRU(256, 256, return_sequences=True))
 
 model.compile(loss='mean_squared_error', optimizer='rmsprop')
 
-# "images" is a numpy array of shape (nb_samples, nb_channels=3, width, height) 
+# "images" is a numpy array of shape (nb_samples, nb_channels=3, width, height)
 # "captions" is a numpy array of shape (nb_samples, max_caption_len=16, embedding_dim=256)
 # captions are supposed already embedded (dense vectors).
 model.fit(images, captions, batch_size=16, nb_epoch=100)
-    
+
 ```
 
 In the examples folder, you will find example models for real datasets:
@@ -204,4 +205,3 @@ Keras (κέρας) means _horn_ in Greek. It is a reference to a literary image 
 Keras was developed as part of the research effort of project ONEIROS (Open-ended Neuro-Electronic Intelligent Robot Operating System).
 
 _"Oneiroi are beyond our unravelling --who can be sure what tale they tell? Not all that men look for comes to pass. Two gates there are that give passage to fleeting Oneiroi; one is made of horn, one of ivory. The Oneiroi that pass through sawn ivory are deceitful, bearing a message that will not be fulfilled; those that come out through polished horn have truth behind them, to be accomplished for men who see them."_ Homer, Odyssey 19. 562 ff (Shewring translation).
-
