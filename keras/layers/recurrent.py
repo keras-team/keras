@@ -147,6 +147,7 @@ class SimpleDeepRNN(Layer):
             "init":self.init.__name__,
             "inner_init":self.inner_init.__name__,
             "activation":self.activation.__name__,
+            "inner_activation":self.inner_activation.__name__,
             "truncate_gradient":self.truncate_gradient,
             "return_sequences":self.return_sequences}
 
@@ -247,6 +248,7 @@ class GRU(Layer):
             "init":self.init.__name__,
             "inner_init":self.inner_init.__name__,
             "activation":self.activation.__name__,
+            "inner_activation":self.inner_activation.__name__,
             "truncate_gradient":self.truncate_gradient,
             "return_sequences":self.return_sequences}
 
@@ -361,6 +363,7 @@ class LSTM(Layer):
             "init":self.init.__name__,
             "inner_init":self.inner_init.__name__,
             "activation":self.activation.__name__,
+            "inner_activation":self.inner_activation.__name__,
             "truncate_gradient":self.truncate_gradient,
             "return_sequences":self.return_sequences}
         
