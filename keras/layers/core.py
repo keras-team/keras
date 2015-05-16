@@ -231,23 +231,23 @@ class TimeDistributedDense(Layer):
 
 
 
-class Maxout(Layer):
+class MaxoutDense(Layer):
     '''
-        Max-out layer, n_features is the number of pieces in the piecewise linear approx.
+        Max-out layer, nb_feature is the number of pieces in the piecewise linear approx.
         Refer to http://arxiv.org/pdf/1302.4389.pdf
     '''
-    def __init__(self, input_dim, output_dim, n_features=4, init='glorot_uniform', weights=None, 
+    def __init__(self, input_dim, output_dim, nb_feature=4, init='glorot_uniform', weights=None, 
         W_regularizer=None, b_regularizer=None, W_constraint=None, b_constraint=None):
 
-        super(Maxout,self).__init__()
+        super(MaxoutDense,self).__init__()
         self.init = initializations.get(init)
         self.input_dim = input_dim
         self.output_dim = output_dim
-        self.n_features = n_features
+        self.nb_feature = nb_feature
 
         self.input = T.matrix()
-        self.W = self.init((self.n_features, self.input_dim, self.output_dim))
-        self.b = shared_zeros((self.n_features, self.output_dim))
+        self.W = self.init((self.nb_feature, self.input_dim, self.output_dim))
+        self.b = shared_zeros((self.nb_feature, self.output_dim))
 
         self.params = [self.W, self.b]
 
@@ -268,4 +268,4 @@ class Maxout(Layer):
             "input_dim":self.input_dim,
             "output_dim":self.output_dim,
             "init":self.init.__name__,
-            "n_features" : self.n_features}
+            "nb_feature" : self.nb_feature}
