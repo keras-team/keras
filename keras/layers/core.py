@@ -42,6 +42,63 @@ class Layer(object):
         return {"name":self.__class__.__name__}
 
 
+class Merge(object): 
+    def __init__(self, models, mode='sum'):
+        ''' Merge the output of a list of models into a single tensor.
+            mode: {'sum', 'concat'}
+        '''
+        if len(models) < 2:
+            raise Exception("Please specify two or more input models to merge")
+        self.mode = mode
+        self.models = models
+        self.params = []
+        self.regularizers = []
+        self.constraints = []
+        for m in self.models:
+            self.params += m.params
+            self.regularizers += m.regularizers
+            self.constraints += m.constraints
+
+    def get_output(self, train=False):
+        if self.mode == 'sum':
+            s = self.models[0].get_output(train)
+            for i in range(1, len(self.models)):
+                s += self.models[i].get_output(train)
+            return s
+        elif self.mode == 'concat':
+            inputs = [self.models[i].get_output(train) for i in range(len(self.models))]
+            return T.concatenate(inputs, axis=-1)
+        else:
+            raise Exception('Unknown merge mode')
+
+    def get_input(self, train=False):
+        res = []
+        for i in range(len(self.models)):
+            o = self.models[i].get_input(train)
+            if type(o) == list:
+                res += o
+            else:
+                res.append(o)
+        return res
+
+    def get_weights(self):
+        weights = []
+        for m in self.models:
+            weights += m.get_weights()
+        return weights
+
+    def set_weights(self, weights):
+        for i in range(len(self.models)):
+            nb_param = len(self.models[i].params)
+            self.models[i].set_weights(weights[:nb_param])
+            weights = weights[nb_param:]
+
+    def get_config(self):
+        return {"name":self.__class__.__name__,
+            "models":[m.get_config() for m in self.models],
+            "mode":self.mode}
+
+
 class Dropout(Layer):
     '''
         Hinton's dropout.

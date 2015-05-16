@@ -17,6 +17,27 @@ def get_from_module(identifier, module_params, module_name, instantiate=False):
 def make_tuple(*args):
     return args
 
+def printv(v, prefix=''):
+    if type(v) == dict:
+        if 'name' in v:
+            print(prefix + '#' + v['name'])
+            del v['name']
+        prefix += '...'
+        for nk, nv in v.items():
+            if type(nv) in [dict, list]:
+                print(prefix + nk + ':')
+                printv(nv, prefix)
+            else:
+                print(prefix + nk + ':' + str(nv))
+    elif type(v) == list:
+        prefix += '...'
+        for i, nv in enumerate(v):
+            print(prefix + '#' + str(i))
+            printv(nv, prefix) 
+    else:
+        prefix += '...'
+        print(prefix + str(v))
+
 class Progbar(object):
     def __init__(self, target, width=30, verbose=1):
         '''
