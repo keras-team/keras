@@ -218,3 +218,36 @@ model.add(Dense(10, 100)) # output shape: (nb_samples, 100)
 model.add(RepeatVector(2))  # output shape: (nb_samples, 2, 10)
 ```
 
+## Merge
+```python
+keras.layers.core.Merge(models, mode='sum')
+```
+
+Merge the output of a list of models into a single tensor, following one of two modes: `sum` or `concat`. 
+
+- __Arguments__:
+    - __models__: List of `Sequential` models.
+    - __mode__: String, one of `{'sum', 'concat'}`. `sum` will simply sum the outputs of the models (therefore all models should have an output with the same shape). `concat` will concatenate the outputs along the last dimension (therefore all models should have an output that only differ along the last dimension). 
+
+- __Example__:
+
+```python
+left = Sequential()
+left.add(Dense(784, 50))
+left.add(Activation('relu'))
+
+right = Sequential()
+right.add(Dense(784, 50))
+right.add(Activation('relu'))
+
+model = Sequential()
+model.add(Merge([left, right], mode='sum'))
+
+model.add(Dense(50, 10))
+model.add(Activation('softmax'))
+
+model.compile(loss='categorical_crossentropy', optimizer='rmsprop')
+
+model.fit([X_train, X_train], Y_train, batch_size=128, nb_epoch=20, validation_data=([X_test, X_test], Y_test))
+```
+
