@@ -31,6 +31,8 @@ from sklearn.preprocessing import StandardScaler
         - with smaller layers, largers layers
         - with more layers, less layers
         - with different optimizers (SGD+momentum+decay is probably better than Adam!)
+
+    Get the data from Kaggle: https://www.kaggle.com/c/otto-group-product-classification-challenge/data
 '''
 
 np.random.seed(1337) # for reproducibility
@@ -113,7 +115,7 @@ model.compile(loss='categorical_crossentropy', optimizer="adam")
 
 print("Training model...")
 
-model.fit(X, y, nb_epoch=20, batch_size=16, validation_split=0.15)
+model.fit(X, y, nb_epoch=20, batch_size=128, validation_split=0.15)
 
 print("Generating submission...")
 

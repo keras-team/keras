@@ -71,7 +71,7 @@ class Sequential(object):
     def get_output(self, train):
         return self.layers[-1].get_output(train)
 
-    def compile(self, optimizer, loss, class_mode="categorical", y_dim_components=1):
+    def compile(self, optimizer, loss, class_mode="categorical", y_dim_components=1, theano_mode=None):
         self.optimizer = optimizers.get(optimizer)
         self.loss = objectives.get(loss)
 
@@ -107,15 +107,15 @@ class Sequential(object):
         updates = self.optimizer.get_updates(self.params, self.regularizers, self.constraints, train_loss)
 
         self._train = theano.function([self.X, self.y], train_loss, 
-            updates=updates, allow_input_downcast=True)
+            updates=updates, allow_input_downcast=True, mode=theano_mode)
         self._train_with_acc = theano.function([self.X, self.y], [train_loss, train_accuracy], 
-            updates=updates, allow_input_downcast=True)
+            updates=updates, allow_input_downcast=True, mode=theano_mode)
         self._predict = theano.function([self.X], self.y_test, 
-            allow_input_downcast=True)
+            allow_input_downcast=True, mode=theano_mode)
         self._test = theano.function([self.X, self.y], test_score, 
-            allow_input_downcast=True)
+            allow_input_downcast=True, mode=theano_mode)
         self._test_with_acc = theano.function([self.X, self.y], [test_score, test_accuracy], 
-            allow_input_downcast=True)
+            allow_input_downcast=True, mode=theano_mode)
 
 
     def train(self, X, y, accuracy=False):
@@ -182,10 +182,7 @@ class Sequential(object):
 
             batches = make_batches(len(X), batch_size)
             for batch_index, (batch_start, batch_end) in enumerate(batches):
-                if shuffle:
-                    batch_ids = index_array[batch_start:batch_end]
-                else:
-                    batch_ids = slice(batch_start, batch_end)
+                batch_ids = index_array[batch_start:batch_end]
                 seen += len(batch_ids)
                 X_batch = X[batch_ids]
                 y_batch = y[batch_ids]
@@ -329,3 +326,5 @@ class Sequential(object):
             weights = [g['param_{}'.format(p)] for p in range(g.attrs['nb_params'])]
             self.layers[k].set_weights(weights)
         f.close()
+
+
