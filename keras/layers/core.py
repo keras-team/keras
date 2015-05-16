@@ -227,3 +227,45 @@ class TimeDistributedDense(Layer):
             "output_dim":self.output_dim,
             "init":self.init.__name__,
             "activation":self.activation.__name__}
+
+
+
+
+class Maxout(Layer):
+    '''
+        Max-out layer, n_features is the number of pieces in the piecewise linear approx.
+        Refer to http://arxiv.org/pdf/1302.4389.pdf
+    '''
+    def __init__(self, input_dim, output_dim, n_features=4, init='glorot_uniform', weights=None, 
+        W_regularizer=None, b_regularizer=None, W_constraint=None, b_constraint=None):
+
+        super(Maxout,self).__init__()
+        self.init = initializations.get(init)
+        self.input_dim = input_dim
+        self.output_dim = output_dim
+        self.n_features = n_features
+
+        self.input = T.matrix()
+        self.W = self.init((self.n_features, self.input_dim, self.output_dim))
+        self.b = shared_zeros((self.n_features, self.output_dim))
+
+        self.params = [self.W, self.b]
+
+        self.regularizers = [W_regularizer, b_regularizer]
+        self.constraints = [W_constraint, b_constraint]
+
+        if weights is not None:
+            self.set_weights(weights)
+
+    def get_output(self, train):
+        X = self.get_input(train)
+        # -- don't need activation since it's just linear.
+        output = T.max(T.dot(X, self.W) + self.b, axis=1)
+        return output
+
+    def get_config(self):
+        return {"name":self.__class__.__name__,
+            "input_dim":self.input_dim,
+            "output_dim":self.output_dim,
+            "init":self.init.__name__,
+            "n_features" : self.n_features}
