@@ -42,7 +42,7 @@ class Layer(object):
         return {"name":self.__class__.__name__}
 
 
-class Merge(object): 
+class Merge(object):
     def __init__(self, models, mode='sum'):
         ''' Merge the output of a list of models into a single tensor.
             mode: {'sum', 'concat'}
@@ -204,7 +204,7 @@ class Dense(Layer):
     '''
         Just your regular fully connected NN layer.
     '''
-    def __init__(self, input_dim, output_dim, init='glorot_uniform', activation='linear', weights=None, 
+    def __init__(self, input_dim, output_dim, init='glorot_uniform', activation='linear', weights=None,
         W_regularizer=None, b_regularizer=None, W_constraint=None, b_constraint=None):
 
         super(Dense,self).__init__()
@@ -246,7 +246,7 @@ class TimeDistributedDense(Layer):
        Tensor output dimensions:  (nb_sample, shared_dimension, output_dim)
 
     '''
-    def __init__(self, input_dim, output_dim, init='glorot_uniform', activation='linear', weights=None, 
+    def __init__(self, input_dim, output_dim, init='glorot_uniform', activation='linear', weights=None,
         W_regularizer=None, b_regularizer=None, W_constraint=None, b_constraint=None):
 
         super(TimeDistributedDense,self).__init__()

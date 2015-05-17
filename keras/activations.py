@@ -31,4 +31,6 @@ def linear(x):
 
 from .utils.generic_utils import get_from_module
 def get(identifier):
+    if hasattr(identifier, '__call__'):
+    	return identifier
     return get_from_module(identifier, globals(), 'activation function')

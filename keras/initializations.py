@@ -36,7 +36,7 @@ def glorot_uniform(shape):
     fan_in, fan_out = get_fans(shape)
     s = np.sqrt(2. / (fan_in + fan_out))
     return uniform(shape, s)
-    
+
 def he_normal(shape):
     ''' Reference:  He et al., http://arxiv.org/abs/1502.01852
     '''
@@ -65,4 +65,6 @@ def zero(shape):
 
 from .utils.generic_utils import get_from_module
 def get(identifier):
+    if hasattr(identifier, '__call__'):
+    	return identifier
     return get_from_module(identifier, globals(), 'initialization')
