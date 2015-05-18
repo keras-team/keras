@@ -256,10 +256,10 @@ class Sequential(Model):
                 # validation
                 if do_validation and (batch_index == len(batches) - 1):
                     if show_accuracy:
-                        val_loss, val_acc = self.test(X_val, y_val, accuracy=True)
+                        val_loss, val_acc = self.evaluate(X_val, y_val, batch_size=batch_size, verbose=0, show_accuracy=True)
                         log_values += [('val. loss', val_loss), ('val. acc.', val_acc)]
                     else:
-                        val_loss = self.test(X_val, y_val)
+                        val_loss = self.evaluate(X_val, y_val, batch_size=batch_size, verbose=0)
                         log_values += [('val. loss', val_loss)]
                 
                 # logging
