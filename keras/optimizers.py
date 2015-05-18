@@ -24,7 +24,7 @@ class Optimizer(object):
 
         if hasattr(self, 'clipnorm') and self.clipnorm > 0:
             norm = T.sqrt(sum([T.sum(g**2) for g in grads]))
-            grads = [clip_norm(g, c, norm) for g in grads]
+            grads = [clip_norm(g, self.clipnorm, norm) for g in grads]
 
         new_grads = []
         for p, g, r in zip(params, grads, regularizers):
