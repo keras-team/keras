@@ -212,9 +212,36 @@ Repeat the 1D input n times. Dimensions of input are assumed to be (nb_samples, 
 
 - __Example__:
 
+---
+
+## MaxoutDense
+```python
+keras.layers.core.MaxoutDense(input_dim, output_dim, nb_feature=4, init='glorot_uniform', weights=None, \
+        W_regularizer=None, b_regularizer=None, W_constraint=None, b_constraint=None)
+```
+
+A dense maxout layer. A `MaxoutDense` layer takes the element-wise maximum of `nb_feature` `Dense(input_dim, output_dim)` linear layers. This allows the layer to learn a convex, piecewise linear activation function over the inputs. See [this paper](http://arxiv.org/pdf/1302.4389.pdf) for more details. Note that this is a *linear* layer -- if you wish to apply activation function (you shouldn't need to -- they are universal function approximators), an `Activation` layer must be added after.
+
+- __Input shape__: 2D tensor with shape: `(nb_samples, input_dim)`.
+
+- __Output shape__: 2D tensor with shape: `(nb_samples, output_dim)`.
+
+- __Arguments__:
+
+    - __input_dim__: int >= 0. 
+    - __output_dim__: int >= 0. 
+    - __nb_feature__: int >= 0. the number of features to create for the maxout. This is equivalent to the number of piecewise elements to be allowed for the activation function. 
+    - __init__: name of initialization function for the weights of the layer (see: [initializations](../initializations.md)), or alternatively, Theano function to use for weights initialization. This parameter is only relevant if you don't pass a `weights` argument.
+    - __weights__: list of numpy arrays to set as initial weights. The list should have 1 element, of shape `(input_dim, output_dim)`.
+    - __W_regularizer__: instance of the [regularizers](../regularizers.md) module (eg. L1 or L2 regularization), applied to the main weights matrix.
+    - __b_regularizer__: instance of the [regularizers](../regularizers.md) module, applied to the bias.
+    - __W_constraint__: instance of the [constraints](../constraints.md) module (eg. maxnorm, nonneg), applied to the main weights matrix.
+    - __b_constraint__: instance of the [constraints](../constraints.md) module, applied to the bias.
+
 ```python
 # input shape: (nb_samples, 10)
 model.add(Dense(10, 100)) # output shape: (nb_samples, 100)
+model.add(MaxoutDense(100, 100, nb_feature=10)) # output shape: (nb_samples, 100)
 model.add(RepeatVector(2))  # output shape: (nb_samples, 2, 10)
 ```
 
