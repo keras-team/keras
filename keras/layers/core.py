@@ -81,6 +81,10 @@ class Merge(object):
                 res.append(o)
         return res
 
+    @property
+    def input(self):
+        return self.get_input()    
+
     def get_weights(self):
         weights = []
         for m in self.models:
