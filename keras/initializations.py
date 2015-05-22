@@ -22,7 +22,7 @@ def lecun_uniform(shape):
         http://yann.lecun.com/exdb/publis/pdf/lecun-98b.pdf
     '''
     fan_in, fan_out = get_fans(shape)
-    scale = 1./np.sqrt(fan_in)
+    scale = 1. / np.sqrt(fan_in)
     return uniform(shape, scale)
 
 def glorot_normal(shape):
@@ -36,7 +36,7 @@ def glorot_uniform(shape):
     fan_in, fan_out = get_fans(shape)
     s = np.sqrt(2. / (fan_in + fan_out))
     return uniform(shape, s)
-    
+
 def he_normal(shape):
     ''' Reference:  He et al., http://arxiv.org/abs/1502.01852
     '''

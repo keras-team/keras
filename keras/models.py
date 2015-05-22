@@ -21,8 +21,8 @@ def standardize_y(y):
     return y
 
 def make_batches(size, batch_size):
-    nb_batch = int(np.ceil(size/float(batch_size)))
-    return [(i*batch_size, min(size, (i+1)*batch_size)) for i in range(0, nb_batch)]
+    nb_batch = int(np.ceil(size / float(batch_size)))
+    return [(i * batch_size, min(size, (i + 1) * batch_size)) for i in range(0, nb_batch)]
 
 def ndim_tensor(ndim):
     if ndim == 2:
@@ -64,7 +64,7 @@ class Model(object):
         self.optimizer = optimizers.get(optimizer)
         self.loss = objectives.get(loss)
 
-        # input of model 
+        # input of model
         self.X_train = self.get_input(train=True)
         self.X_test = self.get_input(train=False)
 
@@ -102,32 +102,32 @@ class Model(object):
             test_ins = [self.X_test, self.y]
             predict_ins = [self.X_test]
 
-        self._train = theano.function(train_ins, train_loss, 
+        self._train = theano.function(train_ins, train_loss,
             updates=updates, allow_input_downcast=True, mode=theano_mode)
-        self._train_with_acc = theano.function(train_ins, [train_loss, train_accuracy], 
+        self._train_with_acc = theano.function(train_ins, [train_loss, train_accuracy],
             updates=updates, allow_input_downcast=True, mode=theano_mode)
-        self._predict = theano.function(predict_ins, self.y_test, 
+        self._predict = theano.function(predict_ins, self.y_test,
             allow_input_downcast=True, mode=theano_mode)
-        self._test = theano.function(test_ins, test_score, 
+        self._test = theano.function(test_ins, test_score,
             allow_input_downcast=True, mode=theano_mode)
-        self._test_with_acc = theano.function(test_ins, [test_score, test_accuracy], 
+        self._test_with_acc = theano.function(test_ins, [test_score, test_accuracy],
             allow_input_downcast=True, mode=theano_mode)
 
 
 class Sequential(Model):
+
     def __init__(self):
         self.layers = []
         self.params = [] # learnable
         self.regularizers = [] # same size as params
         self.constraints = [] # same size as params
 
-
     def add(self, layer):
         self.layers.append(layer)
         if len(self.layers) > 1:
             self.layers[-1].connect(self.layers[-2])
         self.params += [p for p in layer.params]
-        
+
         if hasattr(layer, 'regularizers') and len(layer.regularizers) == len(layer.params):
             for r in layer.regularizers:
                 if r:
@@ -150,20 +150,17 @@ class Sequential(Model):
         else:
             self.constraints += [constraints.identity for _ in range(len(layer.params))]
 
-
     def get_output(self, train=False):
         return self.layers[-1].get_output(train)
-
 
     def get_input(self, train=False):
         if not hasattr(self.layers[0], 'input'):
             for l in self.layers:
                 if hasattr(l, 'input'):
                     break
-            ndim = l.input.ndim 
+            ndim = l.input.ndim
             self.layers[0].input = ndim_tensor(ndim)
         return self.layers[0].get_input(train)
-
 
     def train(self, X, y, accuracy=False):
         X = standardize_X(X)
@@ -173,7 +170,6 @@ class Sequential(Model):
             return self._train_with_acc(*ins)
         else:
             return self._train(*ins)
-        
 
     def test(self, X, y, accuracy=False):
         X = standardize_X(X)
@@ -184,10 +180,9 @@ class Sequential(Model):
         else:
             return self._test(*ins)
 
-
     def fit(self, X, y, batch_size=128, nb_epoch=100, verbose=1,
             validation_split=0., validation_data=None, shuffle=True, show_accuracy=False):
-        
+
         X = standardize_X(X)
         y = standardize_y(y)
 
@@ -214,8 +209,8 @@ class Sequential(Model):
                 (y, y_val) = (y[0:split_at], y[split_at:])
                 if verbose:
                     print("Train on %d samples, validate on %d samples" % (len(y), len(y_val)))
-        
-        history = {'epoch':[], 'loss':[]}
+
+        history = {'epoch': [], 'loss': []}
         if show_accuracy:
             history['acc'] = []
         if do_validation:
@@ -261,17 +256,17 @@ class Sequential(Model):
                     else:
                         val_loss = self.evaluate(X_val, y_val, batch_size=batch_size, verbose=0)
                         log_values += [('val. loss', val_loss)]
-                
+
                 # logging
                 if verbose:
                     progbar.update(batch_end, log_values)
 
             history['epoch'].append(epoch)
-            history['loss'].append(av_loss/seen)
+            history['loss'].append(av_loss / seen)
             if do_validation:
                 history['val_loss'].append(float(val_loss))
             if show_accuracy:
-                history['acc'].append(av_acc/seen)
+                history['acc'].append(av_acc / seen)
                 if do_validation:
                     history['val_acc'].append(float(val_acc))
         return history
@@ -279,7 +274,7 @@ class Sequential(Model):
     def predict(self, X, batch_size=128, verbose=1):
         X = standardize_X(X)
         batches = make_batches(len(X[0]), batch_size)
-        if verbose==1:
+        if verbose == 1:
             progbar = Progbar(target=len(X[0]))
         for batch_index, (batch_start, batch_end) in enumerate(batches):
             X_batch = slice_X(X, batch_start, batch_end)
@@ -290,25 +285,23 @@ class Sequential(Model):
                 preds = np.zeros(shape)
             preds[batch_start:batch_end] = batch_preds
 
-            if verbose==1:
+            if verbose == 1:
                 progbar.update(batch_end)
 
         return preds
 
     def predict_proba(self, X, batch_size=128, verbose=1):
         preds = self.predict(X, batch_size, verbose)
-        if preds.min()<0 or preds.max()>1:
+        if preds.min() < 0 or preds.max() > 1:
             warnings.warn("Network returning invalid probability values.")
         return preds
-
 
     def predict_classes(self, X, batch_size=128, verbose=1):
         proba = self.predict(X, batch_size=batch_size, verbose=verbose)
         if self.class_mode == "categorical":
             return proba.argmax(axis=-1)
         else:
-            return (proba>0.5).astype('int32')
-
+            return (proba > 0.5).astype('int32')
 
     def evaluate(self, X, y, batch_size=128, show_accuracy=False, verbose=1):
         X = standardize_X(X)
@@ -340,9 +333,9 @@ class Sequential(Model):
                 progbar.update(batch_end, log_values)
 
         if show_accuracy:
-            return tot_score/len(batches), tot_acc/len(batches)
+            return tot_score / len(batches), tot_acc / len(batches)
         else:
-            return tot_score/len(batches)
+            return tot_score / len(batches)
 
     def get_config(self, verbose=0):
         layers = []
@@ -391,4 +384,4 @@ class Sequential(Model):
             weights = [g['param_{}'.format(p)] for p in range(g.attrs['nb_params'])]
             self.layers[k].set_weights(weights)
         f.close()
-        
+

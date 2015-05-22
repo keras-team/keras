@@ -13,6 +13,7 @@ from six.moves import zip
 srng = RandomStreams()
 
 class Layer(object):
+
     def __init__(self):
         self.params = []
 
@@ -39,10 +40,11 @@ class Layer(object):
         return weights
 
     def get_config(self):
-        return {"name":self.__class__.__name__}
+        return {"name": self.__class__.__name__}
 
 
-class Merge(object): 
+class Merge(object):
+
     def __init__(self, models, mode='sum'):
         ''' Merge the output of a list of models into a single tensor.
             mode: {'sum', 'concat'}
@@ -83,7 +85,7 @@ class Merge(object):
 
     @property
     def input(self):
-        return self.get_input()    
+        return self.get_input()
 
     def get_weights(self):
         weights = []
@@ -98,17 +100,19 @@ class Merge(object):
             weights = weights[nb_param:]
 
     def get_config(self):
-        return {"name":self.__class__.__name__,
-            "models":[m.get_config() for m in self.models],
-            "mode":self.mode}
+        return {"name": self.__class__.__name__,
+            "models": [m.get_config() for m in self.models],
+            "mode": self.mode}
 
 
 class Dropout(Layer):
+
     '''
         Hinton's dropout.
     '''
+
     def __init__(self, p):
-        super(Dropout,self).__init__()
+        super(Dropout, self).__init__()
         self.p = p
 
     def get_output(self, train):
@@ -122,16 +126,18 @@ class Dropout(Layer):
         return X
 
     def get_config(self):
-        return {"name":self.__class__.__name__,
-            "p":self.p}
+        return {"name": self.__class__.__name__,
+            "p": self.p}
 
 
 class Activation(Layer):
+
     '''
         Apply an activation function to an output.
     '''
+
     def __init__(self, activation, target=0, beta=0.1):
-        super(Activation,self).__init__()
+        super(Activation, self).__init__()
         self.activation = activations.get(activation)
         self.target = target
         self.beta = beta
@@ -141,20 +147,22 @@ class Activation(Layer):
         return self.activation(X)
 
     def get_config(self):
-        return {"name":self.__class__.__name__,
-            "activation":self.activation.__name__,
-            "target":self.target,
-            "beta":self.beta}
+        return {"name": self.__class__.__name__,
+            "activation": self.activation.__name__,
+            "target": self.target,
+            "beta": self.beta}
 
 
 class Reshape(Layer):
+
     '''
         Reshape an output to a certain shape.
         Can't be used as first layer in a model (no fixed input!)
         First dimension is assumed to be nb_samples.
     '''
+
     def __init__(self, *dims):
-        super(Reshape,self).__init__()
+        super(Reshape, self).__init__()
         self.dims = dims
 
     def get_output(self, train):
@@ -163,17 +171,19 @@ class Reshape(Layer):
         return theano.tensor.reshape(X, nshape)
 
     def get_config(self):
-        return {"name":self.__class__.__name__,
-            "dims":self.dims}
+        return {"name": self.__class__.__name__,
+            "dims": self.dims}
 
 
 class Flatten(Layer):
+
     '''
         Reshape input to flat shape.
         First dimension is assumed to be nb_samples.
     '''
+
     def __init__(self):
-        super(Flatten,self).__init__()
+        super(Flatten, self).__init__()
 
     def get_output(self, train):
         X = self.get_input(train)
@@ -183,35 +193,39 @@ class Flatten(Layer):
 
 
 class RepeatVector(Layer):
+
     '''
         Repeat input n times.
 
         Dimensions of input are assumed to be (nb_samples, dim).
         Return tensor of shape (nb_samples, n, dim).
     '''
+
     def __init__(self, n):
-        super(RepeatVector,self).__init__()
+        super(RepeatVector, self).__init__()
         self.n = n
 
     def get_output(self, train):
         X = self.get_input(train)
-        tensors = [X]*self.n
+        tensors = [X] * self.n
         stacked = theano.tensor.stack(*tensors)
-        return stacked.dimshuffle((1,0,2))
+        return stacked.dimshuffle((1, 0, 2))
 
     def get_config(self):
-        return {"name":self.__class__.__name__,
-            "n":self.n}
+        return {"name": self.__class__.__name__,
+            "n": self.n}
 
 
 class Dense(Layer):
+
     '''
         Just your regular fully connected NN layer.
     '''
-    def __init__(self, input_dim, output_dim, init='glorot_uniform', activation='linear', weights=None, 
+
+    def __init__(self, input_dim, output_dim, init='glorot_uniform', activation='linear', weights=None,
         W_regularizer=None, b_regularizer=None, W_constraint=None, b_constraint=None):
 
-        super(Dense,self).__init__()
+        super(Dense, self).__init__()
         self.init = initializations.get(init)
         self.activation = activations.get(activation)
         self.input_dim = input_dim
@@ -235,14 +249,15 @@ class Dense(Layer):
         return output
 
     def get_config(self):
-        return {"name":self.__class__.__name__,
-            "input_dim":self.input_dim,
-            "output_dim":self.output_dim,
-            "init":self.init.__name__,
-            "activation":self.activation.__name__}
+        return {"name": self.__class__.__name__,
+            "input_dim": self.input_dim,
+            "output_dim": self.output_dim,
+            "init": self.init.__name__,
+            "activation": self.activation.__name__}
 
 
 class TimeDistributedDense(Layer):
+
     '''
        Apply a same DenseLayer for each dimension[1] (shared_dimension) input
        Especially useful after a recurrent network with 'return_sequence=True'
@@ -250,10 +265,11 @@ class TimeDistributedDense(Layer):
        Tensor output dimensions:  (nb_sample, shared_dimension, output_dim)
 
     '''
-    def __init__(self, input_dim, output_dim, init='glorot_uniform', activation='linear', weights=None, 
+
+    def __init__(self, input_dim, output_dim, init='glorot_uniform', activation='linear', weights=None,
         W_regularizer=None, b_regularizer=None, W_constraint=None, b_constraint=None):
 
-        super(TimeDistributedDense,self).__init__()
+        super(TimeDistributedDense, self).__init__()
         self.init = initializations.get(init)
         self.activation = activations.get(activation)
         self.input_dim = input_dim
@@ -278,29 +294,29 @@ class TimeDistributedDense(Layer):
             return self.activation(T.dot(X, self.W) + self.b)
 
         output, _ = theano.scan(fn = act_func,
-                                sequences = X.dimshuffle(1,0,2),
+                                sequences = X.dimshuffle(1, 0, 2),
                                 outputs_info=None)
-        return output.dimshuffle(1,0,2)
+        return output.dimshuffle(1, 0, 2)
 
     def get_config(self):
-        return {"name":self.__class__.__name__,
-            "input_dim":self.input_dim,
-            "output_dim":self.output_dim,
-            "init":self.init.__name__,
-            "activation":self.activation.__name__}
-
-
+        return {"name": self.__class__.__name__,
+            "input_dim": self.input_dim,
+            "output_dim": self.output_dim,
+            "init": self.init.__name__,
+            "activation": self.activation.__name__}
 
 
 class MaxoutDense(Layer):
+
     '''
         Max-out layer, nb_feature is the number of pieces in the piecewise linear approx.
         Refer to http://arxiv.org/pdf/1302.4389.pdf
     '''
-    def __init__(self, input_dim, output_dim, nb_feature=4, init='glorot_uniform', weights=None, 
+
+    def __init__(self, input_dim, output_dim, nb_feature=4, init='glorot_uniform', weights=None,
         W_regularizer=None, b_regularizer=None, W_constraint=None, b_constraint=None):
 
-        super(MaxoutDense,self).__init__()
+        super(MaxoutDense, self).__init__()
         self.init = initializations.get(init)
         self.input_dim = input_dim
         self.output_dim = output_dim
@@ -325,8 +341,8 @@ class MaxoutDense(Layer):
         return output
 
     def get_config(self):
-        return {"name":self.__class__.__name__,
-            "input_dim":self.input_dim,
-            "output_dim":self.output_dim,
-            "init":self.init.__name__,
-            "nb_feature" : self.nb_feature}
+        return {"name": self.__class__.__name__,
+            "input_dim": self.input_dim,
+            "output_dim": self.output_dim,
+            "init": self.init.__name__,
+            "nb_feature": self.nb_feature}

@@ -21,9 +21,9 @@ def make_reuters_dataset(path=os.path.join('datasets', 'temp', 'reuters21578'), 
             s = open(path + fname).read()
             tag = '<TOPICS>'
             while tag in s:
-                s = s[s.find(tag)+len(tag):]
+                s = s[s.find(tag) + len(tag):]
                 topics = s[:s.find('</')]
-                
+
                 if topics and not '</D><D>' in topics:
                     topic = topics.replace('<D>', '').replace('</D>', '')
                     wire_topics.append(topic)
@@ -32,7 +32,7 @@ def make_reuters_dataset(path=os.path.join('datasets', 'temp', 'reuters21578'), 
                     continue
 
                 bodytag = '<BODY>'
-                body = s[s.find(bodytag)+len(bodytag):]
+                body = s[s.find(bodytag) + len(bodytag):]
                 body = body[:body.find('</')]
                 wire_bodies.append(body)
 
@@ -71,12 +71,11 @@ def make_reuters_dataset(path=os.path.join('datasets', 'temp', 'reuters21578'), 
     for w in ["banana", "oil", "chocolate", "the", "dsft"]:
         print('...index of', w, ':', tokenizer.word_index.get(w))
 
-    dataset = (X, labels) 
+    dataset = (X, labels)
     print('-')
     print('Saving...')
     six.moves.cPickle.dump(dataset, open(os.path.join('datasets', 'data', 'reuters.pkl'), 'w'))
-    six.moves.cPickle.dump(tokenizer.word_index, open(os.path.join('datasets','data', 'reuters_word_index.pkl'), 'w'))
-
+    six.moves.cPickle.dump(tokenizer.word_index, open(os.path.join('datasets', 'data', 'reuters_word_index.pkl'), 'w'))
 
 
 def load_data(path="reuters.pkl", nb_words=None, skip_top=0, maxlen=None, test_split=0.2, seed=113):
@@ -104,11 +103,11 @@ def load_data(path="reuters.pkl", nb_words=None, skip_top=0, maxlen=None, test_s
         nb_words = max([max(x) for x in X])
 
     X = [[0 if (w >= nb_words or w < skip_top) else w for w in x] for x in X]
-    X_train = X[:int(len(X)*(1-test_split))]
-    y_train = labels[:int(len(X)*(1-test_split))]
+    X_train = X[:int(len(X) * (1 - test_split))]
+    y_train = labels[:int(len(X) * (1 - test_split))]
 
-    X_test = X[int(len(X)*(1-test_split)):]
-    y_test = labels[int(len(X)*(1-test_split)):]
+    X_test = X[int(len(X) * (1 - test_split)):]
+    y_test = labels[int(len(X) * (1 - test_split)):]
 
     return (X_train, y_train), (X_test, y_test)
 
