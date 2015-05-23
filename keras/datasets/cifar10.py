@@ -31,8 +31,8 @@ def load_data(test_split=0.1, seed=113):
         labels = d["labels"]
 
         data = data.reshape(data.shape[0], 3, 32, 32)
-        X[(i-1)*10000:i*10000, :, :, :] = data
-        y[(i-1)*10000:i*10000] = labels
+        X[(i - 1) * 10000:i * 10000, :, :, :] = data
+        y[(i - 1) * 10000:i * 10000] = labels
 
     np.random.seed(seed)
     np.random.shuffle(X)
@@ -41,10 +41,10 @@ def load_data(test_split=0.1, seed=113):
 
     y = np.reshape(y, (len(y), 1))
 
-    X_train = X[:int(len(X)*(1-test_split))]
-    y_train = y[:int(len(X)*(1-test_split))]
+    X_train = X[:int(len(X) * (1 - test_split))]
+    y_train = y[:int(len(X) * (1 - test_split))]
 
-    X_test = X[int(len(X)*(1-test_split)):]
-    y_test = y[int(len(X)*(1-test_split)):]
+    X_test = X[int(len(X) * (1 - test_split)):]
+    y_test = y[int(len(X) * (1 - test_split)):]
 
     return (X_train, y_train), (X_test, y_test)

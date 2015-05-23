@@ -35,11 +35,11 @@ def load_data(path="imdb.pkl", nb_words=None, skip_top=0, maxlen=None, test_spli
         nb_words = max([max(x) for x in X])
 
     X = [[0 if (w >= nb_words or w < skip_top) else w for w in x] for x in X]
-    X_train = X[:int(len(X)*(1-test_split))]
-    y_train = labels[:int(len(X)*(1-test_split))]
+    X_train = X[:int(len(X) * (1 - test_split))]
+    y_train = labels[:int(len(X) * (1 - test_split))]
 
-    X_test = X[int(len(X)*(1-test_split)):]
-    y_test = labels[int(len(X)*(1-test_split)):]
+    X_test = X[int(len(X) * (1 - test_split)):]
+    y_test = labels[int(len(X) * (1 - test_split)):]
 
     return (X_train, y_train), (X_test, y_test)
 

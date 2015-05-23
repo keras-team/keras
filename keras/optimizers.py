@@ -15,7 +15,7 @@ def kl_divergence(p, p_hat):
     return p_hat - p + p*T.log(p/p_hat)
 
 class Optimizer(object):
-    
+
     def get_updates(self, params, grads):
         raise NotImplementedError
 
@@ -49,7 +49,7 @@ class SGD(Optimizer):
         for p, g, c in zip(params, grads, constraints):
             m = shared_zeros(p.get_value().shape) # momentum
             v = self.momentum * m - lr * g # velocity
-            updates.append((m, v)) 
+            updates.append((m, v))
 
             if self.nesterov:
                 new_p = p + self.momentum * v - lr * g
@@ -77,7 +77,7 @@ class RMSprop(Optimizer):
 
             new_p = p - self.lr * g / T.sqrt(new_a + self.epsilon)
             updates.append((p, c(new_p))) # apply constraints
-            
+
         return updates
 
 
@@ -152,7 +152,7 @@ class Adam(Optimizer):
         beta_1_t = self.beta_1 * (self.kappa**i)
 
         # the update below seems missing from the paper, but is obviously required
-        beta_2_t = self.beta_2 * (self.kappa**i) 
+        beta_2_t = self.beta_2 * (self.kappa**i)
 
         for p, g, c in zip(params, grads, constraints):
             m = theano.shared(p.get_value() * 0.) # zero init of moment
@@ -165,7 +165,7 @@ class Adam(Optimizer):
             v_b_t = v_t / (1 - beta_2_t)
 
             p_t = p - self.lr * m_b_t / (T.sqrt(v_b_t) + self.epsilon)
-            
+
             updates.append((m, m_t))
             updates.append((v, v_t))
             updates.append((p, c(p_t))) # apply constraints
