@@ -70,7 +70,7 @@ class Progbar(object):
         now = time.time()
         if self.verbose == 1:
             prev_total_width = self.total_width
-            sys.stdout.write("\b" * (self.total_width+1))
+            sys.stdout.write("\b" * prev_total_width)
             sys.stdout.write("\r")
 
             numdigits = int(np.floor(np.log10(self.target))) + 1
