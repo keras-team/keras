@@ -16,3 +16,4 @@ model.add(Dense(64, 64, W_constraint = maxnorm(2)))
 
 - __maxnorm__(m=2): maximum-norm constraint
 - __nonneg__(): non-negativity constraint
+- __unitnorm__(): unit-norm constraint, enforces the matrix to have unit norm along the last axis

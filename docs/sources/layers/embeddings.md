@@ -2,7 +2,7 @@
 ## Embedding
 
 ```python
-keras.layers.embeddings.Embedding(input_dim, output_dim, init='uniform', weights=None)
+keras.layers.embeddings.Embedding(input_dim, output_dim, init='uniform', weights=None, W_regularizer=None, W_constraint=None)
 ```
 
 Turn positive integers (indexes) into denses vectors of fixed size,
@@ -18,6 +18,8 @@ eg. `[[4], [20]] -> [[0.25, 0.1], [0.6, -0.2]]`
     - __output_dim__: int >= 0. Dimension of the dense embedding.
     - __init__: name of initialization function for the weights of the layer (see: [initializations](../initializations.md)), or alternatively, Theano function to use for weights initialization. This parameter is only relevant if you don't pass a `weights` argument.
     - __weights__: list of numpy arrays to set as initial weights. The list should have 1 element, of shape `(input_dim, output_dim)`.
+    - __W_regularizer__: instance of the [regularizers](../regularizers.md) module (eg. L1 or L2 regularization), applied to the embedding matrix.
+    - __W_constraint__: instance of the [constraints](../constraints.md) module (eg. maxnorm, nonneg), applied to the embedding matrix.
 
 
 ## WordContextProduct
