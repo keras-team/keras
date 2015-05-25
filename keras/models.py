@@ -71,9 +71,6 @@ class Model(object):
         self.y_train = self.get_output(train=True)
         self.y_test = self.get_output(train=False)
 
-        self.y_train = self.get_output(train=True)
-        self.y_test = self.get_output(train=False)
-
         # target of model
         self.y = T.zeros_like(self.y_train)
 
