@@ -69,7 +69,7 @@ def skipgrams(sequence, vocabulary_size,
         if not wi:
             continue
         if sampling_table is not None:
-            if sampling_table[i] < random.random():
+            if sampling_table[wi] < random.random():
                 continue
 
         window_start = max(0, i-window_size)
