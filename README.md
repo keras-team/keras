@@ -172,6 +172,7 @@ In the examples folder, you will find example models for real datasets:
 - CIFAR10 small images classification: Convnet with realtime data augmentation
 - IMDB movie review sentiment classification: LSTM over sequences of words
 - Reuters newswires topic classification: Multilayer Perceptron
+- MNIST handwritten digits classification: Multilayer Perceptron
 
 
 ## Current capabilities
