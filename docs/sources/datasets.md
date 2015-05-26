@@ -80,3 +80,24 @@ word_index = reuters.get_word_index(path="reuters_word_index.pkl")
 - __Arguments:__
 
     - __path__: if you do have the index file locally (at `'~/.keras/datasets/' + path`), if will be downloaded to this location (in cPickle format).
+    
+## MNIST database of handwritten digits
+
+`keras.datasets.mnist`
+
+Dataset of 60,000 28x28 grayscale images of the 10 digits, along with a test set of 10,000 images.
+
+### Usage:
+
+```python
+(X_train, y_train), (X_test, y_test) = mnist.load_data()
+```
+
+- __Return:__
+    - 2 tuples:
+        - __X_train, X_test__: uint8 array of grayscale image data with shape (nb_samples, 28, 28).
+        - __y_train, y_test__: uint8 array of digit labels (integers in range 0-9) with shape (nb_samples,).
+
+- __Arguments:__
+
+    - __path__: if you do have the index file locally (at `'~/.keras/datasets/' + path`), if will be downloaded to this location (in cPickle format).
