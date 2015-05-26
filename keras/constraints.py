@@ -17,3 +17,6 @@ def nonneg(p):
 
 def identity(g):
     return g
+
+def unitnorm(e):
+    return e / T.sqrt(T.sum(e**2, axis=-1, keepdims=True))
