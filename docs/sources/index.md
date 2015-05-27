@@ -92,7 +92,7 @@ Keras uses the following dependencies:
 - numpy, scipy
 - Theano
     - See [installation instructions](http://deeplearning.net/software/theano/install.html#install).
-- h5py (optional, required if you use model saving/loading functions)
+- HDF5 and h5py (optional, required if you use model saving/loading functions)
 - Optional but recommended if you use CNNs: cuDNN.
 
 Once you have the dependencies installed, clone the repo:
