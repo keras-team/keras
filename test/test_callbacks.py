@@ -5,6 +5,7 @@ import theano
 from keras.models import Sequential
 from keras.callbacks import Callback
 from keras.layers.core import Dense, Dropout, Activation, Flatten
+from keras.regularizers import l2
 from keras.layers.convolutional import Convolution2D, MaxPooling2D
 from keras.utils import np_utils
 from keras.datasets import mnist
@@ -14,7 +15,7 @@ from matplotlib import animation
 
 nb_classes = 10
 batch_size = 128
-nb_epoch = 5
+nb_epoch = 10
 
 max_train_samples = 5000
 max_test_samples = 1
@@ -58,7 +59,7 @@ class SubplotTimedAnimation(animation.TimedAnimation):
             axis.get_xaxis().set_ticks([])
             axis.get_yaxis().set_ticks([])
         self.frames = frames
-        self.imgs = [self.axes[i].imshow(frames._framedata[i][0], interpolation='nearest') for i in range(self.n_plots)]
+        self.imgs = [self.axes[i].imshow(frames._framedata[i][0], interpolation='nearest', cmap='bone') for i in range(self.n_plots)]
         self.title = fig.suptitle('')
         super(SubplotTimedAnimation, self).__init__(fig, interval=interval, blit=blit, **kwargs)
 
@@ -105,7 +106,7 @@ class DrawActivations(Callback):
         self.epoch = epoch
 
     def on_batch_end(self, batch, indices, loss, accuracy):
-        if batch % 10 == 0:
+        if batch % 5 == 0:
             self.imgs.add_frame(0, X_test[0,0])
             self.imgs.add_frame(1, combine_imgs(self.test_layer0(X_test), grid=(4, 4)))
             self.imgs.add_frame(2, combine_imgs(self.test_layer1(X_test), grid=(6, 6)))
@@ -116,7 +117,7 @@ class DrawActivations(Callback):
     def on_train_end(self):
         # anim = animation.ArtistAnimation(self.fig, self.imgs, interval=10, blit=False, repeat_delay=1000)
         anim = SubplotTimedAnimation(self.fig, self.imgs, grid=(1,5), interval=10, blit=False, repeat_delay=1000)
-        anim.save('test_gif.mp4', fps=15)
+        # anim.save('test_gif.gif', fps=15, writer='imagemagick')
         plt.show()
 
 # model = Sequential()
@@ -141,11 +142,11 @@ model.add(Dense(64*8*8, 256))
 model.add(Activation('relu'))
 model.add(Dropout(0.5))
 
-model.add(Dense(256, 10))
+model.add(Dense(256, 10, W_regularizer = l2(0.1)))
 model.add(Activation('softmax'))
 
 model.compile(loss='categorical_crossentropy', optimizer='rmsprop')
 
 # Fit the model
-draw_weights = DrawActivations(figsize=(15, 3))
+draw_weights = DrawActivations(figsize=(5.4, 1.35))
 model.fit(X_train, Y_train, batch_size=batch_size, nb_epoch=nb_epoch, verbose=1, callbacks=[draw_weights])
