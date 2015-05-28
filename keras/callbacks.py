@@ -104,8 +104,6 @@ class History(Callback):
         self.seen = 0
         self.cum_loss = 0.
         self.cum_accuracy = 0.
-        self.val_loss = 0.
-        self.val_accuracy = 0.
 
     def on_batch_end(self, batch, indices, loss, accuracy):
         batch_length = len(indices)
