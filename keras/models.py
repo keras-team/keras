@@ -255,7 +255,7 @@ class Sequential(Model):
                     callbacks.on_batch_end(batch_index, [], 0., 0.)
                     callbacks.on_epoch_end(epoch, 0., 0.)
                     callbacks.on_train_end()
-                    raise KeyboardInterrupt # TODO: Raise a more explicit Excpetion (?)
+                    raise KeyboardInterrupt # TODO: Raise a more explicit Exception (?)
 
                 callbacks.on_batch_end(batch_index, batch_ids, loss, acc)
             
