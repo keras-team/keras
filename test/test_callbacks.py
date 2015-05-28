@@ -115,7 +115,6 @@ class DrawActivations(Callback):
             self.imgs.set_title('Epoch #%d - Batch #%d' % (self.epoch, batch))
 
     def on_train_end(self):
-        # anim = animation.ArtistAnimation(self.fig, self.imgs, interval=10, blit=False, repeat_delay=1000)
         anim = SubplotTimedAnimation(self.fig, self.imgs, grid=(1,5), interval=10, blit=False, repeat_delay=1000)
         # anim.save('test_gif.gif', fps=15, writer='imagemagick')
         plt.show()
