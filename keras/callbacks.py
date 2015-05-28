@@ -3,6 +3,7 @@ import theano
 import theano.tensor as T
 import numpy as np
 import warnings
+import time
 
 from .utils.generic_utils import Progbar
 
@@ -25,18 +26,29 @@ class CallbackList(object):
     def on_epoch_begin(self, epoch):
         for callback in self.callbacks:
             callback.on_epoch_begin(epoch)
+        self._delta_t_batch = 0.
 
     def on_epoch_end(self, epoch, val_loss, val_acc):
         for callback in self.callbacks:
             callback.on_epoch_end(epoch, val_loss, val_acc)
 
     def on_batch_begin(self, batch):
+        t_before_callbacks = time.time()
         for callback in self.callbacks:
             callback.on_batch_begin(batch)
+        delta_t_callbacks = time.time() - t_before_callbacks
+        if self._delta_t_batch > 0. and delta_t_callbacks > 2 * self._delta_t_batch:
+            warnings.warn('Warning!!')
+        self._t_enter_batch = time.time()
 
     def on_batch_end(self, batch, indices, loss, accuracy):
+        self._delta_t_batch = time.time() - self._t_enter_batch
+        t_before_callbacks = time.time()
         for callback in self.callbacks:
             callback.on_batch_end(batch, indices, loss, accuracy)
+        delta_t_callbacks = time.time() - t_before_callbacks
+        if self._delta_t_batch > 0. and delta_t_callbacks > 2 * self._delta_t_batch:
+            warnings.warn('Warning!!')
 
     def on_train_begin(self):
         for callback in self.callbacks:
