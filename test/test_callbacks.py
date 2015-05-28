@@ -14,7 +14,7 @@ from matplotlib import animation
 
 nb_classes = 10
 batch_size = 128
-nb_epoch = 1
+nb_epoch = 5
 
 max_train_samples = 5000
 max_test_samples = 1
@@ -42,13 +42,19 @@ class DrawWeight(Callback):
 
     def on_train_begin(self):
         self.imgs = []
-        # self.test = theano.function([self.model.get_input()], self.model.layers[1].get_output(train=False))
-        self.test = theano.function([self.model.get_input()], self.model.layers[10].get_output(train=False))
+        self.activations = np.zeros((4 * 30, 4 * 30))
+        self.indices = np.random.choice(32, 16, replace=False)
+        self.test = theano.function([self.model.get_input()], self.model.layers[1].get_output(train=False)[0, self.indices])
+        # self.test = theano.function([self.model.get_input()], self.model.layers[10].get_output(train=False))
 
-    def on_batch_end(self, batch, indices, loss, accuracy, val_loss, val_acc):
-        if batch % 1 == 0:
-            # img = self.ax.imshow(self.test(X_test)[0,0,:,:], interpolation='nearest')
-            img = self.ax.imshow(self.test(X_test)[0,:].reshape(16,16), interpolation='nearest')
+    def on_batch_end(self, batch, indices, loss, accuracy):
+        if batch % 10 == 0:
+            activated = self.test(X_test)
+            for i in range(4):
+                for j in range(4):
+                    self.activations[30*i:30*(i+1), 30*j:30*(j+1)] = activated[4 * i + j]
+            img = self.ax.imshow(self.activations, interpolation='nearest')
+            # img = self.ax.imshow(self.test(X_test)[0,:].reshape(16,16), interpolation='nearest')
             self.imgs.append([img])
 
     def on_train_end(self):

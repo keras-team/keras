@@ -26,17 +26,17 @@ class CallbackList(object):
         for callback in self.callbacks:
             callback.on_epoch_begin(epoch)
 
-    def on_epoch_end(self, epoch):
+    def on_epoch_end(self, epoch, val_loss, val_acc):
         for callback in self.callbacks:
-            callback.on_epoch_end(epoch)
+            callback.on_epoch_end(epoch, val_loss, val_acc)
 
     def on_batch_begin(self, batch):
         for callback in self.callbacks:
             callback.on_batch_begin(batch)
 
-    def on_batch_end(self, batch, indices, loss, accuracy, val_loss, val_acc):
+    def on_batch_end(self, batch, indices, loss, accuracy):
         for callback in self.callbacks:
-            callback.on_batch_end(batch, indices, loss, accuracy, val_loss, val_acc)
+            callback.on_batch_end(batch, indices, loss, accuracy)
 
     def on_train_begin(self):
         for callback in self.callbacks:
@@ -61,13 +61,13 @@ class Callback(object):
     def on_epoch_begin(self, epoch):
         pass
 
-    def on_epoch_end(self, epoch):
+    def on_epoch_end(self, epoch, val_loss, val_acc):
         pass
 
     def on_batch_begin(self, batch):
         pass
 
-    def on_batch_end(self, batch, indices, loss, accuracy, val_loss, val_acc):
+    def on_batch_end(self, batch, indices, loss, accuracy):
         pass
 
     def on_train_begin(self):
@@ -95,26 +95,22 @@ class History(Callback):
         self.val_loss = 0.
         self.val_accuracy = 0.
 
-    def on_batch_end(self, batch, indices, loss, accuracy, val_loss, val_acc):
+    def on_batch_end(self, batch, indices, loss, accuracy):
         batch_length = len(indices)
         self.seen += batch_length
         self.cum_loss += loss * batch_length
         if self.params['show_accuracy']:
             self.cum_accuracy += accuracy * batch_length
-        if self.params['do_validation']:
-            self.val_loss = val_loss
-            if self.params['show_accuracy']:
-                self.val_accuracy = val_acc
 
-    def on_epoch_end(self, epoch):
+    def on_epoch_end(self, epoch, val_loss, val_acc):
         self.epochs.append(epoch)
         self.losses.append(self.cum_loss / self.seen)
         if self.params['show_accuracy']:
             self.accuracies.append(self.cum_accuracy / self.seen)
         if self.params['do_validation']:
-            self.validation_losses.append(self.val_loss)
+            self.validation_losses.append(val_loss)
             if self.params['show_accuracy']:
-                self.validation_accuracies.append(self.val_accuracy)
+                self.validation_accuracies.append(val_acc)
 
 class Logger(Callback):
 
@@ -131,14 +127,17 @@ class Logger(Callback):
     def on_batch_begin(self, batch):
         self.log_values = []
 
-    def on_batch_end(self, batch, indices, loss, accuracy, val_loss, val_acc):
+    def on_batch_end(self, batch, indices, loss, accuracy):
         self.log_values.append(('loss', loss))
         self.current += len(indices)
         if self.params['show_accuracy']:
             self.log_values.append(('acc.', acc))
+        if self.verbose:
+            self.progbar.update(self.current, self.log_values)
+
+    def on_epoch_end(self, epoch, val_loss, val_acc):
+        # TODO: Show validation scores in the logger
         if self.params['do_validation']:
             self.log_values.append(('val. loss', val_loss))
             if self.params['show_accuracy']:
                 self.log_values.append(('val. acc.', val_acc))
-        if self.verbose:
-            self.progbar.update(self.current, self.log_values)

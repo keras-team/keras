@@ -250,17 +250,14 @@ class Sequential(Model):
                     loss = self._train(*ins)
                     acc = None
 
-                # validation
-                val_loss, val_acc = None, None
-                if do_validation and (batch_index == len(batches) - 1):
-                    if show_accuracy:
-                        val_loss, val_acc = self.evaluate(X_val, y_val, batch_size=batch_size, verbose=0, show_accuracy=True)
-                    else:
-                        val_loss = self.evaluate(X_val, y_val, batch_size=batch_size, verbose=0)
+                callbacks.on_batch_end(batch_index, batch_ids, loss, acc)
+            
+            # validation
+            val_loss, val_acc = None, None
+            if do_validation:
+                val_loss, val_acc = self.evaluate(X_val, y_val, batch_size=batch_size, verbose=0, show_accuracy=True)
 
-                callbacks.on_batch_end(batch_index, batch_ids, loss, acc, val_loss, val_acc)
-
-            callbacks.on_epoch_end(epoch)
+            callbacks.on_epoch_end(epoch, val_loss, val_acc)
 
         callbacks.on_train_end()
 
@@ -333,7 +330,7 @@ class Sequential(Model):
         if show_accuracy:
             return tot_score/len(batches), tot_acc/len(batches)
         else:
-            return tot_score/len(batches)
+            return tot_score/len(batches), None
 
     def get_config(self, verbose=0):
         layers = []
