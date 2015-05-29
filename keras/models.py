@@ -9,6 +9,7 @@ from . import optimizers
 from . import objectives
 from . import regularizers
 from . import constraints
+from . import callbacks as cbks
 import time, copy
 from .utils.generic_utils import Progbar, printv
 from six.moves import range
@@ -182,7 +183,7 @@ class Sequential(Model):
             return self._test(*ins)
 
 
-    def fit(self, X, y, batch_size=128, nb_epoch=100, verbose=1,
+    def fit(self, X, y, batch_size=128, nb_epoch=100, verbose=1, callbacks=[],
             validation_split=0., validation_data=None, shuffle=True, show_accuracy=False):
         
         X = standardize_X(X)
@@ -211,67 +212,68 @@ class Sequential(Model):
                 (y, y_val) = (y[0:split_at], y[split_at:])
                 if verbose:
                     print("Train on %d samples, validate on %d samples" % (len(y), len(y_val)))
-        
-        history = {'epoch':[], 'loss':[]}
-        if show_accuracy:
-            history['acc'] = []
-        if do_validation:
-            history['val_loss'] = []
-            if show_accuracy:
-                history['val_acc'] = []
 
         index_array = np.arange(len(y))
+
+        callbacks = cbks.CallbackList(callbacks)
+        callbacks.append(cbks.Logger())
+
+        callbacks._set_model(self)
+        callbacks._set_params({
+            'batch_size': batch_size,
+            'nb_epoch': nb_epoch,
+            'nb_sample': len(y),
+            'verbose': verbose,
+            'do_validation': do_validation,
+            'show_accuracy': show_accuracy
+        })
+
+        callbacks.on_train_begin()
+
         for epoch in range(nb_epoch):
-            if verbose:
-                print('Epoch', epoch)
-                progbar = Progbar(target=len(y), verbose=verbose)
+            callbacks.on_epoch_begin(epoch)
             if shuffle:
                 np.random.shuffle(index_array)
 
-            av_loss = 0.
-            av_acc = 0.
-            seen = 0
-
             batches = make_batches(len(y), batch_size)
             for batch_index, (batch_start, batch_end) in enumerate(batches):
-                batch_ids = index_array[batch_start:batch_end]
-                seen += len(batch_ids)
-                X_batch = slice_X(X, batch_ids)
-                y_batch = y[batch_ids]
+                callbacks.on_batch_begin(batch_index)
 
-                ins = X_batch + [y_batch]
-                if show_accuracy:
-                    loss, acc = self._train_with_acc(*ins)
-                    log_values = [('loss', loss), ('acc.', acc)]
-                    av_loss += loss * len(batch_ids)
-                    av_acc += acc * len(batch_ids)
-                else:
-                    loss = self._train(*ins)
-                    log_values = [('loss', loss)]
-                    av_loss += loss * len(batch_ids)
+                try:
+                    batch_ids = index_array[batch_start:batch_end]
+                    X_batch = slice_X(X, batch_ids)
+                    y_batch = y[batch_ids]
 
-                # validation
-                if do_validation and (batch_index == len(batches) - 1):
+                    ins = X_batch + [y_batch]
                     if show_accuracy:
-                        val_loss, val_acc = self.evaluate(X_val, y_val, batch_size=batch_size, verbose=0, show_accuracy=True)
-                        log_values += [('val. loss', val_loss), ('val. acc.', val_acc)]
+                        loss, acc = self._train_with_acc(*ins)
                     else:
-                        val_loss = self.evaluate(X_val, y_val, batch_size=batch_size, verbose=0)
-                        log_values += [('val. loss', val_loss)]
-                
-                # logging
-                if verbose:
-                    progbar.update(batch_end, log_values)
+                        loss = self._train(*ins)
+                        acc = None
+                except KeyboardInterrupt:
+                    # If training is aborted, call the callbacks anyway before terminating
+                    callbacks.on_batch_end(batch_index, [], 0., 0.)
+                    callbacks.on_epoch_end(epoch, 0., 0.)
+                    callbacks.on_train_end()
+                    raise KeyboardInterrupt # TODO: Raise a more explicit Exception (?)
 
-            history['epoch'].append(epoch)
-            history['loss'].append(av_loss/seen)
+                callbacks.on_batch_end(batch_index, batch_ids, loss, acc)
+            
+            # validation
+            val_loss, val_acc = None, None
             if do_validation:
-                history['val_loss'].append(float(val_loss))
-            if show_accuracy:
-                history['acc'].append(av_acc/seen)
-                if do_validation:
-                    history['val_acc'].append(float(val_acc))
-        return history
+                if show_accuracy:
+                    val_loss, val_acc = self.evaluate(X_val, y_val, batch_size=batch_size, \
+                        verbose=0, show_accuracy=True)
+                else:
+                    val_loss = self.evaluate(X_val, y_val, batch_size=batch_size, verbose=0)
+
+            callbacks.on_epoch_end(epoch, val_loss, val_acc)
+
+        callbacks.on_train_end()
+
+        # return history
+        return True
 
     def predict(self, X, batch_size=128, verbose=1):
         X = standardize_X(X)
