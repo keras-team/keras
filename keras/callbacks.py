@@ -4,13 +4,15 @@ import theano.tensor as T
 import numpy as np
 import warnings
 import time
+from collections import deque
 
 from .utils.generic_utils import Progbar
 
 class CallbackList(object):
-    """docstring for Callback"""
-    def __init__(self, callbacks):
+
+    def __init__(self, callbacks, queue_length=10):
         self.callbacks = callbacks
+        self.queue_length = queue_length
 
     def append(self, callback):
         self.callbacks.append(callback)
@@ -27,6 +29,8 @@ class CallbackList(object):
         for callback in self.callbacks:
             callback.on_epoch_begin(epoch)
         self._delta_t_batch = 0.
+        self._delta_ts_batch_begin = deque([], maxlen=self.queue_length)
+        self._delta_ts_batch_end = deque([], maxlen=self.queue_length)
 
     def on_epoch_end(self, epoch, val_loss, val_acc):
         for callback in self.callbacks:
@@ -36,11 +40,12 @@ class CallbackList(object):
         t_before_callbacks = time.time()
         for callback in self.callbacks:
             callback.on_batch_begin(batch)
-        delta_t_callbacks = time.time() - t_before_callbacks
-        if self._delta_t_batch > 0. and delta_t_callbacks > 0.95 * self._delta_t_batch \
-            and delta_t_callbacks > 0.1:
+        self._delta_ts_batch_begin.append(time.time() - t_before_callbacks)
+        delta_t_median = np.median(self._delta_ts_batch_begin)
+        if self._delta_t_batch > 0. and delta_t_median > 0.95 * self._delta_t_batch \
+            and delta_t_median > 0.1:
             warnings.warn('Method on_batch_begin() is slow compared '
-                'to the batch update. Check your callbacks.')
+                'to the batch update (%f). Check your callbacks.' % delta_t_median)
         self._t_enter_batch = time.time()
 
     def on_batch_end(self, batch, indices, loss, accuracy):
@@ -48,11 +53,12 @@ class CallbackList(object):
         t_before_callbacks = time.time()
         for callback in self.callbacks:
             callback.on_batch_end(batch, indices, loss, accuracy)
-        delta_t_callbacks = time.time() - t_before_callbacks
-        if self._delta_t_batch > 0. and delta_t_callbacks > 0.95 * self._delta_t_batch \
-            and delta_t_callbacks > 0.1:
+        self._delta_ts_batch_end.append(time.time() - t_before_callbacks)
+        delta_t_median = np.median(self._delta_ts_batch_end)
+        if self._delta_t_batch > 0. and delta_t_median > 0.95 * self._delta_t_batch \
+            and delta_t_median > 0.1:
             warnings.warn('Method on_batch_end() is slow compared '
-                'to the batch update. Check your callbacks.')
+                'to the batch update (%f). Check your callbacks.' % delta_t_median)
 
     def on_train_begin(self):
         for callback in self.callbacks:
@@ -64,7 +70,7 @@ class CallbackList(object):
 
 
 class Callback(object):
-    """docstring for Callback"""
+
     def __init__(self):
         pass
 
