@@ -12,10 +12,10 @@ class Grapher(object):
     def get_name(self, model):
         if hasattr(model, 'name'):
             return model.name
-        cls = model.__class__.__name__
+        clz = model.__class__.__name__
         if model not in self.names:
-            self.class_counts[cls] += 1
-            self.names[model] = cls + str(self.class_counts[cls])
+            self.class_counts[clz] += 1
+            self.names[model] = clz + str(self.class_counts[clz])
         return self.names[model]
 
     def add_edge(self, f, t, graph):
