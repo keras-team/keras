@@ -362,11 +362,15 @@ class Sequential(Model):
             self.layers[i].set_weights(weights[:nb_param])
             weights = weights[nb_param:]
 
-    def save_weights(self, filepath):
+    def save_weights(self, filepath, overwrite=False):
         # Save weights from all layers to HDF5
         import h5py
-        # FIXME: fail if file exists, or add option to overwrite!
+        import os.path
+        # if file exists and should not be overwritten
+        if not overwrite and os.path.isfile(filepath):
+            raise IOError('%s already exists' % (filepath))
         f = h5py.File(filepath, 'w')
+
         f.attrs['nb_layers'] = len(self.layers)
         for k, l in enumerate(self.layers):
             g = f.create_group('layer_{}'.format(k))
@@ -388,4 +392,4 @@ class Sequential(Model):
             weights = [g['param_{}'.format(p)] for p in range(g.attrs['nb_params'])]
             self.layers[k].set_weights(weights)
         f.close()
-        
+
