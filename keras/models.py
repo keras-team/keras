@@ -362,7 +362,7 @@ class Sequential(Model):
             self.layers[i].set_weights(weights[:nb_param])
             weights = weights[nb_param:]
 
-    def save_weights(self, filepath, overwrite=False):
+    def save_weights(self, filepath):
         # Save weights from all layers to HDF5
         import h5py
         # FIXME: fail if file exists, or add option to overwrite!
