@@ -38,7 +38,7 @@ model = keras.models.Sequential()
         - __Return__: loss over the data, or tuple `(loss, accuracy)` if `accuracy=True`.
     - __test__(X, y, accuracy=False): Single performance evaluation on one batch. if accuracy==False, return tuple (loss_on_batch, accuracy_on_batch). Else, return loss_on_batch.
         - __Return__: loss over the data, or tuple `(loss, accuracy)` if `accuracy=True`.
-    - __save_weights__(fname, overwrite=False): Store the weights of all layers to a HDF5 file. If overwrite==False and the file already exists, an exception will be thrown.
+    - __save_weights__(fname): Store the weights of all layers to a HDF5 file.
     - __load_weights__(fname): Sets the weights of a model, based to weights stored by __save__weights__. You can only __load__weights__ on a savefile from a model with an identical architecture. __load_weights__ can be called either before or after the __compile__ step.
 
 __Examples__:
