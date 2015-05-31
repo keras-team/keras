@@ -105,7 +105,7 @@ class DrawActivations(Callback):
     def on_epoch_begin(self, epoch):
         self.epoch = epoch
 
-    def on_batch_end(self, batch, indices, loss, accuracy):
+    def on_batch_end(self, batch):
         if batch % 5 == 0:
             self.imgs.add_frame(0, X_test[0,0])
             self.imgs.add_frame(1, combine_imgs(self.test_layer0(X_test), grid=(4, 4)))
