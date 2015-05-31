@@ -99,42 +99,6 @@ class Callback(object):
     def on_train_end(self):
         pass
 
-class History(Callback):
-
-    def on_train_begin(self):
-        self.epochs = []
-        self.losses = []
-        if self.params['show_accuracy']:
-            self.accuracies = []
-        if self.params['do_validation']:
-            self.validation_losses = []
-            if self.params['show_accuracy']:
-                self.validation_accuracies = []
-
-    def on_epoch_begin(self, epoch):
-        self.seen = 0
-        self.tot_loss = 0.
-        self.tot_accuracy = 0.
-
-    def on_batch_end(self, batch):
-        batch_size = self.model.batch_history['batch_size'][-1]
-        self.seen += batch_size
-        self.tot_loss += self.model.batch_history['loss'][-1] * batch_size
-        if self.params['show_accuracy']:
-            self.tot_accuracy += self.model.batch_history['accuracy'][-1] * batch_size
-
-    def on_epoch_end(self, epoch):
-        val_loss = self.model.epoch_history['loss'][-1]
-        val_acc = self.model.epoch_history['accuracy'][-1]
-        self.epochs.append(epoch)
-        self.losses.append(self.tot_loss / self.seen)
-        if self.params['show_accuracy']:
-            self.accuracies.append(self.tot_accuracy / self.seen)
-        if self.params['do_validation']:
-            self.validation_losses.append(val_loss)
-            if self.params['show_accuracy']:
-                self.validation_accuracies.append(val_acc)
-
 class BaseLogger(Callback):
 
     def on_train_begin(self):
