@@ -9,6 +9,7 @@ from . import optimizers
 from . import objectives
 from . import regularizers
 from . import constraints
+from . import callbacks as cbks
 import time, copy
 from .utils.generic_utils import Progbar, printv
 from six.moves import range
@@ -182,7 +183,7 @@ class Sequential(Model):
             return self._test(*ins)
 
 
-    def fit(self, X, y, batch_size=128, nb_epoch=100, verbose=1,
+    def fit(self, X, y, batch_size=128, nb_epoch=100, verbose=1, callbacks=[],
             validation_split=0., validation_data=None, shuffle=True, show_accuracy=False):
         
         X = standardize_X(X)
@@ -211,67 +212,86 @@ class Sequential(Model):
                 (y, y_val) = (y[0:split_at], y[split_at:])
                 if verbose:
                     print("Train on %d samples, validate on %d samples" % (len(y), len(y_val)))
-        
-        history = {'epoch':[], 'loss':[]}
-        if show_accuracy:
-            history['acc'] = []
-        if do_validation:
-            history['val_loss'] = []
-            if show_accuracy:
-                history['val_acc'] = []
 
         index_array = np.arange(len(y))
+
+        callbacks = cbks.CallbackList(callbacks)
+        if verbose:
+            callbacks.append(cbks.BaseLogger())
+
+        callbacks._set_model(self)
+        callbacks._set_params({
+            'batch_size': batch_size,
+            'nb_epoch': nb_epoch,
+            'nb_sample': len(y),
+            'verbose': verbose,
+            'do_validation': do_validation,
+            'show_accuracy': show_accuracy
+        })
+        self.batch_history = {
+            'batch':[],
+            'batch_size':[],
+            'loss':[],
+            'accuracy':[],
+            'val_loss':[],
+            'val_accuracy':[],
+        }
+        self.epoch_history = {
+            'epoch':[],
+            'epoch_size':[],
+            'loss':[],
+            'accuracy':[],
+            'val_loss':[],
+            'val_accuracy':[],
+        }
+        callbacks.on_train_begin()
+
         for epoch in range(nb_epoch):
-            if verbose:
-                print('Epoch', epoch)
-                progbar = Progbar(target=len(y), verbose=verbose)
+            self.epoch_history['epoch'] = epoch
+            callbacks.on_epoch_begin(epoch)
             if shuffle:
                 np.random.shuffle(index_array)
-
-            av_loss = 0.
-            av_acc = 0.
-            seen = 0
 
             batches = make_batches(len(y), batch_size)
             for batch_index, (batch_start, batch_end) in enumerate(batches):
                 batch_ids = index_array[batch_start:batch_end]
-                seen += len(batch_ids)
                 X_batch = slice_X(X, batch_ids)
                 y_batch = y[batch_ids]
+
+                self.batch_history['batch'].append(batch_index)
+                self.batch_history['batch_size'].append(len(batch_ids))
+                callbacks.on_batch_begin(batch_index)
 
                 ins = X_batch + [y_batch]
                 if show_accuracy:
                     loss, acc = self._train_with_acc(*ins)
-                    log_values = [('loss', loss), ('acc.', acc)]
-                    av_loss += loss * len(batch_ids)
-                    av_acc += acc * len(batch_ids)
+                    self.batch_history['accuracy'].append(acc)
                 else:
                     loss = self._train(*ins)
-                    log_values = [('loss', loss)]
-                    av_loss += loss * len(batch_ids)
+                self.batch_history['loss'].append(loss)
 
-                # validation
-                if do_validation and (batch_index == len(batches) - 1):
-                    if show_accuracy:
-                        val_loss, val_acc = self.evaluate(X_val, y_val, batch_size=batch_size, verbose=0, show_accuracy=True)
-                        log_values += [('val. loss', val_loss), ('val. acc.', val_acc)]
-                    else:
-                        val_loss = self.evaluate(X_val, y_val, batch_size=batch_size, verbose=0)
-                        log_values += [('val. loss', val_loss)]
+                callbacks.on_batch_end(batch_index)
                 
-                # logging
-                if verbose:
-                    progbar.update(batch_end, log_values)
+                if batch_index == len(batches) - 1: # last batch
+                    # validation
+                    if do_validation:
+                        if show_accuracy:
+                            val_loss, val_acc = self.evaluate(X_val, y_val, batch_size=batch_size, \
+                                verbose=0, show_accuracy=True)
+                            self.epoch_history['val_accuracy'].append(val_acc)
+                        else:
+                            val_loss = self.evaluate(X_val, y_val, batch_size=batch_size, verbose=0)
+                        self.epoch_history['val_loss'].append(val_loss)
 
-            history['epoch'].append(epoch)
-            history['loss'].append(av_loss/seen)
-            if do_validation:
-                history['val_loss'].append(float(val_loss))
+            epoch_loss = sum(map(lambda x: x[0]*x[1], zip(self.batch_history['batch_size'], self.batch_history['loss']))) / len(y)
+            self.epoch_history['loss'].append(epoch_loss)
             if show_accuracy:
-                history['acc'].append(av_acc/seen)
-                if do_validation:
-                    history['val_acc'].append(float(val_acc))
-        return history
+                epoch_acc = sum(map(lambda x: x[0]*x[1], zip(self.batch_history['batch_size'], self.batch_history['accuracy']))) / len(y)
+                self.epoch_history['accuracy'].append(epoch_acc)
+            callbacks.on_epoch_end(epoch)
+
+        callbacks.on_train_end()
+        return self.epoch_history
 
     def predict(self, X, batch_size=128, verbose=1):
         X = standardize_X(X)

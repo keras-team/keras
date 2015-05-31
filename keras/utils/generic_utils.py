@@ -60,7 +60,7 @@ class Progbar(object):
         '''
         for k, v in values:
             if k not in self.sum_values:
-                self.sum_values[k] = [v * (current-self.seen_so_far), current-self.seen_so_far]
+                self.sum_values[k] = [v * max(1, current-self.seen_so_far), current-self.seen_so_far]
                 self.unique_values.append(k)
             else:
                 self.sum_values[k][0] += v * (current-self.seen_so_far)
@@ -100,7 +100,7 @@ class Progbar(object):
             else:
                 info += ' - %ds' % (now - self.start)
             for k in self.unique_values:
-                info += ' - %s: %.4f' % (k, self.sum_values[k][0]/self.sum_values[k][1])
+                info += ' - %s: %.4f' % (k, self.sum_values[k][0]/ max(1, self.sum_values[k][1]))
 
             self.total_width += len(info)
             if prev_total_width > self.total_width:
@@ -116,7 +116,7 @@ class Progbar(object):
             if current >= self.target:
                 info = '%ds' % (now - self.start)
                 for k in self.unique_values:
-                    info += ' - %s: %.4f' % (k, self.sum_values[k][0]/self.sum_values[k][1])
+                    info += ' - %s: %.4f' % (k, self.sum_values[k][0]/ max(1, self.sum_values[k][1]))
                 sys.stdout.write(info + "\n")
 
 
