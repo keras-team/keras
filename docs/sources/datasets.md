@@ -4,12 +4,12 @@
 
 `keras.datasets.cifar10`
 
-Dataset of 50,000 32x32 color images, labeled over 10 categories.
+Dataset of 50,000 32x32 color training images, labeled over 10 categories, and 10,000 test images.
 
 ### Usage:
 
 ```python
-(X_train, y_train), (X_test, y_test) = cifar10.load_data(test_split=0.1, seed=113)
+(X_train, y_train), (X_test, y_test) = cifar10.load_data()
 ```
 
 - __Return:__
@@ -17,10 +17,28 @@ Dataset of 50,000 32x32 color images, labeled over 10 categories.
         - __X_train, X_test__: uint8 array of RGB image data with shape (nb_samples, 3, 32, 32).
         - __y_train, y_test__: uint8 array of category labels (integers in range 0-9) with shape (nb_samples,).
 
+---
+
+## CIFAR100 small image classification
+
+`keras.datasets.cifar100`
+
+Dataset of 50,000 32x32 color training images, labeled over 100 categories, and 10,000 test images.
+
+### Usage:
+
+```python
+(X_train, y_train), (X_test, y_test) = cifar100.load_data(label_mode='fine')
+```
+
+- __Return:__
+    - 2 tuples:
+        - __X_train, X_test__: uint8 array of RGB image data with shape (nb_samples, 3, 32, 32).
+        - __y_train, y_test__: uint8 array of category labels with shape (nb_samples,).
+
 - __Arguments:__
 
-    - __test_split__: float. Fraction of the dataset to be used as test data.
-    - __seed__: int. Seed for reproducible data shuffling.
+    - __label_mode__: "fine" or "coarse".
 
 ---
 
