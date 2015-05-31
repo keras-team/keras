@@ -1,4 +1,5 @@
 from __future__ import absolute_import
+from __future__ import print_function
 import theano
 import theano.tensor as T
 import numpy as np
@@ -141,7 +142,7 @@ class BaseLogger(Callback):
 
     def on_epoch_begin(self, epoch):
         if self.verbose:
-            print 'Epoch %d' % epoch
+            print('Epoch %d' % epoch)
             self.progbar = Progbar(target=self.params['nb_sample'], \
                 verbose=self.verbose)
         self.current = 0
