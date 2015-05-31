@@ -32,9 +32,9 @@ class CallbackList(object):
         self._delta_ts_batch_begin = deque([], maxlen=self.queue_length)
         self._delta_ts_batch_end = deque([], maxlen=self.queue_length)
 
-    def on_epoch_end(self, epoch, val_loss, val_acc):
+    def on_epoch_end(self, epoch):
         for callback in self.callbacks:
-            callback.on_epoch_end(epoch, val_loss, val_acc)
+            callback.on_epoch_end(epoch)
 
     def on_batch_begin(self, batch):
         t_before_callbacks = time.time()
@@ -48,11 +48,11 @@ class CallbackList(object):
                 'to the batch update (%f). Check your callbacks.' % delta_t_median)
         self._t_enter_batch = time.time()
 
-    def on_batch_end(self, batch, indices, loss, accuracy):
+    def on_batch_end(self, batch):
         self._delta_t_batch = time.time() - self._t_enter_batch
         t_before_callbacks = time.time()
         for callback in self.callbacks:
-            callback.on_batch_end(batch, indices, loss, accuracy)
+            callback.on_batch_end(batch)
         self._delta_ts_batch_end.append(time.time() - t_before_callbacks)
         delta_t_median = np.median(self._delta_ts_batch_end)
         if self._delta_t_batch > 0. and delta_t_median > 0.95 * self._delta_t_batch \
@@ -83,13 +83,13 @@ class Callback(object):
     def on_epoch_begin(self, epoch):
         pass
 
-    def on_epoch_end(self, epoch, val_loss, val_acc):
+    def on_epoch_end(self, epoch):
         pass
 
     def on_batch_begin(self, batch):
         pass
 
-    def on_batch_end(self, batch, indices, loss, accuracy):
+    def on_batch_end(self, batch):
         pass
 
     def on_train_begin(self):
@@ -112,27 +112,29 @@ class History(Callback):
 
     def on_epoch_begin(self, epoch):
         self.seen = 0
-        self.cum_loss = 0.
-        self.cum_accuracy = 0.
+        self.tot_loss = 0.
+        self.tot_accuracy = 0.
 
-    def on_batch_end(self, batch, indices, loss, accuracy):
-        batch_length = len(indices)
-        self.seen += batch_length
-        self.cum_loss += loss * batch_length
+    def on_batch_end(self, batch):
+        batch_size = self.model.batch_history['batch_size'][-1]
+        self.seen += batch_size
+        self.tot_loss += self.model.batch_history['loss'][-1] * batch_size
         if self.params['show_accuracy']:
-            self.cum_accuracy += accuracy * batch_length
+            self.tot_accuracy += self.model.batch_history['accuracy'][-1] * batch_size
 
-    def on_epoch_end(self, epoch, val_loss, val_acc):
+    def on_epoch_end(self, epoch):
+        val_loss = self.model.epoch_history['loss'][-1]
+        val_acc = self.model.epoch_history['accuracy'][-1]
         self.epochs.append(epoch)
-        self.losses.append(self.cum_loss / self.seen)
+        self.losses.append(self.tot_loss / self.seen)
         if self.params['show_accuracy']:
-            self.accuracies.append(self.cum_accuracy / self.seen)
+            self.accuracies.append(self.tot_accuracy / self.seen)
         if self.params['do_validation']:
             self.validation_losses.append(val_loss)
             if self.params['show_accuracy']:
                 self.validation_accuracies.append(val_acc)
 
-class Logger(Callback):
+class BaseLogger(Callback):
 
     def on_train_begin(self):
         self.verbose = self.params['verbose']
@@ -147,17 +149,29 @@ class Logger(Callback):
     def on_batch_begin(self, batch):
         self.log_values = []
 
-    def on_batch_end(self, batch, indices, loss, accuracy):
-        self.log_values.append(('loss', loss))
-        self.current += len(indices)
-        if self.params['show_accuracy']:
-            self.log_values.append(('acc.', acc))
-        if self.verbose:
-            self.progbar.update(self.current, self.log_values)
+    def on_batch_end(self, batch_index):
+        self.current += self.model.batch_history['batch_size'][-1]
+        # skip progbar update for the last batch; will be handled by on_epoch_end
+        if self.current < self.params['nb_sample']:
+            loss = self.model.batch_history['loss'][-1]
+            self.log_values.append(('loss', loss))
+            if self.params['show_accuracy']:
+                accuracy = self.model.batch_history['accuracy'][-1]
+                self.log_values.append(('acc.', accuracy))
+            if self.verbose:
+                self.progbar.update(self.current, self.log_values)
 
-    def on_epoch_end(self, epoch, val_loss, val_acc):
-        # TODO: Show validation scores in the logger
+    def on_epoch_end(self, epoch):
+        loss = self.model.batch_history['loss'][-1]
+        self.log_values.append(('loss', loss))
+
+        if self.params['show_accuracy']:
+            accuracy = self.model.batch_history['accuracy'][-1]
+            self.log_values.append(('acc.', accuracy))
         if self.params['do_validation']:
+            val_loss = self.model.epoch_history['val_loss'][-1]
             self.log_values.append(('val. loss', val_loss))
             if self.params['show_accuracy']:
+                val_acc = self.model.epoch_history['val_accuracy'][-1]
                 self.log_values.append(('val. acc.', val_acc))
+        self.progbar.update(self.current, self.log_values)

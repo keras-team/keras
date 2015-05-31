@@ -216,7 +216,8 @@ class Sequential(Model):
         index_array = np.arange(len(y))
 
         callbacks = cbks.CallbackList(callbacks)
-        callbacks.append(cbks.Logger())
+        if verbose:
+            callbacks.append(cbks.BaseLogger())
 
         callbacks._set_model(self)
         callbacks._set_params({
@@ -227,53 +228,70 @@ class Sequential(Model):
             'do_validation': do_validation,
             'show_accuracy': show_accuracy
         })
-
+        self.batch_history = {
+            'batch':[],
+            'batch_size':[],
+            'loss':[],
+            'accuracy':[],
+            'val_loss':[],
+            'val_accuracy':[],
+        }
+        self.epoch_history = {
+            'epoch':[],
+            'epoch_size':[],
+            'loss':[],
+            'accuracy':[],
+            'val_loss':[],
+            'val_accuracy':[],
+        }
         callbacks.on_train_begin()
 
         for epoch in range(nb_epoch):
+            self.epoch_history['epoch'] = epoch
             callbacks.on_epoch_begin(epoch)
             if shuffle:
                 np.random.shuffle(index_array)
 
             batches = make_batches(len(y), batch_size)
             for batch_index, (batch_start, batch_end) in enumerate(batches):
+                batch_ids = index_array[batch_start:batch_end]
+                X_batch = slice_X(X, batch_ids)
+                y_batch = y[batch_ids]
+
+                self.batch_history['batch'].append(batch_index)
+                self.batch_history['batch_size'].append(len(batch_ids))
                 callbacks.on_batch_begin(batch_index)
 
-                try:
-                    batch_ids = index_array[batch_start:batch_end]
-                    X_batch = slice_X(X, batch_ids)
-                    y_batch = y[batch_ids]
-
-                    ins = X_batch + [y_batch]
-                    if show_accuracy:
-                        loss, acc = self._train_with_acc(*ins)
-                    else:
-                        loss = self._train(*ins)
-                        acc = None
-                except KeyboardInterrupt:
-                    # If training is aborted, call the callbacks anyway before terminating
-                    callbacks.on_batch_end(batch_index, [], 0., 0.)
-                    callbacks.on_epoch_end(epoch, 0., 0.)
-                    callbacks.on_train_end()
-                    raise KeyboardInterrupt # TODO: Raise a more explicit Exception (?)
-
-                callbacks.on_batch_end(batch_index, batch_ids, loss, acc)
-            
-            # validation
-            val_loss, val_acc = None, None
-            if do_validation:
+                ins = X_batch + [y_batch]
                 if show_accuracy:
-                    val_loss, val_acc = self.evaluate(X_val, y_val, batch_size=batch_size, \
-                        verbose=0, show_accuracy=True)
+                    loss, acc = self._train_with_acc(*ins)
+                    self.batch_history['accuracy'].append(acc)
                 else:
-                    val_loss = self.evaluate(X_val, y_val, batch_size=batch_size, verbose=0)
+                    loss = self._train(*ins)
+                self.batch_history['loss'].append(loss)
 
-            callbacks.on_epoch_end(epoch, val_loss, val_acc)
+                callbacks.on_batch_end(batch_index)
+                
+                if batch_index == len(batches) - 1: # last batch
+                    # validation
+                    if do_validation:
+                        if show_accuracy:
+                            val_loss, val_acc = self.evaluate(X_val, y_val, batch_size=batch_size, \
+                                verbose=0, show_accuracy=True)
+                            self.epoch_history['val_accuracy'].append(val_acc)
+                        else:
+                            val_loss = self.evaluate(X_val, y_val, batch_size=batch_size, verbose=0)
+                        self.epoch_history['val_loss'].append(val_loss)
+
+            epoch_loss = sum(map(lambda x: x[0]*x[1], zip(self.batch_history['batch_size'], self.batch_history['loss']))) / len(y)
+            self.epoch_history['loss'].append(epoch_loss)
+            if show_accuracy:
+                epoch_acc = sum(map(lambda x: x[0]*x[1], zip(self.batch_history['batch_size'], self.batch_history['accuracy']))) / len(y)
+                self.epoch_history['accuracy'].append(epoch_acc)
+            callbacks.on_epoch_end(epoch)
 
         callbacks.on_train_end()
-
-        # return history
-        return True
+        return self.epoch_history
 
     def predict(self, X, batch_size=128, verbose=1):
         X = standardize_X(X)
