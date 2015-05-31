@@ -18,7 +18,7 @@ from keras.preprocessing.text import Tokenizer
 '''
 
 max_words = 10000
-batch_size = 16
+batch_size = 32
 
 print("Loading data...")
 (X_train, y_train), (X_test, y_test) = reuters.load_data(nb_words=max_words, test_split=0.2)
@@ -51,7 +51,8 @@ model.add(Activation('softmax'))
 
 model.compile(loss='categorical_crossentropy', optimizer='adam')
 
-model.fit(X_train, Y_train, nb_epoch=4, batch_size=batch_size, verbose=1, show_accuracy=True, validation_split=0.1)
+history = model.fit(X_train, Y_train, nb_epoch=3, batch_size=batch_size, verbose=1, show_accuracy=True, validation_split=0.1)
+print(history)
 score = model.evaluate(X_test, Y_test, batch_size=batch_size, verbose=1, show_accuracy=True)
 print('Test score:', score[0])
 print('Test accuracy:', score[1])
