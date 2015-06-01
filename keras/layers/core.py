@@ -290,6 +290,102 @@ class TimeDistributedDense(Layer):
             "activation":self.activation.__name__}
 
 
+class AutoEncoder(Layer):
+    '''
+        A standard autoencoder model.
+        Output dimensions are always the same size as the input
+            encoder = f(W.x + b_encoder)
+            decoder = f(W'.encoder + b_decoder)
+    '''
+    def __init__(self, input_dim, hidden_dim, init='glorot_normal',
+                 encoder_activation='sigmoid', decoder_activation='sigmoid', weights=None,
+                 W_regularizer=None, b_regularizer=None, W_constraint=None, b_constraint=None):
+
+        super(AutoEncoder,self).__init__()
+        self.init = initializations.get(init)
+        self.encoder_activation = activations.get(encoder_activation)
+        self.decoder_activation = activations.get(decoder_activation)
+        self.input_dim = input_dim
+        self.hidden_dim = hidden_dim
+
+        self.input = T.matrix()
+        self.W = self.init((self.input_dim, self.hidden_dim))
+        self.encoder_bias = shared_zeros((self.hidden_dim))
+        self.decoder_bias = shared_zeros((self.input_dim))
+
+        self.params = [self.W, self.encoder_bias, self.decoder_bias]
+
+        self.regularizers = [W_regularizer, b_regularizer]
+        self.constraints = [W_constraint, b_constraint]
+
+        if weights is not None:
+            self.set_weights(weights)
+
+    def get_hidden(self, train):
+        X = self.get_input(train)
+        encode = self.encoder_activation(T.dot(X, self.W) + self.encoder_bias)
+        return encode
+
+    def get_output(self, train):
+        encode = self.get_hidden(train)
+        decode = self.decoder_activation(T.dot(encode, self.W.T) + self.decoder_bias)
+        return decode
+
+    def get_config(self):
+        return {"name":self.__class__.__name__,
+            "input_dim":self.input_dim,
+            "hidden_dim":self.hidden_dim,
+            "output_dim":self.input_dim,
+            "init":self.init.__name__,
+            "encoder_activation":self.encoder_activation.__name__,
+            "decoder_activation":self.decoder_activation.__name__,}
+
+
+class DenoisingAutoEncoder(AutoEncoder):
+    '''
+        A denoising autoencoder model.
+        Output dimensions are always the same size as the input
+            x_p = x.noise
+            encoder = f(W.x_p + b_encoder)
+            decoder = f(W'.encoder + b_decoder)
+    '''
+    def __init__(self, input_dim, hidden_dim, init='glorot_normal',
+                 encoder_activation='sigmoid', decoder_activation='sigmoid', corruption_level=0.3,
+                 weights=None, W_regularizer=None, b_regularizer=None, W_constraint=None, b_constraint=None):
+
+        AutoEncoder.__init__(self, input_dim, hidden_dim,
+                             init, encoder_activation, decoder_activation,
+                             weights, W_regularizer, b_regularizer,
+                             W_constraint, b_constraint)
+        self.corruption_level = corruption_level
+
+    def get_corrupted_input(self, input):
+        """
+            http://deeplearning.net/tutorial/dA.html
+        """
+        return srng.binomial(size=input.shape, n=1,
+                             p=1 - self.corruption_level,
+                             dtype=theano.config.floatX) * input
+
+    def get_hidden(self, train):
+        X = self.get_corrupted_input(self.get_input(train))
+        encode = self.encoder_activation(T.dot(X, self.W) + self.encoder_bias)
+        return encode
+
+    def get_output(self, train):
+        encode = self.get_hidden(train)
+        decode = self.decoder_activation(T.dot(encode, self.W.T) + self.decoder_bias)
+        return decode
+
+    def get_config(self):
+        return {"name":self.__class__.__name__,
+            "input_dim":self.input_dim,
+            "hidden_dim":self.hidden_dim,
+            "output_dim":self.input_dim,
+            "init":self.init.__name__,
+            "corruption_level":self.corruption_level,
+            "encoder_activation":self.encoder_activation.__name__,
+            "decoder_activation":self.decoder_activation.__name__,}
 
 
 class MaxoutDense(Layer):
