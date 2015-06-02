@@ -54,7 +54,7 @@ As a convention, "0" does not stand for a specific word, but instead is used to 
 
 ```python
 (X_train, y_train), (X_test, y_test) = imdb.load_data(path="imdb.pkl", \
-nb_words=None, skip_top=0, maxlen=None, test_split=0.1, seed=113)`
+nb_words=None, skip_top=0, maxlen=None, test_split=0.1, seed=113)
 ```
 - __Return:__
     - 2 tuples:
@@ -82,7 +82,7 @@ Dataset of 11,228 newswires from Reuters, labeled over 46 topics. As with the IM
 
 ```python
 (X_train, y_train), (X_test, y_test) = reuters.load_data(path="reuters.pkl", \
-nb_words=None, skip_top=0, maxlen=None, test_split=0.1, seed=113)`
+nb_words=None, skip_top=0, maxlen=None, test_split=0.1, seed=113)
 ```
 
 The specifications are the same as that of the IMDB dataset.
