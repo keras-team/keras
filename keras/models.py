@@ -218,6 +218,7 @@ class Sequential(Model):
         callbacks = cbks.CallbackList(callbacks)
         if verbose:
             callbacks.append(cbks.BaseLogger())
+            callbacks.append(cbks.History())
 
         callbacks._set_model(self)
         callbacks._set_params({
@@ -228,26 +229,9 @@ class Sequential(Model):
             'do_validation': do_validation,
             'show_accuracy': show_accuracy
         })
-        self.batch_history = {
-            'batch':[],
-            'batch_size':[],
-            'loss':[],
-            'accuracy':[],
-            'val_loss':[],
-            'val_accuracy':[],
-        }
-        self.epoch_history = {
-            'epoch':[],
-            'epoch_size':[],
-            'loss':[],
-            'accuracy':[],
-            'val_loss':[],
-            'val_accuracy':[],
-        }
         callbacks.on_train_begin()
 
         for epoch in range(nb_epoch):
-            self.epoch_history['epoch'] = epoch
             callbacks.on_epoch_begin(epoch)
             if shuffle:
                 np.random.shuffle(index_array)
@@ -258,40 +242,38 @@ class Sequential(Model):
                 X_batch = slice_X(X, batch_ids)
                 y_batch = y[batch_ids]
 
-                self.batch_history['batch'].append(batch_index)
-                self.batch_history['batch_size'].append(len(batch_ids))
-                callbacks.on_batch_begin(batch_index)
+                batch_logs = {}
+                batch_logs['batch'] = batch_index
+                batch_logs['size'] = len(batch_ids)
+                callbacks.on_batch_begin(batch_index, batch_logs)
 
                 ins = X_batch + [y_batch]
                 if show_accuracy:
                     loss, acc = self._train_with_acc(*ins)
-                    self.batch_history['accuracy'].append(acc)
+                    batch_logs['accuracy'] = acc
                 else:
                     loss = self._train(*ins)
-                self.batch_history['loss'].append(loss)
+                batch_logs['loss'] = loss
 
-                callbacks.on_batch_end(batch_index)
+                callbacks.on_batch_end(batch_index, batch_logs)
                 
                 if batch_index == len(batches) - 1: # last batch
                     # validation
+                    epoch_logs = {}
                     if do_validation:
                         if show_accuracy:
                             val_loss, val_acc = self.evaluate(X_val, y_val, batch_size=batch_size, \
                                 verbose=0, show_accuracy=True)
-                            self.epoch_history['val_accuracy'].append(val_acc)
+                            epoch_logs['val_accuracy'] = val_acc
                         else:
                             val_loss = self.evaluate(X_val, y_val, batch_size=batch_size, verbose=0)
-                        self.epoch_history['val_loss'].append(val_loss)
+                        epoch_logs['val_loss'] = val_loss
 
-            epoch_loss = sum(map(lambda x: x[0]*x[1], zip(self.batch_history['batch_size'], self.batch_history['loss']))) / len(y)
-            self.epoch_history['loss'].append(epoch_loss)
-            if show_accuracy:
-                epoch_acc = sum(map(lambda x: x[0]*x[1], zip(self.batch_history['batch_size'], self.batch_history['accuracy']))) / len(y)
-                self.epoch_history['accuracy'].append(epoch_acc)
-            callbacks.on_epoch_end(epoch)
+            callbacks.on_epoch_end(epoch, epoch_logs)
 
         callbacks.on_train_end()
-        return self.epoch_history
+        # return history
+        return callbacks.callbacks[-1]
 
     def predict(self, X, batch_size=128, verbose=1):
         X = standardize_X(X)
@@ -334,6 +316,7 @@ class Sequential(Model):
         if show_accuracy:
             tot_acc = 0.
         tot_score = 0.
+        seen = 0
 
         batches = make_batches(len(y), batch_size)
         if verbose:
@@ -345,21 +328,22 @@ class Sequential(Model):
             ins = X_batch + [y_batch]
             if show_accuracy:
                 loss, acc = self._test_with_acc(*ins)
-                tot_acc += acc
+                tot_acc += acc * len(y_batch)
                 log_values = [('loss', loss), ('acc.', acc)]
             else:
                 loss = self._test(*ins)
                 log_values = [('loss', loss)]
-            tot_score += loss
+            tot_score += loss * len(y_batch)
+            seen += len(y_batch)
 
             # logging
             if verbose:
                 progbar.update(batch_end, log_values)
 
         if show_accuracy:
-            return tot_score/len(batches), tot_acc/len(batches)
+            return tot_score / seen, tot_acc / seen
         else:
-            return tot_score/len(batches)
+            return tot_score / seen
 
     def get_config(self, verbose=0):
         layers = []

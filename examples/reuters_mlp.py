@@ -17,7 +17,7 @@ from keras.preprocessing.text import Tokenizer
         python examples/reuters_mlp.py
 '''
 
-max_words = 10000
+max_words = 1000
 batch_size = 32
 
 print("Loading data...")
@@ -51,8 +51,12 @@ model.add(Activation('softmax'))
 
 model.compile(loss='categorical_crossentropy', optimizer='adam')
 
-history = model.fit(X_train, Y_train, nb_epoch=3, batch_size=batch_size, verbose=1, show_accuracy=True, validation_split=0.1)
-print(history)
-score = model.evaluate(X_test, Y_test, batch_size=batch_size, verbose=1, show_accuracy=True)
+history = model.fit(X_train, Y_train, nb_epoch=3, batch_size=batch_size, verbose=1, show_accuracy=False, validation_split=0.1)
+print(history.epoch)
+print(history.loss)
+print(history.accuracy)
+print(history.validation_loss)
+print(history.validation_accuracy)
+score = model.evaluate(X_test, Y_test, batch_size=batch_size, verbose=1, show_accuracy=False)
 print('Test score:', score[0])
 print('Test accuracy:', score[1])
