@@ -218,7 +218,7 @@ class Sequential(Model):
         callbacks = cbks.CallbackList(callbacks)
         if verbose:
             callbacks.append(cbks.BaseLogger())
-            callbacks.append(cbks.History())
+        callbacks.append(cbks.History())
 
         callbacks._set_model(self)
         callbacks._set_params({
@@ -278,7 +278,7 @@ class Sequential(Model):
     def predict(self, X, batch_size=128, verbose=1):
         X = standardize_X(X)
         batches = make_batches(len(X[0]), batch_size)
-        if verbose==1:
+        if verbose == 1:
             progbar = Progbar(target=len(X[0]))
         for batch_index, (batch_start, batch_end) in enumerate(batches):
             X_batch = slice_X(X, batch_start, batch_end)
@@ -289,14 +289,14 @@ class Sequential(Model):
                 preds = np.zeros(shape)
             preds[batch_start:batch_end] = batch_preds
 
-            if verbose==1:
+            if verbose == 1:
                 progbar.update(batch_end)
 
         return preds
 
     def predict_proba(self, X, batch_size=128, verbose=1):
         preds = self.predict(X, batch_size, verbose)
-        if preds.min()<0 or preds.max()>1:
+        if preds.min() < 0 or preds.max() > 1:
             warnings.warn("Network returning invalid probability values.")
         return preds
 
@@ -306,7 +306,7 @@ class Sequential(Model):
         if self.class_mode == "categorical":
             return proba.argmax(axis=-1)
         else:
-            return (proba>0.5).astype('int32')
+            return (proba > 0.5).astype('int32')
 
 
     def evaluate(self, X, y, batch_size=128, show_accuracy=False, verbose=1):
