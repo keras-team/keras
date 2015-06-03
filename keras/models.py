@@ -61,6 +61,16 @@ class Model(object):
     def get_input(self, train):
         raise NotImplementedError
 
+    def calculate_class_weights(self, Y, class_weight):
+        # this method expects a binary class indicator matrix
+        # find class index in indicator matrix and map it to a weight vector w
+        y_classes = Y.argmax(axis=1)
+        if isinstance(class_weight, dict):
+            w = np.array(map(lambda x: class_weight[x], y_classes))
+        else:
+            w = np.ones((Y.shape[0]))
+        return w
+
     def compile(self, optimizer, loss, class_mode="categorical", theano_mode=None):
         self.optimizer = optimizers.get(optimizer)
         self.loss = objectives.get(loss)
@@ -75,7 +85,10 @@ class Model(object):
         # target of model
         self.y = T.zeros_like(self.y_train)
 
-        train_loss = self.loss(self.y, self.y_train)
+        # parameter for rescaling the objective function
+        self.class_weights = T.vector()
+
+        train_loss = self.loss(self.y, self.y_train, self.class_weights)
         test_score = self.loss(self.y, self.y_test)
 
         if class_mode == "categorical":
@@ -92,11 +105,11 @@ class Model(object):
         updates = self.optimizer.get_updates(self.params, self.regularizers, self.constraints, train_loss)
 
         if type(self.X_train) == list:
-            train_ins = self.X_train + [self.y]
+            train_ins = self.X_train + [self.y] + [self.class_weights]
             test_ins = self.X_test + [self.y]
             predict_ins = self.X_test
         else:
-            train_ins = [self.X_train, self.y]
+            train_ins = [self.X_train, self.y, self.class_weights]
             test_ins = [self.X_test, self.y]
             predict_ins = [self.X_test]
 
@@ -162,11 +175,14 @@ class Sequential(Model):
             self.layers[0].input = ndim_tensor(ndim)
         return self.layers[0].get_input(train)
 
-
-    def train(self, X, y, accuracy=False):
+    def train(self, X, y, accuracy=False, class_weight=None):
         X = standardize_X(X)
         y = standardize_y(y)
-        ins = X + [y]
+
+        # calculate the weight vector for the loss function
+        w = self.calculate_class_weights(y, class_weight)
+
+        ins = X + [y] + [w]
         if accuracy:
             return self._train_with_acc(*ins)
         else:
@@ -184,7 +200,7 @@ class Sequential(Model):
 
 
     def fit(self, X, y, batch_size=128, nb_epoch=100, verbose=1, callbacks=[],
-            validation_split=0., validation_data=None, shuffle=True, show_accuracy=False):
+            validation_split=0., validation_data=None, shuffle=True, show_accuracy=False, class_weight=None):
         
         X = standardize_X(X)
         y = standardize_y(y)
@@ -241,13 +257,15 @@ class Sequential(Model):
                 batch_ids = index_array[batch_start:batch_end]
                 X_batch = slice_X(X, batch_ids)
                 y_batch = y[batch_ids]
+                # calculate weight vector for current batch
+                w = self.calculate_class_weights(y_batch, class_weight)
 
                 batch_logs = {}
                 batch_logs['batch'] = batch_index
                 batch_logs['size'] = len(batch_ids)
                 callbacks.on_batch_begin(batch_index, batch_logs)
 
-                ins = X_batch + [y_batch]
+                ins = X_batch + [y_batch] + [w]
                 if show_accuracy:
                     loss, acc = self._train_with_acc(*ins)
                     batch_logs['accuracy'] = acc

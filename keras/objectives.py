@@ -18,13 +18,18 @@ def squared_hinge(y_true, y_pred):
 def hinge(y_true, y_pred):
     return T.maximum(1. - y_true * y_pred, 0.).mean()
 
-def categorical_crossentropy(y_true, y_pred):
+def categorical_crossentropy(y_true, y_pred, weight=None):
     '''Expects a binary class matrix instead of a vector of scalar classes
     '''
     y_pred = T.clip(y_pred, epsilon, 1.0 - epsilon)
     # scale preds so that the class probas of each sample sum to 1
     y_pred /= y_pred.sum(axis=1, keepdims=True) 
-    return T.nnet.categorical_crossentropy(y_pred, y_true).mean()
+    cce = T.nnet.categorical_crossentropy(y_pred, y_true)
+    if weight is not None:
+        # return avg. of scaled cat. crossentropy
+        return (weight*cce).mean()
+    else:
+        return cce.mean()
 
 def binary_crossentropy(y_true, y_pred):
     y_pred = T.clip(y_pred, epsilon, 1.0 - epsilon)
