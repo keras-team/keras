@@ -290,6 +290,125 @@ class TimeDistributedDense(Layer):
             "activation":self.activation.__name__}
 
 
+class AutoEncoder(Layer):
+    '''
+        A customizable autoencoder model.
+          - Supports deep architectures by passing appropriate encoders/decoders list
+          - If output_reconstruction then dim(input) = dim(output) else dim(output) = dim(hidden)
+    '''
+    def __init__(self, encoders=[], decoders=[], output_reconstruction=True, tie_weights=False, weights=None):
+
+        super(AutoEncoder,self).__init__()
+        if not encoders or not decoders:
+            raise Exception("Please specify the encoder/decoder layers")
+
+        if not len(encoders) == len(decoders):
+            raise Exception("There need to be an equal number of encoders and decoders")
+
+        # connect all encoders & decoders to their previous (respectively)
+        for i in xrange(len(encoders)-1, 0, -1):
+            encoders[i].connect(encoders[i-1])
+            decoders[i].connect(decoders[i-1])
+        decoders[0].connect(encoders[-1])  # connect the first to the last
+
+        self.input_dim = encoders[0].input_dim
+        self.hidden_dim = reversed([d.input_dim for d in decoders])
+        self.output_reconstruction = output_reconstruction
+        self.tie_weights = tie_weights
+        self.encoders = encoders
+        self.decoders = decoders
+
+        self.params = []
+        self.regularizers = []
+        self.constraints = []
+        for m in encoders + decoders:
+            self.params += m.params
+            if hasattr(m, 'regularizers'):
+                self.regularizers += m.regularizers
+            if hasattr(m, 'constraints'):
+                self.constraints += m.constraints
+
+        if weights is not None:
+            self.set_weights(weights)
+
+    def connect(self, node):
+        self.encoders[0].previous = node
+
+    def get_weights(self):
+        weights = []
+        for m in encoders + decoders:
+            weights += m.get_weights()
+        return weights
+
+    def set_weights(self, weights):
+        models = encoders + decoders
+        for i in range(len(models)):
+            nb_param = len(models[i].params)
+            models[i].set_weights(weights[:nb_param])
+            weights = weights[nb_param:]
+
+    def get_input(self, train=False):
+        if hasattr(self.encoders[0], 'previous'):
+            return  self.encoders[0].previous.get_output(train=train)
+        else:
+            return self.encoders[0].input
+
+    @property
+    def input(self):
+        return self.get_input()
+
+    def _get_hidden(self, train):
+        return self.encoders[-1].get_output(train)
+
+    def _tranpose_weights(self, src, dest):
+        if len(dest.shape) > 1 and len(src.shape) > 1:
+            dest = src.T
+
+    def get_output(self, train):
+        if not train and not self.output_reconstruction:
+            return self._get_hidden(train)
+
+        if self.tie_weights:
+            for e,d in zip(self.encoders, self.decoders):
+                map(self._tranpose_weights, e.get_weights(), d.get_weights())
+
+        return self.decoders[-1].get_output(train)
+
+    def get_config(self):
+        return {"name":self.__class__.__name__,
+                "encoder_config":[e.get_config() for e in self.encoders],
+                "decoder_config":[d.get_config() for d in self.decoders],
+                "output_reconstruction":self.output_reconstruction,
+                "tie_weights":self.tie_weights}
+
+
+class DenoisingAutoEncoder(AutoEncoder):
+    '''
+        A denoising autoencoder model that inherits the base features from autoencoder
+    '''
+    def __init__(self, encoders=None, decoders=None, output_reconstruction=True, tie_weights=False, weights=None, corruption_level=0.3):
+        super(DenoisingAutoEncoder, self).__init__(encoders, decoders, output_reconstruction, tie_weights, weights)
+        self.corruption_level = corruption_level
+
+    def _get_corrupted_input(self, input):
+        """
+            http://deeplearning.net/tutorial/dA.html
+        """
+        return srng.binomial(size=(self.input_dim, 1), n=1,
+                             p=1-self.corruption_level,
+                             dtype=theano.config.floatX) * input
+
+    def get_input(self, train=False):
+        uncorrupted_input = super(DenoisingAutoEncoder, self).get_input(train)
+        return self._get_corrupted_input(uncorrupted_input)
+
+    def get_config(self):
+        return {"name":self.__class__.__name__,
+                "encoder_config":[e.get_config() for e in self.encoders],
+                "decoder_config":[d.get_config() for d in self.decoders],
+                "corruption_level":self.corruption_level,
+                "output_reconstruction":self.output_reconstruction,
+                "tie_weights":self.tie_weights}
 
 
 class MaxoutDense(Layer):
