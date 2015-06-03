@@ -361,20 +361,18 @@ class AutoEncoder(Layer):
         return self.encoders[-1].get_output(train)
 
     def _tranpose_weights(self, src, dest):
-        if len(dest.shape) > 1:
+        if len(dest.shape) > 1 and len(src.shape) > 1:
             dest = src.T
 
     def get_output(self, train):
         if not train and not self.output_reconstruction:
             return self._get_hidden(train)
 
-        decode = self.decoders[-1].get_output(train)
-
         if self.tie_weights:
             for e,d in zip(self.encoders, self.decoders):
                 map(self._tranpose_weights, e.get_weights(), d.get_weights())
 
-        return decode
+        return self.decoders[-1].get_output(train)
 
     def get_config(self):
         return {"name":self.__class__.__name__,
