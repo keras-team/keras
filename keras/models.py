@@ -272,8 +272,9 @@ class Sequential(Model):
             callbacks.on_epoch_end(epoch, epoch_logs)
 
         callbacks.on_train_end()
-        # return history
-        return callbacks.callbacks[-1]
+        if len(callbacks.callbacks) > 0:
+            # return history
+            return callbacks.callbacks[-1]
 
     def predict(self, X, batch_size=128, verbose=1):
         X = standardize_X(X)
