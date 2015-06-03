@@ -11,7 +11,7 @@ from keras.utils import np_utils
 import numpy as np
 
 # Try different things here: 'lstm' or 'classical' or 'denoising'
-autoencoder_type = 'lstm'
+autoencoder_type = 'classical'
 
 nb_classes = 10
 batch_size = 128
@@ -68,23 +68,23 @@ def build_lstm_autoencoder(autoencoder, X_train, X_test):
 
 	# The TimeDistributedDense isn't really necessary, however you need a lot of GPU memory to do 784x394-394x784
 	autoencoder.add(TimeDistributedDense(input_dim, 16))
-	autoencoder.add(AutoEncoder(encoder=LSTM(16, 8, activation=activation, return_sequences=True)
-								, decoder=LSTM(8, input_dim, activation=activation, return_sequences=True)
-								, output_reconstruction=False))
+	autoencoder.add(AutoEncoder(encoders=[LSTM(16, 8, activation=activation, return_sequences=True)]
+								, decoders=[LSTM(8, input_dim, activation=activation, return_sequences=True)]
+								, output_reconstruction=False, tie_weights=True))
 	return autoencoder, X_train, X_test
 
-def build_classical_autoencoder(autoencoder):
-	autoencoder.add(AutoEncoder(encoder=Dense(input_dim, hidden_dim, activation=activation)
-								, decoder=Dense(hidden_dim, input_dim, activation=activation)
-								, output_reconstruction=False, tie_weights=True))
+def build_deep_classical_autoencoder(autoencoder):
+	encoders = [Dense(input_dim, hidden_dim, activation=activation), Dense(hidden_dim, hidden_dim/2, activation=activation)]
+	decoders = [Dense(hidden_dim/2, hidden_dim, activation=activation), Dense(hidden_dim, input_dim, activation=activation)]
+	autoencoder.add(AutoEncoder(encoders=encoders, decoders=decoders, output_reconstruction=False, tie_weights=True))
 	return autoencoder
 
 def build_denoising_autoencoder(autoencoder):
 	# You need another layer before a denoising autoencoder
 	# This is similar to the dropout layers, etc..
 	autoencoder.add(Dense(input_dim, input_dim))
-	autoencoder.add(DenoisingAutoEncoder(encoder=Dense(input_dim, hidden_dim, activation=activation)
-										, decoder=Dense(hidden_dim, input_dim, activation=activation)
+	autoencoder.add(DenoisingAutoEncoder(encoders=[Dense(input_dim, hidden_dim, activation=activation)]
+										, decoders=[Dense(hidden_dim, input_dim, activation=activation)]
 										, output_reconstruction=False, tie_weights=True, corruption_level=0.3))
 	return autoencoder
 
@@ -98,7 +98,7 @@ elif autoencoder_type == 'denoising':
 	autoencoder = build_denoising_autoencoder(autoencoder)
 elif autoencoder_type == 'classical':
 	print("Training Classical AutoEncoder")
-	autoencoder = build_classical_autoencoder(autoencoder)
+	autoencoder = build_deep_classical_autoencoder(autoencoder)
 else:
 	print("Error: unknown autoencoder type!")
 	exit(-1)
@@ -106,7 +106,7 @@ else:
 autoencoder.get_config(verbose=1)
 autoencoder.compile(loss='mean_squared_error', optimizer='adam')
 # Do NOT use validation data with return output_reconstruction=True
-autoencoder.fit(X_train, X_train, batch_size=batch_size, nb_epoch=nb_epoch, show_accuracy=False, verbose=0)
+autoencoder.fit(X_train, X_train, batch_size=batch_size, nb_epoch=nb_epoch, show_accuracy=False, verbose=1)
 
 # Do an inference pass
 prefilter_train = autoencoder.predict(X_train, verbose=0)
@@ -120,6 +120,8 @@ model = Sequential()
 if autoencoder_type == 'lstm':
 	model.add(TimeDistributedDense(8, 10, activation=activation))
 	model.add(Flatten())
+elif autoencoder_type == 'classical':
+	model.add(Dense(196, 10, activation=activation))
 else:
 	model.add(Dense(392, 10, activation=activation))
 
