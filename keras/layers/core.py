@@ -292,100 +292,125 @@ class TimeDistributedDense(Layer):
 
 class AutoEncoder(Layer):
     '''
-        A standard autoencoder model.
-        Output dimensions are always the same size as the input
-            encoder = f(W.x + b_encoder)
-            decoder = f(W'.encoder + b_decoder)
+        A customizable autoencoder model.
+        If output_reconstruction then dim(input) = dim(output)
+        else dim(output) = dim(hidden)
     '''
-    def __init__(self, input_dim, hidden_dim, init='glorot_normal',
-                 encoder_activation='sigmoid', decoder_activation='sigmoid', weights=None,
-                 W_regularizer=None, b_regularizer=None, W_constraint=None, b_constraint=None):
+    def __init__(self, encoder=None, decoder=None, output_reconstruction=True, tie_weights=False,
+                 weights=None, W_regularizer=None, b_regularizer=None, W_constraint=None, b_constraint=None):
 
         super(AutoEncoder,self).__init__()
-        self.init = initializations.get(init)
-        self.encoder_activation = activations.get(encoder_activation)
-        self.decoder_activation = activations.get(decoder_activation)
-        self.input_dim = input_dim
-        self.hidden_dim = hidden_dim
+        if encoder is None or decoder is None:
+            raise Exception("Please specify the encoder/decoder layers")
 
-        self.input = T.matrix()
-        self.W = self.init((self.input_dim, self.hidden_dim))
-        self.encoder_bias = shared_zeros((self.hidden_dim))
-        self.decoder_bias = shared_zeros((self.input_dim))
+        if not isinstance(encoder, Layer) or not isinstance(decoder, Layer):
+            raise Exception("Only Layer types are supported as inputs for autoencoders")
 
-        self.params = [self.W, self.encoder_bias, self.decoder_bias]
+        self.input_dim = encoder.input_dim
+        self.hidden_dim = decoder.input_dim
+        self.output_reconstruction = output_reconstruction
+        self.tie_weights = tie_weights
+        self.encoder = encoder
+        self.decoder = decoder
 
-        self.regularizers = [W_regularizer, b_regularizer]
-        self.constraints = [W_constraint, b_constraint]
+        self.decoder.connect(self.encoder)
+
+        self.params = []
+        self.regularizers = []
+        self.constraints = []
+        for m in [encoder, decoder]:
+            self.params += m.params
+            if hasattr(m, 'regularizers'):
+                self.regularizers += m.regularizers
+            if hasattr(m, 'constraints'):
+                self.constraints += m.constraints
 
         if weights is not None:
             self.set_weights(weights)
 
-    def get_hidden(self, train):
-        X = self.get_input(train)
-        encode = self.encoder_activation(T.dot(X, self.W) + self.encoder_bias)
-        return encode
+    def connect(self, node):
+        self.encoder.previous = node
+
+    def get_weights(self):
+        weights = []
+        for m in [encoder, decoder]:
+            weights += m.get_weights()
+        return weights
+
+    def set_weights(self, weights):
+        models = [encoder, decoder]
+        for i in range(len(models)):
+            nb_param = len(models[i].params)
+            models[i].set_weights(weights[:nb_param])
+            weights = weights[nb_param:]
+
+    def get_input(self, train=False):
+        if hasattr(self.encoder, 'previous'):
+            return  self.encoder.previous.get_output(train=train)
+        else:
+            return self.encoder.input
+
+    @property
+    def input(self):
+        return self.get_input()
+
+    def _get_hidden(self, train):
+        return self.encoder.get_output(train)
 
     def get_output(self, train):
-        encode = self.get_hidden(train)
-        decode = self.decoder_activation(T.dot(encode, self.W.T) + self.decoder_bias)
+        if not train and not self.output_reconstruction:
+            return self._get_hidden(train)
+
+        decode = self.decoder.get_output(train)
+
+        if self.tie_weights:
+            encoder_params = self.encoder.get_weights()
+            decoder_params = self.decoder.get_weights()
+            for dec_param, enc_param in zip(decoder_params, encoder_params):
+                if len(dec_param.shape) > 1:
+                    enc_param = dec_param.T
+
         return decode
 
     def get_config(self):
         return {"name":self.__class__.__name__,
-            "input_dim":self.input_dim,
-            "hidden_dim":self.hidden_dim,
-            "output_dim":self.input_dim,
-            "init":self.init.__name__,
-            "encoder_activation":self.encoder_activation.__name__,
-            "decoder_activation":self.decoder_activation.__name__,}
+                "encoder_config":self.encoder.get_config(),
+                "decoder_config":self.decoder.get_config(),
+                "output_reconstruction":self.output_reconstruction,
+                "tie_weights":self.tie_weights}
 
 
 class DenoisingAutoEncoder(AutoEncoder):
     '''
-        A denoising autoencoder model.
-        Output dimensions are always the same size as the input
-            x_p = x.noise
-            encoder = f(W.x_p + b_encoder)
-            decoder = f(W'.encoder + b_decoder)
+        A denoising autoencoder model that inherits the base features from autoencoder
+        Cannot be the first layer in a model: same reasoning as Dropout, etc
     '''
-    def __init__(self, input_dim, hidden_dim, init='glorot_normal',
-                 encoder_activation='sigmoid', decoder_activation='sigmoid', corruption_level=0.3,
-                 weights=None, W_regularizer=None, b_regularizer=None, W_constraint=None, b_constraint=None):
-
-        AutoEncoder.__init__(self, input_dim, hidden_dim,
-                             init, encoder_activation, decoder_activation,
-                             weights, W_regularizer, b_regularizer,
-                             W_constraint, b_constraint)
+    def __init__(self, encoder=None, decoder=None, output_reconstruction=True, tie_weights=False,
+                 weights=None, W_regularizer=None, b_regularizer=None, W_constraint=None, b_constraint=None,
+                 corruption_level=0.3):
+        super(DenoisingAutoEncoder, self).__init__(encoder, decoder, output_reconstruction, tie_weights,
+                                                   weights, W_regularizer, b_regularizer, W_constraint, b_constraint)
         self.corruption_level = corruption_level
 
-    def get_corrupted_input(self, input):
+    def _get_corrupted_input(self, input):
         """
             http://deeplearning.net/tutorial/dA.html
         """
-        return srng.binomial(size=input.shape, n=1,
-                             p=1 - self.corruption_level,
+        return srng.binomial(size=(self.input_dim, 1), n=1,
+                             p=1-self.corruption_level,
                              dtype=theano.config.floatX) * input
 
-    def get_hidden(self, train):
-        X = self.get_corrupted_input(self.get_input(train))
-        encode = self.encoder_activation(T.dot(X, self.W) + self.encoder_bias)
-        return encode
-
-    def get_output(self, train):
-        encode = self.get_hidden(train)
-        decode = self.decoder_activation(T.dot(encode, self.W.T) + self.decoder_bias)
-        return decode
+    def get_input(self, train=False):
+        uncorrupted_input = super(DenoisingAutoEncoder, self).get_input(train)
+        return self._get_corrupted_input(uncorrupted_input)
 
     def get_config(self):
         return {"name":self.__class__.__name__,
-            "input_dim":self.input_dim,
-            "hidden_dim":self.hidden_dim,
-            "output_dim":self.input_dim,
-            "init":self.init.__name__,
-            "corruption_level":self.corruption_level,
-            "encoder_activation":self.encoder_activation.__name__,
-            "decoder_activation":self.decoder_activation.__name__,}
+                "encoder_config":self.encoder.get_config(),
+                "decoder_config":self.decoder.get_config(),
+                "corruption_level":self.corruption_level,
+                "output_reconstruction":self.output_reconstruction,
+                "tie_weights":self.tie_weights}
 
 
 class MaxoutDense(Layer):
