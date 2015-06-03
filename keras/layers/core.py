@@ -296,8 +296,7 @@ class AutoEncoder(Layer):
         If output_reconstruction then dim(input) = dim(output)
         else dim(output) = dim(hidden)
     '''
-    def __init__(self, encoder=None, decoder=None, output_reconstruction=True, tie_weights=False,
-                 weights=None, W_regularizer=None, b_regularizer=None, W_constraint=None, b_constraint=None):
+    def __init__(self, encoder=None, decoder=None, output_reconstruction=True, tie_weights=False, weights=None):
 
         super(AutoEncoder,self).__init__()
         if encoder is None or decoder is None:
@@ -383,13 +382,9 @@ class AutoEncoder(Layer):
 class DenoisingAutoEncoder(AutoEncoder):
     '''
         A denoising autoencoder model that inherits the base features from autoencoder
-        Cannot be the first layer in a model: same reasoning as Dropout, etc
     '''
-    def __init__(self, encoder=None, decoder=None, output_reconstruction=True, tie_weights=False,
-                 weights=None, W_regularizer=None, b_regularizer=None, W_constraint=None, b_constraint=None,
-                 corruption_level=0.3):
-        super(DenoisingAutoEncoder, self).__init__(encoder, decoder, output_reconstruction, tie_weights,
-                                                   weights, W_regularizer, b_regularizer, W_constraint, b_constraint)
+    def __init__(self, encoder=None, decoder=None, output_reconstruction=True, tie_weights=False, weights=None, corruption_level=0.3):
+        super(DenoisingAutoEncoder, self).__init__(encoder, decoder, output_reconstruction, tie_weights, weights)
         self.corruption_level = corruption_level
 
     def _get_corrupted_input(self, input):
