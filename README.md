@@ -11,13 +11,15 @@ Use Keras if you need a deep learning library that:
 
 Read the documentation at [Keras.io](http://keras.io).
 
+Keras is compatible with __Python 2.7-3.4__.
+
 ## Guiding principles
 
 - __Modularity.__ A model is understood as a sequence of standalone, fully-configurable modules that can be plugged together with as little restrictions as possible. In particular, neural layers, cost functions, optimizers, initialization schemes, activation functions and dropout are all standalone modules that you can combine to create new models. 
 
 - __Minimalism.__ Each module should be kept short and simple (<100 lines of code). Every piece of code should be transparent upon first reading. No black magic: it hurts iteration speed and ability to innovate. 
 
-- __Easy extensibility.__ A new feature (a new module, per the above definition, or a new way to combine modules together) are dead simple to add (as new classes/functions), and existing modules provide ample examples.
+- __Easy extensibility.__ New features (a new module, per the above definition, or a new way to combine modules together) are dead simple to add (as new classes/functions), and existing modules provide ample examples.
 
 - __Work with Python__. No separate models configuration files in a declarative format (like in Caffe or PyLearn2). Models are described in Python code, which is compact, easier to debug, benefits from syntax highlighting, and most of all, allows for ease of extensibility. See for yourself with the examples below.
 
@@ -37,7 +39,7 @@ model.add(Dropout(0.5))
 model.add(Dense(64, 64, init='uniform'))
 model.add(Activation('tanh'))
 model.add(Dropout(0.5))
-model.add(Dense(64, 1, init='uniform'))
+model.add(Dense(64, 2, init='uniform'))
 model.add(Activation('softmax'))
 
 sgd = SGD(lr=0.1, decay=1e-6, momentum=0.9, nesterov=True)
@@ -55,7 +57,7 @@ model.add(Dense(20, 64, init='uniform', activation='tanh'))
 model.add(Dropout(0.5))
 model.add(Dense(64, 64, init='uniform', activation='tanh'))
 model.add(Dropout(0.5))
-model.add(Dense(64, 1, init='uniform', activation='softmax')
+model.add(Dense(64, 2, init='uniform', activation='softmax'))
 
 sgd = SGD(lr=0.1, decay=1e-6, momentum=0.9, nesterov=True)
 model.compile(loss='mean_squared_error', optimizer=sgd)
@@ -103,7 +105,8 @@ model.fit(X_train, Y_train, batch_size=32, nb_epoch=1)
 
 ```python
 from keras.models import Sequential
-from keras.layers.core import Dense, Dropout, Activation, Embedding
+from keras.layers.core import Dense, Dropout, Activation
+from keras.layers.embeddings import Embedding
 from keras.layers.recurrent import LSTM
 
 model = Sequential()
@@ -169,10 +172,8 @@ In the examples folder, you will find example models for real datasets:
 - CIFAR10 small images classification: Convnet with realtime data augmentation
 - IMDB movie review sentiment classification: LSTM over sequences of words
 - Reuters newswires topic classification: Multilayer Perceptron
+- MNIST handwritten digits classification: Multilayer Perceptron
 
-## Warning
-
-This is a 0.0.1 alpha release. Feature scope is limited, and wild bugs may appear.
 
 ## Current capabilities
 
@@ -189,7 +190,7 @@ Keras uses the following dependencies:
 - Theano
     - See installation instructions: http://deeplearning.net/software/theano/install.html#install
 
-- PIL (optional, required if you use preprocessing.image)
+- HDF5 and h5py (optional, required if you use model saving/loading functions)
 
 - Optional but recommended if you use CNNs: cuDNN.
 

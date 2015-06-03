@@ -15,7 +15,7 @@ model.add(Dropout(0.5))
 model.add(Dense(64, 64, init='uniform'))
 model.add(Activation('tanh'))
 model.add(Dropout(0.5))
-model.add(Dense(64, 1, init='uniform'))
+model.add(Dense(64, 2, init='uniform'))
 model.add(Activation('softmax'))
 
 sgd = SGD(lr=0.1, decay=1e-6, momentum=0.9, nesterov=True)
@@ -35,7 +35,7 @@ model.add(Dense(20, 64, init='uniform', activation='tanh'))
 model.add(Dropout(0.5))
 model.add(Dense(64, 64, init='uniform', activation='tanh'))
 model.add(Dropout(0.5))
-model.add(Dense(64, 1, init='uniform', activation='softmax')
+model.add(Dense(64, 2, init='uniform', activation='softmax')
 
 sgd = SGD(lr=0.1, decay=1e-6, momentum=0.9, nesterov=True)
 model.compile(loss='mean_squared_error', optimizer=sgd)
@@ -87,7 +87,8 @@ model.fit(X_train, Y_train, batch_size=32, nb_epoch=1)
 
 ```python
 from keras.models import Sequential
-from keras.layers.core import Dense, Dropout, Activation, Embedding
+from keras.layers.core import Dense, Dropout, Activation
+from keras.layers.embeddings import Embedding
 from keras.layers.recurrent import LSTM
 
 model = Sequential()

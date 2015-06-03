@@ -28,12 +28,9 @@ model.compile(loss='mean_squared_error', optimizer='sgd')
 keras.optimizers.Optimizer(**kwargs)
 ```
 
-All optimizers descended from this class support the following keyword arguments:
+All optimizers descended from this class support the following keyword argument:
 
-- __l1__: float >= 0. L1 regularization penalty.
-- __l2__: float >= 0. L2 regularization penalty.
 - __clipnorm__: float >= 0.
-- __maxnorm__: float >= 0.
 
 Note: this is base class for building optimizers, not an actual optimizer that can be used for training models.
 

@@ -4,12 +4,12 @@
 
 `keras.datasets.cifar10`
 
-Dataset of 50,000 32x32 color images, labeled over 10 categories.
+Dataset of 50,000 32x32 color training images, labeled over 10 categories, and 10,000 test images.
 
 ### Usage:
 
 ```python
-(X_train, y_train), (X_test, y_test) = cifar10.load_data(test_split=0.1, seed=113)
+(X_train, y_train), (X_test, y_test) = cifar10.load_data()
 ```
 
 - __Return:__
@@ -17,10 +17,28 @@ Dataset of 50,000 32x32 color images, labeled over 10 categories.
         - __X_train, X_test__: uint8 array of RGB image data with shape (nb_samples, 3, 32, 32).
         - __y_train, y_test__: uint8 array of category labels (integers in range 0-9) with shape (nb_samples,).
 
+---
+
+## CIFAR100 small image classification
+
+`keras.datasets.cifar100`
+
+Dataset of 50,000 32x32 color training images, labeled over 100 categories, and 10,000 test images.
+
+### Usage:
+
+```python
+(X_train, y_train), (X_test, y_test) = cifar100.load_data(label_mode='fine')
+```
+
+- __Return:__
+    - 2 tuples:
+        - __X_train, X_test__: uint8 array of RGB image data with shape (nb_samples, 3, 32, 32).
+        - __y_train, y_test__: uint8 array of category labels with shape (nb_samples,).
+
 - __Arguments:__
 
-    - __test_split__: float. Fraction of the dataset to be used as test data.
-    - __seed__: int. Seed for reproducible data shuffling.
+    - __label_mode__: "fine" or "coarse".
 
 ---
 
@@ -36,7 +54,7 @@ As a convention, "0" does not stand for a specific word, but instead is used to 
 
 ```python
 (X_train, y_train), (X_test, y_test) = imdb.load_data(path="imdb.pkl", \
-nb_words=None, skip_top=0, maxlen=None, test_split=0.1, seed=113)`
+nb_words=None, skip_top=0, maxlen=None, test_split=0.1, seed=113)
 ```
 - __Return:__
     - 2 tuples:
@@ -64,7 +82,7 @@ Dataset of 11,228 newswires from Reuters, labeled over 46 topics. As with the IM
 
 ```python
 (X_train, y_train), (X_test, y_test) = reuters.load_data(path="reuters.pkl", \
-nb_words=None, skip_top=0, maxlen=None, test_split=0.1, seed=113)`
+nb_words=None, skip_top=0, maxlen=None, test_split=0.1, seed=113)
 ```
 
 The specifications are the same as that of the IMDB dataset.
@@ -76,6 +94,27 @@ word_index = reuters.get_word_index(path="reuters_word_index.pkl")
 ```
 
 - __Return:__ A dictionary where key are words (str) and values are indexes (integer). eg. `word_index["giraffe"]` might return `1234`. 
+
+- __Arguments:__
+
+    - __path__: if you do have the index file locally (at `'~/.keras/datasets/' + path`), if will be downloaded to this location (in cPickle format).
+    
+## MNIST database of handwritten digits
+
+`keras.datasets.mnist`
+
+Dataset of 60,000 28x28 grayscale images of the 10 digits, along with a test set of 10,000 images.
+
+### Usage:
+
+```python
+(X_train, y_train), (X_test, y_test) = mnist.load_data()
+```
+
+- __Return:__
+    - 2 tuples:
+        - __X_train, X_test__: uint8 array of grayscale image data with shape (nb_samples, 28, 28).
+        - __y_train, y_test__: uint8 array of digit labels (integers in range 0-9) with shape (nb_samples,).
 
 - __Arguments:__
 

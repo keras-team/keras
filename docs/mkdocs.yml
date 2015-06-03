@@ -3,7 +3,7 @@ theme: readthedocs
 docs_dir: sources
 repo_url: http://github.com/fchollet/keras
 site_url: /
-theme_dir: theme
+# theme_dir: theme
 site_description: Documentation for fast and lightweight Keras Deep Learning library.
 include_404: true
 include_search: true
@@ -22,6 +22,10 @@ pages:
 - [models.md, Models]
 - [activations.md, Activations]
 - [initializations.md, Initializations]
+- [regularizers.md, Regularizers]
+- [constraints.md, Constraints]
+- [initializations.md, Initializations]
+- [callbacks.md, Callbacks]
 
 - [datasets.md, Datasets]
 
@@ -35,3 +39,5 @@ pages:
 - [preprocessing/sequence.md, Preprocessing, Sequence Preprocessing]
 - [preprocessing/text.md, Preprocessing, Text Preprocessing]
 - [preprocessing/image.md, Preprocessing, Image Preprocessing]
+
+- [utils/visualization.md, Utils, Visualization Utilities]

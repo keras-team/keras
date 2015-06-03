@@ -61,8 +61,9 @@ class MaxPooling1D(Layer):
 
 class Convolution2D(Layer):
     def __init__(self, nb_filter, stack_size, nb_row, nb_col, 
-        init='uniform', activation='linear', weights=None, 
+        init='glorot_uniform', activation='linear', weights=None, 
         image_shape=None, border_mode='valid', subsample=(1,1)):
+        super(Convolution2D,self).__init__()
 
         self.init = initializations.get(init)
         self.activation = activations.get(activation)
@@ -84,7 +85,7 @@ class Convolution2D(Layer):
         if weights is not None:
             self.set_weights(weights)
 
-    def output(self, train):
+    def get_output(self, train):
         X = self.get_input(train)
 
         conv_out = theano.tensor.nnet.conv.conv2d(X, self.W, 
@@ -107,12 +108,12 @@ class Convolution2D(Layer):
 
 class MaxPooling2D(Layer):
     def __init__(self, poolsize=(2, 2), ignore_border=True):
+        super(MaxPooling2D,self).__init__()
         self.input = T.tensor4()
         self.poolsize = poolsize
         self.ignore_border = ignore_border
-        self.params = []
 
-    def output(self, train):
+    def get_output(self, train):
         X = self.get_input(train)
         output = downsample.max_pool_2d(X, self.poolsize, ignore_border=self.ignore_border)
         return output
