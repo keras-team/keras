@@ -336,12 +336,12 @@ class AutoEncoder(Layer):
 
     def get_weights(self):
         weights = []
-        for m in encoders + decoders:
+        for m in self.encoders + self.decoders:
             weights += m.get_weights()
         return weights
 
     def set_weights(self, weights):
-        models = encoders + decoders
+        models = self.encoders + self.decoders
         for i in range(len(models)):
             nb_param = len(models[i].params)
             models[i].set_weights(weights[:nb_param])
