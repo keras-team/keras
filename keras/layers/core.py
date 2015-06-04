@@ -67,7 +67,7 @@ class Merge(object):
             return s
         elif self.mode == 'concat':
             inputs = [self.models[i].get_output(train) for i in range(len(self.models))]
-            return T.concatenate(inputs, axis=-1)
+            return T.concatenate(inputs, axis=1)
         else:
             raise Exception('Unknown merge mode')
 
