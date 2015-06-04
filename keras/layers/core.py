@@ -306,7 +306,7 @@ class AutoEncoder(Layer):
             raise Exception("There need to be an equal number of encoders and decoders")
 
         # connect all encoders & decoders to their previous (respectively)
-        for i in xrange(len(encoders)-1, 0, -1):
+        for i in range(len(encoders)-1, 0, -1):
             encoders[i].connect(encoders[i-1])
             decoders[i].connect(decoders[i-1])
         decoders[0].connect(encoders[-1])  # connect the first to the last
@@ -386,7 +386,7 @@ class DenoisingAutoEncoder(AutoEncoder):
     '''
         A denoising autoencoder model that inherits the base features from autoencoder
     '''
-    def __init__(self, encoders=None, decoders=None, output_reconstruction=True, tie_weights=False, weights=None, corruption_level=0.3):
+    def __init__(self, encoders=[], decoders=[], output_reconstruction=True, tie_weights=False, weights=None, corruption_level=0.3):
         super(DenoisingAutoEncoder, self).__init__(encoders, decoders, output_reconstruction, tie_weights, weights)
         self.corruption_level = corruption_level
 

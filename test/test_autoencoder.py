@@ -27,8 +27,8 @@ max_test_samples = 1000
 # the data, shuffled and split between tran and test sets
 (X_train, y_train), (X_test, y_test) = mnist.load_data()
 
-X_train = X_train.reshape(60000,input_dim)[:max_train_samples]
-X_test = X_test.reshape(10000,input_dim)[:max_test_samples]
+X_train = X_train.reshape(60000, input_dim)[:max_train_samples]
+X_test = X_test.reshape(10000, input_dim)[:max_test_samples]
 X_train = X_train.astype("float32")
 X_test = X_test.astype("float32")
 X_train /= 255
@@ -54,7 +54,6 @@ model_classical.compile(loss='categorical_crossentropy', optimizer='adam')
 model_classical.fit(X_train, Y_train, batch_size=batch_size, nb_epoch=nb_epoch, show_accuracy=False, verbose=0, validation_data=(X_test, Y_test))
 classical_score = model_classical.evaluate(X_test, Y_test, verbose=0)
 print('\nclassical_score:', classical_score)
-print('\n')
 
 ##########################
 # autoencoder model test #
@@ -68,9 +67,9 @@ def build_lstm_autoencoder(autoencoder, X_train, X_test):
 
 	# The TimeDistributedDense isn't really necessary, however you need a lot of GPU memory to do 784x394-394x784
 	autoencoder.add(TimeDistributedDense(input_dim, 16))
-	autoencoder.add(AutoEncoder(encoders=[LSTM(16, 8, activation=activation, return_sequences=True)]
-								, decoders=[LSTM(8, input_dim, activation=activation, return_sequences=True)]
-								, output_reconstruction=False, tie_weights=True))
+	autoencoder.add(AutoEncoder(encoders=[LSTM(16, 8, activation=activation, return_sequences=True)],
+								decoders=[LSTM(8, input_dim, activation=activation, return_sequences=True)],
+								output_reconstruction=False, tie_weights=True))
 	return autoencoder, X_train, X_test
 
 def build_deep_classical_autoencoder(autoencoder):
@@ -83,9 +82,9 @@ def build_denoising_autoencoder(autoencoder):
 	# You need another layer before a denoising autoencoder
 	# This is similar to the dropout layers, etc..
 	autoencoder.add(Dense(input_dim, input_dim))
-	autoencoder.add(DenoisingAutoEncoder(encoders=[Dense(input_dim, hidden_dim, activation=activation)]
-										, decoders=[Dense(hidden_dim, input_dim, activation=activation)]
-										, output_reconstruction=False, tie_weights=True, corruption_level=0.3))
+	autoencoder.add(DenoisingAutoEncoder(encoders=[Dense(input_dim, hidden_dim, activation=activation)],
+										 decoders=[Dense(hidden_dim, input_dim, activation=activation)],
+										 output_reconstruction=False, tie_weights=True, corruption_level=0.3))
 	return autoencoder
 
 # Build our autoencoder model
@@ -133,7 +132,6 @@ model.fit(prefilter_train, Y_train, batch_size=batch_size, nb_epoch=nb_epoch, sh
 
 score = model.evaluate(prefilter_test, Y_test, verbose=0, show_accuracy=False)
 print('\nscore:', score)
-print('\n')
 
 if score < classical_score:
 	print("error: classical score > autoencoder score!")
