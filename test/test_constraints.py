@@ -59,35 +59,6 @@ if np.min(b)==0 and np.min(a)!=0:
 else:
 	raise ValueError('Nonneg test failed!')
 	
-model = Sequential()
-model.add(Dense(784, 20))
-model.add(Activation('relu', target=.4))
-model.add(Dropout(0.1))
-model.add(Dense(20, 20))
-model.add(Activation('relu', target=.3))
-model.add(Dropout(0.1))
-model.add(Dense(20, 10))
-model.add(Activation('softmax'))
-
-
-rms = RMSprop()
-model.compile(loss='categorical_crossentropy', optimizer=rms)
-
-model.fit(X_train, Y_train, batch_size=batch_size, nb_epoch=20, show_accuracy=True, verbose=0)
-
-
-
-get_activations1 = theano.function([model.layers[0].input], model.layers[1].output(train=False), allow_input_downcast=True)
-activations1 = get_activations1(X_train)
-get_activations2 = theano.function([model.layers[0].input], model.layers[4].output(train=False), allow_input_downcast=True)
-activations2 = get_activations2(X_train)
-
-if np.isclose(np.mean(activations1), .4, atol=.02) and np.isclose(np.mean(activations2), .3, atol=.02):
-	print('KL penalty test passed')
-else:
-	raise ValueError('KL penalty test failed!')
-	
-
 
 model = Sequential()
 model.add(Dense(784, 20))
