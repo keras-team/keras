@@ -56,6 +56,8 @@ def calculate_class_weights(Y, class_weight):
     if isinstance(class_weight, dict):
         if Y.shape[1] > 1:
             y_classes = Y.argmax(axis=1)
+        elif Y.shape[1] == 1:
+            y_classes = np.reshape(Y, Y.shape[0])
         else:
             y_classes = Y
         w = np.array(map(lambda x: class_weight[x], y_classes))

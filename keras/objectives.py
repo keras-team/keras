@@ -31,9 +31,13 @@ def categorical_crossentropy(y_true, y_pred, weight=None):
     else:
         return cce.mean()
 
-def binary_crossentropy(y_true, y_pred):
+def binary_crossentropy(y_true, y_pred, weight=None):
     y_pred = T.clip(y_pred, epsilon, 1.0 - epsilon)
-    return T.nnet.binary_crossentropy(y_pred, y_true).mean()
+    bce = T.nnet.binary_crossentropy(y_pred, y_true).mean()
+    if weight is not None:
+        return (weight*bce).mean()
+    else:
+        return bce.mean()
 
 # aliases
 mse = MSE = mean_squared_error
