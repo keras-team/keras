@@ -52,6 +52,16 @@ def slice_X(X, start=None, stop=None):
         else:
             return X[start:stop]
 
+def calculate_class_weights(Y, class_weight):
+    if isinstance(class_weight, dict):
+        if Y.shape[1] > 1:
+            y_classes = Y.argmax(axis=1)
+        else:
+            y_classes = Y
+        w = np.array(map(lambda x: class_weight[x], y_classes))
+    else:
+        w = np.ones((Y.shape[0]))
+    return w
 
 class Model(object):
 
@@ -60,16 +70,6 @@ class Model(object):
 
     def get_input(self, train):
         raise NotImplementedError
-
-    def calculate_class_weights(self, Y, class_weight):
-        # this method expects a binary class indicator matrix
-        # find class index in indicator matrix and map it to a weight vector w
-        y_classes = Y.argmax(axis=1)
-        if isinstance(class_weight, dict):
-            w = np.array(map(lambda x: class_weight[x], y_classes))
-        else:
-            w = np.ones((Y.shape[0]))
-        return w
 
     def compile(self, optimizer, loss, class_mode="categorical", theano_mode=None):
         self.optimizer = optimizers.get(optimizer)
@@ -105,7 +105,7 @@ class Model(object):
         updates = self.optimizer.get_updates(self.params, self.regularizers, self.constraints, train_loss)
 
         if type(self.X_train) == list:
-            train_ins = self.X_train + [self.y] + [self.class_weights]
+            train_ins = self.X_train + [self.y, self.class_weights]
             test_ins = self.X_test + [self.y]
             predict_ins = self.X_test
         else:
@@ -180,9 +180,9 @@ class Sequential(Model):
         y = standardize_y(y)
 
         # calculate the weight vector for the loss function
-        w = self.calculate_class_weights(y, class_weight)
+        w = calculate_class_weights(y, class_weight)
 
-        ins = X + [y] + [w]
+        ins = X + [y, w]
         if accuracy:
             return self._train_with_acc(*ins)
         else:
@@ -258,14 +258,14 @@ class Sequential(Model):
                 X_batch = slice_X(X, batch_ids)
                 y_batch = y[batch_ids]
                 # calculate weight vector for current batch
-                w = self.calculate_class_weights(y_batch, class_weight)
+                w = calculate_class_weights(y_batch, class_weight)
 
                 batch_logs = {}
                 batch_logs['batch'] = batch_index
                 batch_logs['size'] = len(batch_ids)
                 callbacks.on_batch_begin(batch_index, batch_logs)
 
-                ins = X_batch + [y_batch] + [w]
+                ins = X_batch + [y_batch, w]
                 if show_accuracy:
                     loss, acc = self._train_with_acc(*ins)
                     batch_logs['accuracy'] = acc
