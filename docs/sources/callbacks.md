@@ -44,7 +44,7 @@ class LossHistory(keras.callbacks.Callback):
 
 ---
 
-### Example
+### Example to record the loss history
 
 ```python
 class LossHistory(keras.callbacks.Callback):
@@ -68,3 +68,24 @@ print history.losses
 [0.66047596406559383, 0.3547245744908703, ..., 0.25953155204159617, 0.25901699725311789]
 '''
 ```
+
+---
+
+### Example to checkpoint models
+
+```python
+from keras.callbacks import ModelCheckpoint
+
+model = Sequential()
+model.add(Dense(784, 10, init='uniform'))
+model.add(Activation('softmax'))
+model.compile(loss='categorical_crossentropy', optimizer='rmsprop')
+
+'''
+saves the model weights after each epoch if the validation loss decreased
+'''
+checkpointer = ModelCheckpoint(filename="weights.hdf5", path="/tmp", verbose=1, save_best_only=True)
+model.fit(X_train, Y_train, batch_size=128, nb_epoch=20, verbose=0, validation_data=(X_test, Y_test), callbacks=[checkpointer])
+
+```
+
