@@ -3,15 +3,15 @@ from __future__ import print_function
 import theano
 import theano.tensor as T
 import numpy as np
-import warnings
+import warnings, time, copy
 
 from . import optimizers
 from . import objectives
 from . import regularizers
 from . import constraints
 from . import callbacks as cbks
-import time, copy
 from .utils.generic_utils import Progbar, printv
+from .layers import containers
 from six.moves import range
 
 def standardize_y(y):
@@ -24,15 +24,6 @@ def standardize_y(y):
 def make_batches(size, batch_size):
     nb_batch = int(np.ceil(size/float(batch_size)))
     return [(i*batch_size, min(size, (i+1)*batch_size)) for i in range(0, nb_batch)]
-
-def ndim_tensor(ndim):
-    if ndim == 2:
-        return T.matrix()
-    elif ndim == 3:
-        return T.tensor3()
-    elif ndim == 4:
-        return T.tensor4()
-    return T.matrix()
 
 def standardize_X(X):
     if type(X) == list:
@@ -54,12 +45,6 @@ def slice_X(X, start=None, stop=None):
 
 
 class Model(object):
-
-    def get_output(self, train):
-        raise NotImplementedError
-
-    def get_input(self, train):
-        raise NotImplementedError
 
     def compile(self, optimizer, loss, class_mode="categorical", theano_mode=None):
         self.optimizer = optimizers.get(optimizer)
@@ -110,57 +95,6 @@ class Model(object):
             allow_input_downcast=True, mode=theano_mode)
         self._test_with_acc = theano.function(test_ins, [test_score, test_accuracy], 
             allow_input_downcast=True, mode=theano_mode)
-
-
-class Sequential(Model):
-    def __init__(self):
-        self.layers = []
-        self.params = [] # learnable
-        self.regularizers = [] # same size as params
-        self.constraints = [] # same size as params
-
-
-    def add(self, layer):
-        self.layers.append(layer)
-        if len(self.layers) > 1:
-            self.layers[-1].connect(self.layers[-2])
-        self.params += [p for p in layer.params]
-        
-        if hasattr(layer, 'regularizers') and len(layer.regularizers) == len(layer.params):
-            for r in layer.regularizers:
-                if r:
-                    self.regularizers.append(r)
-                else:
-                    self.regularizers.append(regularizers.identity)
-        elif hasattr(layer, 'regularizer') and layer.regularizer:
-            self.regularizers += [layer.regularizer for _ in range(len(layer.params))]
-        else:
-            self.regularizers += [regularizers.identity for _ in range(len(layer.params))]
-
-        if hasattr(layer, 'constraints') and len(layer.constraints) == len(layer.params):
-            for c in layer.constraints:
-                if c:
-                    self.constraints.append(c)
-                else:
-                    self.constraints.append(constraints.identity)
-        elif hasattr(layer, 'constraint') and layer.constraint:
-            self.constraints += [layer.constraint for _ in range(len(layer.params))]
-        else:
-            self.constraints += [constraints.identity for _ in range(len(layer.params))]
-
-
-    def get_output(self, train=False):
-        return self.layers[-1].get_output(train)
-
-
-    def get_input(self, train=False):
-        if not hasattr(self.layers[0], 'input'):
-            for l in self.layers:
-                if hasattr(l, 'input'):
-                    break
-            ndim = l.input.ndim 
-            self.layers[0].input = ndim_tensor(ndim)
-        return self.layers[0].get_input(train)
 
 
     def train(self, X, y, accuracy=False):
@@ -345,6 +279,33 @@ class Sequential(Model):
         else:
             return tot_score / seen
 
+
+class Sequential(Model, containers.Sequential):
+    '''
+        Inherits from Model the following methods:
+            - compile
+            - train
+            - test
+            - evaluate
+            - fit
+            - predict
+            - predict_proba
+            - predict_classes
+
+        Inherits from containers.Sequential the following methods:
+            - add 
+            - get_output
+            - get_input
+            - get_weights
+            - set_weights
+    '''
+    def __init__(self):
+        self.layers = []
+        self.params = [] # learnable
+        self.regularizers = [] # same size as params
+        self.constraints = [] # same size as params
+
+
     def get_config(self, verbose=0):
         layers = []
         for i, l in enumerate(self.layers):
@@ -354,17 +315,6 @@ class Sequential(Model):
             printv(layers)
         return layers
 
-    def get_weights(self):
-        res = []
-        for l in self.layers:
-            res += l.get_weights()
-        return res
-
-    def set_weights(self, weights):
-        for i in range(len(self.layers)):
-            nb_param = len(self.layers[i].params)
-            self.layers[i].set_weights(weights[:nb_param])
-            weights = weights[nb_param:]
 
     def save_weights(self, filepath, overwrite=False):
         # Save weights from all layers to HDF5

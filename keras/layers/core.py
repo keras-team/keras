@@ -7,6 +7,8 @@ import theano.tensor as T
 from .. import activations, initializations
 from ..utils.theano_utils import shared_zeros, floatX
 from ..utils.generic_utils import make_tuple
+from .. import regularizers
+from .. import constraints
 
 from theano.sandbox.rng_mrg import MRG_RandomStreams as RandomStreams
 from six.moves import zip
@@ -16,8 +18,8 @@ class Layer(object):
     def __init__(self):
         self.params = []
 
-    def connect(self, node):
-        self.previous = node
+    def connect(self, layer):
+        self.previous = layer
 
     def get_output(self, train):
         raise NotImplementedError
@@ -41,6 +43,34 @@ class Layer(object):
     def get_config(self):
         return {"name":self.__class__.__name__}
 
+    def get_params(self):
+        regs = []
+        consts = []
+
+        if hasattr(self, 'regularizers') and len(self.regularizers) == len(self.params):
+            for r in self.regularizers:
+                if r:
+                    regs.append(r)
+                else:
+                    regs.append(regularizers.identity)
+        elif hasattr(self, 'regularizer') and self.regularizer:
+            regs += [self.regularizer for _ in range(len(self.params))]
+        else:
+            regs += [regularizers.identity for _ in range(len(self.params))]
+
+        if hasattr(self, 'constraints') and len(self.constraints) == len(self.params):
+            for c in self.constraints:
+                if c:
+                    consts.append(c)
+                else:
+                    consts.append(constraints.identity)
+        elif hasattr(self, 'constraint') and self.constraint:
+            consts += [self.constraint for _ in range(len(self.params))]
+        else:
+            consts += [constraints.identity for _ in range(len(self.params))]
+
+        return self.params, regs, consts
+
 
 class Merge(object): 
     def __init__(self, models, mode='sum'):
@@ -58,6 +88,9 @@ class Merge(object):
             self.params += m.params
             self.regularizers += m.regularizers
             self.constraints += m.constraints
+
+    def get_params(self):
+        return self.params, self.regularizers, self.constraints
 
     def get_output(self, train=False):
         if self.mode == 'sum':
@@ -83,7 +116,7 @@ class Merge(object):
 
     @property
     def input(self):
-        return self.get_input()    
+        return self.get_input()
 
     def get_weights(self):
         weights = []
