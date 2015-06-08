@@ -22,5 +22,8 @@ def l1l2(l1=.01, l2=.01):
         return g
     return l1l2wrap
 
+def zero(g, p):
+    return 0.0
+
 def identity(g, p):
     return g

@@ -343,7 +343,6 @@ class AutoEncoder(Layer):
         if not isinstance(decoders, Layer):
             raise Exception("Decoders need to be a layer type.")
 
-        print len(encoders.layers)
         if not len(encoders.layers) == len(decoders.layers):
             raise Exception("There need to be an equal number of encoders and decoders")
 
