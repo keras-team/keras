@@ -320,7 +320,13 @@ class Sequential(Model, containers.Sequential):
         import os.path
         # if file exists and should not be overwritten
         if not overwrite and os.path.isfile(filepath):
-            raise IOError('%s already exists' % (filepath))
+            overwrite = input('[WARNING] %s already exists - overwrite? [y/n]' % (filepath))
+            while overwrite not in ['y', 'n']:
+                overwrite = input('Enter "y" (overwrite) or "n" (cancel).')
+            if overwrite == 'n':
+                return
+            print('[TIP] Next time specify overwrite=True in save_weights!')
+
         f = h5py.File(filepath, 'w')
         f.attrs['nb_layers'] = len(self.layers)
         for k, l in enumerate(self.layers):
