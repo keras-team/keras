@@ -7,8 +7,6 @@ import warnings, time, copy
 
 from . import optimizers
 from . import objectives
-from . import regularizers
-from . import constraints
 from . import callbacks as cbks
 from .utils.generic_utils import Progbar, printv
 from .layers import containers
