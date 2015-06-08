@@ -162,7 +162,7 @@ model.fit(X_train, Y_train, batch_size=batch_size, nb_epoch=nb_epoch, verbose=1,
 # model checkpoint tests #
 ##########################
 
-print('Running model checkpointer test')
+print('Running ModelCheckpoint test')
 
 nb_classes = 10
 batch_size = 128
@@ -222,5 +222,5 @@ except:
     import sys
     sys.exit(0)
 
-raise Exception("Tests did not pass")
+raise Exception("Modelcheckpoint tests did not pass")
 
