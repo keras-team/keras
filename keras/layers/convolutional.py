@@ -35,6 +35,7 @@ class Convolution2D(Layer):
         self.W_shape = (nb_filter, stack_size, nb_row, nb_col)
         self.W = self.init(self.W_shape)
         self.b = shared_zeros((nb_filter,))
+        self.input_dim = image_shape[1]*image_shape[2]*image_shape[3]
 
         self.params = [self.W, self.b]
 
