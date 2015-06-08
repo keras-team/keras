@@ -9,15 +9,22 @@ from keras.regularizers import l2
 from keras.layers.convolutional import Convolution2D, MaxPooling2D
 from keras.utils import np_utils
 from keras.datasets import mnist
+import keras.callbacks as cbks
 
 from matplotlib import pyplot as plt
 from matplotlib import animation
+
+##############################
+# model DrawActivations test #
+##############################
+
+print('Running DrawActivations test')
 
 nb_classes = 10
 batch_size = 128
 nb_epoch = 10
 
-max_train_samples = 5000
+max_train_samples = 512
 max_test_samples = 1
 
 np.random.seed(1337)
@@ -91,7 +98,7 @@ class DrawActivations(Callback):
     def __init__(self, figsize):
         self.fig = plt.figure(figsize=figsize)
 
-    def on_train_begin(self):
+    def on_train_begin(self, logs={}):
         self.imgs = Frames(n_plots=5)
 
         layers_0_ids = np.random.choice(32, 16, replace=False)
@@ -102,10 +109,10 @@ class DrawActivations(Callback):
 
         self.test_layer2 = theano.function([self.model.get_input()], self.model.layers[10].get_output(train=False)[0])
 
-    def on_epoch_begin(self, epoch):
+    def on_epoch_begin(self, epoch, logs={}):
         self.epoch = epoch
 
-    def on_batch_end(self, batch):
+    def on_batch_end(self, batch, logs={}):
         if batch % 5 == 0:
             self.imgs.add_frame(0, X_test[0,0])
             self.imgs.add_frame(1, combine_imgs(self.test_layer0(X_test), grid=(4, 4)))
@@ -114,7 +121,7 @@ class DrawActivations(Callback):
             self.imgs.add_frame(4, self.model._predict(X_test)[0].reshape((1,10)))
             self.imgs.set_title('Epoch #%d - Batch #%d' % (self.epoch, batch))
 
-    def on_train_end(self):
+    def on_train_end(self, logs={}):
         anim = SubplotTimedAnimation(self.fig, self.imgs, grid=(1,5), interval=10, blit=False, repeat_delay=1000)
         # anim.save('test_gif.gif', fps=15, writer='imagemagick')
         plt.show()
@@ -149,3 +156,71 @@ model.compile(loss='categorical_crossentropy', optimizer='rmsprop')
 # Fit the model
 draw_weights = DrawActivations(figsize=(5.4, 1.35))
 model.fit(X_train, Y_train, batch_size=batch_size, nb_epoch=nb_epoch, verbose=1, callbacks=[draw_weights])
+
+
+##########################
+# model checkpoint tests #
+##########################
+
+print('Running model checkpointer test')
+
+nb_classes = 10
+batch_size = 128
+nb_epoch = 20
+
+# small sample size to overfit on training data
+max_train_samples = 50
+max_test_samples = 1000
+
+np.random.seed(1337) # for reproducibility
+
+# the data, shuffled and split between tran and test sets
+(X_train, y_train), (X_test, y_test) = mnist.load_data()
+
+X_train = X_train.reshape(60000,784)[:max_train_samples]
+X_test = X_test.reshape(10000,784)[:max_test_samples]
+X_train = X_train.astype("float32")
+X_test = X_test.astype("float32")
+X_train /= 255
+X_test /= 255
+
+# convert class vectors to binary class matrices
+Y_train = np_utils.to_categorical(y_train, nb_classes)[:max_train_samples]
+Y_test = np_utils.to_categorical(y_test, nb_classes)[:max_test_samples]
+
+
+# Create a slightly larger network than required to test best validation save only
+model = Sequential()
+model.add(Dense(784, 500))
+model.add(Activation('relu'))
+model.add(Dense(500, 10))
+model.add(Activation('softmax'))
+model.compile(loss='categorical_crossentropy', optimizer='rmsprop')
+
+# test file location
+path = "/tmp"
+filename = "model_weights.hdf5"
+import os
+f = os.path.join(path, filename)
+
+print("Test model checkpointer")
+# only store best validation model in checkpointer
+checkpointer = cbks.ModelCheckpoint(filepath=f, verbose=1, save_best_only=True)
+model.fit(X_train, Y_train, batch_size=batch_size, nb_epoch=nb_epoch, show_accuracy=True, verbose=0, validation_data=(X_test, Y_test), callbacks =[checkpointer])
+
+if not os.path.isfile(f):
+    raise Exception("Model weights were not saved to %s" % (f))
+
+print("Test model checkpointer without validation data")
+import warnings
+warnings.filterwarnings('error')
+try:
+    # this should issue a warning
+    model.fit(X_train, Y_train, batch_size=batch_size, nb_epoch=nb_epoch, show_accuracy=True, verbose=0, callbacks =[checkpointer])
+except:
+    print("Tests passed")
+    import sys
+    sys.exit(0)
+
+raise Exception("Tests did not pass")
+
