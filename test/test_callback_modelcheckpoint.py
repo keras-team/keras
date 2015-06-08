@@ -51,7 +51,7 @@ f = os.path.join(path, filename)
 
 print("Test model checkpointer")
 # only store best validation model in checkpointer
-checkpointer = cbks.ModelCheckpoint(filename=filename, path=path, verbose=1, save_best_only=True)
+checkpointer = cbks.ModelCheckpoint(filepath=f, verbose=1, save_best_only=True)
 model.fit(X_train, Y_train, batch_size=batch_size, nb_epoch=nb_epoch, show_accuracy=True, verbose=0, validation_data=(X_test, Y_test), callbacks =[checkpointer])
 
 if not os.path.isfile(f):
