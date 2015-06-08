@@ -13,10 +13,16 @@ def mean_absolute_error(y_true, y_pred, weight=None):
     return T.abs_(y_pred - y_true).mean()
 
 def squared_hinge(y_true, y_pred, weight=None):
-    return T.sqr(T.maximum(1. - y_true * y_pred, 0.)).mean()
+    if weight is not None:
+        return T.sqr(T.maximum(1. - weight*(y_true * y_pred), 0.)).mean()
+    else:
+        return T.sqr(T.maximum(1. - y_true * y_pred, 0.)).mean()
 
 def hinge(y_true, y_pred, weight=None):
-    return T.maximum(1. - y_true * y_pred, 0.).mean()
+    if weight is not None:
+        return T.maximum(1. - weight*(y_true * y_pred), 0.).mean()
+    else:
+        return T.maximum(1. - y_true * y_pred, 0.).mean()
 
 def categorical_crossentropy(y_true, y_pred, weight=None):
     '''Expects a binary class matrix instead of a vector of scalar classes
