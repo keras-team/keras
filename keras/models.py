@@ -178,6 +178,11 @@ class Sequential(Model):
         return self.layers[0].get_input(train)
 
     def train(self, X, y, accuracy=False, class_weight=None):
+        if class_weight is not None and (self.loss is objectives.get('mean_absolute_error') or self.loss is objectives.get('mean_squared_error')):
+            import warnings
+            warnings.warn("Using class_weight with incompatible loss, ignoring class_weight parameter", RuntimeWarning)
+            class_weight = None
+
         X = standardize_X(X)
         y = standardize_y(y)
 
@@ -203,7 +208,12 @@ class Sequential(Model):
 
     def fit(self, X, y, batch_size=128, nb_epoch=100, verbose=1, callbacks=[],
             validation_split=0., validation_data=None, shuffle=True, show_accuracy=False, class_weight=None):
-        
+
+        if class_weight is not None and (self.loss is objectives.get('mean_absolute_error') or self.loss is objectives.get('mean_squared_error')):
+            import warnings
+            warnings.warn("Using class_weight with incompatible loss, ignoring class_weight parameter", RuntimeWarning)
+            class_weight = None
+
         X = standardize_X(X)
         y = standardize_y(y)
 

@@ -7,10 +7,16 @@ from six.moves import range
 epsilon = 1.0e-15
 
 def mean_squared_error(y_true, y_pred, weight=None):
-    return T.sqr(y_pred - y_true).mean()
+    if weight is not None:
+        return T.sqr(weight*(y_pred - y_true)).mean()
+    else:
+        return T.sqr(y_pred - y_true).mean()
 
 def mean_absolute_error(y_true, y_pred, weight=None):
-    return T.abs_(y_pred - y_true).mean()
+    if weight is not None:
+        return T.abs_(weight*(y_pred - y_true)).mean()
+    else:
+        return T.abs_(y_pred - y_true).mean()
 
 def squared_hinge(y_true, y_pred, weight=None):
     if weight is not None:
