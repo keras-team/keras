@@ -53,14 +53,16 @@ class_weight = {0:1,1:1,2:1,3:1,4:1,5:1,6:1,7:1,8:1,9:high_weight}
 #test different methods#
 ########################
 
+print("Testing fit methods with and without classweights")
 # fit
-model_classweights_fit.fit(X_train, Y_train, batch_size=batch_size, nb_epoch=nb_epoch, show_accuracy=True, verbose=3, validation_data=(X_test, Y_test), class_weight=class_weight)
-model_fit.fit(X_train, Y_train, batch_size=batch_size, nb_epoch=nb_epoch, show_accuracy=True, verbose=3, validation_data=(X_test, Y_test))
+model_classweights_fit.fit(X_train, Y_train, batch_size=batch_size, nb_epoch=nb_epoch, show_accuracy=True, verbose=0, validation_data=(X_test, Y_test), class_weight=class_weight)
+model_fit.fit(X_train, Y_train, batch_size=batch_size, nb_epoch=nb_epoch, show_accuracy=True, verbose=0, validation_data=(X_test, Y_test))
+print("Testing train methods with and without classweights")
 # train
 model_classweights_train.train(X_train, Y_train, class_weight=class_weight)
 model_train.train(X_train, Y_train)
 
-print('Classification accuracies on test set:')
+print('MNIST Classification accuracies on test set for fitted models:')
 for nb in range(nb_classes):
     testIdcs = np.where(y_test == np.array(nb))[0]
     X_temp = X_test[testIdcs, :]
