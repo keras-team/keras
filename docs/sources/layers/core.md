@@ -127,10 +127,10 @@ model.add(TimeDistributedDense(5, 10)) # output shape: (nb_samples, nb_timesteps
 
 ## AutoEncoder
 ```python
-keras.layers.core.AutoEncoder(encoders=[], decoders=[], output_reconstruction=True, tie_weights=False, weights=None):
+keras.layers.core.AutoEncoder(encoder, decoder, output_reconstruction=True, tie_weights=False, weights=None):
 ```
 
-A customizable autoencoder model. It supports deep architectures by passing appropriate encoders/decoders list. If `output_reconstruction = True` then dim(input) = dim(output) else dim(output) = dim(hidden)
+A customizable autoencoder model. If `output_reconstruction = True` then dim(input) = dim(output) else dim(output) = dim(hidden)
 
 
 - __Input shape__: The layer shape is defined by the encoder definitions
@@ -139,9 +139,9 @@ A customizable autoencoder model. It supports deep architectures by passing appr
 
 - __Arguments__:
 
-    - __encoders__: A list of encoder which can be defined by any existing layer. See [layers](./) for more information on layer types.
+    - __encoder__: A [layer](./) or [layer container](./containers.md).
 
-    - __decoders__: A list of decoders which can be defined by any exisitng layer. See [layers](./) for more information on layer types.
+    - __decoder__: A [layer](./) or [layer container](./containers.md).
     
     - __output_reconstruction__: If this is False the when .predict() is called the output is the deepest hidden layer's activation. Otherwise the output of the final decoder layer is presented. Be sure your validation data confirms to this logic if you decide to use any.
     
@@ -151,22 +151,23 @@ A customizable autoencoder model. It supports deep architectures by passing appr
 
 - __Example__:
 ```python
-# input shape: (nb_samples, 32)
-encoders = [Dense(32, 16, activation='tanh'), Dense(16, 8, activation='tanh')]
-decoders = [Dense(8, 16, activation='tanh'), Dense(16, 32, activation='tanh')]
-autoencoder.add(AutoEncoder(encoders=encoders, decoders=decoders, output_reconstruction=False, tie_weights=True))
-```
+from keras.layers import containers
 
+# input shape: (nb_samples, 32)
+encoder = containers.Sequential([Dense(32, 16), Dense(16, 8)])
+decoder = containers.Sequential([Dense(8, 16), Dense(16, 32)])
+autoencoder.add(AutoEncoder(encoder=encoder, decoder=decoder, output_reconstruction=False, tie_weights=True))
+```
 
 ---
 
 ## DenoisingAutoEncoder
 ```python
-keras.layers.core.AutoEncoder(encoders=[], decoders=[], output_reconstruction=True, tie_weights=False, weights=None, corruption_level=0.3):
+keras.layers.core.AutoEncoder(encoder, decoder, output_reconstruction=True, tie_weights=False, weights=None, corruption_level=0.3):
 ```
 
 A denoising autoencoder model that inherits the base features from autoencoder.
-Since this model uses similar logic to Dropout it cannot be the first layer in a pipeline.
+Since this layer uses similar logic to Dropout it cannot be the first layer in a pipeline.
 
 - __Input shape__: The layer shape is defined by the encoder definitions
 
@@ -174,9 +175,9 @@ Since this model uses similar logic to Dropout it cannot be the first layer in a
 
 - __Arguments__:
 
-    - __encoders__: A list of encoder which can be defined by any existing layer. See [layers](./) for more information
+    - __encoder__: A [layer](./) or [layer container](./containers.md).
 
-    - __decoders__: A list of decoders which can be defined by any exisitng layer. See [layers](./) for more information
+    - __decoder__: A [layer](./) or [layer container](./containers.md).
     
     - __output_reconstruction__: If this is False the when .predict() is called the output is the deepest hidden layer's activation. Otherwise the output of the final decoder layer is presented. Be sure your validation data confirms to this logic if you decide to use any.
     
@@ -190,8 +191,8 @@ Since this model uses similar logic to Dropout it cannot be the first layer in a
 ```python
 # input shape: (nb_samples, 32)
 autoencoder.add(Dense(32, 32))
-autoencoder.add(DenoisingAutoEncoder(encoders=[Dense(32, 16, activation='tanh')],
-                                     decoders=[Dense(16, 32, activation='tanh')],
+autoencoder.add(DenoisingAutoEncoder(encoder=Dense(32, 16),
+                                     decoder=Dense(16, 32),
                                      output_reconstruction=False, tie_weights=True,
                                      corruption_level=0.3))
 ```
