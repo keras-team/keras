@@ -180,3 +180,39 @@ class History(Callback):
             self.validation_loss.append(val_loss)
             if self.params['show_accuracy']:
                 self.validation_accuracy.append(val_acc)
+
+class ModelCheckpoint(Callback):
+    def __init__(self, filepath, verbose=0, save_best_only=False):
+        super(Callback, self).__init__()
+        
+        self.verbose = verbose
+        self.filepath = filepath
+        self.save_best_only = save_best_only
+        self.loss = []
+        self.best_loss = np.Inf
+        self.val_loss = []
+        self.best_val_loss = np.Inf
+
+    def on_epoch_end(self, epoch, logs={}):
+        '''currently, on_epoch_end receives epoch_logs from keras.models.Sequential.fit
+        which does only contain, if at all, the validation loss and validation accuracy'''
+        if self.save_best_only and self.params['do_validation']:
+            cur_val_loss = logs.get('val_loss')
+            self.val_loss.append(cur_val_loss)
+            if cur_val_loss < self.best_val_loss:
+                if self.verbose > 0:
+                    print("Epoch %05d: valdidation loss improved from %0.5f to %0.5f, saving model to %s"
+                        % (epoch, self.best_val_loss, cur_val_loss, self.filepath))
+                self.best_val_loss = cur_val_loss
+                self.model.save_weights(self.filepath, overwrite=True)
+            else:
+                if self.verbose > 0:
+                    print("Epoch %05d: validation loss did not improve" % (epoch))
+        elif self.save_best_only and not self.params['do_validation']:
+            import warnings
+            warnings.warn("Can save best model only with validation data, skipping", RuntimeWarning)
+        elif not self.save_best_only:
+            if self.verbose > 0:
+                print("Epoch %05d: saving model to %s" % (epoch, self.filepath))
+            self.model.save_weights(self.filepath, overwrite=True)
+

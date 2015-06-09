@@ -3,15 +3,13 @@ from __future__ import print_function
 import theano
 import theano.tensor as T
 import numpy as np
-import warnings
+import warnings, time, copy
 
 from . import optimizers
 from . import objectives
-from . import regularizers
-from . import constraints
 from . import callbacks as cbks
-import time, copy
 from .utils.generic_utils import Progbar, printv
+from .layers import containers
 from six.moves import range
 
 def standardize_y(y):
@@ -24,15 +22,6 @@ def standardize_y(y):
 def make_batches(size, batch_size):
     nb_batch = int(np.ceil(size/float(batch_size)))
     return [(i*batch_size, min(size, (i+1)*batch_size)) for i in range(0, nb_batch)]
-
-def ndim_tensor(ndim):
-    if ndim == 2:
-        return T.matrix()
-    elif ndim == 3:
-        return T.tensor3()
-    elif ndim == 4:
-        return T.tensor4()
-    return T.matrix()
 
 def standardize_X(X):
     if type(X) == list:
@@ -66,12 +55,6 @@ def calculate_class_weights(Y, class_weight):
     return w
 
 class Model(object):
-
-    def get_output(self, train):
-        raise NotImplementedError
-
-    def get_input(self, train):
-        raise NotImplementedError
 
     def compile(self, optimizer, loss, class_mode="categorical", theano_mode=None):
         self.optimizer = optimizers.get(optimizer)
@@ -127,56 +110,6 @@ class Model(object):
             allow_input_downcast=True, mode=theano_mode)
 
 
-class Sequential(Model):
-    def __init__(self):
-        self.layers = []
-        self.params = [] # learnable
-        self.regularizers = [] # same size as params
-        self.constraints = [] # same size as params
-
-
-    def add(self, layer):
-        self.layers.append(layer)
-        if len(self.layers) > 1:
-            self.layers[-1].connect(self.layers[-2])
-        self.params += [p for p in layer.params]
-        
-        if hasattr(layer, 'regularizers') and len(layer.regularizers) == len(layer.params):
-            for r in layer.regularizers:
-                if r:
-                    self.regularizers.append(r)
-                else:
-                    self.regularizers.append(regularizers.identity)
-        elif hasattr(layer, 'regularizer') and layer.regularizer:
-            self.regularizers += [layer.regularizer for _ in range(len(layer.params))]
-        else:
-            self.regularizers += [regularizers.identity for _ in range(len(layer.params))]
-
-        if hasattr(layer, 'constraints') and len(layer.constraints) == len(layer.params):
-            for c in layer.constraints:
-                if c:
-                    self.constraints.append(c)
-                else:
-                    self.constraints.append(constraints.identity)
-        elif hasattr(layer, 'constraint') and layer.constraint:
-            self.constraints += [layer.constraint for _ in range(len(layer.params))]
-        else:
-            self.constraints += [constraints.identity for _ in range(len(layer.params))]
-
-
-    def get_output(self, train=False):
-        return self.layers[-1].get_output(train)
-
-
-    def get_input(self, train=False):
-        if not hasattr(self.layers[0], 'input'):
-            for l in self.layers:
-                if hasattr(l, 'input'):
-                    break
-            ndim = l.input.ndim 
-            self.layers[0].input = ndim_tensor(ndim)
-        return self.layers[0].get_input(train)
-
     def train(self, X, y, accuracy=False, class_weight=None):
         if class_weight is not None and (self.loss is objectives.get('mean_absolute_error') or self.loss is objectives.get('mean_squared_error')):
             import warnings
@@ -185,10 +118,8 @@ class Sequential(Model):
 
         X = standardize_X(X)
         y = standardize_y(y)
-
         # calculate the weight vector for the loss function
         w = calculate_class_weights(y, class_weight)
-
         ins = X + [y, w]
         if accuracy:
             return self._train_with_acc(*ins)
@@ -246,7 +177,7 @@ class Sequential(Model):
         callbacks = cbks.CallbackList(callbacks)
         if verbose:
             callbacks.append(cbks.BaseLogger())
-            callbacks.append(cbks.History())
+        callbacks.append(cbks.History())
 
         callbacks._set_model(self)
         callbacks._set_params({
@@ -269,6 +200,7 @@ class Sequential(Model):
                 batch_ids = index_array[batch_start:batch_end]
                 X_batch = slice_X(X, batch_ids)
                 y_batch = y[batch_ids]
+
                 # calculate weight vector for current batch
                 w = calculate_class_weights(y_batch, class_weight)
 
@@ -308,7 +240,7 @@ class Sequential(Model):
     def predict(self, X, batch_size=128, verbose=1):
         X = standardize_X(X)
         batches = make_batches(len(X[0]), batch_size)
-        if verbose==1:
+        if verbose == 1:
             progbar = Progbar(target=len(X[0]))
         for batch_index, (batch_start, batch_end) in enumerate(batches):
             X_batch = slice_X(X, batch_start, batch_end)
@@ -319,14 +251,14 @@ class Sequential(Model):
                 preds = np.zeros(shape)
             preds[batch_start:batch_end] = batch_preds
 
-            if verbose==1:
+            if verbose == 1:
                 progbar.update(batch_end)
 
         return preds
 
     def predict_proba(self, X, batch_size=128, verbose=1):
         preds = self.predict(X, batch_size, verbose)
-        if preds.min()<0 or preds.max()>1:
+        if preds.min() < 0 or preds.max() > 1:
             warnings.warn("Network returning invalid probability values.")
         return preds
 
@@ -336,7 +268,7 @@ class Sequential(Model):
         if self.class_mode == "categorical":
             return proba.argmax(axis=-1)
         else:
-            return (proba>0.5).astype('int32')
+            return (proba > 0.5).astype('int32')
 
 
     def evaluate(self, X, y, batch_size=128, show_accuracy=False, verbose=1):
@@ -375,6 +307,32 @@ class Sequential(Model):
         else:
             return tot_score / seen
 
+
+class Sequential(Model, containers.Sequential):
+    '''
+        Inherits from Model the following methods:
+            - compile
+            - train
+            - test
+            - evaluate
+            - fit
+            - predict
+            - predict_proba
+            - predict_classes
+        Inherits from containers.Sequential the following methods:
+            - add 
+            - get_output
+            - get_input
+            - get_weights
+            - set_weights
+    '''
+    def __init__(self):
+        self.layers = []
+        self.params = [] # learnable
+        self.regularizers = [] # same size as params
+        self.constraints = [] # same size as params
+
+
     def get_config(self, verbose=0):
         layers = []
         for i, l in enumerate(self.layers):
@@ -384,17 +342,6 @@ class Sequential(Model):
             printv(layers)
         return layers
 
-    def get_weights(self):
-        res = []
-        for l in self.layers:
-            res += l.get_weights()
-        return res
-
-    def set_weights(self, weights):
-        for i in range(len(self.layers)):
-            nb_param = len(self.layers[i].params)
-            self.layers[i].set_weights(weights[:nb_param])
-            weights = weights[nb_param:]
 
     def save_weights(self, filepath, overwrite=False):
         # Save weights from all layers to HDF5
@@ -402,7 +349,17 @@ class Sequential(Model):
         import os.path
         # if file exists and should not be overwritten
         if not overwrite and os.path.isfile(filepath):
-            raise IOError('%s already exists' % (filepath))
+            import sys
+            get_input = input
+            if sys.version_info[:2] <= (2, 7):
+                get_input = raw_input
+            overwrite = get_input('[WARNING] %s already exists - overwrite? [y/n]' % (filepath))
+            while overwrite not in ['y', 'n']:
+                overwrite = get_input('Enter "y" (overwrite) or "n" (cancel).')
+            if overwrite == 'n':
+                return
+            print('[TIP] Next time specify overwrite=True in save_weights!')
+
         f = h5py.File(filepath, 'w')
         f.attrs['nb_layers'] = len(self.layers)
         for k, l in enumerate(self.layers):
@@ -425,4 +382,5 @@ class Sequential(Model):
             weights = [g['param_{}'.format(p)] for p in range(g.attrs['nb_params'])]
             self.layers[k].set_weights(weights)
         f.close()
-        
+
+
