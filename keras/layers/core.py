@@ -324,91 +324,76 @@ class TimeDistributedDense(Layer):
             "init":self.init.__name__,
             "activation":self.activation.__name__}
 
-
 class AutoEncoder(Layer):
     '''
         A customizable autoencoder model.
-          - Supports deep architectures by passing appropriate encoders/decoders Sequencential
-          - If output_reconstruction then dim(input) = dim(output) else dim(output) = dim(hidden)
+        If output_reconstruction then dim(input) = dim(output)
+        else dim(output) = dim(hidden)
     '''
-    def __init__(self, encoders=None, decoders=None, output_reconstruction=True, tie_weights=False, weights=None):
+    def __init__(self, encoder, decoder, output_reconstruction=True, tie_weights=False, weights=None):
 
         super(AutoEncoder,self).__init__()
-        if not encoders or not decoders:
-            raise Exception("Please specify the encoder/decoder layers")
-
-        if not isinstance(encoders, Layer):
-            raise Exception("Encoders need to be a layer type.")
-
-        if not isinstance(decoders, Layer):
-            raise Exception("Decoders need to be a layer type.")
-
-        if not len(encoders.layers) == len(decoders.layers):
-            raise Exception("There need to be an equal number of encoders and decoders")
-
-        decoders.connect(encoders)  # tie them together
 
         self.output_reconstruction = output_reconstruction
         self.tie_weights = tie_weights
-        self.encoders = encoders
-        self.decoders = decoders
+        self.encoder = encoder
+        self.decoder = decoder
+
+        self.decoder.connect(self.encoder)
 
         self.params = []
         self.regularizers = []
         self.constraints = []
-
-        for layer in [encoders, decoders]:
-            params, regularizers, constraints = layer.get_params()
-            self.params += params
-            self.regularizers += regularizers
-            self.constraints += constraints
+        for layer in [self.encoder, self.decoder]:
+            self.params += layer.params
+            if hasattr(layer, 'regularizers'):
+                self.regularizers += layer.regularizers
+            if hasattr(layer, 'constraints'):
+                self.constraints += layer.constraints
 
         if weights is not None:
             self.set_weights(weights)
 
     def connect(self, node):
-        self.encoders.connect(node)
+        self.encoder.previous = node
 
     def get_weights(self):
         weights = []
-        for m in [self.encoders, self.decoders]:
-            weights += m.get_weights()
+        for layer in [self.encoder, self.decoder]:
+            weights += layer.get_weights()
         return weights
 
     def set_weights(self, weights):
-        models = [self.encoders, self.decoders]
-        for i in range(len(models)):
-            nb_param = len(models[i].params)
-            models[i].set_weights(weights[:nb_param])
-            weights = weights[nb_param:]
+        nb_param = len(self.encoder.params)
+        self.encoder.set_weights(weights[:nb_param])
+        self.decoder.set_weights(weights[nb_param:])
 
     def get_input(self, train=False):
-        return  self.encoders.get_input(train)
+        return self.encoder.get_input(train)
 
     @property
     def input(self):
-        return self.get_input()
+        return self.encoder.input
 
     def _get_hidden(self, train):
-        return self.encoders.get_output(train)
-
-    def _tranpose_weights(self, src, dest):
-        if len(dest.shape) > 1 and len(src.shape) > 1:
-            dest = src.T
+        return self.encoder.get_output(train)
 
     def get_output(self, train):
-        if not train and not self.output_reconstruction:
-            return self._get_hidden(train)
+        decoded = self.decoder.get_output(train)
 
         if self.tie_weights:
-            map(self._tranpose_weights, self.encoders.get_weights(), self.decoders.get_weights())
+            encoder_params = self.encoder.get_weights()
+            decoder_params = self.decoder.get_weights()
+            for dec_param, enc_param in zip(decoder_params, encoder_params):
+                if len(dec_param.shape) > 1:
+                    enc_param = dec_param.T
 
-        return self.decoders.get_output(train)
+        return decoded
 
     def get_config(self):
         return {"name":self.__class__.__name__,
-                "encoder_config":self.encoders.get_config(),
-                "decoder_config":self.decoders.get_config(),
+                "encoder_config":self.encoder.get_config(),
+                "decoder_config":self.decoder.get_config(),
                 "output_reconstruction":self.output_reconstruction,
                 "tie_weights":self.tie_weights}
 
@@ -417,8 +402,8 @@ class DenoisingAutoEncoder(AutoEncoder):
     '''
         A denoising autoencoder model that inherits the base features from autoencoder
     '''
-    def __init__(self, encoders=None, decoders=None, output_reconstruction=True, tie_weights=False, weights=None, corruption_level=0.3):
-        super(DenoisingAutoEncoder, self).__init__(encoders, decoders, output_reconstruction, tie_weights, weights)
+    def __init__(self, encoder=None, decoder=None, output_reconstruction=True, tie_weights=False, weights=None, corruption_level=0.3):
+        super(DenoisingAutoEncoder, self).__init__(encoder, decoder, output_reconstruction, tie_weights, weights)
         self.corruption_level = corruption_level
 
     def _get_corrupted_input(self, input):
@@ -435,8 +420,8 @@ class DenoisingAutoEncoder(AutoEncoder):
 
     def get_config(self):
         return {"name":self.__class__.__name__,
-                "encoder_config":self.encoders.get_config(),
-                "decoder_config":self.decoders.get_config(),
+                "encoder_config":self.encoder.get_config(),
+                "decoder_config":self.decoder.get_config(),
                 "corruption_level":self.corruption_level,
                 "output_reconstruction":self.output_reconstruction,
                 "tie_weights":self.tie_weights}

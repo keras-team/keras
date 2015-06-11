@@ -11,8 +11,8 @@ from .utils.generic_utils import Progbar
 
 class CallbackList(object):
 
-    def __init__(self, callbacks, queue_length=10):
-        self.callbacks = callbacks
+    def __init__(self, callbacks=[], queue_length=10):
+        self.callbacks = [c for c in callbacks]
         self.queue_length = queue_length
 
     def append(self, callback):
