@@ -115,9 +115,9 @@ class Model(object):
             return self._test(*ins)
 
 
-    def fit(self, X, y, batch_size=128, nb_epoch=100, verbose=1, callbacks=[],
-            validation_split=0., validation_data=None, shuffle=True, show_accuracy=False):
-        
+def fit(self, X, y, batch_size=128, nb_epoch=100, verbose=1, callbacks=[], validation_split=0.,
+        validation_data=None, shuffle=True, show_accuracy=False, early_stop_lookback=0):
+
         X = standardize_X(X)
         y = standardize_y(y)
 
@@ -152,6 +152,10 @@ class Model(object):
             callbacks.append(cbks.BaseLogger())
         callbacks.append(cbks.History())
 
+        if early_stop_lookback != 0 and do_validation:
+            early_stop = False
+            callbacks.append(cbks.EarlyStop(early_stop_lookback, verbose))
+
         callbacks._set_model(self)
         callbacks._set_params({
             'batch_size': batch_size,
@@ -159,7 +163,8 @@ class Model(object):
             'nb_sample': len(y),
             'verbose': verbose,
             'do_validation': do_validation,
-            'show_accuracy': show_accuracy
+            'show_accuracy': show_accuracy,
+            'early_stop_lookback': early_stop_lookback
         })
         callbacks.on_train_begin()
 
@@ -201,7 +206,14 @@ class Model(object):
                             val_loss = self.evaluate(X_val, y_val, batch_size=batch_size, verbose=0)
                         epoch_logs['val_loss'] = val_loss
 
-            callbacks.on_epoch_end(epoch, epoch_logs)
+                try:
+                    callbacks.on_epoch_end(epoch, epoch_logs)
+                except Exception as e:
+                    if 'EarlyStop' in e.args:
+                        early_stop = True
+                        break
+            if early_stop:
+                break
 
         callbacks.on_train_end()
         # return history
