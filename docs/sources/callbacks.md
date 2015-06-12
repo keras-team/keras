@@ -33,9 +33,17 @@ You can create a custom callback by extending the base class `keras.callbacks.Ca
 ### Example to record the loss history
 
 ```python
+from keras.messages import *
+
 class LossHistory(keras.callbacks.Callback):
-    def __init__(self):
+    def __init__(self, stream=None):
         super(LossHistory, self).__init__()
+        if stream:
+            self.set_event_source(stream)
+
+    def set_event_source(self, stream):
+        stream.filter(lambda x: isinstance(x, TrainBegin)).subscribe(lambda x: self.on_train_begin(x))
+        stream.filter(lambda x: isinstance(x, BatchEnd)).subscribe(lambda x: self.on_batch_end(x))
 
     def on_train_begin(self):
         self.losses = []
