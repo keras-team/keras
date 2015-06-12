@@ -8,6 +8,7 @@ setup(name='Keras',
       author_email='francois.chollet@gmail.com',
       url='https://github.com/fchollet/keras',
       license='MIT',
-      install_requires=['theano'],
+      install_requires=['theano', 'rx'],
       packages=find_packages(),
 )
+
