@@ -24,7 +24,6 @@ pages:
 - [initializations.md, Initializations]
 - [regularizers.md, Regularizers]
 - [constraints.md, Constraints]
-- [initializations.md, Initializations]
 - [callbacks.md, Callbacks]
 
 - [datasets.md, Datasets]
