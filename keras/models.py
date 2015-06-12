@@ -11,6 +11,7 @@ from . import callbacks as cbks
 from .utils.generic_utils import Progbar, printv
 from .layers import containers
 from six.moves import range
+from .messages import *
 
 def standardize_y(y):
     if not hasattr(y, 'shape'):
@@ -43,6 +44,9 @@ def slice_X(X, start=None, stop=None):
 
 
 class Model(object):
+    def __init__(self):
+        self.pub_stream = Subject()
+        self.stop_training = False
 
     def compile(self, optimizer, loss, class_mode="categorical", theano_mode=None):
         self.optimizer = optimizers.get(optimizer)
@@ -114,6 +118,8 @@ class Model(object):
         else:
             return self._test(*ins)
 
+    def set_stop_training(self, stop):
+        self.stop_training = stop
 
     def fit(self, X, y, batch_size=128, nb_epoch=100, verbose=1, callbacks=[],
             validation_split=0., validation_data=None, shuffle=True, show_accuracy=False):
@@ -147,24 +153,34 @@ class Model(object):
 
         index_array = np.arange(len(y))
 
-        callbacks = cbks.CallbackList(callbacks)
+        # callback setup
         if verbose:
             callbacks.append(cbks.BaseLogger())
         callbacks.append(cbks.History())
 
-        callbacks._set_model(self)
-        callbacks._set_params({
-            'batch_size': batch_size,
-            'nb_epoch': nb_epoch,
-            'nb_sample': len(y),
-            'verbose': verbose,
-            'do_validation': do_validation,
-            'show_accuracy': show_accuracy
-        })
-        callbacks.on_train_begin()
+        for callback in callbacks:
+            # set input and parameter to callback
+            callback.set_event_source(self.pub_stream)
+            callback._set_params({
+                'batch_size': batch_size,
+                'nb_epoch': nb_epoch,
+                'nb_sample': len(y),
+                'verbose': verbose,
+                'do_validation': do_validation,
+                'show_accuracy': show_accuracy
+            })
+            # subscribe to the publish channel of callback
+            callback.pub_stream.filter(lambda x: isinstance(x, StopTraining)).subscribe(lambda x: self.set_stop_training(True))
+            callback.pub_stream.filter(lambda x: isinstance(x, SaveModel)).subscribe(lambda x: self.save_weights(x.filename, x.overwrite))
+
+        self.pub_stream.on_next(TrainBegin())
 
         for epoch in range(nb_epoch):
-            callbacks.on_epoch_begin(epoch)
+            if self.stop_training:
+                break
+
+            self.pub_stream.on_next(EpochBegin(epoch))
+
             if shuffle:
                 np.random.shuffle(index_array)
 
@@ -174,38 +190,34 @@ class Model(object):
                 X_batch = slice_X(X, batch_ids)
                 y_batch = y[batch_ids]
 
-                batch_logs = {}
-                batch_logs['batch'] = batch_index
-                batch_logs['size'] = len(batch_ids)
-                callbacks.on_batch_begin(batch_index, batch_logs)
+                self.pub_stream.on_next(BatchBegin(batch=batch_index, size=len(batch_ids)))
 
                 ins = X_batch + [y_batch]
+                loss, acc = (None, None)
                 if show_accuracy:
                     loss, acc = self._train_with_acc(*ins)
-                    batch_logs['accuracy'] = acc
                 else:
                     loss = self._train(*ins)
-                batch_logs['loss'] = loss
 
-                callbacks.on_batch_end(batch_index, batch_logs)
+                self.pub_stream.on_next(BatchEnd(batch=batch_index, size=len(batch_ids), accuracy=acc, loss=loss))
                 
                 if batch_index == len(batches) - 1: # last batch
                     # validation
-                    epoch_logs = {}
+                    epoch_val_accuracy, epoch_val_loss = (None, None)
                     if do_validation:
                         if show_accuracy:
                             val_loss, val_acc = self.evaluate(X_val, y_val, batch_size=batch_size, \
                                 verbose=0, show_accuracy=True)
-                            epoch_logs['val_accuracy'] = val_acc
+                            epoch_val_accuracy = val_acc
                         else:
                             val_loss = self.evaluate(X_val, y_val, batch_size=batch_size, verbose=0)
-                        epoch_logs['val_loss'] = val_loss
+                        epoch_val_loss = val_loss
 
-            callbacks.on_epoch_end(epoch, epoch_logs)
+            self.pub_stream.on_next(EpochEnd(epoch=epoch, val_loss=epoch_val_loss, val_accuracy=epoch_val_accuracy))
 
-        callbacks.on_train_end()
+        self.pub_stream.on_next(TrainEnd())
         # return history
-        return callbacks.callbacks[-1]
+        return callbacks[-1]
 
     def predict(self, X, batch_size=128, verbose=1):
         X = standardize_X(X)
@@ -298,11 +310,11 @@ class Sequential(Model, containers.Sequential):
             - set_weights
     '''
     def __init__(self):
+        super(Sequential, self).__init__()
         self.layers = []
         self.params = [] # learnable
         self.regularizers = [] # same size as params
         self.constraints = [] # same size as params
-
 
     def get_config(self, verbose=0):
         layers = []
@@ -353,4 +365,4 @@ class Sequential(Model, containers.Sequential):
             weights = [g['param_{}'.format(p)] for p in range(g.attrs['nb_params'])]
             self.layers[k].set_weights(weights)
         f.close()
-        
+
