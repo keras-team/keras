@@ -181,6 +181,31 @@ class History(Callback):
             if self.params['show_accuracy']:
                 self.validation_accuracy.append(val_acc)
 
+class EarlyStop(Callback):
+    def __init__(self, nb_epoch_lookback=5, verbose=0):
+        super(Callback, self).__init__()
+
+        self.nb_epoch_lookback = nb_epoch_lookback
+        self.verbose = verbose
+        self.best_val_loss_epoch = 0
+        self.best_val_loss = np.Inf
+
+    def on_epoch_end(self, epoch, logs={}):
+        '''currently, on_epoch_end receives epoch_logs from keras.models.Sequential.fit
+        which does only contain, if at all, the validation loss and validation accuracy'''
+        if self.params['do_validation']:
+            cur_val_loss = logs.get('val_loss')
+            if cur_val_loss <= self.best_val_loss:
+                self.best_val_loss_epoch = epoch
+                self.best_val_loss = cur_val_loss
+            elif (epoch - self.best_val_loss_epoch) >= self.nb_epoch_lookback:
+                if self.verbose > 0:
+                    print("EarlyStop: Did not observe an improvement over the last %d epochs." % self.nb_epoch_lookback)
+                raise Exception("EarlyStop")
+        else:
+            import warnings
+            warnings.warn("Cannot run EarlyStop callback without validation data, skipping", RuntimeWarning)
+
 class ModelCheckpoint(Callback):
     def __init__(self, filepath, verbose=0, save_best_only=False):
         super(Callback, self).__init__()
