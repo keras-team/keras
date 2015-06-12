@@ -31,7 +31,7 @@ class SimpleRNN(Layer):
         self.input = T.tensor3()
 
         self.W = self.init((self.input_dim, self.output_dim))
-        self.U = self.init((self.output_dim, self.output_dim))
+        self.U = self.inner_init((self.output_dim, self.output_dim))
         self.b = shared_zeros((self.output_dim))
         self.params = [self.W, self.U, self.b]
 

@@ -23,6 +23,9 @@ class Sequential(Layer):
         for layer in layers:
             self.add(layer)
 
+    def connect(self, layer):
+        self.layers[0].previous = layer
+
     def add(self, layer):
         self.layers.append(layer)
         if len(self.layers) > 1:
@@ -44,6 +47,10 @@ class Sequential(Layer):
             ndim = l.input.ndim 
             self.layers[0].input = ndim_tensor(ndim)
         return self.layers[0].get_input(train)
+
+    @property
+    def input(self):
+        return self.get_input()
 
     def get_weights(self):
         weights = []
