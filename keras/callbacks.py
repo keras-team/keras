@@ -134,8 +134,8 @@ class History(Callback):
             self.tot_accuracy += data.accuracy * batch_size
 
     def on_epoch_end(self, data):
-        val_loss = data.val_loss#logs.get('val_loss')
-        val_acc = data.val_accuracy#logs.get('val_accuracy')
+        val_loss = data.val_loss
+        val_acc = data.val_accuracy
         self.epoch.append(data.epoch)
         self.loss.append(self.tot_loss / self.seen)
         if self.params['show_accuracy']:
@@ -167,7 +167,7 @@ class ModelCheckpoint(Callback):
         '''currently, on_epoch_end receives epoch_logs from keras.models.Sequential.fit
         which does only contain, if at all, the validation loss and validation accuracy'''
         if self.save_best_only and self.params['do_validation']:
-            cur_val_loss = data.val_loss#logs.get('val_loss')
+            cur_val_loss = data.val_loss
             self.val_loss.append(cur_val_loss)
             if cur_val_loss < self.best_val_loss:
                 if self.verbose > 0:
