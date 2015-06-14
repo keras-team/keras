@@ -45,7 +45,7 @@ def categorical_crossentropy(y_true, y_pred, weight=None):
 
 def binary_crossentropy(y_true, y_pred, weight=None):
     y_pred = T.clip(y_pred, epsilon, 1.0 - epsilon)
-    bce = T.nnet.binary_crossentropy(y_pred, y_true).mean()
+    bce = T.nnet.binary_crossentropy(y_pred, y_true)
     if weight is not None:
         return (weight*bce).mean()
     else:
