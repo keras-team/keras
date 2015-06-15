@@ -20,13 +20,15 @@ def mean_absolute_error(y_true, y_pred, weight=None):
 
 def squared_hinge(y_true, y_pred, weight=None):
     if weight is not None:
-        return T.sqr(T.maximum(1. - weight.reshape((weight.shape[0], 1))*(y_true * y_pred), 0.)).mean()
+        weight = weight.reshape((weight.shape[0], 1))
+        return T.sqr(weight*T.maximum(1. - (y_true * y_pred), 0.)).mean()
     else:
         return T.sqr(T.maximum(1. - y_true * y_pred, 0.)).mean()
 
 def hinge(y_true, y_pred, weight=None):
     if weight is not None:
-        return T.maximum(1. - weight.reshape((weight.shape[0], 1))*(y_true * y_pred), 0.).mean()
+        weight = weight.reshape((weight.shape[0], 1))
+        return (weight*T.maximum(1. - (y_true * y_pred), 0.)).mean()
     else:
         return T.maximum(1. - y_true * y_pred, 0.).mean()
 
