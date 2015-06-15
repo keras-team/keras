@@ -4,7 +4,7 @@ import theano.tensor as T
 import numpy as np
 from six.moves import range
 
-epsilon = 1.0e-15
+epsilon = 1.0e-9
 
 def mean_squared_error(y_true, y_pred, weight=None):
     if weight is not None:
