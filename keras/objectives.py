@@ -8,25 +8,25 @@ epsilon = 1.0e-15
 
 def mean_squared_error(y_true, y_pred, weight=None):
     if weight is not None:
-        return T.sqr(weight*(y_pred - y_true)).mean()
+        return T.sqr(weight.reshape((weight.shape[0], 1))*(y_pred - y_true)).mean()
     else:
         return T.sqr(y_pred - y_true).mean()
 
 def mean_absolute_error(y_true, y_pred, weight=None):
     if weight is not None:
-        return T.abs_(weight*(y_pred - y_true)).mean()
+        return T.abs_(weight.reshape((weight.shape[0], 1))*(y_pred - y_true)).mean()
     else:
         return T.abs_(y_pred - y_true).mean()
 
 def squared_hinge(y_true, y_pred, weight=None):
     if weight is not None:
-        return T.sqr(T.maximum(1. - weight*(y_true * y_pred), 0.)).mean()
+        return T.sqr(T.maximum(1. - weight.reshape((weight.shape[0], 1))*(y_true * y_pred), 0.)).mean()
     else:
         return T.sqr(T.maximum(1. - y_true * y_pred, 0.)).mean()
 
 def hinge(y_true, y_pred, weight=None):
     if weight is not None:
-        return T.maximum(1. - weight*(y_true * y_pred), 0.).mean()
+        return T.maximum(1. - weight.reshape((weight.shape[0], 1))*(y_true * y_pred), 0.).mean()
     else:
         return T.maximum(1. - y_true * y_pred, 0.).mean()
 
@@ -47,7 +47,7 @@ def binary_crossentropy(y_true, y_pred, weight=None):
     y_pred = T.clip(y_pred, epsilon, 1.0 - epsilon)
     bce = T.nnet.binary_crossentropy(y_pred, y_true)
     if weight is not None:
-        return (weight*bce).mean()
+        return (weight.reshape((weight.shape[0], 1))*bce).mean()
     else:
         return bce.mean()
 
