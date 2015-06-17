@@ -379,6 +379,9 @@ class AutoEncoder(Layer):
         return self.encoder.get_output(train)
 
     def get_output(self, train):
+        if not train and not self.output_reconstruction:
+            return self.encoder.get_output(train)
+
         decoded = self.decoder.get_output(train)
 
         if self.tie_weights:
