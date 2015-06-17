@@ -19,7 +19,7 @@ class SimpleRNN(Layer):
     '''
     def __init__(self, input_dim, output_dim, 
         init='glorot_uniform', inner_init='orthogonal', activation='sigmoid', weights=None,
-        truncate_gradient=-1, return_sequences=False):
+        truncate_gradient=-1, return_sequences=False, time_mask=False, return_time_mask=None):
         super(SimpleRNN,self).__init__()
         self.init = initializations.get(init)
         self.inner_init = initializations.get(inner_init)
@@ -28,6 +28,13 @@ class SimpleRNN(Layer):
         self.truncate_gradient = truncate_gradient
         self.activation = activations.get(activation)
         self.return_sequences = return_sequences
+        self.time_mask = time_mask
+        if return_time_mask is None:
+            self.return_time_mask = self.time_mask and self.return_sequences
+        else:
+            if not self.return_sequences:
+                raise Exception("Can't return the time mask if not returning sequences")
+            self.return_time_mask = return_time_mask
         self.input = T.tensor3()
 
         self.W = self.init((self.input_dim, self.output_dim))
@@ -38,18 +45,27 @@ class SimpleRNN(Layer):
         if weights is not None:
             self.set_weights(weights)
 
-    def _step(self, x_t, h_tm1, u):
+    def _step(self, x_t, mask, h_tm1, u):
         '''
             Variable names follow the conventions from: 
             http://deeplearning.net/software/theano/library/scan.html
 
         '''
-        return self.activation(x_t + T.dot(h_tm1, u))
+        h_t = self.activation(x_t + T.dot(h_tm1, u)) 
+        return mask*h_t + (1-mask)*h_tm1
 
     def get_output(self, train):
         X = self.get_input(train) # shape: (nb_samples, time (padded with zeros at the end), input_dim)
         # new shape: (time, nb_samples, input_dim) -> because theano.scan iterates over main dimension
         X = X.dimshuffle((1,0,2)) 
+
+        if self.time_mask:
+            # [X, mask]
+            mask = X[X.shape[0]//2:, : ,0:1] # we will always broadcast our masks across input dimensions
+            X = X[:X.shape[0]//2, :, :]
+        else:
+            mask = T.ones((X.shape[0], X.shape[1], 1))
+        mask = T.addbroadcast(mask, 2)
 
         x = T.dot(X, self.W) + self.b
         
@@ -58,14 +74,22 @@ class SimpleRNN(Layer):
         # Iterate over the first dimension of the x array (=time).
         outputs, updates = theano.scan(
             self._step, # this will be called with arguments (sequences[i], outputs[i-1], non_sequences[i])
-            sequences=x, # tensors to iterate over, inputs to _step
+            sequences=[x, mask], # tensors to iterate over, inputs to _step
             # initialization of the output. Input to _step with default tap=-1.
             outputs_info=T.unbroadcast(alloc_zeros_matrix(X.shape[1], self.output_dim), 1),
             non_sequences=self.U, # static inputs to _step
             truncate_gradient=self.truncate_gradient
         )
+
+
         if self.return_sequences:
-            return outputs.dimshuffle((1,0,2))
+            result = outputs.dimshuffle((1,0,2))
+            if self.return_time_mask:
+                maskout = T.zeros_like(result)
+                maskout = T.set_subtensor(maskout[:,:,0:1], mask.dimshuffle((1,0,2)))
+                return T.concatenate((result, maskout), 1) # concatenate the masks along the time axis
+            else:
+                return result
         return outputs[-1]
 
     def get_config(self):

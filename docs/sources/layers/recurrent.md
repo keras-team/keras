@@ -4,7 +4,7 @@
 ```python
 keras.layers.recurrent.SimpleRNN(input_dim, output_dim, 
         init='glorot_uniform', inner_init='orthogonal', activation='sigmoid', weights=None,
-        truncate_gradient=-1, return_sequences=False)
+        truncate_gradient=-1, time_mask=False, return_time_mask=None, return_sequences=False)
 ```
 Fully connected RNN where output is to fed back to input. Not a particularly useful model, included for demonstration purposes.
 
@@ -21,6 +21,8 @@ Fully connected RNN where output is to fed back to input. Not a particularly use
     - __activation__: activation function. Can be the name of an existing function (str), or a Theano function (see: [activations](../activations.md)).
     - __weights__: list of numpy arrays to set as initial weights. The list should have 3 elements, of shapes: `[(input_dim, output_dim), (output_dim, output_dim), (output_dim,)]`.
     - __truncate_gradient__: Number of steps to use in truncated BPTT. See: [Theano "scan"](http://deeplearning.net/software/theano/library/scan.html).
+	- __time_mask__: Whether a mask is passed concatenated along with the input representing which timesteps should be ignored
+	- __return_time_mask__: Whether or not the time mask should be returned (unchanged) concatenated to the output
     - __return_sequences__: Boolean. Whether to return the last output in the output sequence, or the full sequence.
 
 ---
