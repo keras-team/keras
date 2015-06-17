@@ -212,7 +212,7 @@ class Model(object):
 
                 self.pub_stream.on_next(BatchBegin(batch=batch_index, size=len(batch_ids)))
 
-                ins = X_batch + [y_batch]
+                ins = X_batch + [y_batch, w]
                 loss, acc = (None, None)
                 if show_accuracy:
                     loss, acc = self._train_with_acc(*ins)
