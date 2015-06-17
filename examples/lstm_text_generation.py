@@ -1,6 +1,6 @@
 from __future__ import print_function
 from keras.models import Sequential
-from keras.layers.core import Dense, Activation
+from keras.layers.core import Dense, Activation, Dropout
 from keras.layers.recurrent import LSTM
 from keras.datasets.data_utils import get_file
 import numpy as np
@@ -28,9 +28,9 @@ print('total chars:', len(chars))
 char_indices = dict((c, i) for i, c in enumerate(chars))
 indices_char = dict((i, c) for i, c in enumerate(chars))
 
-# cut the text in semi-redundant sequences of 30 characters
-maxlen = 30
-step = 5
+# cut the text in semi-redundant sequences of maxlen characters
+maxlen = 20
+step = 3
 sentences = []
 next_chars = []
 for i in range(0, len(text) - maxlen, step):
@@ -51,7 +51,9 @@ for i, sentence in enumerate(sentences):
 print('Build model...')
 model = Sequential()
 model.add(LSTM(len(chars), 512, return_sequences=True))
+model.add(Dropout(0.2))
 model.add(LSTM(512, 512, return_sequences=False))
+model.add(Dropout(0.2))
 model.add(Dense(512, len(chars)))
 model.add(Activation('softmax'))
 
@@ -66,8 +68,8 @@ def sample(a, diversity=0.75):
         if a[i] > random.random():
             return i
 
-# train the model, output generated text after each epoch
-for iteration in range(1, 30):
+# train the model, output generated text after each iteration
+for iteration in range(1, 60):
     print()
     print('-' * 50)
     print('Iteration', iteration)
@@ -75,7 +77,7 @@ for iteration in range(1, 30):
 
     start_index = random.randint(0, len(text) - maxlen - 1)
 
-    for diversity in [0.4, 0.7, 1.]:
+    for diversity in [0.2, 0.4, 0.6, 0.8]:
         print()
         print('----- diversity:', diversity)
 
@@ -100,5 +102,3 @@ for iteration in range(1, 30):
             sys.stdout.write(next_char)
             sys.stdout.flush()
         print()
-
-
