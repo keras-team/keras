@@ -201,7 +201,7 @@ class ModelCheckpoint(Callback):
             self.val_loss.append(cur_val_loss)
             if cur_val_loss < self.best_val_loss:
                 if self.verbose > 0:
-                    print("Epoch %05d: valdidation loss improved from %0.5f to %0.5f, saving model to %s"
+                    print("Epoch %05d: validation loss improved from %0.5f to %0.5f, saving model to %s"
                         % (epoch, self.best_val_loss, cur_val_loss, self.filepath))
                 self.best_val_loss = cur_val_loss
                 self.model.save_weights(self.filepath, overwrite=True)
