@@ -15,25 +15,39 @@ class Embedding(Layer):
         @input_dim: size of vocabulary (highest input integer + 1)
         @out_dim: size of dense representation
     '''
-    def __init__(self, input_dim, output_dim, init='uniform', weights=None, W_regularizer=None, W_constraint=None):
+    def __init__(self, input_dim, output_dim, init='uniform', weights=None, W_regularizer=None, W_constraint=None, pass_mask=False):
         super(Embedding,self).__init__()
         self.init = initializations.get(init)
         self.input_dim = input_dim
         self.output_dim = output_dim
 
-        self.input = T.imatrix()
         self.W = self.init((self.input_dim, self.output_dim))
         self.params = [self.W]
         self.constraints = [W_constraint]
         self.regularizers = [W_regularizer]
+
+        self.pass_mask = pass_mask
+
+        if pass_mask:
+            self.input = T.itensor3()
+        else:
+            self.input = T.imatrix()
 
         if weights is not None:
             self.set_weights(weights)
 
     def get_output(self, train=False):
         X = self.get_input(train)
+        if self.pass_mask:
+            mask = X[:,:,-1:]
+            X = X[:,:,0]
         out = self.W[X]
-        return out
+
+        if self.pass_mask:
+            return T.concatenate((out, mask), axis=2).astype(theano.config.floatX)
+        else:
+            return out
+
 
     def get_config(self):
         return {"name":self.__class__.__name__,
