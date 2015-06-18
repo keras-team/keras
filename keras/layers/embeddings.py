@@ -44,7 +44,7 @@ class Embedding(Layer):
         out = self.W[X]
 
         if self.pass_mask:
-            return T.concatenate((out, mask), axis=2)
+            return T.concatenate((out, mask), axis=2).astype(theano.config.floatX)
         else:
             return out
 

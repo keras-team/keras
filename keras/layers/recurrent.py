@@ -64,7 +64,8 @@ class SimpleRNN(Layer):
             mask = X[:, :, -1:]
             X = X[:, :, :-1]
         else:
-            mask = T.ones((X.shape[0], X.shape[1], 1))
+            mask = T.alloc(np.cast[theano.config.floatX](1.), X.shape[0], X.shape[1], 1) # ones
+
         mask = T.addbroadcast(mask, 2)
 
         x = T.dot(X, self.W) + self.b
