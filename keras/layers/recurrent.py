@@ -54,7 +54,7 @@ class SimpleRNN(Layer):
 
         x = T.dot(X, self.W) + self.b
 
-        mask = T.neq(x,self.mask_val).sum(axis=2)>0 # (time, nb_samples) matrix with a 1 for every unmasked entry
+        mask = T.neq(x, self.mask_val).sum(axis=2) > 0 # (time, nb_samples) matrix with a 1 for every unmasked entry
         mask = T.addbroadcast(mask[:, :, np.newaxis], 2)
         
         # scan = theano symbolic loop.
