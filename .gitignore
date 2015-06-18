@@ -1,5 +1,6 @@
 *.DS_Store
 *.pyc
+*.swp
 temp/*
 build/*
 keras/datasets/data/*
