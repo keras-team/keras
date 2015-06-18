@@ -31,6 +31,15 @@ def activity_l1(l=.01):
     def l1wrap(layer):
         # needs to be wrapped twice because input is not present during instantiation
         def l1wrap_wrap():
-            return l * T.sum(T.mean(T.abs(layer.get_output(True)), axis=0))
+            return l * T.sum(T.mean(abs(layer.get_output(True)), axis=0))
         return l1wrap_wrap
     return l1wrap
+
+def activity_l2(l=.01):
+    # activity dependent l1 norm
+    def l2wrap(layer):
+        # needs to be wrapped twice because input is not present during instantiation
+        def l2wrap_wrap():
+            return l * T.sum(T.mean(layer.get_output(True)**2, axis=0))
+        return l2wrap_wrap
+    return l2wrap
