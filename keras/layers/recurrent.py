@@ -39,13 +39,13 @@ class SimpleRNN(Layer):
         if weights is not None:
             self.set_weights(weights)
 
-    def _step(self, x_t, mask_t, h_tm1, u):
+    def _step(self, x_t, mask_t, mask_tm1, h_tm1, u):
         '''
             Variable names follow the conventions from: 
             http://deeplearning.net/software/theano/library/scan.html
 
         '''
-        return mask_t * self.activation(x_t + T.dot(h_tm1, u))
+        return mask_t * self.activation(x_t + mask_tm1 * T.dot(h_tm1, u))
 
     def get_output(self, train):
         X = self.get_input(train) # shape: (nb_samples, time (padded with zeros at the end), input_dim)
@@ -56,13 +56,16 @@ class SimpleRNN(Layer):
 
         mask = T.neq(x, self.mask_val).sum(axis=2) > 0 # (time, nb_samples) matrix with a 1 for every unmasked entry
         mask = T.addbroadcast(mask[:, :, np.newaxis], 2)
+
+        mask_tm1 = alloc_zeros_matrix(*mask.shape)
+        mask_tm1 = T.addbroadcast(T.set_subtensor(mask[1:, :, :], mask[:-1, :, :]), 2)
         
         # scan = theano symbolic loop.
         # See: http://deeplearning.net/software/theano/library/scan.html
         # Iterate over the first dimension of the x array (=time).
         outputs, updates = theano.scan(
             self._step, # this will be called with arguments (sequences[i], outputs[i-1], non_sequences[i])
-            sequences=[x, mask], # tensors to iterate over, inputs to _step
+            sequences=[x, mask, mask_tm1], # tensors to iterate over, inputs to _step
             # initialization of the output. Input to _step with default tap=-1.
             outputs_info=T.unbroadcast(alloc_zeros_matrix(X.shape[1], self.output_dim), 1),
             non_sequences=self.U, # static inputs to _step
