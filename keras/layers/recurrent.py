@@ -35,6 +35,7 @@ class SimpleRNN(Layer):
             if not self.return_sequences:
                 raise Exception("Can't return the time mask if not returning sequences")
             self.return_time_mask = return_time_mask
+
         self.input = T.tensor3()
 
         self.W = self.init((self.input_dim, self.output_dim))
@@ -60,9 +61,8 @@ class SimpleRNN(Layer):
         X = X.dimshuffle((1,0,2)) 
 
         if self.time_mask:
-            # [X, mask]
-            mask = X[X.shape[0]//2:, : ,0:1] # we will always broadcast our masks across input dimensions
-            X = X[:X.shape[0]//2, :, :]
+            mask = X[:, :, -1:]
+            X = X[:, :, :-1]
         else:
             mask = T.ones((X.shape[0], X.shape[1], 1))
         mask = T.addbroadcast(mask, 2)
@@ -85,9 +85,7 @@ class SimpleRNN(Layer):
         if self.return_sequences:
             result = outputs.dimshuffle((1,0,2))
             if self.return_time_mask:
-                maskout = T.zeros_like(result)
-                maskout = T.set_subtensor(maskout[:,:,0:1], mask.dimshuffle((1,0,2)))
-                return T.concatenate((result, maskout), 1) # concatenate the masks along the time axis
+                return T.concatenate((result, mask.dimshuffle((1,0,2))), 2) # concatenate the masks along the dimension axis
             else:
                 return result
         return outputs[-1]
