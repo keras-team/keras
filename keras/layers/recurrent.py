@@ -58,7 +58,7 @@ class SimpleRNN(Layer):
         mask = T.addbroadcast(mask[:, :, np.newaxis], 2)
 
         mask_tm1 = alloc_zeros_matrix(*mask.shape)
-        mask_tm1 = T.addbroadcast(T.set_subtensor(mask[1:, :, :], mask[:-1, :, :]), 2)
+        mask_tm1 = T.addbroadcast(T.set_subtensor(mask_tm1[1:, :, :], mask[:-1, :, :]), 2)
         
         # scan = theano symbolic loop.
         # See: http://deeplearning.net/software/theano/library/scan.html
