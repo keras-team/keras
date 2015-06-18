@@ -16,10 +16,11 @@ def kl_divergence(p, p_hat):
 
 class Optimizer(object):
     
-    def get_updates(self, params, grads):
+    def get_updates(self, params, regularizers, constraints,  cost):
         raise NotImplementedError
 
     def get_gradients(self, cost, params, regularizers):
+
         grads = T.grad(cost, params)
 
         if hasattr(self, 'clipnorm') and self.clipnorm > 0:

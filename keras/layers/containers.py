@@ -20,6 +20,8 @@ class Sequential(Layer):
         self.params = []
         self.regularizers = []
         self.constraints = []
+        self.cost_updates = []
+
         for layer in layers:
             self.add(layer)
 
@@ -35,6 +37,9 @@ class Sequential(Layer):
         self.params += params
         self.regularizers += regularizers
         self.constraints += constraints
+
+        if hasattr(layer,'activity_regularizer'):
+            self.cost_updates.append(layer.activity_regularizer)
 
     def get_output(self, train=False):
         return self.layers[-1].get_output(train)

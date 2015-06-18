@@ -72,7 +72,11 @@ class Model(object):
             raise Exception("Invalid class mode:" + str(class_mode))
         self.class_mode = class_mode
 
-        updates = self.optimizer.get_updates(self.params, self.regularizers, self.constraints, train_loss)
+        if hasattr(self,'cost_updates'):
+            for u in self.cost_updates:
+                train_loss += u
+
+        updates = self.optimizer.get_updates(self.params, self.regularizers, self.constraints,  train_loss)
 
         if type(self.X_train) == list:
             train_ins = self.X_train + [self.y]

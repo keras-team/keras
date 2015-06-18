@@ -276,6 +276,17 @@ class Dense(Layer):
             "init":self.init.__name__,
             "activation":self.activation.__name__}
 
+class ActivityRegularization(Layer):
+    '''
+        Layer that passes through its input unchanged, but applies an update
+        to the cost function based on the activity.
+    '''
+    def __init__(self, activity_regularizer):
+        super(ActivityRegularization,self).__init__()
+        self.activity_regularizer = activity_regularizer(self.get_output())
+
+    def get_output(self, train):
+        return self.get_input(train)
 
 class TimeDistributedDense(Layer):
     '''
