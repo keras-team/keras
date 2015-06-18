@@ -52,13 +52,13 @@ class SimpleRNN(Layer):
         # new shape: (time, nb_samples, input_dim) -> because theano.scan iterates over main dimension
         X = X.dimshuffle((1,0,2)) 
 
-        x = T.dot(X, self.W) + self.b
-
-        mask = T.neq(x, self.mask_val).sum(axis=2) > 0 # (time, nb_samples) matrix with a 1 for every unmasked entry
+        mask = T.neq(X, self.mask_val).sum(axis=2) > 0 # (time, nb_samples) matrix with a 1 for every unmasked entry
         mask = T.addbroadcast(mask[:, :, np.newaxis], 2)
 
         mask_tm1 = alloc_zeros_matrix(*mask.shape)
         mask_tm1 = T.addbroadcast(T.set_subtensor(mask_tm1[1:, :, :], mask[:-1, :, :]), 2)
+
+        x = T.dot(X, self.W) + self.b
         
         # scan = theano symbolic loop.
         # See: http://deeplearning.net/software/theano/library/scan.html
