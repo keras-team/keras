@@ -24,3 +24,13 @@ def l1l2(l1=.01, l2=.01):
 
 def identity(g, p):
     return g
+
+
+def activity_l1(l=.01):
+    # activity dependent l1 norm
+    def l1wrap(layer):
+        # needs to be wrapped twice because input is not present during instantiation
+        def l1wrap_wrap():
+            return l * T.sum(T.mean(layer.get_output(True)**2, axis=0))
+        return l1wrap_wrap
+    return l1wrap

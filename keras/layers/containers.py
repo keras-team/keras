@@ -38,8 +38,8 @@ class Sequential(Layer):
         self.regularizers += regularizers
         self.constraints += constraints
 
-        if hasattr(layer,'activity_regularizer'):
-            self.cost_updates.append(layer.activity_regularizer)
+        if hasattr(layer, 'cost_update'):
+            self.cost_updates.append(layer.cost_update)
 
     def get_output(self, train=False):
         return self.layers[-1].get_output(train)

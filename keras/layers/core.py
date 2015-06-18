@@ -282,8 +282,8 @@ class ActivityRegularization(Layer):
         to the cost function based on the activity.
     '''
     def __init__(self, activity_regularizer):
-        super(ActivityRegularization,self).__init__()
-        self.activity_regularizer = activity_regularizer(self.get_output())
+        super(ActivityRegularization, self).__init__()
+        self.cost_update = activity_regularizer(self)
 
     def get_output(self, train):
         return self.get_input(train)
