@@ -14,6 +14,8 @@ from theano.sandbox.rng_mrg import MRG_RandomStreams as RandomStreams
 from six.moves import zip
 srng = RandomStreams()
 
+default_mask_val = -999.
+
 class Layer(object):
     def __init__(self):
         self.params = []

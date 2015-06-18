@@ -5,8 +5,8 @@ import theano.tensor as T
 import numpy as np
 
 from .. import activations, initializations
-from ..utils.theano_utils import shared_zeros, alloc_zeros_matrix
-from ..layers.core import Layer
+from ..utils.theano_utils import shared_scalar, shared_zeros, alloc_zeros_matrix
+from ..layers.core import Layer, default_mask_val
 from six.moves import range
 
 class SimpleRNN(Layer):
@@ -19,7 +19,7 @@ class SimpleRNN(Layer):
     '''
     def __init__(self, input_dim, output_dim, 
         init='glorot_uniform', inner_init='orthogonal', activation='sigmoid', weights=None,
-        truncate_gradient=-1, return_sequences=False):
+        truncate_gradient=-1, return_sequences=False, mask_val=default_mask_val):
         super(SimpleRNN,self).__init__()
         self.init = initializations.get(init)
         self.inner_init = initializations.get(inner_init)
@@ -28,6 +28,7 @@ class SimpleRNN(Layer):
         self.truncate_gradient = truncate_gradient
         self.activation = activations.get(activation)
         self.return_sequences = return_sequences
+        self.mask_val = shared_scalar(mask_val)
         self.input = T.tensor3()
 
         self.W = self.init((self.input_dim, self.output_dim))
@@ -38,13 +39,13 @@ class SimpleRNN(Layer):
         if weights is not None:
             self.set_weights(weights)
 
-    def _step(self, x_t, h_tm1, u):
+    def _step(self, x_t, mask_t, h_tm1, u):
         '''
             Variable names follow the conventions from: 
             http://deeplearning.net/software/theano/library/scan.html
 
         '''
-        return self.activation(x_t + T.dot(h_tm1, u))
+        return mask_t*self.activation(x_t + T.dot(h_tm1, u))
 
     def get_output(self, train):
         X = self.get_input(train) # shape: (nb_samples, time (padded with zeros at the end), input_dim)
@@ -52,13 +53,16 @@ class SimpleRNN(Layer):
         X = X.dimshuffle((1,0,2)) 
 
         x = T.dot(X, self.W) + self.b
+
+        mask = T.neq(x,self.mask_val).sum(axis=2)>0 # (time, nb_samples) matrix with a 1 for every unmasked entry
+        mask = T.addbroadcast(mask[:,:,np.newaxis], 2)
         
         # scan = theano symbolic loop.
         # See: http://deeplearning.net/software/theano/library/scan.html
         # Iterate over the first dimension of the x array (=time).
         outputs, updates = theano.scan(
             self._step, # this will be called with arguments (sequences[i], outputs[i-1], non_sequences[i])
-            sequences=x, # tensors to iterate over, inputs to _step
+            sequences=[x, mask], # tensors to iterate over, inputs to _step
             # initialization of the output. Input to _step with default tap=-1.
             outputs_info=T.unbroadcast(alloc_zeros_matrix(X.shape[1], self.output_dim), 1),
             non_sequences=self.U, # static inputs to _step
