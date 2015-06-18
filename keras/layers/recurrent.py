@@ -45,7 +45,7 @@ class SimpleRNN(Layer):
             http://deeplearning.net/software/theano/library/scan.html
 
         '''
-        return mask_t*self.activation(x_t + T.dot(h_tm1, u))
+        return mask_t * self.activation(x_t + T.dot(h_tm1, u))
 
     def get_output(self, train):
         X = self.get_input(train) # shape: (nb_samples, time (padded with zeros at the end), input_dim)
@@ -55,7 +55,7 @@ class SimpleRNN(Layer):
         x = T.dot(X, self.W) + self.b
 
         mask = T.neq(x,self.mask_val).sum(axis=2)>0 # (time, nb_samples) matrix with a 1 for every unmasked entry
-        mask = T.addbroadcast(mask[:,:,np.newaxis], 2)
+        mask = T.addbroadcast(mask[:, :, np.newaxis], 2)
         
         # scan = theano symbolic loop.
         # See: http://deeplearning.net/software/theano/library/scan.html

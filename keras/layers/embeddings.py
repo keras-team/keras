@@ -23,7 +23,7 @@ class Embedding(Layer):
 
         self.input = T.imatrix()
         self.W = self.init((self.input_dim, self.output_dim))
-        T.set_subtensor(self.W[0,:], mask_val)
+        T.set_subtensor(self.W[0, :], mask_val)
         self.params = [self.W]
         self.constraints = [W_constraint]
         self.regularizers = [W_regularizer]
