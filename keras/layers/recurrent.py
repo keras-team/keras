@@ -12,17 +12,17 @@ from six.moves import range
 def get_mask(X, mask_val, steps_back=0):
     '''
         Given X, a (timesteps, nb_samples, n_dimensions) tensor, returns a mask
-        tensor  with dimension (timesteps + steps_back, nb_samples, 1).  This
-        matrix is left-padded with `steps_back` zeros in the time dimension, and
-        elsewhere has a 1 for every entry except for those corresponding to a
-        vector in X that has every entry equal to mask_val.
+        tensor and, if steps_back>0, a padded_mask tensor  with dimension (timesteps + steps_back, nb_samples, 1).
+        This tensor is left-padded with `steps_back` zeros in the time dimension.
+        
+        The mask has a 1 for every entry except for those corresponding to a vector in X that has every entry equal to mask_val.
     '''
     mask = T.neq(X, mask_val).sum(axis=2) > 0 # (time, nb_samples) matrix with a 1 for every unmasked entry
     mask = T.addbroadcast(mask[:, :, np.newaxis], 2) # (time, nb_samples, 1) matrix.
     if steps_back > 0:
         # left-pad in time with 0
         pad = alloc_zeros_matrix(steps_back, mask.shape[1], 1).astype('uint8')
-        mask = T.concatenate([pad, mask], axis=0)
+        return mask, T.concatenate([pad, mask], axis=0)
     return mask
 
     
@@ -64,14 +64,14 @@ class SimpleRNN(Layer):
 
         '''
         normal_output = self.activation(x_t + mask_tm1 * T.dot(h_tm1, u))
-        return mask_t * normal_output + (1 - mask_t) * self.mask_val
+        return mask_t * normal_output
 
     def get_output(self, train):
         X = self.get_input(train) # shape: (nb_samples, time (padded with zeros at the end), input_dim)
         # new shape: (time, nb_samples, input_dim) -> because theano.scan iterates over main dimension
         X = X.dimshuffle((1,0,2)) 
 
-        mask = get_mask(X, self.mask_val, steps_back=1)
+        mask, padded_mask = get_mask(X, self.mask_val, steps_back=1)
 
         x = T.dot(X, self.W) + self.b
         
@@ -80,12 +80,14 @@ class SimpleRNN(Layer):
         # Iterate over the first dimension of the x array (=time).
         outputs, updates = theano.scan(
             self._step, # this will be called with arguments (sequences[i], outputs[i-1], non_sequences[i])
-            sequences=[x, dict(input=mask,taps=[0, -1])], # tensors to iterate over, inputs to _step
+            sequences=[x, dict(input=padded_mask,taps=[0, -1])], # tensors to iterate over, inputs to _step
             # initialization of the output. Input to _step with default tap=-1.
             outputs_info=T.unbroadcast(alloc_zeros_matrix(X.shape[1], self.output_dim), 1),
             non_sequences=self.U, # static inputs to _step
             truncate_gradient=self.truncate_gradient
         )
+        # Apply the mask:
+        outputs = mask*outputs + (1-mask)*self.mask_val
         if self.return_sequences:
             return outputs.dimshuffle((1,0,2))
         return outputs[-1]
@@ -143,14 +145,13 @@ class SimpleDeepRNN(Layer):
             h_tmi = args[i + self.depth]
             U_tmi = args[i + 2*self.depth]
             o += mask_tmi*self.inner_activation(T.dot(h_tmi, U_tmi))
-        result = mask_t*self.activation(o) + (1 - mask_t)*self.mask_val
-        return result
+        return mask_t*self.activation(o)
 
     def get_output(self, train):
         X = self.get_input(train)
         X = X.dimshuffle((1,0,2)) 
 
-        mask = get_mask(X, self.mask_val, steps_back=self.depth)
+        mask, padded_mask = get_mask(X, self.mask_val, steps_back=self.depth)
 
         x = T.dot(X, self.W) + self.b
         
@@ -162,7 +163,7 @@ class SimpleDeepRNN(Layer):
         outputs, updates = theano.scan(
             self._step,
             sequences=[x, dict(
-                input = mask,
+                input = padded_mask,
                 taps = [(-i) for i in range(self.depth+1)]
             )],
             outputs_info=[dict(
@@ -172,6 +173,7 @@ class SimpleDeepRNN(Layer):
             non_sequences=self.Us,
             truncate_gradient=self.truncate_gradient
         )
+        outputs = mask*outputs + (1-mask)*self.mask_val
         if self.return_sequences:
             return outputs.dimshuffle((1,0,2))
         return outputs[-1]
