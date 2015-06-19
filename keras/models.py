@@ -164,10 +164,9 @@ class Model(object):
 
         index_array = np.arange(len(y))
 
-        callbacks = cbks.CallbackList(callbacks)
         if verbose:
-            callbacks.append(cbks.BaseLogger())
-        callbacks.append(cbks.History())
+            callbacks = [cbks.BaseLogger()] + callbacks
+        callbacks = cbks.CallbackList([cbks.History()] + callbacks)
 
         callbacks._set_model(self)
         callbacks._set_params({
@@ -180,6 +179,7 @@ class Model(object):
         })
         callbacks.on_train_begin()
 
+        self.stop_training = False
         for epoch in range(nb_epoch):
             callbacks.on_epoch_begin(epoch)
             if shuffle:
@@ -222,10 +222,11 @@ class Model(object):
                         epoch_logs['val_loss'] = val_loss
 
             callbacks.on_epoch_end(epoch, epoch_logs)
+            if self.stop_training:
+                break
 
         callbacks.on_train_end()
-        # return history
-        return callbacks.callbacks[-1]
+        return callbacks.callbacks[0] # return history
 
     def predict(self, X, batch_size=128, verbose=1):
         X = standardize_X(X)
