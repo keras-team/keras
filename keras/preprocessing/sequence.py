@@ -4,31 +4,39 @@ import numpy as np
 import random
 from six.moves import range
 
-def pad_sequences(sequences, maxlen=None, dtype='int32', padding='pre'):
+
+def pad_sequences(sequences, maxlen=None, dtype='int32', padding='pre', vector_sequence=False):
     """
         Pad each sequence to the same length: 
         the length of the longuest sequence.
 
         If maxlen is provided, any sequence longer
-        than maxlen is truncated to maxlen.
+        then maxlen is truncated to maxlen.
+        
+        If vector_sequence is true, then each sequences of numpy
+        arrays is padded using arrays of zeros.
 
         Support post-padding and pre-padding (default).
     """
     lengths = [len(s) for s in sequences]
-
     nb_samples = len(sequences)
     if maxlen is None:
         maxlen = np.max(lengths)
-
-    x = np.zeros((nb_samples, maxlen)).astype(dtype)
+    
+    if not vector_sequence:
+        x = np.zeros((nb_samples, maxlen)).astype(dtype)
+    else:
+        dim = len(sequences[0][0])
+        x = np.zeros((nb_samples, maxlen, dim)).astype(dtype)
+     
     for idx, s in enumerate(sequences):
         if padding == 'post':
             x[idx, :lengths[idx]] = s[:maxlen]
         else:
             x[idx, -min(maxlen, lengths[idx]):] = s[:maxlen]
     return x
-
-
+        
+        
 def make_sampling_table(size, sampling_factor=1e-5):
     '''
         This generates an array where the ith element
