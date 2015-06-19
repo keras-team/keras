@@ -114,7 +114,7 @@ class SimpleDeepRNN(Layer):
     def __init__(self, input_dim, output_dim, depth=3,
         init='glorot_uniform', inner_init='orthogonal', 
         activation='sigmoid', inner_activation='hard_sigmoid',
-        weights=None, truncate_gradient=-1, return_sequences=False):
+        weights=None, truncate_gradient=-1, return_sequences=False, mask_val=default_mask_val):
         super(SimpleDeepRNN,self).__init__()
         self.init = initializations.get(init)
         self.inner_init = initializations.get(inner_init)
@@ -126,6 +126,7 @@ class SimpleDeepRNN(Layer):
         self.depth = depth
         self.return_sequences = return_sequences
         self.input = T.tensor3()
+        self.mask_val = shared_scalar(mask_val)
 
         self.W = self.init((self.input_dim, self.output_dim))
         self.Us = [self.inner_init((self.output_dim, self.output_dim)) for _ in range(self.depth)]
@@ -135,23 +136,37 @@ class SimpleDeepRNN(Layer):
         if weights is not None:
             self.set_weights(weights)
 
-    def _step(self, *args):
-        o = args[0]
-        for i in range(1, self.depth+1):
-            o += self.inner_activation(T.dot(args[i], args[i+self.depth]))
-        return self.activation(o)
+    def _step(self, x_t, mask_t, *args):
+        o = x_t
+        for i in range(self.depth):
+            mask_tmi = args[i]
+            h_tmi = args[i + self.depth]
+            U_tmi = args[i + 2*self.depth]
+            o += mask_tmi*self.inner_activation(T.dot(h_tmi, U_tmi))
+        result = mask_t*self.activation(o) + (1 - mask_t)*self.mask_val
+        return result
 
     def get_output(self, train):
         X = self.get_input(train)
         X = X.dimshuffle((1,0,2)) 
 
+        mask = get_mask(X, self.mask_val, steps_back=self.depth)
+
         x = T.dot(X, self.W) + self.b
         
+        if self.depth == 1:
+            initial = T.unbroadcast(alloc_zeros_matrix(X.shape[1], self.output_dim), 1)
+        else:
+            initial = T.unbroadcast(T.unbroadcast(alloc_zeros_matrix(self.depth, X.shape[1], self.output_dim), 0), 2)
+
         outputs, updates = theano.scan(
             self._step,
-            sequences=x,
+            sequences=[x, dict(
+                input = mask,
+                taps = [(-i) for i in range(self.depth+1)]
+            )],
             outputs_info=[dict(
-                initial=T.alloc(np.cast[theano.config.floatX](0.), self.depth, X.shape[1], self.output_dim),
+                initial = initial,
                 taps = [(-i-1) for i in range(self.depth)]
             )],
             non_sequences=self.Us,
