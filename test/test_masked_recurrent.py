@@ -7,6 +7,7 @@ from keras.models import Sequential
 from keras.layers.core import Dense, Activation, Merge
 from keras.layers.embeddings import Embedding
 from keras.layers.recurrent import SimpleRNN
+from keras.layers.core import default_mask_val
 import theano
 
 theano.config.exception_verbosity='high' 
@@ -22,6 +23,10 @@ model.add(Dense(3,4, activation='softmax'))
 model.compile(loss='categorical_crossentropy',
         optimizer='rmsprop', theano_mode=theano.compile.mode.FAST_RUN)
 print("Compiled model")
+
+if model.layers[0].W.get_value()[0,:] != default_mask_val:
+    raise Exception("Did not set the mask val properly into the Embedding W matrix, got: ",
+            model.layers[0].W.get_value()[0,:]
 
 W = model.get_weights() # We'll save these so we can reset it later
 
@@ -45,6 +50,11 @@ model.fit(X, X0_onehot, nb_epoch=1)
 score = model.evaluate(X, X0_onehot)
 if score > uniform_score*0.9:
     raise Exception('Failed to learn to copy timestep 0, score %f' % score)
+
+if model.layers[0].W.get_value()[0,:] != default_mask_val:
+    raise Exception("After training, the W of the Embedding's mask value changed to: ",
+            model.layers[0].W.get_value()[0,:]
+    
 
 model.set_weights(W)
 
