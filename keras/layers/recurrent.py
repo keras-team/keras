@@ -9,6 +9,24 @@ from ..utils.theano_utils import shared_scalar, shared_zeros, alloc_zeros_matrix
 from ..layers.core import Layer, default_mask_val
 from six.moves import range
 
+def get_mask(X, mask_val, steps_back=0):
+    '''
+        Given X, a (timesteps, nb_samples, n_dimensions) tensor, returns a mask
+        tensor  with dimension (timesteps + steps_back, nb_samples, 1).  This
+        matrix is left-padded with `steps_back` zeros in the time dimension, and
+        elsewhere has a 1 for every entry except for those corresponding to a
+        vector in X that has every entry equal to mask_val.
+    '''
+    mask = T.neq(X, mask_val).sum(axis=2) > 0 # (time, nb_samples) matrix with a 1 for every unmasked entry
+    mask = T.addbroadcast(mask[:, :, np.newaxis], 2) # (time, nb_samples, 1) matrix.
+    if steps_back > 0:
+        # left-pad in time with 0
+        pad = alloc_zeros_matrix(steps_back, mask.shape[1], 1).astype('uint8')
+        mask = T.concatenate([pad, mask], axis=0)
+    return mask
+
+    
+
 class SimpleRNN(Layer):
     '''
         Fully connected RNN where output is to fed back to input.
@@ -53,11 +71,7 @@ class SimpleRNN(Layer):
         # new shape: (time, nb_samples, input_dim) -> because theano.scan iterates over main dimension
         X = X.dimshuffle((1,0,2)) 
 
-        mask = T.neq(X, self.mask_val).sum(axis=2) > 0 # (time, nb_samples) matrix with a 1 for every unmasked entry
-        mask = T.addbroadcast(mask[:, :, np.newaxis], 2)
-
-        mask_tm1 = alloc_zeros_matrix(*mask.shape).astype('int8')
-        mask_tm1 = T.addbroadcast(T.set_subtensor(mask_tm1[1:, :, :], mask[:-1, :, :]), 2)
+        mask = get_mask(X, self.mask_val, steps_back=1)
 
         x = T.dot(X, self.W) + self.b
         
@@ -66,7 +80,7 @@ class SimpleRNN(Layer):
         # Iterate over the first dimension of the x array (=time).
         outputs, updates = theano.scan(
             self._step, # this will be called with arguments (sequences[i], outputs[i-1], non_sequences[i])
-            sequences=[x, mask, mask_tm1], # tensors to iterate over, inputs to _step
+            sequences=[x, dict(input=mask,taps=[0, -1])], # tensors to iterate over, inputs to _step
             # initialization of the output. Input to _step with default tap=-1.
             outputs_info=T.unbroadcast(alloc_zeros_matrix(X.shape[1], self.output_dim), 1),
             non_sequences=self.U, # static inputs to _step
