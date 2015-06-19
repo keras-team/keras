@@ -13,7 +13,7 @@ import numpy as np
     Train a simple deep NN on the MNIST dataset.
 '''
 
-batch_size = 64
+batch_size = 128
 nb_classes = 10
 nb_epoch = 20
 
