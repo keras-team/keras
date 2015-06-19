@@ -85,8 +85,6 @@ for nb in range(nb_classes):
 batch_size = 64
 nb_epoch = 10
 
-np.random.seed(1337) # for reproducibility
-
 def generateData(n_samples, n_dim):
     A_feats = np.random.randn(n_samples, n_dim)
     B_feats = np.random.randn(n_samples, n_dim)
@@ -155,6 +153,123 @@ print("hinge: %0.2f VS %0.2f" % (neg_preds, pos_preds))
 # squared hinge
 model = createModel('squared_hinge', n_dim, "tanh")
 model.fit(X_train, y_train, batch_size=batch_size, nb_epoch=nb_epoch, show_accuracy=True, verbose=verbosity, validation_data=(X_test, y_test), class_weight=cw)
+res = model.predict(X_test, verbose=verbosity)
+res[res < 0] = -1
+res[res >= 0] = 1
+neg_preds, pos_preds = (1.0*np.sum(res == -1)/res.shape[0], 1.0*np.sum(res == 1)/res.shape[0])
+assert(neg_preds > pos_preds)
+print("sqr hinge: %0.2f VS %0.2f" % (neg_preds, pos_preds))
+
+
+############################
+# sample weight test cases #
+############################
+
+batch_size = 128
+nb_epoch = 15
+
+# the data, shuffled and split between tran and test sets
+(X_train, y_train), (X_test, y_test) = mnist.load_data()
+
+X_train = X_train.reshape(60000,784)[:max_train_samples]
+X_test = X_test.reshape(10000,784)[:max_test_samples]
+X_train = X_train.astype("float32")
+X_test = X_test.astype("float32")
+X_train /= 255
+X_test /= 255
+
+# convert class vectors to binary class matrices
+y_train = y_train[:max_train_samples]
+y_test = y_test[:max_test_samples]
+Y_train = np_utils.to_categorical(y_train, nb_classes)
+Y_test = np_utils.to_categorical(y_test, nb_classes)
+
+print("Sample weight test cases")
+
+# categorical crossentropy
+model_sampleweights_fit = createMNISTModel()
+model_sampleweights_train = createMNISTModel()
+model_fit = createMNISTModel()
+model_train = createMNISTModel()
+
+sample_weight = np.ones((Y_train.shape[0]))
+sample_weight[y_train == 9] = high_weight
+
+model_sampleweights_fit.fit(X_train, Y_train, batch_size=batch_size, nb_epoch=nb_epoch, show_accuracy=True, verbose=0, validation_data=(X_test, Y_test), sample_weight=sample_weight)
+model_fit.fit(X_train, Y_train, batch_size=batch_size, nb_epoch=nb_epoch, show_accuracy=True, verbose=0, validation_data=(X_test, Y_test))
+model_sampleweights_train.train(X_train, Y_train, sample_weight=sample_weight)
+model_train.train(X_train, Y_train)
+
+print('MNIST Classification accuracies on test set for fitted models:')
+for nb in range(nb_classes):
+    testIdcs = np.where(y_test == np.array(nb))[0]
+    X_temp = X_test[testIdcs, :]
+    Y_temp = Y_test[testIdcs,:]
+    # eval model which was trained with fit()
+    score_sw = model_sampleweights_fit.evaluate(X_temp, Y_temp, show_accuracy=True, verbose=0)
+    score = model_fit.evaluate(X_temp, Y_temp, show_accuracy=True, verbose=0)
+    # eval model which was trained with train()
+    score_sw_train = model_sampleweights_train.evaluate(X_temp, Y_temp, show_accuracy=True, verbose=0)
+    score_train = model_train.evaluate(X_temp, Y_temp, show_accuracy=True, verbose=0)
+    # print test accuracies for class weighted model vs. uniform weights
+    print("Digit %d: sample_weight = %d -> %.3f \t sample_weight = %d -> %.3f" % (nb, 100 if nb == 9 else 1, score_sw[1], 1, score[1]))
+    if nb == 9 and (score_sw[1] <= score[1] or score_sw_train[1] <= score_train[1]):
+        raise Exception('Sample weights are not implemented correctly')
+
+
+n_dim = 100
+X_train, y_train = generateData(1000, n_dim)
+X_test, y_test = generateData(5000, n_dim)
+
+y_train[y_train == -1] = 0
+y_test[y_test == -1] = 0
+
+sample_weight = np.ones((y_train.shape[0]))
+sample_weight[y_train == 0] = 1.5
+
+# binary crossentropy
+model = createModel('binary_crossentropy', n_dim)
+model.fit(X_train, y_train, batch_size=batch_size, nb_epoch=nb_epoch, show_accuracy=True, verbose=verbosity, validation_data=(X_test, y_test), sample_weight=sample_weight)
+res = model.predict(X_test, verbose=verbosity).round()
+neg_preds, pos_preds = (1.0*np.sum(res == 0)/res.shape[0], 1.0*np.sum(res == 1)/res.shape[0])
+assert(neg_preds > pos_preds)
+print("binary crossentropy: %0.2f VS %0.2f" % (neg_preds, pos_preds))
+
+# MAE
+model = createModel('mean_absolute_error', n_dim)
+model.fit(X_train, y_train, batch_size=batch_size, nb_epoch=nb_epoch, show_accuracy=True, verbose=verbosity, validation_data=(X_test, y_test), sample_weight=sample_weight)
+res = model.predict(X_test, verbose=verbosity).round()
+neg_preds, pos_preds = (1.0*np.sum(res == 0)/res.shape[0], 1.0*np.sum(res == 1)/res.shape[0])
+assert(neg_preds > pos_preds)
+print("MAE: %0.2f VS %0.2f" % (neg_preds, pos_preds))
+
+# MSE
+model = createModel('mean_squared_error', n_dim)
+model.fit(X_train, y_train, batch_size=batch_size, nb_epoch=nb_epoch, show_accuracy=True, verbose=verbosity, validation_data=(X_test, y_test), sample_weight=sample_weight)
+res = model.predict(X_test, verbose=verbosity).round()
+neg_preds, pos_preds = (1.0*np.sum(res == 0)/res.shape[0], 1.0*np.sum(res == 1)/res.shape[0])
+assert(neg_preds > pos_preds)
+print("MSE: %0.2f VS %0.2f" % (neg_preds, pos_preds))
+
+# hinge losses, map labels
+y_train[y_train == 0] = -1
+y_test[y_test == 0] = -1
+sample_weight = np.ones((y_train.shape[0]))
+sample_weight[y_train == -1] = 1.5
+
+# hinge
+model = createModel('hinge', n_dim, "tanh")
+model.fit(X_train, y_train, batch_size=batch_size, nb_epoch=nb_epoch, show_accuracy=True, verbose=verbosity, validation_data=(X_test, y_test), sample_weight=sample_weight)
+res = model.predict(X_test, verbose=verbosity)
+res[res < 0] = -1
+res[res >= 0] = 1
+neg_preds, pos_preds = (1.0*np.sum(res == -1)/res.shape[0], 1.0*np.sum(res == 1)/res.shape[0])
+assert(neg_preds > pos_preds)
+print("hinge: %0.2f VS %0.2f" % (neg_preds, pos_preds))
+
+# squared hinge
+model = createModel('squared_hinge', n_dim, "tanh")
+model.fit(X_train, y_train, batch_size=batch_size, nb_epoch=nb_epoch, show_accuracy=True, verbose=verbosity, validation_data=(X_test, y_test), sample_weight=sample_weight)
 res = model.predict(X_test, verbose=verbosity)
 res[res < 0] = -1
 res[res >= 0] = 1
