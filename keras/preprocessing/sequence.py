@@ -13,8 +13,8 @@ def pad_sequences(sequences, maxlen=None, dtype='int32', padding='pre', vector_s
         If maxlen is provided, any sequence longer
         then maxlen is truncated to maxlen.
         
-        If vector_sequence is true, then each sequences of numpy
-        arrays is padded using arrays of zeros.
+        If vector_sequence is true, then each sequence of numpy
+        array is padded using zero arrays.
 
         Support post-padding and pre-padding (default).
     """
