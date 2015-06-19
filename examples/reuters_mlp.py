@@ -19,6 +19,7 @@ from keras.preprocessing.text import Tokenizer
 
 max_words = 1000
 batch_size = 32
+nb_epoch = 5
 
 print("Loading data...")
 (X_train, y_train), (X_test, y_test) = reuters.load_data(nb_words=max_words, test_split=0.2)
@@ -43,15 +44,15 @@ print('Y_test shape:', Y_test.shape)
 
 print("Building model...")
 model = Sequential()
-model.add(Dense(max_words, 256, init='normal'))
+model.add(Dense(max_words, 512))
 model.add(Activation('relu'))
 model.add(Dropout(0.5))
-model.add(Dense(256, nb_classes, init='normal'))
+model.add(Dense(512, nb_classes))
 model.add(Activation('softmax'))
 
 model.compile(loss='categorical_crossentropy', optimizer='adam')
 
-history = model.fit(X_train, Y_train, nb_epoch=4, batch_size=batch_size, verbose=1, show_accuracy=True, validation_split=0.1)
+history = model.fit(X_train, Y_train, nb_epoch=nb_epoch, batch_size=batch_size, verbose=1, show_accuracy=True, validation_split=0.1)
 score = model.evaluate(X_test, Y_test, batch_size=batch_size, verbose=1, show_accuracy=True)
 print('Test score:', score[0])
 print('Test accuracy:', score[1])
