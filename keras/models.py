@@ -41,18 +41,18 @@ def slice_X(X, start=None, stop=None):
         else:
             return X[start:stop]
 
-def standardize_instance_weights(instance_weight):
-    if isinstance(instance_weight, list):
-        w = np.array(instance_weight)
-    elif isinstance(instance_weight, np.ndarray):
-        w = instance_weight
+def standardize_sample_weights(sample_weight):
+    if isinstance(sample_weight, list):
+        w = np.array(sample_weight)
+    elif isinstance(sample_weight, np.ndarray):
+        w = sample_weight
     else:
         w = None
     return w
 
-def calculate_loss_weights(Y, instance_weight=None, class_weight=None):
-    if instance_weight is not None:
-        w = instance_weight
+def calculate_loss_weights(Y, sample_weight=None, class_weight=None):
+    if sample_weight is not None:
+        w = sample_weight
     elif isinstance(class_weight, dict):
         if Y.shape[1] > 1:
             y_classes = Y.argmax(axis=1)
@@ -121,12 +121,12 @@ class Model(object):
             allow_input_downcast=True, mode=theano_mode)
 
 
-    def train(self, X, y, accuracy=False, instance_weight=None, class_weight=None):
+    def train(self, X, y, accuracy=False, sample_weight=None, class_weight=None):
         X = standardize_X(X)
         y = standardize_y(y)
 
-        instance_weight = standardize_instance_weights(instance_weight)
-        w = calculate_loss_weights(y, instance_weight=instance_weight, class_weight=class_weight)
+        sample_weight = standardize_sample_weights(sample_weight)
+        w = calculate_loss_weights(y, sample_weight=sample_weight, class_weight=class_weight)
 
         ins = X + [y, w]
         if accuracy:
@@ -147,12 +147,12 @@ class Model(object):
 
     def fit(self, X, y, batch_size=128, nb_epoch=100, verbose=1, callbacks=[],
             validation_split=0., validation_data=None, shuffle=True, show_accuracy=False,
-            instance_weight=None, class_weight=None):
+            sample_weight=None, class_weight=None):
 
         X = standardize_X(X)
         y = standardize_y(y)
 
-        instance_weight = standardize_instance_weights(instance_weight)
+        sample_weight = standardize_sample_weights(sample_weight)
 
         do_validation = False
         if validation_data:
@@ -207,8 +207,8 @@ class Model(object):
                 X_batch = slice_X(X, batch_ids)
                 y_batch = y[batch_ids]
 
-                if instance_weight is not None:
-                    w = calculate_loss_weights(y_batch, instance_weight=instance_weight[batch_ids])
+                if sample_weight is not None:
+                    w = calculate_loss_weights(y_batch, sample_weight=sample_weight[batch_ids])
                 else:
                     w = calculate_loss_weights(y_batch, class_weight=class_weight)
 
