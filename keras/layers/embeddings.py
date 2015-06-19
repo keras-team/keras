@@ -15,7 +15,7 @@ class Embedding(Layer):
         @input_dim: size of vocabulary (highest input integer + 1)
         @out_dim: size of dense representation
     '''
-    def __init__(self, input_dim, output_dim, init='uniform', weights=None, W_regularizer=None, W_constraint=None, mask_val=default_mask_val):
+    def __init__(self, input_dim, output_dim, init='uniform', weights=None, W_regularizer=None, W_constraint=None, zero_is_mask=False, mask_val=default_mask_val):
         super(Embedding,self).__init__()
         self.init = initializations.get(init)
         self.input_dim = input_dim
@@ -23,7 +23,11 @@ class Embedding(Layer):
 
         self.input = T.imatrix()
         self.W = self.init((self.input_dim, self.output_dim))
-        T.set_subtensor(self.W[0, :], mask_val)
+        self.zero_is_mask = zero_is_mask
+
+        if zero_is_mask:
+            T.set_subtensor(self.W[0, :], mask_val)
+
         self.params = [self.W]
         self.constraints = [W_constraint]
         self.regularizers = [W_regularizer]

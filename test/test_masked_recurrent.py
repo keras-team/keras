@@ -15,7 +15,7 @@ theano.config.exception_verbosity='high'
 X = np.random.random_integers(1, 4, size=(400000,3))
 
 model = Sequential()
-model.add(Embedding(5, 2))
+model.add(Embedding(5, 2, zero_is_mask=True))
 model.add(SimpleRNN(2,3, activation='relu', return_sequences=True))
 model.add(SimpleRNN(3,3, activation='relu'))
 model.add(Dense(3,4, activation='softmax'))
