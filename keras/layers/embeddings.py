@@ -4,6 +4,8 @@ import theano.tensor as T
 
 from .. import activations, initializations
 from ..layers.core import Layer, default_mask_val
+from ..utils.theano_utils import sharedX
+
 from ..constraints import unitnorm
 
 
@@ -26,7 +28,8 @@ class Embedding(Layer):
         self.zero_is_mask = zero_is_mask
 
         if zero_is_mask:
-            T.set_subtensor(self.W[0, :], mask_val)
+            # This doesn't seem particularly elegant
+            self.W = sharedX(T.set_subtensor(self.W[0, :], mask_val).eval())
 
         self.params = [self.W]
         self.constraints = [W_constraint]

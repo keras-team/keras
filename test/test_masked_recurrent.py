@@ -24,15 +24,19 @@ model.compile(loss='categorical_crossentropy',
         optimizer='rmsprop', theano_mode=theano.compile.mode.FAST_RUN)
 print("Compiled model")
 
-if model.layers[0].W.get_value()[0,:] != default_mask_val:
+W0 = model.layers[0].W.get_value()[0,:]
+if (W0 != default_mask_val).any():
     raise Exception("Did not set the mask val properly into the Embedding W matrix, got: ",
-            model.layers[0].W.get_value()[0,:]
+            W0)
 
 W = model.get_weights() # We'll save these so we can reset it later
 
 
 Xmask0 = X.copy()
 Xmask0[:,0] = 0
+
+Xmask1 = X.copy()
+Xmask1[:,1] = 0
 
 X0_onehot = np.zeros((X.shape[0], 4))
 X1_onehot = np.zeros((X.shape[0], 4))
@@ -44,39 +48,58 @@ for i, row in enumerate(X):
 # we should not do better than this when we mask out the part of the input
 # that gives us the correct answer
 uniform_score = np.log(4)
+batch_size=512
 
 # Train it to guess 0th dim
-model.fit(X, X0_onehot, nb_epoch=1)
-score = model.evaluate(X, X0_onehot)
+model.fit(X, X0_onehot, nb_epoch=1, batch_size=batch_size)
+score = model.evaluate(X, X0_onehot, batch_size=batch_size)
 if score > uniform_score*0.9:
     raise Exception('Failed to learn to copy timestep 0, score %f' % score)
 
-if model.layers[0].W.get_value()[0,:] != default_mask_val:
-    raise Exception("After training, the W of the Embedding's mask value changed to: ",
-            model.layers[0].W.get_value()[0,:]
+W0 = model.layers[0].W.get_value()[0,:]
+if (W0 != default_mask_val).any():
+    raise Exception("After training, the W0 of the Embedding's mask value changed to: ",
+            W0)
     
 
 model.set_weights(W)
 
 # Train without showing it the 0th dim to learn 1st dim
-model.fit(X[:,1:], X1_onehot, nb_epoch=1)
-score = model.evaluate(X[:,1:], X1_onehot)
+model.fit(X[:,1:], X1_onehot, nb_epoch=1, batch_size=batch_size)
+score = model.evaluate(X[:,1:], X1_onehot, batch_size=batch_size)
 if score > uniform_score*0.9:
     raise Exception('Failed to learn to copy timestep 1, score %f' % score)
 
 model.set_weights(W)
 
 # Train to guess 0th dim when 0th dim has been masked (should fail)
-model.fit(Xmask0, X0_onehot, nb_epoch=1)
-score = model.evaluate(Xmask0, X0_onehot)
+model.fit(Xmask0, X0_onehot, nb_epoch=1, batch_size=batch_size)
+score = model.evaluate(Xmask0, X0_onehot, batch_size=batch_size)
 if score < uniform_score*0.9:
    raise Exception('Somehow learned to copy timestep 0 despite mask, score %f' % score)
 
 model.set_weights(W)
 
 # Train to guess 1st dim when 0th dim has been masked (should succeed)
-model.fit(Xmask0, X1_onehot, nb_epoch=1)
-score = model.evaluate(Xmask0, X1_onehot)
+model.fit(Xmask0, X1_onehot, nb_epoch=1, batch_size=batch_size)
+score = model.evaluate(Xmask0, X1_onehot, batch_size=batch_size)
 if score > uniform_score*0.9:
     raise Exception('Failed to learn to copy timestep 1 in masked model, score %f' % score)
+
+
+
+model.set_weights(W)
+
+# Finally, make sure the mask is actually blocking input, mask out timestep 1, and see if
+# it can learn timestep 0 (should fail)
+model.fit(Xmask1, X0_onehot, nb_epoch=1, batch_size=batch_size)
+
+W0 = model.layers[0].W.get_value()[0,:]
+if (W0 != default_mask_val).any():
+    raise Exception("After masked training, the W0 of the Embedding's mask value changed to: ",
+            W0)
+
+score = model.evaluate(Xmask1, X0_onehot, batch_size=batch_size)
+if score < uniform_score*0.9:
+    raise Exception('Somehow learned to copy timestep 0 despite masking 1, score %f' % score)
 

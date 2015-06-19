@@ -45,7 +45,8 @@ class SimpleRNN(Layer):
             http://deeplearning.net/software/theano/library/scan.html
 
         '''
-        return mask_t * self.activation(x_t + mask_tm1 * T.dot(h_tm1, u))
+        normal_output = self.activation(x_t + mask_tm1 * T.dot(h_tm1, u))
+        return mask_t * normal_output + (1 - mask_t) * self.mask_val
 
     def get_output(self, train):
         X = self.get_input(train) # shape: (nb_samples, time (padded with zeros at the end), input_dim)
