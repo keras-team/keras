@@ -34,7 +34,7 @@ class HDF5Matrix:
                 raise IndexError
         elif isinstance(key, np.ndarray):
             if np.max(key) + self.start < self.end:
-                idx = (self.start + key).tolist()
+                idx = sorted((self.start + key).tolist())
             else:
                 raise IndexError
         elif isinstance(key, list):
