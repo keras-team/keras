@@ -181,6 +181,7 @@ class History(Callback):
             if self.params['show_accuracy']:
                 self.validation_accuracy.append(val_acc)
 
+
 class ModelCheckpoint(Callback):
     def __init__(self, filepath, verbose=0, save_best_only=False):
         super(Callback, self).__init__()
