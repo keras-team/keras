@@ -8,27 +8,27 @@ epsilon = 1.0e-9
 
 def mean_squared_error(y_true, y_pred, weight=None):
     if weight is not None:
-        return T.sqr(weight.reshape((weight.shape[0], 1))*(y_pred - y_true)).mean()
+        return T.sqr(weight.reshape((weight.shape[0], 1)) * (y_pred - y_true)).mean()
     else:
         return T.sqr(y_pred - y_true).mean()
 
 def mean_absolute_error(y_true, y_pred, weight=None):
     if weight is not None:
-        return T.abs_(weight.reshape((weight.shape[0], 1))*(y_pred - y_true)).mean()
+        return T.abs_(weight.reshape((weight.shape[0], 1)) * (y_pred - y_true)).mean()
     else:
         return T.abs_(y_pred - y_true).mean()
 
 def squared_hinge(y_true, y_pred, weight=None):
     if weight is not None:
         weight = weight.reshape((weight.shape[0], 1))
-        return T.sqr(weight*T.maximum(1. - (y_true * y_pred), 0.)).mean()
+        return T.sqr(weight * T.maximum(1. - (y_true * y_pred), 0.)).mean()
     else:
         return T.sqr(T.maximum(1. - y_true * y_pred, 0.)).mean()
 
 def hinge(y_true, y_pred, weight=None):
     if weight is not None:
         weight = weight.reshape((weight.shape[0], 1))
-        return (weight*T.maximum(1. - (y_true * y_pred), 0.)).mean()
+        return (weight * T.maximum(1. - (y_true * y_pred), 0.)).mean()
     else:
         return T.maximum(1. - y_true * y_pred, 0.).mean()
 
@@ -41,7 +41,7 @@ def categorical_crossentropy(y_true, y_pred, weight=None):
     cce = T.nnet.categorical_crossentropy(y_pred, y_true)
     if weight is not None:
         # return avg. of scaled cat. crossentropy
-        return (weight*cce).mean()
+        return (weight * cce).mean()
     else:
         return cce.mean()
 
@@ -49,7 +49,7 @@ def binary_crossentropy(y_true, y_pred, weight=None):
     y_pred = T.clip(y_pred, epsilon, 1.0 - epsilon)
     bce = T.nnet.binary_crossentropy(y_pred, y_true)
     if weight is not None:
-        return (weight.reshape((weight.shape[0], 1))*bce).mean()
+        return (weight.reshape((weight.shape[0], 1)) * bce).mean()
     else:
         return bce.mean()
 
@@ -60,13 +60,3 @@ mae = MAE = mean_absolute_error
 from .utils.generic_utils import get_from_module
 def get(identifier):
     return get_from_module(identifier, globals(), 'objective')
-
-def to_categorical(y):
-    '''Convert class vector (integers from 0 to nb_classes)
-    to binary class matrix, for use with categorical_crossentropy
-    '''
-    nb_classes = np.max(y)+1
-    Y = np.zeros((len(y), nb_classes))
-    for i in range(len(y)):
-        Y[i, y[i]] = 1.
-    return Y
