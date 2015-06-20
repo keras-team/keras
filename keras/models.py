@@ -381,5 +381,3 @@ class Sequential(Model, containers.Sequential):
             weights = [g['param_{}'.format(p)] for p in range(g.attrs['nb_params'])]
             self.layers[k].set_weights(weights)
         f.close()
-
-
