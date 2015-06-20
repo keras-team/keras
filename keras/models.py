@@ -54,7 +54,7 @@ def calculate_loss_weights(Y, sample_weight=None, class_weight=None):
             y_classes = np.reshape(Y, Y.shape[0])
         else:
             y_classes = Y
-        w = np.array(map(lambda x: class_weight[x], y_classes))
+        w = np.array(list(map(lambda x: class_weight[x], y_classes)))
     else:
         w = np.ones((Y.shape[0]))
     return w
@@ -144,7 +144,6 @@ class Model(object):
 
         X = standardize_X(X)
         y = standardize_y(y)
-
         sample_weight = calculate_loss_weights(y, sample_weight=sample_weight, class_weight=class_weight)
 
         do_validation = False
