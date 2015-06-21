@@ -1,6 +1,9 @@
 *.DS_Store
 *.pyc
 temp/*
+dist/*
 build/*
 keras/datasets/data/*
 keras/datasets/temp/*
+docs/site/*
+docs/theme/*
