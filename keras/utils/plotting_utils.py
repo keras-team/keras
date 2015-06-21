@@ -1,13 +1,14 @@
 from __future__ import absolute_import
+from __future__ import print_function
 
 import matplotlib.pyplot as plt
 import numpy as np
 from six.moves import range
 
-class Plotter(object):
+class PlotGenerator(object):
     def __init__(self,
-                 linestyles=["r-", "b-"],
-                 linestyles_first_epoch=["rs-", "b^-"],
+                 linestyles=['r-', 'b-', 'r:', 'b:'],
+                 linestyles_first_epoch=['rs-', 'b^-', 'r:', 'b:'],
                  show_regressions=True,
                  poly_forward_perc=0.1, poly_backward_perc=0.2,
                  poly_n_forward_min=10, poly_n_backward_min=20,
@@ -51,28 +52,28 @@ class Plotter(object):
         self.poly_degree = poly_degree
         self.show_plot_window = show_plot_window
         self.save_to_filepath = save_to_filepath
-        
+
         # ----
         # Initialize plots
         # ----
         fig, (ax1, ax2) = plt.subplots(ncols=2, figsize=(24, 8))
-        
+
         # set_position is neccessary here in order to place the legend properly
         box1, box2 = ax1.get_position(), ax2.get_position()
         ax1.set_position([box1.x0, box1.y0 + box1.height * 0.1,
                           box1.width, box1.height * 0.9])
         ax2.set_position([box2.x0, box2.y0 + box2.height * 0.1,
                           box2.width, box2.height * 0.9])
-        
+
         self.fig = fig
         self.ax1 = ax1
         self.ax2 = ax2
-    
-    def update_plot(self, epoch,
-                    stats_train_loss, stats_train_acc,
-                    stats_val_loss, stats_val_acc):
-        self.redraw_plot()
-        
+
+    def update(self, epoch,
+               stats_train_loss, stats_train_acc,
+               stats_val_loss, stats_val_acc):
+        self._redraw_plot(epoch, stats_train_loss, stats_train_acc, stats_val_loss, stats_val_acc)
+
         # show plot window or redraw an existing one
         if self.show_plot_window:
             plt.figure(self.fig.number)
@@ -80,14 +81,15 @@ class Plotter(object):
             plt.show(block=False)
             #else:
             plt.draw()
-        
+
         # save
         if self.save_to_filepath:
             self._save_plot(self.save_to_filepath)
-    
+
+
     def _save_plot(filepath):
         self.fig.savefig(filepath)
-    
+
     def _redraw_plot(self, epoch,
                     stats_train_loss, stats_train_acc,
                     stats_val_loss, stats_val_acc):
@@ -108,21 +110,21 @@ class Plotter(object):
         Returns:
             void
         """
-        
+
         ax1 = self.ax1
         ax2 = self.ax2
-        
+
         # List of each epoch (x-axis)
-        epochs = range(0, epoch+1)
-        
+        epochs = list(range(0, epoch+1))
+
         # Clear loss and accuracy charts
         ax1.clear()
         ax2.clear()
-        
+
         # Set titles of charts (at the top)
-        ax1.set_title("loss")
-        ax2.set_title("accuracy")
-        
+        ax1.set_title('loss')
+        ax2.set_title('accuracy')
+
         # Set the styles of the lines used in the charts
         # r- => red line, b- => blue line,
         # rs- => red line with squares for each data point,
@@ -131,19 +133,19 @@ class Plotter(object):
         # the very first epoch has only one data point and therefore no line
         # and would be invisible without the changed style.
         linestyles = self.linestyles if epoch > 0 else self.linestyles_first_epoch
-        
+
         # Plot the lines
-        handle_tl, = ax1.plot(epochs, stats_train_loss, linestyles[0], label="train loss")
-        handle_vl, = ax1.plot(epochs, stats_val_loss, linestyles[1], label="val loss")
-        handle_ta, = ax2.plot(epochs, stats_train_acc, linestyles[0], label="train acc")
-        handle_va, = ax2.plot(epochs, stats_val_acc, linestyles[1], label="val acc")
-        
+        handle_tl, = ax1.plot(epochs, stats_train_loss, linestyles[0], label='train loss')
+        handle_vl, = ax1.plot(epochs, stats_val_loss, linestyles[1], label='val loss')
+        handle_ta, = ax2.plot(epochs, stats_train_acc, linestyles[0], label='train acc')
+        handle_va, = ax2.plot(epochs, stats_val_acc, linestyles[1], label='val acc')
+
         if epoch <= 0 or not self.show_regressions:
             # First epoch, no linear regression yet
-            ax1.plot([], [], "r:", label="train loss regression")
-            ax1.plot([], [], "b:", label="val loss regression")
-            ax2.plot([], [], "r:", label="train acc regression")
-            ax2.plot([], [], "b:", label="val acc regression")
+            ax1.plot([], [], linestyles[2], label='train loss regression')
+            ax1.plot([], [], linestyles[3], label='val loss regression')
+            ax2.plot([], [], linestyles[2], label='train acc regression')
+            ax2.plot([], [], linestyles[3], label='val acc regression')
         else:
             # second epoch or later => do linear regression
             # for future points of all lines
@@ -151,41 +153,41 @@ class Plotter(object):
             # Number of epochs in the future.
             # 10% of current epochs (e.g. 20 for 200) and minimum 10.
             n_forward = int(max((epoch+1)*self.poly_forward_perc, self.poly_forward_min))
-            
+
             # Based on that number of epochs in the past:
             # 20% of current epochs (e.g. 20 for 100) and minimum 20.
             n_backwards = int(max((epoch+1)*self.poly_backward_perc, self.poly_backward_min))
-            
+
             # Degree of the polynom
             poly_degree = 1
-            
+
             # List of epochs for which to estimate/predict the likely value.
             # (Not range(e+1, ...) so that the regression line is better
             # connected to the line its based on (no obvious gap).)
             future_epochs = [i for i in range(epoch, epoch + n_forward)]
-            
+
             # Predicted values for each line
             poly_train_loss = np.poly1d(np.polyfit(epochs[-n_backwards:], stats_train_loss[-n_backwards:], poly_degree))
             poly_val_loss = np.poly1d(np.polyfit(epochs[-n_backwards:], stats_val_loss[-n_backwards:], poly_degree))
             poly_train_acc = np.poly1d(np.polyfit(epochs[-n_backwards:], stats_train_acc[-n_backwards:], poly_degree))
             poly_val_acc = np.poly1d(np.polyfit(epochs[-n_backwards:], stats_val_acc[-n_backwards:], poly_degree))
-            
+
             # Plot each regression line
-            ax1.plot(future_epochs, [poly_train_loss(i) for i in future_epochs], "r:", label="train loss regression")
-            ax1.plot(future_epochs, [poly_val_loss(i) for i in future_epochs], "b:", label="val loss regression")
-            ax2.plot(future_epochs, [poly_train_acc(i) for i in future_epochs], "r:", label="train acc regression")
-            ax2.plot(future_epochs, [poly_val_acc(i) for i in future_epochs], "b:", label="val acc regression")
-        
+            ax1.plot(future_epochs, [poly_train_loss(i) for i in future_epochs], linestyles[2], label='train loss regression')
+            ax1.plot(future_epochs, [poly_val_loss(i) for i in future_epochs], linestyles[3], label='val loss regression')
+            ax2.plot(future_epochs, [poly_train_acc(i) for i in future_epochs], linestyles[2], label='train acc regression')
+            ax2.plot(future_epochs, [poly_val_acc(i) for i in future_epochs], linestyles[3], label='val acc regression')
+
         # Add legend (below chart)
-        ax1.legend(["train loss", "val loss", "train loss regression", "val loss regression"], bbox_to_anchor=(0.7, -0.08), ncol=2)
-        ax2.legend(["train acc", "val acc", "train acc regression", "val acc regression"], bbox_to_anchor=(0.7, -0.08), ncol=2)
-        
+        ax1.legend(['train loss', 'val loss', 'train loss regression', 'val loss regression'], bbox_to_anchor=(0.7, -0.08), ncol=2)
+        ax2.legend(['train acc', 'val acc', 'train acc regression', 'val acc regression'], bbox_to_anchor=(0.7, -0.08), ncol=2)
+
         # Labels for x and y axis
-        ax1.set_ylabel("loss")
-        ax1.set_xlabel("epoch")
-        ax2.set_ylabel("accuracy")
-        ax2.set_xlabel("epoch")
-        
+        ax1.set_ylabel('loss')
+        ax1.set_xlabel('epoch')
+        ax2.set_ylabel('accuracy')
+        ax2.set_xlabel('epoch')
+
         # Show a grid in both charts
         ax1.grid(True)
         ax2.grid(True)

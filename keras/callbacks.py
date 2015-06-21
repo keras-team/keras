@@ -8,6 +8,7 @@ import time, json
 from collections import deque
 
 from .utils.generic_utils import Progbar
+from .utils.plotting_utils import PlotGenerator
 
 class CallbackList(object):
 
@@ -181,6 +182,40 @@ class History(Callback):
             if self.params['show_accuracy']:
                 self.validation_accuracy.append(val_acc)
 
+class Plotter(History):
+    def __init__(self, linestyles=['r-', 'b-', 'r:', 'b:'],
+                 linestyles_first_epoch=['rs-', 'b^-', 'r:', 'b:'],
+                 show_regressions=True,
+                 poly_forward_perc=0.1, poly_backward_perc=0.2,
+                 poly_n_forward_min=10, poly_n_backward_min=20,
+                 poly_degree=1,
+                 show_plot_window=True, save_to_filepath=None):
+        super(Plotter, self).__init__()
+        self.plot_generator = PlotGenerator(
+                                linestyles=linestyles,
+                                linestyles_first_epoch=linestyles_first_epoch,
+                                show_regressions=show_regressions,
+                                poly_forward_perc=poly_forward_perc,
+                                poly_backward_perc=poly_backward_perc,
+                                poly_n_forward_min=poly_n_forward_min,
+                                poly_n_backward_min=poly_n_backward_min,
+                                poly_degree=poly_degree,
+                                show_plot_window=show_plot_window,
+                                save_to_filepath=save_to_filepath
+                              )
+
+    def on_epoch_end(self, epoch, logs={}):
+        super(Plotter, self).on_epoch_end(epoch, logs)
+        dv = self.params['do_validation']
+        sa = self.params['show_accuracy']
+        
+        loss = self.loss
+        val_loss = self.validation_loss if dv else []
+        acc = self.accuracy if sa else []
+        val_acc = self.validation_accuracy if dv and sa else []
+
+        self.plot_generator.update(epoch, loss, acc, val_loss, val_acc)
+        
 
 class ModelCheckpoint(Callback):
     def __init__(self, filepath, verbose=0, save_best_only=False):
