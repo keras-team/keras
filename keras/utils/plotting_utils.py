@@ -202,16 +202,16 @@ class PlotGenerator(object):
 
             self.plot_regression_line(ax1, train_loss, epochs, future_epochs,
                                       n_backwards, linestyles[2],
-                                      "train loss regression")
+                                      'train loss regression')
             self.plot_regression_line(ax1, val_loss, epochs, future_epochs,
                                       n_backwards, linestyles[3],
-                                      "val loss regression")
+                                      'val loss regression')
             self.plot_regression_line(ax2, train_acc, epochs, future_epochs,
                                       n_backwards, linestyles[2],
-                                      "train acc regression")
+                                      'train acc regression')
             self.plot_regression_line(ax2, val_acc, epochs, future_epochs,
                                       n_backwards, linestyles[3],
-                                      "val acc regression")
+                                      'val acc regression')
 
         # Add legend (below chart)
         ax1.legend(['train loss', 'val loss',
