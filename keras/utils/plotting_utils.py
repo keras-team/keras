@@ -5,11 +5,34 @@ import matplotlib.pyplot as plt
 import numpy as np
 from six.moves import range
 
+
 class PlotGenerator(object):
+    """Class to plot training and validation loss and accuracy. Usually not
+    used directly, but instead together with callbacks.Plotter.
+
+    Possible future improvements for this class:
+    - Allow plotting at every nth batch (instead of only at the end of each
+        epoch).
+    - Allow plotting the results of multiple models in the same chart
+        (e.g. to compare multiple trained models with each other).
+    - Add Simple Moving Averages.
+    - Add Bollinger Bands or something similar.
+    - Save a String representation of the used model in the saved image
+        (e.g. "Dense 1024 relu, Dense 1024 relu, 10 softmax"). This would
+        simplify comparing the results of many different models and estimating
+        which one performed best.
+    - Save the shape of X and Y in the saved image (same reason as above).
+    - Save the following stats in the image (same reason as above):
+        Number of epochs run, Number of samples,
+        best validation values, time required per batch,
+        time required per epoch.
+    - Hide the accuracy plot completely if show_accuracy was set to False.
+    - Allow to provide save_to_filepath as a lambda function which receives
+    the current epoch and batch index."""
     def __init__(self,
                  save_to_filepath=None, show_plot_window=True,
-                 linestyles=['r-', 'b-', 'r:', 'b:'],
-                 linestyles_first_epoch=['rs-', 'b^-', 'r:', 'b:'],
+                 linestyles=None,
+                 linestyles_first_epoch=None,
                  show_regressions=True,
                  poly_forward_perc=0.1, poly_backward_perc=0.2,
                  poly_n_forward_min=10, poly_n_backward_min=20,
@@ -51,13 +74,19 @@ class PlotGenerator(object):
         self.linestyles = linestyles
         self.linestyles_first_epoch = linestyles_first_epoch
         self.show_regressions = show_regressions
-        self.poly_forward_perc = 0.1
-        self.poly_backward_perc = 0.2
+        self.poly_forward_perc = poly_forward_perc
+        self.poly_backward_perc = poly_backward_perc
         self.poly_backward_min = poly_n_backward_min
         self.poly_forward_min = poly_n_forward_min
         self.poly_degree = poly_degree
         self.show_plot_window = show_plot_window
         self.save_to_filepath = save_to_filepath
+
+        if linestyles is None:
+            self.linestyles = ['r-', 'b-', 'r:', 'b:']
+
+        if linestyles_first_epoch is None:
+            self.linestyles_first_epoch = ['rs-', 'b^-', 'r:', 'b:']
 
         # ----
         # Initialize plots
@@ -98,7 +127,6 @@ class PlotGenerator(object):
         # save
         if self.save_to_filepath:
             self._save_plot(self.save_to_filepath)
-
 
     def _save_plot(self, filepath):
         """Saves the current plot to a file.
@@ -153,21 +181,23 @@ class PlotGenerator(object):
             ax2.plot(epochs, train_acc, linestyles[0], label='train acc')
         if val_acc:
             ax2.plot(epochs, val_acc, linestyles[1], label='val acc')
-        
+
         if self.show_regressions:
             # Number of epochs in the future.
             # 10% of current epochs (e.g. 20 for 200) and minimum 10.
-            n_forward = int(max((epoch+1)*self.poly_forward_perc, self.poly_forward_min))
+            n_forward = int(max((epoch+1)*self.poly_forward_perc,
+                                self.poly_forward_min))
 
             # Based on that number of epochs in the past:
             # 20% of current epochs (e.g. 20 for 100) and minimum 20.
-            n_backwards = int(max((epoch+1)*self.poly_backward_perc, self.poly_backward_min))
-            
+            n_backwards = int(max((epoch+1)*self.poly_backward_perc,
+                                  self.poly_backward_min))
+
             # List of epochs for which to estimate/predict the likely value.
             # (Not range(e+1, ...) so that the regression line is better
             # connected to the line its based on (no obvious gap).)
             future_epochs = [i for i in range(epoch, epoch + n_forward)]
-            
+
             self.plot_regression_line(ax1, train_loss, epochs, future_epochs,
                                       n_backwards, linestyles[2],
                                       "train loss regression")
@@ -182,8 +212,12 @@ class PlotGenerator(object):
                                       "val acc regression")
 
         # Add legend (below chart)
-        ax1.legend(['train loss', 'val loss', 'train loss regression', 'val loss regression'], bbox_to_anchor=(0.7, -0.08), ncol=2)
-        ax2.legend(['train acc', 'val acc', 'train acc regression', 'val acc regression'], bbox_to_anchor=(0.7, -0.08), ncol=2)
+        ax1.legend(['train loss', 'val loss',
+                    'train loss regression', 'val loss regression'],
+                   bbox_to_anchor=(0.7, -0.08), ncol=2)
+        ax2.legend(['train acc', 'val acc',
+                    'train acc regression', 'val acc regression'],
+                   bbox_to_anchor=(0.7, -0.08), ncol=2)
 
         # Labels for x and y axis
         ax1.set_ylabel('loss')
@@ -195,10 +229,11 @@ class PlotGenerator(object):
         ax1.grid(True)
         ax2.grid(True)
 
-    def plot_regression_line(self, ax, data, epochs, future_epochs, n_backwards, linestyle, label):
+    def plot_regression_line(self, plot_ax, data, epochs, future_epochs,
+                             n_backwards, linestyle, label):
         """Calculates and plots a regression line.
         Args:
-            ax: The ax on which to plot the line.
+            plot_ax: The ax on which to plot the line.
             data: The data used to perform the regression
                 (e.g. training loss values).
             epochs: List of all epochs (0, 1, 2, ...).
@@ -213,6 +248,7 @@ class PlotGenerator(object):
         # dont try to draw anything if the data list is empty or it's the
         # first epoch
         if len(data) > 1:
-            poly = np.poly1d(np.polyfit(epochs[-n_backwards:], data[-n_backwards:], self.poly_degree))
+            poly = np.poly1d(np.polyfit(epochs[-n_backwards:],
+                                        data[-n_backwards:], self.poly_degree))
             future_values = [poly(i) for i in future_epochs]
-            ax.plot(future_epochs, future_values, linestyle, label=label)
+            plot_ax.plot(future_epochs, future_values, linestyle, label=label)
