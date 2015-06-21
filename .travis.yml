@@ -17,4 +17,4 @@ install:
   # Coverage packages are on my binstar channel
   - python setup.py install
 # command to run tests
-script: pytest
+script: py.test
