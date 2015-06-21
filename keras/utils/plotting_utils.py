@@ -77,9 +77,7 @@ class PlotGenerator(object):
         # show plot window or redraw an existing one
         if self.show_plot_window:
             plt.figure(self.fig.number)
-            #if epoch == 0:
             plt.show(block=False)
-            #else:
             plt.draw()
 
         # save
@@ -91,8 +89,8 @@ class PlotGenerator(object):
         self.fig.savefig(filepath)
 
     def _redraw_plot(self, epoch,
-                    stats_train_loss, stats_train_acc,
-                    stats_val_loss, stats_val_acc):
+                     stats_train_loss, stats_train_acc,
+                     stats_val_loss, stats_val_acc):
         """Updates the charts in the current plotting window with new values.
         Args:
             epoch: The index of the current epoch, starting at 0.
@@ -135,21 +133,16 @@ class PlotGenerator(object):
         linestyles = self.linestyles if epoch > 0 else self.linestyles_first_epoch
 
         # Plot the lines
-        handle_tl, = ax1.plot(epochs, stats_train_loss, linestyles[0], label='train loss')
-        handle_vl, = ax1.plot(epochs, stats_val_loss, linestyles[1], label='val loss')
-        handle_ta, = ax2.plot(epochs, stats_train_acc, linestyles[0], label='train acc')
-        handle_va, = ax2.plot(epochs, stats_val_acc, linestyles[1], label='val acc')
-
-        if epoch <= 0 or not self.show_regressions:
-            # First epoch, no linear regression yet
-            ax1.plot([], [], linestyles[2], label='train loss regression')
-            ax1.plot([], [], linestyles[3], label='val loss regression')
-            ax2.plot([], [], linestyles[2], label='train acc regression')
-            ax2.plot([], [], linestyles[3], label='val acc regression')
-        else:
-            # second epoch or later => do linear regression
-            # for future points of all lines
-            
+        if stats_train_loss:
+            ax1.plot(epochs, stats_train_loss, linestyles[0], label='train loss')
+        if stats_val_loss:
+            ax1.plot(epochs, stats_val_loss, linestyles[1], label='val loss')
+        if stats_train_acc:
+            ax2.plot(epochs, stats_train_acc, linestyles[0], label='train acc')
+        if stats_val_acc:
+            ax2.plot(epochs, stats_val_acc, linestyles[1], label='val acc')
+        
+        if self.show_regressions:
             # Number of epochs in the future.
             # 10% of current epochs (e.g. 20 for 200) and minimum 10.
             n_forward = int(max((epoch+1)*self.poly_forward_perc, self.poly_forward_min))
@@ -157,26 +150,24 @@ class PlotGenerator(object):
             # Based on that number of epochs in the past:
             # 20% of current epochs (e.g. 20 for 100) and minimum 20.
             n_backwards = int(max((epoch+1)*self.poly_backward_perc, self.poly_backward_min))
-
-            # Degree of the polynom
-            poly_degree = 1
-
+            
             # List of epochs for which to estimate/predict the likely value.
             # (Not range(e+1, ...) so that the regression line is better
             # connected to the line its based on (no obvious gap).)
             future_epochs = [i for i in range(epoch, epoch + n_forward)]
-
-            # Predicted values for each line
-            poly_train_loss = np.poly1d(np.polyfit(epochs[-n_backwards:], stats_train_loss[-n_backwards:], poly_degree))
-            poly_val_loss = np.poly1d(np.polyfit(epochs[-n_backwards:], stats_val_loss[-n_backwards:], poly_degree))
-            poly_train_acc = np.poly1d(np.polyfit(epochs[-n_backwards:], stats_train_acc[-n_backwards:], poly_degree))
-            poly_val_acc = np.poly1d(np.polyfit(epochs[-n_backwards:], stats_val_acc[-n_backwards:], poly_degree))
-
-            # Plot each regression line
-            ax1.plot(future_epochs, [poly_train_loss(i) for i in future_epochs], linestyles[2], label='train loss regression')
-            ax1.plot(future_epochs, [poly_val_loss(i) for i in future_epochs], linestyles[3], label='val loss regression')
-            ax2.plot(future_epochs, [poly_train_acc(i) for i in future_epochs], linestyles[2], label='train acc regression')
-            ax2.plot(future_epochs, [poly_val_acc(i) for i in future_epochs], linestyles[3], label='val acc regression')
+            
+            self.plot_regression_line(ax1, stats_train_loss, epochs, future_epochs,
+                                      n_backwards, linestyles[2],
+                                      "train loss regression")
+            self.plot_regression_line(ax1, stats_val_loss, epochs, future_epochs,
+                                      n_backwards, linestyles[3],
+                                      "val loss regression")
+            self.plot_regression_line(ax2, stats_train_acc, epochs, future_epochs,
+                                      n_backwards, linestyles[2],
+                                      "train acc regression")
+            self.plot_regression_line(ax2, stats_val_acc, epochs, future_epochs,
+                                      n_backwards, linestyles[3],
+                                      "val acc regression")
 
         # Add legend (below chart)
         ax1.legend(['train loss', 'val loss', 'train loss regression', 'val loss regression'], bbox_to_anchor=(0.7, -0.08), ncol=2)
@@ -191,3 +182,11 @@ class PlotGenerator(object):
         # Show a grid in both charts
         ax1.grid(True)
         ax2.grid(True)
+
+    def plot_regression_line(self, ax, data, epochs, future_epochs, n_backwards, linestyle, label):
+        # dont try to draw anything if the data list is empty or it's the
+        # first epoch
+        if len(data) > 1:
+            poly = np.poly1d(np.polyfit(epochs[-n_backwards:], data[-n_backwards:], self.poly_degree))
+            future_values = [poly(i) for i in future_epochs]
+            ax.plot(future_epochs, future_values, linestyle, label=label)
