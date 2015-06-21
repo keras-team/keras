@@ -35,7 +35,7 @@ class PlotGenerator(object):
                  linestyles_first_epoch=None,
                  show_regressions=True,
                  poly_forward_perc=0.1, poly_backward_perc=0.2,
-                 poly_n_forward_min=10, poly_n_backward_min=20,
+                 poly_n_forward_min=5, poly_n_backward_min=10,
                  poly_degree=1):
         """Constructs the plotter.
         Args:
