@@ -164,9 +164,6 @@ class PlotGenerator(object):
         ax2.set_title('accuracy')
 
         # Set the styles of the lines used in the charts
-        # r- => red line, b- => blue line,
-        # rs- => red line with squares for each data point,
-        # b^- => blue line with triangles for each data point
         # Different line style for epochs after the  first one, because
         # the very first epoch has only one data point and therefore no line
         # and would be invisible without the changed style.
@@ -183,19 +180,24 @@ class PlotGenerator(object):
             ax2.plot(epochs, val_acc, linestyles[1], label='val acc')
 
         if self.show_regressions:
-            # Number of epochs in the future.
-            # 10% of current epochs (e.g. 20 for 200) and minimum 10.
+            # Compute the regression lines for the n_forward future epochs.
+            # n_forward is calculated relative to the current epoch
+            # (e.g. at epoch 100 compute 10 next, at 200 the 20 next ones...).
             n_forward = int(max((epoch+1)*self.poly_forward_perc,
                                 self.poly_forward_min))
 
-            # Based on that number of epochs in the past:
-            # 20% of current epochs (e.g. 20 for 100) and minimum 20.
+            # Compute regression lines based on n_backwards epochs
+            # in the past, e.g. based on the last 10 values.
+            # n_backwards is calculated relative to the current epoch
+            # (e.g. at epoch 100 compute based on the last 10 values,
+            # at 200 based on the last 20 values...).
             n_backwards = int(max((epoch+1)*self.poly_backward_perc,
                                   self.poly_backward_min))
 
             # List of epochs for which to estimate/predict the likely value.
-            # (Not range(e+1, ...) so that the regression line is better
-            # connected to the line its based on (no obvious gap).)
+            # (epoch..epoch+n_forward instead of epoch+1..epoch+n_forward
+            # so that the regression line is better connected to the line its
+            # based on (no obvious gap).)
             future_epochs = [i for i in range(epoch, epoch + n_forward)]
 
             self.plot_regression_line(ax1, train_loss, epochs, future_epochs,
