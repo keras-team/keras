@@ -183,13 +183,15 @@ class History(Callback):
                 self.validation_accuracy.append(val_acc)
 
 class Plotter(History):
-    def __init__(self, linestyles=['r-', 'b-', 'r:', 'b:'],
+    # see PlotGenerator.__init__() for a description of the parameters
+    def __init__(self,
+                 save_to_filepath=None, show_plot_window=True,
+                 linestyles=['r-', 'b-', 'r:', 'b:'],
                  linestyles_first_epoch=['rs-', 'b^-', 'r:', 'b:'],
                  show_regressions=True,
                  poly_forward_perc=0.1, poly_backward_perc=0.2,
                  poly_n_forward_min=10, poly_n_backward_min=20,
-                 poly_degree=1,
-                 show_plot_window=True, save_to_filepath=None):
+                 poly_degree=1):
         super(Plotter, self).__init__()
         self.plot_generator = PlotGenerator(
                                 linestyles=linestyles,

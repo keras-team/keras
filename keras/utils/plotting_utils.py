@@ -7,15 +7,21 @@ from six.moves import range
 
 class PlotGenerator(object):
     def __init__(self,
+                 save_to_filepath=None, show_plot_window=True,
                  linestyles=['r-', 'b-', 'r:', 'b:'],
                  linestyles_first_epoch=['rs-', 'b^-', 'r:', 'b:'],
                  show_regressions=True,
                  poly_forward_perc=0.1, poly_backward_perc=0.2,
                  poly_n_forward_min=10, poly_n_backward_min=20,
-                 poly_degree=1,
-                 show_plot_window=True, save_to_filepath=None):
+                 poly_degree=1):
         """Constructs the plotter.
         Args:
+            save_to_filepath: The filepath to a file at which the plot
+                is ought to be saved, e.g. "/tmp/last_plot.png". Set this value
+                to None if you don't want to save the plot.
+            show_plot_window: Whether to show the plot in a window (True)
+                or hide it (False). Hiding it makes only sense if you
+                set save_to_filepath.
             linestyles: List of two string values containing the stylings
                 of the chart lines. The first value is for the training
                 line, the second for the validation line. Loss and accuracy
@@ -69,10 +75,19 @@ class PlotGenerator(object):
         self.ax1 = ax1
         self.ax2 = ax2
 
-    def update(self, epoch,
-               stats_train_loss, stats_train_acc,
-               stats_val_loss, stats_val_acc):
-        self._redraw_plot(epoch, stats_train_loss, stats_train_acc, stats_val_loss, stats_val_acc)
+    def update(self, epoch, train_loss, train_acc, val_loss, val_acc):
+        """Updates the plot with the latest data.
+        Args:
+            train_loss: All of the training loss values of each
+                epoch (list of floats).
+            train_acc: All of the training accuracy values of each
+                epoch (list of floats).
+            val_loss: All of the validation loss values of each
+                epoch (list of floats).
+            val_acc: All of the validation accuracy values of each
+                epoch (list of floats).
+        """
+        self._redraw_plot(epoch, train_loss, train_acc, val_loss, val_acc)
 
         # show plot window or redraw an existing one
         if self.show_plot_window:
@@ -86,27 +101,24 @@ class PlotGenerator(object):
 
 
     def _save_plot(self, filepath):
+        """Saves the current plot to a file.
+        Args:
+            filepath: The path to the file, e.g. "/tmp/last_plot.png".
+        """
         self.fig.savefig(filepath)
 
-    def _redraw_plot(self, epoch,
-                     stats_train_loss, stats_train_acc,
-                     stats_val_loss, stats_val_acc):
-        """Updates the charts in the current plotting window with new values.
+    def _redraw_plot(self, epoch, train_loss, train_acc, val_loss, val_acc):
+        """Redraws the plot with new values.
         Args:
             epoch: The index of the current epoch, starting at 0.
-            stats_train_loss: All of the training loss values of each
+            train_loss: All of the training loss values of each
                 epoch (list of floats).
-            stats_train_acc: All of the training accuracy values of each
+            train_acc: All of the training accuracy values of each
                 epoch (list of floats).
-            stats_val_loss: All of the validation loss values of each
+            val_loss: All of the validation loss values of each
                 epoch (list of floats).
-            stats_val_acc: All of the validation accuracy values of each
+            val_acc: All of the validation accuracy values of each
                 epoch (list of floats).
-            save_plot_filepath: The full filepath of the file to which the
-                plot is ought to be saved, e.g. "/tmp/plot.png" or None if it
-                shouldnt be saved to a file.
-        Returns:
-            void
         """
 
         ax1 = self.ax1
@@ -133,14 +145,14 @@ class PlotGenerator(object):
         linestyles = self.linestyles if epoch > 0 else self.linestyles_first_epoch
 
         # Plot the lines
-        if stats_train_loss:
-            ax1.plot(epochs, stats_train_loss, linestyles[0], label='train loss')
-        if stats_val_loss:
-            ax1.plot(epochs, stats_val_loss, linestyles[1], label='val loss')
-        if stats_train_acc:
-            ax2.plot(epochs, stats_train_acc, linestyles[0], label='train acc')
-        if stats_val_acc:
-            ax2.plot(epochs, stats_val_acc, linestyles[1], label='val acc')
+        if train_loss:
+            ax1.plot(epochs, train_loss, linestyles[0], label='train loss')
+        if val_loss:
+            ax1.plot(epochs, val_loss, linestyles[1], label='val loss')
+        if train_acc:
+            ax2.plot(epochs, train_acc, linestyles[0], label='train acc')
+        if val_acc:
+            ax2.plot(epochs, val_acc, linestyles[1], label='val acc')
         
         if self.show_regressions:
             # Number of epochs in the future.
@@ -156,16 +168,16 @@ class PlotGenerator(object):
             # connected to the line its based on (no obvious gap).)
             future_epochs = [i for i in range(epoch, epoch + n_forward)]
             
-            self.plot_regression_line(ax1, stats_train_loss, epochs, future_epochs,
+            self.plot_regression_line(ax1, train_loss, epochs, future_epochs,
                                       n_backwards, linestyles[2],
                                       "train loss regression")
-            self.plot_regression_line(ax1, stats_val_loss, epochs, future_epochs,
+            self.plot_regression_line(ax1, val_loss, epochs, future_epochs,
                                       n_backwards, linestyles[3],
                                       "val loss regression")
-            self.plot_regression_line(ax2, stats_train_acc, epochs, future_epochs,
+            self.plot_regression_line(ax2, train_acc, epochs, future_epochs,
                                       n_backwards, linestyles[2],
                                       "train acc regression")
-            self.plot_regression_line(ax2, stats_val_acc, epochs, future_epochs,
+            self.plot_regression_line(ax2, val_acc, epochs, future_epochs,
                                       n_backwards, linestyles[3],
                                       "val acc regression")
 
@@ -184,6 +196,20 @@ class PlotGenerator(object):
         ax2.grid(True)
 
     def plot_regression_line(self, ax, data, epochs, future_epochs, n_backwards, linestyle, label):
+        """Calculates and plots a regression line.
+        Args:
+            ax: The ax on which to plot the line.
+            data: The data used to perform the regression
+                (e.g. training loss values).
+            epochs: List of all epochs (0, 1, 2, ...).
+            future_epochs: List of the future epochs for which values are
+                ought to be predicted.
+            n_backwards: How far back to go in time (in epochs) in order
+                to compute the regression. (E.g. 10 = calculate it on the
+                last 10 values max.)
+            linestyle: Linestyle of the regression line.
+            label: Label of the regression line.
+        """
         # dont try to draw anything if the data list is empty or it's the
         # first epoch
         if len(data) > 1:

@@ -42,6 +42,14 @@ keras.callbacks.EarlyStopping(patience=0, verbose=0)
 
 Stop training after no improvement of the validation loss is seen for `patience` epochs.
 
+```python
+keras.callbacks.Plotter(save_to_filepath=None, show_plot_window=True, linestyles=['r-', 'b-', 'r:', 'b:'], linestyles_first_epoch=['rs-', 'b^-', 'r:', 'b:'], show_regressions=True, poly_forward_perc=0.1, poly_backward_perc=0.2, poly_n_forward_min=10, poly_n_backward_min=20, poly_degree=1)
+```
+
+Creates a plot which shows the changes in loss and accuracy (for both training and validation datasets) over time.
+The plot is updated at the end of each epoch. Setting the parameter `save_to_filepath` allows to save the generated plot. An older file with the same name will be overwritten. Some image viewers may support automatic reloading of that file upon any change (i.e. at the end of each epoch).
+Setting `show_plot_window` to `False` will hide the plot window and only save to the file.
+
 ---
 
 
