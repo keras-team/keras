@@ -52,7 +52,7 @@ model.compile(loss='categorical_crossentropy', optimizer=rms)
 
 model.fit(X_train, Y_train, batch_size=batch_size, nb_epoch=nb_epoch,
           show_accuracy=True, verbose=2, validation_data=(X_test, Y_test),
-          callbacks=[Plotter()])
+          callbacks=[Plotter(save_to_filepath="/tmp/last_plot.png")])
 score = model.evaluate(X_test, Y_test, show_accuracy=True, verbose=0)
 print('Test score:', score[0])
 print('Test accuracy:', score[1])

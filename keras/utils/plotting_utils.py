@@ -85,7 +85,7 @@ class PlotGenerator(object):
             self._save_plot(self.save_to_filepath)
 
 
-    def _save_plot(filepath):
+    def _save_plot(self, filepath):
         self.fig.savefig(filepath)
 
     def _redraw_plot(self, epoch,
