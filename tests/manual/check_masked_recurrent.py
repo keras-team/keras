@@ -6,7 +6,7 @@ from keras.utils.theano_utils import sharedX
 from keras.models import Sequential
 from keras.layers.core import Dense, Activation, Merge, Dropout, TimeDistributedDense
 from keras.layers.embeddings import Embedding
-from keras.layers.recurrent import SimpleRNN, SimpleDeepRNN
+from keras.layers.recurrent import SimpleRNN, SimpleDeepRNN, LSTM, GRU
 from keras.layers.core import default_mask_val
 import theano
 
@@ -15,6 +15,7 @@ theano.config.exception_verbosity='high'
 # (nb_samples, timesteps, dimensions)
 X = np.random.random_integers(1, 4, size=(500000,15))
 
+print("About to compile the first model")
 model = Sequential()
 model.add(Embedding(5, 4, zero_is_mask=True))
 model.add(TimeDistributedDense(4,4)) # obviously this is redundant. Just testing.
@@ -108,3 +109,26 @@ score = model.evaluate(Xmask12, X0_onehot, batch_size=batch_size)
 if score < uniform_score*0.9:
     raise Exception('Somehow learned to copy timestep 0 despite masking 1, score %f' % score)
 
+
+# Another testing approach, just initialize models and make sure that prepending zeros doesn't affect
+# their output
+print("About to compile the second model")
+model2 = Sequential()
+model2.add(Embedding(5, 4, zero_is_mask=True))
+model2.add(TimeDistributedDense(4,4)) # obviously this is redundant. Just testing.
+model2.add(LSTM(4,4, return_sequences=True))
+model2.add(GRU(4,4, activation='softmax', return_sequences=True))
+model2.add(SimpleDeepRNN(4,4, depth=2, activation='relu', return_sequences=True)) 
+model2.add(SimpleRNN(4,4, activation='relu', return_sequences=False))
+model2.compile(loss='categorical_crossentropy',
+        optimizer='rmsprop', theano_mode=theano.compile.mode.FAST_RUN)
+print("Compiled model2")
+
+X2 = np.random.random_integers(1, 4, size=(1,5))
+ref = model2.predict(X2)
+for pre_zeros in range(1,10):
+    padded = np.concatenate((np.zeros((1, pre_zeros)), X2), axis=1)
+    pred = model2.predict(padded)
+    if not np.allclose(ref, pred):
+        raise Exception("Different result after left-padding %d zeros. Ref: %s, Pred: %s" % (pre_zeros, ref, pred))
+        
