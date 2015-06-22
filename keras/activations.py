@@ -1,15 +1,19 @@
 from __future__ import absolute_import
 import theano
 import theano.tensor as T
+import numpy as np
+from .utils.theano_utils import default_mask_val, get_mask
 import types
 
 def softmax(x):
     return T.nnet.softmax(x)
 
-def time_distributed_softmax(x):
+def time_distributed_softmax(x, mask_val=default_mask_val):
     xshape = x.shape
     X = x.reshape((xshape[0] * xshape[1], xshape[2]))
-    return T.nnet.softmax(X).reshape(xshape)
+    mask = get_mask(X, mask_val)
+    r =  mask * T.nnet.softmax(X) + (1 - mask) * mask_val
+    return r.reshape(xshape)
 
 def softplus(x):
     return T.nnet.softplus(x)

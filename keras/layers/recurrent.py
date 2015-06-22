@@ -5,8 +5,8 @@ import theano.tensor as T
 import numpy as np
 
 from .. import activations, initializations
-from ..utils.theano_utils import shared_scalar, shared_zeros, alloc_zeros_matrix, get_mask
-from ..layers.core import Layer, default_mask_val
+from ..utils.theano_utils import shared_scalar, shared_zeros, alloc_zeros_matrix, get_mask, default_mask_val
+from ..layers.core import Layer
 from six.moves import range
 
 class SimpleRNN(Layer):

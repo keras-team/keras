@@ -6,7 +6,7 @@ import theano.tensor as T
 import numpy as np
 
 from .. import activations, initializations
-from ..utils.theano_utils import shared_zeros, floatX, shared_scalar, get_mask
+from ..utils.theano_utils import shared_zeros, floatX, shared_scalar, get_mask, default_mask_val
 from ..utils.generic_utils import make_tuple
 from .. import regularizers
 from .. import constraints
@@ -14,8 +14,6 @@ from .. import constraints
 from theano.sandbox.rng_mrg import MRG_RandomStreams as RandomStreams
 from six.moves import zip
 srng = RandomStreams(seed=np.random.randint(10e6))
-
-default_mask_val = -999
 
 class Layer(object):
     def __init__(self):
