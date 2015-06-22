@@ -75,10 +75,7 @@ class Model(object):
         # target of model
         self.y = T.zeros_like(self.y_train)
 
-        # parameter for rescaling the objective function
-        self.loss_weights = T.vector()
-
-        train_loss = self.loss(self.y, self.y_train, self.loss_weights)
+        train_loss = self.loss(self.y, self.y_train)
         test_score = self.loss(self.y, self.y_test)
 
         if class_mode == "categorical":
@@ -95,11 +92,11 @@ class Model(object):
         updates = self.optimizer.get_updates(self.params, self.regularizers, self.constraints, train_loss)
 
         if type(self.X_train) == list:
-            train_ins = self.X_train + [self.y, self.loss_weights]
+            train_ins = self.X_train + [self.y]
             test_ins = self.X_test + [self.y]
             predict_ins = self.X_test
         else:
-            train_ins = [self.X_train, self.y, self.loss_weights]
+            train_ins = [self.X_train, self.y]
             test_ins = [self.X_test, self.y]
             predict_ins = [self.X_test]
 
@@ -115,13 +112,11 @@ class Model(object):
             allow_input_downcast=True, mode=theano_mode)
 
 
-    def train(self, X, y, accuracy=False, sample_weight=None, class_weight=None):
+    def train(self, X, y, accuracy=False):
         X = standardize_X(X)
         y = standardize_y(y)
 
-        w = calculate_loss_weights(y, sample_weight=sample_weight, class_weight=class_weight)
-
-        ins = X + [y, w]
+        ins = X + [y]
         if accuracy:
             return self._train_with_acc(*ins)
         else:
@@ -139,12 +134,10 @@ class Model(object):
 
 
     def fit(self, X, y, batch_size=128, nb_epoch=100, verbose=1, callbacks=[],
-            validation_split=0., validation_data=None, shuffle=True, show_accuracy=False,
-            sample_weight=None, class_weight=None):
+            validation_split=0., validation_data=None, shuffle=True, show_accuracy=False):
 
         X = standardize_X(X)
         y = standardize_y(y)
-        sample_weight = calculate_loss_weights(y, sample_weight=sample_weight, class_weight=class_weight)
 
         do_validation = False
         if validation_data:
@@ -199,14 +192,12 @@ class Model(object):
                 X_batch = slice_X(X, batch_ids)
                 y_batch = y[batch_ids]
 
-                w = sample_weight[batch_ids]
-
                 batch_logs = {}
                 batch_logs['batch'] = batch_index
                 batch_logs['size'] = len(batch_ids)
                 callbacks.on_batch_begin(batch_index, batch_logs)
 
-                ins = X_batch + [y_batch, w]
+                ins = X_batch + [y_batch]
                 if show_accuracy:
                     loss, acc = self._train_with_acc(*ins)
                     batch_logs['accuracy'] = acc
