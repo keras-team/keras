@@ -4,7 +4,7 @@
 import numpy as np
 from keras.utils.theano_utils import sharedX
 from keras.models import Sequential
-from keras.layers.core import Dense, Activation, Merge
+from keras.layers.core import Dense, Activation, Merge, Dropout
 from keras.layers.embeddings import Embedding
 from keras.layers.recurrent import SimpleRNN, SimpleDeepRNN
 from keras.layers.core import default_mask_val
@@ -13,13 +13,15 @@ import theano
 theano.config.exception_verbosity='high' 
 
 # (nb_samples, timesteps, dimensions)
-X = np.random.random_integers(1, 4, size=(400000,4))
+X = np.random.random_integers(1, 4, size=(500000,15))
 
 model = Sequential()
-model.add(Embedding(5, 2, zero_is_mask=True))
-model.add(SimpleRNN(2,3, activation='relu', return_sequences=True))
-model.add(SimpleDeepRNN(3,3, depth=2, activation='relu')) 
-model.add(Dense(3,4, activation='softmax'))
+model.add(Embedding(5, 4, zero_is_mask=True))
+model.add(SimpleRNN(4,4, activation='relu', return_sequences=True))
+model.add(Dropout(0.5))
+model.add(SimpleDeepRNN(4,4, depth=2, activation='relu')) 
+model.add(Dropout(0.5))
+model.add(Dense(4,4, activation='softmax'))
 model.compile(loss='categorical_crossentropy',
         optimizer='rmsprop', theano_mode=theano.compile.mode.FAST_RUN)
 print("Compiled model")
@@ -32,18 +34,19 @@ if (W0 != default_mask_val).any():
 W = model.get_weights() # We'll save these so we can reset it later
 
 
+X[:,:10] = 0
 Xmask0 = X.copy()
-Xmask0[:,0] = 0
+Xmask0[:,10] = 0
 
 Xmask12 = X.copy()
-Xmask12[:,1] = 0
-Xmask12[:,2] = 0
+Xmask12[:,11] = 0
+Xmask12[:,12] = 0
 
 X0_onehot = np.zeros((X.shape[0], 4))
 X1_onehot = np.zeros((X.shape[0], 4))
 for i, row in enumerate(X):
-    X0_onehot[i, row[0]-1] = 1
-    X1_onehot[i, row[1]-1] = 1
+    X0_onehot[i, row[10]-1] = 1
+    X1_onehot[i, row[11]-1] = 1
 
 # Uniform score: 4 options = ln(4) nats (2 bits)
 # we should not do better than this when we mask out the part of the input

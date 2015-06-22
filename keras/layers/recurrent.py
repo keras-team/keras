@@ -5,27 +5,9 @@ import theano.tensor as T
 import numpy as np
 
 from .. import activations, initializations
-from ..utils.theano_utils import shared_scalar, shared_zeros, alloc_zeros_matrix
+from ..utils.theano_utils import shared_scalar, shared_zeros, alloc_zeros_matrix, get_mask
 from ..layers.core import Layer, default_mask_val
 from six.moves import range
-
-def get_mask(X, mask_val, steps_back=0):
-    '''
-        Given X, a (timesteps, nb_samples, n_dimensions) tensor, returns a mask
-        tensor and, if steps_back>0, a padded_mask tensor  with dimension (timesteps + steps_back, nb_samples, 1).
-        This tensor is left-padded with `steps_back` zeros in the time dimension.
-        
-        The mask has a 1 for every entry except for those corresponding to a vector in X that has every entry equal to mask_val.
-    '''
-    mask = T.neq(X, mask_val).sum(axis=2) > 0 # (time, nb_samples) matrix with a 1 for every unmasked entry
-    mask = T.addbroadcast(mask[:, :, np.newaxis], 2) # (time, nb_samples, 1) matrix.
-    if steps_back > 0:
-        # left-pad in time with 0
-        pad = alloc_zeros_matrix(steps_back, mask.shape[1], 1).astype('uint8')
-        return mask, T.concatenate([pad, mask], axis=0)
-    return mask
-
-    
 
 class SimpleRNN(Layer):
     '''

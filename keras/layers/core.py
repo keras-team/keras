@@ -5,7 +5,7 @@ import theano
 import theano.tensor as T
 
 from .. import activations, initializations
-from ..utils.theano_utils import shared_zeros, floatX
+from ..utils.theano_utils import shared_zeros, floatX, shared_scalar, get_mask
 from ..utils.generic_utils import make_tuple
 from .. import regularizers
 from .. import constraints
@@ -144,19 +144,21 @@ class Dropout(Layer):
     '''
         Hinton's dropout.
     '''
-    def __init__(self, p):
+    def __init__(self, p, mask_val=default_mask_val):
         super(Dropout,self).__init__()
         self.p = p
+        self.mask_val = shared_scalar(mask_val)
 
     def get_output(self, train):
         X = self.get_input(train)
+        mask = get_mask(X, self.mask_val)
         if self.p > 0.:
             retain_prob = 1. - self.p
             if train:
                 X *= srng.binomial(X.shape, p=retain_prob, dtype=theano.config.floatX)
             else:
                 X *= retain_prob
-        return X
+        return mask*X + (1-mask)*self.mask_val
 
     def get_config(self):
         return {"name":self.__class__.__name__,
