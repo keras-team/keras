@@ -3,6 +3,7 @@ from __future__ import absolute_import, division
 
 import theano
 import theano.tensor as T
+import numpy as np
 
 from .. import activations, initializations
 from ..utils.theano_utils import shared_zeros, floatX, shared_scalar, get_mask
@@ -12,7 +13,7 @@ from .. import constraints
 
 from theano.sandbox.rng_mrg import MRG_RandomStreams as RandomStreams
 from six.moves import zip
-srng = RandomStreams()
+srng = RandomStreams(seed=np.random.randint(10e6))
 
 default_mask_val = -999.
 

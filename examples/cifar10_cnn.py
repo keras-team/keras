@@ -30,6 +30,7 @@ data_augmentation = True
 
 # the data, shuffled and split between tran and test sets
 (X_train, y_train), (X_test, y_test) = cifar10.load_data()
+print('X_train shape:', X_train.shape)
 print(X_train.shape[0], 'train samples')
 print(X_test.shape[0], 'test samples')
 
@@ -54,11 +55,11 @@ model.add(MaxPooling2D(poolsize=(2, 2)))
 model.add(Dropout(0.25))
 
 model.add(Flatten())
-model.add(Dense(64*8*8, 512, init='normal'))
+model.add(Dense(64*8*8, 512))
 model.add(Activation('relu'))
 model.add(Dropout(0.5))
 
-model.add(Dense(512, nb_classes, init='normal'))
+model.add(Dense(512, nb_classes))
 model.add(Activation('softmax'))
 
 # let's train the model using SGD + momentum (how original).
