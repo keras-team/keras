@@ -39,14 +39,13 @@ class SimpleRNN(Layer):
         if weights is not None:
             self.set_weights(weights)
 
-    def _step(self, x_t, mask_t, mask_tm1, h_tm1, u):
+    def _step(self, x_t, mask_tm1, h_tm1, u):
         '''
             Variable names follow the conventions from: 
             http://deeplearning.net/software/theano/library/scan.html
 
         '''
-        normal_output = self.activation(x_t + mask_tm1 * T.dot(h_tm1, u))
-        return mask_t * normal_output
+        return self.activation(x_t + mask_tm1 * T.dot(h_tm1, u))
 
     def get_output(self, train):
         X = self.get_input(train) # shape: (nb_samples, time (padded with zeros at the end), input_dim)
@@ -62,14 +61,14 @@ class SimpleRNN(Layer):
         # Iterate over the first dimension of the x array (=time).
         outputs, updates = theano.scan(
             self._step, # this will be called with arguments (sequences[i], outputs[i-1], non_sequences[i])
-            sequences=[x, dict(input=padded_mask,taps=[0, -1])], # tensors to iterate over, inputs to _step
+            sequences=[x, dict(input=padded_mask, taps=[-1])], # tensors to iterate over, inputs to _step
             # initialization of the output. Input to _step with default tap=-1.
             outputs_info=T.unbroadcast(alloc_zeros_matrix(X.shape[1], self.output_dim), 1),
             non_sequences=self.U, # static inputs to _step
             truncate_gradient=self.truncate_gradient
         )
         # Apply the mask:
-        outputs = mask*outputs + (1-mask)*self.mask_val
+        outputs = mask * outputs + (1 - mask) * self.mask_val
         if self.return_sequences:
             return outputs.dimshuffle((1,0,2))
         return outputs[-1]
@@ -120,14 +119,14 @@ class SimpleDeepRNN(Layer):
         if weights is not None:
             self.set_weights(weights)
 
-    def _step(self, x_t, mask_t, *args):
+    def _step(self, x_t, *args):
         o = x_t
         for i in range(self.depth):
             mask_tmi = args[i]
             h_tmi = args[i + self.depth]
             U_tmi = args[i + 2*self.depth]
             o += mask_tmi*self.inner_activation(T.dot(h_tmi, U_tmi))
-        return mask_t*self.activation(o)
+        return self.activation(o)
 
     def get_output(self, train):
         X = self.get_input(train)
@@ -146,7 +145,7 @@ class SimpleDeepRNN(Layer):
             self._step,
             sequences=[x, dict(
                 input = padded_mask,
-                taps = [(-i) for i in range(self.depth+1)]
+                taps = [(-i) for i in range(self.depth)]
             )],
             outputs_info=[dict(
                 initial = initial,
@@ -155,7 +154,7 @@ class SimpleDeepRNN(Layer):
             non_sequences=self.Us,
             truncate_gradient=self.truncate_gradient
         )
-        outputs = mask*outputs + (1-mask)*self.mask_val
+        outputs = mask * outputs + (1 - mask) * self.mask_val
         if self.return_sequences:
             return outputs.dimshuffle((1,0,2))
         return outputs[-1]
