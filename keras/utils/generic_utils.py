@@ -4,7 +4,7 @@ import time
 import sys
 
 def get_from_module(identifier, module_params, module_name, instantiate=False):
-    if type(identifier) is str:
+    if isinstance(identifier, basestring):
         res = module_params.get(identifier)
         if not res:
             raise Exception('Invalid ' + str(module_name) + ': ' + str(identifier))
