@@ -29,8 +29,7 @@ def pad_sequences(sequences, maxlen=None, dtype='int32', padding='pre'):
             if isinstance(sequences[idx][0], np.ndarray):
                 array_like = True
                 dim = len(sequences[idx][0])
-            else:
-                break
+            break
 
     if not array_like:
         x = np.zeros((nb_samples, maxlen)).astype(dtype)
