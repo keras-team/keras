@@ -325,7 +325,7 @@ class Sequential(Model, containers.Sequential):
         self.params = [] # learnable
         self.regularizers = [] # same size as params
         self.constraints = [] # same size as params
-        self.cost_updates = [] # NOT the same size as params
+        self.cost_updates = [] # size can vary, no 1-to-1 mapping to params
 
 
     def get_config(self, verbose=0):
