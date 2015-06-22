@@ -4,7 +4,7 @@
 import numpy as np
 from keras.utils.theano_utils import sharedX
 from keras.models import Sequential
-from keras.layers.core import Dense, Activation, Merge, Dropout
+from keras.layers.core import Dense, Activation, Merge, Dropout, TimeDistributedDense
 from keras.layers.embeddings import Embedding
 from keras.layers.recurrent import SimpleRNN, SimpleDeepRNN
 from keras.layers.core import default_mask_val
@@ -17,6 +17,7 @@ X = np.random.random_integers(1, 4, size=(500000,15))
 
 model = Sequential()
 model.add(Embedding(5, 4, zero_is_mask=True))
+model.add(TimeDistributedDense(4,4)) # obviously this is redundant. Just testing.
 model.add(SimpleRNN(4,4, activation='relu', return_sequences=True))
 model.add(Dropout(0.5))
 model.add(SimpleDeepRNN(4,4, depth=2, activation='relu')) 
