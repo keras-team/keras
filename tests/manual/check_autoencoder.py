@@ -12,7 +12,8 @@ from keras.utils import np_utils
 import numpy as np
 
 # Try different things here: 'lstm' or 'classical' or 'denoising'
-autoencoder_type = 'denoising'
+# or 'deep_denoising'
+autoencoder_type = 'deep_denoising'
 
 nb_classes = 10
 batch_size = 128
@@ -88,6 +89,15 @@ def build_denoising_autoencoder(autoencoder):
 										 output_reconstruction=False, tie_weights=True, corruption_level=0.3))
 	return autoencoder
 
+def build_deep_denoising_autoencoder(autoencoder):
+	encoder = containers.Sequential([Dense(input_dim, hidden_dim, activation=activation), Dense(hidden_dim, hidden_dim/2, activation=activation)])
+	decoder = containers.Sequential([Dense(hidden_dim/2, hidden_dim, activation=activation), Dense(hidden_dim, input_dim, activation=activation)])
+	autoencoder.add(Dense(input_dim, input_dim))
+	autoencoder.add(DenoisingAutoEncoder(encoder=encoder, decoder=decoder, output_reconstruction=False, tie_weights=True))
+	return autoencoder
+
+
+
 # Build our autoencoder model
 autoencoder = Sequential()
 if autoencoder_type == 'lstm':
@@ -96,6 +106,9 @@ if autoencoder_type == 'lstm':
 elif autoencoder_type == 'denoising':
 	print("Training Denoising AutoEncoder")
 	autoencoder = build_denoising_autoencoder(autoencoder)
+elif autoencoder_type == 'deep_denoising':
+    print ("Training Deep Denoising AutoEncoder")
+    autoencoder = build_deep_denoising_autoencoder(autoencoder)
 elif autoencoder_type == 'classical':
 	print("Training Classical AutoEncoder")
 	autoencoder = build_deep_classical_autoencoder(autoencoder)
