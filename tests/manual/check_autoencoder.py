@@ -8,12 +8,7 @@ from keras.layers.embeddings import Embedding
 from keras.layers.core import Layer
 from keras.layers import containers
 from keras.utils import np_utils
-
 import numpy as np
-
-# Try different things here: 'lstm' or 'classical' or 'denoising'
-# or 'deep_denoising'
-autoencoder_type = 'deep_denoising'
 
 nb_classes = 10
 batch_size = 128
@@ -42,6 +37,7 @@ Y_test = np_utils.to_categorical(y_test, nb_classes)[:max_test_samples]
 
 print("X_train: ", X_train.shape)
 print("X_test: ", X_test.shape)
+
 
 ##########################
 # dense model test       #
@@ -98,55 +94,61 @@ def build_deep_denoising_autoencoder(autoencoder):
 
 
 
-# Build our autoencoder model
-autoencoder = Sequential()
-if autoencoder_type == 'lstm':
-	print("Training LSTM AutoEncoder")
-	autoencoder, X_train, X_test = build_lstm_autoencoder(autoencoder, X_train, X_test)
-elif autoencoder_type == 'denoising':
-	print("Training Denoising AutoEncoder")
-	autoencoder = build_denoising_autoencoder(autoencoder)
-elif autoencoder_type == 'deep_denoising':
-    print ("Training Deep Denoising AutoEncoder")
-    autoencoder = build_deep_denoising_autoencoder(autoencoder)
-elif autoencoder_type == 'classical':
-	print("Training Classical AutoEncoder")
-	autoencoder = build_deep_classical_autoencoder(autoencoder)
-else:
-	print("Error: unknown autoencoder type!")
-	exit(-1)
+# Try different things here: 'lstm' or 'classical' or 'denoising'
+# or 'deep_denoising'
 
-autoencoder.get_config(verbose=1)
-autoencoder.compile(loss='mean_squared_error', optimizer='adam')
-# Do NOT use validation data with return output_reconstruction=True
-autoencoder.fit(X_train, X_train, batch_size=batch_size, nb_epoch=nb_epoch, show_accuracy=False, verbose=1)
+for autoencoder_type in ['classical', 'denoising', 'deep_denoising', 'lstm']:
+	print(autoencoder_type)
+	print('-'*40)
+	# Build our autoencoder model
+	autoencoder = Sequential()
+	if autoencoder_type == 'lstm':
+		print("Training LSTM AutoEncoder")
+		autoencoder, X_train, X_test = build_lstm_autoencoder(autoencoder, X_train, X_test)
+	elif autoencoder_type == 'denoising':
+		print("Training Denoising AutoEncoder")
+		autoencoder = build_denoising_autoencoder(autoencoder)
+	elif autoencoder_type == 'deep_denoising':
+	    print ("Training Deep Denoising AutoEncoder")
+	    autoencoder = build_deep_denoising_autoencoder(autoencoder)
+	elif autoencoder_type == 'classical':
+		print("Training Classical AutoEncoder")
+		autoencoder = build_deep_classical_autoencoder(autoencoder)
+	else:
+		print("Error: unknown autoencoder type!")
+		exit(-1)
 
-# Do an inference pass
-prefilter_train = autoencoder.predict(X_train, verbose=0)
-prefilter_test = autoencoder.predict(X_test, verbose=0)
-print("prefilter_train: ", prefilter_train.shape)
-print("prefilter_test: ", prefilter_test.shape)
+	autoencoder.get_config(verbose=1)
+	autoencoder.compile(loss='mean_squared_error', optimizer='adam')
+	# Do NOT use validation data with return output_reconstruction=True
+	autoencoder.fit(X_train, X_train, batch_size=batch_size, nb_epoch=nb_epoch, show_accuracy=False, verbose=1)
 
-# Classify results from Autoencoder
-print("Building classical fully connected layer for classification")
-model = Sequential()
-if autoencoder_type == 'lstm':
-	model.add(TimeDistributedDense(8, nb_classes, activation=activation))
-	model.add(Flatten())
-elif autoencoder_type == 'classical':
-	model.add(Dense(prefilter_train.shape[1], nb_classes, activation=activation))
-else:
-	model.add(Dense(prefilter_train.shape[1], nb_classes, activation=activation))
+	# Do an inference pass
+	prefilter_train = autoencoder.predict(X_train, verbose=0)
+	prefilter_test = autoencoder.predict(X_test, verbose=0)
+	print("prefilter_train: ", prefilter_train.shape)
+	print("prefilter_test: ", prefilter_test.shape)
 
-model.add(Activation('softmax'))
+	# Classify results from Autoencoder
+	print("Building classical fully connected layer for classification")
+	model = Sequential()
+	if autoencoder_type == 'lstm':
+		model.add(TimeDistributedDense(8, nb_classes, activation=activation))
+		model.add(Flatten())
+	elif autoencoder_type == 'classical':
+		model.add(Dense(prefilter_train.shape[1], nb_classes, activation=activation))
+	else:
+		model.add(Dense(prefilter_train.shape[1], nb_classes, activation=activation))
 
-model.get_config(verbose=1)
-model.compile(loss='categorical_crossentropy', optimizer='adam')
-model.fit(prefilter_train, Y_train, batch_size=batch_size, nb_epoch=nb_epoch, show_accuracy=False, verbose=0, validation_data=(prefilter_test, Y_test))
+	model.add(Activation('softmax'))
 
-score = model.evaluate(prefilter_test, Y_test, verbose=0, show_accuracy=True)
-print('\nscore:', score)
+	model.get_config(verbose=1)
+	model.compile(loss='categorical_crossentropy', optimizer='adam')
+	model.fit(prefilter_train, Y_train, batch_size=batch_size, nb_epoch=nb_epoch, show_accuracy=False, verbose=0, validation_data=(prefilter_test, Y_test))
 
-print('Loss change:', (score[0] - classical_score[0])/classical_score[0], '%')
-print('Accuracy change:', (score[1] - classical_score[1])/classical_score[1], '%')
+	score = model.evaluate(prefilter_test, Y_test, verbose=0, show_accuracy=True)
+	print('\nscore:', score)
+
+	print('Loss change:', (score[0] - classical_score[0])/classical_score[0], '%')
+	print('Accuracy change:', (score[1] - classical_score[1])/classical_score[1], '%')
 
