@@ -161,7 +161,8 @@ class Dropout(Layer):
 
     def get_config(self):
         return {"name":self.__class__.__name__,
-            "p":self.p}
+            "p":self.p,
+            "mask_val":self.mask_val.eval()}
 
 
 class Activation(Layer):
@@ -184,7 +185,8 @@ class Activation(Layer):
         return {"name":self.__class__.__name__,
             "activation":self.activation.__name__,
             "target":self.target,
-            "beta":self.beta}
+            "beta":self.beta,
+            "mask_val":self.mask_val.eval()}
 
 
 class Reshape(Layer):
@@ -330,7 +332,8 @@ class TimeDistributedDense(Layer):
             "input_dim":self.input_dim,
             "output_dim":self.output_dim,
             "init":self.init.__name__,
-            "activation":self.activation.__name__}
+            "activation":self.activation.__name__,
+            "mask_val":self.mask_val.eval()}
 
 class AutoEncoder(Layer):
     '''

@@ -81,7 +81,8 @@ class SimpleRNN(Layer):
             "inner_init":self.inner_init.__name__,
             "activation":self.activation.__name__,
             "truncate_gradient":self.truncate_gradient,
-            "return_sequences":self.return_sequences}
+            "return_sequences":self.return_sequences,
+            "mask_val":self.mask_val.eval()}
 
 
 class SimpleDeepRNN(Layer):
@@ -169,7 +170,8 @@ class SimpleDeepRNN(Layer):
             "activation":self.activation.__name__,
             "inner_activation":self.inner_activation.__name__,
             "truncate_gradient":self.truncate_gradient,
-            "return_sequences":self.return_sequences}
+            "return_sequences":self.return_sequences,
+            "mask_val":self.mask_val.eval()}
 
 
 
@@ -277,7 +279,8 @@ class GRU(Layer):
             "activation":self.activation.__name__,
             "inner_activation":self.inner_activation.__name__,
             "truncate_gradient":self.truncate_gradient,
-            "return_sequences":self.return_sequences}
+            "return_sequences":self.return_sequences,
+            "mask_val":self.mask_val.eval()}
 
 
 
@@ -399,6 +402,7 @@ class LSTM(Layer):
             "activation":self.activation.__name__,
             "inner_activation":self.inner_activation.__name__,
             "truncate_gradient":self.truncate_gradient,
-            "return_sequences":self.return_sequences}
+            "return_sequences":self.return_sequences,
+            "mask_val":self.mask_val.eval()}
         
 

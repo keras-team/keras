@@ -28,6 +28,9 @@ model.compile(loss='categorical_crossentropy',
         optimizer='rmsprop', theano_mode=theano.compile.mode.FAST_RUN)
 print("Compiled model")
 
+if model.layers[1].get_config()['mask_val'] != default_mask_val:
+    raise Exception("mask_val improperly set in config. Set to %s not %f" % (model.layers[1].get_config()['mask_val']))
+
 W0 = model.layers[0].W.get_value()[0,:]
 if (W0 != default_mask_val).any():
     raise Exception("Did not set the mask val properly into the Embedding W matrix, got: ",
