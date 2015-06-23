@@ -117,11 +117,12 @@ model2.add(Embedding(5, 4, zero_is_mask=True))
 model2.add(TimeDistributedDense(4,4))
 model2.add(Activation('time_distributed_softmax'))
 model2.add(LSTM(4,4, return_sequences=True))
+model2.add(Activation('tanh'))
 model2.add(GRU(4,4, activation='softmax', return_sequences=True))
 model2.add(SimpleDeepRNN(4,4, depth=2, activation='relu', return_sequences=True)) 
 model2.add(SimpleRNN(4,4, activation='relu', return_sequences=False))
 model2.compile(loss='categorical_crossentropy',
-        optimizer='rmsprop', theano_mode=theano.compile.mode.FAST_RUN)
+        optimizer='rmsprop', theano_mode=theano.compile.mode.FAST_COMPILE)
 print("Compiled model2")
 
 X2 = np.random.random_integers(1, 4, size=(2,5))

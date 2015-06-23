@@ -168,15 +168,17 @@ class Activation(Layer):
     '''
         Apply an activation function to an output.
     '''
-    def __init__(self, activation, target=0, beta=0.1):
+    def __init__(self, activation, target=0, beta=0.1, mask_val=default_mask_val):
         super(Activation,self).__init__()
         self.activation = activations.get(activation)
         self.target = target
         self.beta = beta
+        self.mask_val = shared_scalar(mask_val)
 
     def get_output(self, train):
         X = self.get_input(train)
-        return self.activation(X)
+        mask = get_mask(X, self.mask_val)
+        return mask * self.activation(X) + (1 - mask) * self.mask_val
 
     def get_config(self):
         return {"name":self.__class__.__name__,
