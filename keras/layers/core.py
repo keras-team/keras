@@ -245,7 +245,7 @@ class Dense(Layer):
         Just your regular fully connected NN layer.
     '''
     def __init__(self, input_dim, output_dim, init='glorot_uniform', activation='linear', weights=None, 
-        W_regularizer=None, b_regularizer=None, W_constraint=None, b_constraint=None):
+        W_regularizer=None, b_regularizer=None, W_constraint=None, b_constraint=None, name=None):
 
         super(Dense,self).__init__()
         self.init = initializations.get(init)
@@ -256,6 +256,9 @@ class Dense(Layer):
         self.input = T.matrix()
         self.W = self.init((self.input_dim, self.output_dim))
         self.b = shared_zeros((self.output_dim))
+        if name is not None:
+            self.W.name = '%s_W' % name
+            self.b.name = '%s_b' % name
 
         self.params = [self.W, self.b]
 
