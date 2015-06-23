@@ -4,12 +4,12 @@ import theano.tensor as T
 import types
 
 def softmax(x):
-    return T.nnet.softmax(x)
+    return T.nnet.softmax(x.reshape((-1,x.shape[-1]))).reshape(x.shape)
 
 def time_distributed_softmax(x):
-    xshape = x.shape
-    X = x.reshape((xshape[0] * xshape[1], xshape[2]))
-    return T.nnet.softmax(X).reshape(xshape)
+    import warnings
+    warnings.warn("time_distributed_softmax is deprecated. Just use softmax!", DeprecationWarning)
+    return softmax(x)
 
 def softplus(x):
     return T.nnet.softplus(x)
