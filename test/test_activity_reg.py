@@ -17,8 +17,8 @@ max_test_samples = 1000
 
 (X_train, y_train), (X_test, y_test) = mnist.load_data()
 
-X_train = X_train.reshape((-1,28*28))
-X_test = X_test.reshape((-1,28*28))
+X_train = X_train.reshape((-1, 28*28))
+X_test = X_test.reshape((-1, 28*28))
 
 nb_classes = len(np.unique(y_train))
 Y_train = np_utils.to_categorical(y_train, nb_classes)[:max_train_samples]
@@ -38,7 +38,7 @@ score_train_noreg = model_noreg.evaluate(X_train, Y_train)
 model_reg = Sequential()
 model_reg.add(Flatten())
 model_reg.add(Dense(28*28, 20, activation='sigmoid'))
-model_reg.add(ActivityRegularization(activity_l1(0.015)))
+model_reg.add(ActivityRegularization(activity_l1(0.1)))
 model_reg.add(Dense(20, 10, activation='sigmoid'))
 
 model_reg.compile(loss='categorical_crossentropy', optimizer='rmsprop')

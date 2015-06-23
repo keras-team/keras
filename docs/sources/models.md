@@ -13,7 +13,7 @@ model = keras.models.Sequential()
             - __loss__: str (name of objective function) or objective function. See [objectives](objectives.md).
             - __class_mode__: one of "categorical", "binary". This is only used for computing classification accuracy or using the predict_classes method. 
             - __theano_mode__: A `theano.compile.mode.Mode` ([reference](http://deeplearning.net/software/theano/library/compile/mode.html)) instance controlling specifying compilation options.
-    - __fit__(X, y, batch_size=128, nb_epoch=100, verbose=1, validation_split=0., validation_data=None, shuffle=True, show_accuracy=False, callbacks=[], class_weight=None): Train a model for a fixed number of epochs.
+    - __fit__(X, y, batch_size=128, nb_epoch=100, verbose=1, validation_split=0., validation_data=None, shuffle=True, show_accuracy=False, callbacks=[], class_weight=None, sample_weight=None): Train a model for a fixed number of epochs.
         - __Return__: a history dictionary with a record of training loss values at successive epochs, as well as validation loss values (if applicable), accuracy (if applicable), etc.
         - __Arguments__: 
             - __X__: data.
@@ -26,7 +26,6 @@ model = keras.models.Sequential()
             - __shuffle__: boolean. Whether to shuffle the samples at each epoch.
             - __show_accuracy__: boolean. Whether to display class accuracy in the logs to stdout at each epoch.
             - __callbacks__: `keras.callbacks.Callback` list. List of callbacks to apply during training. See [callbacks](callbacks.md).
-            - __class_weight__: If specified, must be a dictionary which maps every class label to its class weight. Scales the loss of every training sample depending on the passed weights.
     - __evaluate__(X, y, batch_size=128, show_accuracy=False, verbose=1): Show performance of the model over some validation data.
         - __Return__: The loss score over the data.
         - __Arguments__: Same meaning as fit method above. verbose is used as a binary flag (progress bar or nothing).
@@ -36,7 +35,7 @@ model = keras.models.Sequential()
     - __predict_classes__(X, batch_size=128, verbose=1): Return an array of class predictions for some test data.
         - __Return__: An array of labels for some test data.
         - __Arguments__: Same meaning as fit method above. verbose is used as a binary flag (progress bar or nothing).
-    - __train__(X, y, accuracy=False, class_weight=None): Single gradient update on one batch. if accuracy==False, return tuple (loss_on_batch, accuracy_on_batch). Else, return loss_on_batch.
+    - __train__(X, y, accuracy=False): Single gradient update on one batch. if accuracy==False, return tuple (loss_on_batch, accuracy_on_batch). Else, return loss_on_batch.
         - __Return__: loss over the data, or tuple `(loss, accuracy)` if `accuracy=True`.
     - __test__(X, y, accuracy=False): Single performance evaluation on one batch. if accuracy==False, return tuple (loss_on_batch, accuracy_on_batch). Else, return loss_on_batch.
         - __Return__: loss over the data, or tuple `(loss, accuracy)` if `accuracy=True`.

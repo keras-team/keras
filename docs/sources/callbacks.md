@@ -27,6 +27,23 @@ The `logs` dictionary will contain keys for quantities relevant to the current b
 
 ---
 
+## Available callbacks
+
+```python
+keras.callbacks.ModelCheckpoint(filepath, verbose=0, save_best_only=False)
+```
+
+Save the model after every epoch. If `save_best_only=True`, the latest best model according to the validation loss will not be overwritten. 
+
+
+```python
+keras.callbacks.EarlyStopping(patience=0, verbose=0)
+```
+
+Stop training after no improvement of the validation loss is seen for `patience` epochs.
+
+---
+
 
 ## Create a callback
 
@@ -48,7 +65,7 @@ class LossHistory(keras.callbacks.Callback):
 
 ```python
 class LossHistory(keras.callbacks.Callback):
-    def on_train_begin(self):
+    def on_train_begin(self, logs={}):
         self.losses = []
 
     def on_batch_end(self, batch, logs={}):

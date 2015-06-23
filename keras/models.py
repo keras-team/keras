@@ -41,15 +41,20 @@ def slice_X(X, start=None, stop=None):
         else:
             return X[start:stop]
 
-def calculate_class_weights(Y, class_weight):
-    if isinstance(class_weight, dict):
+def calculate_loss_weights(Y, sample_weight=None, class_weight=None):
+    if sample_weight is not None:
+        if isinstance(sample_weight, list):
+            w = np.array(sample_weight)
+        else:
+            w = sample_weight
+    elif isinstance(class_weight, dict):
         if Y.shape[1] > 1:
             y_classes = Y.argmax(axis=1)
         elif Y.shape[1] == 1:
             y_classes = np.reshape(Y, Y.shape[0])
         else:
             y_classes = Y
-        w = np.array(map(lambda x: class_weight[x], y_classes))
+        w = np.array(list(map(lambda x: class_weight[x], y_classes)))
     else:
         w = np.ones((Y.shape[0]))
     return w
@@ -70,10 +75,7 @@ class Model(object):
         # target of model
         self.y = T.zeros_like(self.y_train)
 
-        # parameter for rescaling the objective function
-        self.class_weights = T.vector()
-
-        train_loss = self.loss(self.y, self.y_train, self.class_weights)
+        train_loss = self.loss(self.y, self.y_train)
         test_score = self.loss(self.y, self.y_test)
 
         if class_mode == "categorical":
@@ -94,11 +96,11 @@ class Model(object):
         updates = self.optimizer.get_updates(self.params, self.regularizers, self.constraints,  train_loss)
 
         if type(self.X_train) == list:
-            train_ins = self.X_train + [self.y, self.class_weights]
+            train_ins = self.X_train + [self.y]
             test_ins = self.X_test + [self.y]
             predict_ins = self.X_test
         else:
-            train_ins = [self.X_train, self.y, self.class_weights]
+            train_ins = [self.X_train, self.y]
             test_ins = [self.X_test, self.y]
             predict_ins = [self.X_test]
 
@@ -114,12 +116,11 @@ class Model(object):
             allow_input_downcast=True, mode=theano_mode)
 
 
-    def train(self, X, y, accuracy=False, class_weight=None):
+    def train(self, X, y, accuracy=False):
         X = standardize_X(X)
         y = standardize_y(y)
-        # calculate the weight vector for the loss function
-        w = calculate_class_weights(y, class_weight)
-        ins = X + [y, w]
+
+        ins = X + [y]
         if accuracy:
             return self._train_with_acc(*ins)
         else:
@@ -137,7 +138,7 @@ class Model(object):
 
 
     def fit(self, X, y, batch_size=128, nb_epoch=100, verbose=1, callbacks=[],
-            validation_split=0., validation_data=None, shuffle=True, show_accuracy=False, class_weight=None):
+            validation_split=0., validation_data=None, shuffle=True, show_accuracy=False):
 
         X = standardize_X(X)
         y = standardize_y(y)
@@ -168,10 +169,9 @@ class Model(object):
 
         index_array = np.arange(len(y))
 
-        callbacks = cbks.CallbackList(callbacks)
         if verbose:
-            callbacks.append(cbks.BaseLogger())
-        callbacks.append(cbks.History())
+            callbacks = [cbks.BaseLogger()] + callbacks
+        callbacks = cbks.CallbackList([cbks.History()] + callbacks)
 
         callbacks._set_model(self)
         callbacks._set_params({
@@ -184,6 +184,7 @@ class Model(object):
         })
         callbacks.on_train_begin()
 
+        self.stop_training = False
         for epoch in range(nb_epoch):
             callbacks.on_epoch_begin(epoch)
             if shuffle:
@@ -195,15 +196,12 @@ class Model(object):
                 X_batch = slice_X(X, batch_ids)
                 y_batch = y[batch_ids]
 
-                # calculate weight vector for current batch
-                w = calculate_class_weights(y_batch, class_weight)
-
                 batch_logs = {}
                 batch_logs['batch'] = batch_index
                 batch_logs['size'] = len(batch_ids)
                 callbacks.on_batch_begin(batch_index, batch_logs)
 
-                ins = X_batch + [y_batch, w]
+                ins = X_batch + [y_batch]
                 if show_accuracy:
                     loss, acc = self._train_with_acc(*ins)
                     batch_logs['accuracy'] = acc
@@ -226,10 +224,11 @@ class Model(object):
                         epoch_logs['val_loss'] = val_loss
 
             callbacks.on_epoch_end(epoch, epoch_logs)
+            if self.stop_training:
+                break
 
         callbacks.on_train_end()
-        # return history
-        return callbacks.callbacks[-1]
+        return callbacks.callbacks[0] # return history
 
     def predict(self, X, batch_size=128, verbose=1):
         X = standardize_X(X)
