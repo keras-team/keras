@@ -13,31 +13,30 @@ google_analytics: ['UA-61785484-1', 'keras.io']
 
 
 pages:
-- [index.md, Home]
-- [documentation.md, Index]
+- Home: index.md
+- Index: documentation.md
+- Examples: examples.md
+- Optimizers: optimizers.md
+- Objectives: objectives.md
+- Models: models.md
+- Activations: activations.md
+- Initializations: initializations.md
+- Regularizers: regularizers.md
+- Constraints: constraints.md
+- Callbacks: callbacks.md
+- Datasets: datasets.md
+- Layers:
+  - Core Layers: layers/core.md
+  - Convolutional Layers: layers/convolutional.md
+  - Recurrent Layers: layers/recurrent.md
+  - Advanced Activations Layers: layers/advanced_activations.md
+  - Normalization Layers: layers/normalization.md
+  - Embedding Layers: layers/embeddings.md
+  - Containers: layers/containers.md
+- Preprocessing:
+  - Sequence Preprocessing: preprocessing/sequence.md
+  - Text Preprocessing: preprocessing/text.md
+  - Image Preprocessing: preprocessing/image.md
+- Utils:
+  - Visualization Utilities: utils/visualization.md
 
-- [examples.md, Examples]
-- [optimizers.md, Optimizers]
-- [objectives.md, Objectives]
-- [models.md, Models]
-- [activations.md, Activations]
-- [initializations.md, Initializations]
-- [regularizers.md, Regularizers]
-- [constraints.md, Constraints]
-- [callbacks.md, Callbacks]
-
-- [datasets.md, Datasets]
-
-- [layers/core.md, Layers, Core Layers]
-- [layers/convolutional.md, Layers, Convolutional Layers]
-- [layers/recurrent.md, Layers, Recurrent Layers]
-- [layers/advanced_activations.md, Layers, Advanced Activations Layers]
-- [layers/normalization.md, Layers, Normalization Layers]
-- [layers/embeddings.md, Layers, Embedding Layers]
-- [layers/containers.md, Layers, Containers]
-
-- [preprocessing/sequence.md, Preprocessing, Sequence Preprocessing]
-- [preprocessing/text.md, Preprocessing, Text Preprocessing]
-- [preprocessing/image.md, Preprocessing, Image Preprocessing]
-
-- [utils/visualization.md, Utils, Visualization Utilities]
