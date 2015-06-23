@@ -26,8 +26,7 @@ model.add(Activation(tanh))
 
 ## Available activations
 
-- __softmax__: Should only be applied to 2D layers (expected shape: `(nb_samples, nb_dims)`).
-- __time_distributed_softmax__: Softmax applied to every sample at every timestep of a layer of shape `(nb_samples, nb_timesteps, nb_dims)`.
+- __softmax__: Softmax applied across inputs last dimension. Expects shape either `(nb_samples, nb_timesteps, nb_dims)` or `(nb_samples, nb_dims)`.
 - __softplus__
 - __relu__
 - __tanh__
