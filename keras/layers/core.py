@@ -366,7 +366,7 @@ class AutoEncoder(Layer):
             self.set_weights(weights)
 
     def connect(self, node):
-        self.encoder.previous = node
+        self.encoder.connect(node)
 
     def get_weights(self):
         weights = []

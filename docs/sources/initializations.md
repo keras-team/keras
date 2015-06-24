@@ -15,6 +15,7 @@ model.add(Dense(64, 64, init='uniform'))
 - __uniform__
 - __lecun_uniform__: Uniform initialization scaled by the square root of the number of inputs (LeCun 98).
 - __normal__
+- __identity__: Use with square 2D layers (`shape[0] == shape[1]`).
 - __orthogonal__: Use with square 2D layers (`shape[0] == shape[1]`).
 - __zero__
 - __glorot_normal__: Gaussian initialization scaled by fan_in + fan_out (Glorot 2010)
