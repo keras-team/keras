@@ -123,16 +123,30 @@ model2.add(LSTM(4,4, return_sequences=True))
 model2.add(Activation('tanh'))
 model2.add(GRU(4,4, activation='softmax', return_sequences=True))
 model2.add(SimpleDeepRNN(4,4, depth=2, activation='relu', return_sequences=True)) 
-model2.add(SimpleRNN(4,4, activation='relu', return_sequences=False))
+model2.add(SimpleRNN(4,4, activation='relu', return_sequences=True))
 model2.compile(loss='categorical_crossentropy',
-        optimizer='rmsprop', theano_mode=theano.compile.mode.FAST_COMPILE)
+        optimizer='rmsprop', theano_mode=theano.compile.mode.FAST_RUN)
 print("Compiled model2")
 
 X2 = np.random.random_integers(1, 4, size=(2,5))
+y2 = np.random.random((X2.shape[0],X2.shape[1],4))
+
 ref = model2.predict(X2)
+ref_eval = model2.evaluate(X2, y2)
+mask = np.ones((y2.shape[0], y2.shape[1], 1))
+
 for pre_zeros in range(1,10):
-    padded = np.concatenate((np.zeros((2, pre_zeros)), X2), axis=1)
-    pred = model2.predict(padded)
-    if not np.allclose(ref, pred):
+    padded_X2 = np.concatenate((np.zeros((X2.shape[0], pre_zeros)), X2), axis=1)
+    padded_mask = np.concatenate((np.zeros((mask.shape[0], pre_zeros, mask.shape[2])), mask), axis=1)
+    padded_y2 = np.concatenate((np.zeros((y2.shape[0], pre_zeros, y2.shape[2])), y2), axis=1)
+
+    pred = model2.predict(padded_X2)
+    if not np.allclose(ref[:,-1,:], pred[:,-1,:]):
         raise Exception("Different result after left-padding %d zeros. Ref: %s, Pred: %s" % (pre_zeros, ref, pred))
+
+    pad_eval = model2.evaluate(padded_X2, padded_y2, weights=padded_mask)
+    if not np.allclose([pad_eval], [ref_eval]):
+        raise Exception("Got dissimilar categorical_crossentropy after left-padding %d zeros. Ref: %f, Pred %f" %\
+                (pref_eval, pred_val))
+
         

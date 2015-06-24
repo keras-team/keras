@@ -16,7 +16,7 @@ def standardize_y(y):
     if not hasattr(y, 'shape'):
         y = np.asarray(y)
     if len(y.shape) == 1:
-        y = np.reshape(y, (len(y), 1))
+        y = np.expand_dims(y, 1)
     return y
 
 def make_batches(size, batch_size):
@@ -41,24 +41,6 @@ def slice_X(X, start=None, stop=None):
         else:
             return X[start:stop]
 
-def calculate_loss_weights(Y, sample_weight=None, class_weight=None):
-    if sample_weight is not None:
-        if isinstance(sample_weight, list):
-            w = np.array(sample_weight)
-        else:
-            w = sample_weight
-    elif isinstance(class_weight, dict):
-        if Y.shape[1] > 1:
-            y_classes = Y.argmax(axis=1)
-        elif Y.shape[1] == 1:
-            y_classes = np.reshape(Y, Y.shape[0])
-        else:
-            y_classes = Y
-        w = np.array(list(map(lambda x: class_weight[x], y_classes)))
-    else:
-        w = np.ones((Y.shape[0]))
-    return w
-
 class Model(object):
 
     def compile(self, optimizer, loss, class_mode="categorical", theano_mode=None):
@@ -75,9 +57,12 @@ class Model(object):
         # target of model
         self.y = T.zeros_like(self.y_train)
 
-        train_loss = self.loss(self.y, self.y_train)
-        test_score = self.loss(self.y, self.y_test)
+        self.weights = T.ones_like(self.y_train)
 
+        train_loss = self.loss(self.y, self.y_train, self.weights)
+        test_score = self.loss(self.y, self.y_test, self.weights)
+
+        
         if class_mode == "categorical":
             train_accuracy = T.mean(T.eq(T.argmax(self.y, axis=-1), T.argmax(self.y_train, axis=-1)))
             test_accuracy = T.mean(T.eq(T.argmax(self.y, axis=-1), T.argmax(self.y_test, axis=-1)))
@@ -92,12 +77,12 @@ class Model(object):
         updates = self.optimizer.get_updates(self.params, self.regularizers, self.constraints, train_loss)
 
         if type(self.X_train) == list:
-            train_ins = self.X_train + [self.y]
-            test_ins = self.X_test + [self.y]
+            train_ins = self.X_train + [self.y, self.weights]
+            test_ins = self.X_test + [self.y, self.weights]
             predict_ins = self.X_test
         else:
-            train_ins = [self.X_train, self.y]
-            test_ins = [self.X_test, self.y]
+            train_ins = [self.X_train, self.y, self.weights]
+            test_ins = [self.X_test, self.y, self.weights]
             predict_ins = [self.X_test]
 
         self._train = theano.function(train_ins, train_loss, 
@@ -112,11 +97,16 @@ class Model(object):
             allow_input_downcast=True, mode=theano_mode)
 
 
-    def train(self, X, y, accuracy=False):
+    def train(self, X, y, accuracy=False, weights=None):
         X = standardize_X(X)
         y = standardize_y(y)
 
-        ins = X + [y]
+        if weights is None:
+            weights = np.ones(list(y.shape[0:-1]) + [1])
+        else:
+            weights = standardize_y(weights)
+
+        ins = X + [y, weights]
         if accuracy:
             return self._train_with_acc(*ins)
         else:
@@ -134,21 +124,30 @@ class Model(object):
 
 
     def fit(self, X, y, batch_size=128, nb_epoch=100, verbose=1, callbacks=[],
-            validation_split=0., validation_data=None, shuffle=True, show_accuracy=False):
+            validation_split=0., validation_data=None, shuffle=True, show_accuracy=False, weights=None):
 
         X = standardize_X(X)
         y = standardize_y(y)
+        if weights is not None:
+            weights = standardize_y(weights)
 
         do_validation = False
         if validation_data:
+            weight_val = None
             try:
                 X_val, y_val = validation_data
             except:
-                raise Exception("Invalid format for validation data; provide a tuple (X_val, y_val). \
-                    X_val may be a numpy array or a list of numpy arrays depending on your model input.")
+                try:
+                    X_val, y_val, weight_val = validation_data
+                except:
+                    raise Exception("Invalid format for validation data; provide a tuple (X_val, y_val, [weight_val]). \
+                        X_val may be a numpy array or a list of numpy arrays depending on your model input.")
             do_validation = True
             X_val = standardize_X(X_val)
             y_val = standardize_y(y_val)
+            if weight_val is not None:
+                weight_val = standardize_y(weight_val)
+            
             if verbose:
                 print("Train on %d samples, validate on %d samples" % (len(y), len(y_val)))
         else:
@@ -159,7 +158,10 @@ class Model(object):
                 do_validation = True
                 split_at = int(len(y) * (1 - validation_split))
                 (X, X_val) = (slice_X(X, 0, split_at), slice_X(X, split_at))
-                (y, y_val) = (y[0:split_at], y[split_at:])
+                (y, y_val) = (y[:split_at], y[split_at:])
+                if weights is not None:
+                    (weights, weight_val) = (weights[:split_at], weights[split_at:])
+
                 if verbose:
                     print("Train on %d samples, validate on %d samples" % (len(y), len(y_val)))
 
@@ -191,13 +193,17 @@ class Model(object):
                 batch_ids = index_array[batch_start:batch_end]
                 X_batch = slice_X(X, batch_ids)
                 y_batch = y[batch_ids]
+                if weights is not None:
+                    weight_batch = weights[batch_ids]
+                else:
+                    weight_batch = np.ones(list(y_batch.shape[:-1]) + [1])
 
                 batch_logs = {}
                 batch_logs['batch'] = batch_index
                 batch_logs['size'] = len(batch_ids)
                 callbacks.on_batch_begin(batch_index, batch_logs)
 
-                ins = X_batch + [y_batch]
+                ins = X_batch + [y_batch, weight_batch]
                 if show_accuracy:
                     loss, acc = self._train_with_acc(*ins)
                     batch_logs['accuracy'] = acc
@@ -212,11 +218,11 @@ class Model(object):
                     epoch_logs = {}
                     if do_validation:
                         if show_accuracy:
-                            val_loss, val_acc = self.evaluate(X_val, y_val, batch_size=batch_size, \
+                            val_loss, val_acc = self.evaluate(X_val, y_val, weights=weight_val, batch_size=batch_size, \
                                 verbose=0, show_accuracy=True)
                             epoch_logs['val_accuracy'] = val_acc
                         else:
-                            val_loss = self.evaluate(X_val, y_val, batch_size=batch_size, verbose=0)
+                            val_loss = self.evaluate(X_val, y_val, weights=weight_val, batch_size=batch_size, verbose=0)
                         epoch_logs['val_loss'] = val_loss
 
             callbacks.on_epoch_end(epoch, epoch_logs)
@@ -260,9 +266,12 @@ class Model(object):
             return (proba > 0.5).astype('int32')
 
 
-    def evaluate(self, X, y, batch_size=128, show_accuracy=False, verbose=1):
+    def evaluate(self, X, y, batch_size=128, show_accuracy=False, verbose=1, weights=None):
         X = standardize_X(X)
         y = standardize_y(y)
+
+        if weights is not None:
+            weights = standardize_y(weights)
 
         if show_accuracy:
             tot_acc = 0.
@@ -275,8 +284,13 @@ class Model(object):
         for batch_index, (batch_start, batch_end) in enumerate(batches):
             X_batch = slice_X(X, batch_start, batch_end)
             y_batch = y[batch_start:batch_end]
+            if weights is None:
+                weight_batch = np.ones(list(y_batch.shape[:-1]) + [1])
+            else:
+                weight_batch = weights[batch_start:batch_end]
+            
 
-            ins = X_batch + [y_batch]
+            ins = X_batch + [y_batch, weight_batch]
             if show_accuracy:
                 loss, acc = self._test_with_acc(*ins)
                 tot_acc += acc * len(y_batch)
