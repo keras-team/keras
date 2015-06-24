@@ -59,6 +59,12 @@ def orthogonal(shape, scale=1.1):
     q = q.reshape(shape)
     return sharedX(scale * q[:shape[0], :shape[1]])
 
+def identity(shape, scale=1):
+    if len(shape) != 2 or shape[0] != shape[1]:
+        raise Exception("Identity matrix initialization can only be used for 2D square matrices")
+    else:
+        return sharedX(scale * np.identity(shape[0]))
+
 def zero(shape):
     return shared_zeros(shape)
 
