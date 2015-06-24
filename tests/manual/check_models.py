@@ -180,5 +180,34 @@ model.load_weights('temp.h5')
 score = model.evaluate([X_train, X_train, X_train], Y_train, verbose=0)
 print('score:', score)
 
+######################
+# test merge overlap #
+######################
+print('Test merge overlap')
+left = Sequential()
+left.add(Dense(784, 50))
+left.add(Activation('relu'))
 
+model = Sequential()
+model.add(Merge([left, left], mode='sum'))
 
+model.add(Dense(50, 10))
+model.add(Activation('softmax'))
+
+model.compile(loss='categorical_crossentropy', optimizer='rmsprop')
+
+model.fit(X_train, Y_train, batch_size=batch_size, nb_epoch=nb_epoch, show_accuracy=True, verbose=0, validation_data=(X_test, Y_test))
+model.fit(X_train, Y_train, batch_size=batch_size, nb_epoch=nb_epoch, show_accuracy=False, verbose=0, validation_data=(X_test, Y_test))
+model.fit(X_train, Y_train, batch_size=batch_size, nb_epoch=nb_epoch, show_accuracy=True, verbose=0, validation_split=0.1)
+model.fit(X_train, Y_train, batch_size=batch_size, nb_epoch=nb_epoch, show_accuracy=False, verbose=0, validation_split=0.1)
+model.fit(X_train, Y_train, batch_size=batch_size, nb_epoch=nb_epoch, verbose=0)
+model.fit(X_train, Y_train, batch_size=batch_size, nb_epoch=nb_epoch, verbose=0, shuffle=False)
+
+score = model.evaluate(X_train, Y_train, verbose=0)
+print('score:', score)
+if score < 0.22:
+    raise Exception('Score too low, learning issue.')
+preds = model.predict(X_test, verbose=0)
+classes = model.predict_classes(X_test, verbose=0)
+
+model.get_config(verbose=1)
