@@ -38,11 +38,5 @@ mae = MAE = mean_absolute_error
 
 from .utils.generic_utils import get_from_module
 def get(identifier):
-    obj_fn = get_from_module(identifier, globals(), 'objective')
-    def weighted_obj_fun(y_true, y_pred, weights):
-        # it's important that 0 * Inf == 0, not NaN, so I need to mask first
-        masked_y_true = y_true[weights.nonzero()[:-1]]
-        masked_y_pred = y_pred[weights.nonzero()[:-1]]
-        masked_weights = weights[weights.nonzero()]
-        return (masked_weights * obj_fn(masked_y_true, masked_y_pred)).mean()
-    return weighted_obj_fun
+    return get_from_module(identifier, globals(), 'objective')
+

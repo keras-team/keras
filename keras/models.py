@@ -41,11 +41,20 @@ def slice_X(X, start=None, stop=None):
         else:
             return X[start:stop]
 
+def weighted_obj_fn(fn):
+    def weighted(y_true, y_pred, weights):
+        # it's important that 0 * Inf == 0, not NaN, so I need to mask first
+        masked_y_true = y_true[weights.nonzero()[:-1]]
+        masked_y_pred = y_pred[weights.nonzero()[:-1]]
+        masked_weights = weights[weights.nonzero()]
+        return (masked_weights * fn(masked_y_true, masked_y_pred)).mean()
+    return weighted
+
 class Model(object):
 
     def compile(self, optimizer, loss, class_mode="categorical", theano_mode=None):
         self.optimizer = optimizers.get(optimizer)
-        self.loss = objectives.get(loss)
+        self.loss = weighted_obj_fn(objectives.get(loss))
 
         # input of model 
         self.X_train = self.get_input(train=True)
