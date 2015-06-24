@@ -4,7 +4,6 @@ import numpy as np
 import random
 from six.moves import range
 
-
 def pad_sequences(sequences, maxlen=None, dtype='int32', padding='pre'):
     """
         Pad each sequence to the same length: 
@@ -22,23 +21,21 @@ def pad_sequences(sequences, maxlen=None, dtype='int32', padding='pre'):
     nb_samples = len(sequences)
     if maxlen is None:
         maxlen = np.max(lengths)
-    
-    array_like = False
-    for idx, l in enumerate(lengths):
-        if l > 0:
-            if isinstance(sequences[idx][0], np.ndarray):
-                array_like = True
-                dim = len(sequences[idx][0])
-            break
+
+    array_like = isinstance(sequences[0][0], np.ndarray)
+
+    if array_like:
+        try:
+            dim = len(sequences[0][0])
+        except:
+            raise Exception('"sequences" input to preprocessing.sequence.pad_sequences should be a non-empty list of non-empty sequences (scalars or arrays)')
 
     if not array_like:
         x = np.zeros((nb_samples, maxlen)).astype(dtype)
     else:
         x = np.zeros((nb_samples, maxlen, dim)).astype(dtype)
-     
+
     for idx, s in enumerate(sequences):
-        if len(s) == 0:
-            continue
         if padding == 'post':
             x[idx, :lengths[idx]] = s[:maxlen]
         else:
