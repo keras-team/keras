@@ -56,3 +56,7 @@ class TestRegularizers(unittest.TestCase):
             model.compile(loss='categorical_crossentropy', optimizer='rmsprop')
             model.fit(X_train, Y_train, batch_size=batch_size, nb_epoch=nb_epoch, verbose=0)
             model.evaluate(X_test[test_ids, :], Y_test[test_ids, :], verbose=0)
+
+if __name__ == '__main__':
+    print('Test weight and activity regularizers')
+    unittest.main()
