@@ -366,5 +366,316 @@ class LSTM(Layer):
             "inner_activation":self.inner_activation.__name__,
             "truncate_gradient":self.truncate_gradient,
             "return_sequences":self.return_sequences}
+
+
+
+class JZS1(Layer):
+    '''
+        Evolved recurrent neural network architectures from the evaluation of thousands
+        of models, serving as alternatives to LSTMs and GRUs. See Jozefowicz et al. 2015.
         
+        This corresponds to the `MUT1` architecture described in the paper.
+        
+        Takes inputs with shape:
+        (nb_samples, max_sample_length (samples shorter than this are padded with zeros at the end), input_dim)
+        
+        and returns outputs with shape:
+        if not return_sequences:
+            (nb_samples, output_dim)
+        if return_sequences:
+            (nb_samples, max_sample_length, output_dim)
+        
+        References:
+            An Empirical Exploration of Recurrent Network Architectures
+                http://www.jmlr.org/proceedings/papers/v37/jozefowicz15.pdf
+    '''
+    def __init__(self, input_dim, output_dim=128, 
+        init='glorot_uniform', inner_init='orthogonal',
+        activation='tanh', inner_activation='sigmoid',
+        weights=None, truncate_gradient=-1, return_sequences=False):
+
+        super(JZS1,self).__init__()
+        self.input_dim = input_dim
+        self.output_dim = output_dim
+        self.truncate_gradient = truncate_gradient
+        self.return_sequences = return_sequences
+
+        self.init = initializations.get(init)
+        self.inner_init = initializations.get(inner_init)
+        self.activation = activations.get(activation)
+        self.inner_activation = activations.get(inner_activation)
+        self.input = T.tensor3()
+
+        self.W_z = self.init((self.input_dim, self.output_dim))
+        self.b_z = shared_zeros((self.output_dim))
+
+        self.W_r = self.init((self.input_dim, self.output_dim))
+        self.U_r = self.inner_init((self.output_dim, self.output_dim))
+        self.b_r = shared_zeros((self.output_dim))
+
+        self.U_h = self.inner_init((self.output_dim, self.output_dim))
+        self.b_h = shared_zeros((self.output_dim))
+
+        # P_h used to project X onto different dimension, using sparse random projections
+        if self.input_dim == self.output_dim:
+            self.Pmat = theano.shared(np.identity(self.output_dim, dtype=theano.config.floatX), name=None)
+        else:
+            P = np.random.binomial(1, 0.5, size=(self.input_dim, self.output_dim)).astype(theano.config.floatX) * 2 - 1
+            P = 1 / np.sqrt(self.input_dim) * P
+            self.Pmat = theano.shared(P, name=None)
+
+        self.params = [
+            self.W_z, self.b_z,
+            self.W_r, self.U_r, self.b_r,
+            self.U_h, self.b_h,
+        ]
+
+        if weights is not None:
+            self.set_weights(weights)
+
+    def _step(self, 
+        xz_t, xr_t, xh_t, 
+        h_tm1, 
+        u_r, u_h):
+        z = self.inner_activation(xz_t)
+        r = self.inner_activation(xr_t + T.dot(h_tm1, u_r))
+        hh_t = self.activation(xh_t + T.dot(r * h_tm1, u_h))
+        h_t = hh_t * z + h_tm1 * (1 - z)
+        return h_t
+
+    def get_output(self, train):
+        X = self.get_input(train) 
+        X = X.dimshuffle((1,0,2)) 
+
+        x_z = T.dot(X, self.W_z) + self.b_z
+        x_r = T.dot(X, self.W_r) + self.b_r
+        x_h = T.tanh(T.dot(X, self.Pmat)) + self.b_h
+        outputs, updates = theano.scan(
+            self._step, 
+            sequences=[x_z, x_r, x_h], 
+            outputs_info=T.unbroadcast(alloc_zeros_matrix(X.shape[1], self.output_dim), 1),
+            non_sequences=[self.U_r, self.U_h],
+            truncate_gradient=self.truncate_gradient
+        )
+        if self.return_sequences:
+            return outputs.dimshuffle((1,0,2))
+        return outputs[-1]
+
+    def get_config(self):
+        return {"name":self.__class__.__name__,
+            "input_dim":self.input_dim,
+            "output_dim":self.output_dim,
+            "init":self.init.__name__,
+            "inner_init":self.inner_init.__name__,
+            "activation":self.activation.__name__,
+            "inner_activation":self.inner_activation.__name__,
+            "truncate_gradient":self.truncate_gradient,
+            "return_sequences":self.return_sequences}
+
+
+
+class JZS2(Layer):
+    '''
+        Evolved recurrent neural network architectures from the evaluation of thousands
+        of models, serving as alternatives to LSTMs and GRUs. See Jozefowicz et al. 2015.
+        
+        This corresponds to the `MUT2` architecture described in the paper.
+        
+        Takes inputs with shape:
+        (nb_samples, max_sample_length (samples shorter than this are padded with zeros at the end), input_dim)
+        
+        and returns outputs with shape:
+        if not return_sequences:
+            (nb_samples, output_dim)
+        if return_sequences:
+            (nb_samples, max_sample_length, output_dim)
+        
+        References:
+            An Empirical Exploration of Recurrent Network Architectures
+                http://www.jmlr.org/proceedings/papers/v37/jozefowicz15.pdf
+    '''
+    def __init__(self, input_dim, output_dim=128, 
+        init='glorot_uniform', inner_init='orthogonal',
+        activation='tanh', inner_activation='sigmoid',
+        weights=None, truncate_gradient=-1, return_sequences=False):
+
+        super(JZS2,self).__init__()
+        self.input_dim = input_dim
+        self.output_dim = output_dim
+        self.truncate_gradient = truncate_gradient
+        self.return_sequences = return_sequences
+
+        self.init = initializations.get(init)
+        self.inner_init = initializations.get(inner_init)
+        self.activation = activations.get(activation)
+        self.inner_activation = activations.get(inner_activation)
+        self.input = T.tensor3()
+
+        self.W_z = self.init((self.input_dim, self.output_dim))
+        self.U_z = self.inner_init((self.output_dim, self.output_dim))
+        self.b_z = shared_zeros((self.output_dim))
+
+        self.U_r = self.inner_init((self.output_dim, self.output_dim))
+        self.b_r = shared_zeros((self.output_dim))
+
+        self.W_h = self.init((self.input_dim, self.output_dim))
+        self.U_h = self.inner_init((self.output_dim, self.output_dim))
+        self.b_h = shared_zeros((self.output_dim))
+
+        # P_h used to project X onto different dimension, using sparse random projections
+        if self.input_dim == self.output_dim:
+            self.Pmat = theano.shared(np.identity(self.output_dim, dtype=theano.config.floatX), name=None)
+        else:
+            P = np.random.binomial(1, 0.5, size=(self.input_dim, self.output_dim)).astype(theano.config.floatX) * 2 - 1
+            P = 1 / np.sqrt(self.input_dim) * P
+            self.Pmat = theano.shared(P, name=None)
+
+        self.params = [
+            self.W_z, self.U_z, self.b_z,
+            self.U_r, self.b_r,
+            self.W_h, self.U_h, self.b_h,
+        ]
+
+        if weights is not None:
+            self.set_weights(weights)
+
+    def _step(self, 
+        xz_t, xr_t, xh_t, 
+        h_tm1, 
+        u_z, u_r, u_h):
+        z = self.inner_activation(xz_t + T.dot(h_tm1, u_z))
+        r = self.inner_activation(xr_t + T.dot(h_tm1, u_r))
+        hh_t = self.activation(xh_t + T.dot(r * h_tm1, u_h))
+        h_t = hh_t * z + h_tm1 * (1 - z)
+        return h_t
+
+    def get_output(self, train):
+        X = self.get_input(train) 
+        X = X.dimshuffle((1,0,2)) 
+
+        x_z = T.dot(X, self.W_z) + self.b_z
+        x_r = T.dot(X, self.Pmat) + self.b_r
+        x_h = T.dot(X, self.W_h) + self.b_h
+        outputs, updates = theano.scan(
+            self._step, 
+            sequences=[x_z, x_r, x_h], 
+            outputs_info=T.unbroadcast(alloc_zeros_matrix(X.shape[1], self.output_dim), 1),
+            non_sequences=[self.U_z, self.U_r, self.U_h],
+            truncate_gradient=self.truncate_gradient
+        )
+        if self.return_sequences:
+            return outputs.dimshuffle((1,0,2))
+        return outputs[-1]
+
+    def get_config(self):
+        return {"name":self.__class__.__name__,
+            "input_dim":self.input_dim,
+            "output_dim":self.output_dim,
+            "init":self.init.__name__,
+            "inner_init":self.inner_init.__name__,
+            "activation":self.activation.__name__,
+            "inner_activation":self.inner_activation.__name__,
+            "truncate_gradient":self.truncate_gradient,
+            "return_sequences":self.return_sequences}
+
+
+
+class JZS3(Layer):
+    '''
+        Evolved recurrent neural network architectures from the evaluation of thousands
+        of models, serving as alternatives to LSTMs and GRUs. See Jozefowicz et al. 2015.
+        
+        This corresponds to the `MUT3` architecture described in the paper.
+        
+        Takes inputs with shape:
+        (nb_samples, max_sample_length (samples shorter than this are padded with zeros at the end), input_dim)
+        
+        and returns outputs with shape:
+        if not return_sequences:
+            (nb_samples, output_dim)
+        if return_sequences:
+            (nb_samples, max_sample_length, output_dim)
+        
+        References:
+            An Empirical Exploration of Recurrent Network Architectures
+                http://www.jmlr.org/proceedings/papers/v37/jozefowicz15.pdf
+    '''
+    def __init__(self, input_dim, output_dim=128, 
+        init='glorot_uniform', inner_init='orthogonal',
+        activation='tanh', inner_activation='sigmoid',
+        weights=None, truncate_gradient=-1, return_sequences=False):
+
+        super(JZS3,self).__init__()
+        self.input_dim = input_dim
+        self.output_dim = output_dim
+        self.truncate_gradient = truncate_gradient
+        self.return_sequences = return_sequences
+
+        self.init = initializations.get(init)
+        self.inner_init = initializations.get(inner_init)
+        self.activation = activations.get(activation)
+        self.inner_activation = activations.get(inner_activation)
+        self.input = T.tensor3()
+
+        self.W_z = self.init((self.input_dim, self.output_dim))
+        self.U_z = self.inner_init((self.output_dim, self.output_dim))
+        self.b_z = shared_zeros((self.output_dim))
+
+        self.W_r = self.init((self.input_dim, self.output_dim))
+        self.U_r = self.inner_init((self.output_dim, self.output_dim))
+        self.b_r = shared_zeros((self.output_dim))
+
+        self.W_h = self.init((self.input_dim, self.output_dim))
+        self.U_h = self.inner_init((self.output_dim, self.output_dim))
+        self.b_h = shared_zeros((self.output_dim))
+
+        self.params = [
+            self.W_z, self.U_z, self.b_z,
+            self.W_r, self.U_r, self.b_r,
+            self.W_h, self.U_h, self.b_h,
+        ]
+
+        if weights is not None:
+            self.set_weights(weights)
+
+    def _step(self, 
+        xz_t, xr_t, xh_t, 
+        h_tm1, 
+        u_z, u_r, u_h):
+        z = self.inner_activation(xz_t + T.dot(T.tanh(h_tm1), u_z))
+        r = self.inner_activation(xr_t + T.dot(h_tm1, u_r))
+        hh_t = self.activation(xh_t + T.dot(r * h_tm1, u_h))
+        h_t = hh_t * z + h_tm1 * (1 - z)
+        return h_t
+
+    def get_output(self, train):
+        X = self.get_input(train) 
+        X = X.dimshuffle((1,0,2)) 
+
+        x_z = T.dot(X, self.W_z) + self.b_z
+        x_r = T.dot(X, self.W_r) + self.b_r
+        x_h = T.dot(X, self.W_h) + self.b_h
+        outputs, updates = theano.scan(
+            self._step, 
+            sequences=[x_z, x_r, x_h], 
+            outputs_info=T.unbroadcast(alloc_zeros_matrix(X.shape[1], self.output_dim), 1),
+            non_sequences=[self.U_z, self.U_r, self.U_h],
+            truncate_gradient=self.truncate_gradient
+        )
+        if self.return_sequences:
+            return outputs.dimshuffle((1,0,2))
+        return outputs[-1]
+
+    def get_config(self):
+        return {"name":self.__class__.__name__,
+            "input_dim":self.input_dim,
+            "output_dim":self.output_dim,
+            "init":self.init.__name__,
+            "inner_init":self.inner_init.__name__,
+            "activation":self.activation.__name__,
+            "inner_activation":self.inner_activation.__name__,
+            "truncate_gradient":self.truncate_gradient,
+            "return_sequences":self.return_sequences}
+
+
 
