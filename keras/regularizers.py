@@ -1,45 +1,117 @@
 from __future__ import absolute_import
-import theano
 import theano.tensor as T
-import numpy as np
-
-def l1(l=.01):
-    def l1wrap(g, p):
-        g += T.sgn(p) * l
-        return g
-    return l1wrap
-
-def l2(l=.01):
-    def l2wrap(g, p):
-        g += p * l
-        return g
-    return l2wrap
-
-def l1l2(l1=.01, l2=.01):
-    def l1l2wrap(g, p):
-        g += T.sgn(p) * l1
-        g += p * l2
-        return g
-    return l1l2wrap
-
-def identity(g, p):
-    return g
 
 
-def activity_l1(l=.01):
-    # activity dependent l1 norm
-    def l1wrap(layer):
-        # needs to be wrapped twice because input is not present during instantiation
-        def l1wrap_wrap():
-            return l * T.sum(T.mean(abs(layer.get_output(True)), axis=0))
-        return l1wrap_wrap
-    return l1wrap
+class Regularizer(object):
+    def __init__(self):
+        self.modifies_gradient = False
+        self.modifies_cost = False
 
-def activity_l2(l=.01):
-    # activity dependent l1 norm
-    def l2wrap(layer):
-        # needs to be wrapped twice because input is not present during instantiation
-        def l2wrap_wrap():
-            return l * T.sum(T.mean(layer.get_output(True)**2, axis=0))
-        return l2wrap_wrap
-    return l2wrap
+    def update_gradient(self, gradient, params):
+        raise NotImplementedError
+
+    def update_cost(self, cost):
+        raise NotImplementedError
+
+
+class RegularizerWeightsL1(Regularizer):
+    def __init__(self, l=0.01):
+        super(Regularizer, self).__init__()
+
+        self.l = l
+        self.modifies_gradient = True
+
+    def update_gradient(self, gradient, params):
+        gradient += T.sgn(params) * self.l
+        return gradient
+
+    def __call__(self, gradient, params):
+        return self.update_gradient(gradient, params)
+
+
+class RegularizerWeightsL2(Regularizer):
+    def __init__(self, l=0.01):
+        super(Regularizer, self).__init__()
+
+        self.l = l
+        self.modifies_gradient = True
+
+    def update_gradient(self, gradient, params):
+        gradient += params * self.l
+        return gradient
+
+    def __call__(self, gradient, params):
+        return self.update_gradient(gradient, params)
+
+
+class RegularizerWeightsL1L2(Regularizer):
+    def __init__(self, l1=0.01, l2=0.01):
+        super(Regularizer, self).__init__()
+
+        self.l1 = l1
+        self.l2 = l2
+        self.modifies_gradient = True
+
+    def update_gradient(self, gradient, params):
+        gradient += params * self.l2
+        gradient += T.sgn(params) * self.l1
+        return gradient
+
+    def __call__(self, gradient, params):
+        return self.update_gradient(gradient, params)
+
+class RegularizerIdentity(Regularizer):
+    def __init__(self):
+        super(Regularizer, self).__init__()
+
+        self.modifies_gradient = True
+
+    def update_gradient(self, gradient, params):
+        return gradient
+
+    def __call__(self, gradient, params):
+        return self.update_gradient(gradient, params)
+
+
+class RegularizerActivityL1(Regularizer):
+    def __init__(self, l = 0.01):
+        super(Regularizer, self).__init__()
+
+        self.l = l
+        self.layer = None
+        self.modifies_cost = True
+
+    def set_layer(self, layer):
+        self.layer = layer
+
+    def update_cost(self, cost):
+        return cost + self.l * T.sum(T.mean(abs(self.layer.get_output(True)), axis=0))
+
+    def __call__(self, cost):
+        return self.update_cost(cost)
+
+class RegularizerActivityL2(Regularizer):
+    def __init__(self, l = 0.01):
+        super(Regularizer, self).__init__()
+
+        self.l = l
+        self.layer = None
+        self.modifies_cost = True
+
+    def set_layer(self, layer):
+        self.layer = layer
+
+    def update_cost(self, cost):
+        return cost + self.l * T.sum(T.mean(self.layer.get_output(True) ** 2, axis=0))
+
+    def __call__(self, cost):
+        return self.update_cost(cost)
+
+#old style variables for backwards compatibility
+l1 = RegularizerWeightsL1
+l2 = RegularizerWeightsL2
+l1l2 = RegularizerWeightsL1L2
+identity = RegularizerIdentity()
+
+activity_l1 = RegularizerActivityL1
+activity_l2 = RegularizerActivityL2
