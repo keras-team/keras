@@ -9,7 +9,7 @@ from ..utils.theano_utils import sharedX
 from ..constraints import unitnorm
 
 
-class Embedding(MaskedLayer):
+class Embedding(Layer):
     '''
         Turn positive integers (indexes) into denses vectors of fixed size. 
         eg. [[4], [20]] -> [[0.25, 0.1], [0.6, -0.2]]

@@ -20,7 +20,7 @@ class Layer(object):
         self.params = []
 
     def connect(self, layer):
-        if layer.get_output_mask() is not None and not self.supports_mask():
+        if layer.get_output_mask() is not None and not self.supports_masked_input():
             raise Exception("Attached non-masking layer to layer with masked output")
         self.previous = layer
 
@@ -33,7 +33,7 @@ class Layer(object):
         else:
             return self.input
 
-    def supports_mask(self):
+    def supports_masked_input(self):
         return False
 
     def get_output_mask(self, train=None):
@@ -83,14 +83,19 @@ class Layer(object):
         return self.params, regs, consts
 
 class MaskedLayer(Layer):
-    def supports_mask(self):
+    def supports_masked_input(self):
         return True
 
-    def get_output_mask(self, train=None):
-        return self.previous.get_output_mask(train)
-
     def get_input_mask(self, train=None):
-        return self.previous.get_output_mask(train)
+        if hasattr(self, 'previous'):
+            return self.previous.get_output_mask(train)
+        else:
+            return None
+
+    def get_output_mask(self, train=None):
+        ''' The default output mask is just the input mask unchanged. Override this in your own
+        implementations if, for instance, you are reshaping the input'''
+        return self.get_input_mask(train)
 
 
 class Merge(object): 
