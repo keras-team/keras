@@ -418,9 +418,9 @@ class JZS1(Layer):
 
         # P_h used to project X onto different dimension, using sparse random projections
         if self.input_dim == self.output_dim:
-            self.Pmat = theano.shared(np.identity(self.output_dim), name=None)
+            self.Pmat = theano.shared(np.identity(self.output_dim, dtype=theano.config.floatX), name=None)
         else:
-            P = np.random.binomial(1, 0.5, size=(self.input_dim, self.output_dim)) * 2 - 1
+            P = np.random.binomial(1, 0.5, size=(self.input_dim, self.output_dim)).astype(theano.config.floatX) * 2 - 1
             P = 1 / np.sqrt(self.input_dim) * P
             self.Pmat = theano.shared(P, name=None)
 
@@ -524,9 +524,9 @@ class JZS2(Layer):
 
         # P_h used to project X onto different dimension, using sparse random projections
         if self.input_dim == self.output_dim:
-            self.Pmat = theano.shared(np.identity(self.output_dim), name=None)
+            self.Pmat = theano.shared(np.identity(self.output_dim, dtype=theano.config.floatX), name=None)
         else:
-            P = np.random.binomial(1, 0.5, size=(self.input_dim, self.output_dim)) * 2 - 1
+            P = np.random.binomial(1, 0.5, size=(self.input_dim, self.output_dim)).astype(theano.config.floatX) * 2 - 1
             P = 1 / np.sqrt(self.input_dim) * P
             self.Pmat = theano.shared(P, name=None)
 
