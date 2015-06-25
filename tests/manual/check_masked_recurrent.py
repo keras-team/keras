@@ -7,7 +7,6 @@ from keras.models import Sequential
 from keras.layers.core import Dense, Activation, Merge, Dropout, TimeDistributedDense
 from keras.layers.embeddings import Embedding
 from keras.layers.recurrent import SimpleRNN, SimpleDeepRNN, LSTM, GRU
-from keras.layers.core import default_mask_val
 import theano
 
 theano.config.exception_verbosity='high' 
@@ -17,7 +16,7 @@ X = np.random.random_integers(1, 4, size=(500000,15))
 
 print("About to compile the first model")
 model = Sequential()
-model.add(Embedding(5, 4, zero_is_mask=True))
+model.add(Embedding(5, 4, mask_zero=True))
 model.add(TimeDistributedDense(4,4)) # obviously this is redundant. Just testing.
 model.add(SimpleRNN(4,4, activation='relu', return_sequences=True))
 model.add(Dropout(0.5))
@@ -28,16 +27,7 @@ model.compile(loss='categorical_crossentropy',
         optimizer='rmsprop', theano_mode=theano.compile.mode.FAST_RUN)
 print("Compiled model")
 
-if model.layers[1].get_config()['mask_val'] != default_mask_val:
-    raise Exception("mask_val improperly set in config. Set to %s not %f" % (model.layers[1].get_config()['mask_val']))
-
-W0 = model.layers[0].W.get_value()[0,:]
-if (W0 != default_mask_val).any():
-    raise Exception("Did not set the mask val properly into the Embedding W matrix, got: ",
-            W0)
-
 W = model.get_weights() # We'll save these so we can reset it later
-
 
 X[:,:10] = 0
 Xmask0 = X.copy()
@@ -64,11 +54,6 @@ model.fit(X, X0_onehot, nb_epoch=1, batch_size=batch_size)
 score = model.evaluate(X, X0_onehot, batch_size=batch_size)
 if score > uniform_score*0.9:
     raise Exception('Failed to learn to copy timestep 0, score %f' % score)
-
-W0 = model.layers[0].W.get_value()[0,:]
-if (W0 != default_mask_val).any():
-    raise Exception("After training, the W0 of the Embedding's mask value changed to: ",
-            W0)
     
 
 model.set_weights(W)
@@ -95,18 +80,11 @@ score = model.evaluate(Xmask0, X1_onehot, batch_size=batch_size)
 if score > uniform_score*0.9:
     raise Exception('Failed to learn to copy timestep 1 in masked model, score %f' % score)
 
-
-
 model.set_weights(W)
 
 # Finally, make sure the mask is actually blocking input, mask out timesteps 1 and 2, and see if
 # it can learn timestep 0 (should fail)
 model.fit(Xmask12, X0_onehot, nb_epoch=1, batch_size=batch_size)
-
-W0 = model.layers[0].W.get_value()[0,:]
-if (W0 != default_mask_val).any():
-    raise Exception("After masked training, the W0 of the Embedding's mask value changed to: ",
-            W0)
 
 score = model.evaluate(Xmask12, X0_onehot, batch_size=batch_size)
 if score < uniform_score*0.9:
@@ -116,7 +94,7 @@ if score < uniform_score*0.9:
 # their output
 print("About to compile the second model")
 model2 = Sequential()
-model2.add(Embedding(5, 4, zero_is_mask=True))
+model2.add(Embedding(5, 4, mask_zero=True))
 model2.add(TimeDistributedDense(4,4))
 model2.add(Activation('time_distributed_softmax'))
 model2.add(LSTM(4,4, return_sequences=True))

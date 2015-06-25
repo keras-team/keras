@@ -5,11 +5,34 @@ import theano.tensor as T
 import numpy as np
 
 from .. import activations, initializations
-from ..utils.theano_utils import shared_scalar, shared_zeros, alloc_zeros_matrix, get_mask, default_mask_val
-from ..layers.core import Layer
+from ..utils.theano_utils import shared_scalar, shared_zeros, alloc_zeros_matrix
+from ..layers.core import Layer, MaskedLayer
 from six.moves import range
 
-class SimpleRNN(Layer):
+class BaseRecurrent(MaskedLayer):
+    def get_output_mask(self, train=None):
+        if self.return_sequences:
+            return super(BaseRecurrent, self).get_output_mask(train)
+        else:
+            return None
+
+    def get_padded_shuffled_mask(self, train, X, pad = 0):
+        mask = self.get_input_mask(train)
+        if mask is None:
+            mask = T.ones_like(X.sum(axis=-1)) # is there a better way to do this without a sum?
+        # mask is (nb_samples, time)
+        mask = T.shape_padright(mask) # (nb_samples, time, 1)
+        mask = T.addbroadcast(mask, -1) # (time, nb_samples, 1) matrix.
+        mask = mask.dimshuffle(1,0,2) # (time, nb_samples, 1)
+
+        if pad > 0:
+            # left-pad in time with 0
+            padding = alloc_zeros_matrix(pad, mask.shape[1], 1).astype('uint8')
+            return T.concatenate([padding, mask], axis=0)
+        return mask
+
+
+class SimpleRNN(BaseRecurrent):
     '''
         Fully connected RNN where output is to fed back to input.
 
@@ -19,7 +42,7 @@ class SimpleRNN(Layer):
     '''
     def __init__(self, input_dim, output_dim, 
         init='glorot_uniform', inner_init='orthogonal', activation='sigmoid', weights=None,
-        truncate_gradient=-1, return_sequences=False, mask_val=default_mask_val):
+        truncate_gradient=-1, return_sequences=False):
         super(SimpleRNN,self).__init__()
         self.init = initializations.get(init)
         self.inner_init = initializations.get(inner_init)
@@ -28,7 +51,6 @@ class SimpleRNN(Layer):
         self.truncate_gradient = truncate_gradient
         self.activation = activations.get(activation)
         self.return_sequences = return_sequences
-        self.mask_val = shared_scalar(mask_val)
         self.input = T.tensor3()
 
         self.W = self.init((self.input_dim, self.output_dim))
@@ -50,9 +72,9 @@ class SimpleRNN(Layer):
     def get_output(self, train):
         X = self.get_input(train) # shape: (nb_samples, time (padded with zeros at the end), input_dim)
         # new shape: (time, nb_samples, input_dim) -> because theano.scan iterates over main dimension
+        padded_mask = self.get_padded_shuffled_mask(train, X, pad=1)
         X = X.dimshuffle((1,0,2)) 
 
-        mask, padded_mask = get_mask(X, self.mask_val, steps_back=1)
 
         x = T.dot(X, self.W) + self.b
         
@@ -67,8 +89,7 @@ class SimpleRNN(Layer):
             non_sequences=self.U, # static inputs to _step
             truncate_gradient=self.truncate_gradient
         )
-        # Apply the mask:
-        outputs = mask * outputs + (1 - mask) * self.mask_val
+
         if self.return_sequences:
             return outputs.dimshuffle((1,0,2))
         return outputs[-1]
@@ -81,11 +102,10 @@ class SimpleRNN(Layer):
             "inner_init":self.inner_init.__name__,
             "activation":self.activation.__name__,
             "truncate_gradient":self.truncate_gradient,
-            "return_sequences":self.return_sequences,
-            "mask_val":self.mask_val.eval()}
+            "return_sequences":self.return_sequences}
 
 
-class SimpleDeepRNN(Layer):
+class SimpleDeepRNN(BaseRecurrent):
     '''
         Fully connected RNN where the output of multiple timesteps 
         (up to "depth" steps in the past) is fed back to the input:
@@ -98,7 +118,7 @@ class SimpleDeepRNN(Layer):
     def __init__(self, input_dim, output_dim, depth=3,
         init='glorot_uniform', inner_init='orthogonal', 
         activation='sigmoid', inner_activation='hard_sigmoid',
-        weights=None, truncate_gradient=-1, return_sequences=False, mask_val=default_mask_val):
+        weights=None, truncate_gradient=-1, return_sequences=False):
         super(SimpleDeepRNN,self).__init__()
         self.init = initializations.get(init)
         self.inner_init = initializations.get(inner_init)
@@ -110,7 +130,6 @@ class SimpleDeepRNN(Layer):
         self.depth = depth
         self.return_sequences = return_sequences
         self.input = T.tensor3()
-        self.mask_val = shared_scalar(mask_val)
 
         self.W = self.init((self.input_dim, self.output_dim))
         self.Us = [self.inner_init((self.output_dim, self.output_dim)) for _ in range(self.depth)]
@@ -131,9 +150,8 @@ class SimpleDeepRNN(Layer):
 
     def get_output(self, train):
         X = self.get_input(train)
+        padded_mask = self.get_padded_shuffled_mask(train, X, pad=self.depth)
         X = X.dimshuffle((1,0,2)) 
-
-        mask, padded_mask = get_mask(X, self.mask_val, steps_back=self.depth)
 
         x = T.dot(X, self.W) + self.b
         
@@ -155,7 +173,7 @@ class SimpleDeepRNN(Layer):
             non_sequences=self.Us,
             truncate_gradient=self.truncate_gradient
         )
-        outputs = mask * outputs + (1 - mask) * self.mask_val
+
         if self.return_sequences:
             return outputs.dimshuffle((1,0,2))
         return outputs[-1]
@@ -170,12 +188,10 @@ class SimpleDeepRNN(Layer):
             "activation":self.activation.__name__,
             "inner_activation":self.inner_activation.__name__,
             "truncate_gradient":self.truncate_gradient,
-            "return_sequences":self.return_sequences,
-            "mask_val":self.mask_val.eval()}
+            "return_sequences":self.return_sequences}
 
 
-
-class GRU(Layer):
+class GRU(BaseRecurrent):
     '''
         Gated Recurrent Unit - Cho et al. 2014
 
@@ -200,7 +216,7 @@ class GRU(Layer):
     def __init__(self, input_dim, output_dim=128, 
         init='glorot_uniform', inner_init='orthogonal',
         activation='sigmoid', inner_activation='hard_sigmoid',
-        weights=None, truncate_gradient=-1, return_sequences=False, mask_val=default_mask_val):
+        weights=None, truncate_gradient=-1, return_sequences=False):
 
         super(GRU,self).__init__()
         self.input_dim = input_dim
@@ -213,7 +229,6 @@ class GRU(Layer):
         self.activation = activations.get(activation)
         self.inner_activation = activations.get(inner_activation)
         self.input = T.tensor3()
-        self.mask_val = shared_scalar(default_mask_val)
 
         self.W_z = self.init((self.input_dim, self.output_dim))
         self.U_z = self.inner_init((self.output_dim, self.output_dim))
@@ -250,8 +265,8 @@ class GRU(Layer):
 
     def get_output(self, train):
         X = self.get_input(train) 
+        padded_mask = self.get_padded_shuffled_mask(train, X, pad=1)
         X = X.dimshuffle((1,0,2)) 
-        mask, padded_mask = get_mask(X, self.mask_val, steps_back=1)
 
         x_z = T.dot(X, self.W_z) + self.b_z
         x_r = T.dot(X, self.W_r) + self.b_r
@@ -263,8 +278,6 @@ class GRU(Layer):
             non_sequences=[self.U_z, self.U_r, self.U_h],
             truncate_gradient=self.truncate_gradient
         )
-
-        outputs = mask * outputs + (1 - mask) * self.mask_val
 
         if self.return_sequences:
             return outputs.dimshuffle((1,0,2))
@@ -279,12 +292,11 @@ class GRU(Layer):
             "activation":self.activation.__name__,
             "inner_activation":self.inner_activation.__name__,
             "truncate_gradient":self.truncate_gradient,
-            "return_sequences":self.return_sequences,
-            "mask_val":self.mask_val.eval()}
+            "return_sequences":self.return_sequences}
 
 
 
-class LSTM(Layer):
+class LSTM(BaseRecurrent):
     '''
         Acts as a spatiotemporal projection,
         turning a sequence of vectors into a single vector.
@@ -312,14 +324,13 @@ class LSTM(Layer):
     def __init__(self, input_dim, output_dim=128, 
         init='glorot_uniform', inner_init='orthogonal', 
         activation='tanh', inner_activation='hard_sigmoid',
-        weights=None, truncate_gradient=-1, return_sequences=False, mask_val=default_mask_val):
+        weights=None, truncate_gradient=-1, return_sequences=False):
     
         super(LSTM,self).__init__()
         self.input_dim = input_dim
         self.output_dim = output_dim
         self.truncate_gradient = truncate_gradient
         self.return_sequences = return_sequences
-        self.mask_val = shared_scalar(mask_val)
 
         self.init = initializations.get(init)
         self.inner_init = initializations.get(inner_init)
@@ -369,8 +380,8 @@ class LSTM(Layer):
 
     def get_output(self, train):
         X = self.get_input(train) 
+        padded_mask = self.get_padded_shuffled_mask(train, X, pad=1)
         X = X.dimshuffle((1,0,2))
-        mask, padded_mask = get_mask(X, self.mask_val, steps_back=1)
 
         xi = T.dot(X, self.W_i) + self.b_i
         xf = T.dot(X, self.W_f) + self.b_f
@@ -388,7 +399,6 @@ class LSTM(Layer):
             truncate_gradient=self.truncate_gradient 
         )
 
-        outputs = mask * outputs + (1 - mask) * self.mask_val
         if self.return_sequences:
             return outputs.dimshuffle((1,0,2))
         return outputs[-1]
@@ -402,7 +412,6 @@ class LSTM(Layer):
             "activation":self.activation.__name__,
             "inner_activation":self.inner_activation.__name__,
             "truncate_gradient":self.truncate_gradient,
-            "return_sequences":self.return_sequences,
-            "mask_val":self.mask_val.eval()}
+            "return_sequences":self.return_sequences}
         
 

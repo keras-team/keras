@@ -3,13 +3,13 @@ import theano
 import theano.tensor as T
 
 from .. import activations, initializations
-from ..layers.core import Layer, default_mask_val
+from ..layers.core import Layer, MaskedLayer
 from ..utils.theano_utils import sharedX
 
 from ..constraints import unitnorm
 
 
-class Embedding(Layer):
+class Embedding(MaskedLayer):
     '''
         Turn positive integers (indexes) into denses vectors of fixed size. 
         eg. [[4], [20]] -> [[0.25, 0.1], [0.6, -0.2]]
@@ -17,7 +17,7 @@ class Embedding(Layer):
         @input_dim: size of vocabulary (highest input integer + 1)
         @out_dim: size of dense representation
     '''
-    def __init__(self, input_dim, output_dim, init='uniform', weights=None, W_regularizer=None, W_constraint=None, zero_is_mask=False, mask_val=default_mask_val):
+    def __init__(self, input_dim, output_dim, init='uniform', weights=None, W_regularizer=None, W_constraint=None, mask_zero=False):
         super(Embedding,self).__init__()
         self.init = initializations.get(init)
         self.input_dim = input_dim
@@ -25,11 +25,7 @@ class Embedding(Layer):
 
         self.input = T.imatrix()
         self.W = self.init((self.input_dim, self.output_dim))
-        self.zero_is_mask = zero_is_mask
-
-        if zero_is_mask:
-            # This doesn't seem particularly elegant
-            self.W = sharedX(T.set_subtensor(self.W[0, :], mask_val).eval())
+        self.mask_zero = mask_zero
 
         self.params = [self.W]
         self.constraints = [W_constraint]
@@ -37,6 +33,13 @@ class Embedding(Layer):
 
         if weights is not None:
             self.set_weights(weights)
+
+    def get_output_mask(self, train=None):
+        X = self.get_input(train)
+        if not self.mask_zero:
+            return T.ones_like(X)
+        else:
+            return T.ones_like(X) * (1 - T.eq(X,0))
 
     def get_output(self, train=False):
         X = self.get_input(train)

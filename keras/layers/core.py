@@ -6,7 +6,7 @@ import theano.tensor as T
 import numpy as np
 
 from .. import activations, initializations
-from ..utils.theano_utils import shared_zeros, floatX, shared_scalar, get_mask, default_mask_val
+from ..utils.theano_utils import shared_zeros, floatX, shared_scalar
 from ..utils.generic_utils import make_tuple
 from .. import regularizers
 from .. import constraints
@@ -20,6 +20,8 @@ class Layer(object):
         self.params = []
 
     def connect(self, layer):
+        if layer.get_output_mask() is not None and not self.supports_mask():
+            raise Exception("Attached non-masking layer to layer with masked output")
         self.previous = layer
 
     def get_output(self, train):
@@ -30,6 +32,12 @@ class Layer(object):
             return self.previous.get_output(train=train)
         else:
             return self.input
+
+    def supports_mask(self):
+        return False
+
+    def get_output_mask(self, train=None):
+        return None
 
     def set_weights(self, weights):
         for p, w in zip(self.params, weights):
@@ -73,6 +81,16 @@ class Layer(object):
             consts += [constraints.identity for _ in range(len(self.params))]
 
         return self.params, regs, consts
+
+class MaskedLayer(Layer):
+    def supports_mask(self):
+        return True
+
+    def get_output_mask(self, train=None):
+        return self.previous.get_output_mask(train)
+
+    def get_input_mask(self, train=None):
+        return self.previous.get_output_mask(train)
 
 
 class Merge(object): 
@@ -139,54 +157,49 @@ class Merge(object):
             "mode":self.mode}
 
 
-class Dropout(Layer):
+class Dropout(MaskedLayer):
     '''
         Hinton's dropout.
     '''
-    def __init__(self, p, mask_val=default_mask_val):
+    def __init__(self, p):
         super(Dropout,self).__init__()
         self.p = p
-        self.mask_val = shared_scalar(mask_val)
 
     def get_output(self, train):
         X = self.get_input(train)
-        mask = get_mask(X, self.mask_val)
+        mask = self.get_output_mask(train)
         if self.p > 0.:
             retain_prob = 1. - self.p
             if train:
                 X *= srng.binomial(X.shape, p=retain_prob, dtype=theano.config.floatX)
             else:
                 X *= retain_prob
-        return mask * X + (1 - mask) * self.mask_val
+        return X
 
     def get_config(self):
         return {"name":self.__class__.__name__,
-            "p":self.p,
-            "mask_val":self.mask_val.eval()}
+            "p":self.p}
 
 
-class Activation(Layer):
+class Activation(MaskedLayer):
     '''
         Apply an activation function to an output.
     '''
-    def __init__(self, activation, target=0, beta=0.1, mask_val=default_mask_val):
+    def __init__(self, activation, target=0, beta=0.1):
         super(Activation,self).__init__()
         self.activation = activations.get(activation)
         self.target = target
         self.beta = beta
-        self.mask_val = shared_scalar(mask_val)
 
     def get_output(self, train):
         X = self.get_input(train)
-        mask = get_mask(X, self.mask_val)
-        return mask * self.activation(X) + (1 - mask) * self.mask_val
+        return self.activation(X)
 
     def get_config(self):
         return {"name":self.__class__.__name__,
             "activation":self.activation.__name__,
             "target":self.target,
-            "beta":self.beta,
-            "mask_val":self.mask_val.eval()}
+            "beta":self.beta}
 
 
 class Reshape(Layer):
@@ -284,7 +297,7 @@ class Dense(Layer):
             "activation":self.activation.__name__}
 
 
-class TimeDistributedDense(Layer):
+class TimeDistributedDense(MaskedLayer):
     '''
        Apply a same DenseLayer for each dimension[1] (shared_dimension) input
        Especially useful after a recurrent network with 'return_sequence=True'
@@ -293,7 +306,7 @@ class TimeDistributedDense(Layer):
 
     '''
     def __init__(self, input_dim, output_dim, init='glorot_uniform', activation='linear', weights=None, 
-        W_regularizer=None, b_regularizer=None, W_constraint=None, b_constraint=None, mask_val=default_mask_val):
+            W_regularizer=None, b_regularizer=None, W_constraint=None, b_constraint=None):
 
         super(TimeDistributedDense,self).__init__()
         self.init = initializations.get(init)
@@ -309,7 +322,6 @@ class TimeDistributedDense(Layer):
 
         self.regularizers = [W_regularizer, b_regularizer]
         self.constraints = [W_constraint, b_constraint]
-        self.mask_val = shared_scalar(mask_val)
 
         if weights is not None:
             self.set_weights(weights)
@@ -317,13 +329,12 @@ class TimeDistributedDense(Layer):
     def get_output(self, train):
         X = self.get_input(train)
         X = X.dimshuffle(1,0,2)
-        mask = get_mask(X, self.mask_val)
 
-        def act_func(X, mask):
-            return mask * self.activation(T.dot(X, self.W) + self.b) + (1 - mask) * self.mask_val
+        def act_func(X):
+            return self.activation(T.dot(X, self.W) + self.b)
 
         output, _ = theano.scan(fn = act_func,
-                                sequences = [X, mask],
+                                sequences = X,
                                 outputs_info=None)
         return output.dimshuffle(1,0,2)
 
@@ -332,8 +343,7 @@ class TimeDistributedDense(Layer):
             "input_dim":self.input_dim,
             "output_dim":self.output_dim,
             "init":self.init.__name__,
-            "activation":self.activation.__name__,
-            "mask_val":self.mask_val.eval()}
+            "activation":self.activation.__name__}
 
 class AutoEncoder(Layer):
     '''

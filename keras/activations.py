@@ -2,7 +2,6 @@ from __future__ import absolute_import
 import theano
 import theano.tensor as T
 import numpy as np
-from .utils.theano_utils import default_mask_val, get_mask
 import types
 
 def softmax(x):
