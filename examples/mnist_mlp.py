@@ -5,6 +5,7 @@ from keras.models import Sequential
 from keras.layers.core import Dense, Dropout, Activation
 from keras.optimizers import SGD, Adam, RMSprop
 from keras.utils import np_utils
+from keras.callbacks import Plotter
 import numpy as np
 
 '''
@@ -49,7 +50,9 @@ model.add(Activation('softmax'))
 rms = RMSprop()
 model.compile(loss='categorical_crossentropy', optimizer=rms)
 
-model.fit(X_train, Y_train, batch_size=batch_size, nb_epoch=nb_epoch, show_accuracy=True, verbose=2, validation_data=(X_test, Y_test))
+model.fit(X_train, Y_train, batch_size=batch_size, nb_epoch=nb_epoch,
+          show_accuracy=True, verbose=2, validation_data=(X_test, Y_test),
+          callbacks=[Plotter(show_regressions=False)])
 score = model.evaluate(X_test, Y_test, show_accuracy=True, verbose=0)
 print('Test score:', score[0])
 print('Test accuracy:', score[1])
