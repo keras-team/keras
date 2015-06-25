@@ -369,7 +369,7 @@ class LSTM(Layer):
 
 
 
-class MutatedRNN_1(Layer):
+class JZS1(Layer):
     '''
         Evolved recurrent neural network architectures from the evaluation of thousands
         of models, serving as alternatives to LSTMs and GRUs. See Jozefowicz et al. 2015.
@@ -394,14 +394,11 @@ class MutatedRNN_1(Layer):
         activation='tanh', inner_activation='sigmoid',
         weights=None, truncate_gradient=-1, return_sequences=False):
 
-        super(MutatedRNN_1,self).__init__()
+        super(JZS1,self).__init__()
         self.input_dim = input_dim
         self.output_dim = output_dim
         self.truncate_gradient = truncate_gradient
         self.return_sequences = return_sequences
-        
-        if self.input_dim != self.output_dim:
-            raise Exception('input_dim must equal output_dim for this architecture')
 
         self.init = initializations.get(init)
         self.inner_init = initializations.get(inner_init)
@@ -418,6 +415,11 @@ class MutatedRNN_1(Layer):
 
         self.U_h = self.inner_init((self.output_dim, self.output_dim))
         self.b_h = shared_zeros((self.output_dim))
+
+        # P_h used to project X onto different dimension
+        P = np.ones((self.input_dim, self.output_dim), dtype=theano.config.floatX)
+        P = P / np.linalg.norm(P, axis=0)
+        self.Pmat = theano.shared(P, name=None)
 
         self.params = [
             self.W_z, self.b_z,
@@ -444,7 +446,7 @@ class MutatedRNN_1(Layer):
 
         x_z = T.dot(X, self.W_z) + self.b_z
         x_r = T.dot(X, self.W_r) + self.b_r
-        x_h = T.tanh(X) + self.b_h
+        x_h = T.tanh(T.dot(X, self.Pmat)) + self.b_h
         outputs, updates = theano.scan(
             self._step, 
             sequences=[x_z, x_r, x_h], 
@@ -469,7 +471,7 @@ class MutatedRNN_1(Layer):
 
 
 
-class MutatedRNN_2(Layer):
+class JZS2(Layer):
     '''
         Evolved recurrent neural network architectures from the evaluation of thousands
         of models, serving as alternatives to LSTMs and GRUs. See Jozefowicz et al. 2015.
@@ -494,14 +496,11 @@ class MutatedRNN_2(Layer):
         activation='tanh', inner_activation='sigmoid',
         weights=None, truncate_gradient=-1, return_sequences=False):
 
-        super(MutatedRNN_2,self).__init__()
+        super(JZS2,self).__init__()
         self.input_dim = input_dim
         self.output_dim = output_dim
         self.truncate_gradient = truncate_gradient
         self.return_sequences = return_sequences
-        
-        if self.input_dim != self.output_dim:
-            raise Exception('input_dim must equal output_dim for this architecture')
 
         self.init = initializations.get(init)
         self.inner_init = initializations.get(inner_init)
@@ -519,6 +518,11 @@ class MutatedRNN_2(Layer):
         self.W_h = self.init((self.input_dim, self.output_dim))
         self.U_h = self.inner_init((self.output_dim, self.output_dim))
         self.b_h = shared_zeros((self.output_dim))
+
+        # P_h used to project X onto different dimension
+        P = np.ones((self.input_dim, self.output_dim), dtype=theano.config.floatX)
+        P = P / np.linalg.norm(P, axis=0)
+        self.Pmat = theano.shared(P, name=None)
 
         self.params = [
             self.W_z, self.U_z, self.b_z,
@@ -544,7 +548,7 @@ class MutatedRNN_2(Layer):
         X = X.dimshuffle((1,0,2)) 
 
         x_z = T.dot(X, self.W_z) + self.b_z
-        x_r = X + self.b_r
+        x_r = T.dot(X, self.Pmat) + self.b_r
         x_h = T.dot(X, self.W_h) + self.b_h
         outputs, updates = theano.scan(
             self._step, 
@@ -570,7 +574,7 @@ class MutatedRNN_2(Layer):
 
 
 
-class MutatedRNN_3(Layer):
+class JZS3(Layer):
     '''
         Evolved recurrent neural network architectures from the evaluation of thousands
         of models, serving as alternatives to LSTMs and GRUs. See Jozefowicz et al. 2015.
@@ -595,7 +599,7 @@ class MutatedRNN_3(Layer):
         activation='tanh', inner_activation='sigmoid',
         weights=None, truncate_gradient=-1, return_sequences=False):
 
-        super(MutatedRNN_3,self).__init__()
+        super(JZS3,self).__init__()
         self.input_dim = input_dim
         self.output_dim = output_dim
         self.truncate_gradient = truncate_gradient

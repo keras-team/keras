@@ -131,16 +131,16 @@ Long-Short Term Memory unit - Hochreiter 1997.
 
 ---
 
-## MutatedRNN_1, MutatedRNN_2, MutatedRNN_3
+## JZS1, JZS2, JZS3
 
 ```python
-keras.layers.recurrent.MutatedRNN_1(input_dim, output_dim=128, 
+keras.layers.recurrent.JZS1(input_dim, output_dim=128, 
         init='glorot_uniform', inner_init='orthogonal', 
         activation='tanh', inner_activation='sigmoid',
         weights=None, truncate_gradient=-1, return_sequences=False)
 ```
 
-Top 3 RNN architectures evolved from the evaluation of thousands of models. Serves as alternatives to LSTMs and GRUs. Corresponds to `MUT1`, `MUT2`, and `MUT3` architectures described in the paper: An Empirical Exploration of Recurrent Network Architectures, Jozefowicz et al. 2015. Note that `input_dim` and `output_dim` must be equal in the `MUT1` and `MUT2` architectures.
+Top 3 RNN architectures evolved from the evaluation of thousands of models. Serves as alternatives to LSTMs and GRUs. Corresponds to `MUT1`, `MUT2`, and `MUT3` architectures described in the paper: An Empirical Exploration of Recurrent Network Architectures, Jozefowicz et al. 2015.
 
 - __Input shape__: 3D tensor with shape: `(nb_samples, timesteps, input_dim)`.
 
