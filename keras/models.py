@@ -170,6 +170,8 @@ class Model(object):
                 (y, y_val) = (y[:split_at], y[split_at:])
                 if weights is not None:
                     (weights, weight_val) = (weights[:split_at], weights[split_at:])
+                else:
+                    weight_val = None
 
                 if verbose:
                     print("Train on %d samples, validate on %d samples" % (len(y), len(y_val)))
