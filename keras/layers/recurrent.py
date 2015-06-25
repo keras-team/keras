@@ -416,10 +416,13 @@ class JZS1(Layer):
         self.U_h = self.inner_init((self.output_dim, self.output_dim))
         self.b_h = shared_zeros((self.output_dim))
 
-        # P_h used to project X onto different dimension
-        P = np.ones((self.input_dim, self.output_dim), dtype=theano.config.floatX)
-        P = P / np.linalg.norm(P, axis=0)
-        self.Pmat = theano.shared(P, name=None)
+        # P_h used to project X onto different dimension, using sparse random projections
+        if self.input_dim == self.output_dim:
+            self.Pmat = theano.shared(np.identity(self.output_dim), name=None)
+        else:
+            P = np.random.binomial(1, 0.5, size=(self.input_dim, self.output_dim)) * 2 - 1
+            P = 1 / np.sqrt(self.input_dim) * P
+            self.Pmat = theano.shared(P, name=None)
 
         self.params = [
             self.W_z, self.b_z,
@@ -519,10 +522,13 @@ class JZS2(Layer):
         self.U_h = self.inner_init((self.output_dim, self.output_dim))
         self.b_h = shared_zeros((self.output_dim))
 
-        # P_h used to project X onto different dimension
-        P = np.ones((self.input_dim, self.output_dim), dtype=theano.config.floatX)
-        P = P / np.linalg.norm(P, axis=0)
-        self.Pmat = theano.shared(P, name=None)
+        # P_h used to project X onto different dimension, using sparse random projections
+        if self.input_dim == self.output_dim:
+            self.Pmat = theano.shared(np.identity(self.output_dim), name=None)
+        else:
+            P = np.random.binomial(1, 0.5, size=(self.input_dim, self.output_dim)) * 2 - 1
+            P = 1 / np.sqrt(self.input_dim) * P
+            self.Pmat = theano.shared(P, name=None)
 
         self.params = [
             self.W_z, self.U_z, self.b_z,
