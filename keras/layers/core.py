@@ -286,7 +286,7 @@ class ActivityRegularization(Layer):
         super(ActivityRegularization, self).__init__()
         if activity_regularizer is not None:
             activity_regularizer.set_layer(self)
-            self.cost_update = activity_regularizer
+            self.loss_update = activity_regularizer
 
     def get_output(self, train):
         return self.get_input(train)

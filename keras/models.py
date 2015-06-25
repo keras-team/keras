@@ -90,8 +90,8 @@ class Model(object):
         self.class_mode = class_mode
 
         if hasattr(self, 'cost_updates'):
-            for u in self.cost_updates:
-                if u.modifies_cost:
+            for u in self.loss_updates:
+                if u.modifies_loss:
                     train_loss = u(train_loss)
 
         updates = self.optimizer.get_updates(self.params, self.regularizers, self.constraints,  train_loss)
@@ -325,7 +325,7 @@ class Sequential(Model, containers.Sequential):
         self.params = [] # learnable
         self.regularizers = [] # same size as params
         self.constraints = [] # same size as params
-        self.cost_updates = [] # size can vary, no 1-to-1 mapping to params
+        self.loss_updates = [] # size can vary, no 1-to-1 mapping to params
 
 
     def get_config(self, verbose=0):

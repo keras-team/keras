@@ -5,16 +5,16 @@ import theano.tensor as T
 class Regularizer(object):
     def __init__(self):
         self.modifies_gradient = False
-        self.modifies_cost = False
+        self.modifies_loss = False
 
     def update_gradient(self, gradient, params):
         raise NotImplementedError
 
-    def update_cost(self, cost):
+    def update_loss(self, loss):
         raise NotImplementedError
 
 
-class RegularizerWeightsL1(Regularizer):
+class WeightsL1(Regularizer):
     def __init__(self, l=0.01):
         super(Regularizer, self).__init__()
 
@@ -29,7 +29,7 @@ class RegularizerWeightsL1(Regularizer):
         return self.update_gradient(gradient, params)
 
 
-class RegularizerWeightsL2(Regularizer):
+class WeightsL2(Regularizer):
     def __init__(self, l=0.01):
         super(Regularizer, self).__init__()
 
@@ -44,7 +44,7 @@ class RegularizerWeightsL2(Regularizer):
         return self.update_gradient(gradient, params)
 
 
-class RegularizerWeightsL1L2(Regularizer):
+class WeightsL1L2(Regularizer):
     def __init__(self, l1=0.01, l2=0.01):
         super(Regularizer, self).__init__()
 
@@ -60,7 +60,7 @@ class RegularizerWeightsL1L2(Regularizer):
     def __call__(self, gradient, params):
         return self.update_gradient(gradient, params)
 
-class RegularizerIdentity(Regularizer):
+class Identity(Regularizer):
     def __init__(self):
         super(Regularizer, self).__init__()
 
@@ -73,45 +73,45 @@ class RegularizerIdentity(Regularizer):
         return self.update_gradient(gradient, params)
 
 
-class RegularizerActivityL1(Regularizer):
+class ActivityL1(Regularizer):
     def __init__(self, l = 0.01):
         super(Regularizer, self).__init__()
 
         self.l = l
         self.layer = None
-        self.modifies_cost = True
+        self.modifies_loss = True
 
     def set_layer(self, layer):
         self.layer = layer
 
-    def update_cost(self, cost):
-        return cost + self.l * T.sum(T.mean(abs(self.layer.get_output(True)), axis=0))
+    def update_loss(self, loss):
+        return loss + self.l * T.sum(T.mean(abs(self.layer.get_output(True)), axis=0))
 
-    def __call__(self, cost):
-        return self.update_cost(cost)
+    def __call__(self, loss):
+        return self.update_loss(loss)
 
-class RegularizerActivityL2(Regularizer):
+class ActivityL2(Regularizer):
     def __init__(self, l = 0.01):
         super(Regularizer, self).__init__()
 
         self.l = l
         self.layer = None
-        self.modifies_cost = True
+        self.modifies_loss = True
 
     def set_layer(self, layer):
         self.layer = layer
 
-    def update_cost(self, cost):
-        return cost + self.l * T.sum(T.mean(self.layer.get_output(True) ** 2, axis=0))
+    def update_loss(self, loss):
+        return loss + self.l * T.sum(T.mean(self.layer.get_output(True) ** 2, axis=0))
 
-    def __call__(self, cost):
-        return self.update_cost(cost)
+    def __call__(self, loss):
+        return self.update_loss(loss)
 
 #old style variables for backwards compatibility
-l1 = RegularizerWeightsL1
-l2 = RegularizerWeightsL2
-l1l2 = RegularizerWeightsL1L2
-identity = RegularizerIdentity()
+l1 = weights_l1 = WeightsL1
+l2 = weights_l2 = WeightsL2
+l1l2 = weights_l1l2 = WeightsL1L2
+identity = Identity()
 
-activity_l1 = RegularizerActivityL1
-activity_l2 = RegularizerActivityL2
+activity_l1 = ActivityL1
+activity_l2 = ActivityL2
