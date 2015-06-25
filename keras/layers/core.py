@@ -88,9 +88,11 @@ class Merge(object):
         self.regularizers = []
         self.constraints = []
         for m in self.models:
-            self.params += m.params
-            self.regularizers += m.regularizers
-            self.constraints += m.constraints
+            for i in range(len(m.params)):
+                if not m.params[i] in self.params:
+                    self.params.append(m.params[i])
+                    self.regularizers.append(m.regularizers[i])
+                    self.constraints.append(m.constraints[i])
 
     def get_params(self):
         return self.params, self.regularizers, self.constraints
@@ -111,10 +113,11 @@ class Merge(object):
         res = []
         for i in range(len(self.models)):
             o = self.models[i].get_input(train)
-            if type(o) == list:
-                res += o
-            else:
-                res.append(o)
+            if not type(o) == list:
+                o = [o]
+            for output in o:
+                if output not in res:
+                    res.append(output)
         return res
 
     @property
