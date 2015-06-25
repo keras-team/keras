@@ -167,7 +167,6 @@ class Dropout(MaskedLayer):
 
     def get_output(self, train):
         X = self.get_input(train)
-        mask = self.get_output_mask(train)
         if self.p > 0.:
             retain_prob = 1. - self.p
             if train:

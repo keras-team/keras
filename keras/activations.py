@@ -1,8 +1,5 @@
 from __future__ import absolute_import
-import theano
 import theano.tensor as T
-import numpy as np
-import types
 
 def softmax(x):
     return T.nnet.softmax(x.reshape((-1, x.shape[-1]))).reshape(x.shape)

@@ -16,7 +16,7 @@ class BaseRecurrent(MaskedLayer):
         else:
             return None
 
-    def get_padded_shuffled_mask(self, train, X, pad = 0):
+    def get_padded_shuffled_mask(self, train, X, pad=0):
         mask = self.get_input_mask(train)
         if mask is None:
             mask = T.ones_like(X.sum(axis=-1)) # is there a better way to do this without a sum?
