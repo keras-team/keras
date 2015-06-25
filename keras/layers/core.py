@@ -6,7 +6,7 @@ import theano.tensor as T
 import numpy as np
 
 from .. import activations, initializations
-from ..utils.theano_utils import shared_zeros, floatX, shared_scalar
+from ..utils.theano_utils import shared_zeros, floatX
 from ..utils.generic_utils import make_tuple
 from .. import regularizers
 from .. import constraints
