@@ -282,9 +282,10 @@ class ActivityRegularization(Layer):
         Layer that passes through its input unchanged, but applies an update
         to the cost function based on the activity.
     '''
-    def __init__(self, activity_regularizer):
+    def __init__(self, activity_regularizer = None):
         super(ActivityRegularization, self).__init__()
-        self.cost_update = activity_regularizer(self)
+        if activity_regularizer is not None:
+            self.cost_update = activity_regularizer(self)
 
     def get_output(self, train):
         return self.get_input(train)
