@@ -150,7 +150,7 @@ class MaxPooling2D(Layer):
 
     def get_output(self, train):
         X = self.get_input(train)
-        output = downsample.max_pool_2d(X, ds=self.poolsize, ,st=self.stride, ignore_border=self.ignore_border)
+        output = downsample.max_pool_2d(X, ds=self.poolsize, st=self.stride, ignore_border=self.ignore_border)
         return output
 
     def get_config(self):
