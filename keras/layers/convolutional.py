@@ -160,8 +160,24 @@ class MaxPooling2D(Layer):
                 "stride": self.stride}
 
 
+class ZeroPadding2D(Layer):
+    def __init__(self, width=1):
+        super(ZeroPadding2D, self).__init__()
+        self.width = width
+        self.input = T.tensor4()
 
-# class ZeroPadding2D(Layer): TODO
+    def get_output(self, train):
+        X = self.get_input(train)
+        width =  self.width
+        in_shape = X.shape
+        out_shape = (in_shape[0], in_shape[1], in_shape[2] + 2 * width, in_shape[3] + 2 * width)
+        out = T.zeros(out_shape)
+        indices = (slice(None), slice(None), slice(width, in_shape[2] + width),slice(width, in_shape[3] + width))
+        return T.set_subtensor(out[indices], X)
+
+    def get_config(self):
+        return {"name":self.__class__.__name__,
+                "width":self.width}
 
 # class Convolution3D: TODO
 
