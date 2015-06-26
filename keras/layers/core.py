@@ -16,20 +16,64 @@ from six.moves import zip
 srng = RandomStreams(seed=np.random.randint(10e6))
 
 class Layer(object):
-    def __init__(self):
+    def __init__(self, name, prev, input_dim):
         self.params = []
+        self.name = name
+        self.prev = prev
 
-    def connect(self, layer):
-        self.previous = layer
+        if type(self.prev) is str:
+            self.prev = [self.prev] # single string or a list of strings under one op
+
+        self.input_dim = input_dim
+        self.output_dim = (None, )
+
+    def setup(self):
+        '''
+            Contains code that depends on values that are optional but can be understood from context (ex: input_dim)
+        '''
+        return
+
+    def connect(self, node):
+        self.previous = node
+
+        if self.input_dim == (None, ):
+            self.input_dim = []
+            for prev in self.previous:
+                    self.input_dim.append(prev.output_dim)
+
+        if len(node) == 1:
+            self.previous = self.previous[0]    # for backward compatibility
+            if self.input_dim != (None, ):
+                self.input_dim = self.input_dim[0]  # to make simpler calculation for single input nodes
+            else:
+                self.input_dim = None
+        else:
+            self.input_dim = tuple(self.input_dim)
+
+
 
     def get_output(self, train):
         raise NotImplementedError
 
+    def get_output_dim(self, input_dim):
+        raise NotImplementedError
+
+    def set_output_dim(self):
+        if self.input_dim != (None, ):
+            self.output_dim = self.get_output_dim(self.input_dim)
+
     def get_input(self, train):
         if hasattr(self, 'previous'):
-            return self.previous.get_output(train=train)
+            if type(self.previous) is not list:
+                return self.previous.get_output(train=train)
+            else:
+                output = []
+                for node in self.previous:
+                    output.append(node.get_output(train=train))
+                return output
         else:
             return self.input
+
 
     def set_weights(self, weights):
         for p, w in zip(self.params, weights):
@@ -75,79 +119,40 @@ class Layer(object):
         return self.params, regs, consts
 
 
-class Merge(object): 
-    def __init__(self, models, mode='sum'):
-        ''' Merge the output of a list of models into a single tensor.
-            mode: {'sum', 'concat'}
-        '''
-        if len(models) < 2:
-            raise Exception("Please specify two or more input models to merge")
+class Merge(Layer):
+    def __init__(self, prev, mode='sum', name=None, input_dim=(None, )):
+        super(Merge,self).__init__(name, prev, input_dim)
         self.mode = mode
-        self.models = models
-        self.params = []
-        self.regularizers = []
-        self.constraints = []
-        for m in self.models:
-            for i in range(len(m.params)):
-                if not m.params[i] in self.params:
-                    self.params.append(m.params[i])
-                    self.regularizers.append(m.regularizers[i])
-                    self.constraints.append(m.constraints[i])
 
-    def get_params(self):
-        return self.params, self.regularizers, self.constraints
-
-    def get_output(self, train=False):
+    def get_output(self, train):
+        inputs = self.get_input(train)
         if self.mode == 'sum':
-            s = self.models[0].get_output(train)
-            for i in range(1, len(self.models)):
-                s += self.models[i].get_output(train)
+            s = inputs[0]
+            for inp in inputs[1:]:
+                s += inp
             return s
         elif self.mode == 'concat':
-            inputs = [self.models[i].get_output(train) for i in range(len(self.models))]
             return T.concatenate(inputs, axis=-1)
         else:
             raise Exception('Unknown merge mode')
 
-    def get_input(self, train=False):
-        res = []
-        for i in range(len(self.models)):
-            o = self.models[i].get_input(train)
-            if not type(o) == list:
-                o = [o]
-            for output in o:
-                if output not in res:
-                    res.append(output)
-        return res
-
-    @property
-    def input(self):
-        return self.get_input()
-
-    def get_weights(self):
-        weights = []
-        for m in self.models:
-            weights += m.get_weights()
-        return weights
-
-    def set_weights(self, weights):
-        for i in range(len(self.models)):
-            nb_param = len(self.models[i].params)
-            self.models[i].set_weights(weights[:nb_param])
-            weights = weights[nb_param:]
-
-    def get_config(self):
-        return {"name":self.__class__.__name__,
-            "models":[m.get_config() for m in self.models],
-            "mode":self.mode}
-
+    def get_output_dim(self, input_dims):
+        if None in input_dims:
+            print('One or more input dimensions to this layer are unknown. Either fix that or provide the input dimensions manually')
+        if self.mode == 'sum':
+            return tuple(input_dims[0])
+        if self.mode == 'concat':
+            sizes = [input_dim[-1] for input_dim in input_dims]
+            output_dim = list(input_dims[0])  # make a mutable copy
+            output_dim[-1] = sum(sizes)
+            return tuple(output_dim)
 
 class Dropout(Layer):
     '''
         Hinton's dropout.
     '''
-    def __init__(self, p):
-        super(Dropout,self).__init__()
+    def __init__(self, p, name=None, prev=None, input_dim=(None, )):
+        super(Dropout,self).__init__(name, prev, input_dim)
         self.p = p
 
     def get_output(self, train):
@@ -160,6 +165,9 @@ class Dropout(Layer):
                 X *= retain_prob
         return X
 
+    def get_output_dim(self, input_dim):
+        return input_dim
+
     def get_config(self):
         return {"name":self.__class__.__name__,
             "p":self.p}
@@ -169,8 +177,8 @@ class Activation(Layer):
     '''
         Apply an activation function to an output.
     '''
-    def __init__(self, activation, target=0, beta=0.1):
-        super(Activation,self).__init__()
+    def __init__(self, activation, target=0, beta=0.1, name=None, prev=None, input_dim=(None, )):
+        super(Activation,self).__init__(name, prev, input_dim)
         self.activation = activations.get(activation)
         self.target = target
         self.beta = beta
@@ -178,6 +186,9 @@ class Activation(Layer):
     def get_output(self, train):
         X = self.get_input(train)
         return self.activation(X)
+
+    def get_output_dim(self, input_dim):
+        return input_dim
 
     def get_config(self):
         return {"name":self.__class__.__name__,
@@ -192,14 +203,32 @@ class Reshape(Layer):
         Can't be used as first layer in a model (no fixed input!)
         First dimension is assumed to be nb_samples.
     '''
-    def __init__(self, *dims):
-        super(Reshape,self).__init__()
+    def __init__(self, *dims, **kwrags):
+        if name in kwrags:
+            name = kwrags[name]
+        else:
+            name = None
+
+        if prev in kwrags:
+            prev = kwrags[prev]
+        else:
+            prev = None
+
+        if input_dim in kwrags:
+            input_dim = kwrags[input_dim]
+        else:
+            input_dim = None
+
+        super(Reshape,self).__init__(name, prev, input_dim)
         self.dims = dims
 
     def get_output(self, train):
         X = self.get_input(train)
         nshape = make_tuple(X.shape[0], *self.dims)
         return theano.tensor.reshape(X, nshape)
+
+    def get_output_dim(self, input_dim):
+        return self.dims
 
     def get_config(self):
         return {"name":self.__class__.__name__,
@@ -211,14 +240,17 @@ class Flatten(Layer):
         Reshape input to flat shape.
         First dimension is assumed to be nb_samples.
     '''
-    def __init__(self):
-        super(Flatten,self).__init__()
+    def __init__(self, name=None, prev=None, input_dim=(None, )):
+        super(Flatten,self).__init__(name, prev, input_dim)
 
     def get_output(self, train):
         X = self.get_input(train)
         size = theano.tensor.prod(X.shape) // X.shape[0]
         nshape = (X.shape[0], size)
         return theano.tensor.reshape(X, nshape)
+
+    def get_output_dim(self, input_dim):
+        return (np.prod(input_dim[:],), )
 
 
 class RepeatVector(Layer):
@@ -228,8 +260,8 @@ class RepeatVector(Layer):
         Dimensions of input are assumed to be (nb_samples, dim).
         Return tensor of shape (nb_samples, n, dim).
     '''
-    def __init__(self, n):
-        super(RepeatVector,self).__init__()
+    def __init__(self, n, name=None, prev=None, input_dim=(None, )):
+        super(RepeatVector,self).__init__(name, prev, input_dim)
         self.n = n
 
     def get_output(self, train):
@@ -237,6 +269,9 @@ class RepeatVector(Layer):
         tensors = [X]*self.n
         stacked = theano.tensor.stack(*tensors)
         return stacked.dimshuffle((1,0,2))
+
+    def get_output_dim(self, input_dim):
+        return tuple(n, input_dim)
 
     def get_config(self):
         return {"name":self.__class__.__name__,
@@ -247,26 +282,42 @@ class Dense(Layer):
     '''
         Just your regular fully connected NN layer.
     '''
-    def __init__(self, input_dim, output_dim, init='glorot_uniform', activation='linear', weights=None, 
-        W_regularizer=None, b_regularizer=None, W_constraint=None, b_constraint=None):
+    def __init__(self, output_shape, input_shape=None, init='glorot_uniform', activation='linear', weights=None,
+        W_regularizer=None, b_regularizer=None, W_constraint=None, b_constraint=None, name=None, prev=None, input_dim=(None, )):
 
-        super(Dense,self).__init__()
+        if input_shape is not None:
+            input_shape, output_shape = output_shape, input_shape   # if given in Dense(i/p, o/p) conventional form, for compatibility
+            input_dim = (input_shape,)
+
+        super(Dense,self).__init__(name, prev, input_dim)
         self.init = initializations.get(init)
         self.activation = activations.get(activation)
-        self.input_dim = input_dim
-        self.output_dim = output_dim
-
-        self.input = T.matrix()
-        self.W = self.init((self.input_dim, self.output_dim))
-        self.b = shared_zeros((self.output_dim))
-
-        self.params = [self.W, self.b]
+        self.input_shape = input_shape
+        self.output_shape = output_shape
 
         self.regularizers = [W_regularizer, b_regularizer]
         self.constraints = [W_constraint, b_constraint]
 
-        if weights is not None:
-            self.set_weights(weights)
+        self.weights = weights
+
+    def setup(self):
+        if self.input_shape is None:
+            if self.input_dim is (None, ):
+                raise RuntimeError
+            else:
+                self.input_shape = self.input_dim[0]
+
+        self.input = T.matrix()
+        self.W = self.init((self.input_shape, self.output_shape))
+        self.b = shared_zeros((self.output_shape))
+
+        self.params = [self.W, self.b]
+
+        if self.weights is not None:
+            self.set_weights(self.weights)
+
+    def get_output_dim(self, input_dim):
+        return (self.output_shape, )
 
     def get_output(self, train):
         X = self.get_input(train)
@@ -275,8 +326,8 @@ class Dense(Layer):
 
     def get_config(self):
         return {"name":self.__class__.__name__,
-            "input_dim":self.input_dim,
-            "output_dim":self.output_dim,
+            "input_shape":self.input_shape,
+            "output_shape":self.output_shape,
             "init":self.init.__name__,
             "activation":self.activation.__name__}
 
@@ -285,30 +336,46 @@ class TimeDistributedDense(Layer):
     '''
        Apply a same DenseLayer for each dimension[1] (shared_dimension) input
        Especially useful after a recurrent network with 'return_sequence=True'
-       Tensor input dimensions:   (nb_sample, shared_dimension, input_dim)
-       Tensor output dimensions:  (nb_sample, shared_dimension, output_dim)
+       Tensor input dimensions:   (nb_sample, shared_dimension, input_shape)
+       Tensor output dimensions:  (nb_sample, shared_dimension, output_shape)
 
     '''
-    def __init__(self, input_dim, output_dim, init='glorot_uniform', activation='linear', weights=None, 
-        W_regularizer=None, b_regularizer=None, W_constraint=None, b_constraint=None):
+    def __init__(self, output_shape, input_shape=None, init='glorot_uniform', activation='linear', weights=None,
+        W_regularizer=None, b_regularizer=None, W_constraint=None, b_constraint=None, name=None, prev=None, input_dim=(None, )):
 
-        super(TimeDistributedDense,self).__init__()
+        if input_shape is not None:
+            input_shape, output_shape = output_shape, input_shape   # if given in Dense(i/p, o/p) conventional form, for compatibility
+            input_dim = (input_shape,)
+
+
+        super(TimeDistributedDense,self).__init__(name, prev, input_dim)
         self.init = initializations.get(init)
         self.activation = activations.get(activation)
-        self.input_dim = input_dim
-        self.output_dim = output_dim
+        self.input_shape = input_shape
+        self.output_shape = output_shape
 
-        self.input = T.tensor3()
-        self.W = self.init((self.input_dim, self.output_dim))
-        self.b = shared_zeros((self.output_dim))
-
-        self.params = [self.W, self.b]
+        self.weights = weights
 
         self.regularizers = [W_regularizer, b_regularizer]
         self.constraints = [W_constraint, b_constraint]
 
-        if weights is not None:
-            self.set_weights(weights)
+
+    def setup(self):
+        if self.input_shape is None:
+            if self.input_dim is (None, ):
+                raise RuntimeError
+            else:
+                self.input_shape = self.input_dim[0]
+
+        self.input = T.tensor3()
+        self.W = self.init((self.input_shape, self.output_shape))
+        self.b = shared_zeros((self.output_shape))
+
+        self.params = [self.W, self.b]
+
+        if self.weights is not None:
+            self.set_weights(self.weights)
+
 
     def get_output(self, train):
         X = self.get_input(train)
@@ -323,115 +390,12 @@ class TimeDistributedDense(Layer):
 
     def get_config(self):
         return {"name":self.__class__.__name__,
-            "input_dim":self.input_dim,
-            "output_dim":self.output_dim,
+            "input_shape":self.input_shape,
+            "output_shape":self.output_shape,
             "init":self.init.__name__,
             "activation":self.activation.__name__}
 
-class AutoEncoder(Layer):
-    '''
-        A customizable autoencoder model.
-        If output_reconstruction then dim(input) = dim(output)
-        else dim(output) = dim(hidden)
-    '''
-    def __init__(self, encoder, decoder, output_reconstruction=True, tie_weights=False, weights=None):
 
-        super(AutoEncoder,self).__init__()
-
-        self.output_reconstruction = output_reconstruction
-        self.tie_weights = tie_weights
-        self.encoder = encoder
-        self.decoder = decoder
-
-        self.decoder.connect(self.encoder)
-
-        self.params = []
-        self.regularizers = []
-        self.constraints = []
-        for layer in [self.encoder, self.decoder]:
-            self.params += layer.params
-            if hasattr(layer, 'regularizers'):
-                self.regularizers += layer.regularizers
-            if hasattr(layer, 'constraints'):
-                self.constraints += layer.constraints
-
-        if weights is not None:
-            self.set_weights(weights)
-
-    def connect(self, node):
-        self.encoder.connect(node)
-
-    def get_weights(self):
-        weights = []
-        for layer in [self.encoder, self.decoder]:
-            weights += layer.get_weights()
-        return weights
-
-    def set_weights(self, weights):
-        nb_param = len(self.encoder.params)
-        self.encoder.set_weights(weights[:nb_param])
-        self.decoder.set_weights(weights[nb_param:])
-
-    def get_input(self, train=False):
-        return self.encoder.get_input(train)
-
-    @property
-    def input(self):
-        return self.encoder.input
-
-    def _get_hidden(self, train):
-        return self.encoder.get_output(train)
-
-    def get_output(self, train):
-        if not train and not self.output_reconstruction:
-            return self.encoder.get_output(train)
-
-        decoded = self.decoder.get_output(train)
-
-        if self.tie_weights:
-            encoder_params = self.encoder.get_weights()
-            decoder_params = self.decoder.get_weights()
-            for dec_param, enc_param in zip(decoder_params, encoder_params):
-                if len(dec_param.shape) > 1:
-                    enc_param = dec_param.T
-
-        return decoded
-
-    def get_config(self):
-        return {"name":self.__class__.__name__,
-                "encoder_config":self.encoder.get_config(),
-                "decoder_config":self.decoder.get_config(),
-                "output_reconstruction":self.output_reconstruction,
-                "tie_weights":self.tie_weights}
-
-
-class DenoisingAutoEncoder(AutoEncoder):
-    '''
-        A denoising autoencoder model that inherits the base features from autoencoder
-    '''
-    def __init__(self, encoder=None, decoder=None, output_reconstruction=True, tie_weights=False, weights=None, corruption_level=0.3):
-        super(DenoisingAutoEncoder, self).__init__(encoder, decoder, output_reconstruction, tie_weights, weights)
-        self.corruption_level = corruption_level
-
-    def _get_corrupted_input(self, input):
-        """
-            http://deeplearning.net/tutorial/dA.html
-        """
-        return srng.binomial(size=(self.input_dim, 1), n=1,
-                             p=1-self.corruption_level,
-                             dtype=theano.config.floatX) * input
-
-    def get_input(self, train=False):
-        uncorrupted_input = super(DenoisingAutoEncoder, self).get_input(train)
-        return self._get_corrupted_input(uncorrupted_input)
-
-    def get_config(self):
-        return {"name":self.__class__.__name__,
-                "encoder_config":self.encoder.get_config(),
-                "decoder_config":self.decoder.get_config(),
-                "corruption_level":self.corruption_level,
-                "output_reconstruction":self.output_reconstruction,
-                "tie_weights":self.tie_weights}
 
 
 class MaxoutDense(Layer):
@@ -439,26 +403,40 @@ class MaxoutDense(Layer):
         Max-out layer, nb_feature is the number of pieces in the piecewise linear approx.
         Refer to http://arxiv.org/pdf/1302.4389.pdf
     '''
-    def __init__(self, input_dim, output_dim, nb_feature=4, init='glorot_uniform', weights=None, 
-        W_regularizer=None, b_regularizer=None, W_constraint=None, b_constraint=None):
+    def __init__(self, output_shape, input_shape=None, nb_feature=4, init='glorot_uniform', weights=None,
+        W_regularizer=None, b_regularizer=None, W_constraint=None, b_constraint=None, name=None, prev=None, input_dim=(None, )):
 
-        super(MaxoutDense,self).__init__()
+        if input_shape is not None:
+            input_shape, output_shape = output_shape, input_shape   # if given in Dense(i/p, o/p) conventional form, for compatibility
+            input_dim = (input_shape,)
+
+        super(MaxoutDense,self).__init__(name, prev, input_dim)
         self.init = initializations.get(init)
-        self.input_dim = input_dim
-        self.output_dim = output_dim
+        self.input_shape = input_shape
+        self.output_shape = output_shape
         self.nb_feature = nb_feature
 
-        self.input = T.matrix()
-        self.W = self.init((self.nb_feature, self.input_dim, self.output_dim))
-        self.b = shared_zeros((self.nb_feature, self.output_dim))
-
-        self.params = [self.W, self.b]
+        self.weights = weights
 
         self.regularizers = [W_regularizer, b_regularizer]
         self.constraints = [W_constraint, b_constraint]
 
-        if weights is not None:
-            self.set_weights(weights)
+    def setup(self):
+        if self.input_shape is None:
+            if self.input_dim is (None, ):
+                raise RuntimeError
+            else:
+                self.input_shape = self.input_dim[0]
+
+        self.input = T.matrix()
+        self.W = self.init((self.nb_feature, self.input_shape, self.output_shape))
+        self.b = shared_zeros((self.nb_feature, self.output_shape))
+
+        self.params = [self.W, self.b]
+
+        if self.weights is not None:
+            self.set_weights(self.weights)
+
 
     def get_output(self, train):
         X = self.get_input(train)
@@ -468,7 +446,7 @@ class MaxoutDense(Layer):
 
     def get_config(self):
         return {"name":self.__class__.__name__,
-            "input_dim":self.input_dim,
-            "output_dim":self.output_dim,
+            "input_shape":self.input_shape,
+            "output_shape":self.output_shape,
             "init":self.init.__name__,
             "nb_feature" : self.nb_feature}

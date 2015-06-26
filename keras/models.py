@@ -157,31 +157,10 @@ class Sequential(Model):
 
         # NOTE: Theano performs graph optimizations that will eliminate the consequent redundancy
 
-        self.params += [p for p in layer.params]
-
-
-        if hasattr(layer, 'regularizers') and len(layer.regularizers) == len(layer.params):
-            for r in layer.regularizers:
-                if r:
-                    self.regularizers.append(r)
-                else:
-                    self.regularizers.append(regularizers.identity)
-        elif hasattr(layer, 'regularizer') and layer.regularizer:
-            self.regularizers += [layer.regularizer for _ in range(len(layer.params))]
-        else:
-            self.regularizers += [regularizers.identity for _ in range(len(layer.params))]
-
-        if hasattr(layer, 'constraints') and len(layer.constraints) == len(layer.params):
-            for c in layer.constraints:
-                if c:
-                    self.constraints.append(c)
-                else:
-                    self.constraints.append(constraints.identity)
-        elif hasattr(layer, 'constraint') and layer.constraint:
-            self.constraints += [layer.constraint for _ in range(len(layer.params))]
-        else:
-            self.constraints += [constraints.identity for _ in range(len(layer.params))]
-
+        params, regularizers, constraints = layer.get_params()
+        self.params += params
+        self.regularizers += regularizers
+        self.constraints += constraints
 
     def get_output(self, train=False):
         return self.layers[-1].get_output(train)
