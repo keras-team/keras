@@ -312,13 +312,7 @@ class TimeDistributedDense(Layer):
 
     def get_output(self, train):
         X = self.get_input(train)
-
-        def act_func(X):
-            return self.activation(T.dot(X, self.W) + self.b)
-
-        output, _ = theano.scan(fn = act_func,
-                                sequences = X.dimshuffle(1,0,2),
-                                outputs_info=None)
+        output = self.activation(T.dot(X.dimshuffle(1,0,2), self.W) + self.b)
         return output.dimshuffle(1,0,2)
 
     def get_config(self):
