@@ -236,7 +236,7 @@ class RepeatVector(Layer):
         X = self.get_input(train)
         tensors = [X]*self.n
         stacked = theano.tensor.stack(*tensors)
-        return stacked.dimshuffle((1,0,2))
+        return stacked.dimshuffle((1, 0, 2))
 
     def get_config(self):
         return {"name":self.__class__.__name__,
@@ -312,14 +312,8 @@ class TimeDistributedDense(Layer):
 
     def get_output(self, train):
         X = self.get_input(train)
-
-        def act_func(X):
-            return self.activation(T.dot(X, self.W) + self.b)
-
-        output, _ = theano.scan(fn = act_func,
-                                sequences = X.dimshuffle(1,0,2),
-                                outputs_info=None)
-        return output.dimshuffle(1,0,2)
+        output = self.activation(T.dot(X.dimshuffle(1, 0, 2), self.W) + self.b)
+        return output.dimshuffle(1, 0, 2)
 
     def get_config(self):
         return {"name":self.__class__.__name__,
