@@ -21,7 +21,7 @@ def test_softmax():
         e = numpy.exp(values - m)
         dist = list(e / numpy.sum(e))
 
-        return [dist]
+        return dist
 
     x = T.vector()
     exp = s(x)
@@ -31,4 +31,16 @@ def test_softmax():
     result = f(test_values)
     expected = softmax(test_values)
 
-    list_assert_equal(result[0], expected[0])
+    print(str(result))
+    print(str(expected))
+
+    list_assert_equal(result, expected)
+
+def test_linear():
+
+    from keras.activations import linear as l
+
+    xs = [1, 5, True, None, 'foo']
+
+    for x in xs:
+        assert x == l(x)
