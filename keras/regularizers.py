@@ -3,9 +3,6 @@ import theano.tensor as T
 
 
 class Regularizer(object):
-    def __init__(self):
-        self.modifies_gradient = False
-        self.modifies_loss = False
 
     def update_gradient(self, gradient, params):
         raise NotImplementedError
@@ -16,10 +13,7 @@ class Regularizer(object):
 
 class WeightsL1(Regularizer):
     def __init__(self, l=0.01):
-        super(Regularizer, self).__init__()
-
         self.l = l
-        self.modifies_gradient = True
 
     def update_gradient(self, gradient, params):
         gradient += T.sgn(params) * self.l
@@ -28,10 +22,7 @@ class WeightsL1(Regularizer):
 
 class WeightsL2(Regularizer):
     def __init__(self, l=0.01):
-        super(Regularizer, self).__init__()
-
         self.l = l
-        self.modifies_gradient = True
 
     def update_gradient(self, gradient, params):
         gradient += params * self.l
@@ -40,11 +31,8 @@ class WeightsL2(Regularizer):
 
 class WeightsL1L2(Regularizer):
     def __init__(self, l1=0.01, l2=0.01):
-        super(Regularizer, self).__init__()
-
         self.l1 = l1
         self.l2 = l2
-        self.modifies_gradient = True
 
     def update_gradient(self, gradient, params):
         gradient += params * self.l2
@@ -53,10 +41,6 @@ class WeightsL1L2(Regularizer):
 
 
 class Identity(Regularizer):
-    def __init__(self):
-        super(Regularizer, self).__init__()
-
-        self.modifies_gradient = True
 
     def update_gradient(self, gradient, params):
         return gradient
@@ -64,11 +48,8 @@ class Identity(Regularizer):
 
 class ActivityL1(Regularizer):
     def __init__(self, l = 0.01):
-        super(Regularizer, self).__init__()
-
         self.l = l
         self.layer = None
-        self.modifies_loss = True
 
     def set_layer(self, layer):
         self.layer = layer
@@ -79,11 +60,8 @@ class ActivityL1(Regularizer):
 
 class ActivityL2(Regularizer):
     def __init__(self, l = 0.01):
-        super(Regularizer, self).__init__()
-
         self.l = l
         self.layer = None
-        self.modifies_loss = True
 
     def set_layer(self, layer):
         self.layer = layer
