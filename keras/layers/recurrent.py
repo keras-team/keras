@@ -27,9 +27,9 @@ class BaseRecurrent(MaskedLayer):
 
         if pad > 0:
             # left-pad in time with 0
-            padding = alloc_zeros_matrix(pad, mask.shape[1], 1).astype('uint8')
-            return T.concatenate([padding, mask], axis=0)
-        return mask
+            padding = alloc_zeros_matrix(pad, mask.shape[1], 1)
+            mask = T.concatenate([padding, mask], axis=0)
+        return mask.astype('int8')
 
 
 class SimpleRNN(BaseRecurrent):
