@@ -63,32 +63,27 @@ class Convolution1D(Layer):
 
 
 class MaxPooling1D(Layer):
-    def __init__(self, pool_length=2, subsample_length=None, ignore_border=True):
+    def __init__(self, pool_length=2, stride=None, ignore_border=True):
         super(MaxPooling1D,self).__init__()
         self.pool_length = pool_length
-        self.subsample_length = subsample_length
 
-        if subsample_length is None:
-            self.subsample_size = (1, pool_length)
-        else:
-            self.subsample_size = (1, subsample_length)
+        if stride is not None:
+            self.stride = (1, stride)
 
         self.input = T.tensor4()
         self.poolsize = (1, pool_length)
         self.ignore_border = ignore_border
-        self.input = T.tensor4()
-        self.params = []
 
     def get_output(self, train):
         X = self.get_input(train)
-        output = downsample.max_pool_2d(X, ds=self.poolsize, st=self.subsample_size, ignore_border=self.ignore_border)
+        output = downsample.max_pool_2d(X, ds=self.poolsize, st=self.stride, ignore_border=self.ignore_border)
         return output
 
     def get_config(self):
         return {"name":self.__class__.__name__,
-            "pool_length":self.pool_length,
-            "ignore_border":self.ignore_border,
-            "subsample_length": self.subsample_length}
+                "pool_length":self.pool_length,
+                "ignore_border":self.ignore_border,
+                "subsample_length": self.subsample_length}
 
 
 
@@ -132,33 +127,37 @@ class Convolution2D(Layer):
 
     def get_config(self):
         return {"name":self.__class__.__name__,
-            "nb_filter":self.nb_filter,
-            "stack_size":self.stack_size,
-            "nb_row":self.nb_row,
-            "nb_col":self.nb_col,
-            "init":self.init.__name__,
-            "activation":self.activation.__name__,
-            "image_shape":self.image_shape,
-            "border_mode":self.border_mode,
-            "subsample":self.subsample}
+                "nb_filter":self.nb_filter,
+                "stack_size":self.stack_size,
+                "nb_row":self.nb_row,
+                "nb_col":self.nb_col,
+                "init":self.init.__name__,
+                "activation":self.activation.__name__,
+                "image_shape":self.image_shape,
+                "border_mode":self.border_mode,
+                "subsample":self.subsample}
 
 
 class MaxPooling2D(Layer):
-    def __init__(self, poolsize=(2, 2), ignore_border=True):
+    def __init__(self, poolsize=(2, 2), stride=None, ignore_border=True):
         super(MaxPooling2D,self).__init__()
-        self.input = T.tensor4()
+
         self.poolsize = poolsize
+        self.stride = stride
         self.ignore_border = ignore_border
+
+        self.input = T.tensor4()
 
     def get_output(self, train):
         X = self.get_input(train)
-        output = downsample.max_pool_2d(X, self.poolsize, ignore_border=self.ignore_border)
+        output = downsample.max_pool_2d(X, ds=self.poolsize, ,st=self.stride, ignore_border=self.ignore_border)
         return output
 
     def get_config(self):
         return {"name":self.__class__.__name__,
-            "poolsize":self.poolsize,
-            "ignore_border":self.ignore_border}
+                "poolsize":self.poolsize,
+                "ignore_border":self.ignore_border,
+                "stride": self.stride}
 
 
 
