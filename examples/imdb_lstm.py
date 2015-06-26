@@ -21,21 +21,23 @@ from keras.datasets import imdb
 
     - RNNs are tricky. Choice of batch size is important, 
     choice of loss and optimizer is critical, etc. 
-    Most configurations won't converge.
+    Some configurations won't converge.
 
-    - LSTM loss decrease during training can be quite different 
-    from what you see with CNNs/MLPs/etc. It's more or less a sigmoid
-    instead of an inverse exponential.
+    - LSTM loss decrease patterns during training can be quite different 
+    from what you see with CNNs/MLPs/etc. 
 
     GPU command:
         THEANO_FLAGS=mode=FAST_RUN,device=gpu,floatX=float32 python imdb_lstm.py
 
-    250s/epoch on GPU (GT 650M), vs. 400s/epoch on CPU (2.4Ghz Core i7).
+    250s/epoch on GPU (GT 650M), vs. 400s/epoch on CPU (2.4Ghz Core i7). 
+    Increasing the batch_size increases the GPU speedup.
 '''
 
-max_features=20000
+max_features = 20000
 maxlen = 100 # cut texts after this number of words (among top max_features most common words)
 batch_size = 16
+
+np.random.seed(1337)
 
 print("Loading data...")
 (X_train, y_train), (X_test, y_test) = imdb.load_data(nb_words=max_features, test_split=0.2)
@@ -50,7 +52,7 @@ print('X_test shape:', X_test.shape)
 
 print('Build model...')
 model = Sequential()
-model.add(Embedding(max_features, 256))
+model.add(Embedding(max_features, 256, mask_zero=True))
 model.add(LSTM(256, 128)) # try using a GRU instead, for fun
 model.add(Dropout(0.5))
 model.add(Dense(128, 1))
@@ -60,7 +62,7 @@ model.add(Activation('sigmoid'))
 model.compile(loss='binary_crossentropy', optimizer='adam', class_mode="binary")
 
 print("Train...")
-model.fit(X_train, y_train, batch_size=batch_size, nb_epoch=5, validation_split=0.1, show_accuracy=True)
+model.fit(X_train, y_train, batch_size=batch_size, nb_epoch=4, validation_split=0.1, show_accuracy=True)
 score = model.evaluate(X_test, y_test, batch_size=batch_size)
 print('Test score:', score)
 
