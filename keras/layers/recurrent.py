@@ -9,10 +9,10 @@ from ..utils.theano_utils import shared_scalar, shared_zeros, alloc_zeros_matrix
 from ..layers.core import Layer, MaskedLayer
 from six.moves import range
 
-class BaseRecurrent(MaskedLayer):
+class Recurrent(MaskedLayer):
     def get_output_mask(self, train=None):
         if self.return_sequences:
-            return super(BaseRecurrent, self).get_output_mask(train)
+            return super(Recurrent, self).get_output_mask(train)
         else:
             return None
 
@@ -20,10 +20,11 @@ class BaseRecurrent(MaskedLayer):
         mask = self.get_input_mask(train)
         if mask is None:
             mask = T.ones_like(X.sum(axis=-1)) # is there a better way to do this without a sum?
+
         # mask is (nb_samples, time)
         mask = T.shape_padright(mask) # (nb_samples, time, 1)
         mask = T.addbroadcast(mask, -1) # (time, nb_samples, 1) matrix.
-        mask = mask.dimshuffle(1,0,2) # (time, nb_samples, 1)
+        mask = mask.dimshuffle(1, 0, 2) # (time, nb_samples, 1)
 
         if pad > 0:
             # left-pad in time with 0
@@ -32,7 +33,7 @@ class BaseRecurrent(MaskedLayer):
         return mask.astype('int8')
 
 
-class SimpleRNN(BaseRecurrent):
+class SimpleRNN(Recurrent):
     '''
         Fully connected RNN where output is to fed back to input.
 
@@ -43,6 +44,7 @@ class SimpleRNN(BaseRecurrent):
     def __init__(self, input_dim, output_dim, 
         init='glorot_uniform', inner_init='orthogonal', activation='sigmoid', weights=None,
         truncate_gradient=-1, return_sequences=False):
+
         super(SimpleRNN,self).__init__()
         self.init = initializations.get(init)
         self.inner_init = initializations.get(inner_init)
@@ -70,12 +72,10 @@ class SimpleRNN(BaseRecurrent):
         return self.activation(x_t + mask_tm1 * T.dot(h_tm1, u))
 
     def get_output(self, train):
-        X = self.get_input(train) # shape: (nb_samples, time (padded with zeros at the end), input_dim)
+        X = self.get_input(train) # shape: (nb_samples, time (padded with zeros), input_dim)
         # new shape: (time, nb_samples, input_dim) -> because theano.scan iterates over main dimension
         padded_mask = self.get_padded_shuffled_mask(train, X, pad=1)
-        X = X.dimshuffle((1,0,2)) 
-
-
+        X = X.dimshuffle((1, 0, 2)) 
         x = T.dot(X, self.W) + self.b
         
         # scan = theano symbolic loop.
@@ -91,7 +91,7 @@ class SimpleRNN(BaseRecurrent):
         )
 
         if self.return_sequences:
-            return outputs.dimshuffle((1,0,2))
+            return outputs.dimshuffle((1, 0, 2))
         return outputs[-1]
 
     def get_config(self):
@@ -105,7 +105,7 @@ class SimpleRNN(BaseRecurrent):
             "return_sequences":self.return_sequences}
 
 
-class SimpleDeepRNN(BaseRecurrent):
+class SimpleDeepRNN(Recurrent):
     '''
         Fully connected RNN where the output of multiple timesteps 
         (up to "depth" steps in the past) is fed back to the input:
@@ -119,6 +119,7 @@ class SimpleDeepRNN(BaseRecurrent):
         init='glorot_uniform', inner_init='orthogonal', 
         activation='sigmoid', inner_activation='hard_sigmoid',
         weights=None, truncate_gradient=-1, return_sequences=False):
+
         super(SimpleDeepRNN,self).__init__()
         self.init = initializations.get(init)
         self.inner_init = initializations.get(inner_init)
@@ -151,7 +152,7 @@ class SimpleDeepRNN(BaseRecurrent):
     def get_output(self, train):
         X = self.get_input(train)
         padded_mask = self.get_padded_shuffled_mask(train, X, pad=self.depth)
-        X = X.dimshuffle((1,0,2)) 
+        X = X.dimshuffle((1, 0, 2)) 
 
         x = T.dot(X, self.W) + self.b
         
@@ -175,7 +176,7 @@ class SimpleDeepRNN(BaseRecurrent):
         )
 
         if self.return_sequences:
-            return outputs.dimshuffle((1,0,2))
+            return outputs.dimshuffle((1, 0, 2))
         return outputs[-1]
 
     def get_config(self):
@@ -191,7 +192,7 @@ class SimpleDeepRNN(BaseRecurrent):
             "return_sequences":self.return_sequences}
 
 
-class GRU(BaseRecurrent):
+class GRU(Recurrent):
     '''
         Gated Recurrent Unit - Cho et al. 2014
 
@@ -260,13 +261,12 @@ class GRU(BaseRecurrent):
         r = self.inner_activation(xr_t + T.dot(h_mask_tm1, u_r))
         hh_t = self.activation(xh_t + T.dot(r * h_mask_tm1, u_h))
         h_t = z * h_mask_tm1 + (1 - z) * hh_t
-        #return theano.printing.Print("h_t")(h_t)
         return h_t
 
     def get_output(self, train):
         X = self.get_input(train) 
         padded_mask = self.get_padded_shuffled_mask(train, X, pad=1)
-        X = X.dimshuffle((1,0,2)) 
+        X = X.dimshuffle((1, 0, 2)) 
 
         x_z = T.dot(X, self.W_z) + self.b_z
         x_r = T.dot(X, self.W_r) + self.b_r
@@ -280,7 +280,7 @@ class GRU(BaseRecurrent):
         )
 
         if self.return_sequences:
-            return outputs.dimshuffle((1,0,2))
+            return outputs.dimshuffle((1, 0, 2))
         return outputs[-1]
 
     def get_config(self):
@@ -296,7 +296,7 @@ class GRU(BaseRecurrent):
 
 
 
-class LSTM(BaseRecurrent):
+class LSTM(Recurrent):
     '''
         Acts as a spatiotemporal projection,
         turning a sequence of vectors into a single vector.
@@ -381,7 +381,7 @@ class LSTM(BaseRecurrent):
     def get_output(self, train):
         X = self.get_input(train) 
         padded_mask = self.get_padded_shuffled_mask(train, X, pad=1)
-        X = X.dimshuffle((1,0,2))
+        X = X.dimshuffle((1, 0, 2))
 
         xi = T.dot(X, self.W_i) + self.b_i
         xf = T.dot(X, self.W_f) + self.b_f
@@ -400,7 +400,7 @@ class LSTM(BaseRecurrent):
         )
 
         if self.return_sequences:
-            return outputs.dimshuffle((1,0,2))
+            return outputs.dimshuffle((1, 0, 2))
         return outputs[-1]
 
     def get_config(self):
@@ -481,7 +481,7 @@ class JZS1(Layer):
             self.set_weights(weights)
 
     def _step(self, 
-        xz_t, xr_t, xh_t, 
+        xz_t, xr_t, xh_t, mask_tm1,
         h_tm1, 
         u_r, u_h):
         z = self.inner_activation(xz_t)
@@ -492,20 +492,21 @@ class JZS1(Layer):
 
     def get_output(self, train):
         X = self.get_input(train) 
-        X = X.dimshuffle((1,0,2)) 
+        X = X.dimshuffle((1, 0, 2)) 
+        padded_mask = self.get_padded_shuffled_mask(train, X, pad=1)
 
         x_z = T.dot(X, self.W_z) + self.b_z
         x_r = T.dot(X, self.W_r) + self.b_r
         x_h = T.tanh(T.dot(X, self.Pmat)) + self.b_h
         outputs, updates = theano.scan(
             self._step, 
-            sequences=[x_z, x_r, x_h], 
+            sequences=[x_z, x_r, x_h, padded_mask], 
             outputs_info=T.unbroadcast(alloc_zeros_matrix(X.shape[1], self.output_dim), 1),
             non_sequences=[self.U_r, self.U_h],
             truncate_gradient=self.truncate_gradient
         )
         if self.return_sequences:
-            return outputs.dimshuffle((1,0,2))
+            return outputs.dimshuffle((1, 0, 2))
         return outputs[-1]
 
     def get_config(self):
@@ -598,7 +599,7 @@ class JZS2(Layer):
 
     def get_output(self, train):
         X = self.get_input(train) 
-        X = X.dimshuffle((1,0,2)) 
+        X = X.dimshuffle((1, 0, 2)) 
 
         x_z = T.dot(X, self.W_z) + self.b_z
         x_r = T.dot(X, self.Pmat) + self.b_r
@@ -611,7 +612,7 @@ class JZS2(Layer):
             truncate_gradient=self.truncate_gradient
         )
         if self.return_sequences:
-            return outputs.dimshuffle((1,0,2))
+            return outputs.dimshuffle((1, 0, 2))
         return outputs[-1]
 
     def get_config(self):
@@ -697,7 +698,7 @@ class JZS3(Layer):
 
     def get_output(self, train):
         X = self.get_input(train) 
-        X = X.dimshuffle((1,0,2)) 
+        X = X.dimshuffle((1, 0, 2)) 
 
         x_z = T.dot(X, self.W_z) + self.b_z
         x_r = T.dot(X, self.W_r) + self.b_r
@@ -710,7 +711,7 @@ class JZS3(Layer):
             truncate_gradient=self.truncate_gradient
         )
         if self.return_sequences:
-            return outputs.dimshuffle((1,0,2))
+            return outputs.dimshuffle((1, 0, 2))
         return outputs[-1]
 
     def get_config(self):
