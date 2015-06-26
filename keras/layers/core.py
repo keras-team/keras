@@ -80,6 +80,8 @@ class Merge(object):
         ''' Merge the output of a list of models into a single tensor.
             mode: {'sum', 'concat'}
         '''
+        if len(models) < 2:
+            raise Exception("Please specify two or more input models to merge")
         self.mode = mode
         self.models = models
         self.params = []
@@ -135,9 +137,6 @@ class Merge(object):
         return {"name":self.__class__.__name__,
             "models":[m.get_config() for m in self.models],
             "mode":self.mode}
-
-    def connect(self, node, which=0):
-        self.models[which].layers[0].previous = node
 
 
 class Dropout(Layer):
