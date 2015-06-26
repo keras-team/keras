@@ -20,6 +20,8 @@ class Layer(object):
         self.params = []
 
     def connect(self, layer):
+        if layer.get_output_mask() is not None and not self.supports_masked_input():
+            raise Exception("Attached non-masking layer to layer with masked output")
         self.previous = layer
 
     def get_output(self, train):
@@ -30,6 +32,12 @@ class Layer(object):
             return self.previous.get_output(train=train)
         else:
             return self.input
+
+    def supports_masked_input(self):
+        return False
+
+    def get_output_mask(self, train=None):
+        return None
 
     def set_weights(self, weights):
         for p, w in zip(self.params, weights):
@@ -73,6 +81,21 @@ class Layer(object):
             consts += [constraints.identity for _ in range(len(self.params))]
 
         return self.params, regs, consts
+
+class MaskedLayer(Layer):
+    def supports_masked_input(self):
+        return True
+
+    def get_input_mask(self, train=None):
+        if hasattr(self, 'previous'):
+            return self.previous.get_output_mask(train)
+        else:
+            return None
+
+    def get_output_mask(self, train=None):
+        ''' The default output mask is just the input mask unchanged. Override this in your own
+        implementations if, for instance, you are reshaping the input'''
+        return self.get_input_mask(train)
 
 
 class Merge(object): 
@@ -142,7 +165,7 @@ class Merge(object):
             "mode":self.mode}
 
 
-class Dropout(Layer):
+class Dropout(MaskedLayer):
     '''
         Hinton's dropout.
     '''
@@ -165,7 +188,7 @@ class Dropout(Layer):
             "p":self.p}
 
 
-class Activation(Layer):
+class Activation(MaskedLayer):
     '''
         Apply an activation function to an output.
     '''
@@ -281,7 +304,7 @@ class Dense(Layer):
             "activation":self.activation.__name__}
 
 
-class TimeDistributedDense(Layer):
+class TimeDistributedDense(MaskedLayer):
     '''
        Apply a same DenseLayer for each dimension[1] (shared_dimension) input
        Especially useful after a recurrent network with 'return_sequence=True'
@@ -290,7 +313,7 @@ class TimeDistributedDense(Layer):
 
     '''
     def __init__(self, input_dim, output_dim, init='glorot_uniform', activation='linear', weights=None, 
-        W_regularizer=None, b_regularizer=None, W_constraint=None, b_constraint=None):
+            W_regularizer=None, b_regularizer=None, W_constraint=None, b_constraint=None):
 
         super(TimeDistributedDense,self).__init__()
         self.init = initializations.get(init)
@@ -312,12 +335,13 @@ class TimeDistributedDense(Layer):
 
     def get_output(self, train):
         X = self.get_input(train)
+        X = X.dimshuffle(1,0,2)
 
         def act_func(X):
             return self.activation(T.dot(X, self.W) + self.b)
 
         output, _ = theano.scan(fn = act_func,
-                                sequences = X.dimshuffle(1,0,2),
+                                sequences = X,
                                 outputs_info=None)
         return output.dimshuffle(1,0,2)
 
