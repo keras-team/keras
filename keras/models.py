@@ -7,7 +7,11 @@ import warnings, time, copy
 
 from . import optimizers
 from . import objectives
-from . import callbacks as cbks
+from . import regularizers
+from . import constraints
+from .layers.core import Merge
+
+import time, copy
 from .utils.generic_utils import Progbar, printv
 from .layers import containers
 from six.moves import range
@@ -376,3 +380,28 @@ class Sequential(Model, containers.Sequential):
             weights = [g['param_{}'.format(p)] for p in range(g.attrs['nb_params'])]
             self.layers[k].set_weights(weights)
         f.close()
+
+
+class Autoencoder(Sequential):
+
+    def __init__(self, encoder, decoder):
+        super(Autoencoder,self).__init__()
+        self.encoder = encoder
+        self.decoder = decoder
+
+        self.add(Merge([self.encoder]))
+        self.add(Merge([self.decoder]))
+
+    def train(self, X, **kwargs):
+        super(Autoencoder,self).train(X,X,**kwargs)
+
+    def test(self, X, **kwargs):
+        super(Autoencoder,self).test(X,X,**kwargs)
+
+    def fit(self, X, **kwargs):
+        super(Autoencoder,self).fit(X,X,**kwargs)
+
+    def freeze_encoder(self):
+        def zero_grad(g, p):
+            return 0.
+        self.encoder.regularizers = [zero_grad for r in self.encoder.regularizers]
