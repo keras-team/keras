@@ -47,7 +47,8 @@ def weighted_obj_fn(fn):
         masked_y_true = y_true[weights.nonzero()[:-1]]
         masked_y_pred = y_pred[weights.nonzero()[:-1]]
         masked_weights = weights[weights.nonzero()]
-        return (masked_weights * fn(masked_y_true, masked_y_pred)).mean()
+        obj_output = fn(masked_y_true, masked_y_pred)
+        return (masked_weights.flatten() * obj_output.flatten()).mean()
     return weighted
 
 class Model(object):
