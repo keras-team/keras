@@ -402,6 +402,10 @@ class Autoencoder(Sequential):
         super(Autoencoder,self).fit(X,X,**kwargs)
 
     def freeze_encoder(self):
-        def zero_grad(g, p):
-            return 0.
+        class ZeroGrad(regularizers.Regularizer):
+
+            def update_gradient(self, gradient, params):
+                return 0.*gradient
+
+        zero_grad = ZeroGrad()
         self.encoder.regularizers = [zero_grad for r in self.encoder.regularizers]
