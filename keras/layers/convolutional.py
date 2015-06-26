@@ -18,7 +18,7 @@ class Convolution1D(Layer):
 
         nb_row = 1
         nb_col = filter_length
-        
+
         self.nb_filter = nb_filter
         self.stack_size = stack_size
         self.filter_length = filter_length
@@ -63,29 +63,38 @@ class Convolution1D(Layer):
 
 
 class MaxPooling1D(Layer):
-    def __init__(self, pool_length=2, ignore_border=True):
+    def __init__(self, pool_length=2, subsample_length=None, ignore_border=True):
+        super(MaxPooling1D,self).__init__()
         self.pool_length = pool_length
+        self.subsample_length = subsample_length
+
+        if subsample_length is None:
+            self.subsample_size = (1, pool_length)
+        else:
+            self.subsample_size = (1, subsample_length)
+
+        self.input = T.tensor4()
         self.poolsize = (1, pool_length)
         self.ignore_border = ignore_border
-        
         self.input = T.tensor4()
         self.params = []
 
     def get_output(self, train):
         X = self.get_input(train)
-        output = downsample.max_pool_2d(X, self.poolsize, ignore_border=self.ignore_border)
+        output = downsample.max_pool_2d(X, ds=self.poolsize, st=self.subsample_size, ignore_border=self.ignore_border)
         return output
 
     def get_config(self):
         return {"name":self.__class__.__name__,
             "pool_length":self.pool_length,
-            "ignore_border":self.ignore_border}
+            "ignore_border":self.ignore_border,
+            "subsample_length": self.subsample_length}
 
 
 
 class Convolution2D(Layer):
-    def __init__(self, nb_filter, stack_size, nb_row, nb_col, 
-        init='glorot_uniform', activation='linear', weights=None, 
+    def __init__(self, nb_filter, stack_size, nb_row, nb_col,
+        init='glorot_uniform', activation='linear', weights=None,
         image_shape=None, border_mode='valid', subsample=(1,1),
         W_regularizer=None, b_regularizer=None, W_constraint=None, b_constraint=None):
         super(Convolution2D,self).__init__()
@@ -116,7 +125,7 @@ class Convolution2D(Layer):
     def get_output(self, train):
         X = self.get_input(train)
 
-        conv_out = theano.tensor.nnet.conv.conv2d(X, self.W, 
+        conv_out = theano.tensor.nnet.conv.conv2d(X, self.W,
             border_mode=self.border_mode, subsample=self.subsample, image_shape=self.image_shape)
         output = self.activation(conv_out + self.b.dimshuffle('x', 0, 'x', 'x'))
         return output
@@ -158,4 +167,4 @@ class MaxPooling2D(Layer):
 # class Convolution3D: TODO
 
 # class MaxPooling3D: TODO
-        
+
