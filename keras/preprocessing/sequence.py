@@ -4,13 +4,15 @@ import numpy as np
 import random
 from six.moves import range
 
-def pad_sequences(sequences, maxlen=None, dtype='int32'):
+def pad_sequences(sequences, maxlen=None, dtype='int32', padding='pre'):
     """
         Pad each sequence to the same length: 
         the length of the longuest sequence.
 
         If maxlen is provided, any sequence longer
         than maxlen is truncated to maxlen.
+
+        Support post-padding and pre-padding (default).
     """
     lengths = [len(s) for s in sequences]
 
@@ -20,7 +22,10 @@ def pad_sequences(sequences, maxlen=None, dtype='int32'):
 
     x = np.zeros((nb_samples, maxlen)).astype(dtype)
     for idx, s in enumerate(sequences):
-        x[idx, :lengths[idx]] = s[:maxlen]
+        if padding == 'post':
+            x[idx, :lengths[idx]] = s[:maxlen]
+        else:
+            x[idx, -min(maxlen, lengths[idx]):] = s[:maxlen]
     return x
 
 
@@ -36,7 +41,7 @@ def make_sampling_table(size, sampling_factor=1e-5):
         We assume that the word frequencies follow Zipf's law (s=1) to derive 
         a numerical approximation of frequency(rank):
            frequency(rank) ~ 1/(rank * (log(rank) + gamma) + 1/2 - 1/(12*rank))
-        where gamma is the Euler–Mascheroni constant.
+        where gamma is the Euler-Mascheroni constant.
     '''
     gamma = 0.577
     rank = np.array(list(range(size)))
@@ -69,7 +74,7 @@ def skipgrams(sequence, vocabulary_size,
         if not wi:
             continue
         if sampling_table is not None:
-            if sampling_table[i] < random.random():
+            if sampling_table[wi] < random.random():
                 continue
 
         window_start = max(0, i-window_size)

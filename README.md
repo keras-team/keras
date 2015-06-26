@@ -172,6 +172,7 @@ In the examples folder, you will find example models for real datasets:
 - CIFAR10 small images classification: Convnet with realtime data augmentation
 - IMDB movie review sentiment classification: LSTM over sequences of words
 - Reuters newswires topic classification: Multilayer Perceptron
+- MNIST handwritten digits classification: Multilayer Perceptron
 
 
 ## Current capabilities
@@ -189,7 +190,7 @@ Keras uses the following dependencies:
 - Theano
     - See installation instructions: http://deeplearning.net/software/theano/install.html#install
 
-- h5py (optional, required if you use model saving/loading functions)
+- HDF5 and h5py (optional, required if you use model saving/loading functions)
 
 - Optional but recommended if you use CNNs: cuDNN.
 

@@ -3,7 +3,7 @@ from __future__ import print_function
 import theano
 import theano.tensor as T
 import numpy as np
-import warnings
+import warnings, time, copy
 
 from . import optimizers
 from . import objectives
@@ -13,6 +13,7 @@ from .layers.core import Merge
 
 import time, copy
 from .utils.generic_utils import Progbar, printv
+from .layers import containers
 from six.moves import range
 
 def standardize_y(y):
@@ -25,15 +26,6 @@ def standardize_y(y):
 def make_batches(size, batch_size):
     nb_batch = int(np.ceil(size/float(batch_size)))
     return [(i*batch_size, min(size, (i+1)*batch_size)) for i in range(0, nb_batch)]
-
-def ndim_tensor(ndim):
-    if ndim == 2:
-        return T.matrix()
-    elif ndim == 3:
-        return T.tensor3()
-    elif ndim == 4:
-        return T.tensor4()
-    return T.matrix()
 
 def standardize_X(X):
     if type(X) == list:
@@ -53,14 +45,25 @@ def slice_X(X, start=None, stop=None):
         else:
             return X[start:stop]
 
+def calculate_loss_weights(Y, sample_weight=None, class_weight=None):
+    if sample_weight is not None:
+        if isinstance(sample_weight, list):
+            w = np.array(sample_weight)
+        else:
+            w = sample_weight
+    elif isinstance(class_weight, dict):
+        if Y.shape[1] > 1:
+            y_classes = Y.argmax(axis=1)
+        elif Y.shape[1] == 1:
+            y_classes = np.reshape(Y, Y.shape[0])
+        else:
+            y_classes = Y
+        w = np.array(list(map(lambda x: class_weight[x], y_classes)))
+    else:
+        w = np.ones((Y.shape[0]))
+    return w
 
 class Model(object):
-
-    def get_output(self, train):
-        raise NotImplementedError
-
-    def get_input(self, train):
-        raise NotImplementedError
 
     def compile(self, optimizer, loss, class_mode="categorical", theano_mode=None):
         self.optimizer = optimizers.get(optimizer)
@@ -69,9 +72,6 @@ class Model(object):
         # input of model 
         self.X_train = self.get_input(train=True)
         self.X_test = self.get_input(train=False)
-
-        self.y_train = self.get_output(train=True)
-        self.y_test = self.get_output(train=False)
 
         self.y_train = self.get_output(train=True)
         self.y_test = self.get_output(train=False)
@@ -116,60 +116,10 @@ class Model(object):
             allow_input_downcast=True, mode=theano_mode)
 
 
-class Sequential(Model):
-    def __init__(self):
-        self.layers = []
-        self.params = [] # learnable
-        self.regularizers = [] # same size as params
-        self.constraints = [] # same size as params
-
-
-    def add(self, layer):
-        self.layers.append(layer)
-        if len(self.layers) > 1:
-            self.layers[-1].connect(self.layers[-2])
-        self.params += [p for p in layer.params]
-        
-        if hasattr(layer, 'regularizers') and len(layer.regularizers) == len(layer.params):
-            for r in layer.regularizers:
-                if r:
-                    self.regularizers.append(r)
-                else:
-                    self.regularizers.append(regularizers.identity)
-        elif hasattr(layer, 'regularizer') and layer.regularizer:
-            self.regularizers += [layer.regularizer for _ in range(len(layer.params))]
-        else:
-            self.regularizers += [regularizers.identity for _ in range(len(layer.params))]
-
-        if hasattr(layer, 'constraints') and len(layer.constraints) == len(layer.params):
-            for c in layer.constraints:
-                if c:
-                    self.constraints.append(c)
-                else:
-                    self.constraints.append(constraints.identity)
-        elif hasattr(layer, 'constraint') and layer.constraint:
-            self.constraints += [layer.constraint for _ in range(len(layer.params))]
-        else:
-            self.constraints += [constraints.identity for _ in range(len(layer.params))]
-
-
-    def get_output(self, train=False):
-        return self.layers[-1].get_output(train)
-
-
-    def get_input(self, train=False):
-        if not hasattr(self.layers[0], 'input'):
-            for l in self.layers:
-                if hasattr(l, 'input'):
-                    break
-            ndim = l.input.ndim 
-            self.layers[0].input = ndim_tensor(ndim)
-        return self.layers[0].get_input(train)
-
-
     def train(self, X, y, accuracy=False):
         X = standardize_X(X)
         y = standardize_y(y)
+
         ins = X + [y]
         if accuracy:
             return self._train_with_acc(*ins)
@@ -187,9 +137,9 @@ class Sequential(Model):
             return self._test(*ins)
 
 
-    def fit(self, X, y, batch_size=128, nb_epoch=100, verbose=1,
+    def fit(self, X, y, batch_size=128, nb_epoch=100, verbose=1, callbacks=[],
             validation_split=0., validation_data=None, shuffle=True, show_accuracy=False):
-        
+
         X = standardize_X(X)
         y = standardize_y(y)
 
@@ -216,72 +166,74 @@ class Sequential(Model):
                 (y, y_val) = (y[0:split_at], y[split_at:])
                 if verbose:
                     print("Train on %d samples, validate on %d samples" % (len(y), len(y_val)))
-        
-        history = {'epoch':[], 'loss':[]}
-        if show_accuracy:
-            history['acc'] = []
-        if do_validation:
-            history['val_loss'] = []
-            if show_accuracy:
-                history['val_acc'] = []
 
         index_array = np.arange(len(y))
+
+        if verbose:
+            callbacks = [cbks.BaseLogger()] + callbacks
+        callbacks = cbks.CallbackList([cbks.History()] + callbacks)
+
+        callbacks._set_model(self)
+        callbacks._set_params({
+            'batch_size': batch_size,
+            'nb_epoch': nb_epoch,
+            'nb_sample': len(y),
+            'verbose': verbose,
+            'do_validation': do_validation,
+            'show_accuracy': show_accuracy
+        })
+        callbacks.on_train_begin()
+
+        self.stop_training = False
         for epoch in range(nb_epoch):
-            if verbose:
-                print('Epoch', epoch)
-                progbar = Progbar(target=len(y), verbose=verbose)
+            callbacks.on_epoch_begin(epoch)
             if shuffle:
                 np.random.shuffle(index_array)
-
-            av_loss = 0.
-            av_acc = 0.
-            seen = 0
 
             batches = make_batches(len(y), batch_size)
             for batch_index, (batch_start, batch_end) in enumerate(batches):
                 batch_ids = index_array[batch_start:batch_end]
-                seen += len(batch_ids)
                 X_batch = slice_X(X, batch_ids)
                 y_batch = y[batch_ids]
+
+                batch_logs = {}
+                batch_logs['batch'] = batch_index
+                batch_logs['size'] = len(batch_ids)
+                callbacks.on_batch_begin(batch_index, batch_logs)
 
                 ins = X_batch + [y_batch]
                 if show_accuracy:
                     loss, acc = self._train_with_acc(*ins)
-                    log_values = [('loss', loss), ('acc.', acc)]
-                    av_loss += loss * len(batch_ids)
-                    av_acc += acc * len(batch_ids)
+                    batch_logs['accuracy'] = acc
                 else:
                     loss = self._train(*ins)
-                    log_values = [('loss', loss)]
-                    av_loss += loss * len(batch_ids)
+                batch_logs['loss'] = loss
 
-                # validation
-                if do_validation and (batch_index == len(batches) - 1):
-                    if show_accuracy:
-                        val_loss, val_acc = self.evaluate(X_val, y_val, batch_size=batch_size, verbose=0, show_accuracy=True)
-                        log_values += [('val. loss', val_loss), ('val. acc.', val_acc)]
-                    else:
-                        val_loss = self.evaluate(X_val, y_val, batch_size=batch_size, verbose=0)
-                        log_values += [('val. loss', val_loss)]
+                callbacks.on_batch_end(batch_index, batch_logs)
                 
-                # logging
-                if verbose:
-                    progbar.update(batch_end, log_values)
+                if batch_index == len(batches) - 1: # last batch
+                    # validation
+                    epoch_logs = {}
+                    if do_validation:
+                        if show_accuracy:
+                            val_loss, val_acc = self.evaluate(X_val, y_val, batch_size=batch_size, \
+                                verbose=0, show_accuracy=True)
+                            epoch_logs['val_accuracy'] = val_acc
+                        else:
+                            val_loss = self.evaluate(X_val, y_val, batch_size=batch_size, verbose=0)
+                        epoch_logs['val_loss'] = val_loss
 
-            history['epoch'].append(epoch)
-            history['loss'].append(av_loss/seen)
-            if do_validation:
-                history['val_loss'].append(float(val_loss))
-            if show_accuracy:
-                history['acc'].append(av_acc/seen)
-                if do_validation:
-                    history['val_acc'].append(float(val_acc))
-        return history
+            callbacks.on_epoch_end(epoch, epoch_logs)
+            if self.stop_training:
+                break
+
+        callbacks.on_train_end()
+        return callbacks.callbacks[0] # return history
 
     def predict(self, X, batch_size=128, verbose=1):
         X = standardize_X(X)
         batches = make_batches(len(X[0]), batch_size)
-        if verbose==1:
+        if verbose == 1:
             progbar = Progbar(target=len(X[0]))
         for batch_index, (batch_start, batch_end) in enumerate(batches):
             X_batch = slice_X(X, batch_start, batch_end)
@@ -292,14 +244,14 @@ class Sequential(Model):
                 preds = np.zeros(shape)
             preds[batch_start:batch_end] = batch_preds
 
-            if verbose==1:
+            if verbose == 1:
                 progbar.update(batch_end)
 
         return preds
 
     def predict_proba(self, X, batch_size=128, verbose=1):
         preds = self.predict(X, batch_size, verbose)
-        if preds.min()<0 or preds.max()>1:
+        if preds.min() < 0 or preds.max() > 1:
             warnings.warn("Network returning invalid probability values.")
         return preds
 
@@ -309,7 +261,7 @@ class Sequential(Model):
         if self.class_mode == "categorical":
             return proba.argmax(axis=-1)
         else:
-            return (proba>0.5).astype('int32')
+            return (proba > 0.5).astype('int32')
 
 
     def evaluate(self, X, y, batch_size=128, show_accuracy=False, verbose=1):
@@ -319,6 +271,7 @@ class Sequential(Model):
         if show_accuracy:
             tot_acc = 0.
         tot_score = 0.
+        seen = 0
 
         batches = make_batches(len(y), batch_size)
         if verbose:
@@ -330,21 +283,48 @@ class Sequential(Model):
             ins = X_batch + [y_batch]
             if show_accuracy:
                 loss, acc = self._test_with_acc(*ins)
-                tot_acc += acc
+                tot_acc += acc * len(y_batch)
                 log_values = [('loss', loss), ('acc.', acc)]
             else:
                 loss = self._test(*ins)
                 log_values = [('loss', loss)]
-            tot_score += loss
+            tot_score += loss * len(y_batch)
+            seen += len(y_batch)
 
             # logging
             if verbose:
                 progbar.update(batch_end, log_values)
 
         if show_accuracy:
-            return tot_score/len(batches), tot_acc/len(batches)
+            return tot_score / seen, tot_acc / seen
         else:
-            return tot_score/len(batches)
+            return tot_score / seen
+
+
+class Sequential(Model, containers.Sequential):
+    '''
+        Inherits from Model the following methods:
+            - compile
+            - train
+            - test
+            - evaluate
+            - fit
+            - predict
+            - predict_proba
+            - predict_classes
+        Inherits from containers.Sequential the following methods:
+            - add 
+            - get_output
+            - get_input
+            - get_weights
+            - set_weights
+    '''
+    def __init__(self):
+        self.layers = []
+        self.params = [] # learnable
+        self.regularizers = [] # same size as params
+        self.constraints = [] # same size as params
+
 
     def get_config(self, verbose=0):
         layers = []
@@ -355,22 +335,24 @@ class Sequential(Model):
             printv(layers)
         return layers
 
-    def get_weights(self):
-        res = []
-        for l in self.layers:
-            res += l.get_weights()
-        return res
 
-    def set_weights(self, weights):
-        for i in range(len(self.layers)):
-            nb_param = len(self.layers[i].params)
-            self.layers[i].set_weights(weights[:nb_param])
-            weights = weights[nb_param:]
-
-    def save_weights(self, filepath):
+    def save_weights(self, filepath, overwrite=False):
         # Save weights from all layers to HDF5
         import h5py
-        # FIXME: fail if file exists, or add option to overwrite!
+        import os.path
+        # if file exists and should not be overwritten
+        if not overwrite and os.path.isfile(filepath):
+            import sys
+            get_input = input
+            if sys.version_info[:2] <= (2, 7):
+                get_input = raw_input
+            overwrite = get_input('[WARNING] %s already exists - overwrite? [y/n]' % (filepath))
+            while overwrite not in ['y', 'n']:
+                overwrite = get_input('Enter "y" (overwrite) or "n" (cancel).')
+            if overwrite == 'n':
+                return
+            print('[TIP] Next time specify overwrite=True in save_weights!')
+
         f = h5py.File(filepath, 'w')
         f.attrs['nb_layers'] = len(self.layers)
         for k, l in enumerate(self.layers):

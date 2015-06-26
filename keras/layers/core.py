@@ -3,21 +3,24 @@ from __future__ import absolute_import, division
 
 import theano
 import theano.tensor as T
+import numpy as np
 
 from .. import activations, initializations
 from ..utils.theano_utils import shared_zeros, floatX
 from ..utils.generic_utils import make_tuple
+from .. import regularizers
+from .. import constraints
 
 from theano.sandbox.rng_mrg import MRG_RandomStreams as RandomStreams
 from six.moves import zip
-srng = RandomStreams()
+srng = RandomStreams(seed=np.random.randint(10e6))
 
 class Layer(object):
     def __init__(self):
         self.params = []
 
-    def connect(self, node):
-        self.previous = node
+    def connect(self, layer):
+        self.previous = layer
 
     def get_output(self, train):
         raise NotImplementedError
@@ -30,6 +33,8 @@ class Layer(object):
 
     def set_weights(self, weights):
         for p, w in zip(self.params, weights):
+            if p.eval().shape != w.shape:
+                raise Exception("Layer shape %s not compatible with weight shape %s." % (p.eval().shape, w.shape))
             p.set_value(floatX(w))
 
     def get_weights(self):
@@ -40,6 +45,34 @@ class Layer(object):
 
     def get_config(self):
         return {"name":self.__class__.__name__}
+
+    def get_params(self):
+        regs = []
+        consts = []
+
+        if hasattr(self, 'regularizers') and len(self.regularizers) == len(self.params):
+            for r in self.regularizers:
+                if r:
+                    regs.append(r)
+                else:
+                    regs.append(regularizers.identity)
+        elif hasattr(self, 'regularizer') and self.regularizer:
+            regs += [self.regularizer for _ in range(len(self.params))]
+        else:
+            regs += [regularizers.identity for _ in range(len(self.params))]
+
+        if hasattr(self, 'constraints') and len(self.constraints) == len(self.params):
+            for c in self.constraints:
+                if c:
+                    consts.append(c)
+                else:
+                    consts.append(constraints.identity)
+        elif hasattr(self, 'constraint') and self.constraint:
+            consts += [self.constraint for _ in range(len(self.params))]
+        else:
+            consts += [constraints.identity for _ in range(len(self.params))]
+
+        return self.params, regs, consts
 
 
 class Merge(object): 
@@ -56,6 +89,9 @@ class Merge(object):
             self.params += m.params
             self.regularizers += m.regularizers
             self.constraints += m.constraints
+
+    def get_params(self):
+        return self.params, self.regularizers, self.constraints
 
     def get_output(self, train=False):
         if self.mode == 'sum':
@@ -81,7 +117,7 @@ class Merge(object):
 
     @property
     def input(self):
-        return self.get_input()    
+        return self.get_input()
 
     def get_weights(self):
         weights = []
@@ -290,7 +326,110 @@ class TimeDistributedDense(Layer):
             "init":self.init.__name__,
             "activation":self.activation.__name__}
 
+class AutoEncoder(Layer):
+    '''
+        A customizable autoencoder model.
+        If output_reconstruction then dim(input) = dim(output)
+        else dim(output) = dim(hidden)
+    '''
+    def __init__(self, encoder, decoder, output_reconstruction=True, tie_weights=False, weights=None):
 
+        super(AutoEncoder,self).__init__()
+
+        self.output_reconstruction = output_reconstruction
+        self.tie_weights = tie_weights
+        self.encoder = encoder
+        self.decoder = decoder
+
+        self.decoder.connect(self.encoder)
+
+        self.params = []
+        self.regularizers = []
+        self.constraints = []
+        for layer in [self.encoder, self.decoder]:
+            self.params += layer.params
+            if hasattr(layer, 'regularizers'):
+                self.regularizers += layer.regularizers
+            if hasattr(layer, 'constraints'):
+                self.constraints += layer.constraints
+
+        if weights is not None:
+            self.set_weights(weights)
+
+    def connect(self, node):
+        self.encoder.previous = node
+
+    def get_weights(self):
+        weights = []
+        for layer in [self.encoder, self.decoder]:
+            weights += layer.get_weights()
+        return weights
+
+    def set_weights(self, weights):
+        nb_param = len(self.encoder.params)
+        self.encoder.set_weights(weights[:nb_param])
+        self.decoder.set_weights(weights[nb_param:])
+
+    def get_input(self, train=False):
+        return self.encoder.get_input(train)
+
+    @property
+    def input(self):
+        return self.encoder.input
+
+    def _get_hidden(self, train):
+        return self.encoder.get_output(train)
+
+    def get_output(self, train):
+        if not train and not self.output_reconstruction:
+            return self.encoder.get_output(train)
+
+        decoded = self.decoder.get_output(train)
+
+        if self.tie_weights:
+            encoder_params = self.encoder.get_weights()
+            decoder_params = self.decoder.get_weights()
+            for dec_param, enc_param in zip(decoder_params, encoder_params):
+                if len(dec_param.shape) > 1:
+                    enc_param = dec_param.T
+
+        return decoded
+
+    def get_config(self):
+        return {"name":self.__class__.__name__,
+                "encoder_config":self.encoder.get_config(),
+                "decoder_config":self.decoder.get_config(),
+                "output_reconstruction":self.output_reconstruction,
+                "tie_weights":self.tie_weights}
+
+
+class DenoisingAutoEncoder(AutoEncoder):
+    '''
+        A denoising autoencoder model that inherits the base features from autoencoder
+    '''
+    def __init__(self, encoder=None, decoder=None, output_reconstruction=True, tie_weights=False, weights=None, corruption_level=0.3):
+        super(DenoisingAutoEncoder, self).__init__(encoder, decoder, output_reconstruction, tie_weights, weights)
+        self.corruption_level = corruption_level
+
+    def _get_corrupted_input(self, input):
+        """
+            http://deeplearning.net/tutorial/dA.html
+        """
+        return srng.binomial(size=(self.input_dim, 1), n=1,
+                             p=1-self.corruption_level,
+                             dtype=theano.config.floatX) * input
+
+    def get_input(self, train=False):
+        uncorrupted_input = super(DenoisingAutoEncoder, self).get_input(train)
+        return self._get_corrupted_input(uncorrupted_input)
+
+    def get_config(self):
+        return {"name":self.__class__.__name__,
+                "encoder_config":self.encoder.get_config(),
+                "decoder_config":self.decoder.get_config(),
+                "corruption_level":self.corruption_level,
+                "output_reconstruction":self.output_reconstruction,
+                "tie_weights":self.tie_weights}
 
 
 class MaxoutDense(Layer):

@@ -70,7 +70,7 @@ class Progbar(object):
         now = time.time()
         if self.verbose == 1:
             prev_total_width = self.total_width
-            sys.stdout.write("\b" * (self.total_width+1))
+            sys.stdout.write("\b" * prev_total_width)
             sys.stdout.write("\r")
 
             numdigits = int(np.floor(np.log10(self.target))) + 1
@@ -100,7 +100,7 @@ class Progbar(object):
             else:
                 info += ' - %ds' % (now - self.start)
             for k in self.unique_values:
-                info += ' - %s: %.4f' % (k, self.sum_values[k][0]/self.sum_values[k][1])
+                info += ' - %s: %.4f' % (k, self.sum_values[k][0]/ max(1, self.sum_values[k][1]))
 
             self.total_width += len(info)
             if prev_total_width > self.total_width:
@@ -116,7 +116,7 @@ class Progbar(object):
             if current >= self.target:
                 info = '%ds' % (now - self.start)
                 for k in self.unique_values:
-                    info += ' - %s: %.4f' % (k, self.sum_values[k][0]/self.sum_values[k][1])
+                    info += ' - %s: %.4f' % (k, self.sum_values[k][0]/ max(1, self.sum_values[k][1]))
                 sys.stdout.write(info + "\n")
 
 

@@ -13,7 +13,7 @@ model = keras.models.Sequential()
             - __loss__: str (name of objective function) or objective function. See [objectives](objectives.md).
             - __class_mode__: one of "categorical", "binary". This is only used for computing classification accuracy or using the predict_classes method. 
             - __theano_mode__: A `theano.compile.mode.Mode` ([reference](http://deeplearning.net/software/theano/library/compile/mode.html)) instance controlling specifying compilation options.
-    - __fit__(X, y, batch_size=128, nb_epoch=100, verbose=1, validation_split=0., validation_data=None, shuffle=True, show_accuracy=False): Train a model for a fixed number of epochs.
+    - __fit__(X, y, batch_size=128, nb_epoch=100, verbose=1, validation_split=0., validation_data=None, shuffle=True, show_accuracy=False, callbacks=[], class_weight=None, sample_weight=None): Train a model for a fixed number of epochs.
         - __Return__: a history dictionary with a record of training loss values at successive epochs, as well as validation loss values (if applicable), accuracy (if applicable), etc.
         - __Arguments__: 
             - __X__: data.
@@ -25,6 +25,7 @@ model = keras.models.Sequential()
             - __validation_data__: tuple (X, y) to be used as held-out validation data. Will override validation_split.
             - __shuffle__: boolean. Whether to shuffle the samples at each epoch.
             - __show_accuracy__: boolean. Whether to display class accuracy in the logs to stdout at each epoch.
+            - __callbacks__: `keras.callbacks.Callback` list. List of callbacks to apply during training. See [callbacks](callbacks.md).
     - __evaluate__(X, y, batch_size=128, show_accuracy=False, verbose=1): Show performance of the model over some validation data.
         - __Return__: The loss score over the data.
         - __Arguments__: Same meaning as fit method above. verbose is used as a binary flag (progress bar or nothing).
@@ -38,7 +39,7 @@ model = keras.models.Sequential()
         - __Return__: loss over the data, or tuple `(loss, accuracy)` if `accuracy=True`.
     - __test__(X, y, accuracy=False): Single performance evaluation on one batch. if accuracy==False, return tuple (loss_on_batch, accuracy_on_batch). Else, return loss_on_batch.
         - __Return__: loss over the data, or tuple `(loss, accuracy)` if `accuracy=True`.
-    - __save_weights__(fname): Store the weights of all layers to a HDF5 file. 
+    - __save_weights__(fname, overwrite=False): Store the weights of all layers to a HDF5 file. If overwrite==False and the file already exists, an exception will be thrown.
     - __load_weights__(fname): Sets the weights of a model, based to weights stored by __save__weights__. You can only __load__weights__ on a savefile from a model with an identical architecture. __load_weights__ can be called either before or after the __compile__ step.
 
 __Examples__:
