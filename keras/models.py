@@ -91,8 +91,7 @@ class Model(object):
 
         if hasattr(self, 'cost_updates'):
             for u in self.loss_updates:
-                if u.modifies_loss:
-                    train_loss = u(train_loss)
+                train_loss = u.update_loss(train_loss)
 
         updates = self.optimizer.get_updates(self.params, self.regularizers, self.constraints,  train_loss)
 

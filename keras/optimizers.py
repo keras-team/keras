@@ -29,7 +29,7 @@ class Optimizer(object):
 
         new_grads = []
         for p, g, r in zip(params, grads, regularizers):
-            g = r(g, p)
+            g = r.update_gradient(g, p)
             new_grads.append(g)
 
         return new_grads
