@@ -9,8 +9,6 @@ from . import optimizers
 from . import objectives
 from . import regularizers
 from . import constraints
-from .layers.core import Merge
-
 import time, copy
 from .utils.generic_utils import Progbar, printv
 from .layers import containers
