@@ -55,22 +55,22 @@ class Layer(object):
                 if r:
                     regs.append(r)
                 else:
-                    regs.append(regularizers.identity)
+                    regs.append(regularizers.identity())
         elif hasattr(self, 'regularizer') and self.regularizer:
             regs += [self.regularizer for _ in range(len(self.params))]
         else:
-            regs += [regularizers.identity for _ in range(len(self.params))]
+            regs += [regularizers.identity() for _ in range(len(self.params))]
 
         if hasattr(self, 'constraints') and len(self.constraints) == len(self.params):
             for c in self.constraints:
                 if c:
                     consts.append(c)
                 else:
-                    consts.append(constraints.identity)
+                    consts.append(constraints.identity())
         elif hasattr(self, 'constraint') and self.constraint:
             consts += [self.constraint for _ in range(len(self.params))]
         else:
-            consts += [constraints.identity for _ in range(len(self.params))]
+            consts += [constraints.identity() for _ in range(len(self.params))]
 
         return self.params, regs, consts
 
@@ -280,6 +280,19 @@ class Dense(Layer):
             "init":self.init.__name__,
             "activation":self.activation.__name__}
 
+class ActivityRegularization(Layer):
+    '''
+        Layer that passes through its input unchanged, but applies an update
+        to the cost function based on the activity.
+    '''
+    def __init__(self, activity_regularizer = None):
+        super(ActivityRegularization, self).__init__()
+        if activity_regularizer is not None:
+            activity_regularizer.set_layer(self)
+            self.loss_update = activity_regularizer
+
+    def get_output(self, train):
+        return self.get_input(train)
 
 class TimeDistributedDense(Layer):
     '''

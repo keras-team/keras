@@ -20,6 +20,7 @@ class Sequential(Layer):
         self.params = []
         self.regularizers = []
         self.constraints = []
+
         for layer in layers:
             self.add(layer)
 
