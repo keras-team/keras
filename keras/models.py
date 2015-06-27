@@ -7,7 +7,9 @@ import warnings, time, copy
 
 from . import optimizers
 from . import objectives
-from . import callbacks as cbks
+from . import regularizers
+from . import constraints
+import time, copy
 from .utils.generic_utils import Progbar, printv
 from .layers import containers
 from six.moves import range
@@ -89,7 +91,11 @@ class Model(object):
             raise Exception("Invalid class mode:" + str(class_mode))
         self.class_mode = class_mode
 
-        updates = self.optimizer.get_updates(self.params, self.regularizers, self.constraints, train_loss)
+        if hasattr(self, 'loss_update'):
+            for u in self.loss_updates:
+                train_loss = u.update_loss(train_loss)
+
+        updates = self.optimizer.get_updates(self.params, self.regularizers, self.constraints,  train_loss)
 
         if type(self.X_train) == list:
             train_ins = self.X_train + [self.y]
@@ -320,6 +326,7 @@ class Sequential(Model, containers.Sequential):
         self.params = [] # learnable
         self.regularizers = [] # same size as params
         self.constraints = [] # same size as params
+        self.loss_updates = [] # size can vary, no 1-to-1 mapping to params
 
 
     def get_config(self, verbose=0):
