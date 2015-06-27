@@ -9,10 +9,12 @@ from . import optimizers
 from . import objectives
 from . import regularizers
 from . import constraints
+from . import callbacks as cbks
 import time, copy
 from .utils.generic_utils import Progbar, printv
 from .layers import containers
 from six.moves import range
+
 
 def standardize_y(y):
     if not hasattr(y, 'shape'):
@@ -21,15 +23,18 @@ def standardize_y(y):
         y = np.reshape(y, (len(y), 1))
     return y
 
+
 def make_batches(size, batch_size):
     nb_batch = int(np.ceil(size/float(batch_size)))
     return [(i*batch_size, min(size, (i+1)*batch_size)) for i in range(0, nb_batch)]
+
 
 def standardize_X(X):
     if type(X) == list:
         return X
     else:
         return [X]
+
 
 def slice_X(X, start=None, stop=None):
     if type(X) == list:
@@ -42,6 +47,7 @@ def slice_X(X, start=None, stop=None):
             return X[start]
         else:
             return X[start:stop]
+
 
 def calculate_loss_weights(Y, sample_weight=None, class_weight=None):
     if sample_weight is not None:
@@ -61,8 +67,8 @@ def calculate_loss_weights(Y, sample_weight=None, class_weight=None):
         w = np.ones((Y.shape[0]))
     return w
 
-class Model(object):
 
+class Model(object):
     def compile(self, optimizer, loss, class_mode="categorical", theano_mode=None):
         self.optimizer = optimizers.get(optimizer)
         self.loss = objectives.get(loss)
@@ -232,6 +238,7 @@ class Model(object):
         callbacks.on_train_end()
         return callbacks.callbacks[0] # return history
 
+
     def predict(self, X, batch_size=128, verbose=1):
         X = standardize_X(X)
         batches = make_batches(len(X[0]), batch_size)
@@ -250,6 +257,7 @@ class Model(object):
                 progbar.update(batch_end)
 
         return preds
+
 
     def predict_proba(self, X, batch_size=128, verbose=1):
         preds = self.predict(X, batch_size, verbose)
@@ -368,6 +376,7 @@ class Sequential(Model, containers.Sequential):
                 param_dset[:] = param
         f.flush()
         f.close()
+
 
     def load_weights(self, filepath):
         # Loads weights from HDF5 file
