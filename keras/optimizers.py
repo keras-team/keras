@@ -19,7 +19,7 @@ class Optimizer(object):
     def get_updates(self, params, regularizers, constraints,  loss):
         raise NotImplementedError
 
-    def get_gradients(self, loss, params, regularizers):
+    def get_gradients(self, loss, params):
 
         grads = T.grad(loss, params)
 
@@ -27,12 +27,7 @@ class Optimizer(object):
             norm = T.sqrt(sum([T.sum(g**2) for g in grads]))
             grads = [clip_norm(g, self.clipnorm, norm) for g in grads]
 
-        new_grads = []
-        for p, g, r in zip(params, grads, regularizers):
-            g = r.update_gradient(g, p)
-            new_grads.append(g)
-
-        return new_grads
+        return grads
 
 
 class SGD(Optimizer):
@@ -42,8 +37,8 @@ class SGD(Optimizer):
         self.__dict__.update(locals())
         self.iterations = shared_scalar(0)
 
-    def get_updates(self, params, regularizers, constraints, loss):
-        grads = self.get_gradients(loss, params, regularizers)
+    def get_updates(self, params, constraints, loss):
+        grads = self.get_gradients(loss, params)
         lr = self.lr * (1.0 / (1.0 + self.decay * self.iterations))
         updates = [(self.iterations, self.iterations+1.)]
 
@@ -67,8 +62,8 @@ class RMSprop(Optimizer):
         self.__dict__.update(kwargs)
         self.__dict__.update(locals())
 
-    def get_updates(self, params, regularizers, constraints, loss):
-        grads = self.get_gradients(loss, params, regularizers)
+    def get_updates(self, params, constraints, loss):
+        grads = self.get_gradients(loss, params)
         accumulators = [shared_zeros(p.get_value().shape) for p in params]
         updates = []
 
@@ -88,8 +83,8 @@ class Adagrad(Optimizer):
         self.__dict__.update(kwargs)
         self.__dict__.update(locals())
 
-    def get_updates(self, params, regularizers, constraints, loss):
-        grads = self.get_gradients(loss, params, regularizers)
+    def get_updates(self, params, constraints, loss):
+        grads = self.get_gradients(loss, params)
         accumulators = [shared_zeros(p.get_value().shape) for p in params]
         updates = []
 
@@ -110,8 +105,8 @@ class Adadelta(Optimizer):
         self.__dict__.update(kwargs)
         self.__dict__.update(locals())
 
-    def get_updates(self, params, regularizers, constraints, loss):
-        grads = self.get_gradients(loss, params, regularizers)
+    def get_updates(self, params, constraints, loss):
+        grads = self.get_gradients(loss, params)
         accumulators = [shared_zeros(p.get_value().shape) for p in params]
         delta_accumulators = [shared_zeros(p.get_value().shape) for p in params]
         updates = []
@@ -145,8 +140,8 @@ class Adam(Optimizer):
         self.__dict__.update(locals())
         self.iterations = shared_scalar(0)
 
-    def get_updates(self, params, regularizers, constraints, loss):
-        grads = self.get_gradients(loss, params, regularizers)
+    def get_updates(self, params, constraints, loss):
+        grads = self.get_gradients(loss, params)
         updates = [(self.iterations, self.iterations+1.)]
 
         i = self.iterations

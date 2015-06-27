@@ -1,5 +1,7 @@
 import unittest
 import numpy as np
+np.random.seed(1337) # for reproducibility
+
 from keras.models import Sequential
 from keras.layers.core import Merge, Dense, Activation, Flatten, ActivityRegularization
 from keras.layers.embeddings import Embedding
@@ -15,8 +17,6 @@ standard_weight = 1
 high_weight = 5
 max_train_samples = 5000
 max_test_samples = 1000
-
-np.random.seed(1337) # for reproducibility
 
 # the data, shuffled and split between tran and test sets
 (X_train, y_train), (X_test, y_test) = mnist.load_data()

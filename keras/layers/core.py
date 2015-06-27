@@ -47,19 +47,12 @@ class Layer(object):
         return {"name":self.__class__.__name__}
 
     def get_params(self):
-        regs = []
         consts = []
 
-        if hasattr(self, 'regularizers') and len(self.regularizers) == len(self.params):
-            for r in self.regularizers:
-                if r:
-                    regs.append(r)
-                else:
-                    regs.append(regularizers.identity())
-        elif hasattr(self, 'regularizer') and self.regularizer:
-            regs += [self.regularizer for _ in range(len(self.params))]
+        if hasattr(self, 'regularizers'):
+            regularizers = self.regularizers
         else:
-            regs += [regularizers.identity() for _ in range(len(self.params))]
+            regularizers = []
 
         if hasattr(self, 'constraints') and len(self.constraints) == len(self.params):
             for c in self.constraints:
@@ -72,7 +65,7 @@ class Layer(object):
         else:
             consts += [constraints.identity() for _ in range(len(self.params))]
 
-        return self.params, regs, consts
+        return self.params, regularizers, consts
 
 
 class Merge(object): 
@@ -88,10 +81,10 @@ class Merge(object):
         self.regularizers = []
         self.constraints = []
         for m in self.models:
+            self.regularizers += m.regularizers
             for i in range(len(m.params)):
                 if not m.params[i] in self.params:
                     self.params.append(m.params[i])
-                    self.regularizers.append(m.regularizers[i])
                     self.constraints.append(m.constraints[i])
 
     def get_params(self):
@@ -248,7 +241,7 @@ class Dense(Layer):
         Just your regular fully connected NN layer.
     '''
     def __init__(self, input_dim, output_dim, init='glorot_uniform', activation='linear', weights=None, 
-        W_regularizer=None, b_regularizer=None, W_constraint=None, b_constraint=None):
+        W_regularizer=None, b_regularizer=None, activity_regularizer=None, W_constraint=None, b_constraint=None):
 
         super(Dense,self).__init__()
         self.init = initializations.get(init)
@@ -262,7 +255,17 @@ class Dense(Layer):
 
         self.params = [self.W, self.b]
 
-        self.regularizers = [W_regularizer, b_regularizer]
+        self.regularizers = []
+        if W_regularizer:
+            W_regularizer.set_param(self.W)
+            self.regularizers.append(W_regularizer)
+        if b_regularizer:
+            b_regularizer.set_param(self.b)
+            self.regularizers.append(b_regularizer)
+        if activity_regularizer:
+            activity_regularizer.set_layer(self)
+            self.regularizers.append(activity_regularizer)
+
         self.constraints = [W_constraint, b_constraint]
 
         if weights is not None:
@@ -280,19 +283,27 @@ class Dense(Layer):
             "init":self.init.__name__,
             "activation":self.activation.__name__}
 
+
 class ActivityRegularization(Layer):
     '''
         Layer that passes through its input unchanged, but applies an update
         to the cost function based on the activity.
     '''
-    def __init__(self, activity_regularizer = None):
+    def __init__(self, activity_regularizer=None):
         super(ActivityRegularization, self).__init__()
+
+        self.activity_regularizer = activity_regularizer
         if activity_regularizer is not None:
             activity_regularizer.set_layer(self)
-            self.loss_update = activity_regularizer
+            self.regularizers = [activity_regularizer]
 
     def get_output(self, train):
         return self.get_input(train)
+
+    def get_config(self):
+        return {"name":self.__class__.__name__,
+            "activity_regularizer":self.activity_regularizer.__name__}
+
 
 class TimeDistributedDense(Layer):
     '''
@@ -303,7 +314,7 @@ class TimeDistributedDense(Layer):
 
     '''
     def __init__(self, input_dim, output_dim, init='glorot_uniform', activation='linear', weights=None, 
-        W_regularizer=None, b_regularizer=None, W_constraint=None, b_constraint=None):
+        W_regularizer=None, b_regularizer=None, activity_regularizer=None, W_constraint=None, b_constraint=None):
 
         super(TimeDistributedDense,self).__init__()
         self.init = initializations.get(init)
@@ -317,7 +328,17 @@ class TimeDistributedDense(Layer):
 
         self.params = [self.W, self.b]
 
-        self.regularizers = [W_regularizer, b_regularizer]
+        self.regularizers = []
+        if W_regularizer:
+            W_regularizer.set_param(self.W)
+            self.regularizers.append(W_regularizer)
+        if b_regularizer:
+            b_regularizer.set_param(self.b)
+            self.regularizers.append(b_regularizer)
+        if activity_regularizer:
+            activity_regularizer.set_layer(self)
+            self.regularizers.append(activity_regularizer)
+
         self.constraints = [W_constraint, b_constraint]
 
         if weights is not None:
@@ -447,7 +468,7 @@ class MaxoutDense(Layer):
         Refer to http://arxiv.org/pdf/1302.4389.pdf
     '''
     def __init__(self, input_dim, output_dim, nb_feature=4, init='glorot_uniform', weights=None, 
-        W_regularizer=None, b_regularizer=None, W_constraint=None, b_constraint=None):
+        W_regularizer=None, b_regularizer=None, activity_regularizer=None, W_constraint=None, b_constraint=None):
 
         super(MaxoutDense,self).__init__()
         self.init = initializations.get(init)
@@ -461,7 +482,17 @@ class MaxoutDense(Layer):
 
         self.params = [self.W, self.b]
 
-        self.regularizers = [W_regularizer, b_regularizer]
+        self.regularizers = []
+        if W_regularizer:
+            W_regularizer.set_param(self.W)
+            self.regularizers.append(W_regularizer)
+        if b_regularizer:
+            b_regularizer.set_param(self.b)
+            self.regularizers.append(b_regularizer)
+        if activity_regularizer:
+            activity_regularizer.set_layer(self)
+            self.regularizers.append(activity_regularizer)
+
         self.constraints = [W_constraint, b_constraint]
 
         if weights is not None:
