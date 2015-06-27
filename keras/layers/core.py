@@ -19,10 +19,10 @@ class Layer(object):
     def __init__(self, name, prev, input_dim):
         self.params = []
         self.name = name
-        self.prev = prev
+        self.prev_name = prev
 
-        if type(self.prev) is str:
-            self.prev = [self.prev] # single string or a list of strings under one op
+        if type(self.prev_name) is str:
+            self.prev_name = [self.prev_name] # single string or a list of strings under one op
 
         self.input_dim = input_dim
         self.output_dim = (None, )

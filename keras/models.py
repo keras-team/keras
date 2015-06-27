@@ -143,11 +143,11 @@ class Sequential(Model):
 
 
         if len(self.layers) > 1:
-            if layer.prev is None:
+            if layer.prev_name is None:
                 prev_layers = [self.layers[-2]] # no previous layer name provided, layer is connected to last added layer
             else:
                 prev_layers = []
-                for prev_layer in layer.prev:
+                for prev_layer in layer.prev_name:
                     prev_layer_nb = self.layer_nb[prev_layer]
                     prev_layers.append(self.layers[prev_layer_nb])
 
