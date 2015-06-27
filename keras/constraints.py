@@ -3,20 +3,30 @@ import theano
 import theano.tensor as T
 import numpy as np
 
-def maxnorm(m=2):
-    def maxnorm_wrap(p):
+class Constraint(object):
+    def __call__(self, p):
+        return p
+
+class MaxNorm(Constraint):
+    def __init__(self, m=2):
+        self.m = m
+
+    def __call__(self, p):
         norms = T.sqrt(T.sum(T.sqr(p), axis=0))
-        desired = T.clip(norms, 0, m)
+        desired = T.clip(norms, 0, self.m)
         p = p * (desired / (1e-7 + norms))
         return p
-    return maxnorm_wrap
 
-def nonneg(p):
-    p *= T.ge(p, 0)
-    return p
+class NonNeg(Constraint):
+    def __call__(self, p):
+        p *= T.ge(p, 0)
+        return p
 
-def identity(g):
-    return g
+def UnitNorm(Constraint):
+    def __call__(self, p):
+        return e / T.sqrt(T.sum(e**2, axis=-1, keepdims=True))
 
-def unitnorm(e):
-    return e / T.sqrt(T.sum(e**2, axis=-1, keepdims=True))
+identity = Constraint
+maxnorm = MaxNorm
+nonneg = NonNeg
+unitnorm = UnitNorm
