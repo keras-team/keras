@@ -15,7 +15,7 @@ class BatchNormalization(Layer):
 
             momentum: momentum term in the computation of a running estimate of the mean and std of the data
     '''
-    def __init__(self, input_shape=None, epsilon=1e-6, mode=0, momentum=0.9, weights=None, name=None, prev=None, input_dim=(None, )):
+    def __init__(self, input_shape=None, epsilon=1e-6, mode=0, momentum=0.9, weights=None, name=None, prev=None):
         super(BatchNormalization,self).__init__(name, prev, input_dim)
         self.init = initializations.get("uniform")
         self.input_shape = input_shape
@@ -23,19 +23,16 @@ class BatchNormalization(Layer):
         self.mode = mode
         self.momentum = momentum
 
-        self.weights = weights
-
         self.running_mean = None
         self.running_std = None
 
-    def setup(self):
         self.gamma = self.init((self.input_shape))
         self.beta = shared_zeros(self.input_shape)
 
         self.params = [self.gamma, self.beta]
 
-        if self.weights is not None:
-            self.set_weights(self.weights)
+        if weights is not None:
+            self.set_weights(weights)
 
     def get_output(self, train):
         X = self.get_input(train)
@@ -66,9 +63,6 @@ class BatchNormalization(Layer):
         out = self.gamma * X_normed + self.beta
         return out
 
-    def get_output_dim(self, input_dim):
-        return input_dim
-
     def get_config(self):
         return {"name":self.__class__.__name__,
             "input_dim":self.input_dim,
@@ -81,7 +75,7 @@ class LRN2D(Layer):
     License at: https://
     """
 
-    def __init__(self, alpha=1e-4, k=2, beta=0.75, n=5, name=None, prev=None, input_dim=(None, )):
+    def __init__(self, alpha=1e-4, k=2, beta=0.75, n=5, name=None, prev=None):
         super(LRN2D, self).__init__(name, prev, input_dim)
         self.alpha = alpha
         self.k = k
@@ -89,9 +83,6 @@ class LRN2D(Layer):
         self.n = n
         if n % 2 == 0:
             raise NotImplementedError("Only works with odd n")
-
-    def get_output_dim(self, input_dim):
-        return input_dim
 
     def get_output(self, train):
         X = self.get_input(train)
