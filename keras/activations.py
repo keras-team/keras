@@ -27,6 +27,9 @@ def hard_sigmoid(x):
     return T.nnet.hard_sigmoid(x)
 
 def linear(x):
+    '''
+    The function returns the variable that is passed in, so all types work
+    '''
     return x
 
 from .utils.generic_utils import get_from_module
