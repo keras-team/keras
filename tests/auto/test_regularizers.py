@@ -44,7 +44,7 @@ def create_model(weight_reg=None, activity_reg=None):
 
 class TestRegularizers(unittest.TestCase):
     def test_W_reg(self):
-        for reg in [regularizers.identity, regularizers.l1(), regularizers.l2(), regularizers.l1l2()]:
+        for reg in [regularizers.identity(), regularizers.l1(), regularizers.l2(), regularizers.l1l2()]:
             model = create_model(weight_reg=reg)
             model.compile(loss='categorical_crossentropy', optimizer='rmsprop')
             model.fit(X_train, Y_train, batch_size=batch_size, nb_epoch=nb_epoch, verbose=0)
