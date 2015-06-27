@@ -207,17 +207,16 @@ class Model(object):
 
                 callbacks.on_batch_end(batch_index, batch_logs)
                 
-                if batch_index == len(batches) - 1: # last batch
-                    # validation
-                    epoch_logs = {}
-                    if do_validation:
-                        if show_accuracy:
-                            val_loss, val_acc = self.evaluate(X_val, y_val, batch_size=batch_size, \
-                                verbose=0, show_accuracy=True)
-                            epoch_logs['val_accuracy'] = val_acc
-                        else:
-                            val_loss = self.evaluate(X_val, y_val, batch_size=batch_size, verbose=0)
-                        epoch_logs['val_loss'] = val_loss
+            # validation
+            epoch_logs = {}
+            if do_validation:
+                if show_accuracy:
+                    val_loss, val_acc = self.evaluate(X_val, y_val, batch_size=batch_size, \
+                        verbose=0, show_accuracy=True)
+                    epoch_logs['val_accuracy'] = val_acc
+                else:
+                    val_loss = self.evaluate(X_val, y_val, batch_size=batch_size, verbose=0)
+                epoch_logs['val_loss'] = val_loss
 
             callbacks.on_epoch_end(epoch, epoch_logs)
             if self.stop_training:
