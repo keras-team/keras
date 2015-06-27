@@ -102,8 +102,6 @@ class Model(object):
 
         self._train = theano.function(train_ins, train_loss, 
             updates=updates, allow_input_downcast=True, mode=theano_mode)
-        # self._train_with_acc = theano.function(train_ins, [train_loss, train_accuracy], 
-        #     updates=updates, allow_input_downcast=True, mode=theano_mode)
         self._train_accuracy = theano.function(train_ins, train_accuracy,
             allow_input_downcast=True, mode=theano_mode)
         self._predict = theano.function(predict_ins, self.y_test, 
@@ -166,7 +164,8 @@ class Model(object):
 
         if verbose:
             callbacks = [cbks.BaseLogger()] + callbacks
-        callbacks = cbks.CallbackList([cbks.History()] + callbacks)
+        history = cbks.History()
+        callbacks = cbks.CallbackList([history] + callbacks)
 
         callbacks._set_model(self)
         callbacks._set_params({
@@ -221,7 +220,8 @@ class Model(object):
                 break
 
         callbacks.on_train_end()
-        return callbacks.callbacks[0] # return history
+        
+        return history
 
     def predict(self, X, batch_size=128, verbose=1):
         X = standardize_X(X)
