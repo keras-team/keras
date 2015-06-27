@@ -74,8 +74,6 @@ def calculate_loss_weights(Y, sample_weight=None, class_weight=None):
 class Model(object):
 
     def compile(self, optimizer, loss, class_mode="categorical", theano_mode=None):
-        self.layers[-1].setup() #last layer setup
-
         self.optimizer = optimizers.get(optimizer)
         self.loss = objectives.get(loss)
 
@@ -141,7 +139,6 @@ class Sequential(Model):
         if layer.name is not None:
             self.layer_nb[layer.name] = len(self.layers) - 1
 
-
         if len(self.layers) > 1:
             if layer.prev_name is None:
                 prev_layers = [self.layers[-2]] # no previous layer name provided, layer is connected to last added layer
@@ -151,8 +148,6 @@ class Sequential(Model):
                     prev_layer_nb = self.layer_nb[prev_layer]
                     prev_layers.append(self.layers[prev_layer_nb])
 
-            self.layers[-2].setup()
-            self.layers[-2].set_output_dim()
             self.layers[-1].connect(prev_layers)
 
         # NOTE: Theano performs graph optimizations that will eliminate the consequent redundancy
