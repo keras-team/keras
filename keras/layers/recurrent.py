@@ -416,7 +416,7 @@ class LSTM(Recurrent):
 
 
 
-class JZS1(Layer):
+class JZS1(Recurrent):
     '''
         Evolved recurrent neural network architectures from the evaluation of thousands
         of models, serving as alternatives to LSTMs and GRUs. See Jozefowicz et al. 2015.
@@ -484,23 +484,24 @@ class JZS1(Layer):
         xz_t, xr_t, xh_t, mask_tm1,
         h_tm1, 
         u_r, u_h):
+        h_mask_tm1 = mask_tm1 * h_tm1
         z = self.inner_activation(xz_t)
-        r = self.inner_activation(xr_t + T.dot(h_tm1, u_r))
-        hh_t = self.activation(xh_t + T.dot(r * h_tm1, u_h))
-        h_t = hh_t * z + h_tm1 * (1 - z)
+        r = self.inner_activation(xr_t + T.dot(h_mask_tm1, u_r))
+        hh_t = self.activation(xh_t + T.dot(r * h_mask_tm1, u_h))
+        h_t = hh_t * z + h_mask_tm1 * (1 - z)
         return h_t
 
     def get_output(self, train):
         X = self.get_input(train) 
-        X = X.dimshuffle((1, 0, 2)) 
         padded_mask = self.get_padded_shuffled_mask(train, X, pad=1)
+        X = X.dimshuffle((1, 0, 2))
 
         x_z = T.dot(X, self.W_z) + self.b_z
         x_r = T.dot(X, self.W_r) + self.b_r
         x_h = T.tanh(T.dot(X, self.Pmat)) + self.b_h
         outputs, updates = theano.scan(
             self._step, 
-            sequences=[x_z, x_r, x_h, padded_mask], 
+            sequences=[x_z, x_r, x_h, padded_mask],
             outputs_info=T.unbroadcast(alloc_zeros_matrix(X.shape[1], self.output_dim), 1),
             non_sequences=[self.U_r, self.U_h],
             truncate_gradient=self.truncate_gradient
@@ -522,7 +523,7 @@ class JZS1(Layer):
 
 
 
-class JZS2(Layer):
+class JZS2(Recurrent):
     '''
         Evolved recurrent neural network architectures from the evaluation of thousands
         of models, serving as alternatives to LSTMs and GRUs. See Jozefowicz et al. 2015.
@@ -588,17 +589,19 @@ class JZS2(Layer):
             self.set_weights(weights)
 
     def _step(self, 
-        xz_t, xr_t, xh_t, 
+        xz_t, xr_t, xh_t, mask_tm1,
         h_tm1, 
         u_z, u_r, u_h):
-        z = self.inner_activation(xz_t + T.dot(h_tm1, u_z))
-        r = self.inner_activation(xr_t + T.dot(h_tm1, u_r))
-        hh_t = self.activation(xh_t + T.dot(r * h_tm1, u_h))
-        h_t = hh_t * z + h_tm1 * (1 - z)
+        h_mask_tm1 = mask_tm1 * h_tm1
+        z = self.inner_activation(xz_t + T.dot(h_mask_tm1, u_z))
+        r = self.inner_activation(xr_t + T.dot(h_mask_tm1, u_r))
+        hh_t = self.activation(xh_t + T.dot(r * h_mask_tm1, u_h))
+        h_t = hh_t * z + h_mask_tm1 * (1 - z)
         return h_t
 
     def get_output(self, train):
-        X = self.get_input(train) 
+        X = self.get_input(train)
+        padded_mask = self.get_padded_shuffled_mask(train, X, pad=1)
         X = X.dimshuffle((1, 0, 2)) 
 
         x_z = T.dot(X, self.W_z) + self.b_z
@@ -606,7 +609,7 @@ class JZS2(Layer):
         x_h = T.dot(X, self.W_h) + self.b_h
         outputs, updates = theano.scan(
             self._step, 
-            sequences=[x_z, x_r, x_h], 
+            sequences=[x_z, x_r, x_h, padded_mask],
             outputs_info=T.unbroadcast(alloc_zeros_matrix(X.shape[1], self.output_dim), 1),
             non_sequences=[self.U_z, self.U_r, self.U_h],
             truncate_gradient=self.truncate_gradient
@@ -628,7 +631,7 @@ class JZS2(Layer):
 
 
 
-class JZS3(Layer):
+class JZS3(Recurrent):
     '''
         Evolved recurrent neural network architectures from the evaluation of thousands
         of models, serving as alternatives to LSTMs and GRUs. See Jozefowicz et al. 2015.
@@ -687,17 +690,19 @@ class JZS3(Layer):
             self.set_weights(weights)
 
     def _step(self, 
-        xz_t, xr_t, xh_t, 
+        xz_t, xr_t, xh_t, mask_tm1,
         h_tm1, 
         u_z, u_r, u_h):
-        z = self.inner_activation(xz_t + T.dot(T.tanh(h_tm1), u_z))
-        r = self.inner_activation(xr_t + T.dot(h_tm1, u_r))
-        hh_t = self.activation(xh_t + T.dot(r * h_tm1, u_h))
-        h_t = hh_t * z + h_tm1 * (1 - z)
+        h_mask_tm1 = mask_tm1 * h_tm1
+        z = self.inner_activation(xz_t + T.dot(T.tanh(h_mask_tm1), u_z))
+        r = self.inner_activation(xr_t + T.dot(h_mask_tm1, u_r))
+        hh_t = self.activation(xh_t + T.dot(r * h_mask_tm1, u_h))
+        h_t = hh_t * z + h_mask_tm1 * (1 - z)
         return h_t
 
     def get_output(self, train):
-        X = self.get_input(train) 
+        X = self.get_input(train)
+        padded_mask = self.get_padded_shuffled_mask(train, X, pad=1)
         X = X.dimshuffle((1, 0, 2)) 
 
         x_z = T.dot(X, self.W_z) + self.b_z
@@ -705,7 +710,7 @@ class JZS3(Layer):
         x_h = T.dot(X, self.W_h) + self.b_h
         outputs, updates = theano.scan(
             self._step, 
-            sequences=[x_z, x_r, x_h], 
+            sequences=[x_z, x_r, x_h, padded_mask],
             outputs_info=T.unbroadcast(alloc_zeros_matrix(X.shape[1], self.output_dim), 1),
             non_sequences=[self.U_z, self.U_r, self.U_h],
             truncate_gradient=self.truncate_gradient
