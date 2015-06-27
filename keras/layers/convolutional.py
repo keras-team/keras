@@ -14,7 +14,7 @@ class Convolution1D(Layer):
     def __init__(self, nb_filter, stack_size, filter_length,
         init='uniform', activation='linear', weights=None,
         image_shape=None, border_mode='valid', subsample_length=1,
-        W_regularizer=None, b_regularizer=None, W_constraint=None, b_constraint=None):
+        W_regularizer=None, b_regularizer=None, activity_regularizer=None, W_constraint=None, b_constraint=None):
 
         nb_row = 1
         nb_col = filter_length
@@ -36,7 +36,17 @@ class Convolution1D(Layer):
 
         self.params = [self.W, self.b]
 
-        self.regularizers = [W_regularizer, b_regularizer]
+        self.regularizers = []
+        if W_regularizer:
+            W_regularizer.set_param(self.W)
+            self.regularizers.append(W_regularizer)
+        if b_regularizer:
+            b_regularizer.set_param(self.b)
+            self.regularizers.append(b_regularizer)
+        if activity_regularizer:
+            activity_regularizer.set_layer(self)
+            self.regularizers.append(activity_regularizer)
+
         self.constraints = [W_constraint, b_constraint]
 
         if weights is not None:
@@ -87,7 +97,7 @@ class Convolution2D(Layer):
     def __init__(self, nb_filter, stack_size, nb_row, nb_col, 
         init='glorot_uniform', activation='linear', weights=None, 
         image_shape=None, border_mode='valid', subsample=(1,1),
-        W_regularizer=None, b_regularizer=None, W_constraint=None, b_constraint=None):
+        W_regularizer=None, b_regularizer=None, activity_regularizer=None, W_constraint=None, b_constraint=None):
         super(Convolution2D,self).__init__()
 
         self.init = initializations.get(init)
@@ -107,7 +117,17 @@ class Convolution2D(Layer):
 
         self.params = [self.W, self.b]
 
-        self.regularizers = [W_regularizer, b_regularizer]
+        self.regularizers = []
+        if W_regularizer:
+            W_regularizer.set_param(self.W)
+            self.regularizers.append(W_regularizer)
+        if b_regularizer:
+            b_regularizer.set_param(self.b)
+            self.regularizers.append(b_regularizer)
+        if activity_regularizer:
+            activity_regularizer.set_layer(self)
+            self.regularizers.append(activity_regularizer)
+            
         self.constraints = [W_constraint, b_constraint]
 
         if weights is not None:
