@@ -102,8 +102,10 @@ class Model(object):
 
         self._train = theano.function(train_ins, train_loss, 
             updates=updates, allow_input_downcast=True, mode=theano_mode)
-        self._train_with_acc = theano.function(train_ins, [train_loss, train_accuracy], 
-            updates=updates, allow_input_downcast=True, mode=theano_mode)
+        # self._train_with_acc = theano.function(train_ins, [train_loss, train_accuracy], 
+        #     updates=updates, allow_input_downcast=True, mode=theano_mode)
+        self._train_accuracy = theano.function(train_ins, train_accuracy,
+            allow_input_downcast=True, mode=theano_mode)
         self._predict = theano.function(predict_ins, self.y_test, 
             allow_input_downcast=True, mode=theano_mode)
         self._test = theano.function(test_ins, test_score, 
@@ -112,15 +114,12 @@ class Model(object):
             allow_input_downcast=True, mode=theano_mode)
 
 
-    def train(self, X, y, accuracy=False):
+    def train(self, X, y):
         X = standardize_X(X)
         y = standardize_y(y)
-
         ins = X + [y]
-        if accuracy:
-            return self._train_with_acc(*ins)
-        else:
-            return self._train(*ins)
+        
+        return self._train(*ins)
         
 
     def test(self, X, y, accuracy=False):
@@ -197,13 +196,12 @@ class Model(object):
                 batch_logs['size'] = len(batch_ids)
                 callbacks.on_batch_begin(batch_index, batch_logs)
 
-                ins = X_batch + [y_batch]
-                if show_accuracy:
-                    loss, acc = self._train_with_acc(*ins)
-                    batch_logs['accuracy'] = acc
-                else:
-                    loss = self._train(*ins)
+                loss = self.train(X_batch, y_batch)
                 batch_logs['loss'] = loss
+                if show_accuracy:
+                    ins = X_batch + [y_batch]
+                    acc = self._train_accuracy(*ins)
+                    batch_logs['accuracy'] = acc
 
                 callbacks.on_batch_end(batch_index, batch_logs)
                 
