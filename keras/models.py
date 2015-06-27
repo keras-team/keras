@@ -191,7 +191,6 @@ class Model(object):
                 y_batch = y[batch_ids]
 
                 batch_logs = {}
-                batch_logs['batch'] = batch_index
                 batch_logs['size'] = len(batch_ids)
                 callbacks.on_batch_begin(batch_index, batch_logs)
 
@@ -220,7 +219,7 @@ class Model(object):
                 break
 
         callbacks.on_train_end()
-        
+
         return history
 
     def predict(self, X, batch_size=128, verbose=1):
