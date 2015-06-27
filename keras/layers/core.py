@@ -55,22 +55,22 @@ class Layer(object):
                 if r:
                     regs.append(r)
                 else:
-                    regs.append(regularizers.identity)
+                    regs.append(regularizers.identity())
         elif hasattr(self, 'regularizer') and self.regularizer:
             regs += [self.regularizer for _ in range(len(self.params))]
         else:
-            regs += [regularizers.identity for _ in range(len(self.params))]
+            regs += [regularizers.identity() for _ in range(len(self.params))]
 
         if hasattr(self, 'constraints') and len(self.constraints) == len(self.params):
             for c in self.constraints:
                 if c:
                     consts.append(c)
                 else:
-                    consts.append(constraints.identity)
+                    consts.append(constraints.identity())
         elif hasattr(self, 'constraint') and self.constraint:
             consts += [self.constraint for _ in range(len(self.params))]
         else:
-            consts += [constraints.identity for _ in range(len(self.params))]
+            consts += [constraints.identity() for _ in range(len(self.params))]
 
         return self.params, regs, consts
 
