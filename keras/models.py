@@ -108,7 +108,7 @@ class Model(object):
             allow_input_downcast=True, mode=theano_mode)
         self._test = theano.function(test_ins, test_score, 
             allow_input_downcast=True, mode=theano_mode)
-        self._test_with_acc = theano.function(test_ins, [test_score, test_accuracy], 
+        self._test_accuracy = theano.function(test_ins, test_accuracy,
             allow_input_downcast=True, mode=theano_mode)
 
 
@@ -120,14 +120,12 @@ class Model(object):
         return self._train(*ins)
         
 
-    def test(self, X, y, accuracy=False):
+    def test(self, X, y):
         X = standardize_X(X)
         y = standardize_y(y)
         ins = X + [y]
-        if accuracy:
-            return self._test_with_acc(*ins)
-        else:
-            return self._test(*ins)
+
+        return self._test(*ins)
 
 
     def fit(self, X, y, batch_size=128, nb_epoch=100, verbose=1, callbacks=[],
@@ -272,14 +270,13 @@ class Model(object):
             X_batch = slice_X(X, batch_start, batch_end)
             y_batch = y[batch_start:batch_end]
 
-            ins = X_batch + [y_batch]
+            loss = self.test(X_batch, y_batch)
+            log_values = [('loss', loss)]
             if show_accuracy:
-                loss, acc = self._test_with_acc(*ins)
+                ins = X_batch + [y_batch]
+                acc = self._test_accuracy(*ins)
                 tot_acc += acc * len(y_batch)
-                log_values = [('loss', loss), ('acc.', acc)]
-            else:
-                loss = self._test(*ins)
-                log_values = [('loss', loss)]
+                log_values.append(('acc.', acc))
             tot_score += loss * len(y_batch)
             seen += len(y_batch)
 
