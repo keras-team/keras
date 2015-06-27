@@ -24,43 +24,14 @@ class Layer(object):
         if type(self.prev_name) is str:
             self.prev_name = [self.prev_name] # single string or a list of strings under one op
 
-        self.input_dim = input_dim
-        self.output_dim = (None, )
-
-    def setup(self):
-        '''
-            Contains code that depends on values that are optional but can be understood from context (ex: input_dim)
-        '''
-        return
-
     def connect(self, node):
         self.previous = node
 
-        if self.input_dim == (None, ):
-            self.input_dim = []
-            for prev in self.previous:
-                    self.input_dim.append(prev.output_dim)
-
         if len(node) == 1:
             self.previous = self.previous[0]    # for backward compatibility
-            if self.input_dim != (None, ):
-                self.input_dim = self.input_dim[0]  # to make simpler calculation for single input nodes
-            else:
-                self.input_dim = None
-        else:
-            self.input_dim = tuple(self.input_dim)
-
-
 
     def get_output(self, train):
         raise NotImplementedError
-
-    def get_output_dim(self, input_dim):
-        raise NotImplementedError
-
-    def set_output_dim(self):
-        if self.input_dim != (None, ):
-            self.output_dim = self.get_output_dim(self.input_dim)
 
     def get_input(self, train):
         if hasattr(self, 'previous'):
