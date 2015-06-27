@@ -92,7 +92,7 @@ class Layer(object):
 
 class Merge(Layer):
     def __init__(self, prev, mode='sum', name=None):
-        super(Merge,self).__init__(name, prev, input_dim)
+        super(Merge,self).__init__(name, prev)
         self.mode = mode
 
     def get_output(self, train):
@@ -112,7 +112,7 @@ class Dropout(Layer):
         Hinton's dropout.
     '''
     def __init__(self, p, name=None, prev=None):
-        super(Dropout,self).__init__(name, prev, input_dim)
+        super(Dropout,self).__init__(name, prev)
         self.p = p
 
     def get_output(self, train):
@@ -135,7 +135,7 @@ class Activation(Layer):
         Apply an activation function to an output.
     '''
     def __init__(self, activation, target=0, beta=0.1, name=None, prev=None):
-        super(Activation,self).__init__(name, prev, input_dim)
+        super(Activation,self).__init__(name, prev)
         self.activation = activations.get(activation)
         self.target = target
         self.beta = beta
@@ -157,23 +157,8 @@ class Reshape(Layer):
         Can't be used as first layer in a model (no fixed input!)
         First dimension is assumed to be nb_samples.
     '''
-    def __init__(self, *dims, **kwrags):
-        if name in kwrags:
-            name = kwrags[name]
-        else:
-            name = None
-
-        if prev in kwrags:
-            prev = kwrags[prev]
-        else:
-            prev = None
-
-        if input_dim in kwrags:
-            input_dim = kwrags[input_dim]
-        else:
-            input_dim = None
-
-        super(Reshape,self).__init__(name, prev, input_dim)
+    def __init__(self, *dims):
+        super(Reshape,self).__init__(name, prev)
         self.dims = dims
 
     def get_output(self, train):
@@ -192,7 +177,7 @@ class Flatten(Layer):
         First dimension is assumed to be nb_samples.
     '''
     def __init__(self, name=None, prev=None):
-        super(Flatten,self).__init__(name, prev, input_dim)
+        super(Flatten,self).__init__(name, prev)
 
     def get_output(self, train):
         X = self.get_input(train)
@@ -208,7 +193,7 @@ class RepeatVector(Layer):
         Return tensor of shape (nb_samples, n, dim).
     '''
     def __init__(self, n, name=None, prev=None):
-        super(RepeatVector,self).__init__(name, prev, input_dim)
+        super(RepeatVector,self).__init__(name, prev)
         self.n = n
 
     def get_output(self, train):
@@ -229,7 +214,7 @@ class Dense(Layer):
     def __init__(self, input_shape, output_shape,init='glorot_uniform', activation='linear', weights=None,
         W_regularizer=None, b_regularizer=None, W_constraint=None, b_constraint=None, name=None, prev=None):
 
-        super(Dense,self).__init__(name, prev, input_dim)
+        super(Dense,self).__init__(name, prev)
         self.init = initializations.get(init)
         self.activation = activations.get(activation)
         self.input_shape = input_shape
@@ -272,7 +257,7 @@ class TimeDistributedDense(Layer):
     def __init__(self, input_shape,  output_shape,init='glorot_uniform', activation='linear', weights=None,
         W_regularizer=None, b_regularizer=None, W_constraint=None, b_constraint=None, name=None, prev=None):
 
-        super(TimeDistributedDense,self).__init__(name, prev, input_dim)
+        super(TimeDistributedDense,self).__init__(name, prev)
         self.init = initializations.get(init)
         self.activation = activations.get(activation)
         self.input_shape = input_shape
@@ -320,7 +305,7 @@ class MaxoutDense(Layer):
     def __init__(self, input_shape, output_shape,nb_feature=4, init='glorot_uniform', weights=None,
         W_regularizer=None, b_regularizer=None, W_constraint=None, b_constraint=None, name=None, prev=None):
 
-        super(MaxoutDense,self).__init__(name, prev, input_dim)
+        super(MaxoutDense,self).__init__(name, prev)
         self.init = initializations.get(init)
         self.input_shape = input_shape
         self.output_shape = output_shape

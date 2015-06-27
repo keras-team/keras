@@ -16,7 +16,7 @@ class Convolution1D(Layer):
         init='uniform', activation='linear', weights=None,
         image_shape=None, border_mode='valid', subsample_length=1, name=None, prev=None):
 
-        super(Convolution1D,self).__init__(name, prev, input_dim)
+        super(Convolution1D,self).__init__(name, prev)
         self.filter_length = filter_length
         self.subsample_length = subsample_length
         self.init = initializations.get(init)
@@ -62,7 +62,7 @@ class Convolution1D(Layer):
 
 class MaxPooling1D(Layer):
     def __init__(self, pool_length=2, stride=None, ignore_border=True, name=None, prev=None):
-        super(MaxPooling1D,self).__init__(name, prev, input_dim)
+        super(MaxPooling1D,self).__init__(name, prev)
         self.pool_length = pool_length
 
         if stride is not None:
@@ -90,7 +90,7 @@ class Convolution2D(Layer):
         init='glorot_uniform', activation='linear', weights=None,
         image_shape=None, border_mode='valid', subsample=(1,1), name=None, prev=None):
 
-        super(Convolution2D,self).__init__(name, prev, input_dim)
+        super(Convolution2D,self).__init__(name, prev)
 
         self.init = initializations.get(init)
         self.activation = activations.get(activation)
@@ -136,7 +136,7 @@ class Convolution2D(Layer):
 
 class MaxPooling2D(Layer):
     def __init__(self, poolsize=(2, 2), stride=None, ignore_border=True, name=None, prev=None):
-        super(MaxPooling2D,self).__init__(name, prev, input_dim)
+        super(MaxPooling2D,self).__init__(name, prev)
 
         self.poolsize = poolsize
 
