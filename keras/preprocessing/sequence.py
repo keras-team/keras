@@ -4,7 +4,7 @@ import numpy as np
 import random
 from six.moves import range
 
-def pad_sequences(sequences, maxlen=None, dtype='int32', padding='pre'):
+def pad_sequences(sequences, maxlen=None, dtype='int32', padding='pre', value=0.):
     """
         Pad each sequence to the same length: 
         the length of the longuest sequence.
@@ -20,7 +20,7 @@ def pad_sequences(sequences, maxlen=None, dtype='int32', padding='pre'):
     if maxlen is None:
         maxlen = np.max(lengths)
 
-    x = np.zeros((nb_samples, maxlen)).astype(dtype)
+    x = (np.ones((nb_samples, maxlen)) * value).astype(dtype)
     for idx, s in enumerate(sequences):
         if padding == 'post':
             x[idx, :lengths[idx]] = s[:maxlen]
