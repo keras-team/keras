@@ -1,6 +1,7 @@
 from __future__ import absolute_import
 from __future__ import print_function
 import numpy as np
+np.random.seed(1337) # for reproducibility
 
 from keras.preprocessing import sequence
 from keras.optimizers import SGD, RMSprop, Adagrad
@@ -28,16 +29,11 @@ from keras.datasets import imdb
 
     GPU command:
         THEANO_FLAGS=mode=FAST_RUN,device=gpu,floatX=float32 python imdb_lstm.py
-
-    250s/epoch on GPU (GT 650M), vs. 400s/epoch on CPU (2.4Ghz Core i7). 
-    Increasing the batch_size increases the GPU speedup.
 '''
 
 max_features = 20000
 maxlen = 100 # cut texts after this number of words (among top max_features most common words)
-batch_size = 16
-
-np.random.seed(1337)
+batch_size = 32
 
 print("Loading data...")
 (X_train, y_train), (X_test, y_test) = imdb.load_data(nb_words=max_features, test_split=0.2)
@@ -52,7 +48,7 @@ print('X_test shape:', X_test.shape)
 
 print('Build model...')
 model = Sequential()
-model.add(Embedding(max_features, 256, mask_zero=True))
+model.add(Embedding(max_features, 256))
 model.add(LSTM(256, 128)) # try using a GRU instead, for fun
 model.add(Dropout(0.5))
 model.add(Dense(128, 1))

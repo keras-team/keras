@@ -1,6 +1,7 @@
 from __future__ import absolute_import
 from __future__ import print_function
 import numpy as np
+np.random.seed(1337) # for reproducibility
 
 from keras.datasets import reuters
 from keras.models import Sequential
