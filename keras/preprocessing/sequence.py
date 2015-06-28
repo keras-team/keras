@@ -10,17 +10,31 @@ def pad_sequences(sequences, maxlen=None, dtype='int32', padding='pre'):
         the length of the longuest sequence.
 
         If maxlen is provided, any sequence longer
-        than maxlen is truncated to maxlen.
+        then maxlen is truncated to maxlen.
+        
+        Each sequence is padded using zeros or zero arrays 
+        accordingly to the input shape.
 
         Support post-padding and pre-padding (default).
     """
     lengths = [len(s) for s in sequences]
-
     nb_samples = len(sequences)
     if maxlen is None:
         maxlen = np.max(lengths)
 
-    x = np.zeros((nb_samples, maxlen)).astype(dtype)
+    array_like = isinstance(sequences[0][0], np.ndarray)
+
+    if array_like:
+        try:
+            dim = len(sequences[0][0])
+        except:
+            raise Exception('"sequences" input to preprocessing.sequence.pad_sequences should be a non-empty list of non-empty sequences (scalars or arrays)')
+
+    if not array_like:
+        x = np.zeros((nb_samples, maxlen)).astype(dtype)
+    else:
+        x = np.zeros((nb_samples, maxlen, dim)).astype(dtype)
+
     for idx, s in enumerate(sequences):
         if padding == 'post':
             x[idx, :lengths[idx]] = s[:maxlen]
