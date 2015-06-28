@@ -112,35 +112,30 @@ class Model(object):
 
         self._train = theano.function(train_ins, train_loss, 
             updates=updates, allow_input_downcast=True, mode=theano_mode)
-        self._train_with_acc = theano.function(train_ins, [train_loss, train_accuracy], 
-            updates=updates, allow_input_downcast=True, mode=theano_mode)
+        self._train_accuracy = theano.function(train_ins, train_accuracy,
+            allow_input_downcast=True, mode=theano_mode)
         self._predict = theano.function(predict_ins, self.y_test, 
             allow_input_downcast=True, mode=theano_mode)
         self._test = theano.function(test_ins, test_score, 
             allow_input_downcast=True, mode=theano_mode)
-        self._test_with_acc = theano.function(test_ins, [test_score, test_accuracy], 
+        self._test_accuracy = theano.function(test_ins, test_accuracy,
             allow_input_downcast=True, mode=theano_mode)
 
 
-    def train(self, X, y, accuracy=False):
+    def train(self, X, y):
         X = standardize_X(X)
         y = standardize_y(y)
-
         ins = X + [y]
-        if accuracy:
-            return self._train_with_acc(*ins)
-        else:
-            return self._train(*ins)
+        
+        return self._train(*ins)
         
 
-    def test(self, X, y, accuracy=False):
+    def test(self, X, y):
         X = standardize_X(X)
         y = standardize_y(y)
         ins = X + [y]
-        if accuracy:
-            return self._test_with_acc(*ins)
-        else:
-            return self._test(*ins)
+
+        return self._test(*ins)
 
 
     def fit(self, X, y, batch_size=128, nb_epoch=100, verbose=1, callbacks=[],
@@ -177,7 +172,8 @@ class Model(object):
 
         if verbose:
             callbacks = [cbks.BaseLogger()] + callbacks
-        callbacks = cbks.CallbackList([cbks.History()] + callbacks)
+        history = cbks.History()
+        callbacks = cbks.CallbackList([history] + callbacks)
 
         callbacks._set_model(self)
         callbacks._set_params({
@@ -203,17 +199,15 @@ class Model(object):
                 y_batch = y[batch_ids]
 
                 batch_logs = {}
-                batch_logs['batch'] = batch_index
                 batch_logs['size'] = len(batch_ids)
                 callbacks.on_batch_begin(batch_index, batch_logs)
 
-                ins = X_batch + [y_batch]
-                if show_accuracy:
-                    loss, acc = self._train_with_acc(*ins)
-                    batch_logs['accuracy'] = acc
-                else:
-                    loss = self._train(*ins)
+                loss = self.train(X_batch, y_batch)
                 batch_logs['loss'] = loss
+                if show_accuracy:
+                    ins = X_batch + [y_batch]
+                    acc = self._train_accuracy(*ins)
+                    batch_logs['accuracy'] = acc
 
                 callbacks.on_batch_end(batch_index, batch_logs)
                 
@@ -234,7 +228,8 @@ class Model(object):
                 break
 
         callbacks.on_train_end()
-        return callbacks.callbacks[0] # return history
+
+        return history
 
 
     def predict(self, X, batch_size=128, verbose=1):
@@ -288,14 +283,13 @@ class Model(object):
             X_batch = slice_X(X, batch_start, batch_end)
             y_batch = y[batch_start:batch_end]
 
-            ins = X_batch + [y_batch]
+            loss = self.test(X_batch, y_batch)
+            log_values = [('loss', loss)]
             if show_accuracy:
-                loss, acc = self._test_with_acc(*ins)
+                ins = X_batch + [y_batch]
+                acc = self._test_accuracy(*ins)
                 tot_acc += acc * len(y_batch)
-                log_values = [('loss', loss), ('acc.', acc)]
-            else:
-                loss = self._test(*ins)
-                log_values = [('loss', loss)]
+                log_values.append(('acc.', acc))
             tot_score += loss * len(y_batch)
             seen += len(y_batch)
 
