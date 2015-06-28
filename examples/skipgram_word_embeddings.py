@@ -53,6 +53,8 @@ load_model = False
 load_tokenizer = False
 train_model = True
 save_dir = os.path.expanduser("~/.keras/models")
+if not os.path.exists(save_dir):
+    os.makedirs(save_dir)
 model_load_fname = "HN_skipgram_model.pkl"
 model_save_fname = "HN_skipgram_model.pkl"
 tokenizer_fname = "HN_tokenizer.pkl"
