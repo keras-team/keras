@@ -8,7 +8,7 @@ import numpy as np
 from .. import activations, initializations
 from ..utils.theano_utils import shared_zeros, floatX
 from ..utils.generic_utils import make_tuple
-from .. import regularizers
+from ..regularizers import ActivityRegularizer
 from .. import constraints
 
 from theano.sandbox.rng_mrg import MRG_RandomStreams as RandomStreams
@@ -289,20 +289,22 @@ class ActivityRegularization(Layer):
         Layer that passes through its input unchanged, but applies an update
         to the cost function based on the activity.
     '''
-    def __init__(self, activity_regularizer=None):
+    def __init__(self, l1=0., l2=0.):
         super(ActivityRegularization, self).__init__()
+        self.l1 = l1
+        self.l2 = l2
 
-        self.activity_regularizer = activity_regularizer
-        if activity_regularizer is not None:
-            activity_regularizer.set_layer(self)
-            self.regularizers = [activity_regularizer]
+        activity_regularizer = ActivityRegularizer(l1=l1, l2=l2)
+        activity_regularizer.set_layer(self)
+        self.regularizers = [activity_regularizer]
 
     def get_output(self, train):
         return self.get_input(train)
 
     def get_config(self):
         return {"name":self.__class__.__name__,
-            "activity_regularizer":self.activity_regularizer.__name__}
+            "l1":self.l1,
+            "l2":self.l2}
 
 
 class TimeDistributedDense(Layer):
