@@ -34,7 +34,7 @@ These are shortcut functions available in `keras.regularizers`.
 
 - __l1__(l=0.01): L1 weight regularization penalty, also known as LASSO
 - __l2__(l=0.01): L2 weight regularization penalty, also known as weight decay, or Ridge
-- __l1l2__(l1=0.01, l2=0.01): L1-L2 regularization penalty, also known as ElasticNet
+- __l1l2__(l1=0.01, l2=0.01): L1-L2 weight regularization penalty, also known as ElasticNet
 - __activity_l1__(l=0.01): L1 activity regularization
 - __activity_l2__(l=0.01): L2 activity regularization
 - __activity_l1l2__(l1=0.01, l2=0.01): L1+L2 activity regularization
