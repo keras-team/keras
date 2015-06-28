@@ -300,7 +300,7 @@ keras.layers.core.ActivityRegularization(l1=0., l2=0.)
 
 Leaves the input unchanged, but adds a term to the loss function based on the input activity. L1 and L2 regularization supported.
 
-This layer can be use, for instance, to induce activation sparsity in the previous layer.
+This layer can be used, for instance, to induce activation sparsity in the previous layer.
 
 ---
 
