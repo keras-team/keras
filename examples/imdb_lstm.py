@@ -48,8 +48,8 @@ print('X_test shape:', X_test.shape)
 
 print('Build model...')
 model = Sequential()
-model.add(Embedding(max_features, 256))
-model.add(LSTM(256, 128)) # try using a GRU instead, for fun
+model.add(Embedding(max_features, 128))
+model.add(LSTM(128, 128)) # try using a GRU instead, for fun
 model.add(Dropout(0.5))
 model.add(Dense(128, 1))
 model.add(Activation('sigmoid'))
@@ -58,11 +58,7 @@ model.add(Activation('sigmoid'))
 model.compile(loss='binary_crossentropy', optimizer='adam', class_mode="binary")
 
 print("Train...")
-model.fit(X_train, y_train, batch_size=batch_size, nb_epoch=4, validation_split=0.1, show_accuracy=True)
-score = model.evaluate(X_test, y_test, batch_size=batch_size)
+model.fit(X_train, y_train, batch_size=batch_size, nb_epoch=4, validation_data=(X_test, y_test), show_accuracy=True)
+score, acc = model.evaluate(X_test, y_test, batch_size=batch_size, show_accuracy=True)
 print('Test score:', score)
-
-classes = model.predict_classes(X_test, batch_size=batch_size)
-acc = np_utils.accuracy(classes, y_test)
 print('Test accuracy:', acc)
-
