@@ -17,7 +17,10 @@ class Embedding(Layer):
         @input_dim: size of vocabulary (highest input integer + 1)
         @out_dim: size of dense representation
     '''
-    def __init__(self, input_dim, output_dim, init='uniform', weights=None, W_regularizer=None, W_constraint=None, mask_zero=False):
+    def __init__(self, input_dim, output_dim, init='uniform',
+        W_regularizer=None, activity_regularizer=None, W_constraint=None,
+        mask_zero=False, weights=None):
+
         super(Embedding,self).__init__()
         self.init = initializations.get(init)
         self.input_dim = input_dim
@@ -29,7 +32,14 @@ class Embedding(Layer):
 
         self.params = [self.W]
         self.constraints = [W_constraint]
-        self.regularizers = [W_regularizer]
+
+        self.regularizers = []
+        if W_regularizer:
+            W_regularizer.set_param(self.W)
+            self.regularizers.append(W_regularizer)
+        if activity_regularizer:
+            activity_regularizer.set_layer(self)
+            self.regularizers.append(activity_regularizer)
 
         if weights is not None:
             self.set_weights(weights)

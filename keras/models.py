@@ -96,7 +96,6 @@ class Model(object):
 
         train_loss = self.loss(self.y, self.y_train, self.weights)
         test_score = self.loss(self.y, self.y_test, self.weights)
-
         
         if class_mode == "categorical":
             train_accuracy = T.mean(T.eq(T.argmax(self.y, axis=-1), T.argmax(self.y_train, axis=-1)))
