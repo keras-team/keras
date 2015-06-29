@@ -20,7 +20,7 @@ class Layer(object):
         self.params = []
 
     def connect(self, layer):
-        if layer.get_output_mask() is not None and not self.supports_masked_input():
+        if not hasattr(self, "get_output_mask") and layer.get_output_mask() is not None:
             raise Exception("Attached non-masking layer to layer with masked output")
         self.previous = layer
 
