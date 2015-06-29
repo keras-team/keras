@@ -21,14 +21,14 @@ def pad_sequences(sequences, maxlen=None, dtype='int32', padding='pre'):
     nb_samples = len(sequences)
     if maxlen is None:
         maxlen = np.max(lengths)
-
-    array_like = isinstance(sequences[0][0], np.ndarray)
-
-    if array_like:
-        try:
-            dim = len(sequences[0][0])
-        except:
-            raise Exception('"sequences" input to preprocessing.sequence.pad_sequences should be a non-empty list of non-empty sequences (scalars or arrays)')
+    
+    array_like = True
+    try:
+        dim = len(sequences[0][0])
+    except TypeError:
+        array_like = False
+    except IndexError:
+        raise Exception('"sequences" input to preprocessing.sequence.pad_sequences should be a non-empty list of non-empty sequences (scalars or arrays)')
 
     if not array_like:
         x = np.zeros((nb_samples, maxlen)).astype(dtype)
