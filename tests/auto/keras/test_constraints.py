@@ -16,5 +16,25 @@ class TestConstraints(unittest.TestCase):
             normed = norm_instance(self.example_array)
             assert(np.all(normed.eval() < m))
 
+    def test_nonneg(self):
+        from keras.constraints import nonneg
+
+        normed = nonneg(self.example_array)
+        assert(np.all(np.min(normed.eval(),axis=1) == 0.))
+
+    def test_identity(self):
+        from keras.constraints import identity
+
+        normed = identity(self.example_array)
+        assert(np.all(normed == self.example_array))
+
+    def test_unitnorm(self):
+        from keras.constraints import unitnorm
+
+        normed = unitnorm(self.example_array)
+        self.assertAlmostEqual(
+            np.max(np.abs(np.sqrt(np.sum(normed.eval()**2,axis=1))-1.))
+            ,0.)
+
 if __name__ == '__main__':
     unittest.main()
