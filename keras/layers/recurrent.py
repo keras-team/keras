@@ -5,7 +5,7 @@ import theano.tensor as T
 import numpy as np
 
 from .. import activations, initializations
-from ..utils.theano_utils import shared_scalar, shared_zeros, alloc_zeros_matrix
+from ..utils.theano_utils import sharedX, shared_scalar, shared_zeros, shared_ones, alloc_zeros_matrix
 from ..layers.core import Layer, MaskedLayer
 from six.moves import range
 
@@ -324,7 +324,7 @@ class LSTM(Recurrent):
     def __init__(self, input_dim, output_dim=128, 
         init='glorot_uniform', inner_init='orthogonal', 
         activation='tanh', inner_activation='hard_sigmoid',
-        weights=None, truncate_gradient=-1, return_sequences=False):
+        weights=None, initial_forget_bias=1., truncate_gradient=-1, return_sequences=False):
     
         super(LSTM,self).__init__()
         self.input_dim = input_dim
@@ -344,7 +344,7 @@ class LSTM(Recurrent):
 
         self.W_f = self.init((self.input_dim, self.output_dim))
         self.U_f = self.inner_init((self.output_dim, self.output_dim))
-        self.b_f = shared_zeros((self.output_dim))
+        self.b_f = sharedX(np.ones(self.output_dim) * initial_forget_bias)
 
         self.W_c = self.init((self.input_dim, self.output_dim))
         self.U_c = self.inner_init((self.output_dim, self.output_dim))
