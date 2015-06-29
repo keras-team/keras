@@ -322,7 +322,7 @@ class LSTM(Recurrent):
                 http://www.cs.toronto.edu/~graves/preprint.pdf
     '''
     def __init__(self, input_dim, output_dim=128, 
-        init='glorot_uniform', inner_init='orthogonal', 
+        init='glorot_uniform', inner_init='orthogonal', forget_bias_init='one',
         activation='tanh', inner_activation='hard_sigmoid',
         weights=None, truncate_gradient=-1, return_sequences=False):
     
@@ -334,6 +334,7 @@ class LSTM(Recurrent):
 
         self.init = initializations.get(init)
         self.inner_init = initializations.get(inner_init)
+        self.forget_bias_init = initializations.get(forget_bias_init)
         self.activation = activations.get(activation)
         self.inner_activation = activations.get(inner_activation)
         self.input = T.tensor3()
@@ -344,7 +345,7 @@ class LSTM(Recurrent):
 
         self.W_f = self.init((self.input_dim, self.output_dim))
         self.U_f = self.inner_init((self.output_dim, self.output_dim))
-        self.b_f = shared_zeros((self.output_dim))
+        self.b_f = self.forget_bias_init((self.output_dim))
 
         self.W_c = self.init((self.input_dim, self.output_dim))
         self.U_c = self.inner_init((self.output_dim, self.output_dim))
@@ -409,6 +410,7 @@ class LSTM(Recurrent):
             "output_dim":self.output_dim,
             "init":self.init.__name__,
             "inner_init":self.inner_init.__name__,
+            "forget_bias_init":self.forget_bias_init.__name__,
             "activation":self.activation.__name__,
             "inner_activation":self.inner_activation.__name__,
             "truncate_gradient":self.truncate_gradient,
