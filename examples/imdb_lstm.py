@@ -1,7 +1,7 @@
 from __future__ import absolute_import
 from __future__ import print_function
 import numpy as np
-np.random.seed(1337) # for reproducibility
+#np.random.seed(1337) # for reproducibility
 
 from keras.preprocessing import sequence
 from keras.optimizers import SGD, RMSprop, Adagrad
@@ -48,7 +48,7 @@ print('X_test shape:', X_test.shape)
 
 print('Build model...')
 model = Sequential()
-model.add(Embedding(max_features, 128))
+model.add(Embedding(max_features, 128, mask_zero=True))
 model.add(LSTM(128, 128)) # try using a GRU instead, for fun
 model.add(Dropout(0.5))
 model.add(Dense(128, 1))
