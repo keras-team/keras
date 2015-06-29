@@ -20,6 +20,8 @@ class Layer(object):
         self.params = []
 
     def connect(self, layer):
+        if layer.get_output_mask() is not None and not self.supports_masked_input():
+            raise Exception("Attached non-masking layer to layer with masked output")
         self.previous = layer
 
     def get_output(self, train):
@@ -30,6 +32,12 @@ class Layer(object):
             return self.previous.get_output(train=train)
         else:
             return self.input
+
+    def supports_masked_input(self):
+        return False
+
+    def get_output_mask(self, train=None):
+        return None
 
     def set_weights(self, weights):
         for p, w in zip(self.params, weights):
@@ -66,6 +74,21 @@ class Layer(object):
             consts += [constraints.identity() for _ in range(len(self.params))]
 
         return self.params, regularizers, consts
+
+class MaskedLayer(Layer):
+    def supports_masked_input(self):
+        return True
+
+    def get_input_mask(self, train=None):
+        if hasattr(self, 'previous'):
+            return self.previous.get_output_mask(train)
+        else:
+            return None
+
+    def get_output_mask(self, train=None):
+        ''' The default output mask is just the input mask unchanged. Override this in your own
+        implementations if, for instance, you are reshaping the input'''
+        return self.get_input_mask(train)
 
 
 class Merge(object): 
@@ -135,12 +158,12 @@ class Merge(object):
             "mode":self.mode}
 
 
-class Dropout(Layer):
+class Dropout(MaskedLayer):
     '''
         Hinton's dropout.
     '''
     def __init__(self, p):
-        super(Dropout,self).__init__()
+        super(Dropout, self).__init__()
         self.p = p
 
     def get_output(self, train):
@@ -158,12 +181,12 @@ class Dropout(Layer):
             "p":self.p}
 
 
-class Activation(Layer):
+class Activation(MaskedLayer):
     '''
         Apply an activation function to an output.
     '''
     def __init__(self, activation, target=0, beta=0.1):
-        super(Activation,self).__init__()
+        super(Activation, self).__init__()
         self.activation = activations.get(activation)
         self.target = target
         self.beta = beta
@@ -186,7 +209,7 @@ class Reshape(Layer):
         First dimension is assumed to be nb_samples.
     '''
     def __init__(self, *dims):
-        super(Reshape,self).__init__()
+        super(Reshape, self).__init__()
         self.dims = dims
 
     def get_output(self, train):
@@ -205,7 +228,7 @@ class Flatten(Layer):
         First dimension is assumed to be nb_samples.
     '''
     def __init__(self):
-        super(Flatten,self).__init__()
+        super(Flatten, self).__init__()
 
     def get_output(self, train):
         X = self.get_input(train)
@@ -222,7 +245,7 @@ class RepeatVector(Layer):
         Return tensor of shape (nb_samples, n, dim).
     '''
     def __init__(self, n):
-        super(RepeatVector,self).__init__()
+        super(RepeatVector, self).__init__()
         self.n = n
 
     def get_output(self, train):
@@ -243,7 +266,7 @@ class Dense(Layer):
     def __init__(self, input_dim, output_dim, init='glorot_uniform', activation='linear', weights=None, 
         W_regularizer=None, b_regularizer=None, activity_regularizer=None, W_constraint=None, b_constraint=None):
 
-        super(Dense,self).__init__()
+        super(Dense, self).__init__()
         self.init = initializations.get(init)
         self.activation = activations.get(activation)
         self.input_dim = input_dim
@@ -307,7 +330,7 @@ class ActivityRegularization(Layer):
             "l2":self.l2}
 
 
-class TimeDistributedDense(Layer):
+class TimeDistributedDense(MaskedLayer):
     '''
        Apply a same DenseLayer for each dimension[1] (shared_dimension) input
        Especially useful after a recurrent network with 'return_sequence=True'
@@ -318,7 +341,7 @@ class TimeDistributedDense(Layer):
     def __init__(self, input_dim, output_dim, init='glorot_uniform', activation='linear', weights=None, 
         W_regularizer=None, b_regularizer=None, activity_regularizer=None, W_constraint=None, b_constraint=None):
 
-        super(TimeDistributedDense,self).__init__()
+        super(TimeDistributedDense, self).__init__()
         self.init = initializations.get(init)
         self.activation = activations.get(activation)
         self.input_dim = input_dim
@@ -351,6 +374,7 @@ class TimeDistributedDense(Layer):
         output = self.activation(T.dot(X.dimshuffle(1, 0, 2), self.W) + self.b)
         return output.dimshuffle(1, 0, 2)
 
+
     def get_config(self):
         return {"name":self.__class__.__name__,
             "input_dim":self.input_dim,
@@ -366,7 +390,7 @@ class AutoEncoder(Layer):
     '''
     def __init__(self, encoder, decoder, output_reconstruction=True, tie_weights=False, weights=None):
 
-        super(AutoEncoder,self).__init__()
+        super(AutoEncoder, self).__init__()
 
         self.output_reconstruction = output_reconstruction
         self.tie_weights = tie_weights
@@ -472,7 +496,7 @@ class MaxoutDense(Layer):
     def __init__(self, input_dim, output_dim, nb_feature=4, init='glorot_uniform', weights=None, 
         W_regularizer=None, b_regularizer=None, activity_regularizer=None, W_constraint=None, b_constraint=None):
 
-        super(MaxoutDense,self).__init__()
+        super(MaxoutDense, self).__init__()
         self.init = initializations.get(init)
         self.input_dim = input_dim
         self.output_dim = output_dim

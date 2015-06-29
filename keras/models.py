@@ -20,7 +20,7 @@ def standardize_y(y):
     if not hasattr(y, 'shape'):
         y = np.asarray(y)
     if len(y.shape) == 1:
-        y = np.reshape(y, (len(y), 1))
+        y = np.expand_dims(y, 1)
     return y
 
 
@@ -49,29 +49,38 @@ def slice_X(X, start=None, stop=None):
             return X[start:stop]
 
 
-def calculate_loss_weights(Y, sample_weight=None, class_weight=None):
+def weighted_objective(fn):
+    def weighted(y_true, y_pred, weights):
+        # it's important that 0 * Inf == 0, not NaN, so I need to mask first
+        masked_y_true = y_true[weights.nonzero()[:-1]]
+        masked_y_pred = y_pred[weights.nonzero()[:-1]]
+        masked_weights = weights[weights.nonzero()]
+        obj_output = fn(masked_y_true, masked_y_pred)
+        return (masked_weights.flatten() * obj_output.flatten()).mean()
+    return weighted
+
+
+def standardize_weights(y, sample_weight=None, class_weight=None):
     if sample_weight is not None:
-        if isinstance(sample_weight, list):
-            w = np.array(sample_weight)
-        else:
-            w = sample_weight
+        return standardize_y(sample_weight)
     elif isinstance(class_weight, dict):
-        if Y.shape[1] > 1:
-            y_classes = Y.argmax(axis=1)
-        elif Y.shape[1] == 1:
-            y_classes = np.reshape(Y, Y.shape[0])
+        if len(y.shape) > 2:
+            raise Exception('class_weight not supported for 3+ dimensional targets.')
+        if y.shape[1] > 1:
+            y_classes = y.argmax(axis=1)
+        elif y.shape[1] == 1:
+            y_classes = np.reshape(y, y.shape[0])
         else:
-            y_classes = Y
-        w = np.array(list(map(lambda x: class_weight[x], y_classes)))
+            y_classes = y
+        return np.expand_dims(np.array(list(map(lambda x: class_weight[x], y_classes))), 1)
     else:
-        w = np.ones((Y.shape[0]))
-    return w
+        return np.ones(y.shape[:-1] + (1,))
 
 
 class Model(object):
     def compile(self, optimizer, loss, class_mode="categorical", theano_mode=None):
         self.optimizer = optimizers.get(optimizer)
-        self.loss = objectives.get(loss)
+        self.loss = weighted_objective(objectives.get(loss))
 
         # input of model 
         self.X_train = self.get_input(train=True)
@@ -83,9 +92,12 @@ class Model(object):
         # target of model
         self.y = T.zeros_like(self.y_train)
 
-        train_loss = self.loss(self.y, self.y_train)
-        test_score = self.loss(self.y, self.y_test)
+        self.weights = T.ones_like(self.y_train)
 
+        train_loss = self.loss(self.y, self.y_train, self.weights)
+        test_score = self.loss(self.y, self.y_test, self.weights)
+
+        
         if class_mode == "categorical":
             train_accuracy = T.mean(T.eq(T.argmax(self.y, axis=-1), T.argmax(self.y_train, axis=-1)))
             test_accuracy = T.mean(T.eq(T.argmax(self.y, axis=-1), T.argmax(self.y_test, axis=-1)))
@@ -102,12 +114,12 @@ class Model(object):
         updates = self.optimizer.get_updates(self.params, self.constraints, train_loss)
 
         if type(self.X_train) == list:
-            train_ins = self.X_train + [self.y]
-            test_ins = self.X_test + [self.y]
+            train_ins = self.X_train + [self.y, self.weights]
+            test_ins = self.X_test + [self.y, self.weights]
             predict_ins = self.X_test
         else:
-            train_ins = [self.X_train, self.y]
-            test_ins = [self.X_test, self.y]
+            train_ins = [self.X_train, self.y, self.weights]
+            test_ins = [self.X_test, self.y, self.weights]
             predict_ins = [self.X_test]
 
         self._train = theano.function(train_ins, train_loss, 
@@ -122,11 +134,16 @@ class Model(object):
             allow_input_downcast=True, mode=theano_mode)
 
 
-    def train(self, X, y, accuracy=False):
+    def train(self, X, y, accuracy=False, sample_weight=None):
         X = standardize_X(X)
         y = standardize_y(y)
 
-        ins = X + [y]
+        if sample_weight is None:
+            sample_weight = np.ones(list(y.shape[0:-1]) + [1])
+        else:
+            sample_weight = standardize_y(sample_weight)
+
+        ins = X + [y, sample_weight]
         if accuracy:
             return self._train_with_acc(*ins)
         else:
@@ -144,10 +161,12 @@ class Model(object):
 
 
     def fit(self, X, y, batch_size=128, nb_epoch=100, verbose=1, callbacks=[],
-            validation_split=0., validation_data=None, shuffle=True, show_accuracy=False):
+            validation_split=0., validation_data=None, shuffle=True, show_accuracy=False, 
+            class_weight=None, sample_weight=None):
 
         X = standardize_X(X)
         y = standardize_y(y)
+        sample_weight = standardize_weights(y, class_weight=class_weight, sample_weight=sample_weight)
 
         do_validation = False
         if validation_data:
@@ -159,6 +178,7 @@ class Model(object):
             do_validation = True
             X_val = standardize_X(X_val)
             y_val = standardize_y(y_val)
+            
             if verbose:
                 print("Train on %d samples, validate on %d samples" % (len(y), len(y_val)))
         else:
@@ -169,7 +189,8 @@ class Model(object):
                 do_validation = True
                 split_at = int(len(y) * (1 - validation_split))
                 (X, X_val) = (slice_X(X, 0, split_at), slice_X(X, split_at))
-                (y, y_val) = (y[0:split_at], y[split_at:])
+                (y, y_val) = (y[:split_at], y[split_at:])
+                sample_weight = sample_weight[:split_at]
                 if verbose:
                     print("Train on %d samples, validate on %d samples" % (len(y), len(y_val)))
 
@@ -201,13 +222,14 @@ class Model(object):
                 batch_ids = index_array[batch_start:batch_end]
                 X_batch = slice_X(X, batch_ids)
                 y_batch = y[batch_ids]
+                weight_batch = sample_weight[batch_ids]
 
                 batch_logs = {}
                 batch_logs['batch'] = batch_index
                 batch_logs['size'] = len(batch_ids)
                 callbacks.on_batch_begin(batch_index, batch_logs)
 
-                ins = X_batch + [y_batch]
+                ins = X_batch + [y_batch, weight_batch]
                 if show_accuracy:
                     loss, acc = self._train_with_acc(*ins)
                     batch_logs['accuracy'] = acc
@@ -272,9 +294,10 @@ class Model(object):
             return (proba > 0.5).astype('int32')
 
 
-    def evaluate(self, X, y, batch_size=128, show_accuracy=False, verbose=1):
+    def evaluate(self, X, y, batch_size=128, show_accuracy=False, verbose=1, sample_weight=None):
         X = standardize_X(X)
         y = standardize_y(y)
+        sample_weight = standardize_weights(y, sample_weight=sample_weight)
 
         if show_accuracy:
             tot_acc = 0.
@@ -287,8 +310,9 @@ class Model(object):
         for batch_index, (batch_start, batch_end) in enumerate(batches):
             X_batch = slice_X(X, batch_start, batch_end)
             y_batch = y[batch_start:batch_end]
+            weight_batch = sample_weight[batch_start:batch_end]
 
-            ins = X_batch + [y_batch]
+            ins = X_batch + [y_batch, weight_batch]
             if show_accuracy:
                 loss, acc = self._test_with_acc(*ins)
                 tot_acc += acc * len(y_batch)

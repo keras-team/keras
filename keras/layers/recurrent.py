@@ -5,11 +5,35 @@ import theano.tensor as T
 import numpy as np
 
 from .. import activations, initializations
-from ..utils.theano_utils import shared_zeros, alloc_zeros_matrix
-from ..layers.core import Layer
+from ..utils.theano_utils import shared_scalar, shared_zeros, alloc_zeros_matrix
+from ..layers.core import Layer, MaskedLayer
 from six.moves import range
 
-class SimpleRNN(Layer):
+class Recurrent(MaskedLayer):
+    def get_output_mask(self, train=None):
+        if self.return_sequences:
+            return super(Recurrent, self).get_output_mask(train)
+        else:
+            return None
+
+    def get_padded_shuffled_mask(self, train, X, pad=0):
+        mask = self.get_input_mask(train)
+        if mask is None:
+            mask = T.ones_like(X.sum(axis=-1)) # is there a better way to do this without a sum?
+
+        # mask is (nb_samples, time)
+        mask = T.shape_padright(mask) # (nb_samples, time, 1)
+        mask = T.addbroadcast(mask, -1) # (time, nb_samples, 1) matrix.
+        mask = mask.dimshuffle(1, 0, 2) # (time, nb_samples, 1)
+
+        if pad > 0:
+            # left-pad in time with 0
+            padding = alloc_zeros_matrix(pad, mask.shape[1], 1)
+            mask = T.concatenate([padding, mask], axis=0)
+        return mask.astype('int8')
+
+
+class SimpleRNN(Recurrent):
     '''
         Fully connected RNN where output is to fed back to input.
 
@@ -20,6 +44,7 @@ class SimpleRNN(Layer):
     def __init__(self, input_dim, output_dim, 
         init='glorot_uniform', inner_init='orthogonal', activation='sigmoid', weights=None,
         truncate_gradient=-1, return_sequences=False):
+
         super(SimpleRNN,self).__init__()
         self.init = initializations.get(init)
         self.inner_init = initializations.get(inner_init)
@@ -38,19 +63,19 @@ class SimpleRNN(Layer):
         if weights is not None:
             self.set_weights(weights)
 
-    def _step(self, x_t, h_tm1, u):
+    def _step(self, x_t, mask_tm1, h_tm1, u):
         '''
             Variable names follow the conventions from: 
             http://deeplearning.net/software/theano/library/scan.html
 
         '''
-        return self.activation(x_t + T.dot(h_tm1, u))
+        return self.activation(x_t + mask_tm1 * T.dot(h_tm1, u))
 
     def get_output(self, train):
-        X = self.get_input(train) # shape: (nb_samples, time (padded with zeros at the end), input_dim)
+        X = self.get_input(train) # shape: (nb_samples, time (padded with zeros), input_dim)
         # new shape: (time, nb_samples, input_dim) -> because theano.scan iterates over main dimension
-        X = X.dimshuffle((1,0,2)) 
-
+        padded_mask = self.get_padded_shuffled_mask(train, X, pad=1)
+        X = X.dimshuffle((1, 0, 2)) 
         x = T.dot(X, self.W) + self.b
         
         # scan = theano symbolic loop.
@@ -58,14 +83,15 @@ class SimpleRNN(Layer):
         # Iterate over the first dimension of the x array (=time).
         outputs, updates = theano.scan(
             self._step, # this will be called with arguments (sequences[i], outputs[i-1], non_sequences[i])
-            sequences=x, # tensors to iterate over, inputs to _step
+            sequences=[x, dict(input=padded_mask, taps=[-1])], # tensors to iterate over, inputs to _step
             # initialization of the output. Input to _step with default tap=-1.
             outputs_info=T.unbroadcast(alloc_zeros_matrix(X.shape[1], self.output_dim), 1),
             non_sequences=self.U, # static inputs to _step
             truncate_gradient=self.truncate_gradient
         )
+
         if self.return_sequences:
-            return outputs.dimshuffle((1,0,2))
+            return outputs.dimshuffle((1, 0, 2))
         return outputs[-1]
 
     def get_config(self):
@@ -79,7 +105,7 @@ class SimpleRNN(Layer):
             "return_sequences":self.return_sequences}
 
 
-class SimpleDeepRNN(Layer):
+class SimpleDeepRNN(Recurrent):
     '''
         Fully connected RNN where the output of multiple timesteps 
         (up to "depth" steps in the past) is fed back to the input:
@@ -93,6 +119,7 @@ class SimpleDeepRNN(Layer):
         init='glorot_uniform', inner_init='orthogonal', 
         activation='sigmoid', inner_activation='hard_sigmoid',
         weights=None, truncate_gradient=-1, return_sequences=False):
+
         super(SimpleDeepRNN,self).__init__()
         self.init = initializations.get(init)
         self.inner_init = initializations.get(inner_init)
@@ -113,30 +140,43 @@ class SimpleDeepRNN(Layer):
         if weights is not None:
             self.set_weights(weights)
 
-    def _step(self, *args):
-        o = args[0]
-        for i in range(1, self.depth+1):
-            o += self.inner_activation(T.dot(args[i], args[i+self.depth]))
+    def _step(self, x_t, *args):
+        o = x_t
+        for i in range(self.depth):
+            mask_tmi = args[i]
+            h_tmi = args[i + self.depth]
+            U_tmi = args[i + 2*self.depth]
+            o += mask_tmi*self.inner_activation(T.dot(h_tmi, U_tmi))
         return self.activation(o)
 
     def get_output(self, train):
         X = self.get_input(train)
-        X = X.dimshuffle((1,0,2)) 
+        padded_mask = self.get_padded_shuffled_mask(train, X, pad=self.depth)
+        X = X.dimshuffle((1, 0, 2)) 
 
         x = T.dot(X, self.W) + self.b
         
+        if self.depth == 1:
+            initial = T.unbroadcast(alloc_zeros_matrix(X.shape[1], self.output_dim), 1)
+        else:
+            initial = T.unbroadcast(T.unbroadcast(alloc_zeros_matrix(self.depth, X.shape[1], self.output_dim), 0), 2)
+
         outputs, updates = theano.scan(
             self._step,
-            sequences=x,
+            sequences=[x, dict(
+                input = padded_mask,
+                taps = [(-i) for i in range(self.depth)]
+            )],
             outputs_info=[dict(
-                initial=T.alloc(np.cast[theano.config.floatX](0.), self.depth, X.shape[1], self.output_dim),
+                initial = initial,
                 taps = [(-i-1) for i in range(self.depth)]
             )],
             non_sequences=self.Us,
             truncate_gradient=self.truncate_gradient
         )
+
         if self.return_sequences:
-            return outputs.dimshuffle((1,0,2))
+            return outputs.dimshuffle((1, 0, 2))
         return outputs[-1]
 
     def get_config(self):
@@ -152,8 +192,7 @@ class SimpleDeepRNN(Layer):
             "return_sequences":self.return_sequences}
 
 
-
-class GRU(Layer):
+class GRU(Recurrent):
     '''
         Gated Recurrent Unit - Cho et al. 2014
 
@@ -214,31 +253,34 @@ class GRU(Layer):
             self.set_weights(weights)
 
     def _step(self, 
-        xz_t, xr_t, xh_t, 
+        xz_t, xr_t, xh_t, mask_tm1,
         h_tm1, 
         u_z, u_r, u_h):
-        z = self.inner_activation(xz_t + T.dot(h_tm1, u_z))
-        r = self.inner_activation(xr_t + T.dot(h_tm1, u_r))
-        hh_t = self.activation(xh_t + T.dot(r * h_tm1, u_h))
-        h_t = z * h_tm1 + (1 - z) * hh_t
+        h_mask_tm1 = mask_tm1 * h_tm1
+        z = self.inner_activation(xz_t + T.dot(h_mask_tm1, u_z))
+        r = self.inner_activation(xr_t + T.dot(h_mask_tm1, u_r))
+        hh_t = self.activation(xh_t + T.dot(r * h_mask_tm1, u_h))
+        h_t = z * h_mask_tm1 + (1 - z) * hh_t
         return h_t
 
     def get_output(self, train):
         X = self.get_input(train) 
-        X = X.dimshuffle((1,0,2)) 
+        padded_mask = self.get_padded_shuffled_mask(train, X, pad=1)
+        X = X.dimshuffle((1, 0, 2)) 
 
         x_z = T.dot(X, self.W_z) + self.b_z
         x_r = T.dot(X, self.W_r) + self.b_r
         x_h = T.dot(X, self.W_h) + self.b_h
         outputs, updates = theano.scan(
             self._step, 
-            sequences=[x_z, x_r, x_h], 
+            sequences=[x_z, x_r, x_h, padded_mask], 
             outputs_info=T.unbroadcast(alloc_zeros_matrix(X.shape[1], self.output_dim), 1),
             non_sequences=[self.U_z, self.U_r, self.U_h],
             truncate_gradient=self.truncate_gradient
         )
+
         if self.return_sequences:
-            return outputs.dimshuffle((1,0,2))
+            return outputs.dimshuffle((1, 0, 2))
         return outputs[-1]
 
     def get_config(self):
@@ -254,7 +296,7 @@ class GRU(Layer):
 
 
 
-class LSTM(Layer):
+class LSTM(Recurrent):
     '''
         Acts as a spatiotemporal projection,
         turning a sequence of vectors into a single vector.
@@ -323,19 +365,23 @@ class LSTM(Layer):
             self.set_weights(weights)
 
     def _step(self, 
-        xi_t, xf_t, xo_t, xc_t, 
+        xi_t, xf_t, xo_t, xc_t, mask_tm1,
         h_tm1, c_tm1, 
         u_i, u_f, u_o, u_c): 
-        i_t = self.inner_activation(xi_t + T.dot(h_tm1, u_i))
-        f_t = self.inner_activation(xf_t + T.dot(h_tm1, u_f))
-        c_t = f_t * c_tm1 + i_t * self.activation(xc_t + T.dot(h_tm1, u_c))
-        o_t = self.inner_activation(xo_t + T.dot(h_tm1, u_o))
+        h_mask_tm1 = mask_tm1 * h_tm1
+        c_mask_tm1 = mask_tm1 * c_tm1
+
+        i_t = self.inner_activation(xi_t + T.dot(h_mask_tm1, u_i))
+        f_t = self.inner_activation(xf_t + T.dot(h_mask_tm1, u_f))
+        c_t = f_t * c_mask_tm1 + i_t * self.activation(xc_t + T.dot(h_mask_tm1, u_c))
+        o_t = self.inner_activation(xo_t + T.dot(h_mask_tm1, u_o))
         h_t = o_t * self.activation(c_t)
         return h_t, c_t
 
     def get_output(self, train):
         X = self.get_input(train) 
-        X = X.dimshuffle((1,0,2))
+        padded_mask = self.get_padded_shuffled_mask(train, X, pad=1)
+        X = X.dimshuffle((1, 0, 2))
 
         xi = T.dot(X, self.W_i) + self.b_i
         xf = T.dot(X, self.W_f) + self.b_f
@@ -344,7 +390,7 @@ class LSTM(Layer):
         
         [outputs, memories], updates = theano.scan(
             self._step, 
-            sequences=[xi, xf, xo, xc],
+            sequences=[xi, xf, xo, xc, padded_mask],
             outputs_info=[
                 T.unbroadcast(alloc_zeros_matrix(X.shape[1], self.output_dim), 1),
                 T.unbroadcast(alloc_zeros_matrix(X.shape[1], self.output_dim), 1)
@@ -352,8 +398,9 @@ class LSTM(Layer):
             non_sequences=[self.U_i, self.U_f, self.U_o, self.U_c], 
             truncate_gradient=self.truncate_gradient 
         )
+
         if self.return_sequences:
-            return outputs.dimshuffle((1,0,2))
+            return outputs.dimshuffle((1, 0, 2))
         return outputs[-1]
 
     def get_config(self):
@@ -369,7 +416,7 @@ class LSTM(Layer):
 
 
 
-class JZS1(Layer):
+class JZS1(Recurrent):
     '''
         Evolved recurrent neural network architectures from the evaluation of thousands
         of models, serving as alternatives to LSTMs and GRUs. See Jozefowicz et al. 2015.
@@ -434,31 +481,33 @@ class JZS1(Layer):
             self.set_weights(weights)
 
     def _step(self, 
-        xz_t, xr_t, xh_t, 
+        xz_t, xr_t, xh_t, mask_tm1,
         h_tm1, 
         u_r, u_h):
+        h_mask_tm1 = mask_tm1 * h_tm1
         z = self.inner_activation(xz_t)
-        r = self.inner_activation(xr_t + T.dot(h_tm1, u_r))
-        hh_t = self.activation(xh_t + T.dot(r * h_tm1, u_h))
-        h_t = hh_t * z + h_tm1 * (1 - z)
+        r = self.inner_activation(xr_t + T.dot(h_mask_tm1, u_r))
+        hh_t = self.activation(xh_t + T.dot(r * h_mask_tm1, u_h))
+        h_t = hh_t * z + h_mask_tm1 * (1 - z)
         return h_t
 
     def get_output(self, train):
         X = self.get_input(train) 
-        X = X.dimshuffle((1,0,2)) 
+        padded_mask = self.get_padded_shuffled_mask(train, X, pad=1)
+        X = X.dimshuffle((1, 0, 2))
 
         x_z = T.dot(X, self.W_z) + self.b_z
         x_r = T.dot(X, self.W_r) + self.b_r
         x_h = T.tanh(T.dot(X, self.Pmat)) + self.b_h
         outputs, updates = theano.scan(
             self._step, 
-            sequences=[x_z, x_r, x_h], 
+            sequences=[x_z, x_r, x_h, padded_mask],
             outputs_info=T.unbroadcast(alloc_zeros_matrix(X.shape[1], self.output_dim), 1),
             non_sequences=[self.U_r, self.U_h],
             truncate_gradient=self.truncate_gradient
         )
         if self.return_sequences:
-            return outputs.dimshuffle((1,0,2))
+            return outputs.dimshuffle((1, 0, 2))
         return outputs[-1]
 
     def get_config(self):
@@ -474,7 +523,7 @@ class JZS1(Layer):
 
 
 
-class JZS2(Layer):
+class JZS2(Recurrent):
     '''
         Evolved recurrent neural network architectures from the evaluation of thousands
         of models, serving as alternatives to LSTMs and GRUs. See Jozefowicz et al. 2015.
@@ -540,31 +589,33 @@ class JZS2(Layer):
             self.set_weights(weights)
 
     def _step(self, 
-        xz_t, xr_t, xh_t, 
+        xz_t, xr_t, xh_t, mask_tm1,
         h_tm1, 
         u_z, u_r, u_h):
-        z = self.inner_activation(xz_t + T.dot(h_tm1, u_z))
-        r = self.inner_activation(xr_t + T.dot(h_tm1, u_r))
-        hh_t = self.activation(xh_t + T.dot(r * h_tm1, u_h))
-        h_t = hh_t * z + h_tm1 * (1 - z)
+        h_mask_tm1 = mask_tm1 * h_tm1
+        z = self.inner_activation(xz_t + T.dot(h_mask_tm1, u_z))
+        r = self.inner_activation(xr_t + T.dot(h_mask_tm1, u_r))
+        hh_t = self.activation(xh_t + T.dot(r * h_mask_tm1, u_h))
+        h_t = hh_t * z + h_mask_tm1 * (1 - z)
         return h_t
 
     def get_output(self, train):
-        X = self.get_input(train) 
-        X = X.dimshuffle((1,0,2)) 
+        X = self.get_input(train)
+        padded_mask = self.get_padded_shuffled_mask(train, X, pad=1)
+        X = X.dimshuffle((1, 0, 2)) 
 
         x_z = T.dot(X, self.W_z) + self.b_z
         x_r = T.dot(X, self.Pmat) + self.b_r
         x_h = T.dot(X, self.W_h) + self.b_h
         outputs, updates = theano.scan(
             self._step, 
-            sequences=[x_z, x_r, x_h], 
+            sequences=[x_z, x_r, x_h, padded_mask],
             outputs_info=T.unbroadcast(alloc_zeros_matrix(X.shape[1], self.output_dim), 1),
             non_sequences=[self.U_z, self.U_r, self.U_h],
             truncate_gradient=self.truncate_gradient
         )
         if self.return_sequences:
-            return outputs.dimshuffle((1,0,2))
+            return outputs.dimshuffle((1, 0, 2))
         return outputs[-1]
 
     def get_config(self):
@@ -580,7 +631,7 @@ class JZS2(Layer):
 
 
 
-class JZS3(Layer):
+class JZS3(Recurrent):
     '''
         Evolved recurrent neural network architectures from the evaluation of thousands
         of models, serving as alternatives to LSTMs and GRUs. See Jozefowicz et al. 2015.
@@ -639,31 +690,33 @@ class JZS3(Layer):
             self.set_weights(weights)
 
     def _step(self, 
-        xz_t, xr_t, xh_t, 
+        xz_t, xr_t, xh_t, mask_tm1,
         h_tm1, 
         u_z, u_r, u_h):
-        z = self.inner_activation(xz_t + T.dot(T.tanh(h_tm1), u_z))
-        r = self.inner_activation(xr_t + T.dot(h_tm1, u_r))
-        hh_t = self.activation(xh_t + T.dot(r * h_tm1, u_h))
-        h_t = hh_t * z + h_tm1 * (1 - z)
+        h_mask_tm1 = mask_tm1 * h_tm1
+        z = self.inner_activation(xz_t + T.dot(T.tanh(h_mask_tm1), u_z))
+        r = self.inner_activation(xr_t + T.dot(h_mask_tm1, u_r))
+        hh_t = self.activation(xh_t + T.dot(r * h_mask_tm1, u_h))
+        h_t = hh_t * z + h_mask_tm1 * (1 - z)
         return h_t
 
     def get_output(self, train):
-        X = self.get_input(train) 
-        X = X.dimshuffle((1,0,2)) 
+        X = self.get_input(train)
+        padded_mask = self.get_padded_shuffled_mask(train, X, pad=1)
+        X = X.dimshuffle((1, 0, 2)) 
 
         x_z = T.dot(X, self.W_z) + self.b_z
         x_r = T.dot(X, self.W_r) + self.b_r
         x_h = T.dot(X, self.W_h) + self.b_h
         outputs, updates = theano.scan(
             self._step, 
-            sequences=[x_z, x_r, x_h], 
+            sequences=[x_z, x_r, x_h, padded_mask],
             outputs_info=T.unbroadcast(alloc_zeros_matrix(X.shape[1], self.output_dim), 1),
             non_sequences=[self.U_z, self.U_r, self.U_h],
             truncate_gradient=self.truncate_gradient
         )
         if self.return_sequences:
-            return outputs.dimshuffle((1,0,2))
+            return outputs.dimshuffle((1, 0, 2))
         return outputs[-1]
 
     def get_config(self):
