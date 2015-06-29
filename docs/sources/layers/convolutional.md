@@ -50,7 +50,7 @@ Convolution operator for filtering windows of two-dimensional inputs.
     - __activation__: name of activation function to use (see: [activations](../activations.md)), or alternatively, elementwise Theano function. If you don't specify anything, no activation is applied (ie. "linear" activation: a(x) = x).
     - __weights__: list of numpy arrays to set as initial weights.
     - __border_mode__: 'valid' or 'full'. see scipy.signal.convolve2d.
-    - __subsample_length__: factor by which to subsample output.
+    - __subsample__: tuple of length 2. Factor by which to subsample output. Also called strides elsewhere.
     - __W_regularizer__: instance of [WeightRegularizer](../regularizers.md) (eg. L1 or L2 regularization), applied to the main weights matrix.
     - __b_regularizer__: instance of [WeightRegularizer](../regularizers.md), applied to the bias.
     - __activity_regularizer__: instance of [ActivityRegularizer](../regularizers.md), applied to the network output.
