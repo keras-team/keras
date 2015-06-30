@@ -26,7 +26,6 @@ class TestConstraints(unittest.TestCase):
         x_normed_actual = norm_instance(x).eval()
         assert_allclose(x_normed_actual, x_normed_target)
 
-
     def test_nonneg(self):
         from keras.constraints import nonneg
 
@@ -38,6 +37,17 @@ class TestConstraints(unittest.TestCase):
 
         normed = identity(self.example_array)
         assert (np.all(normed == self.example_array))
+
+    def test_identity_oddballs(self):
+        """
+        test the identity constraint on some more exotic input.
+        this does not need to pass for the desired real life behaviour,
+        but it should in the current implementation.
+        """
+        from keras.constraints import identity
+
+        oddball_examples = ["Hello", [1], -1, None]
+        assert(oddball_examples == identity(oddball_examples))
 
     def test_unitnorm(self):
         from keras.constraints import unitnorm
