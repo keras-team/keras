@@ -1,11 +1,13 @@
 import unittest
 import numpy as np
+from numpy.testing import assert_allclose
 from theano import tensor as T
 
 
 class TestConstraints(unittest.TestCase):
     def setUp(self):
         self.some_values = [0.1, 0.5, 3, 8, 1e-7]
+        np.random.seed(3537)
         self.example_array = np.random.random((100, 100)) * 100. - 50.
         self.example_array[0, 0] = 0.  # 0 could possibly cause trouble
 
@@ -16,6 +18,14 @@ class TestConstraints(unittest.TestCase):
             norm_instance = maxnorm(m)
             normed = norm_instance(self.example_array)
             assert (np.all(normed.eval() < m))
+
+        # a more explicit example
+        norm_instance = maxnorm(2.0)
+        x = np.array([[0, 0, 0], [1.0, 0, 0], [3, 0, 0], [3, 3, 3]]).T
+        x_normed_target = np.array([[0, 0, 0], [1.0, 0, 0], [2.0, 0, 0], [2./np.sqrt(3), 2./np.sqrt(3), 2./np.sqrt(3)]]).T
+        x_normed_actual = norm_instance(x).eval()
+        assert_allclose(x_normed_actual, x_normed_target)
+
 
     def test_nonneg(self):
         from keras.constraints import nonneg
@@ -32,10 +42,12 @@ class TestConstraints(unittest.TestCase):
     def test_unitnorm(self):
         from keras.constraints import unitnorm
 
-        normed = unitnorm(self.example_array)
-        self.assertAlmostEqual(
-            np.max(np.abs(np.sqrt(np.sum(normed.eval() ** 2, axis=1)) - 1.))
-            , 0.)
+        normalized = unitnorm(self.example_array)
+
+        norm_of_normalized = np.sqrt(np.sum(normalized.eval()**2))
+        difference = norm_of_normalized - 1. #in the unit norm constraint, it should be equal to 1.
+        largest_difference = np.max(np.abs(difference))
+        self.assertAlmostEqual(largest_difference, 0.)
 
 
 if __name__ == '__main__':
