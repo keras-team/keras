@@ -25,7 +25,7 @@ class Layer(object):
         self.previous = layer
 
     def get_output(self, train):
-        raise NotImplementedError
+        return self.input
 
     def get_input(self, train):
         if hasattr(self, 'previous'):
@@ -74,6 +74,7 @@ class Layer(object):
             consts += [constraints.identity() for _ in range(len(self.params))]
 
         return self.params, regularizers, consts
+
 
 class MaskedLayer(Layer):
     def supports_masked_input(self):
