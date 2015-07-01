@@ -9,13 +9,11 @@ class BatchNormalization(Layer):
         Reference:
             Batch Normalization: Accelerating Deep Network Training by Reducing Internal Covariate Shift
                 http://arxiv.org/pdf/1502.03167v3.pdf
-
             mode: 0 -> featurewise normalization
                   1 -> samplewise normalization (may sometimes outperform featurewise mode)
-
             momentum: momentum term in the computation of a running estimate of the mean and std of the data
     '''
-    def __init__(self, input_shape=None, epsilon=1e-6, mode=0, momentum=0.9, weights=None):
+    def __init__(self, input_shape, epsilon=1e-6, mode=0, momentum=0.9, weights=None):
         super(BatchNormalization,self).__init__()
         self.init = initializations.get("uniform")
         self.input_shape = input_shape
@@ -23,14 +21,13 @@ class BatchNormalization(Layer):
         self.mode = mode
         self.momentum = momentum
 
-        self.running_mean = None
-        self.running_std = None
-
         self.gamma = self.init((self.input_shape))
         self.beta = shared_zeros(self.input_shape)
 
-        self.params = [self.gamma, self.beta]
+        self.running_mean = None
+        self.running_std = None
 
+        self.params = [self.gamma, self.beta]
         if weights is not None:
             self.set_weights(weights)
 
@@ -65,7 +62,7 @@ class BatchNormalization(Layer):
 
     def get_config(self):
         return {"name":self.__class__.__name__,
-            "input_dim":self.input_dim,
+            "input_shape":self.input_shape,
             "epsilon":self.epsilon,
             "mode":self.mode}
 
