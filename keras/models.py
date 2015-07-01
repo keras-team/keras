@@ -12,6 +12,7 @@ from . import constraints
 from . import callbacks as cbks
 import time, copy
 from .utils.generic_utils import Progbar, printv
+from .layers import containers
 from six.moves import range
 
 
@@ -27,17 +28,6 @@ def make_batches(size, batch_size):
     nb_batch = int(np.ceil(size/float(batch_size)))
     return [(i*batch_size, min(size, (i+1)*batch_size)) for i in range(0, nb_batch)]
 
-<<<<<<< HEAD
-def ndim_tensor(ndim):
-    if ndim == 2:
-        return T.matrix()
-    elif ndim == 3:
-        return T.tensor3()
-    elif ndim == 4:
-        return T.tensor4()
-    return T.matrix()
-=======
->>>>>>> upstream/master
 
 def standardize_X(X):
     if type(X) == list:
@@ -59,10 +49,6 @@ def slice_X(X, start=None, stop=None):
             return X[start:stop]
 
 
-<<<<<<< HEAD
-
-def calculate_loss_weights(Y, sample_weight=None, class_weight=None):
-=======
 def weighted_objective(fn):
     def weighted(y_true, y_pred, weights):
         # it's important that 0 * Inf == 0, not NaN, so I need to mask first
@@ -75,7 +61,6 @@ def weighted_objective(fn):
 
 
 def standardize_weights(y, sample_weight=None, class_weight=None):
->>>>>>> upstream/master
     if sample_weight is not None:
         return standardize_y(sample_weight)
     elif isinstance(class_weight, dict):
@@ -111,7 +96,7 @@ class Model(object):
 
         train_loss = self.loss(self.y, self.y_train, self.weights)
         test_score = self.loss(self.y, self.y_test, self.weights)
-        
+
         if class_mode == "categorical":
             train_accuracy = T.mean(T.eq(T.argmax(self.y, axis=-1), T.argmax(self.y_train, axis=-1)))
             test_accuracy = T.mean(T.eq(T.argmax(self.y, axis=-1), T.argmax(self.y_test, axis=-1)))
@@ -148,59 +133,6 @@ class Model(object):
             allow_input_downcast=True, mode=theano_mode)
 
 
-<<<<<<< HEAD
-class Sequential(Model):
-    def __init__(self):
-        self.layers = []
-        self.params = [] # learnable
-        self.regularizers = [] # same size as params
-        self.constraints = [] # same size as params
-        self.layer_nb = {} # maps layer name to a layer number in self.layers
-
-
-    def add(self, layer):
-        self.layers.append(layer)
-
-        if layer.name is not None:
-            self.layer_nb[layer.name] = len(self.layers) - 1
-
-        if len(self.layers) > 1:
-            if layer.prev_name is None:
-                prev_layers = [self.layers[-2]] # no previous layer name provided, layer is connected to last added layer
-            else:
-                prev_layers = []
-                for prev_layer in layer.prev_name:
-                    prev_layer_nb = self.layer_nb[prev_layer]
-                    prev_layers.append(self.layers[prev_layer_nb])
-
-            self.layers[-1].connect(prev_layers)
-
-        # NOTE: Theano performs graph optimizations that will eliminate the consequent redundancy
-
-        params, regularizers, constraints = layer.get_params()
-        self.params += params
-        self.regularizers += regularizers
-        self.constraints += constraints
-
-    def get_output(self, train=False):
-        return self.layers[-1].get_output(train)
-
-
-    def get_input(self, train=False):
-        if not hasattr(self.layers[0], 'input'):
-            for l in self.layers:
-                if hasattr(l, 'input'):
-                    break
-            ndim = l.input.ndim
-            self.layers[0].input = ndim_tensor(ndim)
-        return self.layers[0].get_input(train)
-
-
-    def train(self, X, y, accuracy=False):
-        X = standardize_X(X)
-        y = standardize_y(y)
-        ins = X + [y]
-=======
     def train(self, X, y, accuracy=False, sample_weight=None):
         X = standardize_X(X)
         y = standardize_y(y)
@@ -211,7 +143,6 @@ class Sequential(Model):
             sample_weight = standardize_y(sample_weight)
 
         ins = X + [y, sample_weight]
->>>>>>> upstream/master
         if accuracy:
             return self._train_with_acc(*ins)
         else:
@@ -230,7 +161,7 @@ class Sequential(Model):
 
 
     def fit(self, X, y, batch_size=128, nb_epoch=100, verbose=1, callbacks=[],
-            validation_split=0., validation_data=None, shuffle=True, show_accuracy=False, 
+            validation_split=0., validation_data=None, shuffle=True, show_accuracy=False,
             class_weight=None, sample_weight=None):
 
         X = standardize_X(X)
@@ -247,7 +178,7 @@ class Sequential(Model):
             do_validation = True
             X_val = standardize_X(X_val)
             y_val = standardize_y(y_val)
-            
+
             if verbose:
                 print("Train on %d samples, validate on %d samples" % (len(y), len(y_val)))
         else:
@@ -265,10 +196,9 @@ class Sequential(Model):
 
         index_array = np.arange(len(y))
 
-        callbacks = cbks.CallbackList(callbacks)
         if verbose:
-            callbacks.append(cbks.BaseLogger())
-            callbacks.append(cbks.History())
+            callbacks = [cbks.BaseLogger()] + callbacks
+        callbacks = cbks.CallbackList([cbks.History()] + callbacks)
 
         callbacks._set_model(self)
         callbacks._set_params({
@@ -281,6 +211,7 @@ class Sequential(Model):
         })
         callbacks.on_train_begin()
 
+        self.stop_training = False
         for epoch in range(nb_epoch):
             callbacks.on_epoch_begin(epoch)
             if shuffle:
@@ -321,16 +252,17 @@ class Sequential(Model):
                         epoch_logs['val_loss'] = val_loss
 
             callbacks.on_epoch_end(epoch, epoch_logs)
+            if self.stop_training:
+                break
 
         callbacks.on_train_end()
-        # return history
-        return callbacks.callbacks[-1]
+        return callbacks.callbacks[0] # return history
 
 
     def predict(self, X, batch_size=128, verbose=1):
         X = standardize_X(X)
         batches = make_batches(len(X[0]), batch_size)
-        if verbose==1:
+        if verbose == 1:
             progbar = Progbar(target=len(X[0]))
         for batch_index, (batch_start, batch_end) in enumerate(batches):
             X_batch = slice_X(X, batch_start, batch_end)
@@ -341,7 +273,7 @@ class Sequential(Model):
                 preds = np.zeros(shape)
             preds[batch_start:batch_end] = batch_preds
 
-            if verbose==1:
+            if verbose == 1:
                 progbar.update(batch_end)
 
         return preds
@@ -349,7 +281,7 @@ class Sequential(Model):
 
     def predict_proba(self, X, batch_size=128, verbose=1):
         preds = self.predict(X, batch_size, verbose)
-        if preds.min()<0 or preds.max()>1:
+        if preds.min() < 0 or preds.max() > 1:
             warnings.warn("Network returning invalid probability values.")
         return preds
 
@@ -359,7 +291,7 @@ class Sequential(Model):
         if self.class_mode == "categorical":
             return proba.argmax(axis=-1)
         else:
-            return (proba>0.5).astype('int32')
+            return (proba > 0.5).astype('int32')
 
 
     def evaluate(self, X, y, batch_size=128, show_accuracy=False, verbose=1, sample_weight=None):
@@ -400,6 +332,32 @@ class Sequential(Model):
         else:
             return tot_score / seen
 
+
+class Sequential(Model, containers.Sequential):
+    '''
+        Inherits from Model the following methods:
+            - compile
+            - train
+            - test
+            - evaluate
+            - fit
+            - predict
+            - predict_proba
+            - predict_classes
+        Inherits from containers.Sequential the following methods:
+            - add
+            - get_output
+            - get_input
+            - get_weights
+            - set_weights
+    '''
+    def __init__(self):
+        self.layers = []
+        self.params = [] # learnable
+        self.regularizers = [] # same size as params
+        self.constraints = [] # same size as params
+
+
     def get_config(self, verbose=0):
         layers = []
         for i, l in enumerate(self.layers):
@@ -409,17 +367,6 @@ class Sequential(Model):
             printv(layers)
         return layers
 
-    def get_weights(self):
-        res = []
-        for l in self.layers:
-            res += l.get_weights()
-        return res
-
-    def set_weights(self, weights):
-        for i in range(len(self.layers)):
-            nb_param = len(self.layers[i].params)
-            self.layers[i].set_weights(weights[:nb_param])
-            weights = weights[nb_param:]
 
     def save_weights(self, filepath, overwrite=False):
         # Save weights from all layers to HDF5
@@ -427,7 +374,17 @@ class Sequential(Model):
         import os.path
         # if file exists and should not be overwritten
         if not overwrite and os.path.isfile(filepath):
-            raise IOError('%s already exists' % (filepath))
+            import sys
+            get_input = input
+            if sys.version_info[:2] <= (2, 7):
+                get_input = raw_input
+            overwrite = get_input('[WARNING] %s already exists - overwrite? [y/n]' % (filepath))
+            while overwrite not in ['y', 'n']:
+                overwrite = get_input('Enter "y" (overwrite) or "n" (cancel).')
+            if overwrite == 'n':
+                return
+            print('[TIP] Next time specify overwrite=True in save_weights!')
+
         f = h5py.File(filepath, 'w')
         f.attrs['nb_layers'] = len(self.layers)
         for k, l in enumerate(self.layers):
@@ -451,14 +408,3 @@ class Sequential(Model):
             weights = [g['param_{}'.format(p)] for p in range(g.attrs['nb_params'])]
             self.layers[k].set_weights(weights)
         f.close()
-<<<<<<< HEAD
-
-    def assign_weights(self, weights):
-        '''
-            WARNING: USE THIS ALWAYS POST COMPILATION IF LAST LAYER HAS ASSINGNING PARAMS
-        '''
-        for name in weights:
-            layer_nb = self.layer_nb[name]
-            self.layers[layer_nb].set_weights(weights[name])
-=======
->>>>>>> upstream/master
