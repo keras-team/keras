@@ -17,6 +17,11 @@ class Convolution1D(Layer):
         W_regularizer=None, b_regularizer=None, activity_regularizer=None, W_constraint=None, b_constraint=None):
 
         super(Convolution1D,self).__init__()
+
+        nb_row = 1
+        nb_col = filter_length
+        self.nb_filter = nb_filter
+        self.stack_size = stack_size
         self.filter_length = filter_length
         self.subsample_length = subsample_length
         self.init = initializations.get(init)
@@ -24,13 +29,10 @@ class Convolution1D(Layer):
         self.subsample = (1, subsample_length)
         self.border_mode = border_mode
 
-        nb_row = 1
-        nb_col = filter_length
-
         self.input = T.tensor4()
         self.W_shape = (nb_filter, stack_size, nb_row, nb_col)
         self.W = self.init(self.W_shape)
-        self.b = shared_zeros((self.nb_filter,))
+        self.b = shared_zeros((nb_filter,))
 
         self.params = [self.W, self.b]
 
@@ -52,7 +54,6 @@ class Convolution1D(Layer):
 
     def get_output(self, train):
         X = self.get_input(train)
-
         conv_out = theano.tensor.nnet.conv.conv2d(X, self.W,
             border_mode=self.border_mode, subsample=self.subsample)
         output = self.activation(conv_out + self.b.dimshuffle('x', 0, 'x', 'x'))
@@ -156,9 +157,11 @@ class Convolution2D(Layer):
 class MaxPooling2D(Layer):
     def __init__(self, poolsize=(2, 2), stride=None, ignore_border=True):
         super(MaxPooling2D,self).__init__()
+        self.input = T.tensor4()
         self.poolsize = poolsize
         self.stride = stride
         self.ignore_border = ignore_border
+
 
     def get_output(self, train):
         X = self.get_input(train)
