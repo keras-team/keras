@@ -15,8 +15,8 @@ class BatchNormalization(Layer):
 
             momentum: momentum term in the computation of a running estimate of the mean and std of the data
     '''
-    def __init__(self, input_shape=None, epsilon=1e-6, mode=0, momentum=0.9, weights=None, name=None, prev=None):
-        super(BatchNormalization,self).__init__(name, prev)
+    def __init__(self, input_shape=None, epsilon=1e-6, mode=0, momentum=0.9, weights=None):
+        super(BatchNormalization,self).__init__()
         self.init = initializations.get("uniform")
         self.input_shape = input_shape
         self.epsilon = epsilon
@@ -75,8 +75,8 @@ class LRN2D(Layer):
     License at: https://
     """
 
-    def __init__(self, alpha=1e-4, k=2, beta=0.75, n=5, name=None, prev=None):
-        super(LRN2D, self).__init__(name, prev)
+    def __init__(self, alpha=1e-4, k=2, beta=0.75, n=5):
+        super(LRN2D, self).__init__()
         self.alpha = alpha
         self.k = k
         self.beta = beta

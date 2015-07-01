@@ -2,8 +2,8 @@ from ..layers.core import Layer
 from ..utils.theano_utils import shared_zeros
 
 class LeakyReLU(Layer):
-    def __init__(self, alpha=0.3, name=None, prev=None):
-        super(LeakyReLU,self).__init__(name, prev)
+    def __init__(self, alpha=0.3):
+        super(LeakyReLU,self).__init__()
         self.alpha = alpha
 
     def get_output(self, train):
@@ -21,8 +21,8 @@ class PReLU(Layer):
             Delving Deep into Rectifiers: Surpassing Human-Level Performance on ImageNet Classification
                 http://arxiv.org/pdf/1502.01852v1.pdf
     '''
-    def __init__(self, input_shape, name=None, prev=None):
-        super(PReLU,self).__init__(name, prev)
+    def __init__(self, input_shape):
+        super(PReLU,self).__init__()
         self.input_shape = input_shape
 
         self.alphas = shared_zeros(self.input_shape)
