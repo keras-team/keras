@@ -78,6 +78,103 @@ def standardize_weights(y, sample_weight=None, class_weight=None):
 
 
 class Model(object):
+    def _fit(self, f, ins, out_labels=[], batch_size=128, nb_epoch=100, verbose=1, callbacks=[], \
+        validation_split=0., val_f=None, val_ins=None, shuffle=True):
+        '''
+            Abstract fit function for f(*ins). Assume that f returns a list, labelled by out_labels.
+        '''
+
+        do_validation = False
+        if val_f and val_ins:
+            do_validation = True
+            if verbose:
+                print("Train on %d samples, validate on %d samples" % (len(ins[0]), len(val_ins[0])))
+        else:
+            if 0 < validation_split < 1:
+                do_validation = True
+                split_at = int(len(ins[0]) * (1 - validation_split))
+                (ins, ins_val) = (slice_X(ins, 0, split_at), slice_X(ins, split_at))
+                if verbose:
+                    print("Train on %d samples, validate on %d samples" % (len(ins[0]), len(val_ins[0])))
+
+        nb_train_sample = len(ins[0])
+        index_array = np.arange(nb_train_sample)
+
+        history = cbks.History()
+        if verbose:
+            callbacks = [history, cbks.BaseLogger()] + callbacks
+        else:
+            callbacks = [history] + callbacks
+        callbacks = cbks.CallbackList(callbacks)
+
+        callbacks._set_model(self)
+        callbacks._set_params({
+            'batch_size': batch_size,
+            'nb_epoch': nb_epoch,
+            'nb_sample': nb_train_sample,
+            'verbose': verbose,
+            'do_validation': do_validation,
+        })
+        callbacks.on_train_begin()
+
+        self.stop_training = False
+        for epoch in range(nb_epoch):
+            callbacks.on_epoch_begin(epoch)
+            if shuffle:
+                np.random.shuffle(index_array)
+
+            batches = make_batches(nb_train_sample, batch_size)
+            for batch_index, (batch_start, batch_end) in enumerate(batches):
+                batch_ids = index_array[batch_start:batch_end]
+                ins_batch = slice_X(ins, batch_ids)
+
+                batch_logs = {}
+                batch_logs['batch'] = batch_index
+                batch_logs['size'] = len(batch_ids)
+                callbacks.on_batch_begin(batch_index, batch_logs)
+                outs = f(*ins_batch)
+                if type(outs) != list:
+                    outs = [outs]
+                for l, o in zip(out_labels, outs):
+                    batch_logs[l] = o
+
+                callbacks.on_batch_end(batch_index, batch_logs)
+                
+                if batch_index == len(batches) - 1: # last batch
+                    # validation
+                    epoch_logs = {}
+                    if do_validation:
+                        # replace with self._evaluate
+                        val_outs = val_f(*val_ins)
+                        if type(val_outs) != list:
+                            val_outs = [val_outs]
+                        # same labels assumed
+                        for l, o in zip(out_labels, val_outs):
+                            epoch_logs['val_' + l] = o
+
+            callbacks.on_epoch_end(epoch, epoch_logs)
+            if self.stop_training:
+                break
+
+        callbacks.on_train_end()
+        return history
+
+
+class Sequential(Model, containers.Sequential):
+    '''
+        Inherits from Model the following methods:
+            - _fit
+            - _predict
+            - _evaluate
+        Inherits from containers.Sequential the following methods:
+            - __init__
+            - add 
+            - get_output
+            - get_input
+            - get_weights
+            - set_weights
+    '''
+
     def compile(self, optimizer, loss, class_mode="categorical", theano_mode=None):
         self.optimizer = optimizers.get(optimizer)
         self.loss = weighted_objective(objectives.get(loss))
@@ -95,7 +192,11 @@ class Model(object):
         self.weights = T.ones_like(self.y_train)
 
         train_loss = self.loss(self.y, self.y_train, self.weights)
-        test_score = self.loss(self.y, self.y_test, self.weights)
+        test_loss = self.loss(self.y, self.y_test, self.weights)
+
+        train_loss.name = 'train_loss'
+        test_loss.name = 'test_loss'
+        self.y.name = 'y'
         
         if class_mode == "categorical":
             train_accuracy = T.mean(T.eq(T.argmax(self.y, axis=-1), T.argmax(self.y_train, axis=-1)))
@@ -127,9 +228,9 @@ class Model(object):
             updates=updates, allow_input_downcast=True, mode=theano_mode)
         self._predict = theano.function(predict_ins, self.y_test, 
             allow_input_downcast=True, mode=theano_mode)
-        self._test = theano.function(test_ins, test_score, 
+        self._test = theano.function(test_ins, test_loss, 
             allow_input_downcast=True, mode=theano_mode)
-        self._test_with_acc = theano.function(test_ins, [test_score, test_accuracy], 
+        self._test_with_acc = theano.function(test_ins, [test_loss, test_accuracy], 
             allow_input_downcast=True, mode=theano_mode)
 
 
@@ -158,7 +259,6 @@ class Model(object):
         else:
             return self._test(*ins)
 
-
     def fit(self, X, y, batch_size=128, nb_epoch=100, verbose=1, callbacks=[],
             validation_split=0., validation_data=None, shuffle=True, show_accuracy=False, 
             class_weight=None, sample_weight=None):
@@ -167,95 +267,34 @@ class Model(object):
         y = standardize_y(y)
         sample_weight = standardize_weights(y, class_weight=class_weight, sample_weight=sample_weight)
 
-        do_validation = False
+        val_f = None
+        val_ins = None
+        if validation_data or validation_split:
+            if show_accuracy:
+                val_f = self._test_with_acc
+            else:
+                val_f = self._test
         if validation_data:
             try:
                 X_val, y_val = validation_data
             except:
                 raise Exception("Invalid format for validation data; provide a tuple (X_val, y_val). \
                     X_val may be a numpy array or a list of numpy arrays depending on your model input.")
-            do_validation = True
             X_val = standardize_X(X_val)
             y_val = standardize_y(y_val)
-            
-            if verbose:
-                print("Train on %d samples, validate on %d samples" % (len(y), len(y_val)))
+            val_ins = X_val + [y_val, np.ones(y_val.shape[:-1] + (1,))]
+
+        if show_accuracy:
+            f = self._train_with_acc
+            out_labels = ['loss', 'acc']
         else:
-            if 0 < validation_split < 1:
-                # If a validation split size is given (e.g. validation_split=0.2)
-                # then split X into smaller X and X_val,
-                # and split y into smaller y and y_val.
-                do_validation = True
-                split_at = int(len(y) * (1 - validation_split))
-                (X, X_val) = (slice_X(X, 0, split_at), slice_X(X, split_at))
-                (y, y_val) = (y[:split_at], y[split_at:])
-                sample_weight = sample_weight[:split_at]
-                if verbose:
-                    print("Train on %d samples, validate on %d samples" % (len(y), len(y_val)))
+            f = self._train
+            out_labels = ['loss']
 
-        index_array = np.arange(len(y))
+        ins = X + [y, sample_weight]
 
-        if verbose:
-            callbacks = [cbks.BaseLogger()] + callbacks
-        callbacks = cbks.CallbackList([cbks.History()] + callbacks)
-
-        callbacks._set_model(self)
-        callbacks._set_params({
-            'batch_size': batch_size,
-            'nb_epoch': nb_epoch,
-            'nb_sample': len(y),
-            'verbose': verbose,
-            'do_validation': do_validation,
-            'show_accuracy': show_accuracy
-        })
-        callbacks.on_train_begin()
-
-        self.stop_training = False
-        for epoch in range(nb_epoch):
-            callbacks.on_epoch_begin(epoch)
-            if shuffle:
-                np.random.shuffle(index_array)
-
-            batches = make_batches(len(y), batch_size)
-            for batch_index, (batch_start, batch_end) in enumerate(batches):
-                batch_ids = index_array[batch_start:batch_end]
-                X_batch = slice_X(X, batch_ids)
-                y_batch = y[batch_ids]
-                weight_batch = sample_weight[batch_ids]
-
-                batch_logs = {}
-                batch_logs['batch'] = batch_index
-                batch_logs['size'] = len(batch_ids)
-                callbacks.on_batch_begin(batch_index, batch_logs)
-
-                ins = X_batch + [y_batch, weight_batch]
-                if show_accuracy:
-                    loss, acc = self._train_with_acc(*ins)
-                    batch_logs['accuracy'] = acc
-                else:
-                    loss = self._train(*ins)
-                batch_logs['loss'] = loss
-
-                callbacks.on_batch_end(batch_index, batch_logs)
-                
-                if batch_index == len(batches) - 1: # last batch
-                    # validation
-                    epoch_logs = {}
-                    if do_validation:
-                        if show_accuracy:
-                            val_loss, val_acc = self.evaluate(X_val, y_val, batch_size=batch_size, \
-                                verbose=0, show_accuracy=True)
-                            epoch_logs['val_accuracy'] = val_acc
-                        else:
-                            val_loss = self.evaluate(X_val, y_val, batch_size=batch_size, verbose=0)
-                        epoch_logs['val_loss'] = val_loss
-
-            callbacks.on_epoch_end(epoch, epoch_logs)
-            if self.stop_training:
-                break
-
-        callbacks.on_train_end()
-        return callbacks.callbacks[0] # return history
+        return self._fit(f, ins, out_labels=out_labels, batch_size=batch_size, nb_epoch=nb_epoch, verbose=verbose, callbacks=callbacks, \
+            validation_split=validation_split, val_f=val_f, val_ins=val_ins, shuffle=shuffle)
 
 
     def predict(self, X, batch_size=128, verbose=1):
@@ -332,31 +371,6 @@ class Model(object):
             return tot_score / seen
 
 
-class Sequential(Model, containers.Sequential):
-    '''
-        Inherits from Model the following methods:
-            - compile
-            - train
-            - test
-            - evaluate
-            - fit
-            - predict
-            - predict_proba
-            - predict_classes
-        Inherits from containers.Sequential the following methods:
-            - add 
-            - get_output
-            - get_input
-            - get_weights
-            - set_weights
-    '''
-    def __init__(self):
-        self.layers = []
-        self.params = [] # learnable
-        self.regularizers = [] # same size as params
-        self.constraints = [] # same size as params
-
-
     def get_config(self, verbose=0):
         layers = []
         for i, l in enumerate(self.layers):
@@ -407,3 +421,61 @@ class Sequential(Model, containers.Sequential):
             weights = [g['param_{}'.format(p)] for p in range(g.attrs['nb_params'])]
             self.layers[k].set_weights(weights)
         f.close()
+
+
+class Graph(containers.Graph):
+    def compile(self, optimizer, loss, theano_mode='DebugMode'):
+        # loss is a dictionary mapping output name to loss functions
+        ys = []
+        ys_train = []
+        ys_test = []
+        train_loss = 0.
+        test_loss = 0.
+        for output_name in self.output_order:
+            loss_fn = loss[output_name]
+            output = self.outputs[output_name]
+            y_train = output.get_output(True)
+            y_test = output.get_output(False)
+            y = T.zeros_like(y_test)
+            ys.append(y)
+            ys_train.append(y_train)
+            ys_test.append(y_test)
+            
+            train_loss += objectives.get(loss_fn)(y, y_train).mean()
+            test_loss += objectives.get(loss_fn)(y, y_test).mean()
+
+        train_loss.name = 'train_loss'
+        test_loss.name = 'test_loss'
+
+        ins = [self.inputs[name].input for name in self.input_order]
+        train_ins = ins + ys
+        test_ins = ins + ys
+
+        for r in self.regularizers:
+            train_loss = r(train_loss)
+        self.optimizer = optimizers.get(optimizer)
+        updates = self.optimizer.get_updates(self.params, self.constraints, train_loss)
+
+        self._train = theano.function(train_ins, train_loss, 
+            updates=updates, allow_input_downcast=True, mode=theano_mode)
+        self._test = theano.function(test_ins, test_loss, 
+            allow_input_downcast=True, mode=theano_mode)
+        self._predict = theano.function(inputs=ins, outputs=ys_test, 
+            allow_input_downcast=True, mode=theano_mode)
+
+    def train(self, data):
+        # data is a dictionary mapping output and input names to arrays
+        ins = [data[name] for name in self.input_order] + [data[name] for name in self.output_order]
+        return self._train(*ins)
+
+    def test(self, data):
+        # data is a dictionary mapping input names to arrays
+        ins = [data[name] for name in self.input_order] + [data[name] for name in self.output_order]
+        return self._test(*ins)
+
+    def predict(self, data):
+        # data is a dictionary mapping input names to arrays
+        ins = [data[name] for name in self.input_order]
+        return self._predict(*ins)
+
+
