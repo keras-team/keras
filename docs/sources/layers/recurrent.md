@@ -100,7 +100,7 @@ Gated Recurrent Unit - Cho et al. 2014.
 
 ```python
 keras.layers.recurrent.LSTM(input_dim, output_dim=128, 
-        init='glorot_uniform', inner_init='orthogonal', 
+        init='glorot_uniform', inner_init='orthogonal', forget_bias_init='one',
         activation='tanh', inner_activation='hard_sigmoid',
         weights=None, truncate_gradient=-1, return_sequences=False)
 ```
@@ -118,6 +118,7 @@ Long-Short Term Memory unit - Hochreiter 1997.
     - __output_dim__: dimension of the internal projections and the final output.
     - __init__: weight initialization function for the output cell. Can be the name of an existing function (str), or a Theano function (see: [initializations](../initializations.md)).
     - __inner_init__: weight initialization function for the inner cells.
+    - __forget_bias_init__: initialization function for the bias of the forget gate. [Jozefowicz et al.](http://www.jmlr.org/proceedings/papers/v37/jozefowicz15.pdf) recommend initializing with ones.
     - __activation__: activation function for the output. Can be the name of an existing function (str), or a Theano function (see: [activations](../activations.md)).
     - __inner_activation__: activation function for the inner cells.
     - __weights__: list of numpy arrays to set as initial weights. The list should have 12 elements.
@@ -128,6 +129,39 @@ Long-Short Term Memory unit - Hochreiter 1997.
     - [Long short-term memory](http://deeplearning.cs.cmu.edu/pdfs/Hochreiter97_lstm.pdf) (original 1997 paper)
     - [Learning to forget: Continual prediction with LSTM](http://www.mitpressjournals.org/doi/pdf/10.1162/089976600300015015)
     - [Supervised sequence labelling with recurrent neural networks](http://www.cs.toronto.edu/~graves/preprint.pdf)
+
+---
+
+## JZS1, JZS2, JZS3
+
+```python
+keras.layers.recurrent.JZS1(input_dim, output_dim=128, 
+        init='glorot_uniform', inner_init='orthogonal', 
+        activation='tanh', inner_activation='sigmoid',
+        weights=None, truncate_gradient=-1, return_sequences=False)
+```
+
+Top 3 RNN architectures evolved from the evaluation of thousands of models. Serves as alternatives to LSTMs and GRUs. Corresponds to `MUT1`, `MUT2`, and `MUT3` architectures described in the paper: An Empirical Exploration of Recurrent Network Architectures, Jozefowicz et al. 2015.
+
+- __Input shape__: 3D tensor with shape: `(nb_samples, timesteps, input_dim)`.
+
+- __Output shape__:
+    - if `return_sequences`: 3D tensor with shape: `(nb_samples, timesteps, ouput_dim)`.
+    - else: 2D tensor with shape: `(nb_samples, output_dim)`.
+
+- __Arguments__:
+    - __input_dim__: dimension of the input.
+    - __output_dim__: dimension of the internal projections and the final output.
+    - __init__: weight initialization function for the output cell. Can be the name of an existing function (str), or a Theano function (see: [initializations](../initializations.md)).
+    - __inner_init__: weight initialization function for the inner cells.
+    - __activation__: activation function for the output. Can be the name of an existing function (str), or a Theano function (see: [activations](../activations.md)).
+    - __inner_activation__: activation function for the inner cells.
+    - __weights__: list of numpy arrays to set as initial weights. The list should have 9 elements.
+    - __truncate_gradient__: Number of steps to use in truncated BPTT. See: [Theano "scan"](http://deeplearning.net/software/theano/library/scan.html).
+    - __return_sequences__: Boolean. Whether to return the last output in the output sequence, or the full sequence.
+
+- __References__: 
+    - [An Empirical Exploration of Recurrent Network Architectures](http://www.jmlr.org/proceedings/papers/v37/jozefowicz15.pdf)
             
             
                 

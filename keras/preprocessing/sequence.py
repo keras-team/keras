@@ -4,15 +4,17 @@ import numpy as np
 import random
 from six.moves import range
 
-def pad_sequences(sequences, maxlen=None, dtype='int32', padding='pre'):
+def pad_sequences(sequences, maxlen=None, dtype='int32', padding='pre', truncating='pre', value=0.):
     """
         Pad each sequence to the same length: 
         the length of the longuest sequence.
 
         If maxlen is provided, any sequence longer
-        than maxlen is truncated to maxlen.
+        than maxlen is truncated to maxlen. Truncation happens off either the beginning (default) or
+        the end of the sequence.
 
-        Support post-padding and pre-padding (default).
+        Supports post-padding and pre-padding (default).
+
     """
     lengths = [len(s) for s in sequences]
 
@@ -20,12 +22,21 @@ def pad_sequences(sequences, maxlen=None, dtype='int32', padding='pre'):
     if maxlen is None:
         maxlen = np.max(lengths)
 
-    x = np.zeros((nb_samples, maxlen)).astype(dtype)
+    x = (np.ones((nb_samples, maxlen)) * value).astype(dtype)
     for idx, s in enumerate(sequences):
-        if padding == 'post':
-            x[idx, :lengths[idx]] = s[:maxlen]
+        if truncating == 'pre':
+            trunc = s[-maxlen:]
+        elif truncating == 'post':
+            trunc = s[:maxlen]
         else:
-            x[idx, -min(maxlen, lengths[idx]):] = s[:maxlen]
+            raise ValueError("Truncating type '%s' not understood" % padding)
+
+        if padding == 'post':
+            x[idx, :len(trunc)] = trunc
+        elif padding == 'pre':
+            x[idx, -len(trunc):] = trunc
+        else:
+            raise ValueError("Padding type '%s' not understood" % padding)
     return x
 
 

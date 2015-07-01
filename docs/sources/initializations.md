@@ -1,4 +1,3 @@
-# Initializations
 
 ## Usage of initializations
 

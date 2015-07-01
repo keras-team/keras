@@ -1,5 +1,3 @@
-# Containers
-
 Containers are ensembles of layers that can be interacted with through the same API as `Layer` objects.
 
 ## Sequential

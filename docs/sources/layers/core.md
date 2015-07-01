@@ -71,7 +71,7 @@ Set the weights of the parameters of the layer.
 ## Dense
 ```python
 keras.layers.core.Dense(input_dim, output_dim, init='glorot_uniform', activation='linear', weights=None \
-W_regularizer=None, b_regularizer=None, W_constraint=None, b_constraint=None)
+W_regularizer=None, b_regularizer=None, activity_regularizer=None, W_constraint=None, b_constraint=None)
 ```
 
 Standard 1D fully-connect layer. 
@@ -87,8 +87,9 @@ Standard 1D fully-connect layer.
     - __init__: name of initialization function for the weights of the layer (see: [initializations](../initializations.md)), or alternatively, Theano function to use for weights initialization. This parameter is only relevant if you don't pass a `weights` argument.
     - __activation__: name of activation function to use (see: [activations](../activations.md)), or alternatively, elementwise Theano function. If you don't specify anything, no activation is applied (ie. "linear" activation: a(x) = x).
     - __weights__: list of numpy arrays to set as initial weights. The list should have 1 element, of shape `(input_dim, output_dim)`.
-    - __W_regularizer__: instance of the [regularizers](../regularizers.md) module (eg. L1 or L2 regularization), applied to the main weights matrix.
-    - __b_regularizer__: instance of the [regularizers](../regularizers.md) module, applied to the bias.
+    - __W_regularizer__: instance of [WeightRegularizer](../regularizers.md) (eg. L1 or L2 regularization), applied to the main weights matrix.
+    - __b_regularizer__: instance of [WeightRegularizer](../regularizers.md), applied to the bias.
+    - __activity_regularizer__: instance of [ActivityRegularizer](../regularizers.md), applied to the network output.
     - __W_constraint__: instance of the [constraints](../constraints.md) module (eg. maxnorm, nonneg), applied to the main weights matrix.
     - __b_constraint__: instance of the [constraints](../constraints.md) module, applied to the bias.
 
@@ -97,7 +98,7 @@ Standard 1D fully-connect layer.
 ## TimeDistributedDense
 ```python
 keras.layers.core.TimeDistributedDense(input_dim, output_dim, init='glorot_uniform', activation='linear', weights=None \
-W_regularizer=None, b_regularizer=None, W_constraint=None, b_constraint=None)
+W_regularizer=None, b_regularizer=None, activity_regularizer=None, W_constraint=None, b_constraint=None)
 ```
 
 Fully-connected layer distributed over the time dimension. Useful after a recurrent network set to `return_sequences=True`.
@@ -110,8 +111,9 @@ Fully-connected layer distributed over the time dimension. Useful after a recurr
     - __init__: name of initialization function for the weights of the layer (see: [initializations](../initializations.md)), or alternatively, Theano function to use for weights initialization. This parameter is only relevant if you don't pass a `weights` argument.
     - __activation__: name of activation function to use (see: [activations](../activations.md)), or alternatively, elementwise Theano function. If you don't specify anything, no activation is applied (ie. "linear" activation: a(x) = x).
     - __weights__: list of numpy arrays to set as initial weights. The list should have 1 element, of shape `(input_dim, output_dim)`.
-    - __W_regularizer__: instance of the [regularizers](../regularizers.md) module (eg. L1 or L2 regularization), applied to the main weights matrix.
-    - __b_regularizer__: instance of the [regularizers](../regularizers.md) module, applied to the bias.
+    - __W_regularizer__: instance of [WeightRegularizer](../regularizers.md) (eg. L1 or L2 regularization), applied to the main weights matrix.
+    - __b_regularizer__: instance of [WeightRegularizer](../regularizers.md), applied to the bias.
+    - __activity_regularizer__: instance of [ActivityRegularizer](../regularizers.md), applied to the network output.
     - __W_constraint__: instance of the [constraints](../constraints.md) module (eg. maxnorm, nonneg), applied to the main weights matrix.
     - __b_constraint__: instance of the [constraints](../constraints.md) module, applied to the bias.
 
@@ -276,7 +278,9 @@ Convert a nD input to 1D.
 keras.layers.core.RepeatVector(n)
 ```
 
-Repeat the 1D input n times. Dimensions of input are assumed to be (nb_samples, dim). Output will have the shape (nb_samples, n, dim).
+Repeat the 1D input n times. Dimensions of input are assumed to be `(nb_samples, dim)`. Output will have the shape `(nb_samples, n, dim)`.
+
+Note that the output is still a single tensor; `RepeatVector` does not split the data flow.
 
 - __Input shape__: This layer does not assume a specific input shape. This layer cannot be used as the first layer in a model.
 
@@ -289,10 +293,21 @@ Repeat the 1D input n times. Dimensions of input are assumed to be (nb_samples, 
 
 ---
 
+## ActivityRegularization
+```python
+keras.layers.core.ActivityRegularization(l1=0., l2=0.)
+```
+
+Leaves the input unchanged, but adds a term to the loss function based on the input activity. L1 and L2 regularization supported.
+
+This layer can be used, for instance, to induce activation sparsity in the previous layer.
+
+---
+
 ## MaxoutDense
 ```python
 keras.layers.core.MaxoutDense(input_dim, output_dim, nb_feature=4, init='glorot_uniform', weights=None, \
-        W_regularizer=None, b_regularizer=None, W_constraint=None, b_constraint=None)
+        W_regularizer=None, b_regularizer=None, activity_regularizer=None, W_constraint=None, b_constraint=None)
 ```
 
 A dense maxout layer. A `MaxoutDense` layer takes the element-wise maximum of `nb_feature` `Dense(input_dim, output_dim)` linear layers. This allows the layer to learn a convex, piecewise linear activation function over the inputs. See [this paper](http://arxiv.org/pdf/1302.4389.pdf) for more details. Note that this is a *linear* layer -- if you wish to apply activation function (you shouldn't need to -- they are universal function approximators), an `Activation` layer must be added after.
@@ -308,8 +323,9 @@ A dense maxout layer. A `MaxoutDense` layer takes the element-wise maximum of `n
     - __nb_feature__: int >= 0. the number of features to create for the maxout. This is equivalent to the number of piecewise elements to be allowed for the activation function. 
     - __init__: name of initialization function for the weights of the layer (see: [initializations](../initializations.md)), or alternatively, Theano function to use for weights initialization. This parameter is only relevant if you don't pass a `weights` argument.
     - __weights__: list of numpy arrays to set as initial weights. The list should have 1 element, of shape `(input_dim, output_dim)`.
-    - __W_regularizer__: instance of the [regularizers](../regularizers.md) module (eg. L1 or L2 regularization), applied to the main weights matrix.
-    - __b_regularizer__: instance of the [regularizers](../regularizers.md) module, applied to the bias.
+    - __W_regularizer__: instance of [WeightRegularizer](../regularizers.md) (eg. L1 or L2 regularization), applied to the main weights matrix.
+    - __b_regularizer__: instance of [WeightRegularizer](../regularizers.md), applied to the bias.
+    - __activity_regularizer__: instance of [ActivityRegularizer](../regularizers.md), applied to the network output.
     - __W_constraint__: instance of the [constraints](../constraints.md) module (eg. maxnorm, nonneg), applied to the main weights matrix.
     - __b_constraint__: instance of the [constraints](../constraints.md) module, applied to the bias.
 

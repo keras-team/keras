@@ -8,7 +8,7 @@ import numpy as np
 from .. import activations, initializations
 from ..utils.theano_utils import shared_zeros, floatX
 from ..utils.generic_utils import make_tuple
-from .. import regularizers
+from ..regularizers import ActivityRegularizer
 from .. import constraints
 
 from theano.sandbox.rng_mrg import MRG_RandomStreams as RandomStreams
@@ -21,6 +21,7 @@ class Layer(object):
         self.name = name
         self.prev_name = prev
 
+<<<<<<< HEAD
         if type(self.prev_name) is str:
             self.prev_name = [self.prev_name] # single string or a list of strings under one op
 
@@ -29,6 +30,12 @@ class Layer(object):
 
         if len(node) == 1:
             self.previous = self.previous[0]    # for backward compatibility
+=======
+    def connect(self, layer):
+        if not hasattr(self, "get_output_mask") and layer.get_output_mask() is not None:
+            raise Exception("Attached non-masking layer to layer with masked output")
+        self.previous = layer
+>>>>>>> upstream/master
 
     def get_output(self, train):
         raise NotImplementedError
@@ -45,6 +52,14 @@ class Layer(object):
         else:
             return self.input
 
+<<<<<<< HEAD
+=======
+    def supports_masked_input(self):
+        return False
+
+    def get_output_mask(self, train=None):
+        return None
+>>>>>>> upstream/master
 
     def set_weights(self, weights):
         for p, w in zip(self.params, weights):
@@ -62,38 +77,62 @@ class Layer(object):
         return {"name":self.__class__.__name__}
 
     def get_params(self):
-        regs = []
         consts = []
 
-        if hasattr(self, 'regularizers') and len(self.regularizers) == len(self.params):
-            for r in self.regularizers:
-                if r:
-                    regs.append(r)
-                else:
-                    regs.append(regularizers.identity)
-        elif hasattr(self, 'regularizer') and self.regularizer:
-            regs += [self.regularizer for _ in range(len(self.params))]
+        if hasattr(self, 'regularizers'):
+            regularizers = self.regularizers
         else:
-            regs += [regularizers.identity for _ in range(len(self.params))]
+            regularizers = []
 
         if hasattr(self, 'constraints') and len(self.constraints) == len(self.params):
             for c in self.constraints:
                 if c:
                     consts.append(c)
                 else:
-                    consts.append(constraints.identity)
+                    consts.append(constraints.identity())
         elif hasattr(self, 'constraint') and self.constraint:
             consts += [self.constraint for _ in range(len(self.params))]
         else:
-            consts += [constraints.identity for _ in range(len(self.params))]
+            consts += [constraints.identity() for _ in range(len(self.params))]
 
-        return self.params, regs, consts
+        return self.params, regularizers, consts
+
+class MaskedLayer(Layer):
+    def supports_masked_input(self):
+        return True
+
+    def get_input_mask(self, train=None):
+        if hasattr(self, 'previous'):
+            return self.previous.get_output_mask(train)
+        else:
+            return None
+
+    def get_output_mask(self, train=None):
+        ''' The default output mask is just the input mask unchanged. Override this in your own
+        implementations if, for instance, you are reshaping the input'''
+        return self.get_input_mask(train)
 
 
 class Merge(Layer):
     def __init__(self, prev, mode='sum', name=None):
         super(Merge,self).__init__(name, prev)
         self.mode = mode
+<<<<<<< HEAD
+=======
+        self.models = models
+        self.params = []
+        self.regularizers = []
+        self.constraints = []
+        for m in self.models:
+            self.regularizers += m.regularizers
+            for i in range(len(m.params)):
+                if not m.params[i] in self.params:
+                    self.params.append(m.params[i])
+                    self.constraints.append(m.constraints[i])
+
+    def get_params(self):
+        return self.params, self.regularizers, self.constraints
+>>>>>>> upstream/master
 
     def get_output(self, train):
         inputs = self.get_input(train)
@@ -107,12 +146,54 @@ class Merge(Layer):
         else:
             raise Exception('Unknown merge mode')
 
+<<<<<<< HEAD
 class Dropout(Layer):
     '''
         Hinton's dropout.
     '''
     def __init__(self, p, name=None, prev=None):
         super(Dropout,self).__init__(name, prev)
+=======
+    def get_input(self, train=False):
+        res = []
+        for i in range(len(self.models)):
+            o = self.models[i].get_input(train)
+            if not type(o) == list:
+                o = [o]
+            for output in o:
+                if output not in res:
+                    res.append(output)
+        return res
+
+    @property
+    def input(self):
+        return self.get_input()
+
+    def get_weights(self):
+        weights = []
+        for m in self.models:
+            weights += m.get_weights()
+        return weights
+
+    def set_weights(self, weights):
+        for i in range(len(self.models)):
+            nb_param = len(self.models[i].params)
+            self.models[i].set_weights(weights[:nb_param])
+            weights = weights[nb_param:]
+
+    def get_config(self):
+        return {"name":self.__class__.__name__,
+            "models":[m.get_config() for m in self.models],
+            "mode":self.mode}
+
+
+class Dropout(MaskedLayer):
+    '''
+        Hinton's dropout.
+    '''
+    def __init__(self, p):
+        super(Dropout, self).__init__()
+>>>>>>> upstream/master
         self.p = p
 
     def get_output(self, train):
@@ -130,12 +211,17 @@ class Dropout(Layer):
             "p":self.p}
 
 
-class Activation(Layer):
+class Activation(MaskedLayer):
     '''
         Apply an activation function to an output.
     '''
+<<<<<<< HEAD
     def __init__(self, activation, target=0, beta=0.1, name=None, prev=None):
         super(Activation,self).__init__(name, prev)
+=======
+    def __init__(self, activation, target=0, beta=0.1):
+        super(Activation, self).__init__()
+>>>>>>> upstream/master
         self.activation = activations.get(activation)
         self.target = target
         self.beta = beta
@@ -158,7 +244,11 @@ class Reshape(Layer):
         First dimension is assumed to be nb_samples.
     '''
     def __init__(self, *dims):
+<<<<<<< HEAD
         super(Reshape,self).__init__(name, prev)
+=======
+        super(Reshape, self).__init__()
+>>>>>>> upstream/master
         self.dims = dims
 
     def get_output(self, train):
@@ -176,8 +266,13 @@ class Flatten(Layer):
         Reshape input to flat shape.
         First dimension is assumed to be nb_samples.
     '''
+<<<<<<< HEAD
     def __init__(self, name=None, prev=None):
         super(Flatten,self).__init__(name, prev)
+=======
+    def __init__(self):
+        super(Flatten, self).__init__()
+>>>>>>> upstream/master
 
     def get_output(self, train):
         X = self.get_input(train)
@@ -192,15 +287,20 @@ class RepeatVector(Layer):
         Dimensions of input are assumed to be (nb_samples, dim).
         Return tensor of shape (nb_samples, n, dim).
     '''
+<<<<<<< HEAD
     def __init__(self, n, name=None, prev=None):
         super(RepeatVector,self).__init__(name, prev)
+=======
+    def __init__(self, n):
+        super(RepeatVector, self).__init__()
+>>>>>>> upstream/master
         self.n = n
 
     def get_output(self, train):
         X = self.get_input(train)
         tensors = [X]*self.n
         stacked = theano.tensor.stack(*tensors)
-        return stacked.dimshuffle((1,0,2))
+        return stacked.dimshuffle((1, 0, 2))
 
     def get_config(self):
         return {"name":self.__class__.__name__,
@@ -211,10 +311,17 @@ class Dense(Layer):
     '''
         Just your regular fully connected NN layer.
     '''
+<<<<<<< HEAD
     def __init__(self, input_shape, output_shape,init='glorot_uniform', activation='linear', weights=None,
         W_regularizer=None, b_regularizer=None, W_constraint=None, b_constraint=None, name=None, prev=None):
 
         super(Dense,self).__init__(name, prev)
+=======
+    def __init__(self, input_dim, output_dim, init='glorot_uniform', activation='linear', weights=None, 
+        W_regularizer=None, b_regularizer=None, activity_regularizer=None, W_constraint=None, b_constraint=None):
+
+        super(Dense, self).__init__()
+>>>>>>> upstream/master
         self.init = initializations.get(init)
         self.activation = activations.get(activation)
         self.input_shape = input_shape
@@ -228,7 +335,22 @@ class Dense(Layer):
         self.W = self.init((self.input_shape, self.output_shape))
         self.b = shared_zeros((self.output_shape))
 
+<<<<<<< HEAD
         self.params = [self.W, self.b]
+=======
+        self.regularizers = []
+        if W_regularizer:
+            W_regularizer.set_param(self.W)
+            self.regularizers.append(W_regularizer)
+        if b_regularizer:
+            b_regularizer.set_param(self.b)
+            self.regularizers.append(b_regularizer)
+        if activity_regularizer:
+            activity_regularizer.set_layer(self)
+            self.regularizers.append(activity_regularizer)
+
+        self.constraints = [W_constraint, b_constraint]
+>>>>>>> upstream/master
 
         if weights is not None:
             self.set_weights(weights)
@@ -246,7 +368,30 @@ class Dense(Layer):
             "activation":self.activation.__name__}
 
 
-class TimeDistributedDense(Layer):
+class ActivityRegularization(Layer):
+    '''
+        Layer that passes through its input unchanged, but applies an update
+        to the cost function based on the activity.
+    '''
+    def __init__(self, l1=0., l2=0.):
+        super(ActivityRegularization, self).__init__()
+        self.l1 = l1
+        self.l2 = l2
+
+        activity_regularizer = ActivityRegularizer(l1=l1, l2=l2)
+        activity_regularizer.set_layer(self)
+        self.regularizers = [activity_regularizer]
+
+    def get_output(self, train):
+        return self.get_input(train)
+
+    def get_config(self):
+        return {"name":self.__class__.__name__,
+            "l1":self.l1,
+            "l2":self.l2}
+
+
+class TimeDistributedDense(MaskedLayer):
     '''
        Apply a same DenseLayer for each dimension[1] (shared_dimension) input
        Especially useful after a recurrent network with 'return_sequence=True'
@@ -254,10 +399,17 @@ class TimeDistributedDense(Layer):
        Tensor output dimensions:  (nb_sample, shared_dimension, output_shape)
 
     '''
+<<<<<<< HEAD
     def __init__(self, input_shape,  output_shape,init='glorot_uniform', activation='linear', weights=None,
         W_regularizer=None, b_regularizer=None, W_constraint=None, b_constraint=None, name=None, prev=None):
 
         super(TimeDistributedDense,self).__init__(name, prev)
+=======
+    def __init__(self, input_dim, output_dim, init='glorot_uniform', activation='linear', weights=None, 
+        W_regularizer=None, b_regularizer=None, activity_regularizer=None, W_constraint=None, b_constraint=None):
+
+        super(TimeDistributedDense, self).__init__()
+>>>>>>> upstream/master
         self.init = initializations.get(init)
         self.activation = activations.get(activation)
         self.input_shape = input_shape
@@ -272,20 +424,31 @@ class TimeDistributedDense(Layer):
 
         self.params = [self.W, self.b]
 
+<<<<<<< HEAD
+=======
+        self.regularizers = []
+        if W_regularizer:
+            W_regularizer.set_param(self.W)
+            self.regularizers.append(W_regularizer)
+        if b_regularizer:
+            b_regularizer.set_param(self.b)
+            self.regularizers.append(b_regularizer)
+        if activity_regularizer:
+            activity_regularizer.set_layer(self)
+            self.regularizers.append(activity_regularizer)
+
+        self.constraints = [W_constraint, b_constraint]
+
+>>>>>>> upstream/master
         if weights is not None:
             self.set_weights(weights)
 
 
     def get_output(self, train):
         X = self.get_input(train)
+        output = self.activation(T.dot(X.dimshuffle(1, 0, 2), self.W) + self.b)
+        return output.dimshuffle(1, 0, 2)
 
-        def act_func(X):
-            return self.activation(T.dot(X, self.W) + self.b)
-
-        output, _ = theano.scan(fn = act_func,
-                                sequences = X.dimshuffle(1,0,2),
-                                outputs_info=None)
-        return output.dimshuffle(1,0,2)
 
     def get_config(self):
         return {"name":self.__class__.__name__,
@@ -294,6 +457,23 @@ class TimeDistributedDense(Layer):
             "init":self.init.__name__,
             "activation":self.activation.__name__}
 
+<<<<<<< HEAD
+=======
+class AutoEncoder(Layer):
+    '''
+        A customizable autoencoder model.
+        If output_reconstruction then dim(input) = dim(output)
+        else dim(output) = dim(hidden)
+    '''
+    def __init__(self, encoder, decoder, output_reconstruction=True, tie_weights=False, weights=None):
+
+        super(AutoEncoder, self).__init__()
+
+        self.output_reconstruction = output_reconstruction
+        self.tie_weights = tie_weights
+        self.encoder = encoder
+        self.decoder = decoder
+>>>>>>> upstream/master
 
 
 
@@ -302,10 +482,17 @@ class MaxoutDense(Layer):
         Max-out layer, nb_feature is the number of pieces in the piecewise linear approx.
         Refer to http://arxiv.org/pdf/1302.4389.pdf
     '''
+<<<<<<< HEAD
     def __init__(self, input_shape, output_shape,nb_feature=4, init='glorot_uniform', weights=None,
         W_regularizer=None, b_regularizer=None, W_constraint=None, b_constraint=None, name=None, prev=None):
 
         super(MaxoutDense,self).__init__(name, prev)
+=======
+    def __init__(self, input_dim, output_dim, nb_feature=4, init='glorot_uniform', weights=None, 
+        W_regularizer=None, b_regularizer=None, activity_regularizer=None, W_constraint=None, b_constraint=None):
+
+        super(MaxoutDense, self).__init__()
+>>>>>>> upstream/master
         self.init = initializations.get(init)
         self.input_shape = input_shape
         self.output_shape = output_shape
@@ -321,6 +508,22 @@ class MaxoutDense(Layer):
 
         self.params = [self.W, self.b]
 
+<<<<<<< HEAD
+=======
+        self.regularizers = []
+        if W_regularizer:
+            W_regularizer.set_param(self.W)
+            self.regularizers.append(W_regularizer)
+        if b_regularizer:
+            b_regularizer.set_param(self.b)
+            self.regularizers.append(b_regularizer)
+        if activity_regularizer:
+            activity_regularizer.set_layer(self)
+            self.regularizers.append(activity_regularizer)
+
+        self.constraints = [W_constraint, b_constraint]
+
+>>>>>>> upstream/master
         if weights is not None:
             self.set_weights(weights)
 

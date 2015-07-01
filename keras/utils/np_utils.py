@@ -21,7 +21,6 @@ def normalize(a, axis=-1, order=2):
     l2[l2==0] = 1
     return a / np.expand_dims(l2, axis)
 
-
 def binary_logloss(p, y):
     epsilon = 1e-15
     p = sp.maximum(epsilon, p)

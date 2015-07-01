@@ -20,3 +20,4 @@ def shared_ones(shape, dtype=theano.config.floatX, name=None):
 
 def alloc_zeros_matrix(*dims):
     return T.alloc(np.cast[theano.config.floatX](0.), *dims)
+
