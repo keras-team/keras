@@ -32,7 +32,7 @@ from keras.utils import np_utils
 
 batch_size = 16
 nb_classes = 10
-nb_epochs = 100000
+nb_epochs = 200
 hidden_units = 100
 
 learning_rate = 1e-6
