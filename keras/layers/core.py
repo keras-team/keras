@@ -34,9 +34,25 @@ class Layer(object):
             return self.input
 
     def supports_masked_input(self):
+        ''' Whether or not this layer respects the output mask of its previous layer in its calculations. If you try
+        to attach a layer that does *not* support masked_input to a layer that gives a non-None output_mask() that is
+        an error'''
         return False
 
     def get_output_mask(self, train=None):
+        '''
+        For some models (such as RNNs) you want a way of being able to mark some output data-points as
+        "masked", so they are not used in future calculations. In such a model, get_output_mask() should return a mask
+        of one less dimension than get_output() (so if get_output is (nb_samples, nb_timesteps, nb_dimensions), then the mask
+        is (nb_samples, nb_timesteps), with a one for every unmasked datapoint, and a zero for every masked one.
+
+        If there is *no* masking then it shall return None. For instance if you attach an Activation layer (they support masking)
+        to a layer with an output_mask, then that Activation shall also have an output_mask. If you attach it to a layer with no
+        such mask, then the Activation's get_output_mask shall return None.
+
+        Some layers have an output_mask even if their input is unmasked, notably Embedding which can turn the entry "0" into
+        a mask.
+        '''
         return None
 
     def set_weights(self, weights):
@@ -76,6 +92,10 @@ class Layer(object):
         return self.params, regularizers, consts
 
 class MaskedLayer(Layer):
+    '''
+    If your layer trivially supports masking (by simply copying the input mask to the output), then subclass MaskedLayer
+    instead of Layer, and make sure that you incorporate the input mask into your calculation of get_output()
+    '''
     def supports_masked_input(self):
         return True
 
