@@ -27,7 +27,7 @@ from keras.utils import np_utils
     Reaches to 80% train/test accuracy and 0.55 train/test loss after 70 epochs
     (it's still underfitting at that point, though).
 
-    20-25 minuts per epoch on a GRID K520 GPU.
+    About 15 minuts per epoch on a GRID K520 GPU.
 '''
 
 batch_size = 16
