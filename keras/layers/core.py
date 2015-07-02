@@ -20,7 +20,7 @@ class Layer(object):
         self.params = []
 
     def connect(self, layer):
-        if not hasattr(self, "get_output_mask") and layer.get_output_mask() is not None:
+        if not self.supports_masked_input() and layer.get_output_mask() is not None:
             raise Exception("Attached non-masking layer to layer with masked output")
         self.previous = layer
 
@@ -139,6 +139,12 @@ class Merge(object):
     @property
     def input(self):
         return self.get_input()
+
+    def supports_masked_input(self):
+        return False
+
+    def get_output_mask(self, train=None):
+        return None
 
     def get_weights(self):
         weights = []
