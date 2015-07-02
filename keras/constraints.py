@@ -2,6 +2,7 @@ from __future__ import absolute_import
 import theano
 import theano.tensor as T
 import numpy as np
+import math
 
 class Constraint(object):
     def __call__(self, p):
@@ -24,7 +25,7 @@ class NonNeg(Constraint):
 
 class UnitNorm(Constraint):
     def __call__(self, p):
-        return e / T.sqrt(T.sum(e**2, axis=-1, keepdims=True))
+        return math.e / T.sqrt(T.sum(math.e**2, axis=-1, keepdims=True))
 
 identity = Constraint
 maxnorm = MaxNorm
