@@ -106,8 +106,9 @@ score = model.evaluate(X_test, Y_test, batch_size=16)
 
 ---
 
-### Architecture for learning image captions with a convnet and a Gated Recurrent Unit
-(word-level embedding, caption of maximum length 16 words).
+### Image captioning
+
+Architecture for learning image captions with a convnet and a Gated Recurrent Unit (word-level embedding, caption of maximum length 16 words).
 
 Note that getting this to actually "work" will require using a bigger convnet, initialized with pre-trained weights.
 Displaying readable results will also require an embedding decoder.

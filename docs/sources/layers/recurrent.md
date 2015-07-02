@@ -100,7 +100,7 @@ Gated Recurrent Unit - Cho et al. 2014.
 
 ```python
 keras.layers.recurrent.LSTM(input_dim, output_dim=128, 
-        init='glorot_uniform', inner_init='orthogonal', 
+        init='glorot_uniform', inner_init='orthogonal', forget_bias_init='one',
         activation='tanh', inner_activation='hard_sigmoid',
         weights=None, truncate_gradient=-1, return_sequences=False)
 ```
@@ -118,6 +118,7 @@ Long-Short Term Memory unit - Hochreiter 1997.
     - __output_dim__: dimension of the internal projections and the final output.
     - __init__: weight initialization function for the output cell. Can be the name of an existing function (str), or a Theano function (see: [initializations](../initializations.md)).
     - __inner_init__: weight initialization function for the inner cells.
+    - __forget_bias_init__: initialization function for the bias of the forget gate. [Jozefowicz et al.](http://www.jmlr.org/proceedings/papers/v37/jozefowicz15.pdf) recommend initializing with ones.
     - __activation__: activation function for the output. Can be the name of an existing function (str), or a Theano function (see: [activations](../activations.md)).
     - __inner_activation__: activation function for the inner cells.
     - __weights__: list of numpy arrays to set as initial weights. The list should have 12 elements.

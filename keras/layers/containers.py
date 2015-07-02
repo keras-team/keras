@@ -20,6 +20,7 @@ class Sequential(Layer):
         self.params = []
         self.regularizers = []
         self.constraints = []
+
         for layer in layers:
             self.add(layer)
 
@@ -39,13 +40,16 @@ class Sequential(Layer):
     def get_output(self, train=False):
         return self.layers[-1].get_output(train)
 
+    def set_input(self):
+        for l in self.layers:
+            if hasattr(l, 'input'):
+                ndim = l.input.ndim 
+                self.layers[0].input = ndim_tensor(ndim)
+                break
+
     def get_input(self, train=False):
         if not hasattr(self.layers[0], 'input'):
-            for l in self.layers:
-                if hasattr(l, 'input'):
-                    break
-            ndim = l.input.ndim 
-            self.layers[0].input = ndim_tensor(ndim)
+            self.set_input()
         return self.layers[0].get_input(train)
 
     @property

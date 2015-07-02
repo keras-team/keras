@@ -1,5 +1,6 @@
 *.DS_Store
 *.pyc
+*.swp
 temp/*
 dist/*
 build/*
