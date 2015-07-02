@@ -719,5 +719,3 @@ class JZS3(Recurrent):
             "inner_activation":self.inner_activation.__name__,
             "truncate_gradient":self.truncate_gradient,
             "return_sequences":self.return_sequences}
-
-
