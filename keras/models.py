@@ -82,7 +82,7 @@ class Model(object):
         self.optimizer = optimizers.get(optimizer)
         self.loss = weighted_objective(objectives.get(loss))
 
-        # input of model 
+        # input of model
         self.X_train = self.get_input(train=True)
         self.X_test = self.get_input(train=False)
 
@@ -96,7 +96,7 @@ class Model(object):
 
         train_loss = self.loss(self.y, self.y_train, self.weights)
         test_score = self.loss(self.y, self.y_test, self.weights)
-        
+
         if class_mode == "categorical":
             train_accuracy = T.mean(T.eq(T.argmax(self.y, axis=-1), T.argmax(self.y_train, axis=-1)))
             test_accuracy = T.mean(T.eq(T.argmax(self.y, axis=-1), T.argmax(self.y_test, axis=-1)))
@@ -121,15 +121,15 @@ class Model(object):
             test_ins = [self.X_test, self.y, self.weights]
             predict_ins = [self.X_test]
 
-        self._train = theano.function(train_ins, train_loss, 
+        self._train = theano.function(train_ins, train_loss,
             updates=updates, allow_input_downcast=True, mode=theano_mode)
-        self._train_with_acc = theano.function(train_ins, [train_loss, train_accuracy], 
+        self._train_with_acc = theano.function(train_ins, [train_loss, train_accuracy],
             updates=updates, allow_input_downcast=True, mode=theano_mode)
-        self._predict = theano.function(predict_ins, self.y_test, 
+        self._predict = theano.function(predict_ins, self.y_test,
             allow_input_downcast=True, mode=theano_mode)
-        self._test = theano.function(test_ins, test_score, 
+        self._test = theano.function(test_ins, test_score,
             allow_input_downcast=True, mode=theano_mode)
-        self._test_with_acc = theano.function(test_ins, [test_score, test_accuracy], 
+        self._test_with_acc = theano.function(test_ins, [test_score, test_accuracy],
             allow_input_downcast=True, mode=theano_mode)
 
 
@@ -147,7 +147,7 @@ class Model(object):
             return self._train_with_acc(*ins)
         else:
             return self._train(*ins)
-        
+
 
     def test(self, X, y, accuracy=False):
         X = standardize_X(X)
@@ -161,7 +161,7 @@ class Model(object):
 
 
     def fit(self, X, y, batch_size=128, nb_epoch=100, verbose=1, callbacks=[],
-            validation_split=0., validation_data=None, shuffle=True, show_accuracy=False, 
+            validation_split=0., validation_data=None, shuffle=True, show_accuracy=False,
             class_weight=None, sample_weight=None):
 
         X = standardize_X(X)
@@ -178,7 +178,7 @@ class Model(object):
             do_validation = True
             X_val = standardize_X(X_val)
             y_val = standardize_y(y_val)
-            
+
             if verbose:
                 print("Train on %d samples, validate on %d samples" % (len(y), len(y_val)))
         else:
@@ -238,7 +238,7 @@ class Model(object):
                 batch_logs['loss'] = loss
 
                 callbacks.on_batch_end(batch_index, batch_logs)
-                
+
                 if batch_index == len(batches) - 1: # last batch
                     # validation
                     epoch_logs = {}
@@ -345,7 +345,7 @@ class Sequential(Model, containers.Sequential):
             - predict_proba
             - predict_classes
         Inherits from containers.Sequential the following methods:
-            - add 
+            - add
             - get_output
             - get_input
             - get_weights

@@ -8,3 +8,12 @@ keras/datasets/data/*
 keras/datasets/temp/*
 docs/site/*
 docs/theme/*
+Keras.egg-info/dependency_links.txt
+
+Keras.egg-info/PKG-INFO
+
+Keras.egg-info/requires.txt
+
+Keras.egg-info/SOURCES.txt
+
+Keras.egg-info/top_level.txt

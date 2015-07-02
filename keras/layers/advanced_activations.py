@@ -17,7 +17,7 @@ class LeakyReLU(Layer):
 
 class PReLU(Layer):
     '''
-        Reference: 
+        Reference:
             Delving Deep into Rectifiers: Surpassing Human-Level Performance on ImageNet Classification
                 http://arxiv.org/pdf/1502.01852v1.pdf
     '''

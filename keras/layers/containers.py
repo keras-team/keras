@@ -31,7 +31,7 @@ class Sequential(Layer):
         self.layers.append(layer)
         if len(self.layers) > 1:
             self.layers[-1].connect(self.layers[-2])
-        
+
         params, regularizers, constraints = layer.get_params()
         self.params += params
         self.regularizers += regularizers
@@ -43,7 +43,7 @@ class Sequential(Layer):
     def set_input(self):
         for l in self.layers:
             if hasattr(l, 'input'):
-                ndim = l.input.ndim 
+                ndim = l.input.ndim
                 self.layers[0].input = ndim_tensor(ndim)
                 break
 
