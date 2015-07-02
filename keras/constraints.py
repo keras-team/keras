@@ -22,7 +22,7 @@ class NonNeg(Constraint):
         p *= T.ge(p, 0)
         return p
 
-def UnitNorm(Constraint):
+class UnitNorm(Constraint):
     def __call__(self, p):
         return e / T.sqrt(T.sum(e**2, axis=-1, keepdims=True))
 

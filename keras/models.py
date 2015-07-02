@@ -152,7 +152,8 @@ class Model(object):
     def test(self, X, y, accuracy=False):
         X = standardize_X(X)
         y = standardize_y(y)
-        ins = X + [y]
+        sample_weight = np.ones(y.shape[:-1] + (1,))
+        ins = X + [y, sample_weight]
         if accuracy:
             return self._test_with_acc(*ins)
         else:
