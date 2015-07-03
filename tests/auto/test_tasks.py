@@ -14,7 +14,7 @@ class TestRegularizers(unittest.TestCase):
         nb_hidden = 10
 
         print('vector classification data:')
-        (X_train, y_train), (X_test, y_test) = get_test_data(nb_train=1000, nb_test=1000, input_shape=(10,),
+        (X_train, y_train), (X_test, y_test) = get_test_data(nb_train=1000, nb_test=200, input_shape=(10,),
             classification=True, nb_class=2)
         print('X_train:', X_train.shape)
         print('X_test:', X_test.shape)
@@ -36,7 +36,7 @@ class TestRegularizers(unittest.TestCase):
     def test_vector_reg(self):
         nb_hidden = 10
         print('vector regression data:')
-        (X_train, y_train), (X_test, y_test) = get_test_data(nb_train=1000, nb_test=1000, input_shape=(10,), output_shape=(2,),
+        (X_train, y_train), (X_test, y_test) = get_test_data(nb_train=1000, nb_test=200, input_shape=(10,), output_shape=(2,),
             classification=False)
         print('X_train:', X_train.shape)
         print('X_test:', X_test.shape)
@@ -53,7 +53,7 @@ class TestRegularizers(unittest.TestCase):
 
     def test_temporal_clf(self):
         print('temporal classification data:')
-        (X_train, y_train), (X_test, y_test) = get_test_data(nb_train=1000, nb_test=1000, input_shape=(5,10), 
+        (X_train, y_train), (X_test, y_test) = get_test_data(nb_train=1000, nb_test=200, input_shape=(5,10), 
             classification=True, nb_class=2)
         print('X_train:', X_train.shape)
         print('X_test:', X_test.shape)
@@ -72,7 +72,7 @@ class TestRegularizers(unittest.TestCase):
 
     def test_temporal_reg(self):
         print('temporal regression data:')
-        (X_train, y_train), (X_test, y_test) = get_test_data(nb_train=1000, nb_test=1000, input_shape=(5, 10), output_shape=(2,),
+        (X_train, y_train), (X_test, y_test) = get_test_data(nb_train=1000, nb_test=200, input_shape=(5, 10), output_shape=(2,),
             classification=False)
         print('X_train:', X_train.shape)
         print('X_test:', X_test.shape)
@@ -88,7 +88,7 @@ class TestRegularizers(unittest.TestCase):
 
     def test_seq_to_seq(self):
         print('sequence to sequence data:')
-        (X_train, y_train), (X_test, y_test) = get_test_data(nb_train=1000, nb_test=1000, input_shape=(5, 10), output_shape=(5, 10),
+        (X_train, y_train), (X_test, y_test) = get_test_data(nb_train=1000, nb_test=200, input_shape=(5, 10), output_shape=(5, 10),
             classification=False)
         print('X_train:', X_train.shape)
         print('X_test:', X_test.shape)
@@ -104,7 +104,7 @@ class TestRegularizers(unittest.TestCase):
 
     def test_img_clf(self):
         print('image classification data:')
-        (X_train, y_train), (X_test, y_test) = get_test_data(nb_train=1000, nb_test=1000, input_shape=(3, 32, 32), 
+        (X_train, y_train), (X_test, y_test) = get_test_data(nb_train=1000, nb_test=200, input_shape=(3, 32, 32), 
             classification=True, nb_class=2)
         print('X_train:', X_train.shape)
         print('X_test:', X_test.shape)
