@@ -111,7 +111,7 @@ class MaskedLayer(Layer):
         return self.get_input_mask(train)
 
 
-class Merge(object): 
+class Merge(object):
     def __init__(self, models, mode='sum'):
         ''' Merge the output of a list of models into a single tensor.
             mode: {'sum', 'concat'}
@@ -289,7 +289,7 @@ class Dense(Layer):
     '''
         Just your regular fully connected NN layer.
     '''
-    def __init__(self, input_dim, output_dim, init='glorot_uniform', activation='linear', weights=None, 
+    def __init__(self, input_dim, output_dim, init='glorot_uniform', activation='linear', weights=None,
         W_regularizer=None, b_regularizer=None, activity_regularizer=None, W_constraint=None, b_constraint=None):
 
         super(Dense, self).__init__()
@@ -364,7 +364,7 @@ class TimeDistributedDense(MaskedLayer):
        Tensor output dimensions:  (nb_sample, shared_dimension, output_dim)
 
     '''
-    def __init__(self, input_dim, output_dim, init='glorot_uniform', activation='linear', weights=None, 
+    def __init__(self, input_dim, output_dim, init='glorot_uniform', activation='linear', weights=None,
         W_regularizer=None, b_regularizer=None, activity_regularizer=None, W_constraint=None, b_constraint=None):
 
         super(TimeDistributedDense, self).__init__()
@@ -497,7 +497,7 @@ class DenoisingAutoEncoder(AutoEncoder):
         """
             http://deeplearning.net/tutorial/dA.html
         """
-        return srng.binomial(size=(self.input_dim, 1), n=1,
+        return srng.binomial(size=(self.encoder.input_dim, 1), n=1,
                              p=1-self.corruption_level,
                              dtype=theano.config.floatX) * input
 
@@ -519,7 +519,7 @@ class MaxoutDense(Layer):
         Max-out layer, nb_feature is the number of pieces in the piecewise linear approx.
         Refer to http://arxiv.org/pdf/1302.4389.pdf
     '''
-    def __init__(self, input_dim, output_dim, nb_feature=4, init='glorot_uniform', weights=None, 
+    def __init__(self, input_dim, output_dim, nb_feature=4, init='glorot_uniform', weights=None,
         W_regularizer=None, b_regularizer=None, activity_regularizer=None, W_constraint=None, b_constraint=None):
 
         super(MaxoutDense, self).__init__()
