@@ -30,7 +30,7 @@ class TestRegularizers(unittest.TestCase):
         model.add(Dense(nb_hidden, y_train.shape[-1]))
         model.add(Activation('softmax'))
         model.compile(loss='categorical_crossentropy', optimizer='rmsprop')
-        history = model.fit(X_train, y_train, nb_epoch=10, batch_size=16, validation_data=(X_test, y_test), show_accuracy=True, verbose=2)
+        history = model.fit(X_train, y_train, nb_epoch=12, batch_size=16, validation_data=(X_test, y_test), show_accuracy=True, verbose=2)
         self.assertTrue(history.validation_accuracy[-1] > 0.9)
 
     def test_vector_reg(self):
@@ -48,7 +48,7 @@ class TestRegularizers(unittest.TestCase):
         model.add(Activation('relu'))
         model.add(Dense(nb_hidden, y_train.shape[-1]))
         model.compile(loss='hinge', optimizer='rmsprop')
-        history = model.fit(X_train, y_train, nb_epoch=10, batch_size=16, validation_data=(X_test, y_test), verbose=2)
+        history = model.fit(X_train, y_train, nb_epoch=12, batch_size=16, validation_data=(X_test, y_test), verbose=2)
         self.assertTrue(history.validation_loss[-1] < 0.75)
 
     def test_temporal_clf(self):
@@ -67,7 +67,7 @@ class TestRegularizers(unittest.TestCase):
         model.add(GRU(X_train.shape[-1], y_train.shape[-1]))
         model.add(Activation('softmax'))
         model.compile(loss='categorical_crossentropy', optimizer='rmsprop')
-        history = model.fit(X_train, y_train, nb_epoch=10, batch_size=16, validation_data=(X_test, y_test), show_accuracy=True, verbose=2)
+        history = model.fit(X_train, y_train, nb_epoch=12, batch_size=16, validation_data=(X_test, y_test), show_accuracy=True, verbose=2)
         self.assertTrue(history.validation_accuracy[-1] > 0.9)
 
     def test_temporal_reg(self):
@@ -82,7 +82,7 @@ class TestRegularizers(unittest.TestCase):
         model = Sequential()
         model.add(GRU(X_train.shape[-1], y_train.shape[-1]))
         model.compile(loss='hinge', optimizer='rmsprop')
-        history = model.fit(X_train, y_train, nb_epoch=10, batch_size=16, validation_data=(X_test, y_test), verbose=2)
+        history = model.fit(X_train, y_train, nb_epoch=12, batch_size=16, validation_data=(X_test, y_test), verbose=2)
         self.assertTrue(history.validation_loss[-1] < 0.75)
 
 
@@ -98,7 +98,7 @@ class TestRegularizers(unittest.TestCase):
         model = Sequential()
         model.add(TimeDistributedDense(X_train.shape[-1], y_train.shape[-1]))
         model.compile(loss='hinge', optimizer='rmsprop')
-        history = model.fit(X_train, y_train, nb_epoch=10, batch_size=16, validation_data=(X_test, y_test), verbose=2)
+        history = model.fit(X_train, y_train, nb_epoch=12, batch_size=16, validation_data=(X_test, y_test), verbose=2)
         self.assertTrue(history.validation_loss[-1] < 0.75)
 
 
@@ -121,7 +121,7 @@ class TestRegularizers(unittest.TestCase):
         model.add(Dense(32, y_test.shape[-1]))
         model.add(Activation('softmax'))
         model.compile(loss='categorical_crossentropy', optimizer='rmsprop')
-        history = model.fit(X_train, y_train, nb_epoch=10, batch_size=16, validation_data=(X_test, y_test), show_accuracy=True, verbose=2)
+        history = model.fit(X_train, y_train, nb_epoch=12, batch_size=16, validation_data=(X_test, y_test), show_accuracy=True, verbose=2)
         self.assertTrue(history.validation_accuracy[-1] > 0.9)
 
 

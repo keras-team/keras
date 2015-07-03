@@ -493,17 +493,17 @@ class DenoisingAutoEncoder(AutoEncoder):
         super(DenoisingAutoEncoder, self).__init__(encoder, decoder, output_reconstruction, tie_weights, weights)
         self.corruption_level = corruption_level
 
-    def _get_corrupted_input(self, input):
+    def _corrupt_input(self, X):
         """
             http://deeplearning.net/tutorial/dA.html
         """
-        return srng.binomial(size=(self.input_dim, 1), n=1,
+        return X * srng.binomial(size=X.shape, n=1,
                              p=1-self.corruption_level,
-                             dtype=theano.config.floatX) * input
+                             dtype=theano.config.floatX)
 
     def get_input(self, train=False):
         uncorrupted_input = super(DenoisingAutoEncoder, self).get_input(train)
-        return self._get_corrupted_input(uncorrupted_input)
+        return self._corrupt_input(uncorrupted_input)
 
     def get_config(self):
         return {"name":self.__class__.__name__,
