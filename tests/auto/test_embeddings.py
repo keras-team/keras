@@ -14,7 +14,7 @@ class TestConcatenation(unittest.TestCase):
 
     def test_unitnorm_constraint(self):
         lookup = Sequential()
-        lookup.add(Embedding(3, 2, weights=[self.W1], W_constraint=unitnorm))
+        lookup.add(Embedding(3, 2, weights=[self.W1], W_constraint=unitnorm()))
         lookup.add(Flatten())
         lookup.add(Dense(2, 1))
         lookup.add(Activation('sigmoid'))

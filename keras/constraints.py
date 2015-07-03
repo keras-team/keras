@@ -24,7 +24,7 @@ class NonNeg(Constraint):
 
 class UnitNorm(Constraint):
     def __call__(self, p):
-        return e / T.sqrt(T.sum(e**2, axis=-1, keepdims=True))
+        return p / T.sqrt(T.sum(p**2, axis=-1, keepdims=True))
 
 identity = Constraint
 maxnorm = MaxNorm
