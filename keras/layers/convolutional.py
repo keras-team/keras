@@ -17,7 +17,6 @@ class Convolution1D(Layer):
         W_regularizer=None, b_regularizer=None, activity_regularizer=None, W_constraint=None, b_constraint=None):
 
         super(Convolution1D,self).__init__()
-
         nb_row = 1
         nb_col = filter_length
         self.nb_filter = nb_filter
@@ -74,7 +73,6 @@ class MaxPooling1D(Layer):
     def __init__(self, pool_length=2, stride=None, ignore_border=True):
         super(MaxPooling1D,self).__init__()
         self.pool_length = pool_length
-
         if stride is not None:
             self.stride = (1, stride)
 
@@ -100,8 +98,8 @@ class Convolution2D(Layer):
         init='glorot_uniform', activation='linear', weights=None,
         border_mode='valid', subsample=(1, 1),
         W_regularizer=None, b_regularizer=None, activity_regularizer=None, W_constraint=None, b_constraint=None):
-        super(Convolution2D,self).__init__()
 
+        super(Convolution2D,self).__init__()
         self.init = initializations.get(init)
         self.activation = activations.get(activation)
         self.subsample = subsample
@@ -187,7 +185,7 @@ class ZeroPadding2D(Layer):
         in_shape = X.shape
         out_shape = (in_shape[0], in_shape[1], in_shape[2] + 2 * width, in_shape[3] + 2 * width)
         out = T.zeros(out_shape)
-        indices = (slice(None), slice(None), slice(width, in_shape[2] + width),slice(width, in_shape[3] + width))
+        indices = (slice(None), slice(None), slice(width, in_shape[2] + width), slice(width, in_shape[3] + width))
         return T.set_subtensor(out[indices], X)
 
     def get_config(self):

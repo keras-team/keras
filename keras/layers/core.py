@@ -408,6 +408,7 @@ class TimeDistributedDense(MaskedLayer):
             "init":self.init.__name__,
             "activation":self.activation.__name__}
 
+
 class AutoEncoder(Layer):
     '''
         A customizable autoencoder model.
