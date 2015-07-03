@@ -2,7 +2,7 @@
 ## Convolution1D
 
 ```python
-keras.layers.convolutional.Convolution1D(nb_filter, stack_size, filter_length, 
+keras.layers.convolutional.Convolution1D(input_dim, nb_filter, filter_length, 
         init='uniform', activation='linear', weights=None, 
         border_mode='valid', subsample_length=1, 
         W_regularizer=None, b_regularizer=None, W_constraint=None, 
@@ -11,10 +11,14 @@ keras.layers.convolutional.Convolution1D(nb_filter, stack_size, filter_length,
 
 Convolution operator for filtering neighborhoods of one-dimensional inputs.
 
-- __Arguments__:
 
-    - __nb_filter__: Number of convolution kernels to use.
-    - __stack_size__: Number of channels in the input.
+- __Input shape__: 3D tensor with shape: `(nb_samples, steps, input_dim)`.
+
+- __Output shape__: 3D tensor with shape: `(nb_samples, steps, nb_filter)`. `steps` value might have changed due to padding.
+
+- __Arguments__:
+    - __input_dim__: Number of channels/dimensions in the input.
+    - __nb_filter__: Number of convolution kernels to use (dimensionality of the output).
     - __filter_length__: The extension (spatial or temporal) of each filter.
     - __init__: name of initialization function for the weights of the layer (see: [initializations](../initializations.md)), or alternatively, Theano function to use for weights initialization. This parameter is only relevant if you don't pass a `weights` argument.
     - __activation__: name of activation function to use (see: [activations](../activations.md)), or alternatively, elementwise Theano function. If you don't specify anything, no activation is applied (ie. "linear" activation: a(x) = x).
@@ -40,6 +44,11 @@ keras.layers.convolutional.Convolution2D(nb_filter, stack_size, nb_row, nb_col,
 
 Convolution operator for filtering windows of two-dimensional inputs. 
 
+- __Input shape__: 4D tensor with shape: `(nb_samples, stack_size, nb_row, nb_col)`.
+
+- __Output shape__: 4D tensor with shape: `(nb_samples, nb_filter, nb_row, nb_col)`. `nb_row`, `nb_col` might have changed due to padding.
+
+
 - __Arguments__:
 
     - __nb_filter__: Number of convolution kernels to use.
@@ -63,13 +72,18 @@ Convolution operator for filtering windows of two-dimensional inputs.
 ## MaxPooling1D
 
 ```python
-keras.layers.convolutional.MaxPooling1D(pool_length=2, ignore_border=True)
+keras.layers.convolutional.MaxPooling1D(pool_length=2, stride=None, ignore_border=True)
 ```
+
+- __Input shape__: 3D tensor with shape: `(nb_samples, steps, dim)`.
+
+- __Output shape__: 3D tensor with shape: `(nb_samples, steps, new_dim)`.
 
 - __Arguments__:
 
     - __pool_length__: factor by which to downscale. 2 will halve the input.
-    - __ignore_border__: boolean. When True, (5,) input with pool_length=2 will generate a (2,) output, (3,) otherwise.
+    - __stride__: integer or None. Stride value.
+    - __ignore_border__: boolean.
 
 ---
 
@@ -78,6 +92,10 @@ keras.layers.convolutional.MaxPooling1D(pool_length=2, ignore_border=True)
 ```python
 keras.layers.convolutional.MaxPooling2D(poolsize=(2, 2), ignore_border=True)
 ```
+
+- __Input shape__: 4D tensor with shape: `(nb_samples, stack_size, nb_row, nb_col)`.
+
+- __Output shape__: 4D tensor with shape: `(nb_samples, stack_size, new_nb_row, new_nb_col)`.
 
 - __Arguments__:
 
