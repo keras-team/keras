@@ -28,8 +28,6 @@ def categorical_crossentropy(y_true, y_pred):
     return cce
 
 def binary_crossentropy(y_true, y_pred):
-    if y_true.shape[-1] != 1:
-        raise Exception("binary_crossentropy can only be used with scalar outputs.")
     y_pred = T.clip(y_pred, epsilon, 1.0 - epsilon)
     bce = T.nnet.binary_crossentropy(y_pred, y_true)
     return bce
