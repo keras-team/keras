@@ -324,13 +324,14 @@ class LSTM(Recurrent):
     def __init__(self, input_dim, output_dim=128, 
         init='glorot_uniform', inner_init='orthogonal', forget_bias_init='one',
         activation='tanh', inner_activation='hard_sigmoid',
-        weights=None, truncate_gradient=-1, return_sequences=False):
+        weights=None, truncate_gradient=-1, return_sequences=False, go_backwards=False):
     
         super(LSTM,self).__init__()
         self.input_dim = input_dim
         self.output_dim = output_dim
         self.truncate_gradient = truncate_gradient
         self.return_sequences = return_sequences
+        self.go_backwards = go_backwards
 
         self.init = initializations.get(init)
         self.inner_init = initializations.get(inner_init)
@@ -397,7 +398,8 @@ class LSTM(Recurrent):
                 T.unbroadcast(alloc_zeros_matrix(X.shape[1], self.output_dim), 1)
             ], 
             non_sequences=[self.U_i, self.U_f, self.U_o, self.U_c], 
-            truncate_gradient=self.truncate_gradient 
+            truncate_gradient=self.truncate_gradient,
+            go_backwards=self.go_backwards
         )
 
         if self.return_sequences:
@@ -414,9 +416,55 @@ class LSTM(Recurrent):
             "activation":self.activation.__name__,
             "inner_activation":self.inner_activation.__name__,
             "truncate_gradient":self.truncate_gradient,
+            "return_sequences":self.return_sequences,
+            "go_backwards":self.go_backwards}
+
+class BLSTM(LSTM):
+    '''
+        Bi-directional LSTM
+        For more details, refer to LSTM()
+    '''
+    def __init__(self, input_dim, output_dim=128,
+        init='glorot_uniform', inner_init='orthogonal', forget_bias_init='one',
+        activation='tanh', inner_activation='hard_sigmoid',
+        weights=None, truncate_gradient=-1, return_sequences=False):
+
+        self.input_dim = input_dim
+        self.output_dim = output_dim
+        self.truncate_gradient = truncate_gradient
+        self.return_sequences = return_sequences
+        self.init = initializations.get(init)
+        self.inner_init = initializations.get(inner_init)
+        self.forget_bias_init = initializations.get(forget_bias_init)
+        self.activation = activations.get(activation)
+        self.inner_activation = activations.get(inner_activation)
+        self.LSTM_forward  = LSTM(input_dim, output_dim, init, inner_init, forget_bias_init, activation,
+                                  inner_activation, weights, truncate_gradient, return_sequences, False)
+        self.LSTM_backward = LSTM(input_dim, output_dim, init, inner_init, forget_bias_init, activation,
+                                  inner_activation, weights, truncate_gradient, return_sequences, True)
+        self.params = []
+        self.params.extend(self.LSTM_forward.params)
+        self.params.extend(self.LSTM_backward.params)
+
+    def get_output(self, train):
+        forward_out  = self.LSTM_forward.get_output(train)
+        backward_out = self.LSTM_backward.get_output(train)
+        if self.return_sequences:
+            return T.concatenate([forward_out, backward_out], axis=2)
+        else:
+            return T.concatenate([forward_out, backward_out], axis=1)
+
+    def get_config(self):
+        return {"name":self.__class__.__name__,
+            "input_dim":self.input_dim,
+            "output_dim":self.output_dim,
+            "init":self.init.__name__,
+            "inner_init":self.inner_init.__name__,
+            "forget_bias_init":self.forget_bias_init.__name__,
+            "activation":self.activation.__name__,
+            "inner_activation":self.inner_activation.__name__,
+            "truncate_gradient":self.truncate_gradient,
             "return_sequences":self.return_sequences}
-
-
 
 class JZS1(Recurrent):
     '''
