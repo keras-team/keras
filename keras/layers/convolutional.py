@@ -151,20 +151,21 @@ class Convolution2D(Layer):
 
 
 class MaxPooling2D(Layer):
-    def __init__(self, poolsize=(2, 2), ignore_border=True):
+    def __init__(self, poolsize=(2, 2), ignore_border=True, st=None):
         super(MaxPooling2D,self).__init__()
         self.input = T.tensor4()
         self.poolsize = poolsize
         self.ignore_border = ignore_border
-
+        self.st = st
     def get_output(self, train):
         X = self.get_input(train)
-        output = downsample.max_pool_2d(X, self.poolsize, ignore_border=self.ignore_border)
+        output = downsample.max_pool_2d(X, self.poolsize, ignore_border=self.ignore_border, st=self.st)
         return output
 
     def get_config(self):
         return {"name":self.__class__.__name__,
             "poolsize":self.poolsize,
+            "st":self.st,
             "ignore_border":self.ignore_border}
 
 
@@ -174,4 +175,3 @@ class MaxPooling2D(Layer):
 # class Convolution3D: TODO
 
 # class MaxPooling3D: TODO
-        
