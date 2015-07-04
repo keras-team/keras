@@ -174,10 +174,13 @@ class Model(object):
             ins_batch = slice_X(ins, batch_ids)
 
             batch_outs = f(*ins_batch)
+            if type(batch_outs) != list:
+                batch_outs = [batch_outs]
             if batch_index == 0:
-                for batch_out in enumerate(batch_outs):
+                for batch_out in batch_outs:
                     shape = (nb_sample,) + batch_out.shape[1:]
                     outs.append(np.zeros(shape))
+
             for i, batch_out in enumerate(batch_outs):
                 outs[i][batch_start:batch_end] = batch_out
             if verbose == 1:
@@ -208,7 +211,7 @@ class Model(object):
             else:
                 if batch_index == 0:
                     outs.append(0.)
-                outs[0] += batch_outs
+                outs[0] += batch_outs * len(batch_ids)
 
             if verbose == 1:
                 progbar.update(batch_end)
@@ -454,7 +457,7 @@ class Sequential(Model, containers.Sequential):
         f.close()
 
 
-class Graph(containers.Graph):
+class Graph(Model, containers.Graph):
     def compile(self, optimizer, loss, theano_mode=None):
         # loss is a dictionary mapping output name to loss functions
         ys = []
