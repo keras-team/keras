@@ -13,7 +13,7 @@ def mean_absolute_error(y_true, y_pred):
     return T.abs_(y_pred - y_true).mean(axis=-1)
 
 def mean_absolute_percentage_error(y_true, y_pred):
-    return T.abs_((y_true - y_pred) / y_true).mean(axis=-1) * 100
+    return T.abs_((y_true - y_pred) / T.clip(T.abs_(y_true), epsilon, np.inf)).mean(axis=-1) * 100.
 
 def mean_squared_logarithmic_error(y_true, y_pred):
     return T.sqr(T.log(T.clip(y_pred, epsilon, np.inf) + 1.) - T.log(T.clip(y_true, epsilon, np.inf) + 1.)).mean(axis=-1)
