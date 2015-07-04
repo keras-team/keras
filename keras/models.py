@@ -239,7 +239,7 @@ class Sequential(Model, containers.Sequential):
         self.optimizer = optimizers.get(optimizer)
         self.loss = weighted_objective(objectives.get(loss))
 
-        # input of model 
+        # input of model
         self.X_train = self.get_input(train=True)
         self.X_test = self.get_input(train=False)
 
@@ -257,7 +257,7 @@ class Sequential(Model, containers.Sequential):
         train_loss.name = 'train_loss'
         test_loss.name = 'test_loss'
         self.y.name = 'y'
-        
+
         if class_mode == "categorical":
             train_accuracy = T.mean(T.eq(T.argmax(self.y, axis=-1), T.argmax(self.y_train, axis=-1)))
             test_accuracy = T.mean(T.eq(T.argmax(self.y, axis=-1), T.argmax(self.y_test, axis=-1)))
@@ -282,15 +282,15 @@ class Sequential(Model, containers.Sequential):
             test_ins = [self.X_test, self.y, self.weights]
             predict_ins = [self.X_test]
 
-        self._train = theano.function(train_ins, train_loss, 
+        self._train = theano.function(train_ins, train_loss,
             updates=updates, allow_input_downcast=True, mode=theano_mode)
-        self._train_with_acc = theano.function(train_ins, [train_loss, train_accuracy], 
+        self._train_with_acc = theano.function(train_ins, [train_loss, train_accuracy],
             updates=updates, allow_input_downcast=True, mode=theano_mode)
-        self._predict = theano.function(predict_ins, self.y_test, 
+        self._predict = theano.function(predict_ins, self.y_test,
             allow_input_downcast=True, mode=theano_mode)
-        self._test = theano.function(test_ins, test_loss, 
+        self._test = theano.function(test_ins, test_loss,
             allow_input_downcast=True, mode=theano_mode)
-        self._test_with_acc = theano.function(test_ins, [test_loss, test_accuracy], 
+        self._test_with_acc = theano.function(test_ins, [test_loss, test_accuracy],
             allow_input_downcast=True, mode=theano_mode)
 
 
@@ -533,14 +533,14 @@ class Graph(Model, containers.Graph):
     def evaluate(self, data, batch_size=128, verbose=0):
         ins = [data[name] for name in self.input_order] + [data[name] for name in self.output_order]
         outs = self._test_loop(self._test, ins, batch_size, verbose)
-        return dict(zip(self.output_order, outs))
+        return outs[0]
 
     def predict(self, data, batch_size=128, verbose=0):
         ins = [data[name] for name in self.input_order]
         outs = self._predict_loop(self._predict, ins, batch_size, verbose)
         return dict(zip(self.output_order, outs))
 
-    def save_weights(self):
+    def save_weights(self, filepath, overwrite=False):
         # Save weights from all layers to HDF5
         import h5py
         import os.path
@@ -568,8 +568,7 @@ class Graph(Model, containers.Graph):
         f.flush()
         f.close()
 
-
-    def load_weights(self):
+    def load_weights(self, filepath):
         # Loads weights from HDF5 file
         import h5py
         f = h5py.File(filepath)
