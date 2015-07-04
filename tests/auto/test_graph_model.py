@@ -63,6 +63,7 @@ class TestRegularizers(unittest.TestCase):
         loss = graph.evaluate({'input1':X_test, 'output1':y_test})
         print(loss)
         assert(loss < 1.4)
+        graph.get_config(verbose=1)
 
     def test_1o_2i(self):
         print('test a non-sequential graph with 2 inputs and 1 output')
@@ -86,6 +87,7 @@ class TestRegularizers(unittest.TestCase):
         loss = graph.evaluate({'input1':X_test, 'input2':X2_test, 'output1':y_test})
         print(loss)
         assert(loss < 1.4)
+        graph.get_config(verbose=1)
 
     def test_2o_1i_weights(self):
         print('test a non-sequential graph with 1 input and 2 outputs')
@@ -149,6 +151,7 @@ class TestRegularizers(unittest.TestCase):
 
         loss = seq.evaluate(X_test, y_test, show_accuracy=True)
         pred = seq.predict(X_test)
+        seq.get_config(verbose=1)
 
 if __name__ == '__main__':
     print('Test graph model')

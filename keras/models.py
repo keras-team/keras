@@ -10,7 +10,7 @@ from . import objectives
 from . import regularizers
 from . import constraints
 from . import callbacks as cbks
-import time, copy
+import time, copy, pprint
 from .utils.generic_utils import Progbar, printv
 from .layers import containers
 from six.moves import range
@@ -293,6 +293,13 @@ class Sequential(Model, containers.Sequential):
         self._test_with_acc = theano.function(test_ins, [test_loss, test_accuracy],
             allow_input_downcast=True, mode=theano_mode)
 
+    def train(self, X, y, accuracy=False, sample_weight=None):
+        warnings.warn('The "train" method is deprecated, use "train_on_batch" instead.')
+        return self.train_on_batch(X, y, accuracy, sample_weight)
+
+    def test(self, X, y, accuracy=False):
+        warnings.warn('The "test" method is deprecated, use "test_on_batch" instead.')
+        return self.test_on_batch(X, y, accuracy)
 
     def train_on_batch(self, X, y, accuracy=False, sample_weight=None):
         X = standardize_X(X)
@@ -327,7 +334,7 @@ class Sequential(Model, containers.Sequential):
 
 
     def fit(self, X, y, batch_size=128, nb_epoch=100, verbose=1, callbacks=[],
-            validation_split=0., validation_data=None, shuffle=True, show_accuracy=False, 
+            validation_split=0., validation_data=None, shuffle=True, show_accuracy=False,
             class_weight=None, sample_weight=None):
 
         X = standardize_X(X)
@@ -576,3 +583,10 @@ class Graph(Model, containers.Graph):
         weights = [g['param_{}'.format(p)] for p in range(g.attrs['nb_params'])]
         self.set_weights(weights)
         f.close()
+
+    def get_config(self, verbose=1):
+        config = super(Graph, self).get_config()
+        if verbose:
+            pp = pprint.PrettyPrinter(indent=4)
+            pp.pprint(config)
+        return config

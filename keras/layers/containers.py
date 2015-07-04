@@ -106,6 +106,9 @@ class Graph(Layer):
         self.input_order = [] # strings
         self.outputs = {} # layer-like
         self.output_order = [] # strings
+        self.input_config = [] # dicts
+        self.output_config = [] # dicts
+        self.node_config = [] # dicts
 
         self.params = []
         self.regularizers = []
@@ -138,13 +141,15 @@ class Graph(Layer):
             raise Exception('Duplicate node identifier: ' + name)
         self.namespace.add(name)
         self.input_order.append(name)
-        layer = Layer() # empty layer 
+        layer = Layer() # empty layer
         layer.input = ndim_tensor(ndim)
         layer.input.name = name
         self.inputs[name] = layer
+        self.output_config.append({'name':name, 'ndim':ndim})
 
     def add_node(self, layer, name, input=None, inputs=[], merge_mode='concat'):
-        layer.set_name(name)
+        if hasattr(layer, 'set_name'):
+            layer.set_name(name)
         if name in self.namespace:
             raise Exception('Duplicate node identifier: ' + name)
         if input:
@@ -165,6 +170,7 @@ class Graph(Layer):
 
         self.namespace.add(name)
         self.nodes[name] = layer
+        self.node_config.append({'name':name, 'input':input, 'inputs':inputs, 'merge_mode':merge_mode})
         params, regularizers, constraints = layer.get_params()
         self.params += params
         self.regularizers += regularizers
@@ -190,9 +196,14 @@ class Graph(Layer):
             self.outputs[name] = merge
         self.namespace.add(name)
         self.output_order.append(name)
+        self.output_config.append({'name':name, 'input':input, 'inputs':inputs, 'merge_mode':merge_mode})
 
     def get_config(self):
-        pass
+        return {"name":self.__class__.__name__,
+            "input_config":self.input_config,
+            "output_config":self.output_config,
+            "node_config":self.node_config,
+            "nodes":[self.nodes[c["name"]].get_config() for c in self.node_config]}
 
 
 
