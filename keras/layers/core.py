@@ -20,7 +20,7 @@ class Layer(object):
         self.params = []
 
     def set_previous(self, layer):
-        if not hasattr(self, "get_output_mask") and layer.get_output_mask() is not None:
+        if not self.supports_masked_input() and layer.get_output_mask() is not None:
             raise Exception("Attached non-masking layer to layer with masked output")
         self.previous = layer
 
@@ -34,9 +34,25 @@ class Layer(object):
             return self.input
 
     def supports_masked_input(self):
+        ''' Whether or not this layer respects the output mask of its previous layer in its calculations. If you try
+        to attach a layer that does *not* support masked_input to a layer that gives a non-None output_mask() that is
+        an error'''
         return False
 
     def get_output_mask(self, train=None):
+        '''
+        For some models (such as RNNs) you want a way of being able to mark some output data-points as
+        "masked", so they are not used in future calculations. In such a model, get_output_mask() should return a mask
+        of one less dimension than get_output() (so if get_output is (nb_samples, nb_timesteps, nb_dimensions), then the mask
+        is (nb_samples, nb_timesteps), with a one for every unmasked datapoint, and a zero for every masked one.
+
+        If there is *no* masking then it shall return None. For instance if you attach an Activation layer (they support masking)
+        to a layer with an output_mask, then that Activation shall also have an output_mask. If you attach it to a layer with no
+        such mask, then the Activation's get_output_mask shall return None.
+
+        Some layers have an output_mask even if their input is unmasked, notably Embedding which can turn the entry "0" into
+        a mask.
+        '''
         return None
 
     def set_weights(self, weights):
@@ -77,6 +93,10 @@ class Layer(object):
 
 
 class MaskedLayer(Layer):
+    '''
+    If your layer trivially supports masking (by simply copying the input mask to the output), then subclass MaskedLayer
+    instead of Layer, and make sure that you incorporate the input mask into your calculation of get_output()
+    '''
     def supports_masked_input(self):
         return True
 
@@ -140,6 +160,12 @@ class Merge(object):
     @property
     def input(self):
         return self.get_input()
+
+    def supports_masked_input(self):
+        return False
+
+    def get_output_mask(self, train=None):
+        return None
 
     def get_weights(self):
         weights = []
@@ -390,6 +416,7 @@ class TimeDistributedDense(MaskedLayer):
             "init":self.init.__name__,
             "activation":self.activation.__name__}
 
+
 class AutoEncoder(Layer):
     '''
         A customizable autoencoder model.
@@ -475,17 +502,17 @@ class DenoisingAutoEncoder(AutoEncoder):
         super(DenoisingAutoEncoder, self).__init__(encoder, decoder, output_reconstruction, tie_weights, weights)
         self.corruption_level = corruption_level
 
-    def _get_corrupted_input(self, input):
+    def _corrupt_input(self, X):
         """
             http://deeplearning.net/tutorial/dA.html
         """
-        return srng.binomial(size=(self.input_dim, 1), n=1,
+        return X * srng.binomial(size=X.shape, n=1,
                              p=1-self.corruption_level,
-                             dtype=theano.config.floatX) * input
+                             dtype=theano.config.floatX)
 
     def get_input(self, train=False):
         uncorrupted_input = super(DenoisingAutoEncoder, self).get_input(train)
-        return self._get_corrupted_input(uncorrupted_input)
+        return self._corrupt_input(uncorrupted_input)
 
     def get_config(self):
         return {"name":self.__class__.__name__,

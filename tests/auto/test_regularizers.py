@@ -36,8 +36,7 @@ def create_model(weight_reg=None, activity_reg=None):
     model = Sequential()
     model.add(Dense(784, 50))
     model.add(Activation('relu'))
-    model.add(ActivityRegularization(activity_reg))
-    model.add(Dense(50, 10, W_regularizer=weight_reg))
+    model.add(Dense(50, 10, W_regularizer=weight_reg, activity_regularizer=activity_reg))
     model.add(Activation('softmax'))
     return model
 

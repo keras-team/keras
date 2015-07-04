@@ -47,7 +47,7 @@ class Embedding(Layer):
     def get_output_mask(self, train=None):
         X = self.get_input(train)
         if not self.mask_zero:
-            return T.ones_like(X)
+            return None
         else:
             return T.ones_like(X) * (1 - T.eq(X,0))
 

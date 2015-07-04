@@ -12,6 +12,9 @@ def mean_squared_error(y_true, y_pred):
 def mean_absolute_error(y_true, y_pred):
     return T.abs_(y_pred - y_true).mean(axis=-1)
 
+def mean_squared_logarithmic_error(y_true, y_pred):
+    return T.sqr(T.log(T.clip(y_pred, epsilon, np.inf) + 1.) - T.log(T.clip(y_true, epsilon, np.inf) + 1.)).mean(axis=-1)
+
 def squared_hinge(y_true, y_pred):
     return T.sqr(T.maximum(1. - y_true * y_pred, 0.)).mean(axis=-1)
 
@@ -35,6 +38,7 @@ def binary_crossentropy(y_true, y_pred):
 # aliases
 mse = MSE = mean_squared_error
 mae = MAE = mean_absolute_error
+msle = MSLE = mean_squared_logarithmic_error
 
 from .utils.generic_utils import get_from_module
 def get(identifier):

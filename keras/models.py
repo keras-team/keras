@@ -83,7 +83,6 @@ class Model(object):
         '''
             Abstract fit function for f(*ins). Assume that f returns a list, labelled by out_labels.
         '''
-
         do_validation = False
         if val_f and val_ins:
             do_validation = True
@@ -158,6 +157,61 @@ class Model(object):
 
         callbacks.on_train_end()
         return history
+
+    def _predict_loop(self, f, ins, batch_size=128, verbose=0):
+        '''
+            Abstract method to loop over some data in batches.
+        '''
+        nb_sample = len(ins[0])
+        outs = []
+        if verbose == 1:
+            progbar = Progbar(target=len(X[0]))
+        batches = make_batches(nb_sample, batch_size)
+        for batch_index, (batch_start, batch_end) in enumerate(batches):
+            batch_ids = index_array[batch_start:batch_end]
+            ins_batch = slice_X(ins, batch_ids)
+
+            batch_outs = f(*ins_batch)
+            if batch_index == 0:
+                for batch_out in enumerate(batch_outs):
+                    shape = (nb_sample,) + batch_out.shape[1:]
+                    outs.append(np.zeros(shape))
+            for i, batch_out in enumerate(batch_outs):
+                outs[i][batch_start:batch_end] = batch_out
+            if verbose == 1:
+                progbar.update(batch_end)
+        return outs
+
+    def _test_loop(self, f, ins, batch_size=128, verbose=0):
+        '''
+            Abstract method to loop over some data in batches.
+        '''
+        nb_sample = len(ins[0])
+        outs = []
+        if verbose == 1:
+            progbar = Progbar(target=len(X[0]))
+        batches = make_batches(nb_sample, batch_size)
+        for batch_index, (batch_start, batch_end) in enumerate(batches):
+            batch_ids = index_array[batch_start:batch_end]
+            ins_batch = slice_X(ins, batch_ids)
+
+            batch_outs = f(*ins_batch)
+            if type(batch_outs) == list:
+                if batch_index == 0:
+                    for batch_out in enumerate(batch_outs):
+                        outs.append(0.)
+                for i, batch_out in enumerate(batch_outs):
+                    outs[i] += batch_out
+            else:
+                if batch_index == 0:
+                    outs.append(0.)
+                outs[0] += batch_outs
+
+            if verbose == 1:
+                progbar.update(batch_end)
+        for i, out in enumerate(outs):
+            outs[i] /= nb_sample
+        return out
 
 
 class Sequential(Model, containers.Sequential):
@@ -234,7 +288,7 @@ class Sequential(Model, containers.Sequential):
             allow_input_downcast=True, mode=theano_mode)
 
 
-    def train(self, X, y, accuracy=False, sample_weight=None):
+    def train_on_batch(self, X, y, accuracy=False, sample_weight=None):
         X = standardize_X(X)
         y = standardize_y(y)
 
@@ -250,14 +304,21 @@ class Sequential(Model, containers.Sequential):
             return self._train(*ins)
         
 
-    def test(self, X, y, accuracy=False):
+    def test_on_batch(self, X, y, accuracy=False):
         X = standardize_X(X)
         y = standardize_y(y)
-        ins = X + [y]
+        sample_weight = np.ones(y.shape[:-1] + (1,))
+        ins = X + [y, sample_weight]
         if accuracy:
             return self._test_with_acc(*ins)
         else:
             return self._test(*ins)
+
+
+    def predict_on_batch(self, X):
+        ins = standardize_X(X)
+        return self._predict(*ins)
+
 
     def fit(self, X, y, batch_size=128, nb_epoch=100, verbose=1, callbacks=[],
             validation_split=0., validation_data=None, shuffle=True, show_accuracy=False, 
@@ -297,24 +358,9 @@ class Sequential(Model, containers.Sequential):
             validation_split=validation_split, val_f=val_f, val_ins=val_ins, shuffle=shuffle)
 
 
-    def predict(self, X, batch_size=128, verbose=1):
+    def predict(self, X, batch_size=128, verbose=0):
         X = standardize_X(X)
-        batches = make_batches(len(X[0]), batch_size)
-        if verbose == 1:
-            progbar = Progbar(target=len(X[0]))
-        for batch_index, (batch_start, batch_end) in enumerate(batches):
-            X_batch = slice_X(X, batch_start, batch_end)
-            batch_preds = self._predict(*X_batch)
-
-            if batch_index == 0:
-                shape = (len(X[0]),) + batch_preds.shape[1:]
-                preds = np.zeros(shape)
-            preds[batch_start:batch_end] = batch_preds
-
-            if verbose == 1:
-                progbar.update(batch_end)
-
-        return preds
+        return self._predict_loop(self._predict, X, batch_size, verbose)
 
 
     def predict_proba(self, X, batch_size=128, verbose=1):
@@ -337,38 +383,12 @@ class Sequential(Model, containers.Sequential):
         y = standardize_y(y)
         sample_weight = standardize_weights(y, sample_weight=sample_weight)
 
+        ins = X + [y, sample_weight]
         if show_accuracy:
-            tot_acc = 0.
-        tot_score = 0.
-        seen = 0
-
-        batches = make_batches(len(y), batch_size)
-        if verbose:
-            progbar = Progbar(target=len(y), verbose=verbose)
-        for batch_index, (batch_start, batch_end) in enumerate(batches):
-            X_batch = slice_X(X, batch_start, batch_end)
-            y_batch = y[batch_start:batch_end]
-            weight_batch = sample_weight[batch_start:batch_end]
-
-            ins = X_batch + [y_batch, weight_batch]
-            if show_accuracy:
-                loss, acc = self._test_with_acc(*ins)
-                tot_acc += acc * len(y_batch)
-                log_values = [('loss', loss), ('acc.', acc)]
-            else:
-                loss = self._test(*ins)
-                log_values = [('loss', loss)]
-            tot_score += loss * len(y_batch)
-            seen += len(y_batch)
-
-            # logging
-            if verbose:
-                progbar.update(batch_end, log_values)
-
-        if show_accuracy:
-            return tot_score / seen, tot_acc / seen
+            f = self._test_with_acc
         else:
-            return tot_score / seen
+            f = self._test
+        return self._test_loop(f, ins, batch_size, verbose)
 
 
     def get_config(self, verbose=0):
@@ -413,6 +433,10 @@ class Sequential(Model, containers.Sequential):
 
 
     def load_weights(self, filepath):
+        '''
+            This method does not make use of Sequential.set_weights()
+            for backwards compatibility.
+        '''
         # Loads weights from HDF5 file
         import h5py
         f = h5py.File(filepath)
@@ -463,19 +487,82 @@ class Graph(containers.Graph):
         self._predict = theano.function(inputs=ins, outputs=ys_test, 
             allow_input_downcast=True, mode=theano_mode)
 
-    def train(self, data):
+    def train_on_batch(self, data):
         # data is a dictionary mapping output and input names to arrays
         ins = [data[name] for name in self.input_order] + [data[name] for name in self.output_order]
         return self._train(*ins)
 
-    def test(self, data):
+    def test_on_batch(self, data):
         # data is a dictionary mapping input names to arrays
         ins = [data[name] for name in self.input_order] + [data[name] for name in self.output_order]
         return self._test(*ins)
 
-    def predict(self, data):
+    def predict_on_batch(self, data):
         # data is a dictionary mapping input names to arrays
         ins = [data[name] for name in self.input_order]
         return self._predict(*ins)
 
+    def fit(self, data, batch_size=128, nb_epoch=100, verbose=1, callbacks=[],
+            validation_split=0., validation_data=None, shuffle=True):
+        ins = [data[name] for name in self.input_order] + [data[name] for name in self.output_order]
 
+        val_f = None
+        val_ins = None
+        if validation_data or validation_split:
+            val_f = self._test
+        if validation_data:
+            val_ins = [validation_data[name] for name in self.input_order] + [validation_data[name] for name in self.output_order]
+
+        f = self._train
+        out_labels = self.output_order
+        history = self._fit(f, ins, out_labels=out_labels, batch_size=batch_size, nb_epoch=nb_epoch, verbose=verbose, callbacks=callbacks, \
+            validation_split=validation_split, val_f=val_f, val_ins=val_ins, shuffle=shuffle)
+        return history
+
+    def evaluate(self, data, batch_size=128, verbose=0):
+        ins = [data[name] for name in self.input_order] + [data[name] for name in self.output_order]
+        outs = self._test_loop(self._test, ins, batch_size, verbose)
+        return dict(zip(self.output_order, outs))
+
+    def predict(self, data, batch_size=128, verbose=0):
+        ins = [data[name] for name in self.input_order]
+        outs = self._predict_loop(self._predict, ins, batch_size, verbose)
+        return dict(zip(self.output_order, outs))
+
+    def save_weights(self):
+        # Save weights from all layers to HDF5
+        import h5py
+        import os.path
+        # if file exists and should not be overwritten
+        if not overwrite and os.path.isfile(filepath):
+            import sys
+            get_input = input
+            if sys.version_info[:2] <= (2, 7):
+                get_input = raw_input
+            overwrite = get_input('[WARNING] %s already exists - overwrite? [y/n]' % (filepath))
+            while overwrite not in ['y', 'n']:
+                overwrite = get_input('Enter "y" (overwrite) or "n" (cancel).')
+            if overwrite == 'n':
+                return
+            print('[TIP] Next time specify overwrite=True in save_weights!')
+
+        f = h5py.File(filepath, 'w')
+        g = f.create_group('graph')
+        weights = self.get_weights()
+        g.attrs['nb_params'] = len(weights)
+        for n, param in enumerate(weights):
+            param_name = 'param_{}'.format(n)
+            param_dset = g.create_dataset(param_name, param.shape, dtype=param.dtype)
+            param_dset[:] = param
+        f.flush()
+        f.close()
+
+
+    def load_weights(self):
+        # Loads weights from HDF5 file
+        import h5py
+        f = h5py.File(filepath)
+        g = f['graph']
+        weights = [g['param_{}'.format(p)] for p in range(g.attrs['nb_params'])]
+        self.set_weights(weights)
+        f.close()
