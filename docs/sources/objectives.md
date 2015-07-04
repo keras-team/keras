@@ -18,6 +18,8 @@ For a few examples of such functions, check out the [objectives source](https://
 
 - __mean_squared_error__ / __mse__
 - __mean_absolute_error__ / __mae__
+- __mean_absolute_percentage_error__ / __mape__
+- __mean_squared_logarithmic_error__ / __msle__
 - __squared_hinge__
 - __hinge__
 - __binary_crossentropy__: Also known as logloss. 
