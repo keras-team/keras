@@ -79,7 +79,7 @@ def standardize_weights(y, sample_weight=None, class_weight=None):
 
 class Model(object):
     def _fit(self, f, ins, out_labels=[], batch_size=128, nb_epoch=100, verbose=1, callbacks=[], \
-        validation_split=0., val_f=None, val_ins=None, shuffle=True):
+        validation_split=0., val_f=None, val_ins=None, shuffle=True, metrics=[]):
         '''
             Abstract fit function for f(*ins). Assume that f returns a list, labelled by out_labels.
         '''
@@ -92,7 +92,7 @@ class Model(object):
             if 0 < validation_split < 1:
                 do_validation = True
                 split_at = int(len(ins[0]) * (1 - validation_split))
-                (ins, ins_val) = (slice_X(ins, 0, split_at), slice_X(ins, split_at))
+                (ins, val_ins) = (slice_X(ins, 0, split_at), slice_X(ins, split_at))
                 if verbose:
                     print("Train on %d samples, validate on %d samples" % (len(ins[0]), len(val_ins[0])))
 
@@ -113,6 +113,7 @@ class Model(object):
             'nb_sample': nb_train_sample,
             'verbose': verbose,
             'do_validation': do_validation,
+            'metrics':metrics,
         })
         callbacks.on_train_begin()
 
@@ -165,8 +166,9 @@ class Model(object):
         nb_sample = len(ins[0])
         outs = []
         if verbose == 1:
-            progbar = Progbar(target=len(X[0]))
+            progbar = Progbar(target=nb_sample)
         batches = make_batches(nb_sample, batch_size)
+        index_array = np.arange(nb_sample)
         for batch_index, (batch_start, batch_end) in enumerate(batches):
             batch_ids = index_array[batch_start:batch_end]
             ins_batch = slice_X(ins, batch_ids)
@@ -189,8 +191,9 @@ class Model(object):
         nb_sample = len(ins[0])
         outs = []
         if verbose == 1:
-            progbar = Progbar(target=len(X[0]))
+            progbar = Progbar(target=nb_sample)
         batches = make_batches(nb_sample, batch_size)
+        index_array = np.arange(nb_sample)
         for batch_index, (batch_start, batch_end) in enumerate(batches):
             batch_ids = index_array[batch_start:batch_end]
             ins_batch = slice_X(ins, batch_ids)
@@ -211,7 +214,7 @@ class Model(object):
                 progbar.update(batch_end)
         for i, out in enumerate(outs):
             outs[i] /= nb_sample
-        return out
+        return outs
 
 
 class Sequential(Model, containers.Sequential):
@@ -353,14 +356,14 @@ class Sequential(Model, containers.Sequential):
             out_labels = ['loss']
 
         ins = X + [y, sample_weight]
-
+        metrics = ['loss', 'acc', 'val_loss', 'val_acc']
         return self._fit(f, ins, out_labels=out_labels, batch_size=batch_size, nb_epoch=nb_epoch, verbose=verbose, callbacks=callbacks, \
-            validation_split=validation_split, val_f=val_f, val_ins=val_ins, shuffle=shuffle)
+            validation_split=validation_split, val_f=val_f, val_ins=val_ins, shuffle=shuffle, metrics=metrics)
 
 
     def predict(self, X, batch_size=128, verbose=0):
         X = standardize_X(X)
-        return self._predict_loop(self._predict, X, batch_size, verbose)
+        return self._predict_loop(self._predict, X, batch_size, verbose)[0]
 
 
     def predict_proba(self, X, batch_size=128, verbose=1):
@@ -388,7 +391,11 @@ class Sequential(Model, containers.Sequential):
             f = self._test_with_acc
         else:
             f = self._test
-        return self._test_loop(f, ins, batch_size, verbose)
+        outs = self._test_loop(f, ins, batch_size, verbose)
+        if show_accuracy:
+            return outs
+        else:
+            return outs[0]
 
 
     def get_config(self, verbose=0):
@@ -448,7 +455,7 @@ class Sequential(Model, containers.Sequential):
 
 
 class Graph(containers.Graph):
-    def compile(self, optimizer, loss, theano_mode='DebugMode'):
+    def compile(self, optimizer, loss, theano_mode=None):
         # loss is a dictionary mapping output name to loss functions
         ys = []
         ys_train = []
@@ -515,8 +522,9 @@ class Graph(containers.Graph):
 
         f = self._train
         out_labels = self.output_order
+        metrics = self.output_order + ['val_' + m for m in self.output_order]
         history = self._fit(f, ins, out_labels=out_labels, batch_size=batch_size, nb_epoch=nb_epoch, verbose=verbose, callbacks=callbacks, \
-            validation_split=validation_split, val_f=val_f, val_ins=val_ins, shuffle=shuffle)
+            validation_split=validation_split, val_f=val_f, val_ins=val_ins, shuffle=shuffle, metrics=metrics)
         return history
 
     def evaluate(self, data, batch_size=128, verbose=0):

@@ -121,22 +121,24 @@ class BaseLogger(Callback):
         self.seen += batch_size
 
         for k, v in logs.items():
-            self.log_values.append((k, v))
             if k in self.totals:
                 self.totals[k] += v * batch_size
             else:
                 self.totals[k] = v * batch_size
+        for k in self.params['metrics']:
+            if k in logs:
+                self.log_values.append((k, logs[k]))
 
         # skip progbar update for the last batch; will be handled by on_epoch_end
         if self.verbose and self.seen < self.params['nb_sample']:
             self.progbar.update(self.seen, self.log_values)
 
     def on_epoch_end(self, epoch, logs={}):
-        for k, v in self.totals.items():
-            self.log_values.append((k, self.totals[k] / self.seen))
-                
-        for k, v in logs.items():
-            self.log_values.append((k, v))
+        for k in self.params['metrics']:
+            if k in self.totals:
+                self.log_values.append((k, self.totals[k] / self.seen))
+            if k in logs:
+                self.log_values.append((k, logs[k]))
         self.progbar.update(self.seen, self.log_values)
 
 
