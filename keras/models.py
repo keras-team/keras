@@ -207,7 +207,7 @@ class Model(object):
                     for batch_out in enumerate(batch_outs):
                         outs.append(0.)
                 for i, batch_out in enumerate(batch_outs):
-                    outs[i] += batch_out
+                    outs[i] += batch_out * len(batch_ids)
             else:
                 if batch_index == 0:
                     outs.append(0.)
