@@ -4,7 +4,7 @@ import numpy as np
 np.random.seed(1337)
 from keras.models import Graph, Sequential
 from keras.layers import containers
-from keras.layers.core import Dense
+from keras.layers.core import Dense, Activation
 from keras.utils.test_utils import get_test_data
 
 X = np.random.random((100, 32))
@@ -17,7 +17,7 @@ y2 = np.random.random((100, 4))
 (X2_train, y2_train), (X2_test, y2_test) = get_test_data(nb_train=1000, nb_test=200, input_shape=(32,),
     classification=False, output_shape=(4,))
 
-class TestRegularizers(unittest.TestCase):
+class TestGraph(unittest.TestCase):
     def test_1o_1i(self):
         print('test a non-sequential graph with 1 input and 1 output')
         graph = Graph()
@@ -46,7 +46,8 @@ class TestRegularizers(unittest.TestCase):
         graph.add_input(name='input1', ndim=2)
 
         graph.add_node(Dense(32, 16), name='dense1', input='input1')
-        graph.add_node(Dense(32, 4), name='dense2', input='input1')
+        graph.add_node(Dense(32, 4), name='dense2-0', input='input1')
+        graph.add_node(Activation('relu'), name='dense2', input='dense2-0')
 
         graph.add_node(Dense(4, 16), name='dense3', input='dense2')
         graph.add_node(Dense(16, 4), name='dense4', inputs=['dense1', 'dense3'], merge_mode='sum')
@@ -152,6 +153,7 @@ class TestRegularizers(unittest.TestCase):
         loss = seq.evaluate(X_test, y_test, show_accuracy=True)
         pred = seq.predict(X_test)
         seq.get_config(verbose=1)
+
 
 if __name__ == '__main__':
     print('Test graph model')
