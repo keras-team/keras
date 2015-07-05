@@ -125,11 +125,13 @@ class Merge(object):
         self.regularizers = []
         self.constraints = []
         for m in self.models:
-            self.regularizers += m.regularizers
-            for i in range(len(m.params)):
-                if not m.params[i] in self.params:
-                    self.params.append(m.params[i])
-                    self.constraints.append(m.constraints[i])
+            params, regs, consts = m.get_params()
+            self.regularizers += regs
+            # params and constraints have the same size
+            for p, c in zip(params, consts):
+                if not p in self.params:
+                    self.params.append(p)
+                    self.constraints.append(c)
 
     def get_params(self):
         return self.params, self.regularizers, self.constraints
