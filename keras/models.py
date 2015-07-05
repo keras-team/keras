@@ -29,6 +29,20 @@ def make_batches(size, batch_size):
     return [(i*batch_size, min(size, (i+1)*batch_size)) for i in range(0, nb_batch)]
 
 
+def batcher(iterable, batch_size):
+    """iterable of single (x, yval) tuples, yield (X, y) matrices"""
+    X, y = [], []
+    for x, yval in iterable:
+        X.append(x)
+        y.append(yval)
+        if len(X) == batch_size:
+            yield np.concatenate(X), np.concatenate(y)
+            X, y = [], []
+    if X: # leftover
+        yield np.concatenate(X), np.concatenate(y)
+    raise StopIteration
+
+
 def standardize_X(X):
     if type(X) == list:
         return X
@@ -331,6 +345,62 @@ class Sequential(Model, containers.Sequential):
     def predict_on_batch(self, X):
         ins = standardize_X(X)
         return self._predict(*ins)
+
+
+    def fit_iter(self, datastream, batch_size=128, nb_epoch=100, verbose=1,
+                 callbacks=[], show_accuracy=False):
+
+        nb_train_sample = len(datastream)
+        history = cbks.History()
+        if verbose:
+            callbacks = [history, cbks.BaseLogger()] + callbacks
+        else:
+            callbacks = [history] + callbacks
+        callbacks = cbks.CallbackList(callbacks)
+
+        callbacks._set_model(self)
+        callbacks._set_params({
+            'batch_size': batch_size,
+            'nb_epoch': nb_epoch,
+            'nb_sample': nb_train_sample,
+            'verbose': verbose,
+            'do_validation': False,
+            'metrics': ['loss', 'acc'],
+        })
+        callbacks.on_train_begin()
+
+        if show_accuracy:
+            out_labels = ['loss', 'acc']
+        else:
+            out_labels = ['loss']
+
+        self.stop_training = False
+        for epoch in range(nb_epoch):
+            callbacks.on_epoch_begin(epoch)
+
+            batch_iter = batcher(iter(datastream), batch_size)
+            for batch_index, (X, y) in enumerate(batch_iter):
+
+                batch_logs = {}
+                batch_logs['batch'] = batch_index
+                batch_logs['size'] = len(X)
+                callbacks.on_batch_begin(batch_index, batch_logs)
+
+                outs = self.train_on_batch(X, y, show_accuracy)
+                if type(outs) != list:
+                    outs = [outs]
+                for l, o in zip(out_labels, outs):
+                    batch_logs[l] = o
+
+                callbacks.on_batch_end(batch_index, batch_logs)
+
+            # end of last batch
+            callbacks.on_epoch_end(epoch)
+            if self.stop_training:
+                break
+
+        callbacks.on_train_end()
+        return history
 
 
     def fit(self, X, y, batch_size=128, nb_epoch=100, verbose=1, callbacks=[],
