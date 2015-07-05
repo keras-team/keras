@@ -3,6 +3,7 @@ from __future__ import print_function
 
 import numpy as np
 import pandas as pd
+np.random.seed(1337) # for reproducibility
 
 from keras.models import Sequential
 from keras.layers.core import Dense, Dropout, Activation
@@ -17,7 +18,7 @@ from sklearn.preprocessing import StandardScaler
     This demonstrates how to reach a score of 0.4890 (local validation)
     on the Kaggle Otto challenge, with a deep net using Keras.
 
-    Compatible Python 2.7-3.4 
+    Compatible Python 2.7-3.4. Requires Scikit-Learn and Pandas.
 
     Recommended to run on GPU: 
         Command: THEANO_FLAGS=mode=FAST_RUN,device=gpu,floatX=float32 python kaggle_otto_nn.py
@@ -34,8 +35,6 @@ from sklearn.preprocessing import StandardScaler
 
     Get the data from Kaggle: https://www.kaggle.com/c/otto-group-product-classification-challenge/data
 '''
-
-np.random.seed(1337) # for reproducibility
 
 def load_data(path, train=True):
     df = pd.read_csv(path)
@@ -121,4 +120,3 @@ print("Generating submission...")
 
 proba = model.predict_proba(X_test)
 make_submission(proba, ids, encoder, fname='keras-otto.csv')
-
