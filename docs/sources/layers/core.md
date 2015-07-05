@@ -233,6 +233,21 @@ Apply dropout to the input. Dropout consists in randomly setting a fraction `p` 
 
     - __p__: float (0 <= p < 1). Fraction of the input that gets dropped out at training time. 
 
+---
+
+## GaussianNoise
+```python
+keras.layers.core.GaussianNoise(sigma)
+```
+Apply to the input an additive zero-centred gaussian noise with standard deviation `sigma`. Gaussian Noise (GS) is a natural choise as corruption process for real valued inputs.
+
+- __Input shape__: This layer does not assume a specific input shape. 
+
+- __Output shape__: Same as input.
+
+- __Arguments__:
+
+    - __sigma__: float.
 
 ---
 
