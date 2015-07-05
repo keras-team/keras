@@ -113,19 +113,19 @@ class MaskedLayer(Layer):
 
 
 class Merge(object): 
-    def __init__(self, models, mode='sum'):
-        ''' Merge the output of a list of models into a single tensor.
+    def __init__(self, layers, mode='sum'):
+        ''' Merge the output of a list of layers or containers into a single tensor.
             mode: {'sum', 'concat'}
         '''
-        if len(models) < 2:
-            raise Exception("Please specify two or more input models to merge")
+        if len(layers) < 2:
+            raise Exception("Please specify two or more input layers (or containers) to merge")
         self.mode = mode
-        self.models = models
+        self.layers = layers
         self.params = []
         self.regularizers = []
         self.constraints = []
-        for m in self.models:
-            params, regs, consts = m.get_params()
+        for l in self.layers:
+            params, regs, consts = l.get_params()
             self.regularizers += regs
             # params and constraints have the same size
             for p, c in zip(params, consts):
@@ -138,20 +138,20 @@ class Merge(object):
 
     def get_output(self, train=False):
         if self.mode == 'sum':
-            s = self.models[0].get_output(train)
-            for i in range(1, len(self.models)):
-                s += self.models[i].get_output(train)
+            s = self.layers[0].get_output(train)
+            for i in range(1, len(self.layers)):
+                s += self.layers[i].get_output(train)
             return s
         elif self.mode == 'concat':
-            inputs = [self.models[i].get_output(train) for i in range(len(self.models))]
+            inputs = [self.layers[i].get_output(train) for i in range(len(self.layers))]
             return T.concatenate(inputs, axis=-1)
         else:
             raise Exception('Unknown merge mode')
 
     def get_input(self, train=False):
         res = []
-        for i in range(len(self.models)):
-            o = self.models[i].get_input(train)
+        for i in range(len(self.layers)):
+            o = self.layers[i].get_input(train)
             if not type(o) == list:
                 o = [o]
             for output in o:
@@ -171,19 +171,19 @@ class Merge(object):
 
     def get_weights(self):
         weights = []
-        for m in self.models:
-            weights += m.get_weights()
+        for l in self.layers:
+            weights += l.get_weights()
         return weights
 
     def set_weights(self, weights):
-        for i in range(len(self.models)):
-            nb_param = len(self.models[i].params)
-            self.models[i].set_weights(weights[:nb_param])
+        for i in range(len(self.layers)):
+            nb_param = len(self.layers[i].params)
+            self.layers[i].set_weights(weights[:nb_param])
             weights = weights[nb_param:]
 
     def get_config(self):
         return {"name":self.__class__.__name__,
-            "models":[m.get_config() for m in self.models],
+            "layers":[l.get_config() for l in self.layers],
             "mode":self.mode}
 
 
