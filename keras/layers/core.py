@@ -218,7 +218,7 @@ class GaussianNoise(MaskedLayer):
 
     def get_output(self, train=False):
         X = self.get_input(train)
-        if train or self.sigma == 0:
+        if not train or self.sigma == 0:
             return X
         else:
             return X + srng.normal(size=X.shape, avg=0.0, std=self.sigma,
