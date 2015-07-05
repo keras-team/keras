@@ -494,34 +494,6 @@ class AutoEncoder(Layer):
                 "tie_weights":self.tie_weights}
 
 
-class DenoisingAutoEncoder(AutoEncoder):
-    '''
-        A denoising autoencoder model that inherits the base features from autoencoder
-    '''
-    def __init__(self, encoder=None, decoder=None, output_reconstruction=True, tie_weights=False, weights=None, corruption_level=0.3):
-        super(DenoisingAutoEncoder, self).__init__(encoder, decoder, output_reconstruction, tie_weights, weights)
-        self.corruption_level = corruption_level
-
-    def _corrupt_input(self, X):
-        """
-            http://deeplearning.net/tutorial/dA.html
-        """
-        return X * srng.binomial(size=X.shape, n=1,
-                             p=1-self.corruption_level,
-                             dtype=theano.config.floatX)
-
-    def get_input(self, train=False):
-        uncorrupted_input = super(DenoisingAutoEncoder, self).get_input(train)
-        return self._corrupt_input(uncorrupted_input)
-
-    def get_config(self):
-        return {"name":self.__class__.__name__,
-                "encoder_config":self.encoder.get_config(),
-                "decoder_config":self.decoder.get_config(),
-                "corruption_level":self.corruption_level,
-                "output_reconstruction":self.output_reconstruction,
-                "tie_weights":self.tie_weights}
-
 
 class MaxoutDense(Layer):
     '''

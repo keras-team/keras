@@ -161,44 +161,6 @@ decoder = containers.Sequential([Dense(8, 16), Dense(16, 32)])
 autoencoder.add(AutoEncoder(encoder=encoder, decoder=decoder, output_reconstruction=False, tie_weights=True))
 ```
 
----
-
-## DenoisingAutoEncoder
-```python
-keras.layers.core.AutoEncoder(encoder, decoder, output_reconstruction=True, tie_weights=False, weights=None, corruption_level=0.3):
-```
-
-A denoising autoencoder model that inherits the base features from autoencoder.
-Since this layer uses similar logic to Dropout it cannot be the first layer in a pipeline.
-
-- __Input shape__: The layer shape is defined by the encoder definitions
-
-- __Output shape__: The layer shape is defined by the decoder definitions
-
-- __Arguments__:
-
-    - __encoder__: A [layer](./) or [layer container](./containers.md).
-
-    - __decoder__: A [layer](./) or [layer container](./containers.md).
-    
-    - __output_reconstruction__: If this is False the when .predict() is called the output is the deepest hidden layer's activation. Otherwise the output of the final decoder layer is presented. Be sure your validation data confirms to this logic if you decide to use any.
-    
-    - __tie_weights__: If True then the encoder bias is tied to the decoder bias. **Note**: This required the encoder layer corresponding to this decoder layer to be of the same time, eg: Dense:Dense
-    
-    - __weights__: list of numpy arrays to set as initial weights. The list should have 1 element, of shape `(input_dim, output_dim)`.
-    
-    - __corruption_level__: the amount of binomial noise added to the input layer of the model.
-
-- __Example__:
-```python
-# input shape: (nb_samples, 32)
-autoencoder.add(Dense(32, 32))
-autoencoder.add(DenoisingAutoEncoder(encoder=Dense(32, 16),
-                                     decoder=Dense(16, 32),
-                                     output_reconstruction=False, tie_weights=True,
-                                     corruption_level=0.3))
-```
-
 
 ---
 
