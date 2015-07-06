@@ -33,10 +33,9 @@ def ConvertModel(layers, phase, input_dim):
 
 	# add input nodes
 	for start in starts:
-		name = str(layers[start].name) 
+		name = layers[start].name
 		model.add_input(name=name, ndim=4)
 		if input_dim == []:
-			print 'true'
 			# not in deploy mode - need to get input DATA dimensions from layers and their transformations
 			data_dim = get_data_dim(layers[start])
 			output_dim[start] = data_dim # input dimensions (dimensions of DATA)
@@ -47,16 +46,17 @@ def ConvertModel(layers, phase, input_dim):
 			continue	# an output layer is skipped. added later with 'add_output'
 
 		layer = layers[layer_nb]
+		name = layer.name
 		input_layers = reverse_network[layer_nb]	# inputs to current layer, in the form of layer numbers
 		input_layer_names = []	# list of strings identifying the input layer
 		for input_layer in input_layers:
-			input_layer_names.append(str(layers[input_layer].name))
+			input_layer_names.append(layers[input_layer].name)
 		
+		layer_input_dims = []
 		if len(output_dim) == 0:
 			# caffe model in deploy mode, and this is the first layer
-			layer_input_dim = input_dim
+			layer_input_dims = [input_dim]
 		else:
-			layer_input_dims = []
 			for input_layer in input_layers:
 				layer_input_dims.append(output_dim[input_layer])
 
@@ -64,15 +64,15 @@ def ConvertModel(layers, phase, input_dim):
 			input_layer_name = input_layer_names[0] # single input. since concatenation is explicit, 
 			layer_input_dim = layer_input_dims[0]	# all layers can be thought of single input layers 
 													# (except loss layers, which is handled anyway)
-
 		if layer.type == 3:
 			# CONCAT
 			# emulation of just concatenation
+			print layer_input_dims
 			axis = layer.concat_param.axis
-
-			model.add_node(ZeroPadding2D(pad=(0, 0)), name=layer.name, inputs=input_layer_names)
-			
-			layer_output_dim = np.concatenate((layer_input_dims), axis=axis)
+			if axis == 0:
+				raise RuntimeError('concatenation over batch is not suported currently')
+			model.add_node(ZeroPadding2D(pad=(0, 0)), name=name, inputs=input_layer_names)
+			layer_output_dim = []
 
 		elif layer.type == 4:
 			# CONVOLUTION
@@ -85,13 +85,13 @@ def ConvertModel(layers, phase, input_dim):
 
 			pad_h = max(layer.convolution_param.pad, layer.convolution_param.pad_h)
 			pad_w = max(layer.convolution_param.pad, layer.convolution_param.pad_w)
-			model.add_node(ZeroPadding2D(pad=(pad_h, pad_w)), name=layer.name + 'zeropadding', input=input_layer_name)
+			model.add_node(ZeroPadding2D(pad=(pad_h, pad_w)), name=layer.name + '_zeropadding', input=input_layer_name)
 
 			stack_size = layer_input_dim[0]
-			model.add_node(Convolution2D(nb_filter, stack_size, nb_row, nb_col, subsample=(stride_h, stride_w)), name=layer.name, input=layer.name + 'zeropadding')
+			model.add_node(Convolution2D(nb_filter, stack_size, nb_row, nb_col, subsample=(stride_h, stride_w)), name=name, input=layer.name + '_zeropadding')
 
 			layer_output_dim_padding = [layer_input_dim[0], layer_input_dim[1] + 2 * pad_h, layer_input_dim[2] + 2 * pad_w]
-			layer_output_dim = [nb_filter, (layer_output_dim_padding[1] - nb_row + 1) / stride_h, (layer_output_dim_padding[2] - nb_col + 1) / stride_w]
+			layer_output_dim = [nb_filter, (layer_output_dim_padding[1] - nb_row) / stride_h + 1, (layer_output_dim_padding[2] - nb_col) / stride_w + 1]
 
 		elif layer.type == 5:
 			# IMAGEDATA
@@ -100,12 +100,12 @@ def ConvertModel(layers, phase, input_dim):
 		elif layer.type == 6:
 			# DROPOUT
 			prob = layer.dropout_param.dropout_ratio
-			model.add_node(Dropout(prob), name=layer.name, input=input_layer_name)
+			model.add_node(Dropout(prob), name=name, input=input_layer_name)
 			layer_output_dim = layer_input_dim
 
 		elif layer.type == 8:
 			# FLATTEN
-			model.add_node(Flatten(), name=layer.name, input=input_layer_name)
+			model.add_node(Flatten(), name=name, input=input_layer_name)
 			layer_output_dim = np.prod(layer_input_dim)
 
 		elif layer.type == 12:
@@ -115,11 +115,11 @@ def ConvertModel(layers, phase, input_dim):
 			# INNER PRODUCT OR DENSE
 			layer_output_dim = layer.inner_product_param.num_output
 			if len(layer_input_dim) > 1:
-				model.add_node(Flatten(), name=layer.name + 'flatten', input=input_layer_name)
+				model.add_node(Flatten(), name=layer.name + '_flatten', input=input_layer_name)
 				layer_input_dim = [np.prod(layer_input_dim)]
-				model.add_node(Dense(layer_input_dim[0], layer_output_dim), name=layer.name, input=layer.name + 'flatten')
+				model.add_node(Dense(layer_input_dim[0], layer_output_dim), name=name, input=layer.name + '_flatten')
 			else:
-				model.add_node(Dense(layer_input_dim[0], layer_output_dim), name=layer.name, input=input_layer_name)
+				model.add_node(Dense(layer_input_dim[0], layer_output_dim), name=name, input=input_layer_name)
 
 			layer_output_dim = [layer_output_dim]
 
@@ -130,7 +130,7 @@ def ConvertModel(layers, phase, input_dim):
 			beta = layer.lrn_param.beta
 			n = layer.lrn_param.local_size
 
-			model.add_node(LRN2D(alpha=alpha, k=k, beta=beta, n=n), name=layer.name, input=input_layer_name)
+			model.add_node(LRN2D(alpha=alpha, k=k, beta=beta, n=n), name=name, input=input_layer_name)
 
 			layer_output_dim = layer_input_dim
 
@@ -144,31 +144,31 @@ def ConvertModel(layers, phase, input_dim):
 
 			pad_h = max(layer.pooling_param.pad, layer.pooling_param.pad_h)
 			pad_w = max(layer.pooling_param.pad, layer.pooling_param.pad_w)
-			model.add_node(ZeroPadding2D(pad=(pad_h, pad_w)), name=layer.name + 'zeropadding', input=input_layer_name)
+			model.add_node(ZeroPadding2D(pad=(pad_h, pad_w)), name=layer.name + '_zeropadding', input=input_layer_name)
 
-			model.add_node(MaxPooling2D(poolsize=(kernel_h, kernel_w), stride=(stride_h, stride_w)), name=layer.name, input=layer.name + 'zeropadding')
+			model.add_node(MaxPooling2D(poolsize=(kernel_h, kernel_w), stride=(stride_h, stride_w)), name=name, input=layer.name + '_zeropadding')
 
 			layer_output_dim_padding = [layer_input_dim[0], layer_input_dim[1] + 2 * pad_h, layer_input_dim[2] + 2 * pad_w]
-			layer_output_dim = [layer_output_dim_padding[0], (layer_output_dim_padding[1] + kernel_h - 1) / stride_h, (layer_output_dim_padding[2] + kernel_w - 1) / stride_w]
+			layer_output_dim = [layer_output_dim_padding[0], (layer_output_dim_padding[1] - kernel_h) / stride_h + 1, (layer_output_dim_padding[2] - kernel_w) / stride_w + 1]
 
 		elif layer.type == 18:
 			# ReLU
-			model.add_node(Activation('relu'), name=layer.name, input=input_layer_name)
+			model.add_node(Activation('relu'), name=name, input=input_layer_name)
 			layer_output_dim = layer_input_dim
 
 		elif layer.type == 19:
 			# SIGMOID
-			model.add_node(Activation('sigmoid'), name=layer.name, input=input_layer_name)
+			model.add_node(Activation('sigmoid'), name=name, input=input_layer_name)
 			layer_output_dim = layer_input_dim
 
 		elif layer.type == 20:
 			# SOFTMAX
-			model.add_node(Activation('softmax'), name=layer.name, input=input_layer_name)
+			model.add_node(Activation('softmax'), name=name, input=input_layer_name)
 			layer_output_dim = layer_input_dim
 
 		elif layer.type == 23:
 			# TANH
-			model.add_node(Activation('tanh'), name=layer.name, input=input_layer_name)
+			model.add_node(Activation('tanh'), name=name, input=input_layer_name)
 			layer_output_dim = layer_input_dim
 
 		else:
