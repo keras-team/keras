@@ -139,3 +139,32 @@ def sanitize(string):
 		removes the added identification prefix 'caffe_layer_'
 	'''
 	return int(string[12:])
+
+
+def get_data_dim(layer):
+	'''
+		Finds the input dimension by parsing all data layers for image and image transformation details
+	'''
+	layer_type_nb = int(layer.type)
+	if layer_type_nb == 5 or layer_type_nb == 12:
+		# DATA or IMAGEDATA layers
+		try:
+			scale = layer.transform_param.scale
+			if scale <= 0:
+				scale = 1
+		except AttributeError:
+			pass
+
+		try:
+			side = layer.transform_param.crop_size * scale
+			return [3, side, side]
+		except AttributeError:
+			pass
+
+		try:
+			height = layer.image_param.new_height * scale
+			width = layer.image_param.new_width * scale
+			return [3, height, width]
+		except AttributeError:
+			pass
+	return []
