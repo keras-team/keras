@@ -10,12 +10,12 @@ from keras.utils.test_utils import get_test_data
 X = np.random.random((100, 32))
 X2 = np.random.random((100, 32))
 y = np.random.random((100, 4))
-y2 = np.random.random((100, 4))
+y2 = np.random.random((100,))
 
 (X_train, y_train), (X_test, y_test) = get_test_data(nb_train=1000, nb_test=200, input_shape=(32,),
     classification=False, output_shape=(4,))
 (X2_train, y2_train), (X2_test, y2_test) = get_test_data(nb_train=1000, nb_test=200, input_shape=(32,),
-    classification=False, output_shape=(4,))
+    classification=False, output_shape=(1,))
 
 class TestGraph(unittest.TestCase):
     def test_1o_1i(self):
@@ -97,7 +97,7 @@ class TestGraph(unittest.TestCase):
 
         graph.add_node(Dense(32, 16), name='dense1', input='input1')
         graph.add_node(Dense(32, 4), name='dense2', input='input1')
-        graph.add_node(Dense(16, 4), name='dense3', input='dense1')
+        graph.add_node(Dense(16, 1), name='dense3', input='dense1')
 
         graph.add_output(name='output1', input='dense2')
         graph.add_output(name='output2', input='dense3')
@@ -119,7 +119,7 @@ class TestGraph(unittest.TestCase):
         graph.add_input(name='input1', ndim=2)
         graph.add_node(Dense(32, 16), name='dense1', input='input1')
         graph.add_node(Dense(32, 4), name='dense2', input='input1')
-        graph.add_node(Dense(16, 4), name='dense3', input='dense1')
+        graph.add_node(Dense(16, 1), name='dense3', input='dense1')
         graph.add_output(name='output1', input='dense2')
         graph.add_output(name='output2', input='dense3')
         graph.compile('rmsprop', {'output1':'mse', 'output2':'mse'})

@@ -506,12 +506,12 @@ class Graph(Model, containers.Graph):
 
     def train_on_batch(self, data):
         # data is a dictionary mapping output and input names to arrays
-        ins = [data[name] for name in self.input_order] + [data[name] for name in self.output_order]
+        ins = [data[name] for name in self.input_order] + [standardize_y(data[name]) for name in self.output_order]
         return self._train(*ins)
 
     def test_on_batch(self, data):
         # data is a dictionary mapping input names to arrays
-        ins = [data[name] for name in self.input_order] + [data[name] for name in self.output_order]
+        ins = [data[name] for name in self.input_order] + [standardize_y(data[name]) for name in self.output_order]
         return self._test(*ins)
 
     def predict_on_batch(self, data):
@@ -521,14 +521,14 @@ class Graph(Model, containers.Graph):
 
     def fit(self, data, batch_size=128, nb_epoch=100, verbose=1, callbacks=[],
             validation_split=0., validation_data=None, shuffle=True):
-        ins = [data[name] for name in self.input_order] + [data[name] for name in self.output_order]
+        ins = [data[name] for name in self.input_order] + [standardize_y(data[name]) for name in self.output_order]
 
         val_f = None
         val_ins = None
         if validation_data or validation_split:
             val_f = self._test
         if validation_data:
-            val_ins = [validation_data[name] for name in self.input_order] + [validation_data[name] for name in self.output_order]
+            val_ins = [validation_data[name] for name in self.input_order] + [standardize_y(validation_data[name]) for name in self.output_order]
 
         f = self._train
         out_labels = self.output_order
@@ -538,7 +538,7 @@ class Graph(Model, containers.Graph):
         return history
 
     def evaluate(self, data, batch_size=128, verbose=0):
-        ins = [data[name] for name in self.input_order] + [data[name] for name in self.output_order]
+        ins = [data[name] for name in self.input_order] + [standardize_y(data[name]) for name in self.output_order]
         outs = self._test_loop(self._test, ins, batch_size, verbose)
         return outs[0]
 
