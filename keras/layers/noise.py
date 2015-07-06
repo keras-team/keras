@@ -21,3 +21,25 @@ class GaussianNoise(MaskedLayer):
     def get_config(self):
         return {"name":self.__class__.__name__,
             "sigma":self.sigma}
+
+class GaussianDropout(Layer):
+    '''
+        Multiplicative Gaussian Noise
+        Reference: 
+            Dropout: A Simple Way to Prevent Neural Networks from Overfitting
+            Srivastava, Hinton, et al. 2014
+    '''
+    def __init__(self, p):
+        super(GaussianDropout,self).__init__()
+        self.p = p
+
+    def get_output(self, train):
+        X = self.get_input(train)
+        if train:
+            # self.p refers to drop probability rather than retain probability (as in paper) to match Dropout layer syntax
+            X *= srng.normal(size=X.shape, avg = 1., std=T.sqrt(self.p/(1-self.p)), dtype=theano.config.floatX)
+        return X
+
+    def get_config(self):
+        return {"name":self.__class__.__name__,
+            "p":self.p}
