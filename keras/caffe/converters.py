@@ -67,12 +67,14 @@ def ConvertModel(layers, phase, input_dim):
 		if layer.type == 3:
 			# CONCAT
 			# emulation of just concatenation
-			print layer_input_dims
 			axis = layer.concat_param.axis
 			if axis == 0:
 				raise RuntimeError('concatenation over batch is not suported currently')
-			model.add_node(ZeroPadding2D(pad=(0, 0)), name=name, inputs=input_layer_names)
-			layer_output_dim = []
+			model.add_node(ZeroPadding2D(pad=(0, 0)), name=name, inputs=input_layer_names, concat_axis=-3)
+			
+			layer_output_dim = [layer_input_dims[0][0], layer_input_dims[0][1], layer_input_dims[0][2]]
+			for dim in layer_input_dims[1:]:
+				layer_output_dim[0] += dim[0]
 
 		elif layer.type == 4:
 			# CONVOLUTION
