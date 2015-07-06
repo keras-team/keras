@@ -5,6 +5,18 @@ from caffe_utils import get_input_graph, output_dim
 
 class CaffeToKeras(object):
 	def __init__(prototext=None, caffemodel=None, solver=None, mean=None, phase='train'):
+		'''
+			prototext: model description file in caffe
+			caffemodel: stored weights file
+			solver: solver file
+			mean: mean data file
+			phase: train or test
+
+			Usage:
+				model = CaffeToKeras(prototext='VGG16.prototxt', caffemodel='VGG16_700iter.caffemodel')
+				graph = model('network')
+				weights = model('weights') # useful for embedding networks
+		'''
 		if phase = 'train':
 			self.phase = 0
 		else:
@@ -16,7 +28,7 @@ class CaffeToKeras(object):
 
 			self.input_dim = config.input_dim
 			self.layers = config.layers[:]
-			self.model = ConvertModel(self.layers, self.phase, self.input_dim)
+			self.network = ConvertModel(self.layers, self.phase, self.input_dim)
 
 		if caffemodel is not None:
 			param = caffe.NetParameter()
@@ -24,10 +36,10 @@ class CaffeToKeras(object):
 
 			if prototext is None:
 				self.layers = param.layers[:]
-				self.model = ConvertModel(self.layers, self.phase, self.input_dim)
+				self.network = ConvertModel(self.layers, self.phase, self.input_dim)
 
 			self.weights = ConvertWeights(param.layers)
-			self.model.copy_weights(self.weights)
+			self.network.copy_weights(self.weights)
 
 		if solverfile is not None:
 			# parse and save
@@ -38,8 +50,8 @@ class CaffeToKeras(object):
 			self.mean = ConvertMeanFile(mean)
 
 	def __call__(self, item):
-		if item == 'model':
-			return self.model
+		if item == 'network':
+			return self.network
 		elif item == 'solver':
 			return self.solver
 		elif item == 'mean':
