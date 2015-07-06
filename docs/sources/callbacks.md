@@ -37,10 +37,10 @@ Save the model after every epoch. If `save_best_only=True`, the latest best mode
 
 
 ```python
-keras.callbacks.EarlyStopping(patience=0, verbose=0)
+keras.callbacks.EarlyStopping(monitor='val_loss', patience=0, verbose=0)
 ```
 
-Stop training after no improvement of the validation loss is seen for `patience` epochs.
+Stop training after no improvement of the metric `monitor` is seen for `patience` epochs.
 
 ---
 
