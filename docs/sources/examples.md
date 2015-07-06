@@ -92,6 +92,7 @@ from keras.layers.embeddings import Embedding
 from keras.layers.recurrent import LSTM
 
 model = Sequential()
+# Add a mask_zero=True to the Embedding connstructor if 0 is a left-padding value in your data
 model.add(Embedding(max_features, 256))
 model.add(LSTM(256, 128, activation='sigmoid', inner_activation='hard_sigmoid'))
 model.add(Dropout(0.5))
