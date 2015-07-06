@@ -46,19 +46,19 @@ def acyclic(network):
 	'''
 	for node in network.keys():
 		if is_caffe_layer(node):
-			continue	# actual layer
+			continue # actual layer - they cannot initiate cycles
 		i = 0
 		while i < len(network[node]):
-			out_node = network[node][i]
-			if node in network[out_node]:
-				# loop detected: -> node -> out_node -> node ->
-				new_node = node + '_'
-				# -> node -> out_node -> new_node ->
-				network[node].remove(out_node)	#create a new_node that has all but the current loop
+			next_node = network[node][i]
+			if node in network[next_node]:
+				# loop detected: -> node -> next_node -> node ->
+				# change it to: -> node -> next_node -> new_node ->
+				new_node = node + '_' + str(i) # create a additional node - 'new_node'
+				network[node].remove(next_node)	# 'new_node' has all other edges but the current loop
 				network[new_node] = network[node]
-				network[node] = [out_node]	# point old node to out_node only
-				network[out_node] = [new_node]	# out_node points to new_node
-				# update loops in new_node to point at new_node and not at node
+				network[node] = [next_node]	# point 'node' to 'next_node' only
+				network[next_node] = [new_node]	# 'next_node' points to 'new_node'
+				# update loops in 'new_node' to point at new_node and not at 'node'
 				for n in network[new_node]:
 					if network[n] == [node]:
 						network[n] = [new_node]
