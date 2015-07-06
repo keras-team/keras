@@ -125,7 +125,7 @@ Arbitrary connection graph. It can have any number of inputs and outputs, with e
 model = keras.models.Graph()
 ```
 - __Methods__:
-    - __add_input__(ndim=2, dtype='float'): Add an input with shape dimensionality `ndim`. 
+    - __add_input__(name, ndim=2, dtype='float'): Add an input with shape dimensionality `ndim`. 
         - __Arguments__:
             - __ndim__: Use `ndim=2` for vector input `(samples, features)`, ndim=3 for temporal input `(samples, time, features)`, ndim=4 for image input `(samples, channels, height, width)`.
             - __dtype__: `float` or `int`. Use `int` if the input is connected to an Embedding layer, `float` otherwise.
