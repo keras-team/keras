@@ -1,10 +1,9 @@
-import .caffe_pb2 as caffe
+import caffe_pb2 as caffe
 import google.protobuf
 from converters import ConvertModel, ConvertWeights, ConvertSolver, ConvertMeanFile
-from caffe_utils import get_input_graph, output_dim
 
 class CaffeToKeras(object):
-	def __init__(prototext=None, caffemodel=None, solver=None, mean=None, phase='train'):
+	def __init__(self, prototext, caffemodel=None, solver=None, mean=None, phase='train'):
 		'''
 			prototext: model description file in caffe
 			caffemodel: stored weights file
@@ -17,7 +16,7 @@ class CaffeToKeras(object):
 				graph = model('network')
 				weights = model('weights') # useful for embedding networks
 		'''
-		if phase = 'train':
+		if phase == 'train':
 			self.phase = 0
 		else:
 			self.phase = 1
@@ -41,11 +40,11 @@ class CaffeToKeras(object):
 			self.weights = ConvertWeights(param.layers)
 			self.network.copy_weights(self.weights)
 
-		if solverfile is not None:
+		if solver is not None:
 			# parse and save
 			self.solver = ConvertSolver(solver)
 
-		if meanfile is not None:
+		if mean is not None:
 			#parse and save
 			self.mean = ConvertMeanFile(mean)
 
