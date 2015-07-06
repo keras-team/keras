@@ -20,7 +20,7 @@ from keras.utils import np_utils
     arXiv:1504.00941v2 [cs.NE] 7 Apr 201
     http://arxiv.org/pdf/1504.00941v2.pdf
 
-    Optimizer is replaced with RMSprop which give more stable and steady
+    Optimizer is replaced with RMSprop which yields more stable and steady
     improvement.
 
     0.80 train/test accuracy and 0.55 train/test loss after 70 epochs

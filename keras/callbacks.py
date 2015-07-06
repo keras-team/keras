@@ -174,7 +174,7 @@ class ModelCheckpoint(Callback):
     def __init__(self, filepath, monitor='val_loss', verbose=0, save_best_only=False):
         super(Callback, self).__init__()
         
-        self.monitor
+        self.monitor = monitor
         self.verbose = verbose
         self.filepath = filepath
         self.save_best_only = save_best_only

@@ -67,7 +67,7 @@ model.fit(X_train, Y_train, nb_epoch=5, batch_size=32)
 
 Alternatively, you can feed batches to your model manually:
 ```python
-model.train(X_batch, Y_batch)
+model.train_on_batch(X_batch, Y_batch)
 ```
 
 Evaluate your performance in one line:
@@ -81,7 +81,7 @@ classes = model.predict_classes(X_test, batch_size=32)
 proba = model.predict_proba(X_test, batch_size=32)
 ```
 
-Building a network of LSTMs, a deep CNN, a word2vec embedder or any other model is just as fast. The ideas behind deep learning are simple, so why should their implementation be painful?
+Building a network of LSTMs, a deep CNN, a Neural Turing Machine, a word2vec embedder or any other model is just as fast. The ideas behind deep learning are simple, so why should their implementation be painful?
 
 Have a look at the [examples](examples.md).
 
@@ -116,7 +116,7 @@ Keras welcomes all contributions from the community.
 - Keep a pragmatic mindset and avoid bloat. Only add to the source if that is the only path forward.
 - New features should be documented. Make sure you update the documentation along with your Pull Request.
 - The documentation for every new feature should include a usage example in the form of a code snippet. 
-- All changes should be tested. A formal test process will be introduced very soon.
+- All changes should be tested. Make sure any new feature you add has a corresponding unit test.
 - Even if you don't contribute to the Keras source code, if you have an application of Keras that is concise and powerful, please consider adding it to our collection of [examples](https://github.com/fchollet/keras/tree/master/examples).
 
 
@@ -124,7 +124,7 @@ Keras welcomes all contributions from the community.
 
 Keras (κέρας) means _horn_ in Greek. It is a reference to a literary image from ancient Greek and Latin literature, first found in the _Odyssey_, where dream spirits (_Oneiroi_, singular _Oneiros_) are divided between those who deceive men with false visions, who arrive to Earth through a gate of ivory, and those who announce a future that will come to pass, who arrive through a gate of horn. It's a play on the words κέρας (horn) / κραίνω (fulfill), and ἐλέφας (ivory) / ἐλεφαίρομαι (deceive).
 
-Keras was developed as part of the research effort of project ONEIROS (Open-ended Neuro-Electronic Intelligent Robot Operating System).
+Keras was developed as part of the research effort of project __ONEIROS__ (*Open-ended Neuro-Electronic Intelligent Robot Operating System*).
 
 > _"Oneiroi are beyond our unravelling --who can be sure what tale they tell? Not all that men look for comes to pass. Two gates there are that give passage to fleeting Oneiroi; one is made of horn, one of ivory. The Oneiroi that pass through sawn ivory are deceitful, bearing a message that will not be fulfilled; those that come out through polished horn have truth behind them, to be accomplished for men who see them."_ 
 

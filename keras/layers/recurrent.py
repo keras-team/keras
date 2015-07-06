@@ -71,7 +71,7 @@ class SimpleRNN(Recurrent):
         '''
         return self.activation(x_t + mask_tm1 * T.dot(h_tm1, u))
 
-    def get_output(self, train):
+    def get_output(self, train=False):
         X = self.get_input(train) # shape: (nb_samples, time (padded with zeros), input_dim)
         # new shape: (time, nb_samples, input_dim) -> because theano.scan iterates over main dimension
         padded_mask = self.get_padded_shuffled_mask(train, X, pad=1)
@@ -149,7 +149,7 @@ class SimpleDeepRNN(Recurrent):
             o += mask_tmi*self.inner_activation(T.dot(h_tmi, U_tmi))
         return self.activation(o)
 
-    def get_output(self, train):
+    def get_output(self, train=False):
         X = self.get_input(train)
         padded_mask = self.get_padded_shuffled_mask(train, X, pad=self.depth)
         X = X.dimshuffle((1, 0, 2)) 
@@ -263,7 +263,7 @@ class GRU(Recurrent):
         h_t = z * h_mask_tm1 + (1 - z) * hh_t
         return h_t
 
-    def get_output(self, train):
+    def get_output(self, train=False):
         X = self.get_input(train) 
         padded_mask = self.get_padded_shuffled_mask(train, X, pad=1)
         X = X.dimshuffle((1, 0, 2)) 
@@ -379,7 +379,7 @@ class LSTM(Recurrent):
         h_t = o_t * self.activation(c_t)
         return h_t, c_t
 
-    def get_output(self, train):
+    def get_output(self, train=False):
         X = self.get_input(train) 
         padded_mask = self.get_padded_shuffled_mask(train, X, pad=1)
         X = X.dimshuffle((1, 0, 2))
@@ -493,7 +493,7 @@ class JZS1(Recurrent):
         h_t = hh_t * z + h_mask_tm1 * (1 - z)
         return h_t
 
-    def get_output(self, train):
+    def get_output(self, train=False):
         X = self.get_input(train) 
         padded_mask = self.get_padded_shuffled_mask(train, X, pad=1)
         X = X.dimshuffle((1, 0, 2))
@@ -601,7 +601,7 @@ class JZS2(Recurrent):
         h_t = hh_t * z + h_mask_tm1 * (1 - z)
         return h_t
 
-    def get_output(self, train):
+    def get_output(self, train=False):
         X = self.get_input(train)
         padded_mask = self.get_padded_shuffled_mask(train, X, pad=1)
         X = X.dimshuffle((1, 0, 2)) 
@@ -702,7 +702,7 @@ class JZS3(Recurrent):
         h_t = hh_t * z + h_mask_tm1 * (1 - z)
         return h_t
 
-    def get_output(self, train):
+    def get_output(self, train=False):
         X = self.get_input(train)
         padded_mask = self.get_padded_shuffled_mask(train, X, pad=1)
         X = X.dimshuffle((1, 0, 2)) 
@@ -731,6 +731,7 @@ class JZS3(Recurrent):
             "inner_activation":self.inner_activation.__name__,
             "truncate_gradient":self.truncate_gradient,
             "return_sequences":self.return_sequences}
+
 
 
 
