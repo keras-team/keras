@@ -64,13 +64,12 @@ def ConvertModel(layers, phase, input_dim):
 			input_layer_name = input_layer_names[0] # single input. since concatenation is explicit, 
 			layer_input_dim = layer_input_dims[0]	# all layers can be thought of single input layers 
 													# (except loss layers, which is handled anyway)
+
 		if layer.type == 3:
 			# CONCAT
 			# emulation of just concatenation
-			axis = layer.concat_param.axis
-			if axis == 0:
-				raise RuntimeError('concatenation over batch is not suported currently')
-			model.add_node(ZeroPadding2D(pad=(0, 0)), name=name, inputs=input_layer_names, concat_axis=-3)
+			axis = layer.concat_param.axis # 0 for batch, 1 for stack
+			model.add_node(ZeroPadding2D(pad=(0, 0)), name=name, inputs=input_layer_names, concat_axis=axis)
 			
 			layer_output_dim = [layer_input_dims[0][0], layer_input_dims[0][1], layer_input_dims[0][2]]
 			for dim in layer_input_dims[1:]:
