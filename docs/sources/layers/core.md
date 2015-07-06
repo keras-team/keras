@@ -158,6 +158,8 @@ from keras.layers import containers
 # input shape: (nb_samples, 32)
 encoder = containers.Sequential([Dense(32, 16), Dense(16, 8)])
 decoder = containers.Sequential([Dense(8, 16), Dense(16, 32)])
+
+autoencoder = Sequential()
 autoencoder.add(AutoEncoder(encoder=encoder, decoder=decoder, output_reconstruction=False, tie_weights=True))
 ```
 
