@@ -153,7 +153,7 @@ class Graph(Layer):
         self.inputs[name] = layer
         self.output_config.append({'name':name, 'ndim':ndim, 'dtype':dtype})
 
-    def add_node(self, layer, name, input=None, inputs=[], merge_mode='concat'):
+    def add_node(self, layer, name, input=None, inputs=[], merge_mode='concat', concat_axis=-1):
         if hasattr(layer, 'set_name'):
             layer.set_name(name)
         if name in self.namespace:
@@ -171,7 +171,7 @@ class Graph(Layer):
                 if n not in self.nodes:
                     raise Exception('Unknown identifier: ' + n)
                 to_merge.append(self.nodes[n])
-            merge = Merge(to_merge, mode=merge_mode)
+            merge = Merge(to_merge, mode=merge_mode, concat_axis=concat_axis)
             layer.set_previous(merge)
 
         self.namespace.add(name)

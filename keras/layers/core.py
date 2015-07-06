@@ -113,7 +113,7 @@ class MaskedLayer(Layer):
 
 
 class Merge(object): 
-    def __init__(self, layers, mode='sum'):
+    def __init__(self, layers, mode='sum', concat_axis=-1):
         ''' Merge the output of a list of layers or containers into a single tensor.
             mode: {'sum', 'concat'}
         '''
@@ -144,7 +144,7 @@ class Merge(object):
             return s
         elif self.mode == 'concat':
             inputs = [self.layers[i].get_output(train) for i in range(len(self.layers))]
-            return T.concatenate(inputs, axis=-1)
+            return T.concatenate(inputs, axis=concat_axis)
         else:
             raise Exception('Unknown merge mode')
 
