@@ -440,7 +440,7 @@ class Sequential(Model, containers.Sequential):
         return self._predict(*ins)
 
     def fit_iter(self, datastream, batch_size=128, nb_epoch=100, verbose=1,
-                 callbacks=[], show_accuracy=False):
+                 callbacks=[], validation_data=None, show_accuracy=False):
 
         nb_train_sample = len(datastream)
         history = cbks.History()
@@ -456,7 +456,7 @@ class Sequential(Model, containers.Sequential):
             'nb_epoch': nb_epoch,
             'nb_sample': nb_train_sample,
             'verbose': verbose,
-            'do_validation': False,
+            'do_validation': validation_data is not None,
             'metrics': ['loss', 'acc'],
         })
         callbacks.on_train_begin()
@@ -486,7 +486,17 @@ class Sequential(Model, containers.Sequential):
 
                 callbacks.on_batch_end(batch_index, batch_logs)
 
-            # end of last batch
+            # validation
+            if validation_data is not None:
+                epoch_logs = {}
+                # replace with self._evaluate
+                val_outs = self.evaluate_iter(
+                    validation_data, batch_size, show_accuracy, verbose)
+                if type(val_outs) != list:
+                    val_outs = [val_outs]
+                # same labels assumed
+                for l, o in zip(out_labels, val_outs):
+                    epoch_logs['val_' + l] = o
             callbacks.on_epoch_end(epoch)
             if self.stop_training:
                 break
@@ -549,6 +559,27 @@ class Sequential(Model, containers.Sequential):
             return proba.argmax(axis=-1)
         else:
             return (proba > 0.5).astype('int32')
+
+    def evaluate_iter(self, datastream, batch_size=128, show_accuracy=False,
+                      verbose=1):
+        outs = [0., 0.] if show_accuracy else 0.
+        if verbose == 1:
+            progbar = Progbar(target=len(datastream))
+            processed = 0
+
+        batch_iter = batcher(iter(datastream), batch_size)
+        for X, y in batch_iter:
+            vals = self.test_on_batch(X, y, show_accuracy)
+            if show_accuracy:
+                outs[0] += vals[0]
+                outs[1] += vals[1]
+            else:
+                outs += vals
+            if verbose:
+                processed += len(X)
+                progbar.update(processed)
+
+        return outs
 
     def evaluate(self, X, y, batch_size=128, show_accuracy=False, verbose=1, sample_weight=None):
         X = standardize_X(X)
