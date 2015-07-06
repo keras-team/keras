@@ -41,7 +41,7 @@ class Sequential(Layer):
         self.layers.append(layer)
         if len(self.layers) > 1:
             self.layers[-1].set_previous(self.layers[-2])
-        
+
         params, regularizers, constraints = layer.get_params()
         self.params += params
         self.regularizers += regularizers
@@ -53,7 +53,7 @@ class Sequential(Layer):
     def set_input(self):
         for l in self.layers:
             if hasattr(l, 'input'):
-                ndim = l.input.ndim 
+                ndim = l.input.ndim
                 self.layers[0].input = ndim_tensor(ndim)
                 break
 
@@ -89,7 +89,7 @@ class Graph(Layer):
         arbitrary number of inputs and arbitrary number of outputs.
 
         Note: Graph can only be used as a layer
-        (connect, input, get_input, get_output) 
+        (connect, input, get_input, get_output)
         when it has exactly one input and one output.
 
         inherited from Layer:
@@ -168,9 +168,12 @@ class Graph(Layer):
         if inputs:
             to_merge = []
             for n in inputs:
-                if n not in self.nodes:
+                if n in self.nodes:
+                    to_merge.append(self.nodes[n])
+                elif n in self.inputs:
+                    to_merge.append(self.inputs[n])
+                else:
                     raise Exception('Unknown identifier: ' + n)
-                to_merge.append(self.nodes[n])
             merge = Merge(to_merge, mode=merge_mode)
             layer.set_previous(merge)
 
