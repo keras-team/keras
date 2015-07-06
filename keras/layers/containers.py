@@ -136,16 +136,22 @@ class Graph(Layer):
                 when it has exactly one input and one output.')
         return self.outputs[self.output_order[0]].get_output(train)
 
-    def add_input(self, name, ndim=2):
+    def add_input(self, name, ndim=2, dtype='float'):
         if name in self.namespace:
             raise Exception('Duplicate node identifier: ' + name)
         self.namespace.add(name)
         self.input_order.append(name)
         layer = Layer() # empty layer
-        layer.input = ndim_tensor(ndim)
+        if dtype == 'float':
+            layer.input = ndim_tensor(ndim)
+        else:
+            if ndim == 2:
+                layer.input = T.imatrix()
+            else:
+                raise Exception('Type "int" can only be used with ndim==2.')
         layer.input.name = name
         self.inputs[name] = layer
-        self.output_config.append({'name':name, 'ndim':ndim})
+        self.output_config.append({'name':name, 'ndim':ndim, 'dtype':dtype})
 
     def add_node(self, layer, name, input=None, inputs=[], merge_mode='concat'):
         if hasattr(layer, 'set_name'):
