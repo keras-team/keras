@@ -450,6 +450,11 @@ class Sequential(Model, containers.Sequential):
             callbacks = [history] + callbacks
         callbacks = cbks.CallbackList(callbacks)
 
+        if show_accuracy:
+            out_labels = ['loss', 'acc']
+        else:
+            out_labels = ['loss']
+
         callbacks._set_model(self)
         callbacks._set_params({
             'batch_size': batch_size,
@@ -457,14 +462,10 @@ class Sequential(Model, containers.Sequential):
             'nb_sample': nb_train_sample,
             'verbose': verbose,
             'do_validation': validation_data is not None,
-            'metrics': ['loss', 'acc'],
+            'metrics': ['loss', 'acc', 'val_loss', 'val_acc'],
         })
         callbacks.on_train_begin()
 
-        if show_accuracy:
-            out_labels = ['loss', 'acc']
-        else:
-            out_labels = ['loss']
 
         self.stop_training = False
         for epoch in range(nb_epoch):
