@@ -349,7 +349,7 @@ def model_from_param(layers):
 			# SIGMOID
 			model.add_node(Activation('sigmoid'), name=name, input=input_layer_name)
 
-		elif layer.type == 20:
+		elif layer.type == 20 or layer.type == 21:
 			# SOFTMAX
 			model.add_node(Activation('softmax'), name=name, input=input_layer_name)
 
@@ -358,7 +358,7 @@ def model_from_param(layers):
 			model.add_node(Activation('tanh'), name=name, input=input_layer_name)
 
 		else:
-			raise RuntimeError("one or many layers used int this model is not currently supported")
+			raise RuntimeError("the layer: ", layer.name, "used in this model is not currently supported")
 
 	for end in ends:
 		input_layer_name = 'output_' + layers[end].name
