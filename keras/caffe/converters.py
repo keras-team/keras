@@ -12,18 +12,29 @@ from caffe_utils import *
 import numpy as np
 import math
 
+def is_data_input(layer):
+	if layer.type == 5 or layer.type == 12 or layer.type == 24 or layer.type == 29 or layer.type == 9:
+		return True
+	else:
+		return False
+
+
 def model_from_config(layers, phase, input_dim):
 	'''
 		layers: a list of all the layers in the model
 		phase: parameter to specify which network to extract: training or test
 		input_dim: input dimensions of the configuration (if in model is in deploy mode)
 	'''
+	# DEPLOY MODE: first layer is computation
+	# NON DEPLOY MODE: first layer is data input
 	if input_dim == []:
 		in_deploy_mode = False
 	else:
 		in_deploy_mode = True
 
 	network = make_network(layers, phase)	# obtain the nodes that make up the graph
+	if len(network) == 0:
+		raise Exception('failed to construct network from the prototext')
 	network = acyclic(network)	# Convert it to be truly acyclic
 	network = merge_layer_blob(network)	# eliminate 'blobs', just have layers
 	reverse_network = reverse(network)	# reverse, to obtain the start
@@ -52,13 +63,13 @@ def model_from_config(layers, phase, input_dim):
 		layer = layers[layer_nb]
 		name = layer.name
 
-		if layer.type == 5 or layer.type == 12:
+		if is_data_input(layer):
 			# not including data layers
 			continue
 
 		if layer_nb in starts:
-			# in deploy mode as data layers can't reach this line.
-			new_name = 'input_' + name
+			# in deploy mode since data layers can't reach this line and condition holds.
+			new_name = 'graph_input_' + name
 			input_layer_names = [name]
 			name = new_name
 		else:
@@ -66,7 +77,7 @@ def model_from_config(layers, phase, input_dim):
 			input_layer_names = []	# list of strings identifying the input layer
 			for input_layer in input_layers:
 				if input_layer in starts and in_deploy_mode:
-					input_layer_names.append('input_' + layers[input_layer].name)
+					input_layer_names.append('graph_input_' + layers[input_layer].name)
 				else:
 					input_layer_names.append(layers[input_layer].name)
 
@@ -112,10 +123,6 @@ def model_from_config(layers, phase, input_dim):
 			layer_output_dim_padding = [layer_input_dim[0], layer_input_dim[1] + 2 * pad_h, layer_input_dim[2] + 2 * pad_w]
 			layer_output_dim = [nb_filter, (layer_output_dim_padding[1] - nb_row) / stride_h + 1, (layer_output_dim_padding[2] - nb_col) / stride_w + 1]
 
-		elif layer.type == 5:
-			# IMAGEDATA
-			continue
-
 		elif layer.type == 6:
 			# DROPOUT
 			prob = layer.dropout_param.dropout_ratio
@@ -126,9 +133,6 @@ def model_from_config(layers, phase, input_dim):
 			# FLATTEN
 			model.add_node(Flatten(), name=name, input=input_layer_name)
 			layer_output_dim = np.prod(layer_input_dim)
-
-		elif layer.type == 12:
-			continue
 
 		elif layer.type == 14:
 			# INNER PRODUCT OR DENSE
@@ -193,8 +197,8 @@ def model_from_config(layers, phase, input_dim):
 			layer_output_dim = layer_input_dim
 
 		else:
-			print "The Layer is not currently Supported"
-			return
+			raise RuntimeError("one or many layers used int this model is not currently supported")
+
 
 		output_dim[name] = layer_output_dim
 
@@ -202,13 +206,18 @@ def model_from_config(layers, phase, input_dim):
 		input_layer_name = 'output_' + layers[end].name
 		model.add_output(name=layers[end].name, input=input_layer_name)
 
-	return model
+	return model, starts, ends
 
 def model_from_param(layers):
 	'''
 		layers: a list of all the layers in the model with the assocaited parameters
 	'''
+	# DEPLOY MODE: first layer is computation
+	# NON DEPLOY MODE: first layer is data input
+
 	network = make_network(layers, 0)	# obtain the nodes that make up the graph
+	if len(network) == 0:
+		raise Exception('failed to construct network from the caffemodel')
 	network = acyclic(network)	# Convert it to be truly acyclic
 	network = merge_layer_blob(network)	# eliminate 'blobs', just have layers
 	reverse_network = reverse(network)	# reverse, to obtain the start
@@ -219,32 +228,38 @@ def model_from_param(layers):
 
 	model = Graph()
 
-
-	output_dim = {}	# for dimensionality inference (layer_nb: output_dim)
-
 	# add input nodes
 	for start in starts:
 		name = layers[start].name
-		model.add_input(name='input_' + name, ndim=4) #input points to input layers - marked with 'input_' prefix
+		model.add_input(name=name, ndim=4)
 
 	# parse all the layers and build equivalent keras graph
 	for layer_nb in network:
 		layer = layers[layer_nb]
 		name = layer.name
-		input_layers = reverse_network[layer_nb]	# inputs to current layer, in the form of layer numbers
-		input_layer_names = []	# list of strings identifying the input layer
-		for input_layer in input_layers:
-			input_layer_names.append(layers[input_layer].name)
+
+		if is_data_input(layer):
+			continue
+
+		if layer_nb in starts:
+			input_layer_names = [name]	# this is both an input layer and computation layer. the name has been added as input layer
+			name = 'graph_input_' + name # use a prefix to create a new name, which is used on from hereon to take input from this layer(see below)
+		else:
+			input_layers = reverse_network[layer_nb]	# inputs to current layer, in the form of layer numbers
+			input_layer_names = []	# list of strings identifying the input layer
+			for input_layer in input_layers:
+				if input_layer in starts and not is_data_input(layers[input_layer]):	# taking input from first layer and that's not a data layer, implies use the prefix 
+					input_layer_names.append('graph_input_' + layers[input_layer].name)
+				else:
+					input_layer_names.append(layers[input_layer].name)
 
 		if len(input_layer_names) == 1:
 			input_layer_name = input_layer_names[0] # single input. since concatenation is explicit, 
 													# all layers can be thought of single input layers 
 													# (except loss layers, which is handled anyway)
-		if layer_nb in starts:
-			input_layer_name = 'input_' + input_layer_name	# the respective input node has that prefix. 
-															# always single input as its the input layer
-		elif layer_nb in ends:
+		if layer_nb in ends:
 			name = 'output_' + name 	# outputs nodes are marked with 'output_' prefix from which output is derived
+										# since the graph output is not model output
 
 
 		if layer.type == 3:
@@ -274,10 +289,6 @@ def model_from_param(layers):
 
 			model.add_node(Convolution2D(nb_filter, stack_size, nb_row, nb_col, subsample=(stride_h, stride_w), weights=weights), name=name, input=input_layer_name)
 
-		elif layer.type == 5:
-			# IMAGEDATA
-			continue
-
 		elif layer.type == 6:
 			# DROPOUT
 			prob = layer.dropout_param.dropout_ratio
@@ -287,13 +298,9 @@ def model_from_param(layers):
 			# FLATTEN
 			model.add_node(Flatten(), name=name, input=input_layer_name)
 
-		elif layer.type == 12:
-			# DATA
-			continue
-
 		elif layer.type == 14:
 			# INNER PRODUCT OR DENSE
-			blobs = layer_param.blobs
+			blobs = layer.blobs
 			nb_filter, stack_size, nb_col, nb_row = blobs[0].num, blobs[0].channels, blobs[0].height, blobs[0].width
 			weights_p = np.array(blobs[0].data).reshape(nb_filter, stack_size, nb_col, nb_row)[0,0,:,:].T
 			weights_b = np.array(blobs[1].data)
@@ -344,14 +351,13 @@ def model_from_param(layers):
 			model.add_node(Activation('tanh'), name=name, input=input_layer_name)
 
 		else:
-			print "The Layer is not currently Supported"
-			return
+			raise RuntimeError("one or many layers used int this model is not currently supported")
 
 	for end in ends:
 		input_layer_name = 'output_' + layers[reverse_network[end][0]].name
 		model.add_output(name=layers[end].name, input=input_layer_name)
 
-	return model
+	return model, starts, ends
 
 def convert_weights(layers):
 	pass
