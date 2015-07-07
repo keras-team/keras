@@ -164,10 +164,14 @@ class History(Callback):
     def on_epoch_end(self, epoch, logs={}):
         self.epoch.append(epoch)
         for k, v in self.totals.items():
-            self.history[k] = v / self.seen
+            if k not in self.history:
+                self.history[k] = []
+            self.history[k].append(v / self.seen)
 
         for k, v in logs.items():
-            self.history[k] = v
+            if k not in self.history:
+                self.history[k] = []
+            self.history[k].append(v)
 
 
 class ModelCheckpoint(Callback):
