@@ -40,7 +40,7 @@ def create_model():
     model.add(Activation('softmax'))
     return model
 
-def test_weights(model, class_weight=None, sample_weight=None):
+def _test_weights(model, class_weight=None, sample_weight=None):
     model.fit(X_train, Y_train, batch_size=batch_size, nb_epoch=nb_epoch, verbose=0, \
         class_weight=class_weight, sample_weight=sample_weight)
     score = model.evaluate(X_test[test_ids, :], Y_test[test_ids, :], verbose=0)
@@ -60,17 +60,17 @@ class TestConcatenation(unittest.TestCase):
             # no weights: reference point
             model = create_model()
             model.compile(loss='categorical_crossentropy', optimizer='rmsprop')
-            standard_score = test_weights(model)
+            standard_score = _test_weights(model)
             # test class_weight
             model = create_model()
             model.compile(loss=loss, optimizer='rmsprop')
-            score = test_weights(model, class_weight=class_weight)
+            score = _test_weights(model, class_weight=class_weight)
             print('score:', score, ' vs.', standard_score)
             self.assertTrue(score < standard_score)
             # test sample_weight
             model = create_model()
             model.compile(loss=loss, optimizer='rmsprop')
-            score = test_weights(model, sample_weight=sample_weight)
+            score = _test_weights(model, sample_weight=sample_weight)
             print('score:', score, ' vs.', standard_score)
             self.assertTrue(score < standard_score)
 
