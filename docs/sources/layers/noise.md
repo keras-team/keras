@@ -36,4 +36,3 @@ The Gaussian noise is only used at training time.
 
     - __p__: float, drop probability as with Dropout.
 
----

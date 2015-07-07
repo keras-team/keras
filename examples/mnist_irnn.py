@@ -12,7 +12,7 @@ from keras.optimizers import RMSprop
 from keras.utils import np_utils
 
 '''
-    This is a reproduction of the IRNN experiment 
+    This is a reproduction of the IRNN experiment
     with pixel-by-pixel sequential MNIST in
     "A Simple Way to Initialize Recurrent Networks of Rectified Linear Units "
     by Quoc V. Le, Navdeep Jaitly, Geoffrey E. Hinton
@@ -23,8 +23,8 @@ from keras.utils import np_utils
     Optimizer is replaced with RMSprop which yields more stable and steady
     improvement.
 
-    0.80 train/test accuracy and 0.55 train/test loss after 70 epochs
-    (it's still underfitting at that point, though).
+    Reaches 0.93 train/test accuracy after 900 epochs (which roughly corresponds
+    to 1687500 steps in the original paper.)
 '''
 
 batch_size = 32
@@ -64,7 +64,7 @@ model.add(Activation('softmax'))
 rmsprop = RMSprop(lr=learning_rate)
 model.compile(loss='categorical_crossentropy', optimizer=rmsprop)
 
-model.fit(X_train, Y_train, batch_size=16, nb_epoch=nb_epochs,
+model.fit(X_train, Y_train, batch_size=batch_size, nb_epoch=nb_epochs,
           show_accuracy=True, verbose=1, validation_data=(X_test, Y_test))
 
 scores = model.evaluate(X_test, Y_test, show_accuracy=True, verbose=0)
@@ -79,7 +79,7 @@ model.add(Activation('softmax'))
 rmsprop = RMSprop(lr=learning_rate)
 model.compile(loss='categorical_crossentropy', optimizer=rmsprop)
 
-model.fit(X_train, Y_train, batch_size=16, nb_epoch=nb_epochs,
+model.fit(X_train, Y_train, batch_size=batch_size, nb_epoch=nb_epochs,
           show_accuracy=True, verbose=1, validation_data=(X_test, Y_test))
 
 scores = model.evaluate(X_test, Y_test, show_accuracy=True, verbose=0)

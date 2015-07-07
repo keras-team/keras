@@ -30,6 +30,7 @@ pages:
   - Advanced Activations Layers: layers/advanced_activations.md
   - Normalization Layers: layers/normalization.md
   - Embedding Layers: layers/embeddings.md
+  - Noise layers: layers/noise.md
   - Containers: layers/containers.md
 - Preprocessing:
   - Sequence Preprocessing: preprocessing/sequence.md
