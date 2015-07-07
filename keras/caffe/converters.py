@@ -208,10 +208,10 @@ def model_from_config(layers, phase, input_dim):
 
 	starts_names = []
 	for start in starts:
-		starts_names.append(layer[start].name)
+		starts_names.append(layers[start].name)
 	ends_names = []
 	for end in ends:
-		ends_names.append(layer[end].name)
+		ends_names.append(layers[end].name)
 
 	return model, starts_names, ends_names
 
@@ -366,10 +366,10 @@ def model_from_param(layers):
 
 	starts_names = []
 	for start in starts:
-		starts_names.append(layer[start].name)
+		starts_names.append(layers[start].name)
 	ends_names = []
 	for end in ends:
-		ends_names.append(layer[end].name)
+		ends_names.append(layers[end].name)
 
 	return model, starts_names, ends_names
 
