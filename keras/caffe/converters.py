@@ -206,7 +206,14 @@ def model_from_config(layers, phase, input_dim):
 		input_layer_name = 'output_' + layers[end].name
 		model.add_output(name=layers[end].name, input=input_layer_name)
 
-	return model, starts, ends
+	starts_names = []
+	for start in starts:
+		starts_names.append(layer[start].name)
+	ends_names = []
+	for end in ends:
+		ends_names.append(layer[end].name)
+
+	return model, starts_names, ends_names
 
 def model_from_param(layers):
 	'''
@@ -307,7 +314,7 @@ def model_from_param(layers):
 			weights = [weights_p, weights_b]
 
 			model.add_node(Flatten(), name=name + '_flatten', input=input_layer_name)
-			model.add_node(Dense(nb_col, nb_row, weights=weights), name=name, input=name + '_flatten')
+			model.add_node(Dense(nb_row, nb_col, weights=weights), name=name, input=name + '_flatten')
 
 		elif layer.type == 15:
 			# LOCAL RESPONSE NORMALIZATION
@@ -354,10 +361,17 @@ def model_from_param(layers):
 			raise RuntimeError("one or many layers used int this model is not currently supported")
 
 	for end in ends:
-		input_layer_name = 'output_' + layers[reverse_network[end][0]].name
+		input_layer_name = 'output_' + layers[end].name
 		model.add_output(name=layers[end].name, input=input_layer_name)
 
-	return model, starts, ends
+	starts_names = []
+	for start in starts:
+		starts_names.append(layer[start].name)
+	ends_names = []
+	for end in ends:
+		ends_names.append(layer[end].name)
+
+	return model, starts_names, ends_names
 
 def convert_weights(layers):
 	pass
