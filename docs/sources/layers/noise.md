@@ -22,7 +22,9 @@ The Gaussian noise is only added at training time.
 ```python
 keras.layers.noise.GaussianDropout(p)
 ```
-Apply to the input an multiplicative one-centred gaussian noise with standard deviation `sqrt(p/(1-p))`. p refers to drop probability to match Dropout layer syntax
+Apply to the input an multiplicative one-centred gaussian noise with standard deviation `sqrt(p/(1-p))`. p refers to drop probability to match Dropout layer syntax. 
+
+http://www.cs.toronto.edu/~rsalakhu/papers/srivastava14a.pdf
 
 The Gaussian noise is only used at training time.
 
