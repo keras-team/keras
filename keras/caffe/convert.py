@@ -14,7 +14,9 @@ class CaffeToKeras(object):
 			Usage:
 				model = CaffeToKeras(prototext='VGG16.prototxt', caffemodel='VGG16_700iter.caffemodel')
 				graph = model('network') # loaded with with weights is caffemodel is provided, else randomly initialized
-				weights = model('weights') # useful for embedding networks
+				inputs = model('inputs')
+				outputs = model('outputs')
+				weights = model('weights') # useful for embedding networks (to do)
 		'''
 		if phase == 'train':
 			self.phase = 0
