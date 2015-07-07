@@ -28,6 +28,7 @@ class GaussianDropout(Layer):
         Reference: 
             Dropout: A Simple Way to Prevent Neural Networks from Overfitting
             Srivastava, Hinton, et al. 2014
+            http://www.cs.toronto.edu/~rsalakhu/papers/srivastava14a.pdf
     '''
     def __init__(self, p):
         super(GaussianDropout,self).__init__()
