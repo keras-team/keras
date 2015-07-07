@@ -21,32 +21,28 @@ class CaffeToKeras(object):
 		else:
 			self.phase = 1
 
-		if prototext is not None:
+		if caffemodel is None:
 			config = caffe.NetParameter()
 			google.protobuf.text_format.Merge(open(prototext).read(), config)
 
 			self.input_dim = config.input_dim
 			self.layers = config.layers[:]
-			self.network = model_from_config(self.layers, self.phase, self.input_dim[1:])
-
-		if caffemodel is not None:
+			self.network, self.inputs, self.outputs = model_from_config(self.layers, self.phase, self.input_dim[1:])
+		
+		else:
 			param = caffe.NetParameter()
 			param.MergeFromString(open(caffemodel,'rb').read())
-
-			self.weights = convert_weights(param.layers)
-
-			if prototext is None:
-				self.layers = param.layers[:]
-				self.network = model_from_param(self.layers)
-			else:
-				self.network.copy_weights(self.weights)
+			self.layers = param.layers[:]
+			# TO DO
+			# self.weights = convert_weights(param.layers)
+			self.network, self.inputs, self.outputs = model_from_param(self.layers)
 
 		if solver is not None:
-			# parse and save
+			# TODO
 			self.solver = convert_solver(solver)
 
 		if mean is not None:
-			# parse and save
+			# TODO
 			self.mean = convert_meanfile(mean)
 
 	def __call__(self, item):
@@ -57,6 +53,11 @@ class CaffeToKeras(object):
 		elif item == 'mean':
 			return self.mean
 		elif item == 'weights':
+			# todo 
 			return self.weights
+		elif item == 'inputs':
+			return self.inputs
+		elif item == 'outputs':
+			return self.outputs
 		else:
 			print 'Invalid request'
