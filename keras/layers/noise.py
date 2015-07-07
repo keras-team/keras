@@ -37,7 +37,7 @@ class GaussianDropout(Layer):
         X = self.get_input(train)
         if train:
             # self.p refers to drop probability rather than retain probability (as in paper) to match Dropout layer syntax
-            X *= srng.normal(size=X.shape, avg = 1., std=T.sqrt(self.p/(1-self.p)), dtype=theano.config.floatX)
+            X *= srng.normal(size=X.shape, avg=1.0, std=T.sqrt(self.p / (1.0 - self.p)), dtype=theano.config.floatX)
         return X
 
     def get_config(self):
