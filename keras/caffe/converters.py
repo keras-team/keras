@@ -18,6 +18,11 @@ def model_from_config(layers, phase, input_dim):
 		phase: parameter to specify which network to extract: training or test
 		input_dim: input dimensions of the configuration (if in model is in deploy mode)
 	'''
+	if input_dim == []:
+		in_deploy_mode = False
+	else:
+		in_deploy_mode = True
+
 	network = make_network(layers, phase)	# obtain the nodes that make up the graph
 	network = acyclic(network)	# Convert it to be truly acyclic
 	network = merge_layer_blob(network)	# eliminate 'blobs', just have layers
@@ -34,40 +39,48 @@ def model_from_config(layers, phase, input_dim):
 	# add input nodes
 	for start in starts:
 		name = layers[start].name
-		model.add_input(name='input_' + name, ndim=4) #input points to input layers - marked with 'input_' prefix
-		if input_dim == []:
-			# not in deploy mode - need to get input DATA dimensions from layers and their transformations
-			data_dim = get_data_dim(layers[start])
-			output_dim[start] = data_dim # input dimensions (dimensions of DATA)
+		model.add_input(name=name, ndim=4)
+		if in_deploy_mode:
+			output_dim[name] = input_dim
+		else:
+			data_dim = get_data_dim(layers[start])	# not in deploy mode - need to get input DATA dimensions from layers and their transformations
+			output_dim[name] = data_dim
+			
 
 	# parse all the layers and build equivalent keras graph
 	for layer_nb in network:
 		layer = layers[layer_nb]
 		name = layer.name
-		input_layers = reverse_network[layer_nb]	# inputs to current layer, in the form of layer numbers
-		input_layer_names = []	# list of strings identifying the input layer
-		for input_layer in input_layers:
-			input_layer_names.append(layers[input_layer].name)
+
+		if layer.type == 5 or layer.type == 12:
+			# not including data layers
+			continue
+
+		if layer_nb in starts:
+			# in deploy mode as data layers can't reach this line.
+			new_name = 'input_' + name
+			input_layer_names = [name]
+			name = new_name
+		else:
+			input_layers = reverse_network[layer_nb]	# inputs to current layer, in the form of layer numbers
+			input_layer_names = []	# list of strings identifying the input layer
+			for input_layer in input_layers:
+				if input_layer in starts and in_deploy_mode:
+					input_layer_names.append('input_' + layers[input_layer].name)
+				else:
+					input_layer_names.append(layers[input_layer].name)
+
+		if layer_nb in ends:
+			name = 'output_' + name 	# outputs nodes are marked with 'output_' prefix from which output is derived later in 'add_output'
 
 		layer_input_dims = []
-		if len(output_dim) == 0:
-			# caffe model in deploy mode, and this is the first layer
-			layer_input_dims = [input_dim]
-		else:
-			for input_layer in input_layers:
-				layer_input_dims.append(output_dim[input_layer])
-
+		for input_layer_name in input_layer_names:
+			layer_input_dims.append(output_dim[input_layer_name])
+		
 		if len(input_layer_names) == 1:
 			input_layer_name = input_layer_names[0] # single input. since concatenation is explicit, 
 			layer_input_dim = layer_input_dims[0]	# all layers can be thought of single input layers 
 													# (except loss layers, which is handled anyway)
-
-		if layer_nb in starts:
-			input_layer_name = 'input_' + input_layer_name	# the respective input node has that prefix. 
-															# always single input as its the input layer
-		elif layer_nb in ends:
-			name = 'output_' + name 	# outputs nodes are marked with 'output_' prefix from which output is derived
-
 
 		if layer.type == 3:
 			# CONCAT
@@ -92,9 +105,9 @@ def model_from_config(layers, phase, input_dim):
 			pad_w = max(layer.convolution_param.pad, layer.convolution_param.pad_w)
 			if pad_h + pad_w > 0:
 				model.add_node(ZeroPadding2D(pad=(pad_h, pad_w)), name=name + '_zeropadding', input=input_layer_name)
-
+				input_layer_name = name + '_zeropadding'
 			stack_size = layer_input_dim[0]
-			model.add_node(Convolution2D(nb_filter, stack_size, nb_row, nb_col, subsample=(stride_h, stride_w)), name=name, input=name + '_zeropadding')
+			model.add_node(Convolution2D(nb_filter, stack_size, nb_row, nb_col, subsample=(stride_h, stride_w)), name=name, input=input_layer_name)
 
 			layer_output_dim_padding = [layer_input_dim[0], layer_input_dim[1] + 2 * pad_h, layer_input_dim[2] + 2 * pad_w]
 			layer_output_dim = [nb_filter, (layer_output_dim_padding[1] - nb_row) / stride_h + 1, (layer_output_dim_padding[2] - nb_col) / stride_w + 1]
@@ -152,8 +165,9 @@ def model_from_config(layers, phase, input_dim):
 			pad_w = max(layer.pooling_param.pad, layer.pooling_param.pad_w)
 			if pad_h + pad_w > 0:
 				model.add_node(ZeroPadding2D(pad=(pad_h, pad_w)), name=name + '_zeropadding', input=input_layer_name)
+				input_layer_name = name + '_zeropadding'
 
-			model.add_node(MaxPooling2D(poolsize=(kernel_h, kernel_w), stride=(stride_h, stride_w)), name=name, input=name + '_zeropadding')
+			model.add_node(MaxPooling2D(poolsize=(kernel_h, kernel_w), stride=(stride_h, stride_w)), name=name, input=input_layer_name)
 
 			layer_output_dim_padding = [layer_input_dim[0], layer_input_dim[1] + 2 * pad_h, layer_input_dim[2] + 2 * pad_w]
 			layer_output_dim = [layer_output_dim_padding[0], (layer_output_dim_padding[1] - kernel_h) / stride_h + 1, (layer_output_dim_padding[2] - kernel_w) / stride_w + 1]
@@ -168,7 +182,7 @@ def model_from_config(layers, phase, input_dim):
 			model.add_node(Activation('sigmoid'), name=name, input=input_layer_name)
 			layer_output_dim = layer_input_dim
 
-		elif layer.type == 20:
+		elif layer.type == 20 or layer.type == 21:
 			# SOFTMAX
 			model.add_node(Activation('softmax'), name=name, input=input_layer_name)
 			layer_output_dim = layer_input_dim
@@ -182,10 +196,10 @@ def model_from_config(layers, phase, input_dim):
 			print "The Layer is not currently Supported"
 			return
 
-		output_dim[layer_nb] = layer_output_dim
+		output_dim[name] = layer_output_dim
 
 	for end in ends:
-		input_layer_name = 'output_' + layers[reverse_network[end][0]].name
+		input_layer_name = 'output_' + layers[end].name
 		model.add_output(name=layers[end].name, input=input_layer_name)
 
 	return model
@@ -256,8 +270,9 @@ def model_from_param(layers):
 			pad_w = max(layer.convolution_param.pad, layer.convolution_param.pad_w)
 			if pad_h + pad_w > 0:
 				model.add_node(ZeroPadding2D(pad=(pad_h, pad_w)), name=name + '_zeropadding', input=input_layer_name)
+				input_layer_name = name + '_zeropadding'
 
-			model.add_node(Convolution2D(nb_filter, stack_size, nb_row, nb_col, subsample=(stride_h, stride_w), weights=weights), name=name, input=name + '_zeropadding')
+			model.add_node(Convolution2D(nb_filter, stack_size, nb_row, nb_col, subsample=(stride_h, stride_w), weights=weights), name=name, input=input_layer_name)
 
 		elif layer.type == 5:
 			# IMAGEDATA
@@ -308,8 +323,9 @@ def model_from_param(layers):
 			pad_w = max(layer.pooling_param.pad, layer.pooling_param.pad_w)
 			if pad_h + pad_w > 0:
 				model.add_node(ZeroPadding2D(pad=(pad_h, pad_w)), name=name + '_zeropadding', input=input_layer_name)
+				input_layer_name = name + '_zeropadding'
 
-			model.add_node(MaxPooling2D(poolsize=(kernel_h, kernel_w), stride=(stride_h, stride_w)), name=name, input=name + '_zeropadding')
+			model.add_node(MaxPooling2D(poolsize=(kernel_h, kernel_w), stride=(stride_h, stride_w)), name=name, input=input_layer_name)
 
 		elif layer.type == 18:
 			# ReLU
