@@ -22,7 +22,7 @@ class GaussianNoise(MaskedLayer):
         return {"name":self.__class__.__name__,
             "sigma":self.sigma}
 
-class GaussianDropout(Layer):
+class GaussianDropout(MaskedLayer):
     '''
         Multiplicative Gaussian Noise
         Reference: 
