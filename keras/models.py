@@ -268,6 +268,7 @@ class Sequential(Model, containers.Sequential):
         else:
             raise Exception("Invalid class mode:" + str(class_mode))
         self.class_mode = class_mode
+        self.theano_mode = theano_mode
 
         for r in self.regularizers:
             train_loss = r(train_loss)
