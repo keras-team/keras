@@ -199,7 +199,6 @@ def model_from_config(layers, phase, input_dim):
 		else:
 			raise RuntimeError("one or many layers used int this model is not currently supported")
 
-
 		output_dim[name] = layer_output_dim
 
 	for end in ends:
@@ -277,12 +276,20 @@ def model_from_param(layers):
 
 		elif layer.type == 4:
 			# CONVOLUTION
-
 			blobs = layer.blobs
-			nb_filter, stack_size, nb_col, nb_row = blobs[0].num, blobs[0].channels, blobs[0].height, blobs[0].width
-			
-			weights_p = np.array(blobs[0].data).reshape(nb_filter, stack_size, nb_col, nb_row)[:,:,::-1,::-1]
+			nb_filter, temp_stack_size, nb_col, nb_row = blobs[0].num, blobs[0].channels, blobs[0].height, blobs[0].width
+			group = layer.convolution_param.group # weird old trick used in paralellizing networks
+			stack_size = temp_stack_size * group
+			weights_p = np.zeros((nb_filter, stack_size, nb_col, nb_row)) # maybe not all synapses are existant
 			weights_b = np.array(blobs[1].data)
+
+			chunk_data_size = len(blobs[0].data) // group
+			stacks_size_per_chunk = stack_size // group
+			nb_filter_per_chunk = nb_filter // group
+			for i in range(group):
+				chunk_weights = weights_p[i * nb_filter_per_chunk: (i + 1) * nb_filter_per_chunk, i * stacks_size_per_chunk: (i + 1) * stacks_size_per_chunk, :, :]
+				chunk_weights[:] = np.array(blobs[0].data[i * chunk_data_size:(i + 1) * chunk_data_size]).reshape(chunk_weights.shape)
+
 			weights = [weights_p, weights_b]
 
 			stride_h = max(layer.convolution_param.kernel_h, layer.convolution_param.stride)
