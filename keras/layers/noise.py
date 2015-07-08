@@ -1,5 +1,5 @@
 from __future__ import absolute_import
-from .core import srng, MaskedLayer
+from .core import srng, MaskedLayer, Layer
 import theano
 import theano.tensor as T
 
@@ -26,7 +26,7 @@ class GaussianNoise(MaskedLayer):
 class GaussianDropout(MaskedLayer):
     '''
         Multiplicative Gaussian Noise
-        Reference: 
+        Reference:
             Dropout: A Simple Way to Prevent Neural Networks from Overfitting
             Srivastava, Hinton, et al. 2014
             http://www.cs.toronto.edu/~rsalakhu/papers/srivastava14a.pdf
