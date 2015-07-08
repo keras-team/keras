@@ -29,6 +29,8 @@ class Optimizer(object):
 
         return grads
 
+    def get_config(self):
+        return {"name":self.__class__.__name__}
 
 class SGD(Optimizer):
 
@@ -55,6 +57,13 @@ class SGD(Optimizer):
             updates.append((p, c(new_p))) # apply constraints
         return updates
 
+    def get_config(self):
+        return {"name":self.__class__.__name__,
+            "lr":self.lr,
+            "momentum":self.momentum,
+            "decay":self.decay,
+            "nesterov":self.nesterov}
+
 
 class RMSprop(Optimizer):
 
@@ -76,6 +85,11 @@ class RMSprop(Optimizer):
             
         return updates
 
+    def get_config(self):
+        return {"name":self.__class__.__name__,
+            "lr":self.lr,
+            "rho":self.rho,
+            "epsilon":self.epsilon}
 
 class Adagrad(Optimizer):
 
@@ -96,6 +110,10 @@ class Adagrad(Optimizer):
             updates.append((p, c(new_p))) # apply constraints
         return updates
 
+    def get_config(self):
+        return {"name":self.__class__.__name__,
+            "lr":self.lr,
+            "epsilon":self.epsilon}
 
 class Adadelta(Optimizer):
     '''
@@ -126,6 +144,11 @@ class Adadelta(Optimizer):
             updates.append((d_a, new_d_a))
         return updates
 
+    def get_config(self):
+        return {"name":self.__class__.__name__,
+            "lr":self.lr,
+            "rho":self.rho,
+            "epsilon":self.epsilon}
 
 class Adam(Optimizer):
     '''
@@ -166,6 +189,14 @@ class Adam(Optimizer):
             updates.append((v, v_t))
             updates.append((p, c(p_t))) # apply constraints
         return updates
+
+    def get_config(self):
+        return {"name":self.__class__.__name__,
+            "lr":self.lr,
+            "beta_1":self.beta_1,
+            "beta_2":self.beta_2,
+            "epsilon":self.epsilon,
+            "kappa":self.kappa}
 
 # aliases
 sgd = SGD
