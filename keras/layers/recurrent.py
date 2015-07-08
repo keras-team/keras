@@ -10,6 +10,11 @@ from ..layers.core import Layer, MaskedLayer
 from six.moves import range
 
 class Recurrent(MaskedLayer):
+
+    def __init__(self, mask_zero=False):
+        super(Recurrent, self).__init__()
+        self.mask_zero = mask_zero
+
     def get_output_mask(self, train=None):
         if self.return_sequences:
             return super(Recurrent, self).get_output_mask(train)
@@ -19,11 +24,14 @@ class Recurrent(MaskedLayer):
     def get_padded_shuffled_mask(self, train, X, pad=0):
         mask = self.get_input_mask(train)
         if mask is None:
-            mask = T.ones_like(X.sum(axis=-1)) # is there a better way to do this without a sum?
+            if self.mask_zero:
+                mask = X.any(axis=-1) # each timestep which is filled with zeros will be masked out
+            else:
+                mask = T.ones_like(X.sum(axis=-1)) # is there a better way to do this without a sum?
 
         # mask is (nb_samples, time)
         mask = T.shape_padright(mask) # (nb_samples, time, 1)
-        mask = T.addbroadcast(mask, -1) # (time, nb_samples, 1) matrix.
+        mask = T.addbroadcast(mask, -1) # (nb_samples, time, 1) matrix.
         mask = mask.dimshuffle(1, 0, 2) # (time, nb_samples, 1)
 
         if pad > 0:
@@ -43,9 +51,9 @@ class SimpleRNN(Recurrent):
     '''
     def __init__(self, input_dim, output_dim, 
         init='glorot_uniform', inner_init='orthogonal', activation='sigmoid', weights=None,
-        truncate_gradient=-1, return_sequences=False):
+        truncate_gradient=-1, return_sequences=False, mask_zero=False):
 
-        super(SimpleRNN,self).__init__()
+        super(SimpleRNN,self).__init__(mask_zero)
         self.init = initializations.get(init)
         self.inner_init = initializations.get(inner_init)
         self.input_dim = input_dim
@@ -102,7 +110,8 @@ class SimpleRNN(Recurrent):
             "inner_init":self.inner_init.__name__,
             "activation":self.activation.__name__,
             "truncate_gradient":self.truncate_gradient,
-            "return_sequences":self.return_sequences}
+            "return_sequences":self.return_sequences,
+            "mask_zero": self.mask_zero}
 
 
 class SimpleDeepRNN(Recurrent):
@@ -118,9 +127,9 @@ class SimpleDeepRNN(Recurrent):
     def __init__(self, input_dim, output_dim, depth=3,
         init='glorot_uniform', inner_init='orthogonal', 
         activation='sigmoid', inner_activation='hard_sigmoid',
-        weights=None, truncate_gradient=-1, return_sequences=False):
+        weights=None, truncate_gradient=-1, return_sequences=False, mask_zero=False):
 
-        super(SimpleDeepRNN,self).__init__()
+        super(SimpleDeepRNN,self).__init__(mask_zero)
         self.init = initializations.get(init)
         self.inner_init = initializations.get(inner_init)
         self.input_dim = input_dim
@@ -189,7 +198,8 @@ class SimpleDeepRNN(Recurrent):
             "activation":self.activation.__name__,
             "inner_activation":self.inner_activation.__name__,
             "truncate_gradient":self.truncate_gradient,
-            "return_sequences":self.return_sequences}
+            "return_sequences":self.return_sequences,
+            "mask_zero": self.mask_zero}
 
 
 class GRU(Recurrent):
@@ -217,9 +227,9 @@ class GRU(Recurrent):
     def __init__(self, input_dim, output_dim=128, 
         init='glorot_uniform', inner_init='orthogonal',
         activation='sigmoid', inner_activation='hard_sigmoid',
-        weights=None, truncate_gradient=-1, return_sequences=False):
+        weights=None, truncate_gradient=-1, return_sequences=False, mask_zero=False):
 
-        super(GRU,self).__init__()
+        super(GRU,self).__init__(mask_zero)
         self.input_dim = input_dim
         self.output_dim = output_dim
         self.truncate_gradient = truncate_gradient
@@ -292,7 +302,8 @@ class GRU(Recurrent):
             "activation":self.activation.__name__,
             "inner_activation":self.inner_activation.__name__,
             "truncate_gradient":self.truncate_gradient,
-            "return_sequences":self.return_sequences}
+            "return_sequences":self.return_sequences,
+            "mask_zero": self.mask_zero}
 
 
 
@@ -324,9 +335,9 @@ class LSTM(Recurrent):
     def __init__(self, input_dim, output_dim=128, 
         init='glorot_uniform', inner_init='orthogonal', forget_bias_init='one',
         activation='tanh', inner_activation='hard_sigmoid',
-        weights=None, truncate_gradient=-1, return_sequences=False):
+        weights=None, truncate_gradient=-1, return_sequences=False, mask_zero=False):
     
-        super(LSTM,self).__init__()
+        super(LSTM,self).__init__(mask_zero)
         self.input_dim = input_dim
         self.output_dim = output_dim
         self.truncate_gradient = truncate_gradient
@@ -414,7 +425,8 @@ class LSTM(Recurrent):
             "activation":self.activation.__name__,
             "inner_activation":self.inner_activation.__name__,
             "truncate_gradient":self.truncate_gradient,
-            "return_sequences":self.return_sequences}
+            "return_sequences":self.return_sequences,
+            "mask_zero": self.mask_zero}
 
 
 
@@ -441,9 +453,9 @@ class JZS1(Recurrent):
     def __init__(self, input_dim, output_dim=128, 
         init='glorot_uniform', inner_init='orthogonal',
         activation='tanh', inner_activation='sigmoid',
-        weights=None, truncate_gradient=-1, return_sequences=False):
+        weights=None, truncate_gradient=-1, return_sequences=False, mask_zero=False):
 
-        super(JZS1,self).__init__()
+        super(JZS1,self).__init__(mask_zero)
         self.input_dim = input_dim
         self.output_dim = output_dim
         self.truncate_gradient = truncate_gradient
@@ -521,7 +533,8 @@ class JZS1(Recurrent):
             "activation":self.activation.__name__,
             "inner_activation":self.inner_activation.__name__,
             "truncate_gradient":self.truncate_gradient,
-            "return_sequences":self.return_sequences}
+            "return_sequences":self.return_sequences,
+            "mask_zero": self.mask_zero}
 
 
 
@@ -548,9 +561,9 @@ class JZS2(Recurrent):
     def __init__(self, input_dim, output_dim=128, 
         init='glorot_uniform', inner_init='orthogonal',
         activation='tanh', inner_activation='sigmoid',
-        weights=None, truncate_gradient=-1, return_sequences=False):
+        weights=None, truncate_gradient=-1, return_sequences=False, mask_zero=False):
 
-        super(JZS2,self).__init__()
+        super(JZS2,self).__init__(mask_zero)
         self.input_dim = input_dim
         self.output_dim = output_dim
         self.truncate_gradient = truncate_gradient
@@ -629,7 +642,8 @@ class JZS2(Recurrent):
             "activation":self.activation.__name__,
             "inner_activation":self.inner_activation.__name__,
             "truncate_gradient":self.truncate_gradient,
-            "return_sequences":self.return_sequences}
+            "return_sequences":self.return_sequences,
+            "mask_zero": self.mask_zero}
 
 
 
@@ -656,9 +670,9 @@ class JZS3(Recurrent):
     def __init__(self, input_dim, output_dim=128, 
         init='glorot_uniform', inner_init='orthogonal',
         activation='tanh', inner_activation='sigmoid',
-        weights=None, truncate_gradient=-1, return_sequences=False):
+        weights=None, truncate_gradient=-1, return_sequences=False, mask_zero=False):
 
-        super(JZS3,self).__init__()
+        super(JZS3,self).__init__(mask_zero)
         self.input_dim = input_dim
         self.output_dim = output_dim
         self.truncate_gradient = truncate_gradient
@@ -730,7 +744,8 @@ class JZS3(Recurrent):
             "activation":self.activation.__name__,
             "inner_activation":self.inner_activation.__name__,
             "truncate_gradient":self.truncate_gradient,
-            "return_sequences":self.return_sequences}
+            "return_sequences":self.return_sequences,
+            "mask_zero": self.mask_zero}
 
 
 
