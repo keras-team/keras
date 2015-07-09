@@ -237,6 +237,8 @@ class Sequential(Model, containers.Sequential):
 
     def compile(self, optimizer, loss, class_mode="categorical", theano_mode=None):
         self.optimizer = optimizers.get(optimizer)
+
+        self.unweighted_loss = objectives.get(loss)
         self.loss = weighted_objective(objectives.get(loss))
 
         # input of model
