@@ -1,6 +1,7 @@
 from __future__ import absolute_import
 from .core import srng, MaskedLayer
 import theano
+import theano.tensor as T
 
 class GaussianNoise(MaskedLayer):
     '''
@@ -22,7 +23,7 @@ class GaussianNoise(MaskedLayer):
         return {"name":self.__class__.__name__,
             "sigma":self.sigma}
 
-class GaussianDropout(Layer):
+class GaussianDropout(MaskedLayer):
     '''
         Multiplicative Gaussian Noise
         Reference: 
