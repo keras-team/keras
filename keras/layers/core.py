@@ -5,11 +5,11 @@ import theano
 import theano.tensor as T
 import numpy as np
 
-from .. import activations, initializations
+from .. import activations, initializations, regularizers, constraints
 from ..utils.theano_utils import shared_zeros, floatX
 from ..utils.generic_utils import make_tuple
-from ..regularizers import ActivityRegularizer
-from .. import constraints
+from ..regularizers import ActivityRegularizer, Regularizer
+
 
 from theano.sandbox.rng_mrg import MRG_RandomStreams as RandomStreams
 from six.moves import zip
@@ -293,7 +293,7 @@ class Dense(Layer):
         Just your regular fully connected NN layer.
     '''
     def __init__(self, input_dim, output_dim, init='glorot_uniform', activation='linear', weights=None, name=None,
-        W_regularizer=None, b_regularizer=None, activity_regularizer=None, W_constraint=None, b_constraint=None):
+        W_regularizer='identity', b_regularizer='identity', activity_regularizer='identity', W_constraint='identity', b_constraint='identity'):
 
         super(Dense, self).__init__()
         self.init = initializations.get(init)
@@ -308,17 +308,22 @@ class Dense(Layer):
         self.params = [self.W, self.b]
 
         self.regularizers = []
-        if W_regularizer:
-            W_regularizer.set_param(self.W)
-            self.regularizers.append(W_regularizer)
-        if b_regularizer:
-            b_regularizer.set_param(self.b)
-            self.regularizers.append(b_regularizer)
-        if activity_regularizer:
-            activity_regularizer.set_layer(self)
-            self.regularizers.append(activity_regularizer)
+        
+        self.W_regularizer = regularizers.get(W_regularizer)
+        self.W_regularizer.set_param(self.W)
+        self.regularizers.append(self.W_regularizer)
 
-        self.constraints = [W_constraint, b_constraint]
+        self.b_regularizer = regularizers.get(b_regularizer)
+        self.b_regularizer.set_param(self.b)
+        self.regularizers.append(self.b_regularizer)
+
+        self.activity_regularizer = regularizers.get(activity_regularizer)
+        self.activity_regularizer.set_layer(self)
+        self.regularizers.append(self.activity_regularizer)
+
+        self.W_constraint = constraints.get(W_constraint)
+        self.b_constraint = constraints.get(b_constraint)
+        self.constraints = [self.W_constraint, self.b_constraint]
 
         if weights is not None:
             self.set_weights(weights)
@@ -340,7 +345,12 @@ class Dense(Layer):
             "input_dim":self.input_dim,
             "output_dim":self.output_dim,
             "init":self.init.__name__,
-            "activation":self.activation.__name__}
+            "activation":self.activation.__name__,
+            "W_regularizer":self.W_regularizer.get_config(),
+            "b_regularizer":self.b_regularizer.get_config(),
+            "activity_regularizer":self.activity_regularizer.get_config(),
+            "W_constraint":self.W_constraint.get_config(),
+            "b_constraint":self.b_constraint.get_config()}
 
 
 class ActivityRegularization(Layer):
@@ -375,7 +385,7 @@ class TimeDistributedDense(MaskedLayer):
 
     '''
     def __init__(self, input_dim, output_dim, init='glorot_uniform', activation='linear', weights=None, 
-        W_regularizer=None, b_regularizer=None, activity_regularizer=None, W_constraint=None, b_constraint=None):
+        W_regularizer='identity', b_regularizer='identity', activity_regularizer='identity', W_constraint='identity', b_constraint='identity'):
 
         super(TimeDistributedDense, self).__init__()
         self.init = initializations.get(init)
@@ -390,17 +400,22 @@ class TimeDistributedDense(MaskedLayer):
         self.params = [self.W, self.b]
 
         self.regularizers = []
-        if W_regularizer:
-            W_regularizer.set_param(self.W)
-            self.regularizers.append(W_regularizer)
-        if b_regularizer:
-            b_regularizer.set_param(self.b)
-            self.regularizers.append(b_regularizer)
-        if activity_regularizer:
-            activity_regularizer.set_layer(self)
-            self.regularizers.append(activity_regularizer)
 
-        self.constraints = [W_constraint, b_constraint]
+        self.W_regularizer = regularizers.get(W_regularizer)
+        self.W_regularizer.set_param(self.W)
+        self.regularizers.append(self.W_regularizer)
+
+        self.b_regularizer = regularizers.get(b_regularizer)
+        self.b_regularizer.set_param(self.b)
+        self.regularizers.append(self.b_regularizer)
+
+        self.activity_regularizer = regularizers.get(activity_regularizer)
+        self.activity_regularizer.set_layer(self)
+        self.regularizers.append(self.activity_regularizer)
+
+        self.W_constraint = constraints.get(W_constraint)
+        self.b_constraint = constraints.get(b_constraint)
+        self.constraints = [self.W_constraint, self.b_constraint]
 
         if weights is not None:
             self.set_weights(weights)
@@ -416,7 +431,12 @@ class TimeDistributedDense(MaskedLayer):
             "input_dim":self.input_dim,
             "output_dim":self.output_dim,
             "init":self.init.__name__,
-            "activation":self.activation.__name__}
+            "activation":self.activation.__name__,            
+            "W_regularizer":self.W_regularizer.get_config(),
+            "b_regularizer":self.b_regularizer.get_config(),
+            "activity_regularizer":self.activity_regularizer.get_config(),
+            "W_constraint":self.W_constraint.get_config(),
+            "b_constraint":self.b_constraint.get_config()}
 
 
 class AutoEncoder(Layer):
@@ -503,7 +523,7 @@ class MaxoutDense(Layer):
         Refer to http://arxiv.org/pdf/1302.4389.pdf
     '''
     def __init__(self, input_dim, output_dim, nb_feature=4, init='glorot_uniform', weights=None, 
-        W_regularizer=None, b_regularizer=None, activity_regularizer=None, W_constraint=None, b_constraint=None):
+        W_regularizer='identity', b_regularizer='identity', activity_regularizer='identity', W_constraint='identity', b_constraint='identity'):
 
         super(MaxoutDense, self).__init__()
         self.init = initializations.get(init)
@@ -518,17 +538,22 @@ class MaxoutDense(Layer):
         self.params = [self.W, self.b]
 
         self.regularizers = []
-        if W_regularizer:
-            W_regularizer.set_param(self.W)
-            self.regularizers.append(W_regularizer)
-        if b_regularizer:
-            b_regularizer.set_param(self.b)
-            self.regularizers.append(b_regularizer)
-        if activity_regularizer:
-            activity_regularizer.set_layer(self)
-            self.regularizers.append(activity_regularizer)
 
-        self.constraints = [W_constraint, b_constraint]
+        self.W_regularizer = regularizers.get(W_regularizer)
+        self.W_regularizer.set_param(self.W)
+        self.regularizers.append(self.W_regularizer)
+
+        self.b_regularizer = regularizers.get(b_regularizer)
+        self.b_regularizer.set_param(self.b)
+        self.regularizers.append(self.b_regularizer)
+
+        self.activity_regularizer = regularizers.get(activity_regularizer)
+        self.activity_regularizer.set_layer(self)
+        self.regularizers.append(self.activity_regularizer)
+
+        self.W_constraint = constraints.get(W_constraint)
+        self.b_constraint = constraints.get(b_constraint)
+        self.constraints = [self.W_constraint, self.b_constraint]
 
         if weights is not None:
             self.set_weights(weights)
@@ -544,4 +569,9 @@ class MaxoutDense(Layer):
             "input_dim":self.input_dim,
             "output_dim":self.output_dim,
             "init":self.init.__name__,
-            "nb_feature" : self.nb_feature}
+            "nb_feature" : self.nb_feature,
+            "W_regularizer":self.W_regularizer.get_config(),
+            "b_regularizer":self.b_regularizer.get_config(),
+            "activity_regularizer":self.activity_regularizer.get_config(),
+            "W_constraint":self.W_constraint.get_config(),
+            "b_constraint":self.b_constraint.get_config()}
