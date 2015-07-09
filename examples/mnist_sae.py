@@ -12,7 +12,7 @@ from keras.utils import np_utils
 '''
     Example of Stacked Autoencoder.
     This is not an interesting example but to demonstrate how to use AutoEncoder
-    module and do layer-wise pre-training.
+    module and do layer-wise pre-training and fine-tuning
 '''
 
 batch_size = 64
@@ -33,11 +33,11 @@ print(X_test.shape[0], 'test samples')
 Y_train = np_utils.to_categorical(y_train, nb_classes)
 Y_test = np_utils.to_categorical(y_test, nb_classes)
 
-# Layer-wise pretraining
+# Layer-wise pre-training
 trained_encoders = []
 X_train_tmp = X_train
 for n_in, n_out in zip(nb_hidden_layers[:-1], nb_hidden_layers[1:]):
-    print('Training the layer: Input {} -> Output {}'.format(n_in, n_out))
+    print('Pre-training the layer: Input {} -> Output {}'.format(n_in, n_out))
     # Create AE and training
     ae = Sequential()
     encoder = containers.Sequential([Dense(n_in, n_out, activation='sigmoid')])
@@ -51,8 +51,8 @@ for n_in, n_out in zip(nb_hidden_layers[:-1], nb_hidden_layers[1:]):
     # Update training data
     X_train_tmp = ae.predict(X_train_tmp)
 
-# Fine-turning
-print('Fine-turning')
+# Fine-tuning
+print('Fine-tuning')
 model = Sequential()
 for encoder in trained_encoders:
     model.add(encoder)
