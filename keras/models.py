@@ -3,7 +3,19 @@ from __future__ import print_function
 import theano
 import theano.tensor as T
 import numpy as np
-import warnings, time, copy
+import warnings, time, copy, yaml
+
+from .layers.convolutional import *
+from .layers.core import *
+from .layers.embeddings import *
+from .layers.noise import *
+from .layers.normalization import *
+from .layers.recurrent import *
+
+from .optimizers import *
+from .objectives import *
+from .regularizers import *
+from .constraints import *
 
 from . import optimizers
 from . import objectives
@@ -76,6 +88,50 @@ def standardize_weights(y, sample_weight=None, class_weight=None):
     else:
         return np.ones(y.shape[:-1] + (1,))
 
+def sequential_from_yaml(pathToYaml):
+    '''
+        Returns a compiled Sequential model generated from a local yaml file,
+        which is either created by hand or from Sequential.to_yaml
+    '''
+    stream = open(pathToYaml, 'r')
+    modelYaml = yaml.load(stream)
+    model = Sequential()
+
+    class_mode = modelYaml.get('class_mode')
+    theano_mode = modelYaml.get('theano_mode')
+    loss = globals()[modelYaml.get('loss')]
+
+    optim = modelYaml.get('optimizer')
+    optimName = optim.get('name')
+    optim.pop('name')
+    optimizer = globals()[optimName](**optim)
+
+    layers = modelYaml.get('layers')
+    for layer in layers:
+        name = layer.get('name')
+        layer.pop('name')
+        hasParams = False
+        if layer.has_key('parameters'):
+            params = layer.get('parameters')
+            layer.pop('parameters')
+            hasParams = True
+        for k, v in layer.iteritems():
+            if isinstance(v, dict):
+                vname = v.get('name')
+                v.pop('name')
+                layer[k] = globals()[vname](**v)
+        initLayer = globals()[name](**layer)
+        if hasParams:
+            shapedParams = []
+            for param in params:
+                data = np.asarray(param.get('data'))
+                shape = tuple(param.get('shape'))
+                shapedParams.append(data.reshape(shape))
+            initLayer.set_weights(shapedParams)
+        model.add(initLayer)
+
+    model.compile(loss=loss, optimizer=optimizer, class_mode=class_mode, theano_mode=theano_mode)
+    return model
 
 class Model(object):
     def _fit(self, f, ins, out_labels=[], batch_size=128, nb_epoch=100, verbose=1, callbacks=[], \
@@ -465,6 +521,28 @@ class Sequential(Model, containers.Sequential):
             weights = [g['param_{}'.format(p)] for p in range(g.attrs['nb_params'])]
             self.layers[k].set_weights(weights)
         f.close()
+
+
+    def to_yaml(self, fileName, storeParams=True):
+        '''
+            Stores compiled Sequential model to local file, optionally storing all learnable parameters
+        '''
+        modelDict = {}
+        modelDict['class_mode'] = self.class_mode
+        modelDict['theano_mode'] = self.theano_mode
+        modelDict['loss'] = self.unweighted_loss.__name__
+        modelDict['optimizer'] = self.optimizer.get_config()
+
+        layers = []
+        for layer in self.layers:
+            layerConf = layer.get_config()
+            if storeParams:
+                layerConf['parameters'] = [{'shape':list(param.get_value().shape), 'data':param.get_value().tolist()} for param in layer.params]
+            layers.append(layerConf)
+        modelDict['layers'] = layers
+
+        with open(fileName, 'w') as outfile:
+            outfile.write(yaml.dump(modelDict, default_flow_style=True))
 
 
 class Graph(Model, containers.Graph):
