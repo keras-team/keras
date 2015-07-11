@@ -1,6 +1,6 @@
 ## Usage of callbacks
 
-A callback is a set of functions to be applied at given stages of the training procedure. You can use callbacks to get a view on internal states and statistics of the model during training. You can pass a list of callback (as the keyword argument `callbacks`) to the `.fit()` method of the `Sequential` model. The relevant methods of the callbacks will then be called at each stage of the training. 
+A callback is a set of functions to be applied at given stages of the training procedure. You can use callbacks to get a view on internal states and statistics of the model during training. You can pass a list of callbacks (as the keyword argument `callbacks`) to the `.fit()` method of the `Sequential` model. The relevant methods of the callbacks will then be called at each stage of the training. 
 
 ---
 
@@ -61,7 +61,7 @@ class LossHistory(keras.callbacks.Callback):
 
 ---
 
-### Example to record the loss history
+### Example: recording loss history
 
 ```python
 class LossHistory(keras.callbacks.Callback):
@@ -88,7 +88,7 @@ print history.losses
 
 ---
 
-### Example to checkpoint models
+### Example: model checkpoints
 
 ```python
 from keras.callbacks import ModelCheckpoint

@@ -2,7 +2,7 @@
 
 ## Overview
 
-Keras is a minimalist, highly modular neural network library in the spirit of Torch, written in Python, that uses [Theano](http://deeplearning.net/software/theano/) under the hood for fast tensor manipulation on GPU and CPU. It was developed with a focus on enabling fast experimentation. 
+Keras is a minimalist, highly modular neural network library in the spirit of Torch, written in Python, that uses [Theano](http://deeplearning.net/software/theano/) under the hood for optimized tensor manipulation on GPU and CPU. It was developed with a focus on enabling fast experimentation. 
 
 Use Keras if you need a deep learning library that:
 
@@ -12,13 +12,13 @@ Use Keras if you need a deep learning library that:
 
 ## Guiding principles
 
-- __Modularity.__ A model is understood as a sequence of standalone, fully-configurable modules that can be plugged together with as little restrictions as possible. In particular, neural layers, cost functions, optimizers, initialization schemes, activation functions and dropout are all standalone modules that you can combine to create new models. 
+- __Modularity.__ A model is understood as a sequence or a graph of standalone, fully-configurable modules that can be plugged together with as little restrictions as possible. In particular, neural layers, cost functions, optimizers, initialization schemes, activation functions, regularization schemes are all standalone modules that you can combine to create new models.
 
-- __Minimalism.__ Each module should be kept short and simple (<100 lines of code). Every piece of code should be transparent upon first reading. No black magic: it hurts iteration speed and ability to innovate. 
+- __Minimalism.__ Each module should be kept short and simple (<100 lines of code). Every piece of code should be transparent upon first reading. No black magic: it hurts iteration speed and ability to innovate.
 
-- __Easy extensibility.__ A new feature (a new module, per the above definition, or a new way to combine modules together) are dead simple to add (as new classes/functions), and existing modules provide ample examples.
+- __Easy extensibility.__ New modules are dead simple to add (as new classes/functions), and existing modules provide ample examples. To be able to easily create new modules allows for total expressiveness, making Keras suitable for adavanced research.
 
-- __Work with Python__. No separate models configuration files in a declarative format (like in Caffe or PyLearn2). Models are described in Python code, which is compact, easier to debug, benefits from syntax highlighting, and most of all, allows for ease of extensibility.
+- __Work with Python__. No separate models configuration files in a declarative format (like in Caffe or PyLearn2). Models are described in Python code, which is compact, easier to debug, and allows for ease of extensibility.
 
 ## Code
 
@@ -30,7 +30,9 @@ Keras is licensed under the [MIT license](http://opensource.org/licenses/MIT).
 
 ## Getting started: 30 seconds to Keras
 
-The core datastructure of Keras is a __model__, a way to organize layers. Here's a sequential model (a linear pile of layers).
+The core datastructure of Keras is a __model__, a way to organize layers. There are two types of models: [`Sequential`](/models/#sequential) and [`Graph`](/models/#graph).
+
+Here's the `Sequential` model (a linear pile of layers):
 
 ```python
 from keras.models import Sequential
@@ -89,11 +91,11 @@ Have a look at the [examples](examples.md).
 
 Keras uses the following dependencies:
 
-- numpy, scipy
-- Theano
+- __numpy__, __scipy__
+- __Theano__
     - See [installation instructions](http://deeplearning.net/software/theano/install.html#install).
-- HDF5 and h5py (optional, required if you use model saving/loading functions)
-- Optional but recommended if you use CNNs: cuDNN.
+- __HDF5__ and __h5py__ (optional, required if you use model saving/loading functions)
+- Optional but recommended if you use CNNs: __cuDNN__.
 
 Once you have the dependencies installed, clone the repo:
 ```bash
