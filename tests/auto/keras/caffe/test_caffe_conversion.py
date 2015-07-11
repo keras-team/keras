@@ -2,15 +2,13 @@ from __future__ import print_function
 import unittest
 import numpy as np
 
-import os
-
 from keras.caffe.convert import CaffeToKeras
 
 class TestCaffeIntegration(unittest.TestCase):
     def test_proto(self):
-        print('test a minimal inception module for correct topology construction from prototext')
+        print('test a correct topology construction from prototext')
         
-        #add fetching option here
+        #add fetching here
         model = CaffeToKeras(prototext='./minimal_inception.prototxt')
         assert(model('outputs') == ['loss1', 'loss2', 'loss3'])
         assert(model('inputs') == ['data'])
@@ -29,20 +27,20 @@ class TestCaffeIntegration(unittest.TestCase):
 
 
     def test_param(self):
-        print('test a complete parameterized model for correct param conversion, grouped convolutions')
+        print('test a parameterized model for param conversion, grouped convolutions')
         
-        #add fetching option here
+        #add fetching here
         model = CaffeToKeras(caffemodel='./hybridCNN_iter_700000_upgraded.caffemodel')
-        assert(model('outputs') == ['prob'])
-        assert(model('inputs') == ['conv1'])
+        assert(model('outputs') == ['loss'])
+        assert(model('inputs') == ['data'])
 
         network = model('network')
-        network.compile('rmsprop', {'prob': 'mse'})
+        network.compile('rmsprop', {'loss': 'mse'})
         datam = np.random.random((1, 3, 227, 227))
-        outputs = network.predict({'conv1': datam})
+        outputs = network.predict({'data': datam})
 
         assert(len(outputs) == 1)
-        assert(outputs['prob'].shape == (1, 1183))
+        assert(outputs['loss'].shape == (1, 1183))
 
         network.get_config(verbose=1)
 
