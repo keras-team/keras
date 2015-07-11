@@ -191,6 +191,11 @@ def model_from_config(layers, phase, input_dim):
 			model.add_node(Activation('softmax'), name=name, input=input_layer_name)
 			layer_output_dim = layer_input_dim
 
+		elif layer.type == 22:
+			# SPLIT
+			model.add_node(ZeroPadding2D(pad=(0, 0)), name=name, inputs=input_layer_name)
+			layer_output_dim = layer_input_dim
+
 		elif layer.type == 23:
 			# TANH
 			model.add_node(Activation('tanh'), name=name, input=input_layer_name)
@@ -359,6 +364,10 @@ def model_from_param(layers):
 		elif layer.type == 20 or layer.type == 21:
 			# SOFTMAX
 			model.add_node(Activation('softmax'), name=name, input=input_layer_name)
+
+		elif layer.type == 22:
+			# SPLIT
+			model.add_node(ZeroPadding2D(pad=(0, 0)), name=name, input=input_layer_name)
 
 		elif layer.type == 23:
 			# TANH
