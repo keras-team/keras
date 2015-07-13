@@ -2,13 +2,16 @@ from __future__ import print_function
 import unittest
 import numpy as np
 
+from keras.datasets.data_utils import get_file
+
+import os
+
 from keras.caffe.convert import CaffeToKeras
 
 class TestCaffeIntegration(unittest.TestCase):
     def test_proto(self):
         print('test a correct topology construction from prototext')
         
-        #add fetching here
         model = CaffeToKeras(prototext='./minimal_inception.prototxt')
         assert(model('outputs') == ['loss1', 'loss2', 'loss3'])
         assert(model('inputs') == ['data'])
@@ -29,8 +32,11 @@ class TestCaffeIntegration(unittest.TestCase):
     def test_param(self):
         print('test a parameterized model for param conversion, grouped convolutions')
         
-        #add fetching here
-        model = CaffeToKeras(caffemodel='./hybridCNN_iter_700000_upgraded.caffemodel')
+        dirname = "MIT_scenes"
+        origin = "http://effbot.org/media/downloads/Imaging-1.1.7.tar.gz"
+        path = get_file(dirname, origin=origin, untar=True)
+
+        model = CaffeToKeras(caffemodel='./MIT_scenes/hybridCNN_iter_700000_upgraded.caffemodel')
         assert(model('outputs') == ['loss'])
         assert(model('inputs') == ['data'])
 
@@ -39,8 +45,14 @@ class TestCaffeIntegration(unittest.TestCase):
         datam = np.random.random((1, 3, 227, 227))
         outputs = network.predict({'data': datam})
 
+        result = outputs['loss'].tolist()[0]
+        result_prob = max(result)
+        result_class = result.index(result_prob)
+
         assert(len(outputs) == 1)
         assert(outputs['loss'].shape == (1, 1183))
+        assert(result_class == 779)
+        assert(result_prob < 0.003)
 
         network.get_config(verbose=1)
 

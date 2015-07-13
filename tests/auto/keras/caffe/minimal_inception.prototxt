@@ -33,6 +33,7 @@ layers {
   }
   include: { phase: TEST }
 }
+
 layers {
   name: "conv1"
   type: CONVOLUTION
@@ -63,6 +64,19 @@ layers {
   bottom: "conv1"
   top: "conv1"
 }
+
+# ****** checkpoint 1
+
+layers {
+  name: "loss1"
+  type: SOFTMAX_LOSS
+  bottom: "conv1"
+  bottom: "label"
+  top: "loss1"
+  loss_weight: 1
+}
+
+
 layers {
   name: "pool1"
   type: POOLING
@@ -168,7 +182,19 @@ layers {
     pad: 0
   }
 }
-# Inception module 1 ***************
+
+# ****** checkpoint 2
+
+layers {
+  name: "loss2"
+  type: SOFTMAX_LOSS
+  bottom: "pool2"
+  bottom: "label"
+  loss_weight: 1
+}
+
+
+# Inception module ***************
 layers {
   name: "icp1_reduction1"
   type: CONVOLUTION
@@ -362,6 +388,8 @@ layers {
   bottom: "icp1_out3"
   top: "icp2_in"
 }
+
+# ****** checkpoint 3
 
 layers {
   name: "loss3"
