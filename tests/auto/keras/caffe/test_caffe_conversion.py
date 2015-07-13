@@ -33,10 +33,11 @@ class TestCaffeIntegration(unittest.TestCase):
         print('test a parameterized model for param conversion, grouped convolutions')
         
         dirname = "MIT_scenes"
-        origin = "http://effbot.org/media/downloads/Imaging-1.1.7.tar.gz"
+        origin = "http://places.csail.mit.edu/model/hybridCNN_upgraded.tar.gz"
         path = get_file(dirname, origin=origin, untar=True)
+        caffemodel = os.path.join(path, 'hybridCNN_iter_700000_upgraded.caffemodel')
 
-        model = CaffeToKeras(caffemodel='./MIT_scenes/hybridCNN_iter_700000_upgraded.caffemodel')
+        model = CaffeToKeras(caffemodel=caffemodel)
         assert(model('outputs') == ['loss'])
         assert(model('inputs') == ['data'])
 
