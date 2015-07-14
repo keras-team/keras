@@ -23,6 +23,17 @@ def standardize_y(y):
         y = np.expand_dims(y, 1)
     return y
 
+def batch_shuffle(index_array, batch_size):
+    batch_count = int(len(index_array)/batch_size)
+    # to reshape we need to be cleanly divisible by batch size
+    # we stash extra items and reappend them after shuffling
+    last_batch = index_array[batch_count*batch_size:]
+    index_array = index_array[:batch_count*batch_size]
+    index_array = index_array.reshape((batch_count, batch_size))
+    np.random.shuffle(index_array)
+    index_array = index_array.flatten()
+    return np.append(index_array, last_batch)
+
 
 def make_batches(size, batch_size):
     nb_batch = int(np.ceil(size/float(batch_size)))
@@ -120,7 +131,9 @@ class Model(object):
         self.stop_training = False
         for epoch in range(nb_epoch):
             callbacks.on_epoch_begin(epoch)
-            if shuffle:
+            if shuffle == 'batch':
+                index_array = batch_shuffle(index_array, batch_size)
+            elif shuffle:
                 np.random.shuffle(index_array)
 
             batches = make_batches(nb_train_sample, batch_size)
