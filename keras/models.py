@@ -145,7 +145,7 @@ class Model(object):
                     epoch_logs = {}
                     if do_validation:
                         # replace with self._evaluate
-                        val_outs = val_f(*val_ins)
+                        val_outs = self._test_loop(val_f, val_ins, batch_size=batch_size, verbose=0)
                         if type(val_outs) != list:
                             val_outs = [val_outs]
                         # same labels assumed
