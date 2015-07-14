@@ -88,13 +88,12 @@ def standardize_weights(y, sample_weight=None, class_weight=None):
     else:
         return np.ones(y.shape[:-1] + (1,))
 
-def sequential_from_yaml(pathToYaml):
+def sequential_from_yaml(yamlString):
     '''
         Returns a compiled Sequential model generated from a local yaml file,
         which is either created by hand or from Sequential.to_yaml
     '''
-    stream = open(pathToYaml, 'r')
-    modelYaml = yaml.load(stream)
+    modelYaml = yaml.load(yamlString)
     model = Sequential()
 
     class_mode = modelYaml.get('class_mode')
@@ -523,9 +522,9 @@ class Sequential(Model, containers.Sequential):
         f.close()
 
 
-    def to_yaml(self, fileName, storeParams=True):
+    def to_yaml(self, storeParams=True):
         '''
-            Stores compiled Sequential model to local file, optionally storing all learnable parameters
+            Stores compiled Sequential model to yaml string, optionally storing all learnable parameters
         '''
         modelDict = {}
         modelDict['class_mode'] = self.class_mode
@@ -541,8 +540,7 @@ class Sequential(Model, containers.Sequential):
             layers.append(layerConf)
         modelDict['layers'] = layers
 
-        with open(fileName, 'w') as outfile:
-            outfile.write(yaml.dump(modelDict, default_flow_style=True))
+        return yaml.dump(modelDict)
 
 
 class Graph(Model, containers.Graph):
