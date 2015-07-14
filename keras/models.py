@@ -522,25 +522,25 @@ class Sequential(Model, containers.Sequential):
         f.close()
 
 
-    def to_yaml(self, storeParams=True):
+    def to_yaml(self, store_params=True):
         '''
             Stores compiled Sequential model to yaml string, optionally storing all learnable parameters
         '''
-        modelDict = {}
-        modelDict['class_mode'] = self.class_mode
-        modelDict['theano_mode'] = self.theano_mode
-        modelDict['loss'] = self.unweighted_loss.__name__
-        modelDict['optimizer'] = self.optimizer.get_config()
+        model_dict = {}
+        model_dict['class_mode'] = self.class_mode
+        model_dict['theano_mode'] = self.theano_mode
+        model_dict['loss'] = self.unweighted_loss.__name__
+        model_dict['optimizer'] = self.optimizer.get_config()
 
         layers = []
         for layer in self.layers:
-            layerConf = layer.get_config()
-            if storeParams:
-                layerConf['parameters'] = [{'shape':list(param.get_value().shape), 'data':param.get_value().tolist()} for param in layer.params]
-            layers.append(layerConf)
-        modelDict['layers'] = layers
+            layer_conf = layer.get_config()
+            if store_params:
+                layer_conf['parameters'] = [{'shape':list(param.get_value().shape), 'data':param.get_value().tolist()} for param in layer.params]
+            layers.append(layer_conf)
+        model_dict['layers'] = layers
 
-        return yaml.dump(modelDict)
+        return yaml.dump(model_dict)
 
 
 class Graph(Model, containers.Graph):
