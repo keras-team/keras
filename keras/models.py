@@ -88,24 +88,24 @@ def standardize_weights(y, sample_weight=None, class_weight=None):
     else:
         return np.ones(y.shape[:-1] + (1,))
 
-def sequential_from_yaml(yamlString):
+def sequential_from_yaml(yaml_string):
     '''
         Returns a compiled Sequential model generated from a local yaml file,
         which is either created by hand or from Sequential.to_yaml
     '''
-    modelYaml = yaml.load(yamlString)
+    model_yaml = yaml.load(yaml_string)
     model = Sequential()
 
-    class_mode = modelYaml.get('class_mode')
-    theano_mode = modelYaml.get('theano_mode')
-    loss = globals()[modelYaml.get('loss')]
+    class_mode = model_yaml.get('class_mode')
+    theano_mode = model_yaml.get('theano_mode')
+    loss = globals()[model_yaml.get('loss')]
 
-    optim = modelYaml.get('optimizer')
-    optimName = optim.get('name')
+    optim = model_yaml.get('optimizer')
+    optim_name = optim.get('name')
     optim.pop('name')
-    optimizer = globals()[optimName](**optim)
+    optimizer = globals()[optim_name](**optim)
 
-    layers = modelYaml.get('layers')
+    layers = model_yaml.get('layers')
     for layer in layers:
         name = layer.get('name')
         layer.pop('name')
@@ -119,15 +119,15 @@ def sequential_from_yaml(yamlString):
                 vname = v.get('name')
                 v.pop('name')
                 layer[k] = globals()[vname](**v)
-        initLayer = globals()[name](**layer)
+        init_layer = globals()[name](**layer)
         if hasParams:
-            shapedParams = []
+            shaped_params = []
             for param in params:
                 data = np.asarray(param.get('data'))
                 shape = tuple(param.get('shape'))
-                shapedParams.append(data.reshape(shape))
-            initLayer.set_weights(shapedParams)
-        model.add(initLayer)
+                shaped_params.append(data.reshape(shape))
+            init_layer.set_weights(shaped_params)
+        model.add(init_layer)
 
     model.compile(loss=loss, optimizer=optimizer, class_mode=class_mode, theano_mode=theano_mode)
     return model
