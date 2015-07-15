@@ -87,14 +87,14 @@ class Model(object):
         if val_f and val_ins:
             do_validation = True
             if verbose:
-                logger.info("Train on %d samples, validate on %d samples", len(ins[0]), len(val_ins[0]))
+                logger.info("Train on %d samples, validate on %d samples" % (len(ins[0]), len(val_ins[0])))
         else:
             if 0 < validation_split < 1:
                 do_validation = True
                 split_at = int(len(ins[0]) * (1 - validation_split))
                 (ins, val_ins) = (slice_X(ins, 0, split_at), slice_X(ins, split_at))
                 if verbose:
-                    logger.info("Train on %d samples, validate on %d samples", len(ins[0]), len(val_ins[0]))
+                    logger.info("Train on %d samples, validate on %d samples" % (len(ins[0]), len(val_ins[0])))
 
         nb_train_sample = len(ins[0])
         index_array = np.arange(nb_train_sample)

@@ -18,7 +18,7 @@ def get_file(fname, origin, untar=False):
     try:
         f = open(fpath)
     except:
-        logger.info('Downloading data from %s',  origin)
+        logger.info('Downloading data from %s' % origin)
 
         global progbar
         progbar = None

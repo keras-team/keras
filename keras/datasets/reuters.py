@@ -46,7 +46,7 @@ def make_reuters_dataset(path=os.path.join('datasets', 'temp', 'reuters21578'), 
         if x[1] >= min_samples_per_topic:
             kept_topics.add(x[0])
     logger.info('-')
-    logger.info('Kept topics:', len(kept_topics))
+    logger.info('Kept topics: %d' % len(kept_topics))
 
     # filter wires with rare topics
     kept_wires = []
@@ -70,7 +70,7 @@ def make_reuters_dataset(path=os.path.join('datasets', 'temp', 'reuters21578'), 
 
     logger.info('Sanity check:')
     for w in ["banana", "oil", "chocolate", "the", "dsft"]:
-        logger.info('...index of %s : %d', w, tokenizer.word_index.get(w))
+        logger.info('...index of %s : %d' % (w, tokenizer.word_index.get(w)))
     logger.info('text reconstruction:')
     reverse_word_index = dict([(v, k) for k, v in tokenizer.word_index.items()])
     logger.info(' '.join(reverse_word_index[i] for i in X[10]))

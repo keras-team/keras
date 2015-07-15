@@ -192,16 +192,16 @@ class ModelCheckpoint(Callback):
             else:
                 if current < self.best:
                     if self.verbose > 0:
-                        logger.info("Epoch %05d: %s improved from %0.5f to %0.5f, saving model to %s", 
-                            epoch, self.monitor, self.best, current, self.filepath)
+                        logger.info("Epoch %05d: %s improved from %0.5f to %0.5f, saving model to %s" % 
+                            (epoch, self.monitor, self.best, current, self.filepath))
                     self.best = current
                     self.model.save_weights(self.filepath, overwrite=True)
                 else:
                     if self.verbose > 0:
-                        logger.info("Epoch %05d: %s did not improve", epoch, self.monitor)
+                        logger.info("Epoch %05d: %s did not improve" % (epoch, self.monitor))
         else:
             if self.verbose > 0:
-                logger.info("Epoch %05d: saving model to %s", epoch, self.filepath)
+                logger.info("Epoch %05d: saving model to %s" % (epoch, self.filepath))
             self.model.save_weights(self.filepath, overwrite=True)
 
 
