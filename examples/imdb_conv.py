@@ -11,15 +11,24 @@ from keras.layers.embeddings import Embedding
 from keras.layers.convolutional import Convolution1D, MaxPooling1D
 from keras.datasets import imdb
 
+'''
+    This example demonstrates the use of Convolution1D
+    for text classification.
+
+    Run on GPU: THEANO_FLAGS=mode=FAST_RUN,device=gpu,floatX=float32 python imdb_cnn.py
+
+    Get to 0.8330 test accuracy after 3 epochs. 100s/epoch on K520 GPU.
+'''
+
 # set parameters:
 max_features = 5000
 maxlen = 100
-batch_size = 10
+batch_size = 32
 embedding_dims = 100
 nb_filters = 250
 filter_length = 3
 hidden_dims = 250
-nb_epochs = 10
+nb_epoch = 3
 
 print("Loading data...")
 (X_train, y_train), (X_test, y_test) = imdb.load_data(nb_words=max_features,
@@ -39,6 +48,7 @@ model = Sequential()
 # we start off with an efficient embedding layer which maps
 # our vocab indices into embedding_dims dimensions
 model.add(Embedding(max_features, embedding_dims))
+model.add(Dropout(0.25))
 
 # we add a Convolution1D, which will learn nb_filters
 # word group filters of size filter_length:
@@ -56,29 +66,17 @@ model.add(MaxPooling1D(pool_length=2))
 model.add(Flatten())
 
 # Computing the output shape of a conv layer can be tricky;
-# for an good tutorial, see: http://cs231n.github.io/convolutional-networks/
-output_size = nb_filters * (((maxlen - filter_length)/1)+1)/2
+# for a good tutorial, see: http://cs231n.github.io/convolutional-networks/
+output_size = nb_filters * (((maxlen - filter_length) / 1) + 1) / 2
 
 # We add a vanilla hidden layer:
 model.add(Dense(output_size, hidden_dims))
-model.add(Dropout(0.5))
+model.add(Dropout(0.25))
 model.add(Activation('relu'))
 
 # We project onto a single unit output layer, and squash it with a sigmoid:
 model.add(Dense(hidden_dims, 1))
 model.add(Activation('sigmoid'))
 
-# we use some mild clipping to protect our gradients from vanishing:
-rms = RMSprop(clipnorm=0.1)
-model.compile(loss='binary_crossentropy', optimizer=rms, class_mode="binary")
-
-# The performance of this toy model seems comparable to that of the LSTM in imdb_lstm.py,
-# reaching an acceptable 83.16% on the test data at epoch 10.
-# One epoch took around 268 seconds on a Quadro K600.
-print("Train...")
-for e in range(nb_epochs):
-    print(">>> Epoch ", e+1)
-    model.fit(X_train, y_train, batch_size=batch_size, nb_epoch=1, show_accuracy=True)
-    score, acc = model.evaluate(X_test, y_test, batch_size=batch_size, show_accuracy=True)
-    print('\t- Test loss:', score)
-    print('\t- Test accuracy:', acc)
+model.compile(loss='binary_crossentropy', optimizer='rmsprop', class_mode="binary")
+model.fit(X_train, y_train, batch_size=batch_size, nb_epoch=nb_epoch, show_accuracy=True, validation_data=(X_test, y_test))
