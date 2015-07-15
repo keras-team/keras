@@ -19,7 +19,7 @@ def make_reuters_dataset(path=os.path.join('datasets', 'temp', 'reuters21578'), 
 
     for fname in os.listdir(path):
         if 'sgm' in fname:
-            s = open(path + fname).read()
+            s = open(os.path.join(path, fname)).read()
             tag = '<TOPICS>'
             while tag in s:
                 s = s[s.find(tag)+len(tag):]
@@ -71,12 +71,15 @@ def make_reuters_dataset(path=os.path.join('datasets', 'temp', 'reuters21578'), 
     print('Sanity check:')
     for w in ["banana", "oil", "chocolate", "the", "dsft"]:
         print('...index of', w, ':', tokenizer.word_index.get(w))
+    print('text reconstruction:')
+    reverse_word_index = dict([(v, k) for k, v in tokenizer.word_index.items()])
+    print(' '.join(reverse_word_index[i] for i in X[10]))
 
     dataset = (X, labels) 
     print('-')
     print('Saving...')
     six.moves.cPickle.dump(dataset, open(os.path.join('datasets', 'data', 'reuters.pkl'), 'w'))
-    six.moves.cPickle.dump(tokenizer.word_index, open(os.path.join('datasets','data', 'reuters_word_index.pkl'), 'w'))
+    six.moves.cPickle.dump(tokenizer.word_index, open(os.path.join('datasets', 'data', 'reuters_word_index.pkl'), 'w'))
 
 
 
