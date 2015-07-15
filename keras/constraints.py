@@ -39,5 +39,5 @@ nonneg = NonNeg
 unitnorm = UnitNorm
 
 from .utils.generic_utils import get_from_module
-def get(identifier):
-    return get_from_module(identifier, globals(), 'constraint', instantiate=True)
+def get(identifier, kwargs=None):
+    return get_from_module(identifier, globals(), 'constraint', instantiate=True, kwargs=kwargs)
