@@ -82,6 +82,15 @@ class Sequential(Layer):
         return {"name":self.__class__.__name__,
             "layers":[layer.get_config() for layer in self.layers]}
 
+    def layer_to_yaml(self, store_params=True):
+        seq_config = {}
+        seq_config['name'] = self.__class__.__name__
+        layers = []
+        for layer in self.layers:
+            layer_conf = layer.layer_to_yaml(store_params)
+            layers.append(layer_conf)
+        seq_config['layers'] = layers
+        return seq_config
 
 class Graph(Layer):
     '''
@@ -151,7 +160,7 @@ class Graph(Layer):
                 raise Exception('Type "int" can only be used with ndim==2.')
         layer.input.name = name
         self.inputs[name] = layer
-        self.output_config.append({'name':name, 'ndim':ndim, 'dtype':dtype})
+        self.input_config.append({'name':name, 'ndim':ndim, 'dtype':dtype})
 
     def add_node(self, layer, name, input=None, inputs=[], merge_mode='concat'):
         if hasattr(layer, 'set_name'):
@@ -213,6 +222,28 @@ class Graph(Layer):
             "output_config":self.output_config,
             "node_config":self.node_config,
             "nodes":[self.nodes[c["name"]].get_config() for c in self.node_config]}
+    
+    def layer_to_yaml(self, store_params=True):
+        graph_config = {}
+        graph_config['name'] = self.__class__.__name__
 
+        inputs = []
+        for input_conf in self.input_config:
+            inputs.append(input_conf)
+        graph_config['inputs'] = inputs
 
+        outputs = []
+        for output_conf in self.output_config:
+            outputs.append(output_conf)
+        graph_config['outputs'] = outputs
 
+        nodes = []
+        for node_conf in self.node_config:
+            name = node_conf.get('name')
+            layer = self.nodes[name]
+            layer_conf = layer.layer_to_yaml(store_params)
+            node_conf['layer'] = layer_conf
+            nodes.append(node_conf)
+        graph_config['nodes'] = nodes
+
+        return graph_config
