@@ -2,7 +2,7 @@ from __future__ import absolute_import
 from __future__ import print_function
 from keras.datasets import mnist
 from keras.models import Sequential
-from keras.layers.core import DenoisingAutoEncoder, AutoEncoder, Dense, Activation, TimeDistributedDense, Flatten
+from keras.layers.core import AutoEncoder, Dense, Activation, TimeDistributedDense, Flatten
 from keras.layers.recurrent import LSTM
 from keras.layers.embeddings import Embedding
 from keras.layers.core import Layer
@@ -67,29 +67,13 @@ def build_lstm_autoencoder(autoencoder, X_train, X_test):
 	autoencoder.add(TimeDistributedDense(input_dim, 16))
 	autoencoder.add(AutoEncoder(encoder=LSTM(16, 8, activation=activation, return_sequences=True),
 								decoder=LSTM(8, input_dim, activation=activation, return_sequences=True),
-								output_reconstruction=False, tie_weights=True))
+								output_reconstruction=False))
 	return autoencoder, X_train, X_test
 
 def build_deep_classical_autoencoder(autoencoder):
 	encoder = containers.Sequential([Dense(input_dim, hidden_dim, activation=activation), Dense(hidden_dim, hidden_dim/2, activation=activation)])
 	decoder = containers.Sequential([Dense(hidden_dim/2, hidden_dim, activation=activation), Dense(hidden_dim, input_dim, activation=activation)])
-	autoencoder.add(AutoEncoder(encoder=encoder, decoder=decoder, output_reconstruction=False, tie_weights=True))
-	return autoencoder
-
-def build_denoising_autoencoder(autoencoder):
-	# You need another layer before a denoising autoencoder
-	# This is similar to the dropout layers, etc..
-	autoencoder.add(Dense(input_dim, input_dim))
-	autoencoder.add(DenoisingAutoEncoder(encoder=Dense(input_dim, hidden_dim, activation=activation),
-										 decoder=Dense(hidden_dim, input_dim, activation=activation),
-										 output_reconstruction=False, tie_weights=True, corruption_level=0.3))
-	return autoencoder
-
-def build_deep_denoising_autoencoder(autoencoder):
-	encoder = containers.Sequential([Dense(input_dim, hidden_dim, activation=activation), Dense(hidden_dim, hidden_dim/2, activation=activation)])
-	decoder = containers.Sequential([Dense(hidden_dim/2, hidden_dim, activation=activation), Dense(hidden_dim, input_dim, activation=activation)])
-	autoencoder.add(Dense(input_dim, input_dim))
-	autoencoder.add(DenoisingAutoEncoder(encoder=encoder, decoder=decoder, output_reconstruction=False, tie_weights=True))
+	autoencoder.add(AutoEncoder(encoder=encoder, decoder=decoder, output_reconstruction=False))
 	return autoencoder
 
 
@@ -97,7 +81,7 @@ def build_deep_denoising_autoencoder(autoencoder):
 # Try different things here: 'lstm' or 'classical' or 'denoising'
 # or 'deep_denoising'
 
-for autoencoder_type in ['classical', 'denoising', 'deep_denoising', 'lstm']:
+for autoencoder_type in ['classical', 'lstm']:
 	print(autoencoder_type)
 	print('-'*40)
 	# Build our autoencoder model
@@ -105,12 +89,6 @@ for autoencoder_type in ['classical', 'denoising', 'deep_denoising', 'lstm']:
 	if autoencoder_type == 'lstm':
 		print("Training LSTM AutoEncoder")
 		autoencoder, X_train, X_test = build_lstm_autoencoder(autoencoder, X_train, X_test)
-	elif autoencoder_type == 'denoising':
-		print("Training Denoising AutoEncoder")
-		autoencoder = build_denoising_autoencoder(autoencoder)
-	elif autoencoder_type == 'deep_denoising':
-	    print ("Training Deep Denoising AutoEncoder")
-	    autoencoder = build_deep_denoising_autoencoder(autoencoder)
 	elif autoencoder_type == 'classical':
 		print("Training Classical AutoEncoder")
 		autoencoder = build_deep_classical_autoencoder(autoencoder)
