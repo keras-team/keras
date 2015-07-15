@@ -197,8 +197,24 @@ class ZeroPadding2D(Layer):
         return {"name":self.__class__.__name__,
                 "width":self.width}
 
+class CropImage(Layer):
+    # take a 4D tensor with (nb_samples, nb_chanels, height, width) and return a smaller tensor
+    # that has (nb_samples, nb_chanels, height-2*crop, width-2*crop)
+    # Cropped images are centered
+    def __init__(self, crop=1):
+        super(CropImage, self).__init__()
+        self.crop = crop
+        self.input = T.tensor4()
 
+    def get_output(self, train):
+        X = self.get_input(train)
+        crop = self.crop
+        return X[:,:,crop:-crop,crop:-crop]
 
+    def get_config(self):
+        return {"name":self.__class__.__name__,
+                "crop":self.crop}
+        
 # class Convolution3D: TODO
 
 # class MaxPooling3D: TODO
