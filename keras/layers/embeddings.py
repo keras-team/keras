@@ -18,7 +18,7 @@ class Embedding(Layer):
         @out_dim: size of dense representation
     '''
     def __init__(self, input_dim, output_dim, init='uniform',
-        W_regularizer='identity', activity_regularizer='identity', W_constraint='identity',
+        W_regularizer=None, activity_regularizer=None, W_constraint=None,
         mask_zero=False, weights=None):
 
         super(Embedding,self).__init__()
@@ -38,12 +38,14 @@ class Embedding(Layer):
         self.regularizers = []
 
         self.W_regularizer = regularizers.get(W_regularizer)
-        self.W_regularizer.set_param(self.W)
-        self.regularizers.append(self.W_regularizer)
+        if self.W_regularizer:
+            self.W_regularizer.set_param(self.W)
+            self.regularizers.append(self.W_regularizer)
 
         self.activity_regularizer = regularizers.get(activity_regularizer)
-        self.activity_regularizer.set_layer(self)
-        self.regularizers.append(self.activity_regularizer)
+        if self.activity_regularizer:
+            self.activity_regularizer.set_layer(self)
+            self.regularizers.append(self.activity_regularizer)
 
         if weights is not None:
             self.set_weights(weights)
@@ -65,9 +67,9 @@ class Embedding(Layer):
             "input_dim":self.input_dim,
             "output_dim":self.output_dim,
             "init":self.init.__name__,
-            "activity_regularizer":self.activity_regularizer.get_config(),
-            "W_regularizer":self.W_regularizer.get_config(),
-            "W_constraint":self.W_constraint.get_config()}
+            "activity_regularizer":self.activity_regularizer.get_config() if self.activity_regularizer else None,
+            "W_regularizer":self.W_regularizer.get_config() if self.W_regularizer else None,
+            "W_constraint":self.W_constraint.get_config() if self.W_constraint else None}
 
 
 class WordContextProduct(Layer):
