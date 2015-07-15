@@ -1,8 +1,8 @@
 from __future__ import absolute_import
-from __future__ import print_function
 import tarfile, inspect, os
 from six.moves.urllib.request import urlretrieve
 from ..utils.generic_utils import Progbar
+from .. import logger
 
 def get_file(fname, origin, untar=False):
     datadir = os.path.expanduser(os.path.join('~', '.keras', 'datasets'))
@@ -18,7 +18,7 @@ def get_file(fname, origin, untar=False):
     try:
         f = open(fpath)
     except:
-        print('Downloading data from',  origin)
+        logger.info('Downloading data from %s' % origin)
 
         global progbar
         progbar = None
@@ -34,7 +34,7 @@ def get_file(fname, origin, untar=False):
 
     if untar:
         if not os.path.exists(untar_fpath):
-            print('Untaring file...')
+            logger.info('Untaring file...')
             tfile = tarfile.open(fpath, 'r:gz')
             tfile.extractall(path=datadir)
             tfile.close()
