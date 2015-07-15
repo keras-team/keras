@@ -1,16 +1,16 @@
 import logging
+import sys
 
 # package-global logger
 logger = logging.getLogger('keras')
 
-# set up basic logger to behave like print()
-# this will be done on first import of a Keras module, but only if there 
-# is no existing logger configuration
-# to use a different configuration; first clear the handlers set here using 
-#    logging.getLogger('').handlers = []
-#    logging.basicConfig(...)
-if not logging.getLogger('').handlers:
-    logging.basicConfig(format='%(message)s', level=logging.INFO)
+# set up logger to behave like print() by default (without client having to do anything)
+if not logger.handlers:
+    hdlr = logging.StreamHandler(sys.stdout)
+    fmt = logging.Formatter('%(message)s', None)
+    hdlr.setFormatter(fmt)
+    logger.addHandler(hdlr)
+    logger.setLevel(logging.INFO)
 
 # make warnings issued with the warnings module be handled by logging infrastructure
 logging.captureWarnings(True)
