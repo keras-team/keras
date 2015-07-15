@@ -1,5 +1,4 @@
 from __future__ import absolute_import
-from __future__ import print_function
 import theano
 import theano.tensor as T
 import numpy as np
@@ -10,6 +9,7 @@ from . import objectives
 from . import regularizers
 from . import constraints
 from . import callbacks as cbks
+from . import logger
 import time, copy, pprint
 from .utils.generic_utils import Progbar, printv
 from .layers import containers
@@ -87,14 +87,14 @@ class Model(object):
         if val_f and val_ins:
             do_validation = True
             if verbose:
-                print("Train on %d samples, validate on %d samples" % (len(ins[0]), len(val_ins[0])))
+                logger.info("Train on %d samples, validate on %d samples", len(ins[0]), len(val_ins[0]))
         else:
             if 0 < validation_split < 1:
                 do_validation = True
                 split_at = int(len(ins[0]) * (1 - validation_split))
                 (ins, val_ins) = (slice_X(ins, 0, split_at), slice_X(ins, split_at))
                 if verbose:
-                    print("Train on %d samples, validate on %d samples" % (len(ins[0]), len(val_ins[0])))
+                    logger.info("Train on %d samples, validate on %d samples", len(ins[0]), len(val_ins[0]))
 
         nb_train_sample = len(ins[0])
         index_array = np.arange(nb_train_sample)
@@ -433,7 +433,7 @@ class Sequential(Model, containers.Sequential):
                 overwrite = get_input('Enter "y" (overwrite) or "n" (cancel).')
             if overwrite == 'n':
                 return
-            print('[TIP] Next time specify overwrite=True in save_weights!')
+            logger.info('[TIP] Next time specify overwrite=True in save_weights!')
 
         f = h5py.File(filepath, 'w')
         f.attrs['nb_layers'] = len(self.layers)
@@ -562,7 +562,7 @@ class Graph(Model, containers.Graph):
                 overwrite = get_input('Enter "y" (overwrite) or "n" (cancel).')
             if overwrite == 'n':
                 return
-            print('[TIP] Next time specify overwrite=True in save_weights!')
+            logger.info('[TIP] Next time specify overwrite=True in save_weights!')
 
         f = h5py.File(filepath, 'w')
         g = f.create_group('graph')
@@ -588,5 +588,5 @@ class Graph(Model, containers.Graph):
         config = super(Graph, self).get_config()
         if verbose:
             pp = pprint.PrettyPrinter(indent=4)
-            pp.pprint(config)
+            logger.info(pp.pformat(config))
         return config

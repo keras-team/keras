@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import
-from __future__ import print_function
 from .data_utils import get_file
 import string
 import random
@@ -12,6 +11,7 @@ import numpy as np
 def make_reuters_dataset(path=os.path.join('datasets', 'temp', 'reuters21578'), min_samples_per_topic=15):
     import re
     from ..preprocessing.text import Tokenizer
+    from .. import logger
 
     wire_topics = []
     topic_counts = {}
@@ -42,11 +42,11 @@ def make_reuters_dataset(path=os.path.join('datasets', 'temp', 'reuters21578'), 
     items.sort(key = lambda x: x[1])
     kept_topics = set()
     for x in items:
-        print(x[0] + ': ' + str(x[1]))
+        logger.info(x[0] + ': ' + str(x[1]))
         if x[1] >= min_samples_per_topic:
             kept_topics.add(x[0])
-    print('-')
-    print('Kept topics:', len(kept_topics))
+    logger.info('-')
+    logger.info('Kept topics:', len(kept_topics))
 
     # filter wires with rare topics
     kept_wires = []
@@ -68,16 +68,16 @@ def make_reuters_dataset(path=os.path.join('datasets', 'temp', 'reuters21578'), 
     tokenizer.fit_on_texts(kept_wires)
     X = tokenizer.texts_to_sequences(kept_wires)
 
-    print('Sanity check:')
+    logger.info('Sanity check:')
     for w in ["banana", "oil", "chocolate", "the", "dsft"]:
-        print('...index of', w, ':', tokenizer.word_index.get(w))
-    print('text reconstruction:')
+        logger.info('...index of %s : %d', w, tokenizer.word_index.get(w))
+    logger.info('text reconstruction:')
     reverse_word_index = dict([(v, k) for k, v in tokenizer.word_index.items()])
-    print(' '.join(reverse_word_index[i] for i in X[10]))
+    logger.info(' '.join(reverse_word_index[i] for i in X[10]))
 
     dataset = (X, labels) 
-    print('-')
-    print('Saving...')
+    logger.info('-')
+    logger.info('Saving...')
     six.moves.cPickle.dump(dataset, open(os.path.join('datasets', 'data', 'reuters.pkl'), 'w'))
     six.moves.cPickle.dump(tokenizer.word_index, open(os.path.join('datasets', 'data', 'reuters_word_index.pkl'), 'w'))
 

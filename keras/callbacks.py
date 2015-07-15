@@ -1,5 +1,4 @@
 from __future__ import absolute_import
-from __future__ import print_function
 import theano
 import theano.tensor as T
 import numpy as np
@@ -7,6 +6,7 @@ import warnings
 import time, json
 from collections import deque
 
+from . import logger
 from .utils.generic_utils import Progbar
 
 class CallbackList(object):
@@ -106,7 +106,7 @@ class BaseLogger(Callback):
 
     def on_epoch_begin(self, epoch, logs={}):
         if self.verbose:
-            print('Epoch %d' % epoch)
+            logger.info('Epoch %d' % epoch)
             self.progbar = Progbar(target=self.params['nb_sample'], \
                 verbose=self.verbose)
         self.seen = 0
@@ -192,16 +192,16 @@ class ModelCheckpoint(Callback):
             else:
                 if current < self.best:
                     if self.verbose > 0:
-                        print("Epoch %05d: %s improved from %0.5f to %0.5f, saving model to %s"
-                            % (epoch, self.monitor, self.best, current, self.filepath))
+                        logger.info("Epoch %05d: %s improved from %0.5f to %0.5f, saving model to %s", 
+                            epoch, self.monitor, self.best, current, self.filepath)
                     self.best = current
                     self.model.save_weights(self.filepath, overwrite=True)
                 else:
                     if self.verbose > 0:
-                        print("Epoch %05d: %s did not improve" % (epoch, self.monitor))
+                        logger.info("Epoch %05d: %s did not improve", epoch, self.monitor)
         else:
             if self.verbose > 0:
-                print("Epoch %05d: saving model to %s" % (epoch, self.filepath))
+                logger.info("Epoch %05d: saving model to %s", epoch, self.filepath)
             self.model.save_weights(self.filepath, overwrite=True)
 
 
@@ -226,7 +226,7 @@ class EarlyStopping(Callback):
         else:
             if self.wait >= self.patience:
                 if self.verbose > 0:
-                    print("Epoch %05d: early stopping" % (epoch))
+                    logger.info("Epoch %05d: early stopping" % (epoch))
                 self.model.stop_training = True
             self.wait += 1
 
