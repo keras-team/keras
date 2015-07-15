@@ -425,12 +425,11 @@ class AutoEncoder(Layer):
         If output_reconstruction then dim(input) = dim(output)
         else dim(output) = dim(hidden)
     '''
-    def __init__(self, encoder, decoder, output_reconstruction=True, tie_weights=False, weights=None):
+    def __init__(self, encoder, decoder, output_reconstruction=True, weights=None):
 
         super(AutoEncoder, self).__init__()
 
         self.output_reconstruction = output_reconstruction
-        self.tie_weights = tie_weights
         self.encoder = encoder
         self.decoder = decoder
 
@@ -440,11 +439,12 @@ class AutoEncoder(Layer):
         self.regularizers = []
         self.constraints = []
         for layer in [self.encoder, self.decoder]:
-            self.params += layer.params
-            if hasattr(layer, 'regularizers'):
-                self.regularizers += layer.regularizers
-            if hasattr(layer, 'constraints'):
-                self.constraints += layer.constraints
+            params, regularizers, constraints = layer.get_params()
+            self.constraints += constraints
+            for p, r in zip(params, regularizers):
+                if p not in self.params:
+                    self.params.append(p)
+                    self.regularizers.append(r)
 
         if weights is not None:
             self.set_weights(weights)
@@ -477,23 +477,13 @@ class AutoEncoder(Layer):
         if not train and not self.output_reconstruction:
             return self.encoder.get_output(train)
 
-        decoded = self.decoder.get_output(train)
-
-        if self.tie_weights:
-            encoder_params = self.encoder.get_weights()
-            decoder_params = self.decoder.get_weights()
-            for dec_param, enc_param in zip(decoder_params, encoder_params):
-                if len(dec_param.shape) > 1:
-                    enc_param = dec_param.T
-
-        return decoded
+        return self.decoder.get_output(train)
 
     def get_config(self):
         return {"name":self.__class__.__name__,
                 "encoder_config":self.encoder.get_config(),
                 "decoder_config":self.decoder.get_config(),
-                "output_reconstruction":self.output_reconstruction,
-                "tie_weights":self.tie_weights}
+                "output_reconstruction":self.output_reconstruction}
 
 
 

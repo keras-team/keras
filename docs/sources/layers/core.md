@@ -129,7 +129,7 @@ model.add(TimeDistributedDense(5, 10)) # output shape: (nb_samples, nb_timesteps
 
 ## AutoEncoder
 ```python
-keras.layers.core.AutoEncoder(encoder, decoder, output_reconstruction=True, tie_weights=False, weights=None):
+keras.layers.core.AutoEncoder(encoder, decoder, output_reconstruction=True, weights=None):
 ```
 
 A customizable autoencoder model. If `output_reconstruction = True` then dim(input) = dim(output) else dim(output) = dim(hidden)
@@ -147,8 +147,6 @@ A customizable autoencoder model. If `output_reconstruction = True` then dim(inp
     
     - __output_reconstruction__: If this is False the when .predict() is called the output is the deepest hidden layer's activation. Otherwise the output of the final decoder layer is presented. Be sure your validation data confirms to this logic if you decide to use any.
     
-    - __tie_weights__: If True then the encoder bias is tied to the decoder bias. **Note**: This required the encoder layer corresponding to this decoder layer to be of the same time, eg: Dense:Dense
-    
     - __weights__: list of numpy arrays to set as initial weights. The list should have 1 element, of shape `(input_dim, output_dim)`.
 
 - __Example__:
@@ -160,7 +158,7 @@ encoder = containers.Sequential([Dense(32, 16), Dense(16, 8)])
 decoder = containers.Sequential([Dense(8, 16), Dense(16, 32)])
 
 autoencoder = Sequential()
-autoencoder.add(AutoEncoder(encoder=encoder, decoder=decoder, output_reconstruction=False, tie_weights=True))
+autoencoder.add(AutoEncoder(encoder=encoder, decoder=decoder, output_reconstruction=False))
 ```
 
 
