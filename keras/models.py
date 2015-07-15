@@ -5,24 +5,14 @@ import theano.tensor as T
 import numpy as np
 import warnings, time, copy, yaml
 
-from .layers.convolutional import *
-from .layers.core import *
-from .layers.embeddings import *
-from .layers.noise import *
-from .layers.normalization import *
-from .layers.recurrent import *
-
-from .optimizers import *
-from .objectives import *
-from .regularizers import *
-from .constraints import *
-
 from . import optimizers
 from . import objectives
 from . import regularizers
 from . import constraints
 from . import callbacks as cbks
+
 import time, copy, pprint
+from .utils.layer_utils import from_yaml
 from .utils.generic_utils import Progbar, printv
 from .layers import containers
 from six.moves import range
@@ -88,48 +78,29 @@ def standardize_weights(y, sample_weight=None, class_weight=None):
     else:
         return np.ones(y.shape[:-1] + (1,))
 
-def sequential_from_yaml(yaml_string):
+def model_from_yaml(yaml_string):
     '''
-        Returns a compiled Sequential model generated from a local yaml file,
-        which is either created by hand or from Sequential.to_yaml
+        Returns a model generated from a local yaml file,
+        which is either created by hand or from to_yaml method of Sequential or Graph
     '''
-    model_yaml = yaml.load(yaml_string)
-    model = Sequential()
+    model_dict = yaml.load(yaml_string)
+    model_name = model_dict.get('name')
 
-    class_mode = model_yaml.get('class_mode')
-    theano_mode = model_yaml.get('theano_mode')
-    loss = globals()[model_yaml.get('loss')]
+    # Create a container layer and set class to respective model
+    model = from_yaml(model_dict)
+    model.__class__ = get(model_name)
 
-    optim = model_yaml.get('optimizer')
-    optim_name = optim.get('name')
-    optim.pop('name')
-    optimizer = globals()[optim_name](**optim)
+    if model_dict.has_key('optimizer'): # if it has an optimizer, the model is assumed to be compiled
+        loss = objectives.get(model_dict.get('loss'))
+        class_mode = model_dict.get('class_mode')
+        theano_mode = model_dict.get('theano_mode')
 
-    layers = model_yaml.get('layers')
-    for layer in layers:
-        name = layer.get('name')
-        layer.pop('name')
-        hasParams = False
-        if layer.has_key('parameters'):
-            params = layer.get('parameters')
-            layer.pop('parameters')
-            hasParams = True
-        for k, v in layer.iteritems():
-            if isinstance(v, dict):
-                vname = v.get('name')
-                v.pop('name')
-                layer[k] = globals()[vname](**v)
-        init_layer = globals()[name](**layer)
-        if hasParams:
-            shaped_params = []
-            for param in params:
-                data = np.asarray(param.get('data'))
-                shape = tuple(param.get('shape'))
-                shaped_params.append(data.reshape(shape))
-            init_layer.set_weights(shaped_params)
-        model.add(init_layer)
+        optim = model_dict.get('optimizer')
+        optim_name = optim.get('name')
+        optim.pop('name')
+        optimizer = optimizers.get(optim_name, optim)
+        model.compile(loss=loss, optimizer=optimizer, class_mode=class_mode, theano_mode=theano_mode)
 
-    model.compile(loss=loss, optimizer=optimizer, class_mode=class_mode, theano_mode=theano_mode)
     return model
 
 class Model(object):
@@ -273,7 +244,6 @@ class Model(object):
         for i, out in enumerate(outs):
             outs[i] /= nb_sample
         return outs
-
 
 class Sequential(Model, containers.Sequential):
     '''
@@ -524,27 +494,20 @@ class Sequential(Model, containers.Sequential):
 
     def to_yaml(self, store_params=True):
         '''
-            Stores compiled Sequential model to yaml string, optionally storing all learnable parameters
+            Stores a model to yaml string, optionally with all learnable parameters
+            If the model is compiled, it will also serialize the necessary components 
         '''
-        model_dict = {}
-        model_dict['class_mode'] = self.class_mode
-        model_dict['theano_mode'] = self.theano_mode
-        model_dict['loss'] = self.unweighted_loss.__name__
-        model_dict['optimizer'] = self.optimizer.get_config()
-
-        layers = []
-        for layer in self.layers:
-            layer_conf = layer.get_config()
-            if store_params:
-                layer_conf['parameters'] = [{'shape':list(param.get_value().shape), 'data':param.get_value().tolist()} for param in layer.params]
-            layers.append(layer_conf)
-        model_dict['layers'] = layers
-
+        model_dict = self.layer_to_yaml(store_params)    
+        if hasattr(self, 'optimizer'):
+            model_dict['class_mode'] = self.class_mode
+            model_dict['theano_mode'] = self.theano_mode
+            model_dict['loss'] = self.unweighted_loss.__name__
+            model_dict['optimizer'] = self.optimizer.get_config()
         return yaml.dump(model_dict)
 
 
 class Graph(Model, containers.Graph):
-    def compile(self, optimizer, loss, theano_mode=None):
+    def compile(self, optimizer, loss, theano_mode=None, class_mode=None):
         # loss is a dictionary mapping output name to loss functions
         ys = []
         ys_train = []
@@ -575,6 +538,8 @@ class Graph(Model, containers.Graph):
             train_loss = r(train_loss)
         self.optimizer = optimizers.get(optimizer)
         updates = self.optimizer.get_updates(self.params, self.constraints, train_loss)
+        self.theano_mode = theano_mode
+        self.loss = loss
 
         self._train = theano.function(train_ins, train_loss, 
             updates=updates, allow_input_downcast=True, mode=theano_mode)
@@ -669,3 +634,19 @@ class Graph(Model, containers.Graph):
             pp = pprint.PrettyPrinter(indent=4)
             pp.pprint(config)
         return config
+
+    def to_yaml(self, store_params=True):
+        '''
+            Stores a model to yaml string, optionally with all learnable parameters
+            If the model is compiled, it will also serialize the necessary components 
+        '''
+        model_dict = self.layer_to_yaml(store_params)    
+        if hasattr(self, 'optimizer'):
+            model_dict['theano_mode'] = self.theano_mode
+            model_dict['loss'] = self.loss
+            model_dict['optimizer'] = self.optimizer.get_config()
+        return yaml.dump(model_dict)
+
+from .utils.generic_utils import get_from_module
+def get(identifier):
+    return get_from_module(identifier, globals(), 'model')
