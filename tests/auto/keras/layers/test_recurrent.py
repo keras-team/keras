@@ -4,58 +4,43 @@ import theano
 
 from keras.layers import recurrent
 
-def recursive_runner(layer):
-    layer.input = theano.shared(value=np.ones((10,10,10)))
+nb_samples, timesteps, input_dim, output_dim = 3, 3, 10, 5
 
-    config = layer.get_config()
 
-    for train in [True,False]:
-        out = layer.get_output(train).eval()
-        mask = layer.get_output_mask(train)
+def _runner(layer_class):
+    for weights in [None, [np.ones((input_dim, output_dim))]]:
+        for ret_seq in [True, False]:
+            layer = layer_class(input_dim, output_dim, return_sequences=ret_seq, weights=weights)
+            layer.input = theano.shared(value=np.ones((nb_samples, timesteps, input_dim)))
+            config = layer.get_config()
+
+            for train in [True, False]:
+                out = layer.get_output(train).eval()
+                mask = layer.get_output_mask(train)
+
 
 class TestRNNS(unittest.TestCase):
     def test_simple(self):
-        for weights in [None, [np.ones((10,5))]]:
-            for ret_seq in [True, False]:
-                layer = recurrent.SimpleRNN(10, 5, return_sequences=ret_seq, weights=weights)
-                recursive_runner(layer)
+        _runner(recurrent.SimpleRNN)
 
     def test_simple_deep(self):
-        for weights in [None, [np.ones((10,5))]]:
-            for ret_seq in [True, False]:
-                layer = recurrent.SimpleDeepRNN(10, 5, return_sequences=ret_seq, weights=weights)
-                recursive_runner(layer)
+        _runner(recurrent.SimpleDeepRNN)
 
     def test_gru(self):
-        for weights in [None, [np.ones((10,5))]]:
-            for ret_seq in [True, False]:
-                layer = recurrent.GRU(10, 5, return_sequences=ret_seq, weights=weights)
-                recursive_runner(layer)
+        _runner(recurrent.GRU)
 
     def test_lstm(self):
-        for weights in [None, [np.ones((10,5))]]:
-            for ret_seq in [True, False]:
-                layer = recurrent.LSTM(10, 5, return_sequences=ret_seq, weights=weights)
-                recursive_runner(layer)
-
+        _runner(recurrent.LSTM)
 
     def test_jzs1(self):
-        for weights in [None, [np.ones((10,5))]]:
-            for ret_seq in [True, False]:
-                layer = recurrent.JZS1(10, 5, return_sequences=ret_seq, weights=weights)
-                recursive_runner(layer)
+        _runner(recurrent.JZS1)
 
     def test_jzs2(self):
-        for weights in [None, [np.ones((10,5))]]:
-            for ret_seq in [True, False]:
-                layer = recurrent.JZS2(10, 5, return_sequences=ret_seq, weights=weights)
-                recursive_runner(layer)
+        _runner(recurrent.JZS2)
 
     def test_jzs3(self):
-        for weights in [None, [np.ones((10,5))]]:
-            for ret_seq in [True, False]:
-                layer = recurrent.JZS3(10, 5, return_sequences=ret_seq, weights=weights)
-                recursive_runner(layer)
+        _runner(recurrent.JZS3)
+
 
 if __name__ == '__main__':
     unittest.main()
