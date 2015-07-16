@@ -124,7 +124,7 @@ Long-Short Term Memory unit - Hochreiter 1997.
 - __Masking__: This layer supports masking for input data with a variable number of timesteps To introduce masks to your data, use an [Embedding](embeddings.md) layer with the `mask_zero` parameter set to true.
 
 - __Arguments__:
-- __input_dim__: dimension of the input.
+    - __input_dim__: dimension of the input.
     - __output_dim__: dimension of the internal projections and the final output.
     - __init__: weight initialization function for the output cell. Can be the name of an existing function (str), or a Theano function (see: [initializations](../initializations.md)).
     - __inner_init__: weight initialization function for the inner cells.
