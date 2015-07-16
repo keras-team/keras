@@ -1,3 +1,4 @@
+sudo: false
 language: python
 # Setup anaconda
 before_install:
