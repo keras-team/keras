@@ -5,10 +5,9 @@ import theano
 import theano.tensor as T
 from theano.tensor.signal import downsample
 
-from .. import activations, initializations
+from .. import activations, initializations, regularizers, constraints
 from ..utils.theano_utils import shared_zeros
 from ..layers.core import Layer
-
 
 class Convolution1D(Layer):
     def __init__(self, input_dim, nb_filter, filter_length,
@@ -37,17 +36,25 @@ class Convolution1D(Layer):
         self.params = [self.W, self.b]
 
         self.regularizers = []
-        if W_regularizer:
-            W_regularizer.set_param(self.W)
-            self.regularizers.append(W_regularizer)
-        if b_regularizer:
-            b_regularizer.set_param(self.b)
-            self.regularizers.append(b_regularizer)
-        if activity_regularizer:
-            activity_regularizer.set_layer(self)
-            self.regularizers.append(activity_regularizer)
 
-        self.constraints = [W_constraint, b_constraint]
+        self.W_regularizer = regularizers.get(W_regularizer)
+        if self.W_regularizer:
+            self.W_regularizer.set_param(self.W)
+            self.regularizers.append(self.W_regularizer)
+
+        self.b_regularizer = regularizers.get(b_regularizer)
+        if self.b_regularizer:
+            self.b_regularizer.set_param(self.b)
+            self.regularizers.append(self.b_regularizer)
+
+        self.activity_regularizer = regularizers.get(activity_regularizer)
+        if self.activity_regularizer:
+            self.activity_regularizer.set_layer(self)
+            self.regularizers.append(self.activity_regularizer)
+
+        self.W_constraint = constraints.get(W_constraint)
+        self.b_constraint = constraints.get(b_constraint)
+        self.constraints = [self.W_constraint, self.b_constraint]
 
         if weights is not None:
             self.set_weights(weights)
@@ -67,7 +74,12 @@ class Convolution1D(Layer):
             "init":self.init.__name__,
             "activation":self.activation.__name__,
             "border_mode":self.border_mode,
-            "subsample_length":self.subsample_length}
+            "subsample_length":self.subsample_length,
+            "W_regularizer":self.W_regularizer.get_config() if self.W_regularizer else None,
+            "b_regularizer":self.b_regularizer.get_config() if self.b_regularizer else None,
+            "activity_regularizer":self.activity_regularizer.get_config() if self.activity_regularizer else None,
+            "W_constraint":self.W_constraint.get_config() if self.W_constraint else None,
+            "b_constraint":self.b_constraint.get_config() if self.b_constraint else None}
 
 
 class MaxPooling1D(Layer):
@@ -128,17 +140,25 @@ class Convolution2D(Layer):
         self.params = [self.W, self.b]
 
         self.regularizers = []
-        if W_regularizer:
-            W_regularizer.set_param(self.W)
-            self.regularizers.append(W_regularizer)
-        if b_regularizer:
-            b_regularizer.set_param(self.b)
-            self.regularizers.append(b_regularizer)
-        if activity_regularizer:
-            activity_regularizer.set_layer(self)
-            self.regularizers.append(activity_regularizer)
 
-        self.constraints = [W_constraint, b_constraint]
+        self.W_regularizer = regularizers.get(W_regularizer)
+        if self.W_regularizer:
+            self.W_regularizer.set_param(self.W)
+            self.regularizers.append(self.W_regularizer)
+
+        self.b_regularizer = regularizers.get(b_regularizer)
+        if self.b_regularizer:
+            self.b_regularizer.set_param(self.b)
+            self.regularizers.append(self.b_regularizer)
+
+        self.activity_regularizer = regularizers.get(activity_regularizer)
+        if self.activity_regularizer:
+            self.activity_regularizer.set_layer(self)
+            self.regularizers.append(self.activity_regularizer)
+
+        self.W_constraint = constraints.get(W_constraint)
+        self.b_constraint = constraints.get(b_constraint)
+        self.constraints = [self.W_constraint, self.b_constraint]
 
         if weights is not None:
             self.set_weights(weights)
@@ -168,7 +188,12 @@ class Convolution2D(Layer):
             "init":self.init.__name__,
             "activation":self.activation.__name__,
             "border_mode":self.border_mode,
-            "subsample":self.subsample}
+            "subsample":self.subsample,
+            "W_regularizer":self.W_regularizer.get_config() if self.W_regularizer else None,
+            "b_regularizer":self.b_regularizer.get_config() if self.b_regularizer else None,
+            "activity_regularizer":self.activity_regularizer.get_config() if self.activity_regularizer else None,
+            "W_constraint":self.W_constraint.get_config() if self.W_constraint else None,
+            "b_constraint":self.b_constraint.get_config() if self.b_constraint else None}
 
 
 class MaxPooling2D(Layer):

@@ -2,7 +2,7 @@ from __future__ import absolute_import
 import theano
 import theano.tensor as T
 
-from .. import activations, initializations
+from .. import activations, initializations, regularizers, constraints
 from ..layers.core import Layer, MaskedLayer
 from ..utils.theano_utils import sharedX
 
@@ -31,15 +31,21 @@ class Embedding(Layer):
         self.mask_zero = mask_zero
 
         self.params = [self.W]
-        self.constraints = [W_constraint]
+
+        self.W_constraint = constraints.get(W_constraint)
+        self.constraints = [self.W_constraint]
 
         self.regularizers = []
-        if W_regularizer:
-            W_regularizer.set_param(self.W)
-            self.regularizers.append(W_regularizer)
-        if activity_regularizer:
-            activity_regularizer.set_layer(self)
-            self.regularizers.append(activity_regularizer)
+
+        self.W_regularizer = regularizers.get(W_regularizer)
+        if self.W_regularizer:
+            self.W_regularizer.set_param(self.W)
+            self.regularizers.append(self.W_regularizer)
+
+        self.activity_regularizer = regularizers.get(activity_regularizer)
+        if self.activity_regularizer:
+            self.activity_regularizer.set_layer(self)
+            self.regularizers.append(self.activity_regularizer)
 
         if weights is not None:
             self.set_weights(weights)
@@ -60,7 +66,10 @@ class Embedding(Layer):
         return {"name":self.__class__.__name__,
             "input_dim":self.input_dim,
             "output_dim":self.output_dim,
-            "init":self.init.__name__}
+            "init":self.init.__name__,
+            "activity_regularizer":self.activity_regularizer.get_config() if self.activity_regularizer else None,
+            "W_regularizer":self.W_regularizer.get_config() if self.W_regularizer else None,
+            "W_constraint":self.W_constraint.get_config() if self.W_constraint else None}
 
 
 class WordContextProduct(Layer):
