@@ -16,6 +16,11 @@ def _runner(layer_class):
 
             for train in [True, False]:
                 out = layer.get_output(train).eval()
+                if ret_seq:
+                    assert(out.shape == (nb_samples, timesteps, output_dim))
+                else:
+                    assert(out.shape == (nb_samples, output_dim))
+
                 mask = layer.get_output_mask(train)
 
 
