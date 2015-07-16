@@ -82,12 +82,12 @@ class Sequential(Layer):
         return {"name":self.__class__.__name__,
             "layers":[layer.get_config() for layer in self.layers]}
 
-    def layer_to_yaml(self, store_params=True):
+    def to_yaml(self, store_params=True):
         seq_config = {}
         seq_config['name'] = self.__class__.__name__
         layers = []
         for layer in self.layers:
-            layer_conf = layer.layer_to_yaml(store_params)
+            layer_conf = layer.to_yaml(store_params)
             layers.append(layer_conf)
         seq_config['layers'] = layers
         return seq_config
@@ -223,7 +223,7 @@ class Graph(Layer):
             "node_config":self.node_config,
             "nodes":[self.nodes[c["name"]].get_config() for c in self.node_config]}
     
-    def layer_to_yaml(self, store_params=True):
+    def to_yaml(self, store_params=True):
         graph_config = {}
         graph_config['name'] = self.__class__.__name__
 
@@ -241,7 +241,7 @@ class Graph(Layer):
         for node_conf in self.node_config:
             name = node_conf.get('name')
             layer = self.nodes[name]
-            layer_conf = layer.layer_to_yaml(store_params)
+            layer_conf = layer.to_yaml(store_params)
             node_conf['layer'] = layer_conf
             nodes.append(node_conf)
         graph_config['nodes'] = nodes

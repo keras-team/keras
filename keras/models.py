@@ -12,7 +12,7 @@ from . import constraints
 from . import callbacks as cbks
 
 import time, copy, pprint
-from .utils.layer_utils import from_yaml
+from .utils.layer_utils import container_from_yaml
 from .utils.generic_utils import Progbar, printv
 from .layers import containers
 from six.moves import range
@@ -78,30 +78,38 @@ def standardize_weights(y, sample_weight=None, class_weight=None):
     else:
         return np.ones(y.shape[:-1] + (1,))
 
+
 def model_from_yaml(yaml_string):
     '''
         Returns a model generated from a local yaml file,
         which is either created by hand or from to_yaml method of Sequential or Graph
     '''
-    model_dict = yaml.load(yaml_string)
-    model_name = model_dict.get('name')
+    model_params = yaml.load(yaml_string)
+    model_name = model_params.get('name')
+    if not model_name in {'Graph', 'Sequential'}:
+        raise Exception('Unrecognized model:', model_name)
 
-    # Create a container layer and set class to respective model
-    model = from_yaml(model_dict)
+    # Create a container then set class to appropriate model
+    print(model_params)
+    model = container_from_yaml(model_params)
     model.__class__ = get(model_name)
 
-    if model_dict.has_key('optimizer'): # if it has an optimizer, the model is assumed to be compiled
-        loss = objectives.get(model_dict.get('loss'))
-        class_mode = model_dict.get('class_mode')
-        theano_mode = model_dict.get('theano_mode')
+    if 'optimizer' in model_params: # if it has an optimizer, the model is assumed to be compiled
+        loss = objectives.get(model_params.get('loss'))
+        class_mode = model_params.get('class_mode')
+        theano_mode = model_params.get('theano_mode')
 
-        optim = model_dict.get('optimizer')
-        optim_name = optim.get('name')
-        optim.pop('name')
-        optimizer = optimizers.get(optim_name, optim)
-        model.compile(loss=loss, optimizer=optimizer, class_mode=class_mode, theano_mode=theano_mode)
+        optimizer_params = model_params.get('optimizer')
+        optimizer_name = optimizer_params.pop('name')
+        optimizer = optimizers.get(optimizer_name, optimizer_params)
+
+        if model_name == 'Sequential':
+            model.compile(loss=loss, optimizer=optimizer, class_mode=class_mode, theano_mode=theano_mode)
+        elif model_name == 'Graph':
+            model.compile(loss=loss, optimizer=optimizer, theano_mode=theano_mode)
 
     return model
+
 
 class Model(object):
     def _fit(self, f, ins, out_labels=[], batch_size=128, nb_epoch=100, verbose=1, callbacks=[], \
@@ -495,19 +503,19 @@ class Sequential(Model, containers.Sequential):
     def to_yaml(self, store_params=True):
         '''
             Stores a model to yaml string, optionally with all learnable parameters
-            If the model is compiled, it will also serialize the necessary components 
+            If the model is compiled, it will also serialize the necessary components
         '''
-        model_dict = self.layer_to_yaml(store_params)    
+        model_params = super(Sequential, self).to_yaml(store_params)
         if hasattr(self, 'optimizer'):
-            model_dict['class_mode'] = self.class_mode
-            model_dict['theano_mode'] = self.theano_mode
-            model_dict['loss'] = self.unweighted_loss.__name__
-            model_dict['optimizer'] = self.optimizer.get_config()
-        return yaml.dump(model_dict)
+            model_params['class_mode'] = self.class_mode
+            model_params['theano_mode'] = self.theano_mode
+            model_params['loss'] = self.unweighted_loss.__name__
+            model_params['optimizer'] = self.optimizer.get_config()
+        return yaml.dump(model_params)
 
 
 class Graph(Model, containers.Graph):
-    def compile(self, optimizer, loss, theano_mode=None, class_mode=None):
+    def compile(self, optimizer, loss, theano_mode=None):
         # loss is a dictionary mapping output name to loss functions
         ys = []
         ys_train = []
@@ -638,14 +646,14 @@ class Graph(Model, containers.Graph):
     def to_yaml(self, store_params=True):
         '''
             Stores a model to yaml string, optionally with all learnable parameters
-            If the model is compiled, it will also serialize the necessary components 
+            If the model is compiled, it will also serialize the necessary components
         '''
-        model_dict = self.layer_to_yaml(store_params)    
+        model_params = super(Graph, self).to_yaml(store_params)
         if hasattr(self, 'optimizer'):
-            model_dict['theano_mode'] = self.theano_mode
-            model_dict['loss'] = self.loss
-            model_dict['optimizer'] = self.optimizer.get_config()
-        return yaml.dump(model_dict)
+            model_params['theano_mode'] = self.theano_mode
+            model_params['loss'] = self.loss
+            model_params['optimizer'] = self.optimizer.get_config()
+        return yaml.dump(model_params)
 
 from .utils.generic_utils import get_from_module
 def get(identifier):

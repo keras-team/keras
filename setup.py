@@ -9,6 +9,6 @@ setup(name = 'Keras',
       url = 'https://github.com/fchollet/keras',
       download_url = 'https://github.com/fchollet/keras/tarball/0.1.1',
       license = 'MIT',
-      install_requires = ['theano'],
+      install_requires = ['theano', 'pyyaml'],
       packages = find_packages(),
 )
