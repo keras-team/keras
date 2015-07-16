@@ -16,7 +16,7 @@ def kl_divergence(p, p_hat):
 
 class Optimizer(object):
     
-    def get_updates(self, params, regularizers, constraints,  loss):
+    def get_updates(self, params, constraints, loss):
         raise NotImplementedError
 
     def get_gradients(self, loss, params):

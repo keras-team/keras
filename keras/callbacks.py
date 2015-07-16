@@ -139,7 +139,8 @@ class BaseLogger(Callback):
                 self.log_values.append((k, self.totals[k] / self.seen))
             if k in logs:
                 self.log_values.append((k, logs[k]))
-        self.progbar.update(self.seen, self.log_values)
+        if self.verbose:
+            self.progbar.update(self.seen, self.log_values)
 
 
 class History(Callback):
