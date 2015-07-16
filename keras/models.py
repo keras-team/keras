@@ -85,8 +85,6 @@ def model_from_yaml(yaml_string):
         which is either created by hand or from to_yaml method of Sequential or Graph
     '''
     model_params = yaml.load(yaml_string)
-    print(model_params)
-
     model_name = model_params.get('name')
     if not model_name in {'Graph', 'Sequential'}:
         raise Exception('Unrecognized model:', model_name)
