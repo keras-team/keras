@@ -16,8 +16,10 @@ class Convolution1D(Layer):
         border_mode='valid', subsample_length=1,
         W_regularizer=None, b_regularizer=None, activity_regularizer=None, W_constraint=None, b_constraint=None):
 
-        super(Convolution1D,self).__init__()
+        if border_mode not in {'valid', 'full'}:
+            raise Exception('Invalid border mode for Convolution1D:', border_mode)
 
+        super(Convolution1D,self).__init__()
         self.nb_filter = nb_filter
         self.input_dim = input_dim
         self.filter_length = filter_length
@@ -104,6 +106,9 @@ class Convolution2D(Layer):
         border_mode='valid', subsample=(1, 1),
         W_regularizer=None, b_regularizer=None, activity_regularizer=None, W_constraint=None, b_constraint=None):
 
+        if border_mode not in {'valid', 'full', 'same'}:
+            raise Exception('Invalid border mode for Convolution2D:', border_mode)
+
         super(Convolution2D,self).__init__()
         self.init = initializations.get(init)
         self.activation = activations.get(activation)
@@ -140,9 +145,18 @@ class Convolution2D(Layer):
 
     def get_output(self, train):
         X = self.get_input(train)
+        border_mode = self.border_mode
+        if border_mode == 'same':
+            border_mode = 'full'
+
         conv_out = theano.tensor.nnet.conv.conv2d(X, self.W,
-            border_mode=self.border_mode, subsample=self.subsample)
+            border_mode=border_mode, subsample=self.subsample)
         output = self.activation(conv_out + self.b.dimshuffle('x', 0, 'x', 'x'))
+
+        if self.border_mode == 'same':
+            clip_row = (self.nb_row - 1) // 2
+            clip_col = (self.nb_col - 1) // 2
+            output = output[:, :, clip_row:-clip_row, clip_col:-clip_col]
         return output
 
     def get_config(self):
@@ -196,9 +210,3 @@ class ZeroPadding2D(Layer):
     def get_config(self):
         return {"name":self.__class__.__name__,
                 "width":self.width}
-
-
-
-# class Convolution3D: TODO
-
-# class MaxPooling3D: TODO
