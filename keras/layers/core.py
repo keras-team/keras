@@ -90,11 +90,6 @@ class Layer(object):
 
         return self.params, regularizers, consts
 
-    def to_yaml(self, store_params=True):
-        layer_conf = self.get_config()
-        if store_params:
-            layer_conf['parameters'] = [{'shape':list(param.get_value().shape), 'data':param.get_value().tolist()} for param in self.params]
-        return layer_conf
 
 class MaskedLayer(Layer):
     '''
@@ -189,17 +184,7 @@ class Merge(object):
         return {"name":self.__class__.__name__,
             "layers":[l.get_config() for l in self.layers],
             "mode":self.mode}
-
-    def to_yaml(self, store_params=True):
-        merge_conf = {}
-        merge_conf['name'] = self.__class__.__name__
-        merge_conf['mode'] = self.mode
-        layers = []
-        for layer in self.layers:
-            layer_conf = layer.to_yaml(store_params)
-            layers.append(layer_conf)
-        merge_conf['layers'] = layers
-        return merge_conf     
+  
 
 class Dropout(MaskedLayer):
     '''

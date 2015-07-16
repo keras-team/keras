@@ -34,23 +34,13 @@ model.add(Dropout(0.5))
 model.add(Dense(128, 1, W_regularizer='identity', b_constraint='maxnorm'))
 model.add(Activation('sigmoid'))
 
-#model.compile(loss='binary_crossentropy', optimizer='adam', class_mode="binary")
-
 model.get_config(verbose=1)
-
-######################
-# save model to yaml #
-######################
-#yaml_string = model.to_yaml()
-
-#recovered_model = model_from_yaml(yaml_string)
-#recovered_model.get_config(verbose=1)
 
 #####################################
 # save model w/o parameters to yaml #
 #####################################
 
-yaml_no_params = model.to_yaml(store_params=False)
+yaml_no_params = model.to_yaml()
 
 no_param_model = model_from_yaml(yaml_no_params)
 no_param_model.get_config(verbose=1)
@@ -62,13 +52,13 @@ no_param_model.get_config(verbose=1)
 seq = Sequential()
 seq.add(Merge([model, model], mode='sum'))
 seq.get_config(verbose=1)
-merge_yaml = seq.to_yaml(store_params=False)
+merge_yaml = seq.to_yaml()
 merge_model = model_from_yaml(merge_yaml)
 
 large_model = Sequential()
 large_model.add(Merge([seq,model], mode='concat'))
 large_model.get_config(verbose=1)
-large_model.to_yaml(store_params=False)
+large_model.to_yaml()
 
 ####################
 # save graph model #
@@ -98,11 +88,14 @@ graph.get_config(verbose=1)
 history = graph.fit({'input1':X_train, 'output1':y_train}, nb_epoch=10)
 original_pred = graph.predict({'input1':X_test})
 
-graph_yaml = graph.to_yaml(store_params=True)
+graph_yaml = graph.to_yaml()
+graph.save_weights('temp.h5', overwrite=True)
+
 reloaded_graph = model_from_yaml(graph_yaml)
+reloaded_graph.load_weights('temp.h5')
 reloaded_graph.get_config(verbose=1)
 
 reloaded_graph.compile('rmsprop', {'output1':'mse'})
 new_pred = reloaded_graph.predict({'input1':X_test})
 
-print(new_pred['output1'][3][1] == original_pred['output1'][3][1])
+assert(new_pred['output1'][3][1] == original_pred['output1'][3][1])

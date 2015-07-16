@@ -14,7 +14,7 @@ from .. import regularizers
 from .. import constraints
 
 
-def container_from_yaml(layer_dict):
+def container_from_config(layer_dict):
     name = layer_dict.get('name')
     hasParams = False
 
@@ -22,9 +22,8 @@ def container_from_yaml(layer_dict):
         mode = layer_dict.get('mode')
         layers = layer_dict.get('layers')
         layer_list = []
-
         for layer in layers:
-            init_layer = container_from_yaml(layer)
+            init_layer = container_from_config(layer)
             layer_list.append(init_layer)
         merge_layer = Merge(layer_list, mode)
         return merge_layer
@@ -32,28 +31,26 @@ def container_from_yaml(layer_dict):
     elif name == 'Sequential':
         layers = layer_dict.get('layers')
         layer_list = []
-
         for layer in layers:
-            init_layer = container_from_yaml(layer)
+            init_layer = container_from_config(layer)
             layer_list.append(init_layer)
         seq_layer = containers.Sequential(layer_list)
         return seq_layer
 
     elif name == 'Graph':
         graph_layer = containers.Graph()
-        inputs = layer_dict.get('inputs')
+        inputs = layer_dict.get('input_config')
 
         for input in inputs:
             graph_layer.add_input(**input)
-        nodes = layer_dict.get('nodes')
 
+        nodes = layer_dict.get('node_config')
         for node in nodes:
-            layer_conf = node.get('layer')
-            layer = container_from_yaml(layer_conf)
+            layer = container_from_config(layer_dict['nodes'].get(node['name']))
             node['layer'] = layer
             graph_layer.add_node(**node)
-        outputs = layer_dict.get('outputs')
 
+        outputs = layer_dict.get('output_config')
         for output in outputs:
             graph_layer.add_output(**output)
         return graph_layer
@@ -78,7 +75,6 @@ def container_from_yaml(layer_dict):
         base_layer = get_layer(name, layer_dict)
         if hasParams:
             shaped_params = []
-
             for param in params:
                 data = np.asarray(param.get('data'))
                 shape = tuple(param.get('shape'))

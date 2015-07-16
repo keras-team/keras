@@ -12,7 +12,7 @@ from . import constraints
 from . import callbacks as cbks
 
 import time, copy, pprint
-from .utils.layer_utils import container_from_yaml
+from .utils.layer_utils import container_from_config
 from .utils.generic_utils import Progbar, printv
 from .layers import containers
 from six.moves import range
@@ -85,13 +85,14 @@ def model_from_yaml(yaml_string):
         which is either created by hand or from to_yaml method of Sequential or Graph
     '''
     model_params = yaml.load(yaml_string)
+    print(model_params)
+
     model_name = model_params.get('name')
     if not model_name in {'Graph', 'Sequential'}:
         raise Exception('Unrecognized model:', model_name)
 
     # Create a container then set class to appropriate model
-    print(model_params)
-    model = container_from_yaml(model_params)
+    model = container_from_config(model_params)
     model.__class__ = get(model_name)
 
     if 'optimizer' in model_params: # if it has an optimizer, the model is assumed to be compiled
@@ -252,6 +253,13 @@ class Model(object):
         for i, out in enumerate(outs):
             outs[i] /= nb_sample
         return outs
+
+    def get_config(self, verbose=0):
+        config = super(Model, self).get_config()
+        if verbose:
+            pp = pprint.PrettyPrinter(indent=4)
+            pp.pprint(config)
+        return config
 
 class Sequential(Model, containers.Sequential):
     '''
@@ -444,16 +452,6 @@ class Sequential(Model, containers.Sequential):
             return outs[0]
 
 
-    def get_config(self, verbose=0):
-        layers = []
-        for i, l in enumerate(self.layers):
-            config = l.get_config()
-            layers.append(config)
-        if verbose:
-            printv(layers)
-        return layers
-
-
     def save_weights(self, filepath, overwrite=False):
         # Save weights from all layers to HDF5
         import h5py
@@ -500,17 +498,18 @@ class Sequential(Model, containers.Sequential):
         f.close()
 
 
-    def to_yaml(self, store_params=True):
+    def to_yaml(self):
         '''
             Stores a model to yaml string, optionally with all learnable parameters
             If the model is compiled, it will also serialize the necessary components
         '''
-        model_params = super(Sequential, self).to_yaml(store_params)
+        model_params = self.get_config()
         if hasattr(self, 'optimizer'):
             model_params['class_mode'] = self.class_mode
             model_params['theano_mode'] = self.theano_mode
             model_params['loss'] = self.unweighted_loss.__name__
             model_params['optimizer'] = self.optimizer.get_config()
+
         return yaml.dump(model_params)
 
 
@@ -636,19 +635,12 @@ class Graph(Model, containers.Graph):
         self.set_weights(weights)
         f.close()
 
-    def get_config(self, verbose=1):
-        config = super(Graph, self).get_config()
-        if verbose:
-            pp = pprint.PrettyPrinter(indent=4)
-            pp.pprint(config)
-        return config
-
-    def to_yaml(self, store_params=True):
+    def to_yaml(self):
         '''
             Stores a model to yaml string, optionally with all learnable parameters
             If the model is compiled, it will also serialize the necessary components
         '''
-        model_params = super(Graph, self).to_yaml(store_params)
+        model_params = self.get_config()
         if hasattr(self, 'optimizer'):
             model_params['theano_mode'] = self.theano_mode
             model_params['loss'] = self.loss

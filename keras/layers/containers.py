@@ -82,15 +82,6 @@ class Sequential(Layer):
         return {"name":self.__class__.__name__,
             "layers":[layer.get_config() for layer in self.layers]}
 
-    def to_yaml(self, store_params=True):
-        seq_config = {}
-        seq_config['name'] = self.__class__.__name__
-        layers = []
-        for layer in self.layers:
-            layer_conf = layer.to_yaml(store_params)
-            layers.append(layer_conf)
-        seq_config['layers'] = layers
-        return seq_config
 
 class Graph(Layer):
     '''
@@ -219,31 +210,8 @@ class Graph(Layer):
     def get_config(self):
         return {"name":self.__class__.__name__,
             "input_config":self.input_config,
-            "output_config":self.output_config,
             "node_config":self.node_config,
-            "nodes":[self.nodes[c["name"]].get_config() for c in self.node_config]}
-    
-    def to_yaml(self, store_params=True):
-        graph_config = {}
-        graph_config['name'] = self.__class__.__name__
-
-        inputs = []
-        for input_conf in self.input_config:
-            inputs.append(input_conf)
-        graph_config['inputs'] = inputs
-
-        outputs = []
-        for output_conf in self.output_config:
-            outputs.append(output_conf)
-        graph_config['outputs'] = outputs
-
-        nodes = []
-        for node_conf in self.node_config:
-            name = node_conf.get('name')
-            layer = self.nodes[name]
-            layer_conf = layer.to_yaml(store_params)
-            node_conf['layer'] = layer_conf
-            nodes.append(node_conf)
-        graph_config['nodes'] = nodes
-
-        return graph_config
+            "output_config":self.output_config,
+            "input_order":self.input_order,
+            "output_order":self.output_order,
+            "nodes":dict([(c["name"], self.nodes[c["name"]].get_config()) for c in self.node_config])}
