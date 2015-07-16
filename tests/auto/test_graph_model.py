@@ -38,7 +38,7 @@ class TestGraph(unittest.TestCase):
         loss = graph.train_on_batch({'input1':X_test, 'output1':y_test})
         loss = graph.evaluate({'input1':X_test, 'output1':y_test})
         print(loss)
-        assert(loss < 1.4)
+        assert(loss < 2.5)
 
     def test_1o_1i_2(self):
         print('test a more complex non-sequential graph with 1 input and 1 output')
@@ -63,7 +63,7 @@ class TestGraph(unittest.TestCase):
         loss = graph.train_on_batch({'input1':X_test, 'output1':y_test})
         loss = graph.evaluate({'input1':X_test, 'output1':y_test})
         print(loss)
-        assert(loss < 1.4)
+        assert(loss < 2.5)
         graph.get_config(verbose=1)
 
     def test_1o_2i(self):
@@ -87,7 +87,7 @@ class TestGraph(unittest.TestCase):
         loss = graph.train_on_batch({'input1':X_test, 'input2':X2_test, 'output1':y_test})
         loss = graph.evaluate({'input1':X_test, 'input2':X2_test, 'output1':y_test})
         print(loss)
-        assert(loss < 1.4)
+        assert(loss < 3.0)
         graph.get_config(verbose=1)
 
     def test_2o_1i_weights(self):
@@ -111,7 +111,7 @@ class TestGraph(unittest.TestCase):
         loss = graph.train_on_batch({'input1':X_test, 'output1':y_test, 'output2':y2_test})
         loss = graph.evaluate({'input1':X_test, 'output1':y_test, 'output2':y2_test})
         print(loss)
-        assert(loss < 2.7)
+        assert(loss < 4.)
 
         print('test weight saving')
         graph.save_weights('temp.h5', overwrite=True)
@@ -148,7 +148,7 @@ class TestGraph(unittest.TestCase):
         history = seq.fit(X_train, y_train, batch_size=10, nb_epoch=10)
         loss = seq.evaluate(X_test, y_test)
         print(loss)
-        assert(loss < 1.4)
+        assert(loss < 2.5)
 
         loss = seq.evaluate(X_test, y_test, show_accuracy=True)
         pred = seq.predict(X_test)
