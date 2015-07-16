@@ -171,13 +171,14 @@ class Convolution2D(Layer):
 
         conv_out = theano.tensor.nnet.conv.conv2d(X, self.W,
             border_mode=border_mode, subsample=self.subsample)
-        output = self.activation(conv_out + self.b.dimshuffle('x', 0, 'x', 'x'))
 
         if self.border_mode == 'same':
-            clip_row = (self.nb_row - 1) // 2
-            clip_col = (self.nb_col - 1) // 2
-            output = output[:, :, clip_row:-clip_row, clip_col:-clip_col]
-        return output
+            shift_x = (self.nb_row - 1) // 2
+            shift_y = (self.nb_col - 1) // 2
+            conv_out = conv_out[:, :, shift_x:X.shape[2] + shift_x, shift_y:X.shape[3] + shift_y]
+
+        return self.activation(conv_out + self.b.dimshuffle('x', 0, 'x', 'x'))
+
 
     def get_config(self):
         return {"name":self.__class__.__name__,
