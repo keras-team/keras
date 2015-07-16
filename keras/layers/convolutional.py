@@ -140,9 +140,19 @@ class Convolution2D(Layer):
 
     def get_output(self, train):
         X = self.get_input(train)
+        temp_mode = self.border_mode
+        if temp_mode == 'same':
+            temp_mode = 'full'    # just for the conv2d in the line below
+                                    # output will be bigger but then we crop from it
         conv_out = theano.tensor.nnet.conv.conv2d(X, self.W,
-            border_mode=self.border_mode, subsample=self.subsample)
+            border_mode=temp_mode, subsample=self.subsample)
         output = self.activation(conv_out + self.b.dimshuffle('x', 0, 'x', 'x'))
+
+        if self.border_mode == 'same':
+            clip_row = (self.nb_row - 1)//2
+            clip_col = (self.nb_col - 1)//2
+            output = output[:,:,clip_row:-clip_row,clip_col:-clip_col]
+
         return output
 
     def get_config(self):
@@ -196,8 +206,6 @@ class ZeroPadding2D(Layer):
     def get_config(self):
         return {"name":self.__class__.__name__,
                 "width":self.width}
-
-
 
 # class Convolution3D: TODO
 
