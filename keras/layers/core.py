@@ -113,13 +113,14 @@ class MaskedLayer(Layer):
 
 
 class Merge(object): 
-    def __init__(self, layers, mode='sum'):
+    def __init__(self, layers, mode='sum', axis=-1):
         ''' Merge the output of a list of layers or containers into a single tensor.
             mode: {'sum', 'concat'}
         '''
         if len(layers) < 2:
             raise Exception("Please specify two or more input layers (or containers) to merge")
         self.mode = mode
+        self.axis = axis
         self.layers = layers
         self.params = []
         self.regularizers = []
@@ -143,8 +144,9 @@ class Merge(object):
                 s += self.layers[i].get_output(train)
             return s
         elif self.mode == 'concat':
+            axis = self.axis
             inputs = [self.layers[i].get_output(train) for i in range(len(self.layers))]
-            return T.concatenate(inputs, axis=-1)
+            return T.concatenate(inputs, axis=axis)
         else:
             raise Exception('Unknown merge mode')
 
