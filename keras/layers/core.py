@@ -249,6 +249,21 @@ class Reshape(Layer):
         return {"name":self.__class__.__name__,
             "dims":self.dims}
 
+class Permute(Layer):
+    '''
+        Permute the dimensions of the data according to the given tuple
+    '''
+    def __init__(self, dims):
+        super(Permute,self).__init__()
+        self.dims = dims
+
+    def get_output(self, train):
+        X = self.get_input(train)
+        return X.dimshuffle(self.dims)
+
+    def get_config(self):
+        return {"name":self.__class__.__name__,
+            "dims":self.dims}
 
 class Flatten(Layer):
     '''
