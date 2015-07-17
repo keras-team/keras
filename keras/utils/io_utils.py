@@ -4,7 +4,6 @@ import numpy as np
 from collections import defaultdict
 
 class HDF5Matrix:
-    
     refs = defaultdict(int)
 
     def __init__(self, datapath, dataset, start, end, normalizer=None):
@@ -17,19 +16,19 @@ class HDF5Matrix:
         self.end = end
         self.data = f[dataset]
         self.normalizer = normalizer
-    
+
     def __len__(self):
         return self.end - self.start
 
     def __getitem__(self, key):
         if isinstance(key, slice):
             if key.stop + self.start <= self.end:
-                idx = slice(key.start+self.start, key.stop + self.start)
+                idx = slice(key.start + self.start, key.stop + self.start)
             else:
                 raise IndexError
         elif isinstance(key, int):
             if key + self.start < self.end:
-                idx = key+self.start
+                idx = key + self.start
             else:
                 raise IndexError
         elif isinstance(key, np.ndarray):
@@ -64,7 +63,7 @@ def load_array(name):
     import tables
     f = tables.open_file(name)
     array = f.root.data
-    a=np.empty(shape=array.shape, dtype=array.dtype)
-    a[:]=array[:]
+    a = np.empty(shape=array.shape, dtype=array.dtype)
+    a[:] = array[:]
     f.close()
     return a

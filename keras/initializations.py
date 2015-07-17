@@ -1,8 +1,8 @@
 from __future__ import absolute_import
-import theano
-import theano.tensor as T
+
 import numpy as np
 
+from .utils.generic_utils import get_from_module
 from .utils.theano_utils import sharedX, shared_zeros, shared_ones
 
 def get_fans(shape):
@@ -36,7 +36,7 @@ def glorot_uniform(shape):
     fan_in, fan_out = get_fans(shape)
     s = np.sqrt(6. / (fan_in + fan_out))
     return uniform(shape, s)
-    
+
 def he_normal(shape):
     ''' Reference:  He et al., http://arxiv.org/abs/1502.01852
     '''
@@ -55,13 +55,14 @@ def orthogonal(shape, scale=1.1):
     flat_shape = (shape[0], np.prod(shape[1:]))
     a = np.random.normal(0.0, 1.0, flat_shape)
     u, _, v = np.linalg.svd(a, full_matrices=False)
-    q = u if u.shape == flat_shape else v # pick the one with the correct shape
+    q = u if u.shape == flat_shape else v  # pick the one with the correct shape
     q = q.reshape(shape)
     return sharedX(scale * q[:shape[0], :shape[1]])
 
 def identity(shape, scale=1):
     if len(shape) != 2 or shape[0] != shape[1]:
-        raise Exception("Identity matrix initialization can only be used for 2D square matrices")
+        raise Exception(
+            "Identity matrix initialization can only be used for 2D square matrices")
     else:
         return sharedX(scale * np.identity(shape[0]))
 
@@ -71,7 +72,5 @@ def zero(shape):
 def one(shape):
     return shared_ones(shape)
 
-
-from .utils.generic_utils import get_from_module
 def get(identifier):
     return get_from_module(identifier, globals(), 'initialization')

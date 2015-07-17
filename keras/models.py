@@ -1,22 +1,21 @@
 from __future__ import absolute_import
 from __future__ import print_function
+import warnings
+import pprint
+
 import theano
 import theano.tensor as T
 import numpy as np
-import warnings, time, copy, yaml
+import yaml
+from six.moves import range
 
 from . import optimizers
 from . import objectives
-from . import regularizers
-from . import constraints
 from . import callbacks as cbks
 
-import time, copy, pprint
 from .utils.layer_utils import container_from_config
-from .utils.generic_utils import Progbar, printv
+from .utils.generic_utils import Progbar, get_from_module
 from .layers import containers
-from six.moves import range
-
 
 def standardize_y(y):
     if not hasattr(y, 'shape'):
@@ -25,18 +24,18 @@ def standardize_y(y):
         y = np.expand_dims(y, 1)
     return y
 
-
 def make_batches(size, batch_size):
-    nb_batch = int(np.ceil(size/float(batch_size)))
-    return [(i*batch_size, min(size, (i+1)*batch_size)) for i in range(0, nb_batch)]
-
+    nb_batch = int(np.ceil(size / float(batch_size)))
+    return [
+        (i * batch_size, min(size, (i + 1) * batch_size))
+        for i in range(nb_batch)
+    ]
 
 def standardize_X(X):
     if type(X) == list:
         return X
     else:
         return [X]
-
 
 def slice_X(X, start=None, stop=None):
     if type(X) == list:
@@ -86,14 +85,15 @@ def model_from_yaml(yaml_string):
     '''
     model_params = yaml.load(yaml_string)
     model_name = model_params.get('name')
-    if not model_name in {'Graph', 'Sequential'}:
+    if model_name not in {'Graph', 'Sequential'}:
         raise Exception('Unrecognized model:', model_name)
 
     # Create a container then set class to appropriate model
     model = container_from_config(model_params)
     model.__class__ = get(model_name)
 
-    if 'optimizer' in model_params: # if it has an optimizer, the model is assumed to be compiled
+    if 'optimizer' in model_params:
+        # if it has an optimizer, the model is assumed to be compiled
         loss = objectives.get(model_params.get('loss'))
         class_mode = model_params.get('class_mode')
         theano_mode = model_params.get('theano_mode')
@@ -111,10 +111,12 @@ def model_from_yaml(yaml_string):
 
 
 class Model(object):
-    def _fit(self, f, ins, out_labels=[], batch_size=128, nb_epoch=100, verbose=1, callbacks=[], \
-        validation_split=0., val_f=None, val_ins=None, shuffle=True, metrics=[]):
+    def _fit(self, f, ins, out_labels=[], batch_size=128, nb_epoch=100,
+             verbose=1, callbacks=[], validation_split=0.0, val_f=None,
+             val_ins=None, shuffle=True, metrics=[]):
         '''
-            Abstract fit function for f(*ins). Assume that f returns a list, labelled by out_labels.
+            Abstract fit function for f(*ins). Assume that f returns a list,
+            labelled by out_labels.
         '''
         do_validation = False
         if val_f and val_ins:
@@ -146,7 +148,7 @@ class Model(object):
             'nb_sample': nb_train_sample,
             'verbose': verbose,
             'do_validation': do_validation,
-            'metrics':metrics,
+            'metrics': metrics,
         })
         callbacks.on_train_begin()
 
@@ -172,8 +174,8 @@ class Model(object):
                     batch_logs[l] = o
 
                 callbacks.on_batch_end(batch_index, batch_logs)
-                
-                if batch_index == len(batches) - 1: # last batch
+
+                if batch_index == len(batches) - 1:  # last batch
                     # validation
                     epoch_logs = {}
                     if do_validation:
@@ -267,7 +269,7 @@ class Sequential(Model, containers.Sequential):
             - _evaluate
         Inherits from containers.Sequential the following methods:
             - __init__
-            - add 
+            - add
             - get_output
             - get_input
             - get_weights
@@ -357,7 +359,6 @@ class Sequential(Model, containers.Sequential):
             return self._train_with_acc(*ins)
         else:
             return self._train(*ins)
-        
 
     def test_on_batch(self, X, y, accuracy=False):
         X = standardize_X(X)
@@ -369,15 +370,13 @@ class Sequential(Model, containers.Sequential):
         else:
             return self._test(*ins)
 
-
     def predict_on_batch(self, X):
         ins = standardize_X(X)
         return self._predict(*ins)
 
-
     def fit(self, X, y, batch_size=128, nb_epoch=100, verbose=1, callbacks=[],
-            validation_split=0., validation_data=None, shuffle=True, show_accuracy=False,
-            class_weight=None, sample_weight=None):
+            validation_split=0., validation_data=None, shuffle=True,
+            show_accuracy=False, class_weight=None, sample_weight=None):
 
         X = standardize_X(X)
         y = standardize_y(y)
@@ -409,21 +408,21 @@ class Sequential(Model, containers.Sequential):
 
         ins = X + [y, sample_weight]
         metrics = ['loss', 'acc', 'val_loss', 'val_acc']
-        return self._fit(f, ins, out_labels=out_labels, batch_size=batch_size, nb_epoch=nb_epoch, verbose=verbose, callbacks=callbacks, \
-            validation_split=validation_split, val_f=val_f, val_ins=val_ins, shuffle=shuffle, metrics=metrics)
-
+        return self._fit(
+            f, ins, out_labels=out_labels, batch_size=batch_size,
+            nb_epoch=nb_epoch, verbose=verbose, callbacks=callbacks,
+            validation_split=validation_split, val_f=val_f, val_ins=val_ins,
+            shuffle=shuffle, metrics=metrics)
 
     def predict(self, X, batch_size=128, verbose=0):
         X = standardize_X(X)
         return self._predict_loop(self._predict, X, batch_size, verbose)[0]
-
 
     def predict_proba(self, X, batch_size=128, verbose=1):
         preds = self.predict(X, batch_size, verbose)
         if preds.min() < 0 or preds.max() > 1:
             warnings.warn("Network returning invalid probability values.")
         return preds
-
 
     def predict_classes(self, X, batch_size=128, verbose=1):
         proba = self.predict(X, batch_size=batch_size, verbose=verbose)
@@ -432,8 +431,8 @@ class Sequential(Model, containers.Sequential):
         else:
             return (proba > 0.5).astype('int32')
 
-
-    def evaluate(self, X, y, batch_size=128, show_accuracy=False, verbose=1, sample_weight=None):
+    def evaluate(self, X, y, batch_size=128, show_accuracy=False, verbose=1,
+                 sample_weight=None):
         X = standardize_X(X)
         y = standardize_y(y)
         sample_weight = standardize_weights(y, sample_weight=sample_weight)
@@ -449,7 +448,6 @@ class Sequential(Model, containers.Sequential):
         else:
             return outs[0]
 
-
     def save_weights(self, filepath, overwrite=False):
         # Save weights from all layers to HDF5
         import h5py
@@ -460,7 +458,8 @@ class Sequential(Model, containers.Sequential):
             get_input = input
             if sys.version_info[:2] <= (2, 7):
                 get_input = raw_input
-            overwrite = get_input('[WARNING] %s already exists - overwrite? [y/n]' % (filepath))
+            overwrite = get_input(
+                '[WARNING] %s already exists - overwrite? [y/n]' % (filepath))
             while overwrite not in ['y', 'n']:
                 overwrite = get_input('Enter "y" (overwrite) or "n" (cancel).')
             if overwrite == 'n':
@@ -475,11 +474,11 @@ class Sequential(Model, containers.Sequential):
             g.attrs['nb_params'] = len(weights)
             for n, param in enumerate(weights):
                 param_name = 'param_{}'.format(n)
-                param_dset = g.create_dataset(param_name, param.shape, dtype=param.dtype)
+                param_dset = g.create_dataset(
+                    param_name, param.shape, dtype=param.dtype)
                 param_dset[:] = param
         f.flush()
         f.close()
-
 
     def load_weights(self, filepath):
         '''
@@ -494,7 +493,6 @@ class Sequential(Model, containers.Sequential):
             weights = [g['param_{}'.format(p)] for p in range(g.attrs['nb_params'])]
             self.layers[k].set_weights(weights)
         f.close()
-
 
     def to_yaml(self):
         '''
@@ -528,7 +526,7 @@ class Graph(Model, containers.Graph):
             ys.append(y)
             ys_train.append(y_train)
             ys_test.append(y_test)
-            
+
             train_loss += objectives.get(loss_fn)(y, y_train).mean()
             test_loss += objectives.get(loss_fn)(y, y_test).mean()
 
@@ -546,11 +544,11 @@ class Graph(Model, containers.Graph):
         self.theano_mode = theano_mode
         self.loss = loss
 
-        self._train = theano.function(train_ins, train_loss, 
+        self._train = theano.function(train_ins, train_loss,
             updates=updates, allow_input_downcast=True, mode=theano_mode)
-        self._test = theano.function(test_ins, test_loss, 
+        self._test = theano.function(test_ins, test_loss,
             allow_input_downcast=True, mode=theano_mode)
-        self._predict = theano.function(inputs=ins, outputs=ys_test, 
+        self._predict = theano.function(inputs=ins, outputs=ys_test,
             allow_input_downcast=True, mode=theano_mode)
 
     def train_on_batch(self, data):
@@ -582,8 +580,10 @@ class Graph(Model, containers.Graph):
         f = self._train
         out_labels = self.output_order
         metrics = self.output_order + ['val_' + m for m in self.output_order]
-        history = self._fit(f, ins, out_labels=out_labels, batch_size=batch_size, nb_epoch=nb_epoch, verbose=verbose, callbacks=callbacks, \
-            validation_split=validation_split, val_f=val_f, val_ins=val_ins, shuffle=shuffle, metrics=metrics)
+        history = self._fit(f, ins, out_labels=out_labels, batch_size=batch_size,
+            nb_epoch=nb_epoch, verbose=verbose, callbacks=callbacks,
+            validation_split=validation_split, val_f=val_f, val_ins=val_ins,
+            shuffle=shuffle, metrics=metrics)
         return history
 
     def evaluate(self, data, batch_size=128, verbose=0):
@@ -606,7 +606,8 @@ class Graph(Model, containers.Graph):
             get_input = input
             if sys.version_info[:2] <= (2, 7):
                 get_input = raw_input
-            overwrite = get_input('[WARNING] %s already exists - overwrite? [y/n]' % (filepath))
+            overwrite = get_input(
+                '[WARNING] %s already exists - overwrite? [y/n]' % (filepath))
             while overwrite not in ['y', 'n']:
                 overwrite = get_input('Enter "y" (overwrite) or "n" (cancel).')
             if overwrite == 'n':
@@ -619,7 +620,8 @@ class Graph(Model, containers.Graph):
         g.attrs['nb_params'] = len(weights)
         for n, param in enumerate(weights):
             param_name = 'param_{}'.format(n)
-            param_dset = g.create_dataset(param_name, param.shape, dtype=param.dtype)
+            param_dset = g.create_dataset(
+                param_name, param.shape, dtype=param.dtype)
             param_dset[:] = param
         f.flush()
         f.close()
@@ -635,8 +637,9 @@ class Graph(Model, containers.Graph):
 
     def to_yaml(self):
         '''
-            Stores a model to yaml string, optionally with all learnable parameters
-            If the model is compiled, it will also serialize the necessary components
+            Stores a model to yaml string, optionally with all learnable
+            parameters. If the model is compiled, it will also serialize the
+            necessary components.
         '''
         model_params = self.get_config()
         if hasattr(self, 'optimizer'):
@@ -645,6 +648,5 @@ class Graph(Model, containers.Graph):
             model_params['optimizer'] = self.optimizer.get_config()
         return yaml.dump(model_params)
 
-from .utils.generic_utils import get_from_module
 def get(identifier):
     return get_from_module(identifier, globals(), 'model')

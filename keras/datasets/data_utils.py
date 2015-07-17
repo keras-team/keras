@@ -1,7 +1,10 @@
-from __future__ import absolute_import
-from __future__ import print_function
-import tarfile, inspect, os
+from __future__ import absolute_import, print_function
+
+import tarfile
+import os
+
 from six.moves.urllib.request import urlretrieve
+
 from ..utils.generic_utils import Progbar
 
 def get_file(fname, origin, untar=False):
@@ -16,18 +19,19 @@ def get_file(fname, origin, untar=False):
         fpath = os.path.join(datadir, fname)
 
     try:
-        f = open(fpath)
+        with open(fpath):
+            pass
     except:
-        print('Downloading data from',  origin)
-
+        print('Downloading data from %s' % (origin,))
         global progbar
         progbar = None
+
         def dl_progress(count, block_size, total_size):
             global progbar
             if progbar is None:
                 progbar = Progbar(total_size)
             else:
-                progbar.update(count*block_size)
+                progbar.update(count * block_size)
 
         urlretrieve(origin, fpath, dl_progress)
         progbar = None
@@ -41,4 +45,3 @@ def get_file(fname, origin, untar=False):
         return untar_fpath
 
     return fpath
-
