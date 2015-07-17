@@ -21,6 +21,20 @@ matrix:
           env: KERAS_BACKEND=cntk PYTHONWARNINGS=ignore
         - python: 3.5
           env: KERAS_BACKEND=cntk PYTHONWARNINGS=ignore
+
+sudo: false
+
+# Setup anaconda
+before_install:
+  - wget http://repo.continuum.io/miniconda/Miniconda-latest-Linux-x86_64.sh -O miniconda.sh
+  - chmod +x miniconda.sh
+  - ./miniconda.sh -b
+  - export PATH=/home/travis/miniconda/bin:$PATH
+  - conda update --yes conda
+python:
+  - "3.4"
+
+
 install:
   # code below is taken from http://conda.pydata.org/docs/travis.html
   # We do this conditionally because it saves us some downloading if the
@@ -53,7 +67,7 @@ install:
 
   # install TensorFlow (CPU version).
   - pip install tensorflow
-  
+
   # install cntk
   - if [[ "$TRAVIS_PYTHON_VERSION" == "2.7" ]]; then
       pip install https://cntk.ai/PythonWheel/CPU-Only/cntk-2.1-cp27-cp27mu-linux_x86_64.whl;
@@ -74,6 +88,7 @@ install:
   - unzip ./openmpi_1.10-3.zip
   - sudo dpkg -i openmpi_1.10-3.deb
   - popd
+
 
 # command to run tests
 script:
