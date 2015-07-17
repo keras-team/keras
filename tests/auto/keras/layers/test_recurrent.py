@@ -8,6 +8,10 @@ nb_samples, timesteps, input_dim, output_dim = 3, 3, 10, 5
 
 
 def _runner(layer_class):
+    """
+    All the recurrent layers share the same interface, so we can run through them with a single
+    function.
+    """
     for weights in [None, [np.ones((input_dim, output_dim))]]:
         for ret_seq in [True, False]:
             layer = layer_class(input_dim, output_dim, return_sequences=ret_seq, weights=weights)
@@ -16,6 +20,7 @@ def _runner(layer_class):
 
             for train in [True, False]:
                 out = layer.get_output(train).eval()
+                # Make sure the output has the desired shape
                 if ret_seq:
                     assert(out.shape == (nb_samples, timesteps, output_dim))
                 else:
@@ -25,6 +30,9 @@ def _runner(layer_class):
 
 
 class TestRNNS(unittest.TestCase):
+    """
+    Test all the RNNs using a generic test runner function defined above.
+    """
     def test_simple(self):
         _runner(recurrent.SimpleRNN)
 
