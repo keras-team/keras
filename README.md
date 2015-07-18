@@ -189,14 +189,10 @@ A few highlights: convnets, LSTM, GRU, word2vec-style embeddings, PReLU, batch n
 Keras uses the following dependencies:
 
 - numpy, scipy
-
 - pyyaml
-
 - Theano
     - See installation instructions: http://deeplearning.net/software/theano/install.html#install
-
 - HDF5 and h5py (optional, required if you use model saving/loading functions)
-
 - Optional but recommended if you use CNNs: cuDNN.
 
 Once you have the dependencies installed, cd to the Keras folder and run the install command:
