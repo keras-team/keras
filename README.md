@@ -6,8 +6,9 @@ Keras is a minimalist, highly modular neural network library in the spirit of To
 
 Use Keras if you need a deep learning library that:
 - allows for easy and fast prototyping (through total modularity, minimalism, and extensibility).
-- supports both convolutional networks (for vision) and recurrent networks (for sequence data). As well as combinations of the two. 
-- runs seamlessly on the CPU and the GPU.
+- supports both convolutional networks and recurrent networks, as well as combinations of the two.
+- supports arbitrary connectivity schemes (including multi-input and multi-output training).
+- runs seamlessly on CPU and GPU.
 
 Read the documentation at [Keras.io](http://keras.io).
 
@@ -15,13 +16,13 @@ Keras is compatible with __Python 2.7-3.4__.
 
 ## Guiding principles
 
-- __Modularity.__ A model is understood as a sequence of standalone, fully-configurable modules that can be plugged together with as little restrictions as possible. In particular, neural layers, cost functions, optimizers, initialization schemes, activation functions and dropout are all standalone modules that you can combine to create new models. 
+- __Modularity.__ A model is understood as a sequence or a graph of standalone, fully-configurable modules that can be plugged together with as little restrictions as possible. In particular, neural layers, cost functions, optimizers, initialization schemes, activation functions, regularization schemes are all standalone modules that you can combine to create new models.
 
-- __Minimalism.__ Each module should be kept short and simple (<100 lines of code). Every piece of code should be transparent upon first reading. No black magic: it hurts iteration speed and ability to innovate. 
+- __Minimalism.__ Each module should be kept short and simple (<100 lines of code). Every piece of code should be transparent upon first reading. No black magic: it hurts iteration speed and ability to innovate.
 
-- __Easy extensibility.__ New features (a new module, per the above definition, or a new way to combine modules together) are dead simple to add (as new classes/functions), and existing modules provide ample examples.
+- __Easy extensibility.__ New modules are dead simple to add (as new classes/functions), and existing modules provide ample examples. To be able to easily create new modules allows for total expressiveness, making Keras suitable for adavanced research.
 
-- __Work with Python__. No separate models configuration files in a declarative format (like in Caffe or PyLearn2). Models are described in Python code, which is compact, easier to debug, benefits from syntax highlighting, and most of all, allows for ease of extensibility. See for yourself with the examples below.
+- __Work with Python__. No separate models configuration files in a declarative format (like in Caffe or PyLearn2). Models are described in Python code, which is compact, easier to debug, and allows for ease of extensibility.
 
 ## Examples
 
@@ -171,8 +172,10 @@ model.fit(images, captions, batch_size=16, nb_epoch=100)
 In the examples folder, you will find example models for real datasets:
 - CIFAR10 small images classification: Convnet with realtime data augmentation
 - IMDB movie review sentiment classification: LSTM over sequences of words
-- Reuters newswires topic classification: Multilayer Perceptron
-- MNIST handwritten digits classification: Multilayer Perceptron
+- Reuters newswires topic classification: Multilayer Perceptron (MLP)
+- MNIST handwritten digits classification: MLP & CNN
+- Character-level text generation with LSTM
+...and more.
 
 
 ## Current capabilities
@@ -187,6 +190,8 @@ Keras uses the following dependencies:
 
 - numpy, scipy
 
+- pyyaml
+
 - Theano
     - See installation instructions: http://deeplearning.net/software/theano/install.html#install
 
@@ -199,11 +204,16 @@ Once you have the dependencies installed, cd to the Keras folder and run the ins
 sudo python setup.py install
 ```
 
+You can also install Keras from PyPI:
+```
+sudo pip install keras
+```
+
 ## Why this name, Keras?
 
 Keras (κέρας) means _horn_ in Greek. It is a reference to a literary image from ancient Greek and Latin literature, first found in the _Odyssey_, where dream spirits (_Oneiroi_, singular _Oneiros_) are divided between those who deceive men with false visions, who arrive to Earth through a gate of ivory, and those who announce a future that will come to pass, who arrive through a gate of horn. It's a play on the words κέρας (horn) / κραίνω (fulfill), and ἐλέφας (ivory) / ἐλεφαίρομαι (deceive).
 
 Keras was developed as part of the research effort of project ONEIROS (Open-ended Neuro-Electronic Intelligent Robot Operating System).
 
-_"Oneiroi are beyond our unravelling --who can be sure what tale they tell? Not all that men look for comes to pass. Two gates there are that give passage to fleeting Oneiroi; one is made of horn, one of ivory. The Oneiroi that pass through sawn ivory are deceitful, bearing a message that will not be fulfilled; those that come out through polished horn have truth behind them, to be accomplished for men who see them."_ Homer, Odyssey 19. 562 ff (Shewring translation).
+>_"Oneiroi are beyond our unravelling --who can be sure what tale they tell? Not all that men look for comes to pass. Two gates there are that give passage to fleeting Oneiroi; one is made of horn, one of ivory. The Oneiroi that pass through sawn ivory are deceitful, bearing a message that will not be fulfilled; those that come out through polished horn have truth behind them, to be accomplished for men who see them."_ Homer, Odyssey 19. 562 ff (Shewring translation).
 

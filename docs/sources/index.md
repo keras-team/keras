@@ -7,8 +7,9 @@ Keras is a minimalist, highly modular neural network library in the spirit of To
 Use Keras if you need a deep learning library that:
 
 - allows for easy and fast prototyping (through total modularity, minimalism, and extensibility).
-- supports both __convolutional networks__ and __recurrent networks__ (LSTM, GRU, etc). As well as combinations of the two. 
-- runs seamlessly on the CPU and the GPU.
+- supports both convolutional networks and recurrent networks, as well as combinations of the two.
+- supports arbitrary connectivity schemes (including multi-input and multi-output training).
+- runs seamlessly on CPU and GPU.
 
 ## Guiding principles
 
@@ -92,6 +93,7 @@ Have a look at the [examples](examples.md).
 Keras uses the following dependencies:
 
 - __numpy__, __scipy__
+- __pyyaml__
 - __Theano__
     - See [installation instructions](http://deeplearning.net/software/theano/install.html#install).
 - __HDF5__ and __h5py__ (optional, required if you use model saving/loading functions)
@@ -105,6 +107,10 @@ Go to the Keras folder and run the install command:
 ```bash
 cd keras
 sudo python setup.py install
+```
+You can also install Keras from PyPI:
+```
+sudo pip install keras
 ```
 
 ## Support
