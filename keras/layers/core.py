@@ -259,7 +259,7 @@ class Permute(Layer):
 
     def get_output(self, train):
         X = self.get_input(train)
-        return X.dimshuffle(self.dims)
+        return X.dimshuffle((0,) + self.dims)
 
     def get_config(self):
         return {"name":self.__class__.__name__,
