@@ -23,7 +23,8 @@ class Grapher(object):
         return self.names[model]
 
     def add_edge(self, f, t, graph):
-        if f: graph.add_edge(pydot.Edge(f, t))
+        if f:
+            graph.add_edge(pydot.Edge(f, t))
         return t
 
     def add_model(self, model, graph, parent=None):

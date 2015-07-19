@@ -1,5 +1,8 @@
 from __future__ import absolute_import
+
 import theano.tensor as T
+
+from .utils.generic_utils import get_from_module
 
 def softmax(x):
     return T.nnet.softmax(x.reshape((-1, x.shape[-1]))).reshape(x.shape)
@@ -30,6 +33,5 @@ def linear(x):
     '''
     return x
 
-from .utils.generic_utils import get_from_module
 def get(identifier):
     return get_from_module(identifier, globals(), 'activation function')

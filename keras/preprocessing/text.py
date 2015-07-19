@@ -3,9 +3,10 @@
     These preprocessing utils would greatly benefit
     from a fast Cython rewrite.
 '''
-from __future__ import absolute_import
+from __future__ import absolute_import, print_function
+import string
+import sys
 
-import string, sys
 import numpy as np
 from six.moves import range
 from six.moves import zip
@@ -26,14 +27,14 @@ def text_to_word_sequence(text, filters=base_filter(), lower=True, split=" "):
     '''
     if lower:
         text = text.lower()
-    text = text.translate(maketrans(filters, split*len(filters)))
+    text = text.translate(maketrans(filters, split * len(filters)))
     seq = text.split(split)
     return [_f for _f in seq if _f]
 
 
 def one_hot(text, n, filters=base_filter(), lower=True, split=" "):
     seq = text_to_word_sequence(text)
-    return [(abs(hash(w))%(n-1)+1) for w in seq]
+    return [(abs(hash(w)) % (n - 1) + 1) for w in seq]
 
 
 class Tokenizer(object):
@@ -67,18 +68,18 @@ class Tokenizer(object):
                     self.word_docs[w] = 1
 
         wcounts = list(self.word_counts.items())
-        wcounts.sort(key = lambda x: x[1], reverse=True)
+        wcounts.sort(key=lambda x: x[1], reverse=True)
         sorted_voc = [wc[0] for wc in wcounts]
-        self.word_index = dict(list(zip(sorted_voc, list(range(1, len(sorted_voc)+1)))))
+        self.word_index = dict(
+            list(zip(sorted_voc, list(range(1, len(sorted_voc) + 1)))))
 
         self.index_docs = {}
         for w, c in list(self.word_docs.items()):
             self.index_docs[self.word_index[w]] = c
 
-
     def fit_on_sequences(self, sequences):
         '''
-            required before using sequences_to_matrix 
+            required before using sequences_to_matrix
             (if fit_on_texts was never called)
         '''
         self.document_count = len(sequences)
@@ -90,7 +91,6 @@ class Tokenizer(object):
                     self.index_docs[i] = 1
                 else:
                     self.index_docs[i] += 1
-
 
     def texts_to_sequences(self, texts):
         '''
@@ -125,7 +125,6 @@ class Tokenizer(object):
                     else:
                         vect.append(i)
             yield vect
-
 
     def texts_to_matrix(self, texts, mode="binary"):
         '''
@@ -165,21 +164,13 @@ class Tokenizer(object):
                 if mode == "count":
                     X[i][j] = c
                 elif mode == "freq":
-                    X[i][j] = c/len(seq)
+                    X[i][j] = c / float(len(seq))
                 elif mode == "binary":
                     X[i][j] = 1
                 elif mode == "tfidf":
-                    tf = np.log(c/len(seq))
-                    df = (1 + np.log(1 + self.index_docs.get(j, 0)/(1 + self.document_count)))
+                    tf = np.log(c / float(len(seq)))
+                    df = (1 + np.log(1 + self.index_docs.get(j, 0) / (1 + self.document_count)))
                     X[i][j] = tf / df
                 else:
                     raise Exception("Unknown vectorization mode: " + str(mode))
         return X
-
-
-
-                
-
-
-
-    

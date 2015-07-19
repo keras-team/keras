@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import
 import sys
+
 import six.moves.cPickle
-from six.moves import range
 
 def load_batch(fpath, label_key='labels'):
     f = open(fpath, 'rb')

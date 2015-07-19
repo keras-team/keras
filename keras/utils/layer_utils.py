@@ -2,8 +2,12 @@ import inspect
 import numpy as np
 
 from ..layers.advanced_activations import LeakyReLU, PReLU
-from ..layers.core import Dense, Merge, Dropout, Activation, Reshape, Flatten, RepeatVector, Layer
-from ..layers.core import ActivityRegularization, TimeDistributedDense, AutoEncoder, MaxoutDense
+from ..layers.core import (
+    Dense, Merge, Dropout, Activation, Reshape, Flatten, RepeatVector, Layer
+)
+from ..layers.core import (
+    ActivityRegularization, TimeDistributedDense, AutoEncoder, MaxoutDense
+)
 from ..layers.embeddings import Embedding, WordContextProduct
 from ..layers.noise import GaussianNoise, GaussianDropout
 from ..layers.normalization import BatchNormalization
@@ -12,7 +16,7 @@ from ..layers import containers
 
 from .. import regularizers
 from .. import constraints
-
+from .generic_utils import get_from_module
 
 def container_from_config(layer_dict):
     name = layer_dict.get('name')
@@ -55,7 +59,8 @@ def container_from_config(layer_dict):
             graph_layer.add_output(**output)
         return graph_layer
 
-    else: # The case in which layer_dict represents an "atomic" layer
+    else:
+        # The case in which layer_dict represents an "atomic" layer
         layer_dict.pop('name')
         if 'parameters' in layer_dict:
             params = layer_dict.get('parameters')
@@ -63,15 +68,16 @@ def container_from_config(layer_dict):
             hasParams = True
 
         for k, v in layer_dict.items():
-        	# For now, this can only happen for regularizers and constraints
+            # For now, this can only happen for regularizers and constraints
             if isinstance(v, dict):
                 vname = v.get('name')
                 v.pop('name')
-                if vname in [x for x,y in inspect.getmembers(constraints, predicate=inspect.isclass)]:
-                	layer_dict[k] = constraints.get(vname, v)
-                if vname in [x for x,y in inspect.getmembers(regularizers, predicate=inspect.isclass)]:
-                	layer_dict[k] = regularizers.get(vname, v)
-                
+                # TODO: explain what's going on here
+                if vname in [x for (x, _) in inspect.getmembers(constraints, predicate=inspect.isclass)]:
+                    layer_dict[k] = constraints.get(vname, v)
+                if vname in [x for (x, _) in inspect.getmembers(regularizers, predicate=inspect.isclass)]:
+                    layer_dict[k] = regularizers.get(vname, v)
+
         base_layer = get_layer(name, layer_dict)
         if hasParams:
             shaped_params = []
@@ -83,6 +89,5 @@ def container_from_config(layer_dict):
         return base_layer
 
 
-from .generic_utils import get_from_module
 def get_layer(identifier, kwargs=None):
     return get_from_module(identifier, globals(), 'layer', instantiate=True, kwargs=kwargs)

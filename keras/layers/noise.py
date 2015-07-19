@@ -1,8 +1,9 @@
-from __future__ import absolute_import
-from .core import srng, MaskedLayer
+from __future__ import absolute_import, print_function
+
 import theano
 import theano.tensor as T
 
+from .core import srng, MaskedLayer
 class GaussianNoise(MaskedLayer):
     '''
         Corruption process with GaussianNoise
@@ -20,28 +21,36 @@ class GaussianNoise(MaskedLayer):
                              dtype=theano.config.floatX)
 
     def get_config(self):
-        return {"name":self.__class__.__name__,
-            "sigma":self.sigma}
+        return {
+            "name": self.__class__.__name__,
+            "sigma": self.sigma
+        }
 
 class GaussianDropout(MaskedLayer):
     '''
         Multiplicative Gaussian Noise
-        Reference: 
+        Reference:
             Dropout: A Simple Way to Prevent Neural Networks from Overfitting
             Srivastava, Hinton, et al. 2014
             http://www.cs.toronto.edu/~rsalakhu/papers/srivastava14a.pdf
     '''
     def __init__(self, p):
-        super(GaussianDropout,self).__init__()
+        super(GaussianDropout, self).__init__()
         self.p = p
 
     def get_output(self, train):
         X = self.get_input(train)
         if train:
             # self.p refers to drop probability rather than retain probability (as in paper) to match Dropout layer syntax
-            X *= srng.normal(size=X.shape, avg=1.0, std=T.sqrt(self.p / (1.0 - self.p)), dtype=theano.config.floatX)
+            X *= srng.normal(
+                size=X.shape,
+                avg=1.0,
+                std=T.sqrt(self.p / (1.0 - self.p)),
+                dtype=theano.config.floatX)
         return X
 
     def get_config(self):
-        return {"name":self.__class__.__name__,
-            "p":self.p}
+        return {
+            "name": self.__class__.__name__,
+            "p": self.p
+        }
