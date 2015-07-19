@@ -175,6 +175,7 @@ In the examples folder, you will find example models for real datasets:
 - Reuters newswires topic classification: Multilayer Perceptron (MLP)
 - MNIST handwritten digits classification: MLP & CNN
 - Character-level text generation with LSTM
+
 ...and more.
 
 
