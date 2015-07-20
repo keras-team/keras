@@ -274,7 +274,7 @@ class Sequential(Model, containers.Sequential):
             - set_weights
     '''
 
-    def compile(self, optimizer, loss, class_mode="categorical", theano_mode=None):
+    def compile(self, optimizer, loss, class_mode="categorical", theano_mode=None, dtype='float32'):
         self.optimizer = optimizers.get(optimizer)
 
         self.unweighted_loss = objectives.get(loss)
@@ -300,12 +300,12 @@ class Sequential(Model, containers.Sequential):
         self.y.name = 'y'
 
         if class_mode == "categorical":
-            train_accuracy = T.mean(T.eq(T.argmax(self.y, axis=-1), T.argmax(self.y_train, axis=-1)))
-            test_accuracy = T.mean(T.eq(T.argmax(self.y, axis=-1), T.argmax(self.y_test, axis=-1)))
+            train_accuracy = T.mean(T.eq(T.argmax(self.y, axis=-1), T.argmax(self.y_train, axis=-1)), dtype=dtype)
+            test_accuracy = T.mean(T.eq(T.argmax(self.y, axis=-1), T.argmax(self.y_test, axis=-1)), dtype=dtype)
 
         elif class_mode == "binary":
-            train_accuracy = T.mean(T.eq(self.y, T.round(self.y_train)))
-            test_accuracy = T.mean(T.eq(self.y, T.round(self.y_test)))
+            train_accuracy = T.mean(T.eq(self.y, T.round(self.y_train)), dtype=dtype)
+            test_accuracy = T.mean(T.eq(self.y, T.round(self.y_test)), dtype=dtype)
         else:
             raise Exception("Invalid class mode:" + str(class_mode))
         self.class_mode = class_mode
