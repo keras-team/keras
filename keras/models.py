@@ -139,7 +139,13 @@ class Model(object):
             batches = make_batches(nb_train_sample, batch_size)
             for batch_index, (batch_start, batch_end) in enumerate(batches):
                 batch_ids = index_array[batch_start:batch_end]
-                ins_batch = slice_X(ins, batch_ids)
+                try:
+                    ins_batch = slice_X(ins, batch_ids)
+                except TypeError as err:
+                    print(
+                        '\n!! TypeError while preparing batch.',
+                        'If using HDF5 input data, pass shuffle=\'batch\'.\n')
+                    raise
 
                 batch_logs = {}
                 batch_logs['batch'] = batch_index
