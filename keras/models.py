@@ -161,6 +161,8 @@ class Model(object):
                 batch_ids = index_array[batch_start:batch_end]
                 ins_batch = slice_X(ins, batch_ids)
 
+                self.batch = ins_batch
+                
                 batch_logs = {}
                 batch_logs['batch'] = batch_index
                 batch_logs['size'] = len(batch_ids)
