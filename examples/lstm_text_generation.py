@@ -60,13 +60,10 @@ model.add(Activation('softmax'))
 model.compile(loss='categorical_crossentropy', optimizer='rmsprop')
 
 # helper function to sample an index from a probability array
-def sample(a, diversity=0.75):
-    if random.random() > diversity:
-        return np.argmax(a)
-    while 1:
-        i = random.randint(0, len(a)-1)
-        if a[i] > random.random():
-            return i
+def sample(a, temperature=1.0):
+    a = np.log(a)/temperature
+    a = np.exp(a)/np.sum(np.exp(a))
+    return np.argmax(np.random.multinomial(1,a,1))
 
 # train the model, output generated text after each iteration
 for iteration in range(1, 60):
@@ -77,7 +74,7 @@ for iteration in range(1, 60):
 
     start_index = random.randint(0, len(text) - maxlen - 1)
 
-    for diversity in [0.2, 0.4, 0.6, 0.8]:
+    for diversity in [0.2, 0.5, 1.0, 1.2]:
         print()
         print('----- diversity:', diversity)
 
