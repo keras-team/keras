@@ -1,5 +1,5 @@
 from ..layers.core import Layer
-from ..utils.theano_utils import shared_zeros
+from ..utils.theano_utils import shared_zeros, shared_ones
 
 class LeakyReLU(Layer):
     def __init__(self, alpha=0.3):
@@ -36,3 +36,27 @@ class PReLU(Layer):
     def get_config(self):
         return {"name":self.__class__.__name__,
         "input_shape":self.input_shape}
+
+
+class Psoftplus(Layer):
+    '''
+        Parametric softplus of the form: alpha * (1 + exp(beta * X))
+
+        Reference:
+            Inferring Nonlinear Neuronal Computation Based on Physiologically Plausible Inputs
+            http://journals.plos.org/ploscompbiol/article?id=10.1371/journal.pcbi.1003143
+    '''
+    def __init__(self, input_shape):
+        super(Psoftplus,self).__init__()
+        self.alphas = shared_ones(input_shape)
+        self.betas = shared_ones(input_shape)
+        self.params = [self.alphas, self.betas]
+        self.input_shape = input_shape
+
+    def get_output(self, train):
+        X = self.get_input(train)
+        return T.nnet.softplus(self.betas * X) * self.alphas
+
+    def get_config(self):
+        return {"name":self.__class__.__name__,
+            "input_shape":self.input_shape}
