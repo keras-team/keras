@@ -1,5 +1,5 @@
 from ..layers.core import Layer
-from ..utils.theano_utils import shared_zeros, shared_ones
+from ..utils.theano_utils import shared_zeros, shared_ones, shared_scalars
 import theano.tensor as T
 
 class LeakyReLU(Layer):
@@ -49,8 +49,8 @@ class Psoftplus(Layer):
     '''
     def __init__(self, input_shape):
         super(Psoftplus,self).__init__()
-        self.alphas = shared_ones(input_shape)
-        self.betas = shared_ones(input_shape)
+        self.alphas = shared_scalars(input_shape, 0.2)
+        self.betas = shared_scalars(input_shape, 5.0)
         self.params = [self.alphas, self.betas]
         self.input_shape = input_shape
 
