@@ -203,7 +203,7 @@ class TimeDistributedConvolution2D(Layer):
         W_regularizer=None, b_regularizer=None, activity_regularizer=None, W_constraint=None, b_constraint=None):
     
     if border_mode not in {'valid', 'full', 'same'}:
-            raise Exception('Invalid border mode for Convolution2D:', border_mode)
+            raise Exception('Invalid border mode for TimeDistributedConvolution2D:', border_mode)
 
         super(TimeDistributedConvolution2D,self).__init__()
         self.init = initializations.get(init)
