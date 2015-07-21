@@ -175,9 +175,8 @@ class Model(object):
                 try:
                     ins_batch = slice_X(ins, batch_ids)
                 except TypeError as err:
-                    print(
-                        '\n!! TypeError while preparing batch.',
-                        'If using HDF5 input data, pass shuffle=\'batch\'.\n')
+                    print('TypeError while preparing batch. \
+                        If using HDF5 input data, pass shuffle="batch".\n')
                     raise
 
                 batch_logs = {}
