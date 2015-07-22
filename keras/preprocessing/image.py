@@ -62,9 +62,11 @@ def random_shear(x, intensity):
     # TODO
     pass
 
-def random_channel_shift(x, rg):
-    # TODO
-    pass
+def random_channel_shift(x, luminance):
+    c, w, h = x.shape
+    channels = np.random.uniform(-luminance, luminance, (c, 1))
+    ones = np.ones((1, w, h))
+    return  x + np.tensordot(channels, ones, [[1],[0]])
 
 def random_zoom(x, rg, fill_mode="nearest", cval=0.):
     zoom_w = random.uniform(1.-rg, 1.)
