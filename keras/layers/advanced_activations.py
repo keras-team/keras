@@ -1,8 +1,8 @@
-from ..layers.core import Layer
+from ..layers.core import Layer, MaskedLayer
 from ..utils.theano_utils import shared_zeros, shared_ones, shared_scalars
 import theano.tensor as T
 
-class LeakyReLU(Layer):
+class LeakyReLU(MaskedLayer):
     def __init__(self, alpha=0.3):
         super(LeakyReLU,self).__init__()
         self.alpha = alpha
@@ -16,7 +16,7 @@ class LeakyReLU(Layer):
             "alpha":self.alpha}
 
 
-class PReLU(Layer):
+class PReLU(MaskedLayer):
     '''
         Reference: 
             Delving Deep into Rectifiers: Surpassing Human-Level Performance on ImageNet Classification
@@ -39,16 +39,16 @@ class PReLU(Layer):
         "input_shape":self.input_shape}
 
 
-class Psoftplus(Layer):
+class ParametricSoftplus(MaskedLayer):
     '''
-        Parametric softplus of the form: alpha * (1 + exp(beta * X))
+        Parametric Softplus of the form: alpha * (1 + exp(beta * X))
 
         Reference:
             Inferring Nonlinear Neuronal Computation Based on Physiologically Plausible Inputs
             http://journals.plos.org/ploscompbiol/article?id=10.1371/journal.pcbi.1003143
     '''
     def __init__(self, input_shape):
-        super(Psoftplus,self).__init__()
+        super(ParametricSoftplus,self).__init__()
         self.alphas = shared_scalars(input_shape, 0.2)
         self.betas = shared_scalars(input_shape, 5.0)
         self.params = [self.alphas, self.betas]
