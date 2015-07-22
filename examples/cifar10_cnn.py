@@ -19,7 +19,7 @@ from six.moves import range
     (it's still underfitting at that point, though).
 
     Note: the data was pickled with Python 2, and some encoding issues might prevent you
-    from loading it in Python 3. You might have to load it in Python 2, 
+    from loading it in Python 3. You might have to load it in Python 2,
     save it in a different format, load it in Python 3 and repickle it.
 '''
 
@@ -40,16 +40,16 @@ Y_test = np_utils.to_categorical(y_test, nb_classes)
 
 model = Sequential()
 
-model.add(Convolution2D(32, 3, 3, 3, border_mode='full')) 
+model.add(Convolution2D(32, 3, 3, 3, border_mode='full'))
 model.add(Activation('relu'))
 model.add(Convolution2D(32, 32, 3, 3))
 model.add(Activation('relu'))
 model.add(MaxPooling2D(poolsize=(2, 2)))
 model.add(Dropout(0.25))
 
-model.add(Convolution2D(64, 32, 3, 3, border_mode='full')) 
+model.add(Convolution2D(64, 32, 3, 3, border_mode='full'))
 model.add(Activation('relu'))
-model.add(Convolution2D(64, 64, 3, 3)) 
+model.add(Convolution2D(64, 64, 3, 3))
 model.add(Activation('relu'))
 model.add(MaxPooling2D(poolsize=(2, 2)))
 model.add(Dropout(0.25))
@@ -93,7 +93,7 @@ else:
         horizontal_flip=True, # randomly flip images
         vertical_flip=False) # randomly flip images
 
-    # compute quantities required for featurewise normalization 
+    # compute quantities required for featurewise normalization
     # (std, mean, and principal components if ZCA whitening is applied)
     datagen.fit(X_train)
 
@@ -114,11 +114,3 @@ else:
         for X_batch, Y_batch in datagen.flow(X_test, Y_test):
             score = model.test_on_batch(X_batch, Y_batch)
             progbar.add(X_batch.shape[0], values=[("test loss", score)])
-
-            
-
-
-
-
-
-

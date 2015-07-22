@@ -1,8 +1,11 @@
 from __future__ import absolute_import
 from __future__ import print_function
+
 import tarfile, inspect, os
 from six.moves.urllib.request import urlretrieve
+
 from ..utils.generic_utils import Progbar
+
 
 def get_file(fname, origin, untar=False):
     datadir = os.path.expanduser(os.path.join('~', '.keras', 'datasets'))
@@ -22,6 +25,7 @@ def get_file(fname, origin, untar=False):
 
         global progbar
         progbar = None
+
         def dl_progress(count, block_size, total_size):
             global progbar
             if progbar is None:
@@ -41,4 +45,3 @@ def get_file(fname, origin, untar=False):
         return untar_fpath
 
     return fpath
-

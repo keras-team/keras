@@ -32,6 +32,7 @@ Y_train = np_utils.to_categorical(y_train, nb_classes)
 Y_test = np_utils.to_categorical(y_test, nb_classes)
 test_ids = np.where(y_test == np.array(weighted_class))[0]
 
+
 def create_model():
     model = Sequential()
     model.add(Dense(784, 50))
@@ -40,14 +41,15 @@ def create_model():
     model.add(Activation('softmax'))
     return model
 
+
 def _test_weights(model, class_weight=None, sample_weight=None):
-    model.fit(X_train, Y_train, batch_size=batch_size, nb_epoch=nb_epoch, verbose=0, \
-        class_weight=class_weight, sample_weight=sample_weight)
+    model.fit(X_train, Y_train, batch_size=batch_size, nb_epoch=nb_epoch, verbose=0,
+              class_weight=class_weight, sample_weight=sample_weight)
     score = model.evaluate(X_test[test_ids, :], Y_test[test_ids, :], verbose=0)
     return score
 
-class TestConcatenation(unittest.TestCase):
 
+class TestConcatenation(unittest.TestCase):
     def test_loss_weighting(self):
         class_weight = dict([(i, standard_weight) for i in range(nb_classes)])
         class_weight[weighted_class] = high_weight

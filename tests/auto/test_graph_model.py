@@ -2,6 +2,7 @@ from __future__ import print_function
 import unittest
 import numpy as np
 np.random.seed(1337)
+
 from keras.models import Graph, Sequential
 from keras.layers import containers
 from keras.layers.core import Dense, Activation
@@ -13,9 +14,10 @@ y = np.random.random((100, 4))
 y2 = np.random.random((100,))
 
 (X_train, y_train), (X_test, y_test) = get_test_data(nb_train=1000, nb_test=200, input_shape=(32,),
-    classification=False, output_shape=(4,))
+                                                     classification=False, output_shape=(4,))
 (X2_train, y2_train), (X2_test, y2_test) = get_test_data(nb_train=1000, nb_test=200, input_shape=(32,),
-    classification=False, output_shape=(1,))
+                                                         classification=False, output_shape=(1,))
+
 
 class TestGraph(unittest.TestCase):
     def test_1o_1i(self):
@@ -28,15 +30,15 @@ class TestGraph(unittest.TestCase):
         graph.add_node(Dense(16, 4), name='dense3', input='dense1')
 
         graph.add_output(name='output1', inputs=['dense2', 'dense3'], merge_mode='sum')
-        graph.compile('rmsprop', {'output1':'mse'})
+        graph.compile('rmsprop', {'output1': 'mse'})
 
-        history = graph.fit({'input1':X_train, 'output1':y_train}, nb_epoch=10)
-        out = graph.predict({'input1':X_test})
+        history = graph.fit({'input1': X_train, 'output1': y_train}, nb_epoch=10)
+        out = graph.predict({'input1': X_test})
         assert(type(out == dict))
         assert(len(out) == 1)
-        loss = graph.test_on_batch({'input1':X_test, 'output1':y_test})
-        loss = graph.train_on_batch({'input1':X_test, 'output1':y_test})
-        loss = graph.evaluate({'input1':X_test, 'output1':y_test})
+        loss = graph.test_on_batch({'input1': X_test, 'output1': y_test})
+        loss = graph.train_on_batch({'input1': X_test, 'output1': y_test})
+        loss = graph.evaluate({'input1': X_test, 'output1': y_test})
         print(loss)
         assert(loss < 2.5)
 
@@ -53,15 +55,15 @@ class TestGraph(unittest.TestCase):
         graph.add_node(Dense(16, 4), name='dense4', inputs=['dense1', 'dense3'], merge_mode='sum')
 
         graph.add_output(name='output1', inputs=['dense2', 'dense4'], merge_mode='sum')
-        graph.compile('rmsprop', {'output1':'mse'})
+        graph.compile('rmsprop', {'output1': 'mse'})
 
-        history = graph.fit({'input1':X_train, 'output1':y_train}, nb_epoch=10)
-        out = graph.predict({'input1':X_train})
+        history = graph.fit({'input1': X_train, 'output1': y_train}, nb_epoch=10)
+        out = graph.predict({'input1': X_train})
         assert(type(out == dict))
         assert(len(out) == 1)
-        loss = graph.test_on_batch({'input1':X_test, 'output1':y_test})
-        loss = graph.train_on_batch({'input1':X_test, 'output1':y_test})
-        loss = graph.evaluate({'input1':X_test, 'output1':y_test})
+        loss = graph.test_on_batch({'input1': X_test, 'output1': y_test})
+        loss = graph.train_on_batch({'input1': X_test, 'output1': y_test})
+        loss = graph.evaluate({'input1': X_test, 'output1': y_test})
         print(loss)
         assert(loss < 2.5)
         graph.get_config(verbose=1)
@@ -77,15 +79,15 @@ class TestGraph(unittest.TestCase):
         graph.add_node(Dense(16, 4), name='dense3', input='dense1')
 
         graph.add_output(name='output1', inputs=['dense2', 'dense3'], merge_mode='sum')
-        graph.compile('rmsprop', {'output1':'mse'})
+        graph.compile('rmsprop', {'output1': 'mse'})
 
-        history = graph.fit({'input1':X_train, 'input2':X2_train, 'output1':y_train}, nb_epoch=10)
-        out = graph.predict({'input1':X_test, 'input2':X2_test})
+        history = graph.fit({'input1': X_train, 'input2': X2_train, 'output1': y_train}, nb_epoch=10)
+        out = graph.predict({'input1': X_test, 'input2': X2_test})
         assert(type(out == dict))
         assert(len(out) == 1)
-        loss = graph.test_on_batch({'input1':X_test, 'input2':X2_test, 'output1':y_test})
-        loss = graph.train_on_batch({'input1':X_test, 'input2':X2_test, 'output1':y_test})
-        loss = graph.evaluate({'input1':X_test, 'input2':X2_test, 'output1':y_test})
+        loss = graph.test_on_batch({'input1': X_test, 'input2': X2_test, 'output1': y_test})
+        loss = graph.train_on_batch({'input1': X_test, 'input2': X2_test, 'output1': y_test})
+        loss = graph.evaluate({'input1': X_test, 'input2': X2_test, 'output1': y_test})
         print(loss)
         assert(loss < 3.0)
         graph.get_config(verbose=1)
@@ -101,15 +103,15 @@ class TestGraph(unittest.TestCase):
 
         graph.add_output(name='output1', input='dense2')
         graph.add_output(name='output2', input='dense3')
-        graph.compile('rmsprop', {'output1':'mse', 'output2':'mse'})
+        graph.compile('rmsprop', {'output1': 'mse', 'output2': 'mse'})
 
-        history = graph.fit({'input1':X_train, 'output1':y_train, 'output2':y2_train}, nb_epoch=10)
-        out = graph.predict({'input1':X_test})
+        history = graph.fit({'input1': X_train, 'output1': y_train, 'output2': y2_train}, nb_epoch=10)
+        out = graph.predict({'input1': X_test})
         assert(type(out == dict))
         assert(len(out) == 2)
-        loss = graph.test_on_batch({'input1':X_test, 'output1':y_test, 'output2':y2_test})
-        loss = graph.train_on_batch({'input1':X_test, 'output1':y_test, 'output2':y2_test})
-        loss = graph.evaluate({'input1':X_test, 'output1':y_test, 'output2':y2_test})
+        loss = graph.test_on_batch({'input1': X_test, 'output1': y_test, 'output2': y2_test})
+        loss = graph.train_on_batch({'input1': X_test, 'output1': y_test, 'output2': y2_test})
+        loss = graph.evaluate({'input1': X_test, 'output1': y_test, 'output2': y2_test})
         print(loss)
         assert(loss < 4.)
 
@@ -122,9 +124,9 @@ class TestGraph(unittest.TestCase):
         graph.add_node(Dense(16, 1), name='dense3', input='dense1')
         graph.add_output(name='output1', input='dense2')
         graph.add_output(name='output2', input='dense3')
-        graph.compile('rmsprop', {'output1':'mse', 'output2':'mse'})
+        graph.compile('rmsprop', {'output1': 'mse', 'output2': 'mse'})
         graph.load_weights('temp.h5')
-        nloss = graph.evaluate({'input1':X_test, 'output1':y_test, 'output2':y2_test})
+        nloss = graph.evaluate({'input1': X_test, 'output1': y_test, 'output2': y2_test})
         print(nloss)
         assert(loss == nloss)
 

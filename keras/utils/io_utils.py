@@ -3,9 +3,10 @@ import h5py
 import numpy as np
 from collections import defaultdict
 
-class HDF5Matrix:
-    
-    refs = defaultdict(int)
+
+class HDF5Matrix():
+    def __init__(self):
+        self.refs = defaultdict(int)
 
     def __init__(self, datapath, dataset, start, end, normalizer=None):
         if datapath not in list(self.refs.keys()):
@@ -17,7 +18,7 @@ class HDF5Matrix:
         self.end = end
         self.data = f[dataset]
         self.normalizer = normalizer
-    
+
     def __len__(self):
         return self.end - self.start
 
@@ -60,11 +61,12 @@ def save_array(array, name):
     ds[:] = array
     f.close()
 
+
 def load_array(name):
     import tables
     f = tables.open_file(name)
     array = f.root.data
-    a=np.empty(shape=array.shape, dtype=array.dtype)
-    a[:]=array[:]
+    a = np.empty(shape=array.shape, dtype=array.dtype)
+    a[:] = array[:]
     f.close()
     return a

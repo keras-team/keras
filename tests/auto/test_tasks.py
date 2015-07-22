@@ -1,6 +1,7 @@
 from __future__ import print_function
 import numpy as np
 np.random.seed(1337)
+
 from keras.utils.test_utils import get_test_data
 from keras.models import Sequential
 from keras.layers.core import Dense, Activation, TimeDistributedDense, Flatten
@@ -9,13 +10,14 @@ from keras.layers.convolutional import Convolution2D
 from keras.utils.np_utils import to_categorical
 import unittest
 
+
 class TestRegularizers(unittest.TestCase):
     def test_vector_clf(self):
         nb_hidden = 10
 
         print('vector classification data:')
         (X_train, y_train), (X_test, y_test) = get_test_data(nb_train=1000, nb_test=200, input_shape=(10,),
-            classification=True, nb_class=2)
+                                                             classification=True, nb_class=2)
         print('X_train:', X_train.shape)
         print('X_test:', X_test.shape)
         print('y_train:', y_train.shape)
@@ -38,7 +40,7 @@ class TestRegularizers(unittest.TestCase):
         nb_hidden = 10
         print('vector regression data:')
         (X_train, y_train), (X_test, y_test) = get_test_data(nb_train=1000, nb_test=200, input_shape=(10,), output_shape=(2,),
-            classification=False)
+                                                             classification=False)
         print('X_train:', X_train.shape)
         print('X_test:', X_test.shape)
         print('y_train:', y_train.shape)
@@ -55,7 +57,7 @@ class TestRegularizers(unittest.TestCase):
     def test_temporal_clf(self):
         print('temporal classification data:')
         (X_train, y_train), (X_test, y_test) = get_test_data(nb_train=1000, nb_test=200, input_shape=(5,10), 
-            classification=True, nb_class=2)
+                                                             classification=True, nb_class=2)
         print('X_train:', X_train.shape)
         print('X_test:', X_test.shape)
         print('y_train:', y_train.shape)
@@ -74,7 +76,7 @@ class TestRegularizers(unittest.TestCase):
     def test_temporal_reg(self):
         print('temporal regression data:')
         (X_train, y_train), (X_test, y_test) = get_test_data(nb_train=1000, nb_test=200, input_shape=(5, 10), output_shape=(2,),
-            classification=False)
+                                                             classification=False)
         print('X_train:', X_train.shape)
         print('X_test:', X_test.shape)
         print('y_train:', y_train.shape)
@@ -86,11 +88,10 @@ class TestRegularizers(unittest.TestCase):
         history = model.fit(X_train, y_train, nb_epoch=12, batch_size=16, validation_data=(X_test, y_test), verbose=2)
         self.assertTrue(history.history['val_loss'][-1] < 0.75)
 
-
     def test_seq_to_seq(self):
         print('sequence to sequence data:')
         (X_train, y_train), (X_test, y_test) = get_test_data(nb_train=1000, nb_test=200, input_shape=(5, 10), output_shape=(5, 10),
-            classification=False)
+                                                             classification=False)
         print('X_train:', X_train.shape)
         print('X_test:', X_test.shape)
         print('y_train:', y_train.shape)
@@ -102,11 +103,10 @@ class TestRegularizers(unittest.TestCase):
         history = model.fit(X_train, y_train, nb_epoch=12, batch_size=16, validation_data=(X_test, y_test), verbose=2)
         self.assertTrue(history.history['val_loss'][-1] < 0.75)
 
-
     def test_img_clf(self):
         print('image classification data:')
-        (X_train, y_train), (X_test, y_test) = get_test_data(nb_train=1000, nb_test=200, input_shape=(3, 32, 32), 
-            classification=True, nb_class=2)
+        (X_train, y_train), (X_test, y_test) = get_test_data(nb_train=1000, nb_test=200, input_shape=(3, 32, 32),
+                                                             classification=True, nb_class=2)
         print('X_train:', X_train.shape)
         print('X_test:', X_test.shape)
         print('y_train:', y_train.shape)

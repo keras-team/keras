@@ -58,75 +58,73 @@ print('\nclassical_score:', classical_score)
 ##########################
 
 def build_lstm_autoencoder(autoencoder, X_train, X_test):
-	X_train = X_train[:, np.newaxis, :] 
-	X_test = X_test[:, np.newaxis, :]
-	print("Modified X_train: ", X_train.shape)
-	print("Modified X_test: ", X_test.shape)
+    X_train = X_train[:, np.newaxis, :]
+    X_test = X_test[:, np.newaxis, :]
+    print("Modified X_train: ", X_train.shape)
+    print("Modified X_test: ", X_test.shape)
 
-	# The TimeDistributedDense isn't really necessary, however you need a lot of GPU memory to do 784x394-394x784
-	autoencoder.add(TimeDistributedDense(input_dim, 16))
-	autoencoder.add(AutoEncoder(encoder=LSTM(16, 8, activation=activation, return_sequences=True),
-								decoder=LSTM(8, input_dim, activation=activation, return_sequences=True),
-								output_reconstruction=False))
-	return autoencoder, X_train, X_test
+    # The TimeDistributedDense isn't really necessary, however you need a lot of GPU memory to do 784x394-394x784
+    autoencoder.add(TimeDistributedDense(input_dim, 16))
+    autoencoder.add(AutoEncoder(encoder=LSTM(16, 8, activation=activation, return_sequences=True),
+                                decoder=LSTM(8, input_dim, activation=activation, return_sequences=True),
+                                output_reconstruction=False))
+    return autoencoder, X_train, X_test
+
 
 def build_deep_classical_autoencoder(autoencoder):
-	encoder = containers.Sequential([Dense(input_dim, hidden_dim, activation=activation), Dense(hidden_dim, hidden_dim/2, activation=activation)])
-	decoder = containers.Sequential([Dense(hidden_dim/2, hidden_dim, activation=activation), Dense(hidden_dim, input_dim, activation=activation)])
-	autoencoder.add(AutoEncoder(encoder=encoder, decoder=decoder, output_reconstruction=False))
-	return autoencoder
-
-
+    encoder = containers.Sequential([Dense(input_dim, hidden_dim, activation=activation), Dense(hidden_dim, hidden_dim/2, activation=activation)])
+    decoder = containers.Sequential([Dense(hidden_dim/2, hidden_dim, activation=activation), Dense(hidden_dim, input_dim, activation=activation)])
+    autoencoder.add(AutoEncoder(encoder=encoder, decoder=decoder, output_reconstruction=False))
+    return autoencoder
 
 # Try different things here: 'lstm' or 'classical' or 'denoising'
 # or 'deep_denoising'
 
 for autoencoder_type in ['classical', 'lstm']:
-	print(autoencoder_type)
-	print('-'*40)
-	# Build our autoencoder model
-	autoencoder = Sequential()
-	if autoencoder_type == 'lstm':
-		print("Training LSTM AutoEncoder")
-		autoencoder, X_train, X_test = build_lstm_autoencoder(autoencoder, X_train, X_test)
-	elif autoencoder_type == 'classical':
-		print("Training Classical AutoEncoder")
-		autoencoder = build_deep_classical_autoencoder(autoencoder)
-	else:
-		print("Error: unknown autoencoder type!")
-		exit(-1)
+    print(autoencoder_type)
+    print('-'*40)
+    # Build our autoencoder model
+    autoencoder = Sequential()
+    if autoencoder_type == 'lstm':
+        print("Training LSTM AutoEncoder")
+        autoencoder, X_train, X_test = build_lstm_autoencoder(autoencoder, X_train, X_test)
+    elif autoencoder_type == 'classical':
+        print("Training Classical AutoEncoder")
+        autoencoder = build_deep_classical_autoencoder(autoencoder)
+    else:
+        print("Error: unknown autoencoder type!")
+        exit(-1)
 
-	autoencoder.get_config(verbose=1)
-	autoencoder.compile(loss='mean_squared_error', optimizer='adam')
-	# Do NOT use validation data with return output_reconstruction=True
-	autoencoder.fit(X_train, X_train, batch_size=batch_size, nb_epoch=nb_epoch, show_accuracy=False, verbose=1)
+    autoencoder.get_config(verbose=1)
+    autoencoder.compile(loss='mean_squared_error', optimizer='adam')
+    # Do NOT use validation data with return output_reconstruction=True
+    autoencoder.fit(X_train, X_train, batch_size=batch_size, nb_epoch=nb_epoch, show_accuracy=False, verbose=1)
 
-	# Do an inference pass
-	prefilter_train = autoencoder.predict(X_train, verbose=0)
-	prefilter_test = autoencoder.predict(X_test, verbose=0)
-	print("prefilter_train: ", prefilter_train.shape)
-	print("prefilter_test: ", prefilter_test.shape)
+    # Do an inference pass
+    prefilter_train = autoencoder.predict(X_train, verbose=0)
+    prefilter_test = autoencoder.predict(X_test, verbose=0)
+    print("prefilter_train: ", prefilter_train.shape)
+    print("prefilter_test: ", prefilter_test.shape)
 
-	# Classify results from Autoencoder
-	print("Building classical fully connected layer for classification")
-	model = Sequential()
-	if autoencoder_type == 'lstm':
-		model.add(TimeDistributedDense(8, nb_classes, activation=activation))
-		model.add(Flatten())
-	elif autoencoder_type == 'classical':
-		model.add(Dense(prefilter_train.shape[1], nb_classes, activation=activation))
-	else:
-		model.add(Dense(prefilter_train.shape[1], nb_classes, activation=activation))
+    # Classify results from Autoencoder
+    print("Building classical fully connected layer for classification")
+    model = Sequential()
+    if autoencoder_type == 'lstm':
+        model.add(TimeDistributedDense(8, nb_classes, activation=activation))
+        model.add(Flatten())
+    elif autoencoder_type == 'classical':
+        model.add(Dense(prefilter_train.shape[1], nb_classes, activation=activation))
+    else:
+        model.add(Dense(prefilter_train.shape[1], nb_classes, activation=activation))
 
-	model.add(Activation('softmax'))
+    model.add(Activation('softmax'))
 
-	model.get_config(verbose=1)
-	model.compile(loss='categorical_crossentropy', optimizer='adam')
-	model.fit(prefilter_train, Y_train, batch_size=batch_size, nb_epoch=nb_epoch, show_accuracy=False, verbose=0, validation_data=(prefilter_test, Y_test))
+    model.get_config(verbose=1)
+    model.compile(loss='categorical_crossentropy', optimizer='adam')
+    model.fit(prefilter_train, Y_train, batch_size=batch_size, nb_epoch=nb_epoch, show_accuracy=False, verbose=0, validation_data=(prefilter_test, Y_test))
 
-	score = model.evaluate(prefilter_test, Y_test, verbose=0, show_accuracy=True)
-	print('\nscore:', score)
+    score = model.evaluate(prefilter_test, Y_test, verbose=0, show_accuracy=True)
+    print('\nscore:', score)
 
-	print('Loss change:', (score[0] - classical_score[0])/classical_score[0], '%')
-	print('Accuracy change:', (score[1] - classical_score[1])/classical_score[1], '%')
-
+    print('Loss change:', (score[0] - classical_score[0])/classical_score[0], '%')
+    print('Accuracy change:', (score[1] - classical_score[1])/classical_score[1], '%')

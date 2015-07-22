@@ -41,7 +41,7 @@ Y_test = np_utils.to_categorical(y_test, nb_classes)
 
 model = Sequential()
 
-model.add(Convolution2D(32, 1, 3, 3, border_mode='full')) 
+model.add(Convolution2D(32, 1, 3, 3, border_mode='full'))
 model.add(Activation('relu'))
 model.add(Convolution2D(32, 32, 3, 3))
 model.add(Activation('relu'))

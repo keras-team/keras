@@ -6,8 +6,8 @@ from keras.layers.embeddings import Embedding
 from theano import function
 from keras.constraints import unitnorm
 
-class TestConcatenation(unittest.TestCase):
 
+class TestEmbedding(unittest.TestCase):
     def setUp(self):
         self.X1 = np.array([[1], [2]], dtype='int32')
         self.W1 = np.array([[0.1, 0.2], [0.3, 0.4], [0.5, 0.6]], dtype='float32')

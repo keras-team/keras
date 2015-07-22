@@ -6,6 +6,7 @@ import theano.tensor as T
 from ..layers.core import Layer, Merge
 from six.moves import range
 
+
 def ndim_tensor(ndim):
     if ndim == 2:
         return T.matrix()
@@ -14,6 +15,7 @@ def ndim_tensor(ndim):
     elif ndim == 4:
         return T.tensor4()
     return T.matrix()
+
 
 class Sequential(Layer):
     '''
@@ -79,8 +81,8 @@ class Sequential(Layer):
             weights = weights[nb_param:]
 
     def get_config(self):
-        return {"name":self.__class__.__name__,
-            "layers":[layer.get_config() for layer in self.layers]}
+        return {"name": self.__class__.__name__,
+                "layers": [layer.get_config() for layer in self.layers]}
 
 
 class Graph(Layer):
@@ -151,7 +153,7 @@ class Graph(Layer):
                 raise Exception('Type "int" can only be used with ndim==2.')
         layer.input.name = name
         self.inputs[name] = layer
-        self.input_config.append({'name':name, 'ndim':ndim, 'dtype':dtype})
+        self.input_config.append({'name': name, 'ndim': ndim, 'dtype': dtype})
 
     def add_node(self, layer, name, input=None, inputs=[], merge_mode='concat'):
         if hasattr(layer, 'set_name'):
@@ -179,7 +181,10 @@ class Graph(Layer):
 
         self.namespace.add(name)
         self.nodes[name] = layer
-        self.node_config.append({'name':name, 'input':input, 'inputs':inputs, 'merge_mode':merge_mode})
+        self.node_config.append({'name': name,
+                                 'input': input,
+                                 'inputs': inputs,
+                                 'merge_mode': merge_mode})
         params, regularizers, constraints = layer.get_params()
         self.params += params
         self.regularizers += regularizers
@@ -205,13 +210,16 @@ class Graph(Layer):
             self.outputs[name] = merge
         self.namespace.add(name)
         self.output_order.append(name)
-        self.output_config.append({'name':name, 'input':input, 'inputs':inputs, 'merge_mode':merge_mode})
+        self.output_config.append({'name': name,
+                                   'input': input,
+                                   'inputs': inputs,
+                                   'merge_mode': merge_mode})
 
     def get_config(self):
-        return {"name":self.__class__.__name__,
-            "input_config":self.input_config,
-            "node_config":self.node_config,
-            "output_config":self.output_config,
-            "input_order":self.input_order,
-            "output_order":self.output_order,
-            "nodes":dict([(c["name"], self.nodes[c["name"]].get_config()) for c in self.node_config])}
+        return {"name": self.__class__.__name__,
+                "input_config": self.input_config,
+                "node_config": self.node_config,
+                "output_config": self.output_config,
+                "input_order": self.input_order,
+                "output_order": self.output_order,
+                "nodes": dict([(c["name"], self.nodes[c["name"]].get_config()) for c in self.node_config])}
