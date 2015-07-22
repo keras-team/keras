@@ -47,10 +47,12 @@ class ParametricSoftplus(MaskedLayer):
             Inferring Nonlinear Neuronal Computation Based on Physiologically Plausible Inputs
             http://journals.plos.org/ploscompbiol/article?id=10.1371/journal.pcbi.1003143
     '''
-    def __init__(self, input_shape):
+    def __init__(self, input_shape, alpha_init=0.2, beta_init=5.0):
         super(ParametricSoftplus,self).__init__()
-        self.alphas = shared_scalars(input_shape, 0.2)
-        self.betas = shared_scalars(input_shape, 5.0)
+        self.alpha_init = alpha_init
+        self.beta_init = beta_init
+        self.alphas = shared_scalars(input_shape, alpha_init)
+        self.betas = shared_scalars(input_shape, beta_init)
         self.params = [self.alphas, self.betas]
         self.input_shape = input_shape
 
@@ -60,4 +62,6 @@ class ParametricSoftplus(MaskedLayer):
 
     def get_config(self):
         return {"name":self.__class__.__name__,
-            "input_shape":self.input_shape}
+            "input_shape":self.input_shape,
+            "alpha_init":self.alpha_init,
+            "beta_init":self.beta_init}
