@@ -279,6 +279,20 @@ class Flatten(Layer):
         nshape = (X.shape[0], size)
         return theano.tensor.reshape(X, nshape)
 
+class TimeDistributedFlatten(Layer):
+    '''
+        Reshape input to flat shape across timesteps.
+        First dimension is assumed to be nb_samples.
+        Second dimension is assumed to be nb_timesteps.
+    '''
+    def __init__(self):
+        super(TimeDistributedFlatten, self).__init__()
+
+    def get_output(self, train=False):
+        X = self.get_input(train)
+        size = theano.tensor.prod(X[0].shape) // X[0].shape[0]
+        nshape = (X.shape[0], X.shape[1], size)
+        return theano.tensor.reshape(X, nshape)
 
 class RepeatVector(Layer):
     '''
