@@ -531,6 +531,7 @@ class Graph(Model, containers.Graph):
         ys = []
         ys_train = []
         ys_test = []
+        weights = []
         train_loss = 0.
         test_loss = 0.
         for output_name in self.output_order:
@@ -543,15 +544,18 @@ class Graph(Model, containers.Graph):
             ys_train.append(y_train)
             ys_test.append(y_test)
 
-            train_loss += objectives.get(loss_fn)(y, y_train).mean()
-            test_loss += objectives.get(loss_fn)(y, y_test).mean()
+            weight = T.ones_like(y_test)
+            weights.append(weight)
+            weighted_loss = weighted_objective(objectives.get(loss_fn))
+            train_loss += weighted_loss(y, y_train, weight)
+            test_loss += weighted_loss(y, y_test, weight)
 
         train_loss.name = 'train_loss'
         test_loss.name = 'test_loss'
 
         ins = [self.inputs[name].input for name in self.input_order]
-        train_ins = ins + ys
-        test_ins = ins + ys
+        train_ins = ins + ys + weights
+        test_ins = ins + ys + weights
 
         for r in self.regularizers:
             train_loss = r(train_loss)
@@ -567,14 +571,18 @@ class Graph(Model, containers.Graph):
         self._predict = theano.function(inputs=ins, outputs=ys_test,
             allow_input_downcast=True, mode=theano_mode)
 
-    def train_on_batch(self, data):
+    def train_on_batch(self, data, sample_weight={}):
         # data is a dictionary mapping output and input names to arrays
-        ins = [data[name] for name in self.input_order] + [standardize_y(data[name]) for name in self.output_order]
+        sample_weight = [standardize_weights(data[name], sample_weight.get(name)) for name in self.output_order]
+
+        ins = [data[name] for name in self.input_order] + [standardize_y(data[name]) for name in self.output_order] + sample_weight
         return self._train(*ins)
 
     def test_on_batch(self, data):
         # data is a dictionary mapping input names to arrays
-        ins = [data[name] for name in self.input_order] + [standardize_y(data[name]) for name in self.output_order]
+        sample_weight = [standardize_weights(data[name]) for name in self.output_order]
+
+        ins = [data[name] for name in self.input_order] + [standardize_y(data[name]) for name in self.output_order] + sample_weight
         return self._test(*ins)
 
     def predict_on_batch(self, data):
@@ -583,15 +591,17 @@ class Graph(Model, containers.Graph):
         return self._predict(*ins)
 
     def fit(self, data, batch_size=128, nb_epoch=100, verbose=1, callbacks=[],
-            validation_split=0., validation_data=None, shuffle=True):
-        ins = [data[name] for name in self.input_order] + [standardize_y(data[name]) for name in self.output_order]
+            validation_split=0., validation_data=None, shuffle=True, sample_weight={}):
+        sample_weight = [standardize_weights(data[name], sample_weight.get(name)) for name in self.output_order]
+        ins = [data[name] for name in self.input_order] + [standardize_y(data[name]) for name in self.output_order] + sample_weight
 
         val_f = None
         val_ins = None
         if validation_data or validation_split:
             val_f = self._test
         if validation_data:
-            val_ins = [validation_data[name] for name in self.input_order] + [standardize_y(validation_data[name]) for name in self.output_order]
+            sample_weight = [standardize_weights(validation_data[name]) for name in self.output_order]
+            val_ins = [validation_data[name] for name in self.input_order] + [standardize_y(validation_data[name]) for name in self.output_order] + sample_weight
 
         f = self._train
         out_labels = self.output_order
@@ -602,8 +612,10 @@ class Graph(Model, containers.Graph):
                             shuffle=shuffle, metrics=metrics)
         return history
 
-    def evaluate(self, data, batch_size=128, verbose=0):
-        ins = [data[name] for name in self.input_order] + [standardize_y(data[name]) for name in self.output_order]
+    def evaluate(self, data, batch_size=128, verbose=0, sample_weight={}):
+        sample_weight = [standardize_weights(data[name], sample_weight.get(name)) for name in self.output_order]
+
+        ins = [data[name] for name in self.input_order] + [standardize_y(data[name]) for name in self.output_order] + sample_weight
         outs = self._test_loop(self._test, ins, batch_size, verbose)
         return outs[0]
 
