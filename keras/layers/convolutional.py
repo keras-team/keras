@@ -307,7 +307,8 @@ class MaxPooling2D(Layer):
 class TimeDistributedMaxPooling2D(Layer):
     def __init__(self, poolsize=(2, 2), stride=None, ignore_border=True):
         super(TimeDistributedMaxPooling2D,self).__init__()
-        self.input = T.tensor5()
+        dtensor5 = T.TensorType('float64', (False,)*5)
+        self.input = dtensor5()
         self.poolsize = poolsize
         self.stride = stride
         self.ignore_border = ignore_border
