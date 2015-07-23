@@ -215,8 +215,8 @@ class TimeDistributedConvolution2D(Layer):
 
         self.nb_row = nb_row
         self.nb_col = nb_col
-
-        self.input = T.tensor5()
+        dtensor5 = T.TensorType('float64', (False,)*5)
+        self.input = dtensor5()
         self.W_shape = (nb_filter, stack_size, nb_row, nb_col)
         self.W = self.init(self.W_shape)
         self.b = shared_zeros((nb_filter,))
