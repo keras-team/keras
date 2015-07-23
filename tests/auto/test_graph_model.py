@@ -152,7 +152,8 @@ class TestGraph(unittest.TestCase):
         out = graph.predict({'input1': X_test})
         assert(type(out == dict))
         assert(len(out) == 2)
-        loss = graph.test_on_batch({'input1': X_test, 'output1': y_test, 'output2': y2_test})
+        loss = graph.test_on_batch({'input1': X_test, 'output1': y_test, 'output2': y2_test},
+                                   sample_weight={'output1': weights1, 'output2': weights2})
         loss = graph.train_on_batch({'input1': X_train, 'output1': y_train, 'output2': y2_train},
                                     sample_weight={'output1': weights1, 'output2': weights2})
         loss = graph.evaluate({'input1': X_train, 'output1': y_train, 'output2': y2_train},

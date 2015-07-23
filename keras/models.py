@@ -359,22 +359,18 @@ class Sequential(Model, containers.Sequential):
         self._test_with_acc = theano.function(test_ins, [test_loss, test_accuracy],
             allow_input_downcast=True, mode=theano_mode)
 
-    def train(self, X, y, accuracy=False, sample_weight=None):
+    def train(self, X, y, accuracy=False, class_weight=None, sample_weight=None):
         warnings.warn('The "train" method is deprecated, use "train_on_batch" instead.')
-        return self.train_on_batch(X, y, accuracy, sample_weight)
+        return self.train_on_batch(X, y, accuracy, class_weight, sample_weight)
 
     def test(self, X, y, accuracy=False):
         warnings.warn('The "test" method is deprecated, use "test_on_batch" instead.')
         return self.test_on_batch(X, y, accuracy)
 
-    def train_on_batch(self, X, y, accuracy=False, sample_weight=None):
+    def train_on_batch(self, X, y, accuracy=False, class_weight=None, sample_weight=None):
         X = standardize_X(X)
         y = standardize_y(y)
-
-        if sample_weight is None:
-            sample_weight = np.ones(list(y.shape[0:-1]) + [1])
-        else:
-            sample_weight = standardize_y(sample_weight)
+        sample_weight = standardize_weights(y, class_weight=class_weight, sample_weight=sample_weight)
 
         ins = X + [y, sample_weight]
         if accuracy:
@@ -571,14 +567,15 @@ class Graph(Model, containers.Graph):
         self._predict = theano.function(inputs=ins, outputs=ys_test,
             allow_input_downcast=True, mode=theano_mode)
 
-    def train_on_batch(self, data, sample_weight={}):
+    def train_on_batch(self, data, class_weight={}, sample_weight={}):
         # data is a dictionary mapping output and input names to arrays
-        sample_weight = [standardize_weights(data[name], sample_weight.get(name)) for name in self.output_order]
-
+        sample_weight = [standardize_weights(data[name],
+                                             sample_weight=sample_weight.get(name),
+                                             class_weight=class_weight.get(name)) for name in self.output_order]
         ins = [data[name] for name in self.input_order] + [standardize_y(data[name]) for name in self.output_order] + sample_weight
         return self._train(*ins)
 
-    def test_on_batch(self, data):
+    def test_on_batch(self, data, sample_weight={}):
         # data is a dictionary mapping input names to arrays
         sample_weight = [standardize_weights(data[name]) for name in self.output_order]
 
@@ -591,8 +588,10 @@ class Graph(Model, containers.Graph):
         return self._predict(*ins)
 
     def fit(self, data, batch_size=128, nb_epoch=100, verbose=1, callbacks=[],
-            validation_split=0., validation_data=None, shuffle=True, sample_weight={}):
-        sample_weight = [standardize_weights(data[name], sample_weight.get(name)) for name in self.output_order]
+            validation_split=0., validation_data=None, shuffle=True, class_weight={}, sample_weight={}):
+        sample_weight = [standardize_weights(data[name],
+                                             sample_weight=sample_weight.get(name),
+                                             class_weight=class_weight.get(name)) for name in self.output_order]
         ins = [data[name] for name in self.input_order] + [standardize_y(data[name]) for name in self.output_order] + sample_weight
 
         val_f = None

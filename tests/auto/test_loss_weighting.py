@@ -1,10 +1,13 @@
 from __future__ import absolute_import
 from __future__ import print_function
+
+import numpy as np
+np.random.seed(1336) # for reproducibility
+
 from keras.datasets import mnist
 from keras.models import Sequential
 from keras.layers.core import Dense, Activation
 from keras.utils import np_utils
-import numpy as np
 import unittest
 
 nb_classes = 10
@@ -15,8 +18,6 @@ standard_weight = 1
 high_weight = 5
 max_train_samples = 5000
 max_test_samples = 1000
-
-np.random.seed(1337) # for reproducibility
 
 # the data, shuffled and split between tran and test sets
 (X_train, y_train), (X_test, y_test) = mnist.load_data()
