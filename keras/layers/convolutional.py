@@ -264,7 +264,7 @@ class TimeDistributedConvolution2D(Layer):
             conv_out = conv_out[:, :, shift_x:Y.shape[2] + shift_x, shift_y:Y.shape[3] + shift_y]
 
         output = self.activation(conv_out + self.b.dimshuffle('x', 0, 'x', 'x'))
-        newshape = (X.shape[0], X.shape[1], output[1].shape, output[2].shape, output[3].shape)
+        newshape = (X.shape[0], X.shape[1], output.shape[1], output.shape[2], output.shape[3])
         return theano.tensor.reshape(output, newshape)
 
 
@@ -319,7 +319,7 @@ class TimeDistributedMaxPooling2D(Layer):
         newshape = (X.shape[0]*X.shape[1], X.shape[2], X.shape[3], X.shape[4])
         Y = theano.tensor.reshape(X, newshape) #collapse num_samples and num_timesteps
         output = downsample.max_pool_2d(Y, ds=self.poolsize, st=self.stride, ignore_border=self.ignore_border)
-        newshape = (X.shape[0], X.shape[1], output[1].shape, output[2].shape, output[3].shape)
+        newshape = (X.shape[0], X.shape[1], output.shape[1], output.shape[2], output.shape[3])
         return theano.tensor.reshape(output, newshape) #shape is (num_samples, num_timesteps, stack_size, new_nb_row, new_nb_col)
 
     def get_config(self):
