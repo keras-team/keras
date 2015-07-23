@@ -32,7 +32,7 @@ def text_to_word_sequence(text, filters=base_filter(), lower=True, split=" "):
 
 
 def one_hot(text, n, filters=base_filter(), lower=True, split=" "):
-    seq = text_to_word_sequence(text)
+    seq = text_to_word_sequence(text, filters=filters, lower=lower, split=split)
     return [(abs(hash(w))%(n-1)+1) for w in seq]
 
 
