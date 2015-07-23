@@ -20,7 +20,12 @@ from keras.utils import np_utils
 
 batch_size = 128
 nb_classes = 10
-nb_epoch = 12
+nb_epoch = 2
+merge_mode='concat'        # either 'sum' or 'concat'
+if merge_mode == 'sum':
+    nb_filters = 1
+elif merge_mode == 'concat':
+    nb_filters = 2
 
 # the data, shuffled and split between tran and test sets
 (X_train, y_train), (X_test, y_test) = mnist.load_data()
@@ -41,12 +46,11 @@ Y_test = np_utils.to_categorical(y_test, nb_classes)
 
 graph = Graph()
 graph.add_input(name='input', ndim=4)
-nb_filters = 3
-graph.add_node(Convolution2D(nb_filters, 1, 3, 3, border_mode='same'),
-        name='scores_1a', input='input')
-graph.add_node(Convolution2D(nb_filters, 1, 5, 5, border_mode='same'),
-        name='scores_1b', input='input')
 
+graph.add_node(Convolution2D(1, 1, 3, 3, border_mode='same'),
+        name='scores_1a', input='input')
+graph.add_node(Convolution2D(1, 1, 5, 5, border_mode='same'),
+        name='scores_1b', input='input')
 
 graph.add_node(Permute((2,3,1)), 
         name='scores_1a_permuted', input='scores_1a')
@@ -54,14 +58,14 @@ graph.add_node(Permute((2,3,1)),
 graph.add_node(Permute((2,3,1)), 
         name='scores_1b_permuted', input='scores_1b')
 
-# double duty layer, computing activations and concatenating pathways 'a' and 'b'. 
+# double duty layer, computing activations and concatenating pathways 'a' and 'b' along filters dimension.
 graph.add_node(Activation('relu'),
-        name='activations_1_permuted', inputs=['scores_1a_permuted', 'scores_1b_permuted'], merge_mode='concat')
+        name='activations_1_permuted', inputs=['scores_1a_permuted', 'scores_1b_permuted'], merge_mode=merge_mode)
 
 graph.add_node(Permute((3,1,2)),
         name='activations_1', input='activations_1_permuted')
 
-graph.add_node(Convolution2D(3, 2*nb_filters, 1, 1),
+graph.add_node(Convolution2D(3, nb_filters, 1, 1),
         name='scores_2', input='activations_1')
 
 graph.add_node(Activation('relu'),
