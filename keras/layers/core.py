@@ -8,7 +8,7 @@ import numpy as np
 from .. import activations, initializations, regularizers, constraints
 from ..utils.theano_utils import shared_zeros, floatX
 from ..utils.generic_utils import make_tuple
-from ..regularizers import ActivityRegularizer, Regularizer
+from ..regularizers import ActivityRegularizer
 
 from theano.sandbox.rng_mrg import MRG_RandomStreams as RandomStreams
 from six.moves import zip
@@ -325,7 +325,7 @@ class RepeatVector(Layer):
 
     def get_output(self, train=False):
         X = self.get_input(train)
-        tensors = [X]*self.n
+        tensors = [X] * self.n
         stacked = theano.tensor.stack(*tensors)
         return stacked.dimshuffle((1, 0, 2))
 
