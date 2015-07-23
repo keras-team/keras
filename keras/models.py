@@ -378,10 +378,11 @@ class Sequential(Model, containers.Sequential):
         else:
             return self._train(*ins)
 
-    def test_on_batch(self, X, y, accuracy=False):
+    def test_on_batch(self, X, y, accuracy=False, sample_weight=None):
         X = standardize_X(X)
         y = standardize_y(y)
-        sample_weight = np.ones(y.shape[:-1] + (1,))
+        sample_weight = standardize_weights(y, sample_weight=sample_weight)
+
         ins = X + [y, sample_weight]
         if accuracy:
             return self._test_with_acc(*ins)
