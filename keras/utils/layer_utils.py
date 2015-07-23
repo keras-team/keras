@@ -9,7 +9,6 @@ from ..layers.noise import GaussianNoise, GaussianDropout
 from ..layers.normalization import BatchNormalization
 from ..layers.recurrent import SimpleRNN, SimpleDeepRNN, GRU, LSTM, JZS1, JZS2, JZS3
 from ..layers import containers
-
 from .. import regularizers
 from .. import constraints
 
@@ -55,7 +54,8 @@ def container_from_config(layer_dict):
             graph_layer.add_output(**output)
         return graph_layer
 
-    else: # The case in which layer_dict represents an "atomic" layer
+    else:
+        # The case in which layer_dict represents an "atomic" layer
         layer_dict.pop('name')
         if 'parameters' in layer_dict:
             params = layer_dict.get('parameters')
@@ -63,15 +63,15 @@ def container_from_config(layer_dict):
             hasParams = True
 
         for k, v in layer_dict.items():
-        	# For now, this can only happen for regularizers and constraints
+            # For now, this can only happen for regularizers and constraints
             if isinstance(v, dict):
                 vname = v.get('name')
                 v.pop('name')
-                if vname in [x for x,y in inspect.getmembers(constraints, predicate=inspect.isclass)]:
-                	layer_dict[k] = constraints.get(vname, v)
-                if vname in [x for x,y in inspect.getmembers(regularizers, predicate=inspect.isclass)]:
-                	layer_dict[k] = regularizers.get(vname, v)
-                
+                if vname in [x for x, y in inspect.getmembers(constraints, predicate=inspect.isclass)]:
+                    layer_dict[k] = constraints.get(vname, v)
+                if vname in [x for x, y in inspect.getmembers(regularizers, predicate=inspect.isclass)]:
+                    layer_dict[k] = regularizers.get(vname, v)
+
         base_layer = get_layer(name, layer_dict)
         if hasParams:
             shaped_params = []

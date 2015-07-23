@@ -6,16 +6,18 @@ import numpy as np
 from .utils.theano_utils import shared_zeros, shared_scalar
 from six.moves import zip
 
+
 def clip_norm(g, c, n):
     if c > 0:
         g = T.switch(T.ge(n, c), g * c / n, g)
     return g
 
+
 def kl_divergence(p, p_hat):
     return p_hat - p + p * T.log(p / p_hat)
 
+
 class Optimizer(object):
-    
     def get_updates(self, params, constraints, loss):
         raise NotImplementedError
 
@@ -30,7 +32,8 @@ class Optimizer(object):
         return grads
 
     def get_config(self):
-        return {"name":self.__class__.__name__}
+        return {"name": self.__class__.__name__}
+
 
 class SGD(Optimizer):
 
@@ -47,7 +50,7 @@ class SGD(Optimizer):
         for p, g, c in zip(params, grads, constraints):
             m = shared_zeros(p.get_value().shape) # momentum
             v = self.momentum * m - lr * g # velocity
-            updates.append((m, v)) 
+            updates.append((m, v))
 
             if self.nesterov:
                 new_p = p + self.momentum * v - lr * g
@@ -58,15 +61,14 @@ class SGD(Optimizer):
         return updates
 
     def get_config(self):
-        return {"name":self.__class__.__name__,
-            "lr":self.lr,
-            "momentum":self.momentum,
-            "decay":self.decay,
-            "nesterov":self.nesterov}
+        return {"name": self.__class__.__name__,
+                "lr": self.lr,
+                "momentum": self.momentum,
+                "decay": self.decay,
+                "nesterov": self.nesterov}
 
 
 class RMSprop(Optimizer):
-
     def __init__(self, lr=0.001, rho=0.9, epsilon=1e-6, *args, **kwargs):
         self.__dict__.update(kwargs)
         self.__dict__.update(locals())
@@ -82,17 +84,16 @@ class RMSprop(Optimizer):
 
             new_p = p - self.lr * g / T.sqrt(new_a + self.epsilon)
             updates.append((p, c(new_p))) # apply constraints
-            
         return updates
 
     def get_config(self):
-        return {"name":self.__class__.__name__,
-            "lr":self.lr,
-            "rho":self.rho,
-            "epsilon":self.epsilon}
+        return {"name": self.__class__.__name__,
+                "lr": self.lr,
+                "rho": self.rho,
+                "epsilon": self.epsilon}
+
 
 class Adagrad(Optimizer):
-
     def __init__(self, lr=0.01, epsilon=1e-6, *args, **kwargs):
         self.__dict__.update(kwargs)
         self.__dict__.update(locals())
@@ -105,15 +106,15 @@ class Adagrad(Optimizer):
         for p, g, a, c in zip(params, grads, accumulators, constraints):
             new_a = a + g ** 2 # update accumulator
             updates.append((a, new_a))
-
             new_p = p - self.lr * g / T.sqrt(new_a + self.epsilon)
             updates.append((p, c(new_p))) # apply constraints
         return updates
 
     def get_config(self):
-        return {"name":self.__class__.__name__,
-            "lr":self.lr,
-            "epsilon":self.epsilon}
+        return {"name": self.__class__.__name__,
+                "lr": self.lr,
+                "epsilon": self.epsilon}
+
 
 class Adadelta(Optimizer):
     '''
@@ -145,10 +146,11 @@ class Adadelta(Optimizer):
         return updates
 
     def get_config(self):
-        return {"name":self.__class__.__name__,
-            "lr":self.lr,
-            "rho":self.rho,
-            "epsilon":self.epsilon}
+        return {"name": self.__class__.__name__,
+                "lr": self.lr,
+                "rho": self.rho,
+                "epsilon": self.epsilon}
+
 
 class Adam(Optimizer):
     '''
@@ -171,7 +173,7 @@ class Adam(Optimizer):
         beta_1_t = self.beta_1 * (self.kappa**i)
 
         # the update below seems missing from the paper, but is obviously required
-        beta_2_t = self.beta_2 * (self.kappa**i) 
+        beta_2_t = self.beta_2 * (self.kappa**i)
 
         for p, g, c in zip(params, grads, constraints):
             m = theano.shared(p.get_value() * 0.) # zero init of moment
@@ -184,19 +186,19 @@ class Adam(Optimizer):
             v_b_t = v_t / (1 - beta_2_t)
 
             p_t = p - self.lr * m_b_t / (T.sqrt(v_b_t) + self.epsilon)
-            
+
             updates.append((m, m_t))
             updates.append((v, v_t))
             updates.append((p, c(p_t))) # apply constraints
         return updates
 
     def get_config(self):
-        return {"name":self.__class__.__name__,
-            "lr":self.lr,
-            "beta_1":self.beta_1,
-            "beta_2":self.beta_2,
-            "epsilon":self.epsilon,
-            "kappa":self.kappa}
+        return {"name": self.__class__.__name__,
+                "lr": self.lr,
+                "beta_1": self.beta_1,
+                "beta_2": self.beta_2,
+                "epsilon": self.epsilon,
+                "kappa": self.kappa}
 
 # aliases
 sgd = SGD

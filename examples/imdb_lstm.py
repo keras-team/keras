@@ -15,17 +15,17 @@ from keras.datasets import imdb
 '''
     Train a LSTM on the IMDB sentiment classification task.
 
-    The dataset is actually too small for LSTM to be of any advantage 
+    The dataset is actually too small for LSTM to be of any advantage
     compared to simpler, much faster methods such as TF-IDF+LogReg.
 
-    Notes: 
+    Notes:
 
-    - RNNs are tricky. Choice of batch size is important, 
-    choice of loss and optimizer is critical, etc. 
+    - RNNs are tricky. Choice of batch size is important,
+    choice of loss and optimizer is critical, etc.
     Some configurations won't converge.
 
-    - LSTM loss decrease patterns during training can be quite different 
-    from what you see with CNNs/MLPs/etc. 
+    - LSTM loss decrease patterns during training can be quite different
+    from what you see with CNNs/MLPs/etc.
 
     GPU command:
         THEANO_FLAGS=mode=FAST_RUN,device=gpu,floatX=float32 python imdb_lstm.py

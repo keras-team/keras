@@ -3,6 +3,7 @@ from .core import srng, MaskedLayer
 import theano
 import theano.tensor as T
 
+
 class GaussianNoise(MaskedLayer):
     '''
         Corruption process with GaussianNoise
@@ -17,22 +18,23 @@ class GaussianNoise(MaskedLayer):
             return X
         else:
             return X + srng.normal(size=X.shape, avg=0.0, std=self.sigma,
-                             dtype=theano.config.floatX)
+                                   dtype=theano.config.floatX)
 
     def get_config(self):
-        return {"name":self.__class__.__name__,
-            "sigma":self.sigma}
+        return {"name": self.__class__.__name__,
+                "sigma": self.sigma}
+
 
 class GaussianDropout(MaskedLayer):
     '''
         Multiplicative Gaussian Noise
-        Reference: 
+        Reference:
             Dropout: A Simple Way to Prevent Neural Networks from Overfitting
             Srivastava, Hinton, et al. 2014
             http://www.cs.toronto.edu/~rsalakhu/papers/srivastava14a.pdf
     '''
     def __init__(self, p):
-        super(GaussianDropout,self).__init__()
+        super(GaussianDropout, self).__init__()
         self.p = p
 
     def get_output(self, train):
@@ -43,5 +45,5 @@ class GaussianDropout(MaskedLayer):
         return X
 
     def get_config(self):
-        return {"name":self.__class__.__name__,
-            "p":self.p}
+        return {"name": self.__class__.__name__,
+                "p": self.p}

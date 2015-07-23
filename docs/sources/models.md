@@ -24,7 +24,7 @@ model = keras.models.Sequential()
             - __callbacks__: `keras.callbacks.Callback` list. List of callbacks to apply during training. See [callbacks](callbacks.md).
             - __validation_split__: float (0. < x < 1). Fraction of the data to use as held-out validation data.
             - __validation_data__: tuple (X, y) to be used as held-out validation data. Will override validation_split.
-            - __shuffle__: boolean. Whether to shuffle the samples at each epoch.
+            - __shuffle__: boolean or str (for 'batch'). Whether to shuffle the samples at each epoch. 'batch' is a special option for dealing with the limitations of HDF5 data; it shuffles in batch-sized chunks.
             - __show_accuracy__: boolean. Whether to display class accuracy in the logs to stdout at each epoch.
             - __class_weight__: dictionary mapping classes to a weight value, used for scaling the loss function (during training only).
             - __sample_weight__: list or numpy array with 1:1 mapping to the training samples, used for scaling the loss function (during training only).

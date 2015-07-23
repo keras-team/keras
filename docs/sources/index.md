@@ -125,6 +125,7 @@ Keras welcomes all contributions from the community.
 - New features should be documented. Make sure you update the documentation along with your Pull Request.
 - The documentation for every new feature should include a usage example in the form of a code snippet. 
 - All changes should be tested. Make sure any new feature you add has a corresponding unit test.
+- Please no Pull Requests about coding style.
 - Even if you don't contribute to the Keras source code, if you have an application of Keras that is concise and powerful, please consider adding it to our collection of [examples](https://github.com/fchollet/keras/tree/master/examples).
 
 

@@ -36,6 +36,7 @@ from sklearn.preprocessing import StandardScaler
     Get the data from Kaggle: https://www.kaggle.com/c/otto-group-product-classification-challenge/data
 '''
 
+
 def load_data(path, train=True):
     df = pd.read_csv(path)
     X = df.values.copy()
@@ -47,12 +48,14 @@ def load_data(path, train=True):
         X, ids = X[:, 1:].astype(np.float32), X[:, 0].astype(str)
         return X, ids
 
+
 def preprocess_data(X, scaler=None):
     if not scaler:
         scaler = StandardScaler()
         scaler.fit(X)
     X = scaler.transform(X)
     return X, scaler
+
 
 def preprocess_labels(labels, encoder=None, categorical=True):
     if not encoder:
@@ -62,6 +65,7 @@ def preprocess_labels(labels, encoder=None, categorical=True):
     if categorical:
         y = np_utils.to_categorical(y)
     return y, encoder
+
 
 def make_submission(y_prob, ids, encoder, fname):
     with open(fname, 'w') as f:
