@@ -5,7 +5,7 @@ np.random.seed(1337) # for reproducibility
 
 from keras.datasets import mnist
 from keras.models import Sequential, Graph
-from keras.layers.core import Dense, Dropout, Activation, Flatten, Reshape
+from keras.layers.core import Dense, Dropout, Activation, Flatten, Permute
 from keras.layers.convolutional import Convolution2D, MaxPooling2D
 from keras.utils import np_utils
 
@@ -43,43 +43,46 @@ graph = Graph()
 graph.add_input(name='input', ndim=4)
 nb_filters = 3
 graph.add_node(Convolution2D(nb_filters, 1, 3, 3, border_mode='same'),
-        name='scores_layer_1a', input='input')
+        name='scores_1a', input='input')
 graph.add_node(Convolution2D(nb_filters, 1, 5, 5, border_mode='same'),
-        name='scores_layer_1b', input='input')
+        name='scores_1b', input='input')
+
+
+graph.add_node(Permute((2,3,1)), 
+        name='scores_1a_permuted', input='scores_1a')
+
+graph.add_node(Permute((2,3,1)), 
+        name='scores_1b_permuted', input='scores_1b')
 
 # double duty layer, computing activations and concatenating pathways 'a' and 'b'. 
-# Not sure concatenation is in the right order for what I want.
-# In this example, I only have 2 filters per pathway
 graph.add_node(Activation('relu'),
-        name='activations_layer_1', inputs=['scores_layer_1a', 'scores_layer_1b'], axis=1)
+        name='activations_1_permuted', inputs=['scores_1a_permuted', 'scores_1b_permuted'], merge_mode='concat')
 
-#graph.add_node(Reshape(2*nb_filters, 28, 28), 
-#        name='layer_1_4d', input='activations_layer_1')
+graph.add_node(Permute((3,1,2)),
+        name='activations_1', input='activations_1_permuted')
 
-#graph.add_node(Convolution2D(3, 2*nb_filters, 3, 3, border_mode='same'),
-#        name='scores_layer_2', input='layer_1_4d')
-graph.add_node(Convolution2D(3, 2*nb_filters, 3, 3, border_mode='same'),
-        name='scores_layer_2', input='activations_layer_1')
+graph.add_node(Convolution2D(3, 2*nb_filters, 1, 1),
+        name='scores_2', input='activations_1')
 
 graph.add_node(Activation('relu'),
-        name='activations_layer_2', input='scores_layer_2')
+        name='activations_2', input='scores_2')
 
 graph.add_node(Flatten(),
-        name='flatten_layer_2', input='activations_layer_2')
+        name='flatten_2', input='activations_2')
 
 graph.add_node(Dense(3*28*28, 128),
-        name='scores_layer_3', input='flatten_layer_2')
+        name='scores_3', input='flatten_2')
 
 graph.add_node(Activation('relu'), 
-        name='activations_layer_3', input='scores_layer_3')
+        name='activations_3', input='scores_3')
 
 graph.add_node(Dense(128, nb_classes),
-        name='scores_layer_4', input='activations_layer_3')
+        name='scores_4', input='activations_3')
 
 graph.add_node(Activation('softmax'),
-        name='activations_layer_4', input='scores_layer_4')
+        name='activations_4', input='scores_4')
 
-graph.add_output(name='output', input='activations_layer_4')
+graph.add_output(name='output', input='activations_4')
 
 graph.compile('adadelta', {'output':'categorical_crossentropy'})
 
