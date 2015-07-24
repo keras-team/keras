@@ -3,7 +3,7 @@ import theano
 import theano.tensor as T
 import numpy as np
 
-from .utils.theano_utils import shared_zeros, shared_scalar
+from .utils.theano_utils import shared_zeros, shared_scalar, floatX
 from six.moves import zip
 
 
@@ -18,6 +18,18 @@ def kl_divergence(p, p_hat):
 
 
 class Optimizer(object):
+    def __init__(self, **kwargs):
+        self.__dict__.update(kwargs)
+        self.update = []
+
+    def get_state(self):
+        return [u[0].get_value() for u in self.update]
+
+    def set_state(self, value_list):
+        assert len(self.update) == len(value_list)
+        for u, v in zip(self.update, value_list):
+            u[0].set_value(floatX(v))
+
     def get_updates(self, params, constraints, loss):
         raise NotImplementedError
 
@@ -38,27 +50,27 @@ class Optimizer(object):
 class SGD(Optimizer):
 
     def __init__(self, lr=0.01, momentum=0., decay=0., nesterov=False, *args, **kwargs):
-        self.__dict__.update(kwargs)
+        super(SGD, self).__init__(**kwargs)
         self.__dict__.update(locals())
         self.iterations = shared_scalar(0)
 
     def get_updates(self, params, constraints, loss):
         grads = self.get_gradients(loss, params)
         lr = self.lr * (1.0 / (1.0 + self.decay * self.iterations))
-        updates = [(self.iterations, self.iterations + 1.)]
+        self.updates = [(self.iterations, self.iterations + 1.)]
 
         for p, g, c in zip(params, grads, constraints):
             m = shared_zeros(p.get_value().shape) # momentum
             v = self.momentum * m - lr * g # velocity
-            updates.append((m, v))
+            self.updates.append((m, v))
 
             if self.nesterov:
                 new_p = p + self.momentum * v - lr * g
             else:
                 new_p = p + v
 
-            updates.append((p, c(new_p))) # apply constraints
-        return updates
+            self.updates.append((p, c(new_p))) # apply constraints
+        return self.updates
 
     def get_config(self):
         return {"name": self.__class__.__name__,
@@ -70,21 +82,21 @@ class SGD(Optimizer):
 
 class RMSprop(Optimizer):
     def __init__(self, lr=0.001, rho=0.9, epsilon=1e-6, *args, **kwargs):
-        self.__dict__.update(kwargs)
+        super(RMSprop, self).__init__(**kwargs)
         self.__dict__.update(locals())
 
     def get_updates(self, params, constraints, loss):
         grads = self.get_gradients(loss, params)
         accumulators = [shared_zeros(p.get_value().shape) for p in params]
-        updates = []
+        self.updates = []
 
         for p, g, a, c in zip(params, grads, accumulators, constraints):
             new_a = self.rho * a + (1 - self.rho) * g ** 2 # update accumulator
-            updates.append((a, new_a))
+            self.updates.append((a, new_a))
 
             new_p = p - self.lr * g / T.sqrt(new_a + self.epsilon)
-            updates.append((p, c(new_p))) # apply constraints
-        return updates
+            self.updates.append((p, c(new_p))) # apply constraints
+        return self.updates
 
     def get_config(self):
         return {"name": self.__class__.__name__,
@@ -95,20 +107,20 @@ class RMSprop(Optimizer):
 
 class Adagrad(Optimizer):
     def __init__(self, lr=0.01, epsilon=1e-6, *args, **kwargs):
-        self.__dict__.update(kwargs)
+        super(Adagrad, self).__init__(**kwargs)
         self.__dict__.update(locals())
 
     def get_updates(self, params, constraints, loss):
         grads = self.get_gradients(loss, params)
         accumulators = [shared_zeros(p.get_value().shape) for p in params]
-        updates = []
+        self.updates = []
 
         for p, g, a, c in zip(params, grads, accumulators, constraints):
             new_a = a + g ** 2 # update accumulator
-            updates.append((a, new_a))
+            self.updates.append((a, new_a))
             new_p = p - self.lr * g / T.sqrt(new_a + self.epsilon)
-            updates.append((p, c(new_p))) # apply constraints
-        return updates
+            self.updates.append((p, c(new_p))) # apply constraints
+        return self.updates
 
     def get_config(self):
         return {"name": self.__class__.__name__,
@@ -121,29 +133,29 @@ class Adadelta(Optimizer):
         Reference: http://arxiv.org/abs/1212.5701
     '''
     def __init__(self, lr=1.0, rho=0.95, epsilon=1e-6, *args, **kwargs):
-        self.__dict__.update(kwargs)
+        super(Adadelta, self).__init__(**kwargs)
         self.__dict__.update(locals())
 
     def get_updates(self, params, constraints, loss):
         grads = self.get_gradients(loss, params)
         accumulators = [shared_zeros(p.get_value().shape) for p in params]
         delta_accumulators = [shared_zeros(p.get_value().shape) for p in params]
-        updates = []
+        self.updates = []
 
         for p, g, a, d_a, c in zip(params, grads, accumulators, delta_accumulators, constraints):
             new_a = self.rho * a + (1 - self.rho) * g ** 2 # update accumulator
-            updates.append((a, new_a))
+            self.updates.append((a, new_a))
 
             # use the new accumulator and the *old* delta_accumulator
             update = g * T.sqrt(d_a + self.epsilon) / T.sqrt(new_a + self.epsilon)
 
             new_p = p - self.lr * update
-            updates.append((p, c(new_p))) # apply constraints
+            self.updates.append((p, c(new_p))) # apply constraints
 
             # update delta_accumulator
             new_d_a = self.rho * d_a + (1 - self.rho) * update ** 2
-            updates.append((d_a, new_d_a))
-        return updates
+            self.updates.append((d_a, new_d_a))
+        return self.updates
 
     def get_config(self):
         return {"name": self.__class__.__name__,
@@ -161,13 +173,13 @@ class Adam(Optimizer):
         lambda is renamed kappa.
     '''
     def __init__(self, lr=0.001, beta_1=0.9, beta_2=0.999, epsilon=1e-8, kappa=1-1e-8, *args, **kwargs):
-        self.__dict__.update(kwargs)
+        super(Adam, self).__init__(**kwargs)
         self.__dict__.update(locals())
         self.iterations = shared_scalar(0)
 
     def get_updates(self, params, constraints, loss):
         grads = self.get_gradients(loss, params)
-        updates = [(self.iterations, self.iterations+1.)]
+        self.updates = [(self.iterations, self.iterations+1.)]
 
         i = self.iterations
         beta_1_t = self.beta_1 * (self.kappa**i)
@@ -187,10 +199,10 @@ class Adam(Optimizer):
 
             p_t = p - self.lr * m_b_t / (T.sqrt(v_b_t) + self.epsilon)
 
-            updates.append((m, m_t))
-            updates.append((v, v_t))
-            updates.append((p, c(p_t))) # apply constraints
-        return updates
+            self.updates.append((m, m_t))
+            self.updates.append((v, v_t))
+            self.updates.append((p, c(p_t))) # apply constraints
+        return self.updates
 
     def get_config(self):
         return {"name": self.__class__.__name__,
