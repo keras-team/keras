@@ -3,7 +3,7 @@ from __future__ import print_function
 from keras.models import Sequential, Graph
 from keras.layers.core import Layer, Activation, Dense, Flatten, Reshape, Merge
 from keras.layers.convolutional import Convolution2D, MaxPooling2D
-import keras.utils.model_utils as model_utils
+import keras.utils.layer_utils as layer_utils
 
 print('-- Sequential model')
 left = Sequential()
@@ -23,7 +23,7 @@ model.add(Merge([left, right], mode='concat'))
 model.add(Dense(80, 10))
 model.add(Activation('softmax'))
 
-model_utils.print_layer_shapes(model, [(1, 1, 28, 28), (1, 784)])
+layer_utils.print_layer_shapes(model, [(1, 1, 28, 28), (1, 784)])
 
 print('-- Graph model')
 graph = Graph()
@@ -39,7 +39,6 @@ graph.add_node(Dense(32 * 13 * 13, 10), name='dense4', input='flatten1')
 graph.add_output(name='output1', inputs=['dense1', 'dense3'], merge_mode='sum')
 graph.add_output(name='output2', inputs=['dense1', 'dense4'], merge_mode='concat')
 
-model_utils.print_layer_shapes(graph,
-    {'input1':(1, 32), 'input2':(1, 1, 28, 28)})
+layer_utils.print_layer_shapes(graph, {'input1': (1, 32), 'input2': (1, 1, 28, 28)})
 
 print('Test script complete')
