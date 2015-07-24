@@ -61,7 +61,7 @@ model.add(SimpleRNN(input_dim=1, output_dim=hidden_units,
                     activation='relu', truncate_gradient=BPTT_truncate))
 model.add(Dense(hidden_units, nb_classes))
 model.add(Activation('softmax'))
-rmsprop = RMSprop(lr=learning_rate)
+rmsprop = RMSprop(lr=learning_rate, clipnorm=clip_norm)
 model.compile(loss='categorical_crossentropy', optimizer=rmsprop)
 
 model.fit(X_train, Y_train, batch_size=batch_size, nb_epoch=nb_epochs,
@@ -76,7 +76,7 @@ model = Sequential()
 model.add(LSTM(1, hidden_units))
 model.add(Dense(hidden_units, nb_classes))
 model.add(Activation('softmax'))
-rmsprop = RMSprop(lr=learning_rate)
+rmsprop = RMSprop(lr=learning_rate, clipnorm=clip_norm)
 model.compile(loss='categorical_crossentropy', optimizer=rmsprop)
 
 model.fit(X_train, Y_train, batch_size=batch_size, nb_epoch=nb_epochs,
