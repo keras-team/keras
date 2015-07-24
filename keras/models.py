@@ -96,25 +96,35 @@ def model_from_yaml(yaml_string):
         which is either created by hand or from to_yaml method of Sequential or Graph
     '''
     import yaml
-    model_params = yaml.load(yaml_string)
-    model_name = model_params.get('name')
+    config = yaml.load(yaml_string)
+    return model_from_config(config)
+
+
+def model_from_json(json_string):
+    import json
+    config.json.loads(json_string)
+    return model_from_config(config)
+
+
+def model_from_config(config):
+    model_name = config.get('name')
     if model_name not in {'Graph', 'Sequential'}:
         raise Exception('Unrecognized model:', model_name)
 
     # Create a container then set class to appropriate model
-    model = container_from_config(model_params)
+    model = container_from_config(config)
     if model_name == 'Graph':
         model.__class__ = Graph
     elif model_name == 'Sequential':
         model.__class__ = Sequential
 
-    if 'optimizer' in model_params:
+    if 'optimizer' in config:
         # if it has an optimizer, the model is assumed to be compiled
-        loss = objectives.get(model_params.get('loss'))
-        class_mode = model_params.get('class_mode')
-        theano_mode = model_params.get('theano_mode')
+        loss = objectives.get(config.get('loss'))
+        class_mode = config.get('class_mode')
+        theano_mode = config.get('theano_mode')
 
-        optimizer_params = model_params.get('optimizer')
+        optimizer_params = config.get('optimizer')
         optimizer_name = optimizer_params.pop('name')
         optimizer = optimizers.get(optimizer_name, optimizer_params)
 
@@ -277,10 +287,28 @@ class Model(object):
 
     def get_config(self, verbose=0):
         config = super(Model, self).get_config()
+        for p in ['class_mode', 'theano_mode', 'loss']:
+            if hasattr(self, p):
+                config[p] = getattr(self, p)
+        if hasattr(self, 'optimizer'):
+            config['optimizer'] = self.optimizer.get_config()
+
         if verbose:
             pp = pprint.PrettyPrinter(indent=4)
             pp.pprint(config)
         return config
+
+    def to_yaml(self):
+        # dump model configuration to yaml string
+        import yaml
+        config = self.get_config()
+        return yaml.dump(config)
+
+    def to_json(self):
+        # dump model configuration to json string
+        import json
+        config = self.get_config()
+        return json.dump(config)
 
 
 class Sequential(Model, containers.Sequential):
@@ -301,8 +329,8 @@ class Sequential(Model, containers.Sequential):
     def compile(self, optimizer, loss, class_mode="categorical", theano_mode=None):
         self.optimizer = optimizers.get(optimizer)
 
-        self.unweighted_loss = objectives.get(loss)
-        self.loss = weighted_objective(objectives.get(loss))
+        self.loss = objectives.get(loss)
+        weighted_loss = weighted_objective(objectives.get(loss))
 
         # input of model
         self.X_train = self.get_input(train=True)
@@ -316,8 +344,8 @@ class Sequential(Model, containers.Sequential):
 
         self.weights = T.ones_like(self.y_train)
 
-        train_loss = self.loss(self.y, self.y_train, self.weights)
-        test_loss = self.loss(self.y, self.y_test, self.weights)
+        train_loss = weighted_loss(self.y, self.y_train, self.weights)
+        test_loss = weighted_loss(self.y, self.y_test, self.weights)
 
         train_loss.name = 'train_loss'
         test_loss.name = 'test_loss'
@@ -501,18 +529,6 @@ class Sequential(Model, containers.Sequential):
             self.layers[k].set_weights(weights)
         f.close()
 
-    def to_yaml(self):
-        # dump model configuration to yaml string
-        import yaml
-        model_params = self.get_config()
-        if hasattr(self, 'optimizer'):
-            model_params['class_mode'] = self.class_mode
-            model_params['theano_mode'] = self.theano_mode
-            model_params['loss'] = self.unweighted_loss.__name__
-            model_params['optimizer'] = self.optimizer.get_config()
-
-        return yaml.dump(model_params)
-
 
 class Graph(Model, containers.Graph):
     def compile(self, optimizer, loss, theano_mode=None):
@@ -652,13 +668,3 @@ class Graph(Model, containers.Graph):
         weights = [g['param_{}'.format(p)] for p in range(g.attrs['nb_params'])]
         self.set_weights(weights)
         f.close()
-
-    def to_yaml(self):
-        # dump model configuration to yaml string
-        import yaml
-        model_params = self.get_config()
-        if hasattr(self, 'optimizer'):
-            model_params['theano_mode'] = self.theano_mode
-            model_params['loss'] = self.loss
-            model_params['optimizer'] = self.optimizer.get_config()
-        return yaml.dump(model_params)
