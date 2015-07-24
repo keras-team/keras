@@ -20,14 +20,14 @@ def kl_divergence(p, p_hat):
 class Optimizer(object):
     def __init__(self, **kwargs):
         self.__dict__.update(kwargs)
-        self.update = []
+        self.updates = []
 
     def get_state(self):
-        return [u[0].get_value() for u in self.update]
+        return [u[0].get_value() for u in self.updates]
 
     def set_state(self, value_list):
-        assert len(self.update) == len(value_list)
-        for u, v in zip(self.update, value_list):
+        assert len(self.updates) == len(value_list)
+        for u, v in zip(self.updates, value_list):
             u[0].set_value(floatX(v))
 
     def get_updates(self, params, constraints, loss):
