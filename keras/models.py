@@ -4,17 +4,17 @@ import theano
 import theano.tensor as T
 import numpy as np
 import warnings, time, copy, pprint
+from six.moves import range
+import six
 
 from . import optimizers
 from . import objectives
 from . import regularizers
 from . import constraints
 from . import callbacks as cbks
-
 from .utils.layer_utils import container_from_config
 from .utils.generic_utils import Progbar, printv
 from .layers import containers
-from six.moves import range
 
 
 def standardize_y(y):
@@ -120,7 +120,7 @@ def model_from_config(config):
 
     if 'optimizer' in config:
         # if it has an optimizer, the model is assumed to be compiled
-        loss = objectives.get(config.get('loss'))
+        loss = config.get('loss')
         class_mode = config.get('class_mode')
         theano_mode = config.get('theano_mode')
 
@@ -134,6 +134,13 @@ def model_from_config(config):
             model.compile(loss=loss, optimizer=optimizer, theano_mode=theano_mode)
 
     return model
+
+
+def get_function_name(o):
+    if isinstance(o, six.string_types):
+        return o
+    else:
+        return o.__name__
 
 
 class Model(object):
@@ -287,11 +294,16 @@ class Model(object):
 
     def get_config(self, verbose=0):
         config = super(Model, self).get_config()
-        for p in ['class_mode', 'theano_mode', 'loss']:
+        for p in ['class_mode', 'theano_mode']:
             if hasattr(self, p):
                 config[p] = getattr(self, p)
         if hasattr(self, 'optimizer'):
             config['optimizer'] = self.optimizer.get_config()
+        if hasattr(self, 'loss'):
+            if type(self.loss) == dict:
+                config['loss'] = dict([(k, get_function_name(v)) for k, v in self.loss.items()])
+            else:
+                config['loss'] = get_function_name(self.loss)
 
         if verbose:
             pp = pprint.PrettyPrinter(indent=4)
