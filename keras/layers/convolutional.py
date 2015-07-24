@@ -215,7 +215,7 @@ class TimeDistributedConvolution2D(Layer):
 
         self.nb_row = nb_row
         self.nb_col = nb_col
-        dtensor5 = T.TensorType('float64', (False,)*5)
+        dtensor5 = T.TensorType('float32', (False,)*5)
         self.input = dtensor5()
         self.W_shape = (nb_filter, stack_size, nb_row, nb_col)
         self.W = self.init(self.W_shape)
@@ -307,7 +307,7 @@ class MaxPooling2D(Layer):
 class TimeDistributedMaxPooling2D(Layer):
     def __init__(self, poolsize=(2, 2), stride=None, ignore_border=True):
         super(TimeDistributedMaxPooling2D,self).__init__()
-        dtensor5 = T.TensorType('float64', (False,)*5)
+        dtensor5 = T.TensorType('float32', (False,)*5)
         self.input = dtensor5()
         self.poolsize = poolsize
         self.stride = stride
