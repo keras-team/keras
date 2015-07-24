@@ -359,14 +359,6 @@ class Sequential(Model, containers.Sequential):
         self._test_with_acc = theano.function(test_ins, [test_loss, test_accuracy],
             allow_input_downcast=True, mode=theano_mode)
 
-    def train(self, X, y, accuracy=False, class_weight=None, sample_weight=None):
-        warnings.warn('The "train" method is deprecated, use "train_on_batch" instead.')
-        return self.train_on_batch(X, y, accuracy, class_weight, sample_weight)
-
-    def test(self, X, y, accuracy=False):
-        warnings.warn('The "test" method is deprecated, use "test_on_batch" instead.')
-        return self.test_on_batch(X, y, accuracy)
-
     def train_on_batch(self, X, y, accuracy=False, class_weight=None, sample_weight=None):
         X = standardize_X(X)
         y = standardize_y(y)
