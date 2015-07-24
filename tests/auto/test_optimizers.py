@@ -25,7 +25,7 @@ def get_model(input_dim, nb_hidden, output_dim):
     return model
 
 
-def test_optimizer(optimizer, target=0.9):
+def _test_optimizer(optimizer, target=0.9):
     model = get_model(X_train.shape[1], 10, y_train.shape[1])
     model.compile(loss='categorical_crossentropy', optimizer=optimizer)
     history = model.fit(X_train, y_train, nb_epoch=12, batch_size=16, validation_data=(X_test, y_test), show_accuracy=True, verbose=2)
@@ -36,23 +36,23 @@ class TestOptimizers(unittest.TestCase):
     def test_sgd(self):
         print('test SGD')
         sgd = SGD(lr=0.01, momentum=0.9, nesterov=True)
-        self.assertTrue(test_optimizer(sgd))
+        self.assertTrue(_test_optimizer(sgd))
 
     def test_rmsprop(self):
         print('test RMSprop')
-        self.assertTrue(test_optimizer(RMSprop()))
+        self.assertTrue(_test_optimizer(RMSprop()))
 
     def test_adagrad(self):
         print('test Adagrad')
-        self.assertTrue(test_optimizer(Adagrad()))
+        self.assertTrue(_test_optimizer(Adagrad()))
 
     def test_adadelta(self):
         print('test Adadelta')
-        self.assertTrue(test_optimizer(Adadelta()))
+        self.assertTrue(_test_optimizer(Adadelta()))
 
     def test_adam(self):
         print('test Adam')
-        self.assertTrue(test_optimizer(Adam()))
+        self.assertTrue(_test_optimizer(Adam()))
 
 if __name__ == '__main__':
     print('Test optimizers')
