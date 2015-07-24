@@ -16,28 +16,35 @@ class CaffeToKeras(object):
 				graph = model('network') # loaded with with weights is caffemodel is provided, else randomly initialized
 				inputs = model('inputs')
 				outputs = model('outputs')
-				weights = model('weights') # useful for embedding networks (to do)
+				weights = model('weights') # useful for embedding networks
 		'''
 		if phase == 'train':
 			self.phase = 0
 		else:
 			self.phase = 1
 
-		if caffemodel is None:
+		if prototext is not None:
 			config = caffe.NetParameter()
 			google.protobuf.text_format.Merge(open(prototext).read(), config)
 
 			self.input_dim = config.input_dim
-			self.layers = config.layers[:]
-			self.network, self.inputs, self.outputs = model_from_config(self.layers, self.phase, self.input_dim[1:])
+			self.config_layers = config.layers[:]
+			self.network, self.inputs, self.outputs = model_from_config(self.config_layers, self.phase, self.input_dim[1:])
 		
-		else:
+		if caffemodel is not None:
 			param = caffe.NetParameter()
 			param.MergeFromString(open(caffemodel,'rb').read())
-			self.layers = param.layers[:]
-			# TO DO
-			# self.weights = convert_weights(param.layers)
-			self.network, self.inputs, self.outputs = model_from_param(self.layers)
+			self.param_layers = param.layers[:]
+			
+		if hasattr(self, 'network'):
+			# network already created with prototext
+			if caffemodel is not None:
+				# see if weights have to be loaded 
+				self.weights = convert_weights(self.param_layers)
+				for layer_weights in self.weights:
+					self.network.nodes[layer_weights] = self.weights[layer_weights]
+		else:
+			self.network, self.inputs, self.outputs = model_from_param(self.param_layers)
 
 		if solver is not None:
 			# TODO
@@ -55,7 +62,6 @@ class CaffeToKeras(object):
 		elif item == 'mean':
 			return self.mean
 		elif item == 'weights':
-			# todo 
 			return self.weights
 		elif item == 'inputs':
 			return self.inputs

@@ -13,10 +13,7 @@ import numpy as np
 import math
 
 def is_data_input(layer):
-	if layer.type == 5 or layer.type == 12 or layer.type == 24 or layer.type == 29 or layer.type == 9:
-		return True
-	else:
-		return False
+	return layer.type in [5, 12, 25, 29, 9]
 
 
 def model_from_config(layers, phase, input_dim):
@@ -97,7 +94,7 @@ def model_from_config(layers, phase, input_dim):
 			# CONCAT
 			# emulation of just concatenation
 			axis = layer.concat_param.axis # 0 for batch, 1 for stack
-			model.add_node(ZeroPadding2D(pad=(0, 0)), name=name, inputs=input_layer_names, concat_axis=axis)
+			model.add_node(Activation('linear'), name=name, inputs=input_layer_names, concat_axis=axis)
 			
 			layer_output_dim = [layer_input_dims[0][0], layer_input_dims[0][1], layer_input_dims[0][2]]
 			for dim in layer_input_dims[1:]:
@@ -114,10 +111,13 @@ def model_from_config(layers, phase, input_dim):
 
 			pad_h = max(layer.convolution_param.pad, layer.convolution_param.pad_h)
 			pad_w = max(layer.convolution_param.pad, layer.convolution_param.pad_w)
+			
 			if pad_h + pad_w > 0:
 				model.add_node(ZeroPadding2D(pad=(pad_h, pad_w)), name=name + '_zeropadding', input=input_layer_name)
 				input_layer_name = name + '_zeropadding'
+			
 			stack_size = layer_input_dim[0]
+			
 			model.add_node(Convolution2D(nb_filter, stack_size, nb_row, nb_col, subsample=(stride_h, stride_w)), name=name, input=input_layer_name)
 
 			layer_output_dim_padding = [layer_input_dim[0], layer_input_dim[1] + 2 * pad_h, layer_input_dim[2] + 2 * pad_w]
@@ -137,6 +137,7 @@ def model_from_config(layers, phase, input_dim):
 		elif layer.type == 14:
 			# INNER PRODUCT OR DENSE
 			layer_output_dim = layer.inner_product_param.num_output
+			
 			if len(layer_input_dim) > 1:
 				model.add_node(Flatten(), name=name + '_flatten', input=input_layer_name)
 				layer_input_dim = [np.prod(layer_input_dim)]
@@ -167,6 +168,7 @@ def model_from_config(layers, phase, input_dim):
 
 			pad_h = max(layer.pooling_param.pad, layer.pooling_param.pad_h)
 			pad_w = max(layer.pooling_param.pad, layer.pooling_param.pad_w)
+			
 			if pad_h + pad_w > 0:
 				model.add_node(ZeroPadding2D(pad=(pad_h, pad_w)), name=name + '_zeropadding', input=input_layer_name)
 				input_layer_name = name + '_zeropadding'
@@ -202,7 +204,7 @@ def model_from_config(layers, phase, input_dim):
 			layer_output_dim = layer_input_dim
 
 		else:
-			raise RuntimeError("one or many layers used int this model is not currently supported")
+			raise RuntimeError("one or more layers used in this model is not currently supported")
 
 		output_dim[name] = layer_output_dim
 
@@ -277,20 +279,23 @@ def model_from_param(layers):
 			# CONCAT
 			# emulation of just concatenation
 			axis = layer.concat_param.axis # 0 for batch, 1 for stack
-			model.add_node(ZeroPadding2D(pad=(0, 0)), name=name, inputs=input_layer_names, concat_axis=axis)
+			model.add_node(Activation('linear'), name=name, inputs=input_layer_names, concat_axis=axis)
 
 		elif layer.type == 4:
 			# CONVOLUTION
 			blobs = layer.blobs
 			nb_filter, temp_stack_size, nb_col, nb_row = blobs[0].num, blobs[0].channels, blobs[0].height, blobs[0].width
+			
 			group = layer.convolution_param.group # weird old trick used in paralellizing networks
 			stack_size = temp_stack_size * group
+			
 			weights_p = np.zeros((nb_filter, stack_size, nb_col, nb_row)) # maybe not all synapses are existant
 			weights_b = np.array(blobs[1].data)
 
 			chunk_data_size = len(blobs[0].data) // group
 			stacks_size_per_chunk = stack_size // group
 			nb_filter_per_chunk = nb_filter // group
+			
 			for i in range(group):
 				chunk_weights = weights_p[i * nb_filter_per_chunk: (i + 1) * nb_filter_per_chunk, i * stacks_size_per_chunk: (i + 1) * stacks_size_per_chunk, :, :]
 				chunk_weights[:] = np.array(blobs[0].data[i * chunk_data_size:(i + 1) * chunk_data_size]).reshape(chunk_weights.shape)
@@ -302,6 +307,7 @@ def model_from_param(layers):
 
 			pad_h = max(layer.convolution_param.pad, layer.convolution_param.pad_h)
 			pad_w = max(layer.convolution_param.pad, layer.convolution_param.pad_w)
+			
 			if pad_h + pad_w > 0:
 				model.add_node(ZeroPadding2D(pad=(pad_h, pad_w)), name=name + '_zeropadding', input=input_layer_name)
 				input_layer_name = name + '_zeropadding'
@@ -321,6 +327,7 @@ def model_from_param(layers):
 			# INNER PRODUCT OR DENSE
 			blobs = layer.blobs
 			nb_filter, stack_size, nb_col, nb_row = blobs[0].num, blobs[0].channels, blobs[0].height, blobs[0].width
+			
 			weights_p = np.array(blobs[0].data).reshape(nb_filter, stack_size, nb_col, nb_row)[0,0,:,:].T
 			weights_b = np.array(blobs[1].data)
 			weights = [weights_p, weights_b]
@@ -347,6 +354,7 @@ def model_from_param(layers):
 
 			pad_h = max(layer.pooling_param.pad, layer.pooling_param.pad_h)
 			pad_w = max(layer.pooling_param.pad, layer.pooling_param.pad_w)
+			
 			if pad_h + pad_w > 0:
 				model.add_node(ZeroPadding2D(pad=(pad_h, pad_w)), name=name + '_zeropadding', input=input_layer_name)
 				input_layer_name = name + '_zeropadding'
@@ -390,7 +398,53 @@ def model_from_param(layers):
 	return model, starts_names, ends_names
 
 def convert_weights(layers):
-	pass
+	'''
+		layers: a list of all the layers in the model with the assocaited parameters
+	'''
+	# DEPLOY MODE: first layer is computation
+	# NON DEPLOY MODE: first layer is data input
+
+	weights = {}
+
+	# parse all the layers and build equivalent keras graph
+	for layer_nb in range(len(layers)):
+		layer = layers[layer_nb]
+		name = layer.name
+		
+		if layer.type == 4:
+			# CONVOLUTION
+			blobs = layer.blobs
+			nb_filter, temp_stack_size, nb_col, nb_row = blobs[0].num, blobs[0].channels, blobs[0].height, blobs[0].width
+			
+			group = layer.convolution_param.group # weird old trick used in paralellizing networks
+			stack_size = temp_stack_size * group
+			
+			weights_p = np.zeros((nb_filter, stack_size, nb_col, nb_row)) # maybe not all synapses are existant
+			weights_b = np.array(blobs[1].data)
+
+			chunk_data_size = len(blobs[0].data) // group
+			stacks_size_per_chunk = stack_size // group
+			nb_filter_per_chunk = nb_filter // group
+			
+			for i in range(group):
+				chunk_weights = weights_p[i * nb_filter_per_chunk: (i + 1) * nb_filter_per_chunk, i * stacks_size_per_chunk: (i + 1) * stacks_size_per_chunk, :, :]
+				chunk_weights[:] = np.array(blobs[0].data[i * chunk_data_size:(i + 1) * chunk_data_size]).reshape(chunk_weights.shape)
+
+			layer_weights = [weights_p, weights_b]
+			weights[name] = layer_weights
+
+		elif layer.type == 14:
+			# INNER PRODUCT OR DENSE
+			blobs = layer.blobs
+			nb_filter, stack_size, nb_col, nb_row = blobs[0].num, blobs[0].channels, blobs[0].height, blobs[0].width
+			
+			weights_p = np.array(blobs[0].data).reshape(nb_filter, stack_size, nb_col, nb_row)[0,0,:,:].T
+			weights_b = np.array(blobs[1].data)
+			
+			layer_weights = [weights_p, weights_b]
+			weights[name] = layer_weights
+
+	return weights
 
 def convert_solver(caffe_solver):
 	pass
