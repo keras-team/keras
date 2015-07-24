@@ -788,17 +788,34 @@ class Bidirectional(Recurrent):
     outputs from both directions.
     """
 
-    def __init__(self, rnn_class, **kwargs):
+    def __init__(self, rnn_class, input_dim, output_dim=128, return_sequences=False, **kwargs):
         """
         All extra arguments are passed to the `rnn_class` constructor.
         """
         super(Bidirectional, self).__init__()
         self.rnn_class = rnn_class
+        self.input_dim = input_dim
+        if output_dim % 2 != 0:
+            # since we're splitting the output dim between two underlying
+            # RNNs, the total must be divisible by 2
+            raise ValueError(
+                "Output dimension of bidirectional RNN must be even")
+        self.output_dim = output_dim
+        self.return_sequences = return_sequences
         self.kwargs = kwargs
-        self.return_sequences = kwargs.get("return_sequences", False)
 
-        self.forward_model = rnn_class(go_backwards=False, **kwargs)
-        self.backward_model = rnn_class(go_backwards=True, **kwargs)
+        self.forward_model = rnn_class(
+            input_dim=self.input_dim,
+            output_dim=self.output_dim // 2,
+            return_sequences=self.return_sequences,
+            go_backwards=False,
+            **kwargs)
+        self.backward_model = rnn_class(
+            input_dim=self.input_dim,
+            output_dim=self.output_dim // 2,
+            return_sequences=self.return_sequences,
+            go_backwards=True,
+            **kwargs)
 
         # create input tensor in case this is the first layer in a network
         self.input = T.tensor3()
@@ -849,6 +866,8 @@ class Bidirectional(Recurrent):
         config_dict = {
             "name": self.__class__.__name__,
             "rnn_class": self.rnn_class.__name__,
+            "input_dim": self.input_dim,
+            "output_dim": self.output_dim,
         }
         config_dict.update(self.kwargs)
         return config_dict
