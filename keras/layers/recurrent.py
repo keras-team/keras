@@ -797,29 +797,47 @@ class Bidirectional(Recurrent):
         self.kwargs = kwargs
         self.return_sequences = kwargs.get("return_sequences", False)
 
-        kwargs["go_backwards"] = False
-        self.forward_model = rnn_class(**kwargs)
-        kwargs["go_backwards"] = True
-        self.backward_model = rnn_class(**kwargs)
-        self.params = self.forward_model.params + self.backward_model.params
+        self.forward_model = rnn_class(go_backwards=False, **kwargs)
+        self.backward_model = rnn_class(go_backwards=True, **kwargs)
+
+        # create input tensor in case this is the first layer in a network
+        self.input = T.tensor3()
+
+        self.layers = [self.forward_model, self.backward_model]
+        self.params = []
         self.regularizers = []
         self.constraints = []
 
+        for l in self.layers:
+            params, regs, consts = l.get_params()
+            self.regularizers += regs
+            # params and constraints have the same size
+            for p, c in zip(params, consts):
+                if p not in self.params:
+                    self.params.append(p)
+                    self.constraints.append(c)
+
+    def get_params(self):
+        return self.params, self.regularizers, self.constraints
+
+    def set_previous(self, layer):
+        self.forward_model.set_previous(layer)
+        self.backward_model.set_previous(layer)
+
     def get_output(self, train=False):
         forward_output = self.forward_model.get_output(train)
-        backward_output = self.forward_model.get_output(train)
+        backward_output = self.backward_model.get_output(train)
         if self.return_sequences:
             # reverse the output of the backward model along the
             # time dimension so that it's aligned with the forward model's
             # output
-
-            reverse_backward_output = backward_output[:, ::-1]
+            backward_output = backward_output[:, ::-1]
         # both forward_output and backward_output have shapes like
         # (n_samples, n_timesteps, output_dim) in the case of self.return_sequences=True
         # or otherwise like (n_samples, output_dim)
         # In either case, concatenate the two outputs to get a final dimension
         # of output_dim * 2
-        return T.concatenate([forward_output, reverse_backward_output], axis=-1)
+        return T.concatenate([forward_output, backward_output], axis=-1)
 
     def get_output_mask(self, train=False):
         if self.return_sequences:
@@ -829,6 +847,7 @@ class Bidirectional(Recurrent):
 
     def get_config(self):
         config_dict = {
+            "name": self.__class__.__name__,
             "rnn_class": self.rnn_class.__name__,
         }
         config_dict.update(self.kwargs)

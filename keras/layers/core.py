@@ -115,7 +115,6 @@ class MaskedLayer(Layer):
         implementations if, for instance, you are reshaping the input'''
         return self.get_input_mask(train)
 
-
 class Masking(MaskedLayer):
     """Mask an input sequence by using a mask value to identify padding.
 
