@@ -7,7 +7,7 @@ keras.layers.core.Layer()
 __Methods__:
 
 ```python
-connect(previous_layer)
+set_previous(previous_layer)
 ```
 
 Connect the input of the current layer to the output of the argument layer.
@@ -20,7 +20,7 @@ Connect the input of the current layer to the output of the argument layer.
 
 
 ```python
-output(train)
+get_output(train)
 ```
 
 Get the output of the layer.
@@ -64,6 +64,12 @@ Set the weights of the parameters of the layer.
 - __Arguments__: 
     - __weights__: List of numpy arrays (one per layer parameter). Should be in the same order as what `get_weights(self)` returns.
 
+
+```python
+get_config()
+```
+
+- __Return__: Configuration dictionary describing the layer.
 
 
 ---
