@@ -102,7 +102,7 @@ def model_from_yaml(yaml_string):
 
 def model_from_json(json_string):
     import json
-    config.json.loads(json_string)
+    config = json.loads(json_string)
     return model_from_config(config)
 
 
