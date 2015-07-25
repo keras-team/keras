@@ -184,7 +184,8 @@ class Graph(Layer):
         self.node_config.append({'name': name,
                                  'input': input,
                                  'inputs': inputs,
-                                 'merge_mode': merge_mode})
+                                 'merge_mode': merge_mode,
+                                 'concat_axis': concat_axis})
         params, regularizers, constraints = layer.get_params()
         self.params += params
         self.regularizers += regularizers
@@ -213,7 +214,8 @@ class Graph(Layer):
         self.output_config.append({'name': name,
                                    'input': input,
                                    'inputs': inputs,
-                                   'merge_mode': merge_mode})
+                                   'merge_mode': merge_mode,
+                                   'concat_axis': concat_axis})
 
     def get_config(self):
         return {"name": self.__class__.__name__,

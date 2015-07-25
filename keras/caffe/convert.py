@@ -2,6 +2,7 @@ import caffe_pb2 as caffe
 import google.protobuf
 from converters import model_from_config, model_from_param, convert_weights, convert_solver, convert_meanfile
 
+
 class CaffeToKeras(object):
     def __init__(self, prototext=None, caffemodel=None, solver=None, mean=None, phase='train'):
         '''
@@ -29,16 +30,16 @@ class CaffeToKeras(object):
             self.input_dim = config.input_dim
             self.config_layers = config.layers[:]
             self.network, self.inputs, self.outputs = model_from_config(self.config_layers, self.phase, self.input_dim[1:])
-        
+
         if caffemodel is not None:
             param = caffe.NetParameter()
-            param.MergeFromString(open(caffemodel,'rb').read())
+            param.MergeFromString(open(caffemodel, 'rb').read())
             self.param_layers = param.layers[:]
-            
+
         if hasattr(self, 'network'):
             # network already created with prototext
             if caffemodel is not None:
-                # see if weights have to be loaded 
+                # see if weights have to be loaded
                 self.weights = convert_weights(self.param_layers)
                 for layer_weights in self.weights:
                     self.network.nodes[layer_weights] = self.weights[layer_weights]

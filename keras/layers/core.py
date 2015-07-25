@@ -189,7 +189,8 @@ class Merge(object):
     def get_config(self):
         return {"name": self.__class__.__name__,
                 "layers": [l.get_config() for l in self.layers],
-                "mode": self.mode}
+                "mode": self.mode,
+                "concat_axis": self.concat_axis}
 
 
 class Dropout(MaskedLayer):

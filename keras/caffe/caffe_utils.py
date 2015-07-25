@@ -8,27 +8,28 @@ def make_network(layers, phase):
     for l in range(nb_layers):
         included = False
         try:
-            #try to see if the layer is phase specific
+            # try to see if the layer is phase specific
             if layers[l].include[0].phase == phase:
                 included = True
         except IndexError:
             included = True
 
         if included:
-            layer_key = 'caffe_layer_' + str(l) # actual layers, special annotation to mark them
-            if not network.has_key(layer_key):
+            layer_key = 'caffe_layer_' + str(l)  # actual layers, special annotation to mark them
+            if layer_key not in network:
                 network[layer_key] = []
             top_blobs = map(str, layers[l].top)
             bottom_blobs = map(str, layers[l].bottom)
             blobs = top_blobs + bottom_blobs
             for blob in blobs:
-                if not network.has_key(blob):
+                if blob not in network:
                     network[blob] = []
             for blob in bottom_blobs:
                 network[blob].append(layer_key)
             for blob in top_blobs:
                     network[layer_key].append(blob)
     return network
+
 
 def acyclic(network):
     '''
@@ -44,18 +45,18 @@ def acyclic(network):
     '''
     for node in network.keys():
         if is_caffe_layer(node):
-            continue # actual layer - they cannot initiate cycles
+            continue  # actual layer - they cannot initiate cycles
         i = 0
         while i < len(network[node]):
             next_node = network[node][i]
             if node in network[next_node]:
                 # loop detected: -> node -> next_node -> node ->
                 # change it to: -> node -> next_node -> new_node ->
-                new_node = node + '_' + str(i) # create a additional node - 'new_node'
-                network[node].remove(next_node) # 'new_node' has all other edges but the current loop
+                new_node = node + '_' + str(i)  # create a additional node - 'new_node'
+                network[node].remove(next_node)  # 'new_node' has all other edges but the current loop
                 network[new_node] = network[node]
-                network[node] = [next_node] # point 'node' to 'next_node' only
-                network[next_node] = [new_node] # 'next_node' points to 'new_node'
+                network[node] = [next_node]  # point 'node' to 'next_node' only
+                network[next_node] = [new_node]  # 'next_node' points to 'new_node'
                 # update loops in 'new_node' to point at new_node and not at 'node'
                 for n in network[new_node]:
                     if network[n] == [node]:
@@ -67,6 +68,7 @@ def acyclic(network):
 
     return network
 
+
 def merge_layer_blob(network):
     '''
         The 'layer' -> 'blob' pair of nodes is reduced to a single node
@@ -75,12 +77,13 @@ def merge_layer_blob(network):
     for node in network:
         if is_caffe_layer(node):
             new = sanitize(node)
-            if not net.has_key(node):
+            if node not in net:
                 net[new] = []
             for next in network[node]:
                 nexts = map(sanitize, network[next])
                 net[new].extend(nexts)
     return net
+
 
 def reverse(network):
     '''
@@ -90,9 +93,10 @@ def reverse(network):
     for node in network.keys():
         rev[node] = []
     for node in network.keys():
-        for n in network[node]:#edit
+        for n in network[node]:
             rev[n].append(node)
     return rev
+
 
 def remove_label_paths(network, starts, ends):
     '''
@@ -104,6 +108,7 @@ def remove_label_paths(network, starts, ends):
                 network[start].remove(end)
     return network
 
+
 def get_starts(reverse_network):
     '''
         Gets the starting point of the network(inputs)
@@ -113,6 +118,7 @@ def get_starts(reverse_network):
         if reverse_network[node] == []:
             starts += (node,)
     return starts
+
 
 def get_ends(network):
     '''
@@ -124,6 +130,7 @@ def get_ends(network):
             ends += (node,)
     return ends
 
+
 def is_caffe_layer(node):
     '''
         The node an actual layer
@@ -131,6 +138,7 @@ def is_caffe_layer(node):
     if node.startswith('caffe_layer_'):
         return True
     return False
+
 
 def sanitize(string):
     '''

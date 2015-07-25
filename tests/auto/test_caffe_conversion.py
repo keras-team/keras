@@ -1,17 +1,16 @@
 from __future__ import print_function
 import unittest
 import numpy as np
-
-from keras.datasets.data_utils import get_file
-
 import os
 
+from keras.datasets.data_utils import get_file
 from keras.caffe.convert import CaffeToKeras
+
 
 class TestCaffeIntegration(unittest.TestCase):
     def test_proto(self):
         print('test a correct topology construction from prototext')
-        
+
         model = CaffeToKeras(prototext='./minimal_inception.prototxt')
         assert(model('outputs') == ['loss1', 'loss2', 'loss3'])
         assert(model('inputs') == ['data'])
@@ -28,10 +27,9 @@ class TestCaffeIntegration(unittest.TestCase):
 
         network.get_config(verbose=1)
 
-
     def test_param(self):
         print('test a parameterized model for param conversion, grouped convolutions')
-        
+
         dirname = "MIT_scenes"
         origin = "http://places.csail.mit.edu/model/hybridCNN_upgraded.tar.gz"
         path = get_file(dirname, origin=origin, untar=True)
