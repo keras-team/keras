@@ -218,20 +218,20 @@ class MaxPooling2D(Layer):
 
 
 class ZeroPadding2D(Layer):
-    def __init__(self, width=1):
+    def __init__(self, pad=(1,1)):
         super(ZeroPadding2D, self).__init__()
-        self.width = width
+        self.pad = pad
         self.input = T.tensor4()
 
     def get_output(self, train):
         X = self.get_input(train)
-        width = self.width
+        pad =  self.pad
         in_shape = X.shape
-        out_shape = (in_shape[0], in_shape[1], in_shape[2] + 2 * width, in_shape[3] + 2 * width)
+        out_shape = (in_shape[0], in_shape[1], in_shape[2] + 2 * pad[0], in_shape[3] + 2 * pad[1])
         out = T.zeros(out_shape)
-        indices = (slice(None), slice(None), slice(width, in_shape[2] + width), slice(width, in_shape[3] + width))
+        indices = (slice(None), slice(None), slice(pad[0], in_shape[2] + pad[0]), slice(pad[1], in_shape[3] + pad[1]))
         return T.set_subtensor(out[indices], X)
 
     def get_config(self):
-        return {"name": self.__class__.__name__,
-                "width": self.width}
+        return {"name":self.__class__.__name__,
+                "pad":self.pad}
