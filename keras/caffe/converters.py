@@ -35,10 +35,10 @@ def model_from_config(layers, phase, input_dim):
         raise Exception('failed to construct network from the prototext')
     network = acyclic(network)  # Convert it to be truly acyclic
     network = merge_layer_blob(network)  # eliminate 'blobs', just have layers
-    reverse_network = reverse(network)  # reverse, to obtain the start
-    starts = get_starts(reverse_network)  # inputs of the network - 'in-order' is zero
-    ends = get_ends(network)  # outputs of the network - 'out-order' is zero
-    network = remove_label_paths(network, starts, ends)  # path from input to loss layers removed
+    reverse_network = reverse(network)  # reverse, to obtain the network_input
+    network_inputs = get_inputs(reverse_network)  # inputs of the network - 'in-order' is zero
+    network_outputs = get_outputs(network)  # outputs of the network - 'out-order' is zero
+    network = remove_label_paths(network, network_inputs, network_outputs)  # path from input to loss layers removed
     reverse_network = reverse(network)  # stores the 'input' for each layer
 
     model = Graph()
@@ -46,14 +46,14 @@ def model_from_config(layers, phase, input_dim):
     output_dim = {}  # for dimensionality inference (layer_nb: output_dim)
 
     # add input nodes
-    for start in starts:
-        name = layers[start].name
+    for network_input in network_inputs:
+        name = layers[network_input].name
         model.add_input(name=name, ndim=4)
         if in_deploy_mode:
             output_dim[name] = input_dim
         else:
             # maybe not all synapses are existant
-            data_dim = get_data_dim(layers[start])
+            data_dim = get_data_dim(layers[network_input])
             output_dim[name] = data_dim
 
     # parse all the layers and build equivalent keras graph
@@ -65,21 +65,21 @@ def model_from_config(layers, phase, input_dim):
             # not including data layers
             continue
 
-        if layer_nb in starts:
+        if layer_nb in network_inputs:
             # in deploy mode since data layers can't reach this line and condition holds.
             new_name = 'graph_input_' + name
             input_layer_names = [name]
             name = new_name
         else:
-            input_layers = reverse_network[layer_nb]    # inputs to current layer, in the form of layer numbers
+            input_layers = reverse_network[layer_nb]  # inputs to current layer, in the form of layer numbers
             input_layer_names = []  # list of strings identifying the input layer
             for input_layer in input_layers:
-                if input_layer in starts and in_deploy_mode:
+                if input_layer in network_inputs and in_deploy_mode:
                     input_layer_names.append('graph_input_' + layers[input_layer].name)
                 else:
                     input_layer_names.append(layers[input_layer].name)
 
-        if layer_nb in ends:
+        if layer_nb in network_outputs:
             # outputs nodes are marked with 'output_' prefix from which output is derived later in 'add_output'
             name = 'output_' + name
 
@@ -216,18 +216,18 @@ def model_from_config(layers, phase, input_dim):
 
         output_dim[name] = layer_output_dim
 
-    for end in ends:
-        input_layer_name = 'output_' + layers[end].name
-        model.add_output(name=layers[end].name, input=input_layer_name)
+    for network_output in network_outputs:
+        input_layer_name = 'output_' + layers[network_output].name
+        model.add_output(name=layers[network_output].name, input=input_layer_name)
 
-    starts_names = []
-    for start in starts:
-        starts_names.append(layers[start].name)
-    ends_names = []
-    for end in ends:
-        ends_names.append(layers[end].name)
+    network_inputs_names = []
+    for network_input in network_inputs:
+        network_inputs_names.append(layers[network_input].name)
+    network_outputs_names = []
+    for network_output in network_outputs:
+        network_outputs_names.append(layers[network_output].name)
 
-    return model, starts_names, ends_names
+    return model, network_inputs_names, network_outputs_names
 
 
 def model_from_param(layers):
@@ -242,17 +242,17 @@ def model_from_param(layers):
         raise Exception('failed to construct network from the caffemodel')
     network = acyclic(network)  # Convert it to be truly acyclic
     network = merge_layer_blob(network)  # eliminate 'blobs', just have layers
-    reverse_network = reverse(network)  # reverse, to obtain the start
-    starts = get_starts(reverse_network)  # inputs of the network - 'in-order' is zero
-    ends = get_ends(network)  # outputs of the network - 'out-order' is zero
-    network = remove_label_paths(network, starts, ends)  # path from input to loss layers removed
+    reverse_network = reverse(network)  # reverse, to obtain the network_input
+    network_inputs = get_inputs(reverse_network)  # inputs of the network - 'in-order' is zero
+    network_outputs = get_outputs(network)  # outputs of the network - 'out-order' is zero
+    network = remove_label_paths(network, network_inputs, network_outputs)  # path from input to loss layers removed
     reverse_network = reverse(network)  # stores the 'input' for each layer
 
     model = Graph()
 
     # add input nodes
-    for start in starts:
-        name = layers[start].name
+    for network_input in network_inputs:
+        name = layers[network_input].name
         model.add_input(name=name, ndim=4)
 
     # parse all the layers and build equivalent keras graph
@@ -263,7 +263,7 @@ def model_from_param(layers):
         if is_data_input(layer):
             continue
 
-        if layer_nb in starts:
+        if layer_nb in network_inputs:
             # this is both an input layer and computation layer. the name has been added as input layer
             input_layer_names = [name]
             # use a prefix to create a new name, which is used on from hereon to take input from this layer(see below)
@@ -273,7 +273,7 @@ def model_from_param(layers):
             input_layer_names = []  # list of strings identifying the input layer
             for input_layer in input_layers:
                 # taking input from first layer and that's not a data layer, implies use the prefix
-                if input_layer in starts and not is_data_input(layers[input_layer]):
+                if input_layer in network_inputs and not is_data_input(layers[input_layer]):
                     input_layer_names.append('graph_input_' + layers[input_layer].name)
                 else:
                     input_layer_names.append(layers[input_layer].name)
@@ -284,7 +284,7 @@ def model_from_param(layers):
             # (except loss layers, which is handled anyway)
             input_layer_name = input_layer_names[0]
 
-        if layer_nb in ends:
+        if layer_nb in network_outputs:
             # outputs nodes are marked with 'output_' prefix from which output is derived
             # since the graph output is not model output
             name = 'output_' + name
@@ -403,18 +403,18 @@ def model_from_param(layers):
         else:
             raise RuntimeError("the layer: ", layer.name, "used in this model is not currently supported")
 
-    for end in ends:
-        input_layer_name = 'output_' + layers[end].name
-        model.add_output(name=layers[end].name, input=input_layer_name)
+    for network_output in network_outputs:
+        input_layer_name = 'output_' + layers[network_output].name
+        model.add_output(name=layers[network_output].name, input=input_layer_name)
 
-    starts_names = []
-    for start in starts:
-        starts_names.append(layers[start].name)
-    ends_names = []
-    for end in ends:
-        ends_names.append(layers[end].name)
+    network_inputs_names = []
+    for network_input in network_inputs:
+        network_inputs_names.append(layers[network_input].name)
+    network_outputs_names = []
+    for network_output in network_outputs:
+        network_outputs_names.append(layers[network_output].name)
 
-    return model, starts_names, ends_names
+    return model, network_inputs_names, network_outputs_names
 
 
 def convert_weights(layers):
@@ -468,11 +468,3 @@ def convert_weights(layers):
             weights[name] = layer_weights
 
     return weights
-
-
-def convert_solver(caffe_solver):
-    pass
-
-
-def convert_meanfile(caffe_mean):
-    pass

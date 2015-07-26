@@ -109,26 +109,26 @@ def remove_label_paths(network, starts, ends):
     return network
 
 
-def get_starts(reverse_network):
+def get_inputs(reverse_network):
     '''
-        Gets the starting point of the network(inputs)
+        Gets the starting points of the network
     '''
-    starts = ()
+    inputs = ()
     for node in reverse_network:
         if reverse_network[node] == []:
-            starts += (node,)
-    return starts
+            inputs += (node,)
+    return inputs
 
 
-def get_ends(network):
+def get_outputs(network):
     '''
-        Gets the ending point of the network(outputs)
+        Gets the ending points of the network
     '''
-    ends = ()
+    outputs = ()
     for node in network.keys():
         if network[node] == []:
-            ends += (node,)
-    return ends
+            outputs += (node,)
+    return outputs
 
 
 def is_caffe_layer(node):
