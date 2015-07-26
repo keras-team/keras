@@ -3,7 +3,7 @@ from __future__ import print_function
 
 import numpy as np
 import pandas as pd
-np.random.seed(1337) # for reproducibility
+np.random.seed(1337)  # for reproducibility
 
 from keras.models import Sequential
 from keras.layers.core import Dense, Dropout, Activation
@@ -41,7 +41,7 @@ def load_data(path, train=True):
     df = pd.read_csv(path)
     X = df.values.copy()
     if train:
-        np.random.shuffle(X) # https://youtu.be/uyUXoap67N8
+        np.random.shuffle(X)  # https://youtu.be/uyUXoap67N8
         X, labels = X[:, 1:-1].astype(np.float32), X[:, -1]
         return X, labels
     else:

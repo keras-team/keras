@@ -102,15 +102,15 @@ class Graph(Layer):
             - set_weights
     '''
     def __init__(self):
-        self.namespace = set() # strings
-        self.nodes = {} # layer-like
-        self.inputs = {} # layer-like
-        self.input_order = [] # strings
-        self.outputs = {} # layer-like
-        self.output_order = [] # strings
-        self.input_config = [] # dicts
-        self.output_config = [] # dicts
-        self.node_config = [] # dicts
+        self.namespace = set()  # strings
+        self.nodes = {}  # layer-like
+        self.inputs = {}  # layer-like
+        self.input_order = []  # strings
+        self.outputs = {}  # layer-like
+        self.output_order = []  # strings
+        self.input_config = []  # dicts
+        self.output_config = []  # dicts
+        self.node_config = []  # dicts
 
         self.params = []
         self.regularizers = []

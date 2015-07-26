@@ -9,6 +9,7 @@ import six.moves.cPickle
 from six.moves import zip
 import numpy as np
 
+
 def make_reuters_dataset(path=os.path.join('datasets', 'temp', 'reuters21578'), min_samples_per_topic=15):
     import re
     from ..preprocessing.text import Tokenizer
@@ -24,8 +25,7 @@ def make_reuters_dataset(path=os.path.join('datasets', 'temp', 'reuters21578'), 
             while tag in s:
                 s = s[s.find(tag)+len(tag):]
                 topics = s[:s.find('</')]
-                
-                if topics and not '</D><D>' in topics:
+                if topics and '</D><D>' not in topics:
                     topic = topics.replace('<D>', '').replace('</D>', '')
                     wire_topics.append(topic)
                     topic_counts[topic] = topic_counts.get(topic, 0) + 1
@@ -39,7 +39,7 @@ def make_reuters_dataset(path=os.path.join('datasets', 'temp', 'reuters21578'), 
 
     # only keep most common topics
     items = list(topic_counts.items())
-    items.sort(key = lambda x: x[1])
+    items.sort(key=lambda x: x[1])
     kept_topics = set()
     for x in items:
         print(x[0] + ': ' + str(x[1]))
@@ -75,16 +75,15 @@ def make_reuters_dataset(path=os.path.join('datasets', 'temp', 'reuters21578'), 
     reverse_word_index = dict([(v, k) for k, v in tokenizer.word_index.items()])
     print(' '.join(reverse_word_index[i] for i in X[10]))
 
-    dataset = (X, labels) 
+    dataset = (X, labels)
     print('-')
     print('Saving...')
     six.moves.cPickle.dump(dataset, open(os.path.join('datasets', 'data', 'reuters.pkl'), 'w'))
     six.moves.cPickle.dump(tokenizer.word_index, open(os.path.join('datasets', 'data', 'reuters_word_index.pkl'), 'w'))
 
 
-
 def load_data(path="reuters.pkl", nb_words=None, skip_top=0, maxlen=None, test_split=0.2, seed=113,
-    start_char=1, oov_char=2, index_from=3):
+              start_char=1, oov_char=2, index_from=3):
 
     path = get_file(path, origin="https://s3.amazonaws.com/text-datasets/reuters.pkl")
     f = open(path, 'rb')

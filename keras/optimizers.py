@@ -60,8 +60,8 @@ class SGD(Optimizer):
         self.updates = [(self.iterations, self.iterations + 1.)]
 
         for p, g, c in zip(params, grads, constraints):
-            m = shared_zeros(p.get_value().shape) # momentum
-            v = self.momentum * m - lr * g # velocity
+            m = shared_zeros(p.get_value().shape)  # momentum
+            v = self.momentum * m - lr * g  # velocity
             self.updates.append((m, v))
 
             if self.nesterov:
@@ -69,7 +69,7 @@ class SGD(Optimizer):
             else:
                 new_p = p + v
 
-            self.updates.append((p, c(new_p))) # apply constraints
+            self.updates.append((p, c(new_p)))  # apply constraints
         return self.updates
 
     def get_config(self):
@@ -91,11 +91,11 @@ class RMSprop(Optimizer):
         self.updates = []
 
         for p, g, a, c in zip(params, grads, accumulators, constraints):
-            new_a = self.rho * a + (1 - self.rho) * g ** 2 # update accumulator
+            new_a = self.rho * a + (1 - self.rho) * g ** 2  # update accumulator
             self.updates.append((a, new_a))
 
             new_p = p - self.lr * g / T.sqrt(new_a + self.epsilon)
-            self.updates.append((p, c(new_p))) # apply constraints
+            self.updates.append((p, c(new_p)))  # apply constraints
         return self.updates
 
     def get_config(self):
@@ -116,10 +116,10 @@ class Adagrad(Optimizer):
         self.updates = []
 
         for p, g, a, c in zip(params, grads, accumulators, constraints):
-            new_a = a + g ** 2 # update accumulator
+            new_a = a + g ** 2  # update accumulator
             self.updates.append((a, new_a))
             new_p = p - self.lr * g / T.sqrt(new_a + self.epsilon)
-            self.updates.append((p, c(new_p))) # apply constraints
+            self.updates.append((p, c(new_p)))  # apply constraints
         return self.updates
 
     def get_config(self):
@@ -143,14 +143,14 @@ class Adadelta(Optimizer):
         self.updates = []
 
         for p, g, a, d_a, c in zip(params, grads, accumulators, delta_accumulators, constraints):
-            new_a = self.rho * a + (1 - self.rho) * g ** 2 # update accumulator
+            new_a = self.rho * a + (1 - self.rho) * g ** 2  # update accumulator
             self.updates.append((a, new_a))
 
             # use the new accumulator and the *old* delta_accumulator
             update = g * T.sqrt(d_a + self.epsilon) / T.sqrt(new_a + self.epsilon)
 
             new_p = p - self.lr * update
-            self.updates.append((p, c(new_p))) # apply constraints
+            self.updates.append((p, c(new_p)))  # apply constraints
 
             # update delta_accumulator
             new_d_a = self.rho * d_a + (1 - self.rho) * update ** 2
@@ -188,8 +188,8 @@ class Adam(Optimizer):
         beta_2_t = self.beta_2 * (self.kappa**i)
 
         for p, g, c in zip(params, grads, constraints):
-            m = theano.shared(p.get_value() * 0.) # zero init of moment
-            v = theano.shared(p.get_value() * 0.) # zero init of velocity
+            m = theano.shared(p.get_value() * 0.)  # zero init of moment
+            v = theano.shared(p.get_value() * 0.)  # zero init of velocity
 
             m_t = (beta_1_t * m) + (1 - beta_1_t) * g
             v_t = (beta_2_t * v) + (1 - beta_2_t) * (g**2)
@@ -201,7 +201,7 @@ class Adam(Optimizer):
 
             self.updates.append((m, m_t))
             self.updates.append((v, v_t))
-            self.updates.append((p, c(p_t))) # apply constraints
+            self.updates.append((p, c(p_t)))  # apply constraints
         return self.updates
 
     def get_config(self):

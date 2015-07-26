@@ -213,7 +213,7 @@ class Model(object):
 
                 callbacks.on_batch_end(batch_index, batch_logs)
 
-                if batch_index == len(batches) - 1: # last batch
+                if batch_index == len(batches) - 1:  # last batch
                     # validation
                     epoch_logs = {}
                     if do_validation:
