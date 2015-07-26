@@ -116,5 +116,34 @@ class TestConfigParams(unittest.TestCase):
         self._runner(layer)
 
 
+class TestMasking(unittest.TestCase):
+    """Test the Masking class"""
+
+    def test_sequences(self):
+        """Test masking sequences with zeroes as padding"""
+        # integer inputs, one per timestep, like embeddings
+        layer = core.Masking()
+        func = theano.function([layer.input], layer.get_output_mask())
+        self.assertTrue(np.all(
+            # get mask for this input
+            func(np.array(
+            [[[1], [2], [3], [0]],
+             [[0], [4], [5], [0]]], dtype=np.int32)) ==
+            # This is the expected output mask, one dimension less
+            np.array([[1, 1, 1, 0], [0, 1, 1, 0]])))
+
+    def test_non_zero(self):
+        """Test masking with non-zero mask value"""
+        layer = core.Masking(5)
+        func = theano.function([layer.input], layer.get_output_mask())
+        self.assertTrue(np.all(
+            # get mask for this input, if not all the values are 5, shouldn't masked
+            func(np.array(
+            [[[1, 1], [2, 1], [3, 1], [5, 5]],
+             [[1, 5], [5, 0], [0, 0], [0, 0]]], dtype=np.int32)) ==
+            # This is the expected output mask, one dimension less
+            np.array([[1, 1, 1, 0], [1, 1, 1, 1]])))
+
+
 if __name__ == '__main__':
     unittest.main()

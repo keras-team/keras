@@ -357,3 +357,10 @@ model.compile(loss='categorical_crossentropy', optimizer='rmsprop')
 model.fit([X_train, X_train], Y_train, batch_size=128, nb_epoch=20, validation_data=([X_test, X_test], Y_test))
 ```
 
+## Masking
+```python
+keras.layers.core.Masking(mask_value=0)
+```
+
+Create a mask for the input data by using `mask_value` as the padding value which should be masked out.
+Works with sequences only, given an input of dimensions `(nb_samples, timesteps, input_dim)`, return the input untouched as output, and supply a mask of shape `(nb_samples, timesteps)` where all timesteps which had all values set to `mask_value` are masked out (0).
