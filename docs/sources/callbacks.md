@@ -52,7 +52,7 @@ You can create a custom callback by extending the base class `keras.callbacks.Ca
 Here's a simple example saving a list of losses over each batch during training:
 ```python
 class LossHistory(keras.callbacks.Callback):
-    def on_train_begin(self):
+    def on_train_begin(self, logs={}):
         self.losses = []
 
     def on_batch_end(self, batch, logs={}):
