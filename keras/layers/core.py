@@ -119,28 +119,26 @@ class MaskedLayer(Layer):
 class Masking(MaskedLayer):
     """Mask an input sequence by using a mask value to identify padding.
 
-    This layer copies the input to the output layer, while creating an output mask in the process.
-    This layer is only available with sequences, so its input should be the in
-    the shape (nb_samples, timesteps, input_dim) and its output is of the shape
-    (nb_samples, timesteps).
+    This layer copies the input to the output layer,
+    while creating an output mask in the process.
 
-    At each timestep, if the values all equal `mask_value`, then the timestep
-    mask is zero (skipped), otherwise it is 1.
+    At each timestep, if the values all equal `mask_value`,
+    then the corresponding mask value for the timestep is 0 (skipped),
+    otherwise it is 1.
 
     """
-
-    def __init__(self, mask_value=0):
+    def __init__(self, mask_value=0.):
         super(Masking, self).__init__()
         self.mask_value = mask_value
         self.input = T.tensor3()
 
     def get_output_mask(self, train=False):
         X = self.get_input(train)
-        return T.any(T.ones_like(X) * (1 - T.eq(X, self.mask_value)), axis=-1)
+        return T.any(T.ones_like(X) * (1. - T.eq(X, self.mask_value)), axis=-1)
 
     def get_config(self):
-        return dict(super(Masking, self).get_config(),
-                    mask_value=self.mask_value)
+        return {"name": self.__class__.__name__,
+                "mask_value": self.mask_value}
 
 
 class Merge(object):
