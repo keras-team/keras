@@ -144,6 +144,19 @@ class TestMasking(unittest.TestCase):
             # This is the expected output mask, one dimension less
             np.array([[1, 1, 1, 0], [1, 1, 1, 1]])))
 
+    def test_non_zero_output(self):
+        """Test output of masking layer with non-zero mask value"""
+        layer = core.Masking(5)
+        func = theano.function([layer.input], layer.get_output())
+        self.assertTrue(np.all(
+            # get output for this input, replace padding with 0
+            func(np.array(
+            [[[1, 1], [2, 1], [3, 1], [5, 5]],
+             [[1, 5], [5, 0], [0, 0], [0, 0]]], dtype=np.int32)) ==
+            # This is the expected output
+            np.array([[[1, 1], [2, 1], [3, 1], [0, 0]],
+             [[1, 5], [5, 0], [0, 0], [0, 0]]])))
+
 
 if __name__ == '__main__':
     unittest.main()
