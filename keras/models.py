@@ -63,13 +63,16 @@ def slice_X(X, start=None, stop=None):
 
 
 def weighted_objective(fn):
-    def weighted(y_true, y_pred, weights):
+    def weighted(y_true, y_pred, weights, mask=None):
         # it's important that 0 * Inf == 0, not NaN, so I need to mask first
         masked_y_true = y_true[weights.nonzero()[:-1]]
         masked_y_pred = y_pred[weights.nonzero()[:-1]]
         masked_weights = weights[weights.nonzero()]
         obj_output = fn(masked_y_true, masked_y_pred)
-        return (masked_weights.flatten() * obj_output.flatten()).mean()
+        if mask is None:
+            return (masked_weights.flatten() * obj_output.flatten()).mean()
+        else:
+            return (masked_weights.flatten() * obj_output.flatten()).sum() / mask.sum()
     return weighted
 
 
@@ -338,7 +341,8 @@ class Sequential(Model, containers.Sequential):
             - set_weights
     '''
 
-    def compile(self, optimizer, loss, class_mode="categorical", theano_mode=None):
+    def compile(self, optimizer, loss, class_mode="categorical", theano_mode=None,
+                mask_cost=False):
         self.optimizer = optimizers.get(optimizer)
 
         self.loss = objectives.get(loss)
@@ -356,8 +360,12 @@ class Sequential(Model, containers.Sequential):
 
         self.weights = T.ones_like(self.y_train)
 
-        train_loss = weighted_loss(self.y, self.y_train, self.weights)
-        test_loss = weighted_loss(self.y, self.y_test, self.weights)
+        if mask_cost:
+            mask = self.layers[-1].get_output_mask()
+        else:
+            mask = None
+        train_loss = weighted_loss(self.y, self.y_train, self.weights, mask)
+        test_loss = weighted_loss(self.y, self.y_test, self.weights, mask)
 
         train_loss.name = 'train_loss'
         test_loss.name = 'test_loss'
