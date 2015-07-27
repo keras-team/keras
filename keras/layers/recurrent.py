@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from __future__ import absolute_import
+from __future__ import absolute_import, division
 import theano
 import theano.tensor as T
 import numpy as np
@@ -848,17 +848,21 @@ class Bidirectional(Recurrent):
             # reverse the output of the backward model along the
             # time dimension so that it's aligned with the forward model's
             # output
-            backward_output = backward_output[:, ::-1]
+            backward_output = backward_output[:, ::-1, :]
         # both forward_output and backward_output have shapes like
         # (n_samples, n_timesteps, output_dim) in the case of self.return_sequences=True
         # or otherwise like (n_samples, output_dim)
         # In either case, concatenate the two outputs to get a final dimension
         # of output_dim * 2
-        return T.concatenate([forward_output, backward_output], axis=-1)
+        return T.concatenate(
+            [forward_output, backward_output],
+            axis=-1)
 
     def get_output_mask(self, train=False):
         if self.return_sequences:
-            return self.get_input_mask(train)
+            mask = self.get_input_mask(train)
+            print(mask, mask.ndim)
+            return mask
         else:
             return None
 
