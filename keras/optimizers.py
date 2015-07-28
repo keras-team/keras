@@ -179,7 +179,7 @@ class Adam(Optimizer):
         grads = self.get_gradients(loss, params)
         self.updates = [(self.iterations, self.iterations+1.)]
 
-        t = self.iterations
+        t = self.iterations + 1
 
         for p, g, c in zip(params, grads, constraints):
             m = theano.shared(p.get_value() * 0.)  # zero init of moment
