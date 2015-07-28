@@ -72,7 +72,11 @@ def weighted_objective(fn):
         if mask is None:
             return (masked_weights.flatten() * obj_output.flatten()).mean()
         else:
-            return (masked_weights.flatten() * obj_output.flatten()).sum() / mask.sum()
+            # We assume the time index to be masked is axis=1
+            wc = masked_weights * obj_output
+            wc = wc.reshape(mask.shape)
+            wc = wc.sum(axis=1) / mask.sum(axis=1)
+            return wc.mean()
     return weighted
 
 

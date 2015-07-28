@@ -22,4 +22,4 @@ def test_cost_masking():
     model.add(TimeDistributedDense(2, 1, init='one'))
     model.compile(loss='mse', optimizer='sgd', mask_cost=True)
     loss = model.fit(X, 4*y, nb_epoch=1, batch_size=2, verbose=1).history['loss'][0]
-    assert loss == 285.0
+    assert loss == 282.375
