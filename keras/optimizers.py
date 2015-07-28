@@ -166,13 +166,11 @@ class Adadelta(Optimizer):
 
 class Adam(Optimizer):
     '''
-        Reference: http://arxiv.org/abs/1412.6980
+        Reference: http://arxiv.org/abs/1412.6980v8
 
-        Default parameters follow those provided in the original paper
-
-        lambda is renamed kappa.
+        Default parameters follow those provided in the original paper.
     '''
-    def __init__(self, lr=0.001, beta_1=0.9, beta_2=0.999, epsilon=1e-8, kappa=1-1e-8, *args, **kwargs):
+    def __init__(self, lr=0.001, beta_1=0.9, beta_2=0.999, epsilon=1e-8, *args, **kwargs):
         super(Adam, self).__init__(**kwargs)
         self.__dict__.update(locals())
         self.iterations = shared_scalar(0)
@@ -181,21 +179,17 @@ class Adam(Optimizer):
         grads = self.get_gradients(loss, params)
         self.updates = [(self.iterations, self.iterations+1.)]
 
-        i = self.iterations
-        beta_1_t = self.beta_1 * (self.kappa**i)
-
-        # the update below seems missing from the paper, but is obviously required
-        beta_2_t = self.beta_2 * (self.kappa**i)
+        t = self.iterations
 
         for p, g, c in zip(params, grads, constraints):
             m = theano.shared(p.get_value() * 0.)  # zero init of moment
             v = theano.shared(p.get_value() * 0.)  # zero init of velocity
 
-            m_t = (beta_1_t * m) + (1 - beta_1_t) * g
-            v_t = (beta_2_t * v) + (1 - beta_2_t) * (g**2)
+            m_t = (self.beta_1 * m) + (1 - self.beta_1) * g
+            v_t = (self.beta_2 * v) + (1 - self.beta_2) * (g**2)
 
-            m_b_t = m_t / (1 - beta_1_t)
-            v_b_t = v_t / (1 - beta_2_t)
+            m_b_t = m_t / (1 - self.beta_1**t)
+            v_b_t = v_t / (1 - self.beta_2**t)
 
             p_t = p - self.lr * m_b_t / (T.sqrt(v_b_t) + self.epsilon)
 
@@ -209,8 +203,7 @@ class Adam(Optimizer):
                 "lr": self.lr,
                 "beta_1": self.beta_1,
                 "beta_2": self.beta_2,
-                "epsilon": self.epsilon,
-                "kappa": self.kappa}
+                "epsilon": self.epsilon}
 
 # aliases
 sgd = SGD
