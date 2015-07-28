@@ -512,11 +512,9 @@ class AutoEncoder(Layer):
         self.constraints = []
         for layer in [self.encoder, self.decoder]:
             params, regularizers, constraints = layer.get_params()
+            self.params += params
+            self.regularizers += regularizers
             self.constraints += constraints
-            for p, r in zip(params, regularizers):
-                if p not in self.params:
-                    self.params.append(p)
-                    self.regularizers.append(r)
 
         if weights is not None:
             self.set_weights(weights)
