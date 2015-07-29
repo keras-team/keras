@@ -115,7 +115,7 @@ class MaxPooling1D(Layer):
 class Convolution2D(Layer):
     def __init__(self, nb_filter, stack_size, nb_row, nb_col,
                  init='glorot_uniform', activation='linear', weights=None,
-                 border_mode='valid', subsample=(1, 1),
+                 border_mode='valid', subsample=(1, 1),filter_size=[None,None],
                  W_regularizer=None, b_regularizer=None, activity_regularizer=None,
                  W_constraint=None, b_constraint=None):
 
@@ -132,9 +132,17 @@ class Convolution2D(Layer):
 
         self.nb_row = nb_row
         self.nb_col = nb_col
+        
+        self.filter_size=filter_size
+        if len(self.filter_size) != 2:
+            raise Exception('Invalid filter size:', filter_size)
+        if  self.filter_size[0] is None:
+            self.filter_size[0] = self.nb_row
+        if  self.filter_size[1] is None:
+            self.filter_size[1] = self.nb_col
 
         self.input = T.tensor4()
-        self.W_shape = (nb_filter, stack_size, nb_row, nb_col)
+        self.W_shape = (nb_filter, stack_size, self.filter_size[0], self.filter_size[1])
         self.W = self.init(self.W_shape)
         self.b = shared_zeros((nb_filter,))
 
