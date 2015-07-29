@@ -180,6 +180,7 @@ class Adam(Optimizer):
         self.updates = [(self.iterations, self.iterations+1.)]
 
         t = self.iterations + 1
+        lr_t = self.lr * T.sqrt(1-self.beta_2**t)/(1-self.beta_1**t)
 
         for p, g, c in zip(params, grads, constraints):
             m = theano.shared(p.get_value() * 0.)  # zero init of moment
@@ -187,7 +188,6 @@ class Adam(Optimizer):
 
             m_t = (self.beta_1 * m) + (1 - self.beta_1) * g
             v_t = (self.beta_2 * v) + (1 - self.beta_2) * (g**2)
-            lr_t = self.lr * T.sqrt(1-self.beta_2**t)/(1-self.beta_1**t)
             p_t = p - lr_t * m_t / (T.sqrt(v_t) + self.epsilon)
 
             self.updates.append((m, m_t))
