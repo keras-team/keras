@@ -563,24 +563,26 @@ class Sequential(Model, containers.Sequential):
 
     def evaluate_iter(self, datastream, batch_size=128, show_accuracy=False,
                       verbose=1):
-        outs = [0., 0.] if show_accuracy else 0.
+        outs = [0., 0.]
+        nb_samples = len(datastream)
         if verbose == 1:
-            progbar = Progbar(target=len(datastream))
+            progbar = Progbar(target=nb_samples)
             processed = 0
 
         batch_iter = batcher(iter(datastream), batch_size)
         for X, y in batch_iter:
             vals = self.test_on_batch(X, y, show_accuracy)
             if show_accuracy:
-                outs[0] += vals[0]
-                outs[1] += vals[1]
+                outs[0] += vals[0] * len(X)
+                outs[1] += vals[1] * len(X)
             else:
-                outs += vals
+                outs[0] += vals * len(X)
             if verbose:
                 processed += len(X)
                 progbar.update(processed)
 
-        return outs
+        outs = [x / nb_samples for x in outs]
+        return outs if show_accuracy else outs[0]
 
     def evaluate(self, X, y, batch_size=128, show_accuracy=False, verbose=1, sample_weight=None):
         X = standardize_X(X)
