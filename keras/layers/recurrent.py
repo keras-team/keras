@@ -1,12 +1,12 @@
 # -*- coding: utf-8 -*-
-from __future__ import absolute_import
+from __future__ import absolute_import, division
 import theano
 import theano.tensor as T
 import numpy as np
 
 from .. import activations, initializations
-from ..utils.theano_utils import shared_scalar, shared_zeros, alloc_zeros_matrix
-from ..layers.core import Layer, MaskedLayer
+from ..utils.theano_utils import shared_zeros, alloc_zeros_matrix
+from ..layers.core import MaskedLayer
 from six.moves import range
 
 
@@ -33,6 +33,19 @@ class Recurrent(MaskedLayer):
             mask = T.concatenate([padding, mask], axis=0)
         return mask.astype('int8')
 
+class Transparent(Recurrent):
+    '''
+        This is a full-pass layer, means the output is just the same with the input
+        This layer is used for layer connecting purpose
+    '''
+    def __init__(self, input_dim):
+        super(Transparent, self).__init__()
+        self.input_dim = input_dim
+        self.output_dim = input_dim
+        self.return_sequences = True
+        self.input = T.tensor3()
+    def get_output(self, train=False):
+        return self.get_input(train)
 
 class SimpleRNN(Recurrent):
     '''
@@ -43,8 +56,9 @@ class SimpleRNN(Recurrent):
         (demonstrates how to use theano.scan to build a basic RNN).
     '''
     def __init__(self, input_dim, output_dim,
-                 init='glorot_uniform', inner_init='orthogonal', activation='sigmoid', weights=None,
-                 truncate_gradient=-1, return_sequences=False):
+                 init='glorot_uniform', inner_init='orthogonal', activation='sigmoid',
+                 weights=None, truncate_gradient=-1, return_sequences=False,
+                 go_backwards=False):
 
         super(SimpleRNN, self).__init__()
         self.init = initializations.get(init)
@@ -54,6 +68,8 @@ class SimpleRNN(Recurrent):
         self.truncate_gradient = truncate_gradient
         self.activation = activations.get(activation)
         self.return_sequences = return_sequences
+        self.go_backwards = go_backwards
+
         self.input = T.tensor3()
 
         self.W = self.init((self.input_dim, self.output_dim))
@@ -74,7 +90,8 @@ class SimpleRNN(Recurrent):
 
     def get_output(self, train=False):
         X = self.get_input(train)  # shape: (nb_samples, time (padded with zeros), input_dim)
-        # new shape: (time, nb_samples, input_dim) -> because theano.scan iterates over main dimension
+        # new shape: (time, nb_samples, input_dim)
+        # because theano.scan iterates over main dimension
         padded_mask = self.get_padded_shuffled_mask(train, X, pad=1)
         X = X.dimshuffle((1, 0, 2))
         x = T.dot(X, self.W) + self.b
@@ -88,21 +105,25 @@ class SimpleRNN(Recurrent):
             # initialization of the output. Input to _step with default tap=-1.
             outputs_info=T.unbroadcast(alloc_zeros_matrix(X.shape[1], self.output_dim), 1),
             non_sequences=self.U,  # static inputs to _step
-            truncate_gradient=self.truncate_gradient)
+            truncate_gradient=self.truncate_gradient,
+            go_backwards=self.go_backwards)
 
         if self.return_sequences:
             return outputs.dimshuffle((1, 0, 2))
         return outputs[-1]
 
     def get_config(self):
-        return {"name": self.__class__.__name__,
-                "input_dim": self.input_dim,
-                "output_dim": self.output_dim,
-                "init": self.init.__name__,
-                "inner_init": self.inner_init.__name__,
-                "activation": self.activation.__name__,
-                "truncate_gradient": self.truncate_gradient,
-                "return_sequences": self.return_sequences}
+        return {
+            "name": self.__class__.__name__,
+            "input_dim": self.input_dim,
+            "output_dim": self.output_dim,
+            "init": self.init.__name__,
+            "inner_init": self.inner_init.__name__,
+            "activation": self.activation.__name__,
+            "truncate_gradient": self.truncate_gradient,
+            "return_sequences": self.return_sequences,
+            "go_backwards": self.go_backwards
+        }
 
 
 class SimpleDeepRNN(Recurrent):
@@ -118,7 +139,8 @@ class SimpleDeepRNN(Recurrent):
     def __init__(self, input_dim, output_dim, depth=3,
                  init='glorot_uniform', inner_init='orthogonal',
                  activation='sigmoid', inner_activation='hard_sigmoid',
-                 weights=None, truncate_gradient=-1, return_sequences=False):
+                 weights=None, truncate_gradient=-1, return_sequences=False,
+                 go_backwards=False):
 
         super(SimpleDeepRNN, self).__init__()
         self.init = initializations.get(init)
@@ -130,10 +152,15 @@ class SimpleDeepRNN(Recurrent):
         self.inner_activation = activations.get(inner_activation)
         self.depth = depth
         self.return_sequences = return_sequences
+        self.go_backwards = go_backwards
+
         self.input = T.tensor3()
 
         self.W = self.init((self.input_dim, self.output_dim))
-        self.Us = [self.inner_init((self.output_dim, self.output_dim)) for _ in range(self.depth)]
+        self.Us = [
+            self.inner_init((self.output_dim, self.output_dim))
+            for _ in range(self.depth)
+        ]
         self.b = shared_zeros((self.output_dim))
         self.params = [self.W] + self.Us + [self.b]
 
@@ -145,8 +172,8 @@ class SimpleDeepRNN(Recurrent):
         for i in range(self.depth):
             mask_tmi = args[i]
             h_tmi = args[i + self.depth]
-            U_tmi = args[i + 2*self.depth]
-            o += mask_tmi*self.inner_activation(T.dot(h_tmi, U_tmi))
+            U_tmi = args[i + 2 * self.depth]
+            o += mask_tmi * self.inner_activation(T.dot(h_tmi, U_tmi))
         return self.activation(o)
 
     def get_output(self, train=False):
@@ -159,7 +186,9 @@ class SimpleDeepRNN(Recurrent):
         if self.depth == 1:
             initial = T.unbroadcast(alloc_zeros_matrix(X.shape[1], self.output_dim), 1)
         else:
-            initial = T.unbroadcast(T.unbroadcast(alloc_zeros_matrix(self.depth, X.shape[1], self.output_dim), 0), 2)
+            initial = T.unbroadcast(
+                T.unbroadcast(
+                    alloc_zeros_matrix(self.depth, X.shape[1], self.output_dim), 0), 2)
 
         outputs, updates = theano.scan(
             self._step,
@@ -169,10 +198,11 @@ class SimpleDeepRNN(Recurrent):
             )],
             outputs_info=[dict(
                 initial=initial,
-                taps=[(-i-1) for i in range(self.depth)]
+                taps=[(-i - 1) for i in range(self.depth)]
             )],
             non_sequences=self.Us,
-            truncate_gradient=self.truncate_gradient
+            truncate_gradient=self.truncate_gradient,
+            go_backwards=self.go_backwards
         )
 
         if self.return_sequences:
@@ -180,16 +210,19 @@ class SimpleDeepRNN(Recurrent):
         return outputs[-1]
 
     def get_config(self):
-        return {"name": self.__class__.__name__,
-                "input_dim": self.input_dim,
-                "output_dim": self.output_dim,
-                "depth": self.depth,
-                "init": self.init.__name__,
-                "inner_init": self.inner_init.__name__,
-                "activation": self.activation.__name__,
-                "inner_activation": self.inner_activation.__name__,
-                "truncate_gradient": self.truncate_gradient,
-                "return_sequences": self.return_sequences}
+        return {
+            "name": self.__class__.__name__,
+            "input_dim": self.input_dim,
+            "output_dim": self.output_dim,
+            "depth": self.depth,
+            "init": self.init.__name__,
+            "inner_init": self.inner_init.__name__,
+            "activation": self.activation.__name__,
+            "inner_activation": self.inner_activation.__name__,
+            "truncate_gradient": self.truncate_gradient,
+            "return_sequences": self.return_sequences,
+            "go_backwards": self.go_backwards,
+        }
 
 
 class GRU(Recurrent):
@@ -217,18 +250,21 @@ class GRU(Recurrent):
     def __init__(self, input_dim, output_dim=128,
                  init='glorot_uniform', inner_init='orthogonal',
                  activation='sigmoid', inner_activation='hard_sigmoid',
-                 weights=None, truncate_gradient=-1, return_sequences=False):
+                 weights=None, truncate_gradient=-1, return_sequences=False,
+                 go_backwards=False):
 
         super(GRU, self).__init__()
         self.input_dim = input_dim
         self.output_dim = output_dim
         self.truncate_gradient = truncate_gradient
         self.return_sequences = return_sequences
+        self.go_backwards = go_backwards
 
         self.init = initializations.get(init)
         self.inner_init = initializations.get(inner_init)
         self.activation = activations.get(activation)
         self.inner_activation = activations.get(inner_activation)
+
         self.input = T.tensor3()
 
         self.W_z = self.init((self.input_dim, self.output_dim))
@@ -276,22 +312,26 @@ class GRU(Recurrent):
             sequences=[x_z, x_r, x_h, padded_mask],
             outputs_info=T.unbroadcast(alloc_zeros_matrix(X.shape[1], self.output_dim), 1),
             non_sequences=[self.U_z, self.U_r, self.U_h],
-            truncate_gradient=self.truncate_gradient)
+            truncate_gradient=self.truncate_gradient,
+            go_backwards=self.go_backwards)
 
         if self.return_sequences:
             return outputs.dimshuffle((1, 0, 2))
         return outputs[-1]
 
     def get_config(self):
-        return {"name": self.__class__.__name__,
-                "input_dim": self.input_dim,
-                "output_dim": self.output_dim,
-                "init": self.init.__name__,
-                "inner_init": self.inner_init.__name__,
-                "activation": self.activation.__name__,
-                "inner_activation": self.inner_activation.__name__,
-                "truncate_gradient": self.truncate_gradient,
-                "return_sequences": self.return_sequences}
+        return {
+            "name": self.__class__.__name__,
+            "input_dim": self.input_dim,
+            "output_dim": self.output_dim,
+            "init": self.init.__name__,
+            "inner_init": self.inner_init.__name__,
+            "activation": self.activation.__name__,
+            "inner_activation": self.inner_activation.__name__,
+            "truncate_gradient": self.truncate_gradient,
+            "return_sequences": self.return_sequences,
+            "go_backwards": self.go_backwards,
+        }
 
 
 class LSTM(Recurrent):
@@ -322,20 +362,23 @@ class LSTM(Recurrent):
     def __init__(self, input_dim, output_dim=128,
                  init='glorot_uniform', inner_init='orthogonal', forget_bias_init='one',
                  activation='tanh', inner_activation='hard_sigmoid',
-                 weights=None, truncate_gradient=-1, return_sequences=False):
+                 weights=None, truncate_gradient=-1, return_sequences=False,
+                 go_backwards=False):
 
         super(LSTM, self).__init__()
         self.input_dim = input_dim
         self.output_dim = output_dim
         self.truncate_gradient = truncate_gradient
         self.return_sequences = return_sequences
+        self.go_backwards = go_backwards
 
         self.init = initializations.get(init)
         self.inner_init = initializations.get(inner_init)
         self.forget_bias_init = initializations.get(forget_bias_init)
         self.activation = activations.get(activation)
         self.inner_activation = activations.get(inner_activation)
-        self.input = T.tensor3()
+
+        self.input = T.tensor3('LSTMinput')
 
         self.W_i = self.init((self.input_dim, self.output_dim))
         self.U_i = self.inner_init((self.output_dim, self.output_dim))
@@ -395,23 +438,27 @@ class LSTM(Recurrent):
                 T.unbroadcast(alloc_zeros_matrix(X.shape[1], self.output_dim), 1)
             ],
             non_sequences=[self.U_i, self.U_f, self.U_o, self.U_c],
-            truncate_gradient=self.truncate_gradient)
+            truncate_gradient=self.truncate_gradient,
+            go_backwards=self.go_backwards)
 
         if self.return_sequences:
             return outputs.dimshuffle((1, 0, 2))
         return outputs[-1]
 
     def get_config(self):
-        return {"name": self.__class__.__name__,
-                "input_dim": self.input_dim,
-                "output_dim": self.output_dim,
-                "init": self.init.__name__,
-                "inner_init": self.inner_init.__name__,
-                "forget_bias_init": self.forget_bias_init.__name__,
-                "activation": self.activation.__name__,
-                "inner_activation": self.inner_activation.__name__,
-                "truncate_gradient": self.truncate_gradient,
-                "return_sequences": self.return_sequences}
+        return {
+            "name": self.__class__.__name__,
+            "input_dim": self.input_dim,
+            "output_dim": self.output_dim,
+            "init": self.init.__name__,
+            "inner_init": self.inner_init.__name__,
+            "forget_bias_init": self.forget_bias_init.__name__,
+            "activation": self.activation.__name__,
+            "inner_activation": self.inner_activation.__name__,
+            "truncate_gradient": self.truncate_gradient,
+            "return_sequences": self.return_sequences,
+            "go_backwards": self.go_backwards
+        }
 
 
 class JZS1(Recurrent):
@@ -437,18 +484,21 @@ class JZS1(Recurrent):
     def __init__(self, input_dim, output_dim=128,
                  init='glorot_uniform', inner_init='orthogonal',
                  activation='tanh', inner_activation='sigmoid',
-                 weights=None, truncate_gradient=-1, return_sequences=False):
+                 weights=None, truncate_gradient=-1, return_sequences=False,
+                 go_backwards=False):
 
         super(JZS1, self).__init__()
         self.input_dim = input_dim
         self.output_dim = output_dim
         self.truncate_gradient = truncate_gradient
         self.return_sequences = return_sequences
+        self.go_backwards = go_backwards
 
         self.init = initializations.get(init)
         self.inner_init = initializations.get(inner_init)
         self.activation = activations.get(activation)
         self.inner_activation = activations.get(inner_activation)
+
         self.input = T.tensor3()
 
         self.W_z = self.init((self.input_dim, self.output_dim))
@@ -465,7 +515,8 @@ class JZS1(Recurrent):
         if self.input_dim == self.output_dim:
             self.Pmat = theano.shared(np.identity(self.output_dim, dtype=theano.config.floatX), name=None)
         else:
-            P = np.random.binomial(1, 0.5, size=(self.input_dim, self.output_dim)).astype(theano.config.floatX) * 2 - 1
+            P_shape = (self.input_dim, self.output_dim)
+            P = np.random.binomial(1, 0.5, size=P_shape).astype(theano.config.floatX) * 2 - 1
             P = 1 / np.sqrt(self.input_dim) * P
             self.Pmat = theano.shared(P, name=None)
 
@@ -502,21 +553,25 @@ class JZS1(Recurrent):
             sequences=[x_z, x_r, x_h, padded_mask],
             outputs_info=T.unbroadcast(alloc_zeros_matrix(X.shape[1], self.output_dim), 1),
             non_sequences=[self.U_r, self.U_h],
-            truncate_gradient=self.truncate_gradient)
+            truncate_gradient=self.truncate_gradient,
+            go_backwards=self.go_backwards)
         if self.return_sequences:
             return outputs.dimshuffle((1, 0, 2))
         return outputs[-1]
 
     def get_config(self):
-        return {"name": self.__class__.__name__,
-                "input_dim": self.input_dim,
-                "output_dim": self.output_dim,
-                "init": self.init.__name__,
-                "inner_init": self.inner_init.__name__,
-                "activation": self.activation.__name__,
-                "inner_activation": self.inner_activation.__name__,
-                "truncate_gradient": self.truncate_gradient,
-                "return_sequences": self.return_sequences}
+        return {
+            "name": self.__class__.__name__,
+            "input_dim": self.input_dim,
+            "output_dim": self.output_dim,
+            "init": self.init.__name__,
+            "inner_init": self.inner_init.__name__,
+            "activation": self.activation.__name__,
+            "inner_activation": self.inner_activation.__name__,
+            "truncate_gradient": self.truncate_gradient,
+            "return_sequences": self.return_sequences,
+            "go_backwards": self.go_backwards
+        }
 
 
 class JZS2(Recurrent):
@@ -542,18 +597,21 @@ class JZS2(Recurrent):
     def __init__(self, input_dim, output_dim=128,
                  init='glorot_uniform', inner_init='orthogonal',
                  activation='tanh', inner_activation='sigmoid',
-                 weights=None, truncate_gradient=-1, return_sequences=False):
+                 weights=None, truncate_gradient=-1, return_sequences=False,
+                 go_backwards=False):
 
         super(JZS2, self).__init__()
         self.input_dim = input_dim
         self.output_dim = output_dim
         self.truncate_gradient = truncate_gradient
         self.return_sequences = return_sequences
+        self.go_backwards = go_backwards
 
         self.init = initializations.get(init)
         self.inner_init = initializations.get(inner_init)
         self.activation = activations.get(activation)
         self.inner_activation = activations.get(inner_activation)
+
         self.input = T.tensor3()
 
         self.W_z = self.init((self.input_dim, self.output_dim))
@@ -608,21 +666,25 @@ class JZS2(Recurrent):
             sequences=[x_z, x_r, x_h, padded_mask],
             outputs_info=T.unbroadcast(alloc_zeros_matrix(X.shape[1], self.output_dim), 1),
             non_sequences=[self.U_z, self.U_r, self.U_h],
-            truncate_gradient=self.truncate_gradient)
+            truncate_gradient=self.truncate_gradient,
+            go_backwards=self.go_backwards)
         if self.return_sequences:
             return outputs.dimshuffle((1, 0, 2))
         return outputs[-1]
 
     def get_config(self):
-        return {"name": self.__class__.__name__,
-                "input_dim": self.input_dim,
-                "output_dim": self.output_dim,
-                "init": self.init.__name__,
-                "inner_init": self.inner_init.__name__,
-                "activation": self.activation.__name__,
-                "inner_activation": self.inner_activation.__name__,
-                "truncate_gradient": self.truncate_gradient,
-                "return_sequences": self.return_sequences}
+        return {
+            "name": self.__class__.__name__,
+            "input_dim": self.input_dim,
+            "output_dim": self.output_dim,
+            "init": self.init.__name__,
+            "inner_init": self.inner_init.__name__,
+            "activation": self.activation.__name__,
+            "inner_activation": self.inner_activation.__name__,
+            "truncate_gradient": self.truncate_gradient,
+            "return_sequences": self.return_sequences,
+            "go_backwards": self.go_backwards
+        }
 
 
 class JZS3(Recurrent):
@@ -648,18 +710,21 @@ class JZS3(Recurrent):
     def __init__(self, input_dim, output_dim=128,
                  init='glorot_uniform', inner_init='orthogonal',
                  activation='tanh', inner_activation='sigmoid',
-                 weights=None, truncate_gradient=-1, return_sequences=False):
+                 weights=None, truncate_gradient=-1, return_sequences=False,
+                 go_backwards=False):
 
         super(JZS3, self).__init__()
         self.input_dim = input_dim
         self.output_dim = output_dim
         self.truncate_gradient = truncate_gradient
         self.return_sequences = return_sequences
+        self.go_backwards = go_backwards
 
         self.init = initializations.get(init)
         self.inner_init = initializations.get(inner_init)
         self.activation = activations.get(activation)
         self.inner_activation = activations.get(inner_activation)
+
         self.input = T.tensor3()
 
         self.W_z = self.init((self.input_dim, self.output_dim))
@@ -707,19 +772,110 @@ class JZS3(Recurrent):
             sequences=[x_z, x_r, x_h, padded_mask],
             outputs_info=T.unbroadcast(alloc_zeros_matrix(X.shape[1], self.output_dim), 1),
             non_sequences=[self.U_z, self.U_r, self.U_h],
-            truncate_gradient=self.truncate_gradient
+            truncate_gradient=self.truncate_gradient,
+            go_backwards=self.go_backwards,
         )
         if self.return_sequences:
             return outputs.dimshuffle((1, 0, 2))
         return outputs[-1]
 
     def get_config(self):
-        return {"name": self.__class__.__name__,
-                "input_dim": self.input_dim,
-                "output_dim": self.output_dim,
-                "init": self.init.__name__,
-                "inner_init": self.inner_init.__name__,
-                "activation": self.activation.__name__,
-                "inner_activation": self.inner_activation.__name__,
-                "truncate_gradient": self.truncate_gradient,
-                "return_sequences": self.return_sequences}
+        return {
+            "name": self.__class__.__name__,
+            "input_dim": self.input_dim,
+            "output_dim": self.output_dim,
+            "init": self.init.__name__,
+            "inner_init": self.inner_init.__name__,
+            "activation": self.activation.__name__,
+            "inner_activation": self.inner_activation.__name__,
+            "truncate_gradient": self.truncate_gradient,
+            "return_sequences": self.return_sequences,
+            "go_backwards": self.go_backwards
+        }
+
+
+class Bidirectional(Recurrent):
+    """
+    Construct a bidirectional RNN out of an underlying RNN class. Traverses
+    the input sequence both forwards and backwards and then concatenates RNN
+    outputs from both directions.
+    """
+
+    def __init__(self, rnn_class, input_dim, output_dim=128, return_sequences=False, **kwargs):
+        """
+        All extra arguments are passed to the `rnn_class` constructor.
+        """
+        super(Bidirectional, self).__init__()
+        self.rnn_class = rnn_class
+        self.input_dim = input_dim
+        if output_dim % 2 != 0:
+            # since we're splitting the output dim between two underlying
+            # RNNs, the total must be divisible by 2
+            raise ValueError(
+                "Output dimension of bidirectional RNN must be even")
+        self.output_dim = output_dim
+        self.return_sequences = return_sequences
+        self.kwargs = kwargs
+
+        self.inputlayer = Transparent(input_dim=self.input_dim, output_dim=self.input_dim)
+        self.input = self.inputlayer.input
+        self.forward_model = rnn_class(
+            input_dim=self.input_dim,
+            output_dim=self.output_dim // 2,
+            return_sequences=self.return_sequences,
+            go_backwards=False,
+            **kwargs)
+        self.backward_model = rnn_class(
+            input_dim=self.input_dim,
+            output_dim=self.output_dim // 2,
+            return_sequences=self.return_sequences,
+            go_backwards=True,
+            **kwargs)
+        self.forward_model.set_previous(self.inputlayer)
+        self.backward_model.set_previous(self.inputlayer)
+
+        self.layers = [self.inputlayer, self.forward_model, self.backward_model]
+        self.params = []
+        self.regularizers = []
+        self.constraints = []
+        for l in self.layers:
+            params, regs, consts = l.get_params()
+            self.regularizers += regs
+            # params and constraints have the same size
+            for p, c in zip(params, consts):
+                if p not in self.params:
+                    self.params.append(p)
+                    self.constraints.append(c)
+
+    def get_params(self):
+        return self.params, self.regularizers, self.constraints
+
+    def set_previous(self, layer):
+        self.inputlayer.set_previous(layer)
+
+    def get_output(self, train=False):
+        forward_output = self.forward_model.get_output(train)
+        backward_output = self.backward_model.get_output(train)
+        if self.return_sequences:
+            # reverse the output of the backward model along the
+            # time dimension so that it's aligned with the forward model's
+            # output
+            backward_output = backward_output[:, ::-1, :]
+        # both forward_output and backward_output have shapes like
+        # (n_samples, n_timesteps, output_dim) in the case of self.return_sequences=True
+        # or otherwise like (n_samples, output_dim)
+        # In either case, concatenate the two outputs to get a final dimension
+        # of output_dim * 2
+        return T.concatenate(
+            [forward_output, backward_output],
+            axis=-1)
+
+    def get_config(self):
+        config_dict = {
+            "name": self.__class__.__name__,
+            "rnn_class": self.rnn_class.__name__,
+            "input_dim": self.input_dim,
+            "output_dim": self.output_dim,
+        }
+        config_dict.update(self.kwargs)
+        return config_dict
