@@ -118,8 +118,8 @@ class MaskedLayer(Layer):
 class Masking(MaskedLayer):
     """Mask an input sequence by using a mask value to identify padding.
 
-    This layer copies the input to the output layer,
-    while creating an output mask in the process.
+    This layer copies the input to the output layer with identified padding
+    replaced with 0s and creates an output mask in the process.
 
     At each timestep, if the values all equal `mask_value`,
     then the corresponding mask value for the timestep is 0 (skipped),
@@ -134,6 +134,10 @@ class Masking(MaskedLayer):
     def get_output_mask(self, train=False):
         X = self.get_input(train)
         return T.any(T.ones_like(X) * (1. - T.eq(X, self.mask_value)), axis=-1)
+
+    def get_output(self, train=False):
+        X = self.get_input(train)
+        return X * T.shape_padright(T.any((1. - T.eq(X, self.mask_value)), axis=-1))
 
     def get_config(self):
         return {"name": self.__class__.__name__,
