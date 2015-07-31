@@ -817,7 +817,7 @@ class Bidirectional(Recurrent):
         self.return_sequences = return_sequences
         self.kwargs = kwargs
 
-        self.inputlayer = Transparent(input_dim=self.input_dim, output_dim=self.input_dim)
+        self.inputlayer = Transparent(input_dim=self.input_dim)
         self.input = self.inputlayer.input
         self.forward_model = rnn_class(
             input_dim=self.input_dim,
