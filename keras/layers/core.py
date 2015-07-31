@@ -12,7 +12,6 @@ from ..regularizers import ActivityRegularizer, Regularizer
 
 from theano.sandbox.rng_mrg import MRG_RandomStreams as RandomStreams
 from six.moves import zip
-srng = RandomStreams(seed=np.random.randint(10e6))
 
 
 class Layer(object):
@@ -223,13 +222,14 @@ class Dropout(MaskedLayer):
     def __init__(self, p):
         super(Dropout, self).__init__()
         self.p = p
+        self.srng = RandomStreams(seed=np.random.randint(10e6))
 
     def get_output(self, train=False):
         X = self.get_input(train)
         if self.p > 0.:
             retain_prob = 1. - self.p
             if train:
-                X *= srng.binomial(X.shape, p=retain_prob, dtype=theano.config.floatX)
+                X *= self.srng.binomial(X.shape, p=retain_prob, dtype=theano.config.floatX)
             else:
                 X *= retain_prob
         return X
@@ -512,11 +512,11 @@ class AutoEncoder(Layer):
         self.constraints = []
         for layer in [self.encoder, self.decoder]:
             params, regularizers, constraints = layer.get_params()
-            self.constraints += constraints
-            for p, r in zip(params, regularizers):
+            self.regularizers += regularizers
+            for p, c in zip(params, constraints):
                 if p not in self.params:
                     self.params.append(p)
-                    self.regularizers.append(r)
+                    self.constraints.append(c)
 
         if weights is not None:
             self.set_weights(weights)

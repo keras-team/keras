@@ -2,6 +2,7 @@ from __future__ import print_function
 import inspect
 import numpy as np
 import theano
+import copy
 
 from ..layers.advanced_activations import LeakyReLU, PReLU
 from ..layers.core import Dense, Merge, Dropout, Activation, Reshape, Flatten, RepeatVector, Layer
@@ -15,9 +16,9 @@ from .. import regularizers
 from .. import constraints
 
 
-def container_from_config(layer_dict):
+def container_from_config(original_layer_dict):
+    layer_dict = copy.deepcopy(original_layer_dict)
     name = layer_dict.get('name')
-    hasParams = False
 
     if name == 'Merge':
         mode = layer_dict.get('mode')
@@ -57,12 +58,7 @@ def container_from_config(layer_dict):
         return graph_layer
 
     else:
-        # The case in which layer_dict represents an "atomic" layer
         layer_dict.pop('name')
-        if 'parameters' in layer_dict:
-            params = layer_dict.get('parameters')
-            layer_dict.pop('parameters')
-            hasParams = True
 
         for k, v in layer_dict.items():
             # For now, this can only happen for regularizers and constraints
@@ -75,13 +71,6 @@ def container_from_config(layer_dict):
                     layer_dict[k] = regularizers.get(vname, v)
 
         base_layer = get_layer(name, layer_dict)
-        if hasParams:
-            shaped_params = []
-            for param in params:
-                data = np.asarray(param.get('data'))
-                shape = tuple(param.get('shape'))
-                shaped_params.append(data.reshape(shape))
-            base_layer.set_weights(shaped_params)
         return base_layer
 
 

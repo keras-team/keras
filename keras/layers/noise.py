@@ -1,7 +1,9 @@
 from __future__ import absolute_import
-from .core import srng, MaskedLayer
+import numpy as np
+from .core import MaskedLayer
 import theano
 import theano.tensor as T
+from theano.sandbox.rng_mrg import MRG_RandomStreams as RandomStreams
 
 
 class GaussianNoise(MaskedLayer):
@@ -11,14 +13,15 @@ class GaussianNoise(MaskedLayer):
     def __init__(self, sigma):
         super(GaussianNoise, self).__init__()
         self.sigma = sigma
+        self.srng = RandomStreams(seed=np.random.randint(10e6))
 
     def get_output(self, train=False):
         X = self.get_input(train)
         if not train or self.sigma == 0:
             return X
         else:
-            return X + srng.normal(size=X.shape, avg=0.0, std=self.sigma,
-                                   dtype=theano.config.floatX)
+            return X + self.srng.normal(size=X.shape, avg=0.0, std=self.sigma,
+                                        dtype=theano.config.floatX)
 
     def get_config(self):
         return {"name": self.__class__.__name__,
@@ -36,12 +39,13 @@ class GaussianDropout(MaskedLayer):
     def __init__(self, p):
         super(GaussianDropout, self).__init__()
         self.p = p
+        self.srng = RandomStreams(seed=np.random.randint(10e6))
 
     def get_output(self, train):
         X = self.get_input(train)
         if train:
             # self.p refers to drop probability rather than retain probability (as in paper) to match Dropout layer syntax
-            X *= srng.normal(size=X.shape, avg=1.0, std=T.sqrt(self.p / (1.0 - self.p)), dtype=theano.config.floatX)
+            X *= self.srng.normal(size=X.shape, avg=1.0, std=T.sqrt(self.p / (1.0 - self.p)), dtype=theano.config.floatX)
         return X
 
     def get_config(self):

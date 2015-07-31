@@ -124,7 +124,7 @@ def model_from_config(config):
         class_mode = config.get('class_mode')
         theano_mode = config.get('theano_mode')
 
-        optimizer_params = config.get('optimizer')
+        optimizer_params = dict([(k, v) for k, v in config.get('optimizer').items()])
         optimizer_name = optimizer_params.pop('name')
         optimizer = optimizers.get(optimizer_name, optimizer_params)
 
@@ -213,9 +213,9 @@ class Model(object):
 
                 callbacks.on_batch_end(batch_index, batch_logs)
 
+                epoch_logs = {}
                 if batch_index == len(batches) - 1:  # last batch
                     # validation
-                    epoch_logs = {}
                     if do_validation:
                         # replace with self._evaluate
                         val_outs = self._test_loop(val_f, val_ins, batch_size=batch_size, verbose=0)
