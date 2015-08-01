@@ -255,7 +255,7 @@ class RemoteMonitor(Callback):
 
         for k, v in self.totals.items():
             send[k] = v / self.seen
-        for k, v in self.logs:
+        for k, v in logs:
             send[k] = v
 
         r = requests.post(self.root + '/publish/epoch/end/', {'data': json.dumps(send)})
