@@ -24,9 +24,10 @@ class PReLU(MaskedLayer):
             Delving Deep into Rectifiers: Surpassing Human-Level Performance on ImageNet Classification
                 http://arxiv.org/pdf/1502.01852v1.pdf
     '''
-    def __init__(self, input_shape):
+    def __init__(self, input_shape, alpha_init=0.01):
         super(PReLU, self).__init__()
-        self.alphas = shared_zeros(input_shape)
+        self.alpha_init = alpha_init
+        self.alphas = sharedX(alpha_init * np.ones(input_shape))
         self.params = [self.alphas]
         self.input_shape = input_shape
 
