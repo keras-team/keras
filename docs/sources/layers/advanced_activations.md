@@ -19,7 +19,7 @@ Special version of a Rectified Linear Unit that allows a small gradient when the
 ## PReLU
 
 ```python
-keras.layers.advanced_activations.PReLU(input_shape)
+keras.layers.advanced_activations.PReLU(input_shape,alpha_init=0.01)
 ```
 
 Parametrized linear unit. Similar to a LeakyReLU, where each input unit has its alpha coefficient, and where these coefficients are learned during training.
@@ -30,7 +30,8 @@ Parametrized linear unit. Similar to a LeakyReLU, where each input unit has its 
 
 - __Arguments__:
     - __input_shape__: tuple.
-
+    - __alpha_init__: float >= 0. Negative slope coefficient initialization.
+    
 - __References__:
     - [Delving Deep into Rectifiers: Surpassing Human-Level Performance on ImageNet Classification](http://arxiv.org/pdf/1502.01852v1.pdf)
 
@@ -50,6 +51,8 @@ Parametric Softplus of the form: (`f(x) = alpha * (1 + exp(beta * x))`). This is
 
 - __Arguments__:
     - __input_shape__: tuple.
-
+    - __alpha_init__: float >= 0. alpha coefficient initialization.
+    - __beta_init__: float >= 0. beta coefficient initialization.
+    
 - __References__:
     - [Inferring Nonlinear Neuronal Computation Based on Physiologically Plausible Inputs](http://journals.plos.org/ploscompbiol/article?id=10.1371/journal.pcbi.1003143)
