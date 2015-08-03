@@ -565,7 +565,7 @@ class Sequential(Model, containers.Sequential):
                       verbose=1):
         outs = [0., 0.]
         nb_samples = len(datastream)
-        if verbose == 1:
+        if verbose:
             progbar = Progbar(target=nb_samples)
             processed = 0
 
