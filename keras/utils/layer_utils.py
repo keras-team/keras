@@ -1,5 +1,8 @@
+from __future__ import print_function
 import inspect
 import numpy as np
+import theano
+import copy
 
 from ..layers.advanced_activations import LeakyReLU, PReLU
 from ..layers.core import Dense, Merge, Dropout, Activation, Reshape, Flatten, RepeatVector, Layer
@@ -13,9 +16,9 @@ from .. import regularizers
 from .. import constraints
 
 
-def container_from_config(layer_dict):
+def container_from_config(original_layer_dict):
+    layer_dict = copy.deepcopy(original_layer_dict)
     name = layer_dict.get('name')
-    hasParams = False
 
     if name == 'Merge':
         mode = layer_dict.get('mode')
@@ -55,12 +58,7 @@ def container_from_config(layer_dict):
         return graph_layer
 
     else:
-        # The case in which layer_dict represents an "atomic" layer
         layer_dict.pop('name')
-        if 'parameters' in layer_dict:
-            params = layer_dict.get('parameters')
-            layer_dict.pop('parameters')
-            hasParams = True
 
         for k, v in layer_dict.items():
             # For now, this can only happen for regularizers and constraints
@@ -73,14 +71,44 @@ def container_from_config(layer_dict):
                     layer_dict[k] = regularizers.get(vname, v)
 
         base_layer = get_layer(name, layer_dict)
-        if hasParams:
-            shaped_params = []
-            for param in params:
-                data = np.asarray(param.get('data'))
-                shape = tuple(param.get('shape'))
-                shaped_params.append(data.reshape(shape))
-            base_layer.set_weights(shaped_params)
         return base_layer
+
+
+def print_layer_shapes(model, input_shapes):
+    """
+    Utility function to print the shape of the output at each layer of a Model
+
+    Arguments:
+        model: instance of Model / Merge
+        input_shapes: dict (Graph), list of tuples (Merge) or tuple (Sequential)
+    """
+    if model.__class__.__name__ in ['Sequential', 'Merge']:
+        # in this case input_shapes is a tuple, or a list [shape1, shape2]
+        if not isinstance(input_shapes[0], tuple):
+            input_shapes = [input_shapes]
+
+        inputs = model.get_input(train=False)
+        if not isinstance(inputs, list):
+            inputs = [inputs]
+        input_dummy = [np.zeros(shape, dtype=np.float32)
+                       for shape in input_shapes]
+        layers = model.layers
+
+    elif model.__class__.__name__ == 'Graph':
+        # in this case input_shapes is a dictionary
+        inputs = [model.inputs[name].input
+                  for name in model.input_order]
+        input_dummy = [np.zeros(input_shapes[name], dtype=np.float32)
+                       for name in model.input_order]
+        layers = [model.nodes[c['name']] for c in model.node_config]
+
+    print("input shapes : ", input_shapes)
+    for l in layers:
+        shape_f = theano.function(inputs, l.get_output(train=False).shape,
+                                  on_unused_input='ignore')
+        out_shape = tuple(shape_f(*input_dummy))
+        config = l.get_config()
+        print('shape after %s: %s' % (config['name'], out_shape))
 
 
 from .generic_utils import get_from_module

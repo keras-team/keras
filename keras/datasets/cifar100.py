@@ -4,6 +4,7 @@ from .data_utils import get_file
 import numpy as np
 import os
 
+
 def load_data(label_mode='fine'):
     if label_mode not in ['fine', 'coarse']:
         raise Exception('label_mode must be one of "fine" "coarse".')
@@ -24,4 +25,4 @@ def load_data(label_mode='fine'):
     y_train = np.reshape(y_train, (len(y_train), 1))
     y_test = np.reshape(y_test, (len(y_test), 1))
 
-    return (X_train, y_train), (X_test, y_test) 
+    return (X_train, y_train), (X_test, y_test)

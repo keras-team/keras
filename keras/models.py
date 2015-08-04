@@ -4,17 +4,17 @@ import theano
 import theano.tensor as T
 import numpy as np
 import warnings, time, copy, pprint
+from six.moves import range
+import six
 
 from . import optimizers
 from . import objectives
 from . import regularizers
 from . import constraints
 from . import callbacks as cbks
-
 from .utils.layer_utils import container_from_config
 from .utils.generic_utils import Progbar, printv
 from .layers import containers
-from six.moves import range
 
 
 def standardize_y(y):
@@ -96,25 +96,35 @@ def model_from_yaml(yaml_string):
         which is either created by hand or from to_yaml method of Sequential or Graph
     '''
     import yaml
-    model_params = yaml.load(yaml_string)
-    model_name = model_params.get('name')
+    config = yaml.load(yaml_string)
+    return model_from_config(config)
+
+
+def model_from_json(json_string):
+    import json
+    config = json.loads(json_string)
+    return model_from_config(config)
+
+
+def model_from_config(config):
+    model_name = config.get('name')
     if model_name not in {'Graph', 'Sequential'}:
         raise Exception('Unrecognized model:', model_name)
 
     # Create a container then set class to appropriate model
-    model = container_from_config(model_params)
+    model = container_from_config(config)
     if model_name == 'Graph':
         model.__class__ = Graph
     elif model_name == 'Sequential':
         model.__class__ = Sequential
 
-    if 'optimizer' in model_params:
+    if 'optimizer' in config:
         # if it has an optimizer, the model is assumed to be compiled
-        loss = objectives.get(model_params.get('loss'))
-        class_mode = model_params.get('class_mode')
-        theano_mode = model_params.get('theano_mode')
+        loss = config.get('loss')
+        class_mode = config.get('class_mode')
+        theano_mode = config.get('theano_mode')
 
-        optimizer_params = model_params.get('optimizer')
+        optimizer_params = dict([(k, v) for k, v in config.get('optimizer').items()])
         optimizer_name = optimizer_params.pop('name')
         optimizer = optimizers.get(optimizer_name, optimizer_params)
 
@@ -124,6 +134,13 @@ def model_from_yaml(yaml_string):
             model.compile(loss=loss, optimizer=optimizer, theano_mode=theano_mode)
 
     return model
+
+
+def get_function_name(o):
+    if isinstance(o, six.string_types):
+        return o
+    else:
+        return o.__name__
 
 
 class Model(object):
@@ -196,9 +213,9 @@ class Model(object):
 
                 callbacks.on_batch_end(batch_index, batch_logs)
 
-                if batch_index == len(batches) - 1: # last batch
+                epoch_logs = {}
+                if batch_index == len(batches) - 1:  # last batch
                     # validation
-                    epoch_logs = {}
                     if do_validation:
                         # replace with self._evaluate
                         val_outs = self._test_loop(val_f, val_ins, batch_size=batch_size, verbose=0)
@@ -277,10 +294,33 @@ class Model(object):
 
     def get_config(self, verbose=0):
         config = super(Model, self).get_config()
+        for p in ['class_mode', 'theano_mode']:
+            if hasattr(self, p):
+                config[p] = getattr(self, p)
+        if hasattr(self, 'optimizer'):
+            config['optimizer'] = self.optimizer.get_config()
+        if hasattr(self, 'loss'):
+            if type(self.loss) == dict:
+                config['loss'] = dict([(k, get_function_name(v)) for k, v in self.loss.items()])
+            else:
+                config['loss'] = get_function_name(self.loss)
+
         if verbose:
             pp = pprint.PrettyPrinter(indent=4)
             pp.pprint(config)
         return config
+
+    def to_yaml(self):
+        # dump model configuration to yaml string
+        import yaml
+        config = self.get_config()
+        return yaml.dump(config)
+
+    def to_json(self):
+        # dump model configuration to json string
+        import json
+        config = self.get_config()
+        return json.dump(config)
 
 
 class Sequential(Model, containers.Sequential):
@@ -301,8 +341,8 @@ class Sequential(Model, containers.Sequential):
     def compile(self, optimizer, loss, class_mode="categorical", theano_mode=None):
         self.optimizer = optimizers.get(optimizer)
 
-        self.unweighted_loss = objectives.get(loss)
-        self.loss = weighted_objective(objectives.get(loss))
+        self.loss = objectives.get(loss)
+        weighted_loss = weighted_objective(objectives.get(loss))
 
         # input of model
         self.X_train = self.get_input(train=True)
@@ -316,8 +356,8 @@ class Sequential(Model, containers.Sequential):
 
         self.weights = T.ones_like(self.y_train)
 
-        train_loss = self.loss(self.y, self.y_train, self.weights)
-        test_loss = self.loss(self.y, self.y_test, self.weights)
+        train_loss = weighted_loss(self.y, self.y_train, self.weights)
+        test_loss = weighted_loss(self.y, self.y_test, self.weights)
 
         train_loss.name = 'train_loss'
         test_loss.name = 'test_loss'
@@ -359,22 +399,10 @@ class Sequential(Model, containers.Sequential):
         self._test_with_acc = theano.function(test_ins, [test_loss, test_accuracy],
             allow_input_downcast=True, mode=theano_mode)
 
-    def train(self, X, y, accuracy=False, sample_weight=None):
-        warnings.warn('The "train" method is deprecated, use "train_on_batch" instead.')
-        return self.train_on_batch(X, y, accuracy, sample_weight)
-
-    def test(self, X, y, accuracy=False):
-        warnings.warn('The "test" method is deprecated, use "test_on_batch" instead.')
-        return self.test_on_batch(X, y, accuracy)
-
-    def train_on_batch(self, X, y, accuracy=False, sample_weight=None):
+    def train_on_batch(self, X, y, accuracy=False, class_weight=None, sample_weight=None):
         X = standardize_X(X)
         y = standardize_y(y)
-
-        if sample_weight is None:
-            sample_weight = np.ones(list(y.shape[0:-1]) + [1])
-        else:
-            sample_weight = standardize_y(sample_weight)
+        sample_weight = standardize_weights(y, class_weight=class_weight, sample_weight=sample_weight)
 
         ins = X + [y, sample_weight]
         if accuracy:
@@ -382,10 +410,11 @@ class Sequential(Model, containers.Sequential):
         else:
             return self._train(*ins)
 
-    def test_on_batch(self, X, y, accuracy=False):
+    def test_on_batch(self, X, y, accuracy=False, sample_weight=None):
         X = standardize_X(X)
         y = standardize_y(y)
-        sample_weight = np.ones(y.shape[:-1] + (1,))
+        sample_weight = standardize_weights(y, sample_weight=sample_weight)
+
         ins = X + [y, sample_weight]
         if accuracy:
             return self._test_with_acc(*ins)
@@ -512,18 +541,6 @@ class Sequential(Model, containers.Sequential):
             self.layers[k].set_weights(weights)
         f.close()
 
-    def to_yaml(self):
-        # dump model configuration to yaml string
-        import yaml
-        model_params = self.get_config()
-        if hasattr(self, 'optimizer'):
-            model_params['class_mode'] = self.class_mode
-            model_params['theano_mode'] = self.theano_mode
-            model_params['loss'] = self.unweighted_loss.__name__
-            model_params['optimizer'] = self.optimizer.get_config()
-
-        return yaml.dump(model_params)
-
 
 class Graph(Model, containers.Graph):
     def compile(self, optimizer, loss, theano_mode=None):
@@ -531,6 +548,7 @@ class Graph(Model, containers.Graph):
         ys = []
         ys_train = []
         ys_test = []
+        weights = []
         train_loss = 0.
         test_loss = 0.
         for output_name in self.output_order:
@@ -543,15 +561,18 @@ class Graph(Model, containers.Graph):
             ys_train.append(y_train)
             ys_test.append(y_test)
 
-            train_loss += objectives.get(loss_fn)(y, y_train).mean()
-            test_loss += objectives.get(loss_fn)(y, y_test).mean()
+            weight = T.ones_like(y_test)
+            weights.append(weight)
+            weighted_loss = weighted_objective(objectives.get(loss_fn))
+            train_loss += weighted_loss(y, y_train, weight)
+            test_loss += weighted_loss(y, y_test, weight)
 
         train_loss.name = 'train_loss'
         test_loss.name = 'test_loss'
 
         ins = [self.inputs[name].input for name in self.input_order]
-        train_ins = ins + ys
-        test_ins = ins + ys
+        train_ins = ins + ys + weights
+        test_ins = ins + ys + weights
 
         for r in self.regularizers:
             train_loss = r(train_loss)
@@ -567,14 +588,19 @@ class Graph(Model, containers.Graph):
         self._predict = theano.function(inputs=ins, outputs=ys_test,
             allow_input_downcast=True, mode=theano_mode)
 
-    def train_on_batch(self, data):
+    def train_on_batch(self, data, class_weight={}, sample_weight={}):
         # data is a dictionary mapping output and input names to arrays
-        ins = [data[name] for name in self.input_order] + [standardize_y(data[name]) for name in self.output_order]
+        sample_weight = [standardize_weights(data[name],
+                                             sample_weight=sample_weight.get(name),
+                                             class_weight=class_weight.get(name)) for name in self.output_order]
+        ins = [data[name] for name in self.input_order] + [standardize_y(data[name]) for name in self.output_order] + sample_weight
         return self._train(*ins)
 
-    def test_on_batch(self, data):
+    def test_on_batch(self, data, sample_weight={}):
         # data is a dictionary mapping input names to arrays
-        ins = [data[name] for name in self.input_order] + [standardize_y(data[name]) for name in self.output_order]
+        sample_weight = [standardize_weights(data[name]) for name in self.output_order]
+
+        ins = [data[name] for name in self.input_order] + [standardize_y(data[name]) for name in self.output_order] + sample_weight
         return self._test(*ins)
 
     def predict_on_batch(self, data):
@@ -583,15 +609,19 @@ class Graph(Model, containers.Graph):
         return self._predict(*ins)
 
     def fit(self, data, batch_size=128, nb_epoch=100, verbose=1, callbacks=[],
-            validation_split=0., validation_data=None, shuffle=True):
-        ins = [data[name] for name in self.input_order] + [standardize_y(data[name]) for name in self.output_order]
+            validation_split=0., validation_data=None, shuffle=True, class_weight={}, sample_weight={}):
+        sample_weight = [standardize_weights(data[name],
+                                             sample_weight=sample_weight.get(name),
+                                             class_weight=class_weight.get(name)) for name in self.output_order]
+        ins = [data[name] for name in self.input_order] + [standardize_y(data[name]) for name in self.output_order] + sample_weight
 
         val_f = None
         val_ins = None
         if validation_data or validation_split:
             val_f = self._test
         if validation_data:
-            val_ins = [validation_data[name] for name in self.input_order] + [standardize_y(validation_data[name]) for name in self.output_order]
+            sample_weight = [standardize_weights(validation_data[name]) for name in self.output_order]
+            val_ins = [validation_data[name] for name in self.input_order] + [standardize_y(validation_data[name]) for name in self.output_order] + sample_weight
 
         f = self._train
         out_labels = self.output_order
@@ -602,8 +632,10 @@ class Graph(Model, containers.Graph):
                             shuffle=shuffle, metrics=metrics)
         return history
 
-    def evaluate(self, data, batch_size=128, verbose=0):
-        ins = [data[name] for name in self.input_order] + [standardize_y(data[name]) for name in self.output_order]
+    def evaluate(self, data, batch_size=128, verbose=0, sample_weight={}):
+        sample_weight = [standardize_weights(data[name], sample_weight.get(name)) for name in self.output_order]
+
+        ins = [data[name] for name in self.input_order] + [standardize_y(data[name]) for name in self.output_order] + sample_weight
         outs = self._test_loop(self._test, ins, batch_size, verbose)
         return outs[0]
 
@@ -648,13 +680,3 @@ class Graph(Model, containers.Graph):
         weights = [g['param_{}'.format(p)] for p in range(g.attrs['nb_params'])]
         self.set_weights(weights)
         f.close()
-
-    def to_yaml(self):
-        # dump model configuration to yaml string
-        import yaml
-        model_params = self.get_config()
-        if hasattr(self, 'optimizer'):
-            model_params['theano_mode'] = self.theano_mode
-            model_params['loss'] = self.loss
-            model_params['optimizer'] = self.optimizer.get_config()
-        return yaml.dump(model_params)

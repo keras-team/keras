@@ -19,7 +19,7 @@ class TestEmbedding(unittest.TestCase):
         lookup.add(Dense(2, 1))
         lookup.add(Activation('sigmoid'))
         lookup.compile(loss='binary_crossentropy', optimizer='sgd', class_mode='binary')
-        lookup.train(self.X1, np.array([[1], [0]], dtype='int32'))
+        lookup.train_on_batch(self.X1, np.array([[1], [0]], dtype='int32'))
         norm = np.linalg.norm(lookup.params[0].get_value(), axis=1)
         self.assertTrue(np.allclose(norm, np.ones_like(norm).astype('float32')))
 

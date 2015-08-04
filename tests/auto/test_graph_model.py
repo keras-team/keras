@@ -130,6 +130,36 @@ class TestGraph(unittest.TestCase):
         print(nloss)
         assert(loss == nloss)
 
+    def test_2o_1i_sample_weights(self):
+        print('test a non-sequential graph with 1 input and 2 outputs with sample weights')
+        graph = Graph()
+        graph.add_input(name='input1', ndim=2)
+
+        graph.add_node(Dense(32, 16), name='dense1', input='input1')
+        graph.add_node(Dense(32, 4), name='dense2', input='input1')
+        graph.add_node(Dense(16, 1), name='dense3', input='dense1')
+
+        graph.add_output(name='output1', input='dense2')
+        graph.add_output(name='output2', input='dense3')
+
+        weights1 = np.random.uniform(size=y_train.shape[0])
+        weights2 = np.random.uniform(size=y2_train.shape[0])
+
+        graph.compile('rmsprop', {'output1': 'mse', 'output2': 'mse'})
+
+        history = graph.fit({'input1': X_train, 'output1': y_train, 'output2': y2_train}, nb_epoch=10,
+                            sample_weight={'output1': weights1, 'output2': weights2})
+        out = graph.predict({'input1': X_test})
+        assert(type(out == dict))
+        assert(len(out) == 2)
+        loss = graph.test_on_batch({'input1': X_test, 'output1': y_test, 'output2': y2_test},
+                                   sample_weight={'output1': weights1, 'output2': weights2})
+        loss = graph.train_on_batch({'input1': X_train, 'output1': y_train, 'output2': y2_train},
+                                    sample_weight={'output1': weights1, 'output2': weights2})
+        loss = graph.evaluate({'input1': X_train, 'output1': y_train, 'output2': y2_train},
+                              sample_weight={'output1': weights1, 'output2': weights2})
+        print(loss)
+
     def test_recursive(self):
         print('test layer-like API')
 

@@ -17,7 +17,7 @@ Use Keras if you need a deep learning library that:
 
 - __Minimalism.__ Each module should be kept short and simple (<100 lines of code). Every piece of code should be transparent upon first reading. No black magic: it hurts iteration speed and ability to innovate.
 
-- __Easy extensibility.__ New modules are dead simple to add (as new classes/functions), and existing modules provide ample examples. To be able to easily create new modules allows for total expressiveness, making Keras suitable for adavanced research.
+- __Easy extensibility.__ New modules are dead simple to add (as new classes/functions), and existing modules provide ample examples. To be able to easily create new modules allows for total expressiveness, making Keras suitable for advanced research.
 
 - __Work with Python__. No separate models configuration files in a declarative format (like in Caffe or PyLearn2). Models are described in Python code, which is compact, easier to debug, and allows for ease of extensibility.
 
