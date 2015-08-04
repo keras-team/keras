@@ -49,6 +49,15 @@ def binary_crossentropy(y_true, y_pred):
     bce = T.nnet.binary_crossentropy(y_pred, y_true).mean(axis=-1)
     return bce
 
+
+def weighted_binary_crossentropy(y_true, y_pred):
+    y_pred = T.clip(y_pred, epsilon, 1.0 - epsilon)
+    weight = 1. * np.sum(y_true == 1) / np.sum(y_true == 0)
+    weight_vector = np.ones(len(y_true))
+    weight_vector[y_true == 0] = weight
+    bce = (weight_vector * T.nnet.binary_crossentropy(y_pred, y_true)).mean(axis=-1)
+    return bce
+
 # aliases
 mse = MSE = mean_squared_error
 mae = MAE = mean_absolute_error
