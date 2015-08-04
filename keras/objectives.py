@@ -52,9 +52,11 @@ def binary_crossentropy(y_true, y_pred):
 
 def weighted_binary_crossentropy(y_true, y_pred, w_0=1, w_1=1):
     y_pred = T.clip(y_pred, epsilon, 1.0 - epsilon)
-    weight_vector = T.ones_like(y_true)
-    weight_vector[y_true == 0] = w_0
-    weight_vector[y_true == 1] = w_1
+    #print 'y_true shape: ', y_true.shape.eval()
+    #weight_vector = np.ones(y_true.shape.eval())
+    #weight_vector[y_true == 0] = w_0
+    #weight_vector[y_true == 1] = w_1
+    weight_vector = w_1*y_true + w_0*(1-y_true) 
     bce = (weight_vector * T.nnet.binary_crossentropy(y_pred, y_true)).mean(axis=-1)
     return bce
 
