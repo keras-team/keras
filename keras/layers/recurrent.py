@@ -44,8 +44,24 @@ class Transparent(Recurrent):
         self.output_dim = input_dim
         self.return_sequences = True
         self.input = T.tensor3()
+        self.mask = T.ones_like(self.input[:,:,0])
+
+    def get_output_mask(self, train=False):
+        print('Recurrent::Transparent:get_output_mask() called')
+        if hasattr(self, 'previous'):
+            return self.previous.get_output_mask(train)
+        return self.mask
+
     def get_output(self, train=False):
+        print('Recurrent::Transparent:get_output() called')
         return self.get_input(train)
+
+    def get_config(self):
+        return {
+            "name": self.__class__.__name__,
+            "input_dim": self.input_dim,
+            "output_dim": self.output_dim,
+        }
 
 class SimpleRNN(Recurrent):
     '''
@@ -869,6 +885,14 @@ class Bidirectional(Recurrent):
         return T.concatenate(
             [forward_output, backward_output],
             axis=-1)
+            
+    def get_output_mask(self, train=False):
+        print('Recurrent::Bidirectional::get_output_mask() called')
+        if self.return_sequences:
+            mask = self.inputlayer.get_output_mask(train)
+            return mask
+        else:
+            return None
 
     def get_config(self):
         config_dict = {
