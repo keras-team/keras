@@ -49,6 +49,7 @@ noise to find the relevant statements, improving performance substantially.
 This becomes especially obvious on QA2 and QA3, both far longer than QA1.
 '''
 
+
 def tokenize(sent):
     '''Return the tokens of a sentence including punctuation.
 
@@ -56,6 +57,7 @@ def tokenize(sent):
     ['Bob', 'dropped', 'the', 'apple', '.', 'Where', 'is', 'the', 'apple', '?']
     '''
     return [x.strip() for x in re.split('(\W+)?', sent) if x.strip()]
+
 
 def parse_stories(lines, only_supporting=False):
     '''Parse stories provided in the bAbi tasks format
@@ -88,6 +90,7 @@ def parse_stories(lines, only_supporting=False):
             story.append(sent)
     return data
 
+
 def get_stories(f, only_supporting=False, max_length=None):
     '''Given a file name, read the file, retrieve the stories, and then convert the sentences into a single story.
 
@@ -97,6 +100,7 @@ def get_stories(f, only_supporting=False, max_length=None):
     flatten = lambda data: reduce(lambda x, y: x + y, data)
     data = [(flatten(story), q, answer) for story, q, answer in data if not max_length or len(flatten(story)) < max_length]
     return data
+
 
 def vectorize_stories(data):
     X = []
@@ -123,13 +127,13 @@ print('RNN / Embed / Sent / Query = {}, {}, {}, {}'.format(RNN, EMBED_HIDDEN_SIZ
 path = get_file('babi-tasks-v1-2.tar.gz', origin='http://www.thespermwhale.com/jaseweston/babi/tasks_1-20_v1-2.tar.gz')
 tar = tarfile.open(path)
 # Default QA1 with 1000 samples
-#challenge = 'tasks_1-20_v1-2/en/qa1_single-supporting-fact_{}.txt'
+# challenge = 'tasks_1-20_v1-2/en/qa1_single-supporting-fact_{}.txt'
 # QA1 with 10,000 samples
-#challenge = 'tasks_1-20_v1-2/en-10k/qa1_single-supporting-fact_{}.txt'
+# challenge = 'tasks_1-20_v1-2/en-10k/qa1_single-supporting-fact_{}.txt'
 # QA2 with 1000 samples
 challenge = 'tasks_1-20_v1-2/en/qa2_two-supporting-facts_{}.txt'
-# QA2 with 1000 samples
-#challenge = 'tasks_1-20_v1-2/en-10k/qa2_two-supporting-facts_{}.txt'
+# QA2 with 10,000 samples
+# challenge = 'tasks_1-20_v1-2/en-10k/qa2_two-supporting-facts_{}.txt'
 train = get_stories(tar.extractfile(challenge.format('train')))
 test = get_stories(tar.extractfile(challenge.format('test')))
 
