@@ -4,6 +4,7 @@ from .data_utils import get_file
 import six.moves.cPickle
 import sys
 
+
 def load_data(path="mnist.pkl.gz"):
     path = get_file(path, origin="https://s3.amazonaws.com/img-datasets/mnist.pkl.gz")
 
@@ -19,4 +20,4 @@ def load_data(path="mnist.pkl.gz"):
 
     f.close()
 
-    return data # (X_train, y_train), (X_test, y_test)
+    return data  # (X_train, y_train), (X_test, y_test)

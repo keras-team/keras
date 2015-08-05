@@ -2,7 +2,7 @@ from __future__ import absolute_import
 from __future__ import print_function
 
 import numpy as np
-np.random.seed(1336) # for reproducibility
+np.random.seed(1336)  # for reproducibility
 
 from keras.datasets import mnist
 from keras.models import Sequential, Graph

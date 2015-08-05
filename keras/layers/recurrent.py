@@ -20,12 +20,12 @@ class Recurrent(MaskedLayer):
     def get_padded_shuffled_mask(self, train, X, pad=0):
         mask = self.get_input_mask(train)
         if mask is None:
-            mask = T.ones_like(X.sum(axis=-1)) # is there a better way to do this without a sum?
+            mask = T.ones_like(X.sum(axis=-1))  # is there a better way to do this without a sum?
 
         # mask is (nb_samples, time)
-        mask = T.shape_padright(mask) # (nb_samples, time, 1)
-        mask = T.addbroadcast(mask, -1) # (time, nb_samples, 1) matrix.
-        mask = mask.dimshuffle(1, 0, 2) # (time, nb_samples, 1)
+        mask = T.shape_padright(mask)  # (nb_samples, time, 1)
+        mask = T.addbroadcast(mask, -1)  # (time, nb_samples, 1) matrix.
+        mask = mask.dimshuffle(1, 0, 2)  # (time, nb_samples, 1)
 
         if pad > 0:
             # left-pad in time with 0
@@ -73,7 +73,7 @@ class SimpleRNN(Recurrent):
         return self.activation(x_t + mask_tm1 * T.dot(h_tm1, u))
 
     def get_output(self, train=False):
-        X = self.get_input(train) # shape: (nb_samples, time (padded with zeros), input_dim)
+        X = self.get_input(train)  # shape: (nb_samples, time (padded with zeros), input_dim)
         # new shape: (time, nb_samples, input_dim) -> because theano.scan iterates over main dimension
         padded_mask = self.get_padded_shuffled_mask(train, X, pad=1)
         X = X.dimshuffle((1, 0, 2))
@@ -83,11 +83,11 @@ class SimpleRNN(Recurrent):
         # See: http://deeplearning.net/software/theano/library/scan.html
         # Iterate over the first dimension of the x array (=time).
         outputs, updates = theano.scan(
-            self._step, # this will be called with arguments (sequences[i], outputs[i-1], non_sequences[i])
-            sequences=[x, dict(input=padded_mask, taps=[-1])], # tensors to iterate over, inputs to _step
+            self._step,  # this will be called with arguments (sequences[i], outputs[i-1], non_sequences[i])
+            sequences=[x, dict(input=padded_mask, taps=[-1])],  # tensors to iterate over, inputs to _step
             # initialization of the output. Input to _step with default tap=-1.
             outputs_info=T.unbroadcast(alloc_zeros_matrix(X.shape[1], self.output_dim), 1),
-            non_sequences=self.U, # static inputs to _step
+            non_sequences=self.U,  # static inputs to _step
             truncate_gradient=self.truncate_gradient)
 
         if self.return_sequences:

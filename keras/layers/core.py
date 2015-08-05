@@ -12,7 +12,6 @@ from ..regularizers import ActivityRegularizer, Regularizer
 
 from theano.sandbox.rng_mrg import MRG_RandomStreams as RandomStreams
 from six.moves import zip
-srng = RandomStreams(seed=np.random.randint(10e6))
 
 
 class Layer(object):
@@ -116,6 +115,35 @@ class MaskedLayer(Layer):
         return self.get_input_mask(train)
 
 
+class Masking(MaskedLayer):
+    """Mask an input sequence by using a mask value to identify padding.
+
+    This layer copies the input to the output layer with identified padding
+    replaced with 0s and creates an output mask in the process.
+
+    At each timestep, if the values all equal `mask_value`,
+    then the corresponding mask value for the timestep is 0 (skipped),
+    otherwise it is 1.
+
+    """
+    def __init__(self, mask_value=0.):
+        super(Masking, self).__init__()
+        self.mask_value = mask_value
+        self.input = T.tensor3()
+
+    def get_output_mask(self, train=False):
+        X = self.get_input(train)
+        return T.any(T.ones_like(X) * (1. - T.eq(X, self.mask_value)), axis=-1)
+
+    def get_output(self, train=False):
+        X = self.get_input(train)
+        return X * T.shape_padright(T.any((1. - T.eq(X, self.mask_value)), axis=-1))
+
+    def get_config(self):
+        return {"name": self.__class__.__name__,
+                "mask_value": self.mask_value}
+
+
 class Merge(object):
     def __init__(self, layers, mode='sum', concat_axis=-1):
         ''' Merge the output of a list of layers or containers into a single tensor.
@@ -200,13 +228,14 @@ class Dropout(MaskedLayer):
     def __init__(self, p):
         super(Dropout, self).__init__()
         self.p = p
+        self.srng = RandomStreams(seed=np.random.randint(10e6))
 
     def get_output(self, train=False):
         X = self.get_input(train)
         if self.p > 0.:
             retain_prob = 1. - self.p
             if train:
-                X *= srng.binomial(X.shape, p=retain_prob, dtype=theano.config.floatX)
+                X *= self.srng.binomial(X.shape, p=retain_prob, dtype=theano.config.floatX)
             else:
                 X *= retain_prob
         return X
@@ -489,11 +518,11 @@ class AutoEncoder(Layer):
         self.constraints = []
         for layer in [self.encoder, self.decoder]:
             params, regularizers, constraints = layer.get_params()
-            self.constraints += constraints
-            for p, r in zip(params, regularizers):
+            self.regularizers += regularizers
+            for p, c in zip(params, constraints):
                 if p not in self.params:
                     self.params.append(p)
-                    self.regularizers.append(r)
+                    self.constraints.append(c)
 
         if weights is not None:
             self.set_weights(weights)

@@ -118,8 +118,8 @@ class WordContextProduct(Layer):
 
     def get_output(self, train=False):
         X = self.get_input(train)
-        w = self.W_w[X[:, 0]] # nb_samples, proj_dim
-        c = self.W_c[X[:, 1]] # nb_samples, proj_dim
+        w = self.W_w[X[:, 0]]  # nb_samples, proj_dim
+        c = self.W_c[X[:, 1]]  # nb_samples, proj_dim
 
         dot = T.sum(w * c, axis=1)
         dot = theano.tensor.reshape(dot, (X.shape[0], 1))

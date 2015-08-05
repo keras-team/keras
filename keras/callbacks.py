@@ -106,8 +106,8 @@ class BaseLogger(Callback):
     def on_epoch_begin(self, epoch, logs={}):
         if self.verbose:
             print('Epoch %d' % epoch)
-            self.progbar = Progbar(target=self.params['nb_sample'], \
-                verbose=self.verbose)
+            self.progbar = Progbar(target=self.params['nb_sample'],
+                                   verbose=self.verbose)
         self.seen = 0
         self.totals = {}
 
@@ -193,7 +193,7 @@ class ModelCheckpoint(Callback):
                 if current < self.best:
                     if self.verbose > 0:
                         print("Epoch %05d: %s improved from %0.5f to %0.5f, saving model to %s"
-                            % (epoch, self.monitor, self.best, current, self.filepath))
+                              % (epoch, self.monitor, self.best, current, self.filepath))
                     self.best = current
                     self.model.save_weights(self.filepath, overwrite=True)
                 else:
@@ -255,7 +255,10 @@ class RemoteMonitor(Callback):
 
         for k, v in self.totals.items():
             send[k] = v / self.seen
-        for k, v in self.logs:
+        for k, v in logs.items():
             send[k] = v
 
-        r = requests.post(self.root + '/publish/epoch/end/', {'data': json.dumps(send)})
+        try:
+            r = requests.post(self.root + '/publish/epoch/end/', {'data': json.dumps(send)})
+        except:
+            print('Warning: could not reach RemoteMonitor root server at ' + str(self.root))

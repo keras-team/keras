@@ -43,10 +43,10 @@ from keras.layers.embeddings import WordContextProduct, Embedding
 from six.moves import range
 from six.moves import zip
 
-max_features = 50000 # vocabulary size: top 50,000 most common words in data
-skip_top = 100 # ignore top 100 most common words
+max_features = 50000  # vocabulary size: top 50,000 most common words in data
+skip_top = 100  # ignore top 100 most common words
 nb_epoch = 1
-dim_proj = 256 # embedding space dimension
+dim_proj = 256  # embedding space dimension
 
 save = True
 load_model = False
@@ -196,23 +196,23 @@ def closest_to_word(w, nb_closest=10):
 '''
 
 words = [
-    "article", # post, story, hn, read, comments
-    "3", # 6, 4, 5, 2
-    "two", # three, few, several, each
-    "great", # love, nice, working, looking
-    "data", # information, memory, database
-    "money", # company, pay, customers, spend
-    "years", # ago, year, months, hours, week, days
-    "android", # ios, release, os, mobile, beta
-    "javascript", # js, css, compiler, library, jquery, ruby
-    "look", # looks, looking
-    "business", # industry, professional, customers
-    "company", # companies, startup, founders, startups
-    "after", # before, once, until
-    "own", # personal, our, having
-    "us", # united, country, american, tech, diversity, usa, china, sv
-    "using", # javascript, js, tools (lol)
-    "here", # hn, post, comments
+    "article",  # post, story, hn, read, comments
+    "3",  # 6, 4, 5, 2
+    "two",  # three, few, several, each
+    "great",  # love, nice, working, looking
+    "data",  # information, memory, database
+    "money",  # company, pay, customers, spend
+    "years",  # ago, year, months, hours, week, days
+    "android",  # ios, release, os, mobile, beta
+    "javascript",  # js, css, compiler, library, jquery, ruby
+    "look",  # looks, looking
+    "business",  # industry, professional, customers
+    "company",  # companies, startup, founders, startups
+    "after",  # before, once, until
+    "own",  # personal, our, having
+    "us",  # united, country, american, tech, diversity, usa, china, sv
+    "using",  # javascript, js, tools (lol)
+    "here",  # hn, post, comments
 ]
 
 for w in words:
