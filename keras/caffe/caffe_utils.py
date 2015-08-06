@@ -1,3 +1,54 @@
+layer_num_to_name = {
+            0: 'NONE',
+            1: 'ACCURACY',
+            2: 'BNLL',
+            3: 'CONCAT',
+            4: 'CONVOLUTION',
+            5: 'DATA',
+            6: 'DROPOUT',
+            7: 'EUCLIDEANLOSS',
+            8: 'FLATTEN',
+            9: 'HDF5DATA',
+            10: 'HDF5OUTPUT',
+            11: 'IM2COL',
+            12: 'IMAGEDATA',
+            13: 'INFOGAINLOSS',
+            14: 'INNERPRODUCT',
+            15: 'LRN',
+            16: 'MULTINOMIALLOGISTICLOSS',
+            17: 'POOLING',
+            18: 'RELU',
+            19: 'SIGMOID',
+            20: 'SOFTMAX',
+            21: 'SOFTMAXWITHLOSS',
+            22: 'SPLIT',
+            23: 'TANH',
+            24: 'WINDOWDATA',
+            25: 'ELTWISE',
+            26: 'POWER',
+            27: 'SIGMOIDCROSSENTROPYLOSS',
+            28: 'HINGELOSS',
+            29: 'MEMORYDATA',
+            30: 'ARGMAX',
+            31: 'THRESHOLD',
+            32: 'DUMMY_DATA',
+            33: 'SLICE',
+            34: 'MVN',
+            35: 'ABSVAL',
+            36: 'SILENCE',
+            37: 'CONTRASTIVELOSS',
+            38: 'EXP',
+            39: 'DECONVOLUTION'
+        }
+
+def layer_type(layer):
+    if type(layer.type) == int:
+        typ = layer_num_to_name[layer.type]
+    else:
+        typ = str(layer.type)
+    return typ.lower()
+
+
 def make_network(layers, phase):
     '''
         Construct a network from the layers by making all blobs and layers(operations) as nodes.
@@ -97,15 +148,18 @@ def reverse(network):
             rev[n].append(node)
     return rev
 
+def is_data_input(layer):
+    return layer_type(layer) in ['data', 'imagedata', 'memorydata', 'hdf5data', 'windowdata']
 
-def remove_label_paths(network, starts, ends):
+
+def remove_label_paths(layers, network, inputs, outputs):
     '''
         Input Data -> Loss Layer connection(the label) is removed
     '''
-    for start in starts:
-        for end in ends:
-            if end in network[start]:
-                network[start].remove(end)
+    for input in inputs:
+        for output in outputs:
+            if output in network[input] and is_data_input(layers[input]):
+                network[input].remove(output)
     return network
 
 
@@ -151,8 +205,7 @@ def get_data_dim(layer):
     '''
         Finds the input dimension by parsing all data layers for image and image transformation details
     '''
-    layer_type_nb = int(layer.type)
-    if layer_type_nb == 5 or layer_type_nb == 12:
+    if layer_type(layer) == 'data' or layer_type(layer) == 'imagedata':
         # DATA or IMAGEDATA layers
         try:
             scale = layer.transform_param.scale
