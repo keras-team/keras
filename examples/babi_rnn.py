@@ -137,7 +137,7 @@ challenge = 'tasks_1-20_v1-2/en/qa2_two-supporting-facts_{}.txt'
 train = get_stories(tar.extractfile(challenge.format('train')))
 test = get_stories(tar.extractfile(challenge.format('test')))
 
-vocab = sorted(reduce(lambda x, y: x | y, (set(story + q) for story, q, answer in train + test)))
+vocab = sorted(reduce(lambda x, y: x | y, (set(story + q + [answer]) for story, q, answer in train + test)))
 # Reserve 0 for masking via pad_sequences
 vocab_size = len(vocab) + 1
 word_idx = dict((c, i + 1) for i, c in enumerate(vocab))
