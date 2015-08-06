@@ -28,13 +28,28 @@ class CaffeToKeras(object):
 			google.protobuf.text_format.Merge(open(prototext).read(), config)
 
 			self.input_dim = config.input_dim
-			self.config_layers = config.layers[:]
+			
+			if len(config.layers) != 0:
+				# prototext V1
+				self.config_layers = config.layers[:]
+			elif len(config.layer) != 0:
+				# prototext V2
+				self.config_layers = config.layer[:]
+			else:
+				raise Exception('could not load any layers from prototext')
+
 			self.network, self.inputs, self.outputs = model_from_config(self.config_layers, self.phase, self.input_dim[1:])
 		
 		if caffemodel is not None:
 			param = caffe.NetParameter()
 			param.MergeFromString(open(caffemodel,'rb').read())
-			self.param_layers = param.layers[:]
+			
+			if len(param.layers) != 0:
+				self.param_layers = param.layers[:]
+			elif len(param.layer) != 0:
+				self.param_layers = param.layer[:]
+			else:
+				raise Exception('could not load any layers from caffemodel')
 			
 		if hasattr(self, 'network'):
 			# network already created with prototext
