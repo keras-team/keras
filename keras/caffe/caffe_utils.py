@@ -96,13 +96,16 @@ def reverse(network):
 			rev[n].append(node)
 	return rev
 
-def remove_label_paths(network, starts, ends):
+def is_data_input(layer):
+	return layer.type in [5, 12, 25, 29, 9]
+
+def remove_label_paths(layers, network, starts, ends):
 	'''
 		Input Data -> Loss Layer connection(the label) is removed
 	'''
 	for start in starts:
 		for end in ends:
-			if end in network[start]:
+			if end in network[start] and is_data_input(layers[start]):
 				network[start].remove(end)
 	return network
 

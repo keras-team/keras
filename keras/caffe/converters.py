@@ -12,9 +12,6 @@ from caffe_utils import *
 import numpy as np
 import math
 
-def is_data_input(layer):
-	return layer.type in [5, 12, 25, 29, 9]
-
 
 def model_from_config(layers, phase, input_dim):
 	'''
@@ -37,7 +34,7 @@ def model_from_config(layers, phase, input_dim):
 	reverse_network = reverse(network)	# reverse, to obtain the start
 	starts = get_starts(reverse_network)	# inputs of the network - 'in-order' is zero
 	ends = get_ends(network)	# outputs of the network - 'out-order' is zero
-	network = remove_label_paths(network, starts, ends)	# path from input to loss layers removed
+	network = remove_label_paths(layers, network, starts, ends)	# path from input to loss layers removed
 	reverse_network = reverse(network) # stores the 'input' for each layer
 
 	model = Graph()
@@ -236,7 +233,7 @@ def model_from_param(layers):
 	reverse_network = reverse(network)	# reverse, to obtain the start
 	starts = get_starts(reverse_network)	# inputs of the network - 'in-order' is zero
 	ends = get_ends(network)	# outputs of the network - 'out-order' is zero
-	network = remove_label_paths(network, starts, ends)	# path from input to loss layers removed
+	network = remove_label_paths(layers, network, starts, ends)	# path from input to loss layers removed
 	reverse_network = reverse(network) # stores the 'input' for each layer
 
 	model = Graph()
