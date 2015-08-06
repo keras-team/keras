@@ -89,7 +89,6 @@ def model_from_config(layers, phase, input_dim):
 													# (except loss layers, which is handled anyway)
 
 		if type_of_layer == 'concat':
-			# CONCAT
 			# emulation of just concatenation
 			axis = layer.concat_param.axis # 0 for batch, 1 for stack
 			model.add_node(Activation('linear'), name=name, inputs=input_layer_names, concat_axis=axis)
@@ -99,7 +98,6 @@ def model_from_config(layers, phase, input_dim):
 				layer_output_dim[0] += dim[0]
 
 		elif type_of_layer == 'convolution':
-			# CONVOLUTION
 			nb_col = max(layer.convolution_param.kernel_h, layer.convolution_param.kernel_size)
 			nb_row = max(layer.convolution_param.kernel_w, layer.convolution_param.kernel_size)
 			nb_filter = layer.convolution_param.num_output
@@ -122,18 +120,15 @@ def model_from_config(layers, phase, input_dim):
 			layer_output_dim = [nb_filter, (layer_output_dim_padding[1] - nb_row) / stride_h + 1, (layer_output_dim_padding[2] - nb_col) / stride_w + 1]
 
 		elif type_of_layer == 'dropout':
-			# DROPOUT
 			prob = layer.dropout_param.dropout_ratio
 			model.add_node(Dropout(prob), name=name, input=input_layer_name)
 			layer_output_dim = layer_input_dim
 
 		elif type_of_layer == 'flatten':
-			# FLATTEN
 			model.add_node(Flatten(), name=name, input=input_layer_name)
 			layer_output_dim = np.prod(layer_input_dim)
 
 		elif type_of_layer == 'innerproduct':
-			# INNER PRODUCT OR DENSE
 			layer_output_dim = layer.inner_product_param.num_output
 			
 			if len(layer_input_dim) > 1:
@@ -146,7 +141,6 @@ def model_from_config(layers, phase, input_dim):
 			layer_output_dim = [layer_output_dim]
 
 		elif type_of_layer == 'lrn':
-			# LOCAL RESPONSE NORMALIZATION
 			alpha = layer.lrn_param.alpha
 			k = layer.lrn_param.k
 			beta = layer.lrn_param.beta
@@ -157,7 +151,6 @@ def model_from_config(layers, phase, input_dim):
 			layer_output_dim = layer_input_dim
 
 		elif type_of_layer == 'pooling':
-			# POOLING
 			kernel_h = max(layer.pooling_param.kernel_h, layer.pooling_param.kernel_size)
 			kernel_w = max(layer.pooling_param.kernel_w, layer.pooling_param.kernel_size)
 
@@ -177,27 +170,22 @@ def model_from_config(layers, phase, input_dim):
 			layer_output_dim = [layer_output_dim_padding[0], (layer_output_dim_padding[1] - kernel_h) / stride_h + 1, (layer_output_dim_padding[2] - kernel_w) / stride_w + 1]
 
 		elif type_of_layer == 'relu':
-			# ReLU
 			model.add_node(Activation('relu'), name=name, input=input_layer_name)
 			layer_output_dim = layer_input_dim
 
 		elif type_of_layer == 'sigmoid':
-			# SIGMOID
 			model.add_node(Activation('sigmoid'), name=name, input=input_layer_name)
 			layer_output_dim = layer_input_dim
 
 		elif type_of_layer == 'softmax' or type_of_layer == 'softmaxwithloss':
-			# SOFTMAX
 			model.add_node(Activation('softmax'), name=name, input=input_layer_name)
 			layer_output_dim = layer_input_dim
 
 		elif type_of_layer == 'split':
-			# SPLIT
 			model.add_node(Activation('linear'), name=name, inputs=input_layer_name)
 			layer_output_dim = layer_input_dim
 
 		elif type_of_layer == 'tanh':
-			# TANH
 			model.add_node(Activation('tanh'), name=name, input=input_layer_name)
 			layer_output_dim = layer_input_dim
 
@@ -275,13 +263,11 @@ def model_from_param(layers):
 
 
 		if type_of_layer == 'concat':
-			# CONCAT
 			# emulation of just concatenation
 			axis = layer.concat_param.axis # 0 for batch, 1 for stack
 			model.add_node(Activation('linear'), name=name, inputs=input_layer_names, concat_axis=axis)
 
 		elif type_of_layer == 'convolution':
-			# CONVOLUTION
 			blobs = layer.blobs
 			nb_filter, temp_stack_size, nb_col, nb_row = blobs[0].num, blobs[0].channels, blobs[0].height, blobs[0].width
 			
@@ -314,16 +300,13 @@ def model_from_param(layers):
 			model.add_node(Convolution2D(nb_filter, stack_size, nb_row, nb_col, subsample=(stride_h, stride_w), weights=weights), name=name, input=input_layer_name)
 
 		elif type_of_layer == 'dropout':
-			# DROPOUT
 			prob = layer.dropout_param.dropout_ratio
 			model.add_node(Dropout(prob), name=name, input=input_layer_name)
 			
 		elif type_of_layer == 'flatten':
-			# FLATTEN
 			model.add_node(Flatten(), name=name, input=input_layer_name)
 
 		elif type_of_layer == 'innerproduct':
-			# INNER PRODUCT OR DENSE
 			blobs = layer.blobs
 			nb_filter, stack_size, nb_col, nb_row = blobs[0].num, blobs[0].channels, blobs[0].height, blobs[0].width
 			
@@ -335,7 +318,6 @@ def model_from_param(layers):
 			model.add_node(Dense(nb_row, nb_col, weights=weights), name=name, input=name + '_flatten')
 
 		elif type_of_layer == 'lrn':
-			# LOCAL RESPONSE NORMALIZATION
 			alpha = layer.lrn_param.alpha
 			k = layer.lrn_param.k
 			beta = layer.lrn_param.beta
@@ -344,7 +326,6 @@ def model_from_param(layers):
 			model.add_node(LRN2D(alpha=alpha, k=k, beta=beta, n=n), name=name, input=input_layer_name)
 
 		elif type_of_layer == 'pooling':
-			# POOLING
 			kernel_h = max(layer.pooling_param.kernel_h, layer.pooling_param.kernel_size)
 			kernel_w = max(layer.pooling_param.kernel_w, layer.pooling_param.kernel_size)
 
@@ -361,23 +342,18 @@ def model_from_param(layers):
 			model.add_node(MaxPooling2D(poolsize=(kernel_h, kernel_w), stride=(stride_h, stride_w)), name=name, input=input_layer_name)
 
 		elif type_of_layer == 'relu':
-			# ReLU
 			model.add_node(Activation('relu'), name=name, input=input_layer_name)
 
 		elif type_of_layer == 'sigmoid':
-			# SIGMOID
 			model.add_node(Activation('sigmoid'), name=name, input=input_layer_name)
 
 		elif type_of_layer == 'softmax' or type_of_layer == 'softmaxwithloss':
-			# SOFTMAX
 			model.add_node(Activation('softmax'), name=name, input=input_layer_name)
 
 		elif type_of_layer == 'split':
-			# SPLIT
 			model.add_node(Activation('linear'), name=name, input=input_layer_name)
 
 		elif type_of_layer == 'tanh':
-			# TANH
 			model.add_node(Activation('tanh'), name=name, input=input_layer_name)
 
 		else:
@@ -413,7 +389,6 @@ def convert_weights(layers):
 		type_of_layer = layer_type(layer)
 
 		if type_of_layer == 'convolution':
-			# CONVOLUTION
 			blobs = layer.blobs
 			nb_filter, temp_stack_size, nb_col, nb_row = blobs[0].num, blobs[0].channels, blobs[0].height, blobs[0].width
 			
@@ -435,7 +410,6 @@ def convert_weights(layers):
 			weights[name] = layer_weights
 
 		elif type_of_layer == 'innerproduct':
-			# INNER PRODUCT OR DENSE
 			blobs = layer.blobs
 			nb_filter, stack_size, nb_col, nb_row = blobs[0].num, blobs[0].channels, blobs[0].height, blobs[0].width
 			
