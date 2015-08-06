@@ -74,9 +74,12 @@ def weighted_objective(fn):
 
 
 def standardize_weights(y, sample_weight=None, class_weight=None):
+    result = np.ones(y.shape[:-1] + (1,))
+
     if sample_weight is not None:
-        return standardize_y(sample_weight)
-    elif isinstance(class_weight, dict):
+        result *= standardize_y(sample_weight)
+
+    if isinstance(class_weight, dict):
         if len(y.shape) > 2:
             raise Exception('class_weight not supported for 3+ dimensional targets.')
         if y.shape[1] > 1:
@@ -85,9 +88,8 @@ def standardize_weights(y, sample_weight=None, class_weight=None):
             y_classes = np.reshape(y, y.shape[0])
         else:
             y_classes = y
-        return np.expand_dims(np.array(list(map(lambda x: class_weight[x], y_classes))), 1)
-    else:
-        return np.ones(y.shape[:-1] + (1,))
+        result *= np.expand_dims(np.array(list(map(lambda x: class_weight[x], y_classes))), 1)
+    return result
 
 
 def model_from_yaml(yaml_string):
