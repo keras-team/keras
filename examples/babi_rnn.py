@@ -1,5 +1,6 @@
 from __future__ import absolute_import
 from __future__ import print_function
+from functools import reduce
 import re
 import tarfile
 
@@ -67,7 +68,7 @@ def parse_stories(lines, only_supporting=False):
     data = []
     story = []
     for line in lines:
-        line = line.strip()
+        line = line.decode('utf-8').strip()
         nid, line = line.split(' ', 1)
         nid = int(nid)
         if nid == 1:
