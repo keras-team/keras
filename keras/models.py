@@ -74,6 +74,8 @@ def weighted_objective(fn):
 
 
 def standardize_weights(y, sample_weight=None, class_weight=None):
+    if sample_weight is not None and class_weight is not None:
+        raise Exception("Can't specify both a sample_weight and a class_weight, pick one")
     if sample_weight is not None:
         return standardize_y(sample_weight)
     elif isinstance(class_weight, dict):
