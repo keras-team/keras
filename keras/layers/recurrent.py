@@ -17,20 +17,25 @@ class Recurrent(MaskedLayer):
         else:
             return None
 
-    def get_padded_shuffled_mask(self, train, X, pad=0):
+    def get_padded_shuffled_mask(self, train, X, pad=0, mode='pre'):  # mode = 'pre' / 'post'
         mask = self.get_input_mask(train)
         if mask is None:
             mask = T.ones_like(X.sum(axis=-1))  # is there a better way to do this without a sum?
 
-        # mask is (nb_samples, time)
-        mask = T.shape_padright(mask)  # (nb_samples, time, 1)
-        mask = T.addbroadcast(mask, -1)  # (time, nb_samples, 1) matrix.
-        mask = mask.dimshuffle(1, 0, 2)  # (time, nb_samples, 1)
+        # mask is (nb_samples, timesteps)
+        mask = T.shape_padright(mask)    # (nb_samples, timesteps, 1)
+        mask = T.addbroadcast(mask, -1)  # (nb_samples, timesteps, 1) matrix.
+        mask = mask.dimshuffle(1, 0, 2)  # (timesteps, nb_samples, 1)
 
         if pad > 0:
-            # left-pad in time with 0
-            padding = alloc_zeros_matrix(pad, mask.shape[1], 1)
-            mask = T.concatenate([padding, mask], axis=0)
+            padding = alloc_zeros_matrix(pad, mask.shape[1], 1)  #(pad, nb_samples, 1)
+            if mode == 'pre':
+                mask = T.concatenate([padding, mask], axis=0)
+            elif mode == 'post':
+                mask = T.concatenate([mask, padding], axis=0)
+            else:
+                 raise ValueError("Padding mode '%s' not understood" % mode)
+
         return mask.astype('int8')
 
 class Transparent(Recurrent):
@@ -44,13 +49,6 @@ class Transparent(Recurrent):
         self.output_dim = input_dim
         self.return_sequences = True
         self.input = T.tensor3()
-        self.mask = T.ones_like(self.input[:,:,0])
-
-    def get_output_mask(self, train=False):
-        print('Recurrent::Transparent:get_output_mask() called')
-        if hasattr(self, 'previous'):
-            return self.previous.get_output_mask(train)
-        return self.mask
 
     def get_output(self, train=False):
         print('Recurrent::Transparent:get_output() called')
@@ -108,7 +106,10 @@ class SimpleRNN(Recurrent):
         X = self.get_input(train)  # shape: (nb_samples, time (padded with zeros), input_dim)
         # new shape: (time, nb_samples, input_dim)
         # because theano.scan iterates over main dimension
-        padded_mask = self.get_padded_shuffled_mask(train, X, pad=1)
+        if self.go_backwards:
+            padded_mask = self.get_padded_shuffled_mask(train, X, pad=1, mode='post') # (pad + timesteps, nb_samples, 1)
+        else:
+            padded_mask = self.get_padded_shuffled_mask(train, X, pad=1, mode='pre')
         X = X.dimshuffle((1, 0, 2))
         x = T.dot(X, self.W) + self.b
 
@@ -194,7 +195,10 @@ class SimpleDeepRNN(Recurrent):
 
     def get_output(self, train=False):
         X = self.get_input(train)
-        padded_mask = self.get_padded_shuffled_mask(train, X, pad=self.depth)
+        if self.go_backwards:
+            padded_mask = self.get_padded_shuffled_mask(train, X, pad=1, mode='post') # (pad + timesteps, nb_samples, 1)
+        else:
+            padded_mask = self.get_padded_shuffled_mask(train, X, pad=1, mode='pre')
         X = X.dimshuffle((1, 0, 2))
 
         x = T.dot(X, self.W) + self.b
@@ -317,7 +321,10 @@ class GRU(Recurrent):
 
     def get_output(self, train=False):
         X = self.get_input(train)
-        padded_mask = self.get_padded_shuffled_mask(train, X, pad=1)
+        if self.go_backwards:
+            padded_mask = self.get_padded_shuffled_mask(train, X, pad=1, mode='post') # (pad + timesteps, nb_samples, 1)
+        else:
+            padded_mask = self.get_padded_shuffled_mask(train, X, pad=1, mode='pre')
         X = X.dimshuffle((1, 0, 2))
 
         x_z = T.dot(X, self.W_z) + self.b_z
@@ -438,7 +445,10 @@ class LSTM(Recurrent):
 
     def get_output(self, train=False):
         X = self.get_input(train)
-        padded_mask = self.get_padded_shuffled_mask(train, X, pad=1)
+        if self.go_backwards:
+            padded_mask = self.get_padded_shuffled_mask(train, X, pad=1, mode='post') # (pad + timesteps, nb_samples, 1)
+        else:
+            padded_mask = self.get_padded_shuffled_mask(train, X, pad=1, mode='pre')
         X = X.dimshuffle((1, 0, 2))
 
         xi = T.dot(X, self.W_i) + self.b_i
@@ -558,7 +568,10 @@ class JZS1(Recurrent):
 
     def get_output(self, train=False):
         X = self.get_input(train)
-        padded_mask = self.get_padded_shuffled_mask(train, X, pad=1)
+        if self.go_backwards:
+            padded_mask = self.get_padded_shuffled_mask(train, X, pad=1, mode='post') # (pad + timesteps, nb_samples, 1)
+        else:
+            padded_mask = self.get_padded_shuffled_mask(train, X, pad=1, mode='pre')
         X = X.dimshuffle((1, 0, 2))
 
         x_z = T.dot(X, self.W_z) + self.b_z
@@ -671,7 +684,10 @@ class JZS2(Recurrent):
 
     def get_output(self, train=False):
         X = self.get_input(train)
-        padded_mask = self.get_padded_shuffled_mask(train, X, pad=1)
+        if self.go_backwards:
+            padded_mask = self.get_padded_shuffled_mask(train, X, pad=1, mode='post') # (pad + timesteps, nb_samples, 1)
+        else:
+            padded_mask = self.get_padded_shuffled_mask(train, X, pad=1, mode='pre')
         X = X.dimshuffle((1, 0, 2))
 
         x_z = T.dot(X, self.W_z) + self.b_z
@@ -777,7 +793,10 @@ class JZS3(Recurrent):
 
     def get_output(self, train=False):
         X = self.get_input(train)
-        padded_mask = self.get_padded_shuffled_mask(train, X, pad=1)
+        if self.go_backwards:
+            padded_mask = self.get_padded_shuffled_mask(train, X, pad=1, mode='post') # (pad + timesteps, nb_samples, 1)
+        else:
+            padded_mask = self.get_padded_shuffled_mask(train, X, pad=1, mode='pre')
         X = X.dimshuffle((1, 0, 2))
 
         x_z = T.dot(X, self.W_z) + self.b_z
