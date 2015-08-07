@@ -24,8 +24,17 @@ def caffe_to_keras(prototext=None, caffemodel=None, phase='train'):
             print('config')
             print(config)
 
-            input_dim = config.input_dim
-            config_layers = config.layers[:]
+            self.input_dim = config.input_dim
+            
+            if len(config.layers) != 0:
+                # prototext V1
+                config_layers = config.layers[:]
+            elif len(config.layer) != 0:
+                # prototext V2
+                config_layers = config.layer[:]
+            else:
+                raise Exception('could not load any layers from prototext')
+
             network, inputs, outputs = model_from_config(config_layers,
                                                          0 if phase == 'train' else 1,
                                                          input_dim[1:])
@@ -34,14 +43,21 @@ def caffe_to_keras(prototext=None, caffemodel=None, phase='train'):
             param.MergeFromString(open(caffemodel, 'rb').read())
             # print('param')
             # print(param)
-            param_layers = param.layers[:]
+            
+            if len(param.layers) != 0:
+                param_layers = param.layers[:]
+            elif len(param.layer) != 0:
+                param_layers = param.layer[:]
+            else:
+                raise Exception('could not load any layers from caffemodel')
+
             if prototext:
                 # network already created with prototext
                 # see if weights have to be loaded
                 weights = convert_weights(param_layers)
                 model_data['weights'] = weights
                 for layer_weights in weights:
-                    network.nodes[layer_weights] = weights[layer_weights]
+                    network.nodes[layer_weights].set_weights(weights[layer_weights])
             else:
                 network, inputs, outputs = model_from_param(param_layers)
         model_data['network'] = network
