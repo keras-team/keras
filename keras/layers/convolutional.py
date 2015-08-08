@@ -15,7 +15,7 @@ class Convolution1D(Layer):
         border_mode='valid', subsample_length=1,
         W_regularizer=None, b_regularizer=None, activity_regularizer=None, W_constraint=None, b_constraint=None):
 
-        if border_mode not in {'valid', 'full'}:
+        if border_mode not in {'valid', 'full', 'same'}:
             raise Exception('Invalid border mode for Convolution1D:', border_mode)
 
         super(Convolution1D,self).__init__()
@@ -62,9 +62,24 @@ class Convolution1D(Layer):
     def get_output(self, train):
         X = self.get_input(train)
         X = theano.tensor.reshape(X, (X.shape[0], X.shape[1], X.shape[2], 1)).dimshuffle(0, 2, 1, 3)
-        conv_out = theano.tensor.nnet.conv.conv2d(X, self.W, border_mode=self.border_mode, subsample=self.subsample)
+
+        border_mode = self.border_mode
+        if border_mode == 'same':
+            border_mode = 'full'
+
+            if self.filter_length==1:
+                raise Exception("For Convolution1D and filter_size=1, use mode='valid' or 'full' but not 'same'")
+        
+        conv_out = theano.tensor.nnet.conv.conv2d(X, self.W, border_mode=border_mode, subsample=self.subsample)
         output = self.activation(conv_out + self.b.dimshuffle('x', 0, 'x', 'x'))
-        return theano.tensor.reshape(output, (output.shape[0], output.shape[1], output.shape[2])).dimshuffle(0, 2, 1)
+
+        output = theano.tensor.reshape(output, (output.shape[0], output.shape[1], output.shape[2])).dimshuffle(0, 2, 1)
+
+        if self.border_mode == 'same':
+            clip = (self.filter_length -1) // 2
+            output = output[:, clip:-clip, :]
+
+        return output
 
     def get_config(self):
         return {"name":self.__class__.__name__,
