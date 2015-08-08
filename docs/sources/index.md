@@ -17,7 +17,7 @@ Use Keras if you need a deep learning library that:
 
 - __Minimalism.__ Each module should be kept short and simple (<100 lines of code). Every piece of code should be transparent upon first reading. No black magic: it hurts iteration speed and ability to innovate.
 
-- __Easy extensibility.__ New modules are dead simple to add (as new classes/functions), and existing modules provide ample examples. To be able to easily create new modules allows for total expressiveness, making Keras suitable for adavanced research.
+- __Easy extensibility.__ New modules are dead simple to add (as new classes/functions), and existing modules provide ample examples. To be able to easily create new modules allows for total expressiveness, making Keras suitable for advanced research.
 
 - __Work with Python__. No separate models configuration files in a declarative format (like in Caffe or PyLearn2). Models are described in Python code, which is compact, easier to debug, and allows for ease of extensibility.
 
@@ -125,6 +125,7 @@ Keras welcomes all contributions from the community.
 - New features should be documented. Make sure you update the documentation along with your Pull Request.
 - The documentation for every new feature should include a usage example in the form of a code snippet. 
 - All changes should be tested. Make sure any new feature you add has a corresponding unit test.
+- Please no Pull Requests about coding style.
 - Even if you don't contribute to the Keras source code, if you have an application of Keras that is concise and powerful, please consider adding it to our collection of [examples](https://github.com/fchollet/keras/tree/master/examples).
 
 

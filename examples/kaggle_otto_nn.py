@@ -3,7 +3,7 @@ from __future__ import print_function
 
 import numpy as np
 import pandas as pd
-np.random.seed(1337) # for reproducibility
+np.random.seed(1337)  # for reproducibility
 
 from keras.models import Sequential
 from keras.layers.core import Dense, Dropout, Activation
@@ -36,16 +36,18 @@ from sklearn.preprocessing import StandardScaler
     Get the data from Kaggle: https://www.kaggle.com/c/otto-group-product-classification-challenge/data
 '''
 
+
 def load_data(path, train=True):
     df = pd.read_csv(path)
     X = df.values.copy()
     if train:
-        np.random.shuffle(X) # https://youtu.be/uyUXoap67N8
+        np.random.shuffle(X)  # https://youtu.be/uyUXoap67N8
         X, labels = X[:, 1:-1].astype(np.float32), X[:, -1]
         return X, labels
     else:
         X, ids = X[:, 1:].astype(np.float32), X[:, 0].astype(str)
         return X, ids
+
 
 def preprocess_data(X, scaler=None):
     if not scaler:
@@ -53,6 +55,7 @@ def preprocess_data(X, scaler=None):
         scaler.fit(X)
     X = scaler.transform(X)
     return X, scaler
+
 
 def preprocess_labels(labels, encoder=None, categorical=True):
     if not encoder:
@@ -62,6 +65,7 @@ def preprocess_labels(labels, encoder=None, categorical=True):
     if categorical:
         y = np_utils.to_categorical(y)
     return y, encoder
+
 
 def make_submission(y_prob, ids, encoder, fname):
     with open(fname, 'w') as f:

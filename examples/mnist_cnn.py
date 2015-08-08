@@ -1,7 +1,7 @@
 from __future__ import absolute_import
 from __future__ import print_function
 import numpy as np
-np.random.seed(1337) # for reproducibility
+np.random.seed(1337)  # for reproducibility
 
 from keras.datasets import mnist
 from keras.models import Sequential
@@ -41,7 +41,7 @@ Y_test = np_utils.to_categorical(y_test, nb_classes)
 
 model = Sequential()
 
-model.add(Convolution2D(32, 1, 3, 3, border_mode='full')) 
+model.add(Convolution2D(32, 1, 3, 3, border_mode='full'))
 model.add(Activation('relu'))
 model.add(Convolution2D(32, 32, 3, 3))
 model.add(Activation('relu'))

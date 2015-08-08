@@ -36,6 +36,4 @@ pages:
   - Sequence Preprocessing: preprocessing/sequence.md
   - Text Preprocessing: preprocessing/text.md
   - Image Preprocessing: preprocessing/image.md
-- Utils:
-  - Visualization Utilities: utils/visualization.md
 

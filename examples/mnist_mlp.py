@@ -1,7 +1,7 @@
 from __future__ import absolute_import
 from __future__ import print_function
 import numpy as np
-np.random.seed(1337) # for reproducibility
+np.random.seed(1337)  # for reproducibility
 
 from keras.datasets import mnist
 from keras.models import Sequential
@@ -19,8 +19,6 @@ from keras.utils import np_utils
 batch_size = 128
 nb_classes = 10
 nb_epoch = 20
-
-
 
 # the data, shuffled and split between tran and test sets
 (X_train, y_train), (X_test, y_test) = mnist.load_data()

@@ -19,11 +19,12 @@ train_samples = 5000
 test_samples = 1000
 
 (X_train, y_train), (X_test, y_test) = get_test_data(nb_train=train_samples, nb_test=test_samples, input_shape=(input_dim,),
-    classification=True, nb_class=4)
+                                                     classification=True, nb_class=4)
 y_test = np_utils.to_categorical(y_test)
 y_train = np_utils.to_categorical(y_train)
 print(X_train.shape)
 print(y_train.shape)
+
 
 class TestSequential(unittest.TestCase):
     def test_sequential(self):
@@ -66,7 +67,6 @@ class TestSequential(unittest.TestCase):
         nloss = model.evaluate(X_train, y_train, verbose=0)
         print(nloss)
         assert(loss == nloss)
-
 
     def test_merge_sum(self):
         print('Test merge: sum')
@@ -120,7 +120,6 @@ class TestSequential(unittest.TestCase):
         nloss = model.evaluate([X_train, X_train], y_train, verbose=0)
         print(nloss)
         assert(loss == nloss)
-
 
     def test_merge_concat(self):
         print('Test merge: concat')
@@ -179,7 +178,6 @@ class TestSequential(unittest.TestCase):
         print(nloss)
         assert(loss == nloss)
 
-
     def test_merge_recursivity(self):
         print('Test merge recursivity')
 
@@ -231,7 +229,6 @@ class TestSequential(unittest.TestCase):
         print(nloss)
         assert(loss == nloss)
 
-
     def test_merge_overlap(self):
         print('Test merge overlap')
         left = Sequential()
@@ -270,7 +267,6 @@ class TestSequential(unittest.TestCase):
         nloss = model.evaluate(X_train, y_train, verbose=0)
         print(nloss)
         assert(loss == nloss)
-
 
 
 if __name__ == '__main__':

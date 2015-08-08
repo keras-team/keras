@@ -1,6 +1,6 @@
 
 '''
-    We loop over words in a dataset, and for each word, we look at a context window around the word. 
+    We loop over words in a dataset, and for each word, we look at a context window around the word.
     We generate pairs of (pivot_word, other_word_from_same_context) with label 1,
     and pairs of (pivot_word, random_word) with label 0 (skip-gram method).
 
@@ -8,23 +8,23 @@
     and compute a proximity score between the embeddings (= p(context|word)),
     trained with our positive and negative labels.
 
-    We then use the weights computed by WordContextProduct to encode words 
-    and demonstrate that the geometry of the embedding space 
+    We then use the weights computed by WordContextProduct to encode words
+    and demonstrate that the geometry of the embedding space
     captures certain useful semantic properties.
 
-    Read more about skip-gram in this particularly gnomic paper by Mikolov et al.: 
+    Read more about skip-gram in this particularly gnomic paper by Mikolov et al.:
         http://arxiv.org/pdf/1301.3781v3.pdf
 
-    Note: you should run this on GPU, otherwise training will be quite slow. 
+    Note: you should run this on GPU, otherwise training will be quite slow.
     On a EC2 GPU instance, expect 3 hours per 10e6 comments (~10e8 words) per epoch with dim_proj=256.
     Should be much faster on a modern GPU.
 
     GPU command:
         THEANO_FLAGS=mode=FAST_RUN,device=gpu,floatX=float32 python skipgram_word_embeddings.py
 
-    Dataset: 5,845,908 Hacker News comments. 
-    Obtain the dataset at: 
-        https://mega.co.nz/#F!YohlwD7R!wec0yNO86SeaNGIYQBOR0A 
+    Dataset: 5,845,908 Hacker News comments.
+    Obtain the dataset at:
+        https://mega.co.nz/#F!YohlwD7R!wec0yNO86SeaNGIYQBOR0A
         (HNCommentsAll.1perline.json.bz2)
 '''
 from __future__ import absolute_import
@@ -43,10 +43,10 @@ from keras.layers.embeddings import WordContextProduct, Embedding
 from six.moves import range
 from six.moves import zip
 
-max_features = 50000 # vocabulary size: top 50,000 most common words in data
-skip_top = 100 # ignore top 100 most common words
+max_features = 50000  # vocabulary size: top 50,000 most common words in data
+skip_top = 100  # ignore top 100 most common words
 nb_epoch = 1
-dim_proj = 256 # embedding space dimension
+dim_proj = 256  # embedding space dimension
 
 save = True
 load_model = False
@@ -66,6 +66,7 @@ html_tags = re.compile(r'<.*?>')
 to_replace = [('&#x27;', "'")]
 hex_tags = re.compile(r'&.*?;')
 
+
 def clean_comment(comment):
     c = str(comment.encode("utf-8"))
     c = html_tags.sub(' ', c)
@@ -73,6 +74,7 @@ def clean_comment(comment):
         c = c.replace(tag, char)
     c = hex_tags.sub(' ', c)
     return c
+
 
 def text_generator(path=data_path):
     f = open(path)
@@ -120,7 +122,7 @@ if train_model:
         progbar = generic_utils.Progbar(tokenizer.document_count)
         samples_seen = 0
         losses = []
-        
+
         for i, seq in enumerate(tokenizer.texts_to_sequences_generator(text_generator())):
             # get skipgram couples for one text in the dataset
             couples, labels = sequence.skipgrams(seq, max_features, window_size=4, negative_samples=1., sampling_table=sampling_table)
@@ -158,26 +160,29 @@ word_index = tokenizer.word_index
 reverse_word_index = dict([(v, k) for k, v in list(word_index.items())])
 word_index = tokenizer.word_index
 
+
 def embed_word(w):
     i = word_index.get(w)
-    if (not i) or (i<skip_top) or (i>=max_features):
+    if (not i) or (i < skip_top) or (i >= max_features):
         return None
     return norm_weights[i]
+
 
 def closest_to_point(point, nb_closest=10):
     proximities = np.dot(norm_weights, point)
     tups = list(zip(list(range(len(proximities))), proximities))
     tups.sort(key=lambda x: x[1], reverse=True)
-    return [(reverse_word_index.get(t[0]), t[1]) for t in tups[:nb_closest]]  
+    return [(reverse_word_index.get(t[0]), t[1]) for t in tups[:nb_closest]]
+
 
 def closest_to_word(w, nb_closest=10):
     i = word_index.get(w)
-    if (not i) or (i<skip_top) or (i>=max_features):
+    if (not i) or (i < skip_top) or (i >= max_features):
         return []
     return closest_to_point(norm_weights[i].T, nb_closest)
 
 
-''' the resuls in comments below were for: 
+''' the resuls in comments below were for:
     5.8M HN comments
     dim_proj = 256
     nb_epoch = 2
@@ -187,26 +192,27 @@ def closest_to_word(w, nb_closest=10):
     skip_top = 100
     negative_samples = 1.
     window_size = 4
-    and frequency subsampling of factor 10e-5. 
+    and frequency subsampling of factor 10e-5.
 '''
 
-words = ["article", # post, story, hn, read, comments
-"3", # 6, 4, 5, 2
-"two", # three, few, several, each
-"great", # love, nice, working, looking
-"data", # information, memory, database
-"money", # company, pay, customers, spend
-"years", # ago, year, months, hours, week, days
-"android", # ios, release, os, mobile, beta
-"javascript", # js, css, compiler, library, jquery, ruby
-"look", # looks, looking
-"business", # industry, professional, customers
-"company", # companies, startup, founders, startups
-"after", # before, once, until
-"own", # personal, our, having
-"us", # united, country, american, tech, diversity, usa, china, sv
-"using", # javascript, js, tools (lol)
-"here", # hn, post, comments
+words = [
+    "article",  # post, story, hn, read, comments
+    "3",  # 6, 4, 5, 2
+    "two",  # three, few, several, each
+    "great",  # love, nice, working, looking
+    "data",  # information, memory, database
+    "money",  # company, pay, customers, spend
+    "years",  # ago, year, months, hours, week, days
+    "android",  # ios, release, os, mobile, beta
+    "javascript",  # js, css, compiler, library, jquery, ruby
+    "look",  # looks, looking
+    "business",  # industry, professional, customers
+    "company",  # companies, startup, founders, startups
+    "after",  # before, once, until
+    "own",  # personal, our, having
+    "us",  # united, country, american, tech, diversity, usa, china, sv
+    "using",  # javascript, js, tools (lol)
+    "here",  # hn, post, comments
 ]
 
 for w in words:
@@ -214,4 +220,3 @@ for w in words:
     print('====', w)
     for r in res:
         print(r)
-

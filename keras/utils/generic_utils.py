@@ -4,6 +4,7 @@ import time
 import sys
 import six
 
+
 def get_from_module(identifier, module_params, module_name, instantiate=False, kwargs=None):
     if isinstance(identifier, six.string_types):
         res = module_params.get(identifier)
@@ -17,8 +18,10 @@ def get_from_module(identifier, module_params, module_name, instantiate=False, k
             return res
     return identifier
 
+
 def make_tuple(*args):
     return args
+
 
 def printv(v, prefix=''):
     if type(v) == dict:
@@ -36,10 +39,11 @@ def printv(v, prefix=''):
         prefix += '...'
         for i, nv in enumerate(v):
             print(prefix + '#' + str(i))
-            printv(nv, prefix) 
+            printv(nv, prefix)
     else:
         prefix += '...'
         print(prefix + str(v))
+
 
 class Progbar(object):
     def __init__(self, target, width=30, verbose=1):
@@ -63,11 +67,11 @@ class Progbar(object):
         '''
         for k, v in values:
             if k not in self.sum_values:
-                self.sum_values[k] = [v * (current-self.seen_so_far), current-self.seen_so_far]
+                self.sum_values[k] = [v * (current - self.seen_so_far), current - self.seen_so_far]
                 self.unique_values.append(k)
             else:
-                self.sum_values[k][0] += v * (current-self.seen_so_far)
-                self.sum_values[k][1] += (current-self.seen_so_far)
+                self.sum_values[k][0] += v * (current - self.seen_so_far)
+                self.sum_values[k][1] += (current - self.seen_so_far)
         self.seen_so_far = current
 
         now = time.time()
@@ -91,7 +95,7 @@ class Progbar(object):
             bar += ']'
             sys.stdout.write(bar)
             self.total_width = len(bar)
-            
+
             if current:
                 time_per_unit = (now - self.start) / current
             else:
@@ -103,7 +107,7 @@ class Progbar(object):
             else:
                 info += ' - %ds' % (now - self.start)
             for k in self.unique_values:
-                info += ' - %s: %.4f' % (k, self.sum_values[k][0]/ max(1, self.sum_values[k][1]))
+                info += ' - %s: %.4f' % (k, self.sum_values[k][0] / max(1, self.sum_values[k][1]))
 
             self.total_width += len(info)
             if prev_total_width > self.total_width:
@@ -119,9 +123,8 @@ class Progbar(object):
             if current >= self.target:
                 info = '%ds' % (now - self.start)
                 for k in self.unique_values:
-                    info += ' - %s: %.4f' % (k, self.sum_values[k][0]/ max(1, self.sum_values[k][1]))
+                    info += ' - %s: %.4f' % (k, self.sum_values[k][0] / max(1, self.sum_values[k][1]))
                 sys.stdout.write(info + "\n")
-
 
     def add(self, n, values=[]):
         self.update(self.seen_so_far+n, values)

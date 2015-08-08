@@ -7,7 +7,7 @@ keras.layers.core.Layer()
 __Methods__:
 
 ```python
-connect(previous_layer)
+set_previous(previous_layer)
 ```
 
 Connect the input of the current layer to the output of the argument layer.
@@ -20,7 +20,7 @@ Connect the input of the current layer to the output of the argument layer.
 
 
 ```python
-output(train)
+get_output(train)
 ```
 
 Get the output of the layer.
@@ -64,6 +64,12 @@ Set the weights of the parameters of the layer.
 - __Arguments__: 
     - __weights__: List of numpy arrays (one per layer parameter). Should be in the same order as what `get_weights(self)` returns.
 
+
+```python
+get_config()
+```
+
+- __Return__: Configuration dictionary describing the layer.
 
 
 ---
@@ -351,3 +357,14 @@ model.compile(loss='categorical_crossentropy', optimizer='rmsprop')
 model.fit([X_train, X_train], Y_train, batch_size=128, nb_epoch=20, validation_data=([X_test, X_test], Y_test))
 ```
 
+## Masking
+```python
+keras.layers.core.Masking(mask_value=0.)
+```
+
+Create a mask for the input data by using `mask_value` as the sentinel value which should be masked out.
+Given an input of dimensions `(nb_samples, timesteps, input_dim)`, return the input untouched as output, and supply a mask of shape `(nb_samples, timesteps)` where all timesteps which had *all* their values equal to `mask_value` are masked out.
+
+- __Input shape__: 3D tensor with shape: `(nb_samples, timesteps, features)`.
+
+- __Output shape__: 3D tensor with shape: `(nb_samples, timesteps, features)`.

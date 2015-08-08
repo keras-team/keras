@@ -32,6 +32,7 @@ Y_train = np_utils.to_categorical(y_train, nb_classes)
 Y_test = np_utils.to_categorical(y_test, nb_classes)
 test_ids = np.where(y_test == np.array(weighted_class))[0]
 
+
 def create_model(weight_reg=None, activity_reg=None):
     model = Sequential()
     model.add(Dense(784, 50))
