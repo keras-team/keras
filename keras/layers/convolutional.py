@@ -89,19 +89,19 @@ class MaxPooling1D(Layer):
         self.pool_length = pool_length
         self.stride = stride
         if self.stride:
-            self.st = (1, self.stride)
+            self.st = (self.stride, 1)
         else:
             self.st = None
 
         self.input = T.tensor3()
-        self.poolsize = (1, pool_length)
+        self.poolsize = (pool_length, 1)
         self.ignore_border = ignore_border
 
     def get_output(self, train):
         X = self.get_input(train)
-        X = T.reshape(X, (X.shape[0], X.shape[1], X.shape[2], 1)).dimshuffle(0, 1, 3, 2)
+        X = T.reshape(X, (X.shape[0], X.shape[1], X.shape[2], 1)).dimshuffle(0, 2, 1, 3)
         output = T.signal.downsample.max_pool_2d(X, ds=self.poolsize, st=self.st, ignore_border=self.ignore_border)
-        output = output.dimshuffle(0, 1, 3, 2)
+        output = output.dimshuffle(0, 2, 1, 3)
         return T.reshape(output, (output.shape[0], output.shape[1], output.shape[2]))
 
     def get_config(self):
