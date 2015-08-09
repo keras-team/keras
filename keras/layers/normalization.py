@@ -37,7 +37,7 @@ class BatchNormalization(Layer):
         self.running_std = shared_ones((self.input_shape))
         X = self.get_input(train=True)
         m = X.mean(axis=0)
-        std = std = T.mean((X - m) ** 2 + self.epsilon, axis=0) ** 0.5
+        std = T.mean((X - m) ** 2 + self.epsilon, axis=0) ** 0.5
         mean_update = self.momentum * self.running_mean + (1-self.momentum) * m
         std_update = self.momentum * self.running_std + (1-self.momentum) * std
         self.updates = [(self.running_mean, mean_update), (self.running_std, std_update)]
