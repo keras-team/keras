@@ -26,3 +26,13 @@ def shared_ones(shape, dtype=theano.config.floatX, name=None):
 
 def alloc_zeros_matrix(*dims):
     return T.alloc(np.cast[theano.config.floatX](0.), *dims)
+
+
+def ndim_tensor(ndim):
+    if ndim == 2:
+        return T.matrix()
+    elif ndim == 3:
+        return T.tensor3()
+    elif ndim == 4:
+        return T.tensor4()
+    return T.matrix()
