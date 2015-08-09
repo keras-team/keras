@@ -4,17 +4,8 @@ from __future__ import print_function
 
 import theano.tensor as T
 from ..layers.core import Layer, Merge
+from ..utils.theano_utils import ndim_tensor
 from six.moves import range
-
-
-def ndim_tensor(ndim):
-    if ndim == 2:
-        return T.matrix()
-    elif ndim == 3:
-        return T.tensor3()
-    elif ndim == 4:
-        return T.tensor4()
-    return T.matrix()
 
 
 class Sequential(Layer):
@@ -32,6 +23,7 @@ class Sequential(Layer):
         self.params = []
         self.regularizers = []
         self.constraints = []
+        self.updates = []
 
         for layer in layers:
             self.add(layer)
@@ -43,11 +35,15 @@ class Sequential(Layer):
         self.layers.append(layer)
         if len(self.layers) > 1:
             self.layers[-1].set_previous(self.layers[-2])
+            if not hasattr(self.layers[0], 'input'):
+                self.set_input()
+        layer.init_updates()
 
-        params, regularizers, constraints = layer.get_params()
+        params, regularizers, constraints, updates = layer.get_params()
         self.params += params
         self.regularizers += regularizers
         self.constraints += constraints
+        self.updates += updates
 
     def get_output(self, train=False):
         return self.layers[-1].get_output(train)
@@ -115,6 +111,7 @@ class Graph(Layer):
         self.params = []
         self.regularizers = []
         self.constraints = []
+        self.updates = []
 
     def set_previous(self, layer):
         if len(self.inputs) != 1 or len(self.outputs) != 1:
@@ -143,7 +140,7 @@ class Graph(Layer):
             raise Exception('Duplicate node identifier: ' + name)
         self.namespace.add(name)
         self.input_order.append(name)
-        layer = Layer() # empty layer
+        layer = Layer()  # empty layer
         if dtype == 'float':
             layer.input = ndim_tensor(ndim)
         else:
@@ -185,10 +182,12 @@ class Graph(Layer):
                                  'input': input,
                                  'inputs': inputs,
                                  'merge_mode': merge_mode})
-        params, regularizers, constraints = layer.get_params()
+        layer.init_updates()
+        params, regularizers, constraints, updates = layer.get_params()
         self.params += params
         self.regularizers += regularizers
         self.constraints += constraints
+        self.updates += updates
 
     def add_output(self, name, input=None, inputs=[], merge_mode='concat'):
         if name in self.namespace:
