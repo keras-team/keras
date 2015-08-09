@@ -77,7 +77,7 @@ keras.layers.convolutional.MaxPooling1D(pool_length=2, stride=None, ignore_borde
 
 - __Input shape__: 3D tensor with shape: `(nb_samples, steps, dim)`.
 
-- __Output shape__: 3D tensor with shape: `(nb_samples, steps, new_dim)`.
+- __Output shape__: 3D tensor with shape: `(nb_samples, downsampled_steps, dim)`.
 
 - __Arguments__:
 
