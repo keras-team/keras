@@ -442,8 +442,9 @@ class Dense2D(Layer):
 
     def get_config(self):
         return {"name":self.__class__.__name__,
-            "input_dim":self.input_dim,
-            "output_dim":self.output_dim,
+            "input_dim_rows":self.input_dim_rows,
+            "input_dim_cols":self.input_dim_cols,
+            "output_dim_cols":self.output_dim_cols,
             "init":self.init.__name__,
             "activation":self.activation.__name__,
             "W_regularizer":self.W_regularizer.get_config() if self.W_regularizer else None,
