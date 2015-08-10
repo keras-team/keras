@@ -16,7 +16,7 @@ class Convolution1D(Layer):
                  W_regularizer=None, b_regularizer=None, activity_regularizer=None,
                  W_constraint=None, b_constraint=None):
 
-        if border_mode not in {'valid', 'full'}:
+        if border_mode not in {'valid', 'full', 'same'}:
             raise Exception('Invalid border mode for Convolution1D:', border_mode)
 
         super(Convolution1D, self).__init__()
@@ -63,9 +63,27 @@ class Convolution1D(Layer):
     def get_output(self, train):
         X = self.get_input(train)
         X = T.reshape(X, (X.shape[0], X.shape[1], X.shape[2], 1)).dimshuffle(0, 2, 1, 3)
-        conv_out = T.nnet.conv.conv2d(X, self.W, border_mode=self.border_mode, subsample=self.subsample)
+        
+        border_mode = self.border_mode
+        if border_mode == 'same':
+            border_mode = 'full'
+
+            if self.filter_length==1:
+                raise Exception("For Convolution1D and filter_length=1, use mode='valid' or 'full' but not 'same'")
+            if self.filter_length%2==0:
+                raise Exception("""
+                Convolution1D got filter_length={0} and mode='same'.
+                When using mode='same''filter_length' should be an odd number""".format(self.filter_length))
+
+        conv_out = T.nnet.conv.conv2d(X, self.W, border_mode=border_mode, subsample=self.subsample)
         output = self.activation(conv_out + self.b.dimshuffle('x', 0, 'x', 'x'))
-        return T.reshape(output, (output.shape[0], output.shape[1], output.shape[2])).dimshuffle(0, 2, 1)
+        output = T.reshape(output, (output.shape[0], output.shape[1], output.shape[2])).dimshuffle(0, 2, 1)
+
+        if self.border_mode == 'same':
+            clip = (self.filter_length - 1) // 2
+            output = output[:, clip:-clip, :]
+
+        return output
 
     def get_config(self):
         return {"name": self.__class__.__name__,
@@ -89,19 +107,19 @@ class MaxPooling1D(Layer):
         self.pool_length = pool_length
         self.stride = stride
         if self.stride:
-            self.st = (self.stride, 1)
+            self.st = (1, self.stride)
         else:
             self.st = None
 
         self.input = T.tensor3()
-        self.poolsize = (pool_length, 1)
+        self.poolsize = (1, pool_length)
         self.ignore_border = ignore_border
 
     def get_output(self, train):
         X = self.get_input(train)
-        X = T.reshape(X, (X.shape[0], X.shape[1], X.shape[2], 1)).dimshuffle(0, 2, 1, 3)
+        X = T.reshape(X, (X.shape[0], X.shape[1], X.shape[2], 1)).dimshuffle(0, 1, 3, 2)
         output = T.signal.downsample.max_pool_2d(X, ds=self.poolsize, st=self.st, ignore_border=self.ignore_border)
-        output = output.dimshuffle(0, 2, 1, 3)
+        output = output.dimshuffle(0, 1, 3, 2)
         return T.reshape(output, (output.shape[0], output.shape[1], output.shape[2]))
 
     def get_config(self):
