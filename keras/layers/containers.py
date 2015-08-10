@@ -113,11 +113,27 @@ class Graph(Layer):
         self.constraints = []
         self.updates = []
 
-    def set_previous(self, layer):
-        if len(self.inputs) != 1 or len(self.outputs) != 1:
-            raise Exception('The Graph container can only be used as a layer \
-                when it has exactly one input and one output.')
-        self.inputs[self.input_order[0]].set_previous(layer)
+    @property
+    def nb_input(self):
+        return len(self.inputs)
+
+    @property
+    def nb_output(self):
+        return len(self.outputs)
+
+    def set_previous(self, layer, connection_map={}):
+        if self.nb_input != layer.nb_output:
+            raise Exception('Cannot connect layers: input count does not match output count.')
+        if self.nb_input == 1:
+            self.inputs[self.input_order[0]].set_previous(layer)
+        else:
+            if not connection_map:
+                raise Exception('Cannot attach multi-input layer: no connection_map provided.')
+            for k, v in connection_map:
+                if k in self.inputs and v in layer.outputs:
+                    self.inputs[k].set_previous(layer.outputs[v])
+                else:
+                    raise Exception('Invalid connection map.')
 
     def get_input(self, train=False):
         if len(self.inputs) != 1 or len(self.outputs) != 1:

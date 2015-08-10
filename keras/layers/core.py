@@ -21,10 +21,19 @@ class Layer(object):
     def init_updates(self):
         self.updates = []
 
-    def set_previous(self, layer):
+    def set_previous(self, layer, connection_map={}):
+        assert self.nb_input == layer.nb_output == 1, "Cannot connect layers: input count and output count should be 1."
         if not self.supports_masked_input() and layer.get_output_mask() is not None:
-            raise Exception("Attached non-masking layer to layer with masked output")
+            raise Exception("Cannot connect non-masking layer to layer with masked output")
         self.previous = layer
+
+    @property
+    def nb_input(self):
+        return 1
+
+    @property
+    def nb_output(self):
+        return 1
 
     def get_output(self, train=False):
         return self.get_input(train)
