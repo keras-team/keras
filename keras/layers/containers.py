@@ -147,19 +147,19 @@ class Graph(Layer):
             if ndim == 2:
                 layer.input = T.imatrix()
             else:
-                raise Exception('Type "int" can only be used with ndim==2.')
+                raise Exception('Type "int" can only be used with ndim==2 (Embedding).')
         layer.input.name = name
         self.inputs[name] = layer
         self.input_config.append({'name': name, 'ndim': ndim, 'dtype': dtype})
 
-    def add_node(self, layer, name, input=None, inputs=[], merge_mode='concat'):
+    def add_node(self, layer, name, input=None, inputs=[], merge_mode='concat', create_output=False):
         if hasattr(layer, 'set_name'):
             layer.set_name(name)
         if name in self.namespace:
             raise Exception('Duplicate node identifier: ' + name)
         if input:
             if input not in self.namespace:
-                raise Exception('Unknown identifier: ' + input)
+                raise Exception('Unknown node/input identifier: ' + input)
             if input in self.nodes:
                 layer.set_previous(self.nodes[input])
             elif input in self.inputs:
@@ -189,12 +189,15 @@ class Graph(Layer):
         self.constraints += constraints
         self.updates += updates
 
+        if create_output:
+            self.add_output(name, input=name)
+
     def add_output(self, name, input=None, inputs=[], merge_mode='concat'):
-        if name in self.namespace:
-            raise Exception('Duplicate node identifier: ' + name)
+        if name in self.output_order:
+            raise Exception('Duplicate output identifier: ' + name)
         if input:
             if input not in self.namespace:
-                raise Exception('Unknown identifier: ' + input)
+                raise Exception('Unknown node/input identifier: ' + input)
             if input in self.nodes:
                 self.outputs[name] = self.nodes[input]
             elif input in self.inputs:
@@ -207,7 +210,7 @@ class Graph(Layer):
                 to_merge.append(self.nodes[n])
             merge = Merge(to_merge, mode=merge_mode)
             self.outputs[name] = merge
-        self.namespace.add(name)
+
         self.output_order.append(name)
         self.output_config.append({'name': name,
                                    'input': input,
