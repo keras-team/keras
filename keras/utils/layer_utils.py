@@ -7,6 +7,7 @@ import copy
 from ..layers.advanced_activations import LeakyReLU, PReLU
 from ..layers.core import Dense, Merge, Dropout, Activation, Reshape, Flatten, RepeatVector, Layer
 from ..layers.core import ActivityRegularization, TimeDistributedDense, AutoEncoder, MaxoutDense
+from ..layers.convolutional import Convolution1D, Convolution2D, MaxPooling1D, MaxPooling2D, ZeroPadding2D
 from ..layers.embeddings import Embedding, WordContextProduct
 from ..layers.noise import GaussianNoise, GaussianDropout
 from ..layers.normalization import BatchNormalization
