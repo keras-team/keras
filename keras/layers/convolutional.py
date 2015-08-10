@@ -66,17 +66,13 @@ class Convolution1D(Layer):
         if border_mode == 'same':
             border_mode = 'full'
 
-            if self.filter_length==1:
-                raise Exception("For Convolution1D and filter_size=1, use mode='valid' or 'full' but not 'same'")
-
         conv_out = theano.tensor.nnet.conv.conv2d(X, self.W, border_mode=border_mode, subsample=self.subsample)
+        if self.border_mode == 'same':
+            shift_x = (self.filter_length - 1) // 2
+            conv_out = conv_out[:, :, shift_x:X.shape[2] + shift_x, :]
+
         output = self.activation(conv_out + self.b.dimshuffle('x', 0, 'x', 'x'))
         output = theano.tensor.reshape(output, (output.shape[0], output.shape[1], output.shape[2])).dimshuffle(0, 2, 1)
-
-        if self.border_mode == 'same':
-            clip = (self.filter_length - 1) // 2
-            output = output[:, clip:-clip, :]
-
         return output
 
     def get_config(self):
