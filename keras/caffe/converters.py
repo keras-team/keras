@@ -13,10 +13,6 @@ import numpy as np
 import math
 
 
-def is_data_input(layer):
-    return layer.type in [5, 12, 25, 29, 9]
-
-
 def model_from_config(layers, phase, input_dim):
     '''
         layers: a list of all the layers in the model
@@ -60,6 +56,7 @@ def model_from_config(layers, phase, input_dim):
     for layer_nb in network:
         layer = layers[layer_nb]
         name = layer.name
+        type_of_layer = layer_type(layer)
 
         if is_data_input(layer):
             # not including data layers
@@ -94,8 +91,7 @@ def model_from_config(layers, phase, input_dim):
             input_layer_name = input_layer_names[0]
             layer_input_dim = layer_input_dims[0]
 
-        if layer.type == 3:
-            # CONCAT
+        if type_of_layer == 'concat':
             # emulation of just concatenation
             axis = layer.concat_param.axis  # 0 for batch, 1 for stack
             model.add_node(Activation('linear'), name=name, inputs=input_layer_names, concat_axis=axis)
@@ -104,8 +100,7 @@ def model_from_config(layers, phase, input_dim):
             for dim in layer_input_dims[1:]:
                 layer_output_dim[0] += dim[0]
 
-        elif layer.type == 4:
-            # CONVOLUTION
+        elif type_of_layer == 'convolution':
             nb_col = max(layer.convolution_param.kernel_h, layer.convolution_param.kernel_size)
             nb_row = max(layer.convolution_param.kernel_w, layer.convolution_param.kernel_size)
             nb_filter = layer.convolution_param.num_output
@@ -127,19 +122,16 @@ def model_from_config(layers, phase, input_dim):
             layer_output_dim_padding = [layer_input_dim[0], layer_input_dim[1] + 2 * pad_h, layer_input_dim[2] + 2 * pad_w]
             layer_output_dim = [nb_filter, (layer_output_dim_padding[1] - nb_row) / stride_h + 1, (layer_output_dim_padding[2] - nb_col) / stride_w + 1]
 
-        elif layer.type == 6:
-            # DROPOUT
+        elif type_of_layer == 'dropout':
             prob = layer.dropout_param.dropout_ratio
             model.add_node(Dropout(prob), name=name, input=input_layer_name)
             layer_output_dim = layer_input_dim
 
-        elif layer.type == 8:
-            # FLATTEN
+        elif type_of_layer == 'flatten':
             model.add_node(Flatten(), name=name, input=input_layer_name)
             layer_output_dim = np.prod(layer_input_dim)
 
-        elif layer.type == 14:
-            # INNER PRODUCT OR DENSE
+        elif type_of_layer == 'innerproduct':
             layer_output_dim = layer.inner_product_param.num_output
 
             if len(layer_input_dim) > 1:
@@ -151,8 +143,7 @@ def model_from_config(layers, phase, input_dim):
 
             layer_output_dim = [layer_output_dim]
 
-        elif layer.type == 15:
-            # LOCAL RESPONSE NORMALIZATION
+        elif type_of_layer == 'lrn':
             alpha = layer.lrn_param.alpha
             k = layer.lrn_param.k
             beta = layer.lrn_param.beta
@@ -162,8 +153,7 @@ def model_from_config(layers, phase, input_dim):
 
             layer_output_dim = layer_input_dim
 
-        elif layer.type == 17:
-            # POOLING
+        elif type_of_layer == 'pooling':
             kernel_h = max(layer.pooling_param.kernel_h, layer.pooling_param.kernel_size)
             kernel_w = max(layer.pooling_param.kernel_w, layer.pooling_param.kernel_size)
 
@@ -186,33 +176,28 @@ def model_from_config(layers, phase, input_dim):
                                 (layer_output_dim_padding[1] - kernel_h) / stride_h + 1,
                                 (layer_output_dim_padding[2] - kernel_w) / stride_w + 1]
 
-        elif layer.type == 18:
-            # ReLU
+        elif type_of_layer == 'relu':
             model.add_node(Activation('relu'), name=name, input=input_layer_name)
             layer_output_dim = layer_input_dim
 
-        elif layer.type == 19:
-            # SIGMOID
+        elif type_of_layer == 'sigmoid':
             model.add_node(Activation('sigmoid'), name=name, input=input_layer_name)
             layer_output_dim = layer_input_dim
 
-        elif layer.type == 20 or layer.type == 21:
-            # SOFTMAX
+        elif type_of_layer == 'softmax' or type_of_layer == 'softmaxwithloss':
             model.add_node(Activation('softmax'), name=name, input=input_layer_name)
             layer_output_dim = layer_input_dim
 
-        elif layer.type == 22:
-            # SPLIT
-            model.add_node(ZeroPadding2D(pad=(0, 0)), name=name, inputs=input_layer_name)
+        elif type_of_layer == 'split':
+            model.add_node(Activation('linear'), name=name, inputs=input_layer_name)
             layer_output_dim = layer_input_dim
 
-        elif layer.type == 23:
-            # TANH
+        elif type_of_layer == 'tanh':
             model.add_node(Activation('tanh'), name=name, input=input_layer_name)
             layer_output_dim = layer_input_dim
 
         else:
-            raise RuntimeError("one or more layers used in this model is not currently supported")
+            raise RuntimeError('layer type', type_of_layer, 'used in this model is not currently supported')
 
         output_dim[name] = layer_output_dim
 
@@ -259,6 +244,7 @@ def model_from_param(layers):
     for layer_nb in network:
         layer = layers[layer_nb]
         name = layer.name
+        type_of_layer = layer_type(layer)
 
         if is_data_input(layer):
             continue
@@ -289,18 +275,17 @@ def model_from_param(layers):
             # since the graph output is not model output
             name = 'output_' + name
 
-        if layer.type == 3:
-            # CONCAT
+
+        if type_of_layer == 'concat':
             # emulation of just concatenation
             axis = layer.concat_param.axis  # 0 for batch, 1 for stack
             model.add_node(Activation('linear'), name=name, inputs=input_layer_names, concat_axis=axis)
 
-        elif layer.type == 4:
-            # CONVOLUTION
+        elif type_of_layer == 'convolution':
             blobs = layer.blobs
             nb_filter, temp_stack_size, nb_col, nb_row = blobs[0].num, blobs[0].channels, blobs[0].height, blobs[0].width
 
-            # weird old trick used in paralellizing networks
+            # model parallel network
             group = layer.convolution_param.group
             stack_size = temp_stack_size * group
 
@@ -333,17 +318,14 @@ def model_from_param(layers):
                            subsample=(stride_h, stride_w), weights=weights),
                            name=name, input=input_layer_name)
 
-        elif layer.type == 6:
-            # DROPOUT
+        elif type_of_layer == 'dropout':
             prob = layer.dropout_param.dropout_ratio
             model.add_node(Dropout(prob), name=name, input=input_layer_name)
-
-        elif layer.type == 8:
-            # FLATTEN
+            
+        elif type_of_layer == 'flatten':
             model.add_node(Flatten(), name=name, input=input_layer_name)
 
-        elif layer.type == 14:
-            # INNER PRODUCT OR DENSE
+        elif type_of_layer == 'innerproduct':
             blobs = layer.blobs
             nb_filter, stack_size, nb_col, nb_row = blobs[0].num, blobs[0].channels, blobs[0].height, blobs[0].width
 
@@ -354,8 +336,7 @@ def model_from_param(layers):
             model.add_node(Flatten(), name=name + '_flatten', input=input_layer_name)
             model.add_node(Dense(nb_row, nb_col, weights=weights), name=name, input=name + '_flatten')
 
-        elif layer.type == 15:
-            # LOCAL RESPONSE NORMALIZATION
+        elif type_of_layer == 'lrn':
             alpha = layer.lrn_param.alpha
             k = layer.lrn_param.k
             beta = layer.lrn_param.beta
@@ -363,8 +344,7 @@ def model_from_param(layers):
 
             model.add_node(LRN2D(alpha=alpha, k=k, beta=beta, n=n), name=name, input=input_layer_name)
 
-        elif layer.type == 17:
-            # POOLING
+        elif type_of_layer == 'pooling':
             kernel_h = max(layer.pooling_param.kernel_h, layer.pooling_param.kernel_size)
             kernel_w = max(layer.pooling_param.kernel_w, layer.pooling_param.kernel_size)
 
@@ -380,28 +360,23 @@ def model_from_param(layers):
 
             model.add_node(MaxPooling2D(poolsize=(kernel_h, kernel_w), stride=(stride_h, stride_w)), name=name, input=input_layer_name)
 
-        elif layer.type == 18:
-            # ReLU
+        elif type_of_layer == 'relu':
             model.add_node(Activation('relu'), name=name, input=input_layer_name)
 
-        elif layer.type == 19:
-            # SIGMOID
+        elif type_of_layer == 'sigmoid':
             model.add_node(Activation('sigmoid'), name=name, input=input_layer_name)
 
-        elif layer.type == 20 or layer.type == 21:
-            # SOFTMAX
+        elif type_of_layer == 'softmax' or type_of_layer == 'softmaxwithloss':
             model.add_node(Activation('softmax'), name=name, input=input_layer_name)
 
-        elif layer.type == 22:
-            # SPLIT
-            model.add_node(ZeroPadding2D(pad=(0, 0)), name=name, input=input_layer_name)
+        elif type_of_layer == 'split':
+            model.add_node(Activation('linear'), name=name, input=input_layer_name)
 
-        elif layer.type == 23:
-            # TANH
+        elif type_of_layer == 'tanh':
             model.add_node(Activation('tanh'), name=name, input=input_layer_name)
 
         else:
-            raise RuntimeError("the layer: ", layer.name, "used in this model is not currently supported")
+            raise RuntimeError('layer type', type_of_layer, 'used in this model is not currently supported')
 
     for network_output in network_outputs:
         input_layer_name = 'output_' + layers[network_output].name
@@ -430,13 +405,14 @@ def convert_weights(layers):
     for layer_nb in range(len(layers)):
         layer = layers[layer_nb]
         name = layer.name
+        
+        type_of_layer = layer_type(layer)
 
-        if layer.type == 4:
-            # CONVOLUTION
+        if type_of_layer == 'convolution':
             blobs = layer.blobs
             nb_filter, temp_stack_size, nb_col, nb_row = blobs[0].num, blobs[0].channels, blobs[0].height, blobs[0].width
 
-            # maybe not all synapses are existant
+            # model parallel network
             group = layer.convolution_param.group
             stack_size = temp_stack_size * group
 
@@ -456,8 +432,7 @@ def convert_weights(layers):
             layer_weights = [weights_p, weights_b]
             weights[name] = layer_weights
 
-        elif layer.type == 14:
-            # INNER PRODUCT OR DENSE
+        elif type_of_layer == 'innerproduct':
             blobs = layer.blobs
             nb_filter, stack_size, nb_col, nb_row = blobs[0].num, blobs[0].channels, blobs[0].height, blobs[0].width
 
