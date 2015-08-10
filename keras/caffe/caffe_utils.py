@@ -38,8 +38,8 @@ layer_num_to_name = {
             36: 'SILENCE',
             37: 'CONTRASTIVELOSS',
             38: 'EXP',
-            39: 'DECONVOLUTION'
-        }
+            39: 'DECONVOLUTION'}
+
 
 def layer_type(layer):
     if type(layer.type) == int:
@@ -147,6 +147,7 @@ def reverse(network):
         for n in network[node]:
             rev[n].append(node)
     return rev
+
 
 def is_data_input(layer):
     return layer_type(layer) in ['data', 'imagedata', 'memorydata', 'hdf5data', 'windowdata']
