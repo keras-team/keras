@@ -245,3 +245,23 @@ class ZeroPadding2D(Layer):
     def get_config(self):
         return {"name": self.__class__.__name__,
                 "width": self.width}
+
+
+class GlobalPooling2D(Layer):
+    def __init__(self, pooling_function='average'):
+        super(GlobalPooling2D, self).__init__()
+        if pooling_function not in {'average', 'max'}:
+            raise Exception('Invalid pooling function for GlobalPooling2D:', pooling_function)
+        if pooling_function == 'average':
+            self.pooling_function = T.mean
+        else:
+            self.pooling_function = T.max
+        self.input = T.tensor4()
+
+    def get_output(self, train):
+        X = self.get_input(train)
+        return self.pooling_function(X.flatten(3), axis=-1)
+
+    def get_config(self):
+        return {"name": self.__class__.__name__,
+                "pooling_function": self.pooling_function.__name__}
