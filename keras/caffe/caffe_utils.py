@@ -49,7 +49,7 @@ def layer_type(layer):
     return typ.lower()
 
 
-def make_network(layers, phase):
+def parse_network(layers, phase):
     '''
         Construct a network from the layers by making all blobs and layers(operations) as nodes.
     '''
@@ -79,6 +79,8 @@ def make_network(layers, phase):
                 network[blob].append(layer_key)
             for blob in top_blobs:
                     network[layer_key].append(blob)
+    network = acyclic(network)  # Convert it to be truly acyclic
+    network = merge_layer_blob(network)  # eliminate 'blobs', just have layers
     return network
 
 
@@ -164,25 +166,22 @@ def remove_label_paths(layers, network, inputs, outputs):
     return network
 
 
-def get_inputs(reverse_network):
+def get_inputs(network):
     '''
         Gets the starting points of the network
     '''
-    inputs = ()
-    for node in reverse_network:
-        if reverse_network[node] == []:
-            inputs += (node,)
-    return inputs
+    reverse_network = reverse(network)
+    return get_outputs(reverse_network)
 
 
 def get_outputs(network):
     '''
         Gets the ending points of the network
     '''
-    outputs = ()
+    outputs = []
     for node in network.keys():
         if network[node] == []:
-            outputs += (node,)
+            outputs.append(node)
     return outputs
 
 
