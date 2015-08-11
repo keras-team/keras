@@ -44,15 +44,16 @@ def make_batches(size, batch_size):
 
 def batcher(iterable, batch_size):
     """iterable of single (x, yval) tuples, yield (X, y) matrices"""
-    X, y = [], []
-    for x, yval in iterable:
+    X, y, W = [], [], []
+    for x, yval, w in iterable:
         X.append(x)
         y.append(yval)
+        W.append(w)
         if len(X) == batch_size:
-            yield np.concatenate(X), np.concatenate(y)
-            X, y = [], []
+            yield np.concatenate(X), np.concatenate(y), np.concatenate(W)
+            X, y, W = [], [], []
     if X: # leftover
-        yield np.concatenate(X), np.concatenate(y)
+        yield np.concatenate(X), np.concatenate(y), np.concatenate(W)
     raise StopIteration
 
 
@@ -466,20 +467,19 @@ class Sequential(Model, containers.Sequential):
         })
         callbacks.on_train_begin()
 
-
         self.stop_training = False
         for epoch in range(nb_epoch):
             callbacks.on_epoch_begin(epoch)
 
             batch_iter = batcher(iter(datastream), batch_size)
-            for batch_index, (X, y) in enumerate(batch_iter):
+            for batch_index, (X, y, sample_weight) in enumerate(batch_iter):
 
                 batch_logs = {}
                 batch_logs['batch'] = batch_index
                 batch_logs['size'] = len(X)
                 callbacks.on_batch_begin(batch_index, batch_logs)
 
-                outs = self.train_on_batch(X, y, show_accuracy)
+                outs = self.train_on_batch(X, y, show_accuracy, None, sample_weight)
                 if type(outs) != list:
                     outs = [outs]
                 for l, o in zip(out_labels, outs):
@@ -570,8 +570,8 @@ class Sequential(Model, containers.Sequential):
             processed = 0
 
         batch_iter = batcher(iter(datastream), batch_size)
-        for X, y in batch_iter:
-            vals = self.test_on_batch(X, y, show_accuracy)
+        for X, y, sample_weight in batch_iter:
+            vals = self.test_on_batch(X, y, show_accuracy, sample_weight)
             if show_accuracy:
                 outs[0] += vals[0] * len(X)
                 outs[1] += vals[1] * len(X)
