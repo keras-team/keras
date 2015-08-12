@@ -255,7 +255,10 @@ class RemoteMonitor(Callback):
 
         for k, v in self.totals.items():
             send[k] = v / self.seen
-        for k, v in self.logs:
+        for k, v in logs.items():
             send[k] = v
 
-        r = requests.post(self.root + '/publish/epoch/end/', {'data': json.dumps(send)})
+        try:
+            r = requests.post(self.root + '/publish/epoch/end/', {'data': json.dumps(send)})
+        except:
+            print('Warning: could not reach RemoteMonitor root server at ' + str(self.root))

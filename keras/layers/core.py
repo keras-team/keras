@@ -18,6 +18,9 @@ class Layer(object):
     def __init__(self):
         self.params = []
 
+    def init_updates(self):
+        self.updates = []
+
     def set_previous(self, layer):
         if not self.supports_masked_input() and layer.get_output_mask() is not None:
             raise Exception("Attached non-masking layer to layer with masked output")
@@ -71,6 +74,7 @@ class Layer(object):
 
     def get_params(self):
         consts = []
+        updates = []
 
         if hasattr(self, 'regularizers'):
             regularizers = self.regularizers
@@ -88,7 +92,10 @@ class Layer(object):
         else:
             consts += [constraints.identity() for _ in range(len(self.params))]
 
-        return self.params, regularizers, consts
+        if hasattr(self, 'updates') and self.updates:
+            updates += self.updates
+
+        return self.params, regularizers, consts, updates
 
     def set_name(self, name):
         for i in range(len(self.params)):
@@ -118,8 +125,8 @@ class MaskedLayer(Layer):
 class Masking(MaskedLayer):
     """Mask an input sequence by using a mask value to identify padding.
 
-    This layer copies the input to the output layer,
-    while creating an output mask in the process.
+    This layer copies the input to the output layer with identified padding
+    replaced with 0s and creates an output mask in the process.
 
     At each timestep, if the values all equal `mask_value`,
     then the corresponding mask value for the timestep is 0 (skipped),
@@ -135,12 +142,16 @@ class Masking(MaskedLayer):
         X = self.get_input(train)
         return T.any(T.ones_like(X) * (1. - T.eq(X, self.mask_value)), axis=-1)
 
+    def get_output(self, train=False):
+        X = self.get_input(train)
+        return X * T.shape_padright(T.any((1. - T.eq(X, self.mask_value)), axis=-1))
+
     def get_config(self):
         return {"name": self.__class__.__name__,
                 "mask_value": self.mask_value}
 
 
-class Merge(object):
+class Merge(Layer):
     def __init__(self, layers, mode='sum'):
         ''' Merge the output of a list of layers or containers into a single tensor.
             mode: {'sum', 'concat'}
@@ -152,9 +163,11 @@ class Merge(object):
         self.params = []
         self.regularizers = []
         self.constraints = []
+        self.updates = []
         for l in self.layers:
-            params, regs, consts = l.get_params()
+            params, regs, consts, updates = l.get_params()
             self.regularizers += regs
+            self.updates += updates
             # params and constraints have the same size
             for p, c in zip(params, consts):
                 if p not in self.params:
@@ -162,7 +175,7 @@ class Merge(object):
                     self.constraints.append(c)
 
     def get_params(self):
-        return self.params, self.regularizers, self.constraints
+        return self.params, self.regularizers, self.constraints, self.updates
 
     def get_output(self, train=False):
         if self.mode == 'sum':
@@ -510,9 +523,11 @@ class AutoEncoder(Layer):
         self.params = []
         self.regularizers = []
         self.constraints = []
+        self.updates = []
         for layer in [self.encoder, self.decoder]:
-            params, regularizers, constraints = layer.get_params()
+            params, regularizers, constraints, updates = layer.get_params()
             self.regularizers += regularizers
+            self.updates += updates
             for p, c in zip(params, constraints):
                 if p not in self.params:
                     self.params.append(p)

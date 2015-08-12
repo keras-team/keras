@@ -186,6 +186,27 @@ class TestGraph(unittest.TestCase):
         pred = seq.predict(X_test)
         seq.get_config(verbose=1)
 
+    def test_create_output(self):
+        print('test create_output argument')
+        graph = Graph()
+        graph.add_input(name='input1', ndim=2)
+
+        graph.add_node(Dense(32, 16), name='dense1', input='input1')
+        graph.add_node(Dense(32, 4), name='dense2', input='input1')
+        graph.add_node(Dense(16, 4), name='dense3', input='dense1')
+        graph.add_node(Dense(4, 4), name='output1', inputs=['dense2', 'dense3'], merge_mode='sum', create_output=True)
+        graph.compile('rmsprop', {'output1': 'mse'})
+
+        history = graph.fit({'input1': X_train, 'output1': y_train}, nb_epoch=10)
+        out = graph.predict({'input1': X_test})
+        assert(type(out == dict))
+        assert(len(out) == 1)
+        loss = graph.test_on_batch({'input1': X_test, 'output1': y_test})
+        loss = graph.train_on_batch({'input1': X_test, 'output1': y_test})
+        loss = graph.evaluate({'input1': X_test, 'output1': y_test})
+        print(loss)
+        assert(loss < 2.5)
+
 
 if __name__ == '__main__':
     print('Test graph model')

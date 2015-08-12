@@ -378,6 +378,7 @@ class Sequential(Model, containers.Sequential):
         for r in self.regularizers:
             train_loss = r(train_loss)
         updates = self.optimizer.get_updates(self.params, self.constraints, train_loss)
+        updates += self.updates
 
         if type(self.X_train) == list:
             train_ins = self.X_train + [self.y, self.weights]
@@ -388,16 +389,16 @@ class Sequential(Model, containers.Sequential):
             test_ins = [self.X_test, self.y, self.weights]
             predict_ins = [self.X_test]
 
-        self._train = theano.function(train_ins, train_loss,
-            updates=updates, allow_input_downcast=True, mode=theano_mode)
-        self._train_with_acc = theano.function(train_ins, [train_loss, train_accuracy],
-            updates=updates, allow_input_downcast=True, mode=theano_mode)
+        self._train = theano.function(train_ins, train_loss, updates=updates,
+                                      allow_input_downcast=True, mode=theano_mode)
+        self._train_with_acc = theano.function(train_ins, [train_loss, train_accuracy], updates=updates,
+                                               allow_input_downcast=True, mode=theano_mode)
         self._predict = theano.function(predict_ins, self.y_test,
-            allow_input_downcast=True, mode=theano_mode)
+                                        allow_input_downcast=True, mode=theano_mode)
         self._test = theano.function(test_ins, test_loss,
-            allow_input_downcast=True, mode=theano_mode)
+                                     allow_input_downcast=True, mode=theano_mode)
         self._test_with_acc = theano.function(test_ins, [test_loss, test_accuracy],
-            allow_input_downcast=True, mode=theano_mode)
+                                              allow_input_downcast=True, mode=theano_mode)
 
     def train_on_batch(self, X, y, accuracy=False, class_weight=None, sample_weight=None):
         X = standardize_X(X)
@@ -578,15 +579,16 @@ class Graph(Model, containers.Graph):
             train_loss = r(train_loss)
         self.optimizer = optimizers.get(optimizer)
         updates = self.optimizer.get_updates(self.params, self.constraints, train_loss)
+        updates += self.updates
         self.theano_mode = theano_mode
         self.loss = loss
 
-        self._train = theano.function(train_ins, train_loss,
-            updates=updates, allow_input_downcast=True, mode=theano_mode)
+        self._train = theano.function(train_ins, train_loss, updates=updates,
+                                      allow_input_downcast=True, mode=theano_mode)
         self._test = theano.function(test_ins, test_loss,
-            allow_input_downcast=True, mode=theano_mode)
+                                     allow_input_downcast=True, mode=theano_mode)
         self._predict = theano.function(inputs=ins, outputs=ys_test,
-            allow_input_downcast=True, mode=theano_mode)
+                                        allow_input_downcast=True, mode=theano_mode)
 
     def train_on_batch(self, data, class_weight={}, sample_weight={}):
         # data is a dictionary mapping output and input names to arrays
