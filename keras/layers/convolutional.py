@@ -3,6 +3,7 @@ from __future__ import absolute_import
 
 import theano
 import theano.tensor as T
+from theano.sandbox.cuda import dnn
 
 from .. import activations, initializations, regularizers, constraints
 from ..utils.theano_utils import shared_zeros
@@ -178,15 +179,17 @@ class Convolution2D(Layer):
         X = self.get_input(train)
         border_mode = self.border_mode
         if border_mode == 'same':
-            border_mode = 'full'
-
-        conv_out = T.nnet.conv.conv2d(X, self.W,
-                                      border_mode=border_mode,
-                                      subsample=self.subsample)
-        if self.border_mode == 'same':
-            shift_x = (self.nb_row - 1) // 2
-            shift_y = (self.nb_col - 1) // 2
-            conv_out = conv_out[:, :, shift_x:X.shape[2] + shift_x, shift_y:X.shape[3] + shift_y]
+            assert(self.subsample == (1, 1))
+            pad_x = (self.nb_row - self.subsample[0]) // 2
+            pad_y = (self.nb_col - self.subsample[1]) // 2
+            conv_out = dnn.dnn_conv(img=X,
+                                    kerns=self.W,
+                                    border_mode=(pad_x, pad_y))
+        else:
+            conv_out = dnn.dnn_conv(img=X,
+                                    kerns=self.W,
+                                    border_mode=border_mode,
+                                    subsample=self.subsample)
 
         return self.activation(conv_out + self.b.dimshuffle('x', 0, 'x', 'x'))
 
