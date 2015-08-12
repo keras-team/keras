@@ -1,7 +1,6 @@
 from setuptools import setup
 from setuptools import find_packages
 
-
 setup(name='Keras',
       version='0.1.2',
       description='Theano-based Deep Learning library',
@@ -11,4 +10,6 @@ setup(name='Keras',
       download_url='https://github.com/fchollet/keras/tarball/0.1.2',
       license='MIT',
       install_requires=['theano', 'pyyaml', 'h5py'],
-      packages=find_packages())
+      packages=find_packages(),
+      include_package_data=True,
+      zip_safe=False)
