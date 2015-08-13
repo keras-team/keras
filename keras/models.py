@@ -638,8 +638,8 @@ class Graph(Model, containers.Graph):
             val_ins = [validation_data[name] for name in self.input_order] + [standardize_y(validation_data[name]) for name in self.output_order] + sample_weight
 
         f = self._train
-        out_labels = self.output_order
-        metrics = self.output_order + ['val_' + m for m in self.output_order]
+        out_labels = ['loss']
+        metrics = ['loss', 'val_loss']
         history = self._fit(f, ins, out_labels=out_labels, batch_size=batch_size, nb_epoch=nb_epoch,
                             verbose=verbose, callbacks=callbacks,
                             validation_split=validation_split, val_f=val_f, val_ins=val_ins,
