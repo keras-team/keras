@@ -556,7 +556,7 @@ class Sequential(Model, containers.Sequential):
 
 
 class Graph(Model, containers.Graph):
-    def compile(self, optimizer, loss, theano_mode=None):
+    def compile(self, optimizer, loss, theano_mode=None, mask_cost=False):
         # loss is a dictionary mapping output name to loss functions
         ys = []
         ys_train = []
@@ -574,11 +574,16 @@ class Graph(Model, containers.Graph):
             ys_train.append(y_train)
             ys_test.append(y_test)
 
+            if mask_cost is None:
+                mask = None
+            else:
+                mask = output.get_output_mask()
+
             weight = T.ones_like(y_test)
             weights.append(weight)
             weighted_loss = weighted_objective(objectives.get(loss_fn))
-            train_loss += weighted_loss(y, y_train, weight)
-            test_loss += weighted_loss(y, y_test, weight)
+            train_loss += weighted_loss(y, y_train, weight, mask)
+            test_loss += weighted_loss(y, y_test, weight, mask)
 
         train_loss.name = 'train_loss'
         test_loss.name = 'test_loss'
