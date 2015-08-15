@@ -345,8 +345,7 @@ class Sequential(Model, containers.Sequential):
             - set_weights
     '''
 
-    def compile(self, optimizer, loss, class_mode="categorical", theano_mode=None,
-                mask_cost=False):
+    def compile(self, optimizer, loss, class_mode="categorical", theano_mode=None):
         self.optimizer = optimizers.get(optimizer)
 
         self.loss = objectives.get(loss)
@@ -364,7 +363,7 @@ class Sequential(Model, containers.Sequential):
 
         self.weights = T.ones_like(self.y_train)
 
-        if mask_cost:
+        if hasattr(self.layers[-1], "get_output_mask"):
             mask = self.layers[-1].get_output_mask()
         else:
             mask = None
@@ -556,7 +555,7 @@ class Sequential(Model, containers.Sequential):
 
 
 class Graph(Model, containers.Graph):
-    def compile(self, optimizer, loss, theano_mode=None, mask_cost=False):
+    def compile(self, optimizer, loss, theano_mode=None):
         # loss is a dictionary mapping output name to loss functions
         ys = []
         ys_train = []
@@ -574,10 +573,10 @@ class Graph(Model, containers.Graph):
             ys_train.append(y_train)
             ys_test.append(y_test)
 
-            if mask_cost is None:
-                mask = None
+            if hasattr(self.layers[-1], "get_output_mask"):
+                mask = self.layers[-1].get_output_mask()
             else:
-                mask = output.get_output_mask()
+                mask = None
 
             weight = T.ones_like(y_test)
             weights.append(weight)
