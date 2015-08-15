@@ -327,7 +327,7 @@ class Model(object):
         # dump model configuration to json string
         import json
         config = self.get_config()
-        return json.dump(config)
+        return json.dumps(config)
 
 
 class Sequential(Model, containers.Sequential):
