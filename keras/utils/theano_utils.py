@@ -29,7 +29,9 @@ def alloc_zeros_matrix(*dims):
 
 
 def ndim_tensor(ndim):
-    if ndim == 2:
+    if ndim == 1:
+        return T.vector()
+    elif ndim == 2:
         return T.matrix()
     elif ndim == 3:
         return T.tensor3()
