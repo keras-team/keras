@@ -197,3 +197,65 @@ class KerasClassifier(BaseWrapper):
         """
         loss, accuracy = self.compiled_model_.evaluate(X, y, batch_size=batch_size, show_accuracy=True, verbose=verbose)
         return accuracy
+
+
+class KerasRegressor(BaseWrapper):
+    """
+    Implementation of the scikit-learn regressor API for Keras.
+
+    Parameters
+    ----------
+    model : object
+        An un-compiled Keras model object is required to use the scikit-learn wrapper.
+    optimizer : string
+        Optimization method used by the model during compilation/training.
+    loss : string
+        Loss function used by the model during compilation/training.
+    """
+    def __init__(self, model, optimizer='adam', loss='mean_squared_error'):
+        super(KerasRegressor, self).__init__(model, optimizer, loss)
+
+    def predict(self, X, batch_size=128, verbose=0):
+        """
+        Returns predictions for the given test data.
+
+        Parameters
+        ----------
+        X : array-like, shape = (n_samples, n_features)
+            Test samples where n_samples in the number of samples
+            and n_features is the number of features.
+        batch_size : int, optional
+            Number of test samples evaluated at a time.
+        verbose : int, optional
+            Verbosity level.
+
+        Returns
+        -------
+        preds : array-like, shape = (n_samples)
+            Predictions.
+        """
+        return self.compiled_model_.predict(X, batch_size=batch_size, verbose=verbose)
+
+    def score(self, X, y, batch_size=128, verbose=0):
+        """
+        Returns the mean accuracy on the given test data and labels.
+
+        Parameters
+        ----------
+        X : array-like, shape = (n_samples, n_features)
+            Test samples where n_samples in the number of samples
+            and n_features is the number of features.
+        y : array-like, shape = (n_samples)
+            True labels for X.
+        batch_size : int, optional
+            Number of test samples evaluated at a time.
+        verbose : int, optional
+            Verbosity level.
+
+        Returns
+        -------
+        score : float
+            Loss from predictions on X wrt. y.
+        """
+        loss = self.compiled_model_.evaluate(X, y, batch_size=batch_size, show_accuracy=False, verbose=verbose)
+        return loss
