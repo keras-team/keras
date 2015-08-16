@@ -250,8 +250,8 @@ class UpSample2D(Layer):
 
     def get_output(self, train):
         X = self.get_input(train)
-        Y = theano.tensor.extra_ops.repeat(X, self.upsample_size[0], axis = -2)
-        output = theano.tensor.extra_ops.repeat(Y, self.upsample_size[1], axis = -1)
+        Y = theano.tensor.extra_ops.repeat(X, self.upsample_size[0], axis = 2)
+        output = theano.tensor.extra_ops.repeat(Y, self.upsample_size[1], axis = 3)
         return output
 
     def get_config(self):
