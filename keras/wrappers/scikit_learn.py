@@ -1,23 +1,21 @@
 from __future__ import absolute_import
+import abc
 import copy
 import numpy as np
 
 from ..utils.np_utils import to_categorical
 
-class KerasClassifier(object):
-    """
-    Implementation of the scikit-learn classifier API for Keras.
 
-    Parameters
-    ----------
-    model : object
-        An un-compiled Keras model object is required to use the scikit-learn wrapper.
-    optimizer : string, optional
-        Optimization method used by the model during compilation/training.
-    loss : string, optional
-        Loss function used by the model during compilation/training.
+class BaseWrapper(object):
     """
-    def __init__(self, model, optimizer='adam', loss='categorical_crossentropy'):
+    Base class for the Keras scikit-learn wrapper.
+
+    Warning: This class should not be used directly. Use derived classes instead.
+    """
+    __metaclass__ = abc.ABCMeta
+
+    @abc.abstractmethod
+    def __init__(self, model, optimizer, loss):
         self.model = model
         self.optimizer = optimizer
         self.loss = loss
@@ -60,7 +58,8 @@ class KerasClassifier(object):
             setattr(self, parameter, value)
         return self
 
-    def fit(self, X, y, batch_size=128, nb_epoch=100, verbose=0, shuffle=True):
+    def fit(self, X, y, batch_size=128, nb_epoch=100, verbose=0, shuffle=True, show_accuracy=False,
+            validation_split=0, validation_data=None, callbacks=[]):
         """
         Fit the model according to the given training data.
 
@@ -82,12 +81,20 @@ class KerasClassifier(object):
         verbose : int, optional
             Verbosity level.
         shuffle : boolean, optional
-            Indicator to shuffle the training data.
+            Whether to shuffle the samples at each epoch.
+        show_accuracy : boolean, optional
+            Whether to display class accuracy in the logs at each epoch.
+        validation_split : float [0, 1], optional
+            Fraction of the data to use as held-out validation data.
+        validation_data : tuple (X, y), optional
+            Data to be used as held-out validation data. Will override validation_split.
+        callbacks : list, optional
+            List of callbacks to apply during training.
 
         Returns
         -------
-        self : object
-            Returns self.
+        history : object
+            Returns details about the training history at each epoch.
         """
         if len(y.shape) == 1:
             self.classes_ = list(np.unique(y))
@@ -98,36 +105,32 @@ class KerasClassifier(object):
 
         self.compiled_model_ = copy.deepcopy(self.model)
         self.compiled_model_.compile(optimizer=self.optimizer, loss=self.loss)
-        self.compiled_model_.fit(X, y, batch_size=batch_size, nb_epoch=nb_epoch, verbose=verbose, shuffle=shuffle)
+        history = self.compiled_model_.fit(X, y, batch_size=batch_size, nb_epoch=nb_epoch, verbose=verbose,
+                                           shuffle=shuffle, show_accuracy=show_accuracy,
+                                           validation_split=validation_split, validation_data=validation_data,
+                                           callbacks=callbacks)
+
         self.config_ = self.model.get_config()
         self.weights_ = self.model.get_weights()
 
-        return self
+        return history
 
-    def score(self, X, y, batch_size=128, verbose=0):
-        """
-        Returns the mean accuracy on the given test data and labels.
 
-        Parameters
-        ----------
-        X : array-like, shape = (n_samples, n_features)
-            Test samples where n_samples in the number of samples
-            and n_features is the number of features.
-        y : array-like, shape = (n_samples) or (n_samples, n_outputs)
-            True labels for X.
-        batch_size : int, optional
-            Number of test samples evaluated at a time.
-        verbose : int, optional
-            Verbosity level.
+class KerasClassifier(BaseWrapper):
+    """
+    Implementation of the scikit-learn classifier API for Keras.
 
-        Returns
-        -------
-        score : float
-            Mean accuracy of self.predict(X) wrt. y.
-        """
-        loss, accuracy = self.compiled_model_.evaluate(X, y, batch_size=batch_size,
-                                                       show_accuracy=True, verbose=verbose)
-        return accuracy
+    Parameters
+    ----------
+    model : object
+        An un-compiled Keras model object is required to use the scikit-learn wrapper.
+    optimizer : string
+        Optimization method used by the model during compilation/training.
+    loss : string
+        Loss function used by the model during compilation/training.
+    """
+    def __init__(self, model, optimizer='adam', loss='categorical_crossentropy'):
+        super(KerasClassifier, self).__init__(model, optimizer, loss)
 
     def predict(self, X, batch_size=128, verbose=0):
         """
@@ -170,3 +173,27 @@ class KerasClassifier(object):
             Class probability estimates.
         """
         return self.compiled_model_.predict_proba(X, batch_size=batch_size, verbose=verbose)
+
+    def score(self, X, y, batch_size=128, verbose=0):
+        """
+        Returns the mean accuracy on the given test data and labels.
+
+        Parameters
+        ----------
+        X : array-like, shape = (n_samples, n_features)
+            Test samples where n_samples in the number of samples
+            and n_features is the number of features.
+        y : array-like, shape = (n_samples) or (n_samples, n_outputs)
+            True labels for X.
+        batch_size : int, optional
+            Number of test samples evaluated at a time.
+        verbose : int, optional
+            Verbosity level.
+
+        Returns
+        -------
+        score : float
+            Mean accuracy of predictions on X wrt. y.
+        """
+        loss, accuracy = self.compiled_model_.evaluate(X, y, batch_size=batch_size, show_accuracy=True, verbose=verbose)
+        return accuracy
