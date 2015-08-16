@@ -278,3 +278,17 @@ class ZeroPadding2D(Layer):
     def get_config(self):
         return {"name": self.__class__.__name__,
                 "width": self.width}
+
+
+class GlobalPooling(Layer):
+    def __init__(self, pooling_function=T.mean):
+        super(GlobalPooling, self).__init__()
+        self.pooling_function = pooling_function
+
+    def get_output(self, train):
+        X = self.get_input(train)
+        return self.pooling_function(X.flatten(3), axis=-1)
+
+    def get_config(self):
+        return {"name": self.__class__.__name__,
+                "pooling_function}": self.pooling_function.__name__}
