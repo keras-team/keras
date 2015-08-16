@@ -93,50 +93,6 @@ class Convolution1D(Layer):
                 "b_constraint": self.b_constraint.get_config() if self.b_constraint else None}
 
 
-class MaxPooling1D(Layer):
-    def __init__(self, pool_length=2, stride=None, ignore_border=True):
-        super(MaxPooling1D, self).__init__()
-        self.pool_length = pool_length
-        self.stride = stride
-        if self.stride:
-            self.st = (self.stride, 1)
-        else:
-            self.st = None
-
-        self.input = T.tensor3()
-        self.poolsize = (pool_length, 1)
-        self.ignore_border = ignore_border
-
-    def get_output(self, train):
-        X = self.get_input(train)
-        X = T.reshape(X, (X.shape[0], X.shape[1], X.shape[2], 1)).dimshuffle(0, 2, 1, 3)
-        output = T.signal.downsample.max_pool_2d(X, ds=self.poolsize, st=self.st, ignore_border=self.ignore_border)
-        output = output.dimshuffle(0, 2, 1, 3)
-        return T.reshape(output, (output.shape[0], output.shape[1], output.shape[2]))
-
-    def get_config(self):
-        return {"name": self.__class__.__name__,
-                "stride": self.stride,
-                "pool_length": self.pool_length,
-                "ignore_border": self.ignore_border,
-                "subsample_length": self.subsample_length}
-
-class UpSample1D(Layer):
-    def __init__(self, upsample_length=2):
-        super(UpSample1D,self).__init__()
-        self.upsample_length = upsample_length
-        self.input = T.tensor3()
-
-    def get_output(self, train):
-        X = self.get_input(train)
-        output = theano.tensor.extra_ops.repeat(X, self.upsample_length, axis=1)
-        return output
-
-    def get_config(self):
-        return {"name":self.__class__.__name__,
-                "upsample_length":self.upsample_length}
-                
-
 class Convolution2D(Layer):
     def __init__(self, nb_filter, stack_size, nb_row, nb_col,
                  init='glorot_uniform', activation='linear', weights=None,
@@ -222,6 +178,35 @@ class Convolution2D(Layer):
                 "b_constraint": self.b_constraint.get_config() if self.b_constraint else None}
 
 
+class MaxPooling1D(Layer):
+    def __init__(self, pool_length=2, stride=None, ignore_border=True):
+        super(MaxPooling1D, self).__init__()
+        self.pool_length = pool_length
+        self.stride = stride
+        if self.stride:
+            self.st = (self.stride, 1)
+        else:
+            self.st = None
+
+        self.input = T.tensor3()
+        self.poolsize = (pool_length, 1)
+        self.ignore_border = ignore_border
+
+    def get_output(self, train):
+        X = self.get_input(train)
+        X = T.reshape(X, (X.shape[0], X.shape[1], X.shape[2], 1)).dimshuffle(0, 2, 1, 3)
+        output = T.signal.downsample.max_pool_2d(X, ds=self.poolsize, st=self.st, ignore_border=self.ignore_border)
+        output = output.dimshuffle(0, 2, 1, 3)
+        return T.reshape(output, (output.shape[0], output.shape[1], output.shape[2]))
+
+    def get_config(self):
+        return {"name": self.__class__.__name__,
+                "stride": self.stride,
+                "pool_length": self.pool_length,
+                "ignore_border": self.ignore_border,
+                "subsample_length": self.subsample_length}
+
+
 class MaxPooling2D(Layer):
     def __init__(self, poolsize=(2, 2), stride=None, ignore_border=True):
         super(MaxPooling2D, self).__init__()
@@ -241,22 +226,38 @@ class MaxPooling2D(Layer):
                 "ignore_border": self.ignore_border,
                 "stride": self.stride}
 
-class UpSample2D(Layer):
-    def __init__(self, upsample_size=(2, 2)):
-        super(UpSample2D,self).__init__()
-        self.input = T.tensor4()
-        self.upsample_size = upsample_size
 
+class UpSample1D(Layer):
+    def __init__(self, length=2):
+        super(UpSample1D, self).__init__()
+        self.length = length
+        self.input = T.tensor3()
 
     def get_output(self, train):
         X = self.get_input(train)
-        Y = theano.tensor.extra_ops.repeat(X, self.upsample_size[0], axis = 2)
-        output = theano.tensor.extra_ops.repeat(Y, self.upsample_size[1], axis = 3)
+        output = theano.tensor.extra_ops.repeat(X, self.length, axis=1)
         return output
 
     def get_config(self):
-        return {"name":self.__class__.__name__,
-                "upsample_size":self.upsample_size}
+        return {"name": self.__class__.__name__,
+                "length": self.length}
+
+
+class UpSample2D(Layer):
+    def __init__(self, size=(2, 2)):
+        super(UpSample2D, self).__init__()
+        self.input = T.tensor4()
+        self.size = size
+
+    def get_output(self, train):
+        X = self.get_input(train)
+        Y = theano.tensor.extra_ops.repeat(X, self.size[0], axis=2)
+        output = theano.tensor.extra_ops.repeat(Y, self.size[1], axis=3)
+        return output
+
+    def get_config(self):
+        return {"name": self.__class__.__name__,
+                "size": self.size}
 
 
 class ZeroPadding2D(Layer):
