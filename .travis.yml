@@ -1,0 +1,18 @@
+sudo: false
+language: python
+# Setup anaconda
+before_install:
+  - wget http://repo.continuum.io/miniconda/Miniconda-latest-Linux-x86_64.sh -O miniconda.sh
+  - chmod +x miniconda.sh
+  - ./miniconda.sh -b
+  - export PATH=/home/travis/miniconda/bin:$PATH
+  - conda update --yes conda
+python:
+  - "3.4"
+# command to install dependencies
+install:
+  - conda install --yes python=$TRAVIS_PYTHON_VERSION numpy scipy matplotlib pandas pytest h5py
+  # Coverage packages are on my binstar channel
+  - python setup.py install
+# command to run tests
+script: py.test tests/

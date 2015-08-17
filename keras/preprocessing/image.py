@@ -1,4 +1,5 @@
-from PIL import Image
+from __future__ import absolute_import
+
 import numpy as np
 from scipy import ndimage
 from scipy import linalg
@@ -6,6 +7,7 @@ from scipy import linalg
 from os import listdir
 from os.path import isfile, join
 import random, math
+from six.moves import range
 
 '''
     Fairly basic set of tools for realtime data augmentation on image data.
@@ -74,6 +76,7 @@ def random_zoom(x, rg, fill_mode="nearest", cval=0.):
 
 
 def array_to_img(x, scale=True):
+    from PIL import Image
     x = x.transpose(1, 2, 0) 
     if scale:
         x += max(-np.min(x), 0)
@@ -84,18 +87,27 @@ def array_to_img(x, scale=True):
         return Image.fromarray(x.astype("uint8"), "RGB")
     else:
         # grayscale
-        return Image.fromarray(x.astype("uint8"), "L")
+        return Image.fromarray(x[:,:,0].astype("uint8"), "L")
 
 
 def img_to_array(img):
     x = np.asarray(img, dtype='float32')
-    return x.transpose(2, 0, 1)
+    if len(x.shape)==3:
+        # RGB: height, width, channel -> channel, height, width
+        x = x.transpose(2, 0, 1)
+    else:
+        # grayscale: height, width -> channel, height, width
+        x = x.reshape((1, x.shape[0], x.shape[1]))
+    return x
 
 
 def load_img(path, grayscale=False):
+    from PIL import Image
     img = Image.open(open(path))
     if grayscale:
         img = img.convert('L')
+    else: # Assure 3 channel even when loaded image is grayscale
+        img = img.convert('RGB')
     return img
 
 
@@ -225,7 +237,7 @@ class ImageDataGenerator(object):
             self.mean = np.mean(X, axis=0)
             X -= self.mean
         if self.featurewise_std_normalization:
-            self.std = np.std(X)
+            self.std = np.std(X, axis=0)
             X /= self.std
 
         if self.zca_whitening:

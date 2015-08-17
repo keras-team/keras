@@ -6,18 +6,23 @@ Keras is a minimalist, highly modular neural network library in the spirit of To
 
 Use Keras if you need a deep learning library that:
 - allows for easy and fast prototyping (through total modularity, minimalism, and extensibility).
-- supports both convolutional networks (for vision) and recurrent networks (for sequence data). As well as combinations of the two. 
-- runs seamlessly on the CPU and the GPU.
+- supports both convolutional networks and recurrent networks, as well as combinations of the two.
+- supports arbitrary connectivity schemes (including multi-input and multi-output training).
+- runs seamlessly on CPU and GPU.
+
+Read the documentation at [Keras.io](http://keras.io).
+
+Keras is compatible with __Python 2.7-3.4__.
 
 ## Guiding principles
 
-- __Modularity.__ A model is understood as a sequence of standalone, fully-configurable modules that can be plugged together with as little restrictions as possible. In particular, neural layers, cost functions, optimizers, initialization schemes, activation functions and dropout are all standalone modules that you can combine to create new models. 
+- __Modularity.__ A model is understood as a sequence or a graph of standalone, fully-configurable modules that can be plugged together with as little restrictions as possible. In particular, neural layers, cost functions, optimizers, initialization schemes, activation functions, regularization schemes are all standalone modules that you can combine to create new models.
 
-- __Minimalism.__ Each module should be kept short and simple (<100 lines of code). Every piece of code should be transparent upon first reading. No black magic: it hurts iteration speed and ability to innovate. 
+- __Minimalism.__ Each module should be kept short and simple (<100 lines of code). Every piece of code should be transparent upon first reading. No black magic: it hurts iteration speed and ability to innovate.
 
-- __Easy extensibility.__ A new feature (a new module, per the above definition, or a new way to combine modules together) are dead simple to add (as new classes/functions), and existing modules provide ample examples.
+- __Easy extensibility.__ New modules are dead simple to add (as new classes/functions), and existing modules provide ample examples. To be able to easily create new modules allows for total expressiveness, making Keras suitable for advanced research.
 
-- __Work with Python__. No separate models configuration files in a declarative format (like in Caffe or PyLearn2). Models are described in Python code, which is compact, easier to debug, benefits from syntax highlighting, and most of all, allows for ease of extensibility. See for yourself with the examples below.
+- __Work with Python__. No separate models configuration files in a declarative format (like in Caffe or PyLearn2). Models are described in Python code, which is compact, easier to debug, and allows for ease of extensibility.
 
 ## Examples
 
@@ -35,7 +40,7 @@ model.add(Dropout(0.5))
 model.add(Dense(64, 64, init='uniform'))
 model.add(Activation('tanh'))
 model.add(Dropout(0.5))
-model.add(Dense(64, 1, init='uniform'))
+model.add(Dense(64, 2, init='uniform'))
 model.add(Activation('softmax'))
 
 sgd = SGD(lr=0.1, decay=1e-6, momentum=0.9, nesterov=True)
@@ -53,7 +58,7 @@ model.add(Dense(20, 64, init='uniform', activation='tanh'))
 model.add(Dropout(0.5))
 model.add(Dense(64, 64, init='uniform', activation='tanh'))
 model.add(Dropout(0.5))
-model.add(Dense(64, 1, init='uniform', activation='softmax')
+model.add(Dense(64, 2, init='uniform', activation='softmax'))
 
 sgd = SGD(lr=0.1, decay=1e-6, momentum=0.9, nesterov=True)
 model.compile(loss='mean_squared_error', optimizer=sgd)
@@ -82,7 +87,7 @@ model.add(Activation('relu'))
 model.add(MaxPooling2D(poolsize=(2, 2)))
 model.add(Dropout(0.25))
 
-model.add(Flatten(64*8*8))
+model.add(Flatten())
 model.add(Dense(64*8*8, 256))
 model.add(Activation('relu'))
 model.add(Dropout(0.5))
@@ -101,7 +106,8 @@ model.fit(X_train, Y_train, batch_size=32, nb_epoch=1)
 
 ```python
 from keras.models import Sequential
-from keras.layers.core import Dense, Dropout, Activation, Embedding
+from keras.layers.core import Dense, Dropout, Activation
+from keras.layers.embeddings import Embedding
 from keras.layers.recurrent import LSTM
 
 model = Sequential()
@@ -145,12 +151,12 @@ model.add(Convolution2D(128, 128, 3, 3))
 model.add(Activation('relu'))
 model.add(MaxPooling2D(poolsize=(2, 2)))
 
-model.add(Flatten(128*4*4))
+model.add(Flatten())
 model.add(Dense(128*4*4, 256))
 model.add(Activation('relu'))
 model.add(Dropout(0.5))
 
-model.add(Repeat(max_caption_len)) 
+model.add(RepeatVector(max_caption_len)) 
 # the GRU below returns sequences of max_caption_len vectors of size 256 (our word embedding size)
 model.add(GRU(256, 256, return_sequences=True))
 
@@ -166,95 +172,38 @@ model.fit(images, captions, batch_size=16, nb_epoch=100)
 In the examples folder, you will find example models for real datasets:
 - CIFAR10 small images classification: Convnet with realtime data augmentation
 - IMDB movie review sentiment classification: LSTM over sequences of words
-- Reuters newswires topic classification: Multilayer Perceptron
+- Reuters newswires topic classification: Multilayer Perceptron (MLP)
+- MNIST handwritten digits classification: MLP & CNN
+- Character-level text generation with LSTM
 
-## Warning
+...and more.
 
-This is a 0.0.1 alpha release. Feature scope is limited, and wild bugs may appear.
 
 ## Current capabilities
 
-- model architectures:
-    - Sequential (pipeline of layers)
+For complete coverage of the API, check out [the Keras documentation](http://keras.io).
 
-- layers: 
-    - layers.core:
-        - Dense
-        - Dropout
-        - Activation
-        - Embedding
-        - Reshape
-        - Flatten
-        - RepeatVector
-    - layers.convolutional:
-        - Convolution2D
-        - MaxPooling2D
-    - layers.recurrent:
-        - SimpleRNN
-        - SimpleDeepRNN
-        - GRU
-        - LSTM
-    - layers.advanced_activations:
-        - LeakyReLU
-        - PReLU
-    - layers.normalization:
-        - BatchNormalization
-
-- optimizers: 
-    - SGD (supports decay, momentum, Nesterov momentum)
-    - RMSprop
-    - Adagrad
-    - Adadelta
-
-- datasets:
-    - CIFAR10: thumbnail image classification
-    - Reuters: newswire topic classification
-    - IMDB: sentiment classification
-
-- preprocessing:
-    - image:
-        - ImageDataGenerator: realtime image data augmentation and preprocessing (normalization, ZCA whitening)
-        - random_rotation
-        - random_shift
-        - horizontal_flip
-        - vertical_flip
-    - text:
-        - Tokenizer
-        - one_hot
-    - sequence:
-        - pad_sequences
-
-- objectives:
-    - mean_squared_error
-    - mean_absolute_error
-    - hinge
-    - squared_hinge
-    - binary_crossentropy
-    - categorical_crossentropy
-
-- activation functions:
-    softmax, softplus, relu, sigmoid, hard_sigmoid, linear
-
-- initialization functions:
-    normal, uniform, lecun_uniform, orthogonal
-
+A few highlights: convnets, LSTM, GRU, word2vec-style embeddings, PReLU, batch normalization...
 
 ## Installation
 
 Keras uses the following dependencies:
 
 - numpy, scipy
-
+- pyyaml
 - Theano
     - See installation instructions: http://deeplearning.net/software/theano/install.html#install
-
-- PIL (optional, required if you use preprocessing.image)
-
+- HDF5 and h5py (optional, required if you use model saving/loading functions)
 - Optional but recommended if you use CNNs: cuDNN.
 
 Once you have the dependencies installed, cd to the Keras folder and run the install command:
 ```
 sudo python setup.py install
+```
+
+You can also install Keras from PyPI:
+```
+sudo pip install keras
 ```
 
 ## Why this name, Keras?
@@ -263,5 +212,5 @@ Keras (κέρας) means _horn_ in Greek. It is a reference to a literary image 
 
 Keras was developed as part of the research effort of project ONEIROS (Open-ended Neuro-Electronic Intelligent Robot Operating System).
 
-_"Oneiroi are beyond our unravelling --who can be sure what tale they tell? Not all that men look for comes to pass. Two gates there are that give passage to fleeting Oneiroi; one is made of horn, one of ivory. The Oneiroi that pass through sawn ivory are deceitful, bearing a message that will not be fulfilled; those that come out through polished horn have truth behind them, to be accomplished for men who see them."_ Homer, Odyssey 19. 562 ff (Shewring translation).
+>_"Oneiroi are beyond our unravelling --who can be sure what tale they tell? Not all that men look for comes to pass. Two gates there are that give passage to fleeting Oneiroi; one is made of horn, one of ivory. The Oneiroi that pass through sawn ivory are deceitful, bearing a message that will not be fulfilled; those that come out through polished horn have truth behind them, to be accomplished for men who see them."_ Homer, Odyssey 19. 562 ff (Shewring translation).
 

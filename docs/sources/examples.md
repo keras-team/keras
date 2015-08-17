@@ -1,8 +1,7 @@
-## Examples
 
 Here are a few examples to get you started!
 
-### Multilayer Perceptron (MLP):
+### Multilayer Perceptron (MLP)
 
 ```python
 from keras.models import Sequential
@@ -16,7 +15,7 @@ model.add(Dropout(0.5))
 model.add(Dense(64, 64, init='uniform'))
 model.add(Activation('tanh'))
 model.add(Dropout(0.5))
-model.add(Dense(64, 1, init='uniform'))
+model.add(Dense(64, 2, init='uniform'))
 model.add(Activation('softmax'))
 
 sgd = SGD(lr=0.1, decay=1e-6, momentum=0.9, nesterov=True)
@@ -26,7 +25,9 @@ model.fit(X_train, y_train, nb_epoch=20, batch_size=16)
 score = model.evaluate(X_test, y_test, batch_size=16)
 ```
 
-### Alternative implementation of MLP:
+---
+
+### Alternative implementation of MLP
 
 ```python
 model = Sequential()
@@ -34,13 +35,15 @@ model.add(Dense(20, 64, init='uniform', activation='tanh'))
 model.add(Dropout(0.5))
 model.add(Dense(64, 64, init='uniform', activation='tanh'))
 model.add(Dropout(0.5))
-model.add(Dense(64, 1, init='uniform', activation='softmax')
+model.add(Dense(64, 2, init='uniform', activation='softmax'))
 
 sgd = SGD(lr=0.1, decay=1e-6, momentum=0.9, nesterov=True)
 model.compile(loss='mean_squared_error', optimizer=sgd)
 ```
 
-### VGG-like convnet:
+---
+
+### VGG-like convnet
 
 ```python
 from keras.models import Sequential
@@ -63,7 +66,7 @@ model.add(Activation('relu'))
 model.add(MaxPooling2D(poolsize=(2, 2)))
 model.add(Dropout(0.25))
 
-model.add(Flatten(64*8*8))
+model.add(Flatten())
 model.add(Dense(64*8*8, 256))
 model.add(Activation('relu'))
 model.add(Dropout(0.5))
@@ -78,14 +81,18 @@ model.fit(X_train, Y_train, batch_size=32, nb_epoch=1)
 
 ```
 
-### Sequence classification with LSTM:
+---
+
+### Sequence classification with LSTM
 
 ```python
 from keras.models import Sequential
-from keras.layers.core import Dense, Dropout, Activation, Embedding
+from keras.layers.core import Dense, Dropout, Activation
+from keras.layers.embeddings import Embedding
 from keras.layers.recurrent import LSTM
 
 model = Sequential()
+# Add a mask_zero=True to the Embedding connstructor if 0 is a left-padding value in your data
 model.add(Embedding(max_features, 256))
 model.add(LSTM(256, 128, activation='sigmoid', inner_activation='hard_sigmoid'))
 model.add(Dropout(0.5))
@@ -98,8 +105,11 @@ model.fit(X_train, Y_train, batch_size=16, nb_epoch=10)
 score = model.evaluate(X_test, Y_test, batch_size=16)
 ```
 
-### Architecture for learning image captions with a convnet and a Gated Recurrent Unit:
-(word-level embedding, caption of maximum length 16 words).
+---
+
+### Image captioning
+
+Architecture for learning image captions with a convnet and a Gated Recurrent Unit (word-level embedding, caption of maximum length 16 words).
 
 Note that getting this to actually "work" will require using a bigger convnet, initialized with pre-trained weights.
 Displaying readable results will also require an embedding decoder.
@@ -126,12 +136,12 @@ model.add(Convolution2D(128, 128, 3, 3))
 model.add(Activation('relu'))
 model.add(MaxPooling2D(poolsize=(2, 2)))
 
-model.add(Flatten(128*4*4))
+model.add(Flatten())
 model.add(Dense(128*4*4, 256))
 model.add(Activation('relu'))
 model.add(Dropout(0.5))
 
-model.add(Repeat(max_caption_len)) 
+model.add(RepeatVector(max_caption_len)) 
 # the GRU below returns sequences of max_caption_len vectors of size 256 (our word embedding size)
 model.add(GRU(256, 256, return_sequences=True))
 
@@ -143,6 +153,8 @@ model.compile(loss='mean_squared_error', optimizer='rmsprop')
 model.fit(images, captions, batch_size=16, nb_epoch=100)
     
 ```
+
+---
 
 In the [examples folder](https://github.com/fchollet/keras/tree/master/examples), you will find example models for real datasets:
 
