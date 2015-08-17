@@ -23,7 +23,7 @@ class BatchNormalization(Layer):
         self.epsilon = epsilon
         self.mode = mode
         self.momentum = momentum
-        self.input = ndim_tensor(len(self.input_shape))
+        self.input = ndim_tensor(len(self.input_shape) + 1)
 
         self.gamma = self.init((self.input_shape))
         self.beta = shared_zeros(self.input_shape)
