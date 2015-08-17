@@ -573,8 +573,8 @@ class Graph(Model, containers.Graph):
             ys_train.append(y_train)
             ys_test.append(y_test)
 
-            if hasattr(self.layers[-1], "get_output_mask"):
-                mask = self.layers[-1].get_output_mask()
+            if hasattr(output, "get_output_mask"):
+                mask = output.get_output_mask()
             else:
                 mask = None
 
