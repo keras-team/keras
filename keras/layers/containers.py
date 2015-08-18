@@ -129,7 +129,7 @@ class Graph(Layer):
         else:
             if not connection_map:
                 raise Exception('Cannot attach multi-input layer: no connection_map provided.')
-            for k, v in connection_map:
+            for k, v in connection_map.items():
                 if k in self.inputs and v in layer.outputs:
                     self.inputs[k].set_previous(layer.outputs[v])
                 else:
