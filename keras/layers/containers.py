@@ -217,7 +217,7 @@ class Graph(Layer):
             if input in self.nodes:
                 self.outputs[name] = self.nodes[input]
             elif input in self.inputs:
-                self.ouputs[name] = self.inputs[input]
+                self.outputs[name] = self.inputs[input]
         if inputs:
             to_merge = []
             for n in inputs:
