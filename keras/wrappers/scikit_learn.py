@@ -234,7 +234,7 @@ class KerasRegressor(BaseWrapper):
         preds : array-like, shape = (n_samples)
             Predictions.
         """
-        return self.compiled_model_.predict(X, batch_size=batch_size, verbose=verbose)
+        return self.compiled_model_.predict(X, batch_size=batch_size, verbose=verbose).ravel()
 
     def score(self, X, y, batch_size=128, verbose=0):
         """
