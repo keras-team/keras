@@ -1,3 +1,4 @@
+from .. import initializations
 from ..layers.core import Layer, MaskedLayer
 from ..utils.theano_utils import shared_zeros, shared_ones, sharedX
 import theano.tensor as T
@@ -24,11 +25,15 @@ class PReLU(MaskedLayer):
             Delving Deep into Rectifiers: Surpassing Human-Level Performance on ImageNet Classification
                 http://arxiv.org/pdf/1502.01852v1.pdf
     '''
-    def __init__(self, input_shape):
+    def __init__(self, input_shape, init='zero', weights=None):
         super(PReLU, self).__init__()
-        self.alphas = shared_zeros(input_shape)
+        self.init = initializations.get(init)
+        self.alphas = self.init(input_shape)
         self.params = [self.alphas]
         self.input_shape = input_shape
+
+        if weights is not None:
+            self.set_weights(weights)
 
     def get_output(self, train):
         X = self.get_input(train)
@@ -38,7 +43,8 @@ class PReLU(MaskedLayer):
 
     def get_config(self):
         return {"name": self.__class__.__name__,
-                "input_shape": self.input_shape}
+                "input_shape": self.input_shape,
+                "init": self.init.__name__}
 
 
 class ParametricSoftplus(MaskedLayer):
@@ -49,7 +55,7 @@ class ParametricSoftplus(MaskedLayer):
             Inferring Nonlinear Neuronal Computation Based on Physiologically Plausible Inputs
             http://journals.plos.org/ploscompbiol/article?id=10.1371/journal.pcbi.1003143
     '''
-    def __init__(self, input_shape, alpha_init=0.2, beta_init=5.0):
+    def __init__(self, input_shape, alpha_init=0.2, beta_init=5.0, weights=None):
 
         super(ParametricSoftplus, self).__init__()
         self.alpha_init = alpha_init
@@ -58,6 +64,9 @@ class ParametricSoftplus(MaskedLayer):
         self.betas = sharedX(beta_init * np.ones(input_shape))
         self.params = [self.alphas, self.betas]
         self.input_shape = input_shape
+
+        if weights is not None:
+            self.set_weights(weights)
 
     def get_output(self, train):
         X = self.get_input(train)
