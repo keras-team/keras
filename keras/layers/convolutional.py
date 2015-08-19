@@ -3,10 +3,11 @@ from __future__ import absolute_import
 
 import theano
 import theano.tensor as T
+from theano.tensor.signal import downsample
 
-from .. import activations, initializations, regularizers, constraints
-from ..utils.theano_utils import shared_zeros
+from .. import activations, constraints, initializations, regularizers
 from ..layers.core import Layer
+from ..utils.theano_utils import shared_zeros
 
 
 class Convolution1D(Layer):
@@ -195,7 +196,7 @@ class MaxPooling1D(Layer):
     def get_output(self, train):
         X = self.get_input(train)
         X = T.reshape(X, (X.shape[0], X.shape[1], X.shape[2], 1)).dimshuffle(0, 2, 1, 3)
-        output = T.signal.downsample.max_pool_2d(X, ds=self.poolsize, st=self.st, ignore_border=self.ignore_border)
+        output = downsample.max_pool_2d(X, ds=self.poolsize, st=self.st, ignore_border=self.ignore_border)
         output = output.dimshuffle(0, 2, 1, 3)
         return T.reshape(output, (output.shape[0], output.shape[1], output.shape[2]))
 
@@ -217,7 +218,7 @@ class MaxPooling2D(Layer):
 
     def get_output(self, train):
         X = self.get_input(train)
-        output = T.signal.downsample.max_pool_2d(X, ds=self.poolsize, st=self.stride, ignore_border=self.ignore_border)
+        output = downsample.max_pool_2d(X, ds=self.poolsize, st=self.stride, ignore_border=self.ignore_border)
         return output
 
     def get_config(self):
