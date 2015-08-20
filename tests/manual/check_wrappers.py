@@ -42,10 +42,10 @@ model.add(Dense(50, 10))
 model.add(Activation('softmax'))
 
 print('Creating wrapper')
-classifier = KerasClassifier(model)
+classifier = KerasClassifier(model, train_batch_size=batch_size, nb_epoch=nb_epoch)
 
 print('Fitting model')
-classifier.fit(X_train, Y_train, batch_size=batch_size, nb_epoch=nb_epoch)
+classifier.fit(X_train, Y_train)
 
 print('Testing score function')
 score = classifier.score(X_train, Y_train)
@@ -95,10 +95,10 @@ model.add(Dense(50, 1))
 model.add(Activation('linear'))
 
 print('Creating wrapper')
-regressor = KerasRegressor(model)
+regressor = KerasRegressor(model, train_batch_size=batch_size, nb_epoch=nb_epoch)
 
 print('Fitting model')
-regressor.fit(X_train, y_train, batch_size=batch_size, nb_epoch=nb_epoch)
+regressor.fit(X_train, y_train)
 
 print('Testing score function')
 score = regressor.score(X_train, y_train)
