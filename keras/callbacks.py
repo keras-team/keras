@@ -274,6 +274,6 @@ class LrSetter(Callback):
         super(LrSetter, self).__init__()
         self.epoch_lr = epoch_lr
 
-    def on_epoch_end(self, epoch, logs={}):
+    def on_epoch_begin(self, epoch, logs={}):
         if str(epoch) in self.epoch_lr:
             self.model.lr.set_value(self.epoch_lr[str(epoch)])
