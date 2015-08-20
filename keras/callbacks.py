@@ -1,11 +1,11 @@
 from __future__ import absolute_import
 from __future__ import print_function
 
-import theano
-import theano.tensor as T
 import numpy as np
 
-import time, json, warnings
+import time
+import json
+import warnings
 from collections import deque
 
 from .utils.generic_utils import Progbar
@@ -262,3 +262,18 @@ class RemoteMonitor(Callback):
             r = requests.post(self.root + '/publish/epoch/end/', {'data': json.dumps(send)})
         except:
             print('Warning: could not reach RemoteMonitor root server at ' + str(self.root))
+
+
+class LrSetter(Callback):
+    '''LrSetter
+    epoch_rl is a dict with epoch x learning_rate pairs
+    everytime you get to an epoch in that dict, change the learning rate to that
+    value
+    '''
+    def __init__(self, epoch_lr):
+        super(LrSetter, self).__init__()
+        self.epoch_lr = epoch_lr
+
+    def on_epoch_end(self, epoch, logs={}):
+        if str(epoch) in self.epoch_lr:
+            self.model.lr.set_value(self.epoch_lr[str(epoch)])
