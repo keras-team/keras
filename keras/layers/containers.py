@@ -139,7 +139,7 @@ class Graph(Layer):
         if len(self.inputs) == len(self.outputs) == 1:
             return self.inputs[self.input_order[0]].get_input(train)
         else:
-            return dict([k, v.get_input(train) for k, v in self.inputs.items()])
+            return dict([(k, v.get_input(train)) for k, v in self.inputs.items()])
 
     @property
     def input(self):
@@ -149,7 +149,7 @@ class Graph(Layer):
         if len(self.inputs) == len(self.outputs) == 1:
             return self.outputs[self.output_order[0]].get_output(train)
         else:
-            return dict([k, v.get_output(train) for k, v in self.outputs.items()])
+            return dict([(k, v.get_output(train)) for k, v in self.outputs.items()])
 
     def add_input(self, name, ndim=2, dtype='float'):
         if name in self.namespace:
