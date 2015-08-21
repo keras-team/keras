@@ -136,20 +136,20 @@ class Graph(Layer):
                     raise Exception('Invalid connection map.')
 
     def get_input(self, train=False):
-        if len(self.inputs) != 1 or len(self.outputs) != 1:
-            raise Exception('The Graph container can only be used as a layer \
-                when it has exactly one input and one output.')
-        return self.inputs[self.input_order[0]].get_input(train)
+        if len(self.inputs) == len(self.outputs) == 1:
+            return self.inputs[self.input_order[0]].get_input(train)
+        else:
+            return dict([k, v.get_input(train) for k, v in self.inputs.items()])
 
     @property
     def input(self):
         return self.get_input()
 
     def get_output(self, train=False):
-        if len(self.inputs) != 1 or len(self.outputs) != 1:
-            raise Exception('The Graph container can only be used as a layer \
-                when it has exactly one input and one output.')
-        return self.outputs[self.output_order[0]].get_output(train)
+        if len(self.inputs) == len(self.outputs) == 1:
+            return self.outputs[self.output_order[0]].get_output(train)
+        else:
+            return dict([k, v.get_output(train) for k, v in self.outputs.items()])
 
     def add_input(self, name, ndim=2, dtype='float'):
         if name in self.namespace:
