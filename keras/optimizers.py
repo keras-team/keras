@@ -1,7 +1,6 @@
 from __future__ import absolute_import
 import theano
 import theano.tensor as T
-import numpy as np
 
 from .utils.theano_utils import shared_zeros, shared_scalar, floatX
 from six.moves import zip
@@ -49,10 +48,13 @@ class Optimizer(object):
 
 class SGD(Optimizer):
 
-    def __init__(self, lr=0.01, momentum=0., decay=0., nesterov=False, *args, **kwargs):
+    def __init__(self, lr=0.01, momentum=0., decay=0., nesterov=False, *args,
+                 **kwargs):
         super(SGD, self).__init__(**kwargs)
         self.__dict__.update(locals())
         self.iterations = shared_scalar(0)
+        self.lr = shared_scalar(lr)
+        self.momentum = shared_scalar(momentum)
 
     def get_updates(self, params, constraints, loss):
         grads = self.get_gradients(loss, params)
@@ -84,6 +86,8 @@ class RMSprop(Optimizer):
     def __init__(self, lr=0.001, rho=0.9, epsilon=1e-6, *args, **kwargs):
         super(RMSprop, self).__init__(**kwargs)
         self.__dict__.update(locals())
+        self.lr = shared_scalar(lr)
+        self.rho = shared_scalar(rho)
 
     def get_updates(self, params, constraints, loss):
         grads = self.get_gradients(loss, params)
@@ -109,6 +113,7 @@ class Adagrad(Optimizer):
     def __init__(self, lr=0.01, epsilon=1e-6, *args, **kwargs):
         super(Adagrad, self).__init__(**kwargs)
         self.__dict__.update(locals())
+        self.lr = shared_scalar(lr)
 
     def get_updates(self, params, constraints, loss):
         grads = self.get_gradients(loss, params)
@@ -135,6 +140,7 @@ class Adadelta(Optimizer):
     def __init__(self, lr=1.0, rho=0.95, epsilon=1e-6, *args, **kwargs):
         super(Adadelta, self).__init__(**kwargs)
         self.__dict__.update(locals())
+        self.lr = shared_scalar(lr)
 
     def get_updates(self, params, constraints, loss):
         grads = self.get_gradients(loss, params)
@@ -142,12 +148,14 @@ class Adadelta(Optimizer):
         delta_accumulators = [shared_zeros(p.get_value().shape) for p in params]
         self.updates = []
 
-        for p, g, a, d_a, c in zip(params, grads, accumulators, delta_accumulators, constraints):
+        for p, g, a, d_a, c in zip(params, grads, accumulators,
+                                   delta_accumulators, constraints):
             new_a = self.rho * a + (1 - self.rho) * g ** 2  # update accumulator
             self.updates.append((a, new_a))
 
             # use the new accumulator and the *old* delta_accumulator
-            update = g * T.sqrt(d_a + self.epsilon) / T.sqrt(new_a + self.epsilon)
+            update = g * T.sqrt(d_a + self.epsilon) / T.sqrt(new_a +
+                                                             self.epsilon)
 
             new_p = p - self.lr * update
             self.updates.append((p, c(new_p)))  # apply constraints
@@ -170,10 +178,12 @@ class Adam(Optimizer):
 
         Default parameters follow those provided in the original paper.
     '''
-    def __init__(self, lr=0.001, beta_1=0.9, beta_2=0.999, epsilon=1e-8, *args, **kwargs):
+    def __init__(self, lr=0.001, beta_1=0.9, beta_2=0.999, epsilon=1e-8, *args,
+                 **kwargs):
         super(Adam, self).__init__(**kwargs)
         self.__dict__.update(locals())
         self.iterations = shared_scalar(0)
+        self.lr = shared_scalar(lr)
 
     def get_updates(self, params, constraints, loss):
         grads = self.get_gradients(loss, params)
@@ -210,5 +220,8 @@ adadelta = Adadelta
 adam = Adam
 
 from .utils.generic_utils import get_from_module
+
+
 def get(identifier, kwargs=None):
-    return get_from_module(identifier, globals(), 'optimizer', instantiate=True, kwargs=kwargs)
+    return get_from_module(identifier, globals(), 'optimizer', instantiate=True,
+                           kwargs=kwargs)
