@@ -2,12 +2,9 @@ from __future__ import absolute_import
 from __future__ import print_function
 
 import numpy as np
+import time, json, warnings
 
-import time
-import json
-import warnings
 from collections import deque
-
 from .utils.generic_utils import Progbar
 
 
@@ -264,16 +261,14 @@ class RemoteMonitor(Callback):
             print('Warning: could not reach RemoteMonitor root server at ' + str(self.root))
 
 
-class LrSetter(Callback):
-    '''LrSetter
-    epoch_rl is a dict with epoch x learning_rate pairs
-    everytime you get to an epoch in that dict, change the learning rate to that
-    value
+class LearningRateScheduler(Callback):
+    '''LearningRateScheduler
+    func is a function that gets an epoch number as input and returns a new
+    learning rate as output.
     '''
-    def __init__(self, epoch_lr):
-        super(LrSetter, self).__init__()
-        self.epoch_lr = epoch_lr
+    def __init__(self, func):
+        super(LearningRateScheduler, self).__init__()
+        self.func = func
 
     def on_epoch_begin(self, epoch, logs={}):
-        if str(epoch) in self.epoch_lr:
-            self.model.lr.set_value(self.epoch_lr[str(epoch)])
+        model.lr.set_value(self.func(epoch))
