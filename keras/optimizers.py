@@ -3,6 +3,7 @@ import theano
 import theano.tensor as T
 
 from .utils.theano_utils import shared_zeros, shared_scalar, floatX
+from .utils.generic_utils import get_from_module
 from six.moves import zip
 
 
@@ -48,8 +49,7 @@ class Optimizer(object):
 
 class SGD(Optimizer):
 
-    def __init__(self, lr=0.01, momentum=0., decay=0., nesterov=False, *args,
-                 **kwargs):
+    def __init__(self, lr=0.01, momentum=0., decay=0., nesterov=False, *args, **kwargs):
         super(SGD, self).__init__(**kwargs)
         self.__dict__.update(locals())
         self.iterations = shared_scalar(0)
@@ -178,8 +178,7 @@ class Adam(Optimizer):
 
         Default parameters follow those provided in the original paper.
     '''
-    def __init__(self, lr=0.001, beta_1=0.9, beta_2=0.999, epsilon=1e-8, *args,
-                 **kwargs):
+    def __init__(self, lr=0.001, beta_1=0.9, beta_2=0.999, epsilon=1e-8, *args, **kwargs):
         super(Adam, self).__init__(**kwargs)
         self.__dict__.update(locals())
         self.iterations = shared_scalar(0)
@@ -218,8 +217,6 @@ rmsprop = RMSprop
 adagrad = Adagrad
 adadelta = Adadelta
 adam = Adam
-
-from .utils.generic_utils import get_from_module
 
 
 def get(identifier, kwargs=None):

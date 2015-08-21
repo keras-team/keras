@@ -263,12 +263,12 @@ class RemoteMonitor(Callback):
 
 class LearningRateScheduler(Callback):
     '''LearningRateScheduler
-    func is a function that gets an epoch number as input and returns a new
+    schedule is a function that gets an epoch number as input and returns a new
     learning rate as output.
     '''
-    def __init__(self, func):
+    def __init__(self, schedule):
         super(LearningRateScheduler, self).__init__()
-        self.func = func
+        self.schedule = schedule
 
     def on_epoch_begin(self, epoch, logs={}):
-        model.lr.set_value(self.func(epoch))
+        model.lr.set_value(self.schedule(epoch))
