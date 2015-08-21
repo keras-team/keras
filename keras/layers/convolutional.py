@@ -203,8 +203,7 @@ class MaxPooling1D(Layer):
         return {"name": self.__class__.__name__,
                 "stride": self.stride,
                 "pool_length": self.pool_length,
-                "ignore_border": self.ignore_border,
-                "subsample_length": self.subsample_length}
+                "ignore_border": self.ignore_border}
 
 
 class MaxPooling2D(Layer):
