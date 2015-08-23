@@ -94,7 +94,7 @@ def standardize_weights(y, sample_weight=None, class_weight=None):
             y_classes = y
         return np.expand_dims(np.array(list(map(lambda x: class_weight[x], y_classes))), 1)
     else:
-        return np.ones(y.shape[:-1] + (1,))
+        return np.ones((y.shape[0], 1))
 
 
 def model_from_yaml(yaml_string):
@@ -361,7 +361,7 @@ class Sequential(Model, containers.Sequential):
         # target of model
         self.y = T.zeros_like(self.y_train)
 
-        self.weights = T.ones_like(self.y_train)
+        self.weights = T.matrix(dtype=theano.config.floatX) # Forces 2D
 
         if hasattr(self.layers[-1], "get_output_mask"):
             mask = self.layers[-1].get_output_mask()
@@ -460,8 +460,8 @@ class Sequential(Model, containers.Sequential):
                     X_val may be a numpy array or a list of numpy arrays depending on your model input.")
             X_val = standardize_X(X_val)
             y_val = standardize_y(y_val)
-            val_ins = X_val + [y_val, np.ones(y_val.shape[:-1] + (1,))]
-
+            val_ins = X_val + [y_val, np.ones((y_val.shape[0], 1))]
+            
         if show_accuracy:
             f = self._train_with_acc
             out_labels = ['loss', 'acc']
