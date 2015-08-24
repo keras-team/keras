@@ -64,18 +64,28 @@ def slice_X(X, start=None, stop=None):
 
 def weighted_objective(fn):
     def weighted(y_true, y_pred, weights, mask=None):
-        # it's important that 0 * Inf == 0, not NaN, so I need to mask first
-        masked_y_true = y_true[weights.nonzero()[:-1]]
-        masked_y_pred = y_pred[weights.nonzero()[:-1]]
-        masked_weights = weights[weights.nonzero()]
-        obj_output = fn(masked_y_true, masked_y_pred)
+        '''
+        y_true dimension:  (sample, timestep, dims)
+        y_pred dimension:  (sample, timestep, dims)
+        weights dimension: (sample, timestep, 1)
+        '''
+        # it's important that 0 * Inf == 0, not NaN, so I need to filter
+        # those out first
+        filtered_y_true = y_true[weights.nonzero()[:-1]]
+        filtered_y_pred = y_pred[weights.nonzero()[:-1]]
+        filtered_weights = weights[weights.nonzero()]
+        obj_output = fn(filtered_y_true, filtered_y_pred)
         if mask is None:
-            return (masked_weights.flatten() * obj_output.flatten()).mean()
+            # Instead of calling mean() here, we divide by the sum of filtered_weights.
+            return (filtered_weights.flatten() * obj_output.flatten()).sum() / filtered_weights.sum()
         else:
             # We assume the time index to be masked is axis=1
-            wc = masked_weights * obj_output
-            wc = wc.reshape(mask.shape)
-            wc = wc.sum(axis=1) / mask.sum(axis=1)
+            filtered_mask = mask[weights.nonzero()[:-1]]
+            wc = filtered_weights * obj_output
+            wc = wc.reshape(filtered_mask.shape)
+            # Divide by mask.sum() here not filtered_mask.sum() since otherwise interactions
+            # between sample_weight and masks cause issues.
+            wc = wc.sum() / mask.sum()
             return wc.mean()
     return weighted
 
