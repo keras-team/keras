@@ -75,16 +75,13 @@ def weighted_objective(fn):
         filtered_y_pred = y_pred[weights.nonzero()[:-1]]
         filtered_weights = weights[weights.nonzero()]
         obj_output = fn(filtered_y_true, filtered_y_pred)
+        weighted = filtered_weights * obj_output
         if mask is None:
             # Instead of calling mean() here, we divide by the sum of filtered_weights.
-            return (filtered_weights.flatten() * obj_output.flatten()).sum() / filtered_weights.sum()
+            return weighted.sum() / filtered_weights.sum()
         else:
-            # We assume the time index to be masked is axis=1
             filtered_mask = mask[weights.nonzero()[:-1]]
-            wc = filtered_weights * obj_output
-            # Divide by mask.sum() here not filtered_mask.sum() since otherwise interactions
-            # between sample_weight and masks cause issues.
-            return (wc * filtered_mask).sum() / (filtered_mask * filtered_weights).sum()
+            return weighted.sum() / (filtered_mask * filtered_weights).sum()
     return weighted
 
 
