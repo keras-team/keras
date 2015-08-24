@@ -49,7 +49,7 @@ class PReLU(MaskedLayer):
 
 class ParametricSoftplus(MaskedLayer):
     '''
-        Parametric Softplus of the form: alpha * (1 + exp(beta * X))
+        Parametric Softplus of the form: alpha * log(1 + exp(beta * X))
 
         Reference:
             Inferring Nonlinear Neuronal Computation Based on Physiologically Plausible Inputs
