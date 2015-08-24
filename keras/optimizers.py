@@ -76,9 +76,9 @@ class SGD(Optimizer):
 
     def get_config(self):
         return {"name": self.__class__.__name__,
-                "lr": self.lr,
-                "momentum": self.momentum,
-                "decay": self.decay,
+                "lr": float(self.lr.get_value()),
+                "momentum": float(self.momentum.get_value()),
+                "decay": float(self.decay.get_value()),
                 "nesterov": self.nesterov}
 
 
@@ -104,8 +104,8 @@ class RMSprop(Optimizer):
 
     def get_config(self):
         return {"name": self.__class__.__name__,
-                "lr": self.lr,
-                "rho": self.rho,
+                "lr": float(self.lr.get_value()),
+                "rho": float(self.rho.get_value()),
                 "epsilon": self.epsilon}
 
 
@@ -129,7 +129,7 @@ class Adagrad(Optimizer):
 
     def get_config(self):
         return {"name": self.__class__.__name__,
-                "lr": self.lr,
+                "lr": float(self.lr.get_value()),
                 "epsilon": self.epsilon}
 
 
@@ -167,7 +167,7 @@ class Adadelta(Optimizer):
 
     def get_config(self):
         return {"name": self.__class__.__name__,
-                "lr": self.lr,
+                "lr": float(self.lr.get_value()),
                 "rho": self.rho,
                 "epsilon": self.epsilon}
 
@@ -206,7 +206,7 @@ class Adam(Optimizer):
 
     def get_config(self):
         return {"name": self.__class__.__name__,
-                "lr": self.lr,
+                "lr": float(self.lr.get_value()),
                 "beta_1": self.beta_1,
                 "beta_2": self.beta_2,
                 "epsilon": self.epsilon}
