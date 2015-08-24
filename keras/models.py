@@ -84,8 +84,7 @@ def weighted_objective(fn):
             wc = filtered_weights * obj_output
             # Divide by mask.sum() here not filtered_mask.sum() since otherwise interactions
             # between sample_weight and masks cause issues.
-            wc = wc.sum() / mask.sum()
-            return wc.mean()
+            return (wc * filtered_mask).sum() / (filtered_mask * filtered_weights).sum()
     return weighted
 
 
