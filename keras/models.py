@@ -89,15 +89,18 @@ def standardize_weights(y, sample_weight=None, class_weight=None):
     if sample_weight is not None:
         return standardize_y(sample_weight)
     elif isinstance(class_weight, dict):
-        if len(y.shape) > 2:
-            raise Exception('class_weight not supported for 3+ dimensional targets.')
+        if len(y.shape) > 3:
+            raise Exception('class_weight not supported for 4+ dimensional targets.')
+        yshape = y.shape
+        y = np.reshape(y, (-1,yshape[-1])) # for time-distributed data, collapse time and sample
         if y.shape[1] > 1:
             y_classes = y.argmax(axis=1)
         elif y.shape[1] == 1:
             y_classes = np.reshape(y, y.shape[0])
         else:
             y_classes = y
-        return np.expand_dims(np.array(list(map(lambda x: class_weight[x], y_classes))), 1)
+        class_weights = np.asarray([class_weight[cls] for cls in y_classes])
+        return np.reshape(class_weights, yshape[:-1] + (1,)) # uncollapse initial dimensions
     else:
         return np.ones(y.shape[:-1] + (1,))
 
