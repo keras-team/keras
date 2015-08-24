@@ -82,7 +82,6 @@ def weighted_objective(fn):
             # We assume the time index to be masked is axis=1
             filtered_mask = mask[weights.nonzero()[:-1]]
             wc = filtered_weights * obj_output
-            wc = wc.reshape(filtered_mask.shape)
             # Divide by mask.sum() here not filtered_mask.sum() since otherwise interactions
             # between sample_weight and masks cause issues.
             wc = wc.sum() / mask.sum()
