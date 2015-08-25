@@ -178,7 +178,7 @@ class Convolution2D(Layer):
     def get_output(self, train):
         X = self.get_input(train)
         border_mode = self.border_mode
-        if dnn.dnn_available():
+        if dnn.dnn_available() and theano.config.device == 'gpu':
             if border_mode == 'same':
                 assert(self.subsample == (1, 1))
                 pad_x = (self.nb_row - self.subsample[0]) // 2
