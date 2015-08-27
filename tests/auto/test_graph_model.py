@@ -144,6 +144,8 @@ class TestGraph(unittest.TestCase):
 
         weights1 = np.random.uniform(size=y_train.shape[0])
         weights2 = np.random.uniform(size=y2_train.shape[0])
+        weights1_test = np.random.uniform(size=y_test.shape[0])
+        weights2_test = np.random.uniform(size=y2_test.shape[0])
 
         graph.compile('rmsprop', {'output1': 'mse', 'output2': 'mse'})
 
@@ -153,7 +155,7 @@ class TestGraph(unittest.TestCase):
         assert(type(out == dict))
         assert(len(out) == 2)
         loss = graph.test_on_batch({'input1': X_test, 'output1': y_test, 'output2': y2_test},
-                                   sample_weight={'output1': weights1, 'output2': weights2})
+                                   sample_weight={'output1': weights1_test, 'output2': weights2_test})
         loss = graph.train_on_batch({'input1': X_train, 'output1': y_train, 'output2': y2_train},
                                     sample_weight={'output1': weights1, 'output2': weights2})
         loss = graph.evaluate({'input1': X_train, 'output1': y_train, 'output2': y2_train},
