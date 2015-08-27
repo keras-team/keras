@@ -450,15 +450,17 @@ class Sequential(Model, containers.Sequential):
         if validation_data:
             if len(validation_data) == 2:
                 X_val, y_val = validation_data
+                X_val = standardize_X(X_val)
+                y_val = standardize_y(y_val)
                 sample_weight_val = np.ones(y_val.shape[:-1] + (1,))
             elif len(validation_data) == 3:
                 X_val, y_val, sample_weight_val = validation_data
+                X_val = standardize_X(X_val)
+                y_val = standardize_y(y_val)
+                sample_weight_val = standardize_weights(y_val, sample_weight=sample_weight_val)
             else:
                 raise Exception("Invalid format for validation data; provide a tuple (X_val, y_val) or (X_val, y_val, sample_weight). \
                     X_val may be a numpy array or a list of numpy arrays depending on your model input.")
-            X_val = standardize_X(X_val)
-            y_val = standardize_y(y_val)
-            sample_weight_val = standardize_weights(y_val, sample_weight=sample_weight_val)
             val_ins = X_val + [y_val, sample_weight_val]
 
         elif 0 < validation_split < 1:
