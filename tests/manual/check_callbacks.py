@@ -215,12 +215,22 @@ print("Test model checkpointer without validation data")
 import warnings
 warnings.filterwarnings('error')
 try:
+    passed = False
     # this should issue a warning
     model.fit(X_train, Y_train, batch_size=batch_size, nb_epoch=nb_epoch, show_accuracy=True, verbose=0, callbacks =[checkpointer])
 except:
-    print("Tests passed")
-    import sys
-    sys.exit(0)
+    passed = True
+if not passed:
+    raise Exception("Modelcheckpoint tests did not pass")
 
-raise Exception("Modelcheckpoint tests did not pass")
+print("Test model checkpointer with pattern")
+filename = "model_weights.{epoch:04d}.hdf5"
+f = os.path.join(path, filename)
+nb_epoch = 3
+checkpointer = cbks.ModelCheckpoint(f)
+model.fit(X_train, Y_train, batch_size=batch_size, nb_epoch=nb_epoch, verbose=0, callbacks=[checkpointer])
+for i in range(nb_epoch):
+    if not os.path.isfile(f.format(epoch=i)):
+        raise Exception("Model weights were not saved separately for each epoch")
 
+print("Tests passed")

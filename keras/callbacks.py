@@ -182,6 +182,7 @@ class ModelCheckpoint(Callback):
         self.best = np.Inf
 
     def on_epoch_end(self, epoch, logs={}):
+        filepath = self.filepath.format(epoch=epoch, **logs)
         if self.save_best_only:
             current = logs.get(self.monitor)
             if current is None:
@@ -190,16 +191,16 @@ class ModelCheckpoint(Callback):
                 if current < self.best:
                     if self.verbose > 0:
                         print("Epoch %05d: %s improved from %0.5f to %0.5f, saving model to %s"
-                              % (epoch, self.monitor, self.best, current, self.filepath))
+                              % (epoch, self.monitor, self.best, current, filepath))
                     self.best = current
-                    self.model.save_weights(self.filepath, overwrite=True)
+                    self.model.save_weights(filepath, overwrite=True)
                 else:
                     if self.verbose > 0:
                         print("Epoch %05d: %s did not improve" % (epoch, self.monitor))
         else:
             if self.verbose > 0:
-                print("Epoch %05d: saving model to %s" % (epoch, self.filepath))
-            self.model.save_weights(self.filepath, overwrite=True)
+                print("Epoch %05d: saving model to %s" % (epoch, filepath))
+            self.model.save_weights(filepath, overwrite=True)
 
 
 class EarlyStopping(Callback):
