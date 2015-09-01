@@ -198,7 +198,9 @@ class Merge(Layer):
             inputs = [self.layers[i].get_output(train) for i in range(len(self.layers))]
             return T.concatenate(inputs, axis=-1)
         elif self.mode == 'mul':
-            s = self.layers[0].get_output(train) * self.layers[1].get_output(train)
+            s = self.layers[0].get_output(train)
+            for i in range(1, len(self.layers)):
+                s *= self.layers[i].get_output(train)
             return s
         else:
             raise Exception('Unknown merge mode')
