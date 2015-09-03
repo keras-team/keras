@@ -1,15 +1,15 @@
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import
 import sys
-import six.moves.cPickle
+from six.moves import cPickle
 from six.moves import range
 
 def load_batch(fpath, label_key='labels'):
     f = open(fpath, 'rb')
     if sys.version_info < (3,):
-        d = six.moves.cPickle.load(f)
+        d = cPickle.load(f)
     else:
-        d = six.moves.cPickle.load(f, encoding="bytes")
+        d = cPickle.load(f, encoding="bytes")
         # decode utf8
         for k, v in d.items():
             del(d[k])
