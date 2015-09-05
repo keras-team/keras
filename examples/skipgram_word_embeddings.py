@@ -129,7 +129,7 @@ if train_model:
             if couples:
                 # one gradient update per sentence (one sentence = a few 1000s of word couples)
                 X = np.array(couples, dtype="int32")
-                loss = model.fit(X, labels)
+                loss = model.train_on_batch(X, labels)
                 losses.append(loss)
                 if len(losses) % 100 == 0:
                     progbar.update(i, values=[("loss", np.mean(losses))])
