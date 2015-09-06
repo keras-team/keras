@@ -28,7 +28,8 @@ from keras.datasets import imdb
     - Parameters are not optimized in any way -- I just used a fixed number for the embedding
     and hidden dimension
 
-    This model achieves 0.8340 test accuracy after 3 epochs.
+    This model achieves 0.8344 test accuracy after 3 epochs, and takes 4 seconds per epoch
+    on a Titan X GPU.
 '''
 
 max_features = 20000
