@@ -167,8 +167,6 @@ class Merge(Layer):
         '''
         if len(layers) < 2:
             raise Exception("Please specify two or more input layers (or containers) to merge")
-        elif len(layers) > 2 and mode == 'mul':
-            raise Exception("Elemwise multiplication mode can only merge two layers")
         self.mode = mode
         self.layers = layers
         self.params = []
