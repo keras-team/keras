@@ -62,8 +62,7 @@ class Convolution1D(Layer):
         if weights is not None:
             self.set_weights(weights)
 
-        if name is not None:
-            self.set_name(name)
+        self.set_name(name)
 
 
     def get_output(self, train):
@@ -152,8 +151,8 @@ class Convolution2D(Layer):
         if weights is not None:
             self.set_weights(weights)
 
-        if name is not None:
-            self.set_name(name)
+        self.set_name(name)
+
 
     def get_output(self, train):
         X = self.get_input(train)

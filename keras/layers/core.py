@@ -17,6 +17,7 @@ from six.moves import zip
 class Layer(object):
     def __init__(self):
         self.params = []
+        self.name = None
 
     def init_updates(self):
         self.updates = []
@@ -109,11 +110,19 @@ class Layer(object):
     def set_name(self, name=None):
         if name is None:
             name = self.__class__.__name__
-        for i, p in enumerate(self.params):
-            if p is None:
-                p.name = '%s_p%d' % (name, i)
-            else:
-                p.name = '%s_%s' % (name, p.name)
+        if self.name is not None:
+            # if already set, we only need to replace the prefix
+            old_name_len = len(self.name)
+            for p in self.params:
+                p.name = name + p.name[old_name_len:]
+        else: # first time we same the layer name
+            self.name = name
+            # we set all parameter names
+            for i, p in enumerate(self.params):
+                if p is None:
+                    p.name = '%s_p%d' % (name, i)
+                else:
+                    p.name = '%s_%s' % (name, p.name)
         return
 
 class MaskedLayer(Layer):
@@ -409,12 +418,8 @@ class Dense(Layer):
         if weights is not None:
             self.set_weights(weights)
 
-        if name is not None:
-            self.set_name(name)
+        self.set_name(name)
 
-    def set_name(self, name):
-        self.W.name = '%s_W' % name
-        self.b.name = '%s_b' % name
 
     def get_output(self, train=False):
         X = self.get_input(train)

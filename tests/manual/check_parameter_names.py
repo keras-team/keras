@@ -49,6 +49,8 @@ class TestParameterNames(unittest.TestCase):
         model = Sequential()
         model.add(Dense(10, 512))
         model.add(Activation('relu'))
+        model.add(Convolution2D(32, 32, 32, 32))
+        model.add(Activation('relu'))
         model.add(Dense(512, 2))
         model.add(Activation('softmax'))
 
