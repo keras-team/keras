@@ -7,25 +7,28 @@ from keras.preprocessing import sequence
 from keras.optimizers import SGD, RMSprop, Adagrad
 from keras.utils import np_utils
 from keras.models import Sequential
-from keras.layers.core import Dense, Dropout, Activation, TimeDistributedMerge
+from keras.layers.core import Dense, Dropout, Activation
 from keras.layers.embeddings import Embedding
 from keras.layers.recurrent import LSTM, GRU
 from keras.datasets import imdb
 
 '''
-    Train a deep averaging network (DAN) on the IMDB sentiment classification task.
+    Train a LSTM on the IMDB sentiment classification task.
 
-    The model is described in "Deep Unordered Composition Rivals Syntactic Methods
-    for Text Classification" by Iyyer, Manjunatha, Boyd-Graber, and Daume (ACL 2015).
+    The dataset is actually too small for LSTM to be of any advantage
+    compared to simpler, much faster methods such as TF-IDF+LogReg.
 
     Notes:
 
-    - Deep averaging networks are can be thought of as a drop-in for recurrent neural networks
-    - In the paper, dropout was applied at the word level; that's not done here.
-    - The sequence of characters doesn't matter, so it's pretty surprising that something like
-    this does well.
-    - Parameters are not optimized in any way -- I just used a fixed number for the embedding
-    and hidden dimension
+    - RNNs are tricky. Choice of batch size is important,
+    choice of loss and optimizer is critical, etc.
+    Some configurations won't converge.
+
+    - LSTM loss decrease patterns during training can be quite different
+    from what you see with CNNs/MLPs/etc.
+
+    GPU command:
+        THEANO_FLAGS=mode=FAST_RUN,device=gpu,floatX=float32 python imdb_lstm.py
 '''
 
 max_features = 20000
@@ -45,15 +48,14 @@ print('X_test shape:', X_test.shape)
 
 print('Build model...')
 model = Sequential()
-model.add(Embedding(max_features, 300))
-model.add(TimeDistributedMerge(mode='ave'))
-model.add(Dense(300, 300, activation = 'relu'))
-model.add(Dense(300, 300, activation = 'relu'))
-model.add(Dense(300, 300, activation = 'relu'))
-model.add(Dense(300, 300, activation = 'sigmoid'))
+model.add(Embedding(max_features, 128))
+model.add(LSTM(128, 128))  # try using a GRU instead, for fun
+model.add(Dropout(0.5))
+model.add(Dense(128, 1))
+model.add(Activation('sigmoid'))
 
 # try using different optimizers and different optimizer configs
-model.compile(loss='binary_crossentropy', optimizer='adagrad', class_mode="binary")
+model.compile(loss='binary_crossentropy', optimizer='adam', class_mode="binary")
 
 print("Train...")
 model.fit(X_train, y_train, batch_size=batch_size, nb_epoch=4, validation_data=(X_test, y_test), show_accuracy=True)
