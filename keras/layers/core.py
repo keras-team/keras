@@ -179,6 +179,7 @@ class Merge(Layer):
         ''' Merge the output of a list of layers or containers into a single tensor.
             mode: {'sum', 'mul', 'concat'}
         '''
+        super(Merge, self).__init__()
         if len(layers) < 2:
             raise Exception("Please specify two or more input layers (or containers) to merge")
         self.mode = mode
