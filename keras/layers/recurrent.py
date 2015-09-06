@@ -56,9 +56,9 @@ class SimpleRNN(Recurrent):
         self.return_sequences = return_sequences
         self.input = T.tensor3()
 
-        self.W = self.init((self.input_dim, self.output_dim))
-        self.U = self.inner_init((self.output_dim, self.output_dim))
-        self.b = shared_zeros((self.output_dim))
+        self.W = self.init((self.input_dim, self.output_dim), name="W")
+        self.U = self.inner_init((self.output_dim, self.output_dim), name="U")
+        self.b = shared_zeros((self.output_dim), name="b")
         self.params = [self.W, self.U, self.b]
 
         if weights is not None:
@@ -132,9 +132,11 @@ class SimpleDeepRNN(Recurrent):
         self.return_sequences = return_sequences
         self.input = T.tensor3()
 
-        self.W = self.init((self.input_dim, self.output_dim))
-        self.Us = [self.inner_init((self.output_dim, self.output_dim)) for _ in range(self.depth)]
-        self.b = shared_zeros((self.output_dim))
+        self.W = self.init((self.input_dim, self.output_dim), name="W")
+        self.Us = [self.inner_init((self.output_dim, self.output_dim),
+                                   name="Us%i" % d)
+                   for d in range(self.depth)]
+        self.b = shared_zeros((self.output_dim), name="b")
         self.params = [self.W] + self.Us + [self.b]
 
         if weights is not None:
@@ -231,17 +233,17 @@ class GRU(Recurrent):
         self.inner_activation = activations.get(inner_activation)
         self.input = T.tensor3()
 
-        self.W_z = self.init((self.input_dim, self.output_dim))
-        self.U_z = self.inner_init((self.output_dim, self.output_dim))
-        self.b_z = shared_zeros((self.output_dim))
+        self.W_z = self.init((self.input_dim, self.output_dim), name="W_z")
+        self.U_z = self.inner_init((self.output_dim, self.output_dim), name="U_z")
+        self.b_z = shared_zeros((self.output_dim), name="b_z")
 
-        self.W_r = self.init((self.input_dim, self.output_dim))
-        self.U_r = self.inner_init((self.output_dim, self.output_dim))
-        self.b_r = shared_zeros((self.output_dim))
+        self.W_r = self.init((self.input_dim, self.output_dim), name="W_r")
+        self.U_r = self.inner_init((self.output_dim, self.output_dim), name="U_r")
+        self.b_r = shared_zeros((self.output_dim), name="b_r")
 
-        self.W_h = self.init((self.input_dim, self.output_dim))
-        self.U_h = self.inner_init((self.output_dim, self.output_dim))
-        self.b_h = shared_zeros((self.output_dim))
+        self.W_h = self.init((self.input_dim, self.output_dim), name="W_h")
+        self.U_h = self.inner_init((self.output_dim, self.output_dim), name="U_h")
+        self.b_h = shared_zeros((self.output_dim), name="b_h")
 
         self.params = [
             self.W_z, self.U_z, self.b_z,
@@ -337,21 +339,21 @@ class LSTM(Recurrent):
         self.inner_activation = activations.get(inner_activation)
         self.input = T.tensor3()
 
-        self.W_i = self.init((self.input_dim, self.output_dim))
-        self.U_i = self.inner_init((self.output_dim, self.output_dim))
-        self.b_i = shared_zeros((self.output_dim))
+        self.W_i = self.init((self.input_dim, self.output_dim), name="W_i")
+        self.U_i = self.inner_init((self.output_dim, self.output_dim), name="U_i")
+        self.b_i = shared_zeros((self.output_dim), name="b_i")
 
-        self.W_f = self.init((self.input_dim, self.output_dim))
-        self.U_f = self.inner_init((self.output_dim, self.output_dim))
-        self.b_f = self.forget_bias_init((self.output_dim))
+        self.W_f = self.init((self.input_dim, self.output_dim), name="W_f")
+        self.U_f = self.inner_init((self.output_dim, self.output_dim), name="U_f")
+        self.b_f = self.forget_bias_init((self.output_dim), name="b_f")
 
-        self.W_c = self.init((self.input_dim, self.output_dim))
-        self.U_c = self.inner_init((self.output_dim, self.output_dim))
-        self.b_c = shared_zeros((self.output_dim))
+        self.W_c = self.init((self.input_dim, self.output_dim), name="W_c")
+        self.U_c = self.inner_init((self.output_dim, self.output_dim), name="U_c")
+        self.b_c = shared_zeros((self.output_dim), name="b_c")
 
-        self.W_o = self.init((self.input_dim, self.output_dim))
-        self.U_o = self.inner_init((self.output_dim, self.output_dim))
-        self.b_o = shared_zeros((self.output_dim))
+        self.W_o = self.init((self.input_dim, self.output_dim), name="W_o")
+        self.U_o = self.inner_init((self.output_dim, self.output_dim), name="U_o")
+        self.b_o = shared_zeros((self.output_dim), name="b_o")
 
         self.params = [
             self.W_i, self.U_i, self.b_i,
@@ -451,15 +453,15 @@ class JZS1(Recurrent):
         self.inner_activation = activations.get(inner_activation)
         self.input = T.tensor3()
 
-        self.W_z = self.init((self.input_dim, self.output_dim))
-        self.b_z = shared_zeros((self.output_dim))
+        self.W_z = self.init((self.input_dim, self.output_dim), name="W_z")
+        self.b_z = shared_zeros((self.output_dim), name="b_z")
 
-        self.W_r = self.init((self.input_dim, self.output_dim))
-        self.U_r = self.inner_init((self.output_dim, self.output_dim))
-        self.b_r = shared_zeros((self.output_dim))
+        self.W_r = self.init((self.input_dim, self.output_dim), name="W_r")
+        self.U_r = self.inner_init((self.output_dim, self.output_dim), name="U_r")
+        self.b_r = shared_zeros((self.output_dim), name="b_r")
 
-        self.U_h = self.inner_init((self.output_dim, self.output_dim))
-        self.b_h = shared_zeros((self.output_dim))
+        self.U_h = self.inner_init((self.output_dim, self.output_dim), name="U_h")
+        self.b_h = shared_zeros((self.output_dim), name="b_h")
 
         # P_h used to project X onto different dimension, using sparse random projections
         if self.input_dim == self.output_dim:
@@ -556,16 +558,16 @@ class JZS2(Recurrent):
         self.inner_activation = activations.get(inner_activation)
         self.input = T.tensor3()
 
-        self.W_z = self.init((self.input_dim, self.output_dim))
-        self.U_z = self.inner_init((self.output_dim, self.output_dim))
-        self.b_z = shared_zeros((self.output_dim))
+        self.W_z = self.init((self.input_dim, self.output_dim), name="W_z")
+        self.U_z = self.inner_init((self.output_dim, self.output_dim), name="U_z")
+        self.b_z = shared_zeros((self.output_dim), name="b_z")
 
-        self.U_r = self.inner_init((self.output_dim, self.output_dim))
-        self.b_r = shared_zeros((self.output_dim))
+        self.U_r = self.inner_init((self.output_dim, self.output_dim), name="U_r")
+        self.b_r = shared_zeros((self.output_dim), name="b_r")
 
-        self.W_h = self.init((self.input_dim, self.output_dim))
-        self.U_h = self.inner_init((self.output_dim, self.output_dim))
-        self.b_h = shared_zeros((self.output_dim))
+        self.W_h = self.init((self.input_dim, self.output_dim), name="W_h")
+        self.U_h = self.inner_init((self.output_dim, self.output_dim), name="U_h")
+        self.b_h = shared_zeros((self.output_dim), name="b_h")
 
         # P_h used to project X onto different dimension, using sparse random projections
         if self.input_dim == self.output_dim:
@@ -662,17 +664,17 @@ class JZS3(Recurrent):
         self.inner_activation = activations.get(inner_activation)
         self.input = T.tensor3()
 
-        self.W_z = self.init((self.input_dim, self.output_dim))
-        self.U_z = self.inner_init((self.output_dim, self.output_dim))
-        self.b_z = shared_zeros((self.output_dim))
+        self.W_z = self.init((self.input_dim, self.output_dim), name="W_z")
+        self.U_z = self.inner_init((self.output_dim, self.output_dim), name="U_z")
+        self.b_z = shared_zeros((self.output_dim), name="b_z")
 
-        self.W_r = self.init((self.input_dim, self.output_dim))
-        self.U_r = self.inner_init((self.output_dim, self.output_dim))
-        self.b_r = shared_zeros((self.output_dim))
+        self.W_r = self.init((self.input_dim, self.output_dim), name="W_r")
+        self.U_r = self.inner_init((self.output_dim, self.output_dim), name="U_r")
+        self.b_r = shared_zeros((self.output_dim), name="b_r")
 
-        self.W_h = self.init((self.input_dim, self.output_dim))
-        self.U_h = self.inner_init((self.output_dim, self.output_dim))
-        self.b_h = shared_zeros((self.output_dim))
+        self.W_h = self.init((self.input_dim, self.output_dim), name="W_h")
+        self.U_h = self.inner_init((self.output_dim, self.output_dim), name="U_h")
+        self.b_h = shared_zeros((self.output_dim), name="b_h")
 
         self.params = [
             self.W_z, self.U_z, self.b_z,

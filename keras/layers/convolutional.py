@@ -14,6 +14,7 @@ class Convolution1D(Layer):
     def __init__(self, input_dim, nb_filter, filter_length,
                  init='uniform', activation='linear', weights=None,
                  border_mode='valid', subsample_length=1,
+                 name=None,
                  W_regularizer=None, b_regularizer=None, activity_regularizer=None,
                  W_constraint=None, b_constraint=None):
 
@@ -32,8 +33,8 @@ class Convolution1D(Layer):
 
         self.input = T.tensor3()
         self.W_shape = (nb_filter, input_dim, filter_length, 1)
-        self.W = self.init(self.W_shape)
-        self.b = shared_zeros((nb_filter,))
+        self.W = self.init(self.W_shape, name="W")
+        self.b = shared_zeros((nb_filter,), name="b")
 
         self.params = [self.W, self.b]
 
@@ -60,6 +61,10 @@ class Convolution1D(Layer):
 
         if weights is not None:
             self.set_weights(weights)
+
+        if name is not None:
+            self.set_name(name)
+
 
     def get_output(self, train):
         X = self.get_input(train)
@@ -98,6 +103,7 @@ class Convolution2D(Layer):
     def __init__(self, nb_filter, stack_size, nb_row, nb_col,
                  init='glorot_uniform', activation='linear', weights=None,
                  border_mode='valid', subsample=(1, 1),
+                 name=None,
                  W_regularizer=None, b_regularizer=None, activity_regularizer=None,
                  W_constraint=None, b_constraint=None):
 
@@ -117,8 +123,8 @@ class Convolution2D(Layer):
 
         self.input = T.tensor4()
         self.W_shape = (nb_filter, stack_size, nb_row, nb_col)
-        self.W = self.init(self.W_shape)
-        self.b = shared_zeros((nb_filter,))
+        self.W = self.init(self.W_shape, name="W")
+        self.b = shared_zeros((nb_filter,), name="b")
 
         self.params = [self.W, self.b]
 
@@ -145,6 +151,9 @@ class Convolution2D(Layer):
 
         if weights is not None:
             self.set_weights(weights)
+
+        if name is not None:
+            self.set_name(name)
 
     def get_output(self, train):
         X = self.get_input(train)
