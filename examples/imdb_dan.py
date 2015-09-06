@@ -21,11 +21,14 @@ from keras.datasets import imdb
     Notes:
 
     - Deep averaging networks are can be thought of as a drop-in for recurrent neural networks
-    - In the paper, dropout was applied at the word level; that's not done here.
+    - In the paper, dropout was applied at the word level; that's not done here. I just added dropout
+    in the fully connected layers. This could be fixed later. 
     - The sequence of characters doesn't matter, so it's pretty surprising that something like
     this does well.
     - Parameters are not optimized in any way -- I just used a fixed number for the embedding
     and hidden dimension
+
+    This model achieves 0.8340 test accuracy after 3 epochs.
 '''
 
 max_features = 20000
@@ -48,9 +51,12 @@ model = Sequential()
 model.add(Embedding(max_features, 300))
 model.add(TimeDistributedMerge(mode='ave'))
 model.add(Dense(300, 300, activation = 'relu'))
+model.add(Dropout(.5))
 model.add(Dense(300, 300, activation = 'relu'))
+model.add(Dropout(.5))
 model.add(Dense(300, 300, activation = 'relu'))
-model.add(Dense(300, 300, activation = 'sigmoid'))
+model.add(Dropout(.5))
+model.add(Dense(300, 1, activation = 'sigmoid'))
 
 # try using different optimizers and different optimizer configs
 model.compile(loss='binary_crossentropy', optimizer='adagrad', class_mode="binary")
