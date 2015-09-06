@@ -475,6 +475,7 @@ class JZS1(Recurrent):
             self.W_z, self.b_z,
             self.W_r, self.U_r, self.b_r,
             self.U_h, self.b_h,
+            self.Pmat
         ]
 
         if weights is not None:
@@ -581,6 +582,7 @@ class JZS2(Recurrent):
             self.W_z, self.U_z, self.b_z,
             self.U_r, self.b_r,
             self.W_h, self.U_h, self.b_h,
+            self.Pmat
         ]
 
         if weights is not None:

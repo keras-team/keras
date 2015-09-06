@@ -271,4 +271,4 @@ class LearningRateScheduler(Callback):
         self.schedule = schedule
 
     def on_epoch_begin(self, epoch, logs={}):
-        model.lr.set_value(self.schedule(epoch))
+        self.model.optimizer.lr.set_value(self.schedule(epoch))
