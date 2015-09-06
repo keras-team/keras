@@ -21,7 +21,7 @@ class TestConvolutions(unittest.TestCase):
 
         input = np.ones((nb_samples, nb_steps, input_dim))
         for weight in [None, weights_in]:
-            for border_mode in ['valid', 'full']:
+            for border_mode in ['valid', 'full', 'same']:
                 for subsample_length in [1, 3]:
                     for W_regularizer in [None, 'l2']:
                         for b_regularizer in [None, 'l2']:
@@ -34,7 +34,10 @@ class TestConvolutions(unittest.TestCase):
 
                             layer.input = theano.shared(value=input)
                             for train in [True, False]:
-                                layer.get_output(train).eval()
+                                out = layer.get_output(train).eval()
+                                assert input.shape[0] == out.shape[0]
+                                if border_mode == 'same' and subsample_length == 1:
+                                    assert input.shape[1] == out.shape[1]
 
                             config = layer.get_config()
 
