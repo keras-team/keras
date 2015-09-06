@@ -1,5 +1,5 @@
 from __future__ import absolute_import
-import cPickle
+from six.moves import cPickle
 import gzip
 from .data_utils import get_file
 import random
