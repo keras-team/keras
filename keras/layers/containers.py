@@ -156,7 +156,7 @@ class Graph(Layer):
             raise Exception('Duplicate node identifier: ' + name)
         self.namespace.add(name)
         self.input_order.append(name)
-        layer = Layer() # empty layer
+        layer = Layer()  # empty layer
         if dtype == 'float':
             layer.input = ndim_tensor(ndim)
         else:
@@ -168,7 +168,8 @@ class Graph(Layer):
         self.inputs[name] = layer
         self.input_config.append({'name': name, 'ndim': ndim, 'dtype': dtype})
 
-    def add_node(self, layer, name, input=None, inputs=[], merge_mode='concat', concat_axis=-1, create_output=False):
+    def add_node(self, layer, name, input=None, inputs=[],
+                 merge_mode='concat', concat_axis=-1, create_output=False):
         if hasattr(layer, 'set_name'):
             layer.set_name(name)
         if name in self.namespace:
@@ -197,7 +198,9 @@ class Graph(Layer):
         self.node_config.append({'name': name,
                                  'input': input,
                                  'inputs': inputs,
-                                 'merge_mode': merge_mode})
+                                 'merge_mode': merge_mode,
+                                 'concat_axis': concat_axis,
+                                 'create_output': create_output})
         layer.init_updates()
         params, regularizers, constraints, updates = layer.get_params()
         self.params += params
@@ -208,7 +211,8 @@ class Graph(Layer):
         if create_output:
             self.add_output(name, input=name)
 
-    def add_output(self, name, input=None, inputs=[], merge_mode='concat', concat_axis=-1):
+    def add_output(self, name, input=None, inputs=[],
+                   merge_mode='concat', concat_axis=-1):
         if name in self.output_order:
             raise Exception('Duplicate output identifier: ' + name)
         if input:
