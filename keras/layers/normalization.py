@@ -1,5 +1,5 @@
 from ..layers.core import Layer
-from ..utils.theano_utils import shared_zeros, shared_ones, ndim_tensor
+from ..utils.theano_utils import shared_zeros, shared_ones, ndim_tensor, floatX
 from .. import initializations
 
 import theano.tensor as T
@@ -29,12 +29,20 @@ class BatchNormalization(Layer):
         self.beta = shared_zeros(self.input_shape)
 
         self.params = [self.gamma, self.beta]
+        self.running_mean = shared_zeros(self.input_shape)
+        self.running_std = shared_ones((self.input_shape))
         if weights is not None:
             self.set_weights(weights)
 
+    def get_weights(self):
+        return super(BatchNormalization, self).get_weights() + [self.running_mean.get_value(), self.running_std.get_value()]
+
+    def set_weights(self, weights):
+        self.running_mean.set_value(floatX(weights[-2]))
+        self.running_std.set_value(floatX(weights[-1]))
+        super(BatchNormalization, self).set_weights(weights[:-2])
+
     def init_updates(self):
-        self.running_mean = shared_zeros(self.input_shape)
-        self.running_std = shared_ones((self.input_shape))
         X = self.get_input(train=True)
         m = X.mean(axis=0)
         std = T.mean((X - m) ** 2 + self.epsilon, axis=0) ** 0.5

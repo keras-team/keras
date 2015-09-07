@@ -68,7 +68,7 @@ class TestBatchNormalization(unittest.TestCase):
         Test weight initialization
         """
 
-        norm_m1 = normalization.BatchNormalization((10,), mode=1, weights=[np.ones(10), np.ones(10)])
+        norm_m1 = normalization.BatchNormalization((10,), mode=1, weights=[np.ones(10), np.ones(10), np.zeros(10), np.zeros(10)])
         norm_m1.init_updates()
 
         for inp in [self.input_1, self.input_2, self.input_3]:
@@ -83,9 +83,6 @@ class TestBatchNormalization(unittest.TestCase):
         assert_allclose(norm_m1.gamma.eval(), np.ones(10))
         assert_allclose(norm_m1.beta.eval(), np.ones(10))
 
-        # Weights must be an iterable of gamma AND beta.
-        self.assertRaises(Exception, normalization.BatchNormalization((10,)), weights=np.ones(10))
-
     def test_config(self):
         norm = normalization.BatchNormalization((10, 10), mode=1, epsilon=0.1)
         conf = norm.get_config()
@@ -93,6 +90,12 @@ class TestBatchNormalization(unittest.TestCase):
                        "epsilon": 0.1, "mode": 1}
 
         self.assertDictEqual(conf, conf_target)
+
+    def test_save_weights(self):
+        norm = normalization.BatchNormalization((10, 10), mode=1, epsilon=0.1)
+        weights = norm.get_weights()
+        assert(len(weights) == 4)
+        norm.set_weights(weights)
 
 
 if __name__ == '__main__':
