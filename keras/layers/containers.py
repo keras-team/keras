@@ -19,6 +19,7 @@ class Sequential(Layer):
     '''
 
     def __init__(self, layers=[]):
+        super(Sequential, self).__init__()
         self.layers = []
         self.params = []
         self.regularizers = []
@@ -44,6 +45,10 @@ class Sequential(Layer):
         self.regularizers += regularizers
         self.constraints += constraints
         self.updates += updates
+
+        if layer.name is None or (layer.name == type(layer).__name__):
+            name = 'Layer%d_%s' % (len(self.layers), type(layer).__name__)
+            layer.set_name(name)
 
     def get_output(self, train=False):
         return self.layers[-1].get_output(train)
@@ -98,6 +103,7 @@ class Graph(Layer):
             - set_weights
     '''
     def __init__(self):
+        super(Graph, self).__init__()
         self.namespace = set()  # strings
         self.nodes = {}  # layer-like
         self.inputs = {}  # layer-like

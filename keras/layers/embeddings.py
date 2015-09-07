@@ -27,7 +27,7 @@ class Embedding(Layer):
         self.output_dim = output_dim
 
         self.input = T.imatrix()
-        self.W = self.init((self.input_dim, self.output_dim))
+        self.W = self.init((self.input_dim, self.output_dim), name="W")
         self.mask_zero = mask_zero
 
         self.params = [self.W]
@@ -108,8 +108,8 @@ class WordContextProduct(Layer):
         self.input = T.imatrix()
         # two different embeddings for pivot word and its context
         # because p(w|c) != p(c|w)
-        self.W_w = self.init((input_dim, proj_dim))
-        self.W_c = self.init((input_dim, proj_dim))
+        self.W_w = self.init((input_dim, proj_dim), name="W_w")
+        self.W_c = self.init((input_dim, proj_dim), name="W_c")
 
         self.params = [self.W_w, self.W_c]
 

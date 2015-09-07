@@ -28,7 +28,7 @@ class PReLU(MaskedLayer):
     def __init__(self, input_shape, init='zero', weights=None):
         super(PReLU, self).__init__()
         self.init = initializations.get(init)
-        self.alphas = self.init(input_shape)
+        self.alphas = self.init(input_shape, name="alphas")
         self.params = [self.alphas]
         self.input_shape = input_shape
 
@@ -60,8 +60,8 @@ class ParametricSoftplus(MaskedLayer):
         super(ParametricSoftplus, self).__init__()
         self.alpha_init = alpha_init
         self.beta_init = beta_init
-        self.alphas = sharedX(alpha_init * np.ones(input_shape))
-        self.betas = sharedX(beta_init * np.ones(input_shape))
+        self.alphas = sharedX(alpha_init * np.ones(input_shape), name="alphas")
+        self.betas = sharedX(beta_init * np.ones(input_shape), name="betas")
         self.params = [self.alphas, self.betas]
         self.input_shape = input_shape
 

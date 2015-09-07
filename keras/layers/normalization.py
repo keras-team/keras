@@ -25,8 +25,8 @@ class BatchNormalization(Layer):
         self.momentum = momentum
         self.input = ndim_tensor(len(self.input_shape) + 1)
 
-        self.gamma = self.init((self.input_shape))
-        self.beta = shared_zeros(self.input_shape)
+        self.gamma = self.init((self.input_shape), name="gamma")
+        self.beta = shared_zeros(self.input_shape, name="beta")
 
         self.params = [self.gamma, self.beta]
         if weights is not None:
