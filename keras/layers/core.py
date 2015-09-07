@@ -161,13 +161,14 @@ class Masking(MaskedLayer):
 
 
 class Merge(Layer):
-    def __init__(self, layers, mode='sum'):
+    def __init__(self, layers, mode='sum', concat_axis=-1):
         ''' Merge the output of a list of layers or containers into a single tensor.
             mode: {'sum', 'mul', 'concat'}
         '''
         if len(layers) < 2:
             raise Exception("Please specify two or more input layers (or containers) to merge")
         self.mode = mode
+        self.concat_axis = concat_axis
         self.layers = layers
         self.params = []
         self.regularizers = []
@@ -194,7 +195,7 @@ class Merge(Layer):
             return s
         elif self.mode == 'concat':
             inputs = [self.layers[i].get_output(train) for i in range(len(self.layers))]
-            return T.concatenate(inputs, axis=-1)
+            return T.concatenate(inputs, axis=self.concat_axis)
         elif self.mode == 'mul':
             s = self.layers[0].get_output(train)
             for i in range(1, len(self.layers)):
@@ -239,7 +240,8 @@ class Merge(Layer):
     def get_config(self):
         return {"name": self.__class__.__name__,
                 "layers": [l.get_config() for l in self.layers],
-                "mode": self.mode}
+                "mode": self.mode,
+                "concat_axis": self.concat_axis}
 
 
 class Dropout(MaskedLayer):
