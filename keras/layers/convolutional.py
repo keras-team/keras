@@ -3,7 +3,8 @@ from __future__ import absolute_import
 
 import theano
 import theano.tensor as T
-from theano.sandbox.cuda import dnn
+if theano.config.device[:3] == 'gpu':
+    from theano.sandbox.cuda import dnn
 
 from .. import activations, initializations, regularizers, constraints
 from ..utils.theano_utils import shared_zeros
