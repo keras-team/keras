@@ -3,12 +3,13 @@ from __future__ import absolute_import
 
 import theano
 import theano.tensor as T
-if theano.config.device[:3] == 'gpu':
-    from theano.sandbox.cuda import dnn
 
 from .. import activations, initializations, regularizers, constraints
-from ..utils.theano_utils import shared_zeros
+from ..utils.theano_utils import shared_zeros, on_gpu
 from ..layers.core import Layer
+
+if on_gpu():
+    from theano.sandbox.cuda import dnn
 
 
 class Convolution1D(Layer):
@@ -150,7 +151,7 @@ class Convolution2D(Layer):
     def get_output(self, train):
         X = self.get_input(train)
         border_mode = self.border_mode
-        if dnn.dnn_available() and theano.config.device[:3] == 'gpu':
+        if on_gpu() and dnn.dnn_available():
             if border_mode == 'same':
                 assert(self.subsample == (1, 1))
                 pad_x = (self.nb_row - self.subsample[0]) // 2

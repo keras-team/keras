@@ -38,3 +38,7 @@ def ndim_tensor(ndim):
     elif ndim == 4:
         return T.tensor4()
     return T.matrix()
+
+
+def on_gpu():
+    return theano.config.device[:3] == 'gpu'
