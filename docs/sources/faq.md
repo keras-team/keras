@@ -107,7 +107,7 @@ You can build a Theano function that will return the output of a certain layer g
 # with a Sequential model
 get_3rd_layer_output = theano.function([model.layers[0].input], 
                                        model.layers[3].get_output(train=False))
-3rd_layer_output = get_3rd_layer_output(X)
+layer_output = get_3rd_layer_output(X)
 
 # with a Graph model
 get_conv_layer_output = theano.function([model.inputs[i].input for i in model.input_order],
