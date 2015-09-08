@@ -14,6 +14,7 @@ pages:
 - Home: index.md
 - Index: documentation.md
 - Examples: examples.md
+- FAQ: faq.md
 - Optimizers: optimizers.md
 - Objectives: objectives.md
 - Models: models.md

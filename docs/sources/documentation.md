@@ -5,6 +5,7 @@
 - [Home](index.md)
 - [Index](documentation.md)
 - [Examples](examples.md)
+- [FAQ](faq.md)
 
 ---
 
