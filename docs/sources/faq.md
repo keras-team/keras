@@ -93,9 +93,9 @@ model.load_weights('my_model_weights.h5')
 
 ### Why is the training loss much higher than the testing loss?
 
-A Keras model has too mode: training and testing. Regularization mechanisms, such as Dropout and L1/L2 weight regularization, are turned off at testing time.
+A Keras model has two modes: training and testing. Regularization mechanisms, such as Dropout and L1/L2 weight regularization, are turned off at testing time.
 
-Besides, the training loss is the average of the losses over each batch of training data. Because your model is changing over time, the loss of the first batches of an epoch is generally higher than on the last batches. On the other hand, the testing loss for an epoch is computed using the model as it is at the end of the epoch. 
+Besides, the training loss is the average of the losses over each batch of training data. Because your model is changing over time, the loss over the first batches of an epoch is generally higher than over the last batches. On the other hand, the testing loss for an epoch is computed using the model as it is at the end of the epoch, resulting in a lower loss.
 
 ---
 
@@ -120,6 +120,7 @@ conv_output = get_conv_output(input_data_dict)
 
 ### Isn't there a bug with Merge or Graph related to input concatenation?
 
+Yes, there was a known bug with tensor concatenation in Thenao that was fixed early 2015. 
 Please upgrade to the latest version of Theano:
 
 ```bash
@@ -141,6 +142,7 @@ You can also see batch training in action in our [CIFAR10 example](https://githu
 You can use an `EarlyStopping` callback:
 
 ```python
+from keras.callbacks import EarlyStopping
 early_stopping = EarlyStopping(monitor='val_loss', patience=2)
 model.fit(X, y, validation_split=0.2, callbacks=[early_stopping])
 ```
@@ -158,7 +160,7 @@ If you set the `validation_split` arugment in `model.fit` to e.g. 0.1, then the 
 
 ### Is the data shuffled during training?
 
-Yes, if the `shuffle` argument in `model.fit` in set to `True` (which is the default), the training data will be randomly shuffled at each epoch.
+Yes, if the `shuffle` argument in `model.fit` is set to `True` (which is the default), the training data will be randomly shuffled at each epoch.
 
 Validation data isn't shuffled.
 
@@ -167,7 +169,7 @@ Validation data isn't shuffled.
 
 ### How can I record the training / validation loss / accuracy at each epoch?
 
-The `model.fit` method returns an `History` callback, which has a `history` attributed containing the lists of successive losses / accuracies.
+The `model.fit` method returns an `History` callback, which has a `history` attribute containing the lists of successive losses / accuracies.
 
 ```python
 hist = model.fit(X, y, validation_split=0.2)
