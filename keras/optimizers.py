@@ -55,6 +55,7 @@ class SGD(Optimizer):
         self.iterations = shared_scalar(0)
         self.lr = shared_scalar(lr)
         self.momentum = shared_scalar(momentum)
+        self.decay = shared_scalar(decay)
 
     def get_updates(self, params, constraints, loss):
         grads = self.get_gradients(loss, params)
