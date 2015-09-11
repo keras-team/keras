@@ -213,7 +213,7 @@ class EarlyStopping(Callback):
         self.wait = 0
         if order == "lt" or order =="lower" or order =="<" :
             order = "lt"
-        else if order == "gt" or order == "greater" or order ==">":
+        elsif order == "gt" or order == "greater" or order ==">":
             order = "gt"
         else :
             order = "lt"
