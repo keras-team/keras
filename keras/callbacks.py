@@ -203,7 +203,7 @@ class ModelCheckpoint(Callback):
 
 
 class EarlyStopping(Callback):
-    def __init__(self, monitor='val_loss', patience=0, verbose=0):
+    def __init__(self, monitor='val_loss', patience=0, verbose=0,order="lt"):
         super(Callback, self).__init__()
 
         self.monitor = monitor
@@ -211,13 +211,19 @@ class EarlyStopping(Callback):
         self.verbose = verbose
         self.best = np.Inf
         self.wait = 0
+        if order == "lt" or order =="lower" or order =="<" :
+            order = "lt"
+        else if order == "gt" or order == "greater" or order ==">":
+            order = "gt"
+        else :
+            order = "lt"
 
     def on_epoch_end(self, epoch, logs={}):
         current = logs.get(self.monitor)
         if current is None:
             warnings.warn("Early stopping requires %s available!" % (self.monitor), RuntimeWarning)
 
-        if current < self.best:
+        if current < self.best and order == "lt" or current > self.best and order == "gt":
             self.best = current
             self.wait = 0
         else:
