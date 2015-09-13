@@ -119,6 +119,66 @@ def print_layer_shapes(model, input_shapes):
         config = l.get_config()
         print('shape after %s: %s' % (config['name'], out_shape))
 
+def get_model_output_size(config, initialX, initialY):
+    """Iterate through the layers of a sequential network to determine what the
+    total number of output dimensions will be for generation of the iniial 
+    dense layer
+    
+    Parameters
+    ----------        
+    config : model configuration 
+        returned from model.get_config()
+        
+    initialX : integer 
+        shape of the X dimension of the input data
+        
+    initialY : integer
+        shape of the Y dimension of the input data
+        
+    Usage
+    -----
+    >>> #initial model construction....
+    >>> model.add(Dense(calcDim(model.get_config(), shapeX, shapeY), NUM_HIDDEN_UNITS))
+    """
+    currX = initialX
+    currY = initialY
+    
+    finalFilter = 1    
+    
+    for layer in config['layers']:
+        
+        #check the columns and change x based on border mode
+        if layer.get('nb_col'):
+            if layer.get('border_mode') == 'valid':
+                currX = currX - layer.get('nb_col') + 1
+            else:
+                currX = currX + layer.get('nb_col') - 1
+                
+        #check the rows and change y based on the border mode
+        if layer.get('nb_row'):
+            if layer.get('border_mode') == 'valid':
+                currY = currY - layer.get('nb_row') + 1
+            else:
+                currY = currY + layer.get('nb_row') - 1
+                
+        #apply pooling correction
+        if layer.get('poolsize'):
+            poolY, poolX = layer.get('poolsize')
+            currX = currX / poolX
+            currY = currY / poolY
+
+        #apply subsample correction
+        if layer.get('subsample'):
+            subY, subX = layer.get('subsample')
+            currX = currX / subX
+            currY = currY / subY
+        
+        #keep track of the final filter count encountered
+        if layer.get('nb_filter'):
+            finalFilter = layer.get('nb_filter')
+    
+    print('finalFilter: %d, finalX: %d, finaly: %d' % (finalFilter, currX, currY))
+    return finalFilter * currX * currY
 
 from .generic_utils import get_from_module
 def get_layer(identifier, kwargs=None):
