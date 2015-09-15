@@ -165,28 +165,25 @@ def get_model_output_size(config, initialX, initialY):
             poolY, poolX = layer.get('poolsize')
             currX = (currX - poolX) / strideX + 1
             currY = (currY - poolY) / strideY + 1
-            print currX, currY
         elif layer.get('poolsize'):
             poolY, poolX = layer.get('poolsize')
             currX = (currX - poolX) / poolX + 1
             currY = (currY - poolY) / poolY + 1
-            print currX, currY
             
         #apply subsample correction
         if layer.get('subsample'):
             subY, subX = layer.get('subsample')
             currX = (currX - subX) / subX + 1
             currY = (currY - subY) / subY + 1
-            print currX, currY
         
         #keep track of the final filter count encountered
         if layer.get('nb_filter'):
             finalFilter = layer.get('nb_filter')
     
-    print('finalFilter: %d, finalX: %d, finaly: %d total: %d' % (finalFilter, 
-                                                                 currX, 
-                                                                 currY, 
-                                                                 finalFilter * currX * currY))
+    print('finalFilter: %d finalX: %d finaly: %d total: %d' % (finalFilter, 
+                                                               currX,  
+                                                               currY, 
+                                                               finalFilter * currX * currY))
                                                                  
     return finalFilter * currX * currY
 
