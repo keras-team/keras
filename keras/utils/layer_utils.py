@@ -151,33 +151,43 @@ def get_model_output_size(config, initialX, initialY):
         if layer.get('nb_col'):
             if layer.get('border_mode') == 'valid':
                 currX = currX - layer.get('nb_col') + 1
-            else:
-                currX = currX + layer.get('nb_col') - 1
                 
         #check the rows and change y based on the border mode
         if layer.get('nb_row'):
             if layer.get('border_mode') == 'valid':
                 currY = currY - layer.get('nb_row') + 1
-            else:
-                currY = currY + layer.get('nb_row') - 1
                 
-        #apply pooling correction
-        if layer.get('poolsize'):
+        #Even though it's not yet in the documentation the maxpool layer
+        #supports stride. If stride is not present the stride faults to the
+        #poolsize. If stride is present use it, otherwise use the poolsize
+        if layer.get('stride'):
+            strideY, strideX = layer.get('stride')
             poolY, poolX = layer.get('poolsize')
-            currX = currX / poolX
-            currY = currY / poolY
-
+            currX = (currX - poolX) / strideX + 1
+            currY = (currY - poolY) / strideY + 1
+            print currX, currY
+        elif layer.get('poolsize'):
+            poolY, poolX = layer.get('poolsize')
+            currX = (currX - poolX) / poolX + 1
+            currY = (currY - poolY) / poolY + 1
+            print currX, currY
+            
         #apply subsample correction
         if layer.get('subsample'):
             subY, subX = layer.get('subsample')
-            currX = currX / subX
-            currY = currY / subY
+            currX = (currX - subX) / subX + 1
+            currY = (currY - subY) / subY + 1
+            print currX, currY
         
         #keep track of the final filter count encountered
         if layer.get('nb_filter'):
             finalFilter = layer.get('nb_filter')
     
-    print('finalFilter: %d, finalX: %d, finaly: %d' % (finalFilter, currX, currY))
+    print('finalFilter: %d, finalX: %d, finaly: %d total: %d' % (finalFilter, 
+                                                                 currX, 
+                                                                 currY, 
+                                                                 finalFilter * currX * currY))
+                                                                 
     return finalFilter * currX * currY
 
 from .generic_utils import get_from_module
