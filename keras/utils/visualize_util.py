@@ -1,6 +1,6 @@
-# https://github.com/fchollet/keras/blob/0.1.2/keras/utils/dot_utils.py
-# use https://github.com/erocarrera/pydot
 import pydot
+# old pydot will not work with python3, must use one
+# that works with python3 such as pydot2 or pydot
 
 
 def plot(model, to_file='model.png'):
