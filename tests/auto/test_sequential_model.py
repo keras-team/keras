@@ -276,6 +276,27 @@ class TestSequential(unittest.TestCase):
         print(nloss)
         assert(loss == nloss)
 
+    def test_count_params(self):
+        print('test count params')
+        nb_units = 100
+        nb_classes = 2
+
+        n = nb_units * nb_units + nb_units
+        n += nb_units * nb_units + nb_units
+        n += nb_units * nb_classes + nb_classes
+
+        model = Sequential()
+        model.add(Dense(nb_units, nb_units))
+        model.add(Dense(nb_units, nb_units))
+        model.add(Dense(nb_units, nb_classes))
+        model.add(Activation('softmax'))
+
+        self.assertEqual(n, model.count_params())
+
+        model.compile('sgd', 'binary_crossentropy')
+
+        self.assertEqual(n, model.count_params())
+
 
 if __name__ == '__main__':
     print('Test Sequential model')

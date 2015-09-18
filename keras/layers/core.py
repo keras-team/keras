@@ -110,6 +110,8 @@ class Layer(object):
         for i in range(len(self.params)):
             self.params[i].name = '%s_p%d' % (name, i)
 
+    def count_params(self):
+        return sum([np.prod(p.shape.eval()) for p in self.params])
 
 class MaskedLayer(Layer):
     '''
