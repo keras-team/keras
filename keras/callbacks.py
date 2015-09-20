@@ -103,7 +103,7 @@ class BaseLogger(Callback):
 
     def on_epoch_begin(self, epoch, logs={}):
         if self.verbose:
-            print('Epoch %d out of %d' % (epoch, self.nb_epoch))
+            print('Epoch %d/%d' % (epoch + 1, self.nb_epoch + 1))
             self.progbar = Progbar(target=self.params['nb_sample'],
                                    verbose=self.verbose)
         self.seen = 0
