@@ -18,10 +18,22 @@ class Layer(object):
     def __init__(self):
         self.params = []
 
-    def set_previous(self, layer):
+    def init_updates(self):
+        self.updates = []
+
+    def set_previous(self, layer, connection_map={}):
+        assert self.nb_input == layer.nb_output == 1, "Cannot connect layers: input count and output count should be 1."
         if not self.supports_masked_input() and layer.get_output_mask() is not None:
-            raise Exception("Attached non-masking layer to layer with masked output")
+            raise Exception("Cannot connect non-masking layer to layer with masked output")
         self.previous = layer
+
+    @property
+    def nb_input(self):
+        return 1
+
+    @property
+    def nb_output(self):
+        return 1
 
     def get_output(self, train=False):
         return self.get_input(train)
@@ -71,6 +83,7 @@ class Layer(object):
 
     def get_params(self):
         consts = []
+        updates = []
 
         if hasattr(self, 'regularizers'):
             regularizers = self.regularizers
@@ -88,12 +101,17 @@ class Layer(object):
         else:
             consts += [constraints.identity() for _ in range(len(self.params))]
 
-        return self.params, regularizers, consts
+        if hasattr(self, 'updates') and self.updates:
+            updates += self.updates
+
+        return self.params, regularizers, consts, updates
 
     def set_name(self, name):
         for i in range(len(self.params)):
             self.params[i].name = '%s_p%d' % (name, i)
 
+    def count_params(self):
+        return sum([np.prod(p.shape.eval()) for p in self.params])
 
 class MaskedLayer(Layer):
     '''
@@ -144,21 +162,24 @@ class Masking(MaskedLayer):
                 "mask_value": self.mask_value}
 
 
-class Merge(object):
-    def __init__(self, layers, mode='sum'):
+class Merge(Layer):
+    def __init__(self, layers, mode='sum', concat_axis=-1):
         ''' Merge the output of a list of layers or containers into a single tensor.
-            mode: {'sum', 'concat'}
+            mode: {'sum', 'mul', 'concat'}
         '''
         if len(layers) < 2:
             raise Exception("Please specify two or more input layers (or containers) to merge")
         self.mode = mode
+        self.concat_axis = concat_axis
         self.layers = layers
         self.params = []
         self.regularizers = []
         self.constraints = []
+        self.updates = []
         for l in self.layers:
-            params, regs, consts = l.get_params()
+            params, regs, consts, updates = l.get_params()
             self.regularizers += regs
+            self.updates += updates
             # params and constraints have the same size
             for p, c in zip(params, consts):
                 if p not in self.params:
@@ -166,7 +187,7 @@ class Merge(object):
                     self.constraints.append(c)
 
     def get_params(self):
-        return self.params, self.regularizers, self.constraints
+        return self.params, self.regularizers, self.constraints, self.updates
 
     def get_output(self, train=False):
         if self.mode == 'sum':
@@ -176,7 +197,12 @@ class Merge(object):
             return s
         elif self.mode == 'concat':
             inputs = [self.layers[i].get_output(train) for i in range(len(self.layers))]
-            return T.concatenate(inputs, axis=-1)
+            return T.concatenate(inputs, axis=self.concat_axis)
+        elif self.mode == 'mul':
+            s = self.layers[0].get_output(train)
+            for i in range(1, len(self.layers)):
+                s *= self.layers[i].get_output(train)
+            return s
         else:
             raise Exception('Unknown merge mode')
 
@@ -216,7 +242,8 @@ class Merge(object):
     def get_config(self):
         return {"name": self.__class__.__name__,
                 "layers": [l.get_config() for l in self.layers],
-                "mode": self.mode}
+                "mode": self.mode,
+                "concat_axis": self.concat_axis}
 
 
 class Dropout(MaskedLayer):
@@ -514,9 +541,11 @@ class AutoEncoder(Layer):
         self.params = []
         self.regularizers = []
         self.constraints = []
+        self.updates = []
         for layer in [self.encoder, self.decoder]:
-            params, regularizers, constraints = layer.get_params()
+            params, regularizers, constraints, updates = layer.get_params()
             self.regularizers += regularizers
+            self.updates += updates
             for p, c in zip(params, constraints):
                 if p not in self.params:
                     self.params.append(p)

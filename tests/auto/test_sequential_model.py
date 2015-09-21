@@ -4,7 +4,7 @@ import unittest
 import numpy as np
 np.random.seed(1337)
 
-from keras.models import Sequential
+from keras.models import Sequential, model_from_json, model_from_yaml
 from keras.layers.core import Dense, Activation, Merge
 from keras.utils import np_utils
 from keras.utils.test_utils import get_test_data
@@ -67,6 +67,14 @@ class TestSequential(unittest.TestCase):
         nloss = model.evaluate(X_train, y_train, verbose=0)
         print(nloss)
         assert(loss == nloss)
+
+        # test json serialization
+        json_data = model.to_json()
+        model = model_from_json(json_data)
+
+        # test yaml serialization
+        yaml_data = model.to_yaml()
+        model = model_from_yaml(yaml_data)
 
     def test_merge_sum(self):
         print('Test merge: sum')
@@ -267,6 +275,27 @@ class TestSequential(unittest.TestCase):
         nloss = model.evaluate(X_train, y_train, verbose=0)
         print(nloss)
         assert(loss == nloss)
+
+    def test_count_params(self):
+        print('test count params')
+        nb_units = 100
+        nb_classes = 2
+
+        n = nb_units * nb_units + nb_units
+        n += nb_units * nb_units + nb_units
+        n += nb_units * nb_classes + nb_classes
+
+        model = Sequential()
+        model.add(Dense(nb_units, nb_units))
+        model.add(Dense(nb_units, nb_units))
+        model.add(Dense(nb_units, nb_classes))
+        model.add(Activation('softmax'))
+
+        self.assertEqual(n, model.count_params())
+
+        model.compile('sgd', 'binary_crossentropy')
+
+        self.assertEqual(n, model.count_params())
 
 
 if __name__ == '__main__':

@@ -329,11 +329,11 @@ model.add(RepeatVector(2))  # output shape: (nb_samples, 2, 10)
 keras.layers.core.Merge(models, mode='sum')
 ```
 
-Merge the output of a list of layers (or containers) into a single tensor, following one of two modes: `sum` or `concat`. 
+Merge the output of a list of layers (or containers) into a single tensor, following one of three modes: `sum`, `mul` or `concat`. 
 
 - __Arguments__:
     - __layers__: List of layers or [containers](/layers/containers/).
-    - __mode__: String, one of `{'sum', 'concat'}`. `sum` will simply sum the outputs of the layers (therefore all layers should have an output with the same shape). `concat` will concatenate the outputs along the last dimension (therefore all layers should have an output that only differ along the last dimension). 
+    - __mode__: String, one of `{'sum', 'mul', 'concat'}`. `sum` and `mul` will simply sum/multiply the outputs of the layers (therefore all layers should have an output with the same shape). `concat` will concatenate the outputs along the last dimension (therefore all layers should have an output that only differ along the last dimension). 
 
 - __Example__:
 

@@ -58,7 +58,7 @@ Convolution operator for filtering windows of two-dimensional inputs.
     - __init__: name of initialization function for the weights of the layer (see: [initializations](../initializations.md)), or alternatively, Theano function to use for weights initialization. This parameter is only relevant if you don't pass a `weights` argument.
     - __activation__: name of activation function to use (see: [activations](../activations.md)), or alternatively, elementwise Theano function. If you don't specify anything, no activation is applied (ie. "linear" activation: a(x) = x).
     - __weights__: list of numpy arrays to set as initial weights.
-    - __border_mode__: 'valid', 'full', or 'same'. See scipy.signal.convolve2d.
+    - __border_mode__: 'valid', 'full', or 'same'. [See scipy.signal.convolve2d](http://docs.scipy.org/doc/scipy/reference/generated/scipy.signal.convolve2d.html).
     - __subsample__: tuple of length 2. Factor by which to subsample output. Also called strides elsewhere.
     - __W_regularizer__: instance of [WeightRegularizer](../regularizers.md) (eg. L1 or L2 regularization), applied to the main weights matrix.
     - __b_regularizer__: instance of [WeightRegularizer](../regularizers.md), applied to the bias.
@@ -77,7 +77,7 @@ keras.layers.convolutional.MaxPooling1D(pool_length=2, stride=None, ignore_borde
 
 - __Input shape__: 3D tensor with shape: `(nb_samples, steps, dim)`.
 
-- __Output shape__: 3D tensor with shape: `(nb_samples, steps, new_dim)`.
+- __Output shape__: 3D tensor with shape: `(nb_samples, downsampled_steps, dim)`.
 
 - __Arguments__:
 

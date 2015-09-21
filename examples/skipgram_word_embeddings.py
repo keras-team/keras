@@ -32,7 +32,7 @@ from __future__ import print_function
 
 import numpy as np
 import theano
-import six.moves.cPickle
+from six.moves import cPickle
 import os, re, json
 
 from keras.preprocessing import sequence, text
@@ -90,7 +90,7 @@ def text_generator(path=data_path):
 # model management
 if load_tokenizer:
     print('Load tokenizer...')
-    tokenizer = six.moves.cPickle.load(open(os.path.join(save_dir, tokenizer_fname), 'rb'))
+    tokenizer = cPickle.load(open(os.path.join(save_dir, tokenizer_fname), 'rb'))
 else:
     print("Fit tokenizer...")
     tokenizer = text.Tokenizer(nb_words=max_features)
@@ -99,13 +99,13 @@ else:
         print("Save tokenizer...")
         if not os.path.exists(save_dir):
             os.makedirs(save_dir)
-        six.moves.cPickle.dump(tokenizer, open(os.path.join(save_dir, tokenizer_fname), "wb"))
+        cPickle.dump(tokenizer, open(os.path.join(save_dir, tokenizer_fname), "wb"))
 
 # training process
 if train_model:
     if load_model:
         print('Load model...')
-        model = six.moves.cPickle.load(open(os.path.join(save_dir, model_load_fname), 'rb'))
+        model = cPickle.load(open(os.path.join(save_dir, model_load_fname), 'rb'))
     else:
         print('Build model...')
         model = Sequential()
@@ -129,7 +129,7 @@ if train_model:
             if couples:
                 # one gradient update per sentence (one sentence = a few 1000s of word couples)
                 X = np.array(couples, dtype="int32")
-                loss = model.train(X, labels)
+                loss = model.train_on_batch(X, labels)
                 losses.append(loss)
                 if len(losses) % 100 == 0:
                     progbar.update(i, values=[("loss", np.mean(losses))])
@@ -142,7 +142,7 @@ if train_model:
         print("Saving model...")
         if not os.path.exists(save_dir):
             os.makedirs(save_dir)
-        six.moves.cPickle.dump(model, open(os.path.join(save_dir, model_save_fname), "wb"))
+        cPickle.dump(model, open(os.path.join(save_dir, model_save_fname), "wb"))
 
 
 print("It's test time!")

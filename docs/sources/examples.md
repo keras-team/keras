@@ -141,7 +141,7 @@ model.add(Dense(128*4*4, 256))
 model.add(Activation('relu'))
 model.add(Dropout(0.5))
 
-model.add(Repeat(max_caption_len)) 
+model.add(RepeatVector(max_caption_len)) 
 # the GRU below returns sequences of max_caption_len vectors of size 256 (our word embedding size)
 model.add(GRU(256, 256, return_sequences=True))
 

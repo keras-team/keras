@@ -144,6 +144,8 @@ class TestGraph(unittest.TestCase):
 
         weights1 = np.random.uniform(size=y_train.shape[0])
         weights2 = np.random.uniform(size=y2_train.shape[0])
+        weights1_test = np.random.uniform(size=y_test.shape[0])
+        weights2_test = np.random.uniform(size=y2_test.shape[0])
 
         graph.compile('rmsprop', {'output1': 'mse', 'output2': 'mse'})
 
@@ -153,7 +155,7 @@ class TestGraph(unittest.TestCase):
         assert(type(out == dict))
         assert(len(out) == 2)
         loss = graph.test_on_batch({'input1': X_test, 'output1': y_test, 'output2': y2_test},
-                                   sample_weight={'output1': weights1, 'output2': weights2})
+                                   sample_weight={'output1': weights1_test, 'output2': weights2_test})
         loss = graph.train_on_batch({'input1': X_train, 'output1': y_train, 'output2': y2_train},
                                     sample_weight={'output1': weights1, 'output2': weights2})
         loss = graph.evaluate({'input1': X_train, 'output1': y_train, 'output2': y2_train},
@@ -185,6 +187,55 @@ class TestGraph(unittest.TestCase):
         loss = seq.evaluate(X_test, y_test, show_accuracy=True)
         pred = seq.predict(X_test)
         seq.get_config(verbose=1)
+
+    def test_create_output(self):
+        print('test create_output argument')
+        graph = Graph()
+        graph.add_input(name='input1', ndim=2)
+
+        graph.add_node(Dense(32, 16), name='dense1', input='input1')
+        graph.add_node(Dense(32, 4), name='dense2', input='input1')
+        graph.add_node(Dense(16, 4), name='dense3', input='dense1')
+        graph.add_node(Dense(4, 4), name='output1', inputs=['dense2', 'dense3'], merge_mode='sum', create_output=True)
+        graph.compile('rmsprop', {'output1': 'mse'})
+
+        history = graph.fit({'input1': X_train, 'output1': y_train}, nb_epoch=10)
+        out = graph.predict({'input1': X_test})
+        assert(type(out == dict))
+        assert(len(out) == 1)
+        loss = graph.test_on_batch({'input1': X_test, 'output1': y_test})
+        loss = graph.train_on_batch({'input1': X_test, 'output1': y_test})
+        loss = graph.evaluate({'input1': X_test, 'output1': y_test})
+        print(loss)
+        assert(loss < 2.5)
+
+    def test_count_params(self):
+        print('test count params')
+
+        nb_units = 100
+        nb_classes = 2
+
+        graph = Graph()
+        graph.add_input(name='input1', ndim=2)
+        graph.add_input(name='input2', ndim=2)
+        graph.add_node(Dense(nb_units, nb_units),
+                name='dense1', input='input1')
+        graph.add_node(Dense(nb_units, nb_classes),
+                name='dense2', input='input2')
+        graph.add_node(Dense(nb_units, nb_classes),
+                name='dense3', input='dense1')
+        graph.add_output(name='output', inputs=['dense2', 'dense3'],
+                merge_mode='sum')
+
+        n = nb_units * nb_units + nb_units
+        n += nb_units * nb_classes + nb_classes
+        n += nb_units * nb_classes + nb_classes
+
+        self.assertEqual(n, graph.count_params())
+
+        graph.compile('rmsprop', {'output': 'binary_crossentropy'})
+
+        self.assertEqual(n, graph.count_params())
 
 
 if __name__ == '__main__':

@@ -49,8 +49,9 @@ def binary_crossentropy(y_true, y_pred):
     bce = T.nnet.binary_crossentropy(y_pred, y_true).mean(axis=-1)
     return bce
 
+
 def poisson_loss(y_true, y_pred):
-    return T.mean(y_pred - y_true * T.log(y_pred), axis=-1)
+    return T.mean(y_pred - y_true * T.log(y_pred + epsilon), axis=-1)
 
 # aliases
 mse = MSE = mean_squared_error
