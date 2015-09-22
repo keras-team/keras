@@ -5,6 +5,8 @@ import theano
 import theano.tensor as T
 import numpy as np
 
+from collections import OrderedDict
+
 from .. import activations, initializations, regularizers, constraints
 from ..utils.theano_utils import shared_zeros, floatX
 from ..utils.generic_utils import make_tuple
@@ -197,7 +199,9 @@ class Merge(Layer):
             inputs = [self.layers[i].get_output(train) for i in range(len(self.layers))]
             return T.concatenate(inputs, axis=self.concat_axis)
         elif self.mode == 'join':
-            inputs = [self.layers[i].get_output(train) for i in range(len(self.layers))]
+            inputs = OrderedDict()
+            for i in range(len(self.layers)):
+                inputs[self.layers[i].get_output(train).name] = self.layers[i].get_output(train)
             return inputs
         elif self.mode == 'mul':
             s = self.layers[0].get_output(train)
