@@ -107,8 +107,11 @@ class Progbar(object):
             else:
                 info += ' - %ds' % (now - self.start)
             for k in self.unique_values:
-                info += ' - %s: %.4f' % (k, self.sum_values[k][0] / max(1, self.sum_values[k][1]))
-
+                if type(self.sum_values[k]) is list:
+                    info += ' - %s: %.4f' % (k, self.sum_values[k][0] / max(1, self.sum_values[k][1]))
+                else:
+                    info += ' - %s: %s' % (k, self.sum_values[k])
+                
             self.total_width += len(info)
             if prev_total_width > self.total_width:
                 info += ((prev_total_width-self.total_width) * " ")

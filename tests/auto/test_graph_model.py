@@ -209,6 +209,34 @@ class TestGraph(unittest.TestCase):
         print(loss)
         assert(loss < 2.5)
 
+    def test_count_params(self):
+        print('test count params')
+
+        nb_units = 100
+        nb_classes = 2
+
+        graph = Graph()
+        graph.add_input(name='input1', ndim=2)
+        graph.add_input(name='input2', ndim=2)
+        graph.add_node(Dense(nb_units, nb_units),
+                name='dense1', input='input1')
+        graph.add_node(Dense(nb_units, nb_classes),
+                name='dense2', input='input2')
+        graph.add_node(Dense(nb_units, nb_classes),
+                name='dense3', input='dense1')
+        graph.add_output(name='output', inputs=['dense2', 'dense3'],
+                merge_mode='sum')
+
+        n = nb_units * nb_units + nb_units
+        n += nb_units * nb_classes + nb_classes
+        n += nb_units * nb_classes + nb_classes
+
+        self.assertEqual(n, graph.count_params())
+
+        graph.compile('rmsprop', {'output': 'binary_crossentropy'})
+
+        self.assertEqual(n, graph.count_params())
+
 
 if __name__ == '__main__':
     print('Test graph model')
