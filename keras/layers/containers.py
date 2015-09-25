@@ -21,6 +21,7 @@ class Sequential(Layer):
     def __init__(self, layers=[]):
         self.layers = []
         self.params = []
+        self.trainable_params = []
         self.regularizers = []
         self.constraints = []
         self.updates = []
@@ -31,7 +32,7 @@ class Sequential(Layer):
     def set_previous(self, layer):
         self.layers[0].previous = layer
 
-    def add(self, layer):
+    def add(self, layer, trainable=True):
         self.layers.append(layer)
         if len(self.layers) > 1:
             self.layers[-1].set_previous(self.layers[-2])
@@ -40,6 +41,10 @@ class Sequential(Layer):
         layer.init_updates()
 
         params, regularizers, constraints, updates = layer.get_params()
+
+        if(trainable):
+            self.trainable_params += params
+
         self.params += params
         self.regularizers += regularizers
         self.constraints += constraints
@@ -111,6 +116,7 @@ class Graph(Layer):
         self.node_config = []  # dicts
 
         self.params = []
+        self.trainable_params = []
         self.regularizers = []
         self.constraints = []
         self.updates = []
@@ -171,7 +177,7 @@ class Graph(Layer):
         self.input_config.append({'name': name, 'ndim': ndim, 'dtype': dtype})
 
     def add_node(self, layer, name, input=None, inputs=[],
-                 merge_mode='concat', concat_axis=-1, create_output=False):
+                 merge_mode='concat', concat_axis=-1, create_output=False,trainable=True):
         if hasattr(layer, 'set_name'):
             layer.set_name(name)
         if name in self.namespace:
@@ -205,6 +211,10 @@ class Graph(Layer):
                                  'create_output': create_output})
         layer.init_updates()
         params, regularizers, constraints, updates = layer.get_params()
+
+        if(trainable):
+            self.trainable_params += params
+
         self.params += params
         self.regularizers += regularizers
         self.constraints += constraints

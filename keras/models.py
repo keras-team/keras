@@ -384,7 +384,7 @@ class Sequential(Model, containers.Sequential):
 
         for r in self.regularizers:
             train_loss = r(train_loss)
-        updates = self.optimizer.get_updates(self.params, self.constraints, train_loss)
+        updates = self.optimizer.get_updates(self.trainable_params, self.constraints, train_loss)
         updates += self.updates
 
         if type(self.X_train) == list:
@@ -607,7 +607,7 @@ class Graph(Model, containers.Graph):
         for r in self.regularizers:
             train_loss = r(train_loss)
         self.optimizer = optimizers.get(optimizer)
-        updates = self.optimizer.get_updates(self.params, self.constraints, train_loss)
+        updates = self.optimizer.get_updates(self.trainable_params, self.constraints, train_loss)
         updates += self.updates
         self.theano_mode = theano_mode
         self.loss = loss
