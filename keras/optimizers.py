@@ -13,12 +13,6 @@ def clip_norm(g, c, n):
     return g
 
 
-def clip_value(g, c):
-    if c > 0:
-        g = T.switch(T.ge(g, c), c, g)
-    return g
-
-
 def kl_divergence(p, p_hat):
     return p_hat - p + p * T.log(p / p_hat)
 
@@ -48,7 +42,7 @@ class Optimizer(object):
             grads = [clip_norm(g, self.clipnorm, norm) for g in grads]
 
         if hasattr(self, 'clipvalue') and self.clipvalue > 0:
-            grads = [clip_value(g, self.clipvalue) for g in grads]
+            grads = [T.clip(g, self.clipvalue, -self.clipvalue) for g in grads]
 
         return grads
 
