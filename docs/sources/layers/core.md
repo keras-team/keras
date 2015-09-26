@@ -265,11 +265,11 @@ keras.layers.core.Permute(dims)
 ```
 Permute the dimensions of the input data according to the given tuple. Sometimes useful for connecting RNNs and convnets together.
 
-- __Input shape: This layer does not assume a specific input shape.
+- __Input shape__: This layer does not assume a specific input shape.
 
-- __Output shape: Same as the input shape, but with the dimensions re-ordered according to the ordering specified by the tuple.
+- __Output shape__: Same as the input shape, but with the dimensions re-ordered according to the ordering specified by the tuple.
 
-- __Argument: tuple specifying the permutation scheme (e.g. `(2, 1)` permutes the first and second dimension of the input).
+- __Argument__: tuple specifying the permutation scheme (e.g. `(2, 1)` permutes the first and second dimension of the input).
 
 - __Example__:
 ```python
