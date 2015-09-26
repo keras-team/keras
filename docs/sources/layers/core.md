@@ -151,7 +151,7 @@ A customizable autoencoder model. If `output_reconstruction = True` then dim(inp
 
     - __decoder__: A [layer](./) or [layer container](./containers.md).
     
-    - __output_reconstruction__: If this is False the when .predict() is called the output is the deepest hidden layer's activation. Otherwise the output of the final decoder layer is presented. Be sure your validation data confirms to this logic if you decide to use any.
+    - __output_reconstruction__: If this is False, then when .predict() is called, the output is the deepest hidden layer's activation. Otherwise, the output of the final decoder layer is presented. Be sure your validation data conforms to this logic if you decide to use any.
     
     - __weights__: list of numpy arrays to set as initial weights. The list should have 1 element, of shape `(input_dim, output_dim)`.
 
@@ -265,11 +265,11 @@ keras.layers.core.Permute(dims)
 ```
 Permute the dimensions of the input data according to the given tuple. Sometimes useful for connecting RNNs and convnets together.
 
-- __Input shape: This layer does not assume a specific input shape.
+- __Input shape__: This layer does not assume a specific input shape.
 
-- __Output shape: Same as the input shape, but with the dimensions re-ordered according to the ordering specified by the tuple.
+- __Output shape__: Same as the input shape, but with the dimensions re-ordered according to the ordering specified by the tuple.
 
-- __Argument: tuple specifying the permutation scheme (e.g. `(2, 1)` permutes the first and second dimension of the input).
+- __Argument__: tuple specifying the permutation scheme (e.g. `(2, 1)` permutes the first and second dimension of the input).
 
 - __Example__:
 ```python
