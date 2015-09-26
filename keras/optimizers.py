@@ -42,7 +42,7 @@ class Optimizer(object):
             grads = [clip_norm(g, self.clipnorm, norm) for g in grads]
 
         if hasattr(self, 'clipvalue') and self.clipvalue > 0:
-            grads = [T.clip(g, self.clipvalue, -self.clipvalue) for g in grads]
+            grads = [T.clip(g, -self.clipvalue, self.clipvalue) for g in grads]
 
         return grads
 
