@@ -17,7 +17,7 @@ def softplus(x):
 
 
 def relu(x):
-    return T.nnet.relu(X)
+    return T.nnet.relu(x)
 
 
 def tanh(x):
