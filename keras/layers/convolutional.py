@@ -110,7 +110,7 @@ class Convolution2D(Layer):
         super(Convolution2D, self).__init__()
         self.init = initializations.get(init)
         self.activation = activations.get(activation)
-        self.subsample = subsample
+        self.subsample = tuple(subsample)
         self.border_mode = border_mode
         self.nb_filter = nb_filter
         self.stack_size = stack_size
@@ -228,7 +228,7 @@ class MaxPooling2D(Layer):
     def __init__(self, poolsize=(2, 2), stride=None, ignore_border=True):
         super(MaxPooling2D, self).__init__()
         self.input = T.tensor4()
-        self.poolsize = poolsize
+        self.poolsize = tuple(poolsize)
         self.stride = stride
         self.ignore_border = ignore_border
 
@@ -264,7 +264,7 @@ class UpSample2D(Layer):
     def __init__(self, size=(2, 2)):
         super(UpSample2D, self).__init__()
         self.input = T.tensor4()
-        self.size = size
+        self.size = tuple(size)
 
     def get_output(self, train):
         X = self.get_input(train)
@@ -280,7 +280,7 @@ class UpSample2D(Layer):
 class ZeroPadding2D(Layer):
     def __init__(self, pad=(1, 1)):
         super(ZeroPadding2D, self).__init__()
-        self.pad = pad
+        self.pad = tuple(pad)
         self.input = T.tensor4()
 
     def get_output(self, train):
