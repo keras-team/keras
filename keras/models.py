@@ -200,9 +200,8 @@ class Model(object):
                 try:
                     ins_batch = slice_X(ins, batch_ids)
                 except TypeError as err:
-                    print('TypeError while preparing batch. \
+                    raise Exception('TypeError while preparing batch. \
                         If using HDF5 input data, pass shuffle="batch".\n')
-                    raise
 
                 batch_logs = {}
                 batch_logs['batch'] = batch_index
@@ -643,8 +642,9 @@ class Graph(Model, containers.Graph):
             validation_split=0., validation_data=None, shuffle=True, class_weight={}, sample_weight={}):
         X = [data[name] for name in self.input_order]
         y = [standardize_y(data[name]) for name in self.output_order]
-        sample_weight_list = [standardize_weights(data[name],
-                                                  sample_weight=sample_weight.get(name)) for name in self.output_order]
+
+        sample_weight_list = [standardize_weights(y[i],
+                                                  sample_weight=sample_weight.get(self.output_order[i])) for i in range(len(self.output_order))]
         class_weight_list = [class_weight.get(name) for name in self.output_order]
 
         val_f = None
@@ -671,7 +671,6 @@ class Graph(Model, containers.Graph):
                                                   sample_weight=sample_weight_list[i],
                                                   class_weight=class_weight_list[i]) for i in range(len(self.output_order))]
         ins = X + y + sample_weight_list
-
         history = self._fit(f, ins, out_labels=out_labels, batch_size=batch_size, nb_epoch=nb_epoch,
                             verbose=verbose, callbacks=callbacks,
                             val_f=val_f, val_ins=val_ins,
