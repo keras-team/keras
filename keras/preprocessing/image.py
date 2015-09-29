@@ -4,6 +4,7 @@ import numpy as np
 import re
 from scipy import ndimage
 from scipy import linalg
+from scipy import misc
 
 from os import listdir
 from os.path import isfile, join
@@ -15,35 +16,6 @@ from six.moves import range
     Can easily be extended to include new transforms, new preprocessing methods, etc...
 '''
 
-def random_rotation(x, rg, fill_mode="nearest", cval=0.):
-    angle = random.uniform(-rg, rg)
-    x = ndimage.interpolation.rotate(x, angle, axes=(1,2), reshape=False, mode=fill_mode, cval=cval)
-    return x
-
-def random_shift(x, wrg, hrg, fill_mode="nearest", cval=0.):
-    crop_left_pixels = 0
-    crop_right_pixels = 0
-    crop_top_pixels = 0
-    crop_bottom_pixels = 0
-
-    original_w = x.shape[1]
-    original_h = x.shape[2]
-
-    if wrg:
-        crop = random.uniform(0., wrg)
-        split = random.uniform(0, 1)
-        crop_left_pixels = int(split*crop*x.shape[1])
-        crop_right_pixels = int((1-split)*crop*x.shape[1])
-
-    if hrg:
-        crop = random.uniform(0., hrg)
-        split = random.uniform(0, 1)
-        crop_top_pixels = int(split*crop*x.shape[2])
-        crop_bottom_pixels = int((1-split)*crop*x.shape[2])
-
-    x = ndimage.interpolation.shift(x, (0, crop_left_pixels, crop_top_pixels), mode=fill_mode, cval=cval)
-    return x
-
 def horizontal_flip(x):
     for i in range(x.shape[0]):
         x[i] = np.fliplr(x[i])
@@ -54,27 +26,13 @@ def vertical_flip(x):
         x[i] = np.flipud(x[i])
     return x
 
-
 def random_barrel_transform(x, intensity):
-    # TODO
-    pass
-
-def random_shear(x, intensity):
     # TODO
     pass
 
 def random_channel_shift(x, rg):
     # TODO
     pass
-
-def random_zoom(x, rg, fill_mode="nearest", cval=0.):
-    zoom_w = random.uniform(1.-rg, 1.)
-    zoom_h = random.uniform(1.-rg, 1.)
-    x = ndimage.interpolation.zoom(x, zoom=(1., zoom_w, zoom_h), mode=fill_mode, cval=cval)
-    return x # shape of result will be different from shape of input!
-
-
-
 
 def array_to_img(x, scale=True):
     from PIL import Image
@@ -128,11 +86,12 @@ class ImageDataGenerator(object):
             samplewise_center=False, # set each sample mean to 0
             featurewise_std_normalization=True, # divide inputs by std of the dataset
             samplewise_std_normalization=False, # divide each input by its std
-
             zca_whitening=False, # apply ZCA whitening
             rotation_range=0., # degrees (0 to 180)
             width_shift_range=0., # fraction of total width
             height_shift_range=0., # fraction of total height
+            zoom_range=(1, 1), # lower and uppper limit fraction of original size
+            shear_range=0., # degrees (0 to 180)
             horizontal_flip=False,
             vertical_flip=False,
         ):
@@ -140,6 +99,7 @@ class ImageDataGenerator(object):
         self.mean = None
         self.std = None
         self.principal_components = None
+
 
 
     def flow(self, X, y, batch_size=32, shuffle=False, seed=None, save_to_dir=None, save_prefix="", save_format="jpeg"):
@@ -196,10 +156,27 @@ class ImageDataGenerator(object):
 
 
     def random_transform(self, x):
-        if self.rotation_range:
-            x = random_rotation(x, self.rotation_range)
-        if self.width_shift_range or self.height_shift_range:
-            x = random_shift(x, self.width_shift_range, self.height_shift_range)
+
+        # affine transformations: rotation, translation, zoom and shear
+        if (self.rotation_range or self.width_shift_range or self.height_shift_range or
+            self.zoom_range or self.shear_range):
+            rotation = random.uniform(-self.rotation_range, self.rotation_range) * np.pi / 180
+            wshift =  random.uniform(-self.width_shift_range, self.width_shift_range) * x.shape[2]
+            hshift =  random.uniform(-self.height_shift_range, self.height_shift_range) * x.shape[1]
+            zoom = random.uniform(self.zoom_range[0], self.zoom_range[1])
+            shear = random.uniform(-self.shear_range, self.shear_range) * np.pi / 180
+            
+            T = np.array([
+                [zoom * np.cos(rotation), -zoom * np.sin(rotation + shear)],
+                [zoom * np.sin(rotation),  zoom * np.cos(rotation + shear)]
+            ])
+
+            x = np.copy(x)
+            offset = np.array([-hshift, -wshift]) + (0.5*np.array(x.shape[1:]) - 0.5*np.array(x.shape[1:]).dot(T))
+            for i in range(x.shape[0]):
+                x[i] = ndimage.interpolation.affine_transform(x[i], T.T, offset, mode='nearest')
+            
+        # other transformations
         if self.horizontal_flip:
             if random.random() < 0.5:
                 x = horizontal_flip(x)
@@ -208,9 +185,7 @@ class ImageDataGenerator(object):
                 x = vertical_flip(x)
 
         # TODO:
-        # zoom
         # barrel/fisheye
-        # shearing
         # channel shifting
         return x
 
