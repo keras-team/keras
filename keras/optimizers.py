@@ -67,15 +67,15 @@ class SGD(Optimizer):
 
         for p, g, c, lmul in zip(params, grads, constraints, learning_rate_multipliers):
             m = shared_zeros(p.get_value().shape)  # momentum
-            v = self.momentum * m - lr * g  # velocity
+            v = self.momentum * m - lr*lmul*g  # velocity
             self.updates.append((m, v))
 
             if self.nesterov:
-                new_p = p + self.momentum * v - lr * g
+                new_p = p + self.momentum * v - (lr*lmul*g)
             else:
                 new_p = p + v
 
-            self.updates.append((p, c(new_p*lmul)))  # apply constraints and multiplier
+            self.updates.append((p, c(new_p)))  # apply constraints and multiplier
         return self.updates
 
     def get_config(self):
@@ -98,12 +98,13 @@ class RMSprop(Optimizer):
         accumulators = [shared_zeros(p.get_value().shape) for p in params]
         self.updates = []
 
+        #nothing to be done with lmul for RMSprop...
         for p, g, a, c, lmul in zip(params, grads, accumulators, constraints, learning_rate_multipliers):
             new_a = self.rho * a + (1 - self.rho) * g ** 2  # update accumulator
             self.updates.append((a, new_a))
 
             new_p = p - self.lr * g / T.sqrt(new_a + self.epsilon)
-            self.updates.append((p, c(new_p*lmul)))  # apply constraints
+            self.updates.append((p, c(new_p)))  # apply constraints
         return self.updates
 
     def get_config(self):
@@ -127,8 +128,8 @@ class Adagrad(Optimizer):
         for p, g, a, c, lmul in zip(params, grads, accumulators, constraints, learning_rate_multipliers):
             new_a = a + g ** 2  # update accumulator
             self.updates.append((a, new_a))
-            new_p = p - self.lr * g / T.sqrt(new_a + self.epsilon)
-            self.updates.append((p, c(new_p*lmul)))  # apply constraints
+            new_p = p - self.lr*lmul*g / T.sqrt(new_a + self.epsilon)
+            self.updates.append((p, c(new_p)))  # apply constraints
         return self.updates
 
     def get_config(self):
@@ -161,8 +162,8 @@ class Adadelta(Optimizer):
             update = g * T.sqrt(d_a + self.epsilon) / T.sqrt(new_a +
                                                              self.epsilon)
 
-            new_p = p - self.lr * update
-            self.updates.append((p, c(new_p*lmul)))  # apply constraints
+            new_p = p - self.lr*lmul*update
+            self.updates.append((p, c(new_p)))  # apply constraints
 
             # update delta_accumulator
             new_d_a = self.rho * d_a + (1 - self.rho) * update ** 2
@@ -201,11 +202,11 @@ class Adam(Optimizer):
 
             m_t = (self.beta_1 * m) + (1 - self.beta_1) * g
             v_t = (self.beta_2 * v) + (1 - self.beta_2) * (g**2)
-            p_t = p - lr_t * m_t / (T.sqrt(v_t) + self.epsilon)
+            p_t = p - lr_t*lmul*m_t / (T.sqrt(v_t) + self.epsilon)
 
             self.updates.append((m, m_t))
             self.updates.append((v, v_t))
-            self.updates.append((p, c(p_t*lmul)))  # apply constraints
+            self.updates.append((p, c(p_t)))  # apply constraints
         return self.updates
 
     def get_config(self):

@@ -115,11 +115,8 @@ class Graph(Layer):
         self.params = []
         self.regularizers = []
         self.constraints = []
-<<<<<<< HEAD
         self.learning_rate_multipliers = []
-=======
         self.updates = []
->>>>>>> master
 
     @property
     def nb_input(self):
@@ -206,24 +203,16 @@ class Graph(Layer):
         self.node_config.append({'name': name,
                                  'input': input,
                                  'inputs': inputs,
-<<<<<<< HEAD
-                                 'merge_mode': merge_mode})
-        params, regularizers, constraints, learning_rate_multipliers = layer.get_params()
-        self.params += params
-        self.regularizers += regularizers
-        self.constraints += constraints
-        self.learning_rate_multipliers += learning_rate_multipliers
-=======
                                  'merge_mode': merge_mode,
                                  'concat_axis': concat_axis,
                                  'create_output': create_output})
         layer.init_updates()
-        params, regularizers, constraints, updates = layer.get_params()
+        params, regularizers, constraints, learning_rate_multipliers, updates = layer.get_params()
         self.params += params
         self.regularizers += regularizers
         self.constraints += constraints
+        self.learning_rate_multipliers += learning_rate_multipliers
         self.updates += updates
->>>>>>> master
 
         if create_output:
             self.add_output(name, input=name)
