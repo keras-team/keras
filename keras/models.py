@@ -377,7 +377,8 @@ class Sequential(Model, containers.Sequential):
 
         for r in self.regularizers:
             train_loss = r(train_loss)
-        updates = self.optimizer.get_updates(self.params, self.constraints, train_loss)
+        updates = self.optimizer.get_updates(self.params, self.constraints, self.learning_rate_multipliers, train_loss)
+        
 
         if type(self.X_train) == list:
             train_ins = self.X_train + [self.y, self.weights]

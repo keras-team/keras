@@ -30,7 +30,7 @@ class Optimizer(object):
         for u, v in zip(self.updates, value_list):
             u[0].set_value(floatX(v))
 
-    def get_updates(self, params, constraints, loss):
+    def get_updates(self, params, constraints, learning_rate_multipliers, loss):
         raise NotImplementedError
 
     def get_gradients(self, loss, params):
@@ -54,12 +54,12 @@ class SGD(Optimizer):
         self.__dict__.update(locals())
         self.iterations = shared_scalar(0)
 
-    def get_updates(self, params, constraints, loss):
+    def get_updates(self, params, constraints, learning_rate_multipliers, loss):
         grads = self.get_gradients(loss, params)
         lr = self.lr * (1.0 / (1.0 + self.decay * self.iterations))
         self.updates = [(self.iterations, self.iterations + 1.)]
 
-        for p, g, c in zip(params, grads, constraints):
+        for p, g, c, lmul in zip(params, grads, constraints, learning_rate_multipliers):
             m = shared_zeros(p.get_value().shape)  # momentum
             v = self.momentum * m - lr * g  # velocity
             self.updates.append((m, v))
@@ -69,7 +69,7 @@ class SGD(Optimizer):
             else:
                 new_p = p + v
 
-            self.updates.append((p, c(new_p)))  # apply constraints
+            self.updates.append((p, c(new_p*lmul)))  # apply constraints and multiplier
         return self.updates
 
     def get_config(self):
@@ -85,17 +85,17 @@ class RMSprop(Optimizer):
         super(RMSprop, self).__init__(**kwargs)
         self.__dict__.update(locals())
 
-    def get_updates(self, params, constraints, loss):
+    def get_updates(self, params, constraints, learning_rate_multipliers, loss):
         grads = self.get_gradients(loss, params)
         accumulators = [shared_zeros(p.get_value().shape) for p in params]
         self.updates = []
 
-        for p, g, a, c in zip(params, grads, accumulators, constraints):
+        for p, g, a, c, lmul in zip(params, grads, accumulators, constraints, learning_rate_multipliers):
             new_a = self.rho * a + (1 - self.rho) * g ** 2  # update accumulator
             self.updates.append((a, new_a))
 
             new_p = p - self.lr * g / T.sqrt(new_a + self.epsilon)
-            self.updates.append((p, c(new_p)))  # apply constraints
+            self.updates.append((p, c(new_p*lmul)))  # apply constraints
         return self.updates
 
     def get_config(self):
@@ -110,16 +110,16 @@ class Adagrad(Optimizer):
         super(Adagrad, self).__init__(**kwargs)
         self.__dict__.update(locals())
 
-    def get_updates(self, params, constraints, loss):
+    def get_updates(self, params, constraints, learning_rate_multipliers, loss):
         grads = self.get_gradients(loss, params)
         accumulators = [shared_zeros(p.get_value().shape) for p in params]
         self.updates = []
 
-        for p, g, a, c in zip(params, grads, accumulators, constraints):
+        for p, g, a, c, lmul in zip(params, grads, accumulators, constraints, learning_rate_multipliers):
             new_a = a + g ** 2  # update accumulator
             self.updates.append((a, new_a))
             new_p = p - self.lr * g / T.sqrt(new_a + self.epsilon)
-            self.updates.append((p, c(new_p)))  # apply constraints
+            self.updates.append((p, c(new_p*lmul)))  # apply constraints
         return self.updates
 
     def get_config(self):
@@ -136,13 +136,13 @@ class Adadelta(Optimizer):
         super(Adadelta, self).__init__(**kwargs)
         self.__dict__.update(locals())
 
-    def get_updates(self, params, constraints, loss):
+    def get_updates(self, params, constraints, learning_rate_multipliers, loss):
         grads = self.get_gradients(loss, params)
         accumulators = [shared_zeros(p.get_value().shape) for p in params]
         delta_accumulators = [shared_zeros(p.get_value().shape) for p in params]
         self.updates = []
 
-        for p, g, a, d_a, c in zip(params, grads, accumulators, delta_accumulators, constraints):
+        for p, g, a, d_a, c, lmul in zip(params, grads, accumulators, delta_accumulators, constraints, lmul):
             new_a = self.rho * a + (1 - self.rho) * g ** 2  # update accumulator
             self.updates.append((a, new_a))
 
@@ -150,7 +150,7 @@ class Adadelta(Optimizer):
             update = g * T.sqrt(d_a + self.epsilon) / T.sqrt(new_a + self.epsilon)
 
             new_p = p - self.lr * update
-            self.updates.append((p, c(new_p)))  # apply constraints
+            self.updates.append((p, c(new_p*lmul)))  # apply constraints
 
             # update delta_accumulator
             new_d_a = self.rho * d_a + (1 - self.rho) * update ** 2
@@ -175,14 +175,14 @@ class Adam(Optimizer):
         self.__dict__.update(locals())
         self.iterations = shared_scalar(0)
 
-    def get_updates(self, params, constraints, loss):
+    def get_updates(self, params, constraints, learning_rate_multipliers, loss):
         grads = self.get_gradients(loss, params)
         self.updates = [(self.iterations, self.iterations+1.)]
 
         t = self.iterations + 1
         lr_t = self.lr * T.sqrt(1-self.beta_2**t)/(1-self.beta_1**t)
 
-        for p, g, c in zip(params, grads, constraints):
+        for p, g, c, lmul in zip(params, grads, constraints, learning_rate_multipliers):
             m = theano.shared(p.get_value() * 0.)  # zero init of moment
             v = theano.shared(p.get_value() * 0.)  # zero init of velocity
 
@@ -192,7 +192,7 @@ class Adam(Optimizer):
 
             self.updates.append((m, m_t))
             self.updates.append((v, v_t))
-            self.updates.append((p, c(p_t)))  # apply constraints
+            self.updates.append((p, c(p_t*lmul)))  # apply constraints
         return self.updates
 
     def get_config(self):

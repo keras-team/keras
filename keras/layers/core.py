@@ -71,11 +71,22 @@ class Layer(object):
 
     def get_params(self):
         consts = []
+        lmuls = []
 
         if hasattr(self, 'regularizers'):
             regularizers = self.regularizers
         else:
             regularizers = []
+
+        
+        if hasattr(self, 'learning_rate_multipliers'):
+            for lmul in self.learning_rate_multipliers:
+                if (lmul is not None):
+                    lmuls.append(lmul)
+                else:
+                    lmuls.append(1)
+        else:
+            lmuls = [1 for p in self.params]
 
         if hasattr(self, 'constraints') and len(self.constraints) == len(self.params):
             for c in self.constraints:
@@ -88,7 +99,7 @@ class Layer(object):
         else:
             consts += [constraints.identity() for _ in range(len(self.params))]
 
-        return self.params, regularizers, consts
+        return self.params, regularizers, consts, lmuls #MOD
 
     def set_name(self, name):
         for i in range(len(self.params)):
@@ -156,17 +167,19 @@ class Merge(object):
         self.params = []
         self.regularizers = []
         self.constraints = []
+        self.learning_rate_multipliers = []
         for l in self.layers:
-            params, regs, consts = l.get_params()
+            params, regs, consts, lmuls = l.get_params() #MOD
             self.regularizers += regs
             # params and constraints have the same size
-            for p, c in zip(params, consts):
+            for p, c, lmul in zip(params, consts, lmul):
                 if p not in self.params:
                     self.params.append(p)
                     self.constraints.append(c)
+                    self.learning_rate_multipliers.append(lmuls)
 
     def get_params(self):
-        return self.params, self.regularizers, self.constraints
+        return self.params, self.regularizers, self.constraints, self.learning_rate_multipliers
 
     def get_output(self, train=False):
         if self.mode == 'sum':
@@ -344,7 +357,7 @@ class Dense(Layer):
     '''
     def __init__(self, input_dim, output_dim, init='glorot_uniform', activation='linear', weights=None, name=None,
                  W_regularizer=None, b_regularizer=None, activity_regularizer=None,
-                 W_constraint=None, b_constraint=None):
+                 W_constraint=None, b_constraint=None, W_learning_rate_multiplier=None, b_learning_rate_multiplier=None):
 
         super(Dense, self).__init__()
         self.init = initializations.get(init)
@@ -377,6 +390,9 @@ class Dense(Layer):
         self.W_constraint = constraints.get(W_constraint)
         self.b_constraint = constraints.get(b_constraint)
         self.constraints = [self.W_constraint, self.b_constraint]
+        self.W_learning_rate_multiplier = W_learning_rate_multiplier
+        self.b_learning_rate_multiplier = b_learning_rate_multiplier
+        self.learning_rate_multipliers = [self.W_learning_rate_multiplier, self.b_learning_rate_multiplier]
 
         if weights is not None:
             self.set_weights(weights)
@@ -403,7 +419,9 @@ class Dense(Layer):
                 "b_regularizer": self.b_regularizer.get_config() if self.b_regularizer else None,
                 "activity_regularizer": self.activity_regularizer.get_config() if self.activity_regularizer else None,
                 "W_constraint": self.W_constraint.get_config() if self.W_constraint else None,
-                "b_constraint": self.b_constraint.get_config() if self.b_constraint else None}
+                "b_constraint": self.b_constraint.get_config() if self.b_constraint else None,
+                "W_learning_rate_multiplier": self.W_learning_rate_multiplier,
+                "b_learning_rate_multiplier": self.b_learning_rate_multiplier}
 
 
 class ActivityRegularization(Layer):
@@ -439,7 +457,7 @@ class TimeDistributedDense(MaskedLayer):
     '''
     def __init__(self, input_dim, output_dim, init='glorot_uniform', activation='linear', weights=None,
                  W_regularizer=None, b_regularizer=None, activity_regularizer=None,
-                 W_constraint=None, b_constraint=None):
+                 W_constraint=None, b_constraint=None, W_learning_rate_multiplier=None, b_learning_rate_multiplier=None):
 
         super(TimeDistributedDense, self).__init__()
         self.init = initializations.get(init)
@@ -473,6 +491,9 @@ class TimeDistributedDense(MaskedLayer):
         self.W_constraint = constraints.get(W_constraint)
         self.b_constraint = constraints.get(b_constraint)
         self.constraints = [self.W_constraint, self.b_constraint]
+        self.W_learning_rate_multiplier = W_learning_rate_multiplier
+        self.b_learning_rate_multiplier = b_learning_rate_multiplier
+        self.learning_rate_multipliers = [self.W_learning_rate_multiplier, self.b_learning_rate_multiplier]
 
         if weights is not None:
             self.set_weights(weights)
@@ -492,7 +513,9 @@ class TimeDistributedDense(MaskedLayer):
                 "b_regularizer": self.b_regularizer.get_config() if self.b_regularizer else None,
                 "activity_regularizer": self.activity_regularizer.get_config() if self.activity_regularizer else None,
                 "W_constraint": self.W_constraint.get_config() if self.W_constraint else None,
-                "b_constraint": self.b_constraint.get_config() if self.b_constraint else None}
+                "b_constraint": self.b_constraint.get_config() if self.b_constraint else None,
+                "W_learning_rate_multiplier": self.W_learning_rate_multiplier,
+                "b_learning_rate_multiplier": self.b_learning_rate_multiplier}
 
 
 class AutoEncoder(Layer):
@@ -514,13 +537,15 @@ class AutoEncoder(Layer):
         self.params = []
         self.regularizers = []
         self.constraints = []
+        self.learning_rate_multipliers = []
         for layer in [self.encoder, self.decoder]:
-            params, regularizers, constraints = layer.get_params()
+            params, regularizers, constraints, learning_rate_multipliers = layer.get_params() #MOD
             self.regularizers += regularizers
-            for p, c in zip(params, constraints):
+            for p, c, lmul in zip(params, constraints, learning_rate_multipliers):
                 if p not in self.params:
                     self.params.append(p)
                     self.constraints.append(c)
+                    self.learning_rate_multipliers.append(lmul)
 
         if weights is not None:
             self.set_weights(weights)
@@ -569,7 +594,7 @@ class MaxoutDense(Layer):
     '''
     def __init__(self, input_dim, output_dim, nb_feature=4, init='glorot_uniform', weights=None,
                  W_regularizer=None, b_regularizer=None, activity_regularizer=None,
-                 W_constraint=None, b_constraint=None):
+                 W_constraint=None, b_constraint=None, W_learning_rate_multiplier=None, b_learning_rate_multiplier=None):
 
         super(MaxoutDense, self).__init__()
         self.init = initializations.get(init)
@@ -603,6 +628,9 @@ class MaxoutDense(Layer):
         self.W_constraint = constraints.get(W_constraint)
         self.b_constraint = constraints.get(b_constraint)
         self.constraints = [self.W_constraint, self.b_constraint]
+        self.W_learning_rate_multiplier = W_learning_rate_multiplier
+        self.b_learning_rate_multiplier = b_learning_rate_multiplier
+        self.learning_rate_multipliers = [self.W_learning_rate_multiplier, self.b_learning_rate_multiplier]
 
         if weights is not None:
             self.set_weights(weights)
@@ -623,4 +651,7 @@ class MaxoutDense(Layer):
                 "b_regularizer": self.b_regularizer.get_config() if self.b_regularizer else None,
                 "activity_regularizer": self.activity_regularizer.get_config() if self.activity_regularizer else None,
                 "W_constraint": self.W_constraint.get_config() if self.W_constraint else None,
-                "b_constraint": self.b_constraint.get_config() if self.b_constraint else None}
+                "b_constraint": self.b_constraint.get_config() if self.b_constraint else None,
+                "W_learning_rate_multiplier": self.W_learning_rate_multiplier,
+                "b_learning_rate_multiplier": self.b_learning_rate_multiplier
+                }

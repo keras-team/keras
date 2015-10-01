@@ -32,6 +32,7 @@ class Sequential(Layer):
         self.params = []
         self.regularizers = []
         self.constraints = []
+        self.learning_rate_multipliers = []
 
         for layer in layers:
             self.add(layer)
@@ -44,10 +45,11 @@ class Sequential(Layer):
         if len(self.layers) > 1:
             self.layers[-1].set_previous(self.layers[-2])
 
-        params, regularizers, constraints = layer.get_params()
+        params, regularizers, constraints, learning_rate_multipliers = layer.get_params()
         self.params += params
         self.regularizers += regularizers
         self.constraints += constraints
+        self.learning_rate_multipliers += learning_rate_multipliers
 
     def get_output(self, train=False):
         return self.layers[-1].get_output(train)
@@ -115,6 +117,7 @@ class Graph(Layer):
         self.params = []
         self.regularizers = []
         self.constraints = []
+        self.learning_rate_multipliers = []
 
     def set_previous(self, layer):
         if len(self.inputs) != 1 or len(self.outputs) != 1:
@@ -185,10 +188,11 @@ class Graph(Layer):
                                  'input': input,
                                  'inputs': inputs,
                                  'merge_mode': merge_mode})
-        params, regularizers, constraints = layer.get_params()
+        params, regularizers, constraints, learning_rate_multipliers = layer.get_params()
         self.params += params
         self.regularizers += regularizers
         self.constraints += constraints
+        self.learning_rate_multipliers += learning_rate_multipliers
 
     def add_output(self, name, input=None, inputs=[], merge_mode='concat'):
         if name in self.namespace:

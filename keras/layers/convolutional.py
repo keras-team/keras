@@ -14,7 +14,7 @@ class Convolution1D(Layer):
                  init='uniform', activation='linear', weights=None,
                  border_mode='valid', subsample_length=1,
                  W_regularizer=None, b_regularizer=None, activity_regularizer=None,
-                 W_constraint=None, b_constraint=None):
+                 W_constraint=None, b_constraint=None, W_learning_rate_multiplier=None, b_learning_rate_multiplier=None):
 
         if border_mode not in {'valid', 'full'}:
             raise Exception('Invalid border mode for Convolution1D:', border_mode)
@@ -56,6 +56,9 @@ class Convolution1D(Layer):
         self.W_constraint = constraints.get(W_constraint)
         self.b_constraint = constraints.get(b_constraint)
         self.constraints = [self.W_constraint, self.b_constraint]
+        self.W_learning_rate_multiplier = W_learning_rate_multiplier
+        self.b_learning_rate_multiplier = b_learning_rate_multiplier
+        self.learning_rate_multipliers = [self.W_learning_rate_multiplier, self.b_learning_rate_multiplier]
 
         if weights is not None:
             self.set_weights(weights)
@@ -80,7 +83,9 @@ class Convolution1D(Layer):
                 "b_regularizer": self.b_regularizer.get_config() if self.b_regularizer else None,
                 "activity_regularizer": self.activity_regularizer.get_config() if self.activity_regularizer else None,
                 "W_constraint": self.W_constraint.get_config() if self.W_constraint else None,
-                "b_constraint": self.b_constraint.get_config() if self.b_constraint else None}
+                "b_constraint": self.b_constraint.get_config() if self.b_constraint else None,
+                "W_learning_rate_multiplier": self.W_learning_rate_multiplier,
+                "b_learning_rate_multiplier": self.b_learning_rate_multiplier}
 
 
 class MaxPooling1D(Layer):
@@ -117,7 +122,7 @@ class Convolution2D(Layer):
                  init='glorot_uniform', activation='linear', weights=None,
                  border_mode='valid', subsample=(1, 1),
                  W_regularizer=None, b_regularizer=None, activity_regularizer=None,
-                 W_constraint=None, b_constraint=None):
+                 W_constraint=None, b_constraint=None, W_learning_rate_multiplier=None, b_learning_rate_multiplier=None):
 
         if border_mode not in {'valid', 'full', 'same'}:
             raise Exception('Invalid border mode for Convolution2D:', border_mode)
@@ -160,6 +165,9 @@ class Convolution2D(Layer):
         self.W_constraint = constraints.get(W_constraint)
         self.b_constraint = constraints.get(b_constraint)
         self.constraints = [self.W_constraint, self.b_constraint]
+        self.W_learning_rate_multiplier = W_learning_rate_multiplier
+        self.b_learning_rate_multiplier = b_learning_rate_multiplier
+        self.learning_rate_multipliers = [self.W_learning_rate_multiplier, self.b_learning_rate_multiplier]
 
         if weights is not None:
             self.set_weights(weights)
@@ -194,7 +202,9 @@ class Convolution2D(Layer):
                 "b_regularizer": self.b_regularizer.get_config() if self.b_regularizer else None,
                 "activity_regularizer": self.activity_regularizer.get_config() if self.activity_regularizer else None,
                 "W_constraint": self.W_constraint.get_config() if self.W_constraint else None,
-                "b_constraint": self.b_constraint.get_config() if self.b_constraint else None}
+                "b_constraint": self.b_constraint.get_config() if self.b_constraint else None,
+                "W_learning_rate_multiplier": self.W_learning_rate_multiplier,
+                "b_learning_rate_multiplier": self.b_learning_rate_multiplier}
 
 
 class MaxPooling2D(Layer):
