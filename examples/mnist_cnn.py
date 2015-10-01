@@ -22,11 +22,20 @@ batch_size = 128
 nb_classes = 10
 nb_epoch = 12
 
+# shape of the image (SHAPE x SHAPE)
+shapex, shapey = 28, 28
+# number of convolutional filters to use
+nb_filters = 32
+# level of pooling to perform (POOL x POOL)
+nb_pool = 2
+# level of convolution to perform (CONV x CONV)
+nb_conv = 3
+
 # the data, shuffled and split between tran and test sets
 (X_train, y_train), (X_test, y_test) = mnist.load_data()
 
-X_train = X_train.reshape(X_train.shape[0], 1, 28, 28)
-X_test = X_test.reshape(X_test.shape[0], 1, 28, 28)
+X_train = X_train.reshape(X_train.shape[0], 1, shapex, shapey)
+X_test = X_test.reshape(X_test.shape[0], 1, shapex, shapey)
 X_train = X_train.astype("float32")
 X_test = X_test.astype("float32")
 X_train /= 255
@@ -41,15 +50,18 @@ Y_test = np_utils.to_categorical(y_test, nb_classes)
 
 model = Sequential()
 
-model.add(Convolution2D(32, 1, 3, 3, border_mode='full'))
+model.add(Convolution2D(nb_filters, 1, nb_conv, nb_conv, border_mode='full'))
 model.add(Activation('relu'))
-model.add(Convolution2D(32, 32, 3, 3))
+model.add(Convolution2D(nb_filters, nb_filters, nb_conv, nb_conv))
 model.add(Activation('relu'))
-model.add(MaxPooling2D(poolsize=(2, 2)))
+model.add(MaxPooling2D(poolsize=(nb_pool, nb_pool)))
 model.add(Dropout(0.25))
 
 model.add(Flatten())
-model.add(Dense(32*196, 128))
+# the resulting image after conv and pooling is the original shape
+# divided by the pooling with a number of filters for each "pixel"
+# (the number of filters is determined by the last Conv2D)
+model.add(Dense(nb_filters * (shapex / nb_pool) * (shapey / nb_pool), 128))
 model.add(Activation('relu'))
 model.add(Dropout(0.5))
 

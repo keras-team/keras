@@ -5,8 +5,7 @@ from collections import defaultdict
 
 
 class HDF5Matrix():
-    def __init__(self):
-        self.refs = defaultdict(int)
+    refs = defaultdict(int)
 
     def __init__(self, datapath, dataset, start, end, normalizer=None):
         if datapath not in list(self.refs.keys()):

@@ -53,3 +53,39 @@ Parametric Softplus of the form: (`f(x) = alpha * (1 + exp(beta * x))`). This is
 
 - __References__:
     - [Inferring Nonlinear Neuronal Computation Based on Physiologically Plausible Inputs](http://journals.plos.org/ploscompbiol/article?id=10.1371/journal.pcbi.1003143)
+
+## Thresholded Linear
+
+```python
+keras.layers.advanced_activations.ThresholdedLinear(theta)
+```
+
+Parametrized linear unit. provides a threshold near zero where values are zeroed.
+
+- __Input shape__: Same as `input_shape`. This layer cannot be used as first layer in a model.
+
+- __Output shape__: Same as input.
+
+- __Arguments__:
+    - __theta__: float >= 0. Threshold location of activation
+
+- __References__:
+    - [Zero-Bias Autoencoders and the Benefits of Co-Adapting Features](http://arxiv.org/pdf/1402.3337.pdf)
+
+## Thresholded ReLu
+
+```python
+keras.layers.advanced_activations.ThresholdedReLu(theta)
+```
+
+Parametrized rectified linear unit. provides a threshold near zero where values are zeroed.
+
+- __Input shape__: Same as `input_shape`. This layer cannot be used as first layer in a model.
+
+- __Output shape__: Same as input.
+
+- __Arguments__:
+    - __theta__: float >= 0. Threshold location of activation
+
+- __References__:
+    - [Zero-Bias Autoencoders and the Benefits of Co-Adapting Features](http://arxiv.org/pdf/1402.3337.pdf)

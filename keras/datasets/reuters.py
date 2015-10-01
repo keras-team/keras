@@ -5,7 +5,7 @@ from .data_utils import get_file
 import string
 import random
 import os
-import six.moves.cPickle
+from six.moves import cPickle
 from six.moves import zip
 import numpy as np
 
@@ -78,8 +78,8 @@ def make_reuters_dataset(path=os.path.join('datasets', 'temp', 'reuters21578'), 
     dataset = (X, labels)
     print('-')
     print('Saving...')
-    six.moves.cPickle.dump(dataset, open(os.path.join('datasets', 'data', 'reuters.pkl'), 'w'))
-    six.moves.cPickle.dump(tokenizer.word_index, open(os.path.join('datasets', 'data', 'reuters_word_index.pkl'), 'w'))
+    cPickle.dump(dataset, open(os.path.join('datasets', 'data', 'reuters.pkl'), 'w'))
+    cPickle.dump(tokenizer.word_index, open(os.path.join('datasets', 'data', 'reuters_word_index.pkl'), 'w'))
 
 
 def load_data(path="reuters.pkl", nb_words=None, skip_top=0, maxlen=None, test_split=0.2, seed=113,
@@ -88,7 +88,7 @@ def load_data(path="reuters.pkl", nb_words=None, skip_top=0, maxlen=None, test_s
     path = get_file(path, origin="https://s3.amazonaws.com/text-datasets/reuters.pkl")
     f = open(path, 'rb')
 
-    X, labels = six.moves.cPickle.load(f)
+    X, labels = cPickle.load(f)
     f.close()
 
     np.random.seed(seed)
@@ -140,7 +140,7 @@ def load_data(path="reuters.pkl", nb_words=None, skip_top=0, maxlen=None, test_s
 def get_word_index(path="reuters_word_index.pkl"):
     path = get_file(path, origin="https://s3.amazonaws.com/text-datasets/reuters_word_index.pkl")
     f = open(path, 'rb')
-    return six.moves.cPickle.load(f)
+    return cPickle.load(f)
 
 
 if __name__ == "__main__":

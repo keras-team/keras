@@ -63,13 +63,20 @@ def slice_X(X, start=None, stop=None):
 
 
 def weighted_objective(fn):
-    def weighted(y_true, y_pred, weights):
-        # it's important that 0 * Inf == 0, not NaN, so I need to mask first
-        masked_y_true = y_true[weights.nonzero()[:-1]]
-        masked_y_pred = y_pred[weights.nonzero()[:-1]]
-        masked_weights = weights[weights.nonzero()]
-        obj_output = fn(masked_y_true, masked_y_pred)
-        return (masked_weights.flatten() * obj_output.flatten()).mean()
+    def weighted(y_true, y_pred, weights, mask=None):
+        # it's important that 0 * Inf == 0, not NaN, so we need to filter
+        # those out first
+        filtered_y_true = y_true[weights.nonzero()[:-1]]
+        filtered_y_pred = y_pred[weights.nonzero()[:-1]]
+        filtered_weights = weights[weights.nonzero()]
+        obj_output = fn(filtered_y_true, filtered_y_pred)
+        weighted = filtered_weights * obj_output
+        if mask is None:
+            # Instead of calling mean() here, we divide by the sum of filtered_weights.
+            return weighted.sum() / filtered_weights.sum()
+        else:
+            filtered_mask = mask[weights.nonzero()[:-1]]
+            return weighted.sum() / (filtered_mask * filtered_weights).sum()
     return weighted
 
 
@@ -77,15 +84,18 @@ def standardize_weights(y, sample_weight=None, class_weight=None):
     if sample_weight is not None:
         return standardize_y(sample_weight)
     elif isinstance(class_weight, dict):
-        if len(y.shape) > 2:
-            raise Exception('class_weight not supported for 3+ dimensional targets.')
+        if len(y.shape) > 3:
+            raise Exception('class_weight not supported for 4+ dimensional targets.')
+        yshape = y.shape
+        y = np.reshape(y, (-1, yshape[-1]))  # for time-distributed data, collapse time and sample
         if y.shape[1] > 1:
             y_classes = y.argmax(axis=1)
         elif y.shape[1] == 1:
             y_classes = np.reshape(y, y.shape[0])
         else:
             y_classes = y
-        return np.expand_dims(np.array(list(map(lambda x: class_weight[x], y_classes))), 1)
+        class_weights = np.asarray([class_weight[cls] for cls in y_classes])
+        return np.reshape(class_weights, yshape[:-1] + (1,))  # uncollapse initial dimensions
     else:
         return np.ones(y.shape[:-1] + (1,))
 
@@ -145,7 +155,7 @@ def get_function_name(o):
 
 class Model(object):
     def _fit(self, f, ins, out_labels=[], batch_size=128, nb_epoch=100, verbose=1, callbacks=[],
-             validation_split=0., val_f=None, val_ins=None, shuffle=True, metrics=[]):
+             val_f=None, val_ins=None, shuffle=True, metrics=[]):
         '''
             Abstract fit function for f(*ins). Assume that f returns a list, labelled by out_labels.
         '''
@@ -154,13 +164,6 @@ class Model(object):
             do_validation = True
             if verbose:
                 print("Train on %d samples, validate on %d samples" % (len(ins[0]), len(val_ins[0])))
-        else:
-            if 0 < validation_split < 1:
-                do_validation = True
-                split_at = int(len(ins[0]) * (1 - validation_split))
-                (ins, val_ins) = (slice_X(ins, 0, split_at), slice_X(ins, split_at))
-                if verbose:
-                    print("Train on %d samples, validate on %d samples" % (len(ins[0]), len(val_ins[0])))
 
         nb_train_sample = len(ins[0])
         index_array = np.arange(nb_train_sample)
@@ -197,9 +200,8 @@ class Model(object):
                 try:
                     ins_batch = slice_X(ins, batch_ids)
                 except TypeError as err:
-                    print('TypeError while preparing batch. \
+                    raise Exception('TypeError while preparing batch. \
                         If using HDF5 input data, pass shuffle="batch".\n')
-                    raise
 
                 batch_logs = {}
                 batch_logs['batch'] = batch_index
@@ -320,7 +322,7 @@ class Model(object):
         # dump model configuration to json string
         import json
         config = self.get_config()
-        return json.dump(config)
+        return json.dumps(config)
 
 
 class Sequential(Model, containers.Sequential):
@@ -356,8 +358,12 @@ class Sequential(Model, containers.Sequential):
 
         self.weights = T.ones_like(self.y_train)
 
-        train_loss = weighted_loss(self.y, self.y_train, self.weights)
-        test_loss = weighted_loss(self.y, self.y_test, self.weights)
+        if hasattr(self.layers[-1], "get_output_mask"):
+            mask = self.layers[-1].get_output_mask()
+        else:
+            mask = None
+        train_loss = weighted_loss(self.y, self.y_train, self.weights, mask)
+        test_loss = weighted_loss(self.y, self.y_test, self.weights, mask)
 
         train_loss.name = 'train_loss'
         test_loss.name = 'test_loss'
@@ -378,6 +384,7 @@ class Sequential(Model, containers.Sequential):
         for r in self.regularizers:
             train_loss = r(train_loss)
         updates = self.optimizer.get_updates(self.params, self.constraints, train_loss)
+        updates += self.updates
 
         if type(self.X_train) == list:
             train_ins = self.X_train + [self.y, self.weights]
@@ -388,16 +395,16 @@ class Sequential(Model, containers.Sequential):
             test_ins = [self.X_test, self.y, self.weights]
             predict_ins = [self.X_test]
 
-        self._train = theano.function(train_ins, train_loss,
-            updates=updates, allow_input_downcast=True, mode=theano_mode)
-        self._train_with_acc = theano.function(train_ins, [train_loss, train_accuracy],
-            updates=updates, allow_input_downcast=True, mode=theano_mode)
+        self._train = theano.function(train_ins, train_loss, updates=updates,
+                                      allow_input_downcast=True, mode=theano_mode)
+        self._train_with_acc = theano.function(train_ins, [train_loss, train_accuracy], updates=updates,
+                                               allow_input_downcast=True, mode=theano_mode)
         self._predict = theano.function(predict_ins, self.y_test,
-            allow_input_downcast=True, mode=theano_mode)
+                                        allow_input_downcast=True, mode=theano_mode)
         self._test = theano.function(test_ins, test_loss,
-            allow_input_downcast=True, mode=theano_mode)
+                                     allow_input_downcast=True, mode=theano_mode)
         self._test_with_acc = theano.function(test_ins, [test_loss, test_accuracy],
-            allow_input_downcast=True, mode=theano_mode)
+                                              allow_input_downcast=True, mode=theano_mode)
 
     def train_on_batch(self, X, y, accuracy=False, class_weight=None, sample_weight=None):
         X = standardize_X(X)
@@ -431,7 +438,6 @@ class Sequential(Model, containers.Sequential):
 
         X = standardize_X(X)
         y = standardize_y(y)
-        sample_weight = standardize_weights(y, class_weight=class_weight, sample_weight=sample_weight)
 
         val_f = None
         val_ins = None
@@ -441,14 +447,31 @@ class Sequential(Model, containers.Sequential):
             else:
                 val_f = self._test
         if validation_data:
-            try:
+            if len(validation_data) == 2:
                 X_val, y_val = validation_data
-            except:
-                raise Exception("Invalid format for validation data; provide a tuple (X_val, y_val). \
+                X_val = standardize_X(X_val)
+                y_val = standardize_y(y_val)
+                sample_weight_val = np.ones(y_val.shape[:-1] + (1,))
+            elif len(validation_data) == 3:
+                X_val, y_val, sample_weight_val = validation_data
+                X_val = standardize_X(X_val)
+                y_val = standardize_y(y_val)
+                sample_weight_val = standardize_weights(y_val, sample_weight=sample_weight_val)
+            else:
+                raise Exception("Invalid format for validation data; provide a tuple (X_val, y_val) or (X_val, y_val, sample_weight). \
                     X_val may be a numpy array or a list of numpy arrays depending on your model input.")
-            X_val = standardize_X(X_val)
-            y_val = standardize_y(y_val)
-            val_ins = X_val + [y_val, np.ones(y_val.shape[:-1] + (1,))]
+            val_ins = X_val + [y_val, sample_weight_val]
+
+        elif 0 < validation_split < 1:
+            split_at = int(len(X[0]) * (1 - validation_split))
+            X, X_val = (slice_X(X, 0, split_at), slice_X(X, split_at))
+            y, y_val = (slice_X(y, 0, split_at), slice_X(y, split_at))
+            if sample_weight is not None:
+                sample_weight, sample_weight_val = (slice_X(sample_weight, 0, split_at), slice_X(sample_weight, split_at))
+                sample_weight_val = standardize_weights(y_val, sample_weight=sample_weight_val)
+            else:
+                sample_weight_val = np.ones(y_val.shape[:-1] + (1,))
+            val_ins = X_val + [y_val, sample_weight_val]
 
         if show_accuracy:
             f = self._train_with_acc
@@ -457,11 +480,12 @@ class Sequential(Model, containers.Sequential):
             f = self._train
             out_labels = ['loss']
 
+        sample_weight = standardize_weights(y, class_weight=class_weight, sample_weight=sample_weight)
         ins = X + [y, sample_weight]
         metrics = ['loss', 'acc', 'val_loss', 'val_acc']
         return self._fit(f, ins, out_labels=out_labels, batch_size=batch_size, nb_epoch=nb_epoch,
                          verbose=verbose, callbacks=callbacks,
-                         validation_split=validation_split, val_f=val_f, val_ins=val_ins,
+                         val_f=val_f, val_ins=val_ins,
                          shuffle=shuffle, metrics=metrics)
 
     def predict(self, X, batch_size=128, verbose=0):
@@ -561,11 +585,16 @@ class Graph(Model, containers.Graph):
             ys_train.append(y_train)
             ys_test.append(y_test)
 
+            if hasattr(output, "get_output_mask"):
+                mask = output.get_output_mask()
+            else:
+                mask = None
+
             weight = T.ones_like(y_test)
             weights.append(weight)
             weighted_loss = weighted_objective(objectives.get(loss_fn))
-            train_loss += weighted_loss(y, y_train, weight)
-            test_loss += weighted_loss(y, y_test, weight)
+            train_loss += weighted_loss(y, y_train, weight, mask)
+            test_loss += weighted_loss(y, y_test, weight, mask)
 
         train_loss.name = 'train_loss'
         test_loss.name = 'test_loss'
@@ -578,15 +607,16 @@ class Graph(Model, containers.Graph):
             train_loss = r(train_loss)
         self.optimizer = optimizers.get(optimizer)
         updates = self.optimizer.get_updates(self.params, self.constraints, train_loss)
+        updates += self.updates
         self.theano_mode = theano_mode
         self.loss = loss
 
-        self._train = theano.function(train_ins, train_loss,
-            updates=updates, allow_input_downcast=True, mode=theano_mode)
+        self._train = theano.function(train_ins, train_loss, updates=updates,
+                                      allow_input_downcast=True, mode=theano_mode)
         self._test = theano.function(test_ins, test_loss,
-            allow_input_downcast=True, mode=theano_mode)
+                                     allow_input_downcast=True, mode=theano_mode)
         self._predict = theano.function(inputs=ins, outputs=ys_test,
-            allow_input_downcast=True, mode=theano_mode)
+                                        allow_input_downcast=True, mode=theano_mode)
 
     def train_on_batch(self, data, class_weight={}, sample_weight={}):
         # data is a dictionary mapping output and input names to arrays
@@ -598,8 +628,8 @@ class Graph(Model, containers.Graph):
 
     def test_on_batch(self, data, sample_weight={}):
         # data is a dictionary mapping input names to arrays
-        sample_weight = [standardize_weights(data[name]) for name in self.output_order]
-
+        sample_weight = [standardize_weights(data[name],
+                                             sample_weight=sample_weight.get(name)) for name in self.output_order]
         ins = [data[name] for name in self.input_order] + [standardize_y(data[name]) for name in self.output_order] + sample_weight
         return self._test(*ins)
 
@@ -610,30 +640,46 @@ class Graph(Model, containers.Graph):
 
     def fit(self, data, batch_size=128, nb_epoch=100, verbose=1, callbacks=[],
             validation_split=0., validation_data=None, shuffle=True, class_weight={}, sample_weight={}):
-        sample_weight = [standardize_weights(data[name],
-                                             sample_weight=sample_weight.get(name),
-                                             class_weight=class_weight.get(name)) for name in self.output_order]
-        ins = [data[name] for name in self.input_order] + [standardize_y(data[name]) for name in self.output_order] + sample_weight
+        X = [data[name] for name in self.input_order]
+        y = [standardize_y(data[name]) for name in self.output_order]
+
+        sample_weight_list = [standardize_weights(y[i],
+                                                  sample_weight=sample_weight.get(self.output_order[i])) for i in range(len(self.output_order))]
+        class_weight_list = [class_weight.get(name) for name in self.output_order]
 
         val_f = None
         val_ins = None
         if validation_data or validation_split:
             val_f = self._test
         if validation_data:
+            # can't use sample weights with validation data at this point
             sample_weight = [standardize_weights(validation_data[name]) for name in self.output_order]
             val_ins = [validation_data[name] for name in self.input_order] + [standardize_y(validation_data[name]) for name in self.output_order] + sample_weight
 
+        elif 0 < validation_split < 1:
+            split_at = int(len(X[0]) * (1 - validation_split))
+            X, X_val = (slice_X(X, 0, split_at), slice_X(X, split_at))
+            y, y_val = (slice_X(y, 0, split_at), slice_X(y, split_at))
+            sample_weight_list, sample_weight_list_val = (slice_X(sample_weight_list, 0, split_at), slice_X(sample_weight_list, split_at))
+            val_ins = X_val + y_val + sample_weight_list_val
+
         f = self._train
-        out_labels = self.output_order
-        metrics = self.output_order + ['val_' + m for m in self.output_order]
+        out_labels = ['loss']
+        metrics = ['loss', 'val_loss']
+
+        sample_weight_list = [standardize_weights(y[i],
+                                                  sample_weight=sample_weight_list[i],
+                                                  class_weight=class_weight_list[i]) for i in range(len(self.output_order))]
+        ins = X + y + sample_weight_list
         history = self._fit(f, ins, out_labels=out_labels, batch_size=batch_size, nb_epoch=nb_epoch,
                             verbose=verbose, callbacks=callbacks,
-                            validation_split=validation_split, val_f=val_f, val_ins=val_ins,
+                            val_f=val_f, val_ins=val_ins,
                             shuffle=shuffle, metrics=metrics)
         return history
 
     def evaluate(self, data, batch_size=128, verbose=0, sample_weight={}):
-        sample_weight = [standardize_weights(data[name], sample_weight.get(name)) for name in self.output_order]
+        sample_weight = [standardize_weights(data[name],
+                                             sample_weight=sample_weight.get(name)) for name in self.output_order]
 
         ins = [data[name] for name in self.input_order] + [standardize_y(data[name]) for name in self.output_order] + sample_weight
         outs = self._test_loop(self._test, ins, batch_size, verbose)

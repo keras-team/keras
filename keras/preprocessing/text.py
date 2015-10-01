@@ -15,11 +15,13 @@ if sys.version_info < (3,):
 else:
     maketrans = str.maketrans
 
+
 def base_filter():
     f = string.punctuation
     f = f.replace("'", '')
     f += '\t\n'
     return f
+
 
 def text_to_word_sequence(text, filters=base_filter(), lower=True, split=" "):
     '''prune: sequence of characters to filter out
@@ -33,7 +35,7 @@ def text_to_word_sequence(text, filters=base_filter(), lower=True, split=" "):
 
 def one_hot(text, n, filters=base_filter(), lower=True, split=" "):
     seq = text_to_word_sequence(text, filters=filters, lower=lower, split=split)
-    return [(abs(hash(w))%(n-1)+1) for w in seq]
+    return [(abs(hash(w)) % (n - 1) + 1) for w in seq]
 
 
 class Tokenizer(object):
@@ -67,18 +69,17 @@ class Tokenizer(object):
                     self.word_docs[w] = 1
 
         wcounts = list(self.word_counts.items())
-        wcounts.sort(key = lambda x: x[1], reverse=True)
+        wcounts.sort(key=lambda x: x[1], reverse=True)
         sorted_voc = [wc[0] for wc in wcounts]
-        self.word_index = dict(list(zip(sorted_voc, list(range(1, len(sorted_voc)+1)))))
+        self.word_index = dict(list(zip(sorted_voc, list(range(1, len(sorted_voc) + 1)))))
 
         self.index_docs = {}
         for w, c in list(self.word_docs.items()):
             self.index_docs[self.word_index[w]] = c
 
-
     def fit_on_sequences(self, sequences):
         '''
-            required before using sequences_to_matrix 
+            required before using sequences_to_matrix
             (if fit_on_texts was never called)
         '''
         self.document_count = len(sequences)
@@ -90,7 +91,6 @@ class Tokenizer(object):
                     self.index_docs[i] = 1
                 else:
                     self.index_docs[i] += 1
-
 
     def texts_to_sequences(self, texts):
         '''
@@ -126,7 +126,6 @@ class Tokenizer(object):
                         vect.append(i)
             yield vect
 
-
     def texts_to_matrix(self, texts, mode="binary"):
         '''
             modes: binary, count, tfidf, freq
@@ -140,7 +139,7 @@ class Tokenizer(object):
         '''
         if not self.nb_words:
             if self.word_index:
-                nb_words = len(self.word_index)
+                nb_words = len(self.word_index) + 1
             else:
                 raise Exception("Specify a dimension (nb_words argument), or fit on some text data first")
         else:
@@ -165,21 +164,13 @@ class Tokenizer(object):
                 if mode == "count":
                     X[i][j] = c
                 elif mode == "freq":
-                    X[i][j] = c/len(seq)
+                    X[i][j] = c / len(seq)
                 elif mode == "binary":
                     X[i][j] = 1
                 elif mode == "tfidf":
-                    tf = np.log(c/len(seq))
-                    df = (1 + np.log(1 + self.index_docs.get(j, 0)/(1 + self.document_count)))
+                    tf = np.log(c / len(seq))
+                    df = (1 + np.log(1 + self.index_docs.get(j, 0) / (1 + self.document_count)))
                     X[i][j] = tf / df
                 else:
                     raise Exception("Unknown vectorization mode: " + str(mode))
         return X
-
-
-
-                
-
-
-
-    

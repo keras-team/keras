@@ -1,9 +1,9 @@
 from __future__ import absolute_import
 import theano
 import theano.tensor as T
-import numpy as np
 
 from .utils.theano_utils import shared_zeros, shared_scalar, floatX
+from .utils.generic_utils import get_from_module
 from six.moves import zip
 
 
@@ -41,6 +41,9 @@ class Optimizer(object):
             norm = T.sqrt(sum([T.sum(g ** 2) for g in grads]))
             grads = [clip_norm(g, self.clipnorm, norm) for g in grads]
 
+        if hasattr(self, 'clipvalue') and self.clipvalue > 0:
+            grads = [T.clip(g, -self.clipvalue, self.clipvalue) for g in grads]
+
         return grads
 
     def get_config(self):
@@ -53,6 +56,9 @@ class SGD(Optimizer):
         super(SGD, self).__init__(**kwargs)
         self.__dict__.update(locals())
         self.iterations = shared_scalar(0)
+        self.lr = shared_scalar(lr)
+        self.momentum = shared_scalar(momentum)
+        self.decay = shared_scalar(decay)
 
     def get_updates(self, params, constraints, loss):
         grads = self.get_gradients(loss, params)
@@ -74,9 +80,9 @@ class SGD(Optimizer):
 
     def get_config(self):
         return {"name": self.__class__.__name__,
-                "lr": self.lr,
-                "momentum": self.momentum,
-                "decay": self.decay,
+                "lr": float(self.lr.get_value()),
+                "momentum": float(self.momentum.get_value()),
+                "decay": float(self.decay.get_value()),
                 "nesterov": self.nesterov}
 
 
@@ -84,6 +90,8 @@ class RMSprop(Optimizer):
     def __init__(self, lr=0.001, rho=0.9, epsilon=1e-6, *args, **kwargs):
         super(RMSprop, self).__init__(**kwargs)
         self.__dict__.update(locals())
+        self.lr = shared_scalar(lr)
+        self.rho = shared_scalar(rho)
 
     def get_updates(self, params, constraints, loss):
         grads = self.get_gradients(loss, params)
@@ -100,8 +108,8 @@ class RMSprop(Optimizer):
 
     def get_config(self):
         return {"name": self.__class__.__name__,
-                "lr": self.lr,
-                "rho": self.rho,
+                "lr": float(self.lr.get_value()),
+                "rho": float(self.rho.get_value()),
                 "epsilon": self.epsilon}
 
 
@@ -109,6 +117,7 @@ class Adagrad(Optimizer):
     def __init__(self, lr=0.01, epsilon=1e-6, *args, **kwargs):
         super(Adagrad, self).__init__(**kwargs)
         self.__dict__.update(locals())
+        self.lr = shared_scalar(lr)
 
     def get_updates(self, params, constraints, loss):
         grads = self.get_gradients(loss, params)
@@ -124,7 +133,7 @@ class Adagrad(Optimizer):
 
     def get_config(self):
         return {"name": self.__class__.__name__,
-                "lr": self.lr,
+                "lr": float(self.lr.get_value()),
                 "epsilon": self.epsilon}
 
 
@@ -135,6 +144,7 @@ class Adadelta(Optimizer):
     def __init__(self, lr=1.0, rho=0.95, epsilon=1e-6, *args, **kwargs):
         super(Adadelta, self).__init__(**kwargs)
         self.__dict__.update(locals())
+        self.lr = shared_scalar(lr)
 
     def get_updates(self, params, constraints, loss):
         grads = self.get_gradients(loss, params)
@@ -142,12 +152,14 @@ class Adadelta(Optimizer):
         delta_accumulators = [shared_zeros(p.get_value().shape) for p in params]
         self.updates = []
 
-        for p, g, a, d_a, c in zip(params, grads, accumulators, delta_accumulators, constraints):
+        for p, g, a, d_a, c in zip(params, grads, accumulators,
+                                   delta_accumulators, constraints):
             new_a = self.rho * a + (1 - self.rho) * g ** 2  # update accumulator
             self.updates.append((a, new_a))
 
             # use the new accumulator and the *old* delta_accumulator
-            update = g * T.sqrt(d_a + self.epsilon) / T.sqrt(new_a + self.epsilon)
+            update = g * T.sqrt(d_a + self.epsilon) / T.sqrt(new_a +
+                                                             self.epsilon)
 
             new_p = p - self.lr * update
             self.updates.append((p, c(new_p)))  # apply constraints
@@ -159,7 +171,7 @@ class Adadelta(Optimizer):
 
     def get_config(self):
         return {"name": self.__class__.__name__,
-                "lr": self.lr,
+                "lr": float(self.lr.get_value()),
                 "rho": self.rho,
                 "epsilon": self.epsilon}
 
@@ -174,6 +186,7 @@ class Adam(Optimizer):
         super(Adam, self).__init__(**kwargs)
         self.__dict__.update(locals())
         self.iterations = shared_scalar(0)
+        self.lr = shared_scalar(lr)
 
     def get_updates(self, params, constraints, loss):
         grads = self.get_gradients(loss, params)
@@ -197,7 +210,7 @@ class Adam(Optimizer):
 
     def get_config(self):
         return {"name": self.__class__.__name__,
-                "lr": self.lr,
+                "lr": float(self.lr.get_value()),
                 "beta_1": self.beta_1,
                 "beta_2": self.beta_2,
                 "epsilon": self.epsilon}
@@ -209,6 +222,7 @@ adagrad = Adagrad
 adadelta = Adadelta
 adam = Adam
 
-from .utils.generic_utils import get_from_module
+
 def get(identifier, kwargs=None):
-    return get_from_module(identifier, globals(), 'optimizer', instantiate=True, kwargs=kwargs)
+    return get_from_module(identifier, globals(), 'optimizer', instantiate=True,
+                           kwargs=kwargs)

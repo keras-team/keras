@@ -27,8 +27,8 @@ model = keras.models.Sequential()
             - __shuffle__: boolean or str (for 'batch'). Whether to shuffle the samples at each epoch. 'batch' is a special option for dealing with the limitations of HDF5 data; it shuffles in batch-sized chunks.
             - __show_accuracy__: boolean. Whether to display class accuracy in the logs to stdout at each epoch.
             - __class_weight__: dictionary mapping classes to a weight value, used for scaling the loss function (during training only).
-            - __sample_weight__: list or numpy array with 1:1 mapping to the training samples, used for scaling the loss function (during training only).
-    - __evaluate__(X, y, batch_size=128, show_accuracy=False, verbose=1): Show performance of the model over some validation data.
+            - __sample_weight__: list or numpy array with 1:1 mapping to the training samples, used for scaling the loss function (during training only). For time-distributed data, there is one weight per sample *per timestep*, i.e. if your output data is shaped `(nb_samples, timesteps, output_dim)`, your mask should be of shape `(nb_samples, timesteps, 1)`. This allows you to mask out or reweight individual output timesteps, which is useful in sequence to sequence learning.
+    - __evaluate__(X, y, batch_size=128, show_accuracy=False, verbose=1, sample_weight=None): Show performance of the model over some validation data.
         - __Return__: The loss score over the data, or a `(loss, accuracy)` tuple if `show_accuracy=True`.
         - __Arguments__: Same meaning as fit method above. verbose is used as a binary flag (progress bar or nothing).
     - __predict__(X, batch_size=128, verbose=1):
@@ -37,9 +37,9 @@ model = keras.models.Sequential()
     - __predict_classes__(X, batch_size=128, verbose=1): Return an array of class predictions for some test data.
         - __Return__: An array of labels for some test data.
         - __Arguments__: Same meaning as fit method above. verbose is used as a binary flag (progress bar or nothing).
-    - __train_on_batch__(X, y, accuracy=False): Single gradient update on one batch.
+    - __train_on_batch__(X, y, accuracy=False, class_weight=None, sample_weight=None): Single gradient update on one batch.
         - __Return__: loss over the data, or tuple `(loss, accuracy)` if `accuracy=True`.
-    - __test_on_batch__(X, y, accuracy=False): Single performance evaluation on one batch.
+    - __test_on_batch__(X, y, accuracy=False, sample_weight=None): Single performance evaluation on one batch.
         - __Return__: loss over the data, or tuple `(loss, accuracy)` if `accuracy=True`.
     - __save_weights__(fname, overwrite=False): Store the weights of all layers to a HDF5 file. If overwrite==False and the file already exists, an exception will be thrown.
     - __load_weights__(fname): Sets the weights of a model, based to weights stored by __save_weights__. You can only __load_weights__ on a savefile from a model with an identical architecture. __load_weights__ can be called either before or after the __compile__ step.
