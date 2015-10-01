@@ -104,6 +104,10 @@ class TestConfigParams(unittest.TestCase):
         layer = core.TimeDistributedDense(10, 10)
         self._runner(layer)
 
+    def test_time_dist_merge(self):
+        layer = core.TimeDistributedMerge()
+        self._runner(layer)
+
     def test_autoencoder(self):
         layer_1 = core.Layer()
         layer_2 = core.Layer()

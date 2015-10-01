@@ -1,9 +1,9 @@
 site_name: Keras Documentation
-#theme: readthedocs
+theme: readthedocs
 docs_dir: sources
 repo_url: http://github.com/fchollet/keras
 site_url: http://keras.io/
-theme_dir: theme
+#theme_dir: theme
 site_description: Documentation for fast and lightweight Keras Deep Learning library.
 
 dev_addr: '0.0.0.0:8000'
@@ -14,6 +14,7 @@ pages:
 - Home: index.md
 - Index: documentation.md
 - Examples: examples.md
+- FAQ: faq.md
 - Optimizers: optimizers.md
 - Objectives: objectives.md
 - Models: models.md

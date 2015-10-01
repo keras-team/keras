@@ -1,7 +1,7 @@
 from __future__ import absolute_import
 from __future__ import print_function
 from keras.datasets import mnist
-from keras.models import Sequential
+from keras.models import Sequential, model_from_config
 from keras.layers.core import AutoEncoder, Dense, Activation, TimeDistributedDense, Flatten
 from keras.layers.recurrent import LSTM
 from keras.layers.embeddings import Embedding
@@ -57,6 +57,7 @@ print('\nclassical_score:', classical_score)
 # autoencoder model test #
 ##########################
 
+
 def build_lstm_autoencoder(autoencoder, X_train, X_test):
     X_train = X_train[:, np.newaxis, :]
     X_test = X_test[:, np.newaxis, :]
@@ -95,7 +96,6 @@ for autoencoder_type in ['classical', 'lstm']:
         print("Error: unknown autoencoder type!")
         exit(-1)
 
-    autoencoder.get_config(verbose=1)
     autoencoder.compile(loss='mean_squared_error', optimizer='adam')
     # Do NOT use validation data with return output_reconstruction=True
     autoencoder.fit(X_train, X_train, batch_size=batch_size, nb_epoch=nb_epoch, show_accuracy=False, verbose=1)
@@ -128,3 +128,7 @@ for autoencoder_type in ['classical', 'lstm']:
 
     print('Loss change:', (score[0] - classical_score[0])/classical_score[0], '%')
     print('Accuracy change:', (score[1] - classical_score[1])/classical_score[1], '%')
+
+    # check serialization
+    config = autoencoder.get_config(verbose=1)
+    autoencoder = model_from_config(config)

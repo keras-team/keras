@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 import gzip
 from .data_utils import get_file
-import six.moves.cPickle
+from six.moves import cPickle
 import sys
 
 
@@ -14,9 +14,9 @@ def load_data(path="mnist.pkl.gz"):
         f = open(path, 'rb')
 
     if sys.version_info < (3,):
-        data = six.moves.cPickle.load(f)
+        data = cPickle.load(f)
     else:
-        data = six.moves.cPickle.load(f, encoding="bytes")
+        data = cPickle.load(f, encoding="bytes")
 
     f.close()
 

@@ -1,6 +1,7 @@
 from __future__ import absolute_import
 
 import numpy as np
+import re
 from scipy import ndimage
 from scipy import linalg
 
@@ -103,7 +104,7 @@ def img_to_array(img):
 
 def load_img(path, grayscale=False):
     from PIL import Image
-    img = Image.open(open(path))
+    img = Image.open(path)
     if grayscale:
         img = img.convert('L')
     else: # Assure 3 channel even when loaded image is grayscale

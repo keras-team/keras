@@ -1,5 +1,5 @@
 from __future__ import absolute_import
-import six.moves.cPickle
+from six.moves import cPickle
 import gzip
 from .data_utils import get_file
 import random
@@ -17,7 +17,7 @@ def load_data(path="imdb.pkl", nb_words=None, skip_top=0, maxlen=None, test_spli
     else:
         f = open(path, 'rb')
 
-    X, labels = six.moves.cPickle.load(f)
+    X, labels = cPickle.load(f)
     f.close()
 
     np.random.seed(seed)
