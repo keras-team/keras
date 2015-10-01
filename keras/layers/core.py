@@ -343,7 +343,9 @@ class Reshape(Layer):
     '''
     def __init__(self, *dims):
         super(Reshape, self).__init__()
-        self.dims = dims
+        if type(dims[0]) in [list, tuple]:
+            dims = dims[0]
+        self.dims = tuple(dims)
 
     def get_output(self, train=False):
         X = self.get_input(train)
@@ -361,7 +363,7 @@ class Permute(Layer):
     '''
     def __init__(self, dims):
         super(Permute, self).__init__()
-        self.dims = dims
+        self.dims = tuple(dims)
 
     def get_output(self, train):
         X = self.get_input(train)
