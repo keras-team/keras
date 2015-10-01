@@ -6,6 +6,8 @@ from keras.models import Sequential
 from keras.layers.core import Dense, Dropout, Activation, Flatten
 from keras.layers.convolutional import Convolution2D, MaxPooling2D
 from keras.optimizers import SGD, Adadelta, Adagrad
+from keras.schedules import TriangularLearningRate
+from keras.callbacks import BaseLogger, LearningRateScheduler
 from keras.utils import np_utils, generic_utils
 from six.moves import range
 
@@ -26,7 +28,7 @@ from six.moves import range
 batch_size = 32
 nb_classes = 10
 nb_epoch = 200
-data_augmentation = True
+data_augmentation = False
 
 # shape of the image (SHAPE x SHAPE)
 shapex, shapey = 32, 32
@@ -86,7 +88,12 @@ if not data_augmentation:
     X_test = X_test.astype("float32")
     X_train /= 255
     X_test /= 255
-    model.fit(X_train, Y_train, batch_size=batch_size, nb_epoch=nb_epoch)
+
+    logger = BaseLogger()
+    schedule = TriangularLearningRate(lr=0.001, step_size=500, max_lr=0.01)
+    lrs = LearningRateScheduler(schedule, mode='batch', logger=logger)
+
+    model.fit(X_train, Y_train, batch_size=batch_size, nb_epoch=nb_epoch, callbacks=[logger, lrs], show_accuracy=True)
     score = model.evaluate(X_test, Y_test, batch_size=batch_size)
     print('Test score:', score)
 
