@@ -5,9 +5,9 @@ import sys
 import six
 
 
-def get_from_module(identifier, module_params, module_name, instantiate=False, kwargs=None):
+def get_from_module(identifier, module_params, module_name, instantiate=False, kwargs=None, custom_layers={}):
     if isinstance(identifier, six.string_types):
-        res = module_params.get(identifier)
+        res = module_params.get(identifier, custom_layers.get(identifier))
         if not res:
             raise Exception('Invalid ' + str(module_name) + ': ' + str(identifier))
         if instantiate and not kwargs:
