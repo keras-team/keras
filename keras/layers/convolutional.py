@@ -30,7 +30,7 @@ class Convolution1D(Layer):
         self.subsample_length = subsample_length
         self.init = initializations.get(init)
         self.activation = activations.get(activation)
-        self.subsample = (1, subsample_length)
+        self.subsample = (subsample_length, 1)
         self.border_mode = border_mode
 
         self.input = T.tensor3()
