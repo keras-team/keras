@@ -185,13 +185,15 @@ class ModelCheckpoint(Callback):
     def on_epoch_end(self, epoch, logs={}):
         if self.save_best_only:
             current = logs.get(self.monitor)
+            if self.monitor == 'val_acc':
+                current = -current
             if current is None:
                 warnings.warn("Can save best model only with %s available, skipping." % (self.monitor), RuntimeWarning)
             else:
                 if current < self.best:
                     if self.verbose > 0:
                         print("Epoch %05d: %s improved from %0.5f to %0.5f, saving model to %s"
-                              % (epoch, self.monitor, self.best, current, self.filepath))
+                              % (epoch, self.monitor, np.abs(self.best), np.abs(current), self.filepath))
                     self.best = current
                     self.model.save_weights(self.filepath, overwrite=True)
                 else:
@@ -215,6 +217,8 @@ class EarlyStopping(Callback):
 
     def on_epoch_end(self, epoch, logs={}):
         current = logs.get(self.monitor)
+        if self.monitor == 'val_acc':
+            current = -current
         if current is None:
             warnings.warn("Early stopping requires %s available!" % (self.monitor), RuntimeWarning)
 
