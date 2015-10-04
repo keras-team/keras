@@ -346,26 +346,87 @@ class UpSample2D(Layer):
                 "size": self.size}
 
 
-class ZeroPadding2D(Layer):
-    def __init__(self, pad=(1, 1)):
+class ZeroPadding1D(Layer):
+    """Zero-padding layer for 1D input (e.g. temporal sequence).
+
+    Input shape
+    -----------
+    3D tensor with shape (samples, axis_to_pad, features)
+
+    Output shape
+    ------------
+    3D tensor with shape (samples, padded_axis, features)
+
+    Arguments
+    ---------
+    padding: int
+        How many zeros to add at the beginning and end of
+        the padding dimension (axis 1).
+    """
+    def __init__(self, padding=1):
         super(ZeroPadding2D, self).__init__()
-        self.pad = tuple(pad)
+        self.padding = padding
         self.input = T.tensor4()
 
     @property
     def output_shape(self):
         input_shape = self.input_shape
-        return (input_shape[0], input_shape[1], input_shape[2] + 2 * self.pad[0], input_shape[3] + 2 * self.pad[1])
+        return (input_shape[0], input_shape[1] + self.padding * 2, input_shape[2])
 
     def get_output(self, train=False):
         X = self.get_input(train)
-        pad = self.pad
-        in_shape = X.shape
-        out_shape = (in_shape[0], in_shape[1], in_shape[2] + 2 * pad[0], in_shape[3] + 2 * pad[1])
+        output = T.zeros(self.output_shape)
+        return T.set_subtensor(output[:, self.padding:X.shape[1]+self.padding, :], X)
+
+    def get_config(self):
+        return {"name": self.__class__.__name__,
+                "padding": self.padding}
+
+
+class ZeroPadding2D(Layer):
+    """Zero-padding layer for 1D input (e.g. temporal sequence).
+
+    Input shape
+    -----------
+    4D tensor with shape (samples, depth, first_axis_to_pad, second_axis_to_pad)
+
+    Output shape
+    ------------
+    4D tensor with shape (samples, depth, first_padded_axis, second_padded_axis)
+
+    Arguments
+    ---------
+    padding: tuple of int (length 2)
+        How many zeros to add at the beginning and end of
+        the 2 padding dimensions (axis 3 and 4).
+    """
+    def __init__(self, padding=(1, 1)):
+        super(ZeroPadding2D, self).__init__()
+        self.padding = tuple(padding)
+        self.input = T.tensor4()
+
+    @property
+    def output_shape(self):
+        input_shape = self.input_shape
+        return (input_shape[0],
+                input_shape[1],
+                input_shape[2] + 2 * self.padding[0],
+                input_shape[3] + 2 * self.padding[1])
+
+    def get_output(self, train=False):
+        X = self.get_input(train)
+        input_shape = X.shape
+        out_shape = (input_shape[0],
+                     input_shape[1],
+                     input_shape[2] + 2 * self.padding[0],
+                     input_shape[3] + 2 * self.padding[1])
         out = T.zeros(out_shape)
-        indices = (slice(None), slice(None), slice(pad[0], in_shape[2] + pad[0]), slice(pad[1], in_shape[3] + pad[1]))
+        indices = (slice(None),
+                   slice(None),
+                   slice(pad[0], input_shape[2] + self.padding[0]),
+                   slice(pad[1], input_shape[3] + self.padding[1]))
         return T.set_subtensor(out[indices], X)
 
     def get_config(self):
         return {"name": self.__class__.__name__,
-                "pad": self.pad}
+                "padding": self.padding}
