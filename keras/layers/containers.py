@@ -45,6 +45,10 @@ class Sequential(Layer):
         self.constraints += constraints
         self.updates += updates
 
+    @property
+    def output_shape(self):
+        return self.layers[-1].output_shape
+
     def get_output(self, train=False):
         return self.layers[-1].get_output(train)
 
@@ -82,6 +86,7 @@ class Sequential(Layer):
 
     def count_params(self):
         return sum([layer.count_params() for layer in self.layers])
+
 
 class Graph(Layer):
     '''
@@ -146,6 +151,15 @@ class Graph(Layer):
     @property
     def input(self):
         return self.get_input()
+
+    @property
+    def output_shape(self):
+        if self.nb_output == 1:
+            # return tuple
+            return self.outputs[self.output_order[0]].output_shape
+        else:
+            # return dictionary mapping output names to shape tuples
+            return dict([(k, v.output_shape) for k, v in self.outputs.items()])
 
     def get_output(self, train=False):
         if len(self.inputs) == len(self.outputs) == 1:

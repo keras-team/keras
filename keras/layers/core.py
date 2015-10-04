@@ -6,6 +6,7 @@ import theano.tensor as T
 import numpy as np
 
 from collections import OrderedDict
+import copy
 
 from .. import activations, initializations, regularizers, constraints
 from ..utils.theano_utils import shared_zeros, floatX
@@ -37,14 +38,33 @@ class Layer(object):
     def nb_output(self):
         return 1
 
+    @property
+    def input_shape(self):
+        # if layer is not connected (e.g. input layer),
+        # input shape can be set manually via _input_shape attribute.
+        if hasattr(self, 'previous'):
+            return self.previous.output_shape
+        elif hasattr(self, '_input_shape'):
+            return self._input_shape
+        else:
+            raise NotImplementedError
+
+    @property
+    def output_shape(self):
+        # default assumption: tensor shape unchanged.
+        return self.input_shape
+
     def get_output(self, train=False):
         return self.get_input(train)
 
     def get_input(self, train=False):
         if hasattr(self, 'previous'):
             return self.previous.get_output(train=train)
-        else:
+        elif hasattr(self, 'input'):
             return self.input
+        else:
+            raise Exception('Layer is not connected\
+                and is not an input layer.')
 
     def supports_masked_input(self):
         ''' Whether or not this layer respects the output mask of its previous layer in its calculations. If you try
@@ -115,6 +135,7 @@ class Layer(object):
     def count_params(self):
         return sum([np.prod(p.shape.eval()) for p in self.params])
 
+
 class MaskedLayer(Layer):
     '''
     If your layer trivially supports masking (by simply copying the input mask to the output), then subclass MaskedLayer
@@ -163,19 +184,24 @@ class Masking(MaskedLayer):
         return {"name": self.__class__.__name__,
                 "mask_value": self.mask_value}
 
+
 class TimeDistributedMerge(Layer):
+    '''Sum/multiply/average over the outputs of a TimeDistributed layer.
+
+    mode: {'sum', 'mul', 'ave'}
+    Tensor input dimensions:   (nb_sample, time, features)
+    Tensor output dimensions:  (nb_sample, features)
+    '''
     def __init__(self, mode='sum'):
-        '''
-        Sum/multiply/avearge over a time distributed layer's outputs.
-        mode: {'sum', 'mul', 'ave'}
-        Tensor input dimensions:   (nb_sample, shared_dimension, input_dim)
-        Tensor output dimensions:  (nb_sample, output_dim)
-        '''
         self.mode = mode
         self.params = []
         self.regularizers = []
         self.constraints = []
         self.updates = []
+
+    @property
+    def output_shape(self):
+        return (None, self.input_shape[2])
 
     def get_output(self, train=False):
         X = self.get_input(train)
@@ -202,6 +228,8 @@ class Merge(Layer):
         '''
         if len(layers) < 2:
             raise Exception("Please specify two or more input layers (or containers) to merge")
+        if mode not in {'sum', 'mul', 'concat', 'ave'}:
+            raise Exception("Invalid merge mode: " + str(mode))
         self.mode = mode
         self.concat_axis = concat_axis
         self.layers = layers
@@ -218,6 +246,17 @@ class Merge(Layer):
                 if p not in self.params:
                     self.params.append(p)
                     self.constraints.append(c)
+
+    @property
+    def output_shape(self):
+        input_shapes = [layer.output_shape for layer in self.layers]
+        if self.mode in ['sum', 'mul', 'ave']:
+            return input_shapes[0]
+        elif self.mode == 'concat':
+            output_shape = list(input_shapes[0])
+            for shape in input_shapes[1:]:
+                output_shape[self.concat_axis] += shape[concat_axis]
+            return tuple(output_shape)
 
     def get_params(self):
         return self.params, self.regularizers, self.constraints, self.updates
@@ -347,6 +386,10 @@ class Reshape(Layer):
             dims = dims[0]
         self.dims = tuple(dims)
 
+    @property
+    def output_shape(self):
+        return make_tuple(self.input_shape[0], *self.dims)
+
     def get_output(self, train=False):
         X = self.get_input(train)
         nshape = make_tuple(X.shape[0], *self.dims)
@@ -359,13 +402,22 @@ class Reshape(Layer):
 
 class Permute(Layer):
     '''
-        Permute the dimensions of the data according to the given tuple
+        Permute the dimensions of the input according to the given tuple.
     '''
     def __init__(self, dims):
         super(Permute, self).__init__()
         self.dims = tuple(dims)
 
-    def get_output(self, train):
+    @property
+    def output_shape(self):
+        input_shape = list(self.input_shape)
+        output_shape = copy.copy(input_shape)
+        for i, dim in enumerate(self.dims):
+            target_dim = input_shape[dim]
+            output_shape[i+1] = target_dim
+        return tuple(output_shape)
+
+    def get_output(self, train=False):
         X = self.get_input(train)
         return X.dimshuffle((0,) + self.dims)
 
@@ -381,6 +433,11 @@ class Flatten(Layer):
     '''
     def __init__(self):
         super(Flatten, self).__init__()
+
+    @property
+    def output_shape(self):
+        input_shape = self.input_shape
+        return (input_shape[0], np.prod(input_shape[1:]))
 
     def get_output(self, train=False):
         X = self.get_input(train)
@@ -399,6 +456,11 @@ class RepeatVector(Layer):
     def __init__(self, n):
         super(RepeatVector, self).__init__()
         self.n = n
+
+    @property
+    def output_shape(self):
+        input_shape = self.input_shape
+        return (input_shape[0], self.n, input_shape[1])
 
     def get_output(self, train=False):
         X = self.get_input(train)
@@ -461,6 +523,10 @@ class Dense(Layer):
         self.W.name = '%s_W' % name
         self.b.name = '%s_b' % name
 
+    @property
+    def output_shape(self):
+        return (self.input_shape[0], self.output_dim)
+
     def get_output(self, train=False):
         X = self.get_input(train)
         output = self.activation(T.dot(X, self.W) + self.b)
@@ -504,10 +570,10 @@ class ActivityRegularization(Layer):
 
 class TimeDistributedDense(MaskedLayer):
     '''
-       Apply a same DenseLayer for each dimension[1] (shared_dimension) input
-       Especially useful after a recurrent network with 'return_sequence=True'
-       Tensor input dimensions:   (nb_sample, shared_dimension, input_dim)
-       Tensor output dimensions:  (nb_sample, shared_dimension, output_dim)
+       Apply a same Dense layer for each dimension[1] (time_dimension) input.
+       Especially useful after a recurrent network with 'return_sequence=True'.
+       Tensor input dimensions:   (nb_sample, time_dimension, input_dim)
+       Tensor output dimensions:  (nb_sample, time_dimension, output_dim)
 
     '''
     def __init__(self, input_dim, output_dim, init='glorot_uniform', activation='linear', weights=None,
@@ -550,6 +616,11 @@ class TimeDistributedDense(MaskedLayer):
         if weights is not None:
             self.set_weights(weights)
 
+    @property
+    def output_shape(self):
+        input_shape = self.input_shape
+        return (input_shape[0], input_shape[1], self.output_dim)
+
     def get_output(self, train=False):
         X = self.get_input(train)
         output = self.activation(T.dot(X.dimshuffle(1, 0, 2), self.W) + self.b)
@@ -569,10 +640,14 @@ class TimeDistributedDense(MaskedLayer):
 
 
 class AutoEncoder(Layer):
-    '''
-        A customizable autoencoder model.
-        If output_reconstruction then dim(input) = dim(output)
-        else dim(output) = dim(hidden)
+    '''A customizable autoencoder model.
+
+    Tensor input dimensions: same as encoder input
+    Tensor output dimensions:
+        if output_reconstruction:
+            same as encoder output
+        else:
+            same as decoder output
     '''
     def __init__(self, encoder, decoder, output_reconstruction=True, weights=None):
 
@@ -623,6 +698,17 @@ class AutoEncoder(Layer):
 
     def _get_hidden(self, train=False):
         return self.encoder.get_output(train)
+
+    @property
+    def input_shape(self):
+        self.encoder.previous.output_shape
+
+    @property
+    def output_shape(self):
+        if self.output_reconstruction:
+            return self.encoder.previous.output_shape
+        else:
+            return self.decoder.previous.output_shape
 
     def get_output(self, train=False):
         if not train and not self.output_reconstruction:
@@ -681,6 +767,10 @@ class MaxoutDense(Layer):
 
         if weights is not None:
             self.set_weights(weights)
+
+    @property
+    def output_shape(self):
+        return (self.input_shape[0], self.output_dim)
 
     def get_output(self, train=False):
         X = self.get_input(train)
