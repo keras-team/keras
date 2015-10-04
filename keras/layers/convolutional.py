@@ -263,8 +263,6 @@ class MaxPooling1D(Layer):
         super(MaxPooling1D, self).__init__()
         if stride is None:
             stride = pool_length
-        if type(stride) not stride:
-            raise Exception('"stride" argument in MaxPooling1D should be an int > 0.')
         self.pool_length = pool_length
         self.stride = stride
         self.st = (self.stride, 1)
