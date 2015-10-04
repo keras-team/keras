@@ -220,9 +220,9 @@ class Convolution2D(Layer):
                                           border_mode=border_mode,
                                           subsample=self.subsample)
             if self.border_mode == 'same':
-                    shift_x = (self.nb_row - 1) // 2
-                    shift_y = (self.nb_col - 1) // 2
-                    conv_out = conv_out[:, :, shift_x:X.shape[2] + shift_x, shift_y:X.shape[3] + shift_y]
+                shift_x = (self.nb_row - 1) // 2
+                shift_y = (self.nb_col - 1) // 2
+                conv_out = conv_out[:, :, shift_x:X.shape[2] + shift_x, shift_y:X.shape[3] + shift_y]
 
         return self.activation(conv_out + self.b.dimshuffle('x', 0, 'x', 'x'))
 

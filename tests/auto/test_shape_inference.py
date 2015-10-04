@@ -76,9 +76,6 @@ class TestShapeInference(unittest.TestCase):
                     if (subsample[0] > 1 or subsample[1] > 1) and border_mode == 'same':
                         continue
                     for input_data_shape in [(2, 1, 3, 3), (2, 1, 4, 4)]:
-                        print 'border_mode:', border_mode
-                        print 'subsample:', subsample
-                        print 'input_data_shape:', input_data_shape
                         layer = Convolution2D(nb_filter=1, stack_size=1, nb_row=nb_row, nb_col=nb_row,
                                               border_mode=border_mode, subsample=subsample)
                         input_data = np.random.random(input_data_shape)
