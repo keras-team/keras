@@ -259,7 +259,7 @@ class Convolution2D(Layer):
 
 
 class MaxPooling1D(Layer):
-    def __init__(self, pool_length=2, stride=1, ignore_border=True):
+    def __init__(self, pool_length=2, stride=None, ignore_border=True):
         super(MaxPooling1D, self).__init__()
         if stride is None:
             stride = pool_length
@@ -294,7 +294,7 @@ class MaxPooling1D(Layer):
 
 
 class MaxPooling2D(Layer):
-    def __init__(self, poolsize=(2, 2), stride=(2, 2), ignore_border=True):
+    def __init__(self, poolsize=(2, 2), stride=None, ignore_border=True):
         super(MaxPooling2D, self).__init__()
         self.input = T.tensor4()
         self.poolsize = tuple(poolsize)
