@@ -16,13 +16,16 @@ class BatchNormalization(Layer):
 
             momentum: momentum term in the computation of a running estimate of the mean and std of the data
     '''
-    def __init__(self, input_shape, epsilon=1e-6, mode=0, momentum=0.9, weights=None, **kwargs):
-        super(BatchNormalization, self).__init__(**kwargs)
+    def __init__(self, epsilon=1e-6, mode=0, momentum=0.9, weights=None, **kwargs):
         self.init = initializations.get("uniform")
-        self._input_shape = input_shape
         self.epsilon = epsilon
         self.mode = mode
         self.momentum = momentum
+        super(BatchNormalization, self).__init__(**kwargs)
+
+    def build(self):
+        input_shape = self.input_shape  # starts with samples axis
+        input_shape = input_shape[1:]
         self.input = ndim_tensor(len(input_shape) + 1)
 
         self.gamma = self.init((input_shape))
@@ -66,9 +69,9 @@ class BatchNormalization(Layer):
 
     def get_config(self):
         return {"name": self.__class__.__name__,
-                "input_shape": self._input_shape,
                 "epsilon": self.epsilon,
-                "mode": self.mode}
+                "mode": self.mode,
+                "momentum": self.momentum}
 
 
 class LRN2D(Layer):

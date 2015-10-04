@@ -31,6 +31,16 @@ class Layer(object):
         if not self.supports_masked_input() and layer.get_output_mask() is not None:
             raise Exception("Cannot connect non-masking layer to layer with masked output")
         self.previous = layer
+        self.build()
+
+    def build(self):
+        '''Instantiation of layer weights.
+
+        Called after `set_previous`, or after `set_input_shape`,
+        once the layer has a defined input shape.
+        Must be implemented on all layers that have weights.
+        '''
+        pass
 
     @property
     def nb_input(self):
@@ -49,7 +59,7 @@ class Layer(object):
         elif hasattr(self, '_input_shape'):
             return self._input_shape
         else:
-            raise NotImplementedError
+            raise Exception('Layer is not connected.')
 
     def set_input_shape(self, input_shape):
         if type(input_shape) not in [tuple, list]:
@@ -61,6 +71,7 @@ class Layer(object):
                                 str(self.input_ndim) + ', was provided with input shape ' + str(input_shape))
         self._input_shape = input_shape
         self.input = ndim_tensor(len(self._input_shape))
+        self.build()
 
     @property
     def output_shape(self):
@@ -102,6 +113,7 @@ class Layer(object):
         return None
 
     def set_weights(self, weights):
+        assert len(self.params) == len(weights), 'Provided weight array does not match layer weights.'
         for p, w in zip(self.params, weights):
             if p.eval().shape != w.shape:
                 raise Exception("Layer shape %s not compatible with weight shape %s." % (p.eval().shape, w.shape))
@@ -493,51 +505,49 @@ class Dense(Layer):
     '''
     input_ndim = 2
 
-    def __init__(self, input_dim, output_dim, init='glorot_uniform', activation='linear', weights=None, name=None,
+    def __init__(self, output_dim, init='glorot_uniform', activation='linear', weights=None,
                  W_regularizer=None, b_regularizer=None, activity_regularizer=None,
                  W_constraint=None, b_constraint=None, **kwargs):
-
-        super(Dense, self).__init__(**kwargs)
         self.init = initializations.get(init)
         self.activation = activations.get(activation)
-        self.input_dim = input_dim
         self.output_dim = output_dim
 
-        self.input = T.matrix()
-        self.W = self.init((self.input_dim, self.output_dim))
-        self.b = shared_zeros((self.output_dim))
-
-        self.params = [self.W, self.b]
-
-        self.regularizers = []
         self.W_regularizer = regularizers.get(W_regularizer)
-        if self.W_regularizer:
-            self.W_regularizer.set_param(self.W)
-            self.regularizers.append(self.W_regularizer)
-
         self.b_regularizer = regularizers.get(b_regularizer)
-        if self.b_regularizer:
-            self.b_regularizer.set_param(self.b)
-            self.regularizers.append(self.b_regularizer)
-
         self.activity_regularizer = regularizers.get(activity_regularizer)
-        if self.activity_regularizer:
-            self.activity_regularizer.set_layer(self)
-            self.regularizers.append(self.activity_regularizer)
 
         self.W_constraint = constraints.get(W_constraint)
         self.b_constraint = constraints.get(b_constraint)
         self.constraints = [self.W_constraint, self.b_constraint]
 
-        if weights is not None:
-            self.set_weights(weights)
+        self.initial_weights = weights
+        super(Dense, self).__init__(**kwargs)
 
-        if name is not None:
-            self.set_name(name)
+    def build(self):
+        input_dim = self.input_shape[1]
 
-    def set_name(self, name):
-        self.W.name = '%s_W' % name
-        self.b.name = '%s_b' % name
+        self.input = T.matrix()
+        self.W = self.init((input_dim, self.output_dim))
+        self.b = shared_zeros((self.output_dim))
+
+        self.params = [self.W, self.b]
+
+        self.regularizers = []
+        if self.W_regularizer:
+            self.W_regularizer.set_param(self.W)
+            self.regularizers.append(self.W_regularizer)
+
+        if self.b_regularizer:
+            self.b_regularizer.set_param(self.b)
+            self.regularizers.append(self.b_regularizer)
+
+        if self.activity_regularizer:
+            self.activity_regularizer.set_layer(self)
+            self.regularizers.append(self.activity_regularizer)
+
+        if self.initial_weights is not None:
+            self.set_weights(self.initial_weights)
+            del self.initial_weights
 
     @property
     def output_shape(self):
@@ -550,7 +560,6 @@ class Dense(Layer):
 
     def get_config(self):
         return {"name": self.__class__.__name__,
-                "input_dim": self.input_dim,
                 "output_dim": self.output_dim,
                 "init": self.init.__name__,
                 "activation": self.activation.__name__,
@@ -594,45 +603,49 @@ class TimeDistributedDense(MaskedLayer):
     '''
     input_ndim = 3
 
-    def __init__(self, input_dim, output_dim, init='glorot_uniform', activation='linear', weights=None,
+    def __init__(self, output_dim, init='glorot_uniform', activation='linear', weights=None,
                  W_regularizer=None, b_regularizer=None, activity_regularizer=None,
                  W_constraint=None, b_constraint=None, **kwargs):
-
-        super(TimeDistributedDense, self).__init__(**kwargs)
+        self.output_dim = output_dim
         self.init = initializations.get(init)
         self.activation = activations.get(activation)
-        self.input_dim = input_dim
-        self.output_dim = output_dim
-
-        self.input = T.tensor3()
-        self.W = self.init((self.input_dim, self.output_dim))
-        self.b = shared_zeros((self.output_dim))
-
-        self.params = [self.W, self.b]
-
-        self.regularizers = []
 
         self.W_regularizer = regularizers.get(W_regularizer)
-        if self.W_regularizer:
-            self.W_regularizer.set_param(self.W)
-            self.regularizers.append(self.W_regularizer)
-
         self.b_regularizer = regularizers.get(b_regularizer)
-        if self.b_regularizer:
-            self.b_regularizer.set_param(self.b)
-            self.regularizers.append(self.b_regularizer)
-
         self.activity_regularizer = regularizers.get(activity_regularizer)
-        if self.activity_regularizer:
-            self.activity_regularizer.set_layer(self)
-            self.regularizers.append(self.activity_regularizer)
 
         self.W_constraint = constraints.get(W_constraint)
         self.b_constraint = constraints.get(b_constraint)
         self.constraints = [self.W_constraint, self.b_constraint]
 
-        if weights is not None:
-            self.set_weights(weights)
+        self.initial_weights = weights
+        super(TimeDistributedDense, self).__init__(**kwargs)
+
+    def build(self):
+        input_dim = self.input_shape[1]
+
+        self.input = T.tensor3()
+        self.W = self.init((input_dim, self.output_dim))
+        self.b = shared_zeros((self.output_dim))
+
+        self.params = [self.W, self.b]
+        self.regularizers = []
+
+        if self.W_regularizer:
+            self.W_regularizer.set_param(self.W)
+            self.regularizers.append(self.W_regularizer)
+
+        if self.b_regularizer:
+            self.b_regularizer.set_param(self.b)
+            self.regularizers.append(self.b_regularizer)
+
+        if self.activity_regularizer:
+            self.activity_regularizer.set_layer(self)
+            self.regularizers.append(self.activity_regularizer)
+
+        if self.initial_weights is not None:
+            self.set_weights(self.initial_weights)
+            del self.initial_weights
 
     @property
     def output_shape(self):
@@ -646,7 +659,6 @@ class TimeDistributedDense(MaskedLayer):
 
     def get_config(self):
         return {"name": self.__class__.__name__,
-                "input_dim": self.input_dim,
                 "output_dim": self.output_dim,
                 "init": self.init.__name__,
                 "activation": self.activation.__name__,
@@ -747,45 +759,49 @@ class MaxoutDense(Layer):
     '''
     input_ndim = 2
 
-    def __init__(self, input_dim, output_dim, nb_feature=4, init='glorot_uniform', weights=None,
+    def __init__(self, output_dim, nb_feature=4, init='glorot_uniform', weights=None,
                  W_regularizer=None, b_regularizer=None, activity_regularizer=None,
                  W_constraint=None, b_constraint=None, **kwargs):
-
-        super(MaxoutDense, self).__init__(**kwargs)
-        self.init = initializations.get(init)
-        self.input_dim = input_dim
         self.output_dim = output_dim
         self.nb_feature = nb_feature
-
-        self.input = T.matrix()
-        self.W = self.init((self.nb_feature, self.input_dim, self.output_dim))
-        self.b = shared_zeros((self.nb_feature, self.output_dim))
-
-        self.params = [self.W, self.b]
-
-        self.regularizers = []
+        self.init = initializations.get(init)
 
         self.W_regularizer = regularizers.get(W_regularizer)
-        if self.W_regularizer:
-            self.W_regularizer.set_param(self.W)
-            self.regularizers.append(self.W_regularizer)
-
         self.b_regularizer = regularizers.get(b_regularizer)
-        if self.b_regularizer:
-            self.b_regularizer.set_param(self.b)
-            self.regularizers.append(self.b_regularizer)
-
         self.activity_regularizer = regularizers.get(activity_regularizer)
-        if self.activity_regularizer:
-            self.activity_regularizer.set_layer(self)
-            self.regularizers.append(self.activity_regularizer)
 
         self.W_constraint = constraints.get(W_constraint)
         self.b_constraint = constraints.get(b_constraint)
         self.constraints = [self.W_constraint, self.b_constraint]
 
-        if weights is not None:
-            self.set_weights(weights)
+        self.initial_weights = weights
+        super(MaxoutDense, self).__init__(**kwargs)
+
+    def build(self):
+        input_dim = self.input_shape[1]
+
+        self.input = T.matrix()
+        self.W = self.init((self.nb_feature, input_dim, self.output_dim))
+        self.b = shared_zeros((self.nb_feature, self.output_dim))
+
+        self.params = [self.W, self.b]
+        self.regularizers = []
+
+        if self.W_regularizer:
+            self.W_regularizer.set_param(self.W)
+            self.regularizers.append(self.W_regularizer)
+
+        if self.b_regularizer:
+            self.b_regularizer.set_param(self.b)
+            self.regularizers.append(self.b_regularizer)
+
+        if self.activity_regularizer:
+            self.activity_regularizer.set_layer(self)
+            self.regularizers.append(self.activity_regularizer)
+
+        if self.initial_weights is not None:
+            self.set_weights(self.initial_weights)
+            del self.initial_weights
 
     @property
     def output_shape(self):
@@ -799,7 +815,6 @@ class MaxoutDense(Layer):
 
     def get_config(self):
         return {"name": self.__class__.__name__,
-                "input_dim": self.input_dim,
                 "output_dim": self.output_dim,
                 "init": self.init.__name__,
                 "nb_feature": self.nb_feature,
