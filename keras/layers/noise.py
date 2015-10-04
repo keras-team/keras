@@ -10,8 +10,8 @@ class GaussianNoise(MaskedLayer):
     '''
         Corruption process with GaussianNoise
     '''
-    def __init__(self, sigma):
-        super(GaussianNoise, self).__init__()
+    def __init__(self, sigma, **kwargs):
+        super(GaussianNoise, self).__init__(**kwargs)
         self.sigma = sigma
         self.srng = RandomStreams(seed=np.random.randint(10e6))
 
@@ -36,8 +36,8 @@ class GaussianDropout(MaskedLayer):
             Srivastava, Hinton, et al. 2014
             http://www.cs.toronto.edu/~rsalakhu/papers/srivastava14a.pdf
     '''
-    def __init__(self, p):
-        super(GaussianDropout, self).__init__()
+    def __init__(self, p, **kwargs):
+        super(GaussianDropout, self).__init__(**kwargs)
         self.p = p
         self.srng = RandomStreams(seed=np.random.randint(10e6))
 

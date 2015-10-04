@@ -9,7 +9,7 @@ from collections import OrderedDict
 import copy
 
 from .. import activations, initializations, regularizers, constraints
-from ..utils.theano_utils import shared_zeros, floatX
+from ..utils.theano_utils import shared_zeros, floatX, ndim_tensor
 from ..utils.generic_utils import make_tuple
 from ..regularizers import ActivityRegularizer, Regularizer
 
@@ -18,7 +18,9 @@ from six.moves import zip
 
 
 class Layer(object):
-    def __init__(self):
+    def __init__(self, **kwargs):
+        if 'input_shape' in kwargs:
+            self.set_input_shape(kwargs['input_shape'])
         self.params = []
 
     def init_updates(self):
@@ -50,7 +52,15 @@ class Layer(object):
             raise NotImplementedError
 
     def set_input_shape(self, input_shape):
+        if type(input_shape) not in [tuple, list]:
+            raise Exception('Invalid input shape - input_shape should be a tuple of int.')
+        input_shape = (None,) + tuple(input_shape)
+        if hasattr(self, 'input_ndim') and self.input_ndim:
+            if self.input_ndim != len(input_shape):
+                raise Exception('Invalid input shape - Layer expects input ndim=' +
+                                str(self.input_ndim) + ', was provided with input shape ' + str(input_shape))
         self._input_shape = input_shape
+        self.input = ndim_tensor(len(self._input_shape))
 
     @property
     def output_shape(self):
@@ -170,8 +180,8 @@ class Masking(MaskedLayer):
     otherwise it is 1.
 
     """
-    def __init__(self, mask_value=0.):
-        super(Masking, self).__init__()
+    def __init__(self, mask_value=0., **kwargs):
+        super(Masking, self).__init__(**kwargs)
         self.mask_value = mask_value
         self.input = T.tensor3()
 
@@ -195,7 +205,10 @@ class TimeDistributedMerge(Layer):
     Tensor input dimensions:   (nb_sample, time, features)
     Tensor output dimensions:  (nb_sample, features)
     '''
-    def __init__(self, mode='sum'):
+    input_ndim = 3
+
+    def __init__(self, mode='sum', **kwargs):
+        super(TimeDistributedMerge, self).__init__(**kwargs)
         self.mode = mode
         self.params = []
         self.regularizers = []
@@ -336,8 +349,8 @@ class Dropout(MaskedLayer):
     '''
         Hinton's dropout.
     '''
-    def __init__(self, p):
-        super(Dropout, self).__init__()
+    def __init__(self, p, **kwargs):
+        super(Dropout, self).__init__(**kwargs)
         self.p = p
         self.srng = RandomStreams(seed=np.random.randint(10e6))
 
@@ -360,8 +373,8 @@ class Activation(MaskedLayer):
     '''
         Apply an activation function to an output.
     '''
-    def __init__(self, activation, target=0, beta=0.1):
-        super(Activation, self).__init__()
+    def __init__(self, activation, target=0, beta=0.1, **kwargs):
+        super(Activation, self).__init__(**kwargs)
         self.activation = activations.get(activation)
         self.target = target
         self.beta = beta
@@ -383,8 +396,8 @@ class Reshape(Layer):
         Can't be used as first layer in a model (no fixed input!)
         First dimension is assumed to be nb_samples.
     '''
-    def __init__(self, dims):
-        super(Reshape, self).__init__()
+    def __init__(self, dims, **kwargs):
+        super(Reshape, self).__init__(**kwargs)
         self.dims = tuple(dims)
 
     @property
@@ -405,8 +418,8 @@ class Permute(Layer):
     '''
         Permute the dimensions of the input according to the given tuple.
     '''
-    def __init__(self, dims):
-        super(Permute, self).__init__()
+    def __init__(self, dims, **kwargs):
+        super(Permute, self).__init__(**kwargs)
         self.dims = tuple(dims)
 
     @property
@@ -432,8 +445,8 @@ class Flatten(Layer):
         Reshape input to flat shape.
         First dimension is assumed to be nb_samples.
     '''
-    def __init__(self):
-        super(Flatten, self).__init__()
+    def __init__(self, **kwargs):
+        super(Flatten, self).__init__(**kwargs)
 
     @property
     def output_shape(self):
@@ -454,8 +467,8 @@ class RepeatVector(Layer):
         Dimensions of input are assumed to be (nb_samples, dim).
         Return tensor of shape (nb_samples, n, dim).
     '''
-    def __init__(self, n):
-        super(RepeatVector, self).__init__()
+    def __init__(self, n, **kwargs):
+        super(RepeatVector, self).__init__(**kwargs)
         self.n = n
 
     @property
@@ -478,11 +491,13 @@ class Dense(Layer):
     '''
         Just your regular fully connected NN layer.
     '''
+    input_ndim = 2
+
     def __init__(self, input_dim, output_dim, init='glorot_uniform', activation='linear', weights=None, name=None,
                  W_regularizer=None, b_regularizer=None, activity_regularizer=None,
-                 W_constraint=None, b_constraint=None):
+                 W_constraint=None, b_constraint=None, **kwargs):
 
-        super(Dense, self).__init__()
+        super(Dense, self).__init__(**kwargs)
         self.init = initializations.get(init)
         self.activation = activations.get(activation)
         self.input_dim = input_dim
@@ -551,8 +566,8 @@ class ActivityRegularization(Layer):
         Layer that passes through its input unchanged, but applies an update
         to the cost function based on the activity.
     '''
-    def __init__(self, l1=0., l2=0.):
-        super(ActivityRegularization, self).__init__()
+    def __init__(self, l1=0., l2=0., **kwargs):
+        super(ActivityRegularization, self).__init__(**kwargs)
         self.l1 = l1
         self.l2 = l2
 
@@ -577,11 +592,13 @@ class TimeDistributedDense(MaskedLayer):
        Tensor output dimensions:  (nb_sample, time_dimension, output_dim)
 
     '''
+    input_ndim = 3
+
     def __init__(self, input_dim, output_dim, init='glorot_uniform', activation='linear', weights=None,
                  W_regularizer=None, b_regularizer=None, activity_regularizer=None,
-                 W_constraint=None, b_constraint=None):
+                 W_constraint=None, b_constraint=None, **kwargs):
 
-        super(TimeDistributedDense, self).__init__()
+        super(TimeDistributedDense, self).__init__(**kwargs)
         self.init = initializations.get(init)
         self.activation = activations.get(activation)
         self.input_dim = input_dim
@@ -650,9 +667,8 @@ class AutoEncoder(Layer):
         else:
             same as decoder output
     '''
-    def __init__(self, encoder, decoder, output_reconstruction=True, weights=None):
-
-        super(AutoEncoder, self).__init__()
+    def __init__(self, encoder, decoder, output_reconstruction=True, weights=None, **kwargs):
+        super(AutoEncoder, self).__init__(**kwargs)
 
         self.output_reconstruction = output_reconstruction
         self.encoder = encoder
@@ -729,11 +745,13 @@ class MaxoutDense(Layer):
         Max-out layer, nb_feature is the number of pieces in the piecewise linear approx.
         Refer to http://arxiv.org/pdf/1302.4389.pdf
     '''
+    input_ndim = 2
+
     def __init__(self, input_dim, output_dim, nb_feature=4, init='glorot_uniform', weights=None,
                  W_regularizer=None, b_regularizer=None, activity_regularizer=None,
-                 W_constraint=None, b_constraint=None):
+                 W_constraint=None, b_constraint=None, **kwargs):
 
-        super(MaxoutDense, self).__init__()
+        super(MaxoutDense, self).__init__(**kwargs)
         self.init = initializations.get(init)
         self.input_dim = input_dim
         self.output_dim = output_dim

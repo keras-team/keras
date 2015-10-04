@@ -11,6 +11,8 @@ from six.moves import range
 
 
 class Recurrent(MaskedLayer):
+    input_ndim = 3
+
     def get_output_mask(self, train=None):
         if self.return_sequences:
             return super(Recurrent, self).get_output_mask(train)
@@ -53,9 +55,9 @@ class SimpleRNN(Recurrent):
     '''
     def __init__(self, input_dim, output_dim,
                  init='glorot_uniform', inner_init='orthogonal', activation='sigmoid', weights=None,
-                 truncate_gradient=-1, return_sequences=False):
+                 truncate_gradient=-1, return_sequences=False, **kwargs):
 
-        super(SimpleRNN, self).__init__()
+        super(SimpleRNN, self).__init__(**kwargs)
         self.init = initializations.get(init)
         self.inner_init = initializations.get(inner_init)
         self.input_dim = input_dim
@@ -127,7 +129,7 @@ class SimpleDeepRNN(Recurrent):
     def __init__(self, input_dim, output_dim, depth=3,
                  init='glorot_uniform', inner_init='orthogonal',
                  activation='sigmoid', inner_activation='hard_sigmoid',
-                 weights=None, truncate_gradient=-1, return_sequences=False):
+                 weights=None, truncate_gradient=-1, return_sequences=False, **kwargs):
 
         super(SimpleDeepRNN, self).__init__()
         self.init = initializations.get(init)
@@ -226,7 +228,7 @@ class GRU(Recurrent):
     def __init__(self, input_dim, output_dim=128,
                  init='glorot_uniform', inner_init='orthogonal',
                  activation='sigmoid', inner_activation='hard_sigmoid',
-                 weights=None, truncate_gradient=-1, return_sequences=False):
+                 weights=None, truncate_gradient=-1, return_sequences=False, **kwargs):
 
         super(GRU, self).__init__()
         self.input_dim = input_dim
@@ -331,7 +333,7 @@ class LSTM(Recurrent):
     def __init__(self, input_dim, output_dim=128,
                  init='glorot_uniform', inner_init='orthogonal', forget_bias_init='one',
                  activation='tanh', inner_activation='hard_sigmoid',
-                 weights=None, truncate_gradient=-1, return_sequences=False):
+                 weights=None, truncate_gradient=-1, return_sequences=False, **kwargs):
 
         super(LSTM, self).__init__()
         self.input_dim = input_dim
@@ -446,9 +448,9 @@ class JZS1(Recurrent):
     def __init__(self, input_dim, output_dim=128,
                  init='glorot_uniform', inner_init='orthogonal',
                  activation='tanh', inner_activation='sigmoid',
-                 weights=None, truncate_gradient=-1, return_sequences=False):
+                 weights=None, truncate_gradient=-1, return_sequences=False, **kwargs):
 
-        super(JZS1, self).__init__()
+        super(JZS1, self).__init__(**kwargs)
         self.input_dim = input_dim
         self.output_dim = output_dim
         self.truncate_gradient = truncate_gradient
@@ -552,9 +554,9 @@ class JZS2(Recurrent):
     def __init__(self, input_dim, output_dim=128,
                  init='glorot_uniform', inner_init='orthogonal',
                  activation='tanh', inner_activation='sigmoid',
-                 weights=None, truncate_gradient=-1, return_sequences=False):
+                 weights=None, truncate_gradient=-1, return_sequences=False, **kwargs):
 
-        super(JZS2, self).__init__()
+        super(JZS2, self).__init__(**kwargs)
         self.input_dim = input_dim
         self.output_dim = output_dim
         self.truncate_gradient = truncate_gradient
@@ -659,9 +661,9 @@ class JZS3(Recurrent):
     def __init__(self, input_dim, output_dim=128,
                  init='glorot_uniform', inner_init='orthogonal',
                  activation='tanh', inner_activation='sigmoid',
-                 weights=None, truncate_gradient=-1, return_sequences=False):
+                 weights=None, truncate_gradient=-1, return_sequences=False, **kwargs):
 
-        super(JZS3, self).__init__()
+        super(JZS3, self).__init__(**kwargs)
         self.input_dim = input_dim
         self.output_dim = output_dim
         self.truncate_gradient = truncate_gradient

@@ -17,11 +17,13 @@ class Embedding(Layer):
         @input_dim: size of vocabulary (highest input integer + 1)
         @out_dim: size of dense representation
     '''
+    input_ndim = 2
+
     def __init__(self, input_dim, output_dim, init='uniform',
                  W_regularizer=None, activity_regularizer=None, W_constraint=None,
-                 mask_zero=False, weights=None):
+                 mask_zero=False, weights=None, **kwargs):
 
-        super(Embedding, self).__init__()
+        super(Embedding, self).__init__(**kwargs)
         self.init = initializations.get(init)
         self.input_dim = input_dim
         self.output_dim = output_dim
@@ -100,10 +102,12 @@ class WordContextProduct(Layer):
             Efficient Estimation of Word reprensentations in Vector Space
             http://arxiv.org/pdf/1301.3781v3.pdf
     '''
-    def __init__(self, input_dim, proj_dim=128,
-                 init='uniform', activation='sigmoid', weights=None):
+    input_ndim = 2
 
-        super(WordContextProduct, self).__init__()
+    def __init__(self, input_dim, proj_dim=128,
+                 init='uniform', activation='sigmoid', weights=None, **kwargs):
+
+        super(WordContextProduct, self).__init__(**kwargs)
         self.input_dim = input_dim
         self.proj_dim = proj_dim
         self.init = initializations.get(init)

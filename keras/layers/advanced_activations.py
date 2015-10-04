@@ -6,8 +6,8 @@ import numpy as np
 
 
 class LeakyReLU(MaskedLayer):
-    def __init__(self, alpha=0.3):
-        super(LeakyReLU, self).__init__()
+    def __init__(self, alpha=0.3, **kwargs):
+        super(LeakyReLU, self).__init__(**kwargs)
         self.alpha = alpha
 
     def get_output(self, train):
@@ -25,8 +25,8 @@ class PReLU(MaskedLayer):
             Delving Deep into Rectifiers: Surpassing Human-Level Performance on ImageNet Classification
                 http://arxiv.org/pdf/1502.01852v1.pdf
     '''
-    def __init__(self, input_shape, init='zero', weights=None):
-        super(PReLU, self).__init__()
+    def __init__(self, input_shape, init='zero', weights=None, **kwargs):
+        super(PReLU, self).__init__(**kwargs)
         self.init = initializations.get(init)
         self.alphas = self.init(input_shape)
         self.params = [self.alphas]
@@ -55,9 +55,10 @@ class ParametricSoftplus(MaskedLayer):
             Inferring Nonlinear Neuronal Computation Based on Physiologically Plausible Inputs
             http://journals.plos.org/ploscompbiol/article?id=10.1371/journal.pcbi.1003143
     '''
-    def __init__(self, input_shape, alpha_init=0.2, beta_init=5.0, weights=None):
+    def __init__(self, input_shape, alpha_init=0.2,
+                 beta_init=5.0, weights=None, **kwargs):
 
-        super(ParametricSoftplus, self).__init__()
+        super(ParametricSoftplus, self).__init__(**kwargs)
         self.alpha_init = alpha_init
         self.beta_init = beta_init
         self.alphas = sharedX(alpha_init * np.ones(input_shape))
@@ -87,8 +88,8 @@ class ThresholdedLinear(MaskedLayer):
             Zero-Bias Autoencoders and the Benefits of Co-Adapting Features
             http://arxiv.org/pdf/1402.3337.pdf
     '''
-    def __init__(self, theta=1.0):
-        super(ThresholdedLinear, self).__init__()
+    def __init__(self, theta=1.0, **kwargs):
+        super(ThresholdedLinear, self).__init__(**kwargs)
         self.theta = theta
 
     def get_output(self, train):
@@ -108,8 +109,8 @@ class ThresholdedReLu(MaskedLayer):
             Zero-Bias Autoencoders and the Benefits of Co-Adapting Features
             http://arxiv.org/pdf/1402.3337.pdf
     '''
-    def __init__(self, theta=1.0):
-        super(ThresholdedReLu, self).__init__()
+    def __init__(self, theta=1.0, **kwargs):
+        super(ThresholdedReLu, self).__init__(**kwargs)
         self.theta = theta
 
     def get_output(self, train):

@@ -45,16 +45,18 @@ def pool_output_length(input_length, pool_size, ignore_border, stride):
 
 
 class Convolution1D(Layer):
+    input_ndim = 3
+
     def __init__(self, input_dim, nb_filter, filter_length,
                  init='uniform', activation='linear', weights=None,
                  border_mode='valid', subsample_length=1,
                  W_regularizer=None, b_regularizer=None, activity_regularizer=None,
-                 W_constraint=None, b_constraint=None):
+                 W_constraint=None, b_constraint=None, **kwargs):
 
         if border_mode not in {'valid', 'full', 'same'}:
             raise Exception('Invalid border mode for Convolution1D:', border_mode)
 
-        super(Convolution1D, self).__init__()
+        super(Convolution1D, self).__init__(**kwargs)
         self.nb_filter = nb_filter
         self.input_dim = input_dim
         self.filter_length = filter_length
@@ -150,16 +152,18 @@ class Convolution1D(Layer):
 
 
 class Convolution2D(Layer):
+    input_ndim = 4
+
     def __init__(self, nb_filter, stack_size, nb_row, nb_col,
                  init='glorot_uniform', activation='linear', weights=None,
                  border_mode='valid', subsample=(1, 1),
                  W_regularizer=None, b_regularizer=None, activity_regularizer=None,
-                 W_constraint=None, b_constraint=None):
+                 W_constraint=None, b_constraint=None, **kwargs):
 
         if border_mode not in {'valid', 'full', 'same'}:
             raise Exception('Invalid border mode for Convolution2D:', border_mode)
 
-        super(Convolution2D, self).__init__()
+        super(Convolution2D, self).__init__(**kwargs)
         self.init = initializations.get(init)
         self.activation = activations.get(activation)
         self.subsample = tuple(subsample)
@@ -259,8 +263,10 @@ class Convolution2D(Layer):
 
 
 class MaxPooling1D(Layer):
-    def __init__(self, pool_length=2, stride=None, ignore_border=True):
-        super(MaxPooling1D, self).__init__()
+    input_ndim = 3
+
+    def __init__(self, pool_length=2, stride=None, ignore_border=True, **kwargs):
+        super(MaxPooling1D, self).__init__(**kwargs)
         if stride is None:
             stride = pool_length
         self.pool_length = pool_length
@@ -292,8 +298,10 @@ class MaxPooling1D(Layer):
 
 
 class MaxPooling2D(Layer):
-    def __init__(self, pool_size=(2, 2), stride=None, ignore_border=True):
-        super(MaxPooling2D, self).__init__()
+    input_ndim = 4
+
+    def __init__(self, pool_size=(2, 2), stride=None, ignore_border=True, **kwargs):
+        super(MaxPooling2D, self).__init__(**kwargs)
         self.input = T.tensor4()
         self.pool_size = tuple(pool_size)
         if stride is None:
@@ -321,8 +329,10 @@ class MaxPooling2D(Layer):
 
 
 class UpSample1D(Layer):
-    def __init__(self, length=2):
-        super(UpSample1D, self).__init__()
+    input_ndim = 3
+
+    def __init__(self, length=2, **kwargs):
+        super(UpSample1D, self).__init__(**kwargs)
         self.length = length
         self.input = T.tensor3()
 
@@ -342,8 +352,10 @@ class UpSample1D(Layer):
 
 
 class UpSample2D(Layer):
-    def __init__(self, size=(2, 2)):
-        super(UpSample2D, self).__init__()
+    input_ndim = 4
+
+    def __init__(self, size=(2, 2), **kwargs):
+        super(UpSample2D, self).__init__(**kwargs)
         self.input = T.tensor4()
         self.size = tuple(size)
 
@@ -380,8 +392,10 @@ class ZeroPadding1D(Layer):
         How many zeros to add at the beginning and end of
         the padding dimension (axis 1).
     """
-    def __init__(self, padding=1):
-        super(ZeroPadding1D, self).__init__()
+    input_ndim = 3
+
+    def __init__(self, padding=1, **kwargs):
+        super(ZeroPadding1D, self).__init__(**kwargs)
         self.padding = padding
         self.input = T.tensor4()
 
@@ -417,8 +431,10 @@ class ZeroPadding2D(Layer):
         How many zeros to add at the beginning and end of
         the 2 padding dimensions (axis 3 and 4).
     """
-    def __init__(self, padding=(1, 1)):
-        super(ZeroPadding2D, self).__init__()
+    input_ndim = 4
+
+    def __init__(self, padding=(1, 1), **kwargs):
+        super(ZeroPadding2D, self).__init__(**kwargs)
         self.padding = tuple(padding)
         self.input = T.tensor4()
 

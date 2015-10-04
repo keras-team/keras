@@ -16,8 +16,8 @@ class BatchNormalization(Layer):
 
             momentum: momentum term in the computation of a running estimate of the mean and std of the data
     '''
-    def __init__(self, input_shape, epsilon=1e-6, mode=0, momentum=0.9, weights=None):
-        super(BatchNormalization, self).__init__()
+    def __init__(self, input_shape, epsilon=1e-6, mode=0, momentum=0.9, weights=None, **kwargs):
+        super(BatchNormalization, self).__init__(**kwargs)
         self.init = initializations.get("uniform")
         self._input_shape = input_shape
         self.epsilon = epsilon
@@ -77,10 +77,10 @@ class LRN2D(Layer):
     License at: https://github.com/lisa-lab/pylearn2/blob/master/LICENSE.txt
     """
 
-    def __init__(self, alpha=1e-4, k=2, beta=0.75, n=5):
+    def __init__(self, alpha=1e-4, k=2, beta=0.75, n=5, **kwargs):
         if n % 2 == 0:
             raise NotImplementedError("LRN2D only works with odd n. n provided: " + str(n))
-        super(LRN2D, self).__init__()
+        super(LRN2D, self).__init__(**kwargs)
         self.alpha = alpha
         self.k = k
         self.beta = beta
