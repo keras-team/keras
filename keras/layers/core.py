@@ -380,20 +380,18 @@ class Reshape(Layer):
         Can't be used as first layer in a model (no fixed input!)
         First dimension is assumed to be nb_samples.
     '''
-    def __init__(self, *dims):
+    def __init__(self, dims):
         super(Reshape, self).__init__()
-        if type(dims[0]) in [list, tuple]:
-            dims = dims[0]
         self.dims = tuple(dims)
 
     @property
     def output_shape(self):
-        return make_tuple(self.input_shape[0], *self.dims)
+        return (self.input_shape[0],) + self.dims
 
     def get_output(self, train=False):
         X = self.get_input(train)
-        nshape = make_tuple(X.shape[0], *self.dims)
-        return theano.tensor.reshape(X, nshape)
+        new_shape = (X.shape[0],) + self.dims
+        return theano.tensor.reshape(X, new_shape)
 
     def get_config(self):
         return {"name": self.__class__.__name__,
