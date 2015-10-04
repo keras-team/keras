@@ -312,17 +312,17 @@ class Model(object):
             pp.pprint(config)
         return config
 
-    def to_yaml(self):
+    def to_yaml(self, **kwargs):
         # dump model configuration to yaml string
         import yaml
         config = self.get_config()
-        return yaml.dump(config)
+        return yaml.dump(config, **kwargs)
 
-    def to_json(self):
+    def to_json(self, **kwargs):
         # dump model configuration to json string
         import json
         config = self.get_config()
-        return json.dumps(config)
+        return json.dumps(config, **kwargs)
 
 
 class Sequential(Model, containers.Sequential):

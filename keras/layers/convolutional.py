@@ -105,14 +105,29 @@ class Convolution1D(Layer):
         X = T.reshape(X, (X.shape[0], X.shape[1], X.shape[2], 1)).dimshuffle(0, 2, 1, 3)
 
         border_mode = self.border_mode
-        if border_mode == 'same':
-            border_mode = 'full'
-            assert self.subsample == (1, 1)
+        if on_gpu() and dnn.dnn_available():
+            if border_mode == 'same':
+                assert(self.subsample_length == 1)
+                pad_x = (self.filter_length - self.subsample_length) // 2
+                conv_out = dnn.dnn_conv(img=X,
+                                        kerns=self.W,
+                                        border_mode=(pad_x, 0))
+            else:
+                conv_out = dnn.dnn_conv(img=X,
+                                        kerns=self.W,
+                                        border_mode=border_mode,
+                                        subsample=self.subsample)
+        else:
+            if border_mode == 'same':
+                assert(self.subsample_length == 1)
+                border_mode = 'full'
 
-        conv_out = T.nnet.conv.conv2d(X, self.W, border_mode=border_mode, subsample=self.subsample)
-        if self.border_mode == 'same':
-            shift_x = (self.filter_length - 1) // 2
-            conv_out = conv_out[:, :, shift_x:X.shape[2] + shift_x, :]
+            conv_out = T.nnet.conv.conv2d(X, self.W,
+                                          border_mode=border_mode,
+                                          subsample=self.subsample)
+            if self.border_mode == 'same':
+                shift_x = (self.filter_length - 1) // 2
+                conv_out = conv_out[:, :, shift_x:X.shape[2] + shift_x, :]
 
         output = self.activation(conv_out + self.b.dimshuffle('x', 0, 'x', 'x'))
         output = T.reshape(output, (output.shape[0], output.shape[1], output.shape[2])).dimshuffle(0, 2, 1)
