@@ -15,8 +15,6 @@ def check_layer_output_shape(layer, input_data):
 
     function = theano.function([layer.input], [layer.get_output()])
     output = function(input_data)[0]
-    print output.shape, '(exact) vs.', expected_output_shape, '(predicted)'
-
     assert output.shape == expected_output_shape
 
 
