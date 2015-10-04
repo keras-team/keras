@@ -12,8 +12,9 @@ python:
   - "3.4"
 # command to install dependencies
 install:
-  - conda install --yes python=$TRAVIS_PYTHON_VERSION numpy scipy matplotlib pandas pytest h5py theano
+  - conda install --yes python=$TRAVIS_PYTHON_VERSION numpy scipy matplotlib pandas pytest h5py
   - pip install pytest-cov python-coveralls
+  - pip install git+git://github.com/Theano/Theano.git
 # command to run tests
 script:
   - PYTHONPATH=$PWD:$PYTHONPATH py.test -v --cov-report term-missing --cov keras tests/
