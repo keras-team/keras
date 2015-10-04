@@ -341,9 +341,13 @@ class Reshape(Layer):
         Can't be used as first layer in a model (no fixed input!)
         First dimension is assumed to be nb_samples.
     '''
-    def __init__(self, *dims):
+    def __init__(self, *dims, **kwargs):
         super(Reshape, self).__init__()
-        self.dims = dims
+        if len(dims) > 0 and type(dims[0]) in [list, tuple]:
+            dims = dims[0]
+        if len(dims) == 0 and 'dims' in kwargs:
+            dims = kwargs['dims']
+        self.dims = tuple(dims)
 
     def get_output(self, train=False):
         X = self.get_input(train)
@@ -361,7 +365,7 @@ class Permute(Layer):
     '''
     def __init__(self, dims):
         super(Permute, self).__init__()
-        self.dims = dims
+        self.dims = tuple(dims)
 
     def get_output(self, train):
         X = self.get_input(train)

@@ -24,7 +24,8 @@ class Recurrent(MaskedLayer):
 
         # mask is (nb_samples, time)
         mask = T.shape_padright(mask)  # (nb_samples, time, 1)
-        mask = T.addbroadcast(mask, -1)  # (time, nb_samples, 1) matrix.
+        mask = T.addbroadcast(mask, -1)  # the new dimension (the '1') is made broadcastable
+        # see http://deeplearning.net/software/theano/library/tensor/basic.html#broadcasting-in-theano-vs-numpy
         mask = mask.dimshuffle(1, 0, 2)  # (time, nb_samples, 1)
 
         if pad > 0:
