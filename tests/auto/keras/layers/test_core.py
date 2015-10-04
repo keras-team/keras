@@ -72,7 +72,7 @@ class TestConfigParams(unittest.TestCase):
         self._runner(layer)
 
     def test_reshape(self):
-        layer = core.Reshape(10, 10)
+        layer = core.Reshape(dims=(10, 10))
         self._runner(layer)
 
     def test_flatten(self):
@@ -121,9 +121,8 @@ class TestMasking(unittest.TestCase):
         func = theano.function([layer.input], layer.get_output_mask())
         self.assertTrue(np.all(
             # get mask for this input
-            func(np.array(
-            [[[1], [2], [3], [0]],
-             [[0], [4], [5], [0]]], dtype=np.int32)) ==
+            func(np.array([[[1], [2], [3], [0]],
+                          [[0], [4], [5], [0]]], dtype=np.int32)) ==
             # This is the expected output mask, one dimension less
             np.array([[1, 1, 1, 0], [0, 1, 1, 0]])))
 
@@ -133,9 +132,8 @@ class TestMasking(unittest.TestCase):
         func = theano.function([layer.input], layer.get_output_mask())
         self.assertTrue(np.all(
             # get mask for this input, if not all the values are 5, shouldn't masked
-            func(np.array(
-            [[[1, 1], [2, 1], [3, 1], [5, 5]],
-             [[1, 5], [5, 0], [0, 0], [0, 0]]], dtype=np.int32)) ==
+            func(np.array([[[1, 1], [2, 1], [3, 1], [5, 5]],
+                          [[1, 5], [5, 0], [0, 0], [0, 0]]], dtype=np.int32)) ==
             # This is the expected output mask, one dimension less
             np.array([[1, 1, 1, 0], [1, 1, 1, 1]])))
 
@@ -145,12 +143,11 @@ class TestMasking(unittest.TestCase):
         func = theano.function([layer.input], layer.get_output())
         self.assertTrue(np.all(
             # get output for this input, replace padding with 0
-            func(np.array(
-            [[[1, 1], [2, 1], [3, 1], [5, 5]],
-             [[1, 5], [5, 0], [0, 0], [0, 0]]], dtype=np.int32)) ==
+            func(np.array([[[1, 1], [2, 1], [3, 1], [5, 5]],
+                          [[1, 5], [5, 0], [0, 0], [0, 0]]], dtype=np.int32)) ==
             # This is the expected output
             np.array([[[1, 1], [2, 1], [3, 1], [0, 0]],
-             [[1, 5], [5, 0], [0, 0], [0, 0]]])))
+                     [[1, 5], [5, 0], [0, 0], [0, 0]]])))
 
 
 if __name__ == '__main__':

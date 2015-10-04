@@ -49,6 +49,9 @@ class Layer(object):
         else:
             raise NotImplementedError
 
+    def set_input_shape(self, input_shape):
+        self._input_shape = input_shape
+
     @property
     def output_shape(self):
         # default assumption: tensor shape unchanged.

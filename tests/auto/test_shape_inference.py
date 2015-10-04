@@ -23,7 +23,7 @@ class TestShapeInference(unittest.TestCase):
     # # Core #
     # ########
     def test_Reshape(self):
-        layer = Reshape(2, 3)
+        layer = Reshape(dims=(2, 3))
         input_data = np.random.random((2, 6))
         check_layer_output_shape(layer, input_data)
 
@@ -91,9 +91,9 @@ class TestShapeInference(unittest.TestCase):
     def test_MaxPooling2D(self):
         for ignore_border in [True, False]:
             for stride in [(1, 1), (2, 2)]:
-                for poolsize in [(2, 2), (3, 3), (4, 4)]:
+                for pool_size in [(2, 2), (3, 3), (4, 4)]:
                     for input_data_shape in [(2, 1, 3, 3), (2, 1, 4, 4), (2, 1, 5, 5), (2, 1, 6, 6)]:
-                        layer = MaxPooling2D(poolsize=poolsize, stride=stride, ignore_border=ignore_border)
+                        layer = MaxPooling2D(pool_size=pool_size, stride=stride, ignore_border=ignore_border)
                         input_data = np.random.random(input_data_shape)
                         check_layer_output_shape(layer, input_data)
 
@@ -105,6 +105,11 @@ class TestShapeInference(unittest.TestCase):
     def test_UpSample2D(self):
         layer = UpSample2D(size=(2, 2))
         input_data = np.random.random((2, 1, 2, 3))
+        check_layer_output_shape(layer, input_data)
+
+    def test_ZeroPadding1D(self):
+        layer = ZeroPadding1D(1)
+        input_data = np.random.random((2, 2, 1))
         check_layer_output_shape(layer, input_data)
 
     def test_ZeroPadding2D(self):

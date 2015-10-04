@@ -364,7 +364,7 @@ class ZeroPadding1D(Layer):
         the padding dimension (axis 1).
     """
     def __init__(self, padding=1):
-        super(ZeroPadding2D, self).__init__()
+        super(ZeroPadding1D, self).__init__()
         self.padding = padding
         self.input = T.tensor4()
 
@@ -423,8 +423,8 @@ class ZeroPadding2D(Layer):
         out = T.zeros(out_shape)
         indices = (slice(None),
                    slice(None),
-                   slice(pad[0], input_shape[2] + self.padding[0]),
-                   slice(pad[1], input_shape[3] + self.padding[1]))
+                   slice(self.padding[0], input_shape[2] + self.padding[0]),
+                   slice(self.padding[1], input_shape[3] + self.padding[1]))
         return T.set_subtensor(out[indices], X)
 
     def get_config(self):
