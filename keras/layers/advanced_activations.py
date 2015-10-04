@@ -12,7 +12,7 @@ class LeakyReLU(MaskedLayer):
 
     def get_output(self, train):
         X = self.get_input(train)
-        return ((X + abs(X)) / 2.0) + self.alpha * ((X - abs(X)) / 2.0)
+        return T.nnet.relu(X, self.alpha)
 
     def get_config(self):
         return {"name": self.__class__.__name__,
@@ -37,8 +37,8 @@ class PReLU(MaskedLayer):
 
     def get_output(self, train):
         X = self.get_input(train)
-        pos = ((X + abs(X)) / 2.0)
-        neg = self.alphas * ((X - abs(X)) / 2.0)
+        pos = T.nnet.relu(X)
+        neg = self.alphas * (X - abs(X)) * 0.5
         return pos + neg
 
     def get_config(self):
@@ -78,6 +78,7 @@ class ParametricSoftplus(MaskedLayer):
                 "alpha_init": self.alpha_init,
                 "beta_init": self.beta_init}
 
+
 class ThresholdedLinear(MaskedLayer):
     '''
         Thresholded Linear Activation
@@ -89,14 +90,15 @@ class ThresholdedLinear(MaskedLayer):
     def __init__(self, theta=1.0):
         super(ThresholdedLinear, self).__init__()
         self.theta = theta
-    
+
     def get_output(self, train):
         X = self.get_input(train)
-        return T.switch( abs(X) < self.theta, 0, X )
+        return T.switch(abs(X) < self.theta, 0, X)
 
     def get_config(self):
         return {"name": self.__class__.__name__,
-            "theta": self.theta}
+                "theta": self.theta}
+
 
 class ThresholdedReLu(MaskedLayer):
     '''
@@ -109,11 +111,11 @@ class ThresholdedReLu(MaskedLayer):
     def __init__(self, theta=1.0):
         super(ThresholdedReLu, self).__init__()
         self.theta = theta
-    
+
     def get_output(self, train):
         X = self.get_input(train)
-        return T.switch( X > self.theta, X, 0 )
+        return T.switch(X > self.theta, X, 0)
 
     def get_config(self):
         return {"name": self.__class__.__name__,
-            "theta": self.theta}
+                "theta": self.theta}

@@ -57,6 +57,10 @@ class Embedding(Layer):
         else:
             return T.ones_like(X) * (1 - T.eq(X, 0))
 
+    @property
+    def output_shape(self):
+        return (self.input_shape[0], None, self.output_dim)
+
     def get_output(self, train=False):
         X = self.get_input(train)
         out = self.W[X]
@@ -115,6 +119,10 @@ class WordContextProduct(Layer):
 
         if weights is not None:
             self.set_weights(weights)
+
+    @property
+    def output_shape(self):
+        return (self.input_shape[0], 1)
 
     def get_output(self, train=False):
         X = self.get_input(train)

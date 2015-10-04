@@ -34,6 +34,14 @@ class Recurrent(MaskedLayer):
             mask = T.concatenate([padding, mask], axis=0)
         return mask.astype('int8')
 
+    @property
+    def output_shape(self):
+        input_shape = self.input_shape
+        if self.return_sequences:
+            return (input_shape[0], input_shape[1], self.output_dim)
+        else:
+            return (input_shape[0], self.output_dim)
+
 
 class SimpleRNN(Recurrent):
     '''

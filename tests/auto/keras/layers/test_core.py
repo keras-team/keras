@@ -12,11 +12,6 @@ class TestLayerBase(unittest.TestCase):
         input_dim = 5
         layer = core.Layer()
 
-        # As long as there is no input, an error should be raised.
-        for train in [True, False]:
-            self.assertRaises(AttributeError, layer.get_input, train)
-            self.assertRaises(AttributeError, layer.get_output, train)
-
         # Once an input is provided, it should be reachable through the
         # appropriate getters
         input = np.ones((nb_samples, input_dim))
@@ -33,10 +28,6 @@ class TestLayerBase(unittest.TestCase):
 
         input = np.ones((nb_samples, input_dim))
         layer1.input = theano.shared(value=input)
-
-        # As long as there is no previous layer, an error should be raised.
-        for train in [True, False]:
-            self.assertRaises(AttributeError, layer2.get_input, train)
 
         # After connecting, input of layer1 should be passed through
         layer2.set_previous(layer1)
