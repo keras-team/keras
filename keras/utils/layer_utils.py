@@ -125,4 +125,7 @@ def print_layer_shapes(model, input_shapes):
 
 from .generic_utils import get_from_module
 def get_layer(identifier, kwargs=None, custom_layers={}):
-    return get_from_module(identifier, globals(), 'layer', instantiate=True, kwargs=kwargs, custom_layers=custom_layers)
+    # Insert custom layers into globals so they can be accessed by `get_from_module`.
+    for cls_key in custom_layers:
+        globals()[cls_key] = custom_layers[cls_key]
+    return get_from_module(identifier, globals(), 'layer', instantiate=True, kwargs=kwargs)

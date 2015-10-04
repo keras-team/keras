@@ -5,9 +5,9 @@ import sys
 import six
 
 
-def get_from_module(identifier, module_params, module_name, instantiate=False, kwargs=None, custom_layers={}):
+def get_from_module(identifier, module_params, module_name, instantiate=False, kwargs=None):
     if isinstance(identifier, six.string_types):
-        res = module_params.get(identifier, custom_layers.get(identifier))
+        res = module_params.get(identifier)
         if not res:
             raise Exception('Invalid ' + str(module_name) + ': ' + str(identifier))
         if instantiate and not kwargs:
@@ -111,7 +111,7 @@ class Progbar(object):
                     info += ' - %s: %.4f' % (k, self.sum_values[k][0] / max(1, self.sum_values[k][1]))
                 else:
                     info += ' - %s: %s' % (k, self.sum_values[k])
-                
+
             self.total_width += len(info)
             if prev_total_width > self.total_width:
                 info += ((prev_total_width-self.total_width) * " ")
