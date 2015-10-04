@@ -23,6 +23,8 @@ class TestConvolutions(unittest.TestCase):
         for weight in [None, weights_in]:
             for border_mode in ['valid', 'full', 'same']:
                 for subsample_length in [1, 3]:
+                    if border_mode == 'same' and subsample_length != 1:
+                        continue
                     for W_regularizer in [None, 'l2']:
                         for b_regularizer in [None, 'l2']:
                             for act_regularizer in [None, 'l2']:
@@ -49,7 +51,7 @@ class TestConvolutions(unittest.TestCase):
 
         input = np.ones((nb_samples, nb_steps, input_dim))
         for ignore_border in [True, False]:
-            for stride in [None, 2]:
+            for stride in [1, 2]:
                 layer = convolutional.MaxPooling1D(stride=stride, ignore_border=ignore_border)
                 layer.input = theano.shared(value=input)
                 for train in [True, False]:
@@ -77,6 +79,8 @@ class TestConvolutions(unittest.TestCase):
         for weight in [None, weights_in]:
             for border_mode in ['valid', 'full', 'same']:
                 for subsample in [(1, 1), (2, 3)]:
+                    if border_mode == 'same' and subsample != (1, 1):
+                        continue
                     for W_regularizer in [None, 'l2']:
                         for b_regularizer in [None, 'l2']:
                             for act_regularizer in [None, 'l2']:
@@ -104,7 +108,7 @@ class TestConvolutions(unittest.TestCase):
 
         input = np.ones((nb_samples, stack_size, input_nb_row, input_nb_col))
         for ignore_border in [True, False]:
-            for stride in [None, (2, 2)]:
+            for stride in [(1, 1), (2, 2)]:
                 layer = convolutional.MaxPooling2D(stride=stride, ignore_border=ignore_border, poolsize=poolsize)
                 layer.input = theano.shared(value=input)
                 for train in [True, False]:

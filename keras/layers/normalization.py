@@ -19,18 +19,18 @@ class BatchNormalization(Layer):
     def __init__(self, input_shape, epsilon=1e-6, mode=0, momentum=0.9, weights=None):
         super(BatchNormalization, self).__init__()
         self.init = initializations.get("uniform")
-        self.input_shape = input_shape
+        self._input_shape = input_shape
         self.epsilon = epsilon
         self.mode = mode
         self.momentum = momentum
-        self.input = ndim_tensor(len(self.input_shape) + 1)
+        self.input = ndim_tensor(len(input_shape) + 1)
 
-        self.gamma = self.init((self.input_shape))
-        self.beta = shared_zeros(self.input_shape)
+        self.gamma = self.init((input_shape))
+        self.beta = shared_zeros(input_shape)
 
         self.params = [self.gamma, self.beta]
-        self.running_mean = shared_zeros(self.input_shape)
-        self.running_std = shared_ones((self.input_shape))
+        self.running_mean = shared_zeros(input_shape)
+        self.running_std = shared_ones((input_shape))
         if weights is not None:
             self.set_weights(weights)
 
@@ -66,7 +66,7 @@ class BatchNormalization(Layer):
 
     def get_config(self):
         return {"name": self.__class__.__name__,
-                "input_shape": self.input_shape,
+                "input_shape": self._input_shape,
                 "epsilon": self.epsilon,
                 "mode": self.mode}
 
