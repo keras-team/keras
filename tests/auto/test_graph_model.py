@@ -25,9 +25,9 @@ class TestGraph(unittest.TestCase):
         graph = Graph()
         graph.add_input(name='input1', ndim=2)
 
-        graph.add_node(Dense(32, 16), name='dense1', input='input1')
-        graph.add_node(Dense(32, 4), name='dense2', input='input1')
-        graph.add_node(Dense(16, 4), name='dense3', input='dense1')
+        graph.add_node(Dense(16, input_shape=(32,)), name='dense1', input='input1')
+        graph.add_node(Dense(4), name='dense2', input='input1')
+        graph.add_node(Dense(4), name='dense3', input='dense1')
 
         graph.add_output(name='output1', inputs=['dense2', 'dense3'], merge_mode='sum')
         graph.compile('rmsprop', {'output1': 'mse'})
@@ -47,12 +47,12 @@ class TestGraph(unittest.TestCase):
         graph = Graph()
         graph.add_input(name='input1', ndim=2)
 
-        graph.add_node(Dense(32, 16), name='dense1', input='input1')
-        graph.add_node(Dense(32, 4), name='dense2-0', input='input1')
+        graph.add_node(Dense(16, input_shape=(32,)), name='dense1', input='input1')
+        graph.add_node(Dense(4), name='dense2-0', input='input1')
         graph.add_node(Activation('relu'), name='dense2', input='dense2-0')
 
-        graph.add_node(Dense(4, 16), name='dense3', input='dense2')
-        graph.add_node(Dense(16, 4), name='dense4', inputs=['dense1', 'dense3'], merge_mode='sum')
+        graph.add_node(Dense(16), name='dense3', input='dense2')
+        graph.add_node(Dense(4), name='dense4', inputs=['dense1', 'dense3'], merge_mode='sum')
 
         graph.add_output(name='output1', inputs=['dense2', 'dense4'], merge_mode='sum')
         graph.compile('rmsprop', {'output1': 'mse'})
@@ -74,9 +74,9 @@ class TestGraph(unittest.TestCase):
         graph.add_input(name='input1', ndim=2)
         graph.add_input(name='input2', ndim=2)
 
-        graph.add_node(Dense(32, 16), name='dense1', input='input1')
-        graph.add_node(Dense(32, 4), name='dense2', input='input2')
-        graph.add_node(Dense(16, 4), name='dense3', input='dense1')
+        graph.add_node(Dense(16, input_shape=(32,)), name='dense1', input='input1')
+        graph.add_node(Dense(4), name='dense2', input='input2')
+        graph.add_node(Dense(4), name='dense3', input='dense1')
 
         graph.add_output(name='output1', inputs=['dense2', 'dense3'], merge_mode='sum')
         graph.compile('rmsprop', {'output1': 'mse'})
@@ -97,9 +97,9 @@ class TestGraph(unittest.TestCase):
         graph = Graph()
         graph.add_input(name='input1', ndim=2)
 
-        graph.add_node(Dense(32, 16), name='dense1', input='input1')
-        graph.add_node(Dense(32, 4), name='dense2', input='input1')
-        graph.add_node(Dense(16, 1), name='dense3', input='dense1')
+        graph.add_node(Dense(16, input_shape=(32,)), name='dense1', input='input1')
+        graph.add_node(Dense(4), name='dense2', input='input1')
+        graph.add_node(Dense(1), name='dense3', input='dense1')
 
         graph.add_output(name='output1', input='dense2')
         graph.add_output(name='output2', input='dense3')
@@ -119,9 +119,9 @@ class TestGraph(unittest.TestCase):
         graph.save_weights('temp.h5', overwrite=True)
         graph = Graph()
         graph.add_input(name='input1', ndim=2)
-        graph.add_node(Dense(32, 16), name='dense1', input='input1')
-        graph.add_node(Dense(32, 4), name='dense2', input='input1')
-        graph.add_node(Dense(16, 1), name='dense3', input='dense1')
+        graph.add_node(Dense(16, input_shape=(32,)), name='dense1', input='input1')
+        graph.add_node(Dense(4), name='dense2', input='input1')
+        graph.add_node(Dense(1), name='dense3', input='dense1')
         graph.add_output(name='output1', input='dense2')
         graph.add_output(name='output2', input='dense3')
         graph.compile('rmsprop', {'output1': 'mse', 'output2': 'mse'})
@@ -135,9 +135,9 @@ class TestGraph(unittest.TestCase):
         graph = Graph()
         graph.add_input(name='input1', ndim=2)
 
-        graph.add_node(Dense(32, 16), name='dense1', input='input1')
-        graph.add_node(Dense(32, 4), name='dense2', input='input1')
-        graph.add_node(Dense(16, 1), name='dense3', input='dense1')
+        graph.add_node(Dense(16, input_shape=(32,)), name='dense1', input='input1')
+        graph.add_node(Dense(4), name='dense2', input='input1')
+        graph.add_node(Dense(1), name='dense3', input='dense1')
 
         graph.add_output(name='output1', input='dense2')
         graph.add_output(name='output2', input='dense3')
@@ -167,15 +167,15 @@ class TestGraph(unittest.TestCase):
 
         graph = containers.Graph()
         graph.add_input(name='input1', ndim=2)
-        graph.add_node(Dense(32, 16), name='dense1', input='input1')
-        graph.add_node(Dense(32, 4), name='dense2', input='input1')
-        graph.add_node(Dense(16, 4), name='dense3', input='dense1')
+        graph.add_node(Dense(16, input_shape=(32,)), name='dense1', input='input1')
+        graph.add_node(Dense(4), name='dense2', input='input1')
+        graph.add_node(Dense(4), name='dense3', input='dense1')
         graph.add_output(name='output1', inputs=['dense2', 'dense3'], merge_mode='sum')
 
         seq = Sequential()
-        seq.add(Dense(32, 32, name='first_seq_dense'))
+        seq.add(Dense(32, input_shape=(32,)))
         seq.add(graph)
-        seq.add(Dense(4, 4, name='last_seq_dense'))
+        seq.add(Dense(4))
 
         seq.compile('rmsprop', 'mse')
 
@@ -193,10 +193,10 @@ class TestGraph(unittest.TestCase):
         graph = Graph()
         graph.add_input(name='input1', ndim=2)
 
-        graph.add_node(Dense(32, 16), name='dense1', input='input1')
-        graph.add_node(Dense(32, 4), name='dense2', input='input1')
-        graph.add_node(Dense(16, 4), name='dense3', input='dense1')
-        graph.add_node(Dense(4, 4), name='output1', inputs=['dense2', 'dense3'], merge_mode='sum', create_output=True)
+        graph.add_node(Dense(16, input_shape=(32,)), name='dense1', input='input1')
+        graph.add_node(Dense(4), name='dense2', input='input1')
+        graph.add_node(Dense(4), name='dense3', input='dense1')
+        graph.add_node(Dense(4), name='output1', inputs=['dense2', 'dense3'], merge_mode='sum', create_output=True)
         graph.compile('rmsprop', {'output1': 'mse'})
 
         history = graph.fit({'input1': X_train, 'output1': y_train}, nb_epoch=10)
@@ -218,14 +218,14 @@ class TestGraph(unittest.TestCase):
         graph = Graph()
         graph.add_input(name='input1', ndim=2)
         graph.add_input(name='input2', ndim=2)
-        graph.add_node(Dense(nb_units, nb_units),
-                name='dense1', input='input1')
-        graph.add_node(Dense(nb_units, nb_classes),
-                name='dense2', input='input2')
-        graph.add_node(Dense(nb_units, nb_classes),
-                name='dense3', input='dense1')
+        graph.add_node(Dense(nb_units, input_shape=(nb_units,)),
+                       name='dense1', input='input1')
+        graph.add_node(Dense(nb_classes, input_shape=(nb_units,)),
+                       name='dense2', input='input2')
+        graph.add_node(Dense(nb_classes),
+                       name='dense3', input='dense1')
         graph.add_output(name='output', inputs=['dense2', 'dense3'],
-                merge_mode='sum')
+                         merge_mode='sum')
 
         n = nb_units * nb_units + nb_units
         n += nb_units * nb_classes + nb_classes

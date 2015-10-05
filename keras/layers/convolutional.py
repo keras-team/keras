@@ -55,7 +55,7 @@ class Convolution1D(Layer):
                  init='uniform', activation='linear', weights=None,
                  border_mode='valid', subsample_length=1,
                  W_regularizer=None, b_regularizer=None, activity_regularizer=None,
-                 W_constraint=None, b_constraint=None, **kwargs):
+                 W_constraint=None, b_constraint=None, input_dim=None, input_length=None, **kwargs):
 
         if border_mode not in {'valid', 'full', 'same'}:
             raise Exception('Invalid border mode for Convolution1D:', border_mode)
@@ -77,6 +77,11 @@ class Convolution1D(Layer):
         self.constraints = [self.W_constraint, self.b_constraint]
 
         self.initial_weights = weights
+
+        self.input_dim = input_dim
+        self.input_length = input_length
+        if self.input_dim:
+            kwargs['input_shape'] = (self.input_length, self.input_dim)
         super(Convolution1D, self).__init__(**kwargs)
 
     def build(self):
@@ -143,18 +148,22 @@ class Convolution1D(Layer):
         return output
 
     def get_config(self):
-        return {"name": self.__class__.__name__,
-                "nb_filter": self.nb_filter,
-                "filter_length": self.filter_length,
-                "init": self.init.__name__,
-                "activation": self.activation.__name__,
-                "border_mode": self.border_mode,
-                "subsample_length": self.subsample_length,
-                "W_regularizer": self.W_regularizer.get_config() if self.W_regularizer else None,
-                "b_regularizer": self.b_regularizer.get_config() if self.b_regularizer else None,
-                "activity_regularizer": self.activity_regularizer.get_config() if self.activity_regularizer else None,
-                "W_constraint": self.W_constraint.get_config() if self.W_constraint else None,
-                "b_constraint": self.b_constraint.get_config() if self.b_constraint else None}
+        config = {"name": self.__class__.__name__,
+                  "nb_filter": self.nb_filter,
+                  "filter_length": self.filter_length,
+                  "init": self.init.__name__,
+                  "activation": self.activation.__name__,
+                  "border_mode": self.border_mode,
+                  "subsample_length": self.subsample_length,
+                  "W_regularizer": self.W_regularizer.get_config() if self.W_regularizer else None,
+                  "b_regularizer": self.b_regularizer.get_config() if self.b_regularizer else None,
+                  "activity_regularizer": self.activity_regularizer.get_config() if self.activity_regularizer else None,
+                  "W_constraint": self.W_constraint.get_config() if self.W_constraint else None,
+                  "b_constraint": self.b_constraint.get_config() if self.b_constraint else None,
+                  "input_dim": self.input_dim,
+                  "input_length": self.input_length}
+        base_config = super(Convolution1D, self).get_config()
+        return dict(base_config.items() + config.items())
 
 
 class Convolution2D(Layer):
@@ -253,19 +262,21 @@ class Convolution2D(Layer):
         return self.activation(conv_out + self.b.dimshuffle('x', 0, 'x', 'x'))
 
     def get_config(self):
-        return {"name": self.__class__.__name__,
-                "nb_filter": self.nb_filter,
-                "nb_row": self.nb_row,
-                "nb_col": self.nb_col,
-                "init": self.init.__name__,
-                "activation": self.activation.__name__,
-                "border_mode": self.border_mode,
-                "subsample": self.subsample,
-                "W_regularizer": self.W_regularizer.get_config() if self.W_regularizer else None,
-                "b_regularizer": self.b_regularizer.get_config() if self.b_regularizer else None,
-                "activity_regularizer": self.activity_regularizer.get_config() if self.activity_regularizer else None,
-                "W_constraint": self.W_constraint.get_config() if self.W_constraint else None,
-                "b_constraint": self.b_constraint.get_config() if self.b_constraint else None}
+        config = {"name": self.__class__.__name__,
+                  "nb_filter": self.nb_filter,
+                  "nb_row": self.nb_row,
+                  "nb_col": self.nb_col,
+                  "init": self.init.__name__,
+                  "activation": self.activation.__name__,
+                  "border_mode": self.border_mode,
+                  "subsample": self.subsample,
+                  "W_regularizer": self.W_regularizer.get_config() if self.W_regularizer else None,
+                  "b_regularizer": self.b_regularizer.get_config() if self.b_regularizer else None,
+                  "activity_regularizer": self.activity_regularizer.get_config() if self.activity_regularizer else None,
+                  "W_constraint": self.W_constraint.get_config() if self.W_constraint else None,
+                  "b_constraint": self.b_constraint.get_config() if self.b_constraint else None}
+        base_config = super(Convolution2D, self).get_config()
+        return dict(base_config.items() + config.items())
 
 
 class MaxPooling1D(Layer):
@@ -297,10 +308,12 @@ class MaxPooling1D(Layer):
         return T.reshape(output, (output.shape[0], output.shape[1], output.shape[2]))
 
     def get_config(self):
-        return {"name": self.__class__.__name__,
-                "stride": self.stride,
-                "pool_length": self.pool_length,
-                "ignore_border": self.ignore_border}
+        config = {"name": self.__class__.__name__,
+                  "stride": self.stride,
+                  "pool_length": self.pool_length,
+                  "ignore_border": self.ignore_border}
+        base_config = super(MaxPooling1D, self).get_config()
+        return dict(base_config.items() + config.items())
 
 
 class MaxPooling2D(Layer):
@@ -328,10 +341,12 @@ class MaxPooling2D(Layer):
         return output
 
     def get_config(self):
-        return {"name": self.__class__.__name__,
-                "pool_size": self.pool_size,
-                "ignore_border": self.ignore_border,
-                "stride": self.stride}
+        config = {"name": self.__class__.__name__,
+                  "pool_size": self.pool_size,
+                  "ignore_border": self.ignore_border,
+                  "stride": self.stride}
+        base_config = super(MaxPooling2D, self).get_config()
+        return dict(base_config.items() + config.items())
 
 
 class UpSample1D(Layer):
@@ -353,8 +368,10 @@ class UpSample1D(Layer):
         return output
 
     def get_config(self):
-        return {"name": self.__class__.__name__,
-                "length": self.length}
+        config = {"name": self.__class__.__name__,
+                  "length": self.length}
+        base_config = super(UpSample1D, self).get_config()
+        return dict(base_config.items() + config.items())
 
 
 class UpSample2D(Layer):
@@ -377,8 +394,10 @@ class UpSample2D(Layer):
         return output
 
     def get_config(self):
-        return {"name": self.__class__.__name__,
-                "size": self.size}
+        config = {"name": self.__class__.__name__,
+                  "size": self.size}
+        base_config = super(UpSample2D, self).get_config()
+        return dict(base_config.items() + config.items())
 
 
 class ZeroPadding1D(Layer):
@@ -403,7 +422,7 @@ class ZeroPadding1D(Layer):
     def __init__(self, padding=1, **kwargs):
         super(ZeroPadding1D, self).__init__(**kwargs)
         self.padding = padding
-        self.input = T.tensor4()
+        self.input = T.tensor3()
 
     @property
     def output_shape(self):
@@ -412,12 +431,18 @@ class ZeroPadding1D(Layer):
 
     def get_output(self, train=False):
         X = self.get_input(train)
-        output = T.zeros(self.output_shape)
-        return T.set_subtensor(output[:, self.padding:X.shape[1]+self.padding, :], X)
+        input_shape = X.shape
+        output_shape = (input_shape[0],
+                        input_shape[1] + 2 * self.padding,
+                        input_shape[2])
+        output = T.zeros(output_shape)
+        return T.set_subtensor(output[:, self.padding:X.shape[1] + self.padding, :], X)
 
     def get_config(self):
-        return {"name": self.__class__.__name__,
-                "padding": self.padding}
+        config = {"name": self.__class__.__name__,
+                  "padding": self.padding}
+        base_config = super(ZeroPadding1D, self).get_config()
+        return dict(base_config.items() + config.items())
 
 
 class ZeroPadding2D(Layer):
@@ -455,17 +480,19 @@ class ZeroPadding2D(Layer):
     def get_output(self, train=False):
         X = self.get_input(train)
         input_shape = X.shape
-        out_shape = (input_shape[0],
-                     input_shape[1],
-                     input_shape[2] + 2 * self.padding[0],
-                     input_shape[3] + 2 * self.padding[1])
-        out = T.zeros(out_shape)
+        output_shape = (input_shape[0],
+                        input_shape[1],
+                        input_shape[2] + 2 * self.padding[0],
+                        input_shape[3] + 2 * self.padding[1])
+        output = T.zeros(output_shape)
         indices = (slice(None),
                    slice(None),
                    slice(self.padding[0], input_shape[2] + self.padding[0]),
                    slice(self.padding[1], input_shape[3] + self.padding[1]))
-        return T.set_subtensor(out[indices], X)
+        return T.set_subtensor(output[indices], X)
 
     def get_config(self):
-        return {"name": self.__class__.__name__,
-                "padding": self.padding}
+        config = {"name": self.__class__.__name__,
+                  "padding": self.padding}
+        base_config = super(ZeroPadding2D, self).get_config()
+        return dict(base_config.items() + config.items())

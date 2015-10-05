@@ -30,9 +30,9 @@ class TestSequential(unittest.TestCase):
     def test_sequential(self):
         print('Test sequential')
         model = Sequential()
-        model.add(Dense(input_dim, nb_hidden))
+        model.add(Dense(nb_hidden, input_shape=(input_dim,)))
         model.add(Activation('relu'))
-        model.add(Dense(nb_hidden, nb_class))
+        model.add(Dense(nb_class))
         model.add(Activation('softmax'))
         model.compile(loss='categorical_crossentropy', optimizer='rmsprop')
 
@@ -57,9 +57,9 @@ class TestSequential(unittest.TestCase):
         print('test weight saving')
         model.save_weights('temp.h5', overwrite=True)
         model = Sequential()
-        model.add(Dense(input_dim, nb_hidden))
+        model.add(Dense(nb_hidden, input_shape=(input_dim,)))
         model.add(Activation('relu'))
-        model.add(Dense(nb_hidden, nb_class))
+        model.add(Dense(nb_class))
         model.add(Activation('softmax'))
         model.compile(loss='categorical_crossentropy', optimizer='rmsprop')
         model.load_weights('temp.h5')
@@ -79,17 +79,17 @@ class TestSequential(unittest.TestCase):
     def test_merge_sum(self):
         print('Test merge: sum')
         left = Sequential()
-        left.add(Dense(input_dim, nb_hidden))
+        left.add(Dense(nb_hidden, input_shape=(input_dim,)))
         left.add(Activation('relu'))
 
         right = Sequential()
-        right.add(Dense(input_dim, nb_hidden))
+        right.add(Dense(nb_hidden, input_shape=(input_dim,)))
         right.add(Activation('relu'))
 
         model = Sequential()
         model.add(Merge([left, right], mode='sum'))
 
-        model.add(Dense(nb_hidden, nb_class))
+        model.add(Dense(nb_class))
         model.add(Activation('softmax'))
 
         model.compile(loss='categorical_crossentropy', optimizer='rmsprop')
@@ -113,14 +113,14 @@ class TestSequential(unittest.TestCase):
         print('test weight saving')
         model.save_weights('temp.h5', overwrite=True)
         left = Sequential()
-        left.add(Dense(input_dim, nb_hidden))
+        left.add(Dense(nb_hidden, input_shape=(input_dim,)))
         left.add(Activation('relu'))
         right = Sequential()
-        right.add(Dense(input_dim, nb_hidden))
+        right.add(Dense(nb_hidden, input_shape=(input_dim,)))
         right.add(Activation('relu'))
         model = Sequential()
         model.add(Merge([left, right], mode='sum'))
-        model.add(Dense(nb_hidden, nb_class))
+        model.add(Dense(nb_class))
         model.add(Activation('softmax'))
         model.load_weights('temp.h5')
         model.compile(loss='categorical_crossentropy', optimizer='rmsprop')
@@ -132,17 +132,17 @@ class TestSequential(unittest.TestCase):
     def test_merge_concat(self):
         print('Test merge: concat')
         left = Sequential()
-        left.add(Dense(input_dim, nb_hidden))
+        left.add(Dense(nb_hidden, input_shape=(input_dim,)))
         left.add(Activation('relu'))
 
         right = Sequential()
-        right.add(Dense(input_dim, nb_hidden))
+        right.add(Dense(nb_hidden, input_shape=(input_dim,)))
         right.add(Activation('relu'))
 
         model = Sequential()
         model.add(Merge([left, right], mode='concat'))
 
-        model.add(Dense(nb_hidden * 2, nb_class))
+        model.add(Dense(nb_class))
         model.add(Activation('softmax'))
 
         model.compile(loss='categorical_crossentropy', optimizer='rmsprop')
@@ -166,17 +166,17 @@ class TestSequential(unittest.TestCase):
         print('test weight saving')
         model.save_weights('temp.h5', overwrite=True)
         left = Sequential()
-        left.add(Dense(input_dim, nb_hidden))
+        left.add(Dense(nb_hidden, input_shape=(input_dim,)))
         left.add(Activation('relu'))
 
         right = Sequential()
-        right.add(Dense(input_dim, nb_hidden))
+        right.add(Dense(nb_hidden, input_shape=(input_dim,)))
         right.add(Activation('relu'))
 
         model = Sequential()
         model.add(Merge([left, right], mode='concat'))
 
-        model.add(Dense(nb_hidden * 2, nb_class))
+        model.add(Dense(nb_class))
         model.add(Activation('softmax'))
 
         model.compile(loss='categorical_crossentropy', optimizer='rmsprop')
@@ -190,26 +190,26 @@ class TestSequential(unittest.TestCase):
         print('Test merge recursivity')
 
         left = Sequential()
-        left.add(Dense(input_dim, nb_hidden))
+        left.add(Dense(nb_hidden, input_shape=(input_dim,)))
         left.add(Activation('relu'))
 
         right = Sequential()
-        right.add(Dense(input_dim, nb_hidden))
+        right.add(Dense(nb_hidden, input_shape=(input_dim,)))
         right.add(Activation('relu'))
 
         righter = Sequential()
-        righter.add(Dense(input_dim, nb_hidden))
+        righter.add(Dense(nb_hidden, input_shape=(input_dim,)))
         righter.add(Activation('relu'))
 
         intermediate = Sequential()
         intermediate.add(Merge([left, right], mode='sum'))
-        intermediate.add(Dense(nb_hidden, nb_hidden))
+        intermediate.add(Dense(nb_hidden))
         intermediate.add(Activation('relu'))
 
         model = Sequential()
         model.add(Merge([intermediate, righter], mode='sum'))
 
-        model.add(Dense(nb_hidden, nb_class))
+        model.add(Dense(nb_class))
         model.add(Activation('softmax'))
 
         model.compile(loss='categorical_crossentropy', optimizer='rmsprop')
@@ -240,13 +240,13 @@ class TestSequential(unittest.TestCase):
     def test_merge_overlap(self):
         print('Test merge overlap')
         left = Sequential()
-        left.add(Dense(input_dim, nb_hidden))
+        left.add(Dense(nb_hidden, input_shape=(input_dim,)))
         left.add(Activation('relu'))
 
         model = Sequential()
         model.add(Merge([left, left], mode='sum'))
 
-        model.add(Dense(nb_hidden, nb_class))
+        model.add(Dense(nb_class))
         model.add(Activation('softmax'))
 
         model.compile(loss='categorical_crossentropy', optimizer='rmsprop')
@@ -278,17 +278,18 @@ class TestSequential(unittest.TestCase):
 
     def test_count_params(self):
         print('test count params')
-        nb_units = 100
+        input_dim = 20
+        nb_units = 10
         nb_classes = 2
 
-        n = nb_units * nb_units + nb_units
+        n = input_dim * nb_units + nb_units
         n += nb_units * nb_units + nb_units
         n += nb_units * nb_classes + nb_classes
 
         model = Sequential()
-        model.add(Dense(nb_units, nb_units))
-        model.add(Dense(nb_units, nb_units))
-        model.add(Dense(nb_units, nb_classes))
+        model.add(Dense(nb_units, input_shape=(input_dim,)))
+        model.add(Dense(nb_units))
+        model.add(Dense(nb_classes))
         model.add(Activation('softmax'))
 
         self.assertEqual(n, model.count_params())

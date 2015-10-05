@@ -24,8 +24,10 @@ class GaussianNoise(MaskedLayer):
                                         dtype=theano.config.floatX)
 
     def get_config(self):
-        return {"name": self.__class__.__name__,
-                "sigma": self.sigma}
+        config = {"name": self.__class__.__name__,
+                  "sigma": self.sigma}
+        base_config = super(GaussianNoise, self).get_config()
+        return dict(base_config.items() + config.items())
 
 
 class GaussianDropout(MaskedLayer):
@@ -49,5 +51,7 @@ class GaussianDropout(MaskedLayer):
         return X
 
     def get_config(self):
-        return {"name": self.__class__.__name__,
-                "p": self.p}
+        config = {"name": self.__class__.__name__,
+                  "p": self.p}
+        base_config = super(GaussianDropout, self).get_config()
+        return dict(base_config.items() + config.items())

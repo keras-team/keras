@@ -84,7 +84,7 @@ class TestConfigParams(unittest.TestCase):
         self._runner(layer)
 
     def test_dense(self):
-        layer = core.Dense(10, 10)
+        layer = core.Dense(10, input_shape=(10,))
         self._runner(layer)
 
     def test_act_reg(self):
@@ -92,7 +92,7 @@ class TestConfigParams(unittest.TestCase):
         self._runner(layer)
 
     def test_time_dist_dense(self):
-        layer = core.TimeDistributedDense(10, 10)
+        layer = core.TimeDistributedDense(10, input_shape=(None, 10))
         self._runner(layer)
 
     def test_time_dist_merge(self):

@@ -15,8 +15,10 @@ class LeakyReLU(MaskedLayer):
         return T.nnet.relu(X, self.alpha)
 
     def get_config(self):
-        return {"name": self.__class__.__name__,
-                "alpha": self.alpha}
+        config = {"name": self.__class__.__name__,
+                  "alpha": self.alpha}
+        base_config = super(LeakyReLU, self).get_config()
+        return dict(base_config.items() + config.items())
 
 
 class PReLU(MaskedLayer):
@@ -46,8 +48,10 @@ class PReLU(MaskedLayer):
         return pos + neg
 
     def get_config(self):
-        return {"name": self.__class__.__name__,
-                "init": self.init.__name__}
+        config = {"name": self.__class__.__name__,
+                  "init": self.init.__name__}
+        base_config = super(PReLU, self).get_config()
+        return dict(base_config.items() + config.items())
 
 
 class ParametricSoftplus(MaskedLayer):
@@ -81,9 +85,11 @@ class ParametricSoftplus(MaskedLayer):
         return T.nnet.softplus(self.betas * X) * self.alphas
 
     def get_config(self):
-        return {"name": self.__class__.__name__,
-                "alpha_init": self.alpha_init,
-                "beta_init": self.beta_init}
+        config = {"name": self.__class__.__name__,
+                  "alpha_init": self.alpha_init,
+                  "beta_init": self.beta_init}
+        base_config = super(ParametricSoftplus, self).get_config()
+        return dict(base_config.items() + config.items())
 
 
 class ThresholdedLinear(MaskedLayer):
@@ -103,11 +109,13 @@ class ThresholdedLinear(MaskedLayer):
         return T.switch(abs(X) < self.theta, 0, X)
 
     def get_config(self):
-        return {"name": self.__class__.__name__,
-                "theta": self.theta}
+        config = {"name": self.__class__.__name__,
+                  "theta": self.theta}
+        base_config = super(ThresholdedLinear, self).get_config()
+        return dict(base_config.items() + config.items())
 
 
-class ThresholdedReLu(MaskedLayer):
+class ThresholdedReLU(MaskedLayer):
     '''
         Thresholded Rectified Activation
 
@@ -116,7 +124,7 @@ class ThresholdedReLu(MaskedLayer):
             http://arxiv.org/pdf/1402.3337.pdf
     '''
     def __init__(self, theta=1.0, **kwargs):
-        super(ThresholdedReLu, self).__init__(**kwargs)
+        super(ThresholdedReLU, self).__init__(**kwargs)
         self.theta = theta
 
     def get_output(self, train):
@@ -124,5 +132,7 @@ class ThresholdedReLu(MaskedLayer):
         return T.switch(X > self.theta, X, 0)
 
     def get_config(self):
-        return {"name": self.__class__.__name__,
-                "theta": self.theta}
+        config = {"name": self.__class__.__name__,
+                  "theta": self.theta}
+        base_config = super(ThresholdedReLU, self).get_config()
+        return dict(base_config.items() + config.items())

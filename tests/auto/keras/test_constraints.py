@@ -61,7 +61,7 @@ class TestConstraints(unittest.TestCase):
         normalized = unitnorm_instance(self.example_array)
 
         norm_of_normalized = np.sqrt(np.sum(normalized.eval()**2, axis=1))
-        difference = norm_of_normalized - 1. #in the unit norm constraint, it should be equal to 1.
+        difference = norm_of_normalized - 1.  # in the unit norm constraint, it should be equal to 1.
         largest_difference = np.max(np.abs(difference))
         self.assertAlmostEqual(largest_difference, 0.)
 

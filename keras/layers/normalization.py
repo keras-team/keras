@@ -35,6 +35,15 @@ class BatchNormalization(Layer):
         self.params = [self.gamma, self.beta]
         self.running_mean = shared_zeros(input_shape)
         self.running_std = shared_ones((input_shape))
+
+        # initialize self.updates: batch mean/std computation
+        X = self.get_input(train=True)
+        m = X.mean(axis=0)
+        std = T.mean((X - m) ** 2 + self.epsilon, axis=0) ** 0.5
+        mean_update = self.momentum * self.running_mean + (1-self.momentum) * m
+        std_update = self.momentum * self.running_std + (1-self.momentum) * std
+        self.updates = [(self.running_mean, mean_update), (self.running_std, std_update)]
+
         if self.initial_weights is not None:
             self.set_weights(self.initial_weights)
             del self.initial_weights
@@ -46,14 +55,6 @@ class BatchNormalization(Layer):
         self.running_mean.set_value(floatX(weights[-2]))
         self.running_std.set_value(floatX(weights[-1]))
         super(BatchNormalization, self).set_weights(weights[:-2])
-
-    def init_updates(self):
-        X = self.get_input(train=True)
-        m = X.mean(axis=0)
-        std = T.mean((X - m) ** 2 + self.epsilon, axis=0) ** 0.5
-        mean_update = self.momentum * self.running_mean + (1-self.momentum) * m
-        std_update = self.momentum * self.running_std + (1-self.momentum) * std
-        self.updates = [(self.running_mean, mean_update), (self.running_std, std_update)]
 
     def get_output(self, train):
         X = self.get_input(train)
@@ -70,10 +71,12 @@ class BatchNormalization(Layer):
         return out
 
     def get_config(self):
-        return {"name": self.__class__.__name__,
-                "epsilon": self.epsilon,
-                "mode": self.mode,
-                "momentum": self.momentum}
+        config = {"name": self.__class__.__name__,
+                  "epsilon": self.epsilon,
+                  "mode": self.mode,
+                  "momentum": self.momentum}
+        base_config = super(BatchNormalization, self).get_config()
+        return dict(base_config.items() + config.items())
 
 
 class LRN2D(Layer):
@@ -105,8 +108,10 @@ class LRN2D(Layer):
         return X / scale
 
     def get_config(self):
-        return {"name": self.__class__.__name__,
-                "alpha": self.alpha,
-                "k": self.k,
-                "beta": self.beta,
-                "n": self.n}
+        config = {"name": self.__class__.__name__,
+                  "alpha": self.alpha,
+                  "k": self.k,
+                  "beta": self.beta,
+                  "n": self.n}
+        base_config = super(LRN2D, self).get_config()
+        return dict(base_config.items() + config.items())

@@ -16,9 +16,6 @@ class TestConvolutions(unittest.TestCase):
 
         weights_in = [np.ones((nb_filter, input_dim, filter_length, 1)), np.ones(nb_filter)]
 
-        self.assertRaises(Exception, convolutional.Convolution1D,
-                          input_dim, nb_filter, filter_length, border_mode='foo')
-
         input = np.ones((nb_samples, nb_steps, input_dim))
         for weight in [None, weights_in]:
             for border_mode in ['valid', 'full', 'same']:
@@ -29,10 +26,10 @@ class TestConvolutions(unittest.TestCase):
                         for b_regularizer in [None, 'l2']:
                             for act_regularizer in [None, 'l2']:
                                 layer = convolutional.Convolution1D(
-                                    input_dim, nb_filter, filter_length, weights=weight,
+                                    nb_filter, filter_length, weights=weight,
                                     border_mode=border_mode, W_regularizer=W_regularizer,
                                     b_regularizer=b_regularizer, activity_regularizer=act_regularizer,
-                                    subsample_length=subsample_length)
+                                    subsample_length=subsample_length, input_shape=(None, input_dim))
 
                             layer.input = theano.shared(value=input)
                             for train in [True, False]:
@@ -70,9 +67,6 @@ class TestConvolutions(unittest.TestCase):
 
         weights_in = [np.ones((nb_filter, stack_size, nb_row, nb_col)), np.ones(nb_filter)]
 
-        self.assertRaises(Exception, convolutional.Convolution2D,
-                          nb_filter, stack_size, nb_row, nb_col, border_mode='foo')
-
         input = np.ones((nb_samples, stack_size, input_nb_row, input_nb_col))
         for weight in [None, weights_in]:
             for border_mode in ['valid', 'full', 'same']:
@@ -83,10 +77,10 @@ class TestConvolutions(unittest.TestCase):
                         for b_regularizer in [None, 'l2']:
                             for act_regularizer in [None, 'l2']:
                                 layer = convolutional.Convolution2D(
-                                    nb_filter, stack_size, nb_row, nb_col, weights=weight,
+                                    nb_filter, nb_row, nb_col, weights=weight,
                                     border_mode=border_mode, W_regularizer=W_regularizer,
                                     b_regularizer=b_regularizer, activity_regularizer=act_regularizer,
-                                    subsample=subsample)
+                                    subsample=subsample, input_shape=(stack_size, None, None))
 
                                 layer.input = theano.shared(value=input)
                                 for train in [True, False]:

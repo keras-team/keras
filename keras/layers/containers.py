@@ -37,7 +37,6 @@ class Sequential(Layer):
             self.layers[-1].set_previous(self.layers[-2])
             if not hasattr(self.layers[0], 'input'):
                 self.set_input()
-        layer.init_updates()
 
         params, regularizers, constraints, updates = layer.get_params()
         self.params += params
@@ -217,7 +216,6 @@ class Graph(Layer):
                                  'merge_mode': merge_mode,
                                  'concat_axis': concat_axis,
                                  'create_output': create_output})
-        layer.init_updates()
         params, regularizers, constraints, updates = layer.get_params()
         self.params += params
         self.regularizers += regularizers

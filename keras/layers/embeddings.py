@@ -19,13 +19,13 @@ class Embedding(Layer):
     '''
     input_ndim = 2
 
-    def __init__(self, input_dim, output_dim, init='uniform', max_lenght=None,
+    def __init__(self, input_dim, output_dim, init='uniform', input_length=None,
                  W_regularizer=None, activity_regularizer=None, W_constraint=None,
                  mask_zero=False, weights=None, **kwargs):
         self.input_dim = input_dim
         self.output_dim = output_dim
         self.init = initializations.get(init)
-        self.max_lenght = max_lenght
+        self.input_length = input_length
         self.mask_zero = mask_zero
 
         self.W_constraint = constraints.get(W_constraint)
@@ -63,7 +63,7 @@ class Embedding(Layer):
 
     @property
     def output_shape(self):
-        return (self.input_shape[0], self.max_lenght, self.output_dim)
+        return (self.input_shape[0], self.input_length, self.output_dim)
 
     def get_output(self, train=False):
         X = self.get_input(train)
@@ -71,15 +71,17 @@ class Embedding(Layer):
         return out
 
     def get_config(self):
-        return {"name": self.__class__.__name__,
-                "input_dim": self.input_dim,
-                "output_dim": self.output_dim,
-                "init": self.init.__name__,
-                "max_lenght": self.max_lenght,
-                "mask_zero": self.mask_zero,
-                "activity_regularizer": self.activity_regularizer.get_config() if self.activity_regularizer else None,
-                "W_regularizer": self.W_regularizer.get_config() if self.W_regularizer else None,
-                "W_constraint": self.W_constraint.get_config() if self.W_constraint else None}
+        config = {"name": self.__class__.__name__,
+                  "input_dim": self.input_dim,
+                  "output_dim": self.output_dim,
+                  "init": self.init.__name__,
+                  "max_lenght": self.max_lenght,
+                  "mask_zero": self.mask_zero,
+                  "activity_regularizer": self.activity_regularizer.get_config() if self.activity_regularizer else None,
+                  "W_regularizer": self.W_regularizer.get_config() if self.W_regularizer else None,
+                  "W_constraint": self.W_constraint.get_config() if self.W_constraint else None}
+        base_config = super(Embedding, self).get_config()
+        return dict(base_config.items() + config.items())
 
 
 class WordContextProduct(Layer):
@@ -142,8 +144,10 @@ class WordContextProduct(Layer):
         return self.activation(dot)
 
     def get_config(self):
-        return {"name": self.__class__.__name__,
-                "input_dim": self.input_dim,
-                "proj_dim": self.proj_dim,
-                "init": self.init.__name__,
-                "activation": self.activation.__name__}
+        config = {"name": self.__class__.__name__,
+                  "input_dim": self.input_dim,
+                  "proj_dim": self.proj_dim,
+                  "init": self.init.__name__,
+                  "activation": self.activation.__name__}
+        base_config = super(WordContextProduct, self).get_config()
+        return dict(base_config.items() + config.items())
