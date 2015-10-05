@@ -1,19 +1,17 @@
 from __future__ import absolute_import
 from __future__ import print_function
 import numpy as np
-np.random.seed(1337)  # for reproducibility
 
 from keras.preprocessing import sequence
-from keras.optimizers import SGD, RMSprop, Adagrad
-from keras.utils import np_utils
+
 from keras.models import Sequential
 from keras.layers.core import Dense, Dropout, Activation
 from keras.layers.embeddings import Embedding
-from keras.layers.recurrent import LSTM, GRU
+from keras.layers.recurrent import LSTM, Bidirectional
 from keras.datasets import imdb
 
 '''
-    Train a LSTM on the IMDB sentiment classification task.
+    Train a bidirectional LSTM on the IMDB sentiment classification task.
 
     The dataset is actually too small for LSTM to be of any advantage
     compared to simpler, much faster methods such as TF-IDF+LogReg.
@@ -30,6 +28,8 @@ from keras.datasets import imdb
     GPU command:
         THEANO_FLAGS=mode=FAST_RUN,device=gpu,floatX=float32 python imdb_lstm.py
 '''
+
+np.random.seed(1337)  # for reproducibility
 
 max_features = 20000
 maxlen = 100  # cut texts after this number of words (among top max_features most common words)
@@ -49,7 +49,7 @@ print('X_test shape:', X_test.shape)
 print('Build model...')
 model = Sequential()
 model.add(Embedding(max_features, 128))
-model.add(LSTM(128, 128))  # try using a GRU instead, for fun
+model.add(Bidirectional(LSTM, 128, 128))
 model.add(Dropout(0.5))
 model.add(Dense(128, 1))
 model.add(Activation('sigmoid'))
