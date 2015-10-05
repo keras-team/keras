@@ -6,6 +6,7 @@ import time, json, warnings
 
 from collections import deque
 from .utils.generic_utils import Progbar
+from .schedules import LearningRateSchedule
 
 
 class CallbackList(object):
@@ -265,12 +266,38 @@ class RemoteMonitor(Callback):
 
 class LearningRateScheduler(Callback):
     '''LearningRateScheduler
-    schedule is a function that gets an epoch number as input and returns a new
-    learning rate as output.
+    schedule is either a subclass of a LearningRateSchedule or a function
+    that gets an epoch number as input and returns a new learning rate as output.
     '''
-    def __init__(self, schedule):
+    def __init__(self, schedule, mode='epoch', logger=None):
         super(LearningRateScheduler, self).__init__()
         self.schedule = schedule
+        self.mode = mode
+        self.logger = logger
+        self.current_epoch = 0
+        self.current_batch = 0
+
+    def on_batch_begin(self, batch, logs={}):
+        self.current_batch = batch + self.current_epoch * \
+                                     np.floor(1 + self.params['nb_sample'] / self.params['batch_size']).astype(int)
+        if self.mode is 'batch':
+            if isinstance(self.schedule, LearningRateSchedule):
+                current_lr = self.model.optimizer.lr.get_value()
+                new_lr = self.schedule.get_learning_rate(current_lr, self.current_batch)
+            else:
+                new_lr = self.schedule(self.current_batch)
+            self.model.optimizer.lr.set_value(new_lr)
+            if self.logger:
+                self.logger.progbar.replace_value('lr', new_lr)
 
     def on_epoch_begin(self, epoch, logs={}):
-        self.model.optimizer.lr.set_value(self.schedule(epoch))
+        self.current_epoch = epoch
+        if self.mode is 'epoch':
+            if isinstance(self.schedule, LearningRateSchedule):
+                current_lr = self.model.optimizer.lr.get_value()
+                new_lr = self.schedule.get_learning_rate(current_lr, epoch)
+            else:
+                new_lr = self.schedule(epoch)
+            self.model.optimizer.lr.set_value(new_lr)
+            if self.logger:
+                self.logger.progbar.replace_value('lr', new_lr)

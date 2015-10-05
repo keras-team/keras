@@ -169,7 +169,7 @@ class Model(object):
         index_array = np.arange(nb_train_sample)
 
         history = cbks.History()
-        if verbose:
+        if verbose and not any(isinstance(x, cbks.BaseLogger) for x in callbacks):
             callbacks = [history, cbks.BaseLogger()] + callbacks
         else:
             callbacks = [history] + callbacks
