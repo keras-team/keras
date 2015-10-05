@@ -51,7 +51,7 @@ def pool_output_length(input_length, pool_size, ignore_border, stride):
 class Convolution1D(Layer):
     input_ndim = 3
 
-    def __init__(self, input_dim, nb_filter, filter_length,
+    def __init__(self, nb_filter, filter_length,
                  init='uniform', activation='linear', weights=None,
                  border_mode='valid', subsample_length=1,
                  W_regularizer=None, b_regularizer=None, activity_regularizer=None,
@@ -82,9 +82,9 @@ class Convolution1D(Layer):
     def build(self):
         input_dim = self.input_shape[2]
         self.input = T.tensor3()
-        self.W_shape = (nb_filter, input_dim, filter_length, 1)
+        self.W_shape = (self.nb_filter, input_dim, self.filter_length, 1)
         self.W = self.init(self.W_shape)
-        self.b = shared_zeros((nb_filter,))
+        self.b = shared_zeros((self.nb_filter,))
         self.params = [self.W, self.b]
         self.regularizers = []
 
@@ -190,9 +190,9 @@ class Convolution2D(Layer):
     def build(self):
         stack_size = self.input_shape[1]
         self.input = T.tensor4()
-        self.W_shape = (nb_filter, stack_size, nb_row, nb_col)
+        self.W_shape = (self.nb_filter, stack_size, self.nb_row, self.nb_col)
         self.W = self.init(self.W_shape)
-        self.b = shared_zeros((nb_filter,))
+        self.b = shared_zeros((self.nb_filter,))
         self.params = [self.W, self.b]
         self.regularizers = []
 

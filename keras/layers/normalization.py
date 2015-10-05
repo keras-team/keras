@@ -21,6 +21,7 @@ class BatchNormalization(Layer):
         self.epsilon = epsilon
         self.mode = mode
         self.momentum = momentum
+        self.initial_weights = weights
         super(BatchNormalization, self).__init__(**kwargs)
 
     def build(self):
@@ -34,8 +35,9 @@ class BatchNormalization(Layer):
         self.params = [self.gamma, self.beta]
         self.running_mean = shared_zeros(input_shape)
         self.running_std = shared_ones((input_shape))
-        if weights is not None:
-            self.set_weights(weights)
+        if self.initial_weights is not None:
+            self.set_weights(self.initial_weights)
+            del self.initial_weights
 
     def get_weights(self):
         return super(BatchNormalization, self).get_weights() + [self.running_mean.get_value(), self.running_std.get_value()]

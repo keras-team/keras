@@ -21,7 +21,8 @@ class Layer(object):
     def __init__(self, **kwargs):
         if 'input_shape' in kwargs:
             self.set_input_shape(kwargs['input_shape'])
-        self.params = []
+        if not hasattr(self, 'params'):
+            self.params = []
 
     def init_updates(self):
         self.updates = []
@@ -59,7 +60,7 @@ class Layer(object):
         elif hasattr(self, '_input_shape'):
             return self._input_shape
         else:
-            raise Exception('Layer is not connected.')
+            raise Exception('Layer is not connected. Did you forget to set "input_shape"?')
 
     def set_input_shape(self, input_shape):
         if type(input_shape) not in [tuple, list]:
@@ -283,7 +284,7 @@ class Merge(Layer):
         elif self.mode == 'concat':
             output_shape = list(input_shapes[0])
             for shape in input_shapes[1:]:
-                output_shape[self.concat_axis] += shape[concat_axis]
+                output_shape[self.concat_axis] += shape[self.concat_axis]
             return tuple(output_shape)
 
     def get_params(self):
@@ -528,7 +529,7 @@ class Dense(Layer):
 
         self.input = T.matrix()
         self.W = self.init((input_dim, self.output_dim))
-        self.b = shared_zeros((self.output_dim))
+        self.b = shared_zeros((self.output_dim,))
 
         self.params = [self.W, self.b]
 

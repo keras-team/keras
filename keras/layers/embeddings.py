@@ -19,38 +19,40 @@ class Embedding(Layer):
     '''
     input_ndim = 2
 
-    def __init__(self, input_dim, output_dim, init='uniform',
+    def __init__(self, input_dim, output_dim, init='uniform', max_lenght=None,
                  W_regularizer=None, activity_regularizer=None, W_constraint=None,
                  mask_zero=False, weights=None, **kwargs):
-
-        super(Embedding, self).__init__(**kwargs)
-        self.init = initializations.get(init)
         self.input_dim = input_dim
         self.output_dim = output_dim
-
-        self.input = T.imatrix()
-        self.W = self.init((self.input_dim, self.output_dim))
+        self.init = initializations.get(init)
+        self.max_lenght = max_lenght
         self.mask_zero = mask_zero
-
-        self.params = [self.W]
 
         self.W_constraint = constraints.get(W_constraint)
         self.constraints = [self.W_constraint]
 
-        self.regularizers = []
-
         self.W_regularizer = regularizers.get(W_regularizer)
+        self.activity_regularizer = regularizers.get(activity_regularizer)
+
+        self.initial_weights = weights
+        kwargs['input_shape'] = (self.input_dim,)
+        super(Embedding, self).__init__(**kwargs)
+
+    def build(self):
+        self.input = T.imatrix()
+        self.W = self.init((self.input_dim, self.output_dim))
+        self.params = [self.W]
+        self.regularizers = []
         if self.W_regularizer:
             self.W_regularizer.set_param(self.W)
             self.regularizers.append(self.W_regularizer)
 
-        self.activity_regularizer = regularizers.get(activity_regularizer)
         if self.activity_regularizer:
             self.activity_regularizer.set_layer(self)
             self.regularizers.append(self.activity_regularizer)
 
-        if weights is not None:
-            self.set_weights(weights)
+        if self.initial_weights is not None:
+            self.set_weights(self.initial_weights)
 
     def get_output_mask(self, train=None):
         X = self.get_input(train)
@@ -61,7 +63,7 @@ class Embedding(Layer):
 
     @property
     def output_shape(self):
-        return (self.input_shape[0], None, self.output_dim)
+        return (self.input_shape[0], self.max_lenght, self.output_dim)
 
     def get_output(self, train=False):
         X = self.get_input(train)
@@ -73,6 +75,8 @@ class Embedding(Layer):
                 "input_dim": self.input_dim,
                 "output_dim": self.output_dim,
                 "init": self.init.__name__,
+                "max_lenght": self.max_lenght,
+                "mask_zero": self.mask_zero,
                 "activity_regularizer": self.activity_regularizer.get_config() if self.activity_regularizer else None,
                 "W_regularizer": self.W_regularizer.get_config() if self.W_regularizer else None,
                 "W_constraint": self.W_constraint.get_config() if self.W_constraint else None}

@@ -4,7 +4,8 @@ from keras.layers.core import Dense, Activation, Dropout
 from keras.layers.recurrent import LSTM
 from keras.datasets.data_utils import get_file
 import numpy as np
-import random, sys
+import random
+import sys
 
 '''
     Example script to generate text from Nietzsche's writings.
@@ -15,7 +16,7 @@ import random, sys
     It is recommended to run this script on GPU, as recurrent
     networks are quite computationally intensive.
 
-    If you try this script on new data, make sure your corpus 
+    If you try this script on new data, make sure your corpus
     has at least ~100k characters. ~1M is better.
 '''
 
@@ -34,7 +35,7 @@ step = 3
 sentences = []
 next_chars = []
 for i in range(0, len(text) - maxlen, step):
-    sentences.append(text[i : i + maxlen])
+    sentences.append(text[i: i + maxlen])
     next_chars.append(text[i + maxlen])
 print('nb sequences:', len(sentences))
 
@@ -50,20 +51,21 @@ for i, sentence in enumerate(sentences):
 # build the model: 2 stacked LSTM
 print('Build model...')
 model = Sequential()
-model.add(LSTM(len(chars), 512, return_sequences=True))
+model.add(LSTM(512, return_sequences=True, input_shape=(maxlen, len(chars))))
 model.add(Dropout(0.2))
-model.add(LSTM(512, 512, return_sequences=False))
+model.add(LSTM(512, return_sequences=False))
 model.add(Dropout(0.2))
-model.add(Dense(512, len(chars)))
+model.add(Dense(len(chars)))
 model.add(Activation('softmax'))
 
 model.compile(loss='categorical_crossentropy', optimizer='rmsprop')
 
-# helper function to sample an index from a probability array
+
 def sample(a, temperature=1.0):
-    a = np.log(a)/temperature
-    a = np.exp(a)/np.sum(np.exp(a))
-    return np.argmax(np.random.multinomial(1,a,1))
+    # helper function to sample an index from a probability array
+    a = np.log(a) / temperature
+    a = np.exp(a) / np.sum(np.exp(a))
+    return np.argmax(np.random.multinomial(1, a, 1))
 
 # train the model, output generated text after each iteration
 for iteration in range(1, 60):
@@ -79,7 +81,7 @@ for iteration in range(1, 60):
         print('----- diversity:', diversity)
 
         generated = ''
-        sentence = text[start_index : start_index + maxlen]
+        sentence = text[start_index: start_index + maxlen]
         generated += sentence
         print('----- Generating with seed: "' + sentence + '"')
         sys.stdout.write(generated)
