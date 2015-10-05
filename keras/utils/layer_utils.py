@@ -17,7 +17,7 @@ from .. import regularizers
 from .. import constraints
 
 
-def container_from_config(original_layer_dict):
+def container_from_config(original_layer_dict, custom_layers={}):
     layer_dict = copy.deepcopy(original_layer_dict)
     name = layer_dict.get('name')
 
@@ -26,7 +26,7 @@ def container_from_config(original_layer_dict):
         layers = layer_dict.get('layers')
         layer_list = []
         for layer in layers:
-            init_layer = container_from_config(layer)
+            init_layer = container_from_config(layer, custom_layers=custom_layers)
             layer_list.append(init_layer)
         merge_layer = Merge(layer_list, mode)
         return merge_layer
@@ -35,7 +35,7 @@ def container_from_config(original_layer_dict):
         layers = layer_dict.get('layers')
         layer_list = []
         for layer in layers:
-            init_layer = container_from_config(layer)
+            init_layer = container_from_config(layer, custom_layers=custom_layers)
             layer_list.append(init_layer)
         seq_layer = containers.Sequential(layer_list)
         return seq_layer
@@ -49,7 +49,8 @@ def container_from_config(original_layer_dict):
 
         nodes = layer_dict.get('node_config')
         for node in nodes:
-            layer = container_from_config(layer_dict['nodes'].get(node['name']))
+            layer = container_from_config(layer_dict['nodes'].get(node['name']),
+                                          custom_layers=custom_layers)
             node['layer'] = layer
             graph_layer.add_node(**node)
 
@@ -59,8 +60,10 @@ def container_from_config(original_layer_dict):
         return graph_layer
 
     elif name == 'AutoEncoder':
-        kwargs = {'encoder': container_from_config(layer_dict.get('encoder_config')),
-                  'decoder': container_from_config(layer_dict.get('decoder_config'))}
+        kwargs = {'encoder': container_from_config(layer_dict.get('encoder_config'),
+                                                   custom_layers=custom_layers),
+                  'decoder': container_from_config(layer_dict.get('decoder_config'),
+                                                   custom_layers=custom_layers)}
         for kwarg in ['output_reconstruction', 'weights']:
             if kwarg in layer_dict:
                 kwargs[kwarg] = layer_dict[kwarg]
@@ -79,7 +82,7 @@ def container_from_config(original_layer_dict):
                 if vname in [x for x, y in inspect.getmembers(regularizers, predicate=inspect.isclass)]:
                     layer_dict[k] = regularizers.get(vname, v)
 
-        base_layer = get_layer(name, layer_dict)
+        base_layer = get_layer(name, layer_dict, custom_layers=custom_layers)
         return base_layer
 
 
@@ -121,5 +124,8 @@ def print_layer_shapes(model, input_shapes):
 
 
 from .generic_utils import get_from_module
-def get_layer(identifier, kwargs=None):
+def get_layer(identifier, kwargs=None, custom_layers={}):
+    # Insert custom layers into globals so they can be accessed by `get_from_module`.
+    for cls_key in custom_layers:
+        globals()[cls_key] = custom_layers[cls_key]
     return get_from_module(identifier, globals(), 'layer', instantiate=True, kwargs=kwargs)
