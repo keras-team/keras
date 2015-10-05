@@ -791,3 +791,45 @@ class MaxoutDense(Layer):
                 "activity_regularizer": self.activity_regularizer.get_config() if self.activity_regularizer else None,
                 "W_constraint": self.W_constraint.get_config() if self.W_constraint else None,
                 "b_constraint": self.b_constraint.get_config() if self.b_constraint else None}
+        
+
+class Roll(Layer):
+    '''
+    Convenience function to roll `TensorType`s along the given axis.
+
+    Syntax copies numpy.roll function.
+
+    Parameters
+    ----------
+    x : tensor_like
+        Input tensor.
+    shift : int (symbolic or literal)
+        The number of places by which elements are shifted.
+    axis : int (symbolic or literal), optional
+        The axis along which elements are shifted. By default, the array
+        is flattened before shifting, after which the original
+        shape is restored.
+
+    Returns
+    -------
+    tensor
+        Output tensor, with the same shape as `x`.
+        Mimics numpy.roll
+    '''
+    def __init__(self, shift, axis=None):
+        super(Roll, self).__init__()
+        self.shift = shift
+        self.axis = axis
+
+    def get_output(self, train):
+        shift = self.shift
+        axis = self.axis
+
+        x = self.get_input(train)
+        return T.roll(x, shift, axis=axis)
+
+    def get_config(self):
+        return {"name": self.__class__.__name__,
+                "shift": self.shift,
+                "axis": self.axis}
+

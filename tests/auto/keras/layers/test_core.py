@@ -110,6 +110,10 @@ class TestConfigParams(unittest.TestCase):
         layer = core.MaxoutDense(10, 10)
         self._runner(layer)
 
+    def test_roll(self):
+        layer = core.Roll(10, axis=1)
+        self._runner(layer)
+
 
 class TestMasking(unittest.TestCase):
     """Test the Masking class"""
