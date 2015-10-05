@@ -75,7 +75,7 @@ class LossHistory(keras.callbacks.Callback):
         self.losses.append(logs.get('loss'))
 
 model = Sequential()
-model.add(Dense(784, 10, init='uniform'))
+model.add(Dense(10, input_dim=784, init='uniform'))
 model.add(Activation('softmax'))
 model.compile(loss='categorical_crossentropy', optimizer='rmsprop')
 
@@ -97,7 +97,7 @@ print history.losses
 from keras.callbacks import ModelCheckpoint
 
 model = Sequential()
-model.add(Dense(784, 10, init='uniform'))
+model.add(Dense(10, input_dim=784, init='uniform'))
 model.add(Activation('softmax'))
 model.compile(loss='categorical_crossentropy', optimizer='rmsprop')
 

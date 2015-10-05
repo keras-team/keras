@@ -5,7 +5,7 @@ An optimizer is one of the two arguments required for compiling a Keras model:
 
 ```python
 model = Sequential()
-model.add(Dense(20, 64, init='uniform'))
+model.add(Dense(64, init='uniform', input_dim=10))
 model.add(Activation('tanh'))
 model.add(Activation('softmax'))
 

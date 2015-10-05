@@ -2,9 +2,9 @@
 ## SimpleRNN
 
 ```python
-keras.layers.recurrent.SimpleRNN(input_dim, output_dim, 
+keras.layers.recurrent.SimpleRNN(output_dim, 
         init='glorot_uniform', inner_init='orthogonal', activation='sigmoid', weights=None,
-        truncate_gradient=-1, return_sequences=False)
+        truncate_gradient=-1, return_sequences=False, input_dim=None, input_length=None)
 ```
 Fully connected RNN where output is to fed back to input. 
 
@@ -18,23 +18,25 @@ Fully connected RNN where output is to fed back to input.
 
 
 - __Arguments__:
-    - __input_dim__: dimension of the input.
     - __output_dim__: dimension of the internal projections and the final output.
     - __init__: weight initialization function. Can be the name of an existing function (str), or a Theano function (see: [initializations](../initializations.md)).
     - __activation__: activation function. Can be the name of an existing function (str), or a Theano function (see: [activations](../activations.md)).
     - __weights__: list of numpy arrays to set as initial weights. The list should have 3 elements, of shapes: `[(input_dim, output_dim), (output_dim, output_dim), (output_dim,)]`.
     - __truncate_gradient__: Number of steps to use in truncated BPTT. See: [Theano "scan"](http://deeplearning.net/software/theano/library/scan.html).
     - __return_sequences__: Boolean. Whether to return the last output in the output sequence, or the full sequence.
+    - __input_dim__: dimensionality of the input (integer). This argument (or alternatively, the keyword argument `input_shape`) is required when using this layer as the first layer in a model.
+    - __input_length__: Length of input sequences, when it is constant. This argument is required if you are going to connect `Flatten` then `Dense` layers upstream (without it, the shape of the dense outputs cannot be computed).
 
 ---
 
 ## SimpleDeepRNN
 
 ```python
-keras.layers.recurrent.SimpleDeepRNN(input_dim, output_dim, depth=3,
+keras.layers.recurrent.SimpleDeepRNN(output_dim, depth=3,
         init='glorot_uniform', inner_init='orthogonal', 
         activation='sigmoid', inner_activation='hard_sigmoid',
-        weights=None, truncate_gradient=-1, return_sequences=False)
+        weights=None, truncate_gradient=-1, return_sequences=False,
+        input_dim=None, input_length=None)
 ```
 Fully connected RNN where the output of multiple timesteps (up to "depth" steps in the past) is fed back to the input: 
 
@@ -64,6 +66,8 @@ Not a particularly useful model, included for demonstration purposes.
     - __weights__: list of numpy arrays to set as initial weights. The list should have depth+2 elements.
     - __truncate_gradient__: Number of steps to use in truncated BPTT. See: [Theano "scan"](http://deeplearning.net/software/theano/library/scan.html).
     - __return_sequences__: Boolean. Whether to return the last output in the output sequence, or the full sequence.
+    - __input_dim__: dimensionality of the input (integer). This argument (or alternatively, the keyword argument `input_shape`) is required when using this layer as the first layer in a model.
+    - __input_length__: Length of input sequences, when it is constant. This argument is required if you are going to connect `Flatten` then `Dense` layers upstream (without it, the shape of the dense outputs cannot be computed).
 
 
 ---
@@ -74,7 +78,8 @@ Not a particularly useful model, included for demonstration purposes.
 keras.layers.recurrent.GRU(input_dim, output_dim=128, 
         init='glorot_uniform', inner_init='orthogonal',
         activation='sigmoid', inner_activation='hard_sigmoid',
-        weights=None, truncate_gradient=-1, return_sequences=False)
+        weights=None, truncate_gradient=-1, return_sequences=False,
+        input_dim=None, input_length=None)
 ```
 
 Gated Recurrent Unit - Cho et al. 2014.
@@ -97,6 +102,8 @@ Gated Recurrent Unit - Cho et al. 2014.
     - __weights__: list of numpy arrays to set as initial weights. The list should have 9 elements.
     - __truncate_gradient__: Number of steps to use in truncated BPTT. See: [Theano "scan"](http://deeplearning.net/software/theano/library/scan.html).
     - __return_sequences__: Boolean. Whether to return the last output in the output sequence, or the full sequence.
+    - __input_dim__: dimensionality of the input (integer). This argument (or alternatively, the keyword argument `input_shape`) is required when using this layer as the first layer in a model.
+    - __input_length__: Length of input sequences, when it is constant. This argument is required if you are going to connect `Flatten` then `Dense` layers upstream (without it, the shape of the dense outputs cannot be computed).
 
 - __References__: 
     - [On the Properties of Neural Machine Translation: Encoder–Decoder Approaches](http://www.aclweb.org/anthology/W14-4012)
@@ -110,7 +117,8 @@ Gated Recurrent Unit - Cho et al. 2014.
 keras.layers.recurrent.LSTM(input_dim, output_dim=128, 
         init='glorot_uniform', inner_init='orthogonal', forget_bias_init='one',
         activation='tanh', inner_activation='hard_sigmoid',
-        weights=None, truncate_gradient=-1, return_sequences=False)
+        weights=None, truncate_gradient=-1, return_sequences=False,
+        input_dim=None, input_length=None)
 ```
 
 Long-Short Term Memory unit - Hochreiter 1997.
@@ -134,6 +142,8 @@ Long-Short Term Memory unit - Hochreiter 1997.
     - __weights__: list of numpy arrays to set as initial weights. The list should have 12 elements.
     - __truncate_gradient__: Number of steps to use in truncated BPTT. See: [Theano "scan"](http://deeplearning.net/software/theano/library/scan.html).
     - __return_sequences__: Boolean. Whether to return the last output in the output sequence, or the full sequence.
+    - __input_dim__: dimensionality of the input (integer). This argument (or alternatively, the keyword argument `input_shape`) is required when using this layer as the first layer in a model.
+    - __input_length__: Length of input sequences, when it is constant. This argument is required if you are going to connect `Flatten` then `Dense` layers upstream (without it, the shape of the dense outputs cannot be computed).
 
 - __References__: 
     - [Long short-term memory](http://deeplearning.cs.cmu.edu/pdfs/Hochreiter97_lstm.pdf) (original 1997 paper)
@@ -148,7 +158,8 @@ Long-Short Term Memory unit - Hochreiter 1997.
 keras.layers.recurrent.JZS1(input_dim, output_dim=128, 
         init='glorot_uniform', inner_init='orthogonal', 
         activation='tanh', inner_activation='sigmoid',
-        weights=None, truncate_gradient=-1, return_sequences=False)
+        weights=None, truncate_gradient=-1, return_sequences=False,
+        input_dim=None, input_length=None)
 ```
 
 Top 3 RNN architectures evolved from the evaluation of thousands of models. Serves as alternatives to LSTMs and GRUs. Corresponds to `MUT1`, `MUT2`, and `MUT3` architectures described in the paper: An Empirical Exploration of Recurrent Network Architectures, Jozefowicz et al. 2015.
@@ -171,6 +182,8 @@ Top 3 RNN architectures evolved from the evaluation of thousands of models. Serv
     - __weights__: list of numpy arrays to set as initial weights. The list should have 9 elements.
     - __truncate_gradient__: Number of steps to use in truncated BPTT. See: [Theano "scan"](http://deeplearning.net/software/theano/library/scan.html).
     - __return_sequences__: Boolean. Whether to return the last output in the output sequence, or the full sequence.
+    - __input_dim__: dimensionality of the input (integer). This argument (or alternatively, the keyword argument `input_shape`) is required when using this layer as the first layer in a model.
+    - __input_length__: Length of input sequences, when it is constant. This argument is required if you are going to connect `Flatten` then `Dense` layers upstream (without it, the shape of the dense outputs cannot be computed).
 
 - __References__: 
     - [An Empirical Exploration of Recurrent Network Architectures](http://www.jmlr.org/proceedings/papers/v37/jozefowicz15.pdf)
