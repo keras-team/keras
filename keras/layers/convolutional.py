@@ -259,7 +259,7 @@ class Convolution2D(Layer):
 
 
 class MaxPooling1D(Layer):
-    def __init__(self, pool_length=2, stride=None, ignore_border=True):
+    def __init__(self, pool_length=2, stride=None, ignore_border=True, pool_mode='max'):
         super(MaxPooling1D, self).__init__()
         if stride is None:
             stride = pool_length
@@ -270,6 +270,7 @@ class MaxPooling1D(Layer):
         self.input = T.tensor3()
         self.poolsize = (pool_length, 1)
         self.ignore_border = ignore_border
+        self.pool_mode = pool_mode
 
     @property
     def output_shape(self):
@@ -280,7 +281,7 @@ class MaxPooling1D(Layer):
     def get_output(self, train=False):
         X = self.get_input(train)
         X = T.reshape(X, (X.shape[0], X.shape[1], X.shape[2], 1)).dimshuffle(0, 2, 1, 3)
-        output = downsample.max_pool_2d(X, ds=self.poolsize, st=self.st, ignore_border=self.ignore_border)
+        output = downsample.max_pool_2d(X, ds=self.poolsize, st=self.st, ignore_border=self.ignore_border, mode=self.pool_mode)
         output = output.dimshuffle(0, 2, 1, 3)
         return T.reshape(output, (output.shape[0], output.shape[1], output.shape[2]))
 
@@ -288,11 +289,12 @@ class MaxPooling1D(Layer):
         return {"name": self.__class__.__name__,
                 "stride": self.stride,
                 "pool_length": self.pool_length,
-                "ignore_border": self.ignore_border}
+                "ignore_border": self.ignore_border,
+                "pool_mode": self.pool_mode}
 
 
 class MaxPooling2D(Layer):
-    def __init__(self, poolsize=(2, 2), stride=None, ignore_border=True):
+    def __init__(self, poolsize=(2, 2), stride=None, ignore_border=True, pool_mode='max'):
         super(MaxPooling2D, self).__init__()
         self.input = T.tensor4()
         self.poolsize = tuple(poolsize)
@@ -300,6 +302,7 @@ class MaxPooling2D(Layer):
             stride = self.poolsize
         self.stride = tuple(stride)
         self.ignore_border = ignore_border
+        self.pool_mode = pool_mode
 
     @property
     def output_shape(self):
@@ -310,14 +313,15 @@ class MaxPooling2D(Layer):
 
     def get_output(self, train=False):
         X = self.get_input(train)
-        output = downsample.max_pool_2d(X, ds=self.poolsize, st=self.stride, ignore_border=self.ignore_border)
+        output = downsample.max_pool_2d(X, ds=self.poolsize, st=self.stride, ignore_border=self.ignore_border, mode=self.pool_mode)
         return output
 
     def get_config(self):
         return {"name": self.__class__.__name__,
                 "poolsize": self.poolsize,
                 "ignore_border": self.ignore_border,
-                "stride": self.stride}
+                "stride": self.stride,
+                "pool_mode": self.pool_mode}
 
 
 class UpSample1D(Layer):
