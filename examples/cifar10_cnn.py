@@ -55,14 +55,14 @@ model.add(Convolution2D(nb_filters[0], image_dimensions, nb_conv[0], nb_conv[0],
 model.add(Activation('relu'))
 model.add(Convolution2D(nb_filters[0], nb_filters[0], nb_conv[0], nb_conv[0]))
 model.add(Activation('relu'))
-model.add(MaxPooling2D(poolsize=(nb_pool[0], nb_pool[0])))
+model.add(MaxPooling2D(pool_size=(nb_pool[0], nb_pool[0])))
 model.add(Dropout(0.25))
 
 model.add(Convolution2D(nb_filters[1], nb_filters[0], nb_conv[0], nb_conv[0], border_mode='full'))
 model.add(Activation('relu'))
 model.add(Convolution2D(nb_filters[1], nb_filters[1], nb_conv[1], nb_conv[1]))
 model.add(Activation('relu'))
-model.add(MaxPooling2D(poolsize=(nb_pool[1], nb_pool[1])))
+model.add(MaxPooling2D(pool_size=(nb_pool[1], nb_pool[1])))
 model.add(Dropout(0.25))
 
 model.add(Flatten())

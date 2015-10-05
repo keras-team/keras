@@ -54,7 +54,7 @@ model.add(Convolution2D(nb_filters, 1, nb_conv, nb_conv, border_mode='full'))
 model.add(Activation('relu'))
 model.add(Convolution2D(nb_filters, nb_filters, nb_conv, nb_conv))
 model.add(Activation('relu'))
-model.add(MaxPooling2D(poolsize=(nb_pool, nb_pool)))
+model.add(MaxPooling2D(pool_size=(nb_pool, nb_pool)))
 model.add(Dropout(0.25))
 
 model.add(Flatten())

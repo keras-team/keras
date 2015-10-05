@@ -268,7 +268,7 @@ class MaxPooling1D(Layer):
         self.st = (self.stride, 1)
 
         self.input = T.tensor3()
-        self.poolsize = (pool_length, 1)
+        self.pool_size = (pool_length, 1)
         self.ignore_border = ignore_border
 
     @property
@@ -280,7 +280,7 @@ class MaxPooling1D(Layer):
     def get_output(self, train=False):
         X = self.get_input(train)
         X = T.reshape(X, (X.shape[0], X.shape[1], X.shape[2], 1)).dimshuffle(0, 2, 1, 3)
-        output = downsample.max_pool_2d(X, ds=self.poolsize, st=self.st, ignore_border=self.ignore_border)
+        output = downsample.max_pool_2d(X, ds=self.pool_size, st=self.st, ignore_border=self.ignore_border)
         output = output.dimshuffle(0, 2, 1, 3)
         return T.reshape(output, (output.shape[0], output.shape[1], output.shape[2]))
 
@@ -292,30 +292,30 @@ class MaxPooling1D(Layer):
 
 
 class MaxPooling2D(Layer):
-    def __init__(self, poolsize=(2, 2), stride=None, ignore_border=True):
+    def __init__(self, pool_size=(2, 2), stride=None, ignore_border=True):
         super(MaxPooling2D, self).__init__()
         self.input = T.tensor4()
-        self.poolsize = tuple(poolsize)
+        self.pool_size = tuple(pool_size)
         if stride is None:
-            stride = self.poolsize
+            stride = self.pool_size
         self.stride = tuple(stride)
         self.ignore_border = ignore_border
 
     @property
     def output_shape(self):
         input_shape = self.input_shape
-        rows = pool_output_length(input_shape[2], self.poolsize[0], self.ignore_border, self.stride[0])
-        cols = pool_output_length(input_shape[3], self.poolsize[1], self.ignore_border, self.stride[1])
+        rows = pool_output_length(input_shape[2], self.pool_size[0], self.ignore_border, self.stride[0])
+        cols = pool_output_length(input_shape[3], self.pool_size[1], self.ignore_border, self.stride[1])
         return (input_shape[0], input_shape[1], rows, cols)
 
     def get_output(self, train=False):
         X = self.get_input(train)
-        output = downsample.max_pool_2d(X, ds=self.poolsize, st=self.stride, ignore_border=self.ignore_border)
+        output = downsample.max_pool_2d(X, ds=self.pool_size, st=self.stride, ignore_border=self.ignore_border)
         return output
 
     def get_config(self):
         return {"name": self.__class__.__name__,
-                "poolsize": self.poolsize,
+                "pool_size": self.pool_size,
                 "ignore_border": self.ignore_border,
                 "stride": self.stride}
 
@@ -363,26 +363,87 @@ class UpSample2D(Layer):
                 "size": self.size}
 
 
-class ZeroPadding2D(Layer):
-    def __init__(self, pad=(1, 1)):
-        super(ZeroPadding2D, self).__init__()
-        self.pad = tuple(pad)
+class ZeroPadding1D(Layer):
+    """Zero-padding layer for 1D input (e.g. temporal sequence).
+
+    Input shape
+    -----------
+    3D tensor with shape (samples, axis_to_pad, features)
+
+    Output shape
+    ------------
+    3D tensor with shape (samples, padded_axis, features)
+
+    Arguments
+    ---------
+    padding: int
+        How many zeros to add at the beginning and end of
+        the padding dimension (axis 1).
+    """
+    def __init__(self, padding=1):
+        super(ZeroPadding1D, self).__init__()
+        self.padding = padding
         self.input = T.tensor4()
 
     @property
     def output_shape(self):
         input_shape = self.input_shape
-        return (input_shape[0], input_shape[1], input_shape[2] + 2 * self.pad[0], input_shape[3] + 2 * self.pad[1])
+        return (input_shape[0], input_shape[1] + self.padding * 2, input_shape[2])
 
     def get_output(self, train=False):
         X = self.get_input(train)
-        pad = self.pad
-        in_shape = X.shape
-        out_shape = (in_shape[0], in_shape[1], in_shape[2] + 2 * pad[0], in_shape[3] + 2 * pad[1])
+        output = T.zeros(self.output_shape)
+        return T.set_subtensor(output[:, self.padding:X.shape[1]+self.padding, :], X)
+
+    def get_config(self):
+        return {"name": self.__class__.__name__,
+                "padding": self.padding}
+
+
+class ZeroPadding2D(Layer):
+    """Zero-padding layer for 1D input (e.g. temporal sequence).
+
+    Input shape
+    -----------
+    4D tensor with shape (samples, depth, first_axis_to_pad, second_axis_to_pad)
+
+    Output shape
+    ------------
+    4D tensor with shape (samples, depth, first_padded_axis, second_padded_axis)
+
+    Arguments
+    ---------
+    padding: tuple of int (length 2)
+        How many zeros to add at the beginning and end of
+        the 2 padding dimensions (axis 3 and 4).
+    """
+    def __init__(self, padding=(1, 1)):
+        super(ZeroPadding2D, self).__init__()
+        self.padding = tuple(padding)
+        self.input = T.tensor4()
+
+    @property
+    def output_shape(self):
+        input_shape = self.input_shape
+        return (input_shape[0],
+                input_shape[1],
+                input_shape[2] + 2 * self.padding[0],
+                input_shape[3] + 2 * self.padding[1])
+
+    def get_output(self, train=False):
+        X = self.get_input(train)
+        input_shape = X.shape
+        out_shape = (input_shape[0],
+                     input_shape[1],
+                     input_shape[2] + 2 * self.padding[0],
+                     input_shape[3] + 2 * self.padding[1])
         out = T.zeros(out_shape)
-        indices = (slice(None), slice(None), slice(pad[0], in_shape[2] + pad[0]), slice(pad[1], in_shape[3] + pad[1]))
+        indices = (slice(None),
+                   slice(None),
+                   slice(self.padding[0], input_shape[2] + self.padding[0]),
+                   slice(self.padding[1], input_shape[3] + self.padding[1]))
         return T.set_subtensor(out[indices], X)
 
     def get_config(self):
         return {"name": self.__class__.__name__,
-                "pad": self.pad}
+                "padding": self.padding}
