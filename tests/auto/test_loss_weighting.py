@@ -51,8 +51,8 @@ def create_sequential_model():
 
 def create_graph_model():
     model = Graph()
-    model.add_input(name='input')
-    model.add_node(Dense(50, activation='relu', input_shape=(784,)), name='d1', input='input')
+    model.add_input(name='input', input_shape=(784,))
+    model.add_node(Dense(50, activation='relu'), name='d1', input='input')
     model.add_node(Dense(10, activation='softmax'), name='d2', input='d1')
     model.add_output(name='output', input='d2')
     return model

@@ -23,9 +23,9 @@ class TestGraph(unittest.TestCase):
     def test_1o_1i(self):
         print('test a non-sequential graph with 1 input and 1 output')
         graph = Graph()
-        graph.add_input(name='input1', ndim=2)
+        graph.add_input(name='input1', input_shape=(32,))
 
-        graph.add_node(Dense(16, input_shape=(32,)), name='dense1', input='input1')
+        graph.add_node(Dense(16), name='dense1', input='input1')
         graph.add_node(Dense(4), name='dense2', input='input1')
         graph.add_node(Dense(4), name='dense3', input='dense1')
 
@@ -45,9 +45,9 @@ class TestGraph(unittest.TestCase):
     def test_1o_1i_2(self):
         print('test a more complex non-sequential graph with 1 input and 1 output')
         graph = Graph()
-        graph.add_input(name='input1', ndim=2)
+        graph.add_input(name='input1', input_shape=(32,))
 
-        graph.add_node(Dense(16, input_shape=(32,)), name='dense1', input='input1')
+        graph.add_node(Dense(16), name='dense1', input='input1')
         graph.add_node(Dense(4), name='dense2-0', input='input1')
         graph.add_node(Activation('relu'), name='dense2', input='dense2-0')
 
@@ -71,10 +71,10 @@ class TestGraph(unittest.TestCase):
     def test_1o_2i(self):
         print('test a non-sequential graph with 2 inputs and 1 output')
         graph = Graph()
-        graph.add_input(name='input1', ndim=2)
-        graph.add_input(name='input2', ndim=2)
+        graph.add_input(name='input1', input_shape=(32,))
+        graph.add_input(name='input2', input_shape=(32,))
 
-        graph.add_node(Dense(16, input_shape=(32,)), name='dense1', input='input1')
+        graph.add_node(Dense(16), name='dense1', input='input1')
         graph.add_node(Dense(4), name='dense2', input='input2')
         graph.add_node(Dense(4), name='dense3', input='dense1')
 
@@ -95,9 +95,9 @@ class TestGraph(unittest.TestCase):
     def test_2o_1i_weights(self):
         print('test a non-sequential graph with 1 input and 2 outputs')
         graph = Graph()
-        graph.add_input(name='input1', ndim=2)
+        graph.add_input(name='input1', input_shape=(32,))
 
-        graph.add_node(Dense(16, input_shape=(32,)), name='dense1', input='input1')
+        graph.add_node(Dense(16), name='dense1', input='input1')
         graph.add_node(Dense(4), name='dense2', input='input1')
         graph.add_node(Dense(1), name='dense3', input='dense1')
 
@@ -118,8 +118,8 @@ class TestGraph(unittest.TestCase):
         print('test weight saving')
         graph.save_weights('temp.h5', overwrite=True)
         graph = Graph()
-        graph.add_input(name='input1', ndim=2)
-        graph.add_node(Dense(16, input_shape=(32,)), name='dense1', input='input1')
+        graph.add_input(name='input1', input_shape=(32,))
+        graph.add_node(Dense(16), name='dense1', input='input1')
         graph.add_node(Dense(4), name='dense2', input='input1')
         graph.add_node(Dense(1), name='dense3', input='dense1')
         graph.add_output(name='output1', input='dense2')
@@ -133,9 +133,9 @@ class TestGraph(unittest.TestCase):
     def test_2o_1i_sample_weights(self):
         print('test a non-sequential graph with 1 input and 2 outputs with sample weights')
         graph = Graph()
-        graph.add_input(name='input1', ndim=2)
+        graph.add_input(name='input1', input_shape=(32,))
 
-        graph.add_node(Dense(16, input_shape=(32,)), name='dense1', input='input1')
+        graph.add_node(Dense(16), name='dense1', input='input1')
         graph.add_node(Dense(4), name='dense2', input='input1')
         graph.add_node(Dense(1), name='dense3', input='dense1')
 
@@ -166,8 +166,8 @@ class TestGraph(unittest.TestCase):
         print('test layer-like API')
 
         graph = containers.Graph()
-        graph.add_input(name='input1', ndim=2)
-        graph.add_node(Dense(16, input_shape=(32,)), name='dense1', input='input1')
+        graph.add_input(name='input1', input_shape=(32,))
+        graph.add_node(Dense(16), name='dense1', input='input1')
         graph.add_node(Dense(4), name='dense2', input='input1')
         graph.add_node(Dense(4), name='dense3', input='dense1')
         graph.add_output(name='output1', inputs=['dense2', 'dense3'], merge_mode='sum')
@@ -191,9 +191,9 @@ class TestGraph(unittest.TestCase):
     def test_create_output(self):
         print('test create_output argument')
         graph = Graph()
-        graph.add_input(name='input1', ndim=2)
+        graph.add_input(name='input1', input_shape=(32,))
 
-        graph.add_node(Dense(16, input_shape=(32,)), name='dense1', input='input1')
+        graph.add_node(Dense(16), name='dense1', input='input1')
         graph.add_node(Dense(4), name='dense2', input='input1')
         graph.add_node(Dense(4), name='dense3', input='dense1')
         graph.add_node(Dense(4), name='output1', inputs=['dense2', 'dense3'], merge_mode='sum', create_output=True)
@@ -216,19 +216,19 @@ class TestGraph(unittest.TestCase):
         nb_classes = 2
 
         graph = Graph()
-        graph.add_input(name='input1', ndim=2)
-        graph.add_input(name='input2', ndim=2)
-        graph.add_node(Dense(nb_units, input_shape=(nb_units,)),
+        graph.add_input(name='input1', input_shape=(32,))
+        graph.add_input(name='input2', input_shape=(32,))
+        graph.add_node(Dense(nb_units),
                        name='dense1', input='input1')
-        graph.add_node(Dense(nb_classes, input_shape=(nb_units,)),
+        graph.add_node(Dense(nb_classes),
                        name='dense2', input='input2')
         graph.add_node(Dense(nb_classes),
                        name='dense3', input='dense1')
         graph.add_output(name='output', inputs=['dense2', 'dense3'],
                          merge_mode='sum')
 
-        n = nb_units * nb_units + nb_units
-        n += nb_units * nb_classes + nb_classes
+        n = 32 * nb_units + nb_units
+        n += 32 * nb_classes + nb_classes
         n += nb_units * nb_classes + nb_classes
 
         self.assertEqual(n, graph.count_params())

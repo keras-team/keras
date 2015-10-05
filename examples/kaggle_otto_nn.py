@@ -97,7 +97,7 @@ print("Building model...")
 model = Sequential()
 model.add(Dense(512, input_shape=(dims,)))
 model.add(PReLU())
-model.add(BatchNormalization((512,)))
+model.add(BatchNormalization())
 model.add(Dropout(0.5))
 
 model.add(Dense(512))

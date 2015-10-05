@@ -166,12 +166,14 @@ class Graph(Layer):
         else:
             return dict([(k, v.get_output(train)) for k, v in self.outputs.items()])
 
-    def add_input(self, name, ndim=2, dtype='float'):
+    def add_input(self, name, input_shape, dtype='float'):
         if name in self.namespace:
             raise Exception('Duplicate node identifier: ' + name)
         self.namespace.add(name)
         self.input_order.append(name)
         layer = Layer()  # empty layer
+        layer.set_input_shape(input_shape)
+        ndim = len(input_shape) + 1
         if dtype == 'float':
             layer.input = ndim_tensor(ndim)
         else:
@@ -181,7 +183,9 @@ class Graph(Layer):
                 raise Exception('Type "int" can only be used with ndim==2 (Embedding).')
         layer.input.name = name
         self.inputs[name] = layer
-        self.input_config.append({'name': name, 'ndim': ndim, 'dtype': dtype})
+        self.input_config.append({'name': name,
+                                  'input_shape': input_shape,
+                                  'dtype': dtype})
 
     def add_node(self, layer, name, input=None, inputs=[],
                  merge_mode='concat', concat_axis=-1, create_output=False):
