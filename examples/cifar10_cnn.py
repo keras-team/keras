@@ -8,7 +8,8 @@ from keras.layers.convolutional import Convolution2D, MaxPooling2D
 from keras.optimizers import SGD, Adadelta, Adagrad
 from keras.utils import np_utils, generic_utils
 from six.moves import range
-
+from keras.layers.normalization import SpatialBatchNormalization
+import theano
 '''
     Train a (fairly simple) deep CNN on the CIFAR10 small images dataset.
 
@@ -22,11 +23,15 @@ from six.moves import range
     from loading it in Python 3. You might have to load it in Python 2,
     save it in a different format, load it in Python 3 and repickle it.
 '''
+# enable on-the-fly graph computations
+#theano.config.compute_test_value = 'warn'
+theano.config.mode = 'DebugMode'
+theano.config.exception_verbosity = 'high'
 
 batch_size = 32
 nb_classes = 10
 nb_epoch = 200
-data_augmentation = True
+data_augmentation = False
 
 # shape of the image (SHAPE x SHAPE)
 shapex, shapey = 32, 32
@@ -40,6 +45,7 @@ nb_conv = [3, 3]
 image_dimensions = 3
 
 # the data, shuffled and split between tran and test sets
+print("loading data")
 (X_train, y_train), (X_test, y_test) = cifar10.load_data()
 print('X_train shape:', X_train.shape)
 print(X_train.shape[0], 'train samples')
@@ -49,9 +55,11 @@ print(X_test.shape[0], 'test samples')
 Y_train = np_utils.to_categorical(y_train, nb_classes)
 Y_test = np_utils.to_categorical(y_test, nb_classes)
 
+print("creating model")
 model = Sequential()
 
-model.add(Convolution2D(nb_filters[0], image_dimensions, nb_conv[0], nb_conv[0], border_mode='full'))
+model.add(Convolution2D(nb_filters[0], image_dimensions, nb_conv[0], nb_conv[0], border_mode='valid'))
+model.add(SpatialBatchNormalization((batch_size, 32, 31, 31)))
 model.add(Activation('relu'))
 model.add(Convolution2D(nb_filters[0], nb_filters[0], nb_conv[0], nb_conv[0]))
 model.add(Activation('relu'))
@@ -75,6 +83,7 @@ model.add(Dropout(0.5))
 model.add(Dense(512, nb_classes))
 model.add(Activation('softmax'))
 
+print("compiling model")
 # let's train the model using SGD + momentum (how original).
 sgd = SGD(lr=0.01, decay=1e-6, momentum=0.9, nesterov=True)
 model.compile(loss='categorical_crossentropy', optimizer=sgd)
