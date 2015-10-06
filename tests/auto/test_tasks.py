@@ -56,7 +56,7 @@ class TestTasks(unittest.TestCase):
 
     def test_temporal_clf(self):
         print('temporal classification data:')
-        (X_train, y_train), (X_test, y_test) = get_test_data(nb_train=1000, nb_test=200, input_shape=(5, 10),
+        (X_train, y_train), (X_test, y_test) = get_test_data(nb_train=1000, nb_test=200, input_shape=(3, 5),
                                                              classification=True, nb_class=2)
         print('X_train:', X_train.shape)
         print('X_test:', X_test.shape)
@@ -75,7 +75,7 @@ class TestTasks(unittest.TestCase):
 
     def test_temporal_reg(self):
         print('temporal regression data:')
-        (X_train, y_train), (X_test, y_test) = get_test_data(nb_train=1000, nb_test=200, input_shape=(5, 10), output_shape=(2,),
+        (X_train, y_train), (X_test, y_test) = get_test_data(nb_train=1000, nb_test=200, input_shape=(3, 5), output_shape=(2,),
                                                              classification=False)
         print('X_train:', X_train.shape)
         print('X_test:', X_test.shape)
@@ -90,7 +90,7 @@ class TestTasks(unittest.TestCase):
 
     def test_seq_to_seq(self):
         print('sequence to sequence data:')
-        (X_train, y_train), (X_test, y_test) = get_test_data(nb_train=1000, nb_test=200, input_shape=(5, 10), output_shape=(5, 10),
+        (X_train, y_train), (X_test, y_test) = get_test_data(nb_train=1000, nb_test=200, input_shape=(3, 5), output_shape=(3, 5),
                                                              classification=False)
         print('X_train:', X_train.shape)
         print('X_test:', X_test.shape)
@@ -105,7 +105,7 @@ class TestTasks(unittest.TestCase):
 
     def test_img_clf(self):
         print('image classification data:')
-        (X_train, y_train), (X_test, y_test) = get_test_data(nb_train=1000, nb_test=200, input_shape=(3, 32, 32),
+        (X_train, y_train), (X_test, y_test) = get_test_data(nb_train=1000, nb_test=200, input_shape=(3, 8, 8),
                                                              classification=True, nb_class=2)
         print('X_train:', X_train.shape)
         print('X_test:', X_test.shape)
@@ -116,7 +116,7 @@ class TestTasks(unittest.TestCase):
         y_test = to_categorical(y_test)
 
         model = Sequential()
-        model.add(Convolution2D(32, 32, 32, input_shape=(3, 32, 32)))
+        model.add(Convolution2D(8, 8, 8, input_shape=(3, 8, 8)))
         model.add(Activation('sigmoid'))
         model.add(Flatten())
         model.add(Dense(y_test.shape[-1]))
