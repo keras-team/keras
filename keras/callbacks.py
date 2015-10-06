@@ -204,7 +204,7 @@ class ModelCheckpoint(Callback):
 
 class EarlyStopping(Callback):
 
- def __init__(self, monitor='val_loss', patience=0, verbose=0, mode=None):
+     def __init__(self, monitor='val_loss', patience=0, verbose=0, mode=None):
         super(Callback, self).__init__()
 
         self.monitor = monitor
@@ -220,7 +220,7 @@ class EarlyStopping(Callback):
             else:
                 self.mode = min
 
-    def on_epoch_end(self, epoch, logs={}):
+     def on_epoch_end(self, epoch, logs={}):
         current = logs.get(self.monitor)
         if current is None:
             warnings.warn("Early stopping requires %s available!" % (self.monitor), RuntimeWarning)
