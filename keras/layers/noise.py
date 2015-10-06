@@ -27,7 +27,7 @@ class GaussianNoise(MaskedLayer):
         config = {"name": self.__class__.__name__,
                   "sigma": self.sigma}
         base_config = super(GaussianNoise, self).get_config()
-        return dict(base_config.items() + config.items())
+        return dict(list(base_config.items()) + list(config.items()))
 
 
 class GaussianDropout(MaskedLayer):
@@ -54,4 +54,4 @@ class GaussianDropout(MaskedLayer):
         config = {"name": self.__class__.__name__,
                   "p": self.p}
         base_config = super(GaussianDropout, self).get_config()
-        return dict(base_config.items() + config.items())
+        return dict(list(base_config.items()) + list(config.items()))

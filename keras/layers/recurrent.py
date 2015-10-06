@@ -124,7 +124,7 @@ class SimpleRNN(Recurrent):
                   "input_dim": self.input_dim,
                   "input_length": self.input_length}
         base_config = super(SimpleRNN, self).get_config()
-        return dict(base_config.items() + config.items())
+        return dict(list(base_config.items()) + list(config.items()))
 
 
 class SimpleDeepRNN(Recurrent):
@@ -222,7 +222,7 @@ class SimpleDeepRNN(Recurrent):
                   "input_dim": self.input_dim,
                   "input_length": self.input_length}
         base_config = super(SimpleDeepRNN, self).get_config()
-        return dict(base_config.items() + config.items())
+        return dict(list(base_config.items()) + list(config.items()))
 
 
 class GRU(Recurrent):
@@ -335,7 +335,7 @@ class GRU(Recurrent):
                   "input_dim": self.input_dim,
                   "input_length": self.input_length}
         base_config = super(GRU, self).get_config()
-        return dict(base_config.items() + config.items())
+        return dict(list(base_config.items()) + list(config.items()))
 
 
 class LSTM(Recurrent):
@@ -466,7 +466,7 @@ class LSTM(Recurrent):
                   "input_dim": self.input_dim,
                   "input_length": self.input_length}
         base_config = super(LSTM, self).get_config()
-        return dict(base_config.items() + config.items())
+        return dict(list(base_config.items()) + list(config.items()))
 
 
 class JZS1(Recurrent):
@@ -583,7 +583,7 @@ class JZS1(Recurrent):
                   "input_dim": self.input_dim,
                   "input_length": self.input_length}
         base_config = super(JZS1, self).get_config()
-        return dict(base_config.items() + config.items())
+        return dict(list(base_config.items()) + list(config.items()))
 
 
 class JZS2(Recurrent):
@@ -701,7 +701,7 @@ class JZS2(Recurrent):
                   "input_dim": self.input_dim,
                   "input_length": self.input_length}
         base_config = super(JZS2, self).get_config()
-        return dict(base_config.items() + config.items())
+        return dict(list(base_config.items()) + list(config.items()))
 
 
 class JZS3(Recurrent):
@@ -812,4 +812,4 @@ class JZS3(Recurrent):
                   "input_dim": self.input_dim,
                   "input_length": self.input_length}
         base_config = super(JZS3, self).get_config()
-        return dict(base_config.items() + config.items())
+        return dict(list(base_config.items()) + list(config.items()))

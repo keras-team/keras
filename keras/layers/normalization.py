@@ -76,7 +76,7 @@ class BatchNormalization(Layer):
                   "mode": self.mode,
                   "momentum": self.momentum}
         base_config = super(BatchNormalization, self).get_config()
-        return dict(base_config.items() + config.items())
+        return dict(list(base_config.items()) + list(config.items()))
 
 
 class LRN2D(Layer):
@@ -114,4 +114,4 @@ class LRN2D(Layer):
                   "beta": self.beta,
                   "n": self.n}
         base_config = super(LRN2D, self).get_config()
-        return dict(base_config.items() + config.items())
+        return dict(list(base_config.items()) + list(config.items()))

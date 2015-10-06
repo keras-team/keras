@@ -81,7 +81,7 @@ class Embedding(Layer):
                   "W_regularizer": self.W_regularizer.get_config() if self.W_regularizer else None,
                   "W_constraint": self.W_constraint.get_config() if self.W_constraint else None}
         base_config = super(Embedding, self).get_config()
-        return dict(base_config.items() + config.items())
+        return dict(list(base_config.items()) + list(config.items()))
 
 
 class WordContextProduct(Layer):
@@ -150,4 +150,4 @@ class WordContextProduct(Layer):
                   "init": self.init.__name__,
                   "activation": self.activation.__name__}
         base_config = super(WordContextProduct, self).get_config()
-        return dict(base_config.items() + config.items())
+        return dict(list(base_config.items()) + list(config.items()))

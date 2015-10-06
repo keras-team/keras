@@ -216,7 +216,7 @@ class Masking(MaskedLayer):
         config = {"name": self.__class__.__name__,
                   "mask_value": self.mask_value}
         base_config = super(Masking, self).get_config()
-        return dict(base_config.items() + config.items())
+        return dict(list(base_config.items()) + list(config.items()))
 
 
 class TimeDistributedMerge(Layer):
@@ -257,7 +257,7 @@ class TimeDistributedMerge(Layer):
         config = {"name": self.__class__.__name__,
                   "mode": self.mode}
         base_config = super(TimeDistributedMerge, self).get_config()
-        return dict(base_config.items() + config.items())
+        return dict(list(base_config.items()) + list(config.items()))
 
 
 class Merge(Layer):
@@ -367,7 +367,7 @@ class Merge(Layer):
                   "mode": self.mode,
                   "concat_axis": self.concat_axis}
         base_config = super(Merge, self).get_config()
-        return dict(base_config.items() + config.items())
+        return dict(list(base_config.items()) + list(config.items()))
 
 
 class Dropout(MaskedLayer):
@@ -393,7 +393,7 @@ class Dropout(MaskedLayer):
         config = {"name": self.__class__.__name__,
                   "p": self.p}
         base_config = super(Dropout, self).get_config()
-        return dict(base_config.items() + config.items())
+        return dict(list(base_config.items()) + list(config.items()))
 
 
 class Activation(MaskedLayer):
@@ -416,7 +416,7 @@ class Activation(MaskedLayer):
                   "target": self.target,
                   "beta": self.beta}
         base_config = super(Activation, self).get_config()
-        return dict(base_config.items() + config.items())
+        return dict(list(base_config.items()) + list(config.items()))
 
 
 class Reshape(Layer):
@@ -442,7 +442,7 @@ class Reshape(Layer):
         config = {"name": self.__class__.__name__,
                   "dims": self.dims}
         base_config = super(Reshape, self).get_config()
-        return dict(base_config.items() + config.items())
+        return dict(list(base_config.items()) + list(config.items()))
 
 
 class Permute(Layer):
@@ -470,7 +470,7 @@ class Permute(Layer):
         config = {"name": self.__class__.__name__,
                   "dims": self.dims}
         base_config = super(Permute, self).get_config()
-        return dict(base_config.items() + config.items())
+        return dict(list(base_config.items()) + list(config.items()))
 
 
 class Flatten(Layer):
@@ -519,7 +519,7 @@ class RepeatVector(Layer):
         config = {"name": self.__class__.__name__,
                   "n": self.n}
         base_config = super(RepeatVector, self).get_config()
-        return dict(base_config.items() + config.items())
+        return dict(list(base_config.items()) + list(config.items()))
 
 
 class Dense(Layer):
@@ -597,7 +597,7 @@ class Dense(Layer):
                   "b_constraint": self.b_constraint.get_config() if self.b_constraint else None,
                   "input_dim": self.input_dim}
         base_config = super(Dense, self).get_config()
-        return dict(base_config.items() + config.items())
+        return dict(list(base_config.items()) + list(config.items()))
 
 
 class ActivityRegularization(Layer):
@@ -622,7 +622,7 @@ class ActivityRegularization(Layer):
                   "l1": self.l1,
                   "l2": self.l2}
         base_config = super(ActivityRegularization, self).get_config()
-        return dict(base_config.items() + config.items())
+        return dict(list(base_config.items()) + list(config.items()))
 
 
 class TimeDistributedDense(MaskedLayer):
@@ -707,7 +707,7 @@ class TimeDistributedDense(MaskedLayer):
                   "input_dim": self.input_dim,
                   "input_length": self.input_length}
         base_config = super(TimeDistributedDense, self).get_config()
-        return dict(base_config.items() + config.items())
+        return dict(list(base_config.items()) + list(config.items()))
 
 
 class AutoEncoder(Layer):
@@ -869,4 +869,4 @@ class MaxoutDense(Layer):
                   "b_constraint": self.b_constraint.get_config() if self.b_constraint else None,
                   "input_dim": self.input_dim}
         base_config = super(MaxoutDense, self).get_config()
-        return dict(base_config.items() + config.items())
+        return dict(list(base_config.items()) + list(config.items()))

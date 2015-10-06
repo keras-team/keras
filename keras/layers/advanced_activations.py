@@ -18,7 +18,7 @@ class LeakyReLU(MaskedLayer):
         config = {"name": self.__class__.__name__,
                   "alpha": self.alpha}
         base_config = super(LeakyReLU, self).get_config()
-        return dict(base_config.items() + config.items())
+        return dict(list(base_config.items()) + list(config.items()))
 
 
 class PReLU(MaskedLayer):
@@ -51,7 +51,7 @@ class PReLU(MaskedLayer):
         config = {"name": self.__class__.__name__,
                   "init": self.init.__name__}
         base_config = super(PReLU, self).get_config()
-        return dict(base_config.items() + config.items())
+        return dict(list(base_config.items()) + list(config.items()))
 
 
 class ParametricSoftplus(MaskedLayer):
@@ -89,7 +89,7 @@ class ParametricSoftplus(MaskedLayer):
                   "alpha_init": self.alpha_init,
                   "beta_init": self.beta_init}
         base_config = super(ParametricSoftplus, self).get_config()
-        return dict(base_config.items() + config.items())
+        return dict(list(base_config.items()) + list(config.items()))
 
 
 class ThresholdedLinear(MaskedLayer):
@@ -112,7 +112,7 @@ class ThresholdedLinear(MaskedLayer):
         config = {"name": self.__class__.__name__,
                   "theta": self.theta}
         base_config = super(ThresholdedLinear, self).get_config()
-        return dict(base_config.items() + config.items())
+        return dict(list(base_config.items()) + list(config.items()))
 
 
 class ThresholdedReLU(MaskedLayer):
@@ -135,4 +135,4 @@ class ThresholdedReLU(MaskedLayer):
         config = {"name": self.__class__.__name__,
                   "theta": self.theta}
         base_config = super(ThresholdedReLU, self).get_config()
-        return dict(base_config.items() + config.items())
+        return dict(list(base_config.items()) + list(config.items()))

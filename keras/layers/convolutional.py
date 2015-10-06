@@ -167,7 +167,7 @@ class Convolution1D(Layer):
                   "input_dim": self.input_dim,
                   "input_length": self.input_length}
         base_config = super(Convolution1D, self).get_config()
-        return dict(base_config.items() + config.items())
+        return dict(list(base_config.items()) + list(config.items()))
 
 
 class Convolution2D(Layer):
@@ -282,7 +282,7 @@ class Convolution2D(Layer):
                   "W_constraint": self.W_constraint.get_config() if self.W_constraint else None,
                   "b_constraint": self.b_constraint.get_config() if self.b_constraint else None}
         base_config = super(Convolution2D, self).get_config()
-        return dict(base_config.items() + config.items())
+        return dict(list(base_config.items()) + list(config.items()))
 
 
 class MaxPooling1D(Layer):
@@ -319,7 +319,7 @@ class MaxPooling1D(Layer):
                   "pool_length": self.pool_length,
                   "ignore_border": self.ignore_border}
         base_config = super(MaxPooling1D, self).get_config()
-        return dict(base_config.items() + config.items())
+        return dict(list(base_config.items()) + list(config.items()))
 
 
 class MaxPooling2D(Layer):
@@ -352,7 +352,7 @@ class MaxPooling2D(Layer):
                   "ignore_border": self.ignore_border,
                   "stride": self.stride}
         base_config = super(MaxPooling2D, self).get_config()
-        return dict(base_config.items() + config.items())
+        return dict(list(base_config.items()) + list(config.items()))
 
 
 class UpSample1D(Layer):
@@ -377,7 +377,7 @@ class UpSample1D(Layer):
         config = {"name": self.__class__.__name__,
                   "length": self.length}
         base_config = super(UpSample1D, self).get_config()
-        return dict(base_config.items() + config.items())
+        return dict(list(base_config.items()) + list(config.items()))
 
 
 class UpSample2D(Layer):
@@ -403,7 +403,7 @@ class UpSample2D(Layer):
         config = {"name": self.__class__.__name__,
                   "size": self.size}
         base_config = super(UpSample2D, self).get_config()
-        return dict(base_config.items() + config.items())
+        return dict(list(base_config.items()) + list(config.items()))
 
 
 class ZeroPadding1D(Layer):
@@ -448,7 +448,7 @@ class ZeroPadding1D(Layer):
         config = {"name": self.__class__.__name__,
                   "padding": self.padding}
         base_config = super(ZeroPadding1D, self).get_config()
-        return dict(base_config.items() + config.items())
+        return dict(list(base_config.items()) + list(config.items()))
 
 
 class ZeroPadding2D(Layer):
@@ -501,4 +501,4 @@ class ZeroPadding2D(Layer):
         config = {"name": self.__class__.__name__,
                   "padding": self.padding}
         base_config = super(ZeroPadding2D, self).get_config()
-        return dict(base_config.items() + config.items())
+        return dict(list(base_config.items()) + list(config.items()))
