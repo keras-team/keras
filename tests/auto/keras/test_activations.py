@@ -6,6 +6,7 @@ import theano.tensor as T
 
 import numpy
 
+
 def list_assert_equal(a, b, round_to=7):
     '''
     This will do a pairwise, rounded equality test across two lists of
@@ -15,13 +16,14 @@ def list_assert_equal(a, b, round_to=7):
     for i, j in pairs:
         assert round(i, round_to) == round(j, round_to)
 
+
 def get_standard_values():
     '''
     These are just a set of floats used for testing the activation
     functions, and are useful in multiple tests.
     '''
+    return [0, 0.1, 0.5, 0.9, 1.0]
 
-    return [0,0.1,0.5,0.9,1.0]
 
 def test_softmax():
 
@@ -39,7 +41,7 @@ def test_softmax():
     x = T.vector()
     exp = s(x)
     f = theano.function([x], exp)
-    test_values=get_standard_values()
+    test_values = get_standard_values()
 
     result = f(test_values)
     expected = softmax(test_values)
@@ -48,6 +50,7 @@ def test_softmax():
     print(str(expected))
 
     list_assert_equal(result, expected)
+
 
 def test_relu():
     '''
@@ -69,11 +72,10 @@ def test_relu():
     test_values = get_standard_values()
     result = f(test_values)
 
-    list_assert_equal(result, test_values) # because no negatives in test values
+    list_assert_equal(result, test_values)  # because no negatives in test values
 
 
 def test_tanh():
-
     from keras.activations import tanh as t
     test_values = get_standard_values()
 

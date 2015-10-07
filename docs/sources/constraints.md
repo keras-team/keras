@@ -12,7 +12,7 @@ These layers expose 2 keyword arguments:
 
 ```python
 from keras.constraints import maxnorm
-model.add(Dense(64, 64, W_constraint = maxnorm(2)))
+model.add(Dense(64, W_constraint = maxnorm(2)))
 ```
 
 ## Available constraints

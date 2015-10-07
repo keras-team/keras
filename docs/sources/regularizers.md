@@ -15,7 +15,7 @@ These layers expose 3 keyword arguments:
 
 ```python
 from keras.regularizers import l2, activity_l2
-model.add(Dense(64, 64, W_regularizer=l2(0.01), activity_regularizer=activity_l2(0.01)))
+model.add(Dense(64, input_dim=64, W_regularizer=l2(0.01), activity_regularizer=activity_l2(0.01)))
 ```
 
 ## Available penalties

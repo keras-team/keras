@@ -37,7 +37,6 @@ class Sequential(Layer):
             self.layers[-1].set_previous(self.layers[-2])
             if not hasattr(self.layers[0], 'input'):
                 self.set_input()
-        layer.init_updates()
 
         params, regularizers, constraints, updates = layer.get_params()
         self.params += params
@@ -167,12 +166,14 @@ class Graph(Layer):
         else:
             return dict([(k, v.get_output(train)) for k, v in self.outputs.items()])
 
-    def add_input(self, name, ndim=2, dtype='float'):
+    def add_input(self, name, input_shape, dtype='float'):
         if name in self.namespace:
             raise Exception('Duplicate node identifier: ' + name)
         self.namespace.add(name)
         self.input_order.append(name)
         layer = Layer()  # empty layer
+        layer.set_input_shape(input_shape)
+        ndim = len(input_shape) + 1
         if dtype == 'float':
             layer.input = ndim_tensor(ndim)
         else:
@@ -182,7 +183,9 @@ class Graph(Layer):
                 raise Exception('Type "int" can only be used with ndim==2 (Embedding).')
         layer.input.name = name
         self.inputs[name] = layer
-        self.input_config.append({'name': name, 'ndim': ndim, 'dtype': dtype})
+        self.input_config.append({'name': name,
+                                  'input_shape': input_shape,
+                                  'dtype': dtype})
 
     def add_node(self, layer, name, input=None, inputs=[],
                  merge_mode='concat', concat_axis=-1, create_output=False):
@@ -217,7 +220,6 @@ class Graph(Layer):
                                  'merge_mode': merge_mode,
                                  'concat_axis': concat_axis,
                                  'create_output': create_output})
-        layer.init_updates()
         params, regularizers, constraints, updates = layer.get_params()
         self.params += params
         self.regularizers += regularizers

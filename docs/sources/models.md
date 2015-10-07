@@ -52,7 +52,7 @@ from keras.layers.core import Dense, Dropout, Activation
 from keras.optimizers import SGD
 
 model = Sequential()
-model.add(Dense(64, 2, init='uniform'))
+model.add(Dense(2, init='uniform', input_dim=64))
 model.add(Activation('softmax'))
 
 model.compile(loss='mse', optimizer='sgd')
@@ -125,10 +125,10 @@ Arbitrary connection graph. It can have any number of inputs and outputs, with e
 model = keras.models.Graph()
 ```
 - __Methods__:
-    - __add_input__(name, ndim=2, dtype='float'): Add an input with shape dimensionality `ndim`. 
+    - __add_input__(name, input_shape, dtype='float'): Add an input with shape dimensionality `ndim`. 
         - __Arguments__:
-            - __ndim__: Use `ndim=2` for vector input `(samples, features)`, ndim=3 for temporal input `(samples, time, features)`, ndim=4 for image input `(samples, channels, height, width)`.
-            - __dtype__: `float` or `int`. Use `int` if the input is connected to an Embedding layer, `float` otherwise.
+            - __input_shape__: Integer tuple, shape of the expected input (not including the samples axis). E.g. (10,) for 10-dimensional vectors, (None, 128) for sequences (of variable length) of 128-dimensional vectors, (3, 32, 32) for 32x32 images with RGB channels.
+            - __dtype__: `float` or `int`. Type of the expected input data.
     - __add_output__(name, input=None, inputs=[], merge_mode='concat'): Add an output connect to `input` or `inputs`.
         - __Arguments__:
             - __name__: str. unique identifier of the output.
@@ -176,10 +176,10 @@ __Examples__:
 ```python
 # graph model with one input and two outputs
 graph = Graph()
-graph.add_input(name='input', ndim=2)
-graph.add_node(Dense(32, 16), name='dense1', input='input')
-graph.add_node(Dense(32, 4), name='dense2', input='input')
-graph.add_node(Dense(16, 4), name='dense3', input='dense1')
+graph.add_input(name='input', input_shape=(32,))
+graph.add_node(Dense(16), name='dense1', input='input')
+graph.add_node(Dense(4), name='dense2', input='input')
+graph.add_node(Dense(4), name='dense3', input='dense1')
 graph.add_output(name='output1', input='dense2')
 graph.add_output(name='output2', input='dense3')
 
@@ -191,11 +191,11 @@ history = graph.fit({'input':X_train, 'output1':y_train, 'output2':y2_train}, nb
 ```python
 # graph model with two inputs and one output
 graph = Graph()
-graph.add_input(name='input1', ndim=2)
-graph.add_input(name='input2', ndim=2)
-graph.add_node(Dense(32, 16), name='dense1', input='input1')
-graph.add_node(Dense(32, 4), name='dense2', input='input2')
-graph.add_node(Dense(16, 4), name='dense3', input='dense1')
+graph.add_input(name='input1', input_shape=(32,))
+graph.add_input(name='input2', input_shape=(32,))
+graph.add_node(Dense(16), name='dense1', input='input1')
+graph.add_node(Dense(4), name='dense2', input='input2')
+graph.add_node(Dense(4), name='dense3', input='dense1')
 graph.add_output(name='output', inputs=['dense2', 'dense3'], merge_mode='sum')
 graph.compile('rmsprop', {'output':'mse'})
 

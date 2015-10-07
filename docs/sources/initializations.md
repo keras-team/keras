@@ -6,7 +6,7 @@ Initializations define the probability distribution used to set the initial rand
 The keyword arguments used for passing initializations to layers will depend on the layer. Usually it is simply `init`:
 
 ```python
-model.add(Dense(64, 64, init='uniform'))
+model.add(Dense(64, init='uniform'))
 ```
 
 ## Available initializations

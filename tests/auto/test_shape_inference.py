@@ -10,12 +10,12 @@ from keras.layers.recurrent import SimpleRNN
 def check_layer_output_shape(layer, input_data):
     ndim = len(input_data.shape)
     layer.input = ndim_tensor(ndim)
-    layer._input_shape = input_data.shape
-    expected_output_shape = layer.output_shape
+    layer.set_input_shape(input_data.shape[1:])
+    expected_output_shape = layer.output_shape[1:]
 
     function = theano.function([layer.input], [layer.get_output()])
     output = function(input_data)[0]
-    assert output.shape == expected_output_shape
+    assert output.shape[1:] == expected_output_shape
 
 
 class TestShapeInference(unittest.TestCase):
@@ -23,7 +23,7 @@ class TestShapeInference(unittest.TestCase):
     # # Core #
     # ########
     def test_Reshape(self):
-        layer = Reshape(2, 3)
+        layer = Reshape(dims=(2, 3))
         input_data = np.random.random((2, 6))
         check_layer_output_shape(layer, input_data)
 
@@ -43,12 +43,12 @@ class TestShapeInference(unittest.TestCase):
         check_layer_output_shape(layer, input_data)
 
     def test_Dense(self):
-        layer = Dense(2, 3)
+        layer = Dense(3)
         input_data = np.random.random((2, 2))
         check_layer_output_shape(layer, input_data)
 
     def test_TimeDistributedDense(self):
-        layer = TimeDistributedDense(3, 2)
+        layer = TimeDistributedDense(2)
         input_data = np.random.random((2, 2, 3))
         check_layer_output_shape(layer, input_data)
 
@@ -62,7 +62,7 @@ class TestShapeInference(unittest.TestCase):
                     if subsample_length > 1 and border_mode == 'same':
                         continue
                     for input_data_shape in [(2, 3, 2), (2, 4, 2)]:
-                        layer = Convolution1D(input_dim=2, nb_filter=1, filter_length=filter_length,
+                        layer = Convolution1D(nb_filter=1, filter_length=filter_length,
                                               border_mode=border_mode, subsample_length=subsample_length)
                         input_data = np.random.random(input_data_shape)
                         check_layer_output_shape(layer, input_data)
@@ -74,7 +74,7 @@ class TestShapeInference(unittest.TestCase):
                     if (subsample[0] > 1 or subsample[1] > 1) and border_mode == 'same':
                         continue
                     for input_data_shape in [(2, 1, 3, 3), (2, 1, 4, 4)]:
-                        layer = Convolution2D(nb_filter=1, stack_size=1, nb_row=nb_row, nb_col=nb_row,
+                        layer = Convolution2D(nb_filter=1, nb_row=nb_row, nb_col=nb_row,
                                               border_mode=border_mode, subsample=subsample)
                         input_data = np.random.random(input_data_shape)
                         check_layer_output_shape(layer, input_data)
@@ -91,9 +91,9 @@ class TestShapeInference(unittest.TestCase):
     def test_MaxPooling2D(self):
         for ignore_border in [True, False]:
             for stride in [(1, 1), (2, 2)]:
-                for poolsize in [(2, 2), (3, 3), (4, 4)]:
+                for pool_size in [(2, 2), (3, 3), (4, 4)]:
                     for input_data_shape in [(2, 1, 3, 3), (2, 1, 4, 4), (2, 1, 5, 5), (2, 1, 6, 6)]:
-                        layer = MaxPooling2D(poolsize=poolsize, stride=stride, ignore_border=ignore_border)
+                        layer = MaxPooling2D(pool_size=pool_size, stride=stride, ignore_border=ignore_border)
                         input_data = np.random.random(input_data_shape)
                         check_layer_output_shape(layer, input_data)
 
@@ -107,6 +107,11 @@ class TestShapeInference(unittest.TestCase):
         input_data = np.random.random((2, 1, 2, 3))
         check_layer_output_shape(layer, input_data)
 
+    def test_ZeroPadding1D(self):
+        layer = ZeroPadding1D(1)
+        input_data = np.random.random((2, 2, 1))
+        check_layer_output_shape(layer, input_data)
+
     def test_ZeroPadding2D(self):
         layer = ZeroPadding2D((1, 2))
         input_data = np.random.random((2, 1, 2, 3))
@@ -118,7 +123,7 @@ class TestShapeInference(unittest.TestCase):
     def test_SimpleRNN(self):
         # all recurrent layers inherit output_shape
         # from the same base recurrent layer
-        layer = SimpleRNN(3, 2)
+        layer = SimpleRNN(2)
         input_data = np.random.random((2, 2, 3))
         check_layer_output_shape(layer, input_data)
 
