@@ -204,7 +204,7 @@ class ModelCheckpoint(Callback):
 
 class EarlyStopping(Callback):
 
-     def __init__(self, monitor='val_loss', patience=0, verbose=0, mode=None):
+     def __init__(self, monitor='val_loss', patience=0, verbose=0, mode='auto'):
         super(Callback, self).__init__()
 
         self.monitor = monitor
@@ -212,9 +212,13 @@ class EarlyStopping(Callback):
         self.verbose = verbose
         self.best = np.Inf
         self.wait = 0
-        if mode:
-            self.mode = mode
+        if mode =='min':
+            self.mode = min
+        elif mode == 'max':
+            self.mode = max
         else:
+            if self.mode != 'auto':
+                warnings.warn("Early stopping mode %s is unknown, fallback to auto mode" % (self.monitor), RuntimeWarning)
             if "acc" in self.monitor:
                 self.mode = max
             else:

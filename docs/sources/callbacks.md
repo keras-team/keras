@@ -37,11 +37,11 @@ Save the model after every epoch. If `save_best_only=True`, the latest best mode
 
 
 ```python
-keras.callbacks.EarlyStopping(monitor='val_loss', patience=0, verbose=0,mode=None)
+keras.callbacks.EarlyStopping(monitor='val_loss', patience=0, verbose=0, mode='auto')
 ```
 
 Stop training after no improvement of the metric `monitor` is seen for `patience` epochs. 
-The `mode` parameter must be a function that compare two values and return the best one. Function like `min` or `max`. If no mode is specified `max` is used for metric that contain "acc"(i.e. "acc" or "val_acc")  and `min` otherwise.
+The `mode` parameter must be choosen between `{'max', 'min', 'auto'}`. Using `'min'` or `'max'` select the according function for comparing `monitor` value (i.e. `min` keep the smallest and `max` the biggest). If `auto` is specified `max` is used for metric that contain "acc"(i.e. "acc" or "val_acc")  and `min` otherwise.
 
 ---
 
