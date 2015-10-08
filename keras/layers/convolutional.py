@@ -249,9 +249,7 @@ class Convolution2D(Layer):
                 conv_out = dnn.dnn_conv(img=X,
                                         kerns=self.W,
                                         border_mode=border_mode,
-                                        subsample=self.subsample,
-                                        image_shape=self.input_shape,
-                                        filter_shape=self.W_shape)
+                                        subsample=self.subsample)
         else:
             if border_mode == 'same':
                 border_mode = 'full'
@@ -259,7 +257,9 @@ class Convolution2D(Layer):
 
             conv_out = T.nnet.conv.conv2d(X, self.W,
                                           border_mode=border_mode,
-                                          subsample=self.subsample)
+                                          subsample=self.subsample,
+                                          image_shape=self.input_shape,
+                                          filter_shape=self.W_shape)
             if self.border_mode == 'same':
                 shift_x = (self.nb_row - 1) // 2
                 shift_y = (self.nb_col - 1) // 2
