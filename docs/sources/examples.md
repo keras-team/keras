@@ -92,7 +92,7 @@ from keras.layers.embeddings import Embedding
 from keras.layers.recurrent import LSTM
 
 model = Sequential()
-model.add(Embedding(max_features, 256))
+model.add(Embedding(max_features, 256, input_length=maxlen))
 model.add(LSTM(output_dim=128, activation='sigmoid', inner_activation='hard_sigmoid'))
 model.add(Dropout(0.5))
 model.add(Dense(1))

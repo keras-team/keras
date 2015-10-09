@@ -2,7 +2,7 @@
 ## Embedding
 
 ```python
-keras.layers.embeddings.Embedding(input_dim, output_dim, init='uniform', weights=None, W_regularizer=None, W_constraint=None, mask_zero=False, max_length=None)
+keras.layers.embeddings.Embedding(input_dim, output_dim, init='uniform', input_length=None, weights=None, W_regularizer=None, W_constraint=None, mask_zero=False)
 ```
 
 Turn positive integers (indexes) into denses vectors of fixed size,
@@ -27,7 +27,7 @@ eg. `[[4], [20]] -> [[0.25, 0.1], [0.6, -0.2]]`
 ## WordContextProduct
 
 ```python
-keras.layers.embeddings.WordContextProduct(input_dim, proj_dim=128, 
+keras.layers.embeddings.WordContextProduct(input_dim, proj_dim=128,
         init='uniform', activation='sigmoid', weights=None)
 ```
 
