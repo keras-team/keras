@@ -29,7 +29,8 @@ class MaxNorm(Constraint):
 
 class NonNeg(Constraint):
     def __call__(self, p):
-        p *= T.ge(p, 0)
+        p = theano.shared(p)
+        p *= T.ge(p, 0.)
         return p
 
 
