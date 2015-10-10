@@ -75,7 +75,7 @@ class Embedding(Layer):
                   "input_dim": self.input_dim,
                   "output_dim": self.output_dim,
                   "init": self.init.__name__,
-                  "max_lenght": self.max_lenght,
+                  "input_length": self.input_length,
                   "mask_zero": self.mask_zero,
                   "activity_regularizer": self.activity_regularizer.get_config() if self.activity_regularizer else None,
                   "W_regularizer": self.W_regularizer.get_config() if self.W_regularizer else None,

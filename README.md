@@ -78,18 +78,18 @@ from keras.optimizers import SGD
 model = Sequential()
 # input: 100x100 images with 3 channels -> (3, 100, 100) tensors.
 # this applies 32 convolution filters of size 3x3 each.
-model.add(Convolution2D(32, 3, 3, border_mode='full', input_shape=(3, 100, 100))) 
+model.add(Convolution2D(32, 3, 3, border_mode='full', input_shape=(3, 100, 100)))
 model.add(Activation('relu'))
 model.add(Convolution2D(32, 3, 3))
 model.add(Activation('relu'))
-model.add(MaxPooling2D(poolsize=(2, 2)))
+model.add(MaxPooling2D(pool_size=(2, 2)))
 model.add(Dropout(0.25))
 
-model.add(Convolution2D(64, 3, 3, border_mode='valid')) 
+model.add(Convolution2D(64, 3, 3, border_mode='valid'))
 model.add(Activation('relu'))
-model.add(Convolution2D(64, 3, 3)) 
+model.add(Convolution2D(64, 3, 3))
 model.add(Activation('relu'))
-model.add(MaxPooling2D(poolsize=(2, 2)))
+model.add(MaxPooling2D(pool_size=(2, 2)))
 model.add(Dropout(0.25))
 
 model.add(Flatten())
@@ -117,7 +117,7 @@ from keras.layers.embeddings import Embedding
 from keras.layers.recurrent import LSTM
 
 model = Sequential()
-model.add(Embedding(max_features, 256))
+model.add(Embedding(max_features, 256, input_length=maxlen))
 model.add(LSTM(output_dim=128, activation='sigmoid', inner_activation='hard_sigmoid'))
 model.add(Dropout(0.5))
 model.add(Dense(1))
@@ -142,17 +142,17 @@ vocab_size = 10000
 # will encode pictures into 128-dimensional vectors.
 # it should be initialized with pre-trained weights.
 image_model = Sequential()
-image_model.add(Convolution2D(32, 3, 3, border_mode='full', input_shape=(3, 100, 100))) 
+image_model.add(Convolution2D(32, 3, 3, border_mode='full', input_shape=(3, 100, 100)))
 image_model.add(Activation('relu'))
 image_model.add(Convolution2D(32, 3, 3))
 image_model.add(Activation('relu'))
-image_model.add(MaxPooling2D(poolsize=(2, 2)))
+image_model.add(MaxPooling2D(pool_size=(2, 2)))
 
-image_model.add(Convolution2D(64, 3, 3, border_mode='full')) 
+image_model.add(Convolution2D(64, 3, 3, border_mode='full'))
 image_model.add(Activation('relu'))
-image_model.add(Convolution2D(64, 3, 3)) 
+image_model.add(Convolution2D(64, 3, 3))
 image_model.add(Activation('relu'))
-image_model.add(MaxPooling2D(poolsize=(2, 2)))
+image_model.add(MaxPooling2D(pool_size=(2, 2)))
 
 image_model.add(Flatten())
 image_model.add(Dense(128))
@@ -168,14 +168,14 @@ language_model.add(GRU(output_dim=128, return_sequences=True))
 language_model.add(Dense(128))
 
 # let's repeat the image vector to turn it into a sequence.
-image_model.add(RepeatVector(max_caption_len)) 
+image_model.add(RepeatVector(max_caption_len))
 
 # the output of both models will be tensors of shape (samples, max_caption_len, 128).
 # let's concatenate these 2 vector sequences.
 model = Merge([image_model, language_model], mode='concat', concat_axis=-1)
 # let's encode this vector sequence into a single vector
 model.add(GRU(256, 256, return_sequences=False))
-# which will be used to compute a probability 
+# which will be used to compute a probability
 # distribution over what the next word in the caption should be!
 model.add(Dense(vocab_size))
 model.add(Activation('softmax'))
@@ -235,4 +235,3 @@ Keras (κέρας) means _horn_ in Greek. It is a reference to a literary image 
 Keras was developed as part of the research effort of project ONEIROS (Open-ended Neuro-Electronic Intelligent Robot Operating System).
 
 >_"Oneiroi are beyond our unravelling --who can be sure what tale they tell? Not all that men look for comes to pass. Two gates there are that give passage to fleeting Oneiroi; one is made of horn, one of ivory. The Oneiroi that pass through sawn ivory are deceitful, bearing a message that will not be fulfilled; those that come out through polished horn have truth behind them, to be accomplished for men who see them."_ Homer, Odyssey 19. 562 ff (Shewring translation).
-
