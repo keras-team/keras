@@ -180,11 +180,13 @@ class ModelCheckpoint(Callback):
         self.verbose = verbose
         self.filepath = filepath
         self.save_best_only = save_best_only
-        self.best = np.Inf
+        
         if monitor_direction == "dec":
-          self.monitor_op = np.greater
-        elif monitor_direction == "inc":
           self.monitor_op = np.less
+          self.best = np.Inf
+        elif monitor_direction == "inc":
+          self.monitor_op = np.greater
+          self.best = -np.Inf
 
     def on_epoch_end(self, epoch, logs={}):
         filepath = self.filepath.format(epoch=epoch, **logs)
