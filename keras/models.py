@@ -678,10 +678,11 @@ class Graph(Model, containers.Graph):
         return history
 
     def evaluate(self, data, batch_size=128, verbose=0, sample_weight={}):
-        sample_weight = [standardize_weights(data[name],
-                                             sample_weight=sample_weight.get(name)) for name in self.output_order]
-
-        ins = [data[name] for name in self.input_order] + [standardize_y(data[name]) for name in self.output_order] + sample_weight
+        X = [data[name] for name in self.input_order]
+        y = [standardize_y(data[name]) for name in self.output_order]
+        sample_weight = [standardize_weights(y[i],
+                                             sample_weight=sample_weight.get(name)) for i, name in enumerate(self.output_order)]
+        ins = X + y + sample_weight
         outs = self._test_loop(self._test, ins, batch_size, verbose)
         return outs[0]
 
