@@ -173,7 +173,7 @@ class History(Callback):
 
 
 class ModelCheckpoint(Callback):
-    def __init__(self, filepath, monitor='val_loss', verbose=0, save_best_only=False):
+    def __init__(self, filepath, monitor='val_loss', verbose=0, save_best_only=False, monitor_direction='dec'):
 
         super(Callback, self).__init__()
         self.monitor = monitor
@@ -181,6 +181,10 @@ class ModelCheckpoint(Callback):
         self.filepath = filepath
         self.save_best_only = save_best_only
         self.best = np.Inf
+        if monitor_direction == "dec":
+          self.monitor_op = np.greater
+        elif monitor_direction == "inc":
+          self.monitor_op = np.less
 
     def on_epoch_end(self, epoch, logs={}):
         filepath = self.filepath.format(epoch=epoch, **logs)
@@ -189,7 +193,7 @@ class ModelCheckpoint(Callback):
             if current is None:
                 warnings.warn("Can save best model only with %s available, skipping." % (self.monitor), RuntimeWarning)
             else:
-                if current < self.best:
+                if self.monitor_op(current,self.best):
                     if self.verbose > 0:
                         print("Epoch %05d: %s improved from %0.5f to %0.5f, saving model to %s"
                               % (epoch, self.monitor, self.best, current, filepath))
