@@ -71,13 +71,13 @@ model.add(Activation('softmax'))
 sgd = SGD(lr=0.01, decay=1e-6, momentum=0.9, nesterov=True)
 model.compile(loss='categorical_crossentropy', optimizer=sgd)
 
+X_train = X_train.astype("float32")
+X_test = X_test.astype("float32")
+X_train /= 255
+X_test /= 255
+
 if not data_augmentation:
     print("Not using data augmentation or normalization")
-
-    X_train = X_train.astype("float32")
-    X_test = X_test.astype("float32")
-    X_train /= 255
-    X_test /= 255
     model.fit(X_train, Y_train, batch_size=batch_size, nb_epoch=nb_epoch)
     score = model.evaluate(X_test, Y_test, batch_size=batch_size)
     print('Test score:', score)
