@@ -99,6 +99,11 @@ Keras uses the following dependencies:
 - __HDF5__ and __h5py__ (optional, required if you use model saving/loading functions)
 - Optional but recommended if you use CNNs: __cuDNN__.
 
+**Note**: You should use the latest version of Theano, not the PyPI version. Install it with:
+```
+sudo pip install git+git://github.com/Theano/Theano.git
+```
+
 Once you have the dependencies installed, clone the repo:
 ```bash
 git clone https://github.com/fchollet/keras.git
