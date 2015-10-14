@@ -2,7 +2,7 @@
 ## SimpleRNN
 
 ```python
-keras.layers.recurrent.SimpleRNN(output_dim, 
+keras.layers.recurrent.SimpleRNN(output_dim,
         init='glorot_uniform', inner_init='orthogonal', activation='sigmoid', weights=None,
         truncate_gradient=-1, return_sequences=False, input_dim=None, input_length=None)
 ```
@@ -56,7 +56,6 @@ Not a particularly useful model, included for demonstration purposes.
 
 
 - __Arguments__:
-    - __input_dim__: dimension of the input.
     - __output_dim__: dimension of the internal projections and the final output.
     - __depth__: int >= 1. Lookback depth (eg. depth=1 is equivalent to SimpleRNN).
     - __init__: weight initialization function for the output cell. Can be the name of an existing function (str), or a Theano function (see: [initializations](../initializations.md)).
@@ -75,7 +74,7 @@ Not a particularly useful model, included for demonstration purposes.
 ## GRU
 
 ```python
-keras.layers.recurrent.GRU(input_dim, output_dim=128, 
+keras.layers.recurrent.GRU(output_dim,
         init='glorot_uniform', inner_init='orthogonal',
         activation='sigmoid', inner_activation='hard_sigmoid',
         weights=None, truncate_gradient=-1, return_sequences=False,
@@ -93,7 +92,6 @@ Gated Recurrent Unit - Cho et al. 2014.
 - __Masking__: This layer supports masking for input data with a variable number of timesteps To introduce masks to your data, use an [Embedding](embeddings.md) layer with the `mask_zero` parameter set to true.
 
 - __Arguments__:
-    - __input_dim__: dimension of the input.
     - __output_dim__: dimension of the internal projections and the final output.
     - __init__: weight initialization function for the output cell. Can be the name of an existing function (str), or a Theano function (see: [initializations](../initializations.md)).
     - __inner_init__: weight initialization function for the inner cells.
@@ -114,7 +112,7 @@ Gated Recurrent Unit - Cho et al. 2014.
 ## LSTM
 
 ```python
-keras.layers.recurrent.LSTM(input_dim, output_dim=128, 
+keras.layers.recurrent.LSTM(output_dim,
         init='glorot_uniform', inner_init='orthogonal', forget_bias_init='one',
         activation='tanh', inner_activation='hard_sigmoid',
         weights=None, truncate_gradient=-1, return_sequences=False,
@@ -132,7 +130,6 @@ Long-Short Term Memory unit - Hochreiter 1997.
 - __Masking__: This layer supports masking for input data with a variable number of timesteps To introduce masks to your data, use an [Embedding](embeddings.md) layer with the `mask_zero` parameter set to true.
 
 - __Arguments__:
-    - __input_dim__: dimension of the input.
     - __output_dim__: dimension of the internal projections and the final output.
     - __init__: weight initialization function for the output cell. Can be the name of an existing function (str), or a Theano function (see: [initializations](../initializations.md)).
     - __inner_init__: weight initialization function for the inner cells.
@@ -155,7 +152,7 @@ Long-Short Term Memory unit - Hochreiter 1997.
 ## JZS1, JZS2, JZS3
 
 ```python
-keras.layers.recurrent.JZS1(input_dim, output_dim=128, 
+keras.layers.recurrent.JZS1(output_dim,
         init='glorot_uniform', inner_init='orthogonal', 
         activation='tanh', inner_activation='sigmoid',
         weights=None, truncate_gradient=-1, return_sequences=False,
@@ -173,7 +170,6 @@ Top 3 RNN architectures evolved from the evaluation of thousands of models. Serv
 - __Masking__: This layer supports masking for input data with a variable number of timesteps To introduce masks to your data, use an [Embedding](embeddings.md) layer with the `mask_zero` parameter set to true.
 
 - __Arguments__:
-    - __input_dim__: dimension of the input.
     - __output_dim__: dimension of the internal projections and the final output.
     - __init__: weight initialization function for the output cell. Can be the name of an existing function (str), or a Theano function (see: [initializations](../initializations.md)).
     - __inner_init__: weight initialization function for the inner cells.
