@@ -1,15 +1,19 @@
 from __future__ import absolute_import
 from __future__ import print_function
 from keras.datasets import cifar10
+from keras.datasets import cifar100
 from keras.preprocessing.image import ImageDataGenerator
 from keras.models import Sequential
 from keras.layers.core import Dense, Dropout, Activation, Flatten
 from keras.layers.convolutional import Convolution2D, MaxPooling2D
 from keras.optimizers import SGD, Adadelta, Adagrad
 from keras.utils import np_utils, generic_utils
-from six.moves import range
+from six import moves
 
 '''
+    sudo pip install --upgrade --no-deps git+git://github.com/Theano/Theano.git
+    sudo pip install --upgrade --no-deps git+git://github.com/fchollet/keras.git
+
     Train a (fairly simple) deep CNN on the CIFAR10 small images dataset.
 
     GPU run command:
@@ -25,7 +29,9 @@ from six.moves import range
 
 batch_size = 32
 nb_classes = 10
-nb_epoch = 200
+
+# it appears to converge around 80
+nb_epoch = 100
 data_augmentation = True
 
 # input image dimensions
@@ -78,6 +84,7 @@ X_test /= 255
 
 if not data_augmentation:
     print("Not using data augmentation or normalization")
+
     model.fit(X_train, Y_train, batch_size=batch_size, nb_epoch=nb_epoch)
     score = model.evaluate(X_test, Y_test, batch_size=batch_size)
     print('Test score:', score)
@@ -102,6 +109,9 @@ else:
     # (std, mean, and principal components if ZCA whitening is applied)
     datagen.fit(X_train)
 
+    min_loss = 100.0
+    loss = 50.0
+
     for e in range(nb_epoch):
         print('-'*40)
         print('Epoch', e)
@@ -112,6 +122,12 @@ else:
         for X_batch, Y_batch in datagen.flow(X_train, Y_train):
             loss = model.train_on_batch(X_batch, Y_batch)
             progbar.add(X_batch.shape[0], values=[("train loss", loss)])
+
+        if loss < min_loss:
+            min_loss = loss
+            file_name = '/tmp/keras_cifar10_epoch_%d_loss_%s.hdf5' % (e,str(loss).replace('.','dot'))
+            print("saving weights epoch:%d,loss:%f,file:%s" % (e, loss, file_name))
+            model.save_weights(file_name)
 
         print("Testing...")
         # test time!
