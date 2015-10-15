@@ -1,13 +1,17 @@
 from setuptools import setup
 from setuptools import find_packages
 
+
 setup(name='Keras',
-      version='0.0.1',
-      description='Theano-based Deep Learning',
+      version='0.2.0',
+      description='Theano-based Deep Learning library',
       author='Francois Chollet',
       author_email='francois.chollet@gmail.com',
       url='https://github.com/fchollet/keras',
+      download_url='https://github.com/fchollet/keras/tarball/0.2.0',
       license='MIT',
-      packages=find_packages(),
-      # TODO: dependencies
-)
+      install_requires=['theano', 'pyyaml'],
+      extras_require={
+          'h5py': ['h5py'],
+      },
+      packages=find_packages())

@@ -5,6 +5,7 @@
 - [Home](index.md)
 - [Index](documentation.md)
 - [Examples](examples.md)
+- [FAQ](faq.md)
 
 ---
 
@@ -15,6 +16,9 @@
 - [Models](models.md)
 - [Activations](activations.md)
 - [Initializations](initializations.md)
+- [Regularizers](regularizers.md)
+- [Constraints](constraints.md)
+- [Callbacks](callbacks.md)
 - [Datasets](datasets.md)
 
 ---

@@ -6,12 +6,12 @@ Activations can either be used through an `Activation` layer, or through the `ac
 ```python
 from keras.layers.core import Activation, Dense
 
-model.add(Dense(64, 64, init='uniform'))
+model.add(Dense(64))
 model.add(Activation('tanh'))
 ```
 is equivalent to:
 ```python
-model.add(Dense(20, 64, init='uniform', activation='tanh'))
+model.add(Dense(64, activation='tanh'))
 ```
 
 You can also pass an element-wise Theano function as an activation:
@@ -20,14 +20,13 @@ You can also pass an element-wise Theano function as an activation:
 def tanh(x):
     return theano.tensor.tanh(x)
 
-model.add(Dense(20, 64, init='uniform', activation=tanh))
+model.add(Dense(64, activation=tanh))
 model.add(Activation(tanh))
 ```
 
 ## Available activations
 
-- __softmax__: Should only be applied to 2D layers (expected shape: `(nb_samples, nb_dims)`).
-- __time_distributed_softmax__: Softmax applied to every sample at every timestep of a layer of shape `(nb_samples, nb_timesteps, nb_dims)`.
+- __softmax__: Softmax applied across inputs last dimension. Expects shape either `(nb_samples, nb_timesteps, nb_dims)` or `(nb_samples, nb_dims)`.
 - __softplus__
 - __relu__
 - __tanh__

@@ -2,23 +2,24 @@
 
 ## Overview
 
-Keras is a minimalist, highly modular neural network library in the spirit of Torch, written in Python, that uses [Theano](http://deeplearning.net/software/theano/) under the hood for fast tensor manipulation on GPU and CPU. It was developed with a focus on enabling fast experimentation. 
+Keras is a minimalist, highly modular neural network library in the spirit of Torch, written in Python, that uses [Theano](http://deeplearning.net/software/theano/) under the hood for optimized tensor manipulation on GPU and CPU. It was developed with a focus on enabling fast experimentation. 
 
 Use Keras if you need a deep learning library that:
 
 - allows for easy and fast prototyping (through total modularity, minimalism, and extensibility).
-- supports both __convolutional networks__ and __recurrent networks__ (LSTM, GRU, etc). As well as combinations of the two. 
-- runs seamlessly on the CPU and the GPU.
+- supports both convolutional networks and recurrent networks, as well as combinations of the two.
+- supports arbitrary connectivity schemes (including multi-input and multi-output training).
+- runs seamlessly on CPU and GPU.
 
 ## Guiding principles
 
-- __Modularity.__ A model is understood as a sequence of standalone, fully-configurable modules that can be plugged together with as little restrictions as possible. In particular, neural layers, cost functions, optimizers, initialization schemes, activation functions and dropout are all standalone modules that you can combine to create new models. 
+- __Modularity.__ A model is understood as a sequence or a graph of standalone, fully-configurable modules that can be plugged together with as little restrictions as possible. In particular, neural layers, cost functions, optimizers, initialization schemes, activation functions, regularization schemes are all standalone modules that you can combine to create new models.
 
-- __Minimalism.__ Each module should be kept short and simple (<100 lines of code). Every piece of code should be transparent upon first reading. No black magic: it hurts iteration speed and ability to innovate. 
+- __Minimalism.__ Each module should be kept short and simple (<100 lines of code). Every piece of code should be transparent upon first reading. No black magic: it hurts iteration speed and ability to innovate.
 
-- __Easy extensibility.__ A new feature (a new module, per the above definition, or a new way to combine modules together) are dead simple to add (as new classes/functions), and existing modules provide ample examples.
+- __Easy extensibility.__ New modules are dead simple to add (as new classes/functions), and existing modules provide ample examples. To be able to easily create new modules allows for total expressiveness, making Keras suitable for advanced research.
 
-- __Work with Python__. No separate models configuration files in a declarative format (like in Caffe or PyLearn2). Models are described in Python code, which is compact, easier to debug, benefits from syntax highlighting, and most of all, allows for ease of extensibility.
+- __Work with Python__. No separate models configuration files in a declarative format (like in Caffe or PyLearn2). Models are described in Python code, which is compact, easier to debug, and allows for ease of extensibility.
 
 ## Code
 
@@ -30,7 +31,9 @@ Keras is licensed under the [MIT license](http://opensource.org/licenses/MIT).
 
 ## Getting started: 30 seconds to Keras
 
-The core datastructure of Keras is a __model__, a way to organize layers. Here's a sequential model (a linear pile of layers).
+The core datastructure of Keras is a __model__, a way to organize layers. There are two types of models: [`Sequential`](/models/#sequential) and [`Graph`](/models/#graph).
+
+Here's the `Sequential` model (a linear pile of layers):
 
 ```python
 from keras.models import Sequential
@@ -43,9 +46,9 @@ Stacking layers is as easy as `.add()`:
 ```python
 from keras.layers.core import Dense, Activation
 
-model.add(Dense(input_dim=100, output_dim=64, init="uniform"))
+model.add(Dense(output_dim=64, input_dim=100, init="glorot_uniform"))
 model.add(Activation("relu"))
-model.add(Dense(input_dim=64, output_dim=10, init="uniform"))
+model.add(Dense(output_dim=10, init="glorot_uniform"))
 model.add(Activation("softmax"))
 ```
 
@@ -67,7 +70,7 @@ model.fit(X_train, Y_train, nb_epoch=5, batch_size=32)
 
 Alternatively, you can feed batches to your model manually:
 ```python
-model.train(X_batch, Y_batch)
+model.train_on_batch(X_batch, Y_batch)
 ```
 
 Evaluate your performance in one line:
@@ -81,7 +84,7 @@ classes = model.predict_classes(X_test, batch_size=32)
 proba = model.predict_proba(X_test, batch_size=32)
 ```
 
-Building a network of LSTMs, a deep CNN, a word2vec embedder or any other model is just as fast. The ideas behind deep learning are simple, so why should their implementation be painful?
+Building a network of LSTMs, a deep CNN, a Neural Turing Machine, a word2vec embedder or any other model is just as fast. The ideas behind deep learning are simple, so why should their implementation be painful?
 
 Have a look at the [examples](examples.md).
 
@@ -89,11 +92,17 @@ Have a look at the [examples](examples.md).
 
 Keras uses the following dependencies:
 
-- numpy, scipy
-- Theano
+- __numpy__, __scipy__
+- __pyyaml__
+- __Theano__
     - See [installation instructions](http://deeplearning.net/software/theano/install.html#install).
-- PIL (optional, required if you use preprocessing.image)
-- Optional but recommended if you use CNNs: cuDNN.
+- __HDF5__ and __h5py__ (optional, required if you use model saving/loading functions)
+- Optional but recommended if you use CNNs: __cuDNN__.
+
+**Note**: You should use the latest version of Theano, not the PyPI version. Install it with:
+```
+sudo pip install git+git://github.com/Theano/Theano.git
+```
 
 Once you have the dependencies installed, clone the repo:
 ```bash
@@ -103,6 +112,10 @@ Go to the Keras folder and run the install command:
 ```bash
 cd keras
 sudo python setup.py install
+```
+You can also install Keras from PyPI:
+```
+sudo pip install keras
 ```
 
 ## Support
@@ -116,7 +129,8 @@ Keras welcomes all contributions from the community.
 - Keep a pragmatic mindset and avoid bloat. Only add to the source if that is the only path forward.
 - New features should be documented. Make sure you update the documentation along with your Pull Request.
 - The documentation for every new feature should include a usage example in the form of a code snippet. 
-- All changes should be tested. A formal test process will be introduced very soon.
+- All changes should be tested. Make sure any new feature you add has a corresponding unit test.
+- Please no Pull Requests about coding style.
 - Even if you don't contribute to the Keras source code, if you have an application of Keras that is concise and powerful, please consider adding it to our collection of [examples](https://github.com/fchollet/keras/tree/master/examples).
 
 
@@ -124,7 +138,7 @@ Keras welcomes all contributions from the community.
 
 Keras (κέρας) means _horn_ in Greek. It is a reference to a literary image from ancient Greek and Latin literature, first found in the _Odyssey_, where dream spirits (_Oneiroi_, singular _Oneiros_) are divided between those who deceive men with false visions, who arrive to Earth through a gate of ivory, and those who announce a future that will come to pass, who arrive through a gate of horn. It's a play on the words κέρας (horn) / κραίνω (fulfill), and ἐλέφας (ivory) / ἐλεφαίρομαι (deceive).
 
-Keras was developed as part of the research effort of project ONEIROS (Open-ended Neuro-Electronic Intelligent Robot Operating System).
+Keras was developed as part of the research effort of project __ONEIROS__ (*Open-ended Neuro-Electronic Intelligent Robot Operating System*).
 
 > _"Oneiroi are beyond our unravelling --who can be sure what tale they tell? Not all that men look for comes to pass. Two gates there are that give passage to fleeting Oneiroi; one is made of horn, one of ivory. The Oneiroi that pass through sawn ivory are deceitful, bearing a message that will not be fulfilled; those that come out through polished horn have truth behind them, to be accomplished for men who see them."_ 
 

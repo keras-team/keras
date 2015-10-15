@@ -5,7 +5,7 @@ An optimizer is one of the two arguments required for compiling a Keras model:
 
 ```python
 model = Sequential()
-model.add(Dense(20, 64, init='uniform'))
+model.add(Dense(64, init='uniform', input_dim=10))
 model.add(Activation('tanh'))
 model.add(Activation('softmax'))
 
@@ -28,12 +28,9 @@ model.compile(loss='mean_squared_error', optimizer='sgd')
 keras.optimizers.Optimizer(**kwargs)
 ```
 
-All optimizers descended from this class support the following keyword arguments:
+All optimizers descended from this class support the following keyword argument:
 
-- __l1__: float >= 0. L1 regularization penalty.
-- __l2__: float >= 0. L2 regularization penalty.
 - __clipnorm__: float >= 0.
-- __maxnorm__: float >= 0.
 
 Note: this is base class for building optimizers, not an actual optimizer that can be used for training models.
 
@@ -106,16 +103,15 @@ __Arguments__:
 ## Adam
 
 ```python
-keras.optimizers.Adam(lr=0.001, beta_1=0.9, beta_2=0.999, epsilon=1e-8, kappa=1-1e-8)
+keras.optimizers.Adam(lr=0.001, beta_1=0.9, beta_2=0.999, epsilon=1e-8)
 ```
 
-Adam optimizer, proposed by Kingma and Lei Ba in [Adam: A Method For Stochastic Optimization](http://arxiv.org/pdf/1412.6980v4.pdf). Default parameters are those suggested in the paper. The parameter "lambda" from the paper has been renamed kappa, for syntactic reasons.
+Adam optimizer, proposed by Kingma and Lei Ba in [Adam: A Method For Stochastic Optimization](http://arxiv.org/pdf/1412.6980v8.pdf). Default parameters are those suggested in the paper.
 
 __Arguments__:
 
-- __lr__: float >= 0. Learning rate. 
+- __lr__: float >= 0. Learning rate.
 - __beta_1__, __beta_2__: floats, 0 < beta < 1. Generally close to 1.
 - __epsilon__: float >= 0. Fuzz factor.
-- __kappa__: float 0 < kappa < 1. Lambda parameter in the original paper.
 
 ---
