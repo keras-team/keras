@@ -8,7 +8,6 @@ np.random.seed(1337)  # for reproducibility
 from keras.models import Sequential
 from keras.layers.core import Dense, Dropout, Activation
 from keras.layers.normalization import BatchNormalization
-from keras.layers.advanced_activations import PReLU
 from keras.utils import np_utils, generic_utils
 
 from sklearn.preprocessing import LabelEncoder
@@ -28,7 +27,7 @@ from sklearn.preprocessing import StandardScaler
 
     Try it at home:
         - with/without BatchNormalization (BatchNormalization helps!)
-        - with ReLU or with PReLU (PReLU helps!)
+        - with hard_sigmoid or with Phard_sigmoid (Phard_sigmoid helps!)
         - with smaller layers, largers layers
         - with more layers, less layers
         - with different optimizers (SGD+momentum+decay is probably better than Adam!)
@@ -96,17 +95,17 @@ print("Building model...")
 
 model = Sequential()
 model.add(Dense(512, input_shape=(dims,)))
-model.add(PReLU())
+model.add(Phard_sigmoid())
 model.add(BatchNormalization())
 model.add(Dropout(0.5))
 
 model.add(Dense(512))
-model.add(PReLU())
+model.add(Phard_sigmoid())
 model.add(BatchNormalization())
 model.add(Dropout(0.5))
 
 model.add(Dense(512))
-model.add(PReLU())
+model.add(Phard_sigmoid())
 model.add(BatchNormalization())
 model.add(Dropout(0.5))
 
