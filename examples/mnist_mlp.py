@@ -12,7 +12,7 @@ from keras.utils import np_utils
 '''
     Train a simple deep NN on the MNIST dataset.
 
-    Get to 98.30% test accuracy after 20 epochs (there is *a lot* of margin for parameter tuning).
+    Get to 97.90% test accuracy after 20 epochs (there is *a lot* of margin for parameter tuning).
     2 seconds per epoch on a GRID K520 GPU.
 '''
 
@@ -38,10 +38,10 @@ Y_test = np_utils.to_categorical(y_test, nb_classes)
 
 model = Sequential()
 model.add(Dense(128, input_shape=(784,)))
-model.add(Activation('relu'))
+model.add(Activation('hard_sigmoid'))
 model.add(Dropout(0.2))
 model.add(Dense(128))
-model.add(Activation('relu'))
+model.add(Activation('hard_sigmoid'))
 model.add(Dropout(0.2))
 model.add(Dense(10))
 model.add(Activation('softmax'))

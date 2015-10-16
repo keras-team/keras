@@ -58,7 +58,7 @@ model = Sequential()
 model.add(SimpleRNN(output_dim=hidden_units,
                     init=lambda shape: normal(shape, scale=0.001),
                     inner_init=lambda shape: identity(shape, scale=1.0),
-                    activation='relu', truncate_gradient=BPTT_truncate,
+                    activation='hard_sigmoid', truncate_gradient=BPTT_truncate,
                     input_shape=(None, 1)))
 model.add(Dense(nb_classes))
 model.add(Activation('softmax'))
