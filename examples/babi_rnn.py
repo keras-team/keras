@@ -181,15 +181,15 @@ print('Build model...')
 
 sentrnn = Sequential()
 sentrnn.add(Embedding(vocab_size, EMBED_HIDDEN_SIZE, mask_zero=True))
-sentrnn.add(RNN(EMBED_HIDDEN_SIZE, SENT_HIDDEN_SIZE, return_sequences=False))
+sentrnn.add(RNN(SENT_HIDDEN_SIZE, return_sequences=False))
 
 qrnn = Sequential()
 qrnn.add(Embedding(vocab_size, EMBED_HIDDEN_SIZE))
-qrnn.add(RNN(EMBED_HIDDEN_SIZE, QUERY_HIDDEN_SIZE, return_sequences=False))
+qrnn.add(RNN(QUERY_HIDDEN_SIZE, return_sequences=False))
 
 model = Sequential()
 model.add(Merge([sentrnn, qrnn], mode='concat'))
-model.add(Dense(SENT_HIDDEN_SIZE + QUERY_HIDDEN_SIZE, vocab_size, activation='softmax'))
+model.add(Dense(vocab_size, activation='softmax'))
 
 model.compile(optimizer='adam', loss='categorical_crossentropy', class_mode='categorical')
 

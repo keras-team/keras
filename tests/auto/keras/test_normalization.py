@@ -15,15 +15,15 @@ class TestBatchNormalization(unittest.TestCase):
         self.input_shapes = [np.ones((10, 10)), np.ones((10, 10, 10))]
 
     def test_setup(self):
-        norm_m0 = normalization.BatchNormalization((10, 10))
-        norm_m1 = normalization.BatchNormalization((10, 10), mode=1)
+        norm_m0 = normalization.BatchNormalization(input_shape=(10, 10))
+        norm_m1 = normalization.BatchNormalization(input_shape=(10, 10), mode=1)
 
         # mode 3 does not exist
-        self.assertRaises(Exception, normalization.BatchNormalization((10, 10), mode=3))
+        self.assertRaises(Exception, normalization.BatchNormalization(input_shape=(10, 10), mode=3))
 
     def test_mode_0(self):
         model = Sequential()
-        norm_m0 = normalization.BatchNormalization((10,))
+        norm_m0 = normalization.BatchNormalization(input_shape=(10,))
         model.add(norm_m0)
         model.compile(loss='mse', optimizer='sgd')
 
@@ -37,8 +37,7 @@ class TestBatchNormalization(unittest.TestCase):
         self.assertAlmostEqual(out.std().eval(), 1.0, places=1)
 
     def test_mode_1(self):
-        norm_m1 = normalization.BatchNormalization((10,), mode=1)
-        norm_m1.init_updates()
+        norm_m1 = normalization.BatchNormalization(input_shape=(10,), mode=1)
 
         for inp in [self.input_1, self.input_2, self.input_3]:
             norm_m1.input = inp
@@ -54,12 +53,11 @@ class TestBatchNormalization(unittest.TestCase):
         Test batch normalization with various input shapes
         """
         for inp in self.input_shapes:
-            norm_m0 = normalization.BatchNormalization(inp.shape, mode=0)
-            norm_m0.init_updates()
+            norm_m0 = normalization.BatchNormalization(input_shape=inp.shape, mode=0)
             norm_m0.input = inp
             out = (norm_m0.get_output(train=True) - norm_m0.beta) / norm_m0.gamma
 
-            norm_m1 = normalization.BatchNormalization(inp.shape, mode=1)
+            norm_m1 = normalization.BatchNormalization(input_shape=inp.shape, mode=1)
             norm_m1.input = inp
             out = (norm_m1.get_output(train=True) - norm_m1.beta) / norm_m1.gamma
 
@@ -67,9 +65,8 @@ class TestBatchNormalization(unittest.TestCase):
         """
         Test weight initialization
         """
-
-        norm_m1 = normalization.BatchNormalization((10,), mode=1, weights=[np.ones(10), np.ones(10), np.zeros(10), np.zeros(10)])
-        norm_m1.init_updates()
+        norm_m1 = normalization.BatchNormalization(input_shape=(10,), mode=1,
+                                                   weights=[np.ones(10), np.ones(10), np.zeros(10), np.zeros(10)])
 
         for inp in [self.input_1, self.input_2, self.input_3]:
             norm_m1.input = inp
@@ -84,15 +81,14 @@ class TestBatchNormalization(unittest.TestCase):
         assert_allclose(norm_m1.beta.eval(), np.ones(10))
 
     def test_config(self):
-        norm = normalization.BatchNormalization((10, 10), mode=1, epsilon=0.1)
+        norm = normalization.BatchNormalization(input_shape=(10, 10), mode=1, epsilon=0.1, momentum=0.9)
         conf = norm.get_config()
         conf_target = {"input_shape": (10, 10), "name": normalization.BatchNormalization.__name__,
-                       "epsilon": 0.1, "mode": 1}
-
+                       "epsilon": 0.1, "mode": 1, "momentum": 0.9}
         self.assertDictEqual(conf, conf_target)
 
     def test_save_weights(self):
-        norm = normalization.BatchNormalization((10, 10), mode=1, epsilon=0.1)
+        norm = normalization.BatchNormalization(input_shape=(10, 10), mode=1, epsilon=0.1)
         weights = norm.get_weights()
         assert(len(weights) == 4)
         norm.set_weights(weights)

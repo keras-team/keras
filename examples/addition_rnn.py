@@ -1,9 +1,8 @@
 # -*- coding: utf-8 -*-
 from __future__ import print_function
 from keras.models import Sequential, slice_X
-from keras.layers.core import Activation, Dense, RepeatVector
+from keras.layers.core import Activation, TimeDistributedDense, RepeatVector
 from keras.layers import recurrent
-from sklearn.utils import shuffle
 import numpy as np
 
 """
@@ -25,17 +24,14 @@ and
 http://papers.nips.cc/paper/5346-sequence-to-sequence-learning-with-neural-networks.pdf
 Theoretically it introduces shorter term dependencies between source and target.
 
-
 Two digits inverted:
 + One layer JZS1 (128 HN), 5k training examples = 99% train/test accuracy in 55 epochs
 
 Three digits inverted:
 + One layer JZS1 (128 HN), 50k training examples = 99% train/test accuracy in 100 epochs
 
-
 Four digits inverted:
 + One layer JZS1 (128 HN), 400k training examples = 99% train/test accuracy in 20 epochs
-
 
 Five digits inverted:
 + One layer JZS1 (128 HN), 550k training examples = 99% train/test accuracy in 30 epochs
@@ -122,23 +118,32 @@ for i, sentence in enumerate(expected):
     y[i] = ctable.encode(sentence, maxlen=DIGITS + 1)
 
 # Shuffle (X, y) in unison as the later parts of X will almost all be larger digits
-X, y = shuffle(X, y)
+indices = np.arange(len(y))
+np.random.shuffle(indices)
+X = X[indices]
+y = y[indices]
 # Explicitly set apart 10% for validation data that we never train over
 split_at = len(X) - len(X) / 10
 (X_train, X_val) = (slice_X(X, 0, split_at), slice_X(X, split_at))
 (y_train, y_val) = (y[:split_at], y[split_at:])
 
+print(X_train.shape)
+print(y_train.shape)
+
 print('Build model...')
 model = Sequential()
 # "Encode" the input sequence using an RNN, producing an output of HIDDEN_SIZE
-model.add(RNN(len(chars), HIDDEN_SIZE))
+# note: in a situation where your input sequences have a variable length,
+# use input_shape=(None, nb_feature).
+model.add(RNN(HIDDEN_SIZE, input_shape=(None, len(chars))))
 # For the decoder's input, we repeat the encoded input for each time step
 model.add(RepeatVector(DIGITS + 1))
 # The decoder RNN could be multiple layers stacked or a single layer
 for _ in xrange(LAYERS):
-    model.add(RNN(HIDDEN_SIZE, HIDDEN_SIZE, return_sequences=True))
+    model.add(RNN(HIDDEN_SIZE, return_sequences=True))
+
 # For each of step of the output sequence, decide which character should be chosen
-model.add(Dense(HIDDEN_SIZE, len(chars)))
+model.add(TimeDistributedDense(len(chars)))
 model.add(Activation('softmax'))
 
 model.compile(loss='categorical_crossentropy', optimizer='adam')
@@ -148,7 +153,7 @@ for iteration in range(1, 200):
     print()
     print('-' * 50)
     print('Iteration', iteration)
-    model.fit(X, y, batch_size=BATCH_SIZE, nb_epoch=1, validation_data=(X_val, y_val), show_accuracy=True)
+    model.fit(X_train, y_train, batch_size=BATCH_SIZE, nb_epoch=1, validation_data=(X_val, y_val), show_accuracy=True)
     ###
     # Select 10 samples from the validation set at random so we can visualize errors
     for i in xrange(10):

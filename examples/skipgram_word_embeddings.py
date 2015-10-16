@@ -160,7 +160,6 @@ word_index = tokenizer.word_index
 reverse_word_index = dict([(v, k) for k, v in list(word_index.items())])
 
 
-
 def embed_word(w):
     i = word_index.get(w)
     if (not i) or (i < skip_top) or (i >= max_features):

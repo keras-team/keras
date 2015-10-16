@@ -11,7 +11,7 @@ from keras.utils.np_utils import to_categorical
 import unittest
 
 
-class TestRegularizers(unittest.TestCase):
+class TestTasks(unittest.TestCase):
     def test_vector_clf(self):
         nb_hidden = 10
 
@@ -27,9 +27,9 @@ class TestRegularizers(unittest.TestCase):
         y_test = to_categorical(y_test)
 
         model = Sequential()
-        model.add(Dense(X_train.shape[-1], nb_hidden))
+        model.add(Dense(nb_hidden, input_shape=(X_train.shape[-1],)))
         model.add(Activation('relu'))
-        model.add(Dense(nb_hidden, y_train.shape[-1]))
+        model.add(Dense(y_train.shape[-1]))
         model.add(Activation('softmax'))
         model.compile(loss='categorical_crossentropy', optimizer='rmsprop')
         history = model.fit(X_train, y_train, nb_epoch=12, batch_size=16, validation_data=(X_test, y_test), show_accuracy=True, verbose=2)
@@ -47,16 +47,16 @@ class TestRegularizers(unittest.TestCase):
         print('y_test:', y_test.shape)
 
         model = Sequential()
-        model.add(Dense(X_train.shape[-1], nb_hidden))
+        model.add(Dense(nb_hidden, input_shape=(X_train.shape[-1],)))
         model.add(Activation('tanh'))
-        model.add(Dense(nb_hidden, y_train.shape[-1]))
+        model.add(Dense(y_train.shape[-1]))
         model.compile(loss='hinge', optimizer='adagrad')
         history = model.fit(X_train, y_train, nb_epoch=12, batch_size=16, validation_data=(X_test, y_test), verbose=2)
         self.assertTrue(history.history['val_loss'][-1] < 0.9)
 
     def test_temporal_clf(self):
         print('temporal classification data:')
-        (X_train, y_train), (X_test, y_test) = get_test_data(nb_train=1000, nb_test=200, input_shape=(5,10), 
+        (X_train, y_train), (X_test, y_test) = get_test_data(nb_train=1000, nb_test=200, input_shape=(3, 5),
                                                              classification=True, nb_class=2)
         print('X_train:', X_train.shape)
         print('X_test:', X_test.shape)
@@ -67,7 +67,7 @@ class TestRegularizers(unittest.TestCase):
         y_test = to_categorical(y_test)
 
         model = Sequential()
-        model.add(GRU(X_train.shape[-1], y_train.shape[-1]))
+        model.add(GRU(y_train.shape[-1], input_shape=(None, X_train.shape[-1])))
         model.add(Activation('softmax'))
         model.compile(loss='categorical_crossentropy', optimizer='adadelta')
         history = model.fit(X_train, y_train, nb_epoch=12, batch_size=16, validation_data=(X_test, y_test), show_accuracy=True, verbose=2)
@@ -75,7 +75,7 @@ class TestRegularizers(unittest.TestCase):
 
     def test_temporal_reg(self):
         print('temporal regression data:')
-        (X_train, y_train), (X_test, y_test) = get_test_data(nb_train=1000, nb_test=200, input_shape=(5, 10), output_shape=(2,),
+        (X_train, y_train), (X_test, y_test) = get_test_data(nb_train=1000, nb_test=200, input_shape=(3, 5), output_shape=(2,),
                                                              classification=False)
         print('X_train:', X_train.shape)
         print('X_test:', X_test.shape)
@@ -83,14 +83,14 @@ class TestRegularizers(unittest.TestCase):
         print('y_test:', y_test.shape)
 
         model = Sequential()
-        model.add(GRU(X_train.shape[-1], y_train.shape[-1]))
+        model.add(GRU(y_train.shape[-1], input_shape=(None, X_train.shape[-1])))
         model.compile(loss='hinge', optimizer='adam')
         history = model.fit(X_train, y_train, nb_epoch=12, batch_size=16, validation_data=(X_test, y_test), verbose=2)
         self.assertTrue(history.history['val_loss'][-1] < 0.8)
 
     def test_seq_to_seq(self):
         print('sequence to sequence data:')
-        (X_train, y_train), (X_test, y_test) = get_test_data(nb_train=1000, nb_test=200, input_shape=(5, 10), output_shape=(5, 10),
+        (X_train, y_train), (X_test, y_test) = get_test_data(nb_train=1000, nb_test=200, input_shape=(3, 5), output_shape=(3, 5),
                                                              classification=False)
         print('X_train:', X_train.shape)
         print('X_test:', X_test.shape)
@@ -98,14 +98,14 @@ class TestRegularizers(unittest.TestCase):
         print('y_test:', y_test.shape)
 
         model = Sequential()
-        model.add(TimeDistributedDense(X_train.shape[-1], y_train.shape[-1]))
+        model.add(TimeDistributedDense(y_train.shape[-1], input_shape=(None, X_train.shape[-1])))
         model.compile(loss='hinge', optimizer='rmsprop')
         history = model.fit(X_train, y_train, nb_epoch=12, batch_size=16, validation_data=(X_test, y_test), verbose=2)
         self.assertTrue(history.history['val_loss'][-1] < 0.8)
 
     def test_img_clf(self):
         print('image classification data:')
-        (X_train, y_train), (X_test, y_test) = get_test_data(nb_train=1000, nb_test=200, input_shape=(3, 32, 32),
+        (X_train, y_train), (X_test, y_test) = get_test_data(nb_train=1000, nb_test=200, input_shape=(3, 8, 8),
                                                              classification=True, nb_class=2)
         print('X_train:', X_train.shape)
         print('X_test:', X_test.shape)
@@ -116,13 +116,14 @@ class TestRegularizers(unittest.TestCase):
         y_test = to_categorical(y_test)
 
         model = Sequential()
-        model.add(Convolution2D(32, 3, 32, 32))
+        model.add(Convolution2D(8, 8, 8, input_shape=(3, 8, 8)))
         model.add(Activation('sigmoid'))
         model.add(Flatten())
-        model.add(Dense(32, y_test.shape[-1]))
+        model.add(Dense(y_test.shape[-1]))
         model.add(Activation('softmax'))
         model.compile(loss='categorical_crossentropy', optimizer='sgd')
         history = model.fit(X_train, y_train, nb_epoch=12, batch_size=16, validation_data=(X_test, y_test), show_accuracy=True, verbose=2)
+        print(history.history['val_acc'][-1])
         self.assertTrue(history.history['val_acc'][-1] > 0.9)
 
 

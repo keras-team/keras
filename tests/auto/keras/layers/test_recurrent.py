@@ -12,21 +12,20 @@ def _runner(layer_class):
     All the recurrent layers share the same interface, so we can run through them with a single
     function.
     """
-    for weights in [None, [np.ones((input_dim, output_dim))]]:
-        for ret_seq in [True, False]:
-            layer = layer_class(input_dim, output_dim, return_sequences=ret_seq, weights=weights)
-            layer.input = theano.shared(value=np.ones((nb_samples, timesteps, input_dim)))
-            config = layer.get_config()
+    for ret_seq in [True, False]:
+        layer = layer_class(output_dim, return_sequences=ret_seq, weights=None, input_shape=(None, input_dim))
+        layer.input = theano.shared(value=np.ones((nb_samples, timesteps, input_dim)))
+        config = layer.get_config()
 
-            for train in [True, False]:
-                out = layer.get_output(train).eval()
-                # Make sure the output has the desired shape
-                if ret_seq:
-                    assert(out.shape == (nb_samples, timesteps, output_dim))
-                else:
-                    assert(out.shape == (nb_samples, output_dim))
+        for train in [True, False]:
+            out = layer.get_output(train).eval()
+            # Make sure the output has the desired shape
+            if ret_seq:
+                assert(out.shape == (nb_samples, timesteps, output_dim))
+            else:
+                assert(out.shape == (nb_samples, output_dim))
 
-                mask = layer.get_output_mask(train)
+            mask = layer.get_output_mask(train)
 
 
 class TestRNNS(unittest.TestCase):

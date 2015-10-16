@@ -20,11 +20,11 @@ from sklearn.preprocessing import StandardScaler
 
     Compatible Python 2.7-3.4. Requires Scikit-Learn and Pandas.
 
-    Recommended to run on GPU: 
+    Recommended to run on GPU:
         Command: THEANO_FLAGS=mode=FAST_RUN,device=gpu,floatX=float32 python kaggle_otto_nn.py
         On EC2 g2.2xlarge instance: 19s/epoch. 6-7 minutes total training time.
 
-    Best validation score at epoch 21: 0.4881 
+    Best validation score at epoch 21: 0.4881
 
     Try it at home:
         - with/without BatchNormalization (BatchNormalization helps!)
@@ -78,7 +78,6 @@ def make_submission(y_prob, ids, encoder, fname):
             f.write('\n')
     print("Wrote submission to file {}.".format(fname))
 
-
 print("Loading data...")
 X, labels = load_data('train.csv', train=True)
 X, scaler = preprocess_data(X)
@@ -96,31 +95,29 @@ print(dims, 'dims')
 print("Building model...")
 
 model = Sequential()
-model.add(Dense(dims, 512, init='glorot_uniform'))
-model.add(PReLU((512,)))
-model.add(BatchNormalization((512,)))
+model.add(Dense(512, input_shape=(dims,)))
+model.add(PReLU())
+model.add(BatchNormalization())
 model.add(Dropout(0.5))
 
-model.add(Dense(512, 512, init='glorot_uniform'))
-model.add(PReLU((512,)))
-model.add(BatchNormalization((512,)))
+model.add(Dense(512))
+model.add(PReLU())
+model.add(BatchNormalization())
 model.add(Dropout(0.5))
 
-model.add(Dense(512, 512, init='glorot_uniform'))
-model.add(PReLU((512,)))
-model.add(BatchNormalization((512,)))
+model.add(Dense(512))
+model.add(PReLU())
+model.add(BatchNormalization())
 model.add(Dropout(0.5))
 
-model.add(Dense(512, nb_classes, init='glorot_uniform'))
+model.add(Dense(nb_classes))
 model.add(Activation('softmax'))
 
 model.compile(loss='categorical_crossentropy', optimizer="adam")
 
 print("Training model...")
-
 model.fit(X, y, nb_epoch=20, batch_size=128, validation_split=0.15)
 
 print("Generating submission...")
-
 proba = model.predict_proba(X_test)
 make_submission(proba, ids, encoder, fname='keras-otto.csv')

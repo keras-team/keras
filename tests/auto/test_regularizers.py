@@ -35,9 +35,9 @@ test_ids = np.where(y_test == np.array(weighted_class))[0]
 
 def create_model(weight_reg=None, activity_reg=None):
     model = Sequential()
-    model.add(Dense(784, 50))
+    model.add(Dense(50, input_shape=(784,)))
     model.add(Activation('relu'))
-    model.add(Dense(50, 10, W_regularizer=weight_reg, activity_regularizer=activity_reg))
+    model.add(Dense(10, W_regularizer=weight_reg, activity_regularizer=activity_reg))
     model.add(Activation('softmax'))
     return model
 
