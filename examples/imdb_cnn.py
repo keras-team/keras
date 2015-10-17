@@ -55,7 +55,7 @@ model.add(Dropout(0.25))
 model.add(Convolution1D(nb_filter=nb_filter,
                         filter_length=filter_length,
                         border_mode="valid",
-                        activation="relu",
+                        activation="hard_sigmoid",
                         subsample_length=1))
 # we use standard max pooling (halving the output of the previous layer):
 model.add(MaxPooling1D(pool_length=2))
@@ -66,7 +66,7 @@ model.add(Flatten())
 # We add a vanilla hidden layer:
 model.add(Dense(hidden_dims))
 model.add(Dropout(0.25))
-model.add(Activation('relu'))
+model.add(Activation('hard_sigmoid'))
 
 # We project onto a single unit output layer, and squash it with a sigmoid:
 model.add(Dense(1))
