@@ -106,52 +106,50 @@ Y_test = np_utils.to_categorical(y_test, nb_classes)
 
 # cnn architecture from the CNN-S of http://arxiv.org/abs/1405.3531
 model = Sequential()
-model.add(Convolution2D(96, image_dimensions, 7, 7, subsample=(2, 2)))
+model.add(Convolution2D(96, 7, 7, subsample=(2, 2), input_shape=(image_dimensions, shapex, shapey)))
 model.add(Activation('relu'))
 model.add(LRN2D(alpha=0.0005, beta=0.75, k=2, n=5))
-model.add(MaxPooling2D(poolsize=(2, 2), stride=(2, 2)))
+model.add(MaxPooling2D(pool_size=(2, 2), stride=(2, 2)))
 
-model.add(Convolution2D(256, 96, 5, 5))
+model.add(Convolution2D(256, 5, 5))
 model.add(Activation('relu'))
-model.add(MaxPooling2D(poolsize=(2, 2), stride=(2, 2)))
+model.add(MaxPooling2D(pool_size=(2, 2), stride=(2, 2)))
 
-model.add(ZeroPadding2D(pad=(1, 1)))
-model.add(Convolution2D(512, 256, 3, 3))
-model.add(Activation('relu'))
-
-model.add(ZeroPadding2D(pad=(1, 1)))
-model.add(Convolution2D(512, 512, 3, 3))
+model.add(ZeroPadding2D(padding=(1, 1)))
+model.add(Convolution2D(512, 3, 3))
 model.add(Activation('relu'))
 
-model.add(ZeroPadding2D(pad=(1, 1)))
-model.add(Convolution2D(512, 512, 3, 3))
+model.add(ZeroPadding2D(padding=(1, 1)))
+model.add(Convolution2D(512, 3, 3))
 model.add(Activation('relu'))
-model.add(MaxPooling2D(poolsize=(2, 2), stride=(2, 2)))
+
+model.add(ZeroPadding2D(padding=(1, 1)))
+model.add(Convolution2D(512, 3, 3))
+model.add(Activation('relu'))
+model.add(MaxPooling2D(pool_size=(2, 2), stride=(2, 2)))
 
 model.add(Flatten())
 # the image dimensions are the original dimensions divided by any pooling
 # each pixel has a number of filters, determined by the last Convolution2D layer
-model.add(Dense(59904, 512))
+model.add(Dense(512))
 model.add(Activation('relu'))
 model.add(Dropout(0.5))
 
-model.add(Dense(512, nb_classes))
+model.add(Dense(nb_classes))
 model.add(Activation('softmax'))
 
 print('Compiling model...')
 sgd = SGD(lr=0.01, decay=1e-6, momentum=0.9, nesterov=True)
 model.compile(loss='categorical_crossentropy', optimizer=sgd)
 
+X_train = X_train.astype("float32")
+X_test = X_test.astype("float32")
+X_train /= 255
+X_test /= 255
+
 if not data_augmentation:
     print("Not using data augmentation or normalization")
-
-    X_train = X_train.astype("float32")
-    X_test = X_test.astype("float32")
-    X_train /= 255
-    X_test /= 255
-
     model.fit(X_train, Y_train, batch_size=batch_size, nb_epoch=nb_epoch, show_accuracy=True)
-
     score = model.evaluate(X_test, Y_test, batch_size=batch_size, show_accuracy=True)
     print('Test score:', score)
 
