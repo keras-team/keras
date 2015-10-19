@@ -66,7 +66,7 @@ class SGD(Optimizer):
         self.updates = [(self.iterations, self.iterations + 1.)]
 
         for p, g, c in zip(params, grads, constraints):
-            m = shared_zeros(p.get_value().shape)  # momentum
+            m = shared_zeros(p.get_value().shape, broadcastable=p.broadcastable)  # momentum
             v = self.momentum * m - lr * g  # velocity
             self.updates.append((m, v))
 
@@ -148,8 +148,8 @@ class Adadelta(Optimizer):
 
     def get_updates(self, params, constraints, loss):
         grads = self.get_gradients(loss, params)
-        accumulators = [shared_zeros(p.get_value().shape) for p in params]
-        delta_accumulators = [shared_zeros(p.get_value().shape) for p in params]
+        accumulators = [shared_zeros(p.get_value().shape, broadcastable=p.broadcastable) for p in params]
+        delta_accumulators = [shared_zeros(p.get_value().shape, broadcastable=p.broadcastable) for p in params]
         self.updates = []
 
         for p, g, a, d_a, c in zip(params, grads, accumulators,
@@ -196,8 +196,8 @@ class Adam(Optimizer):
         lr_t = self.lr * T.sqrt(1-self.beta_2**t)/(1-self.beta_1**t)
 
         for p, g, c in zip(params, grads, constraints):
-            m = theano.shared(p.get_value() * 0.)  # zero init of moment
-            v = theano.shared(p.get_value() * 0.)  # zero init of velocity
+            m = theano.shared(p.get_value() * 0., broadcastable=p.broadcastable)  # zero init of moment
+            v = theano.shared(p.get_value() * 0., broadcastable=p.broadcastable)  # zero init of velocity
 
             m_t = (self.beta_1 * m) + (1 - self.beta_1) * g
             v_t = (self.beta_2 * v) + (1 - self.beta_2) * (g**2)
