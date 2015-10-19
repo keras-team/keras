@@ -8,6 +8,7 @@ from keras.layers.convolutional import Convolution2D, MaxPooling2D
 from keras.optimizers import SGD, Adadelta, Adagrad
 from keras.utils import np_utils, generic_utils
 from six.moves import range
+from keras.layers.normalization import BatchNormalization
 
 '''
     Train a (fairly simple) deep CNN on the CIFAR10 small images dataset.
@@ -49,6 +50,7 @@ model = Sequential()
 
 model.add(Convolution2D(32, 3, 3, border_mode='full',
                         input_shape=(img_channels, img_rows, img_cols)))
+model.add(BatchNormalization())
 model.add(Activation('relu'))
 model.add(Convolution2D(32, 3, 3))
 model.add(Activation('relu'))

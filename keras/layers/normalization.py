@@ -4,7 +4,7 @@ from .. import initializations
 
 import theano.tensor as T
 import theano
-
+import numpy as np
 
 class BatchNormalization(Layer):
     '''
@@ -22,7 +22,8 @@ class BatchNormalization(Layer):
     '''
     def __init__(self, beta_init='zero', gamma_init='uniform', epsilon=1e-6, mode=0, momentum=0.9, weights=None, **kwargs):
         self.beta_init = initializations.get(beta_init)
-        self.gamma_init = initializations.get(gamma_init)        self.epsilon = epsilon
+        self.gamma_init = initializations.get(gamma_init)
+        self.epsilon = epsilon
         self.mode = mode
         self.momentum = momentum
         self.initial_weights = weights
@@ -72,8 +73,7 @@ class BatchNormalization(Layer):
         mean_update = self.momentum * self.running_mean + (1-self.momentum) * m
         std_update = self.momentum * self.running_std + (1-self.momentum) * std
         self.updates = [(self.running_mean, mean_update),
-                        (self.running_std, std_update),
-                        (self.batch_cnt, self.batch_cnt + 1)]
+                        (self.running_std, std_update)]
         
         if self.initial_weights is not None:
             self.set_weights(self.initial_weights)
