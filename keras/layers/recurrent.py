@@ -575,7 +575,7 @@ class JZS1(Recurrent):
             sequences=[x_z, x_r, x_h, padded_mask],
             outputs_info=T.unbroadcast(alloc_zeros_matrix(X.shape[1], self.output_dim), 1),
             non_sequences=[self.U_r, self.U_h],
-            truncate_gradient=self.truncate_gradient
+            truncate_gradient=self.truncate_gradient,
             go_backwards=self.go_backwards)
         if self.return_sequences:
             return outputs.dimshuffle((1, 0, 2))
