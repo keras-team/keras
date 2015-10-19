@@ -8,7 +8,9 @@ from keras.layers.convolutional import Convolution2D, MaxPooling2D
 from keras.optimizers import SGD, Adadelta, Adagrad
 from keras.utils import np_utils, generic_utils
 from six.moves import range
-from keras.layers.normalization import SpatialBatchNormalization
+from keras.layers.normalization import BatchNormalization
+import datetime
+
 import theano
 '''
     Train a (fairly simple) deep CNN on the CIFAR10 small images dataset.
@@ -25,12 +27,12 @@ import theano
 '''
 # enable on-the-fly graph computations
 #theano.config.compute_test_value = 'warn'
-theano.config.mode = 'DebugMode'
-theano.config.exception_verbosity = 'high'
+#theano.config.mode = 'DebugMode'
+#theano.config.exception_verbosity = 'high'
 
 batch_size = 32
 nb_classes = 10
-nb_epoch = 200
+nb_epoch = 10
 data_augmentation = False
 
 # shape of the image (SHAPE x SHAPE)
@@ -58,15 +60,16 @@ Y_test = np_utils.to_categorical(y_test, nb_classes)
 print("creating model")
 model = Sequential()
 
-model.add(Convolution2D(nb_filters[0], image_dimensions, nb_conv[0], nb_conv[0], border_mode='valid'))
-model.add(SpatialBatchNormalization((batch_size, 32, 31, 31)))
+model.add(Convolution2D(nb_filters[0], image_dimensions, nb_conv[0], nb_conv[0], border_mode='same'))
+model.add(BatchNormalization((batch_size, nb_filters[0], nb_conv[0], nb_conv[0])))
 model.add(Activation('relu'))
 model.add(Convolution2D(nb_filters[0], nb_filters[0], nb_conv[0], nb_conv[0]))
+model.add(BatchNormalization((batch_size, nb_filters[0], nb_conv[0], nb_conv[0])))
 model.add(Activation('relu'))
 model.add(MaxPooling2D(poolsize=(nb_pool[0], nb_pool[0])))
 model.add(Dropout(0.25))
 
-model.add(Convolution2D(nb_filters[1], nb_filters[0], nb_conv[0], nb_conv[0], border_mode='full'))
+model.add(Convolution2D(nb_filters[1], nb_filters[0], nb_conv[0], nb_conv[0], border_mode='same'))
 model.add(Activation('relu'))
 model.add(Convolution2D(nb_filters[1], nb_filters[1], nb_conv[1], nb_conv[1]))
 model.add(Activation('relu'))
@@ -76,7 +79,7 @@ model.add(Dropout(0.25))
 model.add(Flatten())
 # the image dimensions are the original dimensions divided by any pooling
 # each pixel has a number of filters, determined by the last Convolution2D layer
-model.add(Dense(nb_filters[-1] * (shapex / nb_pool[0] / nb_pool[1]) * (shapey / nb_pool[0] / nb_pool[1]), 512))
+model.add(Dense(2304, 512))
 model.add(Activation('relu'))
 model.add(Dropout(0.5))
 
@@ -98,6 +101,10 @@ if not data_augmentation:
     model.fit(X_train, Y_train, batch_size=batch_size, nb_epoch=nb_epoch)
     score = model.evaluate(X_test, Y_test, batch_size=batch_size)
     print('Test score:', score)
+
+    dt = datetime.datetime.now()
+    open('results/cifar_{:%Y-%m-%d_%H3%M.%S}.json'.format(dt), 'w').write(model.to_json())
+    model.save_weights('results/cifar_weights_{:%Y-%m-%d_%H.%M.%S}.hdf5'.format(dt))
 
 else:
     print("Using real time data augmentation")
@@ -136,3 +143,7 @@ else:
         for X_batch, Y_batch in datagen.flow(X_test, Y_test):
             score = model.test_on_batch(X_batch, Y_batch)
             progbar.add(X_batch.shape[0], values=[("test loss", score)])
+
+        dt = datetime.datetime.now()
+        open('results/cifar_datagen_e{}_{:%Y-%m-%d_%H3%M.%S}.json'.format(e, dt), 'w').write(model.to_json())
+        model.save_weights('results/cifar_datagen_e{}_weights_{:%Y-%m-%d_%H.%M.%S}.hdf5'.format(e, dt))
