@@ -106,6 +106,7 @@ Y_test = np_utils.to_categorical(y_test, nb_classes)
 
 # cnn architecture from the CNN-S of http://arxiv.org/abs/1405.3531
 model = Sequential()
+
 model.add(Convolution2D(96, 7, 7, subsample=(2, 2), input_shape=(image_dimensions, shapex, shapey)))
 model.add(Activation('relu'))
 model.add(LRN2D(alpha=0.0005, beta=0.75, k=2, n=5))
@@ -129,8 +130,7 @@ model.add(Activation('relu'))
 model.add(MaxPooling2D(pool_size=(2, 2), stride=(2, 2)))
 
 model.add(Flatten())
-# the image dimensions are the original dimensions divided by any pooling
-# each pixel has a number of filters, determined by the last Convolution2D layer
+
 model.add(Dense(512))
 model.add(Activation('relu'))
 model.add(Dropout(0.5))
