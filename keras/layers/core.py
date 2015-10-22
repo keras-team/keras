@@ -301,9 +301,9 @@ class Merge(Layer):
                 output_shape[self.concat_axis] += shape[self.concat_axis]
             return tuple(output_shape)
         elif self.mode =='dot':
-            output_shape = input_shapes[0]
+            output_shape = list(input_shapes[0])
             output_shape[1] = 1
-            return output_shape
+            return tuple(output_shape)
 
     def get_params(self):
         return self.params, self.regularizers, self.constraints, self.updates
