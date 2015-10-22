@@ -263,11 +263,15 @@ class TimeDistributedMerge(Layer):
 class Merge(Layer):
     def __init__(self, layers, mode='sum', concat_axis=-1):
         ''' Merge the output of a list of layers or containers into a single tensor.
-            mode: {'sum', 'mul', 'concat', 'ave'}
+            mode: {'sum', 'mul', 'concat', 'ave', 'dot'}
         '''
         if len(layers) < 2:
             raise Exception("Please specify two or more input layers (or containers) to merge")
-        if mode not in {'sum', 'mul', 'concat', 'ave'}:
+        elif len(layers) > 2 and mode=='dot':
+            raise Exception("Dot mode only supported for two input layers")
+        elif layers[0].output_shape != layers[1].output_shape and mode=='dot':
+            raise Exception("The the output of the two input layers must have the same shape")
+        if mode not in {'sum', 'mul', 'concat', 'ave', 'dot'}:
             raise Exception("Invalid merge mode: " + str(mode))
         self.mode = mode
         self.concat_axis = concat_axis
@@ -296,6 +300,10 @@ class Merge(Layer):
             for shape in input_shapes[1:]:
                 output_shape[self.concat_axis] += shape[self.concat_axis]
             return tuple(output_shape)
+        elif self.mode =='dot':
+            output_shape = input_shapes[0]
+            output_shape[1] = 1
+            return output_shape
 
     def get_params(self):
         return self.params, self.regularizers, self.constraints, self.updates
@@ -325,6 +333,10 @@ class Merge(Layer):
             for i in range(1, len(self.layers)):
                 s *= self.layers[i].get_output(train)
             return s
+        elif self.mode == 'dot':
+            s0 = self.layers[0].get_output(train)
+            s1 = self.layers[1].get_output(train)
+            return T.batched_dot(s0, s1)
         else:
             raise Exception('Unknown merge mode')
 
