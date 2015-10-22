@@ -263,7 +263,7 @@ class TimeDistributedMerge(Layer):
 class Merge(Layer):
     def __init__(self, layers, mode='sum', concat_axis=-1):
         ''' Merge the output of a list of layers or containers into a single tensor.
-            mode: {'sum', 'mul', 'concat', 'ave'}
+            mode: {'sum', 'mul', 'concat', 'ave', 'join'}
         '''
         if len(layers) < 2:
             raise Exception("Please specify two or more input layers (or containers) to merge")
