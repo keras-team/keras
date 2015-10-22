@@ -311,15 +311,6 @@ class Merge(Layer):
         elif self.mode == 'concat':
             inputs = [self.layers[i].get_output(train) for i in range(len(self.layers))]
             return T.concatenate(inputs, axis=self.concat_axis)
-        elif self.mode == 'join':
-            inputs = OrderedDict()
-            for i in range(len(self.layers)):
-                X = self.layers[i].get_output(train)
-                if X.name is None:
-                    raise ValueError("merge_mode='join' only works with named inputs")
-                else:
-                    inputs[X.name] = self.layers[i].get_output(train)
-            return inputs
         elif self.mode == 'mul':
             s = self.layers[0].get_output(train)
             for i in range(1, len(self.layers)):
