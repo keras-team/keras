@@ -318,6 +318,7 @@ class Merge(Layer):
             return s
         elif self.mode == 'concat':
             inputs = [self.layers[i].get_output(train) for i in range(len(self.layers))]
+            print([input.shape for input in inputs])
             return T.concatenate(inputs, axis=self.concat_axis)
         elif self.mode == 'join':
             inputs = OrderedDict()
