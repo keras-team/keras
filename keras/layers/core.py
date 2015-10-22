@@ -336,7 +336,7 @@ class Merge(Layer):
         elif self.mode == 'dot':
             s0 = self.layers[0].get_output(train)
             s1 = self.layers[1].get_output(train)
-            return T.batched_dot(s0, s1).dimshuffle(1, 0)
+            return T.batched_dot(s0, s1).dimshuffle((0, ‘x’))
         else:
             raise Exception('Unknown merge mode')
 
