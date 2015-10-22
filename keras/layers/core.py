@@ -318,7 +318,6 @@ class Merge(Layer):
             return s
         elif self.mode == 'concat':
             inputs = [self.layers[i].get_output(train) for i in range(len(self.layers))]
-            print([input.shape for input in inputs])
             return T.concatenate(inputs, axis=self.concat_axis)
         elif self.mode == 'join':
             inputs = OrderedDict()
@@ -337,7 +336,7 @@ class Merge(Layer):
         elif self.mode == 'dot':
             s0 = self.layers[0].get_output(train)
             s1 = self.layers[1].get_output(train)
-            return T.batched_dot(s0, s1)
+            return T.batched_dot(s0, s1).reshape(self.output_shape)
         else:
             raise Exception('Unknown merge mode')
 
