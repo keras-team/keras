@@ -79,8 +79,10 @@ class Layer(object):
     @property
     def output_shape(self):
         # default assumption: tensor shape unchanged.
-        return self.input_shape
-
+        try:
+            return self.input_shape
+        except:
+            return (None,)
     def get_output(self, train=False):
         return self.get_input(train)
 
