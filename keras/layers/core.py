@@ -20,9 +20,11 @@ from six.moves import zip
 class Layer(object):
     def __init__(self, **kwargs):
         for kwarg in kwargs:
-            assert kwarg in {'input_shape'}, "Keyword argument not understood: " + kwarg
+            assert kwarg in {'input_shape', 'trainable'}, "Keyword argument not understood: " + kwarg
         if 'input_shape' in kwargs:
             self.set_input_shape(kwargs['input_shape'])
+        if 'trainable' in kwargs:
+            self._trainable = kwargs['trainable']
         if not hasattr(self, 'params'):
             self.params = []
 
@@ -44,6 +46,17 @@ class Layer(object):
         Must be implemented on all layers that have weights.
         '''
         pass
+
+    @property
+    def trainable(self):
+        if hasattr(self, '_trainable'):
+            return self._trainable
+        else:
+            return True
+
+    @trainable.setter
+    def trainable(self, value):
+        self._trainable = value
 
     @property
     def nb_input(self):
@@ -133,6 +146,8 @@ class Layer(object):
         config = {"name": self.__class__.__name__}
         if hasattr(self, '_input_shape'):
             config['input_shape'] = self._input_shape[1:]
+        if hasattr(self, '_trainable'):
+            config['trainable'] = self._trainable
         return config
 
     def get_params(self):
