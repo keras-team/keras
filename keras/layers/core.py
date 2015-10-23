@@ -269,6 +269,10 @@ class Merge(Layer):
             raise Exception("Please specify two or more input layers (or containers) to merge")
         if mode not in {'sum', 'mul', 'concat', 'ave', 'join'}:
             raise Exception("Invalid merge mode: " + str(mode))
+        if mode in {'sum', 'mul', 'ave'}:
+            input_shapes=set([l.output_shape for l in layers])
+            if len(input_shapes)>1:
+                raise Exception("Only layers of same output shape can be merged using " + mode + " mode")
         self.mode = mode
         self.concat_axis = concat_axis
         self.layers = layers
