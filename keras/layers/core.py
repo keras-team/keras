@@ -263,12 +263,14 @@ class TimeDistributedMerge(Layer):
 class Merge(Layer):
     def __init__(self, layers, mode='sum', concat_axis=-1):
         ''' Merge the output of a list of layers or containers into a single tensor.
-            mode: {'sum', 'mul', 'concat', 'ave', 'join'}
+            mode: {'sum', 'mul', 'concat', 'ave', 'join', 'dot', 'cos'}
         '''
         if len(layers) < 2:
             raise Exception("Please specify two or more input layers (or containers) to merge")
-        if mode not in {'sum', 'mul', 'concat', 'ave', 'join'}:
+        if mode not in {'sum', 'mul', 'concat', 'ave', 'join', 'dot', 'cos'}:
             raise Exception("Invalid merge mode: " + str(mode))
+        if mode in ['dot', 'cos'] and len(layers) > 2:
+            raise Exception("Dot product/cos merge only takes 2 input layers")
         self.mode = mode
         self.concat_axis = concat_axis
         self.layers = layers
@@ -298,6 +300,10 @@ class Merge(Layer):
             return tuple(output_shape)
         elif self.mode == 'join':
             return None 
+        elif self.mode in ['dot','cos']:
+            output_shape = list(input_shapes[0])
+            output_shape[1] = 1
+            return tuple(output_shape)
 
     def get_params(self):
         return self.params, self.regularizers, self.constraints, self.updates
@@ -327,6 +333,18 @@ class Merge(Layer):
             for i in range(1, len(self.layers)):
                 s *= self.layers[i].get_output(train)
             return s
+        elif self.mode == 'dot':
+            l1 = self.layers[0].get_output(train)
+            l2 = self.layers[1].get_output(train)
+            output, _ = theano.scan(lambda v1,v2 : T.dot(v1,v2) , sequences= [l1, l2], outputs_info = None)
+            output = output.dimshuffle((0, 'x'))
+            return output
+        elif self.mode == 'cos':
+            l1 = self.layers[0].get_output(train)
+            l2 = self.layers[1].get_output(train)
+            output, _ = theano.scan(lambda v1,v2 : T.dot(v1,v2)/T.sqrt(T.dot(v1,v1) * T.dot(v2,v2)) , sequences= [r1, r2], outputs_info = None)
+            output = output.dimshuffle((0, 'x'))  
+            return output
         else:
             raise Exception('Unknown merge mode')
 
