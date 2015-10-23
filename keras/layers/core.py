@@ -269,8 +269,11 @@ class Merge(Layer):
             raise Exception("Please specify two or more input layers (or containers) to merge")
         if mode not in {'sum', 'mul', 'concat', 'ave', 'join', 'dot', 'cos'}:
             raise Exception("Invalid merge mode: " + str(mode))
-        if mode in ['dot', 'cos'] and len(layers) > 2:
-            raise Exception("Dot product/cos merge only takes 2 input layers")
+        if mode in ['dot', 'cos']:
+            if len(layers) > 2:
+                raise Exception("Dot product/cosine merge takes exactly 2 input layers")
+            elif layers[0].output_shape != layers[1].output_shape:
+                raise Exception("Only layers with identical output shapes can be merged using dot product/cos mode")                
         self.mode = mode
         self.concat_axis = concat_axis
         self.layers = layers
@@ -301,9 +304,7 @@ class Merge(Layer):
         elif self.mode == 'join':
             return None 
         elif self.mode in ['dot','cos']:
-            output_shape = list(input_shapes[0])
-            output_shape[1] = 1
-            return tuple(output_shape)
+            return tuple(input_shapes[0][0], 1)
 
     def get_params(self):
         return self.params, self.regularizers, self.constraints, self.updates
