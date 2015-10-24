@@ -15,9 +15,11 @@ from keras.datasets import imdb
 
 '''
     Train a recurrent convolutional network on the IMDB sentiment classification task.
-    Reach 84.98% accuracy in 2 epoches
+
     GPU command:
         THEANO_FLAGS=mode=FAST_RUN,device=gpu,floatX=float32 python imdb_lstm.py
+        
+    Get to 0.8498 test accuracy after 2 epochs. 41s/epoch on K520 GPU.
 '''
 
 
