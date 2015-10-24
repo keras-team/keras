@@ -14,8 +14,7 @@ from keras.layers.convolutional import Convolution1D, MaxPooling1D
 from keras.datasets import imdb
 
 '''
-    Train a combination of Convoloution1D and LSTM on the IMDB sentiment classification task.
-    Better results compared to CNN and LSTM examples
+    Train a recurrent convolutional network on the IMDB sentiment classification task.
     Reach 84.98% accuracy in 2 epoches
     GPU command:
         THEANO_FLAGS=mode=FAST_RUN,device=gpu,floatX=float32 python imdb_lstm.py
@@ -27,19 +26,19 @@ from keras.datasets import imdb
 #Embedding
 max_features = 20000
 maxlen = 100 
-embedding_size=128
+embedding_size = 128
 
 #Convolution
 filter_length = 3
 nb_filter = 64
-pool_length=2
+pool_length = 2
 
 #LSTM
-lstm_output_size=70
+lstm_output_size = 70
 
 #Training
 batch_size = 30
-nb_epoch=2
+nb_epoch = 2
 '''
 Note:
 batch_size is highly sensitive.
