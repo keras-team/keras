@@ -52,11 +52,16 @@ def standardize_X(X):
 def slice_X(X, start=None, stop=None):
     if type(X) == list:
         if hasattr(start, '__len__'):
+            # hdf5 dataset only support list object as indices
+            if hasattr(start, 'shape'):
+            	start = start.tolist()
             return [x[start] for x in X]
         else:
             return [x[start:stop] for x in X]
     else:
         if hasattr(start, '__len__'):
+            if hasattr(start, 'shape'):
+            	start = start.tolist()
             return X[start]
         else:
             return X[start:stop]
