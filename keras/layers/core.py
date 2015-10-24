@@ -276,7 +276,7 @@ class Merge(Layer):
             if len(input_shapes) > 1:
                 raise Exception("Only layers of same output shape can be merged using " + mode + " mode")
         elif mode == 'concat':
-            input_shapes = set([l.output_shape.pop(concat_axis) for l in layers])
+            input_shapes = set([list(l.output_shape).pop(concat_axis) for l in layers])
             if len(input_shapes) > 1:
                 raise Exception("Only layers with same dimensions across all axes except concat axis can me merged using concat mode")
         self.mode = mode
