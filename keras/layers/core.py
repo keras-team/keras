@@ -301,7 +301,7 @@ class Merge(Layer):
                         axis = len(shape1) - 1
                     axis = [range(len(shape1) - axis, len(shape2)), range(1,axis + 1)]
                 for i in rage(len(axis[0])):
-                    if shape1[axis[0][i]] != shape2[axis[1][i]]
+                    if shape1[axis[0][i]] != shape2[axis[1][i]]:
                         raise Exception(" Dot incompatible layers can not be merged using dot mode")
 
         elif mode == 'concat':
