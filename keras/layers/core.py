@@ -906,14 +906,13 @@ class Lambda(Layer):
 		super(Lambda, self).__init__()
 		self.input = ndim_tensor(ndim)
 		self.function = marshal.dumps(function.func_code)
-		if type(output_shape) in [tuple,list]:
+		if type(output_shape) in {tuple, list}:
 			self._output_shape = tuple(output_shape)
 		else:
 			self._output_shape = marshal.dumps(output_shape.func_code)
 
 	@property
 	def output_shape(self):
-		
 		if type(self._output_shape) == tuple:
 			return self._output_shape
 		else:
@@ -924,7 +923,7 @@ class Lambda(Layer):
 	def get_output(self, train=False):
 		func = marshal.loads(self.function)
 		func = types.FunctionType(func, globals())
-		if hasattr(self,'previous'):
+		if hasattr(self, 'previous'):
 			return func(self.previous.get_output(train))
 		else:
 			return func(self.input)
