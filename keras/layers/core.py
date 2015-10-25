@@ -901,7 +901,7 @@ class MaxoutDense(Layer):
         return dict(list(base_config.items()) + list(config.items()))
 
 
-class Lambda(MaskedLayer):
+class Lambda(Layer):
 	def __init__(self, function, output_shape, ndim=2):
 		super(Lambda, self).__init__()
 		self.input = ndim_tensor(ndim)
@@ -928,3 +928,5 @@ class Lambda(MaskedLayer):
 			return func(self.previous.get_output(train))
 		else:
 			return func(self.input)
+class MaskedLambda(Lambda,MaskedLayer):
+	pass
