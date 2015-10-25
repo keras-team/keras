@@ -20,9 +20,11 @@ from six.moves import zip
 class Layer(object):
     def __init__(self, **kwargs):
         for kwarg in kwargs:
-            assert kwarg in {'input_shape'}, "Keyword argument not understood: " + kwarg
+            assert kwarg in {'input_shape', 'trainable'}, "Keyword argument not understood: " + kwarg
         if 'input_shape' in kwargs:
             self.set_input_shape(kwargs['input_shape'])
+        if 'trainable' in kwargs:
+            self._trainable = kwargs['trainable']
         if not hasattr(self, 'params'):
             self.params = []
 
@@ -44,6 +46,17 @@ class Layer(object):
         Must be implemented on all layers that have weights.
         '''
         pass
+
+    @property
+    def trainable(self):
+        if hasattr(self, '_trainable'):
+            return self._trainable
+        else:
+            return True
+
+    @trainable.setter
+    def trainable(self, value):
+        self._trainable = value
 
     @property
     def nb_input(self):
@@ -133,6 +146,8 @@ class Layer(object):
         config = {"name": self.__class__.__name__}
         if hasattr(self, '_input_shape'):
             config['input_shape'] = self._input_shape[1:]
+        if hasattr(self, '_trainable'):
+            config['trainable'] = self._trainable
         return config
 
     def get_params(self):
@@ -261,18 +276,41 @@ class TimeDistributedMerge(Layer):
 
 
 class Merge(Layer):
-    def __init__(self, layers, mode='sum', concat_axis=-1):
+    def __init__(self, layers, mode='sum', axis=-1):
         ''' Merge the output of a list of layers or containers into a single tensor.
-            mode: {'sum', 'mul', 'concat', 'ave', 'join', 'dot', 'cos'}
+            mode: {'sum', 'mul', 'concat', 'ave', 'join'}
         '''
         if len(layers) < 2:
             raise Exception("Please specify two or more input layers (or containers) to merge")
-        if mode not in {'sum', 'mul', 'concat', 'ave', 'join', 'dot', 'cos'}:
+
+        if mode not in {'sum', 'mul', 'concat', 'ave', 'join', 'cos', 'dot'}:
             raise Exception("Invalid merge mode: " + str(mode))
-        if mode in ['dot', 'cos'] and len(layers) > 2:
-            raise Exception("Dot product/cosine merge takes exactly 2 input layers")
+
+        if mode in {'sum', 'mul', 'ave', 'cos'}:
+            input_shapes = set([l.output_shape for l in layers])
+            if len(input_shapes) > 1:
+                raise Exception("Only layers of same output shape can be merged using " + mode + " mode")
+        if mode in {'cos', 'dot'}:
+            if len(layers) > 2:
+                raise Exception(mode + " merge takes exactly 2 layers")
+            shape1 = layers[0].output_shape
+            shape2 = layers[1].output_shape
+            if mode == 'dot':
+                if type(axis) == int:
+                    if axis < 0:
+                        axis = len(shape1) - 1
+                    axis = [range(len(shape1) - axis, len(shape2)), range(1,axis + 1)]
+                for i in rage(len(axis[0])):
+                    if shape1[axis[0][i]] != shape2[axis[1][i]]
+                        raise Exception(" Dot incompatible layers can not be merged using dot mode")
+
+        elif mode == 'concat':
+            input_shapes = set([list(l.output_shape).pop(axis) for l in layers])
+            if len(input_shapes) > 1:
+                raise Exception("'concat' mode can only merge layers with matching output shapes except for the concat axis")
+
         self.mode = mode
-        self.concat_axis = concat_axis
+        self.axis = axis
         self.layers = layers
         self.params = []
         self.regularizers = []
@@ -296,12 +334,20 @@ class Merge(Layer):
         elif self.mode == 'concat':
             output_shape = list(input_shapes[0])
             for shape in input_shapes[1:]:
-                output_shape[self.concat_axis] += shape[self.concat_axis]
+                output_shape[self.axis] += shape[self.axis]
             return tuple(output_shape)
         elif self.mode == 'join':
-            return None 
-        elif self.mode in ['dot','cos']:
-            return tuple(input_shapes[0][0], 1)
+            return None
+        elif self.mode == 'dot':
+            shape1 = list(input_shapes[0])
+            shape2 = list(input_shapes[0]).pop(0)
+            for i in axis[0]:
+                shape1.pop(i)
+            for i in axis[1]:
+                shape2.pop(i)
+            return tuple(shape1 + shape2)
+        elif self.mode == 'cos':
+       return tuple(input_shapes[0][0], 1)
 
     def get_params(self):
         return self.params, self.regularizers, self.constraints, self.updates
@@ -316,7 +362,7 @@ class Merge(Layer):
             return s
         elif self.mode == 'concat':
             inputs = [self.layers[i].get_output(train) for i in range(len(self.layers))]
-            return T.concatenate(inputs, axis=self.concat_axis)
+            return T.concatenate(inputs, axis=self.axis)
         elif self.mode == 'join':
             inputs = OrderedDict()
             for i in range(len(self.layers)):
@@ -334,13 +380,13 @@ class Merge(Layer):
         elif self.mode == 'dot':
             l1 = self.layers[0].get_output(train)
             l2 = self.layers[1].get_output(train)
-            output, _ = theano.scan(lambda v1,v2 : T.dot(v1,v2) , sequences= [l1, l2], outputs_info = None)
+            output=T.batched_tensordot(l1,l2,axis)
             output = output.dimshuffle((0, 'x'))
             return output
         elif self.mode == 'cos':
             l1 = self.layers[0].get_output(train)
             l2 = self.layers[1].get_output(train)
-            output, _ = theano.scan(lambda v1,v2 : T.dot(v1,v2)/T.sqrt(T.dot(v1,v1) * T.dot(v2,v2)) , sequences= [r1, r2], outputs_info = None)
+            output, _ = theano.scan(lambda v1,v2 : T.dot(v1,v2)/T.sqrt(T.dot(v1,v1) * T.dot(v2,v2)) , sequences= [l1, l2], outputs_info = None)
             output = output.dimshuffle((0, 'x'))  
             return output
         else:
@@ -383,7 +429,7 @@ class Merge(Layer):
         config = {"name": self.__class__.__name__,
                   "layers": [l.get_config() for l in self.layers],
                   "mode": self.mode,
-                  "concat_axis": self.concat_axis}
+                  "axis": self.axis}
         base_config = super(Merge, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
