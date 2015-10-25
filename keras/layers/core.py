@@ -909,7 +909,7 @@ class Lambda(MaskedLayer):
 		if type(output_shape) in [tuple,list]:
 			self._output_shape = tuple(output_shape)
 		else:
-		self._output_shape = marshal.dumps(output_shape.func_code)
+			self._output_shape = marshal.dumps(output_shape.func_code)
 
 	@property
 	def output_shape(self):
