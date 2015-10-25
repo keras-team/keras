@@ -92,8 +92,10 @@ class Layer(object):
     @property
     def output_shape(self):
         # default assumption: tensor shape unchanged.
-        return self.input_shape
-
+        try:
+            return self.input_shape
+        except:
+            return (None,)
     def get_output(self, train=False):
         return self.get_input(train)
 
@@ -284,6 +286,14 @@ class Merge(Layer):
             raise Exception("Please specify two or more input layers (or containers) to merge")
         if mode not in {'sum', 'mul', 'concat', 'ave', 'join'}:
             raise Exception("Invalid merge mode: " + str(mode))
+        if mode in {'sum', 'mul', 'ave'}:
+            input_shapes = set([l.output_shape for l in layers])
+            if len(input_shapes) > 1:
+                raise Exception("Only layers of same output shape can be merged using " + mode + " mode")
+        elif mode == 'concat':
+            input_shapes = set([list(l.output_shape).pop(concat_axis) for l in layers])
+            if len(input_shapes) > 1:
+                raise Exception("Only layers with same dimensions across all axes except concat axis can me merged using concat mode")
         self.mode = mode
         self.concat_axis = concat_axis
         self.layers = layers
