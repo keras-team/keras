@@ -928,5 +928,5 @@ class Lambda(Layer):
 			return func(self.previous.get_output(train))
 		else:
 			return func(self.input)
-class MaskedLambda(Lambda,MaskedLayer):
+class MaskedLambda(MaskedLayer, Lambda):
 	pass
