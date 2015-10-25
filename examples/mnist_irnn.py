@@ -55,11 +55,12 @@ Y_test = np_utils.to_categorical(y_test, nb_classes)
 
 print('Evaluate IRNN...')
 model = Sequential()
-model.add(SimpleRNN(input_dim=1, output_dim=hidden_units,
+model.add(SimpleRNN(output_dim=hidden_units,
                     init=lambda shape: normal(shape, scale=0.001),
                     inner_init=lambda shape: identity(shape, scale=1.0),
-                    activation='relu', truncate_gradient=BPTT_truncate))
-model.add(Dense(hidden_units, nb_classes))
+                    activation='relu', truncate_gradient=BPTT_truncate,
+                    input_shape=(None, 1)))
+model.add(Dense(nb_classes))
 model.add(Activation('softmax'))
 rmsprop = RMSprop(lr=learning_rate)
 model.compile(loss='categorical_crossentropy', optimizer=rmsprop)
@@ -73,8 +74,8 @@ print('IRNN test accuracy:', scores[1])
 
 print('Compare to LSTM...')
 model = Sequential()
-model.add(LSTM(1, hidden_units))
-model.add(Dense(hidden_units, nb_classes))
+model.add(LSTM(hidden_units, input_shape=(None, 1)))
+model.add(Dense(nb_classes))
 model.add(Activation('softmax'))
 rmsprop = RMSprop(lr=learning_rate)
 model.compile(loss='categorical_crossentropy', optimizer=rmsprop)

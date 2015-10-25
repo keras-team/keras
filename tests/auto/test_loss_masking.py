@@ -14,8 +14,8 @@ class TestLossMasking(unittest.TestCase):
             [[[1, 1], [2, 1], [3, 1], [5, 5]],
              [[1, 5], [5, 0], [0, 0], [0, 0]]], dtype=np.int32)
         model = Sequential()
-        model.add(Masking(mask_value=0))
-        model.add(TimeDistributedDense(2, 1, init='one'))
+        model.add(Masking(mask_value=0, input_shape=(None, 2)))
+        model.add(TimeDistributedDense(1, init='one'))
         model.compile(loss='mse', optimizer='sgd')
         y = model.predict(X)
         loss = model.fit(X, 4*y, nb_epoch=1, batch_size=2, verbose=1).history['loss'][0]

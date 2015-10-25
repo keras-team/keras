@@ -2,6 +2,7 @@
 from __future__ import absolute_import
 from __future__ import print_function
 
+from collections import OrderedDict
 import theano.tensor as T
 from ..layers.core import Layer, Merge
 from ..utils.theano_utils import ndim_tensor
@@ -20,11 +21,6 @@ class Sequential(Layer):
 
     def __init__(self, layers=[]):
         self.layers = []
-        self.params = []
-        self.regularizers = []
-        self.constraints = []
-        self.updates = []
-
         for layer in layers:
             self.add(layer)
 
@@ -37,13 +33,42 @@ class Sequential(Layer):
             self.layers[-1].set_previous(self.layers[-2])
             if not hasattr(self.layers[0], 'input'):
                 self.set_input()
-        layer.init_updates()
 
-        params, regularizers, constraints, updates = layer.get_params()
-        self.params += params
-        self.regularizers += regularizers
-        self.constraints += constraints
-        self.updates += updates
+    @property
+    def params(self):
+        params = []
+        for l in self.layers:
+            if l.trainable:
+                params += l.get_params()[0]
+        return params
+
+    @property
+    def regularizers(self):
+        regularizers = []
+        for l in self.layers:
+            if l.trainable:
+                regularizers += l.get_params()[1]
+        return regularizers
+
+    @property
+    def constraints(self):
+        constraints = []
+        for l in self.layers:
+            if l.trainable:
+                constraints += l.get_params()[2]
+        return constraints
+
+    @property
+    def updates(self):
+        updates = []
+        for l in self.layers:
+            if l.trainable:
+                updates += l.get_params()[3]
+        return updates
+
+    @property
+    def output_shape(self):
+        return self.layers[-1].output_shape
 
     def get_output(self, train=False):
         return self.layers[-1].get_output(train)
@@ -83,6 +108,7 @@ class Sequential(Layer):
     def count_params(self):
         return sum([layer.count_params() for layer in self.layers])
 
+
 class Graph(Layer):
     '''
         Implement a NN graph with arbitrary layer connections,
@@ -93,7 +119,6 @@ class Graph(Layer):
         when it has exactly one input and one output.
 
         inherited from Layer:
-            - get_params
             - get_output_mask
             - supports_masked_input
             - get_weights
@@ -101,7 +126,7 @@ class Graph(Layer):
     '''
     def __init__(self):
         self.namespace = set()  # strings
-        self.nodes = {}  # layer-like
+        self.nodes = OrderedDict()  # layer-like
         self.inputs = {}  # layer-like
         self.input_order = []  # strings
         self.outputs = {}  # layer-like
@@ -110,11 +135,6 @@ class Graph(Layer):
         self.output_config = []  # dicts
         self.node_config = []  # dicts
 
-        self.params = []
-        self.regularizers = []
-        self.constraints = []
-        self.updates = []
-
     @property
     def nb_input(self):
         return len(self.inputs)
@@ -122,6 +142,38 @@ class Graph(Layer):
     @property
     def nb_output(self):
         return len(self.outputs)
+
+    @property
+    def params(self):
+        params = []
+        for l in self.nodes.values():
+            if l.trainable:
+                params += l.get_params()[0]
+        return params
+
+    @property
+    def regularizers(self):
+        regularizers = []
+        for l in self.nodes.values():
+            if l.trainable:
+                regularizers += l.get_params()[1]
+        return regularizers
+
+    @property
+    def constraints(self):
+        constraints = []
+        for l in self.nodes.values():
+            if l.trainable:
+                constraints += l.get_params()[2]
+        return constraints
+
+    @property
+    def updates(self):
+        updates = []
+        for l in self.nodes.values():
+            if l.trainable:
+                updates += l.get_params()[3]
+        return updates
 
     def set_previous(self, layer, connection_map={}):
         if self.nb_input != layer.nb_output:
@@ -147,18 +199,29 @@ class Graph(Layer):
     def input(self):
         return self.get_input()
 
+    @property
+    def output_shape(self):
+        if self.nb_output == 1:
+            # return tuple
+            return self.outputs[self.output_order[0]].output_shape
+        else:
+            # return dictionary mapping output names to shape tuples
+            return dict([(k, v.output_shape) for k, v in self.outputs.items()])
+
     def get_output(self, train=False):
         if len(self.inputs) == len(self.outputs) == 1:
             return self.outputs[self.output_order[0]].get_output(train)
         else:
             return dict([(k, v.get_output(train)) for k, v in self.outputs.items()])
 
-    def add_input(self, name, ndim=2, dtype='float'):
+    def add_input(self, name, input_shape, dtype='float'):
         if name in self.namespace:
             raise Exception('Duplicate node identifier: ' + name)
         self.namespace.add(name)
         self.input_order.append(name)
         layer = Layer()  # empty layer
+        layer.set_input_shape(input_shape)
+        ndim = len(input_shape) + 1
         if dtype == 'float':
             layer.input = ndim_tensor(ndim)
         else:
@@ -168,7 +231,9 @@ class Graph(Layer):
                 raise Exception('Type "int" can only be used with ndim==2 (Embedding).')
         layer.input.name = name
         self.inputs[name] = layer
-        self.input_config.append({'name': name, 'ndim': ndim, 'dtype': dtype})
+        self.input_config.append({'name': name,
+                                  'input_shape': input_shape,
+                                  'dtype': dtype})
 
     def add_node(self, layer, name, input=None, inputs=[],
                  merge_mode='concat', concat_axis=-1, create_output=False):
@@ -203,12 +268,6 @@ class Graph(Layer):
                                  'merge_mode': merge_mode,
                                  'concat_axis': concat_axis,
                                  'create_output': create_output})
-        layer.init_updates()
-        params, regularizers, constraints, updates = layer.get_params()
-        self.params += params
-        self.regularizers += regularizers
-        self.constraints += constraints
-        self.updates += updates
 
         if create_output:
             self.add_output(name, input=name)

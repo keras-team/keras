@@ -52,11 +52,16 @@ def standardize_X(X):
 def slice_X(X, start=None, stop=None):
     if type(X) == list:
         if hasattr(start, '__len__'):
+            # hdf5 dataset only support list object as indices
+            if hasattr(start, 'shape'):
+            	start = start.tolist()
             return [x[start] for x in X]
         else:
             return [x[start:stop] for x in X]
     else:
         if hasattr(start, '__len__'):
+            if hasattr(start, 'shape'):
+            	start = start.tolist()
             return X[start]
         else:
             return X[start:stop]
@@ -100,29 +105,29 @@ def standardize_weights(y, sample_weight=None, class_weight=None):
         return np.ones(y.shape[:-1] + (1,))
 
 
-def model_from_yaml(yaml_string):
+def model_from_yaml(yaml_string, custom_layers={}):
     '''
         Returns a model generated from a local yaml file,
         which is either created by hand or from to_yaml method of Sequential or Graph
     '''
     import yaml
     config = yaml.load(yaml_string)
-    return model_from_config(config)
+    return model_from_config(config, custom_layers=custom_layers)
 
 
-def model_from_json(json_string):
+def model_from_json(json_string, custom_layers={}):
     import json
     config = json.loads(json_string)
-    return model_from_config(config)
+    return model_from_config(config, custom_layers=custom_layers)
 
 
-def model_from_config(config):
+def model_from_config(config, custom_layers={}):
     model_name = config.get('name')
     if model_name not in {'Graph', 'Sequential'}:
         raise Exception('Unrecognized model:', model_name)
 
     # Create a container then set class to appropriate model
-    model = container_from_config(config)
+    model = container_from_config(config, custom_layers=custom_layers)
     if model_name == 'Graph':
         model.__class__ = Graph
     elif model_name == 'Sequential':
@@ -200,9 +205,8 @@ class Model(object):
                 try:
                     ins_batch = slice_X(ins, batch_ids)
                 except TypeError as err:
-                    print('TypeError while preparing batch. \
+                    raise Exception('TypeError while preparing batch. \
                         If using HDF5 input data, pass shuffle="batch".\n')
-                    raise
 
                 batch_logs = {}
                 batch_logs['batch'] = batch_index
@@ -313,17 +317,17 @@ class Model(object):
             pp.pprint(config)
         return config
 
-    def to_yaml(self):
+    def to_yaml(self, **kwargs):
         # dump model configuration to yaml string
         import yaml
         config = self.get_config()
-        return yaml.dump(config)
+        return yaml.dump(config, **kwargs)
 
-    def to_json(self):
+    def to_json(self, **kwargs):
         # dump model configuration to json string
         import json
         config = self.get_config()
-        return json.dumps(config)
+        return json.dumps(config, **kwargs)
 
 
 class Sequential(Model, containers.Sequential):
@@ -643,8 +647,9 @@ class Graph(Model, containers.Graph):
             validation_split=0., validation_data=None, shuffle=True, class_weight={}, sample_weight={}):
         X = [data[name] for name in self.input_order]
         y = [standardize_y(data[name]) for name in self.output_order]
-        sample_weight_list = [standardize_weights(data[name],
-                                                  sample_weight=sample_weight.get(name)) for name in self.output_order]
+
+        sample_weight_list = [standardize_weights(y[i],
+                                                  sample_weight=sample_weight.get(self.output_order[i])) for i in range(len(self.output_order))]
         class_weight_list = [class_weight.get(name) for name in self.output_order]
 
         val_f = None
@@ -671,7 +676,6 @@ class Graph(Model, containers.Graph):
                                                   sample_weight=sample_weight_list[i],
                                                   class_weight=class_weight_list[i]) for i in range(len(self.output_order))]
         ins = X + y + sample_weight_list
-
         history = self._fit(f, ins, out_labels=out_labels, batch_size=batch_size, nb_epoch=nb_epoch,
                             verbose=verbose, callbacks=callbacks,
                             val_f=val_f, val_ins=val_ins,

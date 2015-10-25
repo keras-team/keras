@@ -14,9 +14,9 @@ class TestEmbedding(unittest.TestCase):
 
     def test_unitnorm_constraint(self):
         lookup = Sequential()
-        lookup.add(Embedding(3, 2, weights=[self.W1], W_constraint=unitnorm()))
+        lookup.add(Embedding(3, 2, weights=[self.W1], W_constraint=unitnorm(), input_length=1))
         lookup.add(Flatten())
-        lookup.add(Dense(2, 1))
+        lookup.add(Dense(1))
         lookup.add(Activation('sigmoid'))
         lookup.compile(loss='binary_crossentropy', optimizer='sgd', class_mode='binary')
         lookup.train_on_batch(self.X1, np.array([[1], [0]], dtype='int32'))

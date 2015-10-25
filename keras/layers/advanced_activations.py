@@ -6,17 +6,19 @@ import numpy as np
 
 
 class LeakyReLU(MaskedLayer):
-    def __init__(self, alpha=0.3):
-        super(LeakyReLU, self).__init__()
+    def __init__(self, alpha=0.3, **kwargs):
+        super(LeakyReLU, self).__init__(**kwargs)
         self.alpha = alpha
 
     def get_output(self, train):
         X = self.get_input(train)
-        return ((X + abs(X)) / 2.0) + self.alpha * ((X - abs(X)) / 2.0)
+        return T.nnet.relu(X, self.alpha)
 
     def get_config(self):
-        return {"name": self.__class__.__name__,
-                "alpha": self.alpha}
+        config = {"name": self.__class__.__name__,
+                  "alpha": self.alpha}
+        base_config = super(LeakyReLU, self).get_config()
+        return dict(list(base_config.items()) + list(config.items()))
 
 
 class PReLU(MaskedLayer):
@@ -25,26 +27,31 @@ class PReLU(MaskedLayer):
             Delving Deep into Rectifiers: Surpassing Human-Level Performance on ImageNet Classification
                 http://arxiv.org/pdf/1502.01852v1.pdf
     '''
-    def __init__(self, input_shape, init='zero', weights=None):
-        super(PReLU, self).__init__()
+    def __init__(self, init='zero', weights=None, **kwargs):
         self.init = initializations.get(init)
+        self.initial_weights = weights
+        super(PReLU, self).__init__(**kwargs)
+
+    def build(self):
+        input_shape = self.input_shape[1:]
         self.alphas = self.init(input_shape)
         self.params = [self.alphas]
-        self.input_shape = input_shape
 
-        if weights is not None:
-            self.set_weights(weights)
+        if self.initial_weights is not None:
+            self.set_weights(self.initial_weights)
+            del self.initial_weights
 
     def get_output(self, train):
         X = self.get_input(train)
-        pos = ((X + abs(X)) / 2.0)
-        neg = self.alphas * ((X - abs(X)) / 2.0)
+        pos = T.nnet.relu(X)
+        neg = self.alphas * (X - abs(X)) * 0.5
         return pos + neg
 
     def get_config(self):
-        return {"name": self.__class__.__name__,
-                "input_shape": self.input_shape,
-                "init": self.init.__name__}
+        config = {"name": self.__class__.__name__,
+                  "init": self.init.__name__}
+        base_config = super(PReLU, self).get_config()
+        return dict(list(base_config.items()) + list(config.items()))
 
 
 class ParametricSoftplus(MaskedLayer):
@@ -55,28 +62,35 @@ class ParametricSoftplus(MaskedLayer):
             Inferring Nonlinear Neuronal Computation Based on Physiologically Plausible Inputs
             http://journals.plos.org/ploscompbiol/article?id=10.1371/journal.pcbi.1003143
     '''
-    def __init__(self, input_shape, alpha_init=0.2, beta_init=5.0, weights=None):
-
-        super(ParametricSoftplus, self).__init__()
+    def __init__(self, alpha_init=0.2, beta_init=5.0,
+                 weights=None, **kwargs):
         self.alpha_init = alpha_init
         self.beta_init = beta_init
-        self.alphas = sharedX(alpha_init * np.ones(input_shape))
-        self.betas = sharedX(beta_init * np.ones(input_shape))
+        self.initial_weights = weights
+        super(ParametricSoftplus, self).__init__(**kwargs)
+
+    def build(self):
+        input_shape = self.input_shape[1:]
+        self.alphas = sharedX(self.alpha_init * np.ones(input_shape))
+        self.betas = sharedX(self.beta_init * np.ones(input_shape))
         self.params = [self.alphas, self.betas]
         self.input_shape = input_shape
 
-        if weights is not None:
-            self.set_weights(weights)
+        if self.initial_weights is not None:
+            self.set_weights(self.initial_weights)
+            del self.initial_weights
 
     def get_output(self, train):
         X = self.get_input(train)
         return T.nnet.softplus(self.betas * X) * self.alphas
 
     def get_config(self):
-        return {"name": self.__class__.__name__,
-                "input_shape": self.input_shape,
-                "alpha_init": self.alpha_init,
-                "beta_init": self.beta_init}
+        config = {"name": self.__class__.__name__,
+                  "alpha_init": self.alpha_init,
+                  "beta_init": self.beta_init}
+        base_config = super(ParametricSoftplus, self).get_config()
+        return dict(list(base_config.items()) + list(config.items()))
+
 
 class ThresholdedLinear(MaskedLayer):
     '''
@@ -86,19 +100,22 @@ class ThresholdedLinear(MaskedLayer):
             Zero-Bias Autoencoders and the Benefits of Co-Adapting Features
             http://arxiv.org/pdf/1402.3337.pdf
     '''
-    def __init__(self, theta=1.0):
-        super(ThresholdedLinear, self).__init__()
+    def __init__(self, theta=1.0, **kwargs):
+        super(ThresholdedLinear, self).__init__(**kwargs)
         self.theta = theta
-    
+
     def get_output(self, train):
         X = self.get_input(train)
-        return T.switch( abs(X) < self.theta, 0, X )
+        return T.switch(abs(X) < self.theta, 0, X)
 
     def get_config(self):
-        return {"name": self.__class__.__name__,
-            "theta": self.theta}
+        config = {"name": self.__class__.__name__,
+                  "theta": self.theta}
+        base_config = super(ThresholdedLinear, self).get_config()
+        return dict(list(base_config.items()) + list(config.items()))
 
-class ThresholdedReLu(MaskedLayer):
+
+class ThresholdedReLU(MaskedLayer):
     '''
         Thresholded Rectified Activation
 
@@ -106,14 +123,16 @@ class ThresholdedReLu(MaskedLayer):
             Zero-Bias Autoencoders and the Benefits of Co-Adapting Features
             http://arxiv.org/pdf/1402.3337.pdf
     '''
-    def __init__(self, theta=1.0):
-        super(ThresholdedReLu, self).__init__()
+    def __init__(self, theta=1.0, **kwargs):
+        super(ThresholdedReLU, self).__init__(**kwargs)
         self.theta = theta
-    
+
     def get_output(self, train):
         X = self.get_input(train)
-        return T.switch( X > self.theta, X, 0 )
+        return T.switch(X > self.theta, X, 0)
 
     def get_config(self):
-        return {"name": self.__class__.__name__,
-            "theta": self.theta}
+        config = {"name": self.__class__.__name__,
+                  "theta": self.theta}
+        base_config = super(ThresholdedReLU, self).get_config()
+        return dict(list(base_config.items()) + list(config.items()))

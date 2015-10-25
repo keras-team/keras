@@ -16,23 +16,37 @@ class BatchNormalization(Layer):
 
             momentum: momentum term in the computation of a running estimate of the mean and std of the data
     '''
-    def __init__(self, input_shape, epsilon=1e-6, mode=0, momentum=0.9, weights=None):
-        super(BatchNormalization, self).__init__()
+    def __init__(self, epsilon=1e-6, mode=0, momentum=0.9, weights=None, **kwargs):
         self.init = initializations.get("uniform")
-        self.input_shape = input_shape
         self.epsilon = epsilon
         self.mode = mode
         self.momentum = momentum
-        self.input = ndim_tensor(len(self.input_shape) + 1)
+        self.initial_weights = weights
+        super(BatchNormalization, self).__init__(**kwargs)
 
-        self.gamma = self.init((self.input_shape))
-        self.beta = shared_zeros(self.input_shape)
+    def build(self):
+        input_shape = self.input_shape  # starts with samples axis
+        input_shape = input_shape[1:]
+        self.input = ndim_tensor(len(input_shape) + 1)
+
+        self.gamma = self.init((input_shape))
+        self.beta = shared_zeros(input_shape)
 
         self.params = [self.gamma, self.beta]
-        self.running_mean = shared_zeros(self.input_shape)
-        self.running_std = shared_ones((self.input_shape))
-        if weights is not None:
-            self.set_weights(weights)
+        self.running_mean = shared_zeros(input_shape)
+        self.running_std = shared_ones((input_shape))
+
+        # initialize self.updates: batch mean/std computation
+        X = self.get_input(train=True)
+        m = X.mean(axis=0)
+        std = T.mean((X - m) ** 2 + self.epsilon, axis=0) ** 0.5
+        mean_update = self.momentum * self.running_mean + (1-self.momentum) * m
+        std_update = self.momentum * self.running_std + (1-self.momentum) * std
+        self.updates = [(self.running_mean, mean_update), (self.running_std, std_update)]
+
+        if self.initial_weights is not None:
+            self.set_weights(self.initial_weights)
+            del self.initial_weights
 
     def get_weights(self):
         return super(BatchNormalization, self).get_weights() + [self.running_mean.get_value(), self.running_std.get_value()]
@@ -41,14 +55,6 @@ class BatchNormalization(Layer):
         self.running_mean.set_value(floatX(weights[-2]))
         self.running_std.set_value(floatX(weights[-1]))
         super(BatchNormalization, self).set_weights(weights[:-2])
-
-    def init_updates(self):
-        X = self.get_input(train=True)
-        m = X.mean(axis=0)
-        std = T.mean((X - m) ** 2 + self.epsilon, axis=0) ** 0.5
-        mean_update = self.momentum * self.running_mean + (1-self.momentum) * m
-        std_update = self.momentum * self.running_std + (1-self.momentum) * std
-        self.updates = [(self.running_mean, mean_update), (self.running_std, std_update)]
 
     def get_output(self, train):
         X = self.get_input(train)
@@ -65,10 +71,12 @@ class BatchNormalization(Layer):
         return out
 
     def get_config(self):
-        return {"name": self.__class__.__name__,
-                "input_shape": self.input_shape,
-                "epsilon": self.epsilon,
-                "mode": self.mode}
+        config = {"name": self.__class__.__name__,
+                  "epsilon": self.epsilon,
+                  "mode": self.mode,
+                  "momentum": self.momentum}
+        base_config = super(BatchNormalization, self).get_config()
+        return dict(list(base_config.items()) + list(config.items()))
 
 
 class LRN2D(Layer):
@@ -77,10 +85,10 @@ class LRN2D(Layer):
     License at: https://github.com/lisa-lab/pylearn2/blob/master/LICENSE.txt
     """
 
-    def __init__(self, alpha=1e-4, k=2, beta=0.75, n=5):
+    def __init__(self, alpha=1e-4, k=2, beta=0.75, n=5, **kwargs):
         if n % 2 == 0:
             raise NotImplementedError("LRN2D only works with odd n. n provided: " + str(n))
-        super(LRN2D, self).__init__()
+        super(LRN2D, self).__init__(**kwargs)
         self.alpha = alpha
         self.k = k
         self.beta = beta
@@ -100,8 +108,10 @@ class LRN2D(Layer):
         return X / scale
 
     def get_config(self):
-        return {"name": self.__class__.__name__,
-                "alpha": self.alpha,
-                "k": self.k,
-                "beta": self.beta,
-                "n": self.n}
+        config = {"name": self.__class__.__name__,
+                  "alpha": self.alpha,
+                  "k": self.k,
+                  "beta": self.beta,
+                  "n": self.n}
+        base_config = super(LRN2D, self).get_config()
+        return dict(list(base_config.items()) + list(config.items()))

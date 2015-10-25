@@ -46,9 +46,9 @@ Stacking layers is as easy as `.add()`:
 ```python
 from keras.layers.core import Dense, Activation
 
-model.add(Dense(input_dim=100, output_dim=64, init="glorot_uniform"))
+model.add(Dense(output_dim=64, input_dim=100, init="glorot_uniform"))
 model.add(Activation("relu"))
-model.add(Dense(input_dim=64, output_dim=10, init="glorot_uniform"))
+model.add(Dense(output_dim=10, init="glorot_uniform"))
 model.add(Activation("softmax"))
 ```
 
@@ -98,6 +98,11 @@ Keras uses the following dependencies:
     - See [installation instructions](http://deeplearning.net/software/theano/install.html#install).
 - __HDF5__ and __h5py__ (optional, required if you use model saving/loading functions)
 - Optional but recommended if you use CNNs: __cuDNN__.
+
+**Note**: You should use the latest version of Theano, not the PyPI version. Install it with:
+```
+sudo pip install git+git://github.com/Theano/Theano.git
+```
 
 Once you have the dependencies installed, clone the repo:
 ```bash

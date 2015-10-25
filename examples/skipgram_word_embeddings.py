@@ -158,7 +158,6 @@ norm_weights = np_utils.normalize(weights)
 
 word_index = tokenizer.word_index
 reverse_word_index = dict([(v, k) for k, v in list(word_index.items())])
-word_index = tokenizer.word_index
 
 
 def embed_word(w):

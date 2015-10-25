@@ -42,18 +42,18 @@ sample_weight[y_train == weighted_class] = high_weight
 
 def create_sequential_model():
     model = Sequential()
-    model.add(Dense(784, 50))
+    model.add(Dense(50, input_shape=(784,)))
     model.add(Activation('relu'))
-    model.add(Dense(50, 10))
+    model.add(Dense(10))
     model.add(Activation('softmax'))
     return model
 
 
 def create_graph_model():
     model = Graph()
-    model.add_input(name='input')
-    model.add_node(Dense(784, 50, activation='relu'), name='d1', input='input')
-    model.add_node(Dense(50, 10, activation='softmax'), name='d2', input='d1')
+    model.add_input(name='input', input_shape=(784,))
+    model.add_node(Dense(50, activation='relu'), name='d1', input='input')
+    model.add_node(Dense(10, activation='softmax'), name='d2', input='d1')
     model.add_output(name='output', input='d2')
     return model
 

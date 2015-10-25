@@ -12,11 +12,6 @@ class TestLayerBase(unittest.TestCase):
         input_dim = 5
         layer = core.Layer()
 
-        # As long as there is no input, an error should be raised.
-        for train in [True, False]:
-            self.assertRaises(AttributeError, layer.get_input, train)
-            self.assertRaises(AttributeError, layer.get_output, train)
-
         # Once an input is provided, it should be reachable through the
         # appropriate getters
         input = np.ones((nb_samples, input_dim))
@@ -33,10 +28,6 @@ class TestLayerBase(unittest.TestCase):
 
         input = np.ones((nb_samples, input_dim))
         layer1.input = theano.shared(value=input)
-
-        # As long as there is no previous layer, an error should be raised.
-        for train in [True, False]:
-            self.assertRaises(AttributeError, layer2.get_input, train)
 
         # After connecting, input of layer1 should be passed through
         layer2.set_previous(layer1)
@@ -69,6 +60,8 @@ class TestConfigParams(unittest.TestCase):
     def test_merge(self):
         layer_1 = core.Layer()
         layer_2 = core.Layer()
+        layer_1.set_input_shape((None,))
+        layer_2.set_input_shape((None,))
         layer = core.Merge([layer_1, layer_2])
         self._runner(layer)
 
@@ -81,7 +74,7 @@ class TestConfigParams(unittest.TestCase):
         self._runner(layer)
 
     def test_reshape(self):
-        layer = core.Reshape(10, 10)
+        layer = core.Reshape(dims=(10, 10))
         self._runner(layer)
 
     def test_flatten(self):
@@ -93,7 +86,7 @@ class TestConfigParams(unittest.TestCase):
         self._runner(layer)
 
     def test_dense(self):
-        layer = core.Dense(10, 10)
+        layer = core.Dense(10, input_shape=(10,))
         self._runner(layer)
 
     def test_act_reg(self):
@@ -101,7 +94,7 @@ class TestConfigParams(unittest.TestCase):
         self._runner(layer)
 
     def test_time_dist_dense(self):
-        layer = core.TimeDistributedDense(10, 10)
+        layer = core.TimeDistributedDense(10, input_shape=(None, 10))
         self._runner(layer)
 
     def test_time_dist_merge(self):
@@ -130,9 +123,8 @@ class TestMasking(unittest.TestCase):
         func = theano.function([layer.input], layer.get_output_mask())
         self.assertTrue(np.all(
             # get mask for this input
-            func(np.array(
-            [[[1], [2], [3], [0]],
-             [[0], [4], [5], [0]]], dtype=np.int32)) ==
+            func(np.array([[[1], [2], [3], [0]],
+                          [[0], [4], [5], [0]]], dtype=np.int32)) ==
             # This is the expected output mask, one dimension less
             np.array([[1, 1, 1, 0], [0, 1, 1, 0]])))
 
@@ -142,9 +134,8 @@ class TestMasking(unittest.TestCase):
         func = theano.function([layer.input], layer.get_output_mask())
         self.assertTrue(np.all(
             # get mask for this input, if not all the values are 5, shouldn't masked
-            func(np.array(
-            [[[1, 1], [2, 1], [3, 1], [5, 5]],
-             [[1, 5], [5, 0], [0, 0], [0, 0]]], dtype=np.int32)) ==
+            func(np.array([[[1, 1], [2, 1], [3, 1], [5, 5]],
+                          [[1, 5], [5, 0], [0, 0], [0, 0]]], dtype=np.int32)) ==
             # This is the expected output mask, one dimension less
             np.array([[1, 1, 1, 0], [1, 1, 1, 1]])))
 
@@ -154,12 +145,11 @@ class TestMasking(unittest.TestCase):
         func = theano.function([layer.input], layer.get_output())
         self.assertTrue(np.all(
             # get output for this input, replace padding with 0
-            func(np.array(
-            [[[1, 1], [2, 1], [3, 1], [5, 5]],
-             [[1, 5], [5, 0], [0, 0], [0, 0]]], dtype=np.int32)) ==
+            func(np.array([[[1, 1], [2, 1], [3, 1], [5, 5]],
+                          [[1, 5], [5, 0], [0, 0], [0, 0]]], dtype=np.int32)) ==
             # This is the expected output
             np.array([[[1, 1], [2, 1], [3, 1], [0, 0]],
-             [[1, 5], [5, 0], [0, 0], [0, 0]]])))
+                     [[1, 5], [5, 0], [0, 0], [0, 0]]])))
 
 
 if __name__ == '__main__':

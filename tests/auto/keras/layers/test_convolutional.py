@@ -16,21 +16,20 @@ class TestConvolutions(unittest.TestCase):
 
         weights_in = [np.ones((nb_filter, input_dim, filter_length, 1)), np.ones(nb_filter)]
 
-        self.assertRaises(Exception, convolutional.Convolution1D,
-                          input_dim, nb_filter, filter_length, border_mode='foo')
-
         input = np.ones((nb_samples, nb_steps, input_dim))
         for weight in [None, weights_in]:
             for border_mode in ['valid', 'full', 'same']:
                 for subsample_length in [1, 3]:
+                    if border_mode == 'same' and subsample_length != 1:
+                        continue
                     for W_regularizer in [None, 'l2']:
                         for b_regularizer in [None, 'l2']:
                             for act_regularizer in [None, 'l2']:
                                 layer = convolutional.Convolution1D(
-                                    input_dim, nb_filter, filter_length, weights=weight,
+                                    nb_filter, filter_length, weights=weight,
                                     border_mode=border_mode, W_regularizer=W_regularizer,
                                     b_regularizer=b_regularizer, activity_regularizer=act_regularizer,
-                                    subsample_length=subsample_length)
+                                    subsample_length=subsample_length, input_shape=(None, input_dim))
 
                             layer.input = theano.shared(value=input)
                             for train in [True, False]:
@@ -43,13 +42,12 @@ class TestConvolutions(unittest.TestCase):
 
     def test_maxpooling_1d(self):
         nb_samples = 9
-
         nb_steps = 7
         input_dim = 10
 
         input = np.ones((nb_samples, nb_steps, input_dim))
         for ignore_border in [True, False]:
-            for stride in [None, 2]:
+            for stride in [1, 2]:
                 layer = convolutional.MaxPooling1D(stride=stride, ignore_border=ignore_border)
                 layer.input = theano.shared(value=input)
                 for train in [True, False]:
@@ -59,7 +57,6 @@ class TestConvolutions(unittest.TestCase):
 
     def test_convolution_2d(self):
         nb_samples = 8
-
         nb_filter = 9
         stack_size = 7
         nb_row = 10
@@ -70,21 +67,20 @@ class TestConvolutions(unittest.TestCase):
 
         weights_in = [np.ones((nb_filter, stack_size, nb_row, nb_col)), np.ones(nb_filter)]
 
-        self.assertRaises(Exception, convolutional.Convolution2D,
-                          nb_filter, stack_size, nb_row, nb_col, border_mode='foo')
-
         input = np.ones((nb_samples, stack_size, input_nb_row, input_nb_col))
         for weight in [None, weights_in]:
             for border_mode in ['valid', 'full', 'same']:
                 for subsample in [(1, 1), (2, 3)]:
+                    if border_mode == 'same' and subsample != (1, 1):
+                        continue
                     for W_regularizer in [None, 'l2']:
                         for b_regularizer in [None, 'l2']:
                             for act_regularizer in [None, 'l2']:
                                 layer = convolutional.Convolution2D(
-                                    nb_filter, stack_size, nb_row, nb_col, weights=weight,
+                                    nb_filter, nb_row, nb_col, weights=weight,
                                     border_mode=border_mode, W_regularizer=W_regularizer,
                                     b_regularizer=b_regularizer, activity_regularizer=act_regularizer,
-                                    subsample=subsample)
+                                    subsample=subsample, input_shape=(stack_size, None, None))
 
                                 layer.input = theano.shared(value=input)
                                 for train in [True, False]:
@@ -96,16 +92,15 @@ class TestConvolutions(unittest.TestCase):
 
     def test_maxpooling_2d(self):
         nb_samples = 9
-
         stack_size = 7
         input_nb_row = 11
         input_nb_col = 12
-        poolsize = (3, 3)
+        pool_size = (3, 3)
 
         input = np.ones((nb_samples, stack_size, input_nb_row, input_nb_col))
         for ignore_border in [True, False]:
-            for stride in [None, (2, 2)]:
-                layer = convolutional.MaxPooling2D(stride=stride, ignore_border=ignore_border, poolsize=poolsize)
+            for stride in [(1, 1), (2, 2)]:
+                layer = convolutional.MaxPooling2D(stride=stride, ignore_border=ignore_border, pool_size=pool_size)
                 layer.input = theano.shared(value=input)
                 for train in [True, False]:
                     layer.get_output(train).eval()
@@ -114,17 +109,16 @@ class TestConvolutions(unittest.TestCase):
 
     def test_zero_padding_2d(self):
         nb_samples = 9
-
         stack_size = 7
         input_nb_row = 11
         input_nb_col = 12
 
         input = np.ones((nb_samples, stack_size, input_nb_row, input_nb_col))
-        layer = convolutional.ZeroPadding2D(pad=(2,2))
+        layer = convolutional.ZeroPadding2D(padding=(2, 2))
         layer.input = theano.shared(value=input)
         for train in [True, False]:
             out = layer.get_output(train).eval()
-            for offset in [0,1,-1,-2]:
+            for offset in [0, 1, -1, -2]:
                 assert_allclose(out[:, :, offset, :], 0.)
                 assert_allclose(out[:, :, :, offset], 0.)
             assert_allclose(out[:, :, 2:-2, 2:-2], 1.)
@@ -133,12 +127,11 @@ class TestConvolutions(unittest.TestCase):
 
     def test_upsample_1d(self):
         nb_samples = 9
-
         nb_steps = 7
         input_dim = 10
 
         input = np.ones((nb_samples, nb_steps, input_dim))
-        for length in [2,3,9]:
+        for length in [2, 3, 9]:
             layer = convolutional.UpSample1D(length=length)
             layer.input = theano.shared(value=input)
             for train in [True, False]:
@@ -149,16 +142,15 @@ class TestConvolutions(unittest.TestCase):
 
     def test_upsample_2d(self):
         nb_samples = 9
-
         stack_size = 7
         input_nb_row = 11
         input_nb_col = 12
 
         input = np.ones((nb_samples, stack_size, input_nb_row, input_nb_col))
 
-        for length_row in [2,3,9]:
-            for length_col in [2,3,9]:
-                layer = convolutional.UpSample2D(size=(length_row,length_col))
+        for length_row in [2, 3, 9]:
+            for length_col in [2, 3, 9]:
+                layer = convolutional.UpSample2D(size=(length_row, length_col))
                 layer.input = theano.shared(value=input)
                 for train in [True, False]:
                     out = layer.get_output(train).eval()

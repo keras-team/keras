@@ -8,7 +8,7 @@ import keras.utils.layer_utils as layer_utils
 print('-- Sequential model')
 left = Sequential()
 left.add(Convolution2D(32, 1, 3, 3, border_mode='valid'))
-left.add(MaxPooling2D(poolsize=(2, 2)))
+left.add(MaxPooling2D(pool_size=(2, 2)))
 left.add(Flatten())
 left.add(Dense(32 * 13 * 13, 50))
 left.add(Activation('relu'))
