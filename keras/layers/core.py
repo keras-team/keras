@@ -899,3 +899,32 @@ class MaxoutDense(Layer):
                   "input_dim": self.input_dim}
         base_config = super(MaxoutDense, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
+
+
+class Lambda(MaskedLayer):
+	def __init__(self, function, output_shape, ndim=2):
+		super(Lambda, self).__init__()
+		self.input = ndim_tensor(ndim)
+		self.function = marshal.dumps(function.func_code)
+		if type(output_shape) in [tuple,list]:
+			self._output_shape = tuple(output_shape)
+		else:
+		self._output_shape = marshal.dumps(output_shape.func_code)
+
+	@property
+	def output_shape(self):
+		
+		if type(self._output_shape) == tuple:
+			return self._output_shape
+		else:
+			output_shape_func = marshal.loads.dumps(self._output_shape)
+			output_shape_func = types.FunctionType(output_shape_func, globals())
+			return output_shape_func(self.previous)
+
+	def get_output(self, train=False):
+		func = marshal.loads(self.function)
+		func = types.FunctionType(func, globals())
+		if hasattr(self,'previous'):
+			return func(self.previous.get_output(train))
+		else:
+			return func(self.input)
