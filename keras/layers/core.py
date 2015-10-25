@@ -348,7 +348,7 @@ class Merge(Layer):
                 shape2.pop(i)
             return tuple(shape1 + shape2)
         elif self.mode == 'cos':
-       return tuple(input_shapes[0][0], 1)
+            return tuple(input_shapes[0][0], 1)
 
     def get_params(self):
         return self.params, self.regularizers, self.constraints, self.updates
