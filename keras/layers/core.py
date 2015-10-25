@@ -300,10 +300,9 @@ class Merge(Layer):
                     if dot_axes < 0:
                         dot_axes = len(shape1) - 1
                     dot_axes = [range(len(shape1) - dot_axes, len(shape2)), range(1,dot_axes + 1)]
-                for i in rage(len(dot_axes[0])):
+                for i in range(len(dot_axes[0])):
                     if shape1[dot_axes[0][i]] != shape2[dot_axes[1][i]]:
                         raise Exception(" Dot incompatible layers can not be merged using dot mode")
-
         elif mode == 'concat':
             input_shapes = set([list(l.output_shape).pop(concat_axis) for l in layers])
             if len(input_shapes) > 1:
@@ -341,12 +340,12 @@ class Merge(Layer):
             return None
         elif self.mode == 'dot':
             shape1 = list(input_shapes[0])
-            shape2 = list(input_shapes[0]).pop(0)
+            shape2 = list(input_shapes[1])
             for i in dot_axes[0]:
                 shape1.pop(i)
             for i in dot_axes[1]:
                 shape2.pop(i)
-            return tuple(shape1 + shape2)
+            return tuple(shape1 + shape2[1:])
         elif self.mode == 'cos':
             return tuple(input_shapes[0][0], 1)
 
