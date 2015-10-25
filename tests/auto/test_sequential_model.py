@@ -5,7 +5,7 @@ import numpy as np
 np.random.seed(1337)
 
 from keras.models import Sequential, model_from_json, model_from_yaml
-from keras.layers.core import Dense, Activation, Merge
+from keras.layers.core import Dense, Activation, Merge, Lambda
 from keras.utils import np_utils
 from keras.utils.test_utils import get_test_data
 
