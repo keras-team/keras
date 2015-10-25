@@ -60,6 +60,8 @@ class TestConfigParams(unittest.TestCase):
     def test_merge(self):
         layer_1 = core.Layer()
         layer_2 = core.Layer()
+        layer_1.set_input_shape((None,))
+        layer_2.set_input_shape((None,))
         layer = core.Merge([layer_1, layer_2])
         self._runner(layer)
 
