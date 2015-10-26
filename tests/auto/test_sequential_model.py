@@ -342,7 +342,14 @@ class TestSequential(unittest.TestCase):
         nloss = model.evaluate([X_train, X_train], y_train, verbose=0)
         print(nloss)
         assert(loss == nloss)
-          
+        
+        print ('test serializing')
+        model_str = cPickle.dumps(model)
+        model = cPickle.loads(model_str)
+        nloss = model.evaluate([X_train, X_train], y_train, verbose=0)
+        print(nloss)
+        assert(loss == nloss)
+        
     def test_count_params(self):
         print('test count params')
         input_dim = 20
