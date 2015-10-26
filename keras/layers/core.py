@@ -912,7 +912,7 @@ class Lambda(Layer):
 		else:
 			self.function = marshal.dumps(function.func_code)
 		if output_shape is None:
-			output_shape = self.previous.output_shape
+			output_shape = input_shape
 		elif type(output_shape) in {tuple, list}:
 			self._output_shape = tuple(output_shape)
 		else:
