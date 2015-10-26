@@ -212,31 +212,12 @@ class TestSequential(unittest.TestCase):
 
         loss = model.evaluate([X_train, X_train], y_train, verbose=0)
         print('loss:', loss)
-        if loss > 0.7:
+        if loss > 0.99:
             raise Exception('Score too low, learning issue.')
         preds = model.predict([X_test, X_test], verbose=0)
         classes = model.predict_classes([X_test, X_test], verbose=0)
         probas = model.predict_proba([X_test, X_test], verbose=0)
         print(model.get_config(verbose=1))
-
-        print('test weight saving')
-        model.save_weights('temp.h5', overwrite=True)
-        left = Sequential()
-        left.add(Dense(nb_hidden, input_shape=(input_dim,)))
-        left.add(Activation('relu'))
-        right = Sequential()
-        right.add(Dense(nb_hidden, input_shape=(input_dim,)))
-        right.add(Activation('relu'))
-        model = Sequential()
-        model.add(Merge([left, right], mode='dot'))
-        model.add(Dense(nb_class))
-        model.add(Activation('softmax'))
-        model.load_weights('temp.h5')
-        model.compile(loss='categorical_crossentropy', optimizer='rmsprop')
-
-        nloss = model.evaluate([X_train, X_train], y_train, verbose=0)
-        print(nloss)
-        assert(loss == nloss)
         
     def test_merge_recursivity(self):
         print('Test merge recursivity')
