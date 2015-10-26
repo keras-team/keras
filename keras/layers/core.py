@@ -907,12 +907,18 @@ class Lambda(Layer):
 	def __init__(self, function, output_shape, ndim=2):
 		super(Lambda, self).__init__()
 		self.input = ndim_tensor(ndim)
-		self.function = marshal.dumps(function.func_code)
+		py3 = sys.version_info[0] == 3
+		if py3:
+			self.function = marshal.dumps(function.__code__)
+		else:
+			self.function = marshal.dumps(function.func_code)
 		if type(output_shape) in {tuple, list}:
 			self._output_shape = tuple(output_shape)
 		else:
-			self._output_shape = marshal.dumps(output_shape.func_code)
-
+			if py3:
+				self._output_shape = marshal.dumps(output_shape.__code__)
+			else:
+				self._output_shape = marshal.dumps(output_shape.func_code)
 	@property
 	def output_shape(self):
 		if type(self._output_shape) == tuple:
