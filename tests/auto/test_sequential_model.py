@@ -185,7 +185,7 @@ class TestSequential(unittest.TestCase):
         nloss = model.evaluate([X_train, X_train], y_train, verbose=0)
         print(nloss)
         assert(loss == nloss)
-    def test_merge_sum(self):
+    def test_merge_dot(self):
         print('Test merge: dot')
         left = Sequential()
         left.add(Dense(nb_hidden, input_shape=(input_dim,)))
