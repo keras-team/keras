@@ -905,20 +905,20 @@ class MaxoutDense(Layer):
 
 class Lambda(Layer):
 	
-    """Lambda layer for evaluating arbitrary function
-    Input shape
-    -----------
-    output_shape of previous layer 
+	"""Lambda layer for evaluating arbitrary function
+	Input shape
+	-----------
+	output_shape of previous layer 
+	
+	Output shape
+	------------
+	Specified by output_shape argument
     
-    Output shape
-    ------------
-    Specified by output_argument
-    
-    Arguments
-    ---------
-    function - The function to be evaluated. Takes one argument : ouput of previous layer
-    output_shape - Expected output shape from function. Could be a tuple or a function of input layers
-    """
+	Arguments
+	---------
+	function - The function to be evaluated. Takes one argument : ouput of previous layer
+	output_shape - Expected output shape from function. Could be a tuple or a function of input layers
+	"""
     
 	def __init__(self, function, output_shape=None, ndim=2):
 		super(Lambda, self).__init__()
