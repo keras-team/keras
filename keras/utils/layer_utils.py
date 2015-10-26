@@ -73,14 +73,14 @@ def container_from_config(original_layer_dict, custom_layers={}):
         layer_dict.pop('name')
 
         for k, v in layer_dict.items():
-            # For now, this can only happen for regularizers and constraints
             if isinstance(v, dict):
-                vname = v.get('name')
-                v.pop('name')
+                vname = v.pop('name')
                 if vname in [x for x, y in inspect.getmembers(constraints, predicate=inspect.isclass)]:
                     layer_dict[k] = constraints.get(vname, v)
-                if vname in [x for x, y in inspect.getmembers(regularizers, predicate=inspect.isclass)]:
+                elif vname in [x for x, y in inspect.getmembers(regularizers, predicate=inspect.isclass)]:
                     layer_dict[k] = regularizers.get(vname, v)
+                else: # not a regularizer of constraint, don't touch it
+                    v['name'] = vname
 
         base_layer = get_layer(name, layer_dict, custom_layers=custom_layers)
         return base_layer
