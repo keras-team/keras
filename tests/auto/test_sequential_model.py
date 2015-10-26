@@ -214,7 +214,7 @@ class TestSequential(unittest.TestCase):
         right.add(Activation('relu'))
 
         model = Sequential()
-        model.add(Merge([left, right], mode='dot', dot_axes=([1],[1]))
+        model.add(Merge([left, right], mode='dot', dot_axes=([1],[1])))
 
         model.add(Dense(nb_class))
         model.add(Activation('softmax'))
