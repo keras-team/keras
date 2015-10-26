@@ -17,7 +17,7 @@ from theano.sandbox.rng_mrg import MRG_RandomStreams as RandomStreams
 from six.moves import zip
 
 import marshal, types
-
+import sys
 class Layer(object):
     def __init__(self, **kwargs):
         for kwarg in kwargs:
