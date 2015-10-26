@@ -8,7 +8,7 @@ from keras.models import Sequential, model_from_json, model_from_yaml
 from keras.layers.core import Dense, Activation, Merge, Lambda
 from keras.utils import np_utils
 from keras.utils.test_utils import get_test_data
-
+import cPickle
 input_dim = 32
 nb_hidden = 16
 nb_class = 4
