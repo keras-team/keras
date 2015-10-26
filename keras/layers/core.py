@@ -944,7 +944,11 @@ class Lambda(Layer):
 		else:
 			output_shape_func = marshal.loads(self._output_shape)
 			output_shape_func = types.FunctionType(output_shape_func, globals())
-			return output_shape_func(self.previous)
+			shape = output_shape_func(self.previous)
+			if type(shape) not in {list,tuple}:
+				raise Exception ("output_shape function must return a tuple")
+			return tuple(shape)
+
 
 	def get_output(self, train=False):
 		func = marshal.loads(self.function)
