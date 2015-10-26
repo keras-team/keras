@@ -280,6 +280,7 @@ class TestSequential(unittest.TestCase):
         print('Test lambda: sum')
 
         def func(X):
+            X = [X[i] for i in list(X)]
             s = X[0]
             for i in range(1,len(X)):
                 s += X[i]
