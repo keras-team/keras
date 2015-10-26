@@ -341,9 +341,9 @@ class Merge(Layer):
         elif self.mode == 'dot':
             shape1 = list(input_shapes[0])
             shape2 = list(input_shapes[1])
-            for i in dot_axes[0]:
+            for i in self.dot_axes[0]:
                 shape1.pop(i)
-            for i in dot_axes[1]:
+            for i in self.dot_axes[1]:
                 shape2.pop(i)
             return tuple(shape1 + shape2[1:])
         elif self.mode == 'cos':
