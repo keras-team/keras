@@ -188,15 +188,15 @@ class TestSequential(unittest.TestCase):
     def test_merge_dot(self):
         print('Test merge: dot')
         left = Sequential()
-        left.add(Dense(nb_hidden, input_shape=(input_dim,)))
+        left.add(Dense(input_dim=input_dim, output_dim=nb_hidden))
         left.add(Activation('relu'))
 
         right = Sequential()
-        right.add(Dense(nb_hidden, input_shape=(input_dim,)))
+        left.add(Dense(input_dim=input_dim, output_dim=nb_hidden))
         right.add(Activation('relu'))
 
         model = Sequential()
-        model.add(Merge([left, right], mode='dot'))
+        model.add(Merge([left, right], mode='dot', dot_axes=1))
 
         model.add(Dense(nb_class))
         model.add(Activation('softmax'))
