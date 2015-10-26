@@ -185,7 +185,59 @@ class TestSequential(unittest.TestCase):
         nloss = model.evaluate([X_train, X_train], y_train, verbose=0)
         print(nloss)
         assert(loss == nloss)
+    def test_merge_sum(self):
+        print('Test merge: dot')
+        left = Sequential()
+        left.add(Dense(nb_hidden, input_shape=(input_dim,)))
+        left.add(Activation('relu'))
 
+        right = Sequential()
+        right.add(Dense(nb_hidden, input_shape=(input_dim,)))
+        right.add(Activation('relu'))
+
+        model = Sequential()
+        model.add(Merge([left, right], mode='dot'))
+
+        model.add(Dense(nb_class))
+        model.add(Activation('softmax'))
+
+        model.compile(loss='categorical_crossentropy', optimizer='rmsprop')
+
+        model.fit([X_train, X_train], y_train, batch_size=batch_size, nb_epoch=nb_epoch, show_accuracy=True, verbose=0, validation_data=([X_test, X_test], y_test))
+        model.fit([X_train, X_train], y_train, batch_size=batch_size, nb_epoch=nb_epoch, show_accuracy=False, verbose=0, validation_data=([X_test, X_test], y_test))
+        model.fit([X_train, X_train], y_train, batch_size=batch_size, nb_epoch=nb_epoch, show_accuracy=True, verbose=0, validation_split=0.1)
+        model.fit([X_train, X_train], y_train, batch_size=batch_size, nb_epoch=nb_epoch, show_accuracy=False, verbose=0, validation_split=0.1)
+        model.fit([X_train, X_train], y_train, batch_size=batch_size, nb_epoch=nb_epoch, verbose=0)
+        model.fit([X_train, X_train], y_train, batch_size=batch_size, nb_epoch=nb_epoch, verbose=0, shuffle=False)
+
+        loss = model.evaluate([X_train, X_train], y_train, verbose=0)
+        print('loss:', loss)
+        if loss > 0.7:
+            raise Exception('Score too low, learning issue.')
+        preds = model.predict([X_test, X_test], verbose=0)
+        classes = model.predict_classes([X_test, X_test], verbose=0)
+        probas = model.predict_proba([X_test, X_test], verbose=0)
+        print(model.get_config(verbose=1))
+
+        print('test weight saving')
+        model.save_weights('temp.h5', overwrite=True)
+        left = Sequential()
+        left.add(Dense(nb_hidden, input_shape=(input_dim,)))
+        left.add(Activation('relu'))
+        right = Sequential()
+        right.add(Dense(nb_hidden, input_shape=(input_dim,)))
+        right.add(Activation('relu'))
+        model = Sequential()
+        model.add(Merge([left, right], mode='dot'))
+        model.add(Dense(nb_class))
+        model.add(Activation('softmax'))
+        model.load_weights('temp.h5')
+        model.compile(loss='categorical_crossentropy', optimizer='rmsprop')
+
+        nloss = model.evaluate([X_train, X_train], y_train, verbose=0)
+        print(nloss)
+        assert(loss == nloss)
+        
     def test_merge_recursivity(self):
         print('Test merge recursivity')
 
