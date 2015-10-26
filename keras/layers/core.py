@@ -904,7 +904,7 @@ class MaxoutDense(Layer):
 
 
 class Lambda(Layer):
-	def __init__(self, function, output_shape, ndim=2):
+	def __init__(self, function, output_shape=None, ndim=2):
 		super(Lambda, self).__init__()
 		self.input = ndim_tensor(ndim)
 		py3 = sys.version_info[0] == 3
@@ -912,7 +912,9 @@ class Lambda(Layer):
 			self.function = marshal.dumps(function.__code__)
 		else:
 			self.function = marshal.dumps(function.func_code)
-		if type(output_shape) in {tuple, list}:
+		if output_shape is None:
+			output_shape = self.previous.output_shape
+		elif type(output_shape) in {tuple, list}:
 			self._output_shape = tuple(output_shape)
 		else:
 			if py3:
