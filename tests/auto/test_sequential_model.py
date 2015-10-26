@@ -192,7 +192,7 @@ class TestSequential(unittest.TestCase):
         left.add(Activation('relu'))
 
         right = Sequential()
-        left.add(Dense(input_dim=input_dim, output_dim=nb_hidden))
+        right.add(Dense(input_dim=input_dim, output_dim=nb_hidden))
         right.add(Activation('relu'))
 
         model = Sequential()
