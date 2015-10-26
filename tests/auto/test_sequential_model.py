@@ -285,8 +285,8 @@ class TestSequential(unittest.TestCase):
                 s += X[i]
             return s
 
-        def output_shape(layers):
-            return layers[0].output_shape
+        def output_shape(previous):
+            return previous.previous.output_shape
 
         left = Sequential()
         left.add(Dense(nb_hidden, input_shape=(input_dim,)))
