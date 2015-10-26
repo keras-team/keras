@@ -8,7 +8,7 @@ from keras.models import Sequential, model_from_json, model_from_yaml
 from keras.layers.core import Dense, Activation, Merge, Lambda
 from keras.utils import np_utils
 from keras.utils.test_utils import get_test_data
-import cPickle
+import pickle
 input_dim = 32
 nb_hidden = 16
 nb_class = 4
@@ -344,8 +344,8 @@ class TestSequential(unittest.TestCase):
         assert(loss == nloss)
         
         print ('test serializing')
-        model_str = cPickle.dumps(model)
-        model = cPickle.loads(model_str)
+        model_str = pickle.dumps(model)
+        model = pickle.loads(model_str)
         nloss = model.evaluate([X_train, X_train], y_train, verbose=0)
         print(nloss)
         assert(loss == nloss)
