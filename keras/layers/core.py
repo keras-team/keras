@@ -399,7 +399,8 @@ class Merge(Layer):
         config = {"name": self.__class__.__name__,
                   "layers": [l.get_config() for l in self.layers],
                   "mode": self.mode,
-                  "concat_axis": self.concat_axis}
+                  "concat_axis": self.concat_axis,
+                  "auto_name": self.auto_name}
         base_config = super(Merge, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
