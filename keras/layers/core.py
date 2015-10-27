@@ -276,7 +276,7 @@ class TimeDistributedMerge(Layer):
 
 
 class Merge(Layer):
-    def __init__(self, layers, mode='sum', concat_axis=-1,dot_axes=-1):
+    def __init__(self, layers, mode='sum', concat_axis=-1, dot_axes=-1):
         ''' Merge the output of a list of layers or containers into a single tensor.
             mode: {'sum', 'mul', 'concat', 'ave', 'join'}
         '''
@@ -299,7 +299,7 @@ class Merge(Layer):
                 if type(dot_axes) == int:
                     if dot_axes < 0:
                         dot_axes = len(shape1) - 1
-                    dot_axes = [range(len(shape1) - dot_axes, len(shape2)), range(1,dot_axes + 1)]
+                    dot_axes = [range(len(shape1) - dot_axes, len(shape2)), range(1, dot_axes + 1)]
                 for i in range(len(dot_axes[0])):
                     if shape1[dot_axes[0][i]] != shape2[dot_axes[1][i]]:
                         raise Exception(" Dot incompatible layers can not be merged using dot mode")
@@ -383,14 +383,14 @@ class Merge(Layer):
         elif self.mode == 'dot':
             l1 = self.layers[0].get_output(train)
             l2 = self.layers[1].get_output(train)
-            output=T.batched_tensordot(l1,l2,self.dot_axes)
+            output = T.batched_tensordot(l1, l2, self.dot_axes)
             output = output.dimshuffle((0, 'x'))
             return output
         elif self.mode == 'cos':
             l1 = self.layers[0].get_output(train)
             l2 = self.layers[1].get_output(train)
-            output, _ = theano.scan(lambda v1,v2 : T.dot(v1,v2)/T.sqrt(T.dot(v1,v1) * T.dot(v2,v2)) , sequences= [l1, l2], outputs_info = None)
-            output = output.dimshuffle((0, 'x'))  
+            output, _ = theano.scan(lambda v1, v2: T.dot(v1, v2)/T.sqrt(T.dot(v1, v1) * T.dot(v2, v2)), sequences=[l1, l2], outputs_info=None)
+            output = output.dimshuffle((0, 'x'))
             return output
         else:
             raise Exception('Unknown merge mode')
