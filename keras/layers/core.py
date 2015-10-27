@@ -346,8 +346,7 @@ class Merge(Layer):
             for i in range(len(self.layers)):
                 X = self.layers[i].get_output(train)
                 if X.name is None:
-                    inputs['input' + str(i)] = self.layers[i].get_output(train)
-                    #raise ValueError("merge_mode='join' only works with named inputs")
+                    raise ValueError("merge_mode='join' only works with named inputs")
                 else:
                     inputs[X.name] = self.layers[i].get_output(train)
             return inputs
