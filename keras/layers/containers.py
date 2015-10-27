@@ -84,7 +84,11 @@ class Sequential(Layer):
         if not hasattr(self.layers[0], 'input'):
             self.set_input()
         return self.layers[0].get_input(train)
-
+ 
+    @property
+    def input_shape(self):
+        return self.layers[0].input_shape
+    
     @property
     def input(self):
         return self.get_input()
