@@ -963,3 +963,103 @@ class Lambda(Layer):
 			return func(self.input)
 class MaskedLambda(MaskedLayer, Lambda):
 	pass
+
+class LambdaMerge(Lambda):
+    def __init__(self, layers, function, output_shape=None, ndim=2)
+        if len(layers) < 2:
+            raise Exception("Please specify two or more input layers (or containers) to merge")
+        self.input = ndim_tensor(ndim)
+        self.layers = layers
+        self.params = []
+        self.regularizers = []
+        self.constraints = []
+        self.updates = []
+        for l in self.layers:
+            params, regs, consts, updates = l.get_params()
+            self.regularizers += regs
+            self.updates += updates
+            # params and constraints have the same size
+            for p, c in zip(params, consts):
+                if p not in self.params:
+                    self.params.append(p)
+                    self.constraints.append(c)
+        py3 = sys.version_info[0] == 3
+        if py3:
+            self.function = marshal.dumps(function.__code__)
+        else:
+            self.function = marshal.dumps(function.func_code)
+        if output_shape is None:
+            output_shape = input_shape
+        elif type(output_shape) in {tuple, list}:
+            self._output_shape = tuple(output_shape)
+        else:
+            if py3:
+                self._output_shape = marshal.dumps(output_shape.__code__)
+            else:
+                self._output_shape = marshal.dumps(output_shape.func_code)
+
+    @property
+    def output_shape(self):
+        if type(self._output_shape) == tuple:
+            return self._output_shape
+        else:
+            output_shape_func = marshal.loads(self._output_shape)
+            output_shape_func = types.FunctionType(output_shape_func, globals())
+            shape = output_shape_func(layers)
+            if type(shape) not in {list,tuple}:
+                raise Exception ("output_shape function must return a tuple")
+            return tuple(shape)
+
+
+    def get_params(self):
+        return self.params, self.regularizers, self.constraints, self.updates
+
+ 
+    def get_output(self, train=False):
+        func = marshal.loads(self.function)
+        func = types.FunctionType(func, globals())
+        inputs=[layer.get_output(train) for layer in self.layers]
+        return func(inputs)
+
+    def get_input(self, train=False):
+        res = []
+        for i in range(len(self.layers)):
+            o = self.layers[i].get_input(train)
+            if not type(o) == list:
+                o = [o]
+            for output in o:
+                if output not in res:
+                    res.append(output)
+        return res
+
+    @property
+    def input(self):
+        return self.get_input()
+
+    def supports_masked_input(self):
+        return False
+
+    def get_output_mask(self, train=None):
+        return None
+
+    def get_weights(self):
+        weights = []
+        for l in self.layers:
+            weights += l.get_weights()
+        return weights
+
+    def set_weights(self, weights):
+        for i in range(len(self.layers)):
+            nb_param = len(self.layers[i].params)
+            self.layers[i].set_weights(weights[:nb_param])
+            weights = weights[nb_param:]
+
+    def get_config(self):
+        config = {"name": self.__class__.__name__,
+                  "layers": [l.get_config() for l in self.layers],
+                  "function":self.function,
+                  "output_shape":self._output_shape
+                  }
+        base_config = super(LambdaMerge, self).get_config()
+        return dict(list(base_config.items()) + list(config.items()))
+
