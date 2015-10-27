@@ -277,7 +277,7 @@ class TimeDistributedMerge(Layer):
 
 
 class Merge(Layer):
-    def __init__(self, layers, mode='sum', concat_axis=-1):
+    def __init__(self, layers, mode='sum', concat_axis=-1, auto_name=False):
         ''' Merge the output of a list of layers or containers into a single tensor.
             mode: {'sum', 'mul', 'concat', 'ave', 'join'}
         '''
@@ -346,7 +346,10 @@ class Merge(Layer):
             for i in range(len(self.layers)):
                 X = self.layers[i].get_output(train)
                 if X.name is None:
-                    raise ValueError("merge_mode='join' only works with named inputs")
+                    if auto_name:
+                        inputs['input' + str(i)] = self.layers[i].get_output(train) 
+                    else:
+                        raise ValueError("merge_mode='join' only works with named inputs")
                 else:
                     inputs[X.name] = self.layers[i].get_output(train)
             return inputs
