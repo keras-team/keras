@@ -5,7 +5,7 @@ import numpy as np
 np.random.seed(1337)
 
 from keras.models import Sequential, model_from_json, model_from_yaml
-from keras.layers.core import Dense, Activation, Merge, Lambda
+from keras.layers.core import Dense, Activation, Merge, Lambda, LambdaMerge
 from keras.utils import np_utils
 from keras.utils.test_utils import get_test_data
 import pickle
@@ -281,14 +281,13 @@ class TestSequential(unittest.TestCase):
         print('Test lambda: sum')
 
         def func(X):
-            X = [X[i] for i in list(X)]
             s = X[0]
             for i in range(1,len(X)):
                 s += X[i]
             return s
 
-        def output_shape(previous):
-            return previous.layers[0].output_shape
+        def output_shape(layers):
+            return layers[0].output_shape
 
         left = Sequential()
         left.add(Dense(nb_hidden, input_shape=(input_dim,)))
@@ -299,9 +298,8 @@ class TestSequential(unittest.TestCase):
         right.add(Activation('relu'))
         
         model = Sequential()
-        model.add(Merge([left, right], mode='join', auto_name=True))
 
-        model.add(Lambda(function=func,output_shape=output_shape))
+        model.add(LambdaMerge([left, right], function=func, output_shape=output_shape))
 
         model.add(Dense(nb_class))
         model.add(Activation('softmax'))
