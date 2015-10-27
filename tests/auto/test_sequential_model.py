@@ -293,15 +293,13 @@ class TestSequential(unittest.TestCase):
         left = Sequential()
         left.add(Dense(nb_hidden, input_shape=(input_dim,)))
         left.add(Activation('relu'))
-        left.set_name('left')
         
         right = Sequential()
         right.add(Dense(nb_hidden, input_shape=(input_dim,)))
         right.add(Activation('relu'))
-        right.set_name('right')
         
         model = Sequential()
-        model.add(Merge([left, right], mode='join'))
+        model.add(Merge([left, right], mode='join', auto_name=True))
 
         model.add(Lambda(function=func,output_shape=output_shape))
 
