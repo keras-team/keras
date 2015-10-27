@@ -965,7 +965,7 @@ class MaskedLambda(MaskedLayer, Lambda):
 	pass
 
 class LambdaMerge(Lambda):
-    def __init__(self, layers, function, output_shape=None, ndim=2)
+    def __init__(self, layers, function, output_shape=None, ndim=2):
         if len(layers) < 2:
             raise Exception("Please specify two or more input layers (or containers) to merge")
         self.input = ndim_tensor(ndim)
