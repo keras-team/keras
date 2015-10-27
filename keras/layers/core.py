@@ -299,6 +299,7 @@ class Merge(Layer):
 
         self.mode = mode
         self.concat_axis = concat_axis
+        self.auto_name = auto_name
         self.layers = layers
         self.params = []
         self.regularizers = []
@@ -346,7 +347,7 @@ class Merge(Layer):
             for i in range(len(self.layers)):
                 X = self.layers[i].get_output(train)
                 if X.name is None:
-                    if auto_name:
+                    if self.auto_name:
                         inputs['input' + str(i)] = self.layers[i].get_output(train) 
                     else:
                         raise ValueError("merge_mode='join' only works with named inputs")
