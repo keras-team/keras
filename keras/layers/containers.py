@@ -2,6 +2,7 @@
 from __future__ import absolute_import
 from __future__ import print_function
 
+from collections import OrderedDict
 import theano.tensor as T
 from ..layers.core import Layer, Merge
 from ..utils.theano_utils import ndim_tensor
@@ -20,11 +21,6 @@ class Sequential(Layer):
 
     def __init__(self, layers=[]):
         self.layers = []
-        self.params = []
-        self.regularizers = []
-        self.constraints = []
-        self.updates = []
-
         for layer in layers:
             self.add(layer)
 
@@ -38,11 +34,37 @@ class Sequential(Layer):
             if not hasattr(self.layers[0], 'input'):
                 self.set_input()
 
-        params, regularizers, constraints, updates = layer.get_params()
-        self.params += params
-        self.regularizers += regularizers
-        self.constraints += constraints
-        self.updates += updates
+    @property
+    def params(self):
+        params = []
+        for l in self.layers:
+            if l.trainable:
+                params += l.get_params()[0]
+        return params
+
+    @property
+    def regularizers(self):
+        regularizers = []
+        for l in self.layers:
+            if l.trainable:
+                regularizers += l.get_params()[1]
+        return regularizers
+
+    @property
+    def constraints(self):
+        constraints = []
+        for l in self.layers:
+            if l.trainable:
+                constraints += l.get_params()[2]
+        return constraints
+
+    @property
+    def updates(self):
+        updates = []
+        for l in self.layers:
+            if l.trainable:
+                updates += l.get_params()[3]
+        return updates
 
     @property
     def output_shape(self):
@@ -62,7 +84,11 @@ class Sequential(Layer):
         if not hasattr(self.layers[0], 'input'):
             self.set_input()
         return self.layers[0].get_input(train)
-
+ 
+    @property
+    def input_shape(self):
+        return self.layers[0].input_shape
+    
     @property
     def input(self):
         return self.get_input()
@@ -97,7 +123,6 @@ class Graph(Layer):
         when it has exactly one input and one output.
 
         inherited from Layer:
-            - get_params
             - get_output_mask
             - supports_masked_input
             - get_weights
@@ -105,7 +130,7 @@ class Graph(Layer):
     '''
     def __init__(self):
         self.namespace = set()  # strings
-        self.nodes = {}  # layer-like
+        self.nodes = OrderedDict()  # layer-like
         self.inputs = {}  # layer-like
         self.input_order = []  # strings
         self.outputs = {}  # layer-like
@@ -114,11 +139,6 @@ class Graph(Layer):
         self.output_config = []  # dicts
         self.node_config = []  # dicts
 
-        self.params = []
-        self.regularizers = []
-        self.constraints = []
-        self.updates = []
-
     @property
     def nb_input(self):
         return len(self.inputs)
@@ -126,6 +146,38 @@ class Graph(Layer):
     @property
     def nb_output(self):
         return len(self.outputs)
+
+    @property
+    def params(self):
+        params = []
+        for l in self.nodes.values():
+            if l.trainable:
+                params += l.get_params()[0]
+        return params
+
+    @property
+    def regularizers(self):
+        regularizers = []
+        for l in self.nodes.values():
+            if l.trainable:
+                regularizers += l.get_params()[1]
+        return regularizers
+
+    @property
+    def constraints(self):
+        constraints = []
+        for l in self.nodes.values():
+            if l.trainable:
+                constraints += l.get_params()[2]
+        return constraints
+
+    @property
+    def updates(self):
+        updates = []
+        for l in self.nodes.values():
+            if l.trainable:
+                updates += l.get_params()[3]
+        return updates
 
     def set_previous(self, layer, connection_map={}):
         if self.nb_input != layer.nb_output:
@@ -220,11 +272,6 @@ class Graph(Layer):
                                  'merge_mode': merge_mode,
                                  'concat_axis': concat_axis,
                                  'create_output': create_output})
-        params, regularizers, constraints, updates = layer.get_params()
-        self.params += params
-        self.regularizers += regularizers
-        self.constraints += constraints
-        self.updates += updates
 
         if create_output:
             self.add_output(name, input=name)
