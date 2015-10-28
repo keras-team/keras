@@ -919,8 +919,8 @@ class Lambda(Layer):
 
     Arguments
     ---------
-    function - The function to be evaluated. Takes one argument : ouput of previous layer
-    output_shape - Expected output shape from function. Could be a tuple or a function of input layer
+    function - The function to be evaluated. Takes one argument : output of previous layer
+    output_shape - Expected output shape from function. Could be a tuple or a function of the shape of the input
     """
 
     def __init__(self, function, output_shape=None, ndim=2):
@@ -948,7 +948,7 @@ class Lambda(Layer):
         else:
             output_shape_func = marshal.loads(self._output_shape)
             output_shape_func = types.FunctionType(output_shape_func, globals())
-            shape = output_shape_func(self.previous)
+            shape = output_shape_func(self.previous.output_shape)
             if type(shape) not in {list, tuple}:
                 raise Exception("output_shape function must return a tuple")
             return tuple(shape)
@@ -981,7 +981,7 @@ class LambdaMerge(Lambda):
     ---------
     layers - Input layers. Similar to layers argument of Merge
     function - The function to be evaluated. Takes one argument : list of outputs from input layers
-    output_shape - Expected output shape from function. Could be a tuple or a function of list of input layers
+    output_shape - Expected output shape from function. Could be a tuple or a function of list of input shapes
     """
     def __init__(self, layers, function, output_shape=None):
         if len(layers) < 2:
@@ -1022,7 +1022,8 @@ class LambdaMerge(Lambda):
         else:
             output_shape_func = marshal.loads(self._output_shape)
             output_shape_func = types.FunctionType(output_shape_func, globals())
-            shape = output_shape_func(self.layers)
+            input_shapes = [layer.output_shape for layer in self.layers]
+            shape = output_shape_func(input_shapes)
             if type(shape) not in {list, tuple}:
                 raise Exception("output_shape function must return a tuple")
             return tuple(shape)
