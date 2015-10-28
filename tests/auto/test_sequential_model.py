@@ -2,6 +2,7 @@ from __future__ import absolute_import
 from __future__ import print_function
 import unittest
 import numpy as np
+import theano
 np.random.seed(1337)
 
 from keras.models import Sequential, model_from_json, model_from_yaml
@@ -285,7 +286,10 @@ class TestSequential(unittest.TestCase):
             for i in range(1,len(X)):
                 s += X[i]
             return s
-
+            
+        def activation(X):
+          return theano.tensor.nnet.softmax(X)
+          
         def output_shape(input_shapes):
             return input_shapes[0]
 
@@ -302,7 +306,7 @@ class TestSequential(unittest.TestCase):
         model.add(LambdaMerge([left, right], function=func, output_shape=output_shape))
 
         model.add(Dense(nb_class))
-        model.add(Activation('softmax'))
+        model.add(Lambda(activation))
 
         model.compile(loss='categorical_crossentropy', optimizer='rmsprop')
 
@@ -333,7 +337,7 @@ class TestSequential(unittest.TestCase):
         model = Sequential()
         model.add(LambdaMerge([left, right], function=func, output_shape=output_shape))
         model.add(Dense(nb_class))
-        model.add(Activation('softmax'))
+        model.add(Lambda(activation))
         model.load_weights('temp.h5')
         model.compile(loss='categorical_crossentropy', optimizer='rmsprop')
 
@@ -343,6 +347,7 @@ class TestSequential(unittest.TestCase):
         
         print ('test serializing')
         func = None # Make sure that the model has the function code, not just the function name.
+        activation = None
         model_str = pickle.dumps(model)
         model = pickle.loads(model_str)
         nloss = model.evaluate([X_train, X_train], y_train, verbose=0)
