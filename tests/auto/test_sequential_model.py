@@ -331,8 +331,7 @@ class TestSequential(unittest.TestCase):
         right.add(Dense(nb_hidden, input_shape=(input_dim,)))
         right.add(Activation('relu'))
         model = Sequential()
-        model.add(Merge([left, right], mode='join'))
-        model.add(Lambda(function=func,output_shape=output_shape))
+        model.add(LambdaMerge([left, right], function=func, output_shape=output_shape))
         model.add(Dense(nb_class))
         model.add(Activation('softmax'))
         model.load_weights('temp.h5')
@@ -343,6 +342,7 @@ class TestSequential(unittest.TestCase):
         assert(loss == nloss)
         
         print ('test serializing')
+        func = None # Make sure that the model has the function code, not just the function name.
         model_str = pickle.dumps(model)
         model = pickle.loads(model_str)
         nloss = model.evaluate([X_train, X_train], y_train, verbose=0)
