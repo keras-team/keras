@@ -276,21 +276,33 @@ class TimeDistributedMerge(Layer):
 
 
 class Merge(Layer):
-    def __init__(self, layers, mode='sum', concat_axis=-1):
+    def __init__(self, layers, mode='sum', concat_axis=-1, dot_axes=-1):
         ''' Merge the output of a list of layers or containers into a single tensor.
             mode: {'sum', 'mul', 'concat', 'ave', 'join'}
         '''
         if len(layers) < 2:
             raise Exception("Please specify two or more input layers (or containers) to merge")
 
-        if mode not in {'sum', 'mul', 'concat', 'ave', 'join'}:
+        if mode not in {'sum', 'mul', 'concat', 'ave', 'join', 'cos', 'dot'}:
             raise Exception("Invalid merge mode: " + str(mode))
 
-        if mode in {'sum', 'mul', 'ave'}:
+        if mode in {'sum', 'mul', 'ave', 'cos'}:
             input_shapes = set([l.output_shape for l in layers])
             if len(input_shapes) > 1:
                 raise Exception("Only layers of same output shape can be merged using " + mode + " mode")
-
+        if mode in {'cos', 'dot'}:
+            if len(layers) > 2:
+                raise Exception(mode + " merge takes exactly 2 layers")
+            shape1 = layers[0].output_shape
+            shape2 = layers[1].output_shape
+            if mode == 'dot':
+                if type(dot_axes) == int:
+                    if dot_axes < 0:
+                        dot_axes = len(shape1) - 1
+                    dot_axes = [range(len(shape1) - dot_axes, len(shape2)), range(1, dot_axes + 1)]
+                for i in range(len(dot_axes[0])):
+                    if shape1[dot_axes[0][i]] != shape2[dot_axes[1][i]]:
+                        raise Exception(" Dot incompatible layers can not be merged using dot mode")
         elif mode == 'concat':
             input_shapes = set([list(l.output_shape).pop(concat_axis) for l in layers])
             if len(input_shapes) > 1:
@@ -298,6 +310,7 @@ class Merge(Layer):
 
         self.mode = mode
         self.concat_axis = concat_axis
+        self.dot_axes = dot_axes
         self.layers = layers
         self.params = []
         self.regularizers = []
@@ -325,6 +338,19 @@ class Merge(Layer):
             return tuple(output_shape)
         elif self.mode == 'join':
             return None
+        elif self.mode == 'dot':
+            shape1 = list(input_shapes[0])
+            shape2 = list(input_shapes[1])
+            for i in self.dot_axes[0]:
+                shape1.pop(i)
+            for i in self.dot_axes[1]:
+                shape2.pop(i)
+            shape = shape1 + shape2[1:]
+            if len(shape) == 1:
+                shape.append(1)
+            return tuple(shape)
+        elif self.mode == 'cos':
+            return tuple(input_shapes[0][0], 1)
 
     def get_params(self):
         return self.params, self.regularizers, self.constraints, self.updates
@@ -354,6 +380,18 @@ class Merge(Layer):
             for i in range(1, len(self.layers)):
                 s *= self.layers[i].get_output(train)
             return s
+        elif self.mode == 'dot':
+            l1 = self.layers[0].get_output(train)
+            l2 = self.layers[1].get_output(train)
+            output = T.batched_tensordot(l1, l2, self.dot_axes)
+            output = output.dimshuffle((0, 'x'))
+            return output
+        elif self.mode == 'cos':
+            l1 = self.layers[0].get_output(train)
+            l2 = self.layers[1].get_output(train)
+            output, _ = theano.scan(lambda v1, v2: T.dot(v1, v2)/T.sqrt(T.dot(v1, v1) * T.dot(v2, v2)), sequences=[l1, l2], outputs_info=None)
+            output = output.dimshuffle((0, 'x'))
+            return output
         else:
             raise Exception('Unknown merge mode')
 
@@ -394,9 +432,11 @@ class Merge(Layer):
         config = {"name": self.__class__.__name__,
                   "layers": [l.get_config() for l in self.layers],
                   "mode": self.mode,
-                  "concat_axis": self.concat_axis}
+                  "concat_axis": self.concat_axis,
+                  "dot_axes": self.dot_axes}
         base_config = super(Merge, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
+
 
 
 class Dropout(MaskedLayer):
