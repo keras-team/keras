@@ -298,7 +298,7 @@ class Merge(Layer):
             if mode == 'dot':
                 if type(dot_axes) == int:
                     if dot_axes < 0:
-                        dot_axes = len(shape1) - 1
+                        dot_axes = dot_axes % len(shape1)
                     dot_axes = [range(len(shape1) - dot_axes, len(shape2)), range(1, dot_axes + 1)]
                 for i in range(len(dot_axes[0])):
                     if shape1[dot_axes[0][i]] != shape2[dot_axes[1][i]]:
