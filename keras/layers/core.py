@@ -1004,7 +1004,7 @@ class LambdaMerge(Layer):
         else:
             output_shape_func = marshal.loads(self._output_shape)
             output_shape_func = types.FunctionType(output_shape_func, globals())
-            shape = output_shape_func(layers)
+            shape = output_shape_func(self.layers)
             if type(shape) not in {list,tuple}:
                 raise Exception ("output_shape function must return a tuple")
             return tuple(shape)
