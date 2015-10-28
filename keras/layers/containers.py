@@ -240,7 +240,7 @@ class Graph(Layer):
                                   'dtype': dtype})
 
     def add_node(self, layer, name, input=None, inputs=[],
-                 merge_mode='concat', concat_axis=-1, create_output=False):
+                 merge_mode='concat', concat_axis=-1, dot_axes=-1, create_output=False):
         if hasattr(layer, 'set_name'):
             layer.set_name(name)
         if name in self.namespace:
@@ -261,7 +261,7 @@ class Graph(Layer):
                     to_merge.append(self.inputs[n])
                 else:
                     raise Exception('Unknown identifier: ' + n)
-            merge = Merge(to_merge, mode=merge_mode, concat_axis=concat_axis)
+            merge = Merge(to_merge, mode=merge_mode, concat_axis=concat_axis, dot_axes=dot_axes)
             layer.set_previous(merge)
 
         self.namespace.add(name)
@@ -271,13 +271,14 @@ class Graph(Layer):
                                  'inputs': inputs,
                                  'merge_mode': merge_mode,
                                  'concat_axis': concat_axis,
+                                 'dot_axes': dot_axes,
                                  'create_output': create_output})
 
         if create_output:
             self.add_output(name, input=name)
 
     def add_output(self, name, input=None, inputs=[],
-                   merge_mode='concat', concat_axis=-1):
+                   merge_mode='concat', concat_axis=-1, dot_axes=-1):
         if name in self.output_order:
             raise Exception('Duplicate output identifier: ' + name)
         if input:
@@ -293,7 +294,7 @@ class Graph(Layer):
                 if n not in self.nodes:
                     raise Exception('Unknown identifier: ' + n)
                 to_merge.append(self.nodes[n])
-            merge = Merge(to_merge, mode=merge_mode, concat_axis=concat_axis)
+            merge = Merge(to_merge, mode=merge_mode, concat_axis=concat_axis, dot_axes=dot_axes)
             self.outputs[name] = merge
 
         self.output_order.append(name)
@@ -301,7 +302,8 @@ class Graph(Layer):
                                    'input': input,
                                    'inputs': inputs,
                                    'merge_mode': merge_mode,
-                                   'concat_axis': concat_axis})
+                                   'concat_axis': concat_axis,
+                                   'dot_axes': dot_axes})
 
     def get_config(self):
         return {"name": self.__class__.__name__,
