@@ -932,8 +932,8 @@ class Lambda(Layer):
         else:
             self.function = marshal.dumps(function.func_code)
         if output_shape is None:
-            output_shape = self.input_shape
-        elif type(output_shape) in {tuple, list}:
+            self._output_shape = None
+        elif type(output_shape) in {tuple, list} :
             self._output_shape = tuple(output_shape)
         else:
             if py3:
@@ -943,7 +943,9 @@ class Lambda(Layer):
 
     @property
     def output_shape(self):
-        if type(self._output_shape) == tuple:
+        if self._ouput_shape is None:
+            return self.input_shape
+        elif type(self._output_shape) == tuple:
             return self._output_shape
         else:
             output_shape_func = marshal.loads(self._output_shape)
@@ -1006,7 +1008,7 @@ class LambdaMerge(Lambda):
         else:
             self.function = marshal.dumps(function.func_code)
         if output_shape is None:
-            output_shape = input_shape
+            self._output_shape = None
         elif type(output_shape) in {tuple, list}:
             self._output_shape = tuple(output_shape)
         else:
@@ -1017,7 +1019,9 @@ class LambdaMerge(Lambda):
 
     @property
     def output_shape(self):
-        if type(self._output_shape) == tuple:
+        if self._output_shape is None:
+            return self.input_shape
+        elif type(self._output_shape) == tuple:
             return self._output_shape
         else:
             output_shape_func = marshal.loads(self._output_shape)
