@@ -1020,7 +1020,7 @@ class LambdaMerge(Lambda):
     @property
     def output_shape(self):
         if self._output_shape is None:
-            return self.input_shape
+            return self.layers[0].input_shape
         elif type(self._output_shape) == tuple:
             return self._output_shape
         else:
