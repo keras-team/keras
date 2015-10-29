@@ -10,6 +10,7 @@ from keras.layers.core import Dense, Activation, Merge, Lambda, LambdaMerge
 from keras.utils import np_utils
 from keras.utils.test_utils import get_test_data
 import pickle
+import sys
 
 input_dim = 32
 nb_hidden = 16
@@ -348,6 +349,7 @@ class TestSequential(unittest.TestCase):
         print ('test serializing')
         func = None # Make sure that the model has the function code, not just the function name.
         activation = None
+        sys.setrecursionlimit(50000)
         model_str = pickle.dumps(model)
         model = pickle.loads(model_str)
         nloss = model.evaluate([X_train, X_train], y_train, verbose=0)
