@@ -300,7 +300,7 @@ class Merge(Layer):
             if mode == 'dot':
                 if type(dot_axes) == int:
                     if dot_axes < 0:
-                        dot_axes = [range(dot_axes % n1,n1), range(dot_axes % n2,n2)]
+                        dot_axes = [range(dot_axes % n1, n1), range(dot_axes % n2, n2)]
                     else:
                         dot_axes = [range(n1 - dot_axes, n2), range(1, dot_axes + 1)]
                 for i in range(len(dot_axes[0])):
