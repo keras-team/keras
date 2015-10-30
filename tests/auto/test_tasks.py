@@ -34,7 +34,7 @@ class TestTasks(unittest.TestCase):
         model.compile(loss='categorical_crossentropy', optimizer='rmsprop')
         history = model.fit(X_train, y_train, nb_epoch=15, batch_size=16, validation_data=(X_test, y_test), show_accuracy=True, verbose=2)
         print(history.history)
-        self.assertTrue(history.history['val_acc'][-1] > 0.9)
+        self.assertTrue(history.history['val_acc'][-1] > 0.8)
 
     def test_vector_reg(self):
         nb_hidden = 10
