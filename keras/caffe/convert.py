@@ -37,8 +37,6 @@ def caffe_to_keras(prototext, caffemodel, phase='train'):
         model = create_model(layers,
                                   0 if phase == 'train' else 1,
                                   config.input_dim[1:])
-
-        print 'booyah'
         
         params = caffe.NetParameter()
         params.MergeFromString(open(caffemodel, 'rb').read())
@@ -50,7 +48,6 @@ def caffe_to_keras(prototext, caffemodel, phase='train'):
         else:
             raise Exception('could not load any layers from caffemodel')
 
-        print 'Booyah'
         weights = convert_weights(param_layers)
 
         load_weights(model, weights)
@@ -242,7 +239,7 @@ def convert_weights(param_layers):
     for layer in param_layers:
         typ = layer_type(layer)
         if typ == 'innerproduct':
-            blobs = layer_weight.blobs
+            blobs = layer.blobs
             nb_filter = blobs[0].num
             stack_size = blobs[0].channels
             nb_col = blobs[0].height
@@ -256,7 +253,7 @@ def convert_weights(param_layers):
             weights[layer.name] = layer_weights
 
         elif typ == 'convolution':
-            blobs = layer_weight.blobs
+            blobs = layer.blobs
             nb_filter = blobs[0].num
             temp_stack_size = blobs[0].channels
             nb_col = blobs[0].height
@@ -286,7 +283,7 @@ def convert_weights(param_layers):
                 group_weights[:] = np.array(blobs[0].data[i * group_data_size:
                                             (i + 1) * group_data_size]).reshape(group_weights.shape)
 
-            # caffe, unlike theano does correlation not convolution. We need to flip the weights 180 deg
+            # caffe, unlike theano, does correlation not convolution. We need to flip the weights 180 deg
             weights_p = rot90(weights_p)
             layer_weights = [weights_p.astype(dtype=np.float32), weights_b.astype(dtype=np.float32)]
 
@@ -298,8 +295,6 @@ def convert_weights(param_layers):
 def load_weights(model, weights):
     for layer in model.nodes:
         if weights.has_key(layer):
-            print layer, weights[layer].shape
             model.nodes[layer].set_weights(weights[layer])
-
 
 
