@@ -12,7 +12,7 @@ from caffe_utils import *
 import numpy as np
 
 
-def caffe_to_keras(prototext=None, caffemodel=None, phase='train'):
+def caffe_to_keras(prototext, caffemodel, phase='train'):
         '''
             Converts a Caffe Graph into a Keras Graph
             prototext: model description file in caffe
@@ -20,44 +20,50 @@ def caffe_to_keras(prototext=None, caffemodel=None, phase='train'):
             phase: train or test
             
             Usage:
-                model = caffe_to_keras(prototext='VGG16.prototxt')
-                or
-                model = caffe_to_keras(caffemodel='VGG16_700iter.caffemodel')
+                model = caffe_to_keras('VGG16.prototxt', 'VGG16_700iter.caffemodel')
         '''
-        if prototext:
-            config = caffe.NetParameter()
-            google.protobuf.text_format.Merge(open(prototext).read(), config)
-        elif caffemodel:
-            config = caffe.NetParameter()
-            config.MergeFromString(open(caffemodel, 'rb').read())
+
+        config = caffe.NetParameter()
+        google.protobuf.text_format.Merge(open(prototext).read(), config)
+
+        params = caffe.NetParameter()
+        params.MergeFromString(open(caffemodel, 'rb').read())
 
         if len(config.layers) != 0:
-            # prototext V1
-            layers = config.layers[:]
+            layers = config.layers[:]   # prototext V1
         elif len(config.layer) != 0:
-            # prototext V2
-            layers = config.layer[:]
+            layers = config.layer[:]    # prototext V2
         else:
             raise Exception('could not load any layers from prototext')
 
-        model = model_from_config(layers,
+        if len(params.layers) != 0:
+            layer_weights = params.layers[:]    # V1
+        elif len(params.layer) != 0:
+            layer_weights = params.layer[:]     # V2
+        else:
+            raise Exception('could not load any layers from caffemodel')
+
+        model = create_model(layers, layer_weights,
                                   0 if phase == 'train' else 1,
                                   config.input_dim[1:])
         return model
 
 
-def flip90(W):
+def rot90(W):
     for i in range(W.shape[0]):
         for j in range(W.shape[1]):
             W[i, j] = np.rot90(W[i, j], 2)
     return W
 
 
-def model_from_config(layers, phase, input_dim):
+def create_model(layers, layer_weights, phase, input_dim):
     '''
-        layers: a list of all the layers in the model
-        phase: parameter to specify which network to extract: training or test
-        input_dim: input dimensions of the configuration (if in model is in deploy mode)
+        layers: 
+            a list of all the layers in the model
+        phase: 
+            parameter to specify which network to extract: training or test
+        input_dim: 
+            `input dimensions of the configuration (if in model is in deploy mode)
     '''
     # DEPLOY MODE: first layer is computation (conv, dense, etc..)
     # NON DEPLOY MODE: first layer is data input
@@ -76,11 +82,6 @@ def model_from_config(layers, phase, input_dim):
 
     model = Graph()
 
-    print network
-    print reverse_network
-    print network_inputs
-    print network_outputs
-
     # add input nodes
     for network_input in network_inputs:
         name = layers[network_input].name
@@ -88,13 +89,12 @@ def model_from_config(layers, phase, input_dim):
             dim = input_dim
         else:
             dim = get_data_dim(layers[network_input])
-
         model.add_input(name=name, input_shape=dim)
-        print 'model.add_input(name=', name, ', input_shape=', dim, ')'
 
     # parse all the layers and build equivalent keras graph
     for layer_nb in network:
         layer = layers[layer_nb]
+        layer_weight = layer_weights[layer_nb]
         name = layer.name
         type_of_layer = layer_type(layer)
 
@@ -130,33 +130,34 @@ def model_from_config(layers, phase, input_dim):
             model.add_node(Activation('linear'), name=name, inputs=input_layer_names, concat_axis=axis)
 
         elif type_of_layer == 'convolution':
-            if layer.blobs:
-                blobs = layer.blobs
-                nb_filter, temp_stack_size, nb_col, nb_row = blobs[0].num, blobs[0].channels, blobs[0].height, blobs[0].width
+            blobs = layer_weights.blobs
+            nb_filter, temp_stack_size, nb_col, nb_row = blobs[0].num, blobs[0].channels, blobs[0].height, blobs[0].width
 
-                # model parallel network
-                group = layer.convolution_param.group
-                stack_size = temp_stack_size * group
+            # model parallel network
+            # if group is > 1, that means the conv filters are split up
+            # into 'group' groups and each group lies on a seperate GPU
+            # Each group only acts on the select group of pervious layer output 
+            # that was in the same GPU. Here, we add zeros to simulate the same effect
+            group = layer.convolution_param.group
+            stack_size = temp_stack_size * group
 
-                # maybe not all synapses are existant
-                weights_p = np.zeros((nb_filter, stack_size, nb_col, nb_row))
-                weights_b = np.array(blobs[1].data)
+            weights_p = np.zeros((nb_filter, stack_size, nb_col, nb_row))
+            weights_b = np.array(blobs[1].data)
 
-                chunk_data_size = len(blobs[0].data) // group
-                stacks_size_per_chunk = stack_size // group
-                nb_filter_per_chunk = nb_filter // group
+            chunk_data_size = len(blobs[0].data) // group
+            stacks_size_per_chunk = stack_size // group
+            nb_filter_per_chunk = nb_filter // group
 
-                for i in range(group):
-                    chunk_weights = weights_p[i * nb_filter_per_chunk: (i + 1) * nb_filter_per_chunk,
-                                              i * stacks_size_per_chunk: (i + 1) * stacks_size_per_chunk, :, :]
-                    chunk_weights[:] = np.array(blobs[0].data[i * chunk_data_size:(i + 1) * chunk_data_size]).reshape(chunk_weights.shape)
+            for i in range(group):
+                chunk_weights = weights_p[i * nb_filter_per_chunk: (i + 1) * nb_filter_per_chunk,
+                                          i * stacks_size_per_chunk: (i + 1) * stacks_size_per_chunk, :, :]
+                chunk_weights[:] = np.array(blobs[0].data[i * chunk_data_size:(i + 1) * chunk_data_size]).reshape(chunk_weights.shape)
 
-                weights = [flip90(weights_p.astype(dtype=np.float32)), weights_b.astype(dtype=np.float32)]
-            else:
-                weights = None
+            weights = [rot90(weights_p.astype(dtype=np.float32)), weights_b.astype(dtype=np.float32)]
 
             nb_col = (layer.convolution_param.kernel_size or [layer.convolution_param.kernel_h])[0]
             nb_row = (layer.convolution_param.kernel_size or [layer.convolution_param.kernel_w])[0]
+            
             nb_filter = layer.convolution_param.num_output
 
             stride_h = (layer.convolution_param.stride or [layer.convolution_param.stride_h])[0] or 1
@@ -179,24 +180,21 @@ def model_from_config(layers, phase, input_dim):
             model.add_node(Flatten(), name=name, input=input_layer_name)
 
         elif type_of_layer == 'innerproduct':
-            if layer.blobs:
-                blobs = layer.blobs
-                nb_filter, stack_size, nb_col, nb_row = blobs[0].num, blobs[0].channels, blobs[0].height, blobs[0].width
+            blobs = layer_weight.blobs
+            nb_filter, stack_size, nb_col, nb_row = blobs[0].num, blobs[0].channels, blobs[0].height, blobs[0].width
 
-                weights_p = np.array(blobs[0].data).reshape(nb_filter, stack_size, nb_col, nb_row)[0, 0, :, :].T
-                weights_b = np.array(blobs[1].data)
-                weights = [weights_p.astype(dtype=np.float32), weights_b.astype(dtype=np.float32)]
-            else:
-                weights = None
-
-            layer_output_dim = layer.inner_product_param.num_output
+            weights_p = np.array(blobs[0].data).reshape(nb_filter, stack_size, nb_col, nb_row)[0, 0, :, :].T
+            weights_b = np.array(blobs[1].data)
+            weights = [weights_p.astype(dtype=np.float32), weights_b.astype(dtype=np.float32)]
+        
+            output_dim = layer.inner_product_param.num_output
 
             if len(model.nodes[input_layer_name].output_shape[1:]) > 1:
                 model.add_node(Flatten(), name=name + '_flatten', input=input_layer_name)
-                model.add_node(Dense(layer_output_dim, weights=weights), name=name, input=name + '_flatten')
-            else:
-                model.add_node(Dense(layer_output_dim), name=name, input=input_layer_name)
-
+                input_layer_name = name + '_flatten'
+            
+            model.add_node(Dense(output_dim, weights=weights), name=name, input=input_layer_name)
+           
         elif type_of_layer == 'lrn':
             alpha = layer.lrn_param.alpha
             k = layer.lrn_param.k
