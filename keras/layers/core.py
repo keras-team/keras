@@ -293,16 +293,6 @@ class Merge(Layer):
         if mode in {'cos', 'dot'}:
             if len(layers) > 2:
                 raise Exception(mode + " merge takes exactly 2 layers")
-            shape1 = layers[0].output_shape
-            shape2 = layers[1].output_shape
-            if mode == 'dot':
-                if type(dot_axes) == int:
-                    if dot_axes < 0:
-                        dot_axes = len(shape1) - 1
-                    dot_axes = [range(len(shape1) - dot_axes, len(shape2)), range(1, dot_axes + 1)]
-                for i in range(len(dot_axes[0])):
-                    if shape1[dot_axes[0][i]] != shape2[dot_axes[1][i]]:
-                        raise Exception(" Dot incompatible layers can not be merged using dot mode")
 
         self.mode = mode
         self.concat_axis = concat_axis
