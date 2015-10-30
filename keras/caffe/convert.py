@@ -14,19 +14,16 @@ import numpy as np
 
 def caffe_to_keras(prototext=None, caffemodel=None, phase='train'):
         '''
+            Converts a Caffe Graph into a Keras Graph
             prototext: model description file in caffe
             caffemodel: stored weights file
             phase: train or test
+            
             Usage:
-                model_data = caffe_to_keras(prototext='VGG16.prototxt',
-                                            caffemodel='VGG16_700iter.caffemodel')
-                graph = model_data.get('network') # loaded with with weights is caffemodel is provided, else randomly initialized
-                inputs = model_data.get('inputs')
-                outputs = model_data.get('outputs')
-                weights = model_data.get('weights') # useful for embedding networks
+                model = caffe_to_keras(prototext='VGG16.prototxt')
+                or
+                model = caffe_to_keras(caffemodel='VGG16_700iter.caffemodel')
         '''
-        model_data = {}
-
         if prototext:
             config = caffe.NetParameter()
             google.protobuf.text_format.Merge(open(prototext).read(), config)
@@ -62,7 +59,7 @@ def model_from_config(layers, phase, input_dim):
         phase: parameter to specify which network to extract: training or test
         input_dim: input dimensions of the configuration (if in model is in deploy mode)
     '''
-    # DEPLOY MODE: first layer is computation
+    # DEPLOY MODE: first layer is computation (conv, dense, etc..)
     # NON DEPLOY MODE: first layer is data input
     if input_dim == []:
         in_deploy_mode = False
@@ -79,17 +76,21 @@ def model_from_config(layers, phase, input_dim):
 
     model = Graph()
 
-    output_dim = {}
+    print network
+    print reverse_network
+    print network_inputs
+    print network_outputs
 
     # add input nodes
     for network_input in network_inputs:
         name = layers[network_input].name
-        model.add_input(name=name, ndim=4)
         if in_deploy_mode:
-            output_dim[name] = input_dim
+            dim = input_dim
         else:
-            data_dim = get_data_dim(layers[network_input])
-            output_dim[name] = data_dim
+            dim = get_data_dim(layers[network_input])
+
+        model.add_input(name=name, input_shape=dim)
+        print 'model.add_input(name=', name, ', input_shape=', dim, ')'
 
     # parse all the layers and build equivalent keras graph
     for layer_nb in network:
@@ -98,14 +99,12 @@ def model_from_config(layers, phase, input_dim):
         type_of_layer = layer_type(layer)
 
         if is_data_input(layer):
-            # not including data layers
             continue
 
         if layer_nb in network_inputs:
-            # in deploy mode since data layers can't reach this line and condition holds.
-            new_name = 'graph_input_' + name
+            # in deploy mode.
             input_layer_names = [name]
-            name = new_name
+            name = 'graph_input_' + name
         else:
             input_layers = reverse_network[layer_nb]  # inputs to current layer, in the form of layer numbers
             input_layer_names = []  # list of strings identifying the input layer
@@ -119,25 +118,16 @@ def model_from_config(layers, phase, input_dim):
             # outputs nodes are marked with 'output_' prefix from which output is derived later in 'add_output'
             name = 'output_' + name
 
-        layer_input_dims = []
-        for input_layer_name in input_layer_names:
-            layer_input_dims.append(output_dim[input_layer_name])
-
         if len(input_layer_names) == 1:
             # single input. since concatenation is explicit,
             # all layers can be thought of single input layers
-            # (except loss layers, which is handled anyway)
+            # (except loss layers, which is handled before while creating the DAG)
             input_layer_name = input_layer_names[0]
-            layer_input_dim = layer_input_dims[0]
-
+           
         if type_of_layer == 'concat':
             # emulation of just concatenation
             axis = layer.concat_param.axis  # 0 for batch, 1 for stack
             model.add_node(Activation('linear'), name=name, inputs=input_layer_names, concat_axis=axis)
-
-            layer_output_dim = [layer_input_dims[0][0], layer_input_dims[0][1], layer_input_dims[0][2]]
-            for dim in layer_input_dims[1:]:
-                layer_output_dim[0] += dim[0]
 
         elif type_of_layer == 'convolution':
             if layer.blobs:
@@ -176,24 +166,17 @@ def model_from_config(layers, phase, input_dim):
             pad_w = (layer.convolution_param.pad or [layer.convolution_param.pad_w])[0]
 
             if pad_h + pad_w > 0:
-                model.add_node(ZeroPadding2D(pad=(pad_h, pad_w)), name=name + '_zeropadding', input=input_layer_name)
+                model.add_node(ZeroPadding2D(padding=(pad_h, pad_w)), name=name + '_zeropadding', input=input_layer_name)
                 input_layer_name = name + '_zeropadding'
 
-            stack_size = layer_input_dim[0]
-
-            model.add_node(Convolution2D(nb_filter, stack_size, nb_row, nb_col, subsample=(stride_h, stride_w), weights=weights), name=name, input=input_layer_name)
-
-            layer_output_dim_padding = [layer_input_dim[0], layer_input_dim[1] + 2 * pad_h, layer_input_dim[2] + 2 * pad_w]
-            layer_output_dim = [nb_filter, (layer_output_dim_padding[1] - nb_row) / stride_h + 1, (layer_output_dim_padding[2] - nb_col) / stride_w + 1]
+            model.add_node(Convolution2D(nb_filter, nb_row, nb_col, subsample=(stride_h, stride_w), weights=weights), name=name, input=input_layer_name)
 
         elif type_of_layer == 'dropout':
             prob = layer.dropout_param.dropout_ratio
             model.add_node(Dropout(prob), name=name, input=input_layer_name)
-            layer_output_dim = layer_input_dim
 
         elif type_of_layer == 'flatten':
             model.add_node(Flatten(), name=name, input=input_layer_name)
-            layer_output_dim = np.prod(layer_input_dim)
 
         elif type_of_layer == 'innerproduct':
             if layer.blobs:
@@ -208,14 +191,11 @@ def model_from_config(layers, phase, input_dim):
 
             layer_output_dim = layer.inner_product_param.num_output
 
-            if len(layer_input_dim) > 1:
+            if len(model.nodes[input_layer_name].output_shape[1:]) > 1:
                 model.add_node(Flatten(), name=name + '_flatten', input=input_layer_name)
-                layer_input_dim = [np.prod(layer_input_dim)]
-                model.add_node(Dense(layer_input_dim[0], layer_output_dim, weights=weights), name=name, input=name + '_flatten')
+                model.add_node(Dense(layer_output_dim, weights=weights), name=name, input=name + '_flatten')
             else:
-                model.add_node(Dense(layer_input_dim[0], layer_output_dim), name=name, input=input_layer_name)
-
-            layer_output_dim = [layer_output_dim]
+                model.add_node(Dense(layer_output_dim), name=name, input=input_layer_name)
 
         elif type_of_layer == 'lrn':
             alpha = layer.lrn_param.alpha
@@ -224,8 +204,6 @@ def model_from_config(layers, phase, input_dim):
             n = layer.lrn_param.local_size
 
             model.add_node(LRN2D(alpha=alpha, k=k, beta=beta, n=n), name=name, input=input_layer_name)
-
-            layer_output_dim = layer_input_dim
 
         elif type_of_layer == 'pooling':
             kernel_h = layer.pooling_param.kernel_size or layer.pooling_param.kernel_h
@@ -238,42 +216,28 @@ def model_from_config(layers, phase, input_dim):
             pad_w = layer.pooling_param.pad or layer.pooling_param.pad_w
 
             if pad_h + pad_w > 0:
-                model.add_node(ZeroPadding2D(pad=(pad_h, pad_w)), name=name + '_zeropadding', input=input_layer_name)
+                model.add_node(ZeroPadding2D(padding=(pad_h, pad_w)), name=name + '_zeropadding', input=input_layer_name)
                 input_layer_name = name + '_zeropadding'
 
-            model.add_node(MaxPooling2D(poolsize=(kernel_h, kernel_w), stride=(stride_h, stride_w)), name=name, input=input_layer_name)
-
-            layer_output_dim_padding = [layer_input_dim[0],
-                                        layer_input_dim[1] + 2 * pad_h,
-                                        layer_input_dim[2] + 2 * pad_w]
-            layer_output_dim = [layer_output_dim_padding[0],
-                                (layer_output_dim_padding[1] - kernel_h) / stride_h + 1,
-                                (layer_output_dim_padding[2] - kernel_w) / stride_w + 1]
+            model.add_node(MaxPooling2D(pool_size=(kernel_h, kernel_w), stride=(stride_h, stride_w)), name=name, input=input_layer_name)
 
         elif type_of_layer == 'relu':
             model.add_node(Activation('relu'), name=name, input=input_layer_name)
-            layer_output_dim = layer_input_dim
 
         elif type_of_layer == 'sigmoid':
             model.add_node(Activation('sigmoid'), name=name, input=input_layer_name)
-            layer_output_dim = layer_input_dim
 
         elif type_of_layer == 'softmax' or type_of_layer == 'softmaxwithloss':
             model.add_node(Activation('softmax'), name=name, input=input_layer_name)
-            layer_output_dim = layer_input_dim
 
         elif type_of_layer == 'split':
             model.add_node(Activation('linear'), name=name, inputs=input_layer_name)
-            layer_output_dim = layer_input_dim
 
         elif type_of_layer == 'tanh':
             model.add_node(Activation('tanh'), name=name, input=input_layer_name)
-            layer_output_dim = layer_input_dim
 
         else:
             raise RuntimeError('layer type', type_of_layer, 'used in this model is not currently supported')
-
-        output_dim[name] = layer_output_dim
 
     for network_output in network_outputs:
         input_layer_name = 'output_' + layers[network_output].name
