@@ -185,7 +185,7 @@ class Layer(object):
     def fork(self, n=2):
         forks = [Sequential() for i in range(n)]
         for i in range(n):
-            forks[i].add(Fork(self))
+            forks[i].add(self)
         return forks
  
 
