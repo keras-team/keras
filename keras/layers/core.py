@@ -446,67 +446,6 @@ class Merge(Layer):
         base_config = super(Merge, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
-class Fork(Layer):
-    def __init__(self, layer):
-
-        self.layer = layer
-        self.params = []
-        self.regularizers = []
-        self.constraints = []
-        self.updates = []
-        params, regs, consts, updates = layer.get_params()
-        self.regularizers += regs
-        self.updates += updates
-
-        for p, c in zip(params, consts):
-            if p not in self.params:
-                self.params.append(p)
-                self.constraints.append(c)
-
-    @property
-    def output_shape(self):
-        return self.layer.output_shape
-        
-    def get_params(self):
-        return self.params, self.regularizers, self.constraints, self.updates
-
-    def get_output(self, train=False):
-        return self.layer.get_output(train)
-
-    def get_input(self, train=False):
-        res = []      
-        o=self.layer.get_input(train)
-        return o
-        for output in o:
-            if output not in res:
-                res.append(output)
-        return res
-
-    @property
-    def input(self):
-        return self.layer.input
-
-    def supports_masked_input(self):
-        return False
-
-    def get_output_mask(self, train=None):
-        return None
-
-    def get_weights(self):
-        return self.layer.get_weights()
-
-    def set_weights(self, weights):
-        nb_param = len(self.layer.params)
-        self.layer.set_weights(weights[:nb_param])
-        weights = weights[nb_param:]
-
-    def get_config(self):
-        config = {"name": self.__class__.__name__,
-                  "layer": self.layer.get_config
-                  }
-        base_config = super(Merge, self).get_config()
-        return dict(list(base_config.items()) + list(config.items()))
-
 
 class Dropout(MaskedLayer):
     '''
