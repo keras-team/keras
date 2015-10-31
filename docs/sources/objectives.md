@@ -19,6 +19,7 @@ For a few examples of such functions, check out the [objectives source](https://
 ## Available objectives
 
 - __mean_squared_error__ / __mse__
+- __root_mean_squared_error__ / __rmse__
 - __mean_absolute_error__ / __mae__
 - __mean_absolute_percentage_error__ / __mape__
 - __mean_squared_logarithmic_error__ / __msle__
