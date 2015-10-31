@@ -366,7 +366,7 @@ class Merge(Layer):
 
     def get_output(self, train=False):
         if self.mode == 'sum' or self.mode == 'ave':
-            s = self.layers[0].get_output(train)		
+            s = self.layers[0].get_output(train)
             for i in range(1, len(self.layers)):
                 s += self.layers[i].get_output(train)
             if self.mode == 'ave':
