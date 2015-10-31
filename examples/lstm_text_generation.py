@@ -12,6 +12,14 @@ import sys
 
     At least 20 epochs are required before the generated text
     starts sounding coherent.
+    
+    If you have at least 40mb of training data, you can see
+    improved results by stacking multiple LSTMs. GRU's will be
+    faster training time, but will not yield as good results
+    as LSTM's. It is advised that you also stack multiple
+    Dense layers at the end when using big data. With this
+    stacking config, you can start to produce phrases of words.
+    Took about 1 week to train on 980 Ti. 
 
     It is recommended to run this script on GPU, as recurrent
     networks are quite computationally intensive.
@@ -52,7 +60,7 @@ for i, sentence in enumerate(sentences):
 print('Build model...')
 model = Sequential()
 model.add(LSTM(512, return_sequences=True, input_shape=(maxlen, len(chars))))
-model.add(Dropout(0.2))
+model.add(Dropout(0.2)) #consider stacking more LSTM's and Dropout's here if you have at least 40mb of data
 model.add(LSTM(512, return_sequences=False))
 model.add(Dropout(0.2))
 model.add(Dense(len(chars)))
