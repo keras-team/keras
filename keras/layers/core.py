@@ -1158,7 +1158,6 @@ class SiameseHead(Layer):
 def get_siamese_heads(layer,inputs):
     heads = [Sequential() for i in inputs]
     s = Siamese(layer, inputs)
-    print type(s)
     for i in range(len(inputs)):
         heads[i].add(s)
         heads[i].add(SiameseHead(i))
