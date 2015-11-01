@@ -942,13 +942,6 @@ class MaxoutDense(Layer):
         return dict(list(base_config.items()) + list(config.items()))
 
 
-import keras
-from keras.layers.core import Layer, Dense, Activation, Merge
-from keras.models import Sequential
-import numpy as np
-from collections import OrderedDict
-
-
 class Siamese(Layer):
     def __init__(self, layer, inputs, merge_mode='join', concat_axis=1, dot_axes=-1):
 
