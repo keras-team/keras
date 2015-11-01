@@ -943,9 +943,9 @@ class MaxoutDense(Layer):
 
 
 class Siamese(Layer):
-    def __init__(self, layer, inputs, merge_mode='join', concat_axis=1, dot_axes=-1):
+    def __init__(self, layer, inputs, merge_mode=None, concat_axis=1, dot_axes=-1):
 
-        if merge_mode not in {'sum', 'mul', 'concat', 'ave', 'join', 'cos', 'dot'}:
+        if merge_mode not in ['sum', 'mul', 'concat', 'ave', 'join', 'cos', 'dot', None]:
             raise Exception("Invalid merge mode: " + str(mode))
 
         if merge_mode in {'cos', 'dot'}:
@@ -988,7 +988,9 @@ class Siamese(Layer):
 
     @property
     def output_shape(self):
-        input_shapes = [layer.output_shape for layer in self.inputs]
+        if merge_mode is None:
+            return self.layer.output_shape
+        input_shapes = [self.layer.output_shape]*len(self.inputs)
         if self.merge_mode in ['sum', 'mul', 'ave']:
             return input_shapes[0]
         elif self.merge_mode == 'concat':
@@ -1127,3 +1129,38 @@ class Siamese(Layer):
                   }
         base_config = super(Siamese, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
+class SiameseHead(Layer):
+    def __init__(self, head):
+        self.head = head
+        self.params = []
+    def get_output(self, train=False):
+        return self.get_input(train)
+
+    @property
+    def input_shape(self):
+        return self.previous.layer.output_shape
+
+    def get_input(self, train=False):
+        return self.previous.get_output_at(self.head, train)
+
+    def get_config(self):
+
+        config = {"name": self.__class__.__name__,
+                  "head": self.head
+                  }
+
+        base_config = super(SiameseHead, self).get_config()
+        return dict(list(base_config.items()) + list(config.items()))
+
+    def set_previous(self, layer):
+        self.previous = layer
+
+def get_siamese_heads(layer,inputs):
+    heads = [Sequential() for i in inputs]
+    s = Siamese(layer, inputs)
+    print type(s)
+    for i in range(len(inputs)):
+        heads[i].add(s)
+        heads[i].add(SiameseHead(i))
+    return heads
+
