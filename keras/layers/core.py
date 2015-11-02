@@ -387,7 +387,7 @@ class Merge(Layer):
             l1 = self.layers[0].get_output(train)
             l2 = self.layers[1].get_output(train)
             output = T.batched_tensordot(l1, l2, self.dot_axes)
-            output = output.dimshuffle((0, 'x'))
+            output = output.flatten().dimshuffle((0, 'x'))
             return output
         elif self.mode == 'cos':
             l1 = self.layers[0].get_output(train)
