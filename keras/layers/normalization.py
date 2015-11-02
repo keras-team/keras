@@ -20,9 +20,9 @@ class BatchNormalization(Layer):
         Adapted spatial batch normalization from
         https://github.com/takacsg84/Lasagne/blob/d5545988e6484d1db4bb54bcfa541ba62e898829/lasagne/layers/bn2.py
     '''
-    def __init__(self, beta_init='zero', gamma_init='uniform', epsilon=1e-6, mode=0, momentum=0.9, weights=None, **kwargs):
-        self.beta_init = initializations.get(beta_init)
-        self.gamma_init = initializations.get(gamma_init)
+    def __init__(self, epsilon=1e-6, mode=0, momentum=0.9, weights=None, **kwargs):
+        self.beta_init = initializations.get('zero')
+        self.gamma_init = initializations.get('uniform')
         self.epsilon = epsilon
         self.mode = mode
         self.momentum = momentum
@@ -30,20 +30,19 @@ class BatchNormalization(Layer):
         super(BatchNormalization, self).__init__(**kwargs)
 
     def build(self):
-        input_shape = self.input_shape  # starts with samples axis
-        if len(input_shape) == 2:       # in case of dense layer
+        if len(self.input_shape) == 2:       # in case of dense layer
             self.axis = (0)
-            param_shape = (input_shape[-1])
+            param_shape = (self.input_shape[-1])
             self.gamma = self.gamma_init(param_shape)
             self.beta = self.beta_init(param_shape)
-            ema_shape = (1, input_shape[-1])
+            ema_shape = (1, self.input_shape[-1])
             ema_bc = (True, False)
-        elif len(input_shape) == 4:     # in case of conv2d layer
+        elif len(self.input_shape) == 4:     # in case of conv2d layer
             self.axis = (0, 2, 3)
-            param_shape = (1, input_shape[1], 1, 1)
+            param_shape = (1, self.input_shape[1], 1, 1)
 
             # it has to be made broadcastable on the first axis
-            uniform = np.random.uniform(low=-0.05, high=0.05, size=param_shape)
+            uniform = np.random.uniform(low=0.95, high=1.05, size=param_shape)
             self.gamma = theano.shared(uniform.astype(theano.config.floatX),
                                        broadcastable=(True, False, True, True),
                                        borrow=True)
@@ -51,7 +50,7 @@ class BatchNormalization(Layer):
                                       broadcastable=(True, False, True, True),
                                       borrow=True)
 
-            ema_shape = (1, input_shape[1], 1, 1)
+            ema_shape = (1, self.input_shape[1], 1, 1)
             ema_bc = (True, False, True, True)
         else:
             raise NotImplementedError
@@ -65,7 +64,7 @@ class BatchNormalization(Layer):
         self.running_std = theano.shared(
             np.ones(ema_shape, dtype=theano.config.floatX),
             borrow=True, broadcastable=ema_bc)
-        
+
         # initialize self.updates: batch mean/std computation
         X = self.get_input(train=True)
         m = T.mean(X, self.axis, keepdims=True)
@@ -94,8 +93,8 @@ class BatchNormalization(Layer):
             X_normed = (X - self.running_mean) / (self.running_std + self.epsilon)
 
         elif self.mode == 1:
-            m = X.mean(axis=-1, keepdims=True)
-            std = X.std(axis=-1, keepdims=True)
+            m = T.mean(X, self.axis, keepdims=True)
+            std = T.sqrt(T.var(X, self.axis, keepdims=True) + self.epsilon)
             X_normed = (X - m) / (std + self.epsilon)
 
         out = self.gamma * X_normed + self.beta
