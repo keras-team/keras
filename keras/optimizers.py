@@ -82,7 +82,7 @@ class SGD(Optimizer):
         return {"name": self.__class__.__name__,
                 "lr": float(self.lr.get_value()),
                 "momentum": float(self.momentum.get_value()),
-                "decay": float(self.decay),
+                "decay": float(self.decay.get_value()),
                 "nesterov": self.nesterov}
 
 

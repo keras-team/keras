@@ -267,7 +267,7 @@ class Merge(Layer):
         '''
         if len(layers) < 2:
             raise Exception("Please specify two or more input layers (or containers) to merge")
-        if mode not in {'sum', 'mul', 'concat', 'ave'}:
+        if mode not in {'sum', 'mul', 'concat', 'ave', 'join'}:
             raise Exception("Invalid merge mode: " + str(mode))
         self.mode = mode
         self.concat_axis = concat_axis
@@ -296,6 +296,8 @@ class Merge(Layer):
             for shape in input_shapes[1:]:
                 output_shape[self.concat_axis] += shape[self.concat_axis]
             return tuple(output_shape)
+        elif self.mode == 'join':
+            return None 
 
     def get_params(self):
         return self.params, self.regularizers, self.constraints, self.updates

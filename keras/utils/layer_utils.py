@@ -10,7 +10,7 @@ from ..layers.core import ActivityRegularization, TimeDistributedDense, AutoEnco
 from ..layers.convolutional import Convolution1D, Convolution2D, MaxPooling1D, MaxPooling2D, ZeroPadding2D
 from ..layers.embeddings import Embedding, WordContextProduct
 from ..layers.noise import GaussianNoise, GaussianDropout
-from ..layers.normalization import BatchNormalization
+from ..layers.normalization import BatchNormalization, LRN2D
 from ..layers.recurrent import SimpleRNN, SimpleDeepRNN, GRU, LSTM, JZS1, JZS2, JZS3
 from ..layers import containers
 from .. import regularizers
