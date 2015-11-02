@@ -295,11 +295,14 @@ class Merge(Layer):
                 raise Exception(mode + " merge takes exactly 2 layers")
             shape1 = layers[0].output_shape
             shape2 = layers[1].output_shape
+            n1 = len(shape1)
+            n2 = len(shape2)
             if mode == 'dot':
                 if type(dot_axes) == int:
                     if dot_axes < 0:
-                        dot_axes = len(shape1) - 1
-                    dot_axes = [range(len(shape1) - dot_axes, len(shape2)), range(1, dot_axes + 1)]
+                        dot_axes = [range(dot_axes % n1, n1), range(dot_axes % n2, n2)]
+                    else:
+                        dot_axes = [range(n1 - dot_axes, n2), range(1, dot_axes + 1)]
                 for i in range(len(dot_axes[0])):
                     if shape1[dot_axes[0][i]] != shape2[dot_axes[1][i]]:
                         raise Exception(" Dot incompatible layers can not be merged using dot mode")
@@ -453,9 +456,7 @@ class Dropout(MaskedLayer):
         if self.p > 0.:
             retain_prob = 1. - self.p
             if train:
-                X *= self.srng.binomial(X.shape, p=retain_prob, dtype=theano.config.floatX)
-            else:
-                X *= retain_prob
+                X *= self.srng.binomial(X.shape, p=retain_prob, dtype=theano.config.floatX) / retain_prob
         return X
 
     def get_config(self):

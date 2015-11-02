@@ -12,7 +12,9 @@ else:
 
 def mean_squared_error(y_true, y_pred):
     return T.sqr(y_pred - y_true).mean(axis=-1)
-
+    
+def root_mean_squared_error(y_true, y_pred):
+    return T.sqrt(T.sqr(y_pred - y_true).mean(axis=-1))
 
 def mean_absolute_error(y_true, y_pred):
     return T.abs_(y_pred - y_true).mean(axis=-1)
@@ -55,6 +57,7 @@ def poisson_loss(y_true, y_pred):
 
 # aliases
 mse = MSE = mean_squared_error
+rmse = RMSE = root_mean_squared_error
 mae = MAE = mean_absolute_error
 mape = MAPE = mean_absolute_percentage_error
 msle = MSLE = mean_squared_logarithmic_error
