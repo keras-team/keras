@@ -20,9 +20,11 @@ from six.moves import zip
 class Layer(object):
     def __init__(self, **kwargs):
         for kwarg in kwargs:
-            assert kwarg in {'input_shape'}, "Keyword argument not understood: " + kwarg
+            assert kwarg in {'input_shape', 'trainable'}, "Keyword argument not understood: " + kwarg
         if 'input_shape' in kwargs:
             self.set_input_shape(kwargs['input_shape'])
+        if 'trainable' in kwargs:
+            self._trainable = kwargs['trainable']
         if not hasattr(self, 'params'):
             self.params = []
 
@@ -44,6 +46,17 @@ class Layer(object):
         Must be implemented on all layers that have weights.
         '''
         pass
+
+    @property
+    def trainable(self):
+        if hasattr(self, '_trainable'):
+            return self._trainable
+        else:
+            return True
+
+    @trainable.setter
+    def trainable(self, value):
+        self._trainable = value
 
     @property
     def nb_input(self):
@@ -133,6 +146,8 @@ class Layer(object):
         config = {"name": self.__class__.__name__}
         if hasattr(self, '_input_shape'):
             config['input_shape'] = self._input_shape[1:]
+        if hasattr(self, '_trainable'):
+            config['trainable'] = self._trainable
         return config
 
     def get_params(self):
@@ -261,16 +276,44 @@ class TimeDistributedMerge(Layer):
 
 
 class Merge(Layer):
-    def __init__(self, layers, mode='sum', concat_axis=-1):
+    def __init__(self, layers, mode='sum', concat_axis=-1, dot_axes=-1):
         ''' Merge the output of a list of layers or containers into a single tensor.
-            mode: {'sum', 'mul', 'concat', 'ave'}
+            mode: {'sum', 'mul', 'concat', 'ave', 'join'}
         '''
         if len(layers) < 2:
             raise Exception("Please specify two or more input layers (or containers) to merge")
-        if mode not in {'sum', 'mul', 'concat', 'ave', 'join'}:
+
+        if mode not in {'sum', 'mul', 'concat', 'ave', 'join', 'cos', 'dot'}:
             raise Exception("Invalid merge mode: " + str(mode))
+
+        if mode in {'sum', 'mul', 'ave', 'cos'}:
+            input_shapes = set([l.output_shape for l in layers])
+            if len(input_shapes) > 1:
+                raise Exception("Only layers of same output shape can be merged using " + mode + " mode")
+        if mode in {'cos', 'dot'}:
+            if len(layers) > 2:
+                raise Exception(mode + " merge takes exactly 2 layers")
+            shape1 = layers[0].output_shape
+            shape2 = layers[1].output_shape
+            n1 = len(shape1)
+            n2 = len(shape2)
+            if mode == 'dot':
+                if type(dot_axes) == int:
+                    if dot_axes < 0:
+                        dot_axes = [range(dot_axes % n1, n1), range(dot_axes % n2, n2)]
+                    else:
+                        dot_axes = [range(n1 - dot_axes, n2), range(1, dot_axes + 1)]
+                for i in range(len(dot_axes[0])):
+                    if shape1[dot_axes[0][i]] != shape2[dot_axes[1][i]]:
+                        raise Exception(" Dot incompatible layers can not be merged using dot mode")
+        elif mode == 'concat':
+            input_shapes = set([list(l.output_shape).pop(concat_axis) for l in layers])
+            if len(input_shapes) > 1:
+                raise Exception("'concat' mode can only merge layers with matching output shapes except for the concat axis")
+
         self.mode = mode
         self.concat_axis = concat_axis
+        self.dot_axes = dot_axes
         self.layers = layers
         self.params = []
         self.regularizers = []
@@ -297,7 +340,20 @@ class Merge(Layer):
                 output_shape[self.concat_axis] += shape[self.concat_axis]
             return tuple(output_shape)
         elif self.mode == 'join':
-            return None 
+            return None
+        elif self.mode == 'dot':
+            shape1 = list(input_shapes[0])
+            shape2 = list(input_shapes[1])
+            for i in self.dot_axes[0]:
+                shape1.pop(i)
+            for i in self.dot_axes[1]:
+                shape2.pop(i)
+            shape = shape1 + shape2[1:]
+            if len(shape) == 1:
+                shape.append(1)
+            return tuple(shape)
+        elif self.mode == 'cos':
+            return tuple(input_shapes[0][0], 1)
 
     def get_params(self):
         return self.params, self.regularizers, self.constraints, self.updates
@@ -327,6 +383,18 @@ class Merge(Layer):
             for i in range(1, len(self.layers)):
                 s *= self.layers[i].get_output(train)
             return s
+        elif self.mode == 'dot':
+            l1 = self.layers[0].get_output(train)
+            l2 = self.layers[1].get_output(train)
+            output = T.batched_tensordot(l1, l2, self.dot_axes)
+            output = output.dimshuffle((0, 'x'))
+            return output
+        elif self.mode == 'cos':
+            l1 = self.layers[0].get_output(train)
+            l2 = self.layers[1].get_output(train)
+            output, _ = theano.scan(lambda v1, v2: T.dot(v1, v2)/T.sqrt(T.dot(v1, v1) * T.dot(v2, v2)), sequences=[l1, l2], outputs_info=None)
+            output = output.dimshuffle((0, 'x'))
+            return output
         else:
             raise Exception('Unknown merge mode')
 
@@ -367,9 +435,11 @@ class Merge(Layer):
         config = {"name": self.__class__.__name__,
                   "layers": [l.get_config() for l in self.layers],
                   "mode": self.mode,
-                  "concat_axis": self.concat_axis}
+                  "concat_axis": self.concat_axis,
+                  "dot_axes": self.dot_axes}
         base_config = super(Merge, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
+
 
 
 class Dropout(MaskedLayer):
@@ -386,9 +456,7 @@ class Dropout(MaskedLayer):
         if self.p > 0.:
             retain_prob = 1. - self.p
             if train:
-                X *= self.srng.binomial(X.shape, p=retain_prob, dtype=theano.config.floatX)
-            else:
-                X *= retain_prob
+                X *= self.srng.binomial(X.shape, p=retain_prob, dtype=theano.config.floatX) / retain_prob
         return X
 
     def get_config(self):

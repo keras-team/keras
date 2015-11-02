@@ -4,6 +4,7 @@ from keras.models import Sequential, slice_X
 from keras.layers.core import Activation, TimeDistributedDense, RepeatVector
 from keras.layers import recurrent
 import numpy as np
+from six.moves import range
 
 """
 An implementation of sequence to sequence learning for performing addition
@@ -89,7 +90,7 @@ expected = []
 seen = set()
 print('Generating data...')
 while len(questions) < TRAINING_SIZE:
-    f = lambda: int(''.join(np.random.choice(list('0123456789')) for i in xrange(np.random.randint(1, DIGITS + 1))))
+    f = lambda: int(''.join(np.random.choice(list('0123456789')) for i in range(np.random.randint(1, DIGITS + 1))))
     a, b = f(), f()
     # Skip any addition questions we've already seen
     # Also skip any such that X+Y == Y+X (hence the sorting)
@@ -139,7 +140,7 @@ model.add(RNN(HIDDEN_SIZE, input_shape=(None, len(chars))))
 # For the decoder's input, we repeat the encoded input for each time step
 model.add(RepeatVector(DIGITS + 1))
 # The decoder RNN could be multiple layers stacked or a single layer
-for _ in xrange(LAYERS):
+for _ in range(LAYERS):
     model.add(RNN(HIDDEN_SIZE, return_sequences=True))
 
 # For each of step of the output sequence, decide which character should be chosen
@@ -156,7 +157,7 @@ for iteration in range(1, 200):
     model.fit(X_train, y_train, batch_size=BATCH_SIZE, nb_epoch=1, validation_data=(X_val, y_val), show_accuracy=True)
     ###
     # Select 10 samples from the validation set at random so we can visualize errors
-    for i in xrange(10):
+    for i in range(10):
         ind = np.random.randint(0, len(X_val))
         rowX, rowy = X_val[np.array([ind])], y_val[np.array([ind])]
         preds = model.predict_classes(rowX, verbose=0)

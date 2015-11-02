@@ -52,11 +52,16 @@ def standardize_X(X):
 def slice_X(X, start=None, stop=None):
     if type(X) == list:
         if hasattr(start, '__len__'):
+            # hdf5 dataset only support list object as indices
+            if hasattr(start, 'shape'):
+            	start = start.tolist()
             return [x[start] for x in X]
         else:
             return [x[start:stop] for x in X]
     else:
         if hasattr(start, '__len__'):
+            if hasattr(start, 'shape'):
+            	start = start.tolist()
             return X[start]
         else:
             return X[start:stop]
@@ -100,29 +105,29 @@ def standardize_weights(y, sample_weight=None, class_weight=None):
         return np.ones(y.shape[:-1] + (1,))
 
 
-def model_from_yaml(yaml_string, custom_layers={}):
+def model_from_yaml(yaml_string, custom_objects={}):
     '''
         Returns a model generated from a local yaml file,
         which is either created by hand or from to_yaml method of Sequential or Graph
     '''
     import yaml
     config = yaml.load(yaml_string)
-    return model_from_config(config, custom_layers=custom_layers)
+    return model_from_config(config, custom_objects=custom_objects)
 
 
-def model_from_json(json_string, custom_layers={}):
+def model_from_json(json_string, custom_objects={}):
     import json
     config = json.loads(json_string)
-    return model_from_config(config, custom_layers=custom_layers)
+    return model_from_config(config, custom_objects=custom_objects)
 
 
-def model_from_config(config, custom_layers={}):
+def model_from_config(config, custom_objects={}):
     model_name = config.get('name')
     if model_name not in {'Graph', 'Sequential'}:
         raise Exception('Unrecognized model:', model_name)
 
     # Create a container then set class to appropriate model
-    model = container_from_config(config, custom_layers=custom_layers)
+    model = container_from_config(config, custom_objects=custom_objects)
     if model_name == 'Graph':
         model.__class__ = Graph
     elif model_name == 'Sequential':

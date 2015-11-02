@@ -128,7 +128,42 @@ class TestSequential(unittest.TestCase):
         nloss = model.evaluate([X_train, X_train], y_train, verbose=0)
         print(nloss)
         assert(loss == nloss)
+        
+    def test_merge_dot1(self):
+        print('Test merge: dot')
+        left = Sequential()
+        left.add(Dense(input_dim=input_dim, output_dim=nb_hidden))
+        left.add(Activation('relu'))
 
+        right = Sequential()
+        right.add(Dense(input_dim=input_dim, output_dim=nb_hidden))
+        right.add(Activation('relu'))
+
+        model = Sequential()
+        model.add(Merge([left, right], mode='dot', dot_axes=1))
+
+        model.add(Dense(nb_class))
+        model.add(Activation('softmax'))
+
+        model.compile(loss='categorical_crossentropy', optimizer='rmsprop')
+        
+    def test_merge_dot2(self):
+        print('Test merge: dot')
+        left = Sequential()
+        left.add(Dense(input_dim=input_dim, output_dim=nb_hidden))
+        left.add(Activation('relu'))
+
+        right = Sequential()
+        right.add(Dense(input_dim=input_dim, output_dim=nb_hidden))
+        right.add(Activation('relu'))
+
+        model = Sequential()
+        model.add(Merge([left, right], mode='dot', dot_axes=([1],[1])))
+
+        model.add(Dense(nb_class))
+        model.add(Activation('softmax'))
+
+        model.compile(loss='categorical_crossentropy', optimizer='rmsprop')
     def test_merge_concat(self):
         print('Test merge: concat')
         left = Sequential()

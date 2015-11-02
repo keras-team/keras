@@ -74,7 +74,6 @@ class ParametricSoftplus(MaskedLayer):
         self.alphas = sharedX(self.alpha_init * np.ones(input_shape))
         self.betas = sharedX(self.beta_init * np.ones(input_shape))
         self.params = [self.alphas, self.betas]
-        self.input_shape = input_shape
 
         if self.initial_weights is not None:
             self.set_weights(self.initial_weights)

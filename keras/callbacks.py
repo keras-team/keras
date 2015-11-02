@@ -173,14 +173,31 @@ class History(Callback):
 
 
 class ModelCheckpoint(Callback):
-    def __init__(self, filepath, monitor='val_loss', verbose=0, save_best_only=False):
+    def __init__(self, filepath, monitor='val_loss', verbose=0, save_best_only=False, mode='auto'):
 
         super(Callback, self).__init__()
         self.monitor = monitor
         self.verbose = verbose
         self.filepath = filepath
         self.save_best_only = save_best_only
-        self.best = np.Inf
+        
+        if mode not in ['auto', 'min', 'max']:
+            warnings.warn("ModelCheckpoint mode %s is unknown, fallback to auto mode" % (self.mode), RuntimeWarning)
+            mode = 'auto'
+            
+        if mode == "min":
+            self.monitor_op = np.less
+            self.best = np.Inf
+        elif mode == "max":
+            self.monitor_op = np.greater
+            self.best = -np.Inf
+        else:
+            if "acc" in self.monitor:
+                self.monitor_op = np.greater
+                self.best = -np.Inf
+            else:
+                self.monitor_op = np.less
+                self.best = np.Inf
 
     def on_epoch_end(self, epoch, logs={}):
         filepath = self.filepath.format(epoch=epoch, **logs)
@@ -189,7 +206,7 @@ class ModelCheckpoint(Callback):
             if current is None:
                 warnings.warn("Can save best model only with %s available, skipping." % (self.monitor), RuntimeWarning)
             else:
-                if current < self.best:
+                if self.monitor_op(current, self.best):
                     if self.verbose > 0:
                         print("Epoch %05d: %s improved from %0.5f to %0.5f, saving model to %s"
                               % (epoch, self.monitor, self.best, current, filepath))
