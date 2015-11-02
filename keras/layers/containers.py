@@ -4,7 +4,7 @@ from __future__ import print_function
 
 from collections import OrderedDict
 import theano.tensor as T
-from ..layers.core import Layer, Merge, Siamese
+from ..layers.core import Layer, Merge, Siamese, SiameseHead
 from ..utils.theano_utils import ndim_tensor
 from six.moves import range
 
@@ -281,20 +281,20 @@ class Graph(Layer):
         if name in self.namespace:
             raise Exception('Duplicate node identifier: ' + name)
         layers = []
-        for n in inputs:
-            if i in range len(self.nodes):
-                n = self.nodes[i]
+        for i in range(len(inputs)):
+            input = inputs[i]
+            if input in self.nodes:
+                n = self.nodes[input]
                 if hasattr(n, 'get_output_at'):#is it a siamese layer?
                     if n.merge_mode is None:
                         sh = SiameseHead(i)
                         sh.previous = n
                         layers.append(sh)
                     else:
-                        layers.append(self.nodes[n])
-                else:
-                    layers.append(self.nodes[n])
-            elif n in self.inputs:
-                layers.append(self.inputs[n])
+                        layers.append(n)
+            elif input in self.inputs:
+                n = self.inputs[n]
+                layers.append(n)
             else:
                 raise Exception('Unknown identifier: ' + n)
         s = Siamese(layer, layers, merge_mode, concat_axis=concat_axis, dot_axes=dot_axes)
@@ -313,10 +313,6 @@ class Graph(Layer):
                 raise Exception('Merge mode not specified')
             self.add_output(name, input=name)
 
-        if create_output:
-            if merge_mode is None:
-                raise Exception('Merge mode not specified')
-            self.add_output(name, input=name)
 
     def add_output(self, name, input=None, inputs=[],
                    merge_mode='concat', concat_axis=-1, dot_axes=-1):
