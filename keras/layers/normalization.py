@@ -107,7 +107,7 @@ class BatchNormalization(Layer):
                   "momentum": self.momentum}
         base_config = super(BatchNormalization, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
-    
+
 
 class LRN2D(Layer):
     """
@@ -115,10 +115,10 @@ class LRN2D(Layer):
     License at: https://github.com/lisa-lab/pylearn2/blob/master/LICENSE.txt
     """
 
-    def __init__(self, alpha=1e-4, k=2, beta=0.75, n=5):
+    def __init__(self, alpha=1e-4, k=2, beta=0.75, n=5, **kwargs):
         if n % 2 == 0:
             raise NotImplementedError("LRN2D only works with odd n. n provided: " + str(n))
-        super(LRN2D, self).__init__()
+        super(LRN2D, self).__init__(**kwargs)
         self.alpha = alpha
         self.k = k
         self.beta = beta
@@ -138,8 +138,10 @@ class LRN2D(Layer):
         return X / scale
 
     def get_config(self):
-        return {"name": self.__class__.__name__,
-                "alpha": self.alpha,
-                "k": self.k,
-                "beta": self.beta,
-                "n": self.n}
+        config = {"name": self.__class__.__name__,
+                  "alpha": self.alpha,
+                  "k": self.k,
+                  "beta": self.beta,
+                  "n": self.n}
+        base_config = super(LRN2D, self).get_config()
+        return dict(list(base_config.items()) + list(config.items()))
