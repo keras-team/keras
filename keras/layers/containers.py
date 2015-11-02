@@ -305,7 +305,7 @@ class Graph(Layer):
         self.namespace.add(name)
         self.nodes[name] = s
         self.node_config.append({'name': name,
-                                 'input': input
+                                 'input': input,
                                  'inputs': inputs,
                                  'merge_mode': merge_mode,
                                  'concat_axis': concat_axis,
