@@ -1024,7 +1024,10 @@ class Siamese(Layer):
     def get_output_join(self, train=False):
         o = OrderedDict()
         for i in range(len(inputs)):
-            o['head'+str(i)] = self.get_output_at(i, train)
+            X = self.get_output_at(i, train)
+            if X.name is None:
+                raise ValueError("merge_mode='join' only works with named inputs")
+            o[X.name] = X
         return o
 
     def get_output_sum(self, train=False):
