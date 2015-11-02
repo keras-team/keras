@@ -307,7 +307,12 @@ class Merge(Layer):
                     if shape1[dot_axes[0][i]] != shape2[dot_axes[1][i]]:
                         raise Exception(" Dot incompatible layers can not be merged using dot mode")
         elif mode == 'concat':
-            input_shapes = set([list(l.output_shape).pop(concat_axis) for l in layers])
+            input_shapes = set()
+            for l in layers:
+                oshape = list(l.output_shape)
+                oshape.pop(concat_axis)
+                oshape = tuple(oshape)
+                input_shapes.add(oshape)
             if len(input_shapes) > 1:
                 raise Exception("'concat' mode can only merge layers with matching output shapes except for the concat axis")
 
