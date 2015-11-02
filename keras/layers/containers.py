@@ -298,8 +298,8 @@ class Graph(Layer):
                                  'dot_axes': dot_axes,
                                  'create_output': create_output})
 
-                if create_output:
-                    self.add_output(name, input=name)
+            if create_output:
+                self.add_output(name, input=name)
 
     def add_output(self, name, input=None, inputs=[],
                    merge_mode='concat', concat_axis=-1, dot_axes=-1):
