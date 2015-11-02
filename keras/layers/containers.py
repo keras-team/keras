@@ -277,40 +277,41 @@ class Graph(Layer):
         if create_output:
             self.add_output(name, input=name)
 
-    def add_shared_node(self, layer, name, input=None, inputs=[], merge_mode='concat', concat_axis=-1, dot_axes=-1, create_output=False):
+    def add_shared_node(self, layer, name, inputs=[], merge_mode='concat', concat_axis=-1, dot_axes=-1, create_output=False):
         if name in self.namespace:
             raise Exception('Duplicate node identifier: ' + name)
         layers = []
-        if input:
-            if input not in self.nodes: 
-                raise Exception('Unknown node/input identifier: ' + input)
-            s =  self.nodes[input]
-            if not hasattr(s, 'get_output_at'):
-                raise Exception('Only shared nodes can be specified in input argument')
-            nb_heads = len(s.inputs)
-            for i in range(nb_heads):
-                sh = SiameseHead(i)
-                sh.previous = s
-                layers.append(sh) 
-        else: 
-            for n in inputs:
-                if n in self.nodes:
-                    layers.append(self.nodes[n])
-                elif n in self.inputs:
-                    layers.append(self.inputs[n])
+        for n in inputs:
+            if i in range len(self.nodes):
+                n = self.nodes[i]
+                if hasattr(n, 'get_output_at'):#is it a siamese layer?
+                    if n.merge_mode is None:
+                        sh = SiameseHead(i)
+                        sh.previous = n
+                        layers.append(sh)
+                    else:
+                        layers.append(self.nodes[n])
                 else:
-                    raise Exception('Unknown identifier: ' + n)
+                    layers.append(self.nodes[n])
+            elif n in self.inputs:
+                layers.append(self.inputs[n])
+            else:
+                raise Exception('Unknown identifier: ' + n)
         s = Siamese(layer, layers, merge_mode, concat_axis=concat_axis, dot_axes=dot_axes)
         s.set_name(name)
         self.namespace.add(name)
         self.nodes[name] = s
         self.node_config.append({'name': name,
-                                 'input': input,
-                                 'inputs': inputs,
-                                 'merge_mode': merge_mode,
-                                 'concat_axis': concat_axis,
-                                 'dot_axes': dot_axes,
-                                 'create_output': create_output})
+                                    'inputs': inputs,
+                                    'merge_mode': merge_mode,
+                                    'concat_axis': concat_axis,
+                                    'dot_axes': dot_axes,
+                                    'create_output': create_output})
+    
+        if create_output:
+            if merge_mode is None:
+                raise Exception('Merge mode not specified')
+            self.add_output(name, input=name)
 
         if create_output:
             if merge_mode is None:
