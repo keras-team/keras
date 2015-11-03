@@ -808,7 +808,7 @@ class JZS3(Recurrent):
             outputs_info=T.unbroadcast(alloc_zeros_matrix(X.shape[1], self.output_dim), 1),
             non_sequences=[self.U_z, self.U_r, self.U_h],
             truncate_gradient=self.truncate_gradient,
-            backwards=self.go_backwards
+            go_backwards=self.go_backwards
         )
         if self.return_sequences:
             return outputs.dimshuffle((1, 0, 2))
