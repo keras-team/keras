@@ -1158,11 +1158,9 @@ class SiameseHead(Layer):
     def set_previous(self, layer):
         self.previous = layer
 
-def get_siamese_heads(layer,inputs):
-    heads = [Sequential() for i in inputs]
+def add_shared_layer(layer,inputs):
     s = Siamese(layer, inputs)
     for i in range(len(inputs)):
-        heads[i].add(s)
-        heads[i].add(SiameseHead(i))
-    return heads
+        inputs[i].add(s)
+        inputs[i].add(SiameseHead(i))
 
