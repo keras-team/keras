@@ -308,7 +308,7 @@ class Merge(Layer):
                     raise Exception("Invalid type for dot_axes - should be a list.")
                 if len(dot_axes) != 2:
                     raise Exception("Invalid format for dot_axes - should contain two elements.")
-                if type(dot_axes[0]) not in [list, tuple] or type(dot_axes[1]) not in [list, tuple]:
+                if type(dot_axes[0]) not in [list, tuple, range] or type(dot_axes[1]) not in [list, tuple, range]:
                     raise Exception("Invalid format for dot_axes - list elements should have type 'list' or 'tuple'.")
                 for i in range(len(dot_axes[0])):
                     if shape1[dot_axes[0][i]] != shape2[dot_axes[1][i]]:
