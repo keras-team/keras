@@ -287,8 +287,8 @@ class Graph(Layer):
                 n = self.nodes[input]
                 if hasattr(n, 'get_output_at'):#is it a siamese layer?
                     if n.merge_mode is None:
-                        for j in len(n.inputs):
-                            sh = SiameseHead(i)
+                        for j in range(len(n.inputs)):
+                            sh = SiameseHead(j)
                             sh.previous = n
                             layers.append(sh)
                     else:
