@@ -85,6 +85,11 @@ class Recurrent(MaskedLayer):
             raise Exception("Not stateful RNN")
         for h in self.state:
             h.set_value(h.get_value()*0)
+    def get_config(self):
+        config = {"stateful": self.stateful
+                 }
+        base_config = super(Recurrent, self).get_config()
+        return dict(list(base_config.items()) + list(config.items()))
 
 class SimpleRNN(Recurrent):
     '''
