@@ -482,7 +482,7 @@ class LSTM(Recurrent):
                  init='glorot_uniform', inner_init='orthogonal', forget_bias_init='one',
                  activation='tanh', inner_activation='hard_sigmoid',
                  weights=None, truncate_gradient=-1, return_sequences=False,
-                 input_dim=None, input_length=None, **kwargs):
+                 input_dim=None, input_length=None, stateful=False, hidden_state=None, batch_size=None, **kwargs):
         self.output_dim = output_dim
         self.init = initializations.get(init)
         self.inner_init = initializations.get(inner_init)
@@ -636,7 +636,7 @@ class JZS1(Recurrent):
                  init='glorot_uniform', inner_init='orthogonal',
                  activation='tanh', inner_activation='sigmoid',
                  weights=None, truncate_gradient=-1, return_sequences=False,
-                 input_dim=None, input_length=None, **kwargs):
+                 input_dim=None, input_length=None, stateful=False, hidden_state=None, batch_size=None, **kwargs):
         self.output_dim = output_dim
         self.init = initializations.get(init)
         self.inner_init = initializations.get(inner_init)
@@ -777,7 +777,7 @@ class JZS2(Recurrent):
                  init='glorot_uniform', inner_init='orthogonal',
                  activation='tanh', inner_activation='sigmoid',
                  weights=None, truncate_gradient=-1, return_sequences=False,
-                 input_dim=None, input_length=None, **kwargs):
+                 input_dim=None, input_length=None, stateful=False, hidden_state=None, batch_size=None, **kwargs):
         self.output_dim = output_dim
         self.init = initializations.get(init)
         self.inner_init = initializations.get(inner_init)
@@ -921,7 +921,7 @@ class JZS3(Recurrent):
                  init='glorot_uniform', inner_init='orthogonal',
                  activation='tanh', inner_activation='sigmoid',
                  weights=None, truncate_gradient=-1, return_sequences=False,
-                 input_dim=None, input_length=None, **kwargs):
+                 input_dim=None, input_length=None, stateful=False, hidden_state=None, batch_size=None, **kwargs):
         self.output_dim = output_dim
         self.init = initializations.get(init)
         self.inner_init = initializations.get(inner_init)
