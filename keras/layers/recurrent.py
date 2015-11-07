@@ -43,19 +43,23 @@ class Recurrent(MaskedLayer):
             return (input_shape[0], input_shape[1], self.output_dim)
         else:
             return (input_shape[0], self.output_dim)
-
+    def get_weights(self):
+        weigths = [p.get_value() for p in self.params] + [h.get_value() for h in self.state]
+        return weigths
     def set_weights(self, weights):
+
         np = len(self.params)
         nw = len(weights)
 
-        if self.stateful:
-            ns = len(self.state)
-            if nw == np - ns:
-                np = nw
-        elif nw > np:
-            nw = np
+        if hasattr(self, 'stateful'):
+            if self.stateful:
+                ns = len(self.state)
+                if nw == np + ns:
+                    state = weights[-ns:]
+                    self.set_weights(state)
 
-        params = self.params[:np]
+        nw = np
+        params = self.params
         weights = weights[:nw]
         assert len(params) == len(weights), 'Provided weight array does not match layer weights (' + \
             str(len(params)) + ' layer params vs. ' + str(len(weights)) + ' provided weights)'
@@ -136,7 +140,6 @@ class SimpleRNN(Recurrent):
                     raise Exception("Hidden state not provided in weights")
             else:
                 raise Exception("One of the following arguments must be provided for stateful RNNs: hidden_state, batch_size, weights")
-        self.params.append(self.h)
         self.state = [self.h]
         if self.initial_weights is not None:
             self.set_weights(self.initial_weights[:nw])
@@ -248,7 +251,6 @@ class SimpleDeepRNN(Recurrent):
                     raise Exception("Hidden state not provided in weights")
             else:
                 raise Exception("One of the following arguments must be provided for stateful RNNs: hidden_state, batch_size, weights")
-        self.params.append(self.h)
         self.state = [self.h]
 
         if self.initial_weights is not None:
@@ -395,7 +397,6 @@ class GRU(Recurrent):
                     raise Exception("Hidden state not provided in weights")
             else:
                 raise Exception("One of the following arguments must be provided for stateful RNNs: hidden_state, batch_size, weights")
-        self.params.append(self.h)
         self.state = [self.h]
 
         if self.initial_weights is not None:
@@ -696,7 +697,6 @@ class JZS1(Recurrent):
                     raise Exception("Hidden state not provided in weights")
             else:
                 raise Exception("One of the following arguments must be provided for stateful RNNs: hidden_state, batch_size, weights")
-        self.params.append(self.h)
         self.state = [self.h]
 
         if self.initial_weights is not None:
@@ -839,7 +839,6 @@ class JZS2(Recurrent):
                     raise Exception("Hidden state not provided in weights")
             else:
                 raise Exception("One of the following arguments must be provided for stateful RNNs: hidden_state, batch_size, weights")
-        self.params.append(self.h)
         self.state = [self.h]
         if self.initial_weights is not None:
             self.set_weights(self.initial_weights[:nw])
@@ -975,7 +974,6 @@ class JZS3(Recurrent):
                     raise Exception("Hidden state not provided in weights")
             else:
                 raise Exception("One of the following arguments must be provided for stateful RNNs: hidden_state, batch_size, weights")
-        self.params.append(self.h)
         self.state = [self.h]
 
         if self.initial_weights is not None:
