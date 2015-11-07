@@ -244,7 +244,7 @@ class SimpleDeepRNN(Recurrent):
                 if nw == len(self.params) + 1:
                     self.h = sharedX(self.initial_weights[-1])
                     nw -= 1
-               else:
+                else:
                     raise Exception("Hidden state not provided in weights")
             else:
                 raise Exception("One of the following arguments must be provided for stateful RNNs: hidden_state, batch_size, weights")
@@ -391,7 +391,7 @@ class GRU(Recurrent):
                 if nw == len(self.params) + 1:
                     self.h = sharedX(self.initial_weights[-1])
                     nw -= 1
-               else:
+                else:
                     raise Exception("Hidden state not provided in weights")
             else:
                 raise Exception("One of the following arguments must be provided for stateful RNNs: hidden_state, batch_size, weights")
@@ -541,7 +541,7 @@ class LSTM(Recurrent):
                     self.h = sharedX(self.initial_weights[-1])
                     self.c = sharedX(self.initial_weights[-2])
                     nw -= 2
-               else:
+                else:
                     raise Exception("Hidden state not provided in weights")
             else:
                 raise Exception("One of the following arguments must be provided for stateful RNNs: hidden_state, batch_size, weights")
@@ -692,7 +692,7 @@ class JZS1(Recurrent):
                 if nw == len(self.params) + 1:
                     self.h = sharedX(self.initial_weights[-1])
                     nw -= 1
-               else:
+                else:
                     raise Exception("Hidden state not provided in weights")
             else:
                 raise Exception("One of the following arguments must be provided for stateful RNNs: hidden_state, batch_size, weights")
@@ -835,7 +835,7 @@ class JZS2(Recurrent):
                 if nw == len(self.params) + 1:
                     self.h = sharedX(self.initial_weights[-1])
                     nw -= 1
-               else:
+                else:
                     raise Exception("Hidden state not provided in weights")
             else:
                 raise Exception("One of the following arguments must be provided for stateful RNNs: hidden_state, batch_size, weights")
@@ -971,7 +971,7 @@ class JZS3(Recurrent):
                 if nw == len(self.params) + 1:
                     self.h = sharedX(self.initial_weights[-1])
                     nw -= 1
-               else:
+                else:
                     raise Exception("Hidden state not provided in weights")
             else:
                 raise Exception("One of the following arguments must be provided for stateful RNNs: hidden_state, batch_size, weights")
