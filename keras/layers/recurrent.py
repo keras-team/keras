@@ -60,7 +60,7 @@ class Recurrent(MaskedLayer):
                 ns = len(self.state)
                 if nw == np + ns:
                     state = weights[-ns:]
-                    self.set_weights(state)
+                    self.set_set_hidden_state(state)
 
         nw = np
         params = self.params
