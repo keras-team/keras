@@ -43,8 +43,12 @@ class Recurrent(MaskedLayer):
             return (input_shape[0], input_shape[1], self.output_dim)
         else:
             return (input_shape[0], self.output_dim)
+
     def get_weights(self):
-        weigths = [p.get_value() for p in self.params] + [h.get_value() for h in self.state]
+        weigths = [p.get_value() for p in self.params] 
+        if hasattr(self, 'stateful'):
+            if self.stateful:
+            weights += [h.get_value() for h in self.state]
         return weigths
     def set_weights(self, weights):
 
