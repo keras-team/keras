@@ -531,7 +531,7 @@ class LSTM(Recurrent):
         if stateful:
             if self.initial_state is not None:
                 self.h = sharedX(self.initial_state[0])
-                self.c = shared(self.initial_state[1])
+                self.c = sharedX(self.initial_state[1])
                 del self.initial_state
             elif self.batch_size is not None:
                 self.h = shared_zeros((self.batch_size, self.output_dim))
