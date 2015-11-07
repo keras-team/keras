@@ -85,11 +85,6 @@ class Recurrent(MaskedLayer):
             raise Exception("Not stateful RNN")
         for h in self.state:
             h.set_value(h.get_value()*0)
-    def get_config(self):
-        config = {"stateful": self.stateful
-                 }
-        base_config = super(Recurrent, self).get_config()
-        return dict(list(base_config.items()) + list(config.items()))
 
 class SimpleRNN(Recurrent):
     '''
@@ -189,7 +184,8 @@ class SimpleRNN(Recurrent):
                   "truncate_gradient": self.truncate_gradient,
                   "return_sequences": self.return_sequences,
                   "input_dim": self.input_dim,
-                  "input_length": self.input_length}
+                  "input_length": self.input_length,
+                  "stateful":  self.stateful}
         base_config = super(SimpleRNN, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
@@ -313,7 +309,8 @@ class SimpleDeepRNN(Recurrent):
                   "truncate_gradient": self.truncate_gradient,
                   "return_sequences": self.return_sequences,
                   "input_dim": self.input_dim,
-                  "input_length": self.input_length}
+                  "input_length": self.input_length,
+                  "stateful": self.stateful}
         base_config = super(SimpleDeepRNN, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
@@ -450,7 +447,8 @@ class GRU(Recurrent):
                   "truncate_gradient": self.truncate_gradient,
                   "return_sequences": self.return_sequences,
                   "input_dim": self.input_dim,
-                  "input_length": self.input_length}
+                  "input_length": self.input_length,
+                  "stateful": self.stateful}
         base_config = super(GRU, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
@@ -608,7 +606,8 @@ class LSTM(Recurrent):
                   "truncate_gradient": self.truncate_gradient,
                   "return_sequences": self.return_sequences,
                   "input_dim": self.input_dim,
-                  "input_length": self.input_length}
+                  "input_length": self.input_length,
+                  "stateful": self.stateful}
         base_config = super(LSTM, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
@@ -892,7 +891,8 @@ class JZS2(Recurrent):
                   "truncate_gradient": self.truncate_gradient,
                   "return_sequences": self.return_sequences,
                   "input_dim": self.input_dim,
-                  "input_length": self.input_length}
+                  "input_length": self.input_length,
+                  "stateful": self.stateful}
         base_config = super(JZS2, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
@@ -1030,6 +1030,7 @@ class JZS3(Recurrent):
                   "truncate_gradient": self.truncate_gradient,
                   "return_sequences": self.return_sequences,
                   "input_dim": self.input_dim,
-                  "input_length": self.input_length}
+                  "input_length": self.input_length,
+                  "stateful": self.stateful}
         base_config = super(JZS3, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
