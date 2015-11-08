@@ -55,7 +55,7 @@ model.add_node(Dense(1, activation='sigmoid'), name='sigmoid', input='dropout')
 model.add_output(name='output', input='sigmoid')
 
 # try using different optimizers and different optimizer configs
-model.compile('adam',{'output':'binary_crossentropy'})
+model.compile('adam', {'output':'binary_crossentropy'})
 
 print("Train...")
 model.fit({'input':X_train, 'output':y_train}, batch_size=batch_size, nb_epoch=4)
