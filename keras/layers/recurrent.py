@@ -55,7 +55,7 @@ class SimpleRNN(Recurrent):
     '''
     def __init__(self, output_dim,
                  init='glorot_uniform', inner_init='orthogonal', activation='sigmoid', weights=None,
-                 truncate_gradient=-1, return_sequences=False, input_dim=None, input_length=None, backwards=False, **kwargs):
+                 truncate_gradient=-1, return_sequences=False, input_dim=None, input_length=None, go_backwards=False, **kwargs):
         self.output_dim = output_dim
         self.init = initializations.get(init)
         self.inner_init = initializations.get(inner_init)
@@ -63,7 +63,7 @@ class SimpleRNN(Recurrent):
         self.activation = activations.get(activation)
         self.return_sequences = return_sequences
         self.initial_weights = weights
-        self.go_backwards = backwards
+        self.go_backwards = go_backwards
 
         self.input_dim = input_dim
         self.input_length = input_length
@@ -143,7 +143,7 @@ class SimpleDeepRNN(Recurrent):
                  init='glorot_uniform', inner_init='orthogonal',
                  activation='sigmoid', inner_activation='hard_sigmoid',
                  weights=None, truncate_gradient=-1, return_sequences=False,
-                 input_dim=None, input_length=None, backwards=False,**kwargs):
+                 input_dim=None, input_length=None, go_backwards=False, **kwargs):
         self.output_dim = output_dim
         self.init = initializations.get(init)
         self.inner_init = initializations.get(inner_init)
@@ -153,7 +153,7 @@ class SimpleDeepRNN(Recurrent):
         self.depth = depth
         self.return_sequences = return_sequences
         self.initial_weights = weights
-        self.go_backwards = backwards
+        self.go_backwards = go_backwards
 
         self.input_dim = input_dim
         self.input_length = input_length
@@ -255,7 +255,7 @@ class GRU(Recurrent):
                  init='glorot_uniform', inner_init='orthogonal',
                  activation='sigmoid', inner_activation='hard_sigmoid',
                  weights=None, truncate_gradient=-1, return_sequences=False,
-                 input_dim=None, input_length=None, backwards=False, **kwargs):
+                 input_dim=None, input_length=None, go_backwards=False, **kwargs):
         self.output_dim = output_dim
         self.init = initializations.get(init)
         self.inner_init = initializations.get(inner_init)
@@ -264,7 +264,7 @@ class GRU(Recurrent):
         self.truncate_gradient = truncate_gradient
         self.return_sequences = return_sequences
         self.initial_weights = weights
-        self.go_backwards = backwards
+        self.go_backwards = go_backwards
 
         self.input_dim = input_dim
         self.input_length = input_length
@@ -373,7 +373,7 @@ class LSTM(Recurrent):
                  init='glorot_uniform', inner_init='orthogonal', forget_bias_init='one',
                  activation='tanh', inner_activation='hard_sigmoid',
                  weights=None, truncate_gradient=-1, return_sequences=False,
-                 input_dim=None, input_length=None, backwards=False, **kwargs):
+                 input_dim=None, input_length=None, go_backwards=False, **kwargs):
         self.output_dim = output_dim
         self.init = initializations.get(init)
         self.inner_init = initializations.get(inner_init)
@@ -383,7 +383,7 @@ class LSTM(Recurrent):
         self.truncate_gradient = truncate_gradient
         self.return_sequences = return_sequences
         self.initial_weights = weights
-        self.go_backwards = backwards
+        self.go_backwards = go_backwards
 
         self.input_dim = input_dim
         self.input_length = input_length
@@ -501,7 +501,7 @@ class JZS1(Recurrent):
                  init='glorot_uniform', inner_init='orthogonal',
                  activation='tanh', inner_activation='sigmoid',
                  weights=None, truncate_gradient=-1, return_sequences=False,
-                 input_dim=None, input_length=None, backwards=False, **kwargs):
+                 input_dim=None, input_length=None, go_backwards=False, **kwargs):
         self.output_dim = output_dim
         self.init = initializations.get(init)
         self.inner_init = initializations.get(inner_init)
@@ -620,7 +620,7 @@ class JZS2(Recurrent):
                  init='glorot_uniform', inner_init='orthogonal',
                  activation='tanh', inner_activation='sigmoid',
                  weights=None, truncate_gradient=-1, return_sequences=False,
-                 input_dim=None, input_length=None, backwards=False, **kwargs):
+                 input_dim=None, input_length=None, go_backwards=False, **kwargs):
         self.output_dim = output_dim
         self.init = initializations.get(init)
         self.inner_init = initializations.get(inner_init)
@@ -740,7 +740,7 @@ class JZS3(Recurrent):
                  init='glorot_uniform', inner_init='orthogonal',
                  activation='tanh', inner_activation='sigmoid',
                  weights=None, truncate_gradient=-1, return_sequences=False,
-                 input_dim=None, input_length=None, backwards=False, **kwargs):
+                 input_dim=None, input_length=None, go_backwards=False, **kwargs):
         self.output_dim = output_dim
         self.init = initializations.get(init)
         self.inner_init = initializations.get(inner_init)
