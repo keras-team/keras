@@ -509,7 +509,7 @@ class JZS1(Recurrent):
         self.truncate_gradient = truncate_gradient
         self.return_sequences = return_sequences
         self.initial_weights = weights
-        self.go_backwards = backwards
+        self.go_backwards = go_backwards
 
         self.input_dim = input_dim
         self.input_length = input_length
@@ -628,7 +628,7 @@ class JZS2(Recurrent):
         self.truncate_gradient = truncate_gradient
         self.return_sequences = return_sequences
         self.initial_weights = weights
-        self.go_backwards = backwards
+        self.go_backwards = go_backwards
 
         self.input_dim = input_dim
         self.input_length = input_length
@@ -748,7 +748,7 @@ class JZS3(Recurrent):
         self.truncate_gradient = truncate_gradient
         self.return_sequences = return_sequences
         self.initial_weights = weights
-        self.go_backwards = backwards
+        self.go_backwards = go_backwards
 
         self.input_dim = input_dim
         self.input_length = input_length
