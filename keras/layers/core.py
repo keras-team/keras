@@ -923,9 +923,8 @@ class Lambda(Layer):
     output_shape - Expected output shape from function. Could be a tuple or a function of the shape of the input
     """
 
-    def __init__(self, function, output_shape=None, ndim=2):
+    def __init__(self, function, output_shape=None):
         super(Lambda, self).__init__()
-        self.input = ndim_tensor(ndim)
         py3 = sys.version_info[0] == 3
         if py3:
             self.function = marshal.dumps(function.__code__)
@@ -946,14 +945,14 @@ class Lambda(Layer):
         if self._ouput_shape is None:
             return self.input_shape
         elif type(self._output_shape) == tuple:
-            return self._output_shape
+            return self.input_shape[0] + self._output_shape
         else:
             output_shape_func = marshal.loads(self._output_shape)
             output_shape_func = types.FunctionType(output_shape_func, globals())
-            shape = output_shape_func(self.previous.output_shape)
+            shape = output_shape_func(self.previous.output_shape[1:])
             if type(shape) not in {list, tuple}:
                 raise Exception("output_shape function must return a tuple")
-            return tuple(shape)
+            return self.input_shape[0] + tuple(shape)
 
     def get_output(self, train=False):
         func = marshal.loads(self.function)
@@ -1019,18 +1018,18 @@ class LambdaMerge(Lambda):
 
     @property
     def output_shape(self):
+        input_shapes = [layer.output_shape for layer in self.layers]
         if self._output_shape is None:
-            return self.layers[0].input_shape
+            return input_shapes[0]
         elif type(self._output_shape) == tuple:
-            return self._output_shape
+            return input_shapes[0][0] + self._output_shape
         else:
             output_shape_func = marshal.loads(self._output_shape)
             output_shape_func = types.FunctionType(output_shape_func, globals())
-            input_shapes = [layer.output_shape for layer in self.layers]
-            shape = output_shape_func(input_shapes)
+            shape = output_shape_func([shape[1:] for shape in input_shapes])
             if type(shape) not in {list, tuple}:
                 raise Exception("output_shape function must return a tuple")
-            return tuple(shape)
+            return input_shapes[0][0] + tuple(shape)
 
     def get_params(self):
         return self.params, self.regularizers, self.constraints, self.updates
