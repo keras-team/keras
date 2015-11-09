@@ -1,10 +1,10 @@
+sudo: false
 language: python
 python:
   - "2.7"
   - "3.4"
 install:
   # code below is taken from http://conda.pydata.org/docs/travis.html
-  - sudo apt-get update
   # We do this conditionally because it saves us some downloading if the
   # version is the same.
   - if [[ "$TRAVIS_PYTHON_VERSION" == "2.7" ]]; then
