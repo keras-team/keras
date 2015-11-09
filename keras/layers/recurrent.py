@@ -45,40 +45,30 @@ class Recurrent(MaskedLayer):
             return (input_shape[0], self.output_dim)
 
     def get_weights(self):
-        weigths = [p.get_value() for p in self.params] 
-        if hasattr(self, 'stateful'):
-            if self.stateful:
-                weights += [h.get_value() for h in self.state]
-        return weigths
+        weights = super(Recurrent, self).get_weights()
+        if hasattr(self, 'state'):
+            weights += [h.get_value() for h in self.state]
+        return weights
+
     def set_weights(self, weights):
-
-        np = len(self.params)
-        nw = len(weights)
-
-        if hasattr(self, 'stateful'):
-            if self.stateful:
-                ns = len(self.state)
-                if nw == np + ns:
-                    state = weights[-ns:]
-                    self.set_hidden_state(state)
-                    nw = np
-        params = self.params
-        weights = weights[:nw]
-        assert len(params) == len(weights), 'Provided weight array does not match layer weights (' + \
-            str(len(params)) + ' layer params vs. ' + str(len(weights)) + ' provided weights)'
-        for p, w in zip(params, weights):
-            if p.eval().shape != w.shape:
-                raise Exception("Layer shape %s not compatible with weight shape %s." % (p.eval().shape, w.shape))
-            p.set_value(floatX(w))
+        if hasattr(self, 'state'):#if stateful RNN
+            np = len(self.params)
+            nw = len(weights)
+            ns = len(self.state)
+            if nw == np + ns:#if weights include hidden state
+                state = weights[-ns:]
+                self.set_hidden_state(state)
+        weights = weights[:np]#remove hidden state from weights          
+        super(Recurrent, self).set_weights(weights)
 
     def get_hidden_state(self):
-        if not self.stateful:
+        if not hasattr(self, 'state'):
             raise Exception("Not stateful RNN")
         state = [h.get_value() for h in self.state]
         return state
 
     def set_hidden_state(self, state):
-        if not self.stateful:
+        if not hasattr(self, 'state'):
             raise Exception("Not stateful RNN")
         if len(state) != len(self.state):
             raise Exception("Provided hidden state array does not match layer hidden states")
@@ -88,7 +78,7 @@ class Recurrent(MaskedLayer):
             s.set_value(floatX(h))
 
     def reset_hidden_state(self):
-        if not self.stateful:
+        if not hasattr(self, 'state'):
             raise Exception("Not stateful RNN")
         for h in self.state:
             h.set_value(h.get_value()*0)
@@ -129,7 +119,7 @@ class SimpleRNN(Recurrent):
         self.b = shared_zeros((self.output_dim))
         self.params = [self.W, self.U, self.b]
         nw = len(self.initial_weights) if self.initial_weights is not None else 0
-        if stateful:
+        if self.stateful:
             if self.initial_state is not None:
                 self.h = sharedX(self.initial_state[0])
                 del self.initial_state
@@ -143,7 +133,7 @@ class SimpleRNN(Recurrent):
                     raise Exception("Hidden state not provided in weights")
             else:
                 raise Exception("One of the following arguments must be provided for stateful RNNs: hidden_state, batch_size, weights")
-        self.state = [self.h]
+            self.state = [self.h]
         if self.initial_weights is not None:
             self.set_weights(self.initial_weights[:nw])
             del self.initial_weights
@@ -254,7 +244,7 @@ class SimpleDeepRNN(Recurrent):
                     raise Exception("Hidden state not provided in weights")
             else:
                 raise Exception("One of the following arguments must be provided for stateful RNNs: hidden_state, batch_size, weights")
-        self.state = [self.h]
+            self.state = [self.h]
 
         if self.initial_weights is not None:
             self.set_weights(self.initial_weights[:nw])
@@ -532,7 +522,7 @@ class LSTM(Recurrent):
             self.W_o, self.U_o, self.b_o,
         ]
         nw = len(self.initial_weights) if self.initial_weights is not None else 0
-        if stateful:
+        if self.stateful:
             if self.initial_state is not None:
                 self.h = sharedX(self.initial_state[0])
                 self.c = sharedX(self.initial_state[1])
@@ -549,8 +539,7 @@ class LSTM(Recurrent):
                     raise Exception("Hidden state not provided in weights")
             else:
                 raise Exception("One of the following arguments must be provided for stateful RNNs: hidden_state, batch_size, weights")
-        self.state = [self.h, self.c]
-        self.params += self.state
+            self.state = [self.h, self.c]
         if self.initial_weights is not None:
             self.set_weights(self.initial_weights[:nw])
             del self.initial_weights
@@ -828,7 +817,7 @@ class JZS2(Recurrent):
             self.Pmat
         ]
         nw = len(self.initial_weights) if self.initial_weights is not None else 0
-        if stateful:
+        if self.stateful:
             if self.initial_state is not None:
                 self.h = sharedX(self.initial_state[0])
                 del self.initial_state
@@ -842,7 +831,7 @@ class JZS2(Recurrent):
                     raise Exception("Hidden state not provided in weights")
             else:
                 raise Exception("One of the following arguments must be provided for stateful RNNs: hidden_state, batch_size, weights")
-        self.state = [self.h]
+            self.state = [self.h]
         if self.initial_weights is not None:
             self.set_weights(self.initial_weights[:nw])
             del self.initial_weights
@@ -963,7 +952,7 @@ class JZS3(Recurrent):
             self.W_h, self.U_h, self.b_h,
         ]
         nw = len(self.initial_weights) if self.initial_weights is not None else 0
-        if stateful:
+        if self.stateful:
             if self.initial_state is not None:
                 self.h = sharedX(self.initial_state[0])
                 del self.initial_state
@@ -977,7 +966,7 @@ class JZS3(Recurrent):
                     raise Exception("Hidden state not provided in weights")
             else:
                 raise Exception("One of the following arguments must be provided for stateful RNNs: hidden_state, batch_size, weights")
-        self.state = [self.h]
+            self.state = [self.h]
 
         if self.initial_weights is not None:
             self.set_weights(self.initial_weights[:nw])
