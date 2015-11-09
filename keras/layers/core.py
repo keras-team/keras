@@ -406,6 +406,9 @@ class Merge(Layer):
             l1 = self.layers[0].get_output(train)
             l2 = self.layers[1].get_output(train)
             output = T.batched_tensordot(l1, l2, self.dot_axes)
+            output_shape = list(self.output_shape)
+            output_shape[0] = l1.shape[0]
+            output = output.reshape(tuple(output_shape))
             return output
         elif self.mode == 'cos':
             l1 = self.layers[0].get_output(train)
