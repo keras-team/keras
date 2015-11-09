@@ -55,7 +55,8 @@ class SimpleRNN(Recurrent):
     '''
     def __init__(self, output_dim,
                  init='glorot_uniform', inner_init='orthogonal', activation='sigmoid', weights=None,
-                 truncate_gradient=-1, return_sequences=False, input_dim=None, input_length=None, **kwargs):
+                 truncate_gradient=-1, return_sequences=False, input_dim=None,
+                 input_length=None, go_backwards=False, **kwargs):
         self.output_dim = output_dim
         self.init = initializations.get(init)
         self.inner_init = initializations.get(inner_init)
@@ -63,6 +64,7 @@ class SimpleRNN(Recurrent):
         self.activation = activations.get(activation)
         self.return_sequences = return_sequences
         self.initial_weights = weights
+        self.go_backwards = go_backwards
 
         self.input_dim = input_dim
         self.input_length = input_length
@@ -107,7 +109,8 @@ class SimpleRNN(Recurrent):
             # initialization of the output. Input to _step with default tap=-1.
             outputs_info=T.unbroadcast(alloc_zeros_matrix(X.shape[1], self.output_dim), 1),
             non_sequences=self.U,  # static inputs to _step
-            truncate_gradient=self.truncate_gradient)
+            truncate_gradient=self.truncate_gradient,
+            go_backwards=self.go_backwards)
 
         if self.return_sequences:
             return outputs.dimshuffle((1, 0, 2))
@@ -122,7 +125,8 @@ class SimpleRNN(Recurrent):
                   "truncate_gradient": self.truncate_gradient,
                   "return_sequences": self.return_sequences,
                   "input_dim": self.input_dim,
-                  "input_length": self.input_length}
+                  "input_length": self.input_length,
+                  "go_backwards": self.go_backwards}
         base_config = super(SimpleRNN, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
@@ -141,7 +145,7 @@ class SimpleDeepRNN(Recurrent):
                  init='glorot_uniform', inner_init='orthogonal',
                  activation='sigmoid', inner_activation='hard_sigmoid',
                  weights=None, truncate_gradient=-1, return_sequences=False,
-                 input_dim=None, input_length=None, **kwargs):
+                 input_dim=None, input_length=None, go_backwards=False, **kwargs):
         self.output_dim = output_dim
         self.init = initializations.get(init)
         self.inner_init = initializations.get(inner_init)
@@ -151,6 +155,7 @@ class SimpleDeepRNN(Recurrent):
         self.depth = depth
         self.return_sequences = return_sequences
         self.initial_weights = weights
+        self.go_backwards = go_backwards
 
         self.input_dim = input_dim
         self.input_length = input_length
@@ -202,8 +207,8 @@ class SimpleDeepRNN(Recurrent):
                 taps=[(-i-1) for i in range(self.depth)]
             )],
             non_sequences=self.Us,
-            truncate_gradient=self.truncate_gradient
-        )
+            truncate_gradient=self.truncate_gradient,
+            go_backwards=self.go_backwards)
 
         if self.return_sequences:
             return outputs.dimshuffle((1, 0, 2))
@@ -220,7 +225,8 @@ class SimpleDeepRNN(Recurrent):
                   "truncate_gradient": self.truncate_gradient,
                   "return_sequences": self.return_sequences,
                   "input_dim": self.input_dim,
-                  "input_length": self.input_length}
+                  "input_length": self.input_length,
+                  "go_backwards": self.go_backwards}
         base_config = super(SimpleDeepRNN, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
@@ -251,7 +257,7 @@ class GRU(Recurrent):
                  init='glorot_uniform', inner_init='orthogonal',
                  activation='sigmoid', inner_activation='hard_sigmoid',
                  weights=None, truncate_gradient=-1, return_sequences=False,
-                 input_dim=None, input_length=None, **kwargs):
+                 input_dim=None, input_length=None, go_backwards=False, **kwargs):
         self.output_dim = output_dim
         self.init = initializations.get(init)
         self.inner_init = initializations.get(inner_init)
@@ -260,6 +266,7 @@ class GRU(Recurrent):
         self.truncate_gradient = truncate_gradient
         self.return_sequences = return_sequences
         self.initial_weights = weights
+        self.go_backwards = go_backwards
 
         self.input_dim = input_dim
         self.input_length = input_length
@@ -317,7 +324,8 @@ class GRU(Recurrent):
             sequences=[x_z, x_r, x_h, padded_mask],
             outputs_info=T.unbroadcast(alloc_zeros_matrix(X.shape[1], self.output_dim), 1),
             non_sequences=[self.U_z, self.U_r, self.U_h],
-            truncate_gradient=self.truncate_gradient)
+            truncate_gradient=self.truncate_gradient,
+            go_backwards=self.go_backwards)
 
         if self.return_sequences:
             return outputs.dimshuffle((1, 0, 2))
@@ -333,7 +341,8 @@ class GRU(Recurrent):
                   "truncate_gradient": self.truncate_gradient,
                   "return_sequences": self.return_sequences,
                   "input_dim": self.input_dim,
-                  "input_length": self.input_length}
+                  "input_length": self.input_length,
+                  "go_backwards": self.go_backwards}
         base_config = super(GRU, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
@@ -367,7 +376,7 @@ class LSTM(Recurrent):
                  init='glorot_uniform', inner_init='orthogonal', forget_bias_init='one',
                  activation='tanh', inner_activation='hard_sigmoid',
                  weights=None, truncate_gradient=-1, return_sequences=False,
-                 input_dim=None, input_length=None, **kwargs):
+                 input_dim=None, input_length=None, go_backwards=False, **kwargs):
         self.output_dim = output_dim
         self.init = initializations.get(init)
         self.inner_init = initializations.get(inner_init)
@@ -377,6 +386,7 @@ class LSTM(Recurrent):
         self.truncate_gradient = truncate_gradient
         self.return_sequences = return_sequences
         self.initial_weights = weights
+        self.go_backwards = go_backwards
 
         self.input_dim = input_dim
         self.input_length = input_length
@@ -447,7 +457,8 @@ class LSTM(Recurrent):
                 T.unbroadcast(alloc_zeros_matrix(X.shape[1], self.output_dim), 1)
             ],
             non_sequences=[self.U_i, self.U_f, self.U_o, self.U_c],
-            truncate_gradient=self.truncate_gradient)
+            truncate_gradient=self.truncate_gradient,
+            go_backwards=self.go_backwards)
 
         if self.return_sequences:
             return outputs.dimshuffle((1, 0, 2))
@@ -464,7 +475,8 @@ class LSTM(Recurrent):
                   "truncate_gradient": self.truncate_gradient,
                   "return_sequences": self.return_sequences,
                   "input_dim": self.input_dim,
-                  "input_length": self.input_length}
+                  "input_length": self.input_length,
+                  "go_backwards": self.go_backwards}
         base_config = super(LSTM, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
@@ -493,7 +505,7 @@ class JZS1(Recurrent):
                  init='glorot_uniform', inner_init='orthogonal',
                  activation='tanh', inner_activation='sigmoid',
                  weights=None, truncate_gradient=-1, return_sequences=False,
-                 input_dim=None, input_length=None, **kwargs):
+                 input_dim=None, input_length=None, go_backwards=False, **kwargs):
         self.output_dim = output_dim
         self.init = initializations.get(init)
         self.inner_init = initializations.get(inner_init)
@@ -502,6 +514,7 @@ class JZS1(Recurrent):
         self.truncate_gradient = truncate_gradient
         self.return_sequences = return_sequences
         self.initial_weights = weights
+        self.go_backwards = go_backwards
 
         self.input_dim = input_dim
         self.input_length = input_length
@@ -566,7 +579,8 @@ class JZS1(Recurrent):
             sequences=[x_z, x_r, x_h, padded_mask],
             outputs_info=T.unbroadcast(alloc_zeros_matrix(X.shape[1], self.output_dim), 1),
             non_sequences=[self.U_r, self.U_h],
-            truncate_gradient=self.truncate_gradient)
+            truncate_gradient=self.truncate_gradient,
+            go_backwards=self.go_backwards)
         if self.return_sequences:
             return outputs.dimshuffle((1, 0, 2))
         return outputs[-1]
@@ -581,7 +595,8 @@ class JZS1(Recurrent):
                   "truncate_gradient": self.truncate_gradient,
                   "return_sequences": self.return_sequences,
                   "input_dim": self.input_dim,
-                  "input_length": self.input_length}
+                  "input_length": self.input_length,
+                  "go_backwards": self.go_backwards}
         base_config = super(JZS1, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
@@ -610,7 +625,7 @@ class JZS2(Recurrent):
                  init='glorot_uniform', inner_init='orthogonal',
                  activation='tanh', inner_activation='sigmoid',
                  weights=None, truncate_gradient=-1, return_sequences=False,
-                 input_dim=None, input_length=None, **kwargs):
+                 input_dim=None, input_length=None, go_backwards=False, **kwargs):
         self.output_dim = output_dim
         self.init = initializations.get(init)
         self.inner_init = initializations.get(inner_init)
@@ -619,6 +634,7 @@ class JZS2(Recurrent):
         self.truncate_gradient = truncate_gradient
         self.return_sequences = return_sequences
         self.initial_weights = weights
+        self.go_backwards = go_backwards
 
         self.input_dim = input_dim
         self.input_length = input_length
@@ -684,7 +700,9 @@ class JZS2(Recurrent):
             sequences=[x_z, x_r, x_h, padded_mask],
             outputs_info=T.unbroadcast(alloc_zeros_matrix(X.shape[1], self.output_dim), 1),
             non_sequences=[self.U_z, self.U_r, self.U_h],
-            truncate_gradient=self.truncate_gradient)
+            truncate_gradient=self.truncate_gradient,
+            go_backwards=self.go_backwards)
+
         if self.return_sequences:
             return outputs.dimshuffle((1, 0, 2))
         return outputs[-1]
@@ -699,7 +717,8 @@ class JZS2(Recurrent):
                   "truncate_gradient": self.truncate_gradient,
                   "return_sequences": self.return_sequences,
                   "input_dim": self.input_dim,
-                  "input_length": self.input_length}
+                  "input_length": self.input_length,
+                  "go_backwards": self.go_backwards}
         base_config = super(JZS2, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
@@ -728,7 +747,7 @@ class JZS3(Recurrent):
                  init='glorot_uniform', inner_init='orthogonal',
                  activation='tanh', inner_activation='sigmoid',
                  weights=None, truncate_gradient=-1, return_sequences=False,
-                 input_dim=None, input_length=None, **kwargs):
+                 input_dim=None, input_length=None, go_backwards=False, **kwargs):
         self.output_dim = output_dim
         self.init = initializations.get(init)
         self.inner_init = initializations.get(inner_init)
@@ -737,6 +756,7 @@ class JZS3(Recurrent):
         self.truncate_gradient = truncate_gradient
         self.return_sequences = return_sequences
         self.initial_weights = weights
+        self.go_backwards = go_backwards
 
         self.input_dim = input_dim
         self.input_length = input_length
@@ -794,8 +814,9 @@ class JZS3(Recurrent):
             sequences=[x_z, x_r, x_h, padded_mask],
             outputs_info=T.unbroadcast(alloc_zeros_matrix(X.shape[1], self.output_dim), 1),
             non_sequences=[self.U_z, self.U_r, self.U_h],
-            truncate_gradient=self.truncate_gradient
-        )
+            truncate_gradient=self.truncate_gradient,
+            go_backwards=self.go_backwards)
+        
         if self.return_sequences:
             return outputs.dimshuffle((1, 0, 2))
         return outputs[-1]
@@ -810,6 +831,7 @@ class JZS3(Recurrent):
                   "truncate_gradient": self.truncate_gradient,
                   "return_sequences": self.return_sequences,
                   "input_dim": self.input_dim,
-                  "input_length": self.input_length}
+                  "input_length": self.input_length,
+                  "go_backwards": self.go_backwards}
         base_config = super(JZS3, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
