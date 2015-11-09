@@ -377,7 +377,7 @@ class TestSequential(unittest.TestCase):
         model.compile('sgd', 'binary_crossentropy')
 
         self.assertEqual(n, model.count_params())
- 
+
 
 if __name__ == '__main__':
     print('Test Sequential model')
