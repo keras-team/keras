@@ -347,8 +347,7 @@ class TestSequential(unittest.TestCase):
         assert(loss == nloss)
         
         print ('test serializing')
-        func = None # Make sure that the model has the function code, not just the function name.
-        activation = None
+        del func, activation # Make sure that the model has the function code, not just the function name.
         sys.setrecursionlimit(50000)
         model_str = pickle.dumps(model)
         model = pickle.loads(model_str)
