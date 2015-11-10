@@ -5,6 +5,7 @@ from keras.layers.core import Activation, Dense, Merge, Permute, Dropout
 from keras.layers.recurrent import LSTM
 from keras.datasets.data_utils import get_file
 from keras.preprocessing.sequence import pad_sequences
+from functools import reduce
 import tarfile
 import numpy as np
 import re
