@@ -1012,10 +1012,10 @@ class Lambda(Layer):
         else:
             output_shape_func = marshal.loads(self._output_shape)
             output_shape_func = types.FunctionType(output_shape_func, globals())
-            shape = output_shape_func(self.previous.output_shape[1:])
+            shape = output_shape_func(self.previous.output_shape)
             if type(shape) not in {list, tuple}:
                 raise Exception("output_shape function must return a tuple")
-            return (self.input_shape[0], ) + tuple(shape)
+            return tuple(shape)
 
     def get_output(self, train=False):
         func = marshal.loads(self.function)
@@ -1089,10 +1089,10 @@ class LambdaMerge(Lambda):
         else:
             output_shape_func = marshal.loads(self._output_shape)
             output_shape_func = types.FunctionType(output_shape_func, globals())
-            shape = output_shape_func([shape[1:] for shape in input_shapes])
+            shape = output_shape_func(input_shapes)
             if type(shape) not in {list, tuple}:
                 raise Exception("output_shape function must return a tuple")
-            return (input_shapes[0][0], ) + tuple(shape)
+            return tuple(shape)
 
     def get_params(self):
         return self.params, self.regularizers, self.constraints, self.updates
