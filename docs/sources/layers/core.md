@@ -427,7 +427,7 @@ Merge the output of a list of layers (or containers) into a single tensor, using
 ```python
 #root mean square function
 def rms(X):
-    s=X[0]**2
+    s = X[0]**2
     for i in range(1, len(X)):
         s += X[i]**2
     s /= len(X)
