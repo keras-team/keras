@@ -374,3 +374,37 @@ Given an input of dimensions `(nb_samples, timesteps, input_dim)`, return the in
 - __Input shape__: 3D tensor with shape: `(nb_samples, timesteps, features)`.
 
 - __Output shape__: 3D tensor with shape: `(nb_samples, timesteps, features)`.
+
+## Lambda
+```python
+keras.layers.core.Lambda(function, output_shape=None)
+```
+
+Used for evaluating an arbitrary function on the output of the previous layer. 
+
+- __Input shape__: Output shape of the previous layer.
+
+- __Output shape__: Specified by the `output_shape` argument.
+
+- __Arguments__:
+
+    - __function__: The funtion to be evaluated.
+    - __output_shape__: Shape of the tensor returned by `function`. Should be a tuple or a function of the input shape.
+
+- __Example__:
+
+```python
+def sharp_softmax(X,beta=1.5):
+    return theano.tensor.nnet.softmax(X*beta)
+
+def output_shape(input_shape):
+    return input_shape
+SharpSoftmax = Lambda(sharp_softmax, output_shape)
+
+model=Sequential()
+model.add(Dense(input_dim=10,output_dim=10))
+model.add(SharpSoftmax)
+model.add(Dense(1))
+model.add(Activation('sigmoid'))
+```
+---
