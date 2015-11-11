@@ -4,7 +4,7 @@ from __future__ import print_function
 
 from collections import OrderedDict
 import theano.tensor as T
-from ..layers.core import Layer, Merge
+from ..layers.core import Layer, Merge, Siamese, SiameseHead
 from ..utils.theano_utils import ndim_tensor
 from six.moves import range
 
@@ -276,6 +276,44 @@ class Graph(Layer):
 
         if create_output:
             self.add_output(name, input=name)
+
+    def add_shared_node(self, layer, name, inputs=[], merge_mode='concat', concat_axis=-1, dot_axes=-1, create_output=False):
+        if name in self.namespace:
+            raise Exception('Duplicate node identifier: ' + name)
+        layers = []
+        for i in range(len(inputs)):
+            input = inputs[i]
+            if input in self.nodes:
+                n = self.nodes[input]
+                if hasattr(n, 'get_output_at'):#is it a siamese layer?
+                    if n.merge_mode is None:
+                        for j in range(len(n.inputs)):
+                            sh = SiameseHead(j)
+                            sh.previous = n
+                            layers.append(sh)
+                    else:
+                        layers.append(n)
+            elif input in self.inputs:
+                n = self.inputs[n]
+                layers.append(n)
+            else:
+                raise Exception('Unknown identifier: ' + n)
+        s = Siamese(layer, layers, merge_mode, concat_axis=concat_axis, dot_axes=dot_axes)
+        s.set_name(name)
+        self.namespace.add(name)
+        self.nodes[name] = s
+        self.node_config.append({'name': name,
+                                    'inputs': inputs,
+                                    'merge_mode': merge_mode,
+                                    'concat_axis': concat_axis,
+                                    'dot_axes': dot_axes,
+                                    'create_output': create_output})
+    
+        if create_output:
+            if merge_mode is None:
+                raise Exception('Merge mode not specified')
+            self.add_output(name, input=name)
+
 
     def add_output(self, name, input=None, inputs=[],
                    merge_mode='concat', concat_axis=-1, dot_axes=-1):
