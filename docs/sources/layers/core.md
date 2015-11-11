@@ -389,16 +389,18 @@ Used for evaluating an arbitrary function on the output of the previous layer.
 - __Arguments__:
 
     - __function__: The funtion to be evaluated.
-    - __output_shape__: Shape of the tensor returned by `function`. Should be a tuple or a function of the input shape.
+    - __output_shape__: Shape of the tensor returned by `function`. Should be a tuple or a function of the input shape. If not specified, `input_shape` will be assumed to be the `output_shape` of the layer.
 
 - __Example__:
 
 ```python
+#custom softmax function
 def sharp_softmax(X,beta=1.5):
     return theano.tensor.nnet.softmax(X*beta)
 
 def output_shape(input_shape):
-    return input_shape
+    return input_shape #shape is unchanged
+
 SharpSoftmax = Lambda(sharp_softmax, output_shape)
 
 model=Sequential()
