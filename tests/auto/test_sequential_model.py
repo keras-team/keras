@@ -2,12 +2,15 @@ from __future__ import absolute_import
 from __future__ import print_function
 import unittest
 import numpy as np
+import theano
 np.random.seed(1337)
 
 from keras.models import Sequential, model_from_json, model_from_yaml
-from keras.layers.core import Dense, Activation, Merge
+from keras.layers.core import Dense, Activation, Merge, Lambda, LambdaMerge
 from keras.utils import np_utils
 from keras.utils.test_utils import get_test_data
+import pickle
+import sys
 
 input_dim = 32
 nb_hidden = 16
@@ -311,7 +314,83 @@ class TestSequential(unittest.TestCase):
         nloss = model.evaluate(X_train, y_train, verbose=0)
         print(nloss)
         assert(loss == nloss)
+        
+    def test_lambda(self):
+        print('Test lambda: sum')
 
+        def func(X):
+            s = X[0]
+            for i in range(1,len(X)):
+                s += X[i]
+            return s
+            
+        def activation(X):
+          return theano.tensor.nnet.softmax(X)
+          
+        def output_shape(input_shapes):
+            return input_shapes[0]
+
+        left = Sequential()
+        left.add(Dense(nb_hidden, input_shape=(input_dim,)))
+        left.add(Activation('relu'))
+        
+        right = Sequential()
+        right.add(Dense(nb_hidden, input_shape=(input_dim,)))
+        right.add(Activation('relu'))
+        
+        model = Sequential()
+
+        model.add(LambdaMerge([left, right], function=func, output_shape=output_shape))
+
+        model.add(Dense(nb_class))
+        model.add(Lambda(activation))
+
+        model.compile(loss='categorical_crossentropy', optimizer='rmsprop')
+
+        model.fit([X_train, X_train], y_train, batch_size=batch_size, nb_epoch=nb_epoch, show_accuracy=True, verbose=0, validation_data=([X_test, X_test], y_test))
+        model.fit([X_train, X_train], y_train, batch_size=batch_size, nb_epoch=nb_epoch, show_accuracy=False, verbose=0, validation_data=([X_test, X_test], y_test))
+        model.fit([X_train, X_train], y_train, batch_size=batch_size, nb_epoch=nb_epoch, show_accuracy=True, verbose=0, validation_split=0.1)
+        model.fit([X_train, X_train], y_train, batch_size=batch_size, nb_epoch=nb_epoch, show_accuracy=False, verbose=0, validation_split=0.1)
+        model.fit([X_train, X_train], y_train, batch_size=batch_size, nb_epoch=nb_epoch, verbose=0)
+        model.fit([X_train, X_train], y_train, batch_size=batch_size, nb_epoch=nb_epoch, verbose=0, shuffle=False)
+
+        loss = model.evaluate([X_train, X_train], y_train, verbose=0)
+        print('loss:', loss)
+        if loss > 0.7:
+            raise Exception('Score too low, learning issue.')
+        preds = model.predict([X_test, X_test], verbose=0)
+        classes = model.predict_classes([X_test, X_test], verbose=0)
+        probas = model.predict_proba([X_test, X_test], verbose=0)
+        print(model.get_config(verbose=1))
+
+        print('test weight saving')
+        model.save_weights('temp.h5', overwrite=True)
+        left = Sequential()
+        left.add(Dense(nb_hidden, input_shape=(input_dim,)))
+        left.add(Activation('relu'))
+        right = Sequential()
+        right.add(Dense(nb_hidden, input_shape=(input_dim,)))
+        right.add(Activation('relu'))
+        model = Sequential()
+        model.add(LambdaMerge([left, right], function=func, output_shape=output_shape))
+        model.add(Dense(nb_class))
+        model.add(Lambda(activation))
+        model.load_weights('temp.h5')
+        model.compile(loss='categorical_crossentropy', optimizer='rmsprop')
+
+        nloss = model.evaluate([X_train, X_train], y_train, verbose=0)
+        print(nloss)
+        assert(loss == nloss)
+        
+        print ('test serializing')
+        del func, activation # Make sure that the model has the function code, not just the function name.
+        sys.setrecursionlimit(50000)
+        model_str = pickle.dumps(model)
+        model = pickle.loads(model_str)
+        nloss = model.evaluate([X_train, X_train], y_train, verbose=0)
+        print(nloss)
+        assert(loss == nloss)
+        
     def test_count_params(self):
         print('test count params')
         input_dim = 20

@@ -332,7 +332,7 @@ model.add(MaxoutDense(50, nb_feature=10)) # output shape: (nb_samples, 50)
 
 ## Merge
 ```python
-keras.layers.core.Merge(models, mode='sum')
+keras.layers.core.Merge(layers, mode='sum')
 ```
 
 Merge the output of a list of layers (or containers) into a single tensor, following one of three modes: `sum`, `mul` or `concat`. 
@@ -374,3 +374,82 @@ Given an input of dimensions `(nb_samples, timesteps, input_dim)`, return the in
 - __Input shape__: 3D tensor with shape: `(nb_samples, timesteps, features)`.
 
 - __Output shape__: 3D tensor with shape: `(nb_samples, timesteps, features)`.
+
+## Lambda
+```python
+keras.layers.core.Lambda(function, output_shape=None)
+```
+
+Used for evaluating an arbitrary function on the output of the previous layer. 
+
+- __Input shape__: Output shape of the previous layer.
+
+- __Output shape__: Specified by the `output_shape` argument.
+
+- __Arguments__:
+
+    - __function__: The funtion to be evaluated. Takes one argument: output of the previous layer.
+    - __output_shape__: Shape of the tensor returned by `function`. Should be a tuple or a function of input shape(excluding samples dimension).
+
+- __Example__:
+
+```python
+#custom softmax function
+def sharp_softmax(X,beta=1.5):
+    return theano.tensor.nnet.softmax(X*beta)
+
+def output_shape(input_shape):
+    return input_shape #shape is unchanged
+
+SharpSoftmax = Lambda(sharp_softmax, output_shape)
+
+model = Sequential()
+model.add(Dense(input_dim=10,output_dim=10))
+model.add(SharpSoftmax)
+model.add(Dense(1))
+model.add(Activation('sigmoid'))
+```
+
+
+## LambdaMerge
+```python
+keras.layers.core.LambdaMerge(layers, function, output_shape=None)
+```
+
+Merge the output of a list of layers (or containers) into a single tensor, using an arbitrary function.
+
+- __Arguments__:
+    - __layers__: List of layers or [containers](/layers/containers/).
+    - __function__: The function to be evaluated. Takes one argument: list of outputs from input layers. 
+    - __output_shape__: Shape of the tensor returned by `function`. Should be a tuple or a function of list of input shapes.
+- __Example__:
+
+```python
+#root mean square function
+def rms(X):
+    s = X[0]**2
+    for i in range(1, len(X)):
+        s += X[i]**2
+    s /= len(X)
+    s = theano.tensor.sqrt(s)
+    return s
+
+def output_shape(input_shapes):
+    return input_shapes[0]
+
+left = Sequential()
+left.add(Dense(input_dim = 10,output_dim = 10))
+left.add(Activation('sigmoid'))
+
+right = Sequential()
+right.add(Dense(input_dim = 10,output_dim = 10))
+right.add(Activation('sigmoid'))
+
+model = Sequential()
+model.add(LambdaMerge([left,right], rms, output_shape))
+
+model.add(Dense(1))
+model.add(Activation('sigmoid'))
+```
+
+---
