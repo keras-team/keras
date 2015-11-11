@@ -84,11 +84,11 @@ class Sequential(Layer):
         if not hasattr(self.layers[0], 'input'):
             self.set_input()
         return self.layers[0].get_input(train)
- 
+
     @property
     def input_shape(self):
         return self.layers[0].input_shape
-    
+
     @property
     def input(self):
         return self.get_input()
@@ -316,3 +316,15 @@ class Graph(Layer):
 
     def count_params(self):
         return sum([layer.count_params() for layer in self.nodes.values()])
+
+    def get_weights(self):
+        weights = []
+        for layer in self.nodes.values():
+            weights += layer.get_weights()
+        return weights
+
+    def set_weights(self, weights):
+        for layer in self.nodes.values():
+            nb_param = len(layer.get_weights())
+            layer.set_weights(weights[:nb_param])
+            weights = weights[nb_param:]
