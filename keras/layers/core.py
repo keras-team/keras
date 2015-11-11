@@ -863,7 +863,7 @@ class AutoEncoder(Layer):
 
     @property
     def input_shape(self):
-        self.encoder.previous.output_shape
+        return self.encoder.input_shape
 
     @property
     def output_shape(self):
