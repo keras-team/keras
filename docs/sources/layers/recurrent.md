@@ -26,6 +26,7 @@ Fully connected RNN where output is to fed back to input.
     - __return_sequences__: Boolean. Whether to return the last output in the output sequence, or the full sequence.
     - __input_dim__: dimensionality of the input (integer). This argument (or alternatively, the keyword argument `input_shape`) is required when using this layer as the first layer in a model.
     - __input_length__: Length of input sequences, when it is constant. This argument is required if you are going to connect `Flatten` then `Dense` layers upstream (without it, the shape of the dense outputs cannot be computed).
+    - __go_backwards__: Boolean (Default False).  Process the input sequence backwards.
 
 ---
 
@@ -67,6 +68,7 @@ Not a particularly useful model, included for demonstration purposes.
     - __return_sequences__: Boolean. Whether to return the last output in the output sequence, or the full sequence.
     - __input_dim__: dimensionality of the input (integer). This argument (or alternatively, the keyword argument `input_shape`) is required when using this layer as the first layer in a model.
     - __input_length__: Length of input sequences, when it is constant. This argument is required if you are going to connect `Flatten` then `Dense` layers upstream (without it, the shape of the dense outputs cannot be computed).
+    - __go_backwards__: Boolean (Default False).  Process the input sequence backwards.
 
 
 ---
@@ -102,6 +104,7 @@ Gated Recurrent Unit - Cho et al. 2014.
     - __return_sequences__: Boolean. Whether to return the last output in the output sequence, or the full sequence.
     - __input_dim__: dimensionality of the input (integer). This argument (or alternatively, the keyword argument `input_shape`) is required when using this layer as the first layer in a model.
     - __input_length__: Length of input sequences, when it is constant. This argument is required if you are going to connect `Flatten` then `Dense` layers upstream (without it, the shape of the dense outputs cannot be computed).
+    - __go_backwards__: Boolean (Default False).  Process the input sequence backwards.
 
 - __References__: 
     - [On the Properties of Neural Machine Translation: Encoder–Decoder Approaches](http://www.aclweb.org/anthology/W14-4012)
@@ -141,6 +144,7 @@ Long-Short Term Memory unit - Hochreiter 1997.
     - __return_sequences__: Boolean. Whether to return the last output in the output sequence, or the full sequence.
     - __input_dim__: dimensionality of the input (integer). This argument (or alternatively, the keyword argument `input_shape`) is required when using this layer as the first layer in a model.
     - __input_length__: Length of input sequences, when it is constant. This argument is required if you are going to connect `Flatten` then `Dense` layers upstream (without it, the shape of the dense outputs cannot be computed).
+    - __go_backwards__: Boolean (Default False).  Process the input sequence backwards.
 
 - __References__: 
     - [Long short-term memory](http://deeplearning.cs.cmu.edu/pdfs/Hochreiter97_lstm.pdf) (original 1997 paper)
@@ -180,6 +184,7 @@ Top 3 RNN architectures evolved from the evaluation of thousands of models. Serv
     - __return_sequences__: Boolean. Whether to return the last output in the output sequence, or the full sequence.
     - __input_dim__: dimensionality of the input (integer). This argument (or alternatively, the keyword argument `input_shape`) is required when using this layer as the first layer in a model.
     - __input_length__: Length of input sequences, when it is constant. This argument is required if you are going to connect `Flatten` then `Dense` layers upstream (without it, the shape of the dense outputs cannot be computed).
+    - __go_backwards__: Boolean (Default False).  Process the input sequence backwards.
 
 - __References__: 
     - [An Empirical Exploration of Recurrent Network Architectures](http://www.jmlr.org/proceedings/papers/v37/jozefowicz15.pdf)
