@@ -277,9 +277,15 @@ class Graph(Layer):
         if create_output:
             self.add_output(name, input=name)
 
-    def add_shared_node(self, layer, name, inputs=[], merge_mode='concat', concat_axis=-1, dot_axes=-1, create_output=False):
+    def add_shared_node(self, layer, name, inputs=[], merge_mode='concat', concat_axis=-1, dot_axes=-1, outputs=[], create_output=False):
+
         if name in self.namespace:
             raise Exception('Duplicate node identifier: ' + name)
+        for o in outputs:
+            if o in self.namespace:
+                raise Exception('Duplicate node identifier: ' + o)
+        if merge_mode:
+            if merge_mode not in {'sum', 'ave', 'mul', 'dot', 'cos', 'concat', 'join'}
         layers = []
         for i in range(len(inputs)):
             input = inputs[i]
@@ -303,15 +309,28 @@ class Graph(Layer):
         self.namespace.add(name)
         self.nodes[name] = s
         self.node_config.append({'name': name,
-                                    'inputs': inputs,
-                                    'merge_mode': merge_mode,
-                                    'concat_axis': concat_axis,
-                                    'dot_axes': dot_axes,
-                                    'create_output': create_output})
+                                'inputs': inputs,
+                                'merge_mode': merge_mode,
+                                'concat_axis': concat_axis,
+                                'dot_axes': dot_axes,
+                                'create_output': create_output if merge_mode else False})
+        if not merge_mode:
+            for i in range(len(outputs)):
+                sh = SiameseHead(i)
+                sh.previous = s
+                sh_name = outputs[i]
+                sh.set_name(sh_name)
+                self.namespace.add(sh_name)
+                self.nodes[sh_name] = sh
+                self.node_config.append({'name': sh_name,
+                                        'inputs': [s],
+                                        'create_output': create_output})
+                if create_output:
+                    self.add_output(sh_name, input=sh_name)
     
-        if create_output:
-            if merge_mode is None:
-                raise Exception('Merge mode not specified')
+        if create_output and merge_mode:
+            if merge_mode == 'join':
+                raise Exception("Output can not be of type OrderedDict")
             self.add_output(name, input=name)
 
 
