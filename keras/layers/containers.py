@@ -285,7 +285,8 @@ class Graph(Layer):
             if o in self.namespace:
                 raise Exception('Duplicate node identifier: ' + o)
         if merge_mode:
-            if merge_mode not in {'sum', 'ave', 'mul', 'dot', 'cos', 'concat', 'join'}
+            if merge_mode not in {'sum', 'ave', 'mul', 'dot', 'cos', 'concat', 'join'}:
+                raise Eception("Invalid merge mode")
         layers = []
         for i in range(len(inputs)):
             input = inputs[i]
@@ -300,7 +301,7 @@ class Graph(Layer):
                     else:
                         layers.append(n)
             elif input in self.inputs:
-                n = self.inputs[n]
+                n = self.inputs[input]
                 layers.append(n)
             else:
                 raise Exception('Unknown identifier: ' + n)
