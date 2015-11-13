@@ -277,7 +277,7 @@ class Graph(Layer):
         if create_output:
             self.add_output(name, input=name)
 
-    def add_shared_node(self, layer, name, inputs=[], merge_mode='concat', concat_axis=-1, dot_axes=-1, outputs=[], create_output=False):
+    def add_shared_node(self, layer, name, inputs=[], merge_mode=None, concat_axis=-1, dot_axes=-1, outputs=[], create_output=False):
 
         if name in self.namespace:
             raise Exception('Duplicate node identifier: ' + name)
