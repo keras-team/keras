@@ -7,8 +7,6 @@ def softmax(x):
 
 
 def time_distributed_softmax(x):
-    import warnings
-    warnings.warn("time_distributed_softmax is deprecated. Just use softmax!", DeprecationWarning)
     return softmax(x)
 
 

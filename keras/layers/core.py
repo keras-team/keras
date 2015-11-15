@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
-from __future__ import absolute_import, division
+from __future__ import absolute_import
+from __future__ import division
 
 import theano
 import theano.tensor as T
@@ -236,7 +237,6 @@ class Masking(MaskedLayer):
 
 class TimeDistributedMerge(Layer):
     '''Sum/multiply/average over the outputs of a TimeDistributed layer.
-
     mode: {'sum', 'mul', 'ave'}
     Tensor input dimensions:   (nb_sample, time, features)
     Tensor output dimensions:  (nb_sample, features)
@@ -257,10 +257,11 @@ class TimeDistributedMerge(Layer):
 
     def get_output(self, train=False):
         X = self.get_input(train)
-        if self.mode == 'sum' or self.mode == 'ave':
+        if self.mode == 'ave':
+            s = theano.tensor.mean(X, axis=1)
+            return s
+        if self.mode == 'sum':
             s = theano.tensor.sum(X, axis=1)
-            if self.mode == 'ave':
-                s /= X.shape[1]
             return s
         elif self.mode == 'mul':
             s = theano.tensor.mul(X, axis=1)

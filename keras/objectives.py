@@ -2,7 +2,7 @@ from __future__ import absolute_import
 import theano
 import theano.tensor as T
 import numpy as np
-from six.moves import range
+
 
 if theano.config.floatX == 'float64':
     epsilon = 1.0e-9
@@ -12,9 +12,11 @@ else:
 
 def mean_squared_error(y_true, y_pred):
     return T.sqr(y_pred - y_true).mean(axis=-1)
-    
+
+
 def root_mean_squared_error(y_true, y_pred):
     return T.sqrt(T.sqr(y_pred - y_true).mean(axis=-1))
+
 
 def mean_absolute_error(y_true, y_pred):
     return T.abs_(y_pred - y_true).mean(axis=-1)

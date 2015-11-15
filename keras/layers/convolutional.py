@@ -370,7 +370,7 @@ class UpSample1D(Layer):
 
     def get_output(self, train=False):
         X = self.get_input(train)
-        output = theano.tensor.extra_ops.repeat(X, self.length, axis=1)
+        output = T.extra_ops.repeat(X, self.length, axis=1)
         return output
 
     def get_config(self):
@@ -395,8 +395,8 @@ class UpSample2D(Layer):
 
     def get_output(self, train=False):
         X = self.get_input(train)
-        Y = theano.tensor.extra_ops.repeat(X, self.size[0], axis=2)
-        output = theano.tensor.extra_ops.repeat(Y, self.size[1], axis=3)
+        Y = T.extra_ops.repeat(X, self.size[0], axis=2)
+        output = T.extra_ops.repeat(Y, self.size[1], axis=3)
         return output
 
     def get_config(self):
@@ -442,6 +442,7 @@ class ZeroPadding1D(Layer):
                         input_shape[1] + 2 * self.padding,
                         input_shape[2])
         output = T.zeros(output_shape)
+        # TODO: use concatenation instead
         return T.set_subtensor(output[:, self.padding:X.shape[1] + self.padding, :], X)
 
     def get_config(self):
@@ -495,6 +496,7 @@ class ZeroPadding2D(Layer):
                    slice(None),
                    slice(self.padding[0], input_shape[2] + self.padding[0]),
                    slice(self.padding[1], input_shape[3] + self.padding[1]))
+        # TODO: use concatenation instead
         return T.set_subtensor(output[indices], X)
 
     def get_config(self):
