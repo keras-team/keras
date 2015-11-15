@@ -1,25 +1,22 @@
 from __future__ import absolute_import
-import theano
-import theano.tensor as T
+
 import numpy as np
+import theano.tensor as T
 
-
-if theano.config.floatX == 'float64':
-    epsilon = 1.0e-9
-else:
-    epsilon = 1.0e-7
+from keras import backend as K
+from keras.backend.common import _EPSILON as epsilon
 
 
 def mean_squared_error(y_true, y_pred):
-    return T.sqr(y_pred - y_true).mean(axis=-1)
+    return K.mean(K.square(y_pred - y_true))
 
 
 def root_mean_squared_error(y_true, y_pred):
-    return T.sqrt(T.sqr(y_pred - y_true).mean(axis=-1))
+    return K.sqrt(K.mean(K.square(y_pred - y_true)))
 
 
 def mean_absolute_error(y_true, y_pred):
-    return T.abs_(y_pred - y_true).mean(axis=-1)
+    return K.mean(K.abs(y_pred - y_true))
 
 
 def mean_absolute_percentage_error(y_true, y_pred):
@@ -27,7 +24,7 @@ def mean_absolute_percentage_error(y_true, y_pred):
 
 
 def mean_squared_logarithmic_error(y_true, y_pred):
-    return T.sqr(T.log(T.clip(y_pred, epsilon, np.inf) + 1.) - T.log(T.clip(y_true, epsilon, np.inf) + 1.)).mean(axis=-1)
+    return K.mean(K.square(K.log(K.clip(y_pred, epsilon, np.inf) + 1.) - K.log(K.clip(y_true, epsilon, np.inf) + 1.)))
 
 
 def squared_hinge(y_true, y_pred):
@@ -57,6 +54,7 @@ def binary_crossentropy(y_true, y_pred):
 def poisson_loss(y_true, y_pred):
     return T.mean(y_pred - y_true * T.log(y_pred + epsilon), axis=-1)
 
+
 # aliases
 mse = MSE = mean_squared_error
 rmse = RMSE = root_mean_squared_error
@@ -65,5 +63,7 @@ mape = MAPE = mean_absolute_percentage_error
 msle = MSLE = mean_squared_logarithmic_error
 
 from .utils.generic_utils import get_from_module
+
+
 def get(identifier):
     return get_from_module(identifier, globals(), 'objective')
