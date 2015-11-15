@@ -1162,6 +1162,7 @@ def add_shared_layer(layer,inputs):
     input_layers = [l.layers[-1] for l in inputs]
     s = Siamese(layer, input_layers)
     for i in range(len(inputs)):
-        inputs[i].add(s)
-        inputs[i].add(SiameseHead(i))
+        sh = SiameseHead(i)
+        sh.previous = s
+        inputs[i].add(sh)
 
