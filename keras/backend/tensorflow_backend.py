@@ -108,7 +108,7 @@ def abs(x):
 
 
 def sqrt(x):
-    x = tf.clip_by_value(x, _EPSILON, np.inf)
+    x = tf.clip_by_value(x, 0.0, np.inf)
     return tf.sqrt(x)
 
 
