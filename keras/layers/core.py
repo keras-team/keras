@@ -31,6 +31,7 @@ class Layer(object):
             self._trainable = kwargs['trainable']
         if not hasattr(self, 'params'):
             self.params = []
+        self.name = None
 
     def set_previous(self, layer, connection_map={}):
         assert self.nb_input == layer.nb_output == 1, "Cannot connect layers: input count and output count should be 1."
@@ -180,6 +181,7 @@ class Layer(object):
         return self.params, regularizers, consts, updates
 
     def set_name(self, name):
+        self.name = name
         for i in range(len(self.params)):
             self.params[i].name = '%s_p%d' % (name, i)
 
@@ -397,10 +399,10 @@ class Merge(Layer):
             inputs = OrderedDict()
             for i in range(len(self.layers)):
                 X = self.layers[i].get_output(train)
-                if X.name is None:
+                if self.layers[i].name is None:
                     raise ValueError("merge_mode='join' only works with named inputs")
                 else:
-                    inputs[X.name] = X
+                    inputs[self.layers[i].name] = X
             return inputs
         elif self.mode == 'mul':
             s = self.layers[0].get_output(train)
