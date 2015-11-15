@@ -1,8 +1,12 @@
-sudo: false
+sudo: true
 language: python
+dist: trusty
 python:
   - "2.7"
   - "3.4"
+before_install:
+  - sudo apt-get update -qq
+  - sudo apt-get install -qq libc6
 install:
   # code below is taken from http://conda.pydata.org/docs/travis.html
   # We do this conditionally because it saves us some downloading if the
@@ -24,6 +28,9 @@ install:
   - source activate test-environment
   - pip install pytest-cov python-coveralls
   - pip install git+git://github.com/Theano/Theano.git
+  - if [[ "$TRAVIS_PYTHON_VERSION" == "2.7" ]]; then
+    pip install https://storage.googleapis.com/tensorflow/linux/cpu/tensorflow-0.5.0-cp27-none-linux_x86_64.whl;
+    fi
   - python setup.py install
 # command to run tests
 script:
