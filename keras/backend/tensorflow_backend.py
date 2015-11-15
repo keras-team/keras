@@ -62,20 +62,28 @@ def transpose(x):
 # ELEMENT-WISE OPERATIONS
 
 def max(x, axis=None, keepdims=False):
+    if axis is not None:
+        axis = axis % len(x.get_shape())
     return tf.reduce_max(x, reduction_indices=axis, keep_dims=keepdims)
 
 
 def min(x, axis=None, keepdims=False):
+    if axis is not None:
+        axis = axis % len(x.get_shape())
     return tf.reduce_min(x, reduction_indices=axis, keep_dims=keepdims)
 
 
 def sum(x, axis=None, keepdims=False):
     '''Sum of the values in a tensor, alongside the specified axis.
     '''
+    if axis is not None:
+        axis = axis % len(x.get_shape())
     return tf.reduce_sum(x, reduction_indices=axis, keep_dims=keepdims)
 
 
 def mean(x, axis=None, keepdims=False):
+    if axis is not None:
+        axis = axis % len(x.get_shape())
     return tf.reduce_mean(x, reduction_indices=axis, keep_dims=keepdims)
 
 
@@ -84,6 +92,8 @@ def any(x, axis=None, keepdims=False):
 
     Return array of int8 (0s and 1s).
     '''
+    if axis is not None:
+        axis = axis % len(x.get_shape())
     x = tf.cast(x, tf.bool)
     x = tf.reduce_any(x, reduction_indices=axis, keep_dims=keepdims)
     return tf.cast(x, tf.int8)
@@ -108,7 +118,7 @@ def abs(x):
 
 
 def sqrt(x):
-    x = tf.clip_by_value(x, _EPSILON, np.inf)
+    x = tf.clip_by_value(x, 0., np.inf)
     return tf.sqrt(x)
 
 

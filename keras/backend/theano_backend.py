@@ -138,7 +138,7 @@ def abs(x):
 
 
 def sqrt(x):
-    x = T.clip(x, _EPSILON, np.inf)
+    x = T.clip(x, 0., np.inf)
     return T.sqrt(x)
 
 
