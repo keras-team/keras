@@ -158,13 +158,22 @@ def model_from_config(config, custom_objects={}):
 
         optimizer_params = dict([(k, v) for k, v in config.get('optimizer').items()])
         optimizer_name = optimizer_params.pop('name')
-        optimizer = optimizers.get(optimizer_name, optimizer_params)
+        optimizer = optimizers.get(optimizer_name, kwargs=optimizer_params, custom_objects=custom_objects)
 
         if model_name == 'Sequential':
-            model.compile(loss=loss, optimizer=optimizer,
-                          class_mode=class_mode)
+            model.compile(
+                loss=loss,
+                optimizer=optimizer,
+                class_mode=class_mode,
+                theano_mode=theano_mode,
+                custom_objects=custom_objects)
         elif model_name == 'Graph':
-            model.compile(loss=loss, optimizer=optimizer)
+            model.compile(
+                loss=loss,
+                optimizer=optimizer,
+                theano_mode=theano_mode,
+                custom_objects=custom_objects)
+
     return model
 
 
@@ -381,8 +390,7 @@ class Sequential(Model, containers.Sequential):
 
     Inherits from containers.Sequential.
     '''
-    def compile(self, optimizer, loss,
-                class_mode="categorical"):
+    def compile(self, optimizer, loss, class_mode="categorical", custom_objects={}):
         '''Configure the learning process.
 
         # Arguments
@@ -394,10 +402,10 @@ class Sequential(Model, containers.Sequential):
                 This is only used for computing classification accuracy or
                 using the predict_classes method.
         '''
-        self.optimizer = optimizers.get(optimizer)
+        self.optimizer = optimizers.get(optimizer, custom_objects=custom_objects)
 
-        self.loss = objectives.get(loss)
-        weighted_loss = weighted_objective(objectives.get(loss))
+        self.loss = objectives.get(loss, custom_objects)
+        weighted_loss = weighted_objective(objectives.get(loss, custom_objects))
 
         # input of model
         self.X_train = self.get_input(train=True)
@@ -922,7 +930,7 @@ class Graph(Model, containers.Graph):
 
     Inherits from `containers.Graph`.
     '''
-    def compile(self, optimizer, loss):
+    def compile(self, optimizer, loss, theano_mode=None, custom_objects={}):
         '''Configure the learning process.
 
         # Arguments
@@ -955,7 +963,7 @@ class Graph(Model, containers.Graph):
 
             weight = K.placeholder(ndim=1)
             weights.append(weight)
-            weighted_loss = weighted_objective(objectives.get(loss_fn))
+            weighted_loss = weighted_objective(objectives.get(loss_fn, custom_objects))
             train_loss += weighted_loss(y, y_train, weight, mask)
             test_loss += weighted_loss(y, y_test, weight, mask)
 
@@ -965,7 +973,7 @@ class Graph(Model, containers.Graph):
 
         for r in self.regularizers:
             train_loss = r(train_loss)
-        self.optimizer = optimizers.get(optimizer)
+        self.optimizer = optimizers.get(optimizer, custom_objects=custom_objects)
         updates = self.optimizer.get_updates(self.params,
                                              self.constraints,
                                              train_loss)

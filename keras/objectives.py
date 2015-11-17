@@ -55,5 +55,9 @@ mape = MAPE = mean_absolute_percentage_error
 msle = MSLE = mean_squared_logarithmic_error
 
 from .utils.generic_utils import get_from_module
-def get(identifier):
+def get(identifier, custom_objects={}):
+    # Insert custom layers into globals so they can be accessed by `get_from_module`.
+    for cls_key in custom_objects:
+        globals()[cls_key] = custom_objects[cls_key]
+
     return get_from_module(identifier, globals(), 'objective')
