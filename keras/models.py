@@ -160,14 +160,19 @@ def get_function_name(o):
 
 class Model(object):
     def _fit(self, f, ins, out_labels=[], batch_size=128, nb_epoch=100, verbose=1, callbacks=[],
-             val_f=None, val_ins=None, shuffle=True, metrics=[]):
+             val_f=None, val_ins=None, test_f=None, test_ins=None, shuffle=True, metrics=[]):
         '''
             Abstract fit function for f(*ins). Assume that f returns a list, labelled by out_labels.
         '''
         do_validation = False
+        do_test = False
         if val_f and val_ins:
             do_validation = True
-            if verbose:
+            if test_f and test_ins:
+                do_test = True
+                if verbose:
+                    print("Train on %d samples, validate on %d samples, test on %d samples" % (len(ins[0]), len(val_ins[0]), len(test_ins[0])))
+            elif verbose:
                 print("Train on %d samples, validate on %d samples" % (len(ins[0]), len(val_ins[0])))
 
         nb_train_sample = len(ins[0])
@@ -187,6 +192,7 @@ class Model(object):
             'nb_sample': nb_train_sample,
             'verbose': verbose,
             'do_validation': do_validation,
+            'do_test': do_test,
             'metrics': metrics,
         })
         callbacks.on_train_begin()
@@ -231,6 +237,15 @@ class Model(object):
                         # same labels assumed
                         for l, o in zip(out_labels, val_outs):
                             epoch_logs['val_' + l] = o
+                        # test
+                        if do_test:
+                            # replace with self._evaluate
+                            test_outs = self._test_loop(test_f, test_ins, batch_size=batch_size, verbose=0)
+                            if type(test_outs) != list:
+                                test_outs = [test_outs]
+                            # same labels assumed
+                            for l, o in zip(out_labels, test_outs):
+                                epoch_logs['test_' + l] = o
 
             callbacks.on_epoch_end(epoch, epoch_logs)
             if self.stop_training:
@@ -438,19 +453,26 @@ class Sequential(Model, containers.Sequential):
         return self._predict(*ins)
 
     def fit(self, X, y, batch_size=128, nb_epoch=100, verbose=1, callbacks=[],
-            validation_split=0., validation_data=None, shuffle=True, show_accuracy=False,
-            class_weight=None, sample_weight=None):
+            validation_split=0., validation_data=None, test_split=0., test_data=None, shuffle=True,
+            show_accuracy=False, class_weight=None, sample_weight=None):
 
         X = standardize_X(X)
         y = standardize_y(y)
 
         val_f = None
         val_ins = None
+        test_f = None
+        test_ins = None
         if validation_data or validation_split:
             if show_accuracy:
                 val_f = self._test_with_acc
             else:
                 val_f = self._test
+            if test_data or test_split:
+                if show_accuracy:
+                    test_f = self._test_with_acc
+                else:
+                    test_f = self._test
         if validation_data:
             if len(validation_data) == 2:
                 X_val, y_val = validation_data
@@ -466,17 +488,51 @@ class Sequential(Model, containers.Sequential):
                 raise Exception("Invalid format for validation data; provide a tuple (X_val, y_val) or (X_val, y_val, sample_weight). \
                     X_val may be a numpy array or a list of numpy arrays depending on your model input.")
             val_ins = X_val + [y_val, sample_weight_val]
-
+            if test_data:
+                if len(test_data) == 2:
+                    X_test, y_test = test_data
+                    X_test = standardize_X(X_test)
+                    y_test = standardize_y(y_test)
+                    sample_weight_test = np.ones(y_test.shape[:-1] + (1,))
+                elif len(test_data) == 3:
+                    X_test, y_test, sample_weight_test = test_data
+                    X_test = standardize_X(X_test)
+                    y_test = standardize_y(y_test)
+                    sample_weight_test = standardize_weights(y_test, sample_weight=sample_weight_test)
+                else:
+                    raise Exception("Invalid format for test data; provide a tuple (X_test, y_test) or (X_test, y_test, sample_weight). \
+                        X_test may be a numpy array or a list of numpy arrays depending on your model input.")
+                test_ins = X_test + [y_test, sample_weight_test]
         elif 0 < validation_split < 1:
-            split_at = int(len(X[0]) * (1 - validation_split))
-            X, X_val = (slice_X(X, 0, split_at), slice_X(X, split_at))
-            y, y_val = (slice_X(y, 0, split_at), slice_X(y, split_at))
-            if sample_weight is not None:
-                sample_weight, sample_weight_val = (slice_X(sample_weight, 0, split_at), slice_X(sample_weight, split_at))
-                sample_weight_val = standardize_weights(y_val, sample_weight=sample_weight_val)
+            if (0 < test_split < 1) and (validation_split + test_split < 1):
+                split_1_at = int(len(X[0]) * (1 - val_split - test_split))
+                split_2_at = int(len(X[0]) * (1 - test_split))
+                X, X_val, X_test = (slice_X(X, 0, split_1_at), slice_X(X, split_1_at, split_2_at),
+                                    slice_X(X, split_2_at))
+                y, y_val, y_test = (slice_X(y, 0, split_1_at), slice_X(y, split_1_at, split_2_at),
+                                    slice_X(y, split_2_at))
+                if sample_weight is not None:
+                    sample_weight, sample_weight_val, sample_weight_test = (slice_X(sample_weight, 0, split_at),
+                                                                            slice_X(sample_weight, split_1_at, split_2_at),
+                                                                            slice_X(sample_weight, split_2_at))
+                    sample_weight_val = standardize_weights(y_val, sample_weight=sample_weight_val)
+                    sample_weight_test = standardize_weights(y_test, sample_weight=sample_weight_test)
+                else:
+                    sample_weight_val = np.ones(y_val.shape[:-1] + (1,))
+                    sample_weight_test = np.ones(y_test.shape[:-1] + (1,))
+                val_ins = X_val + [y_val, sample_weight_val]
+                test_ins = X_test + [y_test, sample_weight_test]
             else:
-                sample_weight_val = np.ones(y_val.shape[:-1] + (1,))
-            val_ins = X_val + [y_val, sample_weight_val]
+                split_at = int(len(X[0]) * (1 - validation_split))
+                X, X_val = (slice_X(X, 0, split_at), slice_X(X, split_at))
+                y, y_val = (slice_X(y, 0, split_at), slice_X(y, split_at))
+                if sample_weight is not None:
+                    sample_weight, sample_weight_val = (slice_X(sample_weight, 0, split_at),
+                                                        slice_X(sample_weight, split_at))
+                    sample_weight_val = standardize_weights(y_val, sample_weight=sample_weight_val)
+                else:
+                    sample_weight_val = np.ones(y_val.shape[:-1] + (1,))
+                val_ins = X_val + [y_val, sample_weight_val]
 
         if show_accuracy:
             f = self._train_with_acc
@@ -487,10 +543,11 @@ class Sequential(Model, containers.Sequential):
 
         sample_weight = standardize_weights(y, class_weight=class_weight, sample_weight=sample_weight)
         ins = X + [y, sample_weight]
-        metrics = ['loss', 'acc', 'val_loss', 'val_acc']
+        metrics = ['loss', 'acc', 'val_loss', 'val_acc', 'test_loss', 'test_acc']
         return self._fit(f, ins, out_labels=out_labels, batch_size=batch_size, nb_epoch=nb_epoch,
                          verbose=verbose, callbacks=callbacks,
                          val_f=val_f, val_ins=val_ins,
+                         test_f=test_f, test_ins=test_ins,
                          shuffle=shuffle, metrics=metrics)
 
     def predict(self, X, batch_size=128, verbose=0):
@@ -644,7 +701,7 @@ class Graph(Model, containers.Graph):
         return self._predict(*ins)
 
     def fit(self, data, batch_size=128, nb_epoch=100, verbose=1, callbacks=[],
-            validation_split=0., validation_data=None, shuffle=True, class_weight={}, sample_weight={}):
+            validation_split=0., validation_data=None, test_split=0., test_data=None, shuffle=True, class_weight={}, sample_weight={}):
         X = [data[name] for name in self.input_order]
         y = [standardize_y(data[name]) for name in self.output_order]
 
@@ -654,23 +711,39 @@ class Graph(Model, containers.Graph):
 
         val_f = None
         val_ins = None
+        test_f = None
+        test_ins = None
         if validation_data or validation_split:
             val_f = self._test
+            if test_data or test_split:
+                test_f = self._test
         if validation_data:
             # can't use sample weights with validation data at this point
             sample_weight = [standardize_weights(validation_data[name]) for name in self.output_order]
             val_ins = [validation_data[name] for name in self.input_order] + [standardize_y(validation_data[name]) for name in self.output_order] + sample_weight
-
+            if test_data:
+                # can't use sample weights with test data at this point
+                sample_weight = [standardize_weights(test_data[name]) for name in self.output_order]
+                test_ins = [test_data[name] for name in self.input_order] + [standardize_y(test_data[name]) for name in self.output_order] + sample_weight
         elif 0 < validation_split < 1:
-            split_at = int(len(X[0]) * (1 - validation_split))
-            X, X_val = (slice_X(X, 0, split_at), slice_X(X, split_at))
-            y, y_val = (slice_X(y, 0, split_at), slice_X(y, split_at))
-            sample_weight_list, sample_weight_list_val = (slice_X(sample_weight_list, 0, split_at), slice_X(sample_weight_list, split_at))
-            val_ins = X_val + y_val + sample_weight_list_val
+            if (0 < test_split < 1) and (test_split + validation_split < 1):
+                split_1_at = int(len(X[0]) * (1 - test_split - validation_split))
+                split_2_at = int(len(X[0]) * (1 - validation_split))
+                X, X_val, X_test = (slice_X(X, 0, split_1_at), slice_X(X, split_1_at, split_2_at), slice_X(X, split_2_at))
+                y, y_val, y_test = (slice_X(y, 0, split_1_at), slice_X(y, split_1_at, split_2_at), slice_X(y, split_2_at))
+                sample_weight_list, sample_weight_list_val, sample_weight_list_test = (slice_X(sample_weight_list, 0, split_1_at), slice_X(sample_weight_list, split_1_at, split_2_at), slice_X(sample_weight_list, split_2_at))
+                val_ins = X_val + y_val + sample_weight_list_val
+                test_ins = X_test + y_test + sample_weight_list_test
+            else:
+                split_at = int(len(X[0]) * (1 - validation_split))
+                X, X_val = (slice_X(X, 0, split_at), slice_X(X, split_at))
+                y, y_val = (slice_X(y, 0, split_at), slice_X(y, split_at))
+                sample_weight_list, sample_weight_list_val = (slice_X(sample_weight_list, 0, split_at), slice_X(sample_weight_list, split_at))
+                val_ins = X_val + y_val + sample_weight_list_val
 
         f = self._train
         out_labels = ['loss']
-        metrics = ['loss', 'val_loss']
+        metrics = ['loss', 'val_loss', 'test_loss']
 
         sample_weight_list = [standardize_weights(y[i],
                                                   sample_weight=sample_weight_list[i],
@@ -679,6 +752,7 @@ class Graph(Model, containers.Graph):
         history = self._fit(f, ins, out_labels=out_labels, batch_size=batch_size, nb_epoch=nb_epoch,
                             verbose=verbose, callbacks=callbacks,
                             val_f=val_f, val_ins=val_ins,
+                            test_f=test_f, test_ins=test_ins,
                             shuffle=shuffle, metrics=metrics)
         return history
 
