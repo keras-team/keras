@@ -971,7 +971,7 @@ class Siamese(Layer):
         self.merge_mode = merge_mode
         self.concat_axis = concat_axis
         self.dot_axes = dot_axes
-        layer.set_previous(inputs[0])
+        layer.previous = inputs[0]
         self.regularizers = []
         self.constraints = []
         self.updates = []
