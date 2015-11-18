@@ -171,10 +171,10 @@ class NeuralTuringMachine(Recurrent):
         # get_w  parameters for reading operation
         self.W_k_read = self.rnn.init((self.output_dim, self.m_length))
         self.b_k_read = self.rnn.init((self.m_length, ))
-        self.W_c_read = self.rnn.init((self.output_dim, 3))  # 3 = beta, g, gamma see eq. 5, 7, 9
+        self.W_c_read = self.rnn.init((self.output_dim, 3))  # 3 = beta, g, gamma see eq. 5, 7, 9 in Graves et. al 2014
         self.b_c_read = shared_zeros((3))
         self.W_s_read = self.rnn.init((self.output_dim, self.shift_range))
-        self.b_s_read = shared_zeros((self.shift_range))  # b_s lol! not intentional
+        self.b_s_read = shared_zeros((self.shift_range)) 
 
         # get_w  parameters for writing operation
         self.W_k_write = self.rnn.init((self.output_dim, self.m_length))
@@ -231,8 +231,6 @@ class NeuralTuringMachine(Recurrent):
         return k, beta, g, gamma, s
 
     def _get_initial_states(self, batch_size):
-        # init_M = self.M + T.unbroadcast(alloc_zeros_matrix(batch_size, self.n_slots, self.m_length), 0, 1, 2)
-        # init_M = self.M.dimshuffle('x', 0, 1).repeat(batch_size, axis=0)
         init_M = self.M.dimshuffle(0, 'x', 'x').repeat(
            batch_size, axis=0).repeat(self.n_slots, axis=1).repeat(
                self.m_length, axis=2)
