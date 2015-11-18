@@ -11,8 +11,10 @@ tol = 1e-4
 
 
 def _update_controller(self, inp, h_tm1, M, mask):
-    """We have to update the inner RNN inside the NTM, this
-    is the function to do it. Pretty much copy+pasta from Keras
+    """ Update inner RNN controler
+    We have to update the inner RNN inside the Neural Turing Machine, this
+    is an almost literal copy of keras.layers.recurrent.GRU and 
+    keras.layers.recurrent.LSTM see these clases for further details.
     """
     x = T.concatenate([inp, M], axis=-1)
     # get inputs
@@ -57,12 +59,11 @@ def _update_controller(self, inp, h_tm1, M, mask):
 
 
 def _circulant(leng, n_shifts):
-    """
-    I confess, I'm actually proud of this hack. I hope you enjoy!
+    """ Generate circulant copies of a vector.
     This will generate a tensor with `n_shifts` of rotated versions the
     identity matrix. When this tensor is multiplied by a vector
     the result are `n_shifts` shifted versions of that vector. Since
-    everything is done with inner products, everything is differentiable.
+    everything is done with inner products, this operation is differentiable.
 
     Paramters:
     ----------
@@ -98,17 +99,20 @@ def _cosine_distance(M, k):
 
 class NeuralTuringMachine(Recurrent):
     """ Neural Turing Machines
-
-    Non obvious parameter:
-    ----------------------
+    
+    Parameters:
+    -----------
     shift_range: int, number of available shifts, ex. if 3, avilable shifts are
                  (-1, 0, 1)
     n_slots: number of memory locations
     m_length: memory length at each location
+    inner_rnn: str, supported values are 'gru' and 'lstm'
+    output_dim: hidden state size (RNN controller output_dim)
 
-    Known issues:
-    -------------
+    Known issues and TODO:
+    ----------------------
     Theano may complain when n_slots == 1.
+    Add multiple reading and writing heads.
 
     """
     def __init__(self, output_dim, n_slots, m_length, shift_range=3,
@@ -290,13 +294,13 @@ class NeuralTuringMachine(Recurrent):
 
     def get_full_output(self, train=False):
         """
-        This method is for research and visualization purposes. Use it as
+        This method is for research and visualization purposes. Use it as:
         X = model.get_input()  # full model
         Y = ntm.get_output()    # this layer
         F = theano.function([X], Y, allow_input_downcast=True)
         [memory, read_address, write_address, rnn_state] = F(x)
 
-        if inner_rnn == "lstm" use it as
+        if inner_rnn == "lstm" use it as:
         [memory, read_address, write_address, rnn_cell, rnn_state] = F(x)
 
         """
