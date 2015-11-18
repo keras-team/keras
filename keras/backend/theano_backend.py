@@ -28,7 +28,29 @@ if _on_gpu():
 def variable(value, dtype=_FLOATX, name=None):
     '''Instantiate a tensor variable.
     '''
-    return theano.shared(np.asarray(value, dtype=dtype), name=name)
+    value = np.asarray(value, dtype=dtype)
+    return theano.shared(value=value, name=name, strict=False)
+
+
+def placeholder(shape=None, ndim=None, dtype=_FLOATX, name=None):
+    '''Instantiate an input data placeholder variable.
+    '''
+    if shape is None and ndim is None:
+        raise Exception('Specify either a shape or ndim value.')
+    if shape is not None:
+        ndim = len(shape)
+    if ndim == 0:
+        return T.scalar(name=name, dtype=dtype)
+    elif ndim == 1:
+        return T.vector(name=name, dtype=dtype)
+    elif ndim == 2:
+        return T.matrix(name=name, dtype=dtype)
+    elif ndim == 3:
+        return T.tensor3(name=name, dtype=dtype)
+    elif ndim == 4:
+        return T.tensor4(name=name, dtype=dtype)
+    else:
+        raise Exception('ndim too large: ' + str(ndim))
 
 
 def shape(x):
@@ -58,25 +80,12 @@ def ones(shape, dtype=_FLOATX, name=None):
     return variable(np.ones(shape), dtype, name)
 
 
-def placeholder(shape=None, ndim=None, dtype=_FLOATX, name=None):
-    '''Instantiate an input data placeholder variable.
-    '''
-    if shape is None and ndim is None:
-        raise Exception('Specify either a shape or ndim value.')
-    if shape is not None:
-        ndim = len(shape)
-    if ndim == 0:
-        return T.scalar(name=name, dtype=dtype)
-    elif ndim == 1:
-        return T.vector(name=name, dtype=dtype)
-    elif ndim == 2:
-        return T.matrix(name=name, dtype=dtype)
-    elif ndim == 3:
-        return T.tensor3(name=name, dtype=dtype)
-    elif ndim == 4:
-        return T.tensor4(name=name, dtype=dtype)
-    else:
-        raise Exception('ndim too large: ' + str(ndim))
+def ones_like(x):
+    return T.ones_like(x)
+
+
+def zeros_like(x):
+    return T.zeros_like(x)
 
 
 # LINEAR ALGEBRA
@@ -95,6 +104,15 @@ def transpose(x):
     return T.transpose(x)
 
 
+def embedding(reference, indices):
+    '''reference: a tensor.
+    indices: an int tensor of indices.
+
+    Return: a tensor of same type as reference.
+    '''
+    return reference[indices]
+
+
 # ELEMENT-WISE OPERATIONS
 
 def max(x, axis=None, keepdims=False):
@@ -109,6 +127,12 @@ def sum(x, axis=None, keepdims=False):
     '''Sum of the values in a tensor, alongside the specified axis.
     '''
     return T.sum(x, axis=axis, keepdims=keepdims)
+
+
+def mul(x, axis=None, keepdims=False):
+    '''Multiply the values in a tensor, alongside the specified axis.
+    '''
+    return T.mul(x, axis=axis, keepdims=keepdims)
 
 
 def mean(x, axis=None, keepdims=False):
@@ -169,7 +193,7 @@ def maximum(x, y):
 
 
 def minimum(x, y):
-    return T.maximum(x, y)
+    return T.minimum(x, y)
 
 
 # SHAPE OPERATIONS
@@ -422,6 +446,4 @@ batched_tensordot
 
 addbroadcast -> remove usage?
 unbroadcast -> remove usage?
-
-embedding: make sure that [] operator works for TF
 '''

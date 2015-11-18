@@ -27,6 +27,10 @@ def variable(value, dtype=_FLOATX, name=None):
     return v
 
 
+def placeholder(shape=None, ndim=None, dtype=_FLOATX, name=None):
+    return tf.placeholder(dtype, shape=shape, name=name)
+
+
 def shape(x):
     return x.get_shape()
 
@@ -45,8 +49,12 @@ def ones(shape, dtype=_FLOATX, name=None):
     return variable(np.ones(shape), dtype, name)
 
 
-def placeholder(shape=None, ndim=None, dtype=_FLOATX, name=None):
-    return tf.placeholder(dtype, shape=shape, name=name)
+def ones_like(x, name=None):
+    return tf.ones_like(x)
+
+
+def zeros_like(x, name=None):
+    return tf.zeros_like(x)
 
 
 # LINEAR ALGEBRA
@@ -57,6 +65,15 @@ def dot(x, y):
 
 def transpose(x):
     return tf.transpose(x)
+
+
+def embedding(reference, indices):
+    '''reference: a tensor.
+    indices: an int tensor of indices.
+
+    Return: a tensor of same type as reference.
+    '''
+    return tf.gather(reference, indices)
 
 
 # ELEMENT-WISE OPERATIONS
@@ -79,6 +96,12 @@ def sum(x, axis=None, keepdims=False):
     if axis is not None:
         axis = axis % len(x.get_shape())
     return tf.reduce_sum(x, reduction_indices=axis, keep_dims=keepdims)
+
+
+def mul(x, axis=None, keepdims=False):
+    '''Multiply the values in a tensor, alongside the specified axis.
+    '''
+    return tf.reduce_prod(x, reduction_indices=axis, keep_dims=keepdims)
 
 
 def mean(x, axis=None, keepdims=False):
@@ -118,7 +141,8 @@ def abs(x):
 
 
 def sqrt(x):
-    x = tf.clip_by_value(x, 0., np.inf)
+    x = tf.clip_by_value(x, tf.cast(0., dtype=_FLOATX),
+                         tf.cast(np.inf, dtype=_FLOATX))
     return tf.sqrt(x)
 
 
@@ -137,7 +161,8 @@ def round(x):
 def clip(x, min_value, max_value):
     if max_value < min_value:
         max_value = min_value
-    return tf.clip_by_value(x, min_value, max_value)
+    return tf.clip_by_value(x, tf.cast(min_value, dtype=_FLOATX),
+                            tf.cast(max_value, dtype=_FLOATX))
 
 
 def equal(x, y):
@@ -149,7 +174,7 @@ def maximum(x, y):
 
 
 def minimum(x, y):
-    return tf.maximum(x, y)
+    return tf.minimum(x, y)
 
 
 # SHAPE OPERATIONS
@@ -247,7 +272,8 @@ def relu(x, alpha=0., max_value=None):
     negative_part = tf.nn.relu(-x)
     x = tf.nn.relu(x)
     if max_value is not None:
-        x = tf.clip_by_value(x, 0., max_value)
+        x = tf.clip_by_value(x, tf.cast(0., dtype=_FLOATX),
+                             tf.cast(max_value, dtype=_FLOATX))
     x -= alpha * negative_part
     return x
 
@@ -270,7 +296,8 @@ def categorical_crossentropy(output, target, from_logits=False):
                                 reduction_indices=len(output.get_shape())-1,
                                 keep_dims=True)
         # manual computation of crossentropy
-        output = tf.clip_by_value(output, _EPSILON, 1.-_EPSILON)
+        output = tf.clip_by_value(output, tf.cast(_EPSILON, dtype=_FLOATX),
+                                  tf.cast(1.-_EPSILON, dtype=_FLOATX))
         return - tf.reduce_sum(target * tf.log(output),
                                reduction_indices=len(output.get_shape())-1)
     else:
@@ -283,7 +310,8 @@ def binary_crossentropy(output, target, from_logits=False):
     '''
     if not from_logits:
         # transform back to logits
-        output = tf.clip_by_value(output, _EPSILON, 1.-_EPSILON)
+        output = tf.clip_by_value(output, tf.cast(_EPSILON, dtype=_FLOATX),
+                                  tf.cast(1.-_EPSILON, dtype=_FLOATX))
         output = tf.log(output / (1 - output))
     return tf.nn.sigmoid_cross_entropy_with_logits(output, target)
 
@@ -294,7 +322,8 @@ def sigmoid(x):
 
 def hard_sigmoid(x):
     x = (0.2 * x) + 0.5
-    x = tf.clip_by_value(x, 0., 1.)
+    x = tf.clip_by_value(x, tf.cast(0., dtype=_FLOATX),
+                         tf.cast(1., dtype=_FLOATX))
     return x
 
 
