@@ -31,7 +31,11 @@ class Layer(object):
             self._trainable = kwargs['trainable']
         if not hasattr(self, 'params'):
             self.params = []
-        self.name = None
+        if 'name' in kwargs:
+            self.name = kwargs['name']
+        else:
+            self.name = None
+        
 
     def set_previous(self, layer, connection_map={}):
         assert self.nb_input == layer.nb_output == 1, "Cannot connect layers: input count and output count should be 1."
