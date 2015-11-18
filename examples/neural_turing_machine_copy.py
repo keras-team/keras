@@ -11,7 +11,7 @@ from keras.layers.core import TimeDistributedDense, Activation
 from keras.layers.recurrent import LSTM
 from keras.optimizers import Adam
 
-from seya.sandbox.ntm import NeuralTuringMachine as NTM
+from keras.layers.ntm import NeuralTuringMachine as NTM
 
 """
 Copy Problem defined in Graves et. al [0]
@@ -44,16 +44,15 @@ model.compile(loss='binary_crossentropy', optimizer=sgd)
 
 # LSTM - Run this for comparison
 
-# sgd = Adam(lr=lr, clipnorm=clipnorm)
-#
-# model4 = Sequential()
-# model4.add(LSTM(input_dim=input_dim, output_dim=h_dim*2, return_sequences=True))
-# model4.add(LSTM(output_dim=h_dim*2, return_sequences=True))
-# model4.add(LSTM(output_dim=h_dim*2, return_sequences=True))
-# model4.add(TimeDistributedDense(input_dim))
-# model4.add(Activation('sigmoid'))
-#
-# model4.compile(loss='binary_crossentropy', optimizer=sgd)
+sgd = Adam(lr=lr, clipnorm=clipnorm)
+lstm = Sequential()
+lstm.add(LSTM(input_dim=input_dim, output_dim=h_dim*2, return_sequences=True))
+lstm.add(LSTM(output_dim=h_dim*2, return_sequences=True))
+lstm.add(LSTM(output_dim=h_dim*2, return_sequences=True))
+lstm.add(TimeDistributedDense(input_dim))
+lstm.add(Activation('sigmoid'))
+
+lstm.compile(loss='binary_crossentropy', optimizer=sgd)
 
 ###### DATASET ########
 
@@ -110,22 +109,20 @@ def test_model(model, file_name, min_size=100):
 ##### TRAIN ######
 nb_epoch = 4000
 progbar = generic_utils.Progbar(nb_epoch)
-ACC = []
 for e in range(nb_epoch):
     I, V, sw = get_sample(n_bits=input_dim, max_size=20, min_size=1, batch_size=100)
 
-    loss = trained.train_on_batch(I, V, sample_weight=sw)
+    loss1 = model.train_on_batch(I, V, sample_weight=sw)
+    loss2 = lstm.train_on_batch(I, V, sample_weight=sw)
 
-    progbar.add(1, values=[("loss", loss)])
+    progbar.add(1, values=[("NTM", loss1), ("LSTM", loss2)])
 
     if e % 500 == 0:
         print("")
-        acc = test_model(trained, filename)
-        l = []
-        for a in [acc,]:
-            print("acc: {}".format(a))
-            l.append(a)
-        ACC.append(l)
+        acc1 = test_model(model, 'ntm.png')
+        acc2 = test_model(model, 'lstm.png')
+        print("NTM  test acc: {}".format(a))
+        print("LSTM test acc: {}".format(a))
 
 ##### VISUALIZATION #####
 X = model.get_input()
