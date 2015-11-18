@@ -3,6 +3,8 @@
 ```python
 keras.layers.core.Layer()
 ```
+- __Arguments__:
+    -__name__: assign a name to the layer. That's is needed when using merge_mode=`join` in `keras.layers.core.Merge()
 
 __Methods__:
 
@@ -339,7 +341,7 @@ Merge the output of a list of layers (or containers) into a single tensor, follo
 
 - __Arguments__:
     - __layers__: List of layers or [containers](/layers/containers/).
-    - __mode__: String, one of `{'sum', 'mul', 'concat'}`. `sum` and `mul` will simply sum/multiply the outputs of the layers (therefore all layers should have an output with the same shape). `concat` will concatenate the outputs along the last dimension (therefore all layers should have an output that only differ along the last dimension). 
+    - __mode__: String, one of `{'sum', 'mul', 'concat', 'dot', 'cos', 'join'}`. `sum` and `mul` will simply sum/multiply the outputs of the layers (therefore all layers should have an output with the same shape). `concat` will concatenate the outputs along the last dimension (therefore all layers should have an output that only differ along the last dimension). `dot` and `cos` computes the dot product/cosine similarity between two input vectors. `join` allows to forward the output of the layers to the upper layer (usefull in graph based model when using custom layers accepting more inputs e.g. Bilinear Layer W dot x + W dot z + b).
 
 - __Example__:
 

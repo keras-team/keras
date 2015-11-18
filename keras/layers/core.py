@@ -24,7 +24,7 @@ import sys
 class Layer(object):
     def __init__(self, **kwargs):
         for kwarg in kwargs:
-            assert kwarg in {'input_shape', 'trainable'}, "Keyword argument not understood: " + kwarg
+            assert kwarg in {'input_shape', 'trainable', 'name'}, "Keyword argument not understood: " + kwarg
         if 'input_shape' in kwargs:
             self.set_input_shape(kwargs['input_shape'])
         if 'trainable' in kwargs:
