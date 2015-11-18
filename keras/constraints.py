@@ -15,7 +15,7 @@ class MaxNorm(Constraint):
         self.m = m
 
     def __call__(self, p):
-        norms = K.sqrt(K.sum(K.sqr(p), axis=0))
+        norms = K.sqrt(K.sum(K.square(p), axis=0))
         desired = K.clip(norms, 0, self.m)
         p = p * (desired / (1e-7 + norms))
         return p

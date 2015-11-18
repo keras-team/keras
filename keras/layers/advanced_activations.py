@@ -1,7 +1,6 @@
 from .. import initializations
 from ..layers.core import Layer, MaskedLayer
-from ..utils.theano_utils import shared_zeros, shared_ones, sharedX
-import theano.tensor as T
+from .. import backend as K
 import numpy as np
 
 
@@ -12,7 +11,7 @@ class LeakyReLU(MaskedLayer):
 
     def get_output(self, train):
         X = self.get_input(train)
-        return T.nnet.relu(X, self.alpha)
+        return K.relu(X, alpha=self.alpha)
 
     def get_config(self):
         config = {"name": self.__class__.__name__,
@@ -24,7 +23,8 @@ class LeakyReLU(MaskedLayer):
 class PReLU(MaskedLayer):
     '''
         Reference:
-            Delving Deep into Rectifiers: Surpassing Human-Level Performance on ImageNet Classification
+            Delving Deep into Rectifiers: Surpassing Human-Level
+            Performance on ImageNet Classification
                 http://arxiv.org/pdf/1502.01852v1.pdf
     '''
     def __init__(self, init='zero', weights=None, **kwargs):
@@ -43,7 +43,7 @@ class PReLU(MaskedLayer):
 
     def get_output(self, train):
         X = self.get_input(train)
-        pos = T.nnet.relu(X)
+        pos = K.relu(X)
         neg = self.alphas * (X - abs(X)) * 0.5
         return pos + neg
 
@@ -59,7 +59,8 @@ class ParametricSoftplus(MaskedLayer):
         Parametric Softplus of the form: alpha * log(1 + exp(beta * X))
 
         Reference:
-            Inferring Nonlinear Neuronal Computation Based on Physiologically Plausible Inputs
+            Inferring Nonlinear Neuronal Computation
+            Based on Physiologically Plausible Inputs
             http://journals.plos.org/ploscompbiol/article?id=10.1371/journal.pcbi.1003143
     '''
     def __init__(self, alpha_init=0.2, beta_init=5.0,
@@ -71,8 +72,8 @@ class ParametricSoftplus(MaskedLayer):
 
     def build(self):
         input_shape = self.input_shape[1:]
-        self.alphas = sharedX(self.alpha_init * np.ones(input_shape))
-        self.betas = sharedX(self.beta_init * np.ones(input_shape))
+        self.alphas = K.variable(self.alpha_init * np.ones(input_shape))
+        self.betas = K.variable(self.beta_init * np.ones(input_shape))
         self.params = [self.alphas, self.betas]
 
         if self.initial_weights is not None:
@@ -81,7 +82,7 @@ class ParametricSoftplus(MaskedLayer):
 
     def get_output(self, train):
         X = self.get_input(train)
-        return T.nnet.softplus(self.betas * X) * self.alphas
+        return K.softplus(self.betas * X) * self.alphas
 
     def get_config(self):
         config = {"name": self.__class__.__name__,
@@ -105,7 +106,7 @@ class ThresholdedLinear(MaskedLayer):
 
     def get_output(self, train):
         X = self.get_input(train)
-        return T.switch(abs(X) < self.theta, 0, X)
+        return K.switch(K.abs(X) < self.theta, 0, X)
 
     def get_config(self):
         config = {"name": self.__class__.__name__,
@@ -128,7 +129,7 @@ class ThresholdedReLU(MaskedLayer):
 
     def get_output(self, train):
         X = self.get_input(train)
-        return T.switch(X > self.theta, X, 0)
+        return K.switch(X > self.theta, X, 0)
 
     def get_config(self):
         config = {"name": self.__class__.__name__,
