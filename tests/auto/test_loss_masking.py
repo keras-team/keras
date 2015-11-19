@@ -5,7 +5,7 @@ import unittest
 from keras.models import Sequential, weighted_objective
 from keras.layers.core import TimeDistributedDense, Masking
 from keras import objectives
-import theano
+from keras import backend as K
 
 
 class TestLossMasking(unittest.TestCase):
@@ -22,8 +22,7 @@ class TestLossMasking(unittest.TestCase):
         assert loss == 285.
 
     def test_loss_masking_time(self):
-        theano.config.mode = 'FAST_COMPILE'
-        weighted_loss = weighted_objective(objectives.get('categorical_crossentropy'))
+        weighted_loss = weighted_objective(objectives.get('mae'))
         shape = (3, 4, 2)
         X = np.arange(24).reshape(shape)
         Y = 2 * X
@@ -33,9 +32,9 @@ class TestLossMasking(unittest.TestCase):
         mask = np.ones((3, 4))
         mask[1, 0] = 0
 
-        out = weighted_loss(X, Y, weights, mask).eval()
+        out = K.eval(weighted_loss(X, Y, weights, mask))
         weights[0, 0] = 1e-9  # so that nonzero() doesn't remove this weight
-        out2 = weighted_loss(X, Y, weights, mask).eval()
+        out2 = K.eval(weighted_loss(X, Y, weights, mask))
         print(out)
         print(out2)
         assert abs(out - out2) < 1e-8

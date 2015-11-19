@@ -61,17 +61,22 @@ class TestBackend(unittest.TestCase):
                                       pattern=(2, 0, 1))
         check_single_tensor_operation('repeat', (4, 1), n=3)
         check_single_tensor_operation('flatten', (4, 1))
+        check_single_tensor_operation('expand_dims', (4, 3), dim=-1)
+        check_single_tensor_operation('expand_dims', (4, 3, 2), dim=1)
+        check_single_tensor_operation('squeeze', (4, 3, 1), axis=2)
 
     def test_value_manipulation(self):
         val = np.random.random((4, 2))
         xth = KTH.variable(val)
         xtf = KTF.variable(val)
 
+        # get_value
         valth = KTH.get_value(xth)
         valtf = KTF.get_value(xtf)
         assert valtf.shape == valth.shape
         assert_allclose(valth, valtf, atol=1e-06)
 
+        # set_value
         val = np.random.random((4, 2))
         KTH.set_value(xth, val)
         KTF.set_value(xtf, val)
@@ -80,6 +85,9 @@ class TestBackend(unittest.TestCase):
         valtf = KTF.get_value(xtf)
         assert valtf.shape == valth.shape
         assert_allclose(valth, valtf, atol=1e-06)
+
+        # count_params
+        assert KTH.count_params(xth) == KTF.count_params(xtf)
 
     def test_elementwise_operations(self):
         check_single_tensor_operation('max', (4, 2))
@@ -90,6 +98,12 @@ class TestBackend(unittest.TestCase):
 
         check_single_tensor_operation('mean', (4, 2))
         check_single_tensor_operation('mean', (4, 2), axis=1, keepdims=True)
+
+        check_single_tensor_operation('std', (4, 2))
+        check_single_tensor_operation('std', (4, 2), axis=1, keepdims=True)
+
+        check_single_tensor_operation('prod', (4, 2))
+        check_single_tensor_operation('prod', (4, 2), axis=1, keepdims=True)
 
         # does not work yet, wait for bool <-> int casting in TF (coming soon)
         # check_single_tensor_operation('any', (4, 2))

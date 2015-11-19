@@ -42,6 +42,14 @@ class TestGraph(unittest.TestCase):
         print(loss)
         assert(loss < 2.5)
 
+        # test validation split
+        history = graph.fit({'input1': X_train, 'output1': y_train},
+                            validation_split=0.2, nb_epoch=1)
+        # test validation data
+        history = graph.fit({'input1': X_train, 'output1': y_train},
+                            validation_data={'input1': X_train, 'output1': y_train},
+                            nb_epoch=1)
+
     def test_1o_1i_2(self):
         print('test a more complex non-sequential graph with 1 input and 1 output')
         graph = Graph()
