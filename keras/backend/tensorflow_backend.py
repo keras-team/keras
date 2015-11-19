@@ -57,6 +57,13 @@ def zeros_like(x, name=None):
     return tf.zeros_like(x)
 
 
+def count_params(x):
+    '''Return number of scalars in a tensor.
+    '''
+    shape = x.get_shape()
+    return np.prod([shape[i]._value for i in range(len(shape))])
+
+
 # LINEAR ALGEBRA
 
 def dot(x, y):
@@ -98,10 +105,18 @@ def sum(x, axis=None, keepdims=False):
     return tf.reduce_sum(x, reduction_indices=axis, keep_dims=keepdims)
 
 
-def mul(x, axis=None, keepdims=False):
+def prod(x, axis=None, keepdims=False):
     '''Multiply the values in a tensor, alongside the specified axis.
     '''
     return tf.reduce_prod(x, reduction_indices=axis, keep_dims=keepdims)
+
+
+def std(x, axis=None, keepdims=False):
+    m = tf.reduce_mean(x, reduction_indices=axis, keep_dims=keepdims)
+    devs_squared = tf.square(x - m)
+    return tf.sqrt(tf.reduce_mean(devs_squared,
+                                  reduction_indices=axis,
+                                  keep_dims=keepdims))
 
 
 def mean(x, axis=None, keepdims=False):
@@ -197,15 +212,36 @@ def permute_dimensions(x, pattern):
     return tf.transpose(x, perm=pattern)
 
 
-def repeat(x, n, axis=-1):
-    tiling_pattern = [1 for _ in range(len(x.get_shape()))]
-    tiling_pattern[axis] = n
-    return tf.tile(x, tiling_pattern)
+def repeat(x, n):
+    '''Repeat a 2D tensor:
+
+    if x has shape (samples, dim) and n=2,
+    the output will have shape (samples, 2, dim)
+    '''
+    tensors = [x] * n
+    stacked = tf.pack(tensors)
+    return tf.transpose(stacked, (1, 0, 2))
+
+
+def tile(x, n):
+    return tf.tile(x, n)
 
 
 def flatten(x):
     x = tf.reshape(x, [-1, np.prod(x.get_shape()[1:].as_list())])
     return x
+
+
+def expand_dims(x, dim=-1):
+    '''Add a 1-sized dimension at index "dim".
+    '''
+    return tf.expand_dims(x, dim)
+
+
+def squeeze(x, axis):
+    '''Remove a 1-dimension from the tensor at index "axis".
+    '''
+    return tf.squeeze(x, [axis])
 
 
 # VALUE MANIPULATION
@@ -265,7 +301,7 @@ def switch(condition, then_expression, else_expression):
 # NN OPERATIONS
 
 def relu(x, alpha=0., max_value=None):
-    '''ReLU. 
+    '''ReLU.
 
     alpha: slope of negative section.
     '''
@@ -377,7 +413,8 @@ def conv2d(x, kernel, strides=(1, 1), border_mode='valid', dim_ordering='th'):
     return x
 
 
-def maxpool2d(x, pool_size, strides=(1, 1), border_mode='valid', dim_ordering='th'):
+def maxpool2d(x, pool_size, strides=(1, 1),
+              border_mode='valid', dim_ordering='th'):
     '''
     pool_size: tuple of 2 integers.
     strides: tuple of 2 integers.
@@ -395,7 +432,8 @@ def maxpool2d(x, pool_size, strides=(1, 1), border_mode='valid', dim_ordering='t
     pool_size = (1,) + pool_size + (1,)
 
     if dim_ordering == 'th':
-        # TF uses the last dimension as channel dimension, instead of the 2nd one.
+        # TF uses the last dimension as channel dimension,
+        # instead of the 2nd one.
         # TH input shape: (samples, input_depth, rows, cols)
         # TF input shape: (samples, rows, cols, input_depth)
         # TH kernel shape: (depth, input_depth, rows, cols)

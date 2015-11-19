@@ -88,6 +88,14 @@ def zeros_like(x):
     return T.zeros_like(x)
 
 
+def count_params(x):
+    '''Return number of scalars in a tensor.
+
+    Return: numpy integer.
+    '''
+    return np.prod(x.shape.eval())
+
+
 # LINEAR ALGEBRA
 
 '''
@@ -129,14 +137,18 @@ def sum(x, axis=None, keepdims=False):
     return T.sum(x, axis=axis, keepdims=keepdims)
 
 
-def mul(x, axis=None, keepdims=False):
+def prod(x, axis=None, keepdims=False):
     '''Multiply the values in a tensor, alongside the specified axis.
     '''
-    return T.mul(x, axis=axis, keepdims=keepdims)
+    return T.prod(x, axis=axis, keepdims=keepdims)
 
 
 def mean(x, axis=None, keepdims=False):
     return T.mean(x, axis=axis, keepdims=keepdims)
+
+
+def std(x, axis=None, keepdims=False):
+    return T.std(x, axis=axis, keepdims=keepdims)
 
 
 def any(x, axis=None, keepdims=False):
@@ -216,13 +228,41 @@ def permute_dimensions(x, pattern):
     return x.dimshuffle(pattern)
 
 
-def repeat(x, n, axis=-1):
-    return T.extra_ops.repeat(x, n, axis=axis)
+def repeat(x, n):
+    '''Repeat a 2D tensor:
+
+    if x has shape (samples, dim) and n=2,
+    the output will have shape (samples, 2, dim)
+    '''
+    tensors = [x] * n
+    stacked = T.stack(*tensors)
+    return stacked.dimshuffle((1, 0, 2))
+
+
+def tile(x, n):
+    return T.tile(x, n)
 
 
 def flatten(x):
     x = T.reshape(x, (x.shape[0], T.prod(x.shape) // x.shape[0]))
     return x
+
+
+def expand_dims(x, dim=-1):
+    '''Add a 1-sized dimension at index "dim".
+    '''
+    pattern = [i for i in range(x.type.ndim)]
+    if dim < 0:
+        dim = dim % x.type.ndim + 1
+    pattern.insert(dim, 'x')
+    return x.dimshuffle(pattern)
+
+
+def squeeze(x, axis):
+    '''Remove a 1-dimension from the tensor at index "axis".
+    '''
+    x = T.addbroadcast(x, axis)
+    return T.squeeze(x)
 
 
 # VALUE MANIPULATION
@@ -393,7 +433,8 @@ def conv2d(x, kernel, strides=(1, 1), border_mode='valid', dim_ordering='th'):
     return conv_out
 
 
-def maxpool2d(x, pool_size, strides=(1, 1), border_mode='valid', dim_ordering='th'):
+def maxpool2d(x, pool_size, strides=(1, 1), border_mode='valid',
+              dim_ordering='th'):
     if border_mode == 'same':
         # TODO: add implementation for border_mode="same"
         raise Exception('border_mode="same" not supported with Theano.')
@@ -440,9 +481,8 @@ def random_uniform(shape, low=0.0, high=1.0, dtype=_FLOATX, seed=None):
 '''
 more TODO:
 
-shape_padright/left
-tensordot
-batched_tensordot
+tensordot -> soon to be introduced in TF
+batched_tensordot -> reimplement
 
 addbroadcast -> remove usage?
 unbroadcast -> remove usage?
