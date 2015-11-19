@@ -1150,3 +1150,59 @@ class LambdaMerge(Lambda):
                   }
         base_config = super(LambdaMerge, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
+
+
+class BiLinearLayer(Layer):
+    '''
+        This layer computes a bilinear combination of the inputs
+        W1 dot x1 + W2 dot x2 + b
+    '''
+
+    def __init__(self, output_dim, init='glorot_uniform', activation='linear', weights=None,
+                 input_dim=None, **kwargs):
+        self.init = initializations.get(init)
+        self.activation = activations.get(activation)
+        self.output_dim = output_dim
+
+        self.initial_weights = weights
+
+        if type(input_dim) is not list:
+            raise Exception('Please specify the dimensions of the input vectors')
+        self.input_dim = input_dim
+        super(BiLinearLayer, self).__init__(**kwargs)
+
+    def build(self):
+        #input_dim = self.input_shape[1]
+        input_shape1, input_shape2 = self.input_dim 
+
+
+        self.input1 = T.matrix()
+        self.input2 = T.matrix()
+        self.W1 = self.init((input_shape1, self.output_dim))
+        self.W2 = self.init((input_shape2, self.output_dim))
+        self.b = self.init((self.output_dim, ))
+
+        self.params = [self.W1, self.W2, self.b]
+
+        if self.initial_weights is not None:
+            self.set_weights(self.initial_weights)
+            del self.initial_weights
+
+    @property
+    def output_shape(self):
+        return (None, self.output_dim)
+
+    def get_output(self, train=False):
+        X = self.get_input(train)
+        X = list(X.items())
+        output = self.activation(T.dot(X[0][1], self.W1) + T.dot(X[1][1], self.W2) + self.b)
+        return output
+
+    def get_config(self):
+        config = {"name": self.__class__.__name__,
+                  "output_dim": self.output_dim,
+                  "init": self.init.__name__,
+                  "activation": self.activation.__name__,
+                  "input_dim": self.input_dim}
+        base_config = super(BiLinearLayer, self).get_config()
+        return dict(list(base_config.items()) + list(config.items()))
