@@ -230,8 +230,8 @@ class Graph(Layer):
                                   'input_shape': input_shape,
                                   'dtype': dtype})
 
-	def add_node(self, layer, name, input=None,
-                 merge_mode='concat', concat_axis=-1, create_output=False):
+	
+	def add_node(self, layer, name, input=None, merge_mode='concat', concat_axis=-1, create_output=False):
         if hasattr(layer, 'set_name'):
             layer.set_name(name)
             
@@ -252,7 +252,6 @@ class Graph(Layer):
                     to_merge.append(self.inputs[n])
                 else:
                     raise Exception('Unknown identifier: ' + n)
-                    
             merge = Merge(to_merge, mode=merge_mode, concat_axis=concat_axis)
             layer.set_previous(merge)
         else:
