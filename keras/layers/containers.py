@@ -129,7 +129,7 @@ class Graph(Layer):
             - get_weights
             - set_weights
     '''
-    def __init__(self):
+    def __init__(self, **kwargs):
         self.namespace = set()  # strings
         self.nodes = OrderedDict()  # layer-like
         self.inputs = {}  # layer-like
