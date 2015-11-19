@@ -3,9 +3,8 @@ from __future__ import absolute_import
 from __future__ import print_function
 
 from collections import OrderedDict
-import theano.tensor as T
+from .. import backend as K
 from ..layers.core import Layer, Merge
-from ..utils.theano_utils import ndim_tensor
 from six.moves import range
 
 
@@ -76,19 +75,19 @@ class Sequential(Layer):
     def set_input(self):
         for l in self.layers:
             if hasattr(l, 'input'):
-                ndim = l.input.ndim
-                self.layers[0].input = ndim_tensor(ndim)
+                ndim = len(K.get_shape(l.input))
+                self.layers[0].input = K.placeholder(ndim=ndim)
                 break
 
     def get_input(self, train=False):
         if not hasattr(self.layers[0], 'input'):
             self.set_input()
         return self.layers[0].get_input(train)
- 
+
     @property
     def input_shape(self):
         return self.layers[0].input_shape
-    
+
     @property
     def input(self):
         return self.get_input()
@@ -227,10 +226,10 @@ class Graph(Layer):
         layer.set_input_shape(input_shape)
         ndim = len(input_shape) + 1
         if dtype == 'float':
-            layer.input = ndim_tensor(ndim)
+            layer.input = K.placeholder(ndim=ndim)
         else:
             if ndim == 2:
-                layer.input = T.imatrix()
+                layer.input = K.placeholder(ndim=2, dtype='int32')
             else:
                 raise Exception('Type "int" can only be used with ndim==2 (Embedding).')
         layer.input.name = name
@@ -240,9 +239,8 @@ class Graph(Layer):
                                   'dtype': dtype})
 
     def add_node(self, layer, name, input=None, inputs=[],
-                 merge_mode='concat', concat_axis=-1, dot_axes=-1, create_output=False):
-        if hasattr(layer, 'set_name'):
-            layer.set_name(name)
+                 merge_mode='concat', concat_axis=-1, dot_axes=-1,
+                 create_output=False):
         if name in self.namespace:
             raise Exception('Duplicate node identifier: ' + name)
         if input:
@@ -261,7 +259,8 @@ class Graph(Layer):
                     to_merge.append(self.inputs[n])
                 else:
                     raise Exception('Unknown identifier: ' + n)
-            merge = Merge(to_merge, mode=merge_mode, concat_axis=concat_axis, dot_axes=dot_axes)
+            merge = Merge(to_merge, mode=merge_mode,
+                          concat_axis=concat_axis, dot_axes=dot_axes)
             layer.set_previous(merge)
 
         self.namespace.add(name)
@@ -294,7 +293,8 @@ class Graph(Layer):
                 if n not in self.nodes:
                     raise Exception('Unknown identifier: ' + n)
                 to_merge.append(self.nodes[n])
-            merge = Merge(to_merge, mode=merge_mode, concat_axis=concat_axis, dot_axes=dot_axes)
+            merge = Merge(to_merge, mode=merge_mode,
+                          concat_axis=concat_axis, dot_axes=dot_axes)
             self.outputs[name] = merge
 
         self.output_order.append(name)
