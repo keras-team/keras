@@ -230,8 +230,7 @@ class Graph(Layer):
                                   'input_shape': input_shape,
                                   'dtype': dtype})
 
-	
-	def add_node(self, layer, name, input=None, merge_mode='concat', concat_axis=-1, create_output=False):
+    def add_node(self, layer, name, input=None, merge_mode='concat', concat_axis=-1, create_output=False):
         if hasattr(layer, 'set_name'):
             layer.set_name(name)
             
