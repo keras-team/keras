@@ -382,7 +382,7 @@ keras.layers.core.Lambda(function, output_shape=None)
 
 Used for evaluating an arbitrary Theano expression on the output of the previous layer.
 
-- __Input shape__: Output shape of the previous layer.
+- __Input shape__: Arbitrary. Use the keyword argument input_shape (tuple of integers, does not include the samples axis) when using this layer as the first layer in a model.
 
 - __Output shape__: Specified by the `output_shape` argument.
 

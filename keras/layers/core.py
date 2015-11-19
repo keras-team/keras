@@ -986,8 +986,8 @@ class Lambda(Layer):
     output_shape - Expected output shape from function. Could be a tuple or a function of the shape of the input
     """
 
-    def __init__(self, function, output_shape=None):
-        super(Lambda, self).__init__()
+    def __init__(self, function, output_shape=None, **kwargs):
+        super(Lambda, self).__init__(**kwargs)
         py3 = sys.version_info[0] == 3
         if py3:
             self.function = marshal.dumps(function.__code__)
