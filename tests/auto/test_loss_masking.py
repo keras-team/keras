@@ -18,8 +18,8 @@ class TestLossMasking(unittest.TestCase):
         model.add(TimeDistributedDense(1, init='one'))
         model.compile(loss='mse', optimizer='sgd')
         y = model.predict(X)
-        loss = model.fit(X, 4*y, nb_epoch=1, batch_size=2, verbose=1).history['loss'][0]
-        assert loss == 285.
+        history = model.fit(X, 4 * y, nb_epoch=1, batch_size=2, verbose=1)
+        assert history.history['loss'][0] == 285.
 
     def test_loss_masking_time(self):
         weighted_loss = weighted_objective(objectives.get('mae'))
@@ -27,17 +27,16 @@ class TestLossMasking(unittest.TestCase):
         X = np.arange(24).reshape(shape)
         Y = 2 * X
 
-        weights = np.ones((3, 4, 1))  # Normally the trailing 1 is added by standardize_weights
-        weights[0, 0] = 0
+        # Normally the trailing 1 is added by standardize_weights
+        weights = np.ones((3,))
         mask = np.ones((3, 4))
         mask[1, 0] = 0
 
-        out = K.eval(weighted_loss(X, Y, weights, mask))
-        weights[0, 0] = 1e-9  # so that nonzero() doesn't remove this weight
-        out2 = K.eval(weighted_loss(X, Y, weights, mask))
+        out = K.eval(weighted_loss(K.variable(X),
+                                   K.variable(Y),
+                                   K.variable(weights),
+                                   K.variable(mask)))
         print(out)
-        print(out2)
-        assert abs(out - out2) < 1e-8
 
 
 if __name__ == '__main__':

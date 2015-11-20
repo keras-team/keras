@@ -1,10 +1,10 @@
 import unittest
 import numpy as np
 from keras.models import Sequential
-from keras.layers.core import Merge, Dense, Activation, Flatten
+from keras.layers.core import Dense, Activation, Flatten
 from keras.layers.embeddings import Embedding
-from theano import function
 from keras.constraints import unitnorm
+from keras import backend as K
 
 
 class TestEmbedding(unittest.TestCase):
@@ -14,13 +14,16 @@ class TestEmbedding(unittest.TestCase):
 
     def test_unitnorm_constraint(self):
         lookup = Sequential()
-        lookup.add(Embedding(3, 2, weights=[self.W1], W_constraint=unitnorm(), input_length=1))
+        lookup.add(Embedding(3, 2, weights=[self.W1],
+                             W_constraint=unitnorm(),
+                             input_length=1))
         lookup.add(Flatten())
         lookup.add(Dense(1))
         lookup.add(Activation('sigmoid'))
-        lookup.compile(loss='binary_crossentropy', optimizer='sgd', class_mode='binary')
+        lookup.compile(loss='binary_crossentropy', optimizer='sgd',
+                       class_mode='binary')
         lookup.train_on_batch(self.X1, np.array([[1], [0]], dtype='int32'))
-        norm = np.linalg.norm(lookup.params[0].get_value(), axis=1)
+        norm = np.linalg.norm(K.get_value(lookup.params[0]), axis=1)
         self.assertTrue(np.allclose(norm, np.ones_like(norm).astype('float32')))
 
 if __name__ == '__main__':

@@ -19,7 +19,8 @@ class TestBatchNormalization(unittest.TestCase):
         norm_m1 = normalization.BatchNormalization(input_shape=(10, 10), mode=1)
 
         # mode 3 does not exist
-        self.assertRaises(Exception, normalization.BatchNormalization(input_shape=(10, 10), mode=3))
+        self.assertRaises(Exception,
+                          normalization.BatchNormalization(input_shape=(10, 10), mode=3))
 
     def test_mode_0(self):
         model = Sequential()
@@ -77,8 +78,8 @@ class TestBatchNormalization(unittest.TestCase):
             else:
                 self.assertAlmostEqual(K.eval(K.std(out)), 0.0, places=2)
 
-        assert_allclose(norm_m1.gamma.eval(), np.ones(10))
-        assert_allclose(norm_m1.beta.eval(), np.ones(10))
+        assert_allclose(K.eval(norm_m1.gamma), np.ones(10))
+        assert_allclose(K.eval(norm_m1.beta), np.ones(10))
 
     def test_config(self):
         norm = normalization.BatchNormalization(input_shape=(10, 10), mode=1,

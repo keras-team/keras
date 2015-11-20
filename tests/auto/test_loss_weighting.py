@@ -60,20 +60,29 @@ def create_graph_model():
 
 def _test_weights_sequential(model, class_weight=None, sample_weight=None):
     if sample_weight is not None:
-        model.fit(X_train, Y_train, batch_size=batch_size, nb_epoch=nb_epoch // 3, verbose=0,
+        model.fit(X_train, Y_train, batch_size=batch_size,
+                  nb_epoch=nb_epoch // 3, verbose=0,
                   class_weight=class_weight, sample_weight=sample_weight)
-        model.fit(X_train, Y_train, batch_size=batch_size, nb_epoch=nb_epoch // 3, verbose=0,
-                  class_weight=class_weight, sample_weight=sample_weight, validation_split=0.1)
-        model.fit(X_train, Y_train, batch_size=batch_size, nb_epoch=nb_epoch // 3, verbose=0,
-                  class_weight=class_weight, sample_weight=sample_weight, validation_data=(X_train, Y_train, sample_weight))
+        model.fit(X_train, Y_train, batch_size=batch_size,
+                  nb_epoch=nb_epoch // 3, verbose=0,
+                  class_weight=class_weight, sample_weight=sample_weight,
+                  validation_split=0.1)
+        model.fit(X_train, Y_train, batch_size=batch_size,
+                  nb_epoch=nb_epoch // 3, verbose=0,
+                  class_weight=class_weight, sample_weight=sample_weight,
+                  validation_data=(X_train, Y_train, sample_weight))
     else:
-        model.fit(X_train, Y_train, batch_size=batch_size, nb_epoch=nb_epoch // 2, verbose=0,
+        model.fit(X_train, Y_train, batch_size=batch_size,
+                  nb_epoch=nb_epoch // 2, verbose=0,
                   class_weight=class_weight, sample_weight=sample_weight)
-        model.fit(X_train, Y_train, batch_size=batch_size, nb_epoch=nb_epoch // 2, verbose=0,
-                  class_weight=class_weight, sample_weight=sample_weight, validation_split=0.1)
+        model.fit(X_train, Y_train, batch_size=batch_size,
+                  nb_epoch=nb_epoch // 2, verbose=0,
+                  class_weight=class_weight, sample_weight=sample_weight,
+                  validation_split=0.1)
 
     model.train_on_batch(X_train[:32], Y_train[:32],
-                         class_weight=class_weight, sample_weight=sample_weight[:32] if sample_weight is not None else None)
+                         class_weight=class_weight,
+                         sample_weight=sample_weight[:32] if sample_weight is not None else None)
     model.test_on_batch(X_train[:32], Y_train[:32],
                         sample_weight=sample_weight[:32] if sample_weight is not None else None)
     score = model.evaluate(X_test[test_ids, :], Y_test[test_ids, :], verbose=0)
@@ -81,16 +90,23 @@ def _test_weights_sequential(model, class_weight=None, sample_weight=None):
 
 
 def _test_weights_graph(model, class_weight=None, sample_weight=None):
-    model.fit({'input': X_train, 'output': Y_train}, batch_size=batch_size, nb_epoch=nb_epoch // 2, verbose=0,
-              class_weight={'output': class_weight}, sample_weight={'output': sample_weight})
-    model.fit({'input': X_train, 'output': Y_train}, batch_size=batch_size, nb_epoch=nb_epoch // 2, verbose=0,
-              class_weight={'output': class_weight}, sample_weight={'output': sample_weight}, validation_split=0.1)
+    model.fit({'input': X_train, 'output': Y_train},
+              batch_size=batch_size, nb_epoch=nb_epoch // 2, verbose=0,
+              class_weight={'output': class_weight},
+              sample_weight={'output': sample_weight})
+    model.fit({'input': X_train, 'output': Y_train},
+              batch_size=batch_size, nb_epoch=nb_epoch // 2, verbose=0,
+              class_weight={'output': class_weight},
+              sample_weight={'output': sample_weight}, validation_split=0.1)
 
     model.train_on_batch({'input': X_train[:32], 'output': Y_train[:32]},
-                         class_weight={'output': class_weight}, sample_weight={'output': sample_weight[:32] if sample_weight is not None else None})
+                         class_weight={'output': class_weight},
+                         sample_weight={'output': sample_weight[:32] if sample_weight is not None else None})
     model.test_on_batch({'input': X_train[:32], 'output': Y_train[:32]},
                         sample_weight={'output': sample_weight[:32] if sample_weight is not None else None})
-    score = model.evaluate({'input': X_test[test_ids, :], 'output': Y_test[test_ids, :]}, verbose=0)
+    score = model.evaluate({'input': X_test[test_ids, :],
+                            'output': Y_test[test_ids, :]},
+                           verbose=0)
     return score
 
 
