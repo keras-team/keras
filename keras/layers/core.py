@@ -84,7 +84,7 @@ class Layer(object):
     def set_input_shape(self, input_shape):
         if type(input_shape) not in [tuple, list]:
             raise Exception('Invalid input shape - input_shape should be a tuple of int.')
-        input_shape = (None,) + tuple(input_shape)
+        input_shape = tuple(input_shape)
         if hasattr(self, 'input_ndim') and self.input_ndim:
             if self.input_ndim != len(input_shape):
                 raise Exception('Invalid input shape - Layer expects input ndim=' +
