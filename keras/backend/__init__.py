@@ -1,4 +1,5 @@
 from __future__ import absolute_import
+from .common import epsilon, floatx, set_epsilon, set_floatx
 
 _BACKEND = 'theano'
 
