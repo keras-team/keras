@@ -1005,7 +1005,7 @@ class Lambda(Layer):
 
     @property
     def output_shape(self):
-        if self._ouput_shape is None:
+        if self._output_shape is None:
             return self.input_shape
         elif type(self._output_shape) == tuple:
             return (self.input_shape[0], ) + self._output_shape
