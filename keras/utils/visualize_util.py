@@ -3,8 +3,7 @@ import pydot
 # that works with python3 such as pydot2 or pydot
 from keras.models import Sequential, Graph
 
-def plot(model, to_file='model.png'):
-
+def to_graph(model):
     graph = pydot.Dot(graph_type='digraph')
     if type(model) == Sequential:
         previous_node = None
@@ -20,8 +19,6 @@ def plot(model, to_file='model.png'):
             if previous_node:
                 graph.add_edge(pydot.Edge(previous_node, current_node))
             previous_node = current_node
-        graph.write_png(to_file)
-
     elif type(model) == Graph:
         # don't need to append number for names since all nodes labeled
         for input_node in model.input_config:
@@ -37,5 +34,8 @@ def plot(model, to_file='model.png'):
                         graph.add_edge(pydot.Edge(e, node['name']))
                 else:
                     graph.add_edge(pydot.Edge(node['input'], node['name']))
+    return graph
 
-        graph.write_png(to_file)
+def plot(model, to_file='model.png'):
+    graph = to_graph(model)
+    graph.write_png(to_file)
