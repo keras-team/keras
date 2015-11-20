@@ -1,7 +1,7 @@
 import pydot
 # old pydot will not work with python3, must use one
 # that works with python3 such as pydot2 or pydot
-
+from keras.models import Sequential, Graph
 
 def plot(model, to_file='model.png'):
 
