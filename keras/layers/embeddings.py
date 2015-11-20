@@ -37,7 +37,8 @@ class Embedding(Layer):
         super(Embedding, self).__init__(**kwargs)
 
     def build(self):
-        self.input = K.placeholder(ndim=2, dtype='int32')
+        self.input = K.placeholder(shape=(None, self.input_length),
+                                   dtype='int32')
         self.W = self.init((self.input_dim, self.output_dim))
         self.params = [self.W]
         self.regularizers = []
@@ -65,7 +66,7 @@ class Embedding(Layer):
 
     def get_output(self, train=False):
         X = self.get_input(train)
-        out = K.embedding(self.W, X)
+        out = K.gather(self.W, X)
         return out
 
     def get_config(self):

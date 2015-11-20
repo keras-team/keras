@@ -28,11 +28,18 @@ def variable(value, dtype=_FLOATX, name=None):
 
 
 def placeholder(shape=None, ndim=None, dtype=_FLOATX, name=None):
+    if not shape:
+        if ndim:
+            shape = [None for _ in range(ndim)]
     return tf.placeholder(dtype, shape=shape, name=name)
 
 
 def shape(x):
     return x.get_shape()
+
+
+def ndim(x):
+    return len(x.get_shape())
 
 
 def eval(x):
@@ -64,6 +71,10 @@ def count_params(x):
     return np.prod([shape[i]._value for i in range(len(shape))])
 
 
+def cast(x, dtype):
+    return tf.cast(x, dtype)
+
+
 # LINEAR ALGEBRA
 
 def dot(x, y):
@@ -74,7 +85,7 @@ def transpose(x):
     return tf.transpose(x)
 
 
-def embedding(reference, indices):
+def gather(reference, indices):
     '''reference: a tensor.
     indices: an int tensor of indices.
 
@@ -86,13 +97,13 @@ def embedding(reference, indices):
 # ELEMENT-WISE OPERATIONS
 
 def max(x, axis=None, keepdims=False):
-    if axis is not None:
+    if axis is not None and axis < 0:
         axis = axis % len(x.get_shape())
     return tf.reduce_max(x, reduction_indices=axis, keep_dims=keepdims)
 
 
 def min(x, axis=None, keepdims=False):
-    if axis is not None:
+    if axis is not None and axis < 0:
         axis = axis % len(x.get_shape())
     return tf.reduce_min(x, reduction_indices=axis, keep_dims=keepdims)
 
@@ -100,7 +111,7 @@ def min(x, axis=None, keepdims=False):
 def sum(x, axis=None, keepdims=False):
     '''Sum of the values in a tensor, alongside the specified axis.
     '''
-    if axis is not None:
+    if axis is not None and axis < 0:
         axis = axis % len(x.get_shape())
     return tf.reduce_sum(x, reduction_indices=axis, keep_dims=keepdims)
 
@@ -112,6 +123,10 @@ def prod(x, axis=None, keepdims=False):
 
 
 def std(x, axis=None, keepdims=False):
+    if axis is not None and axis < 0:
+        axis = axis % len(x.get_shape())
+    if x.dtype.base_dtype == tf.bool:
+        x = tf.cast(x, _FLOATX)
     m = tf.reduce_mean(x, reduction_indices=axis, keep_dims=keepdims)
     devs_squared = tf.square(x - m)
     return tf.sqrt(tf.reduce_mean(devs_squared,
@@ -120,8 +135,10 @@ def std(x, axis=None, keepdims=False):
 
 
 def mean(x, axis=None, keepdims=False):
-    if axis is not None:
+    if axis is not None and axis < 0:
         axis = axis % len(x.get_shape())
+    if x.dtype.base_dtype == tf.bool:
+        x = tf.cast(x, _FLOATX)
     return tf.reduce_mean(x, reduction_indices=axis, keep_dims=keepdims)
 
 
@@ -130,7 +147,7 @@ def any(x, axis=None, keepdims=False):
 
     Return array of int8 (0s and 1s).
     '''
-    if axis is not None:
+    if axis is not None and axis < 0:
         axis = axis % len(x.get_shape())
     x = tf.cast(x, tf.bool)
     x = tf.reduce_any(x, reduction_indices=axis, keep_dims=keepdims)
@@ -138,12 +155,14 @@ def any(x, axis=None, keepdims=False):
 
 
 def argmax(x, axis=-1):
-    axis = axis % len(x.get_shape())
+    if axis < 0:
+        axis = axis % len(x.get_shape())
     return tf.argmax(x, axis)
 
 
 def argmin(x, axis=-1):
-    axis = axis % len(x.get_shape())
+    if axis < 0:
+        axis = axis % len(x.get_shape())
     return tf.argmin(x, axis)
 
 
@@ -173,6 +192,10 @@ def round(x):
     return tf.round(x)
 
 
+def pow(x, a):
+    return tf.pow(x, a)
+
+
 def clip(x, min_value, max_value):
     if max_value < min_value:
         max_value = min_value
@@ -195,7 +218,8 @@ def minimum(x, y):
 # SHAPE OPERATIONS
 
 def concatenate(tensors, axis=-1):
-    axis = axis % len(tensors[0].get_shape())
+    if axis < 0:
+        axis = axis % len(tensors[0].get_shape())
     return tf.concat(axis, tensors)
 
 
@@ -228,6 +252,9 @@ def tile(x, n):
 
 
 def flatten(x):
+    '''Turn a n-D tensor into a 2D tensor where
+    the first dimension is conserved.
+    '''
     x = tf.reshape(x, [-1, np.prod(x.get_shape()[1:].as_list())])
     return x
 
@@ -244,6 +271,26 @@ def squeeze(x, axis):
     return tf.squeeze(x, [axis])
 
 
+def temporal_padding(x, padding=1):
+    '''Pad the middle dimension of a 3D tensor
+    with "padding" zeros left and right.
+
+    Appologies for the inane API, but Theano makes this
+    really hard.
+    '''
+    pattern = [[0, 0], [padding, padding], [0, 0]]
+    return tf.pad(x, pattern)
+
+
+def spatial_2d_padding(x, padding=(1, 1)):
+    '''Pad the 2nd and 3rd dimensions of a 4D tensor
+    with "padding[0]" and "padding[1]" (resp.) zeros left and right.
+    '''
+    pattern = [[0, 0], [0, 0],
+               [padding[0], padding[0]], [padding[1], padding[1]]]
+    return tf.pad(x, pattern)
+
+
 # VALUE MANIPULATION
 
 def get_value(x):
@@ -253,7 +300,7 @@ def get_value(x):
 
 
 def set_value(x, value):
-    tf.assign(x, value).op.run(session=_get_session())
+    tf.assign(x, np.asarray(value)).op.run(session=_get_session())
 
 
 # GRAPH MANIPULATION
@@ -310,7 +357,7 @@ def relu(x, alpha=0., max_value=None):
     if max_value is not None:
         x = tf.clip_by_value(x, tf.cast(0., dtype=_FLOATX),
                              tf.cast(max_value, dtype=_FLOATX))
-    x -= alpha * negative_part
+    x -= tf.constant(alpha, dtype=_FLOATX) * negative_part
     return x
 
 

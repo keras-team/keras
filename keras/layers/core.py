@@ -82,7 +82,7 @@ class Layer(object):
                 raise Exception('Invalid input shape - Layer expects input ndim=' +
                                 str(self.input_ndim) + ', was provided with input shape ' + str(input_shape))
         self._input_shape = input_shape
-        self.input = K.placeholder(ndim=len(self._input_shape))
+        self.input = K.placeholder(shape=self._input_shape)
         self.build()
 
     @property
@@ -531,8 +531,7 @@ class Reshape(Layer):
 
     def get_output(self, train=False):
         X = self.get_input(train)
-        new_shape = (X.shape[0],) + self.dims
-        return K.reshape(X, new_shape)
+        return K.reshape(X, (-1,) + self.dims)
 
     def get_config(self):
         config = {"name": self.__class__.__name__,
@@ -640,12 +639,12 @@ class Dense(Layer):
         self.input_dim = input_dim
         if self.input_dim:
             kwargs['input_shape'] = (self.input_dim,)
+        self.input = K.placeholder(ndim=2)
         super(Dense, self).__init__(**kwargs)
 
     def build(self):
         input_dim = self.input_shape[1]
 
-        self.input = K.placeholder(ndim=2)
         self.W = self.init((input_dim, self.output_dim))
         self.b = K.zeros((self.output_dim,))
 
@@ -748,12 +747,12 @@ class TimeDistributedDense(MaskedLayer):
         self.input_length = input_length
         if self.input_dim:
             kwargs['input_shape'] = (self.input_length, self.input_dim)
+        self.input = K.placeholder(ndim=3)
         super(TimeDistributedDense, self).__init__(**kwargs)
 
     def build(self):
         input_dim = self.input_shape[2]
 
-        self.input = K.placeholder(ndim=3)
         self.W = self.init((input_dim, self.output_dim))
         self.b = K.zeros((self.output_dim))
 
@@ -912,12 +911,12 @@ class MaxoutDense(Layer):
         self.input_dim = input_dim
         if self.input_dim:
             kwargs['input_shape'] = (self.input_dim,)
+        self.input = K.placeholder(ndim=2)
         super(MaxoutDense, self).__init__(**kwargs)
 
     def build(self):
         input_dim = self.input_shape[1]
 
-        self.input = K.placeholder(ndim=2)
         self.W = self.init((self.nb_feature, input_dim, self.output_dim))
         self.b = K.zeros((self.nb_feature, self.output_dim))
 

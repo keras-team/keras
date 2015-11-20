@@ -26,7 +26,7 @@ class WeightRegularizer(Regularizer):
 
     def __call__(self, loss):
         loss += K.sum(K.abs(self.p)) * self.l1
-        loss += K.sum(self.p ** 2) * self.l2
+        loss += K.sum(K.square(self.p)) * self.l2
         return loss
 
     def get_config(self):
@@ -46,7 +46,7 @@ class ActivityRegularizer(Regularizer):
     def __call__(self, loss):
         output = self.layer.get_output(True)
         loss += self.l1 * K.sum(K.mean(K.abs(output), axis=0))
-        loss += self.l2 * K.sum(K.mean(output ** 2, axis=0))
+        loss += self.l2 * K.sum(K.mean(K.square(output), axis=0))
         return loss
 
     def get_config(self):

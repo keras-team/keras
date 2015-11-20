@@ -24,6 +24,7 @@ class Recurrent(MaskedLayer):
         if mask is None:
             mask = T.ones_like(X.sum(axis=-1))  # is there a better way to do this without a sum?
 
+        # TODO: reimplement
         # mask is (nb_samples, time)
         mask = T.shape_padright(mask)  # (nb_samples, time, 1)
         mask = T.addbroadcast(mask, -1)  # the new dimension (the '1') is made broadcastable

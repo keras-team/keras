@@ -34,7 +34,7 @@ class Optimizer(object):
     def get_gradients(self, loss, params):
         grads = K.gradients(loss, params)
         if hasattr(self, 'clipnorm') and self.clipnorm > 0:
-            norm = K.sqrt(sum([K.sum(g ** 2) for g in grads]))
+            norm = K.sqrt(sum([K.sum(K.square(g)) for g in grads]))
             grads = [clip_norm(g, self.clipnorm, norm) for g in grads]
         if hasattr(self, 'clipvalue') and self.clipvalue > 0:
             grads = [K.clip(g, -self.clipvalue, self.clipvalue) for g in grads]
@@ -95,7 +95,7 @@ class RMSprop(Optimizer):
 
         for p, g, a, c in zip(params, grads, accumulators, constraints):
             # update accumulator
-            new_a = self.rho * a + (1 - self.rho) * g ** 2
+            new_a = self.rho * a + (1 - self.rho) * K.square(g)
             self.updates.append((a, new_a))
 
             new_p = p - self.lr * g / K.sqrt(new_a + self.epsilon)
@@ -121,7 +121,7 @@ class Adagrad(Optimizer):
         self.updates = []
 
         for p, g, a, c in zip(params, grads, accumulators, constraints):
-            new_a = a + g ** 2  # update accumulator
+            new_a = a + K.square(g)  # update accumulator
             self.updates.append((a, new_a))
             new_p = p - self.lr * g / K.sqrt(new_a + self.epsilon)
             self.updates.append((p, c(new_p)))  # apply constraints
@@ -151,7 +151,7 @@ class Adadelta(Optimizer):
         for p, g, a, d_a, c in zip(params, grads, accumulators,
                                    delta_accumulators, constraints):
             # update accumulator
-            new_a = self.rho * a + (1 - self.rho) * g ** 2
+            new_a = self.rho * a + (1 - self.rho) * K.square(g)
             self.updates.append((a, new_a))
 
             # use the new accumulator and the *old* delta_accumulator
@@ -161,7 +161,7 @@ class Adadelta(Optimizer):
             self.updates.append((p, c(new_p)))  # apply constraints
 
             # update delta_accumulator
-            new_d_a = self.rho * d_a + (1 - self.rho) * update ** 2
+            new_d_a = self.rho * d_a + (1 - self.rho) * K.square(update)
             self.updates.append((d_a, new_d_a))
         return self.updates
 
@@ -184,13 +184,15 @@ class Adam(Optimizer):
         self.__dict__.update(locals())
         self.iterations = K.variable(0)
         self.lr = K.variable(lr)
+        self.beta_1 = K.variable(beta_1)
+        self.beta_2 = K.variable(beta_2)
 
     def get_updates(self, params, constraints, loss):
         grads = self.get_gradients(loss, params)
         self.updates = [(self.iterations, self.iterations+1.)]
 
         t = self.iterations + 1
-        lr_t = self.lr * K.sqrt(1 - self.beta_2 ** t) / (1 - self.beta_1 ** t)
+        lr_t = self.lr * K.sqrt(1 - K.pow(self.beta_2, t)) / (1 - K.pow(self.beta_1, t))
 
         for p, g, c in zip(params, grads, constraints):
             # zero init of moment
@@ -199,7 +201,7 @@ class Adam(Optimizer):
             v = K.variable(np.zeros(K.get_value(p).shape))
 
             m_t = (self.beta_1 * m) + (1 - self.beta_1) * g
-            v_t = (self.beta_2 * v) + (1 - self.beta_2) * (g ** 2)
+            v_t = (self.beta_2 * v) + (1 - self.beta_2) * K.square(g)
             p_t = p - lr_t * m_t / (K.sqrt(v_t) + self.epsilon)
 
             self.updates.append((m, m_t))
@@ -210,8 +212,8 @@ class Adam(Optimizer):
     def get_config(self):
         return {"name": self.__class__.__name__,
                 "lr": float(K.get_value(self.lr)),
-                "beta_1": self.beta_1,
-                "beta_2": self.beta_2,
+                "beta_1": float(K.get_value(self.beta_1)),
+                "beta_2": float(K.get_value(self.beta_2)),
                 "epsilon": self.epsilon}
 
 # aliases

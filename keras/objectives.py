@@ -8,7 +8,7 @@ def mean_squared_error(y_true, y_pred):
 
 
 def root_mean_squared_error(y_true, y_pred):
-    return K.mean(K.square(K.square(y_pred - y_true), axis=-1))
+    return K.sqrt(K.mean(K.square(y_pred - y_true), axis=-1))
 
 
 def mean_absolute_error(y_true, y_pred):

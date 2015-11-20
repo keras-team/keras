@@ -27,14 +27,13 @@ class MaxNorm(Constraint):
 
 class NonNeg(Constraint):
     def __call__(self, p):
-        p = K.variable(p)
-        p *= (p >= 0.)
+        p *= K.cast(p >= 0., K.floatx())
         return p
 
 
 class UnitNorm(Constraint):
     def __call__(self, p):
-        return p / K.sqrt(K.sum(p**2, axis=-1, keepdims=True))
+        return p / K.sqrt(K.sum(K.square(p), axis=-1, keepdims=True))
 
 identity = Constraint
 maxnorm = MaxNorm

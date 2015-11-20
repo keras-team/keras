@@ -29,7 +29,6 @@ class BatchNormalization(Layer):
     def build(self):
         input_shape = self.input_shape  # starts with samples axis
         input_shape = input_shape[1:]
-        self.input = K.placeholder(ndim=len(input_shape) + 1)
 
         self.gamma = self.init((input_shape))
         self.beta = K.zeros(input_shape)
@@ -41,7 +40,8 @@ class BatchNormalization(Layer):
         # initialize self.updates: batch mean/std computation
         X = self.get_input(train=True)
         m = K.mean(X, axis=0)
-        std = K.mean((X - m) ** 2 + self.epsilon, axis=0) ** 0.5
+        std = K.mean(K.square(X - m) + self.epsilon, axis=0)
+        std = K.sqrt(std)
         mean_update = self.momentum * self.running_mean + (1-self.momentum) * m
         std_update = self.momentum * self.running_std + (1-self.momentum) * std
         self.updates = [(self.running_mean, mean_update),
@@ -102,14 +102,14 @@ class LRN2D(Layer):
         b, ch, r, c = K.shape(X)
         half_n = self.n // 2
         input_sqr = K.square(X)
-        extra_channels = K.zeros((b, ch + 2*half_n, r, c))
+        extra_channels = K.zeros((b, ch + 2 * half_n, r, c))
         input_sqr = K.concatenate([extra_channels[:, :half_n, :, :],
                                    input_sqr,
-                                   extra_channels[:, half_n+ch:, :, :]],
+                                   extra_channels[:, half_n + ch:, :, :]],
                                   axis=1)
         scale = self.k
         for i in range(self.n):
-            scale += self.alpha * input_sqr[:, i:i+ch, :, :]
+            scale += self.alpha * input_sqr[:, i:i + ch, :, :]
         scale = scale ** self.beta
         return X / scale
 

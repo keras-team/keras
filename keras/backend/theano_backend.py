@@ -7,6 +7,8 @@ from .common import _FLOATX, _EPSILON
 
 
 # INTERNAL UTILS
+theano.config.floatX = _FLOATX
+
 
 def _on_gpu():
     '''Returns whether the session is set to
@@ -62,6 +64,10 @@ def shape(x):
     return x.shape
 
 
+def ndim(x):
+    return x.ndim
+
+
 def eval(x):
     '''Run a graph.
     '''
@@ -96,6 +102,10 @@ def count_params(x):
     return np.prod(x.shape.eval())
 
 
+def cast(x, dtype):
+    return T.cast(x, dtype)
+
+
 # LINEAR ALGEBRA
 
 '''
@@ -112,7 +122,7 @@ def transpose(x):
     return T.transpose(x)
 
 
-def embedding(reference, indices):
+def gather(reference, indices):
     '''reference: a tensor.
     indices: an int tensor of indices.
 
@@ -122,6 +132,7 @@ def embedding(reference, indices):
 
 
 # ELEMENT-WISE OPERATIONS
+
 
 def max(x, axis=None, keepdims=False):
     return T.max(x, axis=axis, keepdims=keepdims)
@@ -190,6 +201,10 @@ def round(x):
     return T.round(x)
 
 
+def pow(x, a):
+    return T.pow(x, a)
+
+
 def clip(x, min_value, max_value):
     if max_value < min_value:
         max_value = min_value
@@ -244,6 +259,9 @@ def tile(x, n):
 
 
 def flatten(x):
+    '''Turn a n-D tensor into a 2D tensor where
+    the first dimension is conserved.
+    '''
     x = T.reshape(x, (x.shape[0], T.prod(x.shape) // x.shape[0]))
     return x
 
@@ -253,7 +271,10 @@ def expand_dims(x, dim=-1):
     '''
     pattern = [i for i in range(x.type.ndim)]
     if dim < 0:
-        dim = dim % x.type.ndim + 1
+        if x.type.ndim == 0:
+            dim = 0
+        else:
+            dim = dim % x.type.ndim + 1
     pattern.insert(dim, 'x')
     return x.dimshuffle(pattern)
 
@@ -265,7 +286,39 @@ def squeeze(x, axis):
     return T.squeeze(x)
 
 
+def temporal_padding(x, padding=1):
+    '''Pad the middle dimension of a 3D tensor
+    with "padding" zeros left and right.
+
+    Appologies for the inane API, but Theano makes this
+    really hard.
+    '''
+    input_shape = x.shape
+    output_shape = (input_shape[0],
+                    input_shape[1] + 2 * padding,
+                    input_shape[2])
+    output = T.zeros(output_shape)
+    return T.set_subtensor(output[:, padding:x.shape[1] + padding, :], x)
+
+
+def spatial_2d_padding(x, padding=(1, 1)):
+    '''Pad the 2nd and 3rd dimensions of a 4D tensor
+    with "padding[0]" and "padding[1]" (resp.) zeros left and right.
+    '''
+    input_shape = x.shape
+    output_shape = (input_shape[0],
+                    input_shape[1],
+                    input_shape[2] + 2 * padding[0],
+                    input_shape[3] + 2 * padding[1])
+    output = T.zeros(output_shape)
+    indices = (slice(None),
+               slice(None),
+               slice(padding[0], input_shape[2] + padding[0]),
+               slice(padding[1], input_shape[3] + padding[1]))
+    return T.set_subtensor(output[indices], x)
+
 # VALUE MANIPULATION
+
 
 def get_value(x):
     if not hasattr(x, 'get_value'):
@@ -287,9 +340,7 @@ class Function(object):
                                         allow_input_downcast=True, **kwargs)
 
     def __call__(self, inputs):
-        if len(inputs) == 1:
-            inputs = inputs[0]  # Theano is pretty dumb there tbh
-        return self.function(inputs)
+        return self.function(*inputs)
 
 
 def function(inputs, outputs, updates=[]):
