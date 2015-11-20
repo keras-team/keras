@@ -14,11 +14,13 @@ from keras.utils import np_utils
 '''
     Transfer learning toy example:
         1- Train a simple convnet on the MNIST dataset the first 5 digits [0..4].
-        2- Freeze convolutional layers and fine-tune dense layers for the classification of digits [5..9].
+        2- Freeze convolutional layers and fine-tune dense layers
+           for the classification of digits [5..9].
 
     Run on GPU: THEANO_FLAGS=mode=FAST_RUN,device=gpu,floatX=float32 python mnist_cnn.py
 
-    Get to 99.8% test accuracy after 5 epochs for the first five digits classifier
+    Get to 99.8% test accuracy after 5 epochs
+    for the first five digits classifier
     and 99.2% for the last five digits after transfer + fine-tuning.
 '''
 
@@ -56,7 +58,9 @@ def train_model(model, train, test, nb_classes):
     model.compile(loss='categorical_crossentropy', optimizer='adadelta')
 
     t = now()
-    model.fit(X_train, Y_train, batch_size=batch_size, nb_epoch=nb_epoch, show_accuracy=True, verbose=1,
+    model.fit(X_train, Y_train,
+              batch_size=batch_size, nb_epoch=nb_epoch,
+              show_accuracy=True, verbose=1,
               validation_data=(X_test, Y_test))
     print('Training time: %s' % (now() - t))
     score = model.evaluate(X_test, Y_test, show_accuracy=True, verbose=0)
@@ -81,7 +85,7 @@ y_test_gte5 = y_test[y_test >= 5] - 5
 # define two groups of layers: feature (convolutions) and classification (dense)
 feature_layers = [
     Convolution2D(nb_filters, nb_conv, nb_conv,
-                  border_mode='full',
+                  border_mode='valid',
                   input_shape=(1, img_rows, img_cols)),
     Activation('relu'),
     Convolution2D(nb_filters, nb_conv, nb_conv),
@@ -104,11 +108,15 @@ for l in feature_layers + classification_layers:
     model.add(l)
 
 # train model for 5-digit classification [0..4]
-train_model(model, (X_train_lt5, y_train_lt5), (X_test_lt5, y_test_lt5), nb_classes)
+train_model(model,
+            (X_train_lt5, y_train_lt5),
+            (X_test_lt5, y_test_lt5), nb_classes)
 
 # freeze feature layers and rebuild model
 for l in feature_layers:
     l.trainable = False
 
 # transfer: train dense layers for new classification task [5..9]
-train_model(model, (X_train_gte5, y_train_gte5), (X_test_gte5, y_test_gte5), nb_classes)
+train_model(model,
+            (X_train_gte5, y_train_gte5),
+            (X_test_gte5, y_test_gte5), nb_classes)
