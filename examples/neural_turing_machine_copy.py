@@ -10,12 +10,16 @@ from keras.models import Sequential
 from keras.layers.core import TimeDistributedDense, Activation
 from keras.layers.recurrent import LSTM
 from keras.optimizers import Adam
+from keras.utils import generic_utils
 
 from keras.layers.ntm import NeuralTuringMachine as NTM
 
 """
 Copy Problem defined in Graves et. al [0]
-After 3000 gradients updates, the accuracy becomes >92%.
+After about 3500 updates, the accuracy becomes jumps from around 50% to >90%.
+
+Estimated compile time: 12 min
+Estimated time to train Neural Turing Machine and 3 layer LSTM on an NVidia GTX 680: 2h
 
 
 [0]: http://arxiv.org/pdf/1410.5401v2.pdf
@@ -24,11 +28,11 @@ After 3000 gradients updates, the accuracy becomes >92%.
 batch_size = 100
 
 h_dim = 128
-n_slots = 121
+n_slots = 128
 m_length = 20
 input_dim = 8
 lr = 1e-3
-clipnorm = 10
+clipvalue = 10
 
 ##### Neural Turing Machine ######
 
@@ -39,12 +43,12 @@ model.add(ntm)
 model.add(TimeDistributedDense(input_dim))
 model.add(Activation('sigmoid'))
 
-sgd = Adam(lr=lr, clipnorm=clipnorm)
+sgd = Adam(lr=lr, clipvalue=clipvalue)
 model.compile(loss='binary_crossentropy', optimizer=sgd)
 
 # LSTM - Run this for comparison
 
-sgd = Adam(lr=lr, clipnorm=clipnorm)
+sgd2 = Adam(lr=lr, clipvalue=clipvalue)
 lstm = Sequential()
 lstm.add(LSTM(input_dim=input_dim, output_dim=h_dim*2, return_sequences=True))
 lstm.add(LSTM(output_dim=h_dim*2, return_sequences=True))
@@ -120,13 +124,13 @@ for e in range(nb_epoch):
     if e % 500 == 0:
         print("")
         acc1 = test_model(model, 'ntm.png')
-        acc2 = test_model(model, 'lstm.png')
-        print("NTM  test acc: {}".format(a))
-        print("LSTM test acc: {}".format(a))
+        acc2 = test_model(lstm, 'lstm.png')
+        print("NTM  test acc: {}".format(acc1))
+        print("LSTM test acc: {}".format(acc2))
 
 ##### VISUALIZATION #####
 X = model.get_input()
-Y = ntm.get_full_output()[0:3] # (memory over time, read_vectors, write_vectors)
+Y = ntm.get_full_output()[0:3]  # (memory over time, read_vectors, write_vectors)
 F = function([X], Y, allow_input_downcast=True)
 
 inp, out, sw = get_sample(1, 8, 21, 20)
