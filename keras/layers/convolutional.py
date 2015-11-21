@@ -4,14 +4,14 @@ from __future__ import absolute_import
 import theano
 import theano.tensor as T
 from theano.tensor.signal import downsample
-from theano.sandbox.cuda.dnn import dnn_pool
+
 from .. import activations, initializations, regularizers, constraints
 from ..utils.theano_utils import shared_zeros, on_gpu
 from ..layers.core import Layer
 
 if on_gpu():
     from theano.sandbox.cuda import dnn
-
+    from theano.sandbox.cuda.dnn import dnn_pool
 
 def conv_output_length(input_length, filter_size, border_mode, stride):
     if input_length is None:
@@ -343,9 +343,16 @@ class MaxPooling2D(Layer):
 
     def get_output(self, train=False):
         X = self.get_input(train)
-        #output = downsample.max_pool_2d(X, ds=self.pool_size, st=self.stride, ignore_border=self.ignore_border)
-        output = dnn_pool(X, self.pool_size, stride=self.stride);
-	return output
+        if on_gpu() and dnn.dnn_available():
+            output = dnn_pool(X,
+                              self.pool_size,
+                              stride=self.stride)
+        else:
+            output = downsample.max_pool_2d(X,
+                                            ds=self.pool_size,
+                                            st=self.stride,
+                                            ignore_border=self.ignore_border)
+        return output
 
     def get_config(self):
         config = {"name": self.__class__.__name__,
