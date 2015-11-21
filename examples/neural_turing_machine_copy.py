@@ -16,7 +16,7 @@ from keras.layers.ntm import NeuralTuringMachine as NTM
 
 """
 Copy Problem defined in Graves et. al [0]
-After about 3500 updates, the accuracy becomes jumps from around 50% to >90%.
+After about 3500 updates, the accuracy jumps from around 50% to >90%.
 
 Estimated compile time: 12 min
 Estimated time to train Neural Turing Machine and 3 layer LSTM on an NVidia GTX 680: 2h
