@@ -116,8 +116,6 @@ class Layer(object):
         return None
 
     def set_weights(self, weights):
-        assert len(self.params) == len(weights), 'Provided weight array does not match layer weights (' + \
-            str(len(self.params)) + ' layer params vs. ' + str(len(weights)) + ' provided weights)'
         for p, w in zip(self.params, weights):
             if p.eval().shape != w.shape:
                 raise Exception("Layer shape %s not compatible with weight shape %s." % (p.eval().shape, w.shape))
