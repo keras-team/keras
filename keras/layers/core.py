@@ -971,7 +971,7 @@ class Siamese(Layer):
         self.merge_mode = merge_mode
         self.concat_axis = concat_axis
         self.dot_axes = dot_axes
-        layer.previous = inputs[0]
+        layer.set_previous(inputs[0])
         self.regularizers = []
         self.constraints = []
         self.updates = []
@@ -1018,7 +1018,7 @@ class Siamese(Layer):
         return self.params, self.regularizers, self.constraints, self.updates
 
     def get_output_at(self, head, train=False):
-        self.layer.previous = self.inputs[head]
+        self.layer.set_previous(self.inputs[head])
         return self.layer.get_output(train)
 
     def get_output_join(self, train=False):
