@@ -155,7 +155,7 @@ input_encoder_m.add(Embedding(input_dim=vocab_size,
                               output_dim=64,
                               input_length=story_maxlen))
 # output: (samples, story_maxlen, embedding_dim)
-# embed the question into a single vector
+# embed the question into a sequence of vectors
 question_encoder = Sequential()
 question_encoder.add(Embedding(input_dim=vocab_size,
                                output_dim=64,
