@@ -162,7 +162,7 @@ question_encoder.add(Embedding(input_dim=vocab_size,
                                input_length=query_maxlen))
 # output: (samples, query_maxlen, embedding_dim)
 # compute a 'match' between input sequence elements (which are vectors)
-# and the question vector
+# and the question vector sequence
 match = Sequential()
 match.add(Merge([input_encoder_m, question_encoder],
                 mode='dot',
