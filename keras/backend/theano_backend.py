@@ -534,7 +534,4 @@ more TODO:
 
 tensordot -> soon to be introduced in TF
 batched_tensordot -> reimplement
-
-addbroadcast -> remove usage?
-unbroadcast -> remove usage?
 '''
