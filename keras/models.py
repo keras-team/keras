@@ -7,7 +7,6 @@ import warnings, time, copy, pprint
 from six.moves import range
 import six
 
-
 from . import optimizers
 from . import objectives
 from . import regularizers
