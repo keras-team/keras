@@ -531,6 +531,7 @@ class Sequential(Model, containers.Sequential):
         # Save weights from all layers to HDF5
         import h5py
         import os.path
+        import os
         # if file exists and should not be overwritten
         if not overwrite and os.path.isfile(filepath):
             import sys
@@ -543,8 +544,10 @@ class Sequential(Model, containers.Sequential):
             if overwrite == 'n':
                 return
             print('[TIP] Next time specify overwrite=True in save_weights!')
-
-        f = h5py.File(filepath, 'w')
+        if os.name == 'nt':
+            f = h5py.File(filepath, 'wb')
+        else:
+            f = h5py.File(filepath, 'w')
         f.attrs['nb_layers'] = len(self.layers)
         for k, l in enumerate(self.layers):
             g = f.create_group('layer_{}'.format(k))
@@ -701,6 +704,7 @@ class Graph(Model, containers.Graph):
         # Save weights from all layers to HDF5
         import h5py
         import os.path
+        import os
         # if file exists and should not be overwritten
         if not overwrite and os.path.isfile(filepath):
             import sys
@@ -714,7 +718,10 @@ class Graph(Model, containers.Graph):
                 return
             print('[TIP] Next time specify overwrite=True in save_weights!')
 
-        f = h5py.File(filepath, 'w')
+        if os.name == 'nt':
+            f = h5py.File(filepath, 'wb')
+        else:
+            f = h5py.File(filepath, 'w')
         g = f.create_group('graph')
         weights = self.get_weights()
         g.attrs['nb_params'] = len(weights)
