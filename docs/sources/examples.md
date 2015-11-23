@@ -140,7 +140,7 @@ image_model.load_weights('weight_file.h5')
 language_model = Sequential()
 language_model.add(Embedding(vocab_size, 256, input_length=max_caption_len))
 language_model.add(GRU(output_dim=128, return_sequences=True))
-language_model.add(Dense(128))
+language_model.add(TimeDistributedDense(128))
 
 # let's repeat the image vector to turn it into a sequence.
 image_model.add(RepeatVector(max_caption_len))
