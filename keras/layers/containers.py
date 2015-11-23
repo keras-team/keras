@@ -19,10 +19,11 @@ class Sequential(Layer):
         - supports_masked_input
     '''
 
-    def __init__(self, layers=[]):
+    def __init__(self, layers=[], **kwargs):
         self.layers = []
         for layer in layers:
             self.add(layer)
+        super(Sequential, self).__init__(**kwargs)
 
     def set_previous(self, layer):
         self.layers[0].previous = layer
@@ -128,7 +129,7 @@ class Graph(Layer):
             - get_weights
             - set_weights
     '''
-    def __init__(self):
+    def __init__(self, **kwargs):
         self.namespace = set()  # strings
         self.nodes = OrderedDict()  # layer-like
         self.inputs = {}  # layer-like
@@ -138,6 +139,7 @@ class Graph(Layer):
         self.input_config = []  # dicts
         self.output_config = []  # dicts
         self.node_config = []  # dicts
+        super(Graph, self).__init__(**kwargs)
 
     @property
     def nb_input(self):
