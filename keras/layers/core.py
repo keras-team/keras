@@ -1226,15 +1226,18 @@ class Siamese(Layer):
     def get_params(self):
         return self.params, self.regularizers, self.constraints, self.updates
 
+    def set_layer_input(self, index):
+        l = self.layer
+        while not hasattr(l, 'previous'):
+            l = l.layers[0]
+        l.previous = self.inputs[index]
+
     def get_output_at(self, head, train=False):
-        if hasattr(self.layer, 'previous'):
-            self.layer.previous = self.inputs[head]
-        else:
-            self.layer.layers[0].previous = self.inputs[head]
+        self.set_layer_input(head)
         return self.layer.get_output(train)
 
     def get_output_shape(self, head, train=False):
-        self.layer.set_previous(self.inputs[head])
+        self.set_layer_input(head)
         return self.layer.output_shape
 
     def get_output_join(self, train=False):
