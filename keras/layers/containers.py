@@ -4,7 +4,7 @@ from __future__ import print_function
 
 from collections import OrderedDict
 import theano.tensor as T
-from ..layers.core import Layer, Merge
+from ..layers.core import Layer, Merge, Siamese, SiameseHead
 from ..utils.theano_utils import ndim_tensor
 from six.moves import range
 
@@ -317,7 +317,7 @@ class Graph(Layer):
                 n = self.inputs[input]
                 layers.append(n)
             else:
-                raise Exception('Unknown identifier: ' + n)
+                raise Exception('Unknown identifier: ' + input)
         s = Siamese(layer, layers, merge_mode, concat_axis=concat_axis, dot_axes=dot_axes)
         s.set_name(name)
         self.namespace.add(name)
