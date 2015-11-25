@@ -428,12 +428,9 @@ class Merge(Layer):
     def get_input(self, train=False):
         res = []
         for i in range(len(self.layers)):
-            o = self.layers[i].get_input(train)
-            if not type(o) == list:
-                o = [o]
-            for output in o:
-                if output not in res:
-                    res.append(output)
+            output = self.layers[i].get_output(train)
+            if output not in res:
+                res.append(output)
         return res
 
     @property
