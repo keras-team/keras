@@ -1234,7 +1234,10 @@ class Siamese(Layer):
         return self.layer.get_output(train)
 
     def get_output_shape(self, head, train=False):
-        self.layer.set_previous(self.inputs[head])
+        if hasattr(self.layer, 'previous'):
+            self.layer.previous = self.inputs[head]
+        else:
+            self.layer.layers[0].previous = self.inputs[head]
         return self.layer.output_shape
 
     def get_output_join(self, train=False):
