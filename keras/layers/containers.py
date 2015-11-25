@@ -313,6 +313,8 @@ class Graph(Layer):
                             layers.append(sh)
                     else:
                         layers.append(n)
+                else:
+                    layers.append(n)
             elif input in self.inputs:
                 n = self.inputs[input]
                 layers.append(n)
