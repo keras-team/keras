@@ -278,7 +278,20 @@ class Graph(Layer):
             self.add_output(name, input=name)
 
     def add_shared_node(self, layer, name, inputs=[], merge_mode=None, concat_axis=-1, dot_axes=-1, outputs=[], create_output=False):
+        '''
+        Used to shared / multi input-multi output node
 
+        Arguments
+        ------------
+        layer - The layer to be shared across multiple inputs
+        name - Name of the shared layer
+        inputs - List of names of input nodes
+        merge_mode - Similar to merge_mode argument of add_node()
+        concat_axis - Similar to concat_axis argument of add_node()
+        dot_axes - Similar to dot_axes argument of add_node()
+        outputs - Names for output nodes. Used when merge_mode = None
+        create_output -  Similar to create_output argument of add_node(). Output will be created only if merge_mode is given
+        '''
         if name in self.namespace:
             raise Exception('Duplicate node identifier: ' + name)
         for o in outputs:
@@ -292,7 +305,7 @@ class Graph(Layer):
             input = inputs[i]
             if input in self.nodes:
                 n = self.nodes[input]
-                if n.__class__.__name__ == 'Siamese'
+                if n.__class__.__name__ = 'Siamese':
                     if n.merge_mode is None:
                         for j in range(len(n.inputs)):
                             sh = SiameseHead(j)
@@ -328,7 +341,7 @@ class Graph(Layer):
                                         'create_output': create_output})
                 if create_output:
                     self.add_output(sh_name, input=sh_name)
-    
+
         if create_output and merge_mode:
             if merge_mode == 'join':
                 raise Exception("Output can not be of type OrderedDict")
