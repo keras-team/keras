@@ -24,13 +24,24 @@ import sys
 class Layer(object):
     def __init__(self, **kwargs):
         for kwarg in kwargs:
-            assert kwarg in {'input_shape', 'trainable'}, "Keyword argument not understood: " + kwarg
+            assert kwarg in {'input_shape', 'trainable', 'name'}, "Keyword argument not understood: " + kwarg
         if 'input_shape' in kwargs:
             self.set_input_shape(kwargs['input_shape'])
         if 'trainable' in kwargs:
             self._trainable = kwargs['trainable']
         if not hasattr(self, 'params'):
             self.params = []
+        if 'name' in kwargs:
+            self.name = kwargs['name']
+        else:
+            self.name = None
+            
+    def _apply(self, ins, train=True):
+        _input = self.get_input
+        self.get_input = lambda _:ins
+        out = self.get_output(train)
+        self.get_input = _input
+        return out
 
     def set_previous(self, layer, connection_map={}):
         assert self.nb_input == layer.nb_output == 1, "Cannot connect layers: input count and output count should be 1."
@@ -180,12 +191,87 @@ class Layer(object):
         return self.params, regularizers, consts, updates
 
     def set_name(self, name):
+        self.name = name
         for i in range(len(self.params)):
             self.params[i].name = '%s_p%d' % (name, i)
 
     def count_params(self):
         return sum([np.prod(p.shape.eval()) for p in self.params])
 
+
+class MultiInputOutoutLayer(Layer):
+    def __init__(self):
+        super(MultiInputOutoutLayer, self).__init__()
+        self._outputs = None
+        self.fork_inputs()   
+        
+    @property
+    def inputs_info(self):
+        raise NotImplementedError('If your layer inherits from MultiInputOutputLayer it should have this property')
+        # return a dict: {'name': ndim} 
+                
+    @property
+    def nb_input(self):
+        return len(self.inputs)
+    
+    @property
+    def nb_output(self):
+        return len(self.outputs) 
+    
+    @property
+    def outputs(self):
+        if self._outputs is not None:
+            return self._outputs
+        elif all([hasattr(inp, 'input_shape') for inp in self.inputs.values()]):
+            self._outputs = self.fork_outputs()
+            return self._outputs
+        else:
+            raise NotImplementedError('The layer is not connected and hence does not have "outputs" property yet') 
+            
+    @property
+    def output_shape(self):
+        if self.nb_output == 1:
+            return self.outputs.values()[0].output_shape
+        else:
+            return dict([(k, v.output_shape) for k, v in self.outputs.items()])
+    
+    def get_input(self, train=False):
+        if self.nb_input == 1:
+            return self.inputs.values()[0].get_input(train=train)
+        else:
+            return dict([(k, v.get_input(train)) for k, v in self.inputs.items()])
+     
+    def set_previous(self, layer):
+        if not self.nb_input == layer.nb_output == 1:
+            raise Exception('Set previous can only be used to connect single-output layer to single-input one')
+        self.inputs.values()[0].previous = layer
+
+    def fork_inputs(self):
+        self.inputs={}
+        for name, input_dim in self.inputs_info.items():
+            layer = Layer()
+            if input_dim is not None: 
+                layer.input_ndim = input_dim                
+            self.inputs[name] = layer
+            
+    def _filter(self, name):
+        def _get_single_output(train=False):
+            return self.get_output(train)[name]
+        return _get_single_output
+
+    def fork_outputs(self):
+        layer_output = self.get_output()
+        layer_output = {'output': layer_output} if not isinstance(layer_output, dict) else layer_output
+               
+        _outputs = {}
+        for name in layer_output.keys():
+            layer = Layer()
+
+            layer.get_input = self.get_input
+            layer.get_output = self._filter(name)
+            _outputs[name] = layer
+                    
+        return _outputs
 
 class MaskedLayer(Layer):
     '''
@@ -986,8 +1072,8 @@ class Lambda(Layer):
     output_shape - Expected output shape from function. Could be a tuple or a function of the shape of the input
     """
 
-    def __init__(self, function, output_shape=None, **kwargs):
-        super(Lambda, self).__init__(**kwargs)
+    def __init__(self, function, output_shape=None):
+        super(Lambda, self).__init__()
         py3 = sys.version_info[0] == 3
         if py3:
             self.function = marshal.dumps(function.__code__)
@@ -1005,7 +1091,7 @@ class Lambda(Layer):
 
     @property
     def output_shape(self):
-        if self._output_shape is None:
+        if self._ouput_shape is None:
             return self.input_shape
         elif type(self._output_shape) == tuple:
             return (self.input_shape[0], ) + self._output_shape

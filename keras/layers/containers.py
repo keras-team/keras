@@ -139,6 +139,22 @@ class Graph(Layer):
         self.output_config = []  # dicts
         self.node_config = []  # dicts
 
+    def _apply(self, ins, train=True):         
+        if self.nb_input == 1:
+            _input = self.inputs[self.inputs_order[0]].get_input
+            self.inputs[self.inputs_order[0]].get_input = lambda _: ins
+            output = self.get_output(train)
+            self.inputs[self.inputs_order[0]].get_input = _input
+        else:
+            _inputs = {}
+            for name, layer in self.inputs.items():
+                _inputs[name] = layer.get_input
+                layer.get_input = lambda _: ins[name]
+            output = self.get_output(train)
+            for name, _input in _inputs.items():
+                self.inputs[name].get_input = _input            
+        return output
+
     @property
     def nb_input(self):
         return len(self.inputs)
@@ -179,19 +195,10 @@ class Graph(Layer):
                 updates += l.get_params()[3]
         return updates
 
-    def set_previous(self, layer, connection_map={}):
-        if self.nb_input != layer.nb_output:
-            raise Exception('Cannot connect layers: input count does not match output count.')
-        if self.nb_input == 1:
-            self.inputs[self.input_order[0]].set_previous(layer)
-        else:
-            if not connection_map:
-                raise Exception('Cannot attach multi-input layer: no connection_map provided.')
-            for k, v in connection_map.items():
-                if k in self.inputs and v in layer.outputs:
-                    self.inputs[k].set_previous(layer.outputs[v])
-                else:
-                    raise Exception('Invalid connection map.')
+    def set_previous(self, layer):
+        if not self.nb_input == layer.nb_output == 1:
+            raise Exception('Set previous can only be used to connect single-output layer to single-input one')
+        self.inputs[self.input_order[0]].set_previous(layer)
 
     def get_input(self, train=False):
         if len(self.inputs) == len(self.outputs) == 1:
@@ -239,43 +246,58 @@ class Graph(Layer):
                                   'input_shape': input_shape,
                                   'dtype': dtype})
 
-    def add_node(self, layer, name, input=None, inputs=[],
-                 merge_mode='concat', concat_axis=-1, dot_axes=-1, create_output=False):
+    def add_node(self, layer, name, input=None, merge_mode='concat', concat_axis=-1, create_output=False):
         if hasattr(layer, 'set_name'):
             layer.set_name(name)
+            
         if name in self.namespace:
             raise Exception('Duplicate node identifier: ' + name)
-        if input:
+            
+        if isinstance(input, str):
             if input not in self.namespace:
                 raise Exception('Unknown node/input identifier: ' + input)
-            if input in self.nodes:
-                layer.set_previous(self.nodes[input])
-            elif input in self.inputs:
-                layer.set_previous(self.inputs[input])
-        if inputs:
+            prev = self.nodes[input] if input in self.nodes else self.inputs[input]
+            layer.set_previous(prev)
+        elif isinstance(input, list):
             to_merge = []
-            for n in inputs:
+            for n in input:
                 if n in self.nodes:
                     to_merge.append(self.nodes[n])
                 elif n in self.inputs:
                     to_merge.append(self.inputs[n])
                 else:
-                    raise Exception('Unknown identifier: ' + n)
-            merge = Merge(to_merge, mode=merge_mode, concat_axis=concat_axis, dot_axes=dot_axes)
+                    raise Exception('Unknown identifier: ' + n)                    
+            merge = Merge(to_merge, mode=merge_mode, concat_axis=concat_axis)
             layer.set_previous(merge)
-
+        else:
+            for k, v in input.items():
+                if not ((k in layer.inputs.keys()) and (v in self.nodes.keys() or v in self.inputs.keys())):
+                    raise Exception("Invalid connection map, my friend.")
+                prev = self.nodes[v] if v in self.nodes else self.inputs[v]
+                layer.inputs[k].set_previous(prev)
+            layer.build()
+        
+        
         self.namespace.add(name)
         self.nodes[name] = layer
+        
+        if hasattr(layer, 'outputs') and len(layer.outputs) > 1:
+            for n, o in layer.outputs.items():
+                n = name + '_' + n
+                o.set_name(n)
+                self.namespace.add(n)
+                self.nodes[n] = o
+                if create_output:
+                    self.add_output(n, n)           
+        elif create_output:
+            self.add_output(name, input=name)
+            
+            
         self.node_config.append({'name': name,
                                  'input': input,
-                                 'inputs': inputs,
                                  'merge_mode': merge_mode,
                                  'concat_axis': concat_axis,
-                                 'dot_axes': dot_axes,
                                  'create_output': create_output})
-
-        if create_output:
-            self.add_output(name, input=name)
 
     def add_output(self, name, input=None, inputs=[],
                    merge_mode='concat', concat_axis=-1, dot_axes=-1):
