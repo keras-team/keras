@@ -305,7 +305,7 @@ class Graph(Layer):
             input = inputs[i]
             if input in self.nodes:
                 n = self.nodes[input]
-                if n.__class__.__name__ = 'Siamese':
+                if n.__class__.__name__ == 'Siamese':
                     if n.merge_mode is None:
                         for j in range(len(n.inputs)):
                             sh = SiameseHead(j)
