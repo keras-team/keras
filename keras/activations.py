@@ -20,6 +20,14 @@ def relu(x):
     return T.nnet.relu(x)
 
 
+def elu(x, alpha=1.):
+    '''
+    FAST AND ACCURATE DEEP NETWORK LEARNING BY EXPONENTIAL LINEAR UNITS (ELUS)
+    http://arxiv.org/pdf/1511.07289v1.pdf
+    '''
+    return T.switch(T.gt(x, 0.), x, alpha*(T.exp(x)-1))
+
+
 def tanh(x):
     return T.tanh(x)
 
