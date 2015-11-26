@@ -14,7 +14,7 @@ model = keras.models.Sequential()
             - __class_mode__: one of "categorical", "binary". This is only used for computing classification accuracy or using the predict_classes method.
             - __theano_mode__: A `theano.compile.mode.Mode` ([reference](http://deeplearning.net/software/theano/library/compile/mode.html)) instance controlling specifying compilation options.
     - __fit__(X, y, batch_size=128, nb_epoch=100, verbose=1, validation_split=0., validation_data=None, shuffle=True, show_accuracy=False, callbacks=[], class_weight=None, sample_weight=None): Train a model for a fixed number of epochs.
-        - __Return__: a history dictionary with a record of training loss values at successive epochs, as well as validation loss values (if applicable), accuracy (if applicable), etc.
+        - __Return__: a history dictionary with a record of training loss values at successive epochs, as well as validation loss values (if applicable), accuracy (if applicable), etc. They are stored as properties of history object, history.losses, history.accs, history.val_losses, and history.val_accs. val_losses and val_accs are None if validation data is not given.
         - __Arguments__:
             - __X__: data.
             - __y__: labels.
