@@ -64,6 +64,7 @@ class Recurrent(MaskedLayer):
             reducer = K.zeros((self.input_dim, self.output_dim))
             initial_state = K.dot(initial_state, reducer)  # (samples, output_dim)
             initial_states = [initial_state for _ in range(len(self.states))]
+
         last_output, outputs, states = K.rnn(self.step, X, initial_states,
                                              go_backwards=self.go_backwards,
                                              masking=masking)
@@ -90,12 +91,10 @@ class Recurrent(MaskedLayer):
 class SimpleRNN(Recurrent):
     '''
         Fully-connected RNN where the output is to fed back to input.
-
         Takes inputs with shape:
         (nb_samples, max_sample_length, input_dim)
         (samples shorter than `max_sample_length`
          are padded with zeros at the end)
-
         and returns outputs with shape:
         if not return_sequences:
             (nb_samples, output_dim)
@@ -154,21 +153,17 @@ class SimpleRNN(Recurrent):
 class GRU(Recurrent):
     '''
         Gated Recurrent Unit - Cho et al. 2014
-
         Acts as a spatiotemporal projection,
         turning a sequence of vectors into a single vector.
-
         Takes inputs with shape:
         (nb_samples, max_sample_length, input_dim)
         (samples shorter than `max_sample_length`
          are padded with zeros at the end)
-
         and returns outputs with shape:
         if not return_sequences:
             (nb_samples, output_dim)
         if return_sequences:
             (nb_samples, max_sample_length, output_dim)
-
         References:
             On the Properties of Neural Machine Translation:
             Encoder–Decoder Approaches
@@ -252,21 +247,17 @@ class LSTM(Recurrent):
     '''
         Acts as a spatiotemporal projection,
         turning a sequence of vectors into a single vector.
-
         Takes inputs with shape:
         (nb_samples, max_sample_length, input_dim)
         (samples shorter than `max_sample_length`
          are padded with zeros at the end)
-
         and returns outputs with shape:
         if not return_sequences:
             (nb_samples, output_dim)
         if return_sequences:
             (nb_samples, max_sample_length, output_dim)
-
         For a step-by-step description of the algorithm, see:
         http://deeplearning.net/tutorial/lstm.html
-
         References:
             Long short-term memory (original 97 paper)
                 http://deeplearning.cs.cmu.edu/pdfs/Hochreiter97_lstm.pdf
@@ -363,7 +354,6 @@ class JZS(Recurrent):
         from the evaluation of thousands
         of models, serving as alternatives to LSTMs and GRUs.
         See Jozefowicz et al. 2015.
-
         References:
             An Empirical Exploration of Recurrent Network Architectures
                 http://www.jmlr.org/proceedings/papers/v37/jozefowicz15.pdf
@@ -441,7 +431,6 @@ class JZS1(JZS):
         from the evaluation of thousands
         of models, serving as alternatives to LSTMs and GRUs.
         See Jozefowicz et al. 2015.
-
         This corresponds to the `MUT1` architecture described in the paper.
     '''
     def __init__(self, *args, **kwargs):
@@ -468,7 +457,6 @@ class JZS2(JZS):
         from the evaluation of thousands
         of models, serving as alternatives to LSTMs and GRUs.
         See Jozefowicz et al. 2015.
-
         This corresponds to the `MUT2` architecture described in the paper.
     '''
     def __init__(self, *args, **kwargs):
@@ -495,7 +483,6 @@ class JZS3(Recurrent):
         from the evaluation of thousands
         of models, serving as alternatives to LSTMs and GRUs.
         See Jozefowicz et al. 2015.
-
         This corresponds to the `MUT3` architecture described in the paper.
     '''
     def __init__(self, *args, **kwargs):

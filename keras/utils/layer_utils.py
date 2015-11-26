@@ -3,7 +3,7 @@ import inspect
 import numpy as np
 import copy
 
-from ..layers.advanced_activations import LeakyReLU, PReLU
+from ..layers.advanced_activations import *
 from ..layers.core import *
 from ..layers.convolutional import *
 from ..layers.embeddings import *
