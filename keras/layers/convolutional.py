@@ -386,24 +386,17 @@ class Convolution3D(Layer):
 
         if on_gpu():
             # Shuffle the dimensions as per the input parameter order, restore it once done
-            W_shape = (self.W_shape[0], self.W_shape[2], self.W_shape[1],
-                       self.W_shape[3],self.W_shape[4])
-
             conv_out = conv3d2d.conv3d(signals=X.dimshuffle(0, 2, 1, 3, 4),
                                        filters=self.W.dimshuffle(0, 2, 1, 3, 4),
-                                       filters_shape=W_shape,
                                        border_mode=border_mode)
 
             conv_out = conv_out.dimshuffle(0, 2, 1, 3, 4)
-            self.W = self.W.dimshuffle(0, 2, 1, 3, 4)
         else:
             # Shuffle the dimensions as per the input parameter order, restore it once done
-            self.W = self.W.dimshuffle(0, 2, 3, 4 , 1)
             conv_out = T.nnet.conv3D(V=X.dimshuffle(0, 2, 3, 4, 1),
-                                     W=self.W,
+                                     W=self.W.dimshuffle(0, 2, 3, 4, 1),
                                      b=self.b, d=self.subsample)
             conv_out = conv_out.dimshuffle(0, 4, 1, 2, 3)
-            self.W = self.W.dimshuffle(0, 4, 1, 2, 3)
 
         output = self.activation(conv_out + self.b.dimshuffle('x', 0, 'x', 'x', 'x'))
         return output
