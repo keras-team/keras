@@ -353,12 +353,83 @@ def gradients(loss, variables):
 
 # CONTROL FLOW
 
-def rnn(step_function, inputs, initial_states, go_backwards=False):
-    '''TODO
+def rnn(step_function, inputs, initial_states,
+        go_backwards=False, masking=True):
+    '''Iterates over the time dimension of a tensor.
 
-    Wrapper for scan
+    Parameters
+    ----------
+    inputs: tensor of temporal data of shape (samples, time, ...)
+        (at least 3D).
+    step_function:
+        Parameters:
+            input: tensor with shape (samples, ...) (no time dimension),
+                representing input for the batch of samples at a certain
+                time step.
+            states: list of tensors.
+        Returns:
+            output: tensor with shape (samples, ...) (no time dimension),
+            new_states: list of tensors, same length and shapes
+                as 'states'.
+    initial_states: tensor with shape (samples, ...) (no time dimension),
+        containing the initial values for the states used in
+        the step function.
+    go_backwards: boolean. If True, do the iteration over
+        the time dimension in reverse order.
+    masking: boolean. If true, any input timestep inputs[s, i]
+        that is all-zeros will be skipped (states will be passed to
+        the next step unchanged) and the corresponding output will
+        be all zeros.
+
+    Returns
+    -------
+    A tuple (last_output, outputs, new_states).
+        last_output: the latest output of the rnn, of shape (samples, ...)
+        outputs: tensor with shape (samples, time, ...) where each
+            entry outputs[s, t] is the output of the step function
+            at time t for sample s.
+        new_states: list of tensors, latest states returned by
+            the step function, of shape (samples, ...).
     '''
-    pass
+    inputs = inputs.dimshuffle((1, 0, 2))
+
+    def _step(*args):
+        global single_result
+        input = args[0]
+        states = args[1:]
+        output, new_states = step_function(input, states)
+        if masking:
+            # if all-zero input timestep, return
+            # all-zero output and unchanged states
+            switch = T.any(input)
+            output = T.switch(switch, output, 0. * output)
+            return_states = []
+            for state, new_state in zip(states, new_states):
+                return_states.append(T.switch(switch, new_state, state))
+            return [output] + return_states
+        else:
+            return [output] + new_states
+
+    results, _ = theano.scan(
+        _step,
+        sequences=inputs,
+        outputs_info=[None] + initial_states,
+        go_backwards=go_backwards)
+
+    # deal with Theano API inconsistency
+    if type(results) is list:
+        outputs = results[0]
+        states = results[1:]
+    else:
+        outputs = results
+        states = []
+
+    outputs = T.squeeze(outputs)
+    last_output = outputs[-1]
+
+    outputs = outputs.dimshuffle((1, 0, 2))
+    states = [T.squeeze(state[-1]) for state in states]
+    return last_output, outputs, states
 
 
 def switch(condition, then_expression, else_expression):

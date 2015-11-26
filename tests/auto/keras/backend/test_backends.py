@@ -2,8 +2,6 @@ import unittest
 from numpy.testing import assert_allclose
 import numpy as np
 
-np.random.seed(1337)
-
 from keras.backend import theano_backend as KTH
 from keras.backend import tensorflow_backend as KTF
 
@@ -177,7 +175,54 @@ class TestBackend(unittest.TestCase):
         assert_allclose(new_val_th, new_val_tf, atol=1e-06)
 
     def test_rnn(self):
-        pass
+        # implement a simple RNN
+        input_dim = 8
+        output_dim = 4
+        timesteps = 5
+
+        input_val = np.random.random((32, timesteps, input_dim))
+        init_state_val = np.random.random((32, output_dim))
+        W_i_val = np.random.random((input_dim, output_dim))
+        W_o_val = np.random.random((output_dim, output_dim))
+
+        def rnn_step_fn(input_dim, output_dim, K):
+            W_i = K.variable(W_i_val)
+            W_o = K.variable(W_o_val)
+
+            def step_function(x, states):
+                assert len(states) == 1
+                prev_output = states[0]
+                output = K.dot(x, W_i) + K.dot(prev_output, W_o)
+                return output, [output]
+            return step_function
+
+        th_rnn_step_fn = rnn_step_fn(input_dim, output_dim, KTH)
+        inputs = KTH.variable(input_val)
+        initial_states = [KTH.variable(init_state_val)]
+        last_output, outputs, new_states = KTH.rnn(th_rnn_step_fn, inputs,
+                                                   initial_states,
+                                                   go_backwards=False,
+                                                   masking=False)
+        th_last_output = KTH.eval(last_output)
+        th_outputs = KTH.eval(outputs)
+        assert len(new_states) == 1
+        th_state = KTH.eval(new_states[0])
+
+        tf_rnn_step_fn = rnn_step_fn(input_dim, output_dim, KTF)
+        inputs = KTF.variable(input_val)
+        initial_states = [KTF.variable(init_state_val)]
+        last_output, outputs, new_states = KTF.rnn(tf_rnn_step_fn, inputs,
+                                                   initial_states,
+                                                   go_backwards=False,
+                                                   masking=False)
+        tf_last_output = KTF.eval(last_output)
+        tf_outputs = KTF.eval(outputs)
+        assert len(new_states) == 1
+        tf_state = KTF.eval(new_states[0])
+
+        assert_allclose(tf_last_output, th_last_output, atol=1e-06)
+        assert_allclose(tf_outputs, th_outputs, atol=1e-06)
+        assert_allclose(tf_state, th_state, atol=1e-06)
 
     def test_switch(self):
         val = np.random.random()

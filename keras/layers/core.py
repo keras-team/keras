@@ -782,9 +782,15 @@ class TimeDistributedDense(MaskedLayer):
 
     def get_output(self, train=False):
         X = self.get_input(train)
-        output = self.activation(K.dot(K.permute_dimensions(X, (1, 0, 2)),
-                                       self.W) + self.b)
-        return K.permute_dimensions(output, (1, 0, 2))
+
+        def step(x, states):
+            output = K.dot(x, self.W) + self.b
+            return output, []
+
+        last_output, outputs, states = K.rnn(step, X, [], masking=False)
+
+        outputs = self.activation(outputs)
+        return outputs
 
     def get_config(self):
         config = {"name": self.__class__.__name__,
