@@ -1,7 +1,7 @@
 import unittest
 import numpy as np
 
-from keras.layers import recurrent
+from keras.layers import recurrent, ntm
 from keras import backend as K
 
 nb_samples, timesteps, input_dim, output_dim = 3, 3, 10, 5
@@ -41,6 +41,9 @@ class TestRNNS(unittest.TestCase):
 
     def test_lstm(self):
         _runner(recurrent.LSTM)
+
+    def test_ntm(self):
+        _runner(ntm.NeuralTuringMachine)
 
     # def test_jzs1(self):
     #     _runner(recurrent.JZS1)
