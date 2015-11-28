@@ -9,3 +9,4 @@ keras/datasets/temp/*
 docs/site/*
 docs/theme/*
 tags
+Keras.egg-info
