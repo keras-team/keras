@@ -6,51 +6,15 @@ from keras.layers.recurrent import Recurrent, GRU, LSTM
 tol = 1e-4
 
 
-def _update_controller(self, inp, h_tm1, M, mask):
+def _update_controller(self, inp, h_tm1, M):
     """ Update inner RNN controler
     We have to update the inner RNN inside the Neural Turing Machine, this
     is an almost literal copy of keras.layers.recurrent.GRU and
     keras.layers.recurrent.LSTM see these clases for further details.
     """
     x = K.concatenate([inp, M], axis=-1)
-    mask = K.expand_dims(mask, dim=-1)
-    # get inputs
-    if self.inner_rnn == 'gru':
-        x_z = K.dot(x, self.rnn.W_z) + self.rnn.b_z
-        x_r = K.dot(x, self.rnn.W_r) + self.rnn.b_r
-        x_h = K.dot(x, self.rnn.W_h) + self.rnn.b_h
-
-    elif self.inner_rnn == 'lstm':
-        xi = K.dot(x, self.rnn.W_i) + self.rnn.b_i
-        xf = K.dot(x, self.rnn.W_f) + self.rnn.b_f
-        xc = K.dot(x, self.rnn.W_c) + self.rnn.b_c
-        xo = K.dot(x, self.rnn.W_o) + self.rnn.b_o
-
-    elif self.inner_rnn == 'simple':
-        x = K.dot(x, self.rnn.W) + self.rnn.b
-
     # update state
-    if self.inner_rnn == 'gru':
-        h = self.rnn._step(x_z, x_r, x_h, 1., h_tm1[0],
-                           self.rnn.U_z,
-                           self.rnn.U_r,
-                           self.rnn.U_h)
-        h = mask * h + (1 - mask) * h_tm1[0]
-        h = (h, )
-
-    elif self.inner_rnn == 'lstm':
-        h = self.rnn._step(xi, xf, xo, xc, 1.,
-                           h_tm1[1], h_tm1[0],
-                           self.rnn.U_i, self.rnn.U_f,
-                           self.rnn.U_o, self.rnn.U_c)
-        h = h[::-1]
-        h = tuple([mask * h[i] +
-                   (1 - mask) * h_tm1[i] for i in range(len(h))])
-
-    elif self.inner_rnn == 'simple':
-        h = self.rnn._step(x, 1, h_tm1[0], self.rnn.U)
-        h = mask * h + (1 - mask) * h_tm1[0]
-        h = (h, )
+    _, h = self.rnn.step(x, h_tm1)
 
     return h
 
@@ -87,8 +51,8 @@ def _softmax(x):
 
 def _cosine_distance(M, k):
     dot = K.sum(M * K.expand_dims(k, 1), axis=-1)
-    nM = K.sum(K.sqrt((M ** 2), axis=-1))
-    nk = K.sum(K.sqrt((k ** 2), axis=-1, keepdims=True))
+    nM = K.sum(K.sqrt(M ** 2), axis=-1)
+    nk = K.sum(K.sqrt(k ** 2), axis=-1, keepdims=True)
     return dot / (nM * nk)
 
 
@@ -197,19 +161,17 @@ class NeuralTuringMachine(Recurrent):
     def _read(self, w, M):
         return (K.expand_dims(w, 2) * M).sum(axis=1)
 
-    def _write(self, w, e, a, M, mask):
-        mask = K.expand_dims(K.expand_dims(mask, -1), -1)
+    def _write(self, w, e, a, M):
         w_exp = K.expand_dims(w, 2)
         Mtilda = M * (1 - w_exp * K.expand_dims(e, 1))
         Mout = Mtilda + w_exp * K.expand_dims(a, 1)
-        return mask * Mout + (1 - mask) * M
+        return Mout
 
     def _get_content_w(self, beta, k, M):
         num = K.expand_dims(beta, 1) * _cosine_distance(M, k)
         return _softmax(num)
 
-    def _get_location_w(self, g, s, C, gamma, wc, w_tm1, mask):
-        mask = K.expand_dims(mask, 1)
+    def _get_location_w(self, g, s, C, gamma, wc, w_tm1):
         g = K.expand_dims(g, 1)
         gamma = K.expand_dims(gamma, 1)
         s = K.expand_dims(s, 2)
@@ -220,7 +182,7 @@ class NeuralTuringMachine(Recurrent):
         Cs = K.sum(C * wg, axis=3)
         wtilda = K.sum(Cs * s, axis=1)
         wout = _renorm(wtilda ** gamma)
-        return mask * wout + (1 - mask) * w_tm1
+        return wout
 
     def _get_controller_output(self, h, W_k, b_k, W_c, b_c, W_s, b_s):
         k = K.tanh(K.dot(h, W_k) + b_k)
@@ -231,57 +193,60 @@ class NeuralTuringMachine(Recurrent):
         s = K.softmax(K.dot(h, W_s) + b_s)
         return k, beta, g, gamma, s
 
-    def _get_initial_states(self, batch_size):
-        init_M = K.expand_dims(K.expand_dims(self.M, 1), 2)
-        init_M = K.repeat(K.repeat(K.repeat(init_M,
-                                            batch_size, axis=0),
+    def _get_initial_states(self, X):
+        batch_size = K.sum(K.sum(K.zeros_like(X), axis=1), axis=1)  # (samples, )
+        batch_size_dim = K.expand_dims(batch_size, axis=1)
+        init_M = self.M + batch_size
+        init_M = K.repeat(K.repeat(self.M,
                                    self.n_slots, axis=1),
                           self.m_length, axis=2)
 
-        init_h = K.repeat(K.expand_dims(self.init_h, 0), batch_size, axis=0)
-        init_wr = K.repeat(K.expand_dims(self.init_wr, 0), batch_size, axis=0)
-        init_ww = K.repeat(K.expand_dims(self.init_ww, 0), batch_size, axis=0)
+        init_h = batch_size_dim * K.expand_dims(self.init_h, axis=0)
+        init_wr = batch_size_dim * K.expand_dims(self.init_wr, axis=0)
+        init_ww = batch_size_dim * K.expand_dims(self.init_ww, axis=0)
         if self.inner_rnn == 'lstm':
-            init_c = K.repeat(K.expand_dims(self.init_c, 0), batch_size, axis=0)
-            return init_M, _softmax(init_wr), _softmax(init_ww), init_h, init_c
+            init_c = batch_size_dim * K.expand_dims(self.init_c, axis=0)
+            return [init_M, K.softmax(init_wr), K.softmax(init_ww), init_h,
+                    init_c]
         else:
-            return init_M, _softmax(init_wr), _softmax(init_ww), init_h
+            return [init_M, K.softmax(init_wr), K.softmax(init_ww), init_h]
 
     def step(self, x, states):
-        # TODO: this is a temporary solution, use correct masking
-        mask = K.ones(K.shape(x)[0], 1)
         # read
         if self.inner_rnn == 'lstm':
             assert len(states) == 5
-            M_tm1, wr_tm1, ww_tm1, cell, st = states
-            st = (cell, st)
+            M_tm1, wr_tm1, ww_tm1, h_tm1, cell_tm1 = states
         else:
             assert len(states) == 4
             M_tm1, wr_tm1, ww_tm1, h_tm1 = states
-            h_tm1 = (h_tm1,)
         k_read, beta_read, g_read, gamma_read, s_read = self._get_controller_output(
-            h_tm1[-1], self.W_k_read, self.b_k_read, self.W_c_read, self.b_c_read,
+            h_tm1, self.W_k_read, self.b_k_read, self.W_c_read, self.b_c_read,
             self.W_s_read, self.b_s_read)
         wc_read = self._get_content_w(beta_read, k_read, M_tm1)
         wr_t = self._get_location_w(g_read, s_read, self.C, gamma_read,
-                                    wc_read, wr_tm1, mask)
+                                    wc_read, wr_tm1)
         M_read = self._read(wr_t, M_tm1)
 
         # update controller
-        h_t = _update_controller(self, x, h_tm1, M_read, mask)
+        if self.inner_rnn == 'lstm':
+            h_t, cell_t = _update_controller(self, x, [h_tm1, cell_tm1], M_read)
+            states = [h_t, cell_t]
+        else:
+            h_t = _update_controller(self, x, [h_tm1, ], M_read)
+            states = [h_t, ]
 
         # write
         k_write, beta_write, g_write, gamma_write, s_write = self._get_controller_output(
-            h_t[-1], self.W_k_write, self.b_k_write, self.W_c_write,
+            h_t, self.W_k_write, self.b_k_write, self.W_c_write,
             self.b_c_write, self.W_s_write, self.b_s_write)
         wc_write = self._get_content_w(beta_write, k_write, M_tm1)
         ww_t = self._get_location_w(g_write, s_write, self.C, gamma_write,
-                                    wc_write, ww_tm1, mask)
-        e = K.sigmoid(K.dot(h_t[-1], self.W_e) + self.b_e)
-        a = K.tanh(K.dot(h_t[-1], self.W_a) + self.b_a)
-        M_t = self._write(ww_t, e, a, M_tm1, mask)
+                                    wc_write, ww_tm1)
+        e = K.sigmoid(K.dot(h_t, self.W_e) + self.b_e)
+        a = K.tanh(K.dot(h_t, self.W_a) + self.b_a)
+        M_t = self._write(ww_t, e, a, M_tm1)
 
-        return h_t[1], [M_t, wr_t, ww_t] + list(h_t)
+        return h_t[1], [M_t, wr_t, ww_t] + states
 
     def get_output(self, train=False):
         outputs = self.get_full_output(train)
@@ -310,7 +275,6 @@ class NeuralTuringMachine(Recurrent):
         [memory, read_address, write_address, rnn_cell, rnn_state] = F(x)
         """
         X = self.get_input(train)
-        X = K.permute_dimensions(X, (1, 0, 2))
         mask = self.get_output_mask(train)
         if mask:
             # apply mask
@@ -319,7 +283,7 @@ class NeuralTuringMachine(Recurrent):
         else:
             masking = False
 
-        init_states = self._get_initial_states(K.shape(X)[1])
+        init_states = self._get_initial_states(X)
         last_output, outputs, states = K.rnn(
             self.step,
             X, init_states,
