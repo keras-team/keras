@@ -246,11 +246,11 @@ def permute_dimensions(x, pattern):
 def repeat(x, n, axis=1):
     '''Repeat a 2D tensor:
 
-    if x has shape (samples, dim) and n=2,
-    the output will have shape (samples, 2, dim)
+    if x has shape (samples, axis) and n=2,
+    the output will have shape (samples, 2, axis)
     '''
     tensors = expand_dims(x, axis)
-    tensors = T.repeat(x, n, axis=axis)
+    tensors = T.repeat(tensors, n, axis=axis)
     return tensors
 
 
@@ -267,7 +267,7 @@ def flatten(x):
 
 
 def expand_dims(x, axis=-1):
-    '''Add a 1-sized dimension at index "dim".
+    '''Add a 1-sized dimension at index "axis".
     '''
     pattern = [i for i in range(x.type.ndim)]
     if axis < 0:
@@ -597,7 +597,6 @@ def random_uniform(shape, low=0.0, high=1.0, dtype=_FLOATX, seed=None):
         seed = np.random.randint(10e6)
     rng = RandomStreams(seed=seed)
     return rng.uniform(shape, low=low, high=high, dtype=dtype)
-
 
 
 '''
