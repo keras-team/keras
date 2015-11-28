@@ -236,14 +236,14 @@ def permute_dimensions(x, pattern):
     return tf.transpose(x, perm=pattern)
 
 
-def repeat(x, n, dim=1):
+def repeat(x, n, axis=1):
     '''Repeat a 2D tensor:
 
     if x has shape (samples, dim) and n=2,
     the output will have shape (samples, 2, dim)
     '''
-    tensors = expand_dims(x, dim)
-    tensors = tf.concat(dim, [x] * n)
+    tensors = expand_dims(x, axis)
+    tensors = tf.concat(axis, [x] * n)
     return tensors
 
 
@@ -259,10 +259,10 @@ def flatten(x):
     return x
 
 
-def expand_dims(x, dim=-1):
+def expand_dims(x, axis=-1):
     '''Add a 1-sized dimension at index "dim".
     '''
-    return tf.expand_dims(x, dim)
+    return tf.expand_dims(x, axis)
 
 
 def squeeze(x, axis):
