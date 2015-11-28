@@ -9,15 +9,15 @@ import pickle, numpy
 
 def create_model():
     model = Sequential()
-    model.add(Dense(256, 2048, init='uniform', activation='relu'))
+    model.add(Dense(input_dim=256, output_dim=2048, init='uniform', activation='relu'))
     model.add(Dropout(0.5))
-    model.add(Dense(2048, 2048, init='uniform', activation='relu'))
+    model.add(Dense(input_dim=2048, output_dim=2048, init='uniform', activation='relu'))
     model.add(Dropout(0.5))
-    model.add(Dense(2048, 2048, init='uniform', activation='relu'))
+    model.add(Dense(input_dim=2048, output_dim=2048, init='uniform', activation='relu'))
     model.add(Dropout(0.5))
-    model.add(Dense(2048, 2048, init='uniform', activation='relu'))
+    model.add(Dense(input_dim=2048, output_dim=2048, init='uniform', activation='relu'))
     model.add(Dropout(0.5))
-    model.add(Dense(2048, 256, init='uniform', activation='linear'))
+    model.add(Dense(input_dim=2048, output_dim=256, init='uniform', activation='linear'))
     return model
 
 model = create_model()
@@ -36,5 +36,3 @@ for k in range(len(model.layers)):
     for x, y in zip(weights_orig, weights_loaded):
         if numpy.any(x != y):
             raise ValueError('Loaded weights are different from pickled weights!')
-
-
