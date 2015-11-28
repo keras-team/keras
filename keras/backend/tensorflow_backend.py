@@ -236,15 +236,15 @@ def permute_dimensions(x, pattern):
     return tf.transpose(x, perm=pattern)
 
 
-def repeat(x, n):
+def repeat(x, n, dim=1):
     '''Repeat a 2D tensor:
 
     if x has shape (samples, dim) and n=2,
     the output will have shape (samples, 2, dim)
     '''
-    tensors = [x] * n
-    stacked = tf.pack(tensors)
-    return tf.transpose(stacked, (1, 0, 2))
+    tensors = expand_dims(x, dim)
+    tensors = tf.concat(dim, [x] * n)
+    return tensors
 
 
 def tile(x, n):
