@@ -17,9 +17,12 @@ class Embedding(Layer):
     '''
     input_ndim = 2
 
-    def __init__(self, input_dim, output_dim, init='uniform', input_length=None,
-                 W_regularizer=None, activity_regularizer=None, W_constraint=None,
-                 mask_zero=False, weights=None, **kwargs):
+    def __init__(self, input_dim, output_dim,
+                 init='uniform', input_length=None,
+                 W_regularizer=None, activity_regularizer=None,
+                 W_constraint=None,
+                 mask_zero=False,
+                 weights=None, **kwargs):
         self.input_dim = input_dim
         self.output_dim = output_dim
         self.init = initializations.get(init)

@@ -224,12 +224,13 @@ class Graph(Layer):
         self.input_order.append(name)
         layer = Layer()  # empty layer
         layer.set_input_shape(input_shape)
-        ndim = len(input_shape) + 1
         if dtype == 'float':
-            layer.input = K.placeholder(ndim=ndim, name=name)
+            layer.input = K.placeholder(shape=layer.input_shape, name=name)
         else:
-            if ndim == 2:
-                layer.input = K.placeholder(ndim=2, dtype='int32', name=name)
+            if len(input_shape) == 1:
+                layer.input = K.placeholder(shape=layer.input_shape,
+                                            dtype='int32',
+                                            name=name)
             else:
                 raise Exception('Type "int" can only be used with ndim==2 (Embedding).')
         self.inputs[name] = layer

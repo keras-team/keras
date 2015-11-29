@@ -381,7 +381,7 @@ def rnn(step_function, inputs, initial_states,
     successive_states = []
     successive_outputs = []
     if go_backwards:
-        input_list = input_list.reverse()
+        input_list.reverse()
     for input in input_list:
         output, new_states = step_function(input, states)
         if masking:
