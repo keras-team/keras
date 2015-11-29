@@ -377,7 +377,7 @@ class Merge(Layer):
                 shape = tensordot_output.shape
             return (shape1[0],) + shape
         elif self.mode == 'cos':
-            return tuple(input_shapes[0][0], 1)
+            return tuple([input_shapes[0][0], 1])
 
     def get_params(self):
         return self.params, self.regularizers, self.constraints, self.updates
@@ -418,9 +418,11 @@ class Merge(Layer):
         elif self.mode == 'cos':
             l1 = self.layers[0].get_output(train)
             l2 = self.layers[1].get_output(train)
-            output, _ = theano.scan(lambda v1, v2: T.dot(v1, v2) / T.sqrt(T.dot(v1, v1) * T.dot(v2, v2)),
-                                    sequences=[l1, l2],
-                                    outputs_info=None)
+            # output, _ = theano.scan(lambda v1, v2: T.batched_tensordot(v1, v2, 1) / T.sqrt(T.batched_tensordot(v1, v1, 1) * T.batched_tensordot(v2, v2, 1)),
+            #                         sequences=[l1, l2],
+            #                         outputs_info=None)
+            output = T.batched_tensordot(l1, l2, self.dot_axes) / T.sqrt(T.batched_tensordot(l1, l1, self.dot_axes) * T.batched_tensordot(l2, l2, self.dot_axes))
+            output = output.dimshuffle((0, 'x'))
             return output
         else:
             raise Exception('Unknown merge mode')
@@ -1221,7 +1223,7 @@ class Siamese(Layer):
                 shape.append(1)
             return tuple(shape)
         elif self.merge_mode == 'cos':
-            return tuple(input_shapes[0][0], 1)
+            return tuple([input_shapes[0][0], 1])
 
     def get_params(self):
         return self.params, self.regularizers, self.constraints, self.updates
@@ -1283,7 +1285,10 @@ class Siamese(Layer):
     def get_output_cos(self, train=False):
         l1 = self.get_output_at(0, train)
         l2 = self.get_output_at(1, train)
-        output, _ = theano.scan(lambda v1, v2: T.dot(v1, v2)/T.sqrt(T.dot(v1, v1) * T.dot(v2, v2)), sequences=[l1, l2], outputs_info=None)
+        # output, _ = theano.scan(lambda v1, v2: T.batched_tensordot(v1, v2, 1) / T.sqrt(T.batched_tensordot(v1, v1, 1) * T.batched_tensordot(v2, v2, 1)),
+        #                             sequences=[l1, l2],
+        #                             outputs_info=None)
+        output = T.batched_tensordot(l1, l2, self.dot_axes) / (T.sqrt(T.batched_tensordot(l1, l1, self.dot_axes) * T.batched_tensordot(l2, l2, self.dot_axes)))
         output = output.dimshuffle((0, 'x'))
         return output
 
@@ -1302,7 +1307,7 @@ class Siamese(Layer):
         elif mode == 'dot':
             return self.get_output_dot(train)
         elif mode == 'cos':
-            return self.get_output_dot(train)
+            return self.get_output_cos(train)
 
     def get_input(self, train=False):
         res = []
