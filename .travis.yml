@@ -34,8 +34,8 @@ install:
 script:
   - PYTHONPATH=$PWD:$PYTHONPATH py.test -v --cov-report term-missing --cov keras tests/
   - if [[ "$TRAVIS_PYTHON_VERSION" == "2.7" ]]; then
-      sed -i -e 's/theano/tensorflow/g' ~/.keras/keras.json
-      PYTHONPATH=$PWD:$PYTHONPATH py.test -v --cov-report term-missing --cov keras tests/
+      - sed -i -e 's/theano/tensorflow/g' ~/.keras/keras.json
+      - PYTHONPATH=$PWD:$PYTHONPATH py.test -v --cov-report term-missing --cov keras tests/
     fi
 after_success:
   - coveralls
