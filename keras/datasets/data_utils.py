@@ -26,6 +26,7 @@ def get_file(fname, origin, untar=False):
 
     if not os.path.exists(fpath):
         print('Downloading data from',  origin)
+        global progbar
         progbar = None
 
         def dl_progress(count, block_size, total_size):
