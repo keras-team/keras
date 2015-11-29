@@ -12,9 +12,8 @@ model = keras.models.Sequential()
             - __optimizer__: str (name of optimizer) or optimizer object. See [optimizers](optimizers.md).
             - __loss__: str (name of objective function) or objective function. See [objectives](objectives.md).
             - __class_mode__: one of "categorical", "binary". This is only used for computing classification accuracy or using the predict_classes method.
-            - __theano_mode__: A `theano.compile.mode.Mode` ([reference](http://deeplearning.net/software/theano/library/compile/mode.html)) instance controlling specifying compilation options.
     - __fit__(X, y, batch_size=128, nb_epoch=100, verbose=1, validation_split=0., validation_data=None, shuffle=True, show_accuracy=False, callbacks=[], class_weight=None, sample_weight=None): Train a model for a fixed number of epochs.
-        - __Return__: a history dictionary with a record of training loss values at successive epochs, as well as validation loss values (if applicable), accuracy (if applicable), etc.
+        - __Return__: a history object. It `history` attribute is a record of training loss values at successive epochs, as well as validation loss values (if applicable).
         - __Arguments__:
             - __X__: data.
             - __y__: labels.
@@ -142,12 +141,19 @@ model = keras.models.Graph()
             - __input__: str name of the node/input that the node is connected to. Only specify *one* of either `input` or `inputs`.
             - __inputs__: list of str names of the node that the node is connected to.
             - __merge_mode__: "sum" or "concat". Only applicable if `inputs` list is specified. Merge mode for the different inputs.
+    - __add_shared_node__(layer, name, inputs=[], merge_mode=None, outputs=[]): Add a shared node connected to `inputs`. A shared node is a layer that will be applied separately to every incoming input, and that uses only one set of weights. The merging operation occurs on the outputs of the layer. 
+        - __Arguments__:
+            - __layer__: Layer instance.
+            - __name__: str. unique identifier of the node.
+            - __inputs__: list of str names of the node that the node is connected to.
+            - __merge_mode__: Merge mode for the different inputs.
+            - __outputs__: Optional. List of names for outputs, when merge_mode = None.
     - __compile__(optimizer, loss):
         - __Arguments__:
             - __optimizer__: str (name of optimizer) or optimizer object. See [optimizers](optimizers.md).
             - __loss__: dictionary mapping the name(s) of the output(s) to a loss function (string name of objective function or objective function. See [objectives](objectives.md)).
     - __fit__(data, batch_size=128, nb_epoch=100, verbose=1, validation_split=0., validation_data=None, shuffle=True, callbacks=[]): Train a model for a fixed number of epochs.
-        - __Return__: a history dictionary with a record of training loss values at successive epochs, as well as validation loss values (if applicable).
+        - __Return__: a history object. It `history` attribute is a record of training loss values at successive epochs, as well as validation loss values (if applicable).
         - __Arguments__:
             - __data__:dictionary mapping input names out outputs names to appropriate numpy arrays. All arrays should contain the same number of samples.
             - __batch_size__: int. Number of samples per gradient update.

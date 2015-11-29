@@ -1,14 +1,17 @@
 from __future__ import absolute_import
 from __future__ import print_function
 
-import tarfile, inspect, os
+import tarfile
+import os
 from six.moves.urllib.request import FancyURLopener
 
 from ..utils.generic_utils import Progbar
 
+
 class ParanoidURLopener(FancyURLopener):
-  def http_error_default(self, url, fp, errcode, errmsg, headers):
-    raise Exception('URL fetch failure on {}: {} -- {}'.format(url, errcode, errmsg))
+    def http_error_default(self, url, fp, errcode, errmsg, headers):
+        raise Exception('URL fetch failure on {}: {} -- {}'.format(url, errcode, errmsg))
+
 
 def get_file(fname, origin, untar=False):
     datadir = os.path.expanduser(os.path.join('~', '.keras', 'datasets'))
@@ -21,11 +24,8 @@ def get_file(fname, origin, untar=False):
     else:
         fpath = os.path.join(datadir, fname)
 
-    try:
-        f = open(fpath)
-    except:
+    if not os.path.exists(fpath):
         print('Downloading data from',  origin)
-
         global progbar
         progbar = None
 

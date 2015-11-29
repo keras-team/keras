@@ -14,9 +14,9 @@ def _runner(layer_class):
     """
     for ret_seq in [True, False]:
         layer = layer_class(output_dim, return_sequences=ret_seq,
-                            weights=None, input_shape=(None, input_dim))
+                            weights=None, input_shape=(timesteps, input_dim))
         layer.input = K.variable(np.ones((nb_samples, timesteps, input_dim)))
-        config = layer.get_config()
+        layer.get_config()
 
         for train in [True, False]:
             out = K.eval(layer.get_output(train))
@@ -41,15 +41,6 @@ class TestRNNS(unittest.TestCase):
 
     def test_lstm(self):
         _runner(recurrent.LSTM)
-
-    # def test_jzs1(self):
-    #     _runner(recurrent.JZS1)
-
-    # def test_jzs2(self):
-    #     _runner(recurrent.JZS2)
-
-    # def test_jzs3(self):
-    #     _runner(recurrent.JZS3)
 
 
 if __name__ == '__main__':

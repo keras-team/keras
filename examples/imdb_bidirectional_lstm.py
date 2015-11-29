@@ -41,7 +41,7 @@ y_test = np.array(y_test)
 
 print('Build model...')
 model = Graph()
-model.add_input(name='input', input_shape=(1,), dtype=int)
+model.add_input(name='input', input_shape=(maxlen,), dtype=int)
 model.add_node(Embedding(max_features, 128, input_length=maxlen),
                name='embedding', input='input')
 model.add_node(LSTM(64), name='forward', input='embedding')
@@ -56,8 +56,7 @@ model.compile('adam', {'output': 'binary_crossentropy'})
 print("Train...")
 model.fit({'input': X_train, 'output': y_train},
           batch_size=batch_size,
-          nb_epoch=4,
-          show_accuracy=True)
+          nb_epoch=4)
 acc = accuracy(y_test,
                np.round(np.array(model.predict({'input': X_test},
                                                batch_size=batch_size)['output'])))

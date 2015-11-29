@@ -33,7 +33,7 @@ img_rows, img_cols = 32, 32
 # the CIFAR10 images are RGB
 img_channels = 3
 
-# the data, shuffled and split between tran and test sets
+# the data, shuffled and split between train and test sets
 (X_train, y_train), (X_test, y_test) = cifar10.load_data()
 print('X_train shape:', X_train.shape)
 print(X_train.shape[0], 'train samples')

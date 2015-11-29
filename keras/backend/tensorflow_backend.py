@@ -282,12 +282,17 @@ def temporal_padding(x, padding=1):
     return tf.pad(x, pattern)
 
 
-def spatial_2d_padding(x, padding=(1, 1)):
+def spatial_2d_padding(x, padding=(1, 1), dim_ordering='th'):
     '''Pad the 2nd and 3rd dimensions of a 4D tensor
     with "padding[0]" and "padding[1]" (resp.) zeros left and right.
     '''
-    pattern = [[0, 0], [0, 0],
-               [padding[0], padding[0]], [padding[1], padding[1]]]
+    if dim_ordering == 'th':
+        pattern = [[0, 0], [0, 0],
+                   [padding[0], padding[0]], [padding[1], padding[1]]]
+    else:
+        pattern = [[0, 0],
+                   [padding[0], padding[0]], [padding[1], padding[1]],
+                   [0, 0]]
     return tf.pad(x, pattern)
 
 
@@ -376,10 +381,13 @@ def rnn(step_function, inputs, initial_states,
     successive_states = []
     successive_outputs = []
     if go_backwards:
-        input_list = input_list.reverse()
+        input_list.reverse()
     for input in input_list:
         output, new_states = step_function(input, states)
         if masking:
+            # for now we raise an exception because tf.reduce_any will not work
+            raise Exception("Masking is Theano-only for the time being.")
+
             # if all-zero input timestep, return
             # all-zero output and unchanged states
             switch = tf.reduce_any(input)

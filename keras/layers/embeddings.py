@@ -17,9 +17,12 @@ class Embedding(Layer):
     '''
     input_ndim = 2
 
-    def __init__(self, input_dim, output_dim, init='uniform', input_length=None,
-                 W_regularizer=None, activity_regularizer=None, W_constraint=None,
-                 mask_zero=False, weights=None, **kwargs):
+    def __init__(self, input_dim, output_dim,
+                 init='uniform', input_length=None,
+                 W_regularizer=None, activity_regularizer=None,
+                 W_constraint=None,
+                 mask_zero=False,
+                 weights=None, **kwargs):
         self.input_dim = input_dim
         self.output_dim = output_dim
         self.init = initializations.get(init)
@@ -58,6 +61,8 @@ class Embedding(Layer):
         if not self.mask_zero:
             return None
         else:
+            if K._BACKEND == "tensorflow":
+                raise Exception("Masking is Theano-only for the time being.")
             return K.ones_like(X) * (1 - K.equal(X, 0))
 
     @property

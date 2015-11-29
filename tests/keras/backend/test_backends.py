@@ -1,9 +1,12 @@
+import sys
 import unittest
 from numpy.testing import assert_allclose
 import numpy as np
+import pytest
 
-from keras.backend import theano_backend as KTH
-from keras.backend import tensorflow_backend as KTF
+if sys.version_info.major == 2:
+    from keras.backend import theano_backend as KTH
+    from keras.backend import tensorflow_backend as KTF
 
 
 def check_single_tensor_operation(function_name, input_shape, **kwargs):
@@ -35,6 +38,7 @@ def check_two_tensor_operation(function_name, x_input_shape,
     assert_allclose(zth, ztf, atol=1e-06)
 
 
+@pytest.mark.skipif(sys.version_info.major != 2, reason="Requires Python 2.7")
 class TestBackend(unittest.TestCase):
 
     def test_linear_operations(self):

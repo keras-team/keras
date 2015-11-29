@@ -24,7 +24,8 @@ class Convolution1D(Layer):
                  init='uniform', activation='linear', weights=None,
                  border_mode='valid', subsample_length=1,
                  W_regularizer=None, b_regularizer=None, activity_regularizer=None,
-                 W_constraint=None, b_constraint=None, input_dim=None, input_length=None, **kwargs):
+                 W_constraint=None, b_constraint=None,
+                 input_dim=None, input_length=None, **kwargs):
 
         if border_mode not in {'valid', 'same'}:
             raise Exception('Invalid border mode for Convolution1D:', border_mode)
@@ -32,6 +33,7 @@ class Convolution1D(Layer):
         self.filter_length = filter_length
         self.init = initializations.get(init)
         self.activation = activations.get(activation)
+        assert border_mode in {'valid', 'same'}, 'border_mode must be in {valid, same}'
         self.border_mode = border_mode
         self.subsample_length = subsample_length
 
@@ -80,7 +82,10 @@ class Convolution1D(Layer):
 
     @property
     def output_shape(self):
-        length = conv_output_length(self.input_shape[1], self.filter_length, self.border_mode, self.subsample[0])
+        length = conv_output_length(self.input_shape[1],
+                                    self.filter_length,
+                                    self.border_mode,
+                                    self.subsample[0])
         return (self.input_shape[0], length, self.nb_filter)
 
     def get_output(self, train=False):
@@ -131,8 +136,10 @@ class Convolution2D(Layer):
         self.nb_col = nb_col
         self.init = initializations.get(init)
         self.activation = activations.get(activation)
+        assert border_mode in {'valid', 'same'}, 'border_mode must be in {valid, same}'
         self.border_mode = border_mode
         self.subsample = tuple(subsample)
+        assert dim_ordering in {'tf', 'th'}, 'dim_ordering must be in {tf, th}'
         self.dim_ordering = dim_ordering
 
         self.W_regularizer = regularizers.get(W_regularizer)
@@ -148,8 +155,14 @@ class Convolution2D(Layer):
         super(Convolution2D, self).__init__(**kwargs)
 
     def build(self):
-        stack_size = self.input_shape[1]
-        self.W_shape = (self.nb_filter, stack_size, self.nb_row, self.nb_col)
+        if self.dim_ordering == 'th':
+            stack_size = self.input_shape[1]
+            self.W_shape = (self.nb_filter, stack_size, self.nb_row, self.nb_col)
+        elif self.dim_ordering == 'tf':
+            stack_size = self.input_shape[3]
+            self.W_shape = (self.nb_row, self.nb_col, stack_size, self.nb_filter)
+        else:
+            raise Exception('Invalid dim_ordering: ' + self.dim_ordering)
         self.W = self.init(self.W_shape)
         self.b = K.zeros((self.nb_filter,))
         self.params = [self.W, self.b]
@@ -174,11 +187,26 @@ class Convolution2D(Layer):
     @property
     def output_shape(self):
         input_shape = self.input_shape
-        rows = input_shape[2]
-        cols = input_shape[3]
-        rows = conv_output_length(rows, self.nb_row, self.border_mode, self.subsample[0])
-        cols = conv_output_length(cols, self.nb_col, self.border_mode, self.subsample[1])
-        return (input_shape[0], self.nb_filter, rows, cols)
+        if self.dim_ordering == 'th':
+            rows = input_shape[2]
+            cols = input_shape[3]
+        elif self.dim_ordering == 'tf':
+            rows = input_shape[1]
+            cols = input_shape[2]
+        else:
+            raise Exception('Invalid dim_ordering: ' + self.dim_ordering)
+
+        rows = conv_output_length(rows, self.nb_row,
+                                  self.border_mode, self.subsample[0])
+        cols = conv_output_length(cols, self.nb_col,
+                                  self.border_mode, self.subsample[1])
+
+        if self.dim_ordering == 'th':
+            return (input_shape[0], self.nb_filter, rows, cols)
+        elif self.dim_ordering == 'tf':
+            return (input_shape[0], rows, cols, self.nb_filter)
+        else:
+            raise Exception('Invalid dim_ordering: ' + self.dim_ordering)
 
     def get_output(self, train=False):
         X = self.get_input(train)
@@ -220,9 +248,9 @@ class MaxPooling1D(Layer):
         self.pool_length = pool_length
         self.stride = stride
         self.st = (self.stride, 1)
-
         self.input = K.placeholder(ndim=3)
         self.pool_size = (pool_length, 1)
+        assert border_mode in {'valid', 'same'}, 'border_mode must be in {valid, same}'
         self.border_mode = border_mode
 
     @property
@@ -262,17 +290,34 @@ class MaxPooling2D(Layer):
         if strides is None:
             strides = self.pool_size
         self.strides = tuple(strides)
+        assert border_mode in {'valid', 'same'}, 'border_mode must be in {valid, same}'
         self.border_mode = border_mode
+        assert dim_ordering in {'tf', 'th'}, 'dim_ordering must be in {tf, th}'
         self.dim_ordering = dim_ordering
 
     @property
     def output_shape(self):
         input_shape = self.input_shape
-        rows = conv_output_length(input_shape[2], self.pool_size[0],
+        if self.dim_ordering == 'th':
+            rows = input_shape[2]
+            cols = input_shape[3]
+        elif self.dim_ordering == 'tf':
+            rows = input_shape[1]
+            cols = input_shape[2]
+        else:
+            raise Exception('Invalid dim_ordering: ' + self.dim_ordering)
+
+        rows = conv_output_length(rows, self.pool_size[0],
                                   self.border_mode, self.strides[0])
-        cols = conv_output_length(input_shape[3], self.pool_size[1],
+        cols = conv_output_length(cols, self.pool_size[1],
                                   self.border_mode, self.strides[1])
-        return (input_shape[0], input_shape[1], rows, cols)
+
+        if self.dim_ordering == 'th':
+            return (input_shape[0], input_shape[1], rows, cols)
+        elif self.dim_ordering == 'tf':
+            return (input_shape[0], rows, cols, input_shape[3])
+        else:
+            raise Exception('Invalid dim_ordering: ' + self.dim_ordering)
 
     def get_output(self, train=False):
         X = self.get_input(train)
@@ -292,11 +337,11 @@ class MaxPooling2D(Layer):
         return dict(list(base_config.items()) + list(config.items()))
 
 
-class UpSample1D(Layer):
+class UpSampling1D(Layer):
     input_ndim = 3
 
     def __init__(self, length=2, **kwargs):
-        super(UpSample1D, self).__init__(**kwargs)
+        super(UpSampling1D, self).__init__(**kwargs)
         self.length = length
         self.input = K.placeholder(ndim=3)
 
@@ -313,35 +358,52 @@ class UpSample1D(Layer):
     def get_config(self):
         config = {"name": self.__class__.__name__,
                   "length": self.length}
-        base_config = super(UpSample1D, self).get_config()
+        base_config = super(UpSampling1D, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
 
-class UpSample2D(Layer):
+class UpSampling2D(Layer):
     input_ndim = 4
 
-    def __init__(self, size=(2, 2), **kwargs):
-        super(UpSample2D, self).__init__(**kwargs)
+    def __init__(self, size=(2, 2), dim_ordering='th', **kwargs):
+        super(UpSampling2D, self).__init__(**kwargs)
         self.input = K.placeholder(ndim=4)
         self.size = tuple(size)
+        assert dim_ordering in {'tf', 'th'}, 'dim_ordering must be in {tf, th}'
+        self.dim_ordering = dim_ordering
 
     @property
     def output_shape(self):
         input_shape = self.input_shape
-        return (input_shape[0], input_shape[1],
-                self.size[0] * input_shape[2],
-                self.size[1] * input_shape[3])
+        if self.dim_ordering == 'th':
+            return (input_shape[0],
+                    input_shape[1],
+                    self.size[0] * input_shape[2],
+                    self.size[1] * input_shape[3])
+        elif self.dim_ordering == 'tf':
+            return (input_shape[0],
+                    self.size[0] * input_shape[1],
+                    self.size[1] * input_shape[2],
+                    input_shape[3])
+        else:
+            raise Exception('Invalid dim_ordering: ' + self.dim_ordering)
 
     def get_output(self, train=False):
         X = self.get_input(train)
-        output = K.concatenate([X] * self.size[0], axis=2)
-        output = K.concatenate([output] * self.size[1], axis=3)
+        if self.dim_ordering == 'th':
+            output = K.concatenate([X] * self.size[0], axis=2)
+            output = K.concatenate([output] * self.size[1], axis=3)
+        elif self.dim_ordering == 'tf':
+            output = K.concatenate([X] * self.size[0], axis=1)
+            output = K.concatenate([output] * self.size[1], axis=2)
+        else:
+            raise Exception('Invalid dim_ordering: ' + self.dim_ordering)
         return output
 
     def get_config(self):
         config = {"name": self.__class__.__name__,
                   "size": self.size}
-        base_config = super(UpSample2D, self).get_config()
+        base_config = super(UpSampling2D, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
 
@@ -408,22 +470,33 @@ class ZeroPadding2D(Layer):
     """
     input_ndim = 4
 
-    def __init__(self, padding=(1, 1), **kwargs):
+    def __init__(self, padding=(1, 1), dim_ordering='th', **kwargs):
         super(ZeroPadding2D, self).__init__(**kwargs)
         self.padding = tuple(padding)
         self.input = K.placeholder(ndim=4)
+        assert dim_ordering in {'tf', 'th'}, 'dim_ordering must be in {tf, th}'
+        self.dim_ordering = dim_ordering
 
     @property
     def output_shape(self):
         input_shape = self.input_shape
-        return (input_shape[0],
-                input_shape[1],
-                input_shape[2] + 2 * self.padding[0],
-                input_shape[3] + 2 * self.padding[1])
+        if self.dim_ordering == 'th':
+            return (input_shape[0],
+                    input_shape[1],
+                    input_shape[2] + 2 * self.padding[0],
+                    input_shape[3] + 2 * self.padding[1])
+        elif self.dim_ordering == 'tf':
+            return (input_shape[0],
+                    input_shape[1] + 2 * self.padding[0],
+                    input_shape[2] + 2 * self.padding[1],
+                    input_shape[3])
+        else:
+            raise Exception('Invalid dim_ordering: ' + self.dim_ordering)
 
     def get_output(self, train=False):
         X = self.get_input(train)
-        return K.spatial_2d_padding(X, padding=self.padding)
+        return K.spatial_2d_padding(X, padding=self.padding,
+                                    dim_ordering=self.dim_ordering)
 
     def get_config(self):
         config = {"name": self.__class__.__name__,

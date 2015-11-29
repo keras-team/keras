@@ -11,9 +11,8 @@ class Recurrent(MaskedLayer):
     input_ndim = 3
 
     def __init__(self, weights=None,
-                 return_sequences=False, input_dim=None,
-                 input_length=None, go_backwards=False,
-                 stateful=False, **kwargs):
+                 return_sequences=False, go_backwards=False, stateful=False,
+                 input_dim=None, input_length=None, **kwargs):
         self.return_sequences = return_sequences
         self.initial_weights = weights
         self.go_backwards = go_backwards
@@ -46,6 +45,13 @@ class Recurrent(MaskedLayer):
         # input shape: (nb_samples, time (padded with zeros), input_dim)
         X = self.get_input(train)
         assert K.ndim(X) == 3
+        if K._BACKEND == 'tensorflow':
+            if not self.input_shape[1]:
+                raise Exception('When using TensorFlow, you should define ' +
+                                'explicitely the number of timesteps of ' +
+                                'your sequences. Make sure the first layer ' +
+                                'has an "input_shape" argument with a defined ' +
+                                'first dimension.')
 
         mask = self.get_output_mask(train)
         if mask:
@@ -64,6 +70,7 @@ class Recurrent(MaskedLayer):
             reducer = K.zeros((self.input_dim, self.output_dim))
             initial_state = K.dot(initial_state, reducer)  # (samples, output_dim)
             initial_states = [initial_state for _ in range(len(self.states))]
+
         last_output, outputs, states = K.rnn(self.step, X, initial_states,
                                              go_backwards=self.go_backwards,
                                              masking=masking)
@@ -90,12 +97,10 @@ class Recurrent(MaskedLayer):
 class SimpleRNN(Recurrent):
     '''
         Fully-connected RNN where the output is to fed back to input.
-
         Takes inputs with shape:
         (nb_samples, max_sample_length, input_dim)
         (samples shorter than `max_sample_length`
          are padded with zeros at the end)
-
         and returns outputs with shape:
         if not return_sequences:
             (nb_samples, output_dim)
@@ -154,21 +159,17 @@ class SimpleRNN(Recurrent):
 class GRU(Recurrent):
     '''
         Gated Recurrent Unit - Cho et al. 2014
-
         Acts as a spatiotemporal projection,
         turning a sequence of vectors into a single vector.
-
         Takes inputs with shape:
         (nb_samples, max_sample_length, input_dim)
         (samples shorter than `max_sample_length`
          are padded with zeros at the end)
-
         and returns outputs with shape:
         if not return_sequences:
             (nb_samples, output_dim)
         if return_sequences:
             (nb_samples, max_sample_length, output_dim)
-
         References:
             On the Properties of Neural Machine Translation:
             Encoder–Decoder Approaches
@@ -252,21 +253,17 @@ class LSTM(Recurrent):
     '''
         Acts as a spatiotemporal projection,
         turning a sequence of vectors into a single vector.
-
         Takes inputs with shape:
         (nb_samples, max_sample_length, input_dim)
         (samples shorter than `max_sample_length`
          are padded with zeros at the end)
-
         and returns outputs with shape:
         if not return_sequences:
             (nb_samples, output_dim)
         if return_sequences:
             (nb_samples, max_sample_length, output_dim)
-
         For a step-by-step description of the algorithm, see:
         http://deeplearning.net/tutorial/lstm.html
-
         References:
             Long short-term memory (original 97 paper)
                 http://deeplearning.cs.cmu.edu/pdfs/Hochreiter97_lstm.pdf
@@ -355,162 +352,3 @@ class LSTM(Recurrent):
                   "inner_activation": self.inner_activation.__name__}
         base_config = super(LSTM, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
-
-
-class JZS(Recurrent):
-    '''
-        Evolved recurrent neural network architectures
-        from the evaluation of thousands
-        of models, serving as alternatives to LSTMs and GRUs.
-        See Jozefowicz et al. 2015.
-
-        References:
-            An Empirical Exploration of Recurrent Network Architectures
-                http://www.jmlr.org/proceedings/papers/v37/jozefowicz15.pdf
-    '''
-    def __init__(self, output_dim,
-                 init='glorot_uniform', inner_init='orthogonal',
-                 activation='tanh', inner_activation='sigmoid',
-                 **kwargs):
-        self.output_dim = output_dim
-        self.init = initializations.get(init)
-        self.inner_init = initializations.get(inner_init)
-        self.activation = activations.get(activation)
-        self.inner_activation = activations.get(inner_activation)
-        super(JZS, self).__init__(**kwargs)
-
-    def build(self):
-        input_shape = self.input_shape
-        input_dim = input_shape[2]
-        self.input_dim = input_dim
-        self.input = K.placeholder(input_shape)
-
-        if self.stateful:
-            if not input_shape[0]:
-                raise Exception('If a RNN is stateful, a complete ' +
-                                'input_shape must be provided ' +
-                                '(including batch size).')
-            self.states = [K.zeros(input_shape[0], self.output_dim)]
-        else:
-            # initial states: all-zero tensor of shape (output_dim)
-            self.states = [None]
-
-        self.W_z = self.init((input_dim, self.output_dim))
-        self.U_z = self.inner_init((self.output_dim, self.output_dim))
-        self.b_z = K.zeros((self.output_dim))
-
-        self.W_r = self.init((input_dim, self.output_dim))
-        self.U_r = self.inner_init((self.output_dim, self.output_dim))
-        self.b_r = K.zeros((self.output_dim))
-
-        self.W_h = self.init((input_dim, self.output_dim))
-        self.U_h = self.inner_init((self.output_dim, self.output_dim))
-        self.b_h = K.zeros((self.output_dim))
-
-        # P matrix used to project X onto different dimension,
-        # using sparse random projections
-        if input_dim == self.output_dim:
-            self.P = K.variable(np.identity(self.output_dim))
-        else:
-            P = np.random.binomial(1, 0.5, size=(input_dim, self.output_dim))
-            P = 1. / np.sqrt(input_dim) * (P * 2. - 1.)
-            self.P = K.variable(P)
-
-        self.params = [self.W_z, self.b_z,
-                       self.W_r, self.U_r, self.b_r,
-                       self.U_h, self.b_h,
-                       self.P]
-
-        if self.initial_weights is not None:
-            self.set_weights(self.initial_weights)
-            del self.initial_weights
-
-    def get_config(self):
-        config = {"output_dim": self.output_dim,
-                  "init": self.init.__name__,
-                  "inner_init": self.inner_init.__name__,
-                  "activation": self.activation.__name__,
-                  "inner_activation": self.inner_activation.__name__}
-        base_config = super(JZS, self).get_config()
-        return dict(list(base_config.items()) + list(config.items()))
-
-
-class JZS1(JZS):
-    '''
-        Evolved recurrent neural network architectures
-        from the evaluation of thousands
-        of models, serving as alternatives to LSTMs and GRUs.
-        See Jozefowicz et al. 2015.
-
-        This corresponds to the `MUT1` architecture described in the paper.
-    '''
-    def __init__(self, *args, **kwargs):
-        super(JZS1, self).__init__(*args, **kwargs)
-
-    def step(self, x, states):
-        assert len(states) == 1
-        h_tm1 = states[0]
-
-        x_z = K.dot(x, self.W_z) + self.b_z
-        x_r = K.dot(x, self.P) + self.b_r
-        x_h = K.dot(x, self.W_h) + self.b_h
-
-        z = self.inner_activation(x_z)
-        r = self.inner_activation(x_r + K.dot(h_tm1, self.U_r))
-        hh = self.activation(x_h + K.dot(r * h_tm1, self.U_h))
-        h = hh * z + h_tm1 * (1. - z)
-        return h, [h]
-
-
-class JZS2(JZS):
-    '''
-        Evolved recurrent neural network architectures
-        from the evaluation of thousands
-        of models, serving as alternatives to LSTMs and GRUs.
-        See Jozefowicz et al. 2015.
-
-        This corresponds to the `MUT2` architecture described in the paper.
-    '''
-    def __init__(self, *args, **kwargs):
-        super(JZS2, self).__init__(*args, **kwargs)
-
-    def step(self, x, states):
-        assert len(states) == 1
-        h_tm1 = states[0]
-
-        x_z = K.dot(x, self.W_z) + self.b_z
-        x_r = K.dot(x, self.P) + self.b_r
-        x_h = K.dot(x, self.W_h) + self.b_h
-
-        z = self.inner_activation(x_z + K.dot(h_tm1, self.U_z))
-        r = self.inner_activation(x_r + K.dot(h_tm1, self.U_r))
-        hh = self.activation(x_h + K.dot(r * h_tm1, self.U_h))
-        h = hh * z + h_tm1 * (1. - z)
-        return h, [h]
-
-
-class JZS3(Recurrent):
-    '''
-        Evolved recurrent neural network architectures
-        from the evaluation of thousands
-        of models, serving as alternatives to LSTMs and GRUs.
-        See Jozefowicz et al. 2015.
-
-        This corresponds to the `MUT3` architecture described in the paper.
-    '''
-    def __init__(self, *args, **kwargs):
-        super(JZS3, self).__init__(*args, **kwargs)
-
-    def step(self, x, states):
-        assert len(states) == 1
-        h_tm1 = states[0]
-
-        x_z = K.dot(x, self.W_z) + self.b_z
-        x_r = K.dot(x, self.P) + self.b_r
-        x_h = K.dot(x, self.W_h) + self.b_h
-
-        z = self.inner_activation(x_z + K.dot(K.tanh(h_tm1), self.U_z))
-        r = self.inner_activation(x_r + K.dot(h_tm1, self.U_r))
-        hh = self.activation(x_h + K.dot(r * h_tm1, self.U_h))
-        h = hh * z + h_tm1 * (1. - z)
-        return h, [h]

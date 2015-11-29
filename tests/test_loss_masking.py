@@ -8,8 +8,11 @@ from keras import objectives
 from keras import backend as K
 
 
-class TestLossMasking(unittest.TestCase):
-    def test_loss_masking(self):
+class TestMasking(unittest.TestCase):
+    def test_masking(self):
+        if K._BACKEND == 'tensorflow':
+            # skip this test for TF: not supported yet
+            return
         X = np.array(
             [[[1, 1], [2, 1], [3, 1], [5, 5]],
              [[1, 5], [5, 0], [0, 0], [0, 0]]], dtype=np.int32)
@@ -21,7 +24,7 @@ class TestLossMasking(unittest.TestCase):
         history = model.fit(X, 4 * y, nb_epoch=1, batch_size=2, verbose=1)
         assert history.history['loss'][0] == 285.
 
-    def test_loss_masking_time(self):
+    def test_loss_masking(self):
         weighted_loss = weighted_objective(objectives.get('mae'))
         shape = (3, 4, 2)
         X = np.arange(24).reshape(shape)
@@ -40,5 +43,5 @@ class TestLossMasking(unittest.TestCase):
 
 
 if __name__ == '__main__':
-    print('Test loss masking')
+    print('Test masking')
     unittest.main()
