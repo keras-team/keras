@@ -3,7 +3,18 @@ from . import backend as K
 
 
 def softmax(x):
-    return K.softmax(x)
+    ndim = K.ndim(x)
+    if ndim == 2:
+        return K.softmax(x)
+    elif ndim == 3:
+        # apply softmax to each timestep
+        def step(x, states):
+            return K.softmax(x), []
+        last_output, outputs, states = K.rnn(step, x, [], masking=False)
+        return outputs
+    else:
+        raise Exception('Cannot apply softmax to a tensor that is not 2D or 3D. ' +
+                        'Here, ndim=' + str(ndim))
 
 
 def softplus(x):
