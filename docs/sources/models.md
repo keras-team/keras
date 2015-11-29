@@ -12,9 +12,8 @@ model = keras.models.Sequential()
             - __optimizer__: str (name of optimizer) or optimizer object. See [optimizers](optimizers.md).
             - __loss__: str (name of objective function) or objective function. See [objectives](objectives.md).
             - __class_mode__: one of "categorical", "binary". This is only used for computing classification accuracy or using the predict_classes method.
-            - __theano_mode__: A `theano.compile.mode.Mode` ([reference](http://deeplearning.net/software/theano/library/compile/mode.html)) instance controlling specifying compilation options.
     - __fit__(X, y, batch_size=128, nb_epoch=100, verbose=1, validation_split=0., validation_data=None, shuffle=True, show_accuracy=False, callbacks=[], class_weight=None, sample_weight=None): Train a model for a fixed number of epochs.
-        - __Return__: a history dictionary with a record of training loss values at successive epochs, as well as validation loss values (if applicable), accuracy (if applicable), etc.
+        - __Return__: a history object. It `history` attribute is a record of training loss values at successive epochs, as well as validation loss values (if applicable).
         - __Arguments__:
             - __X__: data.
             - __y__: labels.
@@ -154,7 +153,7 @@ model = keras.models.Graph()
             - __optimizer__: str (name of optimizer) or optimizer object. See [optimizers](optimizers.md).
             - __loss__: dictionary mapping the name(s) of the output(s) to a loss function (string name of objective function or objective function. See [objectives](objectives.md)).
     - __fit__(data, batch_size=128, nb_epoch=100, verbose=1, validation_split=0., validation_data=None, shuffle=True, callbacks=[]): Train a model for a fixed number of epochs.
-        - __Return__: a history dictionary with a record of training loss values at successive epochs, as well as validation loss values (if applicable).
+        - __Return__: a history object. It `history` attribute is a record of training loss values at successive epochs, as well as validation loss values (if applicable).
         - __Arguments__:
             - __data__:dictionary mapping input names out outputs names to appropriate numpy arrays. All arrays should contain the same number of samples.
             - __batch_size__: int. Number of samples per gradient update.
