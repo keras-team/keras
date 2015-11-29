@@ -1,7 +1,7 @@
 import numpy as np
 
 # the type of float to use throughout the session.
-_FLOATX = 'float64'
+_FLOATX = 'float32'
 _EPSILON = 10e-8
 
 
