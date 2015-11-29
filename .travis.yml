@@ -1,4 +1,5 @@
-sudo: false
+sudo: required
+dist: trusty
 language: python
 python:
   - "2.7"
