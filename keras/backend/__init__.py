@@ -4,6 +4,10 @@ import os
 import json
 from .common import epsilon, floatx, set_epsilon, set_floatx
 
+_keras_dir = os.path.expanduser(os.path.join('~', '.keras'))
+if not os.path.exists(_keras_dir):
+    os.makedirs(_keras_dir)
+
 _BACKEND = 'theano'
 _config_path = os.path.expanduser(os.path.join('~', '.keras', 'keras.json'))
 if os.path.exists(_config_path):
