@@ -38,7 +38,7 @@ def check_two_tensor_operation(function_name, x_input_shape,
     assert_allclose(zth, ztf, atol=1e-06)
 
 
-@pytest.mark.skipif(sys.version_info < (2, 7), reason="Requires Python 2.7")
+@pytest.mark.skipif(sys.version_info.major != 2, reason="Requires Python 2.7")
 class TestBackend(unittest.TestCase):
 
     def test_linear_operations(self):
