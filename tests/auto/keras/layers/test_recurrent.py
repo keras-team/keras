@@ -42,9 +42,6 @@ class TestRNNS(unittest.TestCase):
     def test_lstm(self):
         _runner(recurrent.LSTM)
 
-    def test_ntm(self):
-        _runner(ntm.NeuralTuringMachine)
-
     # def test_jzs1(self):
     #     _runner(recurrent.JZS1)
 
