@@ -61,7 +61,9 @@ class ELU(MaskedLayer):
 
     def get_output(self, train):
         X = self.get_input(train)
-        return ((X + abs(X)) / 2.0) + self.alpha * (T.exp((X - abs(X)) / 2.0) - 1)
+        pos = K.relu(X)
+        neg = (X - abs(X)) * 0.5
+        return pos + self.alpha * (K.exp(neg) - 1.)
 
     def get_config(self):
         config = {"name": self.__class__.__name__,

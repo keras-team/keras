@@ -220,6 +220,8 @@ class Masking(MaskedLayer):
         self.input = K.placeholder(ndim=3)
 
     def get_output_mask(self, train=False):
+        if K._BACKEND == "tensorflow":
+            raise Exception("Masking is Theano-only for the time being.")
         X = self.get_input(train)
         return K.any(K.ones_like(X) * (1. - K.equal(X, self.mask_value)),
                      axis=-1)
@@ -976,7 +978,6 @@ class MaxoutDense(Layer):
 
 
 class Lambda(Layer):
-
     """Lambda layer for evaluating arbitrary function
 
     Input shape
@@ -1156,7 +1157,6 @@ class LambdaMerge(Lambda):
 
 
 class Siamese(Layer):
-
     '''Shared layer with multiple inputs
 
     Output shape
@@ -1171,7 +1171,6 @@ class Siamese(Layer):
     concat_axis - Similar to concat_axis argument of Merge layer
     dot_axes - Similar to dot_axes argument of Merge layer
     '''
-
     def __init__(self, layer, inputs, merge_mode='concat',
                  concat_axis=1, dot_axes=-1):
         if merge_mode not in ['sum', 'mul', 'concat', 'ave',
