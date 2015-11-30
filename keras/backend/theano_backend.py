@@ -243,15 +243,15 @@ def permute_dimensions(x, pattern):
     return x.dimshuffle(pattern)
 
 
-def repeat(x, n):
+def repeat(x, n, axis=1):
     '''Repeat a 2D tensor:
 
-    if x has shape (samples, dim) and n=2,
-    the output will have shape (samples, 2, dim)
+    if x has shape (samples, axis) and n=2,
+    the output will have shape (samples, 2, axis)
     '''
-    tensors = [x] * n
-    stacked = T.stack(*tensors)
-    return stacked.dimshuffle((1, 0, 2))
+    tensors = expand_dims(x, axis)
+    tensors = T.repeat(tensors, n, axis=axis)
+    return tensors
 
 
 def tile(x, n):
@@ -266,16 +266,16 @@ def flatten(x):
     return x
 
 
-def expand_dims(x, dim=-1):
-    '''Add a 1-sized dimension at index "dim".
+def expand_dims(x, axis=-1):
+    '''Add a 1-sized dimension at index "axis".
     '''
     pattern = [i for i in range(x.type.ndim)]
-    if dim < 0:
+    if axis < 0:
         if x.type.ndim == 0:
-            dim = 0
+            axis = 0
         else:
-            dim = dim % x.type.ndim + 1
-    pattern.insert(dim, 'x')
+            axis = axis % x.type.ndim + 1
+    pattern.insert(axis, 'x')
     return x.dimshuffle(pattern)
 
 
@@ -611,7 +611,6 @@ def random_uniform(shape, low=0.0, high=1.0, dtype=_FLOATX, seed=None):
         seed = np.random.randint(10e6)
     rng = RandomStreams(seed=seed)
     return rng.uniform(shape, low=low, high=high, dtype=dtype)
-
 
 
 '''
