@@ -19,10 +19,15 @@ import sys
 
 class Layer(object):
     def __init__(self, **kwargs):
+        allowed_kwargs = {'input_shape',
+                          'trainable',
+                          'batch_input_shape'}
         for kwarg in kwargs:
-            assert kwarg in {'input_shape', 'trainable'}, "Keyword argument not understood: " + kwarg
+            assert kwarg in allowed_kwargs, "Keyword argument not understood: " + kwarg
         if 'input_shape' in kwargs:
-            self.set_input_shape(kwargs['input_shape'])
+            self.set_input_shape((None,) + tuple(kwargs['input_shape']))
+        if 'batch_input_shape' in kwargs:
+            self.set_input_shape(tuple(kwargs['batch_input_shape']))
         if 'trainable' in kwargs:
             self._trainable = kwargs['trainable']
         if not hasattr(self, 'params'):
@@ -80,7 +85,7 @@ class Layer(object):
     def set_input_shape(self, input_shape):
         if type(input_shape) not in [tuple, list]:
             raise Exception('Invalid input shape - input_shape should be a tuple of int.')
-        input_shape = (None,) + tuple(input_shape)
+        input_shape = tuple(input_shape)
         if hasattr(self, 'input_ndim') and self.input_ndim:
             if self.input_ndim != len(input_shape):
                 raise Exception('Invalid input shape - Layer expects input ndim=' +

@@ -28,6 +28,13 @@ def _runner(layer_class):
 
             mask = layer.get_output_mask(train)
 
+    # check statefulness
+    layer = layer_class(output_dim, return_sequences=False,
+                        weights=None, batch_input_shape=(nb_samples, timesteps, input_dim))
+    layer.input = K.variable(np.ones((nb_samples, timesteps, input_dim)))
+    out = K.eval(layer.get_output(train))
+    assert(out.shape == (nb_samples, output_dim))
+
 
 class TestRNNS(unittest.TestCase):
     """

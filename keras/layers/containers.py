@@ -217,13 +217,16 @@ class Graph(Layer):
         else:
             return dict([(k, v.get_output(train)) for k, v in self.outputs.items()])
 
-    def add_input(self, name, input_shape, dtype='float'):
+    def add_input(self, name, input_shape=None, batch_input_shape=None, dtype='float'):
         if name in self.namespace:
             raise Exception('Duplicate node identifier: ' + name)
         self.namespace.add(name)
         self.input_order.append(name)
         layer = Layer()  # empty layer
-        layer.set_input_shape(input_shape)
+        if input_shape:
+            layer.set_input_shape((None,) + tuple(input_shape))
+        elif batch_input_shape:
+            layer.set_input_shape(batch_input_shape)
         if dtype == 'float':
             layer.input = K.placeholder(shape=layer.input_shape, name=name)
         else:

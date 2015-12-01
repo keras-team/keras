@@ -40,7 +40,7 @@ class Embedding(Layer):
         super(Embedding, self).__init__(**kwargs)
 
     def build(self):
-        self.input = K.placeholder(shape=(None, self.input_length),
+        self.input = K.placeholder(shape=(self.input_shape[0], self.input_length),
                                    dtype='int32')
         self.W = self.init((self.input_dim, self.output_dim))
         self.params = [self.W]

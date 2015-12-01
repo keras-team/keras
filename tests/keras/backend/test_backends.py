@@ -18,7 +18,7 @@ def check_single_tensor_operation(function_name, input_shape, **kwargs):
     ztf = KTF.eval(getattr(KTF, function_name)(xtf, **kwargs))
 
     assert zth.shape == ztf.shape
-    assert_allclose(zth, ztf, atol=1e-06)
+    assert_allclose(zth, ztf, atol=1e-05)
 
 
 def check_two_tensor_operation(function_name, x_input_shape,
@@ -35,7 +35,7 @@ def check_two_tensor_operation(function_name, x_input_shape,
     ztf = KTF.eval(getattr(KTF, function_name)(xtf, ytf, **kwargs))
 
     assert zth.shape == ztf.shape
-    assert_allclose(zth, ztf, atol=1e-06)
+    assert_allclose(zth, ztf, atol=1e-05)
 
 
 @pytest.mark.skipif(sys.version_info.major != 2, reason="Requires Python 2.7")
@@ -56,7 +56,7 @@ class TestBackend(unittest.TestCase):
         zth = KTH.eval(KTH.concatenate([xth, yth], axis=-1))
         ztf = KTF.eval(KTF.concatenate([xtf, ytf], axis=-1))
         assert zth.shape == ztf.shape
-        assert_allclose(zth, ztf, atol=1e-06)
+        assert_allclose(zth, ztf, atol=1e-05)
 
         check_single_tensor_operation('reshape', (4, 2), shape=(8, 1))
         check_single_tensor_operation('permute_dimensions', (4, 2, 3),
@@ -76,7 +76,7 @@ class TestBackend(unittest.TestCase):
         valth = KTH.get_value(xth)
         valtf = KTF.get_value(xtf)
         assert valtf.shape == valth.shape
-        assert_allclose(valth, valtf, atol=1e-06)
+        assert_allclose(valth, valtf, atol=1e-05)
 
         # set_value
         val = np.random.random((4, 2))
@@ -86,7 +86,7 @@ class TestBackend(unittest.TestCase):
         valth = KTH.get_value(xth)
         valtf = KTF.get_value(xtf)
         assert valtf.shape == valth.shape
-        assert_allclose(valth, valtf, atol=1e-06)
+        assert_allclose(valth, valtf, atol=1e-05)
 
         # count_params
         assert KTH.count_params(xth) == KTF.count_params(xtf)
@@ -149,7 +149,7 @@ class TestBackend(unittest.TestCase):
         zth = KTH.eval(gradth[0])
         ztf = KTF.eval(gradtf[0])
         assert zth.shape == ztf.shape
-        assert_allclose(zth, ztf, atol=1e-06)
+        assert_allclose(zth, ztf, atol=1e-05)
 
     def test_function(self):
         val = np.random.random((4, 2))
@@ -171,12 +171,12 @@ class TestBackend(unittest.TestCase):
         function_outputs_th = fth([input_val])[0]
         function_outputs_tf = ftf([input_val])[0]
         assert function_outputs_th.shape == function_outputs_tf.shape
-        assert_allclose(function_outputs_th, function_outputs_tf, atol=1e-06)
+        assert_allclose(function_outputs_th, function_outputs_tf, atol=1e-05)
 
         new_val_th = KTH.get_value(xth)
         new_val_tf = KTF.get_value(xtf)
         assert new_val_th.shape == new_val_tf.shape
-        assert_allclose(new_val_th, new_val_tf, atol=1e-06)
+        assert_allclose(new_val_th, new_val_tf, atol=1e-05)
 
     def test_rnn(self):
         # implement a simple RNN
@@ -224,9 +224,9 @@ class TestBackend(unittest.TestCase):
         assert len(new_states) == 1
         tf_state = KTF.eval(new_states[0])
 
-        assert_allclose(tf_last_output, th_last_output, atol=1e-06)
-        assert_allclose(tf_outputs, th_outputs, atol=1e-06)
-        assert_allclose(tf_state, th_state, atol=1e-06)
+        assert_allclose(tf_last_output, th_last_output, atol=1e-05)
+        assert_allclose(tf_outputs, th_outputs, atol=1e-05)
+        assert_allclose(tf_state, th_state, atol=1e-05)
 
     def test_switch(self):
         val = np.random.random()
@@ -240,7 +240,7 @@ class TestBackend(unittest.TestCase):
         ztf = KTF.eval(xtf)
 
         assert zth.shape == ztf.shape
-        assert_allclose(zth, ztf, atol=1e-06)
+        assert_allclose(zth, ztf, atol=1e-05)
 
     def test_nn_operations(self):
         check_single_tensor_operation('relu', (4, 2), alpha=0.1, max_value=0.5)
