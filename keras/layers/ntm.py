@@ -1,6 +1,7 @@
 import numpy as np
 from scipy.linalg import circulant
 
+from .. import backend as K
 import theano
 import theano.tensor as T
 floatX = theano.config.floatX
@@ -119,6 +120,9 @@ class NeuralTuringMachine(Recurrent):
                  inner_rnn='gru', truncate_gradient=-1, return_sequences=False,
                  init='glorot_uniform', inner_init='orthogonal',
                  input_dim=None, input_length=None, **kwargs):
+        if K._BACKEND != 'theano':
+            raise Exception('NeuralTuringMachine is only available for Theano for the time being. ' +
+                            'It will be adapted to TensorFlow soon.')
         self.output_dim = output_dim
         self.n_slots = n_slots
         self.m_length = m_length

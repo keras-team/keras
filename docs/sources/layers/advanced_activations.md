@@ -35,6 +35,24 @@ Parametrized linear unit. Similar to a LeakyReLU, where each input unit has its 
 
 ---
 
+## ELU
+
+```python
+keras.layers.advanced_activations.ELU()
+```
+
+Exponential linear unit. Negative values pushes mean unit activations closer to zero, with the advantage of having a noise-robust deactivation state.
+
+
+- __Input shape__: Arbitrary. Use the keyword argument `input_shape` (tuple of integers, does not include the samples axis) when using this layer as the first layer in a model.
+
+- __Output shape__: Same as input.
+
+- __References__:
+    - [Fast and Accurate Deep Network Learning by Exponential Linear Units (ELUs)](http://arxiv.org/pdf/1511.07289v1.pdf)
+
+---
+
 ## ParametricSoftplus
 
 ```python

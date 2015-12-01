@@ -200,3 +200,4 @@ answer.fit([inputs_train, queries_train, inputs_train], answers_train,
            nb_epoch=70,
            show_accuracy=True,
            validation_data=([inputs_test, queries_test, inputs_test], answers_test))
+

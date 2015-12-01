@@ -1,12 +1,14 @@
 from __future__ import absolute_import
 from __future__ import print_function
-import theano
-import theano.tensor as T
 import numpy as np
-import warnings, time, copy, pprint
+import warnings
+import time
+import copy
+import pprint
 from six.moves import range
 import six
 
+from . import backend as K
 from . import optimizers
 from . import objectives
 from . import regularizers
@@ -26,11 +28,11 @@ def standardize_y(y):
 
 
 def batch_shuffle(index_array, batch_size):
-    batch_count = int(len(index_array)/batch_size)
+    batch_count = int(len(index_array) / batch_size)
     # to reshape we need to be cleanly divisible by batch size
     # we stash extra items and reappend them after shuffling
-    last_batch = index_array[batch_count*batch_size:]
-    index_array = index_array[:batch_count*batch_size]
+    last_batch = index_array[batch_count * batch_size:]
+    index_array = index_array[:batch_count * batch_size]
     index_array = index_array.reshape((batch_count, batch_size))
     np.random.shuffle(index_array)
     index_array = index_array.flatten()
@@ -38,8 +40,8 @@ def batch_shuffle(index_array, batch_size):
 
 
 def make_batches(size, batch_size):
-    nb_batch = int(np.ceil(size/float(batch_size)))
-    return [(i*batch_size, min(size, (i+1)*batch_size)) for i in range(0, nb_batch)]
+    nb_batch = int(np.ceil(size / float(batch_size)))
+    return [(i * batch_size, min(size, (i + 1) * batch_size)) for i in range(0, nb_batch)]
 
 
 def standardize_X(X):
@@ -69,47 +71,52 @@ def slice_X(X, start=None, stop=None):
 
 def weighted_objective(fn):
     def weighted(y_true, y_pred, weights, mask=None):
-        # it's important that 0 * Inf == 0, not NaN, so we need to filter
-        # those out first
-        filtered_y_true = y_true[weights.nonzero()[:-1]]
-        filtered_y_pred = y_pred[weights.nonzero()[:-1]]
-        filtered_weights = weights[weights.nonzero()]
-        obj_output = fn(filtered_y_true, filtered_y_pred)
-        weighted = filtered_weights * obj_output
-        if mask is None:
-            # Instead of calling mean() here, we divide by the sum of filtered_weights.
-            return weighted.sum() / filtered_weights.sum()
-        else:
-            filtered_mask = mask[weights.nonzero()[:-1]]
-            return weighted.sum() / (filtered_mask * filtered_weights).sum()
+        '''To be called only with non-zero weights.
+
+        mask: binary
+        '''
+        score_array = fn(y_true, y_pred)
+        if mask is not None:
+            score_array *= mask
+            #  the loss per batch should be proportional
+            #  to the number of unmasked sampled.
+            score_array /= K.mean(mask)
+
+        # reduce score_array to 1D
+        ndim = K.ndim(score_array)
+        for d in range(ndim-1):
+            score_array = K.mean(score_array, axis=-1)
+
+        if weights is not None:
+            score_array *= weights
+        return K.mean(score_array)
     return weighted
 
 
 def standardize_weights(y, sample_weight=None, class_weight=None):
     if sample_weight is not None:
-        return standardize_y(sample_weight)
+        assert len(sample_weight) == len(y)
+        return sample_weight.flatten()
     elif isinstance(class_weight, dict):
-        if len(y.shape) > 3:
-            raise Exception('class_weight not supported for 4+ dimensional targets.')
-        yshape = y.shape
-        # for time-distributed data, collapse time and sample
-        y = np.reshape(y, (-1, yshape[-1]))
+        if len(y.shape) > 2:
+            raise Exception('class_weight not supported for 3+ dimensional targets.')
         if y.shape[1] > 1:
             y_classes = y.argmax(axis=1)
         elif y.shape[1] == 1:
             y_classes = np.reshape(y, y.shape[0])
         else:
             y_classes = y
-        class_weights = np.asarray([class_weight[cls] for cls in y_classes])
-        return np.reshape(class_weights, yshape[:-1] + (1,))  # uncollapse initial dimensions
+        weights = np.asarray([class_weight[cls] for cls in y_classes])
+        return weights
     else:
-        return np.ones(y.shape[:-1] + (1,))
+        return np.ones((y.shape[0],))
 
 
 def model_from_yaml(yaml_string, custom_objects={}):
     '''
         Returns a model generated from a local yaml file,
-        which is either created by hand or from to_yaml method of Sequential or Graph
+        which is either created by hand or from to_yaml method
+        of Sequential or Graph
     '''
     import yaml
     config = yaml.load(yaml_string)
@@ -145,10 +152,11 @@ def model_from_config(config, custom_objects={}):
         optimizer = optimizers.get(optimizer_name, optimizer_params)
 
         if model_name == 'Sequential':
-            model.compile(loss=loss, optimizer=optimizer, class_mode=class_mode, theano_mode=theano_mode)
+            model.compile(loss=loss, optimizer=optimizer,
+                          class_mode=class_mode, theano_mode=theano_mode)
         elif model_name == 'Graph':
-            model.compile(loss=loss, optimizer=optimizer, theano_mode=theano_mode)
-
+            model.compile(loss=loss, optimizer=optimizer,
+                          theano_mode=theano_mode)
     return model
 
 
@@ -160,10 +168,12 @@ def get_function_name(o):
 
 
 class Model(object):
-    def _fit(self, f, ins, out_labels=[], batch_size=128, nb_epoch=100, verbose=1, callbacks=[],
+    def _fit(self, f, ins, out_labels=[], batch_size=128,
+             nb_epoch=100, verbose=1, callbacks=[],
              val_f=None, val_ins=None, shuffle=True, metrics=[]):
         '''
-            Abstract fit function for f(*ins). Assume that f returns a list, labelled by out_labels.
+            Abstract fit function for f(ins).
+            Assume that f returns a list, labelled by out_labels.
         '''
         do_validation = False
         if val_f and val_ins:
@@ -205,7 +215,7 @@ class Model(object):
                 batch_ids = index_array[batch_start:batch_end]
                 try:
                     ins_batch = slice_X(ins, batch_ids)
-                except TypeError as err:
+                except TypeError:
                     raise Exception('TypeError while preparing batch. \
                         If using HDF5 input data, pass shuffle="batch".\n')
 
@@ -213,7 +223,7 @@ class Model(object):
                 batch_logs['batch'] = batch_index
                 batch_logs['size'] = len(batch_ids)
                 callbacks.on_batch_begin(batch_index, batch_logs)
-                outs = f(*ins_batch)
+                outs = f(ins_batch)
                 if type(outs) != list:
                     outs = [outs]
                 for l, o in zip(out_labels, outs):
@@ -226,7 +236,9 @@ class Model(object):
                     # validation
                     if do_validation:
                         # replace with self._evaluate
-                        val_outs = self._test_loop(val_f, val_ins, batch_size=batch_size, verbose=0)
+                        val_outs = self._test_loop(val_f, val_ins,
+                                                   batch_size=batch_size,
+                                                   verbose=0)
                         if type(val_outs) != list:
                             val_outs = [val_outs]
                         # same labels assumed
@@ -254,7 +266,7 @@ class Model(object):
             batch_ids = index_array[batch_start:batch_end]
             ins_batch = slice_X(ins, batch_ids)
 
-            batch_outs = f(*ins_batch)
+            batch_outs = f(ins_batch)
             if type(batch_outs) != list:
                 batch_outs = [batch_outs]
             if batch_index == 0:
@@ -282,7 +294,7 @@ class Model(object):
             batch_ids = index_array[batch_start:batch_end]
             ins_batch = slice_X(ins, batch_ids)
 
-            batch_outs = f(*ins_batch)
+            batch_outs = f(ins_batch)
             if type(batch_outs) == list:
                 if batch_index == 0:
                     for batch_out in enumerate(batch_outs):
@@ -346,7 +358,8 @@ class Sequential(Model, containers.Sequential):
             - set_weights
     '''
 
-    def compile(self, optimizer, loss, class_mode="categorical", theano_mode=None):
+    def compile(self, optimizer, loss,
+                class_mode="categorical", theano_mode=None):
         self.optimizer = optimizers.get(optimizer)
 
         self.loss = objectives.get(loss)
@@ -360,9 +373,9 @@ class Sequential(Model, containers.Sequential):
         self.y_test = self.get_output(train=False)
 
         # target of model
-        self.y = T.zeros_like(self.y_train)
-
-        self.weights = T.ones_like(self.y_train)
+        self.y = K.placeholder(ndim=K.ndim(self.y_train))
+        # weights: one scalar per sample
+        self.weights = K.placeholder(ndim=1)
 
         if hasattr(self.layers[-1], "get_output_mask"):
             mask = self.layers[-1].get_output_mask()
@@ -371,17 +384,15 @@ class Sequential(Model, containers.Sequential):
         train_loss = weighted_loss(self.y, self.y_train, self.weights, mask)
         test_loss = weighted_loss(self.y, self.y_test, self.weights, mask)
 
-        train_loss.name = 'train_loss'
-        test_loss.name = 'test_loss'
-        self.y.name = 'y'
-
         if class_mode == "categorical":
-            train_accuracy = T.mean(T.eq(T.argmax(self.y, axis=-1), T.argmax(self.y_train, axis=-1)))
-            test_accuracy = T.mean(T.eq(T.argmax(self.y, axis=-1), T.argmax(self.y_test, axis=-1)))
+            train_accuracy = K.mean(K.equal(K.argmax(self.y, axis=-1),
+                                            K.argmax(self.y_train, axis=-1)))
+            test_accuracy = K.mean(K.equal(K.argmax(self.y, axis=-1),
+                                           K.argmax(self.y_test, axis=-1)))
 
         elif class_mode == "binary":
-            train_accuracy = T.mean(T.eq(self.y, T.round(self.y_train)))
-            test_accuracy = T.mean(T.eq(self.y, T.round(self.y_test)))
+            train_accuracy = K.mean(K.equal(self.y, K.round(self.y_train)))
+            test_accuracy = K.mean(K.equal(self.y, K.round(self.y_test)))
         else:
             raise Exception("Invalid class mode:" + str(class_mode))
         self.class_mode = class_mode
@@ -389,39 +400,38 @@ class Sequential(Model, containers.Sequential):
 
         for r in self.regularizers:
             train_loss = r(train_loss)
-        updates = self.optimizer.get_updates(self.params, self.constraints, train_loss)
+        updates = self.optimizer.get_updates(self.params,
+                                             self.constraints,
+                                             train_loss)
         updates += self.updates
 
         if type(self.X_train) == list:
             train_ins = self.X_train + [self.y, self.weights]
             test_ins = self.X_test + [self.y, self.weights]
+            assert type(self.X_test) == list
             predict_ins = self.X_test
         else:
             train_ins = [self.X_train, self.y, self.weights]
             test_ins = [self.X_test, self.y, self.weights]
             predict_ins = [self.X_test]
 
-        self._train = theano.function(train_ins, train_loss, updates=updates,
-                                      allow_input_downcast=True, mode=theano_mode)
-        self._train_with_acc = theano.function(train_ins, [train_loss, train_accuracy], updates=updates,
-                                               allow_input_downcast=True, mode=theano_mode)
-        self._predict = theano.function(predict_ins, self.y_test,
-                                        allow_input_downcast=True, mode=theano_mode)
-        self._test = theano.function(test_ins, test_loss,
-                                     allow_input_downcast=True, mode=theano_mode)
-        self._test_with_acc = theano.function(test_ins, [test_loss, test_accuracy],
-                                              allow_input_downcast=True, mode=theano_mode)
+        self._train = K.function(train_ins, [train_loss], updates=updates)
+        self._train_with_acc = K.function(train_ins, [train_loss, train_accuracy], updates=updates)
+        self._predict = K.function(predict_ins, [self.y_test])
+        self._test = K.function(test_ins, [test_loss])
+        self._test_with_acc = K.function(test_ins, [test_loss, test_accuracy])
 
-    def train_on_batch(self, X, y, accuracy=False, class_weight=None, sample_weight=None):
+    def train_on_batch(self, X, y, accuracy=False,
+                       class_weight=None, sample_weight=None):
         X = standardize_X(X)
         y = standardize_y(y)
-        sample_weight = standardize_weights(y, class_weight=class_weight, sample_weight=sample_weight)
-
+        sample_weight = standardize_weights(y, class_weight=class_weight,
+                                            sample_weight=sample_weight)
         ins = X + [y, sample_weight]
         if accuracy:
-            return self._train_with_acc(*ins)
+            return self._train_with_acc(ins)
         else:
-            return self._train(*ins)
+            return self._train(ins)
 
     def test_on_batch(self, X, y, accuracy=False, sample_weight=None):
         X = standardize_X(X)
@@ -430,17 +440,17 @@ class Sequential(Model, containers.Sequential):
 
         ins = X + [y, sample_weight]
         if accuracy:
-            return self._test_with_acc(*ins)
+            return self._test_with_acc(ins)
         else:
-            return self._test(*ins)
+            return self._test(ins)
 
     def predict_on_batch(self, X):
         ins = standardize_X(X)
-        return self._predict(*ins)
+        return self._predict(ins)
 
     def fit(self, X, y, batch_size=128, nb_epoch=100, verbose=1, callbacks=[],
-            validation_split=0., validation_data=None, shuffle=True, show_accuracy=False,
-            class_weight=None, sample_weight=None):
+            validation_split=0., validation_data=None, shuffle=True,
+            show_accuracy=False, class_weight=None, sample_weight=None):
 
         X = standardize_X(X)
         y = standardize_y(y)
@@ -457,12 +467,13 @@ class Sequential(Model, containers.Sequential):
                 X_val, y_val = validation_data
                 X_val = standardize_X(X_val)
                 y_val = standardize_y(y_val)
-                sample_weight_val = np.ones(y_val.shape[:-1] + (1,))
+                sample_weight_val = standardize_weights(y_val)
             elif len(validation_data) == 3:
                 X_val, y_val, sample_weight_val = validation_data
                 X_val = standardize_X(X_val)
                 y_val = standardize_y(y_val)
-                sample_weight_val = standardize_weights(y_val, sample_weight=sample_weight_val)
+                sample_weight_val = standardize_weights(y_val,
+                                                        sample_weight=sample_weight_val)
             else:
                 raise Exception("Invalid format for validation data; provide a tuple (X_val, y_val) or (X_val, y_val, sample_weight). \
                     X_val may be a numpy array or a list of numpy arrays depending on your model input.")
@@ -476,7 +487,7 @@ class Sequential(Model, containers.Sequential):
                 sample_weight, sample_weight_val = (slice_X(sample_weight, 0, split_at), slice_X(sample_weight, split_at))
                 sample_weight_val = standardize_weights(y_val, sample_weight=sample_weight_val)
             else:
-                sample_weight_val = np.ones(y_val.shape[:-1] + (1,))
+                sample_weight_val = standardize_weights(y_val)
             val_ins = X_val + [y_val, sample_weight_val]
 
         if show_accuracy:
@@ -489,7 +500,8 @@ class Sequential(Model, containers.Sequential):
         sample_weight = standardize_weights(y, class_weight=class_weight, sample_weight=sample_weight)
         ins = X + [y, sample_weight]
         metrics = ['loss', 'acc', 'val_loss', 'val_acc']
-        return self._fit(f, ins, out_labels=out_labels, batch_size=batch_size, nb_epoch=nb_epoch,
+        return self._fit(f, ins, out_labels=out_labels,
+                         batch_size=batch_size, nb_epoch=nb_epoch,
                          verbose=verbose, callbacks=callbacks,
                          val_f=val_f, val_ins=val_ins,
                          shuffle=shuffle, metrics=metrics)
@@ -511,7 +523,8 @@ class Sequential(Model, containers.Sequential):
         else:
             return (proba > 0.5).astype('int32')
 
-    def evaluate(self, X, y, batch_size=128, show_accuracy=False, verbose=1, sample_weight=None):
+    def evaluate(self, X, y, batch_size=128, show_accuracy=False,
+                 verbose=1, sample_weight=None):
         X = standardize_X(X)
         y = standardize_y(y)
         sample_weight = standardize_weights(y, sample_weight=sample_weight)
@@ -586,7 +599,7 @@ class Graph(Model, containers.Graph):
             output = self.outputs[output_name]
             y_train = output.get_output(True)
             y_test = output.get_output(False)
-            y = T.zeros_like(y_test)
+            y = K.placeholder(ndim=K.ndim(y_train))
             ys.append(y)
             ys_train.append(y_train)
             ys_test.append(y_test)
@@ -596,14 +609,11 @@ class Graph(Model, containers.Graph):
             else:
                 mask = None
 
-            weight = T.ones_like(y_test)
+            weight = K.placeholder(ndim=1)
             weights.append(weight)
             weighted_loss = weighted_objective(objectives.get(loss_fn))
             train_loss += weighted_loss(y, y_train, weight, mask)
             test_loss += weighted_loss(y, y_test, weight, mask)
-
-        train_loss.name = 'train_loss'
-        test_loss.name = 'test_loss'
 
         ins = [self.inputs[name].input for name in self.input_order]
         train_ins = ins + ys + weights
@@ -617,12 +627,9 @@ class Graph(Model, containers.Graph):
         self.theano_mode = theano_mode
         self.loss = loss
 
-        self._train = theano.function(train_ins, train_loss, updates=updates,
-                                      allow_input_downcast=True, mode=theano_mode)
-        self._test = theano.function(test_ins, test_loss,
-                                     allow_input_downcast=True, mode=theano_mode)
-        self._predict = theano.function(inputs=ins, outputs=ys_test,
-                                        allow_input_downcast=True, mode=theano_mode)
+        self._train = K.function(train_ins, [train_loss], updates=updates)
+        self._test = K.function(test_ins, [test_loss])
+        self._predict = K.function(inputs=ins, outputs=ys_test)
 
     def train_on_batch(self, data, class_weight={}, sample_weight={}):
         # data is a dictionary mapping output and input names to arrays
@@ -630,22 +637,23 @@ class Graph(Model, containers.Graph):
                                              sample_weight=sample_weight.get(name),
                                              class_weight=class_weight.get(name)) for name in self.output_order]
         ins = [data[name] for name in self.input_order] + [standardize_y(data[name]) for name in self.output_order] + sample_weight
-        return self._train(*ins)
+        return self._train(ins)
 
     def test_on_batch(self, data, sample_weight={}):
         # data is a dictionary mapping input names to arrays
         sample_weight = [standardize_weights(data[name],
                                              sample_weight=sample_weight.get(name)) for name in self.output_order]
         ins = [data[name] for name in self.input_order] + [standardize_y(data[name]) for name in self.output_order] + sample_weight
-        return self._test(*ins)
+        return self._test(ins)
 
     def predict_on_batch(self, data):
         # data is a dictionary mapping input names to arrays
         ins = [data[name] for name in self.input_order]
-        return self._predict(*ins)
+        return self._predict(ins)
 
     def fit(self, data, batch_size=128, nb_epoch=100, verbose=1, callbacks=[],
-            validation_split=0., validation_data=None, shuffle=True, class_weight={}, sample_weight={}):
+            validation_split=0., validation_data=None, shuffle=True,
+            class_weight={}, sample_weight={}):
         X = [data[name] for name in self.input_order]
         y = [standardize_y(data[name]) for name in self.output_order]
 

@@ -2,7 +2,9 @@ from __future__ import absolute_import
 from __future__ import print_function
 
 import numpy as np
-import time, json, warnings
+import time
+import json
+import warnings
 
 from collections import deque
 from .utils.generic_utils import Progbar

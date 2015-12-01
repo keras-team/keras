@@ -1,59 +1,51 @@
 from __future__ import absolute_import
-import theano
-import theano.tensor as T
 import numpy as np
-from six.moves import range
-
-if theano.config.floatX == 'float64':
-    epsilon = 1.0e-9
-else:
-    epsilon = 1.0e-7
+from . import backend as K
 
 
 def mean_squared_error(y_true, y_pred):
-    return T.sqr(y_pred - y_true).mean(axis=-1)
-    
+    return K.mean(K.square(y_pred - y_true), axis=-1)
+
+
 def root_mean_squared_error(y_true, y_pred):
-    return T.sqrt(T.sqr(y_pred - y_true).mean(axis=-1))
+    return K.sqrt(K.mean(K.square(y_pred - y_true), axis=-1))
+
 
 def mean_absolute_error(y_true, y_pred):
-    return T.abs_(y_pred - y_true).mean(axis=-1)
+    return K.mean(K.abs(y_pred - y_true), axis=-1)
 
 
 def mean_absolute_percentage_error(y_true, y_pred):
-    return T.abs_((y_true - y_pred) / T.clip(T.abs_(y_true), epsilon, np.inf)).mean(axis=-1) * 100.
+    diff = K.abs((y_true - y_pred) / K.clip(K.abs(y_true), K._EPSILON, np.inf))
+    return 100. * K.mean(diff, axis=-1)
 
 
 def mean_squared_logarithmic_error(y_true, y_pred):
-    return T.sqr(T.log(T.clip(y_pred, epsilon, np.inf) + 1.) - T.log(T.clip(y_true, epsilon, np.inf) + 1.)).mean(axis=-1)
+    first_log = K.log(K.clip(y_pred, K._EPSILON, np.inf) + 1.)
+    second_log = K.log(K.clip(y_true, K._EPSILON, np.inf) + 1.)
+    return K.mean(K.square(first_log - second_log), axis=-1)
 
 
 def squared_hinge(y_true, y_pred):
-    return T.sqr(T.maximum(1. - y_true * y_pred, 0.)).mean(axis=-1)
+    return K.mean(K.square(K.maximum(1. - y_true * y_pred, 0.)), axis=-1)
 
 
 def hinge(y_true, y_pred):
-    return T.maximum(1. - y_true * y_pred, 0.).mean(axis=-1)
+    return K.mean(K.maximum(1. - y_true * y_pred, 0.), axis=-1)
 
 
 def categorical_crossentropy(y_true, y_pred):
     '''Expects a binary class matrix instead of a vector of scalar classes
     '''
-    y_pred = T.clip(y_pred, epsilon, 1.0 - epsilon)
-    # scale preds so that the class probas of each sample sum to 1
-    y_pred /= y_pred.sum(axis=-1, keepdims=True)
-    cce = T.nnet.categorical_crossentropy(y_pred, y_true)
-    return cce
+    return K.mean(K.categorical_crossentropy(y_pred, y_true), axis=-1)
 
 
 def binary_crossentropy(y_true, y_pred):
-    y_pred = T.clip(y_pred, epsilon, 1.0 - epsilon)
-    bce = T.nnet.binary_crossentropy(y_pred, y_true).mean(axis=-1)
-    return bce
+    return K.mean(K.binary_crossentropy(y_pred, y_true), axis=-1)
 
 
 def poisson_loss(y_true, y_pred):
-    return T.mean(y_pred - y_true * T.log(y_pred + epsilon), axis=-1)
+    return K.mean(y_pred - y_true * K.log(y_pred + K._EPSILON), axis=-1)
 
 # aliases
 mse = MSE = mean_squared_error
