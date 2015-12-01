@@ -188,7 +188,7 @@ keras.layers.core.Activation(activation)
 Apply an activation function to the input. 
 
 
-- __Input shape__: Arbitrary. Use the keyword argument `input_shape` (tuple of integers, does not include the samples axis) when using this layer as the first layer in a model.
+- __Input shape__: Arbitrary. Use the keyword argument `input_shape` (tuple of integers, does not include the samples axis) when using this layer as the first layer in a model. To specify the number of samples per batch, you can use the keyword argument `batch_input_shape` (tuple of integers, including the samples axis).
 
 - __Output shape__: Same as input.
 
@@ -206,7 +206,7 @@ keras.layers.core.Dropout(p)
 Apply dropout to the input. Dropout consists in randomly setting a fraction `p` of input units to 0 at each update during training time, which helps prevent overfitting. Reference: [Dropout: A Simple Way to Prevent Neural Networks from Overfitting](http://www.cs.toronto.edu/~rsalakhu/papers/srivastava14a.pdf)
 
 
-- __Input shape__: Arbitrary. Use the keyword argument `input_shape` (tuple of integers, does not include the samples axis) when using this layer as the first layer in a model.
+- __Input shape__: Arbitrary. Use the keyword argument `input_shape` (tuple of integers, does not include the samples axis) when using this layer as the first layer in a model. To specify the number of samples per batch, you can use the keyword argument `batch_input_shape` (tuple of integers, including the samples axis).
 
 - __Output shape__: Same as input.
 
@@ -225,7 +225,7 @@ keras.layers.core.Reshape(dims)
 Reshape the input to a new shape containing the same number of units. 
 
 
-- __Input shape__: Arbitrary. Use the keyword argument `input_shape` (tuple of integers, does not include the samples axis) when using this layer as the first layer in a model.
+- __Input shape__: Arbitrary. Use the keyword argument `input_shape` (tuple of integers, does not include the samples axis) when using this layer as the first layer in a model. To specify the number of samples per batch, you can use the keyword argument `batch_input_shape` (tuple of integers, including the samples axis).
 
 - __Output shape__: `(nb_samples, dims)`.
 
@@ -249,7 +249,7 @@ keras.layers.core.Flatten()
 
 Convert a nD input to 1D. 
 
-- __Input shape__: Arbitrary. Use the keyword argument `input_shape` (tuple of integers, does not include the samples axis) when using this layer as the first layer in a model.
+- __Input shape__: Arbitrary. Use the keyword argument `input_shape` (tuple of integers, does not include the samples axis) when using this layer as the first layer in a model. To specify the number of samples per batch, you can use the keyword argument `batch_input_shape` (tuple of integers, including the samples axis).
 
 - __Output shape__: `(nb_samples, nb_input_units)`.
 
@@ -264,7 +264,7 @@ Repeat the 1D input n times. Dimensions of input are assumed to be `(nb_samples,
 
 Note that the output is still a single tensor; `RepeatVector` does not split the data flow.
 
-- __Input shape__: Arbitrary. Use the keyword argument `input_shape` (tuple of integers, does not include the samples axis) when using this layer as the first layer in a model.
+- __Input shape__: Arbitrary. Use the keyword argument `input_shape` (tuple of integers, does not include the samples axis) when using this layer as the first layer in a model. To specify the number of samples per batch, you can use the keyword argument `batch_input_shape` (tuple of integers, including the samples axis).
 
 - __Output shape__: `(nb_samples, n, input_dims)`.
 
@@ -279,7 +279,7 @@ keras.layers.core.Permute(dims)
 ```
 Permute the dimensions of the input data according to the given tuple. Sometimes useful for connecting RNNs and convnets together.
 
-- __Input shape__: Arbitrary. Use the keyword argument `input_shape` (tuple of integers, does not include the samples axis) when using this layer as the first layer in a model.
+- __Input shape__: Arbitrary. Use the keyword argument `input_shape` (tuple of integers, does not include the samples axis) when using this layer as the first layer in a model. To specify the number of samples per batch, you can use the keyword argument `batch_input_shape` (tuple of integers, including the samples axis).
 
 - __Output shape__: Same as the input shape, but with the dimensions re-ordered according to the ordering specified by the tuple.
 

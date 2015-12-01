@@ -32,7 +32,7 @@ You can import the backend module via:
 from keras import backend as K
 ```
 
-This instantiates an input placeholder. It's equivalent to `tf.placeholder()` or `T.matrix()`, `T.tensor3()`, etc.
+The code below instantiates an input placeholder. It's equivalent to `tf.placeholder()` or `T.matrix()`, `T.tensor3()`, etc.
 
 ```python
 input = K.placeholder(shape=(2, 4, 5))
@@ -42,7 +42,7 @@ input = K.placeholder(shape=(None, 4, 5))
 input = K.placeholder(ndim=3)
 ```
 
-This instantiates a shared variable. It's equivalent to `tf.variable()` or `theano.shared()`.
+The code below instantiates a shared variable. It's equivalent to `tf.variable()` or `theano.shared()`.
 
 ```python
 val = np.random.random((3, 4, 5))

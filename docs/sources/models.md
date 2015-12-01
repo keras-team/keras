@@ -127,6 +127,7 @@ model = keras.models.Graph()
     - __add_input__(name, input_shape, dtype='float'): Add an input with shape dimensionality `ndim`. 
         - __Arguments__:
             - __input_shape__: Integer tuple, shape of the expected input (not including the samples axis). E.g. (10,) for 10-dimensional vectors, (None, 128) for sequences (of variable length) of 128-dimensional vectors, (3, 32, 32) for 32x32 images with RGB channels.
+            - __batch_input_shape: Integer tuple, shape of the expected batch input (including the samples axis).
             - __dtype__: `float` or `int`. Type of the expected input data.
     - __add_output__(name, input=None, inputs=[], merge_mode='concat'): Add an output connect to `input` or `inputs`.
         - __Arguments__:
