@@ -108,7 +108,7 @@ Keras uses the following dependencies:
 - HDF5 and h5py (optional, required if you use model saving/loading functions)
 - Optional but recommended if you use CNNs: cuDNN.
 
-When using the Theano backend:
+*When using the Theano backend:*
 - Theano
     - [See installation instructions](http://deeplearning.net/software/theano/install.html#install).
 
@@ -117,11 +117,11 @@ When using the Theano backend:
 sudo pip install git+git://github.com/Theano/Theano.git
 ```
 
-When using the TensorFlow backend:
+*When using the TensorFlow backend:*
 - TensorFlow
     - [See installation instructions](https://github.com/tensorflow/tensorflow#download-and-setup).
 
-To install, `cd` to the Keras folder and run the install command:
+To install Keras, `cd` to the Keras folder and run the install command:
 ```
 sudo python setup.py install
 ```

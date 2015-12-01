@@ -11,7 +11,7 @@ keras.layers.recurrent.SimpleRNN(output_dim,
         stateful=False,
         input_dim=None, input_length=None)
 ```
-Fully connected RNN where output is to fed back to input. 
+Fully connected RNN where the output is to fed back to the input. 
 
 - __Input shape__: 3D tensor with shape: `(nb_samples, timesteps, input_dim)`.
 
