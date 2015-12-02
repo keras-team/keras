@@ -21,7 +21,7 @@ install:
   # Useful for debugging any issues with conda
   - conda info -a
 
-  - conda create -q -n test-environment python=$TRAVIS_PYTHON_VERSION numpy scipy matplotlib pandas pytest h5py
+  - conda create -q -n test-environment python=$TRAVIS_PYTHON_VERSION numpy scipy matplotlib pandas pytest h5py pytest-xdist
   - source activate test-environment
   - pip install pytest-cov python-coveralls
   - pip install git+git://github.com/Theano/Theano.git
@@ -33,10 +33,10 @@ install:
     fi
 # command to run tests
 script:
-  - PYTHONPATH=$PWD:$PYTHONPATH py.test -v --cov-report term-missing --cov keras tests/
+  - PYTHONPATH=$PWD:$PYTHONPATH py.test tests/
   - if [[ "$TRAVIS_PYTHON_VERSION" == "2.7" ]]; then
       sed -i -e 's/theano/tensorflow/g' ~/.keras/keras.json;
-      PYTHONPATH=$PWD:$PYTHONPATH py.test -v --cov-report term-missing --cov keras tests/;
+      PYTHONPATH=$PWD:$PYTHONPATH py.test tests/;
     fi
 after_success:
   - coveralls
