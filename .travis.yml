@@ -42,7 +42,7 @@ script:
   - python -c "import keras.backend"
   # set up keras backend
   - sed -i -e 's/"backend":[[:space:]]*".*"/"backend":[[:space:]]"$KERAS_BACKEND"/g' ~/.keras/keras.json;
-  - echo "Running tests with the following config" && cat ~/.keras/keras.json
-  - PYTHONPATH=$PWD:$PYTHONPATH py.test tests/
+  - echo "Running tests with the following config $(cat ~/.keras/keras.json)
+  # - PYTHONPATH=$PWD:$PYTHONPATH py.test tests/
 after_success:
   - coveralls
