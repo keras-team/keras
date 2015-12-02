@@ -49,7 +49,7 @@ script:
   - cat ~/.keras/keras.json
   - echo $KERAS_BACKEND
   - python -c "import keras.backend"
-  - sed -i -e 's/"backend":\s*".*"/"backend"\s"$KERAS_BACKEND"/g' ~/.keras/keras.json;
+  - sed -i -e 's/"backend":[[:space:]]*".*"/"backend":[[:space:]]"$KERAS_BACKEND"/g' ~/.keras/keras.json;
   - echo "Running tests with the following config"
   - cat ~/.keras/keras.json
   - python -c "import keras.backend"
