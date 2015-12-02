@@ -667,7 +667,7 @@ class Graph(Model, containers.Graph):
             val_f = self._test
         if validation_data:
             # can't use sample weights with validation data at this point
-            y_val = [standardize_y(data[name]) for name in self.output_order]
+            y_val = [standardize_y(validation_data[name]) for name in self.output_order]
             sample_weight = [standardize_weights(y_val[i]) for i in range(len(y_val))]
             val_ins = [validation_data[name] for name in self.input_order] + [standardize_y(validation_data[name]) for name in self.output_order] + sample_weight
 
