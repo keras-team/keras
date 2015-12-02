@@ -28,6 +28,7 @@ else:
                'epsilon': epsilon(),
                'backend': _BACKEND}
     json.dump(_config, open(_config_path, 'w'))
+    print("Saved %s to %s" % (_config, _config_path))
 
 if _BACKEND == 'theano':
     print('Using Theano backend.')
@@ -36,4 +37,4 @@ elif _BACKEND == 'tensorflow':
     print('Using TensorFlow backend.')
     from .tensorflow_backend import *
 else:
-    raise Exception('Unknown backend: ' + str(backend))
+    raise Exception('Unknown backend: ' + str(_BACKEND))
