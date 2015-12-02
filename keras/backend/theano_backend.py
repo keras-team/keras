@@ -23,7 +23,7 @@ if _on_gpu():
     prevent from running the present code.
     '''
     from theano.sandbox.cuda import dnn
-    from dnn import dnn_pool
+    from theano.sandbox.cuda.dnn import dnn_pool
 
 
 # VARIABLE MANIPULATION
@@ -457,7 +457,7 @@ def switch(condition, then_expression, else_expression):
 # NN OPERATIONS
 
 def relu(x, alpha=0., max_value=None):
-    x = T.nnet.relu(x, alpha)
+    x = (x + abs(x)) / 2.0
     if max_value is not None:
         x = T.minimum(x, max_value)
     return x
