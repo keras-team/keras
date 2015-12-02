@@ -1,9 +1,14 @@
 sudo: required
 dist: trusty
 language: python
-python:
-  - "2.7"
-  - "3.4"
+matrix:
+    include:
+        - python: 3.4
+          env: KERAS_BACKEND=theano
+        - python: 2.7
+          env: KERAS_BACKEND=theano
+        - python: 2.7
+          env: KERAS_BACKEND=tensorflow
 install:
   # code below is taken from http://conda.pydata.org/docs/travis.html
   # We do this conditionally because it saves us some downloading if the
@@ -28,15 +33,14 @@ install:
   - python setup.py install
 
   # install TensorFlow
-  - if [[ "$TRAVIS_PYTHON_VERSION" == "2.7" ]]; then
+  - if [[ "$KERAS_BACKEND" == "tensorflow" ]]; then
       pip install https://storage.googleapis.com/tensorflow/linux/cpu/tensorflow-0.5.0-cp27-none-linux_x86_64.whl;
     fi
 # command to run tests
 script:
+  # set up keras backend
+  - sed -i -e 's/"backend":[[:space:]]*".*"/"backend": "$KERAS_BACKEND"/g' ~/.keras/keras.json;
+  - echo "Running tests with the following config: " && cat ~/.keras/keras.json
   - PYTHONPATH=$PWD:$PYTHONPATH py.test tests/
-  - if [[ "$TRAVIS_PYTHON_VERSION" == "2.7" ]]; then
-      sed -i -e 's/theano/tensorflow/g' ~/.keras/keras.json;
-      PYTHONPATH=$PWD:$PYTHONPATH py.test tests/;
-    fi
 after_success:
   - coveralls
