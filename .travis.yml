@@ -1,4 +1,4 @@
-sudo: required
+sudo: false
 dist: trusty
 language: python
 matrix:
