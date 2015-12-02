@@ -41,18 +41,9 @@ script:
   # run keras backend init to initialize backend config
   - python -c "import keras.backend"
   # set up keras backend
-  - ls
-  - pwd
-  - cat pytest.ini
-  - ls ~/
-  - ls ~/.keras/
-  - cat ~/.keras/keras.json
-  - echo $KERAS_BACKEND
-  - python -c "import keras.backend"
   - sed -i -e 's/"backend":[[:space:]]*".*"/"backend":\ "'$KERAS_BACKEND'"/g' ~/.keras/keras.json;
   - echo "Running tests with the following config"
   - cat ~/.keras/keras.json
-  - python -c "import keras.backend"
-  # - PYTHONPATH=$PWD:$PYTHONPATH py.test tests/
+  - PYTHONPATH=$PWD:$PYTHONPATH py.test tests/
 after_success:
   - coveralls
