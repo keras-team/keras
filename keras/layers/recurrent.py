@@ -216,7 +216,7 @@ class GRU(Recurrent):
                 raise Exception('If a RNN is stateful, a complete ' +
                                 'input_shape must be provided ' +
                                 '(including batch size).')
-            self.states = [K.zeros(input_shape[0], self.output_dim)]
+            self.states = [K.zeros((input_shape[0], self.output_dim))]
         else:
             # initial states: all-zero tensor of shape (output_dim)
             self.states = [None]
