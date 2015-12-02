@@ -4,7 +4,6 @@ import numpy as np
 np.random.seed(1337)  # for reproducibility
 
 from keras.preprocessing import sequence
-from keras.optimizers import RMSprop
 from keras.models import Sequential
 from keras.layers.core import Dense, Dropout, Activation, Flatten
 from keras.layers.embeddings import Embedding
@@ -17,7 +16,7 @@ from keras.datasets import imdb
 
     Run on GPU: THEANO_FLAGS=mode=FAST_RUN,device=gpu,floatX=float32 python imdb_cnn.py
 
-    Get to 0.8330 test accuracy after 3 epochs. 100s/epoch on K520 GPU.
+    Get to 0.835 test accuracy after 2 epochs. 100s/epoch on K520 GPU.
 '''
 
 # set parameters:
@@ -28,7 +27,7 @@ embedding_dims = 100
 nb_filter = 250
 filter_length = 3
 hidden_dims = 250
-nb_epoch = 3
+nb_epoch = 2
 
 print("Loading data...")
 (X_train, y_train), (X_test, y_test) = imdb.load_data(nb_words=max_features,
@@ -60,7 +59,8 @@ model.add(Convolution1D(nb_filter=nb_filter,
 # we use standard max pooling (halving the output of the previous layer):
 model.add(MaxPooling1D(pool_length=2))
 
-# We flatten the output of the conv layer, so that we can add a vanilla dense layer:
+# We flatten the output of the conv layer,
+# so that we can add a vanilla dense layer:
 model.add(Flatten())
 
 # We add a vanilla hidden layer:
@@ -72,5 +72,9 @@ model.add(Activation('relu'))
 model.add(Dense(1))
 model.add(Activation('sigmoid'))
 
-model.compile(loss='binary_crossentropy', optimizer='rmsprop', class_mode="binary")
-model.fit(X_train, y_train, batch_size=batch_size, nb_epoch=nb_epoch, show_accuracy=True, validation_data=(X_test, y_test))
+model.compile(loss='binary_crossentropy',
+              optimizer='rmsprop',
+              class_mode="binary")
+model.fit(X_train, y_train, batch_size=batch_size,
+          nb_epoch=nb_epoch, show_accuracy=True,
+          validation_data=(X_test, y_test))

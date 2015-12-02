@@ -12,11 +12,6 @@ Input: "535+61"
 Output: "596"
 Padding is handled by using a repeated sentinel character (space)
 
-By default, the JZS1 recurrent neural network is used
-JZS1 was an "evolved" recurrent neural network performing well on arithmetic benchmark in:
-"An Empirical Exploration of Recurrent Network Architectures"
-http://jmlr.org/proceedings/papers/v37/jozefowicz15.pdf
-
 Input may optionally be inverted, shown to increase performance in many tasks in:
 "Learning to Execute"
 http://arxiv.org/abs/1410.4615
@@ -26,16 +21,16 @@ http://papers.nips.cc/paper/5346-sequence-to-sequence-learning-with-neural-netwo
 Theoretically it introduces shorter term dependencies between source and target.
 
 Two digits inverted:
-+ One layer JZS1 (128 HN), 5k training examples = 99% train/test accuracy in 55 epochs
++ One layer LSTM (128 HN), 5k training examples = 99% train/test accuracy in 55 epochs
 
 Three digits inverted:
-+ One layer JZS1 (128 HN), 50k training examples = 99% train/test accuracy in 100 epochs
++ One layer LSTM (128 HN), 50k training examples = 99% train/test accuracy in 100 epochs
 
 Four digits inverted:
-+ One layer JZS1 (128 HN), 400k training examples = 99% train/test accuracy in 20 epochs
++ One layer LSTM (128 HN), 400k training examples = 99% train/test accuracy in 20 epochs
 
 Five digits inverted:
-+ One layer JZS1 (128 HN), 550k training examples = 99% train/test accuracy in 30 epochs
++ One layer LSTM (128 HN), 550k training examples = 99% train/test accuracy in 30 epochs
 
 """
 
@@ -75,8 +70,8 @@ class colors:
 TRAINING_SIZE = 50000
 DIGITS = 3
 INVERT = True
-# Try replacing JZS1 with LSTM, GRU, or SimpleRNN
-RNN = recurrent.JZS1
+# Try replacing GRU, or SimpleRNN
+RNN = recurrent.LSTM
 HIDDEN_SIZE = 128
 BATCH_SIZE = 128
 LAYERS = 1
@@ -123,6 +118,7 @@ indices = np.arange(len(y))
 np.random.shuffle(indices)
 X = X[indices]
 y = y[indices]
+
 # Explicitly set apart 10% for validation data that we never train over
 split_at = len(X) - len(X) / 10
 (X_train, X_val) = (slice_X(X, 0, split_at), slice_X(X, split_at))
@@ -136,7 +132,7 @@ model = Sequential()
 # "Encode" the input sequence using an RNN, producing an output of HIDDEN_SIZE
 # note: in a situation where your input sequences have a variable length,
 # use input_shape=(None, nb_feature).
-model.add(RNN(HIDDEN_SIZE, input_shape=(None, len(chars))))
+model.add(RNN(HIDDEN_SIZE, input_shape=(MAXLEN, len(chars))))
 # For the decoder's input, we repeat the encoded input for each time step
 model.add(RepeatVector(DIGITS + 1))
 # The decoder RNN could be multiple layers stacked or a single layer

@@ -41,7 +41,7 @@ y_test = np.array(y_test)
 
 print('Build model...')
 model = Graph()
-model.add_input(name='input', input_shape=(1,), dtype=int)
+model.add_input(name='input', input_shape=(maxlen,), dtype=int)
 model.add_node(Embedding(max_features, 128, input_length=maxlen),
                name='embedding', input='input')
 model.add_node(LSTM(64), name='forward', input='embedding')

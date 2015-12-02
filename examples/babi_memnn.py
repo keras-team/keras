@@ -155,14 +155,14 @@ input_encoder_m.add(Embedding(input_dim=vocab_size,
                               output_dim=64,
                               input_length=story_maxlen))
 # output: (samples, story_maxlen, embedding_dim)
-# embed the question into a single vector
+# embed the question into a sequence of vectors
 question_encoder = Sequential()
 question_encoder.add(Embedding(input_dim=vocab_size,
                                output_dim=64,
                                input_length=query_maxlen))
 # output: (samples, query_maxlen, embedding_dim)
 # compute a 'match' between input sequence elements (which are vectors)
-# and the question vector
+# and the question vector sequence
 match = Sequential()
 match.add(Merge([input_encoder_m, question_encoder],
                 mode='dot',
@@ -200,3 +200,4 @@ answer.fit([inputs_train, queries_train, inputs_train], answers_train,
            nb_epoch=70,
            show_accuracy=True,
            validation_data=([inputs_test, queries_test, inputs_test], answers_test))
+

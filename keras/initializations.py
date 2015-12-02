@@ -1,9 +1,6 @@
 from __future__ import absolute_import
-import theano
-import theano.tensor as T
 import numpy as np
-
-from .utils.theano_utils import sharedX, shared_zeros, shared_ones
+from . import backend as K
 
 
 def get_fans(shape):
@@ -13,11 +10,11 @@ def get_fans(shape):
 
 
 def uniform(shape, scale=0.05):
-    return sharedX(np.random.uniform(low=-scale, high=scale, size=shape))
+    return K.variable(np.random.uniform(low=-scale, high=scale, size=shape))
 
 
 def normal(shape, scale=0.05):
-    return sharedX(np.random.randn(*shape) * scale)
+    return K.variable(np.random.randn(*shape) * scale)
 
 
 def lecun_uniform(shape):
@@ -66,22 +63,22 @@ def orthogonal(shape, scale=1.1):
     # pick the one with the correct shape
     q = u if u.shape == flat_shape else v
     q = q.reshape(shape)
-    return sharedX(scale * q[:shape[0], :shape[1]])
+    return K.variable(scale * q[:shape[0], :shape[1]])
 
 
 def identity(shape, scale=1):
     if len(shape) != 2 or shape[0] != shape[1]:
         raise Exception("Identity matrix initialization can only be used for 2D square matrices")
     else:
-        return sharedX(scale * np.identity(shape[0]))
+        return K.variable(scale * np.identity(shape[0]))
 
 
 def zero(shape):
-    return shared_zeros(shape)
+    return K.zeros(shape)
 
 
 def one(shape):
-    return shared_ones(shape)
+    return K.ones(shape)
 
 
 from .utils.generic_utils import get_from_module

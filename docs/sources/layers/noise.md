@@ -8,7 +8,7 @@ Apply to the input an additive zero-centred gaussian noise with standard deviati
 
 Only active at training time.
 
-- __Input shape__: Arbitrary. Use the keyword argument `input_shape` (tuple of integers, does not include the samples axis) when using this layer as the first layer in a model.
+- __Input shape__: Arbitrary. Use the keyword argument `input_shape` (tuple of integers, does not include the samples axis) when using this layer as the first layer in a model. To specify the number of samples per batch, you can use the keyword argument `batch_input_shape` (tuple of integers, including the samples axis).
 
 - __Output shape__: Same as input.
 
@@ -26,7 +26,7 @@ Apply to the input an multiplicative one-centred gaussian noise with standard de
 
 Only active at training time.
 
-- __Input shape__: Arbitrary. Use the keyword argument `input_shape` (tuple of integers, does not include the samples axis) when using this layer as the first layer in a model.
+- __Input shape__: Arbitrary. Use the keyword argument `input_shape` (tuple of integers, does not include the samples axis) when using this layer as the first layer in a model. To specify the number of samples per batch, you can use the keyword argument `batch_input_shape` (tuple of integers, including the samples axis).
 
 - __Output shape__: Same as input.
 

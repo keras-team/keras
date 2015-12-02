@@ -3,9 +3,8 @@ from __future__ import absolute_import
 from __future__ import print_function
 
 from collections import OrderedDict
-import theano.tensor as T
-from ..layers.core import Layer, Merge
-from ..utils.theano_utils import ndim_tensor
+from .. import backend as K
+from ..layers.core import Layer, Merge, Siamese, SiameseHead
 from six.moves import range
 
 
@@ -76,8 +75,8 @@ class Sequential(Layer):
     def set_input(self):
         for l in self.layers:
             if hasattr(l, 'input'):
-                ndim = l.input.ndim
-                self.layers[0].input = ndim_tensor(ndim)
+                ndim = len(K.get_shape(l.input))
+                self.layers[0].input = K.placeholder(ndim=ndim)
                 break
 
     def get_input(self, train=False):
@@ -218,31 +217,33 @@ class Graph(Layer):
         else:
             return dict([(k, v.get_output(train)) for k, v in self.outputs.items()])
 
-    def add_input(self, name, input_shape, dtype='float'):
+    def add_input(self, name, input_shape=None, batch_input_shape=None, dtype='float'):
         if name in self.namespace:
             raise Exception('Duplicate node identifier: ' + name)
         self.namespace.add(name)
         self.input_order.append(name)
         layer = Layer()  # empty layer
-        layer.set_input_shape(input_shape)
-        ndim = len(input_shape) + 1
+        if input_shape:
+            layer.set_input_shape((None,) + tuple(input_shape))
+        elif batch_input_shape:
+            layer.set_input_shape(batch_input_shape)
         if dtype == 'float':
-            layer.input = ndim_tensor(ndim)
+            layer.input = K.placeholder(shape=layer.input_shape, name=name)
         else:
-            if ndim == 2:
-                layer.input = T.imatrix()
+            if len(input_shape) == 1:
+                layer.input = K.placeholder(shape=layer.input_shape,
+                                            dtype='int32',
+                                            name=name)
             else:
                 raise Exception('Type "int" can only be used with ndim==2 (Embedding).')
-        layer.input.name = name
         self.inputs[name] = layer
         self.input_config.append({'name': name,
                                   'input_shape': input_shape,
                                   'dtype': dtype})
 
     def add_node(self, layer, name, input=None, inputs=[],
-                 merge_mode='concat', concat_axis=-1, dot_axes=-1, create_output=False):
-        if hasattr(layer, 'set_name'):
-            layer.set_name(name)
+                 merge_mode='concat', concat_axis=-1, dot_axes=-1,
+                 create_output=False):
         if name in self.namespace:
             raise Exception('Duplicate node identifier: ' + name)
         if input:
@@ -261,7 +262,8 @@ class Graph(Layer):
                     to_merge.append(self.inputs[n])
                 else:
                     raise Exception('Unknown identifier: ' + n)
-            merge = Merge(to_merge, mode=merge_mode, concat_axis=concat_axis, dot_axes=dot_axes)
+            merge = Merge(to_merge, mode=merge_mode,
+                          concat_axis=concat_axis, dot_axes=dot_axes)
             layer.set_previous(merge)
 
         self.namespace.add(name)
@@ -275,6 +277,81 @@ class Graph(Layer):
                                  'create_output': create_output})
 
         if create_output:
+            self.add_output(name, input=name)
+
+    def add_shared_node(self, layer, name, inputs=[], merge_mode=None,
+                        concat_axis=-1, dot_axes=-1, outputs=[],
+                        create_output=False):
+        '''
+        Used to shared / multi input-multi output node
+
+        Arguments
+        ------------
+        layer - The layer to be shared across multiple inputs
+        name - Name of the shared layer
+        inputs - List of names of input nodes
+        merge_mode - Similar to merge_mode argument of add_node()
+        concat_axis - Similar to concat_axis argument of add_node()
+        dot_axes - Similar to dot_axes argument of add_node()
+        outputs - Names for output nodes. Used when merge_mode = None
+        create_output -  Similar to create_output argument of add_node().
+            Output will be created only if merge_mode is given
+        '''
+        if name in self.namespace:
+            raise Exception('Duplicate node identifier: ' + name)
+        for o in outputs:
+            if o in self.namespace:
+                raise Exception('Duplicate node identifier: ' + o)
+        if merge_mode:
+            if merge_mode not in {'sum', 'ave', 'mul', 'dot', 'cos', 'concat', 'join'}:
+                raise Eception("Invalid merge mode")
+        layers = []
+        for i in range(len(inputs)):
+            input = inputs[i]
+            if input in self.nodes:
+                n = self.nodes[input]
+                if n.__class__.__name__ == 'Siamese':
+                    if n.merge_mode is None:
+                        for j in range(len(n.inputs)):
+                            sh = SiameseHead(j)
+                            sh.previous = n
+                            layers.append(sh)
+                    else:
+                        layers.append(n)
+                else:
+                    layers.append(n)
+            elif input in self.inputs:
+                n = self.inputs[input]
+                layers.append(n)
+            else:
+                raise Exception('Unknown identifier: ' + input)
+        s = Siamese(layer, layers, merge_mode, concat_axis=concat_axis, dot_axes=dot_axes)
+        s.set_name(name)
+        self.namespace.add(name)
+        self.nodes[name] = s
+        self.node_config.append({'name': name,
+                                 'inputs': inputs,
+                                 'merge_mode': merge_mode,
+                                 'concat_axis': concat_axis,
+                                 'dot_axes': dot_axes,
+                                 'create_output': create_output if merge_mode else False})
+        if not merge_mode:
+            for i in range(len(outputs)):
+                sh = SiameseHead(i)
+                sh.previous = s
+                sh_name = outputs[i]
+                sh.set_name(sh_name)
+                self.namespace.add(sh_name)
+                self.nodes[sh_name] = sh
+                self.node_config.append({'name': sh_name,
+                                         'inputs': [s],
+                                         'create_output': create_output})
+                if create_output:
+                    self.add_output(sh_name, input=sh_name)
+
+        if create_output and merge_mode:
+            if merge_mode == 'join':
+                raise Exception("Output can not be of type OrderedDict")
             self.add_output(name, input=name)
 
     def add_output(self, name, input=None, inputs=[],
@@ -294,7 +371,8 @@ class Graph(Layer):
                 if n not in self.nodes:
                     raise Exception('Unknown identifier: ' + n)
                 to_merge.append(self.nodes[n])
-            merge = Merge(to_merge, mode=merge_mode, concat_axis=concat_axis, dot_axes=dot_axes)
+            merge = Merge(to_merge, mode=merge_mode,
+                          concat_axis=concat_axis, dot_axes=dot_axes)
             self.outputs[name] = merge
 
         self.output_order.append(name)

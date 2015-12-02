@@ -12,8 +12,9 @@ from keras.utils import np_utils
 '''
     Train a simple deep NN on the MNIST dataset.
 
-    Get to 98.30% test accuracy after 20 epochs (there is *a lot* of margin for parameter tuning).
-    2 seconds per epoch on a GRID K520 GPU.
+    Get to 98.40% test accuracy after 20 epochs
+    (there is *a lot* of margin for parameter tuning).
+    2 seconds per epoch on a K520 GPU.
 '''
 
 batch_size = 128
@@ -37,10 +38,10 @@ Y_train = np_utils.to_categorical(y_train, nb_classes)
 Y_test = np_utils.to_categorical(y_test, nb_classes)
 
 model = Sequential()
-model.add(Dense(128, input_shape=(784,)))
+model.add(Dense(512, input_shape=(784,)))
 model.add(Activation('relu'))
 model.add(Dropout(0.2))
-model.add(Dense(128))
+model.add(Dense(512))
 model.add(Activation('relu'))
 model.add(Dropout(0.2))
 model.add(Dense(10))
@@ -49,7 +50,11 @@ model.add(Activation('softmax'))
 rms = RMSprop()
 model.compile(loss='categorical_crossentropy', optimizer=rms)
 
-model.fit(X_train, Y_train, batch_size=batch_size, nb_epoch=nb_epoch, show_accuracy=True, verbose=2, validation_data=(X_test, Y_test))
-score = model.evaluate(X_test, Y_test, show_accuracy=True, verbose=0)
+model.fit(X_train, Y_train,
+          batch_size=batch_size, nb_epoch=nb_epoch,
+          show_accuracy=True, verbose=2,
+          validation_data=(X_test, Y_test))
+score = model.evaluate(X_test, Y_test,
+                       show_accuracy=True, verbose=0)
 print('Test score:', score[0])
 print('Test accuracy:', score[1])

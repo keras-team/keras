@@ -1,17 +1,15 @@
 from __future__ import print_function
 import inspect
 import numpy as np
-import theano
 import copy
 
-from ..layers.advanced_activations import LeakyReLU, PReLU
-from ..layers.core import Dense, Merge, Dropout, Activation, Reshape, Flatten, RepeatVector, Layer, AutoEncoder, Masking, Permute
-from ..layers.core import ActivityRegularization, TimeDistributedDense, TimeDistributedMerge, AutoEncoder, MaxoutDense
-from ..layers.convolutional import Convolution1D, Convolution2D, MaxPooling1D, MaxPooling2D, ZeroPadding2D
-from ..layers.embeddings import Embedding, WordContextProduct
-from ..layers.noise import GaussianNoise, GaussianDropout
-from ..layers.normalization import BatchNormalization, LRN2D
-from ..layers.recurrent import SimpleRNN, SimpleDeepRNN, GRU, LSTM, JZS1, JZS2, JZS3
+from ..layers.advanced_activations import *
+from ..layers.core import *
+from ..layers.convolutional import *
+from ..layers.embeddings import *
+from ..layers.noise import *
+from ..layers.normalization import *
+from ..layers.recurrent import *
 from ..layers import containers
 from .. import regularizers
 from .. import constraints
@@ -21,7 +19,8 @@ def container_from_config(original_layer_dict, custom_objects={}):
     layer_dict = copy.deepcopy(original_layer_dict)
     name = layer_dict.get('name')
 
-    # Insert custom layers into globals so they can be accessed by `get_from_module`.
+    # Insert custom layers into globals so they can
+    # be accessed by `get_from_module`.
     for cls_key in custom_objects:
         globals()[cls_key] = custom_objects[cls_key]
 
@@ -80,50 +79,15 @@ def container_from_config(original_layer_dict, custom_objects={}):
                     layer_dict[k] = constraints.get(vname, v)
                 elif vname in [x for x, y in inspect.getmembers(regularizers, predicate=inspect.isclass)]:
                     layer_dict[k] = regularizers.get(vname, v)
-                else: # not a regularizer of constraint, don't touch it
+                else:
+                    # not a regularizer of constraint, don't touch it
                     v['name'] = vname
 
         base_layer = get_layer(name, layer_dict)
         return base_layer
 
 
-def print_layer_shapes(model, input_shapes):
-    """
-    Utility function to print the shape of the output at each layer of a Model
-
-    Arguments:
-        model: instance of Model / Merge
-        input_shapes: dict (Graph), list of tuples (Merge) or tuple (Sequential)
-    """
-    if model.__class__.__name__ in ['Sequential', 'Merge']:
-        # in this case input_shapes is a tuple, or a list [shape1, shape2]
-        if not isinstance(input_shapes[0], tuple):
-            input_shapes = [input_shapes]
-
-        inputs = model.get_input(train=False)
-        if not isinstance(inputs, list):
-            inputs = [inputs]
-        input_dummy = [np.zeros(shape, dtype=np.float32)
-                       for shape in input_shapes]
-        layers = model.layers
-
-    elif model.__class__.__name__ == 'Graph':
-        # in this case input_shapes is a dictionary
-        inputs = [model.inputs[name].input
-                  for name in model.input_order]
-        input_dummy = [np.zeros(input_shapes[name], dtype=np.float32)
-                       for name in model.input_order]
-        layers = [model.nodes[c['name']] for c in model.node_config]
-
-    print("input shapes : ", input_shapes)
-    for l in layers:
-        shape_f = theano.function(inputs, l.get_output(train=False).shape,
-                                  on_unused_input='ignore')
-        out_shape = tuple(shape_f(*input_dummy))
-        config = l.get_config()
-        print('shape after %s: %s' % (config['name'], out_shape))
-
-
 from .generic_utils import get_from_module
 def get_layer(identifier, kwargs=None):
-    return get_from_module(identifier, globals(), 'layer', instantiate=True, kwargs=kwargs)
+    return get_from_module(identifier, globals(), 'layer',
+                           instantiate=True, kwargs=kwargs)

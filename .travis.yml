@@ -1,4 +1,5 @@
-sudo: false
+sudo: required
+dist: trusty
 language: python
 python:
   - "2.7"
@@ -25,8 +26,17 @@ install:
   - pip install pytest-cov python-coveralls
   - pip install git+git://github.com/Theano/Theano.git
   - python setup.py install
+
+  # install TensorFlow
+  - if [[ "$TRAVIS_PYTHON_VERSION" == "2.7" ]]; then
+      pip install https://storage.googleapis.com/tensorflow/linux/cpu/tensorflow-0.5.0-cp27-none-linux_x86_64.whl;
+    fi
 # command to run tests
 script:
   - PYTHONPATH=$PWD:$PYTHONPATH py.test -v --cov-report term-missing --cov keras tests/
+  - if [[ "$TRAVIS_PYTHON_VERSION" == "2.7" ]]; then
+      sed -i -e 's/theano/tensorflow/g' ~/.keras/keras.json;
+      PYTHONPATH=$PWD:$PYTHONPATH py.test -v --cov-report term-missing --cov keras tests/;
+    fi
 after_success:
   - coveralls
