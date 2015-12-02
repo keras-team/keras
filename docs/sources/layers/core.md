@@ -76,9 +76,13 @@ get_config()
 
 ## Dense
 ```python
-keras.layers.core.Dense(output_dim, init='glorot_uniform', activation='linear', weights=None
-W_regularizer=None, b_regularizer=None, activity_regularizer=None,
-W_constraint=None, b_constraint=None, input_dim=None)
+keras.layers.core.Dense(output_dim,
+                        init='glorot_uniform',
+                        activation='linear',
+                        weights=None,
+                        W_regularizer=None, b_regularizer=None, activity_regularizer=None,
+                        W_constraint=None, b_constraint=None,
+                        input_dim=None)
 ```
 
 Standard 1D fully-connect layer. 
@@ -104,9 +108,13 @@ Standard 1D fully-connect layer.
 
 ## TimeDistributedDense
 ```python
-keras.layers.core.TimeDistributedDense(output_dim, init='glorot_uniform', activation='linear', weights=None
-W_regularizer=None, b_regularizer=None, activity_regularizer=None, W_constraint=None, b_constraint=None,
-input_dim=None, input_length=None)
+keras.layers.core.TimeDistributedDense(output_dim,
+                                       init='glorot_uniform',
+                                       activation='linear',
+                                       weights=None
+                                       W_regularizer=None, b_regularizer=None, activity_regularizer=None,
+                                       W_constraint=None, b_constraint=None,
+                                       input_dim=None, input_length=None)
 ```
 
 Fully-connected layer distributed over the time dimension. Useful after a recurrent network set to `return_sequences=True`.
@@ -180,7 +188,7 @@ keras.layers.core.Activation(activation)
 Apply an activation function to the input. 
 
 
-- __Input shape__: Arbitrary. Use the keyword argument `input_shape` (tuple of integers, does not include the samples axis) when using this layer as the first layer in a model.
+- __Input shape__: Arbitrary. Use the keyword argument `input_shape` (tuple of integers, does not include the samples axis) when using this layer as the first layer in a model. To specify the number of samples per batch, you can use the keyword argument `batch_input_shape` (tuple of integers, including the samples axis).
 
 - __Output shape__: Same as input.
 
@@ -198,7 +206,7 @@ keras.layers.core.Dropout(p)
 Apply dropout to the input. Dropout consists in randomly setting a fraction `p` of input units to 0 at each update during training time, which helps prevent overfitting. Reference: [Dropout: A Simple Way to Prevent Neural Networks from Overfitting](http://www.cs.toronto.edu/~rsalakhu/papers/srivastava14a.pdf)
 
 
-- __Input shape__: Arbitrary. Use the keyword argument `input_shape` (tuple of integers, does not include the samples axis) when using this layer as the first layer in a model.
+- __Input shape__: Arbitrary. Use the keyword argument `input_shape` (tuple of integers, does not include the samples axis) when using this layer as the first layer in a model. To specify the number of samples per batch, you can use the keyword argument `batch_input_shape` (tuple of integers, including the samples axis).
 
 - __Output shape__: Same as input.
 
@@ -217,7 +225,7 @@ keras.layers.core.Reshape(dims)
 Reshape the input to a new shape containing the same number of units. 
 
 
-- __Input shape__: Arbitrary. Use the keyword argument `input_shape` (tuple of integers, does not include the samples axis) when using this layer as the first layer in a model.
+- __Input shape__: Arbitrary. Use the keyword argument `input_shape` (tuple of integers, does not include the samples axis) when using this layer as the first layer in a model. To specify the number of samples per batch, you can use the keyword argument `batch_input_shape` (tuple of integers, including the samples axis).
 
 - __Output shape__: `(nb_samples, dims)`.
 
@@ -241,7 +249,7 @@ keras.layers.core.Flatten()
 
 Convert a nD input to 1D. 
 
-- __Input shape__: Arbitrary. Use the keyword argument `input_shape` (tuple of integers, does not include the samples axis) when using this layer as the first layer in a model.
+- __Input shape__: Arbitrary. Use the keyword argument `input_shape` (tuple of integers, does not include the samples axis) when using this layer as the first layer in a model. To specify the number of samples per batch, you can use the keyword argument `batch_input_shape` (tuple of integers, including the samples axis).
 
 - __Output shape__: `(nb_samples, nb_input_units)`.
 
@@ -256,7 +264,7 @@ Repeat the 1D input n times. Dimensions of input are assumed to be `(nb_samples,
 
 Note that the output is still a single tensor; `RepeatVector` does not split the data flow.
 
-- __Input shape__: Arbitrary. Use the keyword argument `input_shape` (tuple of integers, does not include the samples axis) when using this layer as the first layer in a model.
+- __Input shape__: Arbitrary. Use the keyword argument `input_shape` (tuple of integers, does not include the samples axis) when using this layer as the first layer in a model. To specify the number of samples per batch, you can use the keyword argument `batch_input_shape` (tuple of integers, including the samples axis).
 
 - __Output shape__: `(nb_samples, n, input_dims)`.
 
@@ -271,7 +279,7 @@ keras.layers.core.Permute(dims)
 ```
 Permute the dimensions of the input data according to the given tuple. Sometimes useful for connecting RNNs and convnets together.
 
-- __Input shape__: Arbitrary. Use the keyword argument `input_shape` (tuple of integers, does not include the samples axis) when using this layer as the first layer in a model.
+- __Input shape__: Arbitrary. Use the keyword argument `input_shape` (tuple of integers, does not include the samples axis) when using this layer as the first layer in a model. To specify the number of samples per batch, you can use the keyword argument `batch_input_shape` (tuple of integers, including the samples axis).
 
 - __Output shape__: Same as the input shape, but with the dimensions re-ordered according to the ordering specified by the tuple.
 
@@ -300,9 +308,12 @@ This layer can be used, for instance, to induce activation sparsity in the previ
 
 ## MaxoutDense
 ```python
-keras.layers.core.MaxoutDense(output_dim, nb_feature=4, init='glorot_uniform', weights=None,
+keras.layers.core.MaxoutDense(output_dim, nb_feature=4,
+        init='glorot_uniform',
+        weights=None,
         W_regularizer=None, b_regularizer=None, activity_regularizer=None,
-        W_constraint=None, b_constraint=None, input_dim=None)
+        W_constraint=None, b_constraint=None,
+        input_dim=None)
 ```
 
 A dense maxout layer. A `MaxoutDense` layer takes the element-wise maximum of `nb_feature` `Dense(input_dim, output_dim)` linear layers. This allows the layer to learn a convex, piecewise linear activation function over the inputs. See [this paper](http://arxiv.org/pdf/1302.4389.pdf) for more details. Note that this is a *linear* layer -- if you wish to apply activation function (you shouldn't need to -- they are universal function approximators), an `Activation` layer must be added after.
@@ -332,14 +343,20 @@ model.add(MaxoutDense(50, nb_feature=10)) # output shape: (nb_samples, 50)
 
 ## Merge
 ```python
-keras.layers.core.Merge(models, mode='sum')
+keras.layers.core.Merge(layers, mode='sum', concat_axis=-1, dot_axes=-1)
 ```
 
-Merge the output of a list of layers (or containers) into a single tensor, following one of three modes: `sum`, `mul` or `concat`. 
+Merge the output of a list of layers (or containers) into a single tensor.
 
 - __Arguments__:
     - __layers__: List of layers or [containers](/layers/containers/).
-    - __mode__: String, one of `{'sum', 'mul', 'concat'}`. `sum` and `mul` will simply sum/multiply the outputs of the layers (therefore all layers should have an output with the same shape). `concat` will concatenate the outputs along the last dimension (therefore all layers should have an output that only differ along the last dimension). 
+    - __mode__: String, one of `{'sum', 'mul', 'concat', 'ave', 'dot'}`. `sum`, `mul` and `ave` will simply sum/multiply/average the outputs of the layers (therefore all layers should have an output with the same shape). `concat` will concatenate the outputs along the dimension specified by `concate_axis` (therefore all layers should have an output that only differ along this dimension). `dot` will dot tensor contraction on the axes specified by `dot_axes` (see [the Numpy documentation](http://docs.scipy.org/doc/numpy-1.10.1/reference/generated/numpy.tensordot.html) for more details).
+    - __concat_axis__: axis to use in `concat` mode.
+    - __dot_axes__: axis or axes to use in `dot` mode (see [the Numpy documentation](http://docs.scipy.org/doc/numpy-1.10.1/reference/generated/numpy.tensordot.html) for more details).
+
+
+- __Notes__:
+    - `dot` mode only works with Theano for the time being.
 
 - __Example__:
 
@@ -374,3 +391,87 @@ Given an input of dimensions `(nb_samples, timesteps, input_dim)`, return the in
 - __Input shape__: 3D tensor with shape: `(nb_samples, timesteps, features)`.
 
 - __Output shape__: 3D tensor with shape: `(nb_samples, timesteps, features)`.
+
+- __Notes__: Masking only works in Theano for the time being.
+
+## Lambda
+```python
+keras.layers.core.Lambda(function, output_shape=None)
+```
+
+Used for evaluating an arbitrary Theano expression on the output of the previous layer.
+
+- __Input shape__: Arbitrary. Use the keyword argument input_shape (tuple of integers, does not include the samples axis) when using this layer as the first layer in a model.
+
+- __Output shape__: Specified by the `output_shape` argument.
+
+- __Arguments__:
+
+    - __function__: The expression to be evaluated. Takes one argument: the output of the previous layer.
+    - __output_shape__: Shape of the tensor returned by `function`. Should be a shape tuple (not including the samples dimension) or a function of the full input shape tuple (including samples dimension).
+
+- __Example__:
+
+```python
+# custom softmax function
+def sharp_softmax(X, beta=1.5):
+    return theano.tensor.nnet.softmax(X * beta)
+
+def output_shape(input_shape):
+    # here input_shape includes the samples dimension
+    return input_shape  # shape is unchanged
+
+model = Sequential()
+model.add(Dense(input_dim=10, output_dim=10))
+model.add(Lambda(sharp_softmax, output_shape))
+model.add(Dense(1))
+model.add(Activation('sigmoid'))
+```
+
+
+## LambdaMerge
+```python
+keras.layers.core.LambdaMerge(layers, function, output_shape=None)
+```
+
+Merge the output of a list of layers (or containers) into a single tensor, using an arbitrary Theano expression.
+
+- __Arguments__:
+    - __layers__: List of layers or [containers](/layers/containers/).
+    - __function__: The expression to be evaluated. Takes one argument: the list of input tensors.
+    - __output_shape__: Shape of the tensor returned by `function`. Should be a shape tuple (not including samples dimension) or a function of the list of input shape tuples (including samples dimension).
+
+- __Example__:
+
+```python
+# root mean square function
+def rms(inputs):
+    # inputs is a list of tensors
+    s = inputs[0] ** 2
+    for i in range(1, len(inputs)):
+        s += inputs[i] ** 2
+    s /= len(inputs)
+    s = theano.tensor.sqrt(s)
+    # return a single tensor
+    return s
+
+def output_shape(input_shapes):
+    # return the shape of the first tensor
+    return input_shapes[0]
+
+left = Sequential()
+left.add(Dense(input_dim=10, output_dim=10))
+left.add(Activation('sigmoid'))
+
+right = Sequential()
+right.add(Dense(input_dim=10, output_dim=10))
+right.add(Activation('sigmoid'))
+
+model = Sequential()
+model.add(LambdaMerge([left, right], rms, output_shape))
+
+model.add(Dense(1))
+model.add(Activation('sigmoid'))
+```
+
+---

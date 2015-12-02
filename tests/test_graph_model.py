@@ -13,10 +13,16 @@ X2 = np.random.random((100, 32))
 y = np.random.random((100, 4))
 y2 = np.random.random((100,))
 
-(X_train, y_train), (X_test, y_test) = get_test_data(nb_train=1000, nb_test=200, input_shape=(32,),
-                                                     classification=False, output_shape=(4,))
-(X2_train, y2_train), (X2_test, y2_test) = get_test_data(nb_train=1000, nb_test=200, input_shape=(32,),
-                                                         classification=False, output_shape=(1,))
+(X_train, y_train), (X_test, y_test) = get_test_data(nb_train=1000,
+                                                     nb_test=200,
+                                                     input_shape=(32,),
+                                                     classification=False,
+                                                     output_shape=(4,))
+(X2_train, y2_train), (X2_test, y2_test) = get_test_data(nb_train=1000,
+                                                         nb_test=200,
+                                                         input_shape=(32,),
+                                                         classification=False,
+                                                         output_shape=(1,))
 
 
 class TestGraph(unittest.TestCase):
@@ -29,10 +35,13 @@ class TestGraph(unittest.TestCase):
         graph.add_node(Dense(4), name='dense2', input='input1')
         graph.add_node(Dense(4), name='dense3', input='dense1')
 
-        graph.add_output(name='output1', inputs=['dense2', 'dense3'], merge_mode='sum')
+        graph.add_output(name='output1',
+                         inputs=['dense2', 'dense3'],
+                         merge_mode='sum')
         graph.compile('rmsprop', {'output1': 'mse'})
 
-        history = graph.fit({'input1': X_train, 'output1': y_train}, nb_epoch=10)
+        history = graph.fit({'input1': X_train, 'output1': y_train},
+                            nb_epoch=10)
         out = graph.predict({'input1': X_test})
         assert(type(out == dict))
         assert(len(out) == 1)
@@ -41,6 +50,14 @@ class TestGraph(unittest.TestCase):
         loss = graph.evaluate({'input1': X_test, 'output1': y_test})
         print(loss)
         assert(loss < 2.5)
+
+        # test validation split
+        history = graph.fit({'input1': X_train, 'output1': y_train},
+                            validation_split=0.2, nb_epoch=1)
+        # test validation data
+        history = graph.fit({'input1': X_train, 'output1': y_train},
+                            validation_data={'input1': X_train, 'output1': y_train},
+                            nb_epoch=1)
 
     def test_1o_1i_2(self):
         print('test a more complex non-sequential graph with 1 input and 1 output')
@@ -52,12 +69,15 @@ class TestGraph(unittest.TestCase):
         graph.add_node(Activation('relu'), name='dense2', input='dense2-0')
 
         graph.add_node(Dense(16), name='dense3', input='dense2')
-        graph.add_node(Dense(4), name='dense4', inputs=['dense1', 'dense3'], merge_mode='sum')
+        graph.add_node(Dense(4), name='dense4', inputs=['dense1', 'dense3'],
+                       merge_mode='sum')
 
-        graph.add_output(name='output1', inputs=['dense2', 'dense4'], merge_mode='sum')
+        graph.add_output(name='output1', inputs=['dense2', 'dense4'],
+                         merge_mode='sum')
         graph.compile('rmsprop', {'output1': 'mse'})
 
-        history = graph.fit({'input1': X_train, 'output1': y_train}, nb_epoch=10)
+        history = graph.fit({'input1': X_train, 'output1': y_train},
+                            nb_epoch=10)
         out = graph.predict({'input1': X_train})
         assert(type(out == dict))
         assert(len(out) == 1)
@@ -78,10 +98,12 @@ class TestGraph(unittest.TestCase):
         graph.add_node(Dense(4), name='dense2', input='input2')
         graph.add_node(Dense(4), name='dense3', input='dense1')
 
-        graph.add_output(name='output1', inputs=['dense2', 'dense3'], merge_mode='sum')
+        graph.add_output(name='output1', inputs=['dense2', 'dense3'],
+                         merge_mode='sum')
         graph.compile('rmsprop', {'output1': 'mse'})
 
-        history = graph.fit({'input1': X_train, 'input2': X2_train, 'output1': y_train}, nb_epoch=10)
+        history = graph.fit({'input1': X_train, 'input2': X2_train, 'output1': y_train},
+                            nb_epoch=10)
         out = graph.predict({'input1': X_test, 'input2': X2_test})
         assert(type(out == dict))
         assert(len(out) == 1)
@@ -105,7 +127,8 @@ class TestGraph(unittest.TestCase):
         graph.add_output(name='output2', input='dense3')
         graph.compile('rmsprop', {'output1': 'mse', 'output2': 'mse'})
 
-        history = graph.fit({'input1': X_train, 'output1': y_train, 'output2': y2_train}, nb_epoch=10)
+        history = graph.fit({'input1': X_train, 'output1': y_train, 'output2': y2_train},
+                            nb_epoch=10)
         out = graph.predict({'input1': X_test})
         assert(type(out == dict))
         assert(len(out) == 2)
@@ -149,7 +172,8 @@ class TestGraph(unittest.TestCase):
 
         graph.compile('rmsprop', {'output1': 'mse', 'output2': 'mse'})
 
-        history = graph.fit({'input1': X_train, 'output1': y_train, 'output2': y2_train}, nb_epoch=10,
+        history = graph.fit({'input1': X_train, 'output1': y_train, 'output2': y2_train},
+                            nb_epoch=10,
                             sample_weight={'output1': weights1, 'output2': weights2})
         out = graph.predict({'input1': X_test})
         assert(type(out == dict))
@@ -170,7 +194,8 @@ class TestGraph(unittest.TestCase):
         graph.add_node(Dense(16), name='dense1', input='input1')
         graph.add_node(Dense(4), name='dense2', input='input1')
         graph.add_node(Dense(4), name='dense3', input='dense1')
-        graph.add_output(name='output1', inputs=['dense2', 'dense3'], merge_mode='sum')
+        graph.add_output(name='output1', inputs=['dense2', 'dense3'],
+                         merge_mode='sum')
 
         seq = Sequential()
         seq.add(Dense(32, input_shape=(32,)))
@@ -196,10 +221,12 @@ class TestGraph(unittest.TestCase):
         graph.add_node(Dense(16), name='dense1', input='input1')
         graph.add_node(Dense(4), name='dense2', input='input1')
         graph.add_node(Dense(4), name='dense3', input='dense1')
-        graph.add_node(Dense(4), name='output1', inputs=['dense2', 'dense3'], merge_mode='sum', create_output=True)
+        graph.add_node(Dense(4), name='output1', inputs=['dense2', 'dense3'],
+                       merge_mode='sum', create_output=True)
         graph.compile('rmsprop', {'output1': 'mse'})
 
-        history = graph.fit({'input1': X_train, 'output1': y_train}, nb_epoch=10)
+        history = graph.fit({'input1': X_train, 'output1': y_train},
+                            nb_epoch=10)
         out = graph.predict({'input1': X_test})
         assert(type(out == dict))
         assert(len(out) == 1)

@@ -1,33 +1,38 @@
-# Keras: Theano-based Deep Learning library
+# Keras: Deep Learning library for Theano and TensorFlow
 
-## Overview
+## You have just found Keras.
 
-Keras is a minimalist, highly modular neural network library in the spirit of Torch, written in Python, that uses [Theano](http://deeplearning.net/software/theano/) under the hood for optimized tensor manipulation on GPU and CPU. It was developed with a focus on enabling fast experimentation. 
+Keras is a minimalist, highly modular neural networks library, written in Python and capable of running either on top of either [TensorFlow](https://github.com/tensorflow/tensorflow) or [Theano](https://github.com/Theano/Theano). It was developed with a focus on enabling fast experimentation. Being able to go from idea to result with the least possible delay is key to doing good research.
 
 Use Keras if you need a deep learning library that:
-
 - allows for easy and fast prototyping (through total modularity, minimalism, and extensibility).
 - supports both convolutional networks and recurrent networks, as well as combinations of the two.
 - supports arbitrary connectivity schemes (including multi-input and multi-output training).
 - runs seamlessly on CPU and GPU.
 
+Read the documentation at [Keras.io](http://keras.io).
+
+Keras is compatible with:
+    - __Python 2.7-3.5__ with the Theano backend
+    - __Python 2.7__ with the TensorFlow backend
+
+
+------------------
+
+
 ## Guiding principles
 
 - __Modularity.__ A model is understood as a sequence or a graph of standalone, fully-configurable modules that can be plugged together with as little restrictions as possible. In particular, neural layers, cost functions, optimizers, initialization schemes, activation functions, regularization schemes are all standalone modules that you can combine to create new models.
 
-- __Minimalism.__ Each module should be kept short and simple (<100 lines of code). Every piece of code should be transparent upon first reading. No black magic: it hurts iteration speed and ability to innovate.
+- __Minimalism.__ Each module should be kept short and simple. Every piece of code should be transparent upon first reading. No black magic: it hurts iteration speed and ability to innovate.
 
-- __Easy extensibility.__ New modules are dead simple to add (as new classes/functions), and existing modules provide ample examples. To be able to easily create new modules allows for total expressiveness, making Keras suitable for advanced research.
+- __Easy extensibility.__ New modules are dead simple to add (as new classes and functions), and existing modules provide ample examples. To be able to easily create new modules allows for total expressiveness, making Keras suitable for advanced research.
 
-- __Work with Python__. No separate models configuration files in a declarative format (like in Caffe or PyLearn2). Models are described in Python code, which is compact, easier to debug, and allows for ease of extensibility.
+- __Work with Python__. No separate models configuration files in a declarative format. Models are described in Python code, which is compact, easier to debug, and allows for ease of extensibility.
 
-## Code
 
-Find the code on Github: [fchollet/keras](https://github.com/fchollet/keras).
+------------------
 
-## License
-
-Keras is licensed under the [MIT license](http://opensource.org/licenses/MIT). 
 
 ## Getting started: 30 seconds to Keras
 
@@ -57,7 +62,7 @@ Once your model looks good, configure its learning process with `.compile()`:
 model.compile(loss='categorical_crossentropy', optimizer='sgd')
 ```
 
-If you need to, you can further configure your optimizer. A core principle of Keras is make things things reasonably simple, while allowing the user to be fully in control when they need to (the ultimate control being the easy extensibility of the source code).
+If you need to, you can further configure your optimizer. A core principle of Keras is to make things reasonably simple, while allowing the user to be fully in control when they need to (the ultimate control being the easy extensibility of the source code).
 ```python
 from keras.optimizers import SGD
 model.compile(loss='categorical_crossentropy', optimizer=SGD(lr=0.01, momentum=0.9, nesterov=True))
@@ -86,41 +91,62 @@ proba = model.predict_proba(X_test, batch_size=32)
 
 Building a network of LSTMs, a deep CNN, a Neural Turing Machine, a word2vec embedder or any other model is just as fast. The ideas behind deep learning are simple, so why should their implementation be painful?
 
-Have a look at the [examples](examples.md).
+Have a look at these [starter examples](http://keras.io/examples/).
+
+In the [examples folder](https://github.com/fchollet/keras/tree/master/examples) of the repo, you will find more advanced models: question-answering with memory networks, text generation with stacked LSTMs, neural turing machines, etc.
+
+
+------------------
+
 
 ## Installation
 
 Keras uses the following dependencies:
 
-- __numpy__, __scipy__
-- __pyyaml__
-- __Theano__
-    - See [installation instructions](http://deeplearning.net/software/theano/install.html#install).
-- __HDF5__ and __h5py__ (optional, required if you use model saving/loading functions)
-- Optional but recommended if you use CNNs: __cuDNN__.
+- numpy, scipy
+- pyyaml
+- HDF5 and h5py (optional, required if you use model saving/loading functions)
+- Optional but recommended if you use CNNs: cuDNN.
+
+When using the Theano backend:
+- Theano
+    - [See installation instructions](http://deeplearning.net/software/theano/install.html#install).
 
 **Note**: You should use the latest version of Theano, not the PyPI version. Install it with:
 ```
 sudo pip install git+git://github.com/Theano/Theano.git
 ```
 
-Once you have the dependencies installed, clone the repo:
-```bash
-git clone https://github.com/fchollet/keras.git
+When using the TensorFlow backend:
+- TensorFlow
+    - [See installation instructions](https://github.com/tensorflow/tensorflow#download-and-setup).
+
+To install, `cd` to the Keras folder and run the install command:
 ```
-Go to the Keras folder and run the install command:
-```bash
-cd keras
 sudo python setup.py install
 ```
+
 You can also install Keras from PyPI:
 ```
 sudo pip install keras
 ```
 
+------------------
+
+
+## Switching from Theano to TensorFlow
+
+By default, Keras will use Theano as its tensor manipulation library. [Follow these instructions](http://keras.io/backend/) to configure the Keras backend.
+
+------------------
+
+
 ## Support
 
 You can ask questions and join the development discussion on the [Keras Google group](https://groups.google.com/forum/#!forum/keras-users).
+
+------------------
+
 
 ## Contribution Guidelines
 
@@ -128,18 +154,22 @@ Keras welcomes all contributions from the community.
 
 - Keep a pragmatic mindset and avoid bloat. Only add to the source if that is the only path forward.
 - New features should be documented. Make sure you update the documentation along with your Pull Request.
+- Any new function or class should have a proper docstring.
 - The documentation for every new feature should include a usage example in the form of a code snippet. 
 - All changes should be tested. Make sure any new feature you add has a corresponding unit test.
 - Please no Pull Requests about coding style.
 - Even if you don't contribute to the Keras source code, if you have an application of Keras that is concise and powerful, please consider adding it to our collection of [examples](https://github.com/fchollet/keras/tree/master/examples).
 
 
+------------------
+
+
 ## Why this name, Keras?
 
 Keras (κέρας) means _horn_ in Greek. It is a reference to a literary image from ancient Greek and Latin literature, first found in the _Odyssey_, where dream spirits (_Oneiroi_, singular _Oneiros_) are divided between those who deceive men with false visions, who arrive to Earth through a gate of ivory, and those who announce a future that will come to pass, who arrive through a gate of horn. It's a play on the words κέρας (horn) / κραίνω (fulfill), and ἐλέφας (ivory) / ἐλεφαίρομαι (deceive).
 
-Keras was developed as part of the research effort of project __ONEIROS__ (*Open-ended Neuro-Electronic Intelligent Robot Operating System*).
+Keras was initially developed as part of the research effort of project ONEIROS (Open-ended Neuro-Electronic Intelligent Robot Operating System).
 
-> _"Oneiroi are beyond our unravelling --who can be sure what tale they tell? Not all that men look for comes to pass. Two gates there are that give passage to fleeting Oneiroi; one is made of horn, one of ivory. The Oneiroi that pass through sawn ivory are deceitful, bearing a message that will not be fulfilled; those that come out through polished horn have truth behind them, to be accomplished for men who see them."_ 
+>_"Oneiroi are beyond our unravelling --who can be sure what tale they tell? Not all that men look for comes to pass. Two gates there are that give passage to fleeting Oneiroi; one is made of horn, one of ivory. The Oneiroi that pass through sawn ivory are deceitful, bearing a message that will not be fulfilled; those that come out through polished horn have truth behind them, to be accomplished for men who see them."_ Homer, Odyssey 19. 562 ff (Shewring translation).
 
-> -- Homer, Odyssey 19. 562 ff (Shewring translation).
+------------------

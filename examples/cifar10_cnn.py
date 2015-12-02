@@ -33,7 +33,7 @@ img_rows, img_cols = 32, 32
 # the CIFAR10 images are RGB
 img_channels = 3
 
-# the data, shuffled and split between tran and test sets
+# the data, shuffled and split between train and test sets
 (X_train, y_train), (X_test, y_test) = cifar10.load_data()
 print('X_train shape:', X_train.shape)
 print(X_train.shape[0], 'train samples')
@@ -45,7 +45,7 @@ Y_test = np_utils.to_categorical(y_test, nb_classes)
 
 model = Sequential()
 
-model.add(Convolution2D(32, 3, 3, border_mode='full',
+model.add(Convolution2D(32, 3, 3, border_mode='same',
                         input_shape=(img_channels, img_rows, img_cols)))
 model.add(Activation('relu'))
 model.add(Convolution2D(32, 3, 3))
@@ -53,7 +53,7 @@ model.add(Activation('relu'))
 model.add(MaxPooling2D(pool_size=(2, 2)))
 model.add(Dropout(0.25))
 
-model.add(Convolution2D(64, 3, 3, border_mode='full'))
+model.add(Convolution2D(64, 3, 3, border_mode='same'))
 model.add(Activation('relu'))
 model.add(Convolution2D(64, 3, 3))
 model.add(Activation('relu'))

@@ -23,8 +23,8 @@ from keras.utils import np_utils
     Optimizer is replaced with RMSprop which yields more stable and steady
     improvement.
 
-    Reaches 0.93 train/test accuracy after 900 epochs (which roughly corresponds
-    to 1687500 steps in the original paper.)
+    Reaches 0.93 train/test accuracy after 900 epochs
+    (which roughly corresponds to 1687500 steps in the original paper.)
 '''
 
 batch_size = 32
@@ -34,7 +34,6 @@ hidden_units = 100
 
 learning_rate = 1e-6
 clip_norm = 1.0
-BPTT_truncate = 28*28
 
 # the data, shuffled and split between train and test sets
 (X_train, y_train), (X_test, y_test) = mnist.load_data()
@@ -58,8 +57,7 @@ model = Sequential()
 model.add(SimpleRNN(output_dim=hidden_units,
                     init=lambda shape: normal(shape, scale=0.001),
                     inner_init=lambda shape: identity(shape, scale=1.0),
-                    activation='relu', truncate_gradient=BPTT_truncate,
-                    input_shape=(None, 1)))
+                    activation='relu', input_shape=X_train.shape[1:]))
 model.add(Dense(nb_classes))
 model.add(Activation('softmax'))
 rmsprop = RMSprop(lr=learning_rate)
@@ -74,7 +72,7 @@ print('IRNN test accuracy:', scores[1])
 
 print('Compare to LSTM...')
 model = Sequential()
-model.add(LSTM(hidden_units, input_shape=(None, 1)))
+model.add(LSTM(hidden_units, input_shape=X_train.shape[1:]))
 model.add(Dense(nb_classes))
 model.add(Activation('softmax'))
 rmsprop = RMSprop(lr=learning_rate)

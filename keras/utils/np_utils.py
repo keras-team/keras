@@ -34,7 +34,6 @@ def binary_logloss(p, y):
 
 
 def multiclass_logloss(P, Y):
-    score = 0.
     npreds = [P[i][Y[i]-1] for i in range(len(Y))]
     score = -(1. / len(Y)) * np.sum(np.log(npreds))
     return score

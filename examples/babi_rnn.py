@@ -126,14 +126,14 @@ def get_stories(f, only_supporting=False, max_length=None):
     return data
 
 
-def vectorize_stories(data):
+def vectorize_stories(data, word_idx, story_maxlen, query_maxlen):
     X = []
     Xq = []
     Y = []
     for story, query, answer in data:
         x = [word_idx[w] for w in story]
         xq = [word_idx[w] for w in query]
-        y = np.zeros(vocab_size)
+        y = np.zeros(len(word_idx) + 1)  # let's not forget that index 0 is reserved
         y[word_idx[answer]] = 1
         X.append(x)
         Xq.append(xq)
@@ -168,8 +168,8 @@ word_idx = dict((c, i + 1) for i, c in enumerate(vocab))
 story_maxlen = max(map(len, (x for x, _, _ in train + test)))
 query_maxlen = max(map(len, (x for _, x, _ in train + test)))
 
-X, Xq, Y = vectorize_stories(train)
-tX, tXq, tY = vectorize_stories(test)
+X, Xq, Y = vectorize_stories(train, word_idx, story_maxlen, query_maxlen)
+tX, tXq, tY = vectorize_stories(test, word_idx, story_maxlen, query_maxlen)
 
 print('vocab = {}'.format(vocab))
 print('X.shape = {}'.format(X.shape))
