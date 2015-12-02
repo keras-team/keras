@@ -50,8 +50,8 @@ class Recurrent(MaskedLayer):
                 raise Exception('When using TensorFlow, you should define ' +
                                 'explicitely the number of timesteps of ' +
                                 'your sequences. Make sure the first layer ' +
-                                'has an "input_shape" argument with a defined ' +
-                                'first dimension.')
+                                'has a "batch_input_shape" argument ' +
+                                'including the samples axis.')
 
         mask = self.get_output_mask(train)
         if mask:
