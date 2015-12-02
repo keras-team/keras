@@ -40,7 +40,7 @@ install:
 script:
   # set up keras backend
   - sed -i -e 's/"backend":[[:space:]]*".*"/"backend": "$KERAS_BACKEND"/g' ~/.keras/keras.json;
-  - echo "Running tests with the following config: " && cat ~/.keras/keras.json
+  - echo "Running tests with the following config" && cat ~/.keras/keras.json
   - PYTHONPATH=$PWD:$PYTHONPATH py.test tests/
 after_success:
   - coveralls
