@@ -27,8 +27,10 @@ else:
     _config = {'floatx': floatx(),
                'epsilon': epsilon(),
                'backend': _BACKEND}
-    json.dump(_config, open(_config_path, 'w'))
-    print("Saved %s to %s" % (_config, _config_path))
+    s = json.dumps(_config)
+    with open(_config_path, 'w') as f:
+        f.write(s + '\n')
+    print("Saved %s to %s" % (s, _config_path))
 
 if _BACKEND == 'theano':
     print('Using Theano backend.')
