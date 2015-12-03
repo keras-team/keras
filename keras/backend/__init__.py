@@ -30,10 +30,8 @@ else:
     json.dump(_config, open(_config_path, 'w'))
 
 if _BACKEND == 'theano':
-    print('Using Theano backend.')
     from .theano_backend import *
 elif _BACKEND == 'tensorflow':
-    print('Using TensorFlow backend.')
     from .tensorflow_backend import *
 else:
     raise Exception('Unknown backend: ' + str(backend))
