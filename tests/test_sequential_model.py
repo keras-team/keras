@@ -61,14 +61,14 @@ class TestSequential(unittest.TestCase):
         model.get_config(verbose=0)
 
         print('test weight saving')
-        model.save_weights('temp.h5', overwrite=True)
+        model.save_weights('test_sequential_temp.h5', overwrite=True)
         model = Sequential()
         model.add(Dense(nb_hidden, input_shape=(input_dim,)))
         model.add(Activation('relu'))
         model.add(Dense(nb_class))
         model.add(Activation('softmax'))
         model.compile(loss='categorical_crossentropy', optimizer='rmsprop')
-        model.load_weights('temp.h5')
+        model.load_weights('test_sequential_temp.h5')
 
         nloss = model.evaluate(X_train, y_train, verbose=0)
         assert(loss == nloss)
@@ -114,7 +114,7 @@ class TestSequential(unittest.TestCase):
         model.get_config(verbose=0)
 
         print('test weight saving')
-        model.save_weights('temp.h5', overwrite=True)
+        model.save_weights('test_merge_sum_temp.h5', overwrite=True)
         left = Sequential()
         left.add(Dense(nb_hidden, input_shape=(input_dim,)))
         left.add(Activation('relu'))
@@ -125,7 +125,7 @@ class TestSequential(unittest.TestCase):
         model.add(Merge([left, right], mode='sum'))
         model.add(Dense(nb_class))
         model.add(Activation('softmax'))
-        model.load_weights('temp.h5')
+        model.load_weights('test_merge_sum_temp.h5')
         model.compile(loss='categorical_crossentropy', optimizer='rmsprop')
 
         nloss = model.evaluate([X_train, X_train], y_train, verbose=0)
@@ -205,7 +205,7 @@ class TestSequential(unittest.TestCase):
         model.get_config(verbose=0)
 
         print('test weight saving')
-        model.save_weights('temp.h5', overwrite=True)
+        model.save_weights('test_merge_concat_temp.h5', overwrite=True)
         left = Sequential()
         left.add(Dense(nb_hidden, input_shape=(input_dim,)))
         left.add(Activation('relu'))
@@ -221,7 +221,7 @@ class TestSequential(unittest.TestCase):
         model.add(Activation('softmax'))
 
         model.compile(loss='categorical_crossentropy', optimizer='rmsprop')
-        model.load_weights('temp.h5')
+        model.load_weights('test_merge_concat_temp.h5')
 
         nloss = model.evaluate([X_train, X_train], y_train, verbose=0)
         assert(loss == nloss)
@@ -268,8 +268,8 @@ class TestSequential(unittest.TestCase):
         model.predict_proba([X_test, X_test, X_test], verbose=0)
         model.get_config(verbose=0)
 
-        model.save_weights('temp.h5', overwrite=True)
-        model.load_weights('temp.h5')
+        model.save_weights('test_merge_recursivity_temp.h5', overwrite=True)
+        model.load_weights('test_merge_recursivity_temp.h5')
 
         nloss = model.evaluate([X_train, X_train, X_train], y_train, verbose=0)
         print(nloss)
@@ -305,8 +305,8 @@ class TestSequential(unittest.TestCase):
         model.predict_proba(X_test, verbose=0)
         model.get_config(verbose=0)
 
-        model.save_weights('temp.h5', overwrite=True)
-        model.load_weights('temp.h5')
+        model.save_weights('test_merge_overlap_temp.h5', overwrite=True)
+        model.load_weights('test_merge_overlap_temp.h5')
 
         nloss = model.evaluate(X_train, y_train, verbose=0)
         print(nloss)
@@ -359,7 +359,7 @@ class TestSequential(unittest.TestCase):
         model.get_config(verbose=0)
 
         print('test weight saving')
-        model.save_weights('temp.h5', overwrite=True)
+        model.save_weights('test_lambda_temp.h5', overwrite=True)
         left = Sequential()
         left.add(Dense(nb_hidden, input_shape=(input_dim,)))
         left.add(Activation('relu'))
@@ -371,7 +371,7 @@ class TestSequential(unittest.TestCase):
                               output_shape=output_shape))
         model.add(Dense(nb_class))
         model.add(Lambda(activation))
-        model.load_weights('temp.h5')
+        model.load_weights('test_lambda_temp.h5')
         model.compile(loss='categorical_crossentropy', optimizer='rmsprop')
 
         nloss = model.evaluate([X_train, X_train], y_train, verbose=0)
