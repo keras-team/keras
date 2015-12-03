@@ -1,9 +1,14 @@
 sudo: required
 dist: trusty
 language: python
-python:
-  - "2.7"
-  - "3.4"
+matrix:
+    include:
+        - python: 3.4
+          env: KERAS_BACKEND=theano
+        - python: 2.7
+          env: KERAS_BACKEND=theano
+        - python: 2.7
+          env: KERAS_BACKEND=tensorflow
 install:
   # code below is taken from http://conda.pydata.org/docs/travis.html
   # We do this conditionally because it saves us some downloading if the
@@ -23,7 +28,7 @@ install:
 
   - conda create -q -n test-environment python=$TRAVIS_PYTHON_VERSION numpy scipy matplotlib pandas pytest h5py
   - source activate test-environment
-  - pip install pytest-cov python-coveralls
+  - pip install pytest-cov python-coveralls pytest-xdist
   - pip install git+git://github.com/Theano/Theano.git
   - python setup.py install
 
@@ -33,10 +38,11 @@ install:
     fi
 # command to run tests
 script:
-  - PYTHONPATH=$PWD:$PYTHONPATH py.test -v --cov-report term-missing --cov keras tests/
-  - if [[ "$TRAVIS_PYTHON_VERSION" == "2.7" ]]; then
-      sed -i -e 's/theano/tensorflow/g' ~/.keras/keras.json;
-      PYTHONPATH=$PWD:$PYTHONPATH py.test -v --cov-report term-missing --cov keras tests/;
-    fi
+  # run keras backend init to initialize backend config
+  - python -c "import keras.backend"
+  # set up keras backend
+  - sed -i -e 's/"backend":[[:space:]]*"[^"]*/"backend":\ "'$KERAS_BACKEND'/g' ~/.keras/keras.json;
+  - echo -e "Running tests with the following config:\n$(cat ~/.keras/keras.json)"
+  - PYTHONPATH=$PWD:$PYTHONPATH py.test tests/
 after_success:
   - coveralls
