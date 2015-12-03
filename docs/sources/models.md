@@ -163,7 +163,7 @@ model = keras.models.Graph()
             - __callbacks__: `keras.callbacks.Callback` list. List of callbacks to apply during training. See [callbacks](callbacks.md).
             - __validation_split__: float (0. < x < 1). Fraction of the data to use as held-out validation data.
             - __validation_data__: dictionary mapping input names out outputs names to appropriate numpy arrays to be used as held-out validation data. All arrays should contain the same number of samples. Will override validation_split.
-            - __shuffle__: boolean. Whether to shuffle the samples at each epoch
+            - __shuffle__: boolean. Whether to shuffle the samples at each epoch.
     - __evaluate__(data, batch_size=128, verbose=1): Show performance of the model over some validation data.
         - __Return__: The loss score over the data.
         - __Arguments__: Same meaning as fit method above. verbose is used as a binary flag (progress bar or nothing).
