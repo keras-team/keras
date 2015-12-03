@@ -22,6 +22,8 @@ def set_floatx(floatx):
     global _FLOATX
     if floatx not in {'float32', 'float64'}:
         raise Exception('Unknown floatx type: ' + str(floatx))
+    if isinstance(floatx, unicode):
+        floatx = floatx.encode('ascii')
     _FLOATX = floatx
 
 
