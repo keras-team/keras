@@ -17,6 +17,19 @@ import types
 import sys
 
 
+class Pass:
+    ''' Dummy class. Passes placeholder ahead'''
+    def __init__(self, X, output_shape=None):
+        self.X = X
+
+    def get_output(self, train=False):
+        return self.X
+
+    @property
+    def output_shape(self):
+        return self.output_shape
+
+
 class Layer(object):
     def __init__(self, **kwargs):
         allowed_kwargs = {'input_shape',
@@ -32,6 +45,25 @@ class Layer(object):
             self._trainable = kwargs['trainable']
         if not hasattr(self, 'params'):
             self.params = []
+
+    def __call__(self, X):
+        # temporally substitute layer input
+        if hasattr(self, 'previous'):
+            tmp = self.previous
+            self.previous = Pass(X)
+            Y = self.get_output()
+            self.previous = tmp
+        else:
+            if hasattr(self, 'input'):
+                tmp = self.input
+                flag = True
+            else:
+                flag = False
+            self.input = X
+            Y = self.get_output()
+            if flag:
+                self.input = tmp
+        return Y
 
     def set_previous(self, layer, connection_map={}):
         assert self.nb_input == layer.nb_output == 1, "Cannot connect layers: input count and output count should be 1."
