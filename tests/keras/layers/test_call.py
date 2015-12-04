@@ -19,7 +19,7 @@ class TestCall(unittest.TestCase):
     """Test __call__ methods"""
 
     def test_layer_call(self):
-        """Test keras.layers.Layer.__call__"""
+        """Test keras.layers.core.Layer.__call__"""
         nb_samples, input_dim = 3, 10
         layer = Layer()
         X = K.placeholder(ndim=2)
@@ -31,7 +31,7 @@ class TestCall(unittest.TestCase):
         assert_allclose(x, y)
 
     def test_sequential_call(self):
-        """Test keras.layers.Layer.__call__"""
+        """Test keras.models.Sequential.__call__"""
         nb_samples, input_dim, output_dim = 3, 10, 5
         model = Sequential()
         model.add(Dense(output_dim=output_dim, input_dim=input_dim))
@@ -44,6 +44,7 @@ class TestCall(unittest.TestCase):
         x = np.random.randn(nb_samples, input_dim).astype(floatX)
         y1 = F(x)
         y2 = model.predict(x)
+        # results of __call__ should match model.predict
         assert_allclose(y1, y2)
 
 
