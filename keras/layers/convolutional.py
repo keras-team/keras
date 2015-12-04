@@ -93,7 +93,8 @@ class Convolution1D(Layer):
         X = K.expand_dims(X, -1)  # add a dimension of the right
         X = K.permute_dimensions(X, (0, 2, 1, 3))
         conv_out = K.conv2d(X, self.W, strides=self.subsample,
-                            border_mode=self.border_mode, dim_ordering='th')
+                            border_mode=self.border_mode,
+                            dim_ordering='th')
 
         output = conv_out + K.reshape(self.b, (1, self.nb_filter, 1, 1))
         output = self.activation(output)
@@ -212,7 +213,9 @@ class Convolution2D(Layer):
         X = self.get_input(train)
         conv_out = K.conv2d(X, self.W, strides=self.subsample,
                             border_mode=self.border_mode,
-                            dim_ordering=self.dim_ordering)
+                            dim_ordering=self.dim_ordering,
+                            image_shape=self.input_shape,
+                            filter_shape=self.W_shape)
 
         output = conv_out + K.reshape(self.b, (1, self.nb_filter, 1, 1))
         output = self.activation(output)
