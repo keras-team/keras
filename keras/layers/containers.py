@@ -4,7 +4,7 @@ from __future__ import print_function
 
 from collections import OrderedDict
 from .. import backend as K
-from ..layers.core import Layer, Merge, Siamese, SiameseHead, Pass
+from ..layers.core import Layer, Merge, Siamese, SiameseHead
 from six.moves import range
 
 
@@ -23,22 +23,13 @@ class Sequential(Layer):
         for layer in layers:
             self.add(layer)
 
-    def __call__(self, X):
-        if hasattr(self.layers[0], 'previous'):
-            tmp = self.layers[0].previous
-            self.previous = Pass(X)
-            Y = self.get_output()
-            self.layers[0].previous = tmp
-        else:
-            if hasattr(self.layers[0], 'input'):
-                tmp = self.layers[0].input
-                flag = True
-            else:
-                flag = False
-            self.layers[0].input = X
-            Y = self.get_output()
-            if flag:
-                self.layers[0].input = tmp
+    def __call__(self, X, train=False):
+        # temporally substitute input of first layer
+        tmp = self.layers[0].get_input
+        self.layers[0].get_input = lambda _: X
+        Y = self.get_output(train=train)
+        # return input to first layer to what it was
+        self.layers[0].get_input = tmp
         return Y
 
     def set_previous(self, layer):

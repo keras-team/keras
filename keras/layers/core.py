@@ -17,19 +17,6 @@ import types
 import sys
 
 
-class Pass(object):
-    ''' Dummy class. Passes placeholder ahead'''
-    def __init__(self, X, output_shape=None):
-        self.X = X
-
-    def get_output(self, train=False):
-        return self.X
-
-    @property
-    def output_shape(self):
-        return self.output_shape
-
-
 class Layer(object):
     def __init__(self, **kwargs):
         allowed_kwargs = {'input_shape',
@@ -46,23 +33,13 @@ class Layer(object):
         if not hasattr(self, 'params'):
             self.params = []
 
-    def __call__(self, X):
-        # temporally substitute layer input
-        if hasattr(self, 'previous'):
-            tmp = self.previous
-            self.previous = Pass(X)
-            Y = self.get_output()
-            self.previous = tmp
-        else:
-            if hasattr(self, 'input'):
-                tmp = self.input
-                flag = True
-            else:
-                flag = False
-            self.input = X
-            Y = self.get_output()
-            if flag:
-                self.input = tmp
+    def __call__(self, X, train=False):
+        # temporally substitute input
+        tmp = self.get_input
+        self.get_input = lambda _: X
+        Y = self.get_output(train=train)
+        # return input to what it was
+        self.get_input = tmp
         return Y
 
     def set_previous(self, layer, connection_map={}):
@@ -1040,7 +1017,7 @@ class Lambda(Layer):
             self.function = marshal.dumps(function.func_code)
         if output_shape is None:
             self._output_shape = None
-        elif type(output_shape) in {tuple, list} :
+        elif type(output_shape) in {tuple, list}:
             self._output_shape = tuple(output_shape)
         else:
             if py3:
