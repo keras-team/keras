@@ -24,20 +24,21 @@ class Sequential(Layer):
             self.add(layer)
 
     def __call__(self, X):
-        # temporally substitute layer input
-        tmp1 = self.layers[0].input
         if hasattr(self.layers[0], 'previous'):
-            tmp2 = self.layers[0].previous
-            flag = True
-        self.layers[0].input = X
-        # define X as the new input
-        self.layers[0].previous = Pass(X)
-        # Calculate output given X
-        Y = self.get_output()
-        # Reset original inputs
-        self.layers[0].input = tmp1
-        if flag:
-            self.layers[0].previous = tmp2
+            tmp = self.layers[0].previous
+            self.previous = Pass(X)
+            Y = self.get_output()
+            self.layers[0].previous = tmp
+        else:
+            if hasattr(self.layers[0], 'input'):
+                tmp = self.layers[0].input
+                flag = True
+            else:
+                flag = False
+            self.layers[0].input = X
+            Y = self.get_output()
+            if flag:
+                self.layers[0].input = tmp
         return Y
 
     def set_previous(self, layer):
@@ -321,7 +322,7 @@ class Graph(Layer):
                 raise Exception('Duplicate node identifier: ' + o)
         if merge_mode:
             if merge_mode not in {'sum', 'ave', 'mul', 'dot', 'cos', 'concat', 'join'}:
-                raise Eception("Invalid merge mode")
+                raise Exception("Invalid merge mode")
         layers = []
         for i in range(len(inputs)):
             input = inputs[i]
