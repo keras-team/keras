@@ -17,7 +17,7 @@ import types
 import sys
 
 
-class Pass:
+class Pass(object):
     ''' Dummy class. Passes placeholder ahead'''
     def __init__(self, X, output_shape=None):
         self.X = X
