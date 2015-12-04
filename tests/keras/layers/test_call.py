@@ -24,10 +24,10 @@ class TestCall(unittest.TestCase):
         layer = Layer()
         X = K.placeholder(ndim=2)
         Y = layer(X)
-        F = theano.function([X], Y)
+        F = K.function([X], Y)
 
         x = np.random.randn(nb_samples, input_dim).astype(floatX)
-        y = F(x)
+        y = F([x, ])
         assert_allclose(x, y)
 
     def test_sequential_call(self):
@@ -39,10 +39,10 @@ class TestCall(unittest.TestCase):
 
         X = K.placeholder(ndim=2)
         Y = model(X)
-        F = theano.function([X], Y)
+        F = K.function([X], Y)
 
         x = np.random.randn(nb_samples, input_dim).astype(floatX)
-        y1 = F(x)
+        y1 = F([x, ])
         y2 = model.predict(x)
         # results of __call__ should match model.predict
         assert_allclose(y1, y2)
