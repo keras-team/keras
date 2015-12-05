@@ -240,7 +240,63 @@ class Convolution2D(Layer):
         return dict(list(base_config.items()) + list(config.items()))
 
 
-class MaxPooling1D(Layer):
+class Pooling1D(Layer):
+    input_dim = 3
+
+    def __init__(self, pool_length=2, stride=None, border_mode='valid', **kwargs):
+        super(Pooling1D, self).__init__(**kwargs)
+        if stride is None:
+            stride = pool_length
+        self.pool_length = pool_length
+        self.stride = stride
+        self.st = (self.stride, 1)
+        self.input = K.placeholder(ndim=3)
+        self.pool_size = (pool_length, 1)
+        assert border_mode in {'valid', 'same'}, 'border_mode must be in {valid, same}'
+        self.border_mode = border_mode
+
+    @property
+    def output_shape(self):
+        input_shape = self.input_shape
+        length = conv_output_length(input_shape[1], self.pool_length,
+                                    self.border_mode, self.stride)
+        return (input_shape[0], length, input_shape[2])
+
+    def pooling_function(self, back_end, inputs, pool_size, strides, border_mode, dim_ordering):
+        raise NotImplementedError
+
+    def get_output(self, train=False):
+        X = self.get_input(train)
+        X = K.expand_dims(X, -1)   # add dummy last dimension
+        X = K.permute_dimensions(X, (0, 2, 1, 3))
+        output = self.pooling_function(back_end=K, inputs=X, pool_size=self.pool_size,
+                             strides=self.st,
+                             border_mode=self.border_mode,
+                             dim_ordering='th')
+        output = K.permute_dimensions(output, (0, 2, 1, 3))
+        return K.squeeze(output, 3)  # remove dummy last dimension
+
+    def get_config(self):
+        config = {"name": self.__class__.__name__,
+                  "stride": self.stride,
+                  "pool_length": self.pool_length,
+                  "border_mode": self.border_mode}
+        base_config = super(MaxPooling1D, self).get_config()
+        return dict(list(base_config.items()) + list(config.items()))
+
+
+class MaxPooling1D(Pooling1D):
+    def __init__(self, **kwargs):
+        super(MaxPooling1D, self).__init__(**kwargs)
+
+    def pooling_function(self, back_end, inputs, pool_size, strides, border_mode, dim_ordering):
+        output = back_end.maxpool2d(inputs, pool_size=self.pool_size, strides=self.st,
+                border_mode=self.border_mode,
+                dim_ordering='th')
+        return output
+
+
+class _MaxPooling1D(Layer):
     input_ndim = 3
 
     def __init__(self, pool_length=2, stride=None,
@@ -506,3 +562,28 @@ class ZeroPadding2D(Layer):
                   "padding": self.padding}
         base_config = super(ZeroPadding2D, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
+
+
+
+class GlobalPooling2D(Layer):
+    """
+    By @entron
+    Borrowed and modified from here: https://github.com/fchollet/keras/pull/522
+    """
+    def __init__(self, pooling_function='average'):
+        super(GlobalPooling2D, self).__init__()
+        if pooling_function not in {'average', 'max'}:
+            raise Exception('Invalid pooling function for GlobalPooling2D:', pooling_function)
+        if pooling_function == 'average':
+            self.pooling_function = K.mean
+        else:
+            self.pooling_function = K.max
+        self.input = K.placeholder(ndim=4)
+
+    def get_output(self, train):
+        X = self.get_input(train)
+        return self.pooling_function(self.pooling_function(X, axis=-1), axis=-1)
+
+    def get_config(self):
+        return {"name": self.__class__.__name__,
+                "pooling_function": self.pooling_function.__name__}
