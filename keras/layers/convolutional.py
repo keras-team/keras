@@ -281,7 +281,7 @@ class Pooling1D(Layer):
                   "stride": self.stride,
                   "pool_length": self.pool_length,
                   "border_mode": self.border_mode}
-        base_config = super(MaxPooling1D, self).get_config()
+        base_config = super(Pooling1D, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
 
@@ -353,7 +353,7 @@ class Pooling2D(Layer):
                   "border_mode": self.border_mode,
                   "strides": self.strides,
                   "dim_ordering": self.dim_ordering}
-        base_config = super(MaxPooling2D, self).get_config()
+        base_config = super(Pooling2D, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
 
