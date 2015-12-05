@@ -26,7 +26,7 @@ class TestCall(unittest.TestCase):
         F = K.function([X], [Y])
 
         x = np.random.randn(nb_samples, input_dim).astype(K.floatx())
-        y = F([x])[0]
+        y = F([x])[0].astype(K.floatx())
         assert_allclose(np.dot(x, W), y)
 
     def test_sequential_call(self):
@@ -41,7 +41,7 @@ class TestCall(unittest.TestCase):
         F = K.function([X], [Y])
 
         x = np.random.randn(nb_samples, input_dim).astype(K.floatx())
-        y1 = F([x])[0]
+        y1 = F([x])[0].astype(K.floatx())
         y2 = model.predict(x)
         # results of __call__ should match model.predict
         assert_allclose(y1, y2)
