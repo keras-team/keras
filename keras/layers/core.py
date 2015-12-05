@@ -33,6 +33,15 @@ class Layer(object):
         if not hasattr(self, 'params'):
             self.params = []
 
+    def __call__(self, X, train=False):
+        # set temporary input
+        tmp = self.get_input
+        self.get_input = lambda _: X
+        Y = self.get_output(train=train)
+        # return input to what it was
+        self.get_input = tmp
+        return Y
+
     def set_previous(self, layer, connection_map={}):
         assert self.nb_input == layer.nb_output == 1, "Cannot connect layers: input count and output count should be 1."
         if hasattr(self, 'input_ndim'):
@@ -1008,7 +1017,7 @@ class Lambda(Layer):
             self.function = marshal.dumps(function.func_code)
         if output_shape is None:
             self._output_shape = None
-        elif type(output_shape) in {tuple, list} :
+        elif type(output_shape) in {tuple, list}:
             self._output_shape = tuple(output_shape)
         else:
             if py3:
