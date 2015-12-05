@@ -1,7 +1,6 @@
 from __future__ import absolute_import
 from __future__ import print_function
 import numpy as np
-np.random.seed(1337)  # for reproducibility
 
 from keras.datasets import mnist
 from keras.models import Sequential
@@ -20,6 +19,7 @@ def run_mnist_mlp(nb_epoch = 20):
 
     :param nb_epoch - number of training epochs
     '''
+    np.random.seed(1337)  # for reproducibility
 
     batch_size = 128
     nb_classes = 10
