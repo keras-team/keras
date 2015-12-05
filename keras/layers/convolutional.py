@@ -342,7 +342,7 @@ class Pooling2D(Layer):
     def get_output(self, train=False):
         X = self.get_input(train)
         output = self.pooling_function(back_end=K, inputs=X, pool_size=self.pool_size,
-                strides=self.st,
+                strides=self.strides,
                 border_mode=self.border_mode,
                 dim_ordering='th')
         return output
@@ -360,7 +360,9 @@ class Pooling2D(Layer):
 class MaxPooling2D(Pooling2D):
     def __init__(self, **kwargs):
         super(MaxPooling2D, self).__init__(**kwargs)
-        output = K.maxpool2d(X, pool_size=self.pool_size,
+
+    def pooling_function(self, back_end, inputs, pool_size, strides, border_mode, dim_ordering):
+        output = back_end.maxpool2d(inputs, pool_size=self.pool_size,
                              strides=self.strides,
                              border_mode=self.border_mode,
                              dim_ordering=self.dim_ordering)
