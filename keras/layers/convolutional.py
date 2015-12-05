@@ -366,64 +366,6 @@ class MaxPooling2D(Pooling2D):
                              dim_ordering=self.dim_ordering)
         return output
 
-class MaxPooling2D(Layer):
-    input_ndim = 4
-
-    def __init__(self, pool_size=(2, 2), strides=None, border_mode='valid',
-                 dim_ordering='th', **kwargs):
-        super(MaxPooling2D, self).__init__(**kwargs)
-        self.input = K.placeholder(ndim=4)
-        self.pool_size = tuple(pool_size)
-        if strides is None:
-            strides = self.pool_size
-        self.strides = tuple(strides)
-        assert border_mode in {'valid', 'same'}, 'border_mode must be in {valid, same}'
-        self.border_mode = border_mode
-        assert dim_ordering in {'tf', 'th'}, 'dim_ordering must be in {tf, th}'
-        self.dim_ordering = dim_ordering
-
-    @property
-    def output_shape(self):
-        input_shape = self.input_shape
-        if self.dim_ordering == 'th':
-            rows = input_shape[2]
-            cols = input_shape[3]
-        elif self.dim_ordering == 'tf':
-            rows = input_shape[1]
-            cols = input_shape[2]
-        else:
-            raise Exception('Invalid dim_ordering: ' + self.dim_ordering)
-
-        rows = conv_output_length(rows, self.pool_size[0],
-                                  self.border_mode, self.strides[0])
-        cols = conv_output_length(cols, self.pool_size[1],
-                                  self.border_mode, self.strides[1])
-
-        if self.dim_ordering == 'th':
-            return (input_shape[0], input_shape[1], rows, cols)
-        elif self.dim_ordering == 'tf':
-            return (input_shape[0], rows, cols, input_shape[3])
-        else:
-            raise Exception('Invalid dim_ordering: ' + self.dim_ordering)
-
-    def get_output(self, train=False):
-        X = self.get_input(train)
-        output = K.maxpool2d(X, pool_size=self.pool_size,
-                             strides=self.strides,
-                             border_mode=self.border_mode,
-                             dim_ordering=self.dim_ordering)
-        return output
-
-    def get_config(self):
-        config = {"name": self.__class__.__name__,
-                  "pool_size": self.pool_size,
-                  "border_mode": self.border_mode,
-                  "strides": self.strides,
-                  "dim_ordering": self.dim_ordering}
-        base_config = super(MaxPooling2D, self).get_config()
-        return dict(list(base_config.items()) + list(config.items()))
-
-
 
 class UpSampling1D(Layer):
     input_ndim = 3
