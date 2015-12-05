@@ -9,3 +9,10 @@ keras/datasets/temp/*
 docs/site/*
 docs/theme/*
 tags
+
+# test-related
+.coverage
+.cache
+
+# developer environments
+.idea
