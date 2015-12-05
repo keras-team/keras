@@ -10,7 +10,7 @@ keras.layers.embeddings.Embedding(input_dim, output_dim,
                                   input_length=None)
 ```
 
-Turn positive integers (indexes) into denses vectors of fixed size,
+Turn positive integers (indexes) into dense vectors of fixed size,
 eg. `[[4], [20]] -> [[0.25, 0.1], [0.6, -0.2]]`
 
 - __Input shape__: 2D tensor with shape: `(nb_samples, sequence_length)`.

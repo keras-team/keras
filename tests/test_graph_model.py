@@ -139,7 +139,7 @@ class TestGraph(unittest.TestCase):
         assert(loss < 4.)
 
         print('test weight saving')
-        graph.save_weights('temp.h5', overwrite=True)
+        graph.save_weights('test_2o_1i_weights_temp.h5', overwrite=True)
         graph = Graph()
         graph.add_input(name='input1', input_shape=(32,))
         graph.add_node(Dense(16), name='dense1', input='input1')
@@ -148,7 +148,7 @@ class TestGraph(unittest.TestCase):
         graph.add_output(name='output1', input='dense2')
         graph.add_output(name='output2', input='dense3')
         graph.compile('rmsprop', {'output1': 'mse', 'output2': 'mse'})
-        graph.load_weights('temp.h5')
+        graph.load_weights('test_2o_1i_weights_temp.h5')
         nloss = graph.evaluate({'input1': X_test, 'output1': y_test, 'output2': y2_test})
         print(nloss)
         assert(loss == nloss)
