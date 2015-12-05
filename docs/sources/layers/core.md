@@ -1,6 +1,6 @@
 ## Base class
 
-Note: Where ever we refer to a "Tensor" bear in mind that its type depends on the backend you are using.
+Note: Where ever we refer to a *Tensor*, bear in mind that its type depends on the backend you are using.
 
 ```python
 keras.layers.core.Layer()
@@ -18,7 +18,7 @@ Apply layer transformation an input Tensor `X`.
 
 - __Arguments__:
     - __X__: Tensor. Input Tensor.
-    - __train__: bool. Specifies whether output is computed in training mode or in testing mode, which can change the logic, for instance in there are any `Dropout` layers in the network.
+    - __train__: bool. Specifies whether output is computed in training mode or in testing mode, which may. change the logic. For instance Dropout and regularization is not applied is testing mode.
 
 
 ```python
