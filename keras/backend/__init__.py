@@ -27,7 +27,9 @@ else:
     _config = {'floatx': floatx(),
                'epsilon': epsilon(),
                'backend': _BACKEND}
-    json.dump(_config, open(_config_path, 'w'))
+    with open(_config_path, 'w') as f:
+        # add new line in order for bash 'cat' display the content correctly
+        f.write(json.dumps(_config) + '\n')
 
 if _BACKEND == 'theano':
     print('Using Theano backend.')
@@ -36,4 +38,4 @@ elif _BACKEND == 'tensorflow':
     print('Using TensorFlow backend.')
     from .tensorflow_backend import *
 else:
-    raise Exception('Unknown backend: ' + str(backend))
+    raise Exception('Unknown backend: ' + str(_BACKEND))

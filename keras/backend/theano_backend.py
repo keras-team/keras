@@ -515,7 +515,8 @@ def dropout(x, level, seed=None):
 # CONVOLUTIONS
 
 
-def conv2d(x, kernel, strides=(1, 1), border_mode='valid', dim_ordering='th'):
+def conv2d(x, kernel, strides=(1, 1), border_mode='valid', dim_ordering='th',
+           image_shape=None, filter_shape=None):
     '''
     Run on cuDNN if available.
     border_mode: string, "same" or "valid".
@@ -532,6 +533,12 @@ def conv2d(x, kernel, strides=(1, 1), border_mode='valid', dim_ordering='th'):
         # TF kernel shape: (rows, cols, input_depth, depth)
         x = x.dimshuffle((0, 3, 1, 2))
         kernel = kernel.dimshuffle((3, 2, 0, 1))
+        if image_shape:
+            image_shape = (image_shape[0], image_shape[3],
+                           image_shape[1], image_shape[2])
+        if filter_shape:
+            filter_shape = (filter_shape[3], filter_shape[2],
+                            filter_shape[0], filter_shape[1])
 
     if _on_gpu() and dnn.dnn_available():
         if border_mode == 'same':
@@ -558,7 +565,9 @@ def conv2d(x, kernel, strides=(1, 1), border_mode='valid', dim_ordering='th'):
 
         conv_out = T.nnet.conv.conv2d(x, kernel,
                                       border_mode=th_border_mode,
-                                      subsample=strides)
+                                      subsample=strides,
+                                      image_shape=image_shape,
+                                      filter_shape=filter_shape)
         if border_mode == 'same':
             shift_x = (kernel.shape[2] - 1) // 2
             shift_y = (kernel.shape[3] - 1) // 2

@@ -16,13 +16,13 @@ def mean_absolute_error(y_true, y_pred):
 
 
 def mean_absolute_percentage_error(y_true, y_pred):
-    diff = K.abs((y_true - y_pred) / K.clip(K.abs(y_true), K._EPSILON, np.inf))
+    diff = K.abs((y_true - y_pred) / K.clip(K.abs(y_true), K.epsilon(), np.inf))
     return 100. * K.mean(diff, axis=-1)
 
 
 def mean_squared_logarithmic_error(y_true, y_pred):
-    first_log = K.log(K.clip(y_pred, K._EPSILON, np.inf) + 1.)
-    second_log = K.log(K.clip(y_true, K._EPSILON, np.inf) + 1.)
+    first_log = K.log(K.clip(y_pred, K.epsilon(), np.inf) + 1.)
+    second_log = K.log(K.clip(y_true, K.epsilon(), np.inf) + 1.)
     return K.mean(K.square(first_log - second_log), axis=-1)
 
 
@@ -45,7 +45,7 @@ def binary_crossentropy(y_true, y_pred):
 
 
 def poisson_loss(y_true, y_pred):
-    return K.mean(y_pred - y_true * K.log(y_pred + K._EPSILON), axis=-1)
+    return K.mean(y_pred - y_true * K.log(y_pred + K.epsilon()), axis=-1)
 
 # aliases
 mse = MSE = mean_squared_error
