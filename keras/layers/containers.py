@@ -24,7 +24,7 @@ class Sequential(Layer):
             self.add(layer)
 
     def __call__(self, X, train=False):
-        # temporally substitute input of first layer
+        # set temporary input to first layer
         tmp = self.layers[0].get_input
         self.layers[0].get_input = lambda _: X
         Y = self.get_output(train=train)

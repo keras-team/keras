@@ -1,6 +1,6 @@
 ## Base class
 
-Note: Where ever we refer to a "Tensor" bear in mind that its the type depends on the backend you are using.
+Note: Where ever we refer to a "Tensor" bear in mind that its type depends on the backend you are using.
 
 ```python
 keras.layers.core.Layer()
@@ -12,13 +12,14 @@ __Methods__:
 __call__
 ```
 
-Apply Layer to an external input tensor.
+Apply layer transformation defined by its `get_output` method to an input `X`.
 
 - __Return__: Tensor.
 
 - __Arguments__:
     - __X__: Tensor. External input Tensor that will temporally replace
         __get_input__ value.
+    - __train__: bool. Specifies whether output is computed in training mode or in testing mode, which can change the logic, for instance in there are any `Dropout` layers in the network.
 
 
 ```python

@@ -34,7 +34,7 @@ class Layer(object):
             self.params = []
 
     def __call__(self, X, train=False):
-        # temporally substitute input
+        # set temporary input
         tmp = self.get_input
         self.get_input = lambda _: X
         Y = self.get_output(train=train)
