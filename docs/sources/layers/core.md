@@ -12,13 +12,12 @@ __Methods__:
 __call__
 ```
 
-Apply layer transformation defined by its `get_output` method to an input `X`.
+Apply layer transformation an input Tensor `X`.
 
 - __Return__: Tensor.
 
 - __Arguments__:
-    - __X__: Tensor. External input Tensor that will temporally replace
-        __get_input__ value.
+    - __X__: Tensor. Input Tensor.
     - __train__: bool. Specifies whether output is computed in training mode or in testing mode, which can change the logic, for instance in there are any `Dropout` layers in the network.
 
 
