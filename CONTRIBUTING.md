@@ -7,14 +7,9 @@ Found a bug? Have a new feature to suggest? Want to contribute changes to the co
 Your code doesn't work, and you have determined that the issue lies with Keras? Follow these steps to report a bug.
 
 1. Your bug may already be fixed. Make sure to update to the current Keras master branch, as well as the latest Theano/TensorFlow master branch.
-To easily update Theano:
-```
-pip install git+git://github.com/Theano/Theano.git --upgrade
-```
+To easily update Theano: `pip install git+git://github.com/Theano/Theano.git --upgrade`
 
-2. Search for similar issues. It's possible somebody has encountered this bug already.
-
-Still having a problem? Open an issue on Github to let us know.
+2. Search for similar issues. It's possible somebody has encountered this bug already. Still having a problem? Open an issue on Github to let us know.
 
 3. Make sure you provide us with useful information about your configuration: what OS are you using? What Keras backend are you using? Are you running on GPU? If so, what is your version of Cuda, of cuDNN? What is your GPU?
 
@@ -41,27 +36,25 @@ We love pull requests. Here's a quick guide:
 
 1. If your PR introduces a change in functionality, make sure you start by opening an issue to discuss whether the change should be made, and how to handle it. This will save you from having your PR closed down the road! Of course, if your PR is a simple bug fix, you don't need to do that.
 
-2. Code. This is the hard part! We use PEP8 syntax conventions, but we aren't dogmatic when it comes to line length. Make sure your lines stay reasonably sized, though.
+2. Write the code. This is the hard part! We use PEP8 syntax conventions, but we aren't dogmatic when it comes to line length. Make sure your lines stay reasonably sized, though.
 
 3. Make sure any new function or class you introduce has proper docstrings. Make sure any code you touch still has up-to-date docstrings and documentation.
 
 4. Write tests. Your code should have full unit test coverage. If you want to see your PR merged promptly, this is crucial.
 
-5. Run our test suite locally. It's easy: from the Keras folder, simply run:
-```
-py.test tests/
-```
+5. Run our test suite locally. It's easy: from the Keras folder, simply run: `py.test tests/`.
+  - You will need to install `pytest`, `coveralls`, `pytest-cov`, `pytest-xdist`: `pip install pytest pytest-cov python-coveralls pytest-xdist`
 
-You will need to install:
-- py.test: `pip install pytest`
-- coveralls, pytest-cov, pytest-xdist: `pip install pytest-cov python-coveralls pytest-xdist`
+6. Make sure all tests are passing:
+  - with the Theano backend, on Python 2.7 and Python 3.5
+  - with the TensorFlow backend, on Python 2.7
 
-Make sure all tests are passing:
-- with the Theano backend, on Python 2.7 and Python 3.5
-- with the TensorFlow backend, on Python 2.7
+7. When committing, use appropriate, descriptive commit messages. Make sure that your branch history is not a string of "bug fix", "fix", "oops", etc. When submitting your PR, squash your commit history into 1-3 easy to follow commits, to make sure the project history stays clean and readable.
 
-6. When committing, use appropriate, descriptive commit messages. Make sure that your branch history is not a string of "bug fix", "fix", "oops", etc. When submitting your PR, squash your commit history into 1-3 easy to follow commits, to make sure the project history stays clean and readable.
+8. Update the documentation. If introducing new functionality, make sure you include code snippets demonstrating the usage of your new feature.
 
-7. Update the documentation. If introducing new functionality, make sure you include code snippets demonstrating the usage of your new feature.
+9. Submit your PR. If your changes have been approved in a previous discussion, and if you have have complete (and passing) unit tests, your PR is likely to be merged promptly. Otherwise, well...
 
-8. Submit your PR. If your changes have been approved in a previous discussion, and if you have have complete (and passing) unit tests, your PR is likely to be merged promptly. Otherwise, well...
+## Adding new examples
+
+Even if you don't contribute to the Keras source code, if you have an application of Keras that is concise and powerful, please consider adding it to our collection of examples. Existing examples show idomatic Keras code: make sure to keep your own script in the same spirit.
