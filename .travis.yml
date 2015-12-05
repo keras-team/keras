@@ -9,6 +9,8 @@ matrix:
           env: KERAS_BACKEND=theano
         - python: 2.7
           env: KERAS_BACKEND=tensorflow
+        - python: 2.7
+          env: KERAS_BACKEND=theano RUN_KERAS_EXAMPLES_TESTS=true
 install:
   # code below is taken from http://conda.pydata.org/docs/travis.html
   # We do this conditionally because it saves us some downloading if the
@@ -43,6 +45,10 @@ script:
   # set up keras backend
   - sed -i -e 's/"backend":[[:space:]]*"[^"]*/"backend":\ "'$KERAS_BACKEND'/g' ~/.keras/keras.json;
   - echo -e "Running tests with the following config:\n$(cat ~/.keras/keras.json)"
-  - PYTHONPATH=$PWD:$PYTHONPATH py.test tests/
+  - if [[ "$RUN_KERAS_EXAMPLES_TESTS" == "true" ]]; then
+      PYTHONPATH=$PWD:$PYTHONPATH py.test examples/;
+    else
+      PYTHONPATH=$PWD:$PYTHONPATH py.test tests/;
+    fi
 after_success:
   - coveralls
