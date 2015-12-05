@@ -1,5 +1,5 @@
 # encoding: utf-8
-"""Test seya.layers.recurrent module"""
+"""Test keras.layers.core.Layer.__call__"""
 
 from __future__ import print_function
 
@@ -11,7 +11,6 @@ from numpy.testing import assert_allclose
 from keras import backend as K
 from keras.layers.core import Dense
 from keras.models import Sequential
-floatX = K.common._FLOATX
 
 
 class TestCall(unittest.TestCase):
@@ -26,7 +25,7 @@ class TestCall(unittest.TestCase):
         Y = layer(X)
         F = K.function([X], [Y])
 
-        x = np.random.randn(nb_samples, input_dim).astype(floatX)
+        x = np.random.randn(nb_samples, input_dim).astype(K.floatx())
         y = F([x])[0]
         assert_allclose(np.dot(x, W), y)
 
@@ -41,7 +40,7 @@ class TestCall(unittest.TestCase):
         Y = model(X)
         F = K.function([X], [Y])
 
-        x = np.random.randn(nb_samples, input_dim).astype(floatX)
+        x = np.random.randn(nb_samples, input_dim).astype(K.floatx())
         y1 = F([x])[0]
         y2 = model.predict(x)
         # results of __call__ should match model.predict
