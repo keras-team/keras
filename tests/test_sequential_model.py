@@ -14,11 +14,11 @@ import os
 input_dim = 32
 nb_hidden = 16
 nb_class = 4
-batch_size = 64
+batch_size = 32
 nb_epoch = 1
 
-train_samples = 5000
-test_samples = 1000
+train_samples = 2000
+test_samples = 500
 
 (X_train, y_train), (X_test, y_test) = get_test_data(nb_train=train_samples,
                                                      nb_test=test_samples,
