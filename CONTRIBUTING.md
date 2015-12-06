@@ -57,4 +57,4 @@ We love pull requests. Here's a quick guide:
 
 ## Adding new examples
 
-Even if you don't contribute to the Keras source code, if you have an application of Keras that is concise and powerful, please consider adding it to our collection of examples. Existing examples show idomatic Keras code: make sure to keep your own script in the same spirit.
+Even if you don't contribute to the Keras source code, if you have an application of Keras that is concise and powerful, please consider adding it to our collection of examples. Existing examples show idiomatic Keras code: make sure to keep your own script in the same spirit.
