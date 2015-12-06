@@ -335,7 +335,6 @@ class Graph(Layer):
             else:
                 raise Exception('Unknown identifier: ' + input)
         s = Siamese(layer, layers, merge_mode, concat_axis=concat_axis, dot_axes=dot_axes)
-        s.set_name(name)
         self.namespace.add(name)
         self.nodes[name] = s
         self.node_config.append({'name': name,
