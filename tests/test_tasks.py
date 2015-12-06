@@ -53,6 +53,7 @@ def test_vector_regression():
 
 
 def test_temporal_classification():
+    np.random.seed(1337)
     (X_train, y_train), (X_test, y_test) = get_test_data(nb_train=500,
                                                          nb_test=200,
                                                          input_shape=(3, 5),
