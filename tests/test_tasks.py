@@ -14,9 +14,9 @@ from keras.utils.np_utils import to_categorical
 def test_vector_classification():
     nb_hidden = 10
 
-    (X_train, y_train), (X_test, y_test) = get_test_data(nb_train=1000,
+    (X_train, y_train), (X_test, y_test) = get_test_data(nb_train=500,
                                                          nb_test=200,
-                                                         input_shape=(10,),
+                                                         input_shape=(20,),
                                                          classification=True,
                                                          nb_class=2)
     y_train = to_categorical(y_train)
@@ -35,9 +35,9 @@ def test_vector_classification():
 
 def test_vector_regression():
     nb_hidden = 10
-    (X_train, y_train), (X_test, y_test) = get_test_data(nb_train=1000,
+    (X_train, y_train), (X_test, y_test) = get_test_data(nb_train=500,
                                                          nb_test=200,
-                                                         input_shape=(10,),
+                                                         input_shape=(20,),
                                                          output_shape=(2,),
                                                          classification=False)
 
@@ -47,13 +47,13 @@ def test_vector_regression():
     ])
 
     model.compile(loss='hinge', optimizer='adagrad')
-    history = model.fit(X_train, y_train, nb_epoch=12, batch_size=16,
+    history = model.fit(X_train, y_train, nb_epoch=20, batch_size=16,
                         validation_data=(X_test, y_test), verbose=0)
     assert (history.history['val_loss'][-1] < 0.9)
 
 
 def test_temporal_classification():
-    (X_train, y_train), (X_test, y_test) = get_test_data(nb_train=1000,
+    (X_train, y_train), (X_test, y_test) = get_test_data(nb_train=500,
                                                          nb_test=200,
                                                          input_shape=(3, 5),
                                                          classification=True,
@@ -66,14 +66,14 @@ def test_temporal_classification():
                   input_shape=(X_train.shape[1], X_train.shape[2]),
                   activation='softmax'))
     model.compile(loss='categorical_crossentropy', optimizer='adadelta')
-    history = model.fit(X_train, y_train, nb_epoch=12, batch_size=16,
+    history = model.fit(X_train, y_train, nb_epoch=20, batch_size=16,
                         validation_data=(X_test, y_test),
                         show_accuracy=True, verbose=0)
     assert(history.history['val_acc'][-1] > 0.9)
 
 
 def test_temporal_regression():
-    (X_train, y_train), (X_test, y_test) = get_test_data(nb_train=1000,
+    (X_train, y_train), (X_test, y_test) = get_test_data(nb_train=500,
                                                          nb_test=200,
                                                          input_shape=(3, 5),
                                                          output_shape=(2,),
@@ -82,13 +82,13 @@ def test_temporal_regression():
     model.add(GRU(y_train.shape[-1],
               input_shape=(X_train.shape[1], X_train.shape[2])))
     model.compile(loss='hinge', optimizer='adam')
-    history = model.fit(X_train, y_train, nb_epoch=12, batch_size=16,
+    history = model.fit(X_train, y_train, nb_epoch=20, batch_size=16,
                         validation_data=(X_test, y_test), verbose=0)
     assert(history.history['val_loss'][-1] < 0.8)
 
 
 def test_sequence_to_sequence():
-    (X_train, y_train), (X_test, y_test) = get_test_data(nb_train=1000,
+    (X_train, y_train), (X_test, y_test) = get_test_data(nb_train=500,
                                                          nb_test=200,
                                                          input_shape=(3, 5),
                                                          output_shape=(3, 5),
@@ -98,13 +98,13 @@ def test_sequence_to_sequence():
     model.add(TimeDistributedDense(y_train.shape[-1],
               input_shape=(X_train.shape[1], X_train.shape[2])))
     model.compile(loss='hinge', optimizer='rmsprop')
-    history = model.fit(X_train, y_train, nb_epoch=12, batch_size=16,
+    history = model.fit(X_train, y_train, nb_epoch=20, batch_size=16,
                         validation_data=(X_test, y_test), verbose=0)
     assert(history.history['val_loss'][-1] < 0.8)
 
 
 def test_image_classification():
-    (X_train, y_train), (X_test, y_test) = get_test_data(nb_train=1000,
+    (X_train, y_train), (X_test, y_test) = get_test_data(nb_train=500,
                                                          nb_test=200,
                                                          input_shape=(3, 8, 8),
                                                          classification=True,
@@ -118,7 +118,7 @@ def test_image_classification():
         Dense(y_test.shape[-1], activation='softmax')
     ])
     model.compile(loss='categorical_crossentropy', optimizer='sgd')
-    history = model.fit(X_train, y_train, nb_epoch=12, batch_size=16,
+    history = model.fit(X_train, y_train, nb_epoch=20, batch_size=16,
                         validation_data=(X_test, y_test),
                         show_accuracy=True, verbose=0)
     assert(history.history['val_acc'][-1] > 0.9)
