@@ -36,7 +36,7 @@ Keras is compatible with:
 
 ## Getting started: 30 seconds to Keras
 
-The core datastructure of Keras is a __model__, a way to organize layers. There are two types of models: [`Sequential`](/models/#sequential) and [`Graph`](/models/#graph).
+The core datastructure of Keras is a __model__, a way to organize layers. There are two types of models: [`Sequential`](http://keras.io/models/#sequential) and [`Graph`](http://keras.io/models/#graph).
 
 Here's the `Sequential` model (a linear pile of layers):
 
