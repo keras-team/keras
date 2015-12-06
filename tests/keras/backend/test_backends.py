@@ -224,9 +224,9 @@ class TestBackend(unittest.TestCase):
         assert len(new_states) == 1
         tf_state = KTF.eval(new_states[0])
 
-        assert_allclose(tf_last_output, th_last_output, atol=1e-05)
-        assert_allclose(tf_outputs, th_outputs, atol=1e-05)
-        assert_allclose(tf_state, th_state, atol=1e-05)
+        assert_allclose(tf_last_output, th_last_output, atol=1e-04)
+        assert_allclose(tf_outputs, th_outputs, atol=1e-04)
+        assert_allclose(tf_state, th_state, atol=1e-04)
 
     def test_switch(self):
         val = np.random.random()
