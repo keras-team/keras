@@ -2,6 +2,7 @@ import theano
 from theano import tensor as T
 from theano.sandbox.rng_mrg import MRG_RandomStreams as RandomStreams
 from theano.tensor.signal import downsample
+from theano.tensor.nnet.neighbours import images2neibs
 import numpy as np
 from .common import _FLOATX, _EPSILON
 
@@ -579,8 +580,8 @@ def conv2d(x, kernel, strides=(1, 1), border_mode='valid', dim_ordering='th',
     return conv_out
 
 
-def maxpool2d(x, pool_size, strides=(1, 1), border_mode='valid',
-              dim_ordering='th'):
+def pool2d(x, pool_size, strides=(1, 1), border_mode='valid',
+              dim_ordering='th', pool_mode='sum'):
     if border_mode == 'same':
         # TODO: add implementation for border_mode="same"
         raise Exception('border_mode="same" not supported with Theano.')
@@ -596,16 +597,19 @@ def maxpool2d(x, pool_size, strides=(1, 1), border_mode='valid',
     if dim_ordering == 'tf':
         x = x.dimshuffle((0, 3, 1, 2))
 
-    pool_out = downsample.max_pool_2d(x,
-                                      ds=pool_size,
-                                      st=strides,
-                                      ignore_border=ignore_border,
-                                      padding=padding,
-                                      mode='average_exc_pad')
+    if pool_mode == 'max':
+        pool_out = downsample.max_pool_2d(x,ds=pool_size,st=strides,ignore_border=ignore_border,padding=padding, mode='average_exc_pad')
+    elif pool_mode == 'mean':
+        # Only seems to work with mode='ignore_borders' right now
+        pool_out = images2neibs(x,neib_shape=pool_size,neib_step=strides, mode='ignore_borders').mean(axis=-1)
+    #elif pool_mode == 'sum':
+    #    pool_out = images2neibs(x,neib_shape=pool_size,neib_step=strides, mode='ignore_borders').sum(axis=-1)
+    else:
+        raise Exception('Invalid pooling mode: ' + str(pool_mode))
+
     if dim_ordering == 'tf':
         pool_out = pool_out.dimshuffle((0, 2, 3, 1))
     return pool_out
-
 
 # RANDOMNESS
 
@@ -621,8 +625,6 @@ def random_uniform(shape, low=0.0, high=1.0, dtype=_FLOATX, seed=None):
         seed = np.random.randint(10e6)
     rng = RandomStreams(seed=seed)
     return rng.uniform(shape, low=low, high=high, dtype=dtype)
-
-
 
 '''
 more TODO:
