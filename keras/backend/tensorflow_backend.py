@@ -545,8 +545,8 @@ def conv2d(x, kernel, strides=(1, 1), border_mode='valid', dim_ordering='th',
     return x
 
 
-def maxpool2d(x, pool_size, strides=(1, 1),
-              border_mode='valid', dim_ordering='th'):
+def pool2d(x, pool_size, strides=(1, 1),
+              border_mode='valid', dim_ordering='th', pool_mode='max'):
     '''
     pool_size: tuple of 2 integers.
     strides: tuple of 2 integers.
@@ -575,10 +575,20 @@ def maxpool2d(x, pool_size, strides=(1, 1),
         # TH kernel shape: (depth, input_depth, rows, cols)
         # TF kernel shape: (rows, cols, input_depth, depth)
         x = tf.transpose(x, (0, 2, 3, 1))
-        x = tf.nn.max_pool(x, pool_size, strides, padding=padding)
+        if pool_mode=='max':
+            x = tf.nn.max_pool(x, pool_size, strides, padding=padding)
+        elif pool_mode=='mean':
+            x = tf.nn.avg_pool(x, pool_size, strides, padding=padding)
+        else:
+            raise Exception('Invalid pooling mode: ' + str(pool_mode)
         x = tf.transpose(x, (0, 3, 1, 2))
     elif dim_ordering == 'tf':
-        x = tf.nn.max_pool(x, pool_size, strides, padding=padding)
+        if pool_mode=='max':
+            x = tf.nn.max_pool(x, pool_size, strides, padding=padding)
+        elif pool_mode=='mean':
+            x = tf.nn.avg_pool(x, pool_size, strides, padding=padding)
+        else:
+            raise Exception('Invalid pooling mode: ' + str(pool_mode)
     else:
         raise Exception('Unknown dim_ordering: ' + str(dim_ordering))
 
