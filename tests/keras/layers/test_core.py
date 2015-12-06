@@ -36,18 +36,24 @@ class TestLayerBase(unittest.TestCase):
             assert_allclose(K.eval(layer2.get_output(train)), input)
 
 
-class TestConfigParams(unittest.TestCase):
+class TestBuildConfigParams(unittest.TestCase):
     """
-    Test the constructor, config and params functions of all layers in core.
+    Test the constructor, build, config and params functions of all layers in core.
     """
 
     def _runner(self, layer):
+        assert isinstance(layer, core.Layer)
+        layer.build()
         conf = layer.get_config()
         assert (type(conf) == dict)
 
         param = layer.get_params()
         # Typically a list or a tuple, but may be any iterable
         assert hasattr(param, '__iter__')
+
+        #test the setter for the trainable attribute
+        layer.trainable = True
+        layer.trainable = False
 
     def test_base(self):
         layer = core.Layer()
@@ -109,7 +115,7 @@ class TestConfigParams(unittest.TestCase):
         self._runner(layer)
 
     def test_maxout_dense(self):
-        layer = core.MaxoutDense(10, 10)
+        layer = core.MaxoutDense(10, 10, input_shape=(20,))
         self._runner(layer)
 
 
