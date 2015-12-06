@@ -192,6 +192,12 @@ class Layer(object):
     def count_params(self):
         return sum([K.count_params(p) for p in self.params])
 
+    def fork(self, n=2):
+        forks = [Sequential() for i in range(n)]
+        for i in range(n):
+            forks[i].add(self)
+        return forks
+ 
 
 class MaskedLayer(Layer):
     '''
