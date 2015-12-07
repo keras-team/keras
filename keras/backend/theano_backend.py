@@ -602,8 +602,10 @@ def pool2d(x, pool_size, strides=(1, 1), border_mode='valid',
     elif pool_mode == 'mean':
         # Only seems to work with mode='ignore_borders' right now
         pool_out = images2neibs(x,neib_shape=pool_size,neib_step=strides, mode='ignore_borders').mean(axis=-1)
-    #elif pool_mode == 'sum':
-    #    pool_out = images2neibs(x,neib_shape=pool_size,neib_step=strides, mode='ignore_borders').sum(axis=-1)
+        pool_out = reshape(pool_out, (x.shape[0], x.shape[1], (x.shape[2]-pool_size[0])/strides[0]+1, (x.shape[3]-pool_size[1])/strides[1]+1))
+    elif pool_mode == 'sum':
+        pool_out = images2neibs(x,neib_shape=pool_size,neib_step=strides, mode='ignore_borders').sum(axis=-1)
+        pool_out = reshape(pool_out, (x.shape[0], x.shape[1], (x.shape[2]-pool_size[0])/strides[0]+1, (x.shape[3]-pool_size[1])/strides[1]+1))
     else:
         raise Exception('Invalid pooling mode: ' + str(pool_mode))
 
