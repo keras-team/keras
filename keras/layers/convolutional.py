@@ -290,8 +290,8 @@ class MaxPooling1D(Pooling1D):
         super(MaxPooling1D, self).__init__(**kwargs)
 
     def pooling_function(self, back_end, inputs, pool_size, strides, border_mode, dim_ordering):
-        output = back_end.pool2d(inputs, pool_size=self.pool_size, strides=self.st,
-                border_mode=self.border_mode, dim_ordering='th', pool_mode='max')
+        output = back_end.pool2d(inputs, pool_size, strides,
+                border_mode, dim_ordering, pool_mode='max')
         return output
 
 class MeanPooling1D(Pooling1D):
@@ -299,8 +299,8 @@ class MeanPooling1D(Pooling1D):
         super(MeanPooling1D, self).__init__(**kwargs)
 
     def pooling_function(self, back_end, inputs, pool_size, strides, border_mode, dim_ordering):
-        output = back_end.pool2d(inputs, pool_size=self.pool_size, strides=self.st,
-                border_mode=self.border_mode, dim_ordering='th', pool_mode='mean')
+        output = back_end.pool2d(inputs, pool_size, strides,
+                border_mode, dim_ordering, pool_mode='mean')
         return output
 
 
@@ -370,10 +370,8 @@ class MaxPooling2D(Pooling2D):
         super(MaxPooling2D, self).__init__(**kwargs)
 
     def pooling_function(self, back_end, inputs, pool_size, strides, border_mode, dim_ordering):
-        output = back_end.pool2d(inputs, pool_size=self.pool_size,
-                             strides=self.strides,
-                             border_mode=self.border_mode,
-                             dim_ordering=self.dim_ordering, pool_mode='max')
+        output = back_end.pool2d(inputs, pool_size, strides,
+                             border_mode, dim_ordering, pool_mode='max')
         return output
 
 class MeanPooling2D(Pooling2D):
@@ -381,10 +379,8 @@ class MeanPooling2D(Pooling2D):
         super(MeanPooling2D, self).__init__(**kwargs)
 
     def pooling_function(self, back_end, inputs, pool_size, strides, border_mode, dim_ordering):
-        output = back_end.pool2d(inputs, pool_size=self.pool_size,
-                             strides=self.strides,
-                             border_mode=self.border_mode,
-                             dim_ordering=self.dim_ordering, pool_mode='mean')
+        output = back_end.pool2d(inputs, pool_size, strides,
+                             border_mode, dim_ordering, pool_mode='max')
         return output
 
 
