@@ -580,7 +580,7 @@ def pool2d(x, pool_size, strides=(1, 1),
         elif pool_mode=='mean':
             x = tf.nn.avg_pool(x, pool_size, strides, padding=padding)
         else:
-            raise Exception('Invalid pooling mode: ' + str(pool_mode)
+            raise Exception('Invalid pooling mode: ' + str(pool_mode))
         x = tf.transpose(x, (0, 3, 1, 2))
     elif dim_ordering == 'tf':
         if pool_mode=='max':
@@ -588,7 +588,7 @@ def pool2d(x, pool_size, strides=(1, 1),
         elif pool_mode=='mean':
             x = tf.nn.avg_pool(x, pool_size, strides, padding=padding)
         else:
-            raise Exception('Invalid pooling mode: ' + str(pool_mode)
+            raise Exception('Invalid pooling mode: ' + str(pool_mode))
     else:
         raise Exception('Unknown dim_ordering: ' + str(dim_ordering))
 
