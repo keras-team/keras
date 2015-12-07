@@ -270,9 +270,9 @@ class Pooling1D(Layer):
         X = K.expand_dims(X, -1)   # add dummy last dimension
         X = K.permute_dimensions(X, (0, 2, 1, 3))
         output = self.pooling_function(back_end=K, inputs=X, pool_size=self.pool_size,
-                             strides=self.st,
-                             border_mode=self.border_mode,
-                             dim_ordering='th')
+                                       strides=self.st,
+                                       border_mode=self.border_mode,
+                                       dim_ordering='th')
         output = K.permute_dimensions(output, (0, 2, 1, 3))
         return K.squeeze(output, 3)  # remove dummy last dimension
 
@@ -291,8 +291,9 @@ class MaxPooling1D(Pooling1D):
 
     def pooling_function(self, back_end, inputs, pool_size, strides, border_mode, dim_ordering):
         output = back_end.pool2d(inputs, pool_size, strides,
-                border_mode, dim_ordering, pool_mode='max')
+                                 border_mode, dim_ordering, pool_mode='max')
         return output
+
 
 class MeanPooling1D(Pooling1D):
     def __init__(self, **kwargs):
@@ -300,7 +301,7 @@ class MeanPooling1D(Pooling1D):
 
     def pooling_function(self, back_end, inputs, pool_size, strides, border_mode, dim_ordering):
         output = back_end.pool2d(inputs, pool_size, strides,
-                border_mode, dim_ordering, pool_mode='mean')
+                                 border_mode, dim_ordering, pool_mode='mean')
         return output
 
 
@@ -350,9 +351,9 @@ class Pooling2D(Layer):
     def get_output(self, train=False):
         X = self.get_input(train)
         output = self.pooling_function(back_end=K, inputs=X, pool_size=self.pool_size,
-                strides=self.strides,
-                border_mode=self.border_mode,
-                dim_ordering='th')
+                                       strides=self.strides,
+                                       border_mode=self.border_mode,
+                                       dim_ordering=self.dim_ordering)
         return output
 
     def get_config(self):
@@ -371,8 +372,9 @@ class MaxPooling2D(Pooling2D):
 
     def pooling_function(self, back_end, inputs, pool_size, strides, border_mode, dim_ordering):
         output = back_end.pool2d(inputs, pool_size, strides,
-                             border_mode, dim_ordering, pool_mode='max')
+                                 border_mode, dim_ordering, pool_mode='max')
         return output
+
 
 class MeanPooling2D(Pooling2D):
     def __init__(self, **kwargs):
@@ -380,7 +382,7 @@ class MeanPooling2D(Pooling2D):
 
     def pooling_function(self, back_end, inputs, pool_size, strides, border_mode, dim_ordering):
         output = back_end.pool2d(inputs, pool_size, strides,
-                             border_mode, dim_ordering, pool_mode='max')
+                                 border_mode, dim_ordering, pool_mode='mean')
         return output
 
 

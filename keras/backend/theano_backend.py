@@ -2,7 +2,6 @@ import theano
 from theano import tensor as T
 from theano.sandbox.rng_mrg import MRG_RandomStreams as RandomStreams
 from theano.tensor.signal import downsample
-from theano.tensor.nnet.neighbours import images2neibs
 import numpy as np
 from .common import _FLOATX, _EPSILON
 
@@ -581,7 +580,7 @@ def conv2d(x, kernel, strides=(1, 1), border_mode='valid', dim_ordering='th',
 
 
 def pool2d(x, pool_size, strides=(1, 1), border_mode='valid',
-              dim_ordering='th', pool_mode='sum'):
+           dim_ordering='th', pool_mode='max'):
     if border_mode == 'same':
         # TODO: add implementation for border_mode="same"
         raise Exception('border_mode="same" not supported with Theano.')
@@ -598,14 +597,21 @@ def pool2d(x, pool_size, strides=(1, 1), border_mode='valid',
         x = x.dimshuffle((0, 3, 1, 2))
 
     if pool_mode == 'max':
-        pool_out = downsample.max_pool_2d(x,ds=pool_size,st=strides,ignore_border=ignore_border,padding=padding, mode='average_exc_pad')
+        pool_out = downsample.max_pool_2d(x, ds=pool_size, st=strides,
+                                          ignore_border=ignore_border,
+                                          padding=padding,
+                                          mode='max')
     elif pool_mode == 'mean':
         # Only seems to work with mode='ignore_borders' right now
-        pool_out = images2neibs(x,neib_shape=pool_size,neib_step=strides, mode='ignore_borders').mean(axis=-1)
-        pool_out = reshape(pool_out, (x.shape[0], x.shape[1], (x.shape[2]-pool_size[0])/strides[0]+1, (x.shape[3]-pool_size[1])/strides[1]+1))
+        pool_out = downsample.max_pool_2d(x, ds=pool_size, st=strides,
+                                          ignore_border=ignore_border,
+                                          padding=padding,
+                                          mode='average_exc_pad')
     elif pool_mode == 'sum':
-        pool_out = images2neibs(x,neib_shape=pool_size,neib_step=strides, mode='ignore_borders').sum(axis=-1)
-        pool_out = reshape(pool_out, (x.shape[0], x.shape[1], (x.shape[2]-pool_size[0])/strides[0]+1, (x.shape[3]-pool_size[1])/strides[1]+1))
+        pool_out = downsample.max_pool_2d(x, ds=pool_size, st=strides,
+                                          ignore_border=ignore_border,
+                                          padding=padding,
+                                          mode='sum')
     else:
         raise Exception('Invalid pooling mode: ' + str(pool_mode))
 
@@ -614,6 +620,7 @@ def pool2d(x, pool_size, strides=(1, 1), border_mode='valid',
     return pool_out
 
 # RANDOMNESS
+
 
 def random_normal(shape, mean=0.0, std=1.0, dtype=_FLOATX, seed=None):
     if seed is None:
