@@ -545,8 +545,8 @@ def conv2d(x, kernel, strides=(1, 1), border_mode='valid', dim_ordering='th',
     return x
 
 
-def maxpool2d(x, pool_size, strides=(1, 1),
-              border_mode='valid', dim_ordering='th'):
+def pool2d(x, pool_size, strides=(1, 1),
+           border_mode='valid', dim_ordering='th', pool_mode='max'):
     '''
     pool_size: tuple of 2 integers.
     strides: tuple of 2 integers.
@@ -567,18 +567,23 @@ def maxpool2d(x, pool_size, strides=(1, 1),
         # tf max_pool only supports float32
         x = tf.cast(x, 'float32')
 
-    if dim_ordering == 'th':
-        # TF uses the last dimension as channel dimension,
-        # instead of the 2nd one.
-        # TH input shape: (samples, input_depth, rows, cols)
-        # TF input shape: (samples, rows, cols, input_depth)
-        # TH kernel shape: (depth, input_depth, rows, cols)
-        # TF kernel shape: (rows, cols, input_depth, depth)
-        x = tf.transpose(x, (0, 2, 3, 1))
-        x = tf.nn.max_pool(x, pool_size, strides, padding=padding)
-        x = tf.transpose(x, (0, 3, 1, 2))
-    elif dim_ordering == 'tf':
-        x = tf.nn.max_pool(x, pool_size, strides, padding=padding)
+    if dim_ordering in {'tf', 'th'}:
+        if dim_ordering == 'th':
+            # TF uses the last dimension as channel dimension,
+            # instead of the 2nd one.
+            # TH input shape: (samples, input_depth, rows, cols)
+            # TF input shape: (samples, rows, cols, input_depth)
+            # TH kernel shape: (depth, input_depth, rows, cols)
+            # TF kernel shape: (rows, cols, input_depth, depth)
+            x = tf.transpose(x, (0, 2, 3, 1))
+        if pool_mode == 'max':
+            x = tf.nn.max_pool(x, pool_size, strides, padding=padding)
+        elif pool_mode == 'avg':
+            x = tf.nn.avg_pool(x, pool_size, strides, padding=padding)
+        else:
+            raise Exception('Invalid pooling mode: ' + str(pool_mode))
+        if dim_ordering == 'th':
+            x = tf.transpose(x, (0, 3, 1, 2))
     else:
         raise Exception('Unknown dim_ordering: ' + str(dim_ordering))
 

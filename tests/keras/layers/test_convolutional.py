@@ -58,6 +58,20 @@ class TestConvolutions(unittest.TestCase):
                 K.eval(layer.get_output(train))
             layer.get_config()
 
+    def test_averagepooling_1d(self):
+        nb_samples = 9
+        nb_steps = 7
+        input_dim = 10
+
+        input = np.ones((nb_samples, nb_steps, input_dim))
+        for stride in [1, 2]:
+            layer = convolutional.AveragePooling1D(stride=stride,
+                                                   border_mode='valid')
+            layer.input = K.variable(input)
+            for train in [True, False]:
+                K.eval(layer.get_output(train))
+            layer.get_config()
+
     def test_convolution_2d(self):
         nb_samples = 8
         nb_filter = 9
@@ -108,6 +122,23 @@ class TestConvolutions(unittest.TestCase):
             layer = convolutional.MaxPooling2D(strides=strides,
                                                border_mode='valid',
                                                pool_size=pool_size)
+            layer.input = K.variable(input)
+            for train in [True, False]:
+                K.eval(layer.get_output(train))
+            layer.get_config()
+
+    def test_averagepooling_2d(self):
+        nb_samples = 9
+        stack_size = 7
+        input_nb_row = 11
+        input_nb_col = 12
+        pool_size = (3, 3)
+
+        input = np.ones((nb_samples, stack_size, input_nb_row, input_nb_col))
+        for strides in [(1, 1), (2, 2)]:
+            layer = convolutional.AveragePooling2D(strides=strides,
+                                                   border_mode='valid',
+                                                   pool_size=pool_size)
             layer.input = K.variable(input)
             for train in [True, False]:
                 K.eval(layer.get_output(train))
