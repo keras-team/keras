@@ -112,7 +112,7 @@ def test_MaxPooling1D():
                     check_layer_output_shape(layer, input_data)
 
 
-def test_AveragePooling1D(self):
+def test_AveragePooling1D():
     for ignore_border in [True, False]:
         for pool_length in [1, 2]:
             for stride in [1]:
@@ -145,7 +145,7 @@ def test_MaxPooling2D():
                     check_layer_output_shape(layer, input_data)
 
 
-def test_AveragePooling2D(self):
+def test_AveragePooling2D():
     for ignore_border in [True, False]:
         for strides in [(1, 1), (2, 2)]:
             for pool_size in [(2, 2), (3, 3), (4, 4)]:
