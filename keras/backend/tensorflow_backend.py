@@ -502,7 +502,8 @@ def dropout(x, level, seed=None):
 # CONVOLUTIONS
 
 
-def conv2d(x, kernel, strides=(1, 1), border_mode='valid', dim_ordering='th'):
+def conv2d(x, kernel, strides=(1, 1), border_mode='valid', dim_ordering='th',
+           image_shape=None, filter_shape=None):
     '''
     Run on cuDNN if available.
     border_mode: string, "same" or "valid".

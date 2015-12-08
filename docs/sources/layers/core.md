@@ -1,10 +1,25 @@
 ## Base class
 
+Note: Where ever we refer to a *Tensor*, bear in mind that its type depends on the backend you are using.
+
 ```python
 keras.layers.core.Layer()
 ```
 
 __Methods__:
+
+```python
+__call__
+```
+
+Apply layer transformation an input Tensor `X`.
+
+- __Return__: Tensor.
+
+- __Arguments__:
+    - __X__: Tensor. Input Tensor.
+    - __train__: bool. Specifies whether output is computed in training mode or in testing mode, which may. change the logic. For instance Dropout and regularization is not applied is testing mode.
+
 
 ```python
 set_previous(previous_layer)
@@ -14,7 +29,7 @@ Connect the input of the current layer to the output of the argument layer.
 
 - __Return__: None.
 
-- __Arguments__: 
+- __Arguments__:
     - __previous_layer__: Layer object.
 
 
@@ -25,10 +40,10 @@ get_output(train)
 
 Get the output of the layer.
 
-- __Return__: Theano tensor.
+- __Return__: Tensor.
 
-- __Arguments__: 
-    - __train__: Boolean. Specifies whether output is computed in training mode or in testing mode, which can change the logic, for instance in there are any `Dropout` layers in the network. 
+- __Arguments__:
+    - __train__: Boolean. Specifies whether output is computed in training mode or in testing mode, which can change the logic, for instance in there are any `Dropout` layers in the network.
 
 
 
@@ -38,10 +53,10 @@ get_input(train)
 
 Get the input of the layer.
 
-- __Return__: Theano tensor.
+- __Return__: Tensor.
 
-- __Arguments__: 
-    - __train__: Boolean. Specifies whether output is computed in training mode or in testing mode, which can change the logic, for instance in there are any `Dropout` layers in the network. 
+- __Arguments__:
+    - __train__: Boolean. Specifies whether output is computed in training mode or in testing mode, which can change the logic, for instance in there are any `Dropout` layers in the network.
 
 
 
@@ -51,7 +66,7 @@ get_weights()
 
 Get the weights of the parameters of the layer.
 
-- __Return__: List of numpy arrays (one per layer parameter). 
+- __Return__: List of numpy arrays (one per layer parameter).
 
 
 
@@ -61,7 +76,7 @@ set_weights(weights)
 
 Set the weights of the parameters of the layer.
 
-- __Arguments__: 
+- __Arguments__:
     - __weights__: List of numpy arrays (one per layer parameter). Should be in the same order as what `get_weights(self)` returns.
 
 
@@ -85,7 +100,7 @@ keras.layers.core.Dense(output_dim,
                         input_dim=None)
 ```
 
-Standard 1D fully-connect layer. 
+Standard 1D fully-connect layer.
 
 - __Input shape__: 2D tensor with shape: `(nb_samples, input_dim)`.
 
@@ -93,7 +108,7 @@ Standard 1D fully-connect layer.
 
 - __Arguments__:
 
-    - __output_dim__: int >= 0. 
+    - __output_dim__: int >= 0.
     - __init__: name of initialization function for the weights of the layer (see: [initializations](../initializations.md)), or alternatively, Theano function to use for weights initialization. This parameter is only relevant if you don't pass a `weights` argument.
     - __activation__: name of activation function to use (see: [activations](../activations.md)), or alternatively, elementwise Theano function. If you don't specify anything, no activation is applied (ie. "linear" activation: a(x) = x).
     - __weights__: list of numpy arrays to set as initial weights. The list should have 1 element, of shape `(input_dim, output_dim)`.
@@ -102,7 +117,7 @@ Standard 1D fully-connect layer.
     - __activity_regularizer__: instance of [ActivityRegularizer](../regularizers.md), applied to the network output.
     - __W_constraint__: instance of the [constraints](../constraints.md) module (eg. maxnorm, nonneg), applied to the main weights matrix.
     - __b_constraint__: instance of the [constraints](../constraints.md) module, applied to the bias.
-    - __input_dim__: dimensionality of the input (integer). This argument (or alternatively, the keyword argument `input_shape`) is required when using this layer as the first layer in a model. 
+    - __input_dim__: dimensionality of the input (integer). This argument (or alternatively, the keyword argument `input_shape`) is required when using this layer as the first layer in a model.
 
 ---
 
@@ -122,7 +137,7 @@ Fully-connected layer distributed over the time dimension. Useful after a recurr
 - __Input shape__: 3D tensor with shape: `(nb_samples, timesteps, input_dim)`.
 
 - __Arguments__:
-    - __output_dim__: int >= 0. 
+    - __output_dim__: int >= 0.
     - __init__: name of initialization function for the weights of the layer (see: [initializations](../initializations.md)), or alternatively, Theano function to use for weights initialization. This parameter is only relevant if you don't pass a `weights` argument.
     - __activation__: name of activation function to use (see: [activations](../activations.md)), or alternatively, elementwise Theano function. If you don't specify anything, no activation is applied (ie. "linear" activation: a(x) = x).
     - __weights__: list of numpy arrays to set as initial weights. The list should have 1 element, of shape `(input_dim, output_dim)`.
@@ -161,9 +176,9 @@ A customizable autoencoder model. If `output_reconstruction = True` then dim(inp
     - __encoder__: A [layer](./) or [layer container](./containers.md).
 
     - __decoder__: A [layer](./) or [layer container](./containers.md).
-    
+
     - __output_reconstruction__: If this is False, then when .predict() is called, the output is the deepest hidden layer's activation. Otherwise, the output of the final decoder layer is presented. Be sure your validation data conforms to this logic if you decide to use any.
-    
+
     - __weights__: list of numpy arrays to set as initial weights. The list should have 1 element, of shape `(input_dim, output_dim)`.
 
 - __Example__:
@@ -185,7 +200,7 @@ autoencoder.add(AutoEncoder(encoder=encoder, decoder=decoder, output_reconstruct
 ```python
 keras.layers.core.Activation(activation)
 ```
-Apply an activation function to the input. 
+Apply an activation function to the input.
 
 
 - __Input shape__: Arbitrary. Use the keyword argument `input_shape` (tuple of integers, does not include the samples axis) when using this layer as the first layer in a model. To specify the number of samples per batch, you can use the keyword argument `batch_input_shape` (tuple of integers, including the samples axis).
@@ -212,7 +227,7 @@ Apply dropout to the input. Dropout consists in randomly setting a fraction `p` 
 
 - __Arguments__:
 
-    - __p__: float (0 <= p < 1). Fraction of the input that gets dropped out at training time. 
+    - __p__: float (0 <= p < 1). Fraction of the input that gets dropped out at training time.
 
 ---
 
@@ -222,7 +237,7 @@ Apply dropout to the input. Dropout consists in randomly setting a fraction `p` 
 keras.layers.core.Reshape(dims)
 ```
 
-Reshape the input to a new shape containing the same number of units. 
+Reshape the input to a new shape containing the same number of units.
 
 
 - __Input shape__: Arbitrary. Use the keyword argument `input_shape` (tuple of integers, does not include the samples axis) when using this layer as the first layer in a model. To specify the number of samples per batch, you can use the keyword argument `batch_input_shape` (tuple of integers, including the samples axis).
@@ -247,7 +262,7 @@ model.add(Reshape(dims=(10, 10)))  # output shape: (nb_samples, 10, 10)
 keras.layers.core.Flatten()
 ```
 
-Convert a nD input to 1D. 
+Convert a nD input to 1D.
 
 - __Input shape__: Arbitrary. Use the keyword argument `input_shape` (tuple of integers, does not include the samples axis) when using this layer as the first layer in a model. To specify the number of samples per batch, you can use the keyword argument `batch_input_shape` (tuple of integers, including the samples axis).
 
@@ -259,7 +274,6 @@ Convert a nD input to 1D.
 ```python
 keras.layers.core.RepeatVector(n)
 ```
-
 Repeat the 1D input n times. Dimensions of input are assumed to be `(nb_samples, dim)`. Output will have the shape `(nb_samples, n, dim)`.
 
 Note that the output is still a single tensor; `RepeatVector` does not split the data flow.
@@ -269,7 +283,7 @@ Note that the output is still a single tensor; `RepeatVector` does not split the
 - __Output shape__: `(nb_samples, n, input_dims)`.
 
 - __Arguments__:
-    - __n__: int. 
+    - __n__: int.
 
 ---
 
@@ -324,8 +338,8 @@ A dense maxout layer. A `MaxoutDense` layer takes the element-wise maximum of `n
 
 - __Arguments__:
 
-    - __output_dim__: int >= 0. 
-    - __nb_feature__: int >= 0. the number of features to create for the maxout. This is equivalent to the number of piecewise elements to be allowed for the activation function. 
+    - __output_dim__: int >= 0.
+    - __nb_feature__: int >= 0. the number of features to create for the maxout. This is equivalent to the number of piecewise elements to be allowed for the activation function.
     - __init__: name of initialization function for the weights of the layer (see: [initializations](../initializations.md)), or alternatively, Theano function to use for weights initialization. This parameter is only relevant if you don't pass a `weights` argument.
     - __weights__: list of numpy arrays to set as initial weights. The list should have 1 element, of shape `(input_dim, output_dim)`.
     - __W_regularizer__: instance of [WeightRegularizer](../regularizers.md) (eg. L1 or L2 regularization), applied to the main weights matrix.

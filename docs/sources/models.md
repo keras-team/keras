@@ -156,13 +156,13 @@ model = keras.models.Graph()
     - __fit__(data, batch_size=128, nb_epoch=100, verbose=1, validation_split=0., validation_data=None, shuffle=True, callbacks=[]): Train a model for a fixed number of epochs.
         - __Return__: a history object. It `history` attribute is a record of training loss values at successive epochs, as well as validation loss values (if applicable).
         - __Arguments__:
-            - __data__:dictionary mapping input names out outputs names to appropriate numpy arrays. All arrays should contain the same number of samples.
+            - __data__: dictionary mapping input names and outputs names to appropriate numpy arrays. All arrays should contain the same number of samples.
             - __batch_size__: int. Number of samples per gradient update.
             - __nb_epoch__: int.
             - __verbose__: 0 for no logging to stdout, 1 for progress bar logging, 2 for one log line per epoch.
             - __callbacks__: `keras.callbacks.Callback` list. List of callbacks to apply during training. See [callbacks](callbacks.md).
             - __validation_split__: float (0. < x < 1). Fraction of the data to use as held-out validation data.
-            - __validation_data__: tuple (X, y) to be used as held-out validation data. Will override validation_split.
+            - __validation_data__: dictionary mapping input names and outputs names to appropriate numpy arrays to be used as held-out validation data. All arrays should contain the same number of samples. Will override validation_split.
             - __shuffle__: boolean. Whether to shuffle the samples at each epoch.
     - __evaluate__(data, batch_size=128, verbose=1): Show performance of the model over some validation data.
         - __Return__: The loss score over the data.

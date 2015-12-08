@@ -49,9 +49,9 @@ val = np.random.random((3, 4, 5))
 var = K.variable(value=val)
 
 # all-zeros variable:
-var = K.ones(shape=(3, 4, 5))
-# all-ones:
 var = K.zeros(shape=(3, 4, 5))
+# all-ones:
+var = K.ones(shape=(3, 4, 5))
 ```
 
 Most tensor operations you will need can be done as you would in TensorFlow or Theano:
