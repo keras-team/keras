@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import
-import numpy as np
 
 from .. import backend as K
 from .. import activations, initializations
@@ -80,7 +79,7 @@ class Recurrent(MaskedLayer):
                                              masking=masking)
         if self.stateful:
             for i in range(len(states)):
-                K.set_value(self.states[i], states[i])
+                K.set_value(self.states[i], K.eval(states[i]))
 
         if self.return_sequences:
             return outputs
@@ -123,11 +122,7 @@ class SimpleRNN(Recurrent):
     def build(self):
         input_shape = self.input_shape
         if self.stateful:
-            if not input_shape[0]:
-                raise Exception('If a RNN is stateful, a complete ' +
-                                'input_shape must be provided ' +
-                                '(including batch size).')
-            self.states = [K.zeros((input_shape[0], self.output_dim))]
+            self.reset_states()
         else:
             # initial states: all-zero tensor of shape (output_dim)
             self.states = [None]
@@ -142,6 +137,15 @@ class SimpleRNN(Recurrent):
         if self.initial_weights is not None:
             self.set_weights(self.initial_weights)
             del self.initial_weights
+
+    def reset_states(self):
+        assert self.stateful, 'Layer must be stateful.'
+        input_shape = self.input_shape
+        if not input_shape[0]:
+            raise Exception('If a RNN is stateful, a complete ' +
+                            'input_shape must be provided ' +
+                            '(including batch size).')
+        self.states = [K.zeros((input_shape[0], self.output_dim))]
 
     def step(self, x, states):
         # states only contains the previous output.
@@ -216,11 +220,7 @@ class GRU(Recurrent):
                        self.W_h, self.U_h, self.b_h]
 
         if self.stateful:
-            if not input_shape[0]:
-                raise Exception('If a RNN is stateful, a complete ' +
-                                'input_shape must be provided ' +
-                                '(including batch size).')
-            self.states = [K.zeros((input_shape[0], self.output_dim))]
+            self.reset_states()
         else:
             # initial states: all-zero tensor of shape (output_dim)
             self.states = [None]
@@ -228,6 +228,15 @@ class GRU(Recurrent):
         if self.initial_weights is not None:
             self.set_weights(self.initial_weights)
             del self.initial_weights
+
+    def reset_states(self):
+        assert self.stateful, 'Layer must be stateful.'
+        input_shape = self.input_shape
+        if not input_shape[0]:
+            raise Exception('If a RNN is stateful, a complete ' +
+                            'input_shape must be provided ' +
+                            '(including batch size).')
+        self.states = [K.zeros((input_shape[0], self.output_dim))]
 
     def step(self, x, states):
         assert len(states) == 1
@@ -295,12 +304,7 @@ class LSTM(Recurrent):
         self.input = K.placeholder(input_shape)
 
         if self.stateful:
-            if not input_shape[0]:
-                raise Exception('If a RNN is stateful, a complete ' +
-                                'input_shape must be provided ' +
-                                '(including batch size).')
-            self.states = [K.zeros((input_shape[0], self.output_dim)),
-                           K.zeros((input_shape[0], self.output_dim))]
+            self.reset_states()
         else:
             # initial states: 2 all-zero tensor of shape (output_dim)
             self.states = [None, None]
@@ -329,6 +333,16 @@ class LSTM(Recurrent):
         if self.initial_weights is not None:
             self.set_weights(self.initial_weights)
             del self.initial_weights
+
+    def reset_states(self):
+        assert self.stateful, 'Layer must be stateful.'
+        input_shape = self.input_shape
+        if not input_shape[0]:
+            raise Exception('If a RNN is stateful, a complete ' +
+                            'input_shape must be provided ' +
+                            '(including batch size).')
+        self.states = [K.zeros((input_shape[0], self.output_dim)),
+                       K.zeros((input_shape[0], self.output_dim))]
 
     def step(self, x, states):
         assert len(states) == 2

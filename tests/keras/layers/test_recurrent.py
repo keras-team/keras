@@ -1,5 +1,6 @@
 import unittest
 import numpy as np
+from numpy.testing import assert_allclose
 
 from keras.layers import recurrent
 from keras import backend as K
@@ -29,11 +30,18 @@ def _runner(layer_class):
             mask = layer.get_output_mask(train)
 
     # check statefulness
-    layer = layer_class(output_dim, return_sequences=False,
+    layer = layer_class(output_dim, return_sequences=False, stateful=True,
                         weights=None, batch_input_shape=(nb_samples, timesteps, input_dim))
     layer.input = K.variable(np.ones((nb_samples, timesteps, input_dim)))
-    out = K.eval(layer.get_output(train))
+    out1 = K.eval(layer.get_output(train))
     assert(out.shape == (nb_samples, output_dim))
+    out2 = K.eval(layer.get_output(train))
+    # if the state is not reset, output should be different
+    assert(out1.max() != out2.max())
+    # check that output stays the same when state is reset
+    layer.reset_states()
+    out3 = K.eval(layer.get_output(train))
+    assert_allclose(out1, out3, atol=1e-5)
 
 
 class TestRNNS(unittest.TestCase):
