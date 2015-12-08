@@ -98,7 +98,8 @@ class Layer(object):
         if hasattr(self, 'input_ndim') and self.input_ndim:
             if self.input_ndim != len(input_shape):
                 raise Exception('Invalid input shape - Layer expects input ndim=' +
-                                str(self.input_ndim) + ', was provided with input shape ' + str(input_shape))
+                                str(self.input_ndim) +
+                                ', was provided with input shape ' + str(input_shape))
         self._input_shape = input_shape
         self.input = K.placeholder(shape=self._input_shape)
         self.build()
@@ -117,8 +118,8 @@ class Layer(object):
         elif hasattr(self, 'input'):
             return self.input
         else:
-            raise Exception('Layer is not connected\
-                and is not an input layer.')
+            raise Exception('Layer is not connected' +
+                            'and is not an input layer.')
 
     def supports_masked_input(self):
         ''' Whether or not this layer respects the output mask of its previous layer in its calculations. If you try
