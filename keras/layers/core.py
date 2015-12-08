@@ -171,9 +171,9 @@ class Layer(object):
                 if (lmul is not None):
                     lmuls.append(lmul)
                 else:
-                    lmuls.append(1)
+                    lmuls.append(1.0)
         else:
-            lmuls = [1 for p in self.params]
+            lmuls = [1.0 for p in self.params]
 
         if hasattr(self, 'constraints') and len(self.constraints) == len(self.params):
             for c in self.constraints:
@@ -358,16 +358,17 @@ class Merge(Layer):
         self.regularizers = []
         self.constraints = []
         self.learning_rate_multipliers = []
+        self.updates = []
         for l in self.layers:
             params, regs, consts, lmuls, updates = l.get_params()
             self.regularizers += regs
             self.updates += updates
             # params and constraints have the same size
-            for p, c, lmul in zip(params, consts, lmul):
+            for p, c, lmul in zip(params, consts, lmuls):
                 if p not in self.params:
                     self.params.append(p)
                     self.constraints.append(c)
-                    self.learning_rate_multipliers.append(lmuls)
+                    self.learning_rate_multipliers.append(lmul)
 
     @property
     def output_shape(self):
@@ -941,7 +942,7 @@ class MaxoutDense(Layer):
     def __init__(self, output_dim, nb_feature=4, init='glorot_uniform', weights=None,
                  W_regularizer=None, b_regularizer=None, activity_regularizer=None,
                  W_constraint=None, b_constraint=None,
-                 W_learning_rate_multiplier=None, b_learning_rate_multiplier=None
+                 W_learning_rate_multiplier=None, b_learning_rate_multiplier=None,
                  input_dim=None, **kwargs):
         self.output_dim = output_dim
         self.nb_feature = nb_feature
@@ -1468,4 +1469,3 @@ def add_shared_layer(layer, inputs):
         sh = SiameseHead(i)
         inputs[i].add(s)
         inputs[i].add(sh)
->>>>>>> master

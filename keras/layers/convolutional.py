@@ -24,7 +24,7 @@ class Convolution1D(Layer):
                  border_mode='valid', subsample_length=1,
                  W_regularizer=None, b_regularizer=None, activity_regularizer=None,
                  W_constraint=None, b_constraint=None,
-                 W_learning_rate_multiplier=None, b_learning_rate_multiplier=None
+                 W_learning_rate_multiplier=None, b_learning_rate_multiplier=None,
                  input_dim=None, input_length=None, **kwargs):
 
         if border_mode not in {'valid', 'same'}:
