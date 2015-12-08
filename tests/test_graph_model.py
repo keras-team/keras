@@ -9,11 +9,6 @@ from keras.layers import containers
 from keras.layers.core import Dense, Activation
 from keras.utils.test_utils import get_test_data
 
-X = np.random.random((100, 32))
-X2 = np.random.random((100, 32))
-y = np.random.random((100, 4))
-y2 = np.random.random((100,))
-
 (X_train, y_train), (X_test, y_test) = get_test_data(nb_train=1000,
                                                      nb_test=200,
                                                      input_shape=(32,),
