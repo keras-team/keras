@@ -1,0 +1,11 @@
+Metadata-Version: 1.1
+Name: Keras
+Version: 0.1.2
+Summary: Theano-based Deep Learning library
+Home-page: https://github.com/fchollet/keras
+Author: Francois Chollet
+Author-email: francois.chollet@gmail.com
+License: MIT
+Download-URL: https://github.com/fchollet/keras/tarball/0.1.2
+Description: UNKNOWN
+Platform: UNKNOWN

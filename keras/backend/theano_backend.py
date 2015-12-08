@@ -23,6 +23,7 @@ if _on_gpu():
     prevent from running the present code.
     '''
     from theano.sandbox.cuda import dnn
+    from theano.sandbox.cuda.dnn import dnn_pool
 
 
 # VARIABLE MANIPULATION
@@ -155,7 +156,8 @@ def prod(x, axis=None, keepdims=False):
 
 
 def mean(x, axis=None, keepdims=False):
-    return T.mean(x, axis=axis, keepdims=keepdims)
+    return T.mean(x, axis=axis, keepdims=keepdims
+                    ,dtype=x.dtype)
 
 
 def std(x, axis=None, keepdims=False):
@@ -455,7 +457,7 @@ def switch(condition, then_expression, else_expression):
 # NN OPERATIONS
 
 def relu(x, alpha=0., max_value=None):
-    x = T.nnet.relu(x, alpha)
+    x = (x + abs(x)) / 2.0
     if max_value is not None:
         x = T.minimum(x, max_value)
     return x
@@ -596,12 +598,17 @@ def maxpool2d(x, pool_size, strides=(1, 1), border_mode='valid',
     if dim_ordering == 'tf':
         x = x.dimshuffle((0, 3, 1, 2))
 
-    pool_out = downsample.max_pool_2d(x,
-                                      ds=pool_size,
-                                      st=strides,
-                                      ignore_border=ignore_border,
-                                      padding=padding,
-                                      mode='average_exc_pad')
+    if _on_gpu() and dnn.dnn_available():
+        pool_out = dnn_pool(x,
+                          pool_size,
+                          stride=strides)
+    else:
+        pool_out = downsample.max_pool_2d(x,
+                                        ds=pool_size,
+                                        st=strides,
+                                        ignore_border=ignore_border,
+                                        padding=padding,
+                                        mode='average_exc_pad')
     if dim_ordering == 'tf':
         pool_out = pool_out.dimshuffle((0, 2, 3, 1))
     return pool_out

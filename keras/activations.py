@@ -20,10 +20,8 @@ def softmax(x):
 def softplus(x):
     return K.softplus(x)
 
-
 def relu(x, alpha=0., max_value=None):
     return K.relu(x, alpha=alpha, max_value=max_value)
-
 
 def tanh(x):
     return K.tanh(x)

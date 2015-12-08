@@ -166,12 +166,23 @@ class Layer(object):
 
     def get_params(self):
         consts = []
+        lmuls = []
         updates = []
 
         if hasattr(self, 'regularizers'):
             regularizers = self.regularizers
         else:
             regularizers = []
+
+        
+        if hasattr(self, 'learning_rate_multipliers'):
+            for lmul in self.learning_rate_multipliers:
+                if (lmul is not None):
+                    lmuls.append(lmul)
+                else:
+                    lmuls.append(1.0)
+        else:
+            lmuls = [1.0 for p in self.params]
 
         if hasattr(self, 'constraints') and len(self.constraints) == len(self.params):
             for c in self.constraints:
@@ -187,7 +198,7 @@ class Layer(object):
         if hasattr(self, 'updates') and self.updates:
             updates += self.updates
 
-        return self.params, regularizers, consts, updates
+        return self.params, regularizers, consts, lmuls, updates
 
     def count_params(self):
         return sum([K.count_params(p) for p in self.params])
@@ -355,16 +366,18 @@ class Merge(Layer):
         self.params = []
         self.regularizers = []
         self.constraints = []
+        self.learning_rate_multipliers = []
         self.updates = []
         for l in self.layers:
-            params, regs, consts, updates = l.get_params()
+            params, regs, consts, lmuls, updates = l.get_params()
             self.regularizers += regs
             self.updates += updates
             # params and constraints have the same size
-            for p, c in zip(params, consts):
+            for p, c, lmul in zip(params, consts, lmuls):
                 if p not in self.params:
                     self.params.append(p)
                     self.constraints.append(c)
+                    self.learning_rate_multipliers.append(lmul)
 
     @property
     def output_shape(self):
@@ -396,7 +409,8 @@ class Merge(Layer):
             return tuple(input_shapes[0][0], 1)
 
     def get_params(self):
-        return self.params, self.regularizers, self.constraints, self.updates
+        return self.params, self.regularizers, self.constraints,\
+               self.learning_rate_multipliers, self.updates
 
     def get_output(self, train=False):
         if self.mode == 'sum' or self.mode == 'ave':
@@ -638,10 +652,11 @@ class Dense(Layer):
         Just your regular fully connected NN layer.
     '''
     input_ndim = 2
-
     def __init__(self, output_dim, init='glorot_uniform', activation='linear', weights=None,
                  W_regularizer=None, b_regularizer=None, activity_regularizer=None,
-                 W_constraint=None, b_constraint=None, input_dim=None, **kwargs):
+                 W_constraint=None, b_constraint=None,
+                 W_learning_rate_multiplier=None, b_learning_rate_multiplier=None,
+                 input_dim=None, **kwargs):
         self.init = initializations.get(init)
         self.activation = activations.get(activation)
         self.output_dim = output_dim
@@ -653,6 +668,11 @@ class Dense(Layer):
         self.W_constraint = constraints.get(W_constraint)
         self.b_constraint = constraints.get(b_constraint)
         self.constraints = [self.W_constraint, self.b_constraint]
+
+        self.W_learning_rate_multiplier = W_learning_rate_multiplier
+        self.b_learning_rate_multiplier = b_learning_rate_multiplier
+        self.learning_rate_multipliers = [self.W_learning_rate_multiplier,
+                                          self.b_learning_rate_multiplier]
 
         self.initial_weights = weights
 
@@ -706,10 +726,11 @@ class Dense(Layer):
                   "activity_regularizer": self.activity_regularizer.get_config() if self.activity_regularizer else None,
                   "W_constraint": self.W_constraint.get_config() if self.W_constraint else None,
                   "b_constraint": self.b_constraint.get_config() if self.b_constraint else None,
+                  "W_learning_rate_multiplier": self.W_learning_rate_multiplier,
+                  "b_learning_rate_multiplier": self.b_learning_rate_multiplier,
                   "input_dim": self.input_dim}
         base_config = super(Dense, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
-
 
 class ActivityRegularization(Layer):
     '''
@@ -745,11 +766,11 @@ class TimeDistributedDense(MaskedLayer):
 
     '''
     input_ndim = 3
-
     def __init__(self, output_dim,
                  init='glorot_uniform', activation='linear', weights=None,
                  W_regularizer=None, b_regularizer=None, activity_regularizer=None,
                  W_constraint=None, b_constraint=None,
+                 W_learning_rate_multiplier=None, b_learning_rate_multiplier=None,
                  input_dim=None, input_length=None, **kwargs):
         self.output_dim = output_dim
         self.init = initializations.get(init)
@@ -762,6 +783,11 @@ class TimeDistributedDense(MaskedLayer):
         self.W_constraint = constraints.get(W_constraint)
         self.b_constraint = constraints.get(b_constraint)
         self.constraints = [self.W_constraint, self.b_constraint]
+
+        self.W_learning_rate_multiplier = W_learning_rate_multiplier
+        self.b_learning_rate_multiplier = b_learning_rate_multiplier
+        self.learning_rate_multipliers = [self.W_learning_rate_multiplier,
+                                          self.b_learning_rate_multiplier]
 
         self.initial_weights = weights
 
@@ -823,11 +849,12 @@ class TimeDistributedDense(MaskedLayer):
                   "activity_regularizer": self.activity_regularizer.get_config() if self.activity_regularizer else None,
                   "W_constraint": self.W_constraint.get_config() if self.W_constraint else None,
                   "b_constraint": self.b_constraint.get_config() if self.b_constraint else None,
+                  "W_learning_rate_multiplier": self.W_learning_rate_multiplier,
+                  "b_learning_rate_multiplier": self.b_learning_rate_multiplier,
                   "input_dim": self.input_dim,
                   "input_length": self.input_length}
         base_config = super(TimeDistributedDense, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
-
 
 class AutoEncoder(Layer):
     '''A customizable autoencoder model.
@@ -851,15 +878,18 @@ class AutoEncoder(Layer):
         self.params = []
         self.regularizers = []
         self.constraints = []
+        self.learning_rate_multipliers = []
         self.updates = []
         for layer in [self.encoder, self.decoder]:
-            params, regularizers, constraints, updates = layer.get_params()
+            params, regularizers, constraints,\
+            learning_rate_multipliers, updates = layer.get_params()
             self.regularizers += regularizers
             self.updates += updates
-            for p, c in zip(params, constraints):
+            for p, c, lmul in zip(params, constraints, learning_rate_multipliers):
                 if p not in self.params:
                     self.params.append(p)
                     self.constraints.append(c)
+                    self.learning_rate_multipliers.append(lmul)
 
         if weights is not None:
             self.set_weights(weights)
@@ -918,10 +948,11 @@ class MaxoutDense(Layer):
         Refer to http://arxiv.org/pdf/1302.4389.pdf
     '''
     input_ndim = 2
-
     def __init__(self, output_dim, nb_feature=4, init='glorot_uniform', weights=None,
                  W_regularizer=None, b_regularizer=None, activity_regularizer=None,
-                 W_constraint=None, b_constraint=None, input_dim=None, **kwargs):
+                 W_constraint=None, b_constraint=None,
+                 W_learning_rate_multiplier=None, b_learning_rate_multiplier=None,
+                 input_dim=None, **kwargs):
         self.output_dim = output_dim
         self.nb_feature = nb_feature
         self.init = initializations.get(init)
@@ -933,6 +964,11 @@ class MaxoutDense(Layer):
         self.W_constraint = constraints.get(W_constraint)
         self.b_constraint = constraints.get(b_constraint)
         self.constraints = [self.W_constraint, self.b_constraint]
+
+        self.W_learning_rate_multiplier = W_learning_rate_multiplier
+        self.b_learning_rate_multiplier = b_learning_rate_multiplier
+        self.learning_rate_multipliers = [self.W_learning_rate_multiplier,
+                                          self.b_learning_rate_multiplier]
 
         self.initial_weights = weights
         self.input_dim = input_dim
@@ -986,6 +1022,8 @@ class MaxoutDense(Layer):
                   "activity_regularizer": self.activity_regularizer.get_config() if self.activity_regularizer else None,
                   "W_constraint": self.W_constraint.get_config() if self.W_constraint else None,
                   "b_constraint": self.b_constraint.get_config() if self.b_constraint else None,
+                  "W_learning_rate_multiplier": self.W_learning_rate_multiplier,
+                  "b_learning_rate_multiplier": self.b_learning_rate_multiplier,
                   "input_dim": self.input_dim}
         base_config = super(MaxoutDense, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
@@ -1078,16 +1116,18 @@ class LambdaMerge(Lambda):
         self.params = []
         self.regularizers = []
         self.constraints = []
+        self.learning_rate_multipliers = []
         self.updates = []
         for l in self.layers:
-            params, regs, consts, updates = l.get_params()
+            params, regs, consts, learning_rate_multipliers, updates = l.get_params()
             self.regularizers += regs
             self.updates += updates
             # params and constraints have the same size
-            for p, c in zip(params, consts):
+            for p, c, lmul in zip(params, consts, learning_rate_multipliers):
                 if p not in self.params:
                     self.params.append(p)
                     self.constraints.append(c)
+                    self.learning_rate_multipliers.append(lmul)
         py3 = sys.version_info[0] == 3
         if py3:
             self.function = marshal.dumps(function.__code__)
@@ -1119,7 +1159,8 @@ class LambdaMerge(Lambda):
             return tuple(shape)
 
     def get_params(self):
-        return self.params, self.regularizers, self.constraints, self.updates
+        return self.params, self.regularizers, self.constraints,\
+               self.learning_rate_multipliers, self.updates
 
     def get_output(self, train=False):
         func = marshal.loads(self.function)
