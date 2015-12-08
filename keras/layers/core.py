@@ -39,7 +39,7 @@ class Layer(object):
         tmp_mask = None
         if hasattr(self, 'get_input_mask'):
             tmp_mask = self.get_input_mask
-            self.get_input_mask lambda _: mask
+            self.get_input_mask = lambda _: mask
         self.get_input = lambda _: X
         Y = self.get_output(train=train)
         # return input and mask to what it was
