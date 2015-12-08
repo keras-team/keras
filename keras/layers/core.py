@@ -33,13 +33,19 @@ class Layer(object):
         if not hasattr(self, 'params'):
             self.params = []
 
-    def __call__(self, X, train=False):
-        # set temporary input
-        tmp = self.get_input
+    def __call__(self, X, mask=None, train=False):
+        # set temporary input and mask
+        tmp_input = self.get_input
+        tmp_mask = None
+        if hasattr(self, 'get_input_mask'):
+            tmp_mask = self.get_input_mask
+            self.get_input_mask lambda _: mask
         self.get_input = lambda _: X
         Y = self.get_output(train=train)
-        # return input to what it was
-        self.get_input = tmp
+        # return input and mask to what it was
+        self.get_input = tmp_input
+        if hasattr(self, 'get_input_mask'):
+            self.get_input_mask = tmp_mask
         return Y
 
     def set_previous(self, layer, connection_map={}):
