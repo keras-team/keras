@@ -111,9 +111,9 @@ layer_output = get_3rd_layer_output(X)
 
 # with a Graph model
 get_conv_layer_output = theano.function([model.inputs[i].input for i in model.input_order],
-                                        model.outputs['conv'].get_output(train=False),
+                                        model.nodes['conv'].get_output(train=False),
                                         on_unused_input='ignore')
-conv_output = get_conv_output(input_data_dict)
+conv_output = get_conv_layer_output([input_data_dict[i] for i in model.input_order])
 ```
 
 ---
