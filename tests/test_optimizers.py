@@ -18,9 +18,9 @@ y_test = to_categorical(y_test)
 
 def get_model(input_dim, nb_hidden, output_dim):
     model = Sequential()
-    model.add(Dense(input_dim, nb_hidden))
+    model.add(Dense(nb_hidden, input_shape=(input_dim,)))
     model.add(Activation('relu'))
-    model.add(Dense(nb_hidden, output_dim))
+    model.add(Dense(output_dim))
     model.add(Activation('softmax'))
     return model
 

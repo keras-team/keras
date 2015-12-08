@@ -6,12 +6,12 @@ Activations can either be used through an `Activation` layer, or through the `ac
 ```python
 from keras.layers.core import Activation, Dense
 
-model.add(Dense(64, 64, init='uniform'))
+model.add(Dense(64))
 model.add(Activation('tanh'))
 ```
 is equivalent to:
 ```python
-model.add(Dense(20, 64, init='uniform', activation='tanh'))
+model.add(Dense(64, activation='tanh'))
 ```
 
 You can also pass an element-wise Theano function as an activation:
@@ -20,7 +20,7 @@ You can also pass an element-wise Theano function as an activation:
 def tanh(x):
     return theano.tensor.tanh(x)
 
-model.add(Dense(20, 64, init='uniform', activation=tanh))
+model.add(Dense(64, activation=tanh))
 model.add(Activation(tanh))
 ```
 

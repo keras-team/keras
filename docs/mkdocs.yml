@@ -24,6 +24,7 @@ pages:
 - Constraints: constraints.md
 - Callbacks: callbacks.md
 - Datasets: datasets.md
+- Visualization: visualization.md
 - Layers:
   - Core Layers: layers/core.md
   - Convolutional Layers: layers/convolutional.md

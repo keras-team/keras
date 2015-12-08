@@ -214,17 +214,14 @@ class ImageDataGenerator(object):
         # channel shifting
         return x
 
-
-    def fit(self, X, 
-            augment=False, # fit on randomly augmented samples
-            rounds=1, # if augment, how many augmentation passes over the data do we use
-            seed=None
-        ):
+    def fit(self, X,
+            augment=False,  # fit on randomly augmented samples
+            rounds=1,  # if augment, how many augmentation passes over the data do we use
+            seed=None):
         '''
             Required for featurewise_center, featurewise_std_normalization and zca_whitening.
         '''
         X = np.copy(X)
-        
         if augment:
             aX = np.zeros(tuple([rounds*X.shape[0]]+list(X.shape)[1:]))
             for r in range(rounds):
@@ -247,5 +244,3 @@ class ImageDataGenerator(object):
             sigma = np.dot(flatX.T, flatX) / flatX.shape[1]
             U, S, V = linalg.svd(sigma)
             self.principal_components = np.dot(np.dot(U, np.diag(1. / np.sqrt(S + fudge))), U.T)
-
-

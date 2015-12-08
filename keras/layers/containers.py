@@ -2,9 +2,9 @@
 from __future__ import absolute_import
 from __future__ import print_function
 
-import theano.tensor as T
-from ..layers.core import Layer, Merge
-from ..utils.theano_utils import ndim_tensor
+from collections import OrderedDict
+from .. import backend as K
+from ..layers.core import Layer, Merge, Siamese, SiameseHead
 from six.moves import range
 
 
@@ -20,12 +20,6 @@ class Sequential(Layer):
 
     def __init__(self, layers=[]):
         self.layers = []
-        self.params = []
-        self.regularizers = []
-        self.constraints = []
-        self.learning_rate_multipliers = []
-        self.updates = []
-
         for layer in layers:
             self.add(layer)
 
@@ -38,14 +32,50 @@ class Sequential(Layer):
             self.layers[-1].set_previous(self.layers[-2])
             if not hasattr(self.layers[0], 'input'):
                 self.set_input()
-        layer.init_updates()
 
-        params, regularizers, constraints, learning_rate_multipliers, updates = layer.get_params()
-        self.params += params
-        self.regularizers += regularizers
-        self.constraints += constraints
-        self.learning_rate_multipliers += learning_rate_multipliers
-        self.updates += updates
+    @property
+    def params(self):
+        params = []
+        for l in self.layers:
+            if l.trainable:
+                params += l.get_params()[0]
+        return params
+
+    @property
+    def regularizers(self):
+        regularizers = []
+        for l in self.layers:
+            if l.trainable:
+                regularizers += l.get_params()[1]
+        return regularizers
+
+    @property
+    def constraints(self):
+        constraints = []
+        for l in self.layers:
+            if l.trainable:
+                constraints += l.get_params()[2]
+        return constraints
+
+    @property
+    def learning_rate_multipliers(self):
+        learning_rate_multipliers = []
+        for l in self.layers:
+            if l.trainable:
+                learning_rate_multipliers += l.get_params()[3]
+        return learning_rate_multipliers
+
+    @property
+    def updates(self):
+        updates = []
+        for l in self.layers:
+            if l.trainable:
+                updates += l.get_params()[4]
+        return updates
+
+    @property
+    def output_shape(self):
+        return self.layers[-1].output_shape
 
     def get_output(self, train=False):
         return self.layers[-1].get_output(train)
@@ -53,14 +83,18 @@ class Sequential(Layer):
     def set_input(self):
         for l in self.layers:
             if hasattr(l, 'input'):
-                ndim = l.input.ndim
-                self.layers[0].input = ndim_tensor(ndim)
+                ndim = len(K.get_shape(l.input))
+                self.layers[0].input = K.placeholder(ndim=ndim)
                 break
 
     def get_input(self, train=False):
         if not hasattr(self.layers[0], 'input'):
             self.set_input()
         return self.layers[0].get_input(train)
+
+    @property
+    def input_shape(self):
+        return self.layers[0].input_shape
 
     @property
     def input(self):
@@ -85,6 +119,7 @@ class Sequential(Layer):
     def count_params(self):
         return sum([layer.count_params() for layer in self.layers])
 
+
 class Graph(Layer):
     '''
         Implement a NN graph with arbitrary layer connections,
@@ -95,7 +130,6 @@ class Graph(Layer):
         when it has exactly one input and one output.
 
         inherited from Layer:
-            - get_params
             - get_output_mask
             - supports_masked_input
             - get_weights
@@ -103,7 +137,7 @@ class Graph(Layer):
     '''
     def __init__(self):
         self.namespace = set()  # strings
-        self.nodes = {}  # layer-like
+        self.nodes = OrderedDict()  # layer-like
         self.inputs = {}  # layer-like
         self.input_order = []  # strings
         self.outputs = {}  # layer-like
@@ -112,12 +146,6 @@ class Graph(Layer):
         self.output_config = []  # dicts
         self.node_config = []  # dicts
 
-        self.params = []
-        self.regularizers = []
-        self.constraints = []
-        self.learning_rate_multipliers = []
-        self.updates = []
-
     @property
     def nb_input(self):
         return len(self.inputs)
@@ -125,6 +153,46 @@ class Graph(Layer):
     @property
     def nb_output(self):
         return len(self.outputs)
+
+    @property
+    def params(self):
+        params = []
+        for l in self.nodes.values():
+            if l.trainable:
+                params += l.get_params()[0]
+        return params
+
+    @property
+    def regularizers(self):
+        regularizers = []
+        for l in self.nodes.values():
+            if l.trainable:
+                regularizers += l.get_params()[1]
+        return regularizers
+
+    @property
+    def constraints(self):
+        constraints = []
+        for l in self.nodes.values():
+            if l.trainable:
+                constraints += l.get_params()[2]
+        return constraints
+
+    @property
+    def learning_rate_multipliers(self):
+        learning_rate_multipliers = []
+        for l in self.nodes.values():
+            if l.trainable:
+                learning_rate_multipliers += l.get_params()[3]
+        return learning_rate_multipliers
+
+    @property
+    def updates(self):
+        updates = []
+        for l in self.nodes.values():
+            if l.trainable:
+                updates += l.get_params()[4]
+        return updates
 
     def set_previous(self, layer, connection_map={}):
         if self.nb_input != layer.nb_output:
@@ -150,33 +218,48 @@ class Graph(Layer):
     def input(self):
         return self.get_input()
 
+    @property
+    def output_shape(self):
+        if self.nb_output == 1:
+            # return tuple
+            return self.outputs[self.output_order[0]].output_shape
+        else:
+            # return dictionary mapping output names to shape tuples
+            return dict([(k, v.output_shape) for k, v in self.outputs.items()])
+
     def get_output(self, train=False):
         if len(self.inputs) == len(self.outputs) == 1:
             return self.outputs[self.output_order[0]].get_output(train)
         else:
             return dict([(k, v.get_output(train)) for k, v in self.outputs.items()])
 
-    def add_input(self, name, ndim=2, dtype='float'):
+    def add_input(self, name, input_shape=None, batch_input_shape=None, dtype='float'):
         if name in self.namespace:
             raise Exception('Duplicate node identifier: ' + name)
         self.namespace.add(name)
         self.input_order.append(name)
         layer = Layer()  # empty layer
+        if input_shape:
+            layer.set_input_shape((None,) + tuple(input_shape))
+        elif batch_input_shape:
+            layer.set_input_shape(batch_input_shape)
         if dtype == 'float':
-            layer.input = ndim_tensor(ndim)
+            layer.input = K.placeholder(shape=layer.input_shape, name=name)
         else:
-            if ndim == 2:
-                layer.input = T.imatrix()
+            if len(input_shape) == 1:
+                layer.input = K.placeholder(shape=layer.input_shape,
+                                            dtype='int32',
+                                            name=name)
             else:
                 raise Exception('Type "int" can only be used with ndim==2 (Embedding).')
-        layer.input.name = name
         self.inputs[name] = layer
-        self.input_config.append({'name': name, 'ndim': ndim, 'dtype': dtype})
+        self.input_config.append({'name': name,
+                                  'input_shape': input_shape,
+                                  'dtype': dtype})
 
     def add_node(self, layer, name, input=None, inputs=[],
-                 merge_mode='concat', concat_axis=-1, create_output=False):
-        if hasattr(layer, 'set_name'):
-            layer.set_name(name)
+                 merge_mode='concat', concat_axis=-1, dot_axes=-1,
+                 create_output=False):
         if name in self.namespace:
             raise Exception('Duplicate node identifier: ' + name)
         if input:
@@ -195,7 +278,8 @@ class Graph(Layer):
                     to_merge.append(self.inputs[n])
                 else:
                     raise Exception('Unknown identifier: ' + n)
-            merge = Merge(to_merge, mode=merge_mode, concat_axis=concat_axis)
+            merge = Merge(to_merge, mode=merge_mode,
+                          concat_axis=concat_axis, dot_axes=dot_axes)
             layer.set_previous(merge)
 
         self.namespace.add(name)
@@ -205,20 +289,89 @@ class Graph(Layer):
                                  'inputs': inputs,
                                  'merge_mode': merge_mode,
                                  'concat_axis': concat_axis,
+                                 'dot_axes': dot_axes,
                                  'create_output': create_output})
-        layer.init_updates()
-        params, regularizers, constraints, learning_rate_multipliers, updates = layer.get_params()
-        self.params += params
-        self.regularizers += regularizers
-        self.constraints += constraints
-        self.learning_rate_multipliers += learning_rate_multipliers
-        self.updates += updates
 
         if create_output:
             self.add_output(name, input=name)
 
+    def add_shared_node(self, layer, name, inputs=[], merge_mode=None,
+                        concat_axis=-1, dot_axes=-1, outputs=[],
+                        create_output=False):
+        '''
+        Used to shared / multi input-multi output node
+
+        Arguments
+        ------------
+        layer - The layer to be shared across multiple inputs
+        name - Name of the shared layer
+        inputs - List of names of input nodes
+        merge_mode - Similar to merge_mode argument of add_node()
+        concat_axis - Similar to concat_axis argument of add_node()
+        dot_axes - Similar to dot_axes argument of add_node()
+        outputs - Names for output nodes. Used when merge_mode = None
+        create_output -  Similar to create_output argument of add_node().
+            Output will be created only if merge_mode is given
+        '''
+        if name in self.namespace:
+            raise Exception('Duplicate node identifier: ' + name)
+        for o in outputs:
+            if o in self.namespace:
+                raise Exception('Duplicate node identifier: ' + o)
+        if merge_mode:
+            if merge_mode not in {'sum', 'ave', 'mul', 'dot', 'cos', 'concat', 'join'}:
+                raise Eception("Invalid merge mode")
+        layers = []
+        for i in range(len(inputs)):
+            input = inputs[i]
+            if input in self.nodes:
+                n = self.nodes[input]
+                if n.__class__.__name__ == 'Siamese':
+                    if n.merge_mode is None:
+                        for j in range(len(n.inputs)):
+                            sh = SiameseHead(j)
+                            sh.previous = n
+                            layers.append(sh)
+                    else:
+                        layers.append(n)
+                else:
+                    layers.append(n)
+            elif input in self.inputs:
+                n = self.inputs[input]
+                layers.append(n)
+            else:
+                raise Exception('Unknown identifier: ' + input)
+        s = Siamese(layer, layers, merge_mode, concat_axis=concat_axis, dot_axes=dot_axes)
+        s.set_name(name)
+        self.namespace.add(name)
+        self.nodes[name] = s
+        self.node_config.append({'name': name,
+                                 'inputs': inputs,
+                                 'merge_mode': merge_mode,
+                                 'concat_axis': concat_axis,
+                                 'dot_axes': dot_axes,
+                                 'create_output': create_output if merge_mode else False})
+        if not merge_mode:
+            for i in range(len(outputs)):
+                sh = SiameseHead(i)
+                sh.previous = s
+                sh_name = outputs[i]
+                sh.set_name(sh_name)
+                self.namespace.add(sh_name)
+                self.nodes[sh_name] = sh
+                self.node_config.append({'name': sh_name,
+                                         'inputs': [s],
+                                         'create_output': create_output})
+                if create_output:
+                    self.add_output(sh_name, input=sh_name)
+
+        if create_output and merge_mode:
+            if merge_mode == 'join':
+                raise Exception("Output can not be of type OrderedDict")
+            self.add_output(name, input=name)
+
     def add_output(self, name, input=None, inputs=[],
-                   merge_mode='concat', concat_axis=-1):
+                   merge_mode='concat', concat_axis=-1, dot_axes=-1):
         if name in self.output_order:
             raise Exception('Duplicate output identifier: ' + name)
         if input:
@@ -234,7 +387,8 @@ class Graph(Layer):
                 if n not in self.nodes:
                     raise Exception('Unknown identifier: ' + n)
                 to_merge.append(self.nodes[n])
-            merge = Merge(to_merge, mode=merge_mode, concat_axis=concat_axis)
+            merge = Merge(to_merge, mode=merge_mode,
+                          concat_axis=concat_axis, dot_axes=dot_axes)
             self.outputs[name] = merge
 
         self.output_order.append(name)
@@ -242,7 +396,8 @@ class Graph(Layer):
                                    'input': input,
                                    'inputs': inputs,
                                    'merge_mode': merge_mode,
-                                   'concat_axis': concat_axis})
+                                   'concat_axis': concat_axis,
+                                   'dot_axes': dot_axes})
 
     def get_config(self):
         return {"name": self.__class__.__name__,
@@ -255,3 +410,15 @@ class Graph(Layer):
 
     def count_params(self):
         return sum([layer.count_params() for layer in self.nodes.values()])
+
+    def get_weights(self):
+        weights = []
+        for layer in self.nodes.values():
+            weights += layer.get_weights()
+        return weights
+
+    def set_weights(self, weights):
+        for layer in self.nodes.values():
+            nb_param = len(layer.get_weights())
+            layer.set_weights(weights[:nb_param])
+            weights = weights[nb_param:]

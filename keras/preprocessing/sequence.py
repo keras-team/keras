@@ -24,6 +24,8 @@ def pad_sequences(sequences, maxlen=None, dtype='int32', padding='pre', truncati
 
     x = (np.ones((nb_samples, maxlen)) * value).astype(dtype)
     for idx, s in enumerate(sequences):
+        if len(s) == 0:
+            continue # empty list was found
         if truncating == 'pre':
             trunc = s[-maxlen:]
         elif truncating == 'post':
