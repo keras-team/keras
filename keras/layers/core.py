@@ -1381,7 +1381,7 @@ class Siamese(Layer):
     def get_config(self):
 
         config = {"name": self.__class__.__name__,
-                  "layer": self.layer.get_config,
+                  "layer": self.layer.get_config(),
                   "inputs": [m.get_config() for m in self.inputs],
                   "merge_mode": self.merge_mode,
                   "concat_axis": self.concat_axis,
