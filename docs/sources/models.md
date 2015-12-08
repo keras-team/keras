@@ -54,7 +54,7 @@ model = Sequential()
 model.add(Dense(2, init='uniform', input_dim=64))
 model.add(Activation('softmax'))
 
-model.compile(loss='mse', optimizer='sgd')
+model.compile(optimizer='sgd', loss='mse')
 
 '''
 Demonstration of verbose modes 1 and 2
@@ -190,7 +190,7 @@ graph.add_node(Dense(4), name='dense3', input='dense1')
 graph.add_output(name='output1', input='dense2')
 graph.add_output(name='output2', input='dense3')
 
-graph.compile('rmsprop', {'output1':'mse', 'output2':'mse'})
+graph.compile(optimizer='rmsprop', loss={'output1':'mse', 'output2':'mse'})
 history = graph.fit({'input':X_train, 'output1':y_train, 'output2':y2_train}, nb_epoch=10)
 
 ```
@@ -204,7 +204,7 @@ graph.add_node(Dense(16), name='dense1', input='input1')
 graph.add_node(Dense(4), name='dense2', input='input2')
 graph.add_node(Dense(4), name='dense3', input='dense1')
 graph.add_output(name='output', inputs=['dense2', 'dense3'], merge_mode='sum')
-graph.compile('rmsprop', {'output':'mse'})
+graph.compile(optimizer='rmsprop', loss={'output':'mse'})
 
 history = graph.fit({'input1':X_train, 'input2':X2_train, 'output':y_train}, nb_epoch=10)
 predictions = graph.predict({'input1':X_test, 'input2':X2_test}) # {'output':...}
