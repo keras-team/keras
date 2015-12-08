@@ -1,6 +1,7 @@
 from __future__ import print_function
-import unittest
+import pytest
 import numpy as np
+import os
 np.random.seed(1337)
 
 from keras.models import Graph, Sequential
@@ -25,246 +26,254 @@ y2 = np.random.random((100,))
                                                          output_shape=(1,))
 
 
-class TestGraph(unittest.TestCase):
-    def test_1o_1i(self):
-        print('test a non-sequential graph with 1 input and 1 output')
-        graph = Graph()
-        graph.add_input(name='input1', input_shape=(32,))
+def test_1o_1i():
+    # test a non-sequential graph with 1 input and 1 output
+    np.random.seed(1337)
 
-        graph.add_node(Dense(16), name='dense1', input='input1')
-        graph.add_node(Dense(4), name='dense2', input='input1')
-        graph.add_node(Dense(4), name='dense3', input='dense1')
+    graph = Graph()
+    graph.add_input(name='input1', input_shape=(32,))
 
-        graph.add_output(name='output1',
-                         inputs=['dense2', 'dense3'],
-                         merge_mode='sum')
-        graph.compile('rmsprop', {'output1': 'mse'})
+    graph.add_node(Dense(16), name='dense1', input='input1')
+    graph.add_node(Dense(4), name='dense2', input='input1')
+    graph.add_node(Dense(4), name='dense3', input='dense1')
 
-        history = graph.fit({'input1': X_train, 'output1': y_train},
-                            nb_epoch=10)
-        out = graph.predict({'input1': X_test})
-        assert(type(out == dict))
-        assert(len(out) == 1)
-        loss = graph.test_on_batch({'input1': X_test, 'output1': y_test})
-        loss = graph.train_on_batch({'input1': X_test, 'output1': y_test})
-        loss = graph.evaluate({'input1': X_test, 'output1': y_test})
-        print(loss)
-        assert(loss < 2.5)
+    graph.add_output(name='output1',
+                     inputs=['dense2', 'dense3'],
+                     merge_mode='sum')
+    graph.compile('rmsprop', {'output1': 'mse'})
 
-        # test validation split
-        history = graph.fit({'input1': X_train, 'output1': y_train},
-                            validation_split=0.2, nb_epoch=1)
-        # test validation data
-        history = graph.fit({'input1': X_train, 'output1': y_train},
-                            validation_data={'input1': X_train, 'output1': y_train},
-                            nb_epoch=1)
+    history = graph.fit({'input1': X_train, 'output1': y_train},
+                        nb_epoch=10)
+    out = graph.predict({'input1': X_test})
+    assert(type(out == dict))
+    assert(len(out) == 1)
+    loss = graph.test_on_batch({'input1': X_test, 'output1': y_test})
+    loss = graph.train_on_batch({'input1': X_test, 'output1': y_test})
+    loss = graph.evaluate({'input1': X_test, 'output1': y_test})
+    assert(loss < 2.5)
 
-    def test_1o_1i_2(self):
-        print('test a more complex non-sequential graph with 1 input and 1 output')
-        graph = Graph()
-        graph.add_input(name='input1', input_shape=(32,))
+    # test validation split
+    history = graph.fit({'input1': X_train, 'output1': y_train},
+                        validation_split=0.2, nb_epoch=1)
+    # test validation data
+    history = graph.fit({'input1': X_train, 'output1': y_train},
+                        validation_data={'input1': X_train, 'output1': y_train},
+                        nb_epoch=1)
 
-        graph.add_node(Dense(16), name='dense1', input='input1')
-        graph.add_node(Dense(4), name='dense2-0', input='input1')
-        graph.add_node(Activation('relu'), name='dense2', input='dense2-0')
 
-        graph.add_node(Dense(16), name='dense3', input='dense2')
-        graph.add_node(Dense(4), name='dense4', inputs=['dense1', 'dense3'],
-                       merge_mode='sum')
+def test_1o_1i_2():
+    # test a more complex non-sequential graph with 1 input and 1 output
+    graph = Graph()
+    graph.add_input(name='input1', input_shape=(32,))
 
-        graph.add_output(name='output1', inputs=['dense2', 'dense4'],
-                         merge_mode='sum')
-        graph.compile('rmsprop', {'output1': 'mse'})
+    graph.add_node(Dense(16), name='dense1', input='input1')
+    graph.add_node(Dense(4), name='dense2-0', input='input1')
+    graph.add_node(Activation('relu'), name='dense2', input='dense2-0')
 
-        history = graph.fit({'input1': X_train, 'output1': y_train},
-                            nb_epoch=10)
-        out = graph.predict({'input1': X_train})
-        assert(type(out == dict))
-        assert(len(out) == 1)
-        loss = graph.test_on_batch({'input1': X_test, 'output1': y_test})
-        loss = graph.train_on_batch({'input1': X_test, 'output1': y_test})
-        loss = graph.evaluate({'input1': X_test, 'output1': y_test})
-        print(loss)
-        assert(loss < 2.5)
-        graph.get_config(verbose=1)
+    graph.add_node(Dense(16), name='dense3', input='dense2')
+    graph.add_node(Dense(4), name='dense4', inputs=['dense1', 'dense3'],
+                   merge_mode='sum')
 
-    def test_1o_2i(self):
-        print('test a non-sequential graph with 2 inputs and 1 output')
-        graph = Graph()
-        graph.add_input(name='input1', input_shape=(32,))
-        graph.add_input(name='input2', input_shape=(32,))
+    graph.add_output(name='output1', inputs=['dense2', 'dense4'],
+                     merge_mode='sum')
+    graph.compile('rmsprop', {'output1': 'mse'})
 
-        graph.add_node(Dense(16), name='dense1', input='input1')
-        graph.add_node(Dense(4), name='dense2', input='input2')
-        graph.add_node(Dense(4), name='dense3', input='dense1')
+    history = graph.fit({'input1': X_train, 'output1': y_train},
+                        nb_epoch=10)
+    out = graph.predict({'input1': X_train})
+    assert(type(out == dict))
+    assert(len(out) == 1)
 
-        graph.add_output(name='output1', inputs=['dense2', 'dense3'],
-                         merge_mode='sum')
-        graph.compile('rmsprop', {'output1': 'mse'})
+    loss = graph.test_on_batch({'input1': X_test, 'output1': y_test})
+    loss = graph.train_on_batch({'input1': X_test, 'output1': y_test})
+    loss = graph.evaluate({'input1': X_test, 'output1': y_test})
+    assert(loss < 2.5)
 
-        history = graph.fit({'input1': X_train, 'input2': X2_train, 'output1': y_train},
-                            nb_epoch=10)
-        out = graph.predict({'input1': X_test, 'input2': X2_test})
-        assert(type(out == dict))
-        assert(len(out) == 1)
-        loss = graph.test_on_batch({'input1': X_test, 'input2': X2_test, 'output1': y_test})
-        loss = graph.train_on_batch({'input1': X_test, 'input2': X2_test, 'output1': y_test})
-        loss = graph.evaluate({'input1': X_test, 'input2': X2_test, 'output1': y_test})
-        print(loss)
-        assert(loss < 3.0)
-        graph.get_config(verbose=1)
+    graph.get_config(verbose=1)
 
-    def test_2o_1i_weights(self):
-        print('test a non-sequential graph with 1 input and 2 outputs')
-        graph = Graph()
-        graph.add_input(name='input1', input_shape=(32,))
 
-        graph.add_node(Dense(16), name='dense1', input='input1')
-        graph.add_node(Dense(4), name='dense2', input='input1')
-        graph.add_node(Dense(1), name='dense3', input='dense1')
+def test_1o_2i():
+    # test a non-sequential graph with 2 inputs and 1 output
+    graph = Graph()
+    graph.add_input(name='input1', input_shape=(32,))
+    graph.add_input(name='input2', input_shape=(32,))
 
-        graph.add_output(name='output1', input='dense2')
-        graph.add_output(name='output2', input='dense3')
-        graph.compile('rmsprop', {'output1': 'mse', 'output2': 'mse'})
+    graph.add_node(Dense(16), name='dense1', input='input1')
+    graph.add_node(Dense(4), name='dense2', input='input2')
+    graph.add_node(Dense(4), name='dense3', input='dense1')
 
-        history = graph.fit({'input1': X_train, 'output1': y_train, 'output2': y2_train},
-                            nb_epoch=10)
-        out = graph.predict({'input1': X_test})
-        assert(type(out == dict))
-        assert(len(out) == 2)
-        loss = graph.test_on_batch({'input1': X_test, 'output1': y_test, 'output2': y2_test})
-        loss = graph.train_on_batch({'input1': X_test, 'output1': y_test, 'output2': y2_test})
-        loss = graph.evaluate({'input1': X_test, 'output1': y_test, 'output2': y2_test})
-        print(loss)
-        assert(loss < 4.)
+    graph.add_output(name='output1', inputs=['dense2', 'dense3'],
+                     merge_mode='sum')
+    graph.compile('rmsprop', {'output1': 'mse'})
 
-        print('test weight saving')
-        graph.save_weights('test_2o_1i_weights_temp.h5', overwrite=True)
-        graph = Graph()
-        graph.add_input(name='input1', input_shape=(32,))
-        graph.add_node(Dense(16), name='dense1', input='input1')
-        graph.add_node(Dense(4), name='dense2', input='input1')
-        graph.add_node(Dense(1), name='dense3', input='dense1')
-        graph.add_output(name='output1', input='dense2')
-        graph.add_output(name='output2', input='dense3')
-        graph.compile('rmsprop', {'output1': 'mse', 'output2': 'mse'})
-        graph.load_weights('test_2o_1i_weights_temp.h5')
-        nloss = graph.evaluate({'input1': X_test, 'output1': y_test, 'output2': y2_test})
-        print(nloss)
-        assert(loss == nloss)
+    history = graph.fit({'input1': X_train, 'input2': X2_train, 'output1': y_train},
+                        nb_epoch=10)
+    out = graph.predict({'input1': X_test, 'input2': X2_test})
+    assert(type(out == dict))
+    assert(len(out) == 1)
 
-    def test_2o_1i_sample_weights(self):
-        print('test a non-sequential graph with 1 input and 2 outputs with sample weights')
-        graph = Graph()
-        graph.add_input(name='input1', input_shape=(32,))
+    loss = graph.test_on_batch({'input1': X_test, 'input2': X2_test, 'output1': y_test})
+    loss = graph.train_on_batch({'input1': X_test, 'input2': X2_test, 'output1': y_test})
+    loss = graph.evaluate({'input1': X_test, 'input2': X2_test, 'output1': y_test})
+    assert(loss < 3.0)
 
-        graph.add_node(Dense(16), name='dense1', input='input1')
-        graph.add_node(Dense(4), name='dense2', input='input1')
-        graph.add_node(Dense(1), name='dense3', input='dense1')
+    graph.get_config(verbose=1)
 
-        graph.add_output(name='output1', input='dense2')
-        graph.add_output(name='output2', input='dense3')
 
-        weights1 = np.random.uniform(size=y_train.shape[0])
-        weights2 = np.random.uniform(size=y2_train.shape[0])
-        weights1_test = np.random.uniform(size=y_test.shape[0])
-        weights2_test = np.random.uniform(size=y2_test.shape[0])
+def test_2o_1i_weights():
+    # test a non-sequential graph with 1 input and 2 outputs
+    graph = Graph()
+    graph.add_input(name='input1', input_shape=(32,))
 
-        graph.compile('rmsprop', {'output1': 'mse', 'output2': 'mse'})
+    graph.add_node(Dense(16), name='dense1', input='input1')
+    graph.add_node(Dense(4), name='dense2', input='input1')
+    graph.add_node(Dense(1), name='dense3', input='dense1')
 
-        history = graph.fit({'input1': X_train, 'output1': y_train, 'output2': y2_train},
-                            nb_epoch=10,
-                            sample_weight={'output1': weights1, 'output2': weights2})
-        out = graph.predict({'input1': X_test})
-        assert(type(out == dict))
-        assert(len(out) == 2)
-        loss = graph.test_on_batch({'input1': X_test, 'output1': y_test, 'output2': y2_test},
-                                   sample_weight={'output1': weights1_test, 'output2': weights2_test})
-        loss = graph.train_on_batch({'input1': X_train, 'output1': y_train, 'output2': y2_train},
-                                    sample_weight={'output1': weights1, 'output2': weights2})
-        loss = graph.evaluate({'input1': X_train, 'output1': y_train, 'output2': y2_train},
-                              sample_weight={'output1': weights1, 'output2': weights2})
-        print(loss)
+    graph.add_output(name='output1', input='dense2')
+    graph.add_output(name='output2', input='dense3')
+    graph.compile('rmsprop', {'output1': 'mse', 'output2': 'mse'})
 
-    def test_recursive(self):
-        print('test layer-like API')
+    history = graph.fit({'input1': X_train, 'output1': y_train, 'output2': y2_train},
+                        nb_epoch=10)
+    out = graph.predict({'input1': X_test})
+    assert(type(out == dict))
+    assert(len(out) == 2)
+    loss = graph.test_on_batch({'input1': X_test, 'output1': y_test, 'output2': y2_test})
+    loss = graph.train_on_batch({'input1': X_test, 'output1': y_test, 'output2': y2_test})
+    loss = graph.evaluate({'input1': X_test, 'output1': y_test, 'output2': y2_test})
+    assert(loss < 4.)
 
-        graph = containers.Graph()
-        graph.add_input(name='input1', input_shape=(32,))
-        graph.add_node(Dense(16), name='dense1', input='input1')
-        graph.add_node(Dense(4), name='dense2', input='input1')
-        graph.add_node(Dense(4), name='dense3', input='dense1')
-        graph.add_output(name='output1', inputs=['dense2', 'dense3'],
-                         merge_mode='sum')
+    # test weight saving
+    fname = 'test_2o_1i_weights_temp.h5'
+    graph.save_weights(fname, overwrite=True)
 
-        seq = Sequential()
-        seq.add(Dense(32, input_shape=(32,)))
-        seq.add(graph)
-        seq.add(Dense(4))
+    graph = Graph()
+    graph.add_input(name='input1', input_shape=(32,))
+    graph.add_node(Dense(16), name='dense1', input='input1')
+    graph.add_node(Dense(4), name='dense2', input='input1')
+    graph.add_node(Dense(1), name='dense3', input='dense1')
+    graph.add_output(name='output1', input='dense2')
+    graph.add_output(name='output2', input='dense3')
+    graph.compile('rmsprop', {'output1': 'mse', 'output2': 'mse'})
+    graph.load_weights('test_2o_1i_weights_temp.h5')
+    os.remove(fname)
 
-        seq.compile('rmsprop', 'mse')
+    nloss = graph.evaluate({'input1': X_test, 'output1': y_test, 'output2': y2_test})
+    assert(loss == nloss)
 
-        history = seq.fit(X_train, y_train, batch_size=10, nb_epoch=10)
-        loss = seq.evaluate(X_test, y_test)
-        print(loss)
-        assert(loss < 2.5)
 
-        loss = seq.evaluate(X_test, y_test, show_accuracy=True)
-        pred = seq.predict(X_test)
-        seq.get_config(verbose=1)
+def test_2o_1i_sample_weights():
+    # test a non-sequential graph with 1 input and 2 outputs with sample weights
+    graph = Graph()
+    graph.add_input(name='input1', input_shape=(32,))
 
-    def test_create_output(self):
-        print('test create_output argument')
-        graph = Graph()
-        graph.add_input(name='input1', input_shape=(32,))
+    graph.add_node(Dense(16), name='dense1', input='input1')
+    graph.add_node(Dense(4), name='dense2', input='input1')
+    graph.add_node(Dense(1), name='dense3', input='dense1')
 
-        graph.add_node(Dense(16), name='dense1', input='input1')
-        graph.add_node(Dense(4), name='dense2', input='input1')
-        graph.add_node(Dense(4), name='dense3', input='dense1')
-        graph.add_node(Dense(4), name='output1', inputs=['dense2', 'dense3'],
-                       merge_mode='sum', create_output=True)
-        graph.compile('rmsprop', {'output1': 'mse'})
+    graph.add_output(name='output1', input='dense2')
+    graph.add_output(name='output2', input='dense3')
 
-        history = graph.fit({'input1': X_train, 'output1': y_train},
-                            nb_epoch=10)
-        out = graph.predict({'input1': X_test})
-        assert(type(out == dict))
-        assert(len(out) == 1)
-        loss = graph.test_on_batch({'input1': X_test, 'output1': y_test})
-        loss = graph.train_on_batch({'input1': X_test, 'output1': y_test})
-        loss = graph.evaluate({'input1': X_test, 'output1': y_test})
-        print(loss)
-        assert(loss < 2.5)
+    weights1 = np.random.uniform(size=y_train.shape[0])
+    weights2 = np.random.uniform(size=y2_train.shape[0])
+    weights1_test = np.random.uniform(size=y_test.shape[0])
+    weights2_test = np.random.uniform(size=y2_test.shape[0])
 
-    def test_count_params(self):
-        print('test count params')
+    graph.compile('rmsprop', {'output1': 'mse', 'output2': 'mse'})
 
-        nb_units = 100
-        nb_classes = 2
+    history = graph.fit({'input1': X_train, 'output1': y_train, 'output2': y2_train},
+                        nb_epoch=10,
+                        sample_weight={'output1': weights1, 'output2': weights2})
+    out = graph.predict({'input1': X_test})
+    assert(type(out == dict))
+    assert(len(out) == 2)
+    loss = graph.test_on_batch({'input1': X_test, 'output1': y_test, 'output2': y2_test},
+                               sample_weight={'output1': weights1_test, 'output2': weights2_test})
+    loss = graph.train_on_batch({'input1': X_train, 'output1': y_train, 'output2': y2_train},
+                                sample_weight={'output1': weights1, 'output2': weights2})
+    loss = graph.evaluate({'input1': X_train, 'output1': y_train, 'output2': y2_train},
+                          sample_weight={'output1': weights1, 'output2': weights2})
 
-        graph = Graph()
-        graph.add_input(name='input1', input_shape=(32,))
-        graph.add_input(name='input2', input_shape=(32,))
-        graph.add_node(Dense(nb_units),
-                       name='dense1', input='input1')
-        graph.add_node(Dense(nb_classes),
-                       name='dense2', input='input2')
-        graph.add_node(Dense(nb_classes),
-                       name='dense3', input='dense1')
-        graph.add_output(name='output', inputs=['dense2', 'dense3'],
-                         merge_mode='sum')
 
-        n = 32 * nb_units + nb_units
-        n += 32 * nb_classes + nb_classes
-        n += nb_units * nb_classes + nb_classes
+def test_recursive():
+    # test layer-like API
 
-        self.assertEqual(n, graph.count_params())
+    graph = containers.Graph()
+    graph.add_input(name='input1', input_shape=(32,))
+    graph.add_node(Dense(16), name='dense1', input='input1')
+    graph.add_node(Dense(4), name='dense2', input='input1')
+    graph.add_node(Dense(4), name='dense3', input='dense1')
+    graph.add_output(name='output1', inputs=['dense2', 'dense3'],
+                     merge_mode='sum')
 
-        graph.compile('rmsprop', {'output': 'binary_crossentropy'})
+    seq = Sequential()
+    seq.add(Dense(32, input_shape=(32,)))
+    seq.add(graph)
+    seq.add(Dense(4))
 
-        self.assertEqual(n, graph.count_params())
+    seq.compile('rmsprop', 'mse')
+
+    history = seq.fit(X_train, y_train, batch_size=10, nb_epoch=10)
+    loss = seq.evaluate(X_test, y_test)
+    assert(loss < 2.5)
+
+    loss = seq.evaluate(X_test, y_test, show_accuracy=True)
+    pred = seq.predict(X_test)
+    seq.get_config(verbose=1)
+
+
+def test_create_output():
+    # test create_output argument
+    graph = Graph()
+    graph.add_input(name='input1', input_shape=(32,))
+
+    graph.add_node(Dense(16), name='dense1', input='input1')
+    graph.add_node(Dense(4), name='dense2', input='input1')
+    graph.add_node(Dense(4), name='dense3', input='dense1')
+    graph.add_node(Dense(4), name='output1', inputs=['dense2', 'dense3'],
+                   merge_mode='sum', create_output=True)
+    graph.compile('rmsprop', {'output1': 'mse'})
+
+    history = graph.fit({'input1': X_train, 'output1': y_train},
+                        nb_epoch=10)
+    out = graph.predict({'input1': X_test})
+    assert(type(out == dict))
+    assert(len(out) == 1)
+
+    loss = graph.test_on_batch({'input1': X_test, 'output1': y_test})
+    loss = graph.train_on_batch({'input1': X_test, 'output1': y_test})
+    loss = graph.evaluate({'input1': X_test, 'output1': y_test})
+    assert(loss < 2.5)
+
+
+def test_count_params():
+    # test count params
+
+    nb_units = 100
+    nb_classes = 2
+
+    graph = Graph()
+    graph.add_input(name='input1', input_shape=(32,))
+    graph.add_input(name='input2', input_shape=(32,))
+    graph.add_node(Dense(nb_units),
+                   name='dense1', input='input1')
+    graph.add_node(Dense(nb_classes),
+                   name='dense2', input='input2')
+    graph.add_node(Dense(nb_classes),
+                   name='dense3', input='dense1')
+    graph.add_output(name='output', inputs=['dense2', 'dense3'],
+                     merge_mode='sum')
+
+    n = 32 * nb_units + nb_units
+    n += 32 * nb_classes + nb_classes
+    n += nb_units * nb_classes + nb_classes
+
+    assert(n == graph.count_params())
+
+    graph.compile('rmsprop', {'output': 'binary_crossentropy'})
+
+    assert(n == graph.count_params())
 
 
 if __name__ == '__main__':
-    print('Test graph model')
-    unittest.main()
+    pytest.main([__file__])

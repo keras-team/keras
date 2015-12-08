@@ -1,4 +1,4 @@
-import unittest
+import pytest
 import numpy as np
 np.random.seed(1337) # for reproducibility
 
@@ -37,26 +37,29 @@ def create_model(weight_reg=None, activity_reg=None):
     model = Sequential()
     model.add(Dense(50, input_shape=(784,)))
     model.add(Activation('relu'))
-    model.add(Dense(10, W_regularizer=weight_reg, activity_regularizer=activity_reg))
+    model.add(Dense(10, W_regularizer=weight_reg,
+                    activity_regularizer=activity_reg))
     model.add(Activation('softmax'))
     return model
 
 
-class TestRegularizers(unittest.TestCase):
-    def test_W_reg(self):
-        for reg in [regularizers.identity(), regularizers.l1(), regularizers.l2(), regularizers.l1l2()]:
-            model = create_model(weight_reg=reg)
-            model.compile(loss='categorical_crossentropy', optimizer='rmsprop')
-            model.fit(X_train, Y_train, batch_size=batch_size, nb_epoch=nb_epoch, verbose=0)
-            model.evaluate(X_test[test_ids, :], Y_test[test_ids, :], verbose=0)
+def test_W_reg():
+    for reg in [regularizers.identity(), regularizers.l1(), regularizers.l2(), regularizers.l1l2()]:
+        model = create_model(weight_reg=reg)
+        model.compile(loss='categorical_crossentropy', optimizer='rmsprop')
+        model.fit(X_train, Y_train, batch_size=batch_size,
+                  nb_epoch=nb_epoch, verbose=0)
+        model.evaluate(X_test[test_ids, :], Y_test[test_ids, :], verbose=0)
 
-    def test_A_reg(self):
-        for reg in [regularizers.activity_l1(), regularizers.activity_l2()]:
-            model = create_model(activity_reg=reg)
-            model.compile(loss='categorical_crossentropy', optimizer='rmsprop')
-            model.fit(X_train, Y_train, batch_size=batch_size, nb_epoch=nb_epoch, verbose=0)
-            model.evaluate(X_test[test_ids, :], Y_test[test_ids, :], verbose=0)
+
+def test_A_reg():
+    for reg in [regularizers.activity_l1(), regularizers.activity_l2()]:
+        model = create_model(activity_reg=reg)
+        model.compile(loss='categorical_crossentropy', optimizer='rmsprop')
+        model.fit(X_train, Y_train, batch_size=batch_size,
+                  nb_epoch=nb_epoch, verbose=0)
+        model.evaluate(X_test[test_ids, :], Y_test[test_ids, :], verbose=0)
+
 
 if __name__ == '__main__':
-    print('Test weight and activity regularizers')
-    unittest.main()
+    pytest.main([__file__])

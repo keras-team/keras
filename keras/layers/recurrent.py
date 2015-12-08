@@ -41,6 +41,15 @@ class Recurrent(MaskedLayer):
     def step(self, x, states):
         raise NotImplementedError
 
+    def get_initial_states(self, X):
+        # build an all-zero tensor of shape (samples, output_dim)
+        initial_state = K.zeros_like(X)  # (samples, timesteps, input_dim)
+        initial_state = K.sum(initial_state, axis=1)  # (samples, input_dim)
+        reducer = K.zeros((self.input_dim, self.output_dim))
+        initial_state = K.dot(initial_state, reducer)  # (samples, output_dim)
+        initial_states = [initial_state for _ in range(len(self.states))]
+        return initial_states
+
     def get_output(self, train=False):
         # input shape: (nb_samples, time (padded with zeros), input_dim)
         X = self.get_input(train)
@@ -64,12 +73,7 @@ class Recurrent(MaskedLayer):
         if self.stateful:
             initial_states = self.states
         else:
-            # build an all-zero tensor of shape (samples, output_dim)
-            initial_state = K.zeros_like(X)  # (samples, timesteps, input_dim)
-            initial_state = K.sum(initial_state, axis=1)  # (samples, input_dim)
-            reducer = K.zeros((self.input_dim, self.output_dim))
-            initial_state = K.dot(initial_state, reducer)  # (samples, output_dim)
-            initial_states = [initial_state for _ in range(len(self.states))]
+            initial_states = self.get_initial_states(X)
 
         last_output, outputs, states = K.rnn(self.step, X, initial_states,
                                              go_backwards=self.go_backwards,

@@ -108,7 +108,7 @@ Keras uses the following dependencies:
 - HDF5 and h5py (optional, required if you use model saving/loading functions)
 - Optional but recommended if you use CNNs: cuDNN.
 
-When using the Theano backend:
+*When using the Theano backend:*
 - Theano
     - [See installation instructions](http://deeplearning.net/software/theano/install.html#install).
 
@@ -117,11 +117,11 @@ When using the Theano backend:
 sudo pip install git+git://github.com/Theano/Theano.git
 ```
 
-When using the TensorFlow backend:
+*When using the TensorFlow backend:*
 - TensorFlow
     - [See installation instructions](https://github.com/tensorflow/tensorflow#download-and-setup).
 
-To install, `cd` to the Keras folder and run the install command:
+To install Keras, `cd` to the Keras folder and run the install command:
 ```
 sudo python setup.py install
 ```
@@ -145,20 +145,7 @@ By default, Keras will use Theano as its tensor manipulation library. [Follow th
 
 You can ask questions and join the development discussion on the [Keras Google group](https://groups.google.com/forum/#!forum/keras-users).
 
-------------------
-
-
-## Contribution Guidelines
-
-Keras welcomes all contributions from the community. 
-
-- Keep a pragmatic mindset and avoid bloat. Only add to the source if that is the only path forward.
-- New features should be documented. Make sure you update the documentation along with your Pull Request.
-- Any new function or class should have a proper docstring.
-- The documentation for every new feature should include a usage example in the form of a code snippet. 
-- All changes should be tested. Make sure any new feature you add has a corresponding unit test.
-- Please no Pull Requests about coding style.
-- Even if you don't contribute to the Keras source code, if you have an application of Keras that is concise and powerful, please consider adding it to our collection of [examples](https://github.com/fchollet/keras/tree/master/examples).
+You can also post bug reports and feature requests in [Github issues](https://github.com/fchollet/keras/issues). Make sure to read [our guidelines](https://github.com/fchollet/keras/blob/master/CONTRIBUTING.md) first.
 
 
 ------------------
