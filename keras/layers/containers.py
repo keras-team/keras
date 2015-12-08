@@ -27,9 +27,14 @@ class Sequential(Layer):
         # set temporary input to first layer
         tmp = self.layers[0].get_input
         self.layers[0].get_input = lambda _: X
+        if hasattr(self, 'get_input_mask'):
+            tmp_mask = self.get_input_mask
+            self.get_input_mask = lambda _: mask
         Y = self.get_output(train=train)
         # return input to first layer to what it was
         self.layers[0].get_input = tmp
+        if hasattr(self, 'get_input_mask'):
+            self.get_input_mask = tmp_mask
         return Y
 
     def set_previous(self, layer):
