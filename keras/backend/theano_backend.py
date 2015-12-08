@@ -601,17 +601,11 @@ def pool2d(x, pool_size, strides=(1, 1), border_mode='valid',
                                           ignore_border=ignore_border,
                                           padding=padding,
                                           mode='max')
-    elif pool_mode == 'mean':
-        # Only seems to work with mode='ignore_borders' right now
+    elif pool_mode == 'avg':
         pool_out = downsample.max_pool_2d(x, ds=pool_size, st=strides,
                                           ignore_border=ignore_border,
                                           padding=padding,
                                           mode='average_exc_pad')
-    elif pool_mode == 'sum':
-        pool_out = downsample.max_pool_2d(x, ds=pool_size, st=strides,
-                                          ignore_border=ignore_border,
-                                          padding=padding,
-                                          mode='sum')
     else:
         raise Exception('Invalid pooling mode: ' + str(pool_mode))
 
