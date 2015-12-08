@@ -169,7 +169,7 @@ class Adadelta(Optimizer):
     def get_config(self):
         return {"name": self.__class__.__name__,
                 "lr": float(K.get_value(self.lr)),
-                "rho": float(K.get_value(self.rho)),
+                "rho": self.rho,
                 "epsilon": self.epsilon}
 
 

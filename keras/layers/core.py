@@ -1107,16 +1107,18 @@ class LambdaMerge(Lambda):
         self.params = []
         self.regularizers = []
         self.constraints = []
+        self.learning_rate_multipliers = []
         self.updates = []
         for l in self.layers:
-            params, regs, consts, updates = l.get_params()
+            params, regs, consts, learning_rate_multipliers, updates = l.get_params()
             self.regularizers += regs
             self.updates += updates
             # params and constraints have the same size
-            for p, c in zip(params, consts):
+            for p, c, lmul in zip(params, consts, learning_rate_multipliers):
                 if p not in self.params:
                     self.params.append(p)
                     self.constraints.append(c)
+                    self.learning_rate_multipliers.append(lmul)
         py3 = sys.version_info[0] == 3
         if py3:
             self.function = marshal.dumps(function.__code__)
@@ -1148,7 +1150,8 @@ class LambdaMerge(Lambda):
             return tuple(shape)
 
     def get_params(self):
-        return self.params, self.regularizers, self.constraints, self.updates
+        return self.params, self.regularizers, self.constraints,\
+               self.learning_rate_multipliers, self.updates
 
     def get_output(self, train=False):
         func = marshal.loads(self.function)
