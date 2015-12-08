@@ -112,14 +112,14 @@ def test_MaxPooling1D():
                     check_layer_output_shape(layer, input_data)
 
 
-def test_MeanPooling1D(self):
+def test_AveragePooling1D(self):
     for ignore_border in [True, False]:
         for pool_length in [1, 2]:
             for stride in [1]:
                 for input_data_shape in [(2, 3, 4), (2, 4, 4)]:
-                    layer = MeanPooling1D(pool_length=pool_length,
-                                          stride=stride,
-                                          border_mode='valid')
+                    layer = AveragePooling1D(pool_length=pool_length,
+                                             stride=stride,
+                                             border_mode='valid')
                     input_data = np.random.random(input_data_shape)
                     check_layer_output_shape(layer, input_data)
 
@@ -145,23 +145,23 @@ def test_MaxPooling2D():
                     check_layer_output_shape(layer, input_data)
 
 
-def test_MeanPooling2D(self):
+def test_AveragePooling2D(self):
     for ignore_border in [True, False]:
         for strides in [(1, 1), (2, 2)]:
             for pool_size in [(2, 2), (3, 3), (4, 4)]:
                 for input_data_shape in [(2, 1, 4, 4), (2, 1, 5, 5), (2, 1, 6, 6)]:
-                    layer = MeanPooling2D(pool_size=pool_size,
-                                          strides=strides,
-                                          border_mode='valid',
-                                          dim_ordering='th')
+                    layer = AveragePooling2D(pool_size=pool_size,
+                                             strides=strides,
+                                             border_mode='valid',
+                                             dim_ordering='th')
                     input_data = np.random.random(input_data_shape)
                     check_layer_output_shape(layer, input_data)
 
                 for input_data_shape in [(2, 4, 4, 1)]:
-                    layer = MeanPooling2D(pool_size=pool_size,
-                                          strides=strides,
-                                          border_mode='valid',
-                                          dim_ordering='tf')
+                    layer = AveragePooling2D(pool_size=pool_size,
+                                             strides=strides,
+                                             border_mode='valid',
+                                             dim_ordering='tf')
                     input_data = np.random.random(input_data_shape)
                     check_layer_output_shape(layer, input_data)
 

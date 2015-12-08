@@ -100,13 +100,13 @@ Max pooling operation for temporal data.
 
 ---
 
-## MeanPooling1D
+## AveragePooling1D
 
 ```python
-keras.layers.convolutional.MeanPooling1D(pool_length=2, stride=None, border_mode='valid')
+keras.layers.convolutional.AveragePooling1D(pool_length=2, stride=None, border_mode='valid')
 ```
 
-Mean/average pooling operation for temporal data.
+Average pooling operation for temporal data.
 
 - __Input shape__: 3D tensor with shape: `(samples, steps, features)`.
 
@@ -143,13 +143,13 @@ or 4D tensor with shape: `(samples, pooled_rows, pooled_cols, channels)` if dim_
 
 ---
 
-## MeanPooling2D
+## AveragePooling2D
 
 ```python
-keras.layers.convolutional.MeanPooling2D(pool_size=(2, 2), border_mode='valid', dim_ordering='th')
+keras.layers.convolutional.AveragePooling2D(pool_size=(2, 2), border_mode='valid', dim_ordering='th')
 ```
 
-Mean/average pooling operation for spatial data.
+Average pooling operation for spatial data.
 
 - __Input shape__: 4D tensor with shape: `(samples, channels, rows, cols)` if dim_ordering='th'
 or 4D tensor with shape: `(samples, rows, cols, channels)` if dim_ordering='tf'.

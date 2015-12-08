@@ -295,13 +295,13 @@ class MaxPooling1D(Pooling1D):
         return output
 
 
-class MeanPooling1D(Pooling1D):
+class AveragePooling1D(Pooling1D):
     def __init__(self, **kwargs):
-        super(MeanPooling1D, self).__init__(**kwargs)
+        super(AveragePooling1D, self).__init__(**kwargs)
 
     def pooling_function(self, back_end, inputs, pool_size, strides, border_mode, dim_ordering):
         output = back_end.pool2d(inputs, pool_size, strides,
-                                 border_mode, dim_ordering, pool_mode='mean')
+                                 border_mode, dim_ordering, pool_mode='avg')
         return output
 
 
@@ -376,13 +376,13 @@ class MaxPooling2D(Pooling2D):
         return output
 
 
-class MeanPooling2D(Pooling2D):
+class AveragePooling2D(Pooling2D):
     def __init__(self, **kwargs):
-        super(MeanPooling2D, self).__init__(**kwargs)
+        super(AveragePooling2D, self).__init__(**kwargs)
 
     def pooling_function(self, back_end, inputs, pool_size, strides, border_mode, dim_ordering):
         output = back_end.pool2d(inputs, pool_size, strides,
-                                 border_mode, dim_ordering, pool_mode='mean')
+                                 border_mode, dim_ordering, pool_mode='avg')
         return output
 
 
