@@ -348,7 +348,6 @@ class Graph(Layer):
                 sh = SiameseHead(i)
                 sh.previous = s
                 sh_name = outputs[i]
-                sh.set_name(sh_name)
                 self.namespace.add(sh_name)
                 self.nodes[sh_name] = sh
                 self.node_config.append({'name': sh_name,
