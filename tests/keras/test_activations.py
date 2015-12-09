@@ -31,23 +31,41 @@ def ref_hard_sigmoid(x):
 vec_hard_sigmoid = np.vectorize(ref_hard_sigmoid)
 
 
+# Reference softplus implementation
+def ref_softplus(x):
+    return np.log(np.ones_like(x) + np.exp(x))
+
+
 # Test using a reference implementation of softmax
-def softmax(values):
+def ref_softmax(values):
     m = np.max(values)
     e = np.exp(values - m)
     return e / np.sum(e)
 
 
 def test_softmax():
-    from keras.activations import softmax as s
+    from keras.activations import softmax
 
     x = K.placeholder(ndim=2)
-    exp = s(x)
-    f = K.function([x], [exp])
+    softmax_out = softmax(x)
+    f = K.function([x], [softmax_out])
     test_values = get_standard_values()
 
     result = f([test_values])[0]
-    expected = softmax(test_values)
+    expected = ref_softmax(test_values)
+    assert_allclose(result, expected, rtol=1e-05)
+
+
+def test_softplus():
+    from keras.activations import softplus
+
+    x = K.placeholder(ndim=2)
+    softplus_out = softplus(x)
+    f = K.function([x], [softplus_out])
+    test_values = get_standard_values()
+
+    result = f([test_values])[0]
+    expected = ref_softplus(test_values)
     assert_allclose(result, expected, rtol=1e-05)
 
 
