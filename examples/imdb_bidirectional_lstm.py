@@ -1,4 +1,12 @@
-from __future__ import absolute_import
+'''Train a Bidirectional LSTM on the IMDB sentiment classification task.
+
+GPU command:
+    THEANO_FLAGS=mode=FAST_RUN,device=gpu,floatX=float32 python imdb_bidirectional_lstm.py
+
+Output after 4 epochs on CPU: ~0.8146
+Time per epoch on CPU (Core i7): ~150s.
+'''
+
 from __future__ import print_function
 import numpy as np
 np.random.seed(1337)  # for reproducibility
@@ -11,21 +19,12 @@ from keras.layers.embeddings import Embedding
 from keras.layers.recurrent import LSTM
 from keras.datasets import imdb
 
-'''
-    Train a Bidirectional LSTM on the IMDB sentiment classification task.
-
-    GPU command:
-        THEANO_FLAGS=mode=FAST_RUN,device=gpu,floatX=float32 python imdb_bidirectional_lstm.py
-
-    Output after 4 epochs on CPU: ~0.8146
-    Time per epoch on CPU (Core i7): ~150s.
-'''
 
 max_features = 20000
 maxlen = 100  # cut texts after this number of words (among top max_features most common words)
 batch_size = 32
 
-print("Loading data...")
+print('Loading data...')
 (X_train, y_train), (X_test, y_test) = imdb.load_data(nb_words=max_features,
                                                       test_split=0.2)
 print(len(X_train), 'train sequences')
@@ -53,7 +52,7 @@ model.add_output(name='output', input='sigmoid')
 # try using different optimizers and different optimizer configs
 model.compile('adam', {'output': 'binary_crossentropy'})
 
-print("Train...")
+print('Train...')
 model.fit({'input': X_train, 'output': y_train},
           batch_size=batch_size,
           nb_epoch=4)

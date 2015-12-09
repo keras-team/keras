@@ -1,4 +1,10 @@
-from __future__ import absolute_import
+'''Train a simple deep NN on the MNIST dataset.
+
+Get to 98.40% test accuracy after 20 epochs
+(there is *a lot* of margin for parameter tuning).
+2 seconds per epoch on a K520 GPU.
+'''
+
 from __future__ import print_function
 import numpy as np
 np.random.seed(1337)  # for reproducibility
@@ -9,13 +15,6 @@ from keras.layers.core import Dense, Dropout, Activation
 from keras.optimizers import SGD, Adam, RMSprop
 from keras.utils import np_utils
 
-'''
-    Train a simple deep NN on the MNIST dataset.
-
-    Get to 98.40% test accuracy after 20 epochs
-    (there is *a lot* of margin for parameter tuning).
-    2 seconds per epoch on a K520 GPU.
-'''
 
 batch_size = 128
 nb_classes = 10
@@ -26,8 +25,8 @@ nb_epoch = 20
 
 X_train = X_train.reshape(60000, 784)
 X_test = X_test.reshape(10000, 784)
-X_train = X_train.astype("float32")
-X_test = X_test.astype("float32")
+X_train = X_train.astype('float32')
+X_test = X_test.astype('float32')
 X_train /= 255
 X_test /= 255
 print(X_train.shape[0], 'train samples')

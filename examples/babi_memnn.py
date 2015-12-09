@@ -1,17 +1,4 @@
-from __future__ import print_function
-from keras.models import Sequential
-from keras.layers.embeddings import Embedding
-from keras.layers.core import Activation, Dense, Merge, Permute, Dropout
-from keras.layers.recurrent import LSTM
-from keras.datasets.data_utils import get_file
-from keras.preprocessing.sequence import pad_sequences
-from functools import reduce
-import tarfile
-import numpy as np
-import re
-
-"""
-Train a memory network on the bAbI dataset.
+'''Train a memory network on the bAbI dataset.
 
 References:
 - Jason Weston, Antoine Bordes, Sumit Chopra, Tomas Mikolov, Alexander M. Rush,
@@ -24,7 +11,19 @@ References:
 
 Reaches 93% accuracy on task 'single_supporting_fact_10k' after 70 epochs.
 Time per epoch: 3s on CPU (core i7).
-"""
+'''
+
+from __future__ import print_function
+from keras.models import Sequential
+from keras.layers.embeddings import Embedding
+from keras.layers.core import Activation, Dense, Merge, Permute, Dropout
+from keras.layers.recurrent import LSTM
+from keras.datasets.data_utils import get_file
+from keras.preprocessing.sequence import pad_sequences
+from functools import reduce
+import tarfile
+import numpy as np
+import re
 
 
 def tokenize(sent):
@@ -200,4 +199,3 @@ answer.fit([inputs_train, queries_train, inputs_train], answers_train,
            nb_epoch=70,
            show_accuracy=True,
            validation_data=([inputs_test, queries_test, inputs_test], answers_test))
-

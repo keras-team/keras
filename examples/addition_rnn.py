@@ -1,13 +1,5 @@
 # -*- coding: utf-8 -*-
-from __future__ import print_function
-from keras.models import Sequential, slice_X
-from keras.layers.core import Activation, TimeDistributedDense, RepeatVector
-from keras.layers import recurrent
-import numpy as np
-from six.moves import range
-
-"""
-An implementation of sequence to sequence learning for performing addition
+'''An implementation of sequence to sequence learning for performing addition
 Input: "535+61"
 Output: "596"
 Padding is handled by using a repeated sentinel character (space)
@@ -32,16 +24,23 @@ Four digits inverted:
 Five digits inverted:
 + One layer LSTM (128 HN), 550k training examples = 99% train/test accuracy in 30 epochs
 
-"""
+'''
+
+from __future__ import print_function
+from keras.models import Sequential, slice_X
+from keras.layers.core import Activation, TimeDistributedDense, RepeatVector
+from keras.layers import recurrent
+import numpy as np
+from six.moves import range
 
 
 class CharacterTable(object):
-    """
+    '''
     Given a set of characters:
     + Encode them to a one hot integer representation
     + Decode the one hot integer representation to their character output
     + Decode a vector of probabilties to their character output
-    """
+    '''
     def __init__(self, chars, maxlen):
         self.chars = sorted(set(chars))
         self.char_indices = dict((c, i) for i, c in enumerate(self.chars))
@@ -150,7 +149,8 @@ for iteration in range(1, 200):
     print()
     print('-' * 50)
     print('Iteration', iteration)
-    model.fit(X_train, y_train, batch_size=BATCH_SIZE, nb_epoch=1, validation_data=(X_val, y_val), show_accuracy=True)
+    model.fit(X_train, y_train, batch_size=BATCH_SIZE, nb_epoch=1,
+              validation_data=(X_val, y_val), show_accuracy=True)
     ###
     # Select 10 samples from the validation set at random so we can visualize errors
     for i in range(10):
