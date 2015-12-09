@@ -135,13 +135,15 @@ model = keras.models.Graph()
             - __input__: str name of the node that the output is connected to. Only specify *one* of either `input` or `inputs`.
             - __inputs__: list of str names of the node that the output is connected to.
             - __merge_mode__: "sum" or "concat". Only applicable if `inputs` list is specified. Merge mode for the different inputs.
-    - __add_node__(layer, name, input=None, inputs=[], merge_mode='concat'): Add an output connect to `input` or `inputs`.
+    - __add_node__(layer, name, input=None, inputs=[], merge_mode='concat', concat_axis=-1, dot_axes=-1): Add an output connect to `input` or `inputs`.
         - __Arguments__:
             - __layer__: Layer instance.
             - __name__: str. unique identifier of the node.
             - __input__: str name of the node/input that the node is connected to. Only specify *one* of either `input` or `inputs`.
             - __inputs__: list of str names of the node that the node is connected to.
             - __merge_mode__: "sum" or "concat". Only applicable if `inputs` list is specified. Merge mode for the different inputs.
+            - __concat_axis__: axis to use in `concat` mode.
+            - __dot_axes__: axis or axes to use in `dot` mode (see [the Numpy documentation
     - __add_shared_node__(layer, name, inputs=[], merge_mode=None, outputs=[]): Add a shared node connected to `inputs`. A shared node is a layer that will be applied separately to every incoming input, and that uses only one set of weights. The merging operation occurs on the outputs of the layer. 
         - __Arguments__:
             - __layer__: Layer instance.
