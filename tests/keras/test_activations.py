@@ -21,14 +21,25 @@ def ref_sigmoid(x):
         return z / (1 + z)
 vec_sigmoid = np.vectorize(ref_sigmoid)
 
+
+# Reference hard sigmoid with slope and shift values from theano, see
+# https://github.com/Theano/Theano/blob/master/theano/tensor/nnet/sigm.py
+def ref_hard_sigmoid(x):
+    x = (x * 0.2) + 0.5
+    z = 0.0 if x <= 0 else (1.0 if x >= 1 else x)
+    return z
+vec_hard_sigmoid = np.vectorize(ref_hard_sigmoid)
+
+
+# Test using a reference implementation of softmax
+def softmax(values):
+    m = np.max(values)
+    e = np.exp(values - m)
+    return e / np.sum(e)
+
+
 def test_softmax():
     from keras.activations import softmax as s
-
-    # Test using a reference implementation of softmax
-    def softmax(values):
-        m = np.max(values)
-        e = np.exp(values - m)
-        return e / np.sum(e)
 
     x = K.placeholder(ndim=2)
     exp = s(x)
@@ -38,6 +49,7 @@ def test_softmax():
     result = f([test_values])[0]
     expected = softmax(test_values)
     assert_allclose(result, expected, rtol=1e-05)
+
 
 def test_sigmoid():
     from keras.activations import sigmoid
@@ -50,6 +62,20 @@ def test_sigmoid():
     result = f([test_values])[0]
     expected = vec_sigmoid(test_values)
     assert_allclose(result, expected, rtol=1e-05)
+
+
+def test_hard_sigmoid():
+    from keras.activations import hard_sigmoid
+
+    x = K.placeholder(ndim=2)
+    hard_sig_out = hard_sigmoid(x)
+    f = K.function([x], [hard_sig_out])
+    test_values = get_standard_values()
+
+    result = f([test_values])[0]
+    expected = vec_hard_sigmoid(test_values)
+    assert_allclose(result, expected, rtol=1e-05)
+
 
 def test_relu():
     '''
@@ -68,6 +94,7 @@ def test_relu():
     # because no negatives in test values
     assert_allclose(result, test_values, rtol=1e-05)
 
+
 def test_tanh():
     from keras.activations import tanh as t
     test_values = get_standard_values()
@@ -79,6 +106,7 @@ def test_tanh():
     result = f([test_values])[0]
     expected = np.tanh(test_values)
     assert_allclose(result, expected, rtol=1e-05)
+
 
 def test_linear():
     '''
