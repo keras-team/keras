@@ -5,6 +5,9 @@ from .. import backend as K
 from .. import activations, initializations, regularizers, constraints
 from ..layers.core import Layer
 
+# Theano imports
+import theano.tensor as T
+
 
 def conv_output_length(input_length, filter_size, border_mode, stride):
     if input_length is None:
