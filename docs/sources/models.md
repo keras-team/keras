@@ -143,7 +143,7 @@ model = keras.models.Graph()
             - __inputs__: list of str names of the node that the node is connected to.
             - __merge_mode__: "sum" or "concat". Only applicable if `inputs` list is specified. Merge mode for the different inputs.
             - __concat_axis__: axis to use in `concat` mode.
-            - __dot_axes__: axis or axes to use in `dot` mode (see [the Numpy documentation
+            - __dot_axes__: axis or axes to use in `dot` mode (see [the Numpy documentation](http://docs.scipy.org/doc/numpy-1.10.1/reference/generated/numpy.tensordot.html) for more details).
     - __add_shared_node__(layer, name, inputs=[], merge_mode=None, outputs=[]): Add a shared node connected to `inputs`. A shared node is a layer that will be applied separately to every incoming input, and that uses only one set of weights. The merging operation occurs on the outputs of the layer. 
         - __Arguments__:
             - __layer__: Layer instance.
