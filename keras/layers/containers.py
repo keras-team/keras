@@ -75,6 +75,14 @@ class Sequential(Layer):
         return updates
 
     @property
+    def state_updates(self):
+        state_updates = []
+        for l in self.layers:
+            if l.trainable and getattr(l, 'stateful', False):
+                state_updates += l.get_params()[3]
+        return state_updates
+
+    @property
     def output_shape(self):
         return self.layers[-1].output_shape
 
@@ -191,6 +199,14 @@ class Graph(Layer):
             if l.trainable:
                 updates += l.get_params()[3]
         return updates
+
+    @property
+    def state_updates(self):
+        state_updates = []
+        for l in self.nodes.values():
+            if l.trainable and getattr(l, 'stateful', False):
+                state_updates += l.get_params()[3]
+        return state_updates
 
     def set_previous(self, layer, connection_map={}):
         if self.nb_input != layer.nb_output:

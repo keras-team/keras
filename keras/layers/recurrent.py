@@ -79,9 +79,9 @@ class Recurrent(MaskedLayer):
                                              go_backwards=self.go_backwards,
                                              masking=masking)
         if self.stateful:
-            self.updates = []
+            self.state_updates = []
             for i in range(len(states)):
-                self.updates.append((self.states[i], states[i]))
+                self.state_updates.append((self.states[i], states[i]))
 
         if self.return_sequences:
             return outputs
