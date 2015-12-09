@@ -32,6 +32,26 @@ class TestActivations(unittest.TestCase):
         expected = softmax(test_values)
         assert_allclose(result, expected, rtol=1e-05)
 
+    def test_sigmoid(self):
+        from keras.activations import sigmoid
+
+        # Reference sigmoid
+        def ref_sigmoid(x):
+            if x >= 0:
+                return 1 / (1 + np.exp(-x))
+            else:
+                return z / (1 + np.exp(x))
+        vec_sigmoid = np.vectorize(ref_sigmoid)
+
+        x = K.placeholder(ndim=2)
+        sig_out = sigmoid(x)
+        f = K.function([x], [sig_out])
+        test_values = get_standard_values()
+
+        result = f([test_values])[0]
+        expected = vec_sigmoid(test_values)
+        assert_allclose(result, expected, rtol=1e-05)
+
     def test_relu(self):
         '''
         Relu implementation doesn't depend on the value being
