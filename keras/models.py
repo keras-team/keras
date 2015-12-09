@@ -75,8 +75,10 @@ def weighted_objective(fn):
 
         mask: binary
         '''
+        # score_array has ndim >= 2
         score_array = fn(y_true, y_pred)
         if mask is not None:
+            # mask should have the same shape as score_array
             score_array *= mask
             #  the loss per batch should be proportional
             #  to the number of unmasked sampled.

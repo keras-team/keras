@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import
+import numpy as np
 
 from .. import backend as K
 from .. import activations, initializations
@@ -78,8 +79,9 @@ class Recurrent(MaskedLayer):
                                              go_backwards=self.go_backwards,
                                              masking=masking)
         if self.stateful:
+            self.updates = []
             for i in range(len(states)):
-                K.set_value(self.states[i], K.eval(states[i]))
+                self.updates.append((self.states[i], states[i]))
 
         if self.return_sequences:
             return outputs
@@ -145,7 +147,11 @@ class SimpleRNN(Recurrent):
             raise Exception('If a RNN is stateful, a complete ' +
                             'input_shape must be provided ' +
                             '(including batch size).')
-        self.states = [K.zeros((input_shape[0], self.output_dim))]
+        if hasattr(self, 'states'):
+            K.set_value(self.states[0],
+                        np.zeros((input_shape[0], self.output_dim)))
+        else:
+            self.states = [K.zeros((input_shape[0], self.output_dim))]
 
     def step(self, x, states):
         # states only contains the previous output.
@@ -236,7 +242,11 @@ class GRU(Recurrent):
             raise Exception('If a RNN is stateful, a complete ' +
                             'input_shape must be provided ' +
                             '(including batch size).')
-        self.states = [K.zeros((input_shape[0], self.output_dim))]
+        if hasattr(self, 'states'):
+            K.set_value(self.states[0],
+                        np.zeros((input_shape[0], self.output_dim)))
+        else:
+            self.states = [K.zeros((input_shape[0], self.output_dim))]
 
     def step(self, x, states):
         assert len(states) == 1
@@ -341,8 +351,14 @@ class LSTM(Recurrent):
             raise Exception('If a RNN is stateful, a complete ' +
                             'input_shape must be provided ' +
                             '(including batch size).')
-        self.states = [K.zeros((input_shape[0], self.output_dim)),
-                       K.zeros((input_shape[0], self.output_dim))]
+        if hasattr(self, 'states'):
+            K.set_value(self.states[0],
+                        np.zeros((input_shape[0], self.output_dim)))
+            K.set_value(self.states[1],
+                        np.zeros((input_shape[0], self.output_dim)))
+        else:
+            self.states = [K.zeros((input_shape[0], self.output_dim)),
+                           K.zeros((input_shape[0], self.output_dim))]
 
     def step(self, x, states):
         assert len(states) == 2
