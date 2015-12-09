@@ -113,6 +113,11 @@ class Sequential(Layer):
             self.layers[i].set_weights(weights[:nb_param])
             weights = weights[nb_param:]
 
+    def reset_states(self):
+        for layer in self.layers:
+            if hasattr(layer, 'reset_states') and getattr(layer, 'stateful', False):
+                layer.reset_states()
+
     def get_config(self):
         return {"name": self.__class__.__name__,
                 "layers": [layer.get_config() for layer in self.layers]}

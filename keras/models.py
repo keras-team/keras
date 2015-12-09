@@ -419,7 +419,7 @@ class Sequential(Model, containers.Sequential):
 
         self._train = K.function(train_ins, [train_loss], updates=updates)
         self._train_with_acc = K.function(train_ins, [train_loss, train_accuracy], updates=updates)
-        self._predict = K.function(predict_ins, [self.y_test])
+        self._predict = K.function(predict_ins, [self.y_test], updates=self.updates)
         self._test = K.function(test_ins, [test_loss])
         self._test_with_acc = K.function(test_ins, [test_loss, test_accuracy])
 
