@@ -406,7 +406,6 @@ class Sequential(Model, containers.Sequential):
                                              self.constraints,
                                              train_loss)
         updates += self.updates
-        state_updates = self.state_updates()
 
         if type(self.X_train) == list:
             train_ins = self.X_train + [self.y, self.weights]
@@ -420,7 +419,7 @@ class Sequential(Model, containers.Sequential):
 
         self._train = K.function(train_ins, [train_loss], updates=updates)
         self._train_with_acc = K.function(train_ins, [train_loss, train_accuracy], updates=updates)
-        self._predict = K.function(predict_ins, [self.y_test], updates=state_updates)
+        self._predict = K.function(predict_ins, [self.y_test], updates=self.state_updates)
         self._test = K.function(test_ins, [test_loss])
         self._test_with_acc = K.function(test_ins, [test_loss, test_accuracy])
 
@@ -627,13 +626,12 @@ class Graph(Model, containers.Graph):
         self.optimizer = optimizers.get(optimizer)
         updates = self.optimizer.get_updates(self.params, self.constraints, train_loss)
         updates += self.updates
-        state_updates = self.state_updates()
         self.theano_mode = theano_mode
         self.loss = loss
 
         self._train = K.function(train_ins, [train_loss], updates=updates)
         self._test = K.function(test_ins, [test_loss])
-        self._predict = K.function(inputs=ins, outputs=ys_test, updates=state_updates)
+        self._predict = K.function(inputs=ins, outputs=ys_test, updates=self.state_updates)
 
     def train_on_batch(self, data, class_weight={}, sample_weight={}):
         # data is a dictionary mapping output and input names to arrays
