@@ -82,6 +82,11 @@ class Sequential(Layer):
                 state_updates += l.get_params()[3]
         return state_updates
 
+    def reset_states(self):
+        for l in self.layers:
+            if hasattr(l, 'reset_states') and getattr(l, 'stateful', False):
+                l.reset_states()
+
     @property
     def output_shape(self):
         return self.layers[-1].output_shape
@@ -120,11 +125,6 @@ class Sequential(Layer):
             nb_param = len(self.layers[i].params)
             self.layers[i].set_weights(weights[:nb_param])
             weights = weights[nb_param:]
-
-    def reset_states(self):
-        for layer in self.layers:
-            if hasattr(layer, 'reset_states') and getattr(layer, 'stateful', False):
-                layer.reset_states()
 
     def get_config(self):
         return {"name": self.__class__.__name__,
@@ -207,6 +207,11 @@ class Graph(Layer):
             if l.trainable and getattr(l, 'stateful', False):
                 state_updates += l.get_params()[3]
         return state_updates
+
+    def reset_states(self):
+        for l in self.nodes.values():
+            if hasattr(l, 'reset_states') and getattr(l, 'stateful', False):
+                l.reset_states()
 
     def set_previous(self, layer, connection_map={}):
         if self.nb_input != layer.nb_output:
