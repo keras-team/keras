@@ -6,6 +6,18 @@ import numpy as np
 from ..utils.np_utils import to_categorical
 
 
+class Hideout(object):
+    """ 
+    Class to hide a model from scikit learn,
+    so that sklearn doen't find its get_params method.
+    """
+
+    def __init__(self, model):
+        self.model = model
+
+
+
+
 class BaseWrapper(object):
     """
     Base class for the Keras scikit-learn wrapper.
@@ -40,8 +52,20 @@ class BaseWrapper(object):
                  train_batch_size=128, test_batch_size=128,
                  nb_epoch=100, shuffle=True, show_accuracy=False,
                  validation_split=0, validation_data=None, callbacks=None,
-                 verbose=0,):
-        self.model = model
+                 verbose=0):
+
+        # The model should be in a hideout so that sklearn doesn't find the get_params
+        # method. That get_params method causes problems to
+        # sklean as it doesn't speak the same language (doesn't return a dict)
+        # As no get_params method will be found be sklearn clone, the Hideout object  
+        # will be deepcopied when being cloned by sklearn, as expected.
+
+        # If is already hidden, do nothing. Else, hide it.
+        if isinstance(model, Hideout):
+            self.model = model
+        else:
+            self.model = Hideout(model)
+
         self.optimizer = optimizer
         self.loss = loss
         self.compiled_model_ = None
@@ -67,15 +91,26 @@ class BaseWrapper(object):
         Parameters
         ----------
         deep: boolean, optional
-            If True, will return the parameters for this estimator and
-            contained subobjects that are estimators.
+            An empty placeholder, for compatibility with sklearn.
 
         Returns
         -------
         params : dict
             Dictionary of parameter names mapped to their values.
         """
-        return {'model': self.model, 'optimizer': self.optimizer, 'loss': self.loss}
+        return {'model': self.model, 
+                'optimizer': self.optimizer, 
+                'loss': self.loss,
+                'train_batch_size': self.train_batch_size,
+                'test_batch_size': self.test_batch_size,
+                'nb_epoch': self.nb_epoch,
+                'shuffle': self.shuffle,
+                'show_accuracy': self.show_accuracy,
+                'validation_split': self.validation_split,
+                'validation_data': self.validation_data,
+                'callbacks': self.callbacks,
+                'verbose': self.verbose
+                }
 
     def set_params(self, **params):
         """
@@ -94,7 +129,8 @@ class BaseWrapper(object):
             setattr(self, parameter, value)
         return self
 
-    def fit(self, X, y):
+
+    def fit(self, X, y, **kwargs):
         """
         Fit the model according to the given training data.
 
@@ -115,23 +151,17 @@ class BaseWrapper(object):
         history : object
             Returns details about the training history at each epoch.
         """
-        if len(y.shape) == 1:
-            self.classes_ = list(np.unique(y))
-            if self.loss == 'categorical_crossentropy':
-                y = to_categorical(y)
-        else:
-            self.classes_ = np.arange(0, y.shape[1])
 
-        self.compiled_model_ = copy.deepcopy(self.model)
+        self.compiled_model_ = copy.deepcopy(self.model.model)
         self.compiled_model_.compile(optimizer=self.optimizer, loss=self.loss)
         history = self.compiled_model_.fit(
             X, y, batch_size=self.train_batch_size, nb_epoch=self.nb_epoch, verbose=self.verbose,
             shuffle=self.shuffle, show_accuracy=self.show_accuracy,
             validation_split=self.validation_split, validation_data=self.validation_data,
-            callbacks=self.callbacks)
+            callbacks=self.callbacks, **kwargs)
 
-        self.config_ = self.model.get_config()
-        self.weights_ = self.model.get_weights()
+        self.config_ = self.compiled_model_.get_config()
+        self.weights_ = self.compiled_model_.get_weights()
 
         return history
 
@@ -149,8 +179,103 @@ class KerasClassifier(BaseWrapper):
     loss : string
         Loss function used by the model during compilation/training.
     """
-    def __init__(self, model, optimizer='adam', loss='categorical_crossentropy', **kwargs):
-        super(KerasClassifier, self).__init__(model, optimizer, loss, **kwargs)
+
+    def __init__(self, 
+                 model, 
+                 optimizer='adam', 
+                 loss='categorical_crossentropy', 
+                 train_batch_size=128, 
+                 test_batch_size=128,
+                 nb_epoch=100, 
+                 shuffle=True, 
+                 show_accuracy=False,
+                 validation_split=0, 
+                 validation_data=None, 
+                 callbacks=None,
+                 verbose=0, 
+                 class_weight=None):
+        super(KerasClassifier, self).__init__(model, 
+                                              optimizer, 
+                                              loss, 
+                                              train_batch_size, 
+                                              test_batch_size,
+                                              nb_epoch, 
+                                              shuffle, 
+                                              show_accuracy,
+                                              validation_split, 
+                                              validation_data, 
+                                              callbacks,
+                                              verbose)
+
+        self.class_weight = class_weight
+
+
+    def __ohe_output(function):
+        """
+        Creates a decorator to be used with methods that have as input X, y.
+        It will transform the y into a categorical variable if y is 1-dim and 
+        the the loss function is 'categorical_crossentropy'
+        """
+        def wrapper(self, X, y, *args, **kwargs):
+            if len(y.shape) == 1:
+                self.classes_ = list(np.unique(y))
+                if self.loss == 'categorical_crossentropy':
+                    y = to_categorical(y)
+            else:
+                self.classes_ = np.arange(0, y.shape[1])
+
+            return function(self, X, y, *args, **kwargs)
+        return wrapper
+
+
+    @__ohe_output
+    def fit(self, X, y):
+        """
+        Fit the model according to the given training data.
+
+        Parameters
+        ----------
+        X : array-like, shape = (n_samples, n_features)
+            Training samples where n_samples in the number of samples
+            and n_features is the number of features.
+        y : array-like, shape = (n_samples) or (n_samples, n_outputs)
+            True labels for X.
+
+        Returns
+        -------
+        history : object
+            Returns details about the training history at each epoch.
+        """
+        # If 'balanced', it balances the dataset with weights that are the inverse
+        # of the class frequency.
+        # Currently only implemented for one hot enconded output classes.
+        if self.class_weight == 'balanced' and len(y.shape)>1:
+            inverse_frequencies = float(y.sum())/y.sum(axis=0)
+            class_weight = dict((i, inverse_frequencies[i]) for i in range(len(inverse_frequencies)))
+        else:
+            class_weight = self.class_weight
+
+        return super(KerasClassifier, self).fit(X, y, class_weight=class_weight)
+
+
+    def get_params(self, deep=True):
+        """
+        Get parameters for this estimator.
+
+        Parameters
+        ----------
+        deep: boolean, optional
+            An empty placeholder, for compatibility with sklearn.
+
+        Returns
+        -------
+        params : dict
+            Dictionary of parameter names mapped to their values.
+        """
+        params = super(KerasClassifier, self).get_params(deep=deep)
+        params['class_weight'] = self.class_weight
+        return params 
+        
 
     def predict(self, X):
         """
@@ -170,6 +295,7 @@ class KerasClassifier(BaseWrapper):
         return self.compiled_model_.predict_classes(
             X, batch_size=self.test_batch_size, verbose=self.verbose)
 
+
     def predict_proba(self, X):
         """
         Returns class probability estimates for the given test data.
@@ -188,6 +314,8 @@ class KerasClassifier(BaseWrapper):
         return self.compiled_model_.predict_proba(
             X, batch_size=self.test_batch_size, verbose=self.verbose)
 
+
+    @__ohe_output
     def score(self, X, y):
         """
         Returns the mean accuracy on the given test data and labels.
@@ -225,6 +353,7 @@ class KerasRegressor(BaseWrapper):
     """
     def __init__(self, model, optimizer='adam', loss='mean_squared_error', **kwargs):
         super(KerasRegressor, self).__init__(model, optimizer, loss, **kwargs)
+
 
     def predict(self, X):
         """
