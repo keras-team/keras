@@ -216,8 +216,12 @@ class Convolution2D(Layer):
                             dim_ordering=self.dim_ordering,
                             image_shape=self.input_shape,
                             filter_shape=self.W_shape)
-
-        output = conv_out + K.reshape(self.b, (1, self.nb_filter, 1, 1))
+        if self.dim_ordering == 'th':
+            output = conv_out + K.reshape(self.b, (1, self.nb_filter, 1, 1))
+        elif self.dim_ordering == 'tf':
+            output = conv_out + K.reshape(self.b, (1, 1, 1, self.nb_filter))
+        else:
+            raise Exception('Invalid dim_ordering: ' + self.dim_ordering)
         output = self.activation(output)
         return output
 
