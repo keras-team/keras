@@ -135,10 +135,8 @@ def test_merge_sum():
     assert(loss == nloss)
 
 
+@pytest.mark.skipif(K._BACKEND=='tensorflow', reason="currently not working with TensorFlow")
 def test_merge_dot():
-    if K._BACKEND == 'tensorflow':
-        return
-
     left = Sequential()
     left.add(Dense(input_dim=input_dim, output_dim=nb_hidden))
     left.add(Activation('relu'))
