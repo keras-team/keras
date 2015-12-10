@@ -42,6 +42,7 @@ model = keras.models.Sequential()
         - __Return__: loss over the data, or tuple `(loss, accuracy)` if `accuracy=True`.
     - __save_weights__(fname, overwrite=False): Store the weights of all layers to a HDF5 file. If overwrite==False and the file already exists, an exception will be thrown.
     - __load_weights__(fname): Sets the weights of a model, based to weights stored by __save_weights__. You can only __load_weights__ on a savefile from a model with an identical architecture. __load_weights__ can be called either before or after the __compile__ step.
+    - __summary__(): Print out a summary of the model architecture, with parameter count information.
 
 __Examples__:
 
@@ -178,6 +179,7 @@ model = keras.models.Graph()
         - __Return__: loss over the data.
     - __save_weights__(fname, overwrite=False): Store the weights of all layers to a HDF5 file. If `overwrite==False` and the file already exists, an exception will be thrown.
     - __load_weights__(fname): Sets the weights of a model, based to weights stored by __save_weights__. You can only __load_weights__ on a savefile from a model with an identical architecture. __load_weights__ can be called either before or after the __compile__ step.
+    - __summary__(): Print out a summary of the model architecture, with parameter count information.
 
 
 __Examples__:
