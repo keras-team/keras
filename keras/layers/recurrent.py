@@ -65,7 +65,7 @@ class Recurrent(MaskedLayer):
         mask = self.get_output_mask(train)
         if mask:
             # apply mask
-            X *= K.expand_dims(mask).astype(X.dtype)
+            X *= K.cast(K.expand_dims(mask), X.dtype)
             masking = True
         else:
             masking = False
