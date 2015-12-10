@@ -208,6 +208,8 @@ class MaskedLayer(Layer):
     def get_input_mask(self, train=False):
         if hasattr(self, 'previous'):
             return self.previous.get_output_mask(train)
+        elif hasattr(self, 'parent'):
+            return self.parent.get_input_mask(train)
         else:
             return None
 
