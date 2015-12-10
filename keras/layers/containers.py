@@ -37,6 +37,7 @@ class Sequential(Layer):
 
     def add(self, layer):
         self.layers.append(layer)
+        setattr(layer, 'parent', self)
         if len(self.layers) > 1:
             self.layers[-1].set_previous(self.layers[-2])
             if not hasattr(self.layers[0], 'input'):
