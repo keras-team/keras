@@ -5,6 +5,9 @@ from .. import backend as K
 from .. import activations, initializations, regularizers, constraints
 from ..layers.core import Layer
 
+# Theano imports
+import theano.tensor as T
+
 
 def conv_output_length(input_length, filter_size, border_mode, stride):
     if input_length is None:
@@ -120,6 +123,24 @@ class Convolution1D(Layer):
         base_config = super(Convolution1D, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
+
+class UnPooling2D(Layer):
+    """A 2D Repeat layer"""
+    def __init__(self, poolsize=(2, 2)):
+        super(UnPooling2D, self).__init__()
+        self.input = T.tensor4()
+        self.poolsize = poolsize
+
+    def get_output(self, train):
+        X = self.get_input(train)
+        s1 = self.poolsize[0]
+        s2 = self.poolsize[1]
+        output = X.repeat(s1, axis=2).repeat(s2, axis=3)
+        return output
+
+    def get_config(self):
+        return {"name":self.__class__.__name__,
+                "poolsize":self.poolsize}
 
 class Convolution2D(Layer):
     input_ndim = 4

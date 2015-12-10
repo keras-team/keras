@@ -347,7 +347,6 @@ class Model(object):
     def summary(self):
         model_summary(self)
 
-
 class Sequential(Model, containers.Sequential):
     '''
         Inherits from Model the following methods:
@@ -587,8 +586,7 @@ class Sequential(Model, containers.Sequential):
             g = f['layer_{}'.format(k)]
             weights = [g['param_{}'.format(p)] for p in range(g.attrs['nb_params'])]
             self.layers[k].set_weights(weights)
-        f.close()
-
+        f.close()        
 
 class Graph(Model, containers.Graph):
     def compile(self, optimizer, loss, theano_mode=None):
