@@ -87,6 +87,65 @@ def container_from_config(original_layer_dict, custom_objects={}):
         return base_layer
 
 
+def model_summary(model):
+    param_count = 0  # param count in the model
+
+    def display(objects, positions):
+        line = ''
+        for i in range(len(objects)):
+            line += str(objects[i])
+            line = line[:positions[i]]
+            line += ' ' * (positions[i] - len(line))
+        print(line)
+
+    def display_layer_info(layer, name, positions):
+        layer_type = layer.__class__.__name__
+        output_shape = layer.output_shape
+        params = layer.count_params()
+        to_display = ['%s (%s)' % (layer_type, name), output_shape, params]
+        display(to_display, positions)
+
+    line_length = 80  # total length of printed lines
+    positions = [30, 60, 80]  # absolute positions of log elements in each line
+    # header names for the different log elements
+    to_display = ['Layer (name)', 'Output Shape', 'Param #']
+
+    # for sequential models, we start by printing
+    # the expect input shape
+    if model.__class__.__name__ == 'Sequential':
+        print('-' * line_length)
+        print('Initial input shape: ' + str(model.input_shape))
+
+    # print header
+    print('-' * line_length)
+    display(to_display, positions)
+    print('-' * line_length)
+
+    if model.__class__.__name__ == 'Sequential':
+        for layer in model.layers:
+            name = getattr(layer, 'name', 'Unnamed')
+            display_layer_info(layer, name, positions)
+            param_count += layer.count_params()
+
+    elif model.__class__.__name__ == 'Graph':
+        for name in model.input_order:
+            layer = model.inputs[name]
+            display_layer_info(layer, name, positions)
+
+        for name in model.nodes:
+            layer = model.nodes[name]
+            display_layer_info(layer, name, positions)
+            param_count += layer.count_params()
+
+        for name in model.output_order:
+            layer = model.outputs[name]
+            display_layer_info(layer, name, positions)
+
+    print('-' * line_length)
+    print('Total params: %s' % param_count)
+    print('-' * line_length)
+
+
 from .generic_utils import get_from_module
 def get_layer(identifier, kwargs=None):
     return get_from_module(identifier, globals(), 'layer',
