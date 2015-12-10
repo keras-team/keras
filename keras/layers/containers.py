@@ -76,9 +76,15 @@ class Sequential(Layer):
 
     @property
     def state_updates(self):
+        """
+        Returns the `updates` from all layers in the sequence that are
+        stateful.  This is useful for separating _training_ updates and
+        _prediction_ updates for when we need to update a layers internal state
+        during a stateful prediction.
+        """
         state_updates = []
         for l in self.layers:
-            if l.trainable and getattr(l, 'stateful', False):
+            if getattr(l, 'stateful', False):
                 state_updates += l.get_params()[3]
         return state_updates
 
@@ -202,9 +208,15 @@ class Graph(Layer):
 
     @property
     def state_updates(self):
+        """
+        Returns the `updates` from all nodes in that graph for nodes that are
+        stateful.  This is useful for separating _training_ updates and
+        _prediction_ updates for when we need to update a layers internal state
+        during a stateful prediction.
+        """
         state_updates = []
         for l in self.nodes.values():
-            if l.trainable and getattr(l, 'stateful', False):
+            if getattr(l, 'stateful', False):
                 state_updates += l.get_params()[3]
         return state_updates
 
