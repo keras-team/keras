@@ -23,7 +23,7 @@ class Sequential(Layer):
         for layer in layers:
             self.add(layer)
 
-    def __call__(self, X, train=False):
+    def __call__(self, X, mask=None, train=False):
         # set temporary input to first layer
         tmp = self.layers[0].get_input
         self.layers[0].get_input = lambda _: X
