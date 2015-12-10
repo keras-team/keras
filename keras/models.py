@@ -14,7 +14,7 @@ from . import objectives
 from . import regularizers
 from . import constraints
 from . import callbacks as cbks
-from .utils.layer_utils import container_from_config
+from .utils.layer_utils import container_from_config, model_summary
 from .utils.generic_utils import Progbar, printv
 from .layers import containers
 
@@ -344,6 +344,8 @@ class Model(object):
         config = self.get_config()
         return json.dumps(config, **kwargs)
 
+    def summary(self):
+        model_summary(self)
 
 class Sequential(Model, containers.Sequential):
     '''
