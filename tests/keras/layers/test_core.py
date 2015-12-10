@@ -1,4 +1,4 @@
-import unittest
+import pytest
 import numpy as np
 from numpy.testing import assert_allclose
 
@@ -6,7 +6,7 @@ from keras import backend as K
 from keras.layers import core
 
 
-class TestLayerBase(unittest.TestCase):
+class TestLayerBase(object):
     def test_input_output(self):
         nb_samples = 10
         input_dim = 5
@@ -36,7 +36,7 @@ class TestLayerBase(unittest.TestCase):
             assert_allclose(K.eval(layer2.get_output(train)), input)
 
 
-class TestConfigParams(unittest.TestCase):
+class TestConfigParams(object):
     """
     Test the constructor, config and params functions of all layers in core.
     """
@@ -113,7 +113,7 @@ class TestConfigParams(unittest.TestCase):
         self._runner(layer)
 
 
-class TestMasking(unittest.TestCase):
+class TestMasking(object):
     """Test the Masking class"""
 
     def test_sequences(self):
@@ -131,7 +131,7 @@ class TestMasking(unittest.TestCase):
 
         # get mask for this input
         output = func([input_data])[0]
-        self.assertTrue(np.all(output == expected))
+        assert(np.all(output == expected))
 
     def test_non_zero(self):
         """Test masking with non-zero mask value"""
@@ -144,7 +144,7 @@ class TestMasking(unittest.TestCase):
                               dtype=np.int32)
         output = func([input_data])[0]
         expected = np.array([[1, 1, 1, 0], [1, 1, 1, 1]])
-        self.assertTrue(np.all(output == expected))
+        assert(np.all(output == expected))
 
     def test_non_zero_output(self):
         """Test output of masking layer with non-zero mask value"""
@@ -159,8 +159,8 @@ class TestMasking(unittest.TestCase):
         output = func([input_data])[0]
         expected = np.array([[[1, 1], [2, 1], [3, 1], [0, 0]],
                             [[1, 5], [5, 0], [0, 0], [0, 0]]])
-        self.assertTrue(np.all(output == expected))
+        assert(np.all(output == expected))
 
 
 if __name__ == '__main__':
-    unittest.main()
+    pytest.main([__file__])

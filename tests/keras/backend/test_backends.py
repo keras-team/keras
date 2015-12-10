@@ -1,8 +1,7 @@
 import sys
-import unittest
+import pytest
 from numpy.testing import assert_allclose
 import numpy as np
-import pytest
 
 if sys.version_info.major == 2:
     from keras.backend import theano_backend as KTH
@@ -39,7 +38,7 @@ def check_two_tensor_operation(function_name, x_input_shape,
 
 
 @pytest.mark.skipif(sys.version_info.major != 2, reason="Requires Python 2.7")
-class TestBackend(unittest.TestCase):
+class TestBackend(object):
 
     def test_linear_operations(self):
         check_two_tensor_operation('dot', (4, 2), (2, 4))
@@ -332,4 +331,4 @@ class TestBackend(unittest.TestCase):
 
 
 if __name__ == '__main__':
-    unittest.main()
+    pytest.main([__file__])
