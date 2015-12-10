@@ -3,9 +3,8 @@ import pytest
 from numpy.testing import assert_allclose
 import numpy as np
 
-if sys.version_info.major == 2:
-    from keras.backend import theano_backend as KTH
-    from keras.backend import tensorflow_backend as KTF
+from keras.backend import theano_backend as KTH
+from keras.backend import tensorflow_backend as KTF
 
 
 def check_single_tensor_operation(function_name, input_shape, **kwargs):
