@@ -158,7 +158,7 @@ class SimpleRNN(Recurrent):
         assert len(states) == 1
         prev_output = states[0]
         h = K.dot(x, self.W) + self.b
-        output = self.activation(h * K.dot(prev_output, self.U))
+        output = self.activation(h + K.dot(prev_output, self.U))
         return output, [output]
 
     def get_config(self):

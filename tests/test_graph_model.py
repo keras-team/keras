@@ -8,6 +8,7 @@ from keras.models import Graph, Sequential
 from keras.layers import containers
 from keras.layers.core import Dense, Activation
 from keras.utils.test_utils import get_test_data
+from keras.utils.layer_utils import model_summary
 
 X = np.random.random((100, 32))
 X2 = np.random.random((100, 32))
@@ -90,6 +91,8 @@ def test_1o_1i_2():
     assert(loss < 2.5)
 
     graph.get_config(verbose=1)
+    graph.summary()
+
 
 
 def test_1o_2i():
