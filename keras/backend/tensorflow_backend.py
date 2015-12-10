@@ -391,14 +391,14 @@ def rnn(step_function, inputs, initial_states,
             # if all-zero input timestep, return
             # all-zero output and unchanged states
             switch = tf.reduce_any(input)
-            output = tf.control_flow_ops.cond(switch,
-                                              lambda: output,
-                                              lambda: 0. * output)
+            output = tf.python.control_flow_ops.cond(switch,
+                                                     lambda: output,
+                                                     lambda: 0. * output)
             return_states = []
             for state, new_state in zip(states, new_states):
-                return_states.append(tf.control_flow_ops.cond(switch,
-                                                              lambda: new_state,
-                                                              lambda: state))
+                return_states.append(tf.python.control_flow_ops.cond(switch,
+                                                                     lambda: new_state,
+                                                                     lambda: state))
             states = return_states
         else:
             states = new_states
@@ -416,9 +416,9 @@ def rnn(step_function, inputs, initial_states,
 def switch(condition, then_expression, else_expression):
     '''condition: scalar tensor.
     '''
-    return tf.control_flow_ops.cond(condition,
-                                    lambda: then_expression,
-                                    lambda: else_expression)
+    return tf.python.control_flow_ops.cond(condition,
+                                           lambda: then_expression,
+                                           lambda: else_expression)
 
 
 # NN OPERATIONS
