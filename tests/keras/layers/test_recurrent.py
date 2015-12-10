@@ -1,4 +1,4 @@
-import unittest
+import pytest
 import numpy as np
 from numpy.testing import assert_allclose
 
@@ -56,19 +56,17 @@ def _runner(layer_class):
     assert(out2.max() != out3.max())
 
 
-class TestRNNS(unittest.TestCase):
-    """
-    Test all the RNNs using a generic test runner function defined above.
-    """
-    def test_simple(self):
-        _runner(recurrent.SimpleRNN)
+def test_SimpleRNN():
+    _runner(recurrent.SimpleRNN)
 
-    def test_gru(self):
-        _runner(recurrent.GRU)
 
-    def test_lstm(self):
-        _runner(recurrent.LSTM)
+def test_GRU():
+    _runner(recurrent.GRU)
+
+
+def test_LSTM():
+    _runner(recurrent.LSTM)
 
 
 if __name__ == '__main__':
-    unittest.main()
+    pytest.main([__file__])

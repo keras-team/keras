@@ -1,7 +1,9 @@
-import unittest
-from keras import backend as K
+import pytest
 import numpy as np
 from numpy.testing import assert_allclose
+
+from keras import backend as K
+from keras import activations
 
 
 def get_standard_values():
@@ -12,65 +14,58 @@ def get_standard_values():
     return np.array([[0, 0.1, 0.5, 0.9, 1.0]], dtype=K.floatx())
 
 
-class TestActivations(unittest.TestCase):
+def test_softmax():
+    # Test using a reference implementation of softmax
+    def softmax(values):
+        m = np.max(values)
+        e = np.exp(values - m)
+        return e / np.sum(e)
 
-    def test_softmax(self):
-        from keras.activations import softmax as s
+    x = K.placeholder(ndim=2)
+    f = K.function([x], [activations.softmax(x)])
+    test_values = get_standard_values()
 
-        # Test using a reference implementation of softmax
-        def softmax(values):
-            m = np.max(values)
-            e = np.exp(values - m)
-            return e / np.sum(e)
+    result = f([test_values])[0]
+    expected = softmax(test_values)
+    assert_allclose(result, expected, rtol=1e-05)
 
-        x = K.placeholder(ndim=2)
-        exp = s(x)
-        f = K.function([x], [exp])
-        test_values = get_standard_values()
 
-        result = f([test_values])[0]
-        expected = softmax(test_values)
-        assert_allclose(result, expected, rtol=1e-05)
+def test_relu():
+    '''
+    Relu implementation doesn't depend on the value being
+    a theano variable. Testing ints, floats and theano tensors.
+    '''
+    x = K.placeholder(ndim=2)
+    f = K.function([x], [activations.relu(x)])
 
-    def test_relu(self):
-        '''
-        Relu implementation doesn't depend on the value being
-        a theano variable. Testing ints, floats and theano tensors.
-        '''
-        from keras.activations import relu as r
+    test_values = get_standard_values()
+    result = f([test_values])[0]
 
-        x = K.placeholder(ndim=2)
-        exp = r(x)
-        f = K.function([x], [exp])
+    # because no negatives in test values
+    assert_allclose(result, test_values, rtol=1e-05)
 
-        test_values = get_standard_values()
-        result = f([test_values])[0]
 
-        # because no negatives in test values
-        assert_allclose(result, test_values, rtol=1e-05)
+def test_tanh():
+    test_values = get_standard_values()
 
-    def test_tanh(self):
-        from keras.activations import tanh as t
-        test_values = get_standard_values()
+    x = K.placeholder(ndim=2)
+    exp = activations.tanh(x)
+    f = K.function([x], [exp])
 
-        x = K.placeholder(ndim=2)
-        exp = t(x)
-        f = K.function([x], [exp])
+    result = f([test_values])[0]
+    expected = np.tanh(test_values)
+    assert_allclose(result, expected, rtol=1e-05)
 
-        result = f([test_values])[0]
-        expected = np.tanh(test_values)
-        assert_allclose(result, expected, rtol=1e-05)
 
-    def test_linear(self):
-        '''
-        This function does no input validation, it just returns the thing
-        that was passed in.
-        '''
-        from keras.activations import linear as l
+def test_linear():
+    '''
+    This function does no input validation, it just returns the thing
+    that was passed in.
+    '''
+    xs = [1, 5, True, None, 'foo']
+    for x in xs:
+        assert(x == activations.linear(x))
 
-        xs = [1, 5, True, None, 'foo']
-        for x in xs:
-            assert x == l(x)
 
 if __name__ == '__main__':
-    unittest.main()
+    pytest.main([__file__])
