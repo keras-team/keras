@@ -40,10 +40,11 @@ For example: if `filepath` is `weights.{epoch:02d}-{val_loss:.2f}.hdf5`, then mu
 
 
 ```python
-keras.callbacks.EarlyStopping(monitor='val_loss', patience=0, verbose=0)
+keras.callbacks.EarlyStopping(monitor='val_loss', patience=0, verbose=0, mode='auto')
 ```
 
-Stop training after no improvement of the metric `monitor` is seen for `patience` epochs.
+Stop training after no improvement of the metric `monitor` is seen for `patience` epochs. 
+The `mode` parameter must be choosen between `{'max', 'min', 'auto'}`. Using `'min'` or `'max'` select the according function for comparing `monitor` value (i.e. `min` keep the smallest and `max` the biggest). If `auto` is specified `max` is used for metric that contain "acc"(i.e. "acc" or "val_acc")  and `min` otherwise.
 
 ---
 
