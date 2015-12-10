@@ -9,10 +9,8 @@ from keras import backend as K
 
 
 class TestMasking(unittest.TestCase):
+    @pytest.mark.skipif(K._BACKEND=='tensorflow', reason="currently not working with TensorFlow")
     def test_masking(self):
-        if K._BACKEND == 'tensorflow':
-            # skip this test for TF: not supported yet
-            return
         X = np.array(
             [[[1, 1], [2, 1], [3, 1], [5, 5]],
              [[1, 5], [5, 0], [0, 0], [0, 0]]], dtype=np.int32)

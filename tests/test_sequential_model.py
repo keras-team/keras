@@ -12,6 +12,7 @@ from keras.utils.test_utils import get_test_data
 import pickle
 import sys
 import os
+import pytest
 
 input_dim = 32
 nb_hidden = 16
@@ -137,9 +138,8 @@ class TestSequential(unittest.TestCase):
         print(nloss)
         assert(loss == nloss)
 
+    @pytest.mark.skipif(K._BACKEND=='tensorflow', reason="currently not working with TensorFlow")
     def test_merge_dot1(self):
-        if K._BACKEND == 'tensorflow':
-            return
 
         print('Test merge: dot')
         left = Sequential()
@@ -157,9 +157,8 @@ class TestSequential(unittest.TestCase):
 
         model.compile(loss='categorical_crossentropy', optimizer='rmsprop')
 
+    @pytest.mark.skipif(K._BACKEND=='tensorflow', reason="currently not working with TensorFlow")
     def test_merge_dot2(self):
-        if K._BACKEND == 'tensorflow':
-            return
 
         print('Test merge: dot')
         left = Sequential()
