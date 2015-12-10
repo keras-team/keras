@@ -121,6 +121,11 @@ class Sequential(Layer):
     def count_params(self):
         return sum([layer.count_params() for layer in self.layers])
 
+    def get_input_mask(self, train=False):
+        if hasattr(self, 'previous') and self.previous:
+            return self.previous.get_output_mask(train)
+        return None
+
 
 class Graph(Layer):
     '''
