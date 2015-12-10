@@ -84,7 +84,7 @@ class Sequential(Layer):
     def set_input(self):
         for l in self.layers:
             if hasattr(l, 'input'):
-                ndim = len(K.get_shape(l.input))
+                ndim = K.ndim(l.input)
                 self.layers[0].input = K.placeholder(ndim=ndim)
                 break
 
