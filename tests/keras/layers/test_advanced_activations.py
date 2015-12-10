@@ -9,10 +9,11 @@ def get_standard_values():
     These are just a set of floats used for testing the activation
     functions, and are useful in multiple tests.
 
-    The values should all be non-negative becasue they and their negative
+    The values should all be non-negative because they and their negatives
     are used to test the ReLU derivates in this file.
     '''
     return np.array([[0, 0.1, 0.5, 0.9, 1.0, 10, 1e2, 0.01]], dtype=K.floatx())
+
 
 class TestAdvancedActivations(unittest.TestCase):
     def test_leaky_relu(self):
@@ -24,12 +25,12 @@ class TestAdvancedActivations(unittest.TestCase):
             layer.input = K.variable(inp)
             for train in [True, False]:
                 outp = K.eval(layer.get_output(train))
-                assert_allclose(outp,inp)
+                assert_allclose(outp, inp)
 
             layer.input = K.variable(-inp)
             for train in [True, False]:
                 outp = K.eval(layer.get_output(train))
-                assert_allclose(outp,-inp*alpha)
+                assert_allclose(outp, -inp*alpha)
 
             config = layer.get_config()
             assert config['alpha'] == alpha
@@ -39,9 +40,8 @@ class TestAdvancedActivations(unittest.TestCase):
         np.random.seed(1337)
         inp = get_standard_values()
 
-
         for train in [True, False]:
-            #test with custom weights
+            # test with custom weights
             alphas = np.random.random(inp.shape)
             layer = PReLU(weights=alphas, input_shape=inp.flatten().shape)
             # calling build here causes an error, unclear if this is a bug
@@ -49,18 +49,18 @@ class TestAdvancedActivations(unittest.TestCase):
 
             layer.input = K.variable(inp)
             outp = K.eval(layer.get_output(train))
-            assert_allclose(inp,outp)
+            assert_allclose(inp, outp)
 
             layer.input = K.variable(-inp)
             outp = K.eval(layer.get_output(train))
-            assert_allclose(-alphas*inp,outp)
+            assert_allclose(-alphas*inp, outp)
 
-            #test with default weights
+            # test with default weights
             layer = PReLU(input_shape=inp.flatten().shape)
             # layer.build()
             layer.input = K.variable(inp)
             outp = K.eval(layer.get_output(train))
-            assert_allclose(inp,outp)
+            assert_allclose(inp, outp)
 
             layer.input = K.variable(-inp)
             outp = K.eval(layer.get_output(train))
@@ -78,12 +78,12 @@ class TestAdvancedActivations(unittest.TestCase):
             layer.input = K.variable(inp)
             for train in [True, False]:
                 outp = K.eval(layer.get_output(train))
-                assert_allclose(outp,inp,rtol=1e-3)
+                assert_allclose(outp, inp, rtol=1e-3)
 
             layer.input = K.variable(-inp)
             for train in [True, False]:
                 outp = K.eval(layer.get_output(train))
-                assert_allclose(outp,alpha*(np.exp(-inp)-1.),rtol=1e-3)
+                assert_allclose(outp, alpha*(np.exp(-inp)-1.), rtol=1e-3)
 
             config = layer.get_config()
             assert config['alpha'] == alpha
@@ -92,17 +92,20 @@ class TestAdvancedActivations(unittest.TestCase):
     def test_parametric_softplus(self):
         from keras.layers.advanced_activations import ParametricSoftplus
         np.random.seed(1337)
-        inp = np.vstack((get_standard_values(),-get_standard_values()))
-        #large values cause overflow in exp
+        inp = np.vstack((get_standard_values(), -get_standard_values()))
+        # large values cause overflow in exp
         inp = inp[:-2]
         for alpha in [.5, -1., 1., 5]:
-            for beta in  [.5, -1., 1., 2]:
-                layer = ParametricSoftplus(alpha_init=alpha, beta_init=beta, input_shape=inp.shape)
+            for beta in [.5, -1., 1., 2]:
+                layer = ParametricSoftplus(alpha_init=alpha,
+                                           beta_init=beta,
+                                           input_shape=inp.shape)
                 layer.input = K.variable(inp)
                 layer.build()
                 for train in [True, False]:
                     outp = K.eval(layer.get_output(train))
-                    assert_allclose(outp,alpha*np.log(1.+np.exp(beta*inp)),atol=1e-3)
+                    assert_allclose(outp, alpha*np.log(1.+np.exp(beta*inp)),
+                                    atol=1e-3)
 
                 config = layer.get_config()
                 assert config['alpha_init'] == alpha
@@ -118,12 +121,12 @@ class TestAdvancedActivations(unittest.TestCase):
             layer.input = K.variable(inp)
             for train in [True, False]:
                 outp = K.eval(layer.get_output(train))
-                assert_allclose(outp,inp*(np.abs(inp)>=theta))
+                assert_allclose(outp, inp*(np.abs(inp) >= theta))
 
             layer.input = K.variable(-inp)
             for train in [True, False]:
                 outp = K.eval(layer.get_output(train))
-                assert_allclose(outp,-inp*(np.abs(inp)>=theta))
+                assert_allclose(outp, -inp*(np.abs(inp) >= theta))
 
             config = layer.get_config()
             assert config['theta'] == theta
@@ -138,12 +141,12 @@ class TestAdvancedActivations(unittest.TestCase):
             layer.input = K.variable(inp)
             for train in [True, False]:
                 outp = K.eval(layer.get_output(train))
-                assert_allclose(outp,inp*(inp>theta))
+                assert_allclose(outp, inp*(inp > theta))
 
             layer.input = K.variable(-inp)
             for train in [True, False]:
                 outp = K.eval(layer.get_output(train))
-                assert_allclose(outp,-inp*(-inp>theta))
+                assert_allclose(outp, -inp*(-inp > theta))
 
             config = layer.get_config()
             assert config['theta'] == theta

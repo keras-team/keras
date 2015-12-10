@@ -1,18 +1,17 @@
 from __future__ import absolute_import
 from __future__ import print_function
-
+import pytest
 import numpy as np
-np.random.seed(1336)  # for reproducibility
+np.random.seed(1337)
 
 from keras.datasets import mnist
 from keras.models import Sequential, Graph
 from keras.layers.core import Dense, Activation
 from keras.utils import np_utils
-import unittest
 
 nb_classes = 10
 batch_size = 128
-nb_epoch = 10
+nb_epoch = 15
 weighted_class = 9
 standard_weight = 1
 high_weight = 5
@@ -110,50 +109,41 @@ def _test_weights_graph(model, class_weight=None, sample_weight=None):
     return score
 
 
-class TestLossWeighting(unittest.TestCase):
-    def test_sequential(self):
-        for loss in ['mae', 'mse']:
-            print('loss:', loss)
-            print('sequential')
-            # no weights: reference point
-            model = create_sequential_model()
-            model.compile(loss=loss, optimizer='rmsprop')
-            standard_score = _test_weights_sequential(model)
-            # test class_weight
-            model = create_sequential_model()
-            model.compile(loss=loss, optimizer='rmsprop')
-            score = _test_weights_sequential(model, class_weight=class_weight)
-            print('score:', score, ' vs.', standard_score)
-            self.assertTrue(score < standard_score)
-            # test sample_weight
-            model = create_sequential_model()
-            model.compile(loss=loss, optimizer='rmsprop')
-            score = _test_weights_sequential(model, sample_weight=sample_weight)
-            print('score:', score, ' vs.', standard_score)
-            self.assertTrue(score < standard_score)
+def test_sequential():
+    for loss in ['mae', 'mse']:
+        # no weights: reference point
+        model = create_sequential_model()
+        model.compile(loss=loss, optimizer='rmsprop')
+        standard_score = _test_weights_sequential(model)
+        # test class_weight
+        model = create_sequential_model()
+        model.compile(loss=loss, optimizer='rmsprop')
+        score = _test_weights_sequential(model, class_weight=class_weight)
+        assert(score < standard_score)
+        # test sample_weight
+        model = create_sequential_model()
+        model.compile(loss=loss, optimizer='rmsprop')
+        score = _test_weights_sequential(model, sample_weight=sample_weight)
+        assert(score < standard_score)
 
-    def test_graph(self):
-        for loss in ['mae', 'mse']:
-            print('loss:', loss)
-            print('graph')
-            # no weights: reference point
-            model = create_graph_model()
-            model.compile(loss={'output': loss}, optimizer='rmsprop')
-            standard_score = _test_weights_graph(model)
-            # test class_weight
-            model = create_graph_model()
-            model.compile(loss={'output': loss}, optimizer='rmsprop')
-            score = _test_weights_graph(model, class_weight=class_weight)
-            print('score:', score, ' vs.', standard_score)
-            self.assertTrue(score < standard_score)
-            # test sample_weight
-            model = create_graph_model()
-            model.compile(loss={'output': loss}, optimizer='rmsprop')
-            score = _test_weights_graph(model, sample_weight=sample_weight)
-            print('score:', score, ' vs.', standard_score)
-            self.assertTrue(score < standard_score)
+
+def test_graph():
+    for loss in ['mae', 'mse']:
+        # no weights: reference point
+        model = create_graph_model()
+        model.compile(loss={'output': loss}, optimizer='rmsprop')
+        standard_score = _test_weights_graph(model)
+        # test class_weight
+        model = create_graph_model()
+        model.compile(loss={'output': loss}, optimizer='rmsprop')
+        score = _test_weights_graph(model, class_weight=class_weight)
+        assert(score < standard_score)
+        # test sample_weight
+        model = create_graph_model()
+        model.compile(loss={'output': loss}, optimizer='rmsprop')
+        score = _test_weights_graph(model, sample_weight=sample_weight)
+        assert(score < standard_score)
 
 
 if __name__ == '__main__':
-    print('Test class_weight and sample_weight')
-    unittest.main()
+    pytest.main([__file__])

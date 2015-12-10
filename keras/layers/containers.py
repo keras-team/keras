@@ -23,6 +23,15 @@ class Sequential(Layer):
         for layer in layers:
             self.add(layer)
 
+    def __call__(self, X, train=False):
+        # set temporary input to first layer
+        tmp = self.layers[0].get_input
+        self.layers[0].get_input = lambda _: X
+        Y = self.get_output(train=train)
+        # return input to first layer to what it was
+        self.layers[0].get_input = tmp
+        return Y
+
     def set_previous(self, layer):
         self.layers[0].previous = layer
 
@@ -304,7 +313,7 @@ class Graph(Layer):
                 raise Exception('Duplicate node identifier: ' + o)
         if merge_mode:
             if merge_mode not in {'sum', 'ave', 'mul', 'dot', 'cos', 'concat', 'join'}:
-                raise Eception("Invalid merge mode")
+                raise Exception("Invalid merge mode")
         layers = []
         for i in range(len(inputs)):
             input = inputs[i]
@@ -326,7 +335,6 @@ class Graph(Layer):
             else:
                 raise Exception('Unknown identifier: ' + input)
         s = Siamese(layer, layers, merge_mode, concat_axis=concat_axis, dot_axes=dot_axes)
-        s.set_name(name)
         self.namespace.add(name)
         self.nodes[name] = s
         self.node_config.append({'name': name,
