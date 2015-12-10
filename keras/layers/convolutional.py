@@ -141,6 +141,13 @@ class UnPooling2D(Layer):
     def get_config(self):
         return {"name":self.__class__.__name__,
                 "poolsize":self.poolsize}
+    
+    @property
+    def output_shape(self):
+        input_shape = self.input_shape
+        return (input_shape[0], input_shape[1],
+                self.poolsize[0] * input_shape[2],
+                self.poolsize[1] * input_shape[3])    
 
 class Convolution2D(Layer):
     input_ndim = 4
