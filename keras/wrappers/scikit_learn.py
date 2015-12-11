@@ -217,14 +217,10 @@ class KerasClassifier(BaseWrapper):
         the the loss function is 'categorical_crossentropy'
         """
         def wrapper(self, X, y, *args, **kwargs):
-            if len(y.shape) == 1:
-                self.classes_ = list(np.unique(y))
-                if self.loss == 'categorical_crossentropy':
-                    y = to_categorical(y)
-            else:
-                self.classes_ = np.arange(0, y.shape[1])
-
+            if len(y.shape) == 1 and self.loss == 'categorical_crossentropy':
+                y = to_categorical(y)
             return function(self, X, y, *args, **kwargs)
+
         return wrapper
 
 
@@ -246,12 +242,21 @@ class KerasClassifier(BaseWrapper):
         history : object
             Returns details about the training history at each epoch.
         """
+        if len(y.shape) == 1:
+            self.classes_ = list(np.unique(y))
+        else:
+            self.classes_ = np.arange(0, y.shape[1])
+
         # If 'balanced', it balances the dataset with weights that are the inverse
         # of the class frequency.
-        # Currently only implemented for one hot enconded output classes.
-        if self.class_weight == 'balanced' and len(y.shape)>1:
-            inverse_frequencies = float(y.sum())/y.sum(axis=0)
-            class_weight = dict((i, inverse_frequencies[i]) for i in range(len(inverse_frequencies)))
+        if self.class_weight == 'balanced':
+            if len(y.shape)>1:
+                inverse_freqs = float(y.sum())/y.sum(axis=0)
+                class_weight = dict((i, inverse_freq) for i, inverse_freq in enumerate(inverse_freqs))
+            elif len(y.shape)==1:
+                unique, counts = np.unique(y, return_counts=True)
+                inverse_freqs = float(counts.sum())/counts
+                class_weight = dict(zip(unique, inverse_freqs))
         else:
             class_weight = self.class_weight
 
