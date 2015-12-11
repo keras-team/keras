@@ -114,7 +114,17 @@ class Layer(object):
 
     def get_input(self, train=False):
         if hasattr(self, 'previous'):
-            return self.previous.get_output(train=train)
+            # to avoid redundant computations,
+            # layer outputs are cached when possible.
+            if hasattr(self, 'layer_cache'):
+                previous_layer_id = id(self.previous)
+                if previous_layer_id in self.layer_cache:
+                    return self.layer_cache[previous_layer_id]
+            previous_output = self.previous.get_output(train=train)
+            if hasattr(self, 'layer_cache'):
+                previous_layer_id = id(self.previous)
+                self.layer_cache[previous_layer_id] = previous_output
+            return previous_output
         elif hasattr(self, 'input'):
             return self.input
         else:

@@ -20,6 +20,7 @@ class Sequential(Layer):
 
     def __init__(self, layers=[]):
         self.layers = []
+        self.layer_cache = {}
         for layer in layers:
             self.add(layer)
 
@@ -36,6 +37,7 @@ class Sequential(Layer):
         self.layers[0].previous = layer
 
     def add(self, layer):
+        layer.layer_cache = self.layer_cache
         self.layers.append(layer)
         if len(self.layers) > 1:
             self.layers[-1].set_previous(self.layers[-2])
@@ -165,6 +167,7 @@ class Graph(Layer):
         self.input_config = []  # dicts
         self.output_config = []  # dicts
         self.node_config = []  # dicts
+        self.layer_cache = {}
 
     @property
     def nb_input(self):
@@ -314,6 +317,7 @@ class Graph(Layer):
             layer.set_previous(merge)
 
         self.namespace.add(name)
+        layer.layer_cache = self.layer_cache
         self.nodes[name] = layer
         self.node_config.append({'name': name,
                                  'input': input,
@@ -344,6 +348,7 @@ class Graph(Layer):
         create_output -  Similar to create_output argument of add_node().
             Output will be created only if merge_mode is given
         '''
+        layer.layer_cache = self.layer_cache
         if name in self.namespace:
             raise Exception('Duplicate node identifier: ' + name)
         for o in outputs:
