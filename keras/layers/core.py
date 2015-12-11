@@ -117,12 +117,12 @@ class Layer(object):
             # to avoid redundant computations,
             # layer outputs are cached when possible.
             if hasattr(self, 'layer_cache'):
-                previous_layer_id = id(self.previous)
+                previous_layer_id = '%s_%s' % (id(self.previous), train)
                 if previous_layer_id in self.layer_cache:
                     return self.layer_cache[previous_layer_id]
             previous_output = self.previous.get_output(train=train)
             if hasattr(self, 'layer_cache'):
-                previous_layer_id = id(self.previous)
+                previous_layer_id = '%s_%s' % (id(self.previous), train)
                 self.layer_cache[previous_layer_id] = previous_output
             return previous_output
         elif hasattr(self, 'input'):
