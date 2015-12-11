@@ -75,6 +75,25 @@ class Sequential(Layer):
         return updates
 
     @property
+    def state_updates(self):
+        """
+        Returns the `updates` from all layers in the sequence that are
+        stateful.  This is useful for separating _training_ updates and
+        _prediction_ updates for when we need to update a layers internal state
+        during a stateful prediction.
+        """
+        state_updates = []
+        for l in self.layers:
+            if getattr(l, 'stateful', False):
+                state_updates += l.get_params()[3]
+        return state_updates
+
+    def reset_states(self):
+        for l in self.layers:
+            if hasattr(l, 'reset_states') and getattr(l, 'stateful', False):
+                l.reset_states()
+
+    @property
     def output_shape(self):
         return self.layers[-1].output_shape
 
@@ -186,6 +205,25 @@ class Graph(Layer):
             if l.trainable:
                 updates += l.get_params()[3]
         return updates
+
+    @property
+    def state_updates(self):
+        """
+        Returns the `updates` from all nodes in that graph for nodes that are
+        stateful.  This is useful for separating _training_ updates and
+        _prediction_ updates for when we need to update a layers internal state
+        during a stateful prediction.
+        """
+        state_updates = []
+        for l in self.nodes.values():
+            if getattr(l, 'stateful', False):
+                state_updates += l.get_params()[3]
+        return state_updates
+
+    def reset_states(self):
+        for l in self.nodes.values():
+            if hasattr(l, 'reset_states') and getattr(l, 'stateful', False):
+                l.reset_states()
 
     def set_previous(self, layer, connection_map={}):
         if self.nb_input != layer.nb_output:
