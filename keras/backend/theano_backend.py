@@ -407,12 +407,12 @@ def rnn(step_function, inputs, initial_states,
     '''
     inputs = inputs.dimshuffle((1, 0, 2))
 
-    def _step(ins, *states):
-        output, new_states = step_function(ins, states)
+    def _step(input, *states):
+        output, new_states = step_function(input, states)
         if masking:
             # if all-zero input timestep, return
             # all-zero output and unchanged states
-            switch = T.any(ins)
+            switch = T.any(input)
             output = T.switch(switch, output, 0. * output)
             return_states = []
             for state, new_state in zip(states, new_states):

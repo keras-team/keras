@@ -55,12 +55,12 @@ def _runner(layer_class):
     out3 = model.predict(np.ones((nb_samples, timesteps, input_dim)))
     assert(out2.max() != out3.max())
 
-    # check that we stay stateful during predictions
-    out4 = model.predict(np.ones((nb_samples, timesteps, input_dim)))
-    assert(out3.max() != out4.max())
-
     # check that container-level reset_states() works
     model.reset_states()
+    out4 = model.predict(np.ones((nb_samples, timesteps, input_dim)))
+    assert_allclose(out3, out4, atol=1e-5)
+
+    # check that the call to `predict` updated the states
     out5 = model.predict(np.ones((nb_samples, timesteps, input_dim)))
     assert(out4.max() != out5.max())
 
