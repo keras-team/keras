@@ -30,6 +30,7 @@ class Sequential(Layer):
             layer = layer.layers[0]
         # set temporary input to first layer
         tmp_input = layer.get_input
+        tmp_mask = None
         self.layer.get_input = lambda _: X
         if hasattr(layer, 'get_input_mask'):
             tmp_mask = layer.get_input_mask
