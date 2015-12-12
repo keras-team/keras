@@ -4,8 +4,24 @@ from .. import backend as K
 
 
 class GaussianNoise(MaskedLayer):
-    '''
-        Corruption process with GaussianNoise
+    '''Apply to the input an additive zero-centred gaussian noise with
+    standard deviation `sigma`. This is useful to mitigate overfitting
+    (you could see it as a kind of random data augmentation).
+    Gaussian Noise (GS) is a natural choice as corruption process
+    for real valued inputs.
+
+    As it is a regularization layer, it is only active at training time.
+
+    # Input shape
+        Arbitrary. Use the keyword argument `input_shape`
+        (tuple of integers, does not include the samples axis)
+        when using this layer as the first layer in a model.
+
+    # Output shape
+        Same shape as input.
+
+    # Arguments
+        sigma: float, standard deviation of the noise distribution.
     '''
     def __init__(self, sigma, **kwargs):
         super(GaussianNoise, self).__init__(**kwargs)
@@ -28,12 +44,16 @@ class GaussianNoise(MaskedLayer):
 
 
 class GaussianDropout(MaskedLayer):
-    '''
-        Multiplicative Gaussian Noise
-        Reference:
-            Dropout: A Simple Way to Prevent Neural Networks from Overfitting
-            Srivastava, Hinton, et al. 2014
-            http://www.cs.toronto.edu/~rsalakhu/papers/srivastava14a.pdf
+    '''Apply to the input an multiplicative one-centred gaussian noise
+    with standard deviation `sqrt(p/(1-p))`.
+
+    As it is a regularization layer, it is only active at training time.
+
+    # Arguments
+        p: float, drop probability (as with `Dropout`).
+
+    # References:
+        [Dropout: A Simple Way to Prevent Neural Networks from Overfitting Srivastava, Hinton, et al. 2014](http://www.cs.toronto.edu/~rsalakhu/papers/srivastava14a.pdf)
     '''
     def __init__(self, p, **kwargs):
         super(GaussianDropout, self).__init__(**kwargs)
