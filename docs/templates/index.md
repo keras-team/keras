@@ -12,9 +12,7 @@ Use Keras if you need a deep learning library that:
 
 Read the documentation at [Keras.io](http://keras.io).
 
-Keras is compatible with:
-    - __Python 2.7-3.5__ with the Theano backend
-    - __Python 2.7__ with the TensorFlow backend
+Keras is compatible with: __Python 2.7-3.5__.
 
 
 ------------------
