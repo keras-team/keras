@@ -147,7 +147,7 @@ class Layer(object):
                             'and is not an input layer.')
 
     def supports_masked_input(self):
-        ''' Whether or not this layer respects the output mask of its previous
+        '''Whether or not this layer respects the output mask of its previous
         layer in its calculations.
         If you try to attach a layer that does *not* support masked_input to
         a layer that gives a non-None output_mask(), an error will be raised.
@@ -155,8 +155,7 @@ class Layer(object):
         return False
 
     def get_output_mask(self, train=None):
-        '''
-        For some models (such as RNNs) you want a way of being able to mark
+        '''For some models (such as RNNs) you want a way of being able to mark
         some output data-points as "masked",
         so they are not used in future calculations.
         In such a model, get_output_mask() should return a mask
@@ -182,12 +181,11 @@ class Layer(object):
     def set_weights(self, weights):
         '''Set the weights of the layer.
 
-        # Arguments
-            weights: a list of numpy arrays. The number
-                of arrays and their shape must match
-                number of the dimensions of the weights
-                of the layer (i.e. it should match the
-                output of `get_weights`).
+        weights: a list of numpy arrays. The number
+            of arrays and their shape must match
+            number of the dimensions of the weights
+            of the layer (i.e. it should match the
+            output of `get_weights`).
         '''
         assert len(self.params) == len(weights), 'Provided weight array does not match layer weights (' + \
             str(len(self.params)) + ' layer params vs. ' + str(len(weights)) + ' provided weights)'
@@ -197,9 +195,8 @@ class Layer(object):
             K.set_value(p, w)
 
     def get_weights(self):
-        '''Return the weights of the layer.
-
-        # Returns: list of numpy arrays.
+        '''Return the weights of the layer,
+        as a list of numpy arrays.
         '''
         weights = []
         for p in self.params:
@@ -207,10 +204,7 @@ class Layer(object):
         return weights
 
     def get_config(self):
-        '''Return the parameters of the layer.
-
-        # Returns:
-            A dictionary mapping parameter names to their values.
+        '''Return the parameters of the layer, as a dictionary.
         '''
         config = {"name": self.__class__.__name__}
         if hasattr(self, '_input_shape'):
@@ -512,7 +506,7 @@ class Merge(Layer):
             for i in range(len(self.layers)):
                 X = self.layers[i].get_output(train)
                 if X.name is None:
-                    raise ValueError('merge_mode='join' only works with named inputs')
+                    raise ValueError('merge_mode="join" only works with named inputs')
                 else:
                     inputs[X.name] = X
             return inputs
