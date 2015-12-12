@@ -1,12 +1,10 @@
 import sys
-import unittest
+import pytest
 from numpy.testing import assert_allclose
 import numpy as np
-import pytest
 
-if sys.version_info.major == 2:
-    from keras.backend import theano_backend as KTH
-    from keras.backend import tensorflow_backend as KTF
+from keras.backend import theano_backend as KTH
+from keras.backend import tensorflow_backend as KTF
 
 
 def check_single_tensor_operation(function_name, input_shape, **kwargs):
@@ -38,8 +36,7 @@ def check_two_tensor_operation(function_name, x_input_shape,
     assert_allclose(zth, ztf, atol=1e-05)
 
 
-@pytest.mark.skipif(sys.version_info.major != 2, reason="Requires Python 2.7")
-class TestBackend(unittest.TestCase):
+class TestBackend(object):
 
     def test_linear_operations(self):
         check_two_tensor_operation('dot', (4, 2), (2, 4))
@@ -291,17 +288,17 @@ class TestBackend(unittest.TestCase):
     #     check_two_tensor_operation('conv2d', (5, 3, 10, 12), (4, 3, 3, 3),
     #                                strides=(2, 2), border_mode='valid')
 
-    # def test_maxpool2d(self):
-    #     '''maxpool2d works "properly" with Theano and TF but outputs different
+    # def test_pool2d(self):
+    #     '''pool2d works "properly" with Theano and TF but outputs different
     #     values in each case. Cause unclear (input shape format?)
     #     '''
-    #     check_single_tensor_operation('maxpool2d', (5, 3, 10, 12), pool_size=(2, 2),
+    #     check_single_tensor_operation('pool2d', (5, 3, 10, 12), pool_size=(2, 2),
     #                                   strides=(1, 1), border_mode='valid')
 
-    #     check_single_tensor_operation('maxpool2d', (5, 3, 9, 11), pool_size=(2, 2),
+    #     check_single_tensor_operation('pool2d', (5, 3, 9, 11), pool_size=(2, 2),
     #                                   strides=(1, 1), border_mode='valid')
 
-    #     check_single_tensor_operation('maxpool2d', (5, 3, 9, 11), pool_size=(2, 3),
+    #     check_single_tensor_operation('pool2d', (5, 3, 9, 11), pool_size=(2, 3),
     #                                   strides=(1, 1), border_mode='valid')
 
     def test_random_normal(self):
@@ -332,4 +329,4 @@ class TestBackend(unittest.TestCase):
 
 
 if __name__ == '__main__':
-    unittest.main()
+    pytest.main([__file__])

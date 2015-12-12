@@ -65,7 +65,7 @@ class Recurrent(MaskedLayer):
         mask = self.get_output_mask(train)
         if mask:
             # apply mask
-            X *= K.expand_dims(mask)
+            X *= K.cast(K.expand_dims(mask), X.dtype)
             masking = True
         else:
             masking = False
@@ -79,8 +79,9 @@ class Recurrent(MaskedLayer):
                                              go_backwards=self.go_backwards,
                                              masking=masking)
         if self.stateful:
+            self.updates = []
             for i in range(len(states)):
-                K.set_value(self.states[i], states[i])
+                self.updates.append((self.states[i], states[i]))
 
         if self.return_sequences:
             return outputs
@@ -123,11 +124,7 @@ class SimpleRNN(Recurrent):
     def build(self):
         input_shape = self.input_shape
         if self.stateful:
-            if not input_shape[0]:
-                raise Exception('If a RNN is stateful, a complete ' +
-                                'input_shape must be provided ' +
-                                '(including batch size).')
-            self.states = [K.zeros((input_shape[0], self.output_dim))]
+            self.reset_states()
         else:
             # initial states: all-zero tensor of shape (output_dim)
             self.states = [None]
@@ -143,12 +140,25 @@ class SimpleRNN(Recurrent):
             self.set_weights(self.initial_weights)
             del self.initial_weights
 
+    def reset_states(self):
+        assert self.stateful, 'Layer must be stateful.'
+        input_shape = self.input_shape
+        if not input_shape[0]:
+            raise Exception('If a RNN is stateful, a complete ' +
+                            'input_shape must be provided ' +
+                            '(including batch size).')
+        if hasattr(self, 'states'):
+            K.set_value(self.states[0],
+                        np.zeros((input_shape[0], self.output_dim)))
+        else:
+            self.states = [K.zeros((input_shape[0], self.output_dim))]
+
     def step(self, x, states):
         # states only contains the previous output.
         assert len(states) == 1
         prev_output = states[0]
         h = K.dot(x, self.W) + self.b
-        output = self.activation(h * K.dot(prev_output, self.U))
+        output = self.activation(h + K.dot(prev_output, self.U))
         return output, [output]
 
     def get_config(self):
@@ -216,11 +226,7 @@ class GRU(Recurrent):
                        self.W_h, self.U_h, self.b_h]
 
         if self.stateful:
-            if not input_shape[0]:
-                raise Exception('If a RNN is stateful, a complete ' +
-                                'input_shape must be provided ' +
-                                '(including batch size).')
-            self.states = [K.zeros((input_shape[0], self.output_dim))]
+            self.reset_states()
         else:
             # initial states: all-zero tensor of shape (output_dim)
             self.states = [None]
@@ -228,6 +234,19 @@ class GRU(Recurrent):
         if self.initial_weights is not None:
             self.set_weights(self.initial_weights)
             del self.initial_weights
+
+    def reset_states(self):
+        assert self.stateful, 'Layer must be stateful.'
+        input_shape = self.input_shape
+        if not input_shape[0]:
+            raise Exception('If a RNN is stateful, a complete ' +
+                            'input_shape must be provided ' +
+                            '(including batch size).')
+        if hasattr(self, 'states'):
+            K.set_value(self.states[0],
+                        np.zeros((input_shape[0], self.output_dim)))
+        else:
+            self.states = [K.zeros((input_shape[0], self.output_dim))]
 
     def step(self, x, states):
         assert len(states) == 1
@@ -295,12 +314,7 @@ class LSTM(Recurrent):
         self.input = K.placeholder(input_shape)
 
         if self.stateful:
-            if not input_shape[0]:
-                raise Exception('If a RNN is stateful, a complete ' +
-                                'input_shape must be provided ' +
-                                '(including batch size).')
-            self.states = [K.zeros((input_shape[0], self.output_dim)),
-                           K.zeros((input_shape[0], self.output_dim))]
+            self.reset_states()
         else:
             # initial states: 2 all-zero tensor of shape (output_dim)
             self.states = [None, None]
@@ -329,6 +343,22 @@ class LSTM(Recurrent):
         if self.initial_weights is not None:
             self.set_weights(self.initial_weights)
             del self.initial_weights
+
+    def reset_states(self):
+        assert self.stateful, 'Layer must be stateful.'
+        input_shape = self.input_shape
+        if not input_shape[0]:
+            raise Exception('If a RNN is stateful, a complete ' +
+                            'input_shape must be provided ' +
+                            '(including batch size).')
+        if hasattr(self, 'states'):
+            K.set_value(self.states[0],
+                        np.zeros((input_shape[0], self.output_dim)))
+            K.set_value(self.states[1],
+                        np.zeros((input_shape[0], self.output_dim)))
+        else:
+            self.states = [K.zeros((input_shape[0], self.output_dim)),
+                           K.zeros((input_shape[0], self.output_dim))]
 
     def step(self, x, states):
         assert len(states) == 2

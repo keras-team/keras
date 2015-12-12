@@ -12,6 +12,7 @@ from keras.utils import np_utils
 from keras.utils.test_utils import get_test_data
 
 import os
+from keras.utils.layer_utils import model_summary
 
 input_dim = 32
 nb_hidden = 16
@@ -43,6 +44,7 @@ def test_sequential():
     model.add(Dense(nb_class))
     model.add(Activation('softmax'))
     model.compile(loss='categorical_crossentropy', optimizer='rmsprop')
+    model.summary()
 
     model.fit(X_train, y_train, batch_size=batch_size, nb_epoch=nb_epoch, show_accuracy=True, verbose=1, validation_data=(X_test, y_test))
     model.fit(X_train, y_train, batch_size=batch_size, nb_epoch=nb_epoch, show_accuracy=False, verbose=2, validation_data=(X_test, y_test))
@@ -473,6 +475,7 @@ def test_1o_1i_2():
     assert(loss < 2.5)
 
     graph.get_config(verbose=1)
+    graph.summary()
 
 
 def test_1o_2i():

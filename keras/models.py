@@ -14,7 +14,7 @@ from . import objectives
 from . import regularizers
 from . import constraints
 from . import callbacks as cbks
-from .utils.layer_utils import container_from_config
+from .utils.layer_utils import container_from_config, model_summary
 from .utils.generic_utils import Progbar, printv
 from .layers import containers
 
@@ -75,8 +75,10 @@ def weighted_objective(fn):
 
         mask: binary
         '''
+        # score_array has ndim >= 2
         score_array = fn(y_true, y_pred)
         if mask is not None:
+            # mask should have the same shape as score_array
             score_array *= mask
             #  the loss per batch should be proportional
             #  to the number of unmasked sampled.
@@ -342,6 +344,9 @@ class Model(object):
         config = self.get_config()
         return json.dumps(config, **kwargs)
 
+    def summary(self):
+        model_summary(self)
+
 
 class Sequential(Model, containers.Sequential):
     '''
@@ -417,7 +422,7 @@ class Sequential(Model, containers.Sequential):
 
         self._train = K.function(train_ins, [train_loss], updates=updates)
         self._train_with_acc = K.function(train_ins, [train_loss, train_accuracy], updates=updates)
-        self._predict = K.function(predict_ins, [self.y_test])
+        self._predict = K.function(predict_ins, [self.y_test], updates=self.state_updates)
         self._test = K.function(test_ins, [test_loss])
         self._test_with_acc = K.function(test_ins, [test_loss, test_accuracy])
 
@@ -629,7 +634,7 @@ class Graph(Model, containers.Graph):
 
         self._train = K.function(train_ins, [train_loss], updates=updates)
         self._test = K.function(test_ins, [test_loss])
-        self._predict = K.function(inputs=ins, outputs=ys_test)
+        self._predict = K.function(inputs=ins, outputs=ys_test, updates=self.state_updates)
 
     def train_on_batch(self, data, class_weight={}, sample_weight={}):
         # data is a dictionary mapping output and input names to arrays

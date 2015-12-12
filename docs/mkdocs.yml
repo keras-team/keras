@@ -15,6 +15,7 @@ pages:
 - Index: documentation.md
 - Examples: examples.md
 - FAQ: faq.md
+- Backends: backend.md
 - Optimizers: optimizers.md
 - Objectives: objectives.md
 - Models: models.md

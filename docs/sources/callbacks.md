@@ -21,9 +21,9 @@ keras.callbacks.Callback()
     - __on_batch_end__(batch, logs={}): Method called at the end of batch `batch`.
 
 The `logs` dictionary will contain keys for quantities relevant to the current batch or epoch. Currently, the `.fit()` method of the `Sequential` model class will include the following quantities in the `logs` that it passes to its callbacks:
-- __on_epoch_end__: logs optionally include `val_loss` (if validation is enabled in `fit`), and `val_accuracy` (if validation and accuracy monitoring are enabled).
+- __on_epoch_end__: logs optionally include `val_loss` (if validation is enabled in `fit`), and `val_acc` (if validation and accuracy monitoring are enabled).
 - __on_batch_begin__: logs include `size`, the number of samples in the current batch.
-- __on_batch_end__: logs include `loss`, and optionally `accuracy` (if accuracy monitoring is enabled).
+- __on_batch_end__: logs include `loss`, and optionally `acc` (if accuracy monitoring is enabled).
 
 ---
 

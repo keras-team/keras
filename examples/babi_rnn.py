@@ -1,21 +1,4 @@
-from __future__ import absolute_import
-from __future__ import print_function
-from functools import reduce
-import re
-import tarfile
-
-import numpy as np
-np.random.seed(1337)  # for reproducibility
-
-from keras.datasets.data_utils import get_file
-from keras.layers.embeddings import Embedding
-from keras.layers.core import Dense, Merge
-from keras.layers import recurrent
-from keras.models import Sequential
-from keras.preprocessing.sequence import pad_sequences
-
-'''
-Trains two recurrent neural networks based upon a story and a question.
+'''Trains two recurrent neural networks based upon a story and a question.
 The resulting merged vector is then queried to answer a range of bAbI tasks.
 
 The results are comparable to those for an LSTM model provided in Weston et al.:
@@ -72,6 +55,21 @@ networks that use attentional processes can efficiently search through this
 noise to find the relevant statements, improving performance substantially.
 This becomes especially obvious on QA2 and QA3, both far longer than QA1.
 '''
+
+from __future__ import print_function
+from functools import reduce
+import re
+import tarfile
+
+import numpy as np
+np.random.seed(1337)  # for reproducibility
+
+from keras.datasets.data_utils import get_file
+from keras.layers.embeddings import Embedding
+from keras.layers.core import Dense, Merge
+from keras.layers import recurrent
+from keras.models import Sequential
+from keras.preprocessing.sequence import pad_sequences
 
 
 def tokenize(sent):

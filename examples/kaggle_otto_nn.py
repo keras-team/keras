@@ -1,6 +1,26 @@
-from __future__ import absolute_import
-from __future__ import print_function
+'''This demonstrates how to reach a score of 0.4890 (local validation)
+on the Kaggle Otto challenge, with a deep net using Keras.
 
+Requires Scikit-Learn and Pandas.
+
+Recommended to run on GPU:
+    Command: THEANO_FLAGS=mode=FAST_RUN,device=gpu,floatX=float32 python kaggle_otto_nn.py
+    On EC2 g2.2xlarge instance: 19s/epoch. 6-7 minutes total training time.
+
+Best validation score at epoch 21: 0.4881
+
+Try it at home:
+    - with/without BatchNormalization (BatchNormalization helps!)
+    - with ReLU or with PReLU (PReLU helps!)
+    - with smaller layers, largers layers
+    - with more layers, less layers
+    - with different optimizers (SGD+momentum+decay is probably better than Adam!)
+
+Get the data from Kaggle:
+https://www.kaggle.com/c/otto-group-product-classification-challenge/data
+'''
+
+from __future__ import print_function
 import numpy as np
 import pandas as pd
 np.random.seed(1337)  # for reproducibility
@@ -13,28 +33,6 @@ from keras.utils import np_utils, generic_utils
 
 from sklearn.preprocessing import LabelEncoder
 from sklearn.preprocessing import StandardScaler
-
-'''
-    This demonstrates how to reach a score of 0.4890 (local validation)
-    on the Kaggle Otto challenge, with a deep net using Keras.
-
-    Compatible Python 2.7-3.4. Requires Scikit-Learn and Pandas.
-
-    Recommended to run on GPU:
-        Command: THEANO_FLAGS=mode=FAST_RUN,device=gpu,floatX=float32 python kaggle_otto_nn.py
-        On EC2 g2.2xlarge instance: 19s/epoch. 6-7 minutes total training time.
-
-    Best validation score at epoch 21: 0.4881
-
-    Try it at home:
-        - with/without BatchNormalization (BatchNormalization helps!)
-        - with ReLU or with PReLU (PReLU helps!)
-        - with smaller layers, largers layers
-        - with more layers, less layers
-        - with different optimizers (SGD+momentum+decay is probably better than Adam!)
-
-    Get the data from Kaggle: https://www.kaggle.com/c/otto-group-product-classification-challenge/data
-'''
 
 
 def load_data(path, train=True):
@@ -76,9 +74,9 @@ def make_submission(y_prob, ids, encoder, fname):
             probas = ','.join([i] + [str(p) for p in probs.tolist()])
             f.write(probas)
             f.write('\n')
-    print("Wrote submission to file {}.".format(fname))
+    print('Wrote submission to file {}.'.format(fname))
 
-print("Loading data...")
+print('Loading data...')
 X, labels = load_data('train.csv', train=True)
 X, scaler = preprocess_data(X)
 y, encoder = preprocess_labels(labels)
@@ -92,7 +90,7 @@ print(nb_classes, 'classes')
 dims = X.shape[1]
 print(dims, 'dims')
 
-print("Building model...")
+print('Building model...')
 
 model = Sequential()
 model.add(Dense(512, input_shape=(dims,)))
@@ -113,11 +111,11 @@ model.add(Dropout(0.5))
 model.add(Dense(nb_classes))
 model.add(Activation('softmax'))
 
-model.compile(loss='categorical_crossentropy', optimizer="adam")
+model.compile(loss='categorical_crossentropy', optimizer='adam')
 
-print("Training model...")
+print('Training model...')
 model.fit(X, y, nb_epoch=20, batch_size=128, validation_split=0.15)
 
-print("Generating submission...")
+print('Generating submission...')
 proba = model.predict_proba(X_test)
 make_submission(proba, ids, encoder, fname='keras-otto.csv')

@@ -391,14 +391,14 @@ def rnn(step_function, inputs, initial_states,
             # if all-zero input timestep, return
             # all-zero output and unchanged states
             switch = tf.reduce_any(input)
-            output = tf.control_flow_ops.cond(switch,
-                                              lambda: output,
-                                              lambda: 0. * output)
+            output = tf.python.control_flow_ops.cond(switch,
+                                                     lambda: output,
+                                                     lambda: 0. * output)
             return_states = []
             for state, new_state in zip(states, new_states):
-                return_states.append(tf.control_flow_ops.cond(switch,
-                                                              lambda: new_state,
-                                                              lambda: state))
+                return_states.append(tf.python.control_flow_ops.cond(switch,
+                                                                     lambda: new_state,
+                                                                     lambda: state))
             states = return_states
         else:
             states = new_states
@@ -416,9 +416,9 @@ def rnn(step_function, inputs, initial_states,
 def switch(condition, then_expression, else_expression):
     '''condition: scalar tensor.
     '''
-    return tf.control_flow_ops.cond(condition,
-                                    lambda: then_expression,
-                                    lambda: else_expression)
+    return tf.python.control_flow_ops.cond(condition,
+                                           lambda: then_expression,
+                                           lambda: else_expression)
 
 
 # NN OPERATIONS
@@ -545,8 +545,8 @@ def conv2d(x, kernel, strides=(1, 1), border_mode='valid', dim_ordering='th',
     return x
 
 
-def maxpool2d(x, pool_size, strides=(1, 1),
-              border_mode='valid', dim_ordering='th'):
+def pool2d(x, pool_size, strides=(1, 1),
+           border_mode='valid', dim_ordering='th', pool_mode='max'):
     '''
     pool_size: tuple of 2 integers.
     strides: tuple of 2 integers.
@@ -567,18 +567,23 @@ def maxpool2d(x, pool_size, strides=(1, 1),
         # tf max_pool only supports float32
         x = tf.cast(x, 'float32')
 
-    if dim_ordering == 'th':
-        # TF uses the last dimension as channel dimension,
-        # instead of the 2nd one.
-        # TH input shape: (samples, input_depth, rows, cols)
-        # TF input shape: (samples, rows, cols, input_depth)
-        # TH kernel shape: (depth, input_depth, rows, cols)
-        # TF kernel shape: (rows, cols, input_depth, depth)
-        x = tf.transpose(x, (0, 2, 3, 1))
-        x = tf.nn.max_pool(x, pool_size, strides, padding=padding)
-        x = tf.transpose(x, (0, 3, 1, 2))
-    elif dim_ordering == 'tf':
-        x = tf.nn.max_pool(x, pool_size, strides, padding=padding)
+    if dim_ordering in {'tf', 'th'}:
+        if dim_ordering == 'th':
+            # TF uses the last dimension as channel dimension,
+            # instead of the 2nd one.
+            # TH input shape: (samples, input_depth, rows, cols)
+            # TF input shape: (samples, rows, cols, input_depth)
+            # TH kernel shape: (depth, input_depth, rows, cols)
+            # TF kernel shape: (rows, cols, input_depth, depth)
+            x = tf.transpose(x, (0, 2, 3, 1))
+        if pool_mode == 'max':
+            x = tf.nn.max_pool(x, pool_size, strides, padding=padding)
+        elif pool_mode == 'avg':
+            x = tf.nn.avg_pool(x, pool_size, strides, padding=padding)
+        else:
+            raise Exception('Invalid pooling mode: ' + str(pool_mode))
+        if dim_ordering == 'th':
+            x = tf.transpose(x, (0, 3, 1, 2))
     else:
         raise Exception('Unknown dim_ordering: ' + str(dim_ordering))
 

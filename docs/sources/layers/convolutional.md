@@ -100,6 +100,26 @@ Max pooling operation for temporal data.
 
 ---
 
+## AveragePooling1D
+
+```python
+keras.layers.convolutional.AveragePooling1D(pool_length=2, stride=None, border_mode='valid')
+```
+
+Average pooling operation for temporal data.
+
+- __Input shape__: 3D tensor with shape: `(samples, steps, features)`.
+
+- __Output shape__: 3D tensor with shape: `(samples, downsampled_steps, features)`.
+
+- __Arguments__:
+
+    - __pool_length__: factor by which to downscale. 2 will halve the input.
+    - __stride__: integer or None. Stride value.
+    - __border_mode__: 'valid' or 'same'. **Note:** 'same' will only work with TensorFlow for the time being.
+
+---
+
 ## MaxPooling2D
 
 ```python
@@ -121,6 +141,28 @@ or 4D tensor with shape: `(samples, pooled_rows, pooled_cols, channels)` if dim_
     - __border_mode__: 'valid' or 'same'. **Note:** 'same' will only work with TensorFlow for the time being.
     - __dim_ordering__: 'th' or 'tf'. In 'th' mode, the channels dimension (the depth) is at index 1, in 'tf' mode is it at index 3.
 
+---
+
+## AveragePooling2D
+
+```python
+keras.layers.convolutional.AveragePooling2D(pool_size=(2, 2), border_mode='valid', dim_ordering='th')
+```
+
+Average pooling operation for spatial data.
+
+- __Input shape__: 4D tensor with shape: `(samples, channels, rows, cols)` if dim_ordering='th'
+or 4D tensor with shape: `(samples, rows, cols, channels)` if dim_ordering='tf'.
+
+- __Output shape__: 4D tensor with shape: `(nb_samples, channels, pooled_rows, pooled_cols)` if dim_ordering='th'
+or 4D tensor with shape: `(samples, pooled_rows, pooled_cols, channels)` if dim_ordering='tf'.
+
+- __Arguments__:
+
+    - __pool_size__: tuple of 2 integers, factors by which to downscale (vertical, horizontal). (2, 2) will halve the image in each dimension.
+    - __strides__: tuple of 2 integers, or None. Strides values.
+    - __border_mode__: 'valid' or 'same'. **Note:** 'same' will only work with TensorFlow for the time being.
+    - __dim_ordering__: 'th' or 'tf'. In 'th' mode, the channels dimension (the depth) is at index 1, in 'tf' mode is it at index 3.
 
 ---
 

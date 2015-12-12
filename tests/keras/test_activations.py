@@ -1,7 +1,9 @@
 import pytest
-from keras import backend as K
 import numpy as np
 from numpy.testing import assert_allclose
+
+from keras import backend as K
+from keras import activations
 
 
 def get_standard_values():
@@ -12,86 +14,81 @@ def get_standard_values():
     return np.array([[0, 0.1, 0.5, 0.9, 1.0]], dtype=K.floatx())
 
 
-# Reference sigmoid, numerically stable
-def ref_sigmoid(x):
-    if x >= 0:
-        return 1 / (1 + np.exp(-x))
-    else:
-        z = np.exp(x)
-        return z / (1 + z)
-vec_sigmoid = np.vectorize(ref_sigmoid)
-
-
-# Reference hard sigmoid with slope and shift values from theano, see
-# https://github.com/Theano/Theano/blob/master/theano/tensor/nnet/sigm.py
-def ref_hard_sigmoid(x):
-    x = (x * 0.2) + 0.5
-    z = 0.0 if x <= 0 else (1.0 if x >= 1 else x)
-    return z
-vec_hard_sigmoid = np.vectorize(ref_hard_sigmoid)
-
-
-# Reference softplus implementation
-def ref_softplus(x):
-    return np.log(np.ones_like(x) + np.exp(x))
-
-
-# Test using a reference implementation of softmax
-def ref_softmax(values):
-    m = np.max(values)
-    e = np.exp(values - m)
-    return e / np.sum(e)
-
-
 def test_softmax():
-    from keras.activations import softmax
+    '''
+    Test using a reference implementation of softmax
+    '''
+    def softmax(values):
+        m = np.max(values)
+        e = np.exp(values - m)
+        return e / np.sum(e)
 
     x = K.placeholder(ndim=2)
-    softmax_out = softmax(x)
-    f = K.function([x], [softmax_out])
+    f = K.function([x], [activations.softmax(x)])
     test_values = get_standard_values()
 
     result = f([test_values])[0]
-    expected = ref_softmax(test_values)
+    expected = softmax(test_values)
     assert_allclose(result, expected, rtol=1e-05)
 
 
 def test_softplus():
-    from keras.activations import softplus
+    '''
+    Test using a reference softplus implementation
+    '''
+    def softplus(x):
+        return np.log(np.ones_like(x) + np.exp(x))
 
     x = K.placeholder(ndim=2)
-    softplus_out = softplus(x)
-    f = K.function([x], [softplus_out])
+    f = K.function([x],  [activations.softplus(x)])
     test_values = get_standard_values()
 
     result = f([test_values])[0]
-    expected = ref_softplus(test_values)
+    expected = softplus(test_values)
     assert_allclose(result, expected, rtol=1e-05)
 
 
 def test_sigmoid():
-    from keras.activations import sigmoid
+    '''
+    Test using a numerically stable reference sigmoid implementation
+    '''
+    def ref_sigmoid(x):
+        if x >= 0:
+            return 1 / (1 + np.exp(-x))
+        else:
+            z = np.exp(x)
+            return z / (1 + z)
+    sigmoid = np.vectorize(ref_sigmoid)
 
     x = K.placeholder(ndim=2)
-    sig_out = sigmoid(x)
-    f = K.function([x], [sig_out])
+    f = K.function([x],  [activations.sigmoid(x)])
     test_values = get_standard_values()
 
     result = f([test_values])[0]
-    expected = vec_sigmoid(test_values)
+    expected = sigmoid(test_values)
     assert_allclose(result, expected, rtol=1e-05)
 
 
 def test_hard_sigmoid():
-    from keras.activations import hard_sigmoid
+    '''
+    Test using a reference hard sigmoid implementation
+    '''
+    def ref_hard_sigmoid(x):
+        '''
+        Reference hard sigmoid with slope and shift values from theano, see
+        https://github.com/Theano/Theano/blob/master/theano/tensor/nnet/sigm.py
+        '''
+        x = (x * 0.2) + 0.5
+        z = 0.0 if x <= 0 else (1.0 if x >= 1 else x)
+        return z
+    hard_sigmoid = np.vectorize(ref_hard_sigmoid)
 
     x = K.placeholder(ndim=2)
-    hard_sig_out = hard_sigmoid(x)
-    f = K.function([x], [hard_sig_out])
+    f = K.function([x],  [activations.hard_sigmoid(x)])
     test_values = get_standard_values()
 
     result = f([test_values])[0]
-    expected = vec_hard_sigmoid(test_values)
+    expected = hard_sigmoid(test_values)
     assert_allclose(result, expected, rtol=1e-05)
 
 
@@ -100,11 +97,8 @@ def test_relu():
     Relu implementation doesn't depend on the value being
     a theano variable. Testing ints, floats and theano tensors.
     '''
-    from keras.activations import relu as r
-
     x = K.placeholder(ndim=2)
-    exp = r(x)
-    f = K.function([x], [exp])
+    f = K.function([x], [activations.relu(x)])
 
     test_values = get_standard_values()
     result = f([test_values])[0]
@@ -114,11 +108,10 @@ def test_relu():
 
 
 def test_tanh():
-    from keras.activations import tanh as t
     test_values = get_standard_values()
 
     x = K.placeholder(ndim=2)
-    exp = t(x)
+    exp = activations.tanh(x)
     f = K.function([x], [exp])
 
     result = f([test_values])[0]
@@ -131,8 +124,10 @@ def test_linear():
     This function does no input validation, it just returns the thing
     that was passed in.
     '''
-    from keras.activations import linear as l
-
     xs = [1, 5, True, None, 'foo']
     for x in xs:
-        assert x == l(x)
+        assert(x == activations.linear(x))
+
+
+if __name__ == '__main__':
+    pytest.main([__file__])

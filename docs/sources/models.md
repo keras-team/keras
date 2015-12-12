@@ -42,6 +42,7 @@ model = keras.models.Sequential()
         - __Return__: loss over the data, or tuple `(loss, accuracy)` if `accuracy=True`.
     - __save_weights__(fname, overwrite=False): Store the weights of all layers to a HDF5 file. If overwrite==False and the file already exists, an exception will be thrown.
     - __load_weights__(fname): Sets the weights of a model, based to weights stored by __save_weights__. You can only __load_weights__ on a savefile from a model with an identical architecture. __load_weights__ can be called either before or after the __compile__ step.
+    - __summary__(): Print out a summary of the model architecture, with parameter count information.
 
 __Examples__:
 
@@ -54,7 +55,7 @@ model = Sequential()
 model.add(Dense(2, init='uniform', input_dim=64))
 model.add(Activation('softmax'))
 
-model.compile(loss='mse', optimizer='sgd')
+model.compile(optimizer='sgd', loss='mse')
 
 '''
 Demonstration of verbose modes 1 and 2
@@ -135,13 +136,15 @@ model = keras.models.Graph()
             - __input__: str name of the node that the output is connected to. Only specify *one* of either `input` or `inputs`.
             - __inputs__: list of str names of the node that the output is connected to.
             - __merge_mode__: "sum" or "concat". Only applicable if `inputs` list is specified. Merge mode for the different inputs.
-    - __add_node__(layer, name, input=None, inputs=[], merge_mode='concat'): Add an output connect to `input` or `inputs`.
+    - __add_node__(layer, name, input=None, inputs=[], merge_mode='concat', concat_axis=-1, dot_axes=-1): Add an output connect to `input` or `inputs`.
         - __Arguments__:
             - __layer__: Layer instance.
             - __name__: str. unique identifier of the node.
             - __input__: str name of the node/input that the node is connected to. Only specify *one* of either `input` or `inputs`.
             - __inputs__: list of str names of the node that the node is connected to.
             - __merge_mode__: "sum" or "concat". Only applicable if `inputs` list is specified. Merge mode for the different inputs.
+            - __concat_axis__: axis to use in `concat` mode.
+            - __dot_axes__: axis or axes to use in `dot` mode (see [the Numpy documentation](http://docs.scipy.org/doc/numpy-1.10.1/reference/generated/numpy.tensordot.html) for more details).
     - __add_shared_node__(layer, name, inputs=[], merge_mode=None, outputs=[]): Add a shared node connected to `inputs`. A shared node is a layer that will be applied separately to every incoming input, and that uses only one set of weights. The merging operation occurs on the outputs of the layer. 
         - __Arguments__:
             - __layer__: Layer instance.
@@ -176,6 +179,7 @@ model = keras.models.Graph()
         - __Return__: loss over the data.
     - __save_weights__(fname, overwrite=False): Store the weights of all layers to a HDF5 file. If `overwrite==False` and the file already exists, an exception will be thrown.
     - __load_weights__(fname): Sets the weights of a model, based to weights stored by __save_weights__. You can only __load_weights__ on a savefile from a model with an identical architecture. __load_weights__ can be called either before or after the __compile__ step.
+    - __summary__(): Print out a summary of the model architecture, with parameter count information.
 
 
 __Examples__:
@@ -190,7 +194,7 @@ graph.add_node(Dense(4), name='dense3', input='dense1')
 graph.add_output(name='output1', input='dense2')
 graph.add_output(name='output2', input='dense3')
 
-graph.compile('rmsprop', {'output1':'mse', 'output2':'mse'})
+graph.compile(optimizer='rmsprop', loss={'output1':'mse', 'output2':'mse'})
 history = graph.fit({'input':X_train, 'output1':y_train, 'output2':y2_train}, nb_epoch=10)
 
 ```
@@ -204,7 +208,7 @@ graph.add_node(Dense(16), name='dense1', input='input1')
 graph.add_node(Dense(4), name='dense2', input='input2')
 graph.add_node(Dense(4), name='dense3', input='dense1')
 graph.add_output(name='output', inputs=['dense2', 'dense3'], merge_mode='sum')
-graph.compile('rmsprop', {'output':'mse'})
+graph.compile(optimizer='rmsprop', loss={'output':'mse'})
 
 history = graph.fit({'input1':X_train, 'input2':X2_train, 'output':y_train}, nb_epoch=10)
 predictions = graph.predict({'input1':X_test, 'input2':X2_test}) # {'output':...}

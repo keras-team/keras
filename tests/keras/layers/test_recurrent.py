@@ -1,8 +1,10 @@
-import unittest
+import pytest
 import numpy as np
+from numpy.testing import assert_allclose
 
 from keras.layers import recurrent
 from keras import backend as K
+from keras.models import Sequential
 
 nb_samples, timesteps, input_dim, output_dim = 3, 3, 10, 5
 
@@ -30,25 +32,51 @@ def _runner(layer_class):
 
     # check statefulness
     layer = layer_class(output_dim, return_sequences=False,
-                        weights=None, batch_input_shape=(nb_samples, timesteps, input_dim))
-    layer.input = K.variable(np.ones((nb_samples, timesteps, input_dim)))
-    out = K.eval(layer.get_output(train))
-    assert(out.shape == (nb_samples, output_dim))
+                        stateful=True,
+                        weights=None,
+                        batch_input_shape=(nb_samples, timesteps, input_dim))
+    model = Sequential()
+    model.add(layer)
+    model.compile(optimizer='sgd', loss='mse')
+    out1 = model.predict(np.ones((nb_samples, timesteps, input_dim)))
+    assert(out1.shape == (nb_samples, output_dim))
+
+    # train once so that the states change
+    model.train_on_batch(np.ones((nb_samples, timesteps, input_dim)),
+                         np.ones((nb_samples, output_dim)))
+    out2 = model.predict(np.ones((nb_samples, timesteps, input_dim)))
+
+    # if the state is not reset, output should be different
+    assert(out1.max() != out2.max())
+
+    # check that output changes after states are reset
+    # (even though the model itself didn't change)
+    layer.reset_states()
+    out3 = model.predict(np.ones((nb_samples, timesteps, input_dim)))
+    assert(out2.max() != out3.max())
+
+    # check that container-level reset_states() works
+    model.reset_states()
+    out4 = model.predict(np.ones((nb_samples, timesteps, input_dim)))
+    assert_allclose(out3, out4, atol=1e-5)
+
+    # check that the call to `predict` updated the states
+    out5 = model.predict(np.ones((nb_samples, timesteps, input_dim)))
+    assert(out4.max() != out5.max())
 
 
-class TestRNNS(unittest.TestCase):
-    """
-    Test all the RNNs using a generic test runner function defined above.
-    """
-    def test_simple(self):
-        _runner(recurrent.SimpleRNN)
 
-    def test_gru(self):
-        _runner(recurrent.GRU)
+def test_SimpleRNN():
+    _runner(recurrent.SimpleRNN)
 
-    def test_lstm(self):
-        _runner(recurrent.LSTM)
+
+def test_GRU():
+    _runner(recurrent.GRU)
+
+
+def test_LSTM():
+    _runner(recurrent.LSTM)
 
 
 if __name__ == '__main__':
-    unittest.main()
+    pytest.main([__file__])

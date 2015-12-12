@@ -1,4 +1,18 @@
-from __future__ import absolute_import
+'''This is a reproduction of the IRNN experiment
+with pixel-by-pixel sequential MNIST in
+"A Simple Way to Initialize Recurrent Networks of Rectified Linear Units"
+by Quoc V. Le, Navdeep Jaitly, Geoffrey E. Hinton
+
+arXiv:1504.00941v2 [cs.NE] 7 Apr 201
+http://arxiv.org/pdf/1504.00941v2.pdf
+
+Optimizer is replaced with RMSprop which yields more stable and steady
+improvement.
+
+Reaches 0.93 train/test accuracy after 900 epochs
+(which roughly corresponds to 1687500 steps in the original paper.)
+'''
+
 from __future__ import print_function
 import numpy as np
 np.random.seed(1337)  # for reproducibility
@@ -11,21 +25,6 @@ from keras.layers.recurrent import SimpleRNN, LSTM
 from keras.optimizers import RMSprop
 from keras.utils import np_utils
 
-'''
-    This is a reproduction of the IRNN experiment
-    with pixel-by-pixel sequential MNIST in
-    "A Simple Way to Initialize Recurrent Networks of Rectified Linear Units "
-    by Quoc V. Le, Navdeep Jaitly, Geoffrey E. Hinton
-
-    arXiv:1504.00941v2 [cs.NE] 7 Apr 201
-    http://arxiv.org/pdf/1504.00941v2.pdf
-
-    Optimizer is replaced with RMSprop which yields more stable and steady
-    improvement.
-
-    Reaches 0.93 train/test accuracy after 900 epochs
-    (which roughly corresponds to 1687500 steps in the original paper.)
-'''
 
 batch_size = 32
 nb_classes = 10
@@ -40,8 +39,8 @@ clip_norm = 1.0
 
 X_train = X_train.reshape(X_train.shape[0], -1, 1)
 X_test = X_test.reshape(X_test.shape[0], -1, 1)
-X_train = X_train.astype("float32")
-X_test = X_test.astype("float32")
+X_train = X_train.astype('float32')
+X_test = X_test.astype('float32')
 X_train /= 255
 X_test /= 255
 print('X_train shape:', X_train.shape)
