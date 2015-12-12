@@ -407,10 +407,7 @@ def rnn(step_function, inputs, initial_states,
     '''
     inputs = inputs.dimshuffle((1, 0, 2))
 
-    def _step(*args):
-        global single_result
-        input = args[0]
-        states = args[1:]
+    def _step(input, *states):
         output, new_states = step_function(input, states)
         if masking:
             # if all-zero input timestep, return
