@@ -39,6 +39,7 @@ class Sequential(Layer):
     def add(self, layer):
         layer.layer_cache = self.layer_cache
         self.layers.append(layer)
+        setattr(layer, 'parent', self)
         if len(self.layers) > 1:
             self.layers[-1].set_previous(self.layers[-2])
             if not hasattr(self.layers[0], 'input'):
@@ -140,6 +141,11 @@ class Sequential(Layer):
 
     def count_params(self):
         return sum([layer.count_params() for layer in self.layers])
+
+    def get_input_mask(self, train=False):
+        if hasattr(self, 'previous') and self.previous:
+            return self.previous.get_output_mask(train)
+        return None
 
 
 class Graph(Layer):
