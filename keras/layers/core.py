@@ -386,22 +386,24 @@ class Merge(Layer):
     '''
     def __init__(self, layers, mode='sum', concat_axis=-1, dot_axes=-1):
         if len(layers) < 2:
-            raise Exception("Please specify two or more input layers (or containers) to merge")
+            raise Exception('Please specify two or more input layers '
+                            '(or containers) to merge')
 
         if mode not in {'sum', 'mul', 'concat', 'ave', 'join', 'cos', 'dot'}:
-            raise Exception("Invalid merge mode: " + str(mode))
+            raise Exception('Invalid merge mode: ' + str(mode))
 
         if mode in {'sum', 'mul', 'ave', 'cos'}:
             input_shapes = set([l.output_shape for l in layers])
             if len(input_shapes) > 1:
-                raise Exception("Only layers of same output shape can be merged using " + mode + " mode. " +
-                                "Layer shapes: %s" % ([l.output_shape for l in layers]))
+                raise Exception('Only layers of same output shape can '
+                                'be merged using ' + mode + ' mode. ' +
+                                'Layer shapes: %s' % ([l.output_shape for l in layers]))
         if mode in {'cos', 'dot'}:
             if K._BACKEND != 'theano':
                 raise Exception('"' + mode + '" merge mode will only work with Theano.')
 
             if len(layers) > 2:
-                raise Exception(mode + " merge takes exactly 2 layers")
+                raise Exception(mode + ' merge takes exactly 2 layers')
             shape1 = layers[0].output_shape
             shape2 = layers[1].output_shape
             n1 = len(shape1)
@@ -413,16 +415,16 @@ class Merge(Layer):
                     else:
                         dot_axes = [range(n1 - dot_axes, n2), range(1, dot_axes + 1)]
                 if type(dot_axes) not in [list, tuple]:
-                    raise Exception("Invalid type for dot_axes - should be a list.")
+                    raise Exception('Invalid type for dot_axes - should be a list.')
                 if len(dot_axes) != 2:
-                    raise Exception("Invalid format for dot_axes - should contain two elements.")
+                    raise Exception('Invalid format for dot_axes - should contain two elements.')
                 if type(dot_axes[0]) not in [list, tuple, range] or type(dot_axes[1]) not in [list, tuple, range]:
-                    raise Exception("Invalid format for dot_axes - list elements should have type 'list' or 'tuple'.")
+                    raise Exception('Invalid format for dot_axes - list elements should have type "list" or "tuple".')
                 for i in range(len(dot_axes[0])):
                     if shape1[dot_axes[0][i]] != shape2[dot_axes[1][i]]:
-                        raise Exception("Dimension incompatibility using dot mode: " +
-                                        "%s != %s. " % (shape1[dot_axes[0][i]], shape2[dot_axes[1][i]]) +
-                                        "Layer shapes: %s, %s" % (shape1, shape2))
+                        raise Exception('Dimension incompatibility using dot mode: ' +
+                                        '%s != %s. ' % (shape1[dot_axes[0][i]], shape2[dot_axes[1][i]]) +
+                                        'Layer shapes: %s, %s' % (shape1, shape2))
         elif mode == 'concat':
             input_shapes = set()
             for l in layers:
@@ -431,9 +433,9 @@ class Merge(Layer):
                 oshape = tuple(oshape)
                 input_shapes.add(oshape)
             if len(input_shapes) > 1:
-                raise Exception("'concat' mode can only merge layers with matching " +
-                                "output shapes except for the concat axis. " +
-                                "Layer shapes: %s" % ([l.output_shape for l in layers]))
+                raise Exception('"concat" mode can only merge layers with matching ' +
+                                'output shapes except for the concat axis. ' +
+                                'Layer shapes: %s' % ([l.output_shape for l in layers]))
         self.mode = mode
         self.concat_axis = concat_axis
         self.dot_axes = dot_axes
@@ -567,11 +569,11 @@ class Merge(Layer):
             weights = weights[nb_param:]
 
     def get_config(self):
-        config = {"name": self.__class__.__name__,
-                  "layers": [l.get_config() for l in self.layers],
-                  "mode": self.mode,
-                  "concat_axis": self.concat_axis,
-                  "dot_axes": self.dot_axes}
+        config = {'name': self.__class__.__name__,
+                  'layers': [l.get_config() for l in self.layers],
+                  'mode': self.mode,
+                  'concat_axis': self.concat_axis,
+                  'dot_axes': self.dot_axes}
         base_config = super(Merge, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
@@ -599,8 +601,8 @@ class Dropout(MaskedLayer):
         return X
 
     def get_config(self):
-        config = {"name": self.__class__.__name__,
-                  "p": self.p}
+        config = {'name': self.__class__.__name__,
+                  'p': self.p}
         base_config = super(Dropout, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
@@ -630,8 +632,8 @@ class Activation(MaskedLayer):
         return self.activation(X)
 
     def get_config(self):
-        config = {"name": self.__class__.__name__,
-                  "activation": self.activation.__name__}
+        config = {'name': self.__class__.__name__,
+                  'activation': self.activation.__name__}
         base_config = super(Activation, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
@@ -665,8 +667,8 @@ class Reshape(Layer):
         return K.reshape(X, (-1,) + self.dims)
 
     def get_config(self):
-        config = {"name": self.__class__.__name__,
-                  "dims": self.dims}
+        config = {'name': self.__class__.__name__,
+                  'dims': self.dims}
         base_config = super(Reshape, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
@@ -709,8 +711,8 @@ class Permute(Layer):
         return K.permute_dimensions(X, (0,) + self.dims)
 
     def get_config(self):
-        config = {"name": self.__class__.__name__,
-                  "dims": self.dims}
+        config = {'name': self.__class__.__name__,
+                  'dims': self.dims}
         base_config = super(Permute, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
@@ -869,16 +871,16 @@ class Dense(Layer):
         return output
 
     def get_config(self):
-        config = {"name": self.__class__.__name__,
-                  "output_dim": self.output_dim,
-                  "init": self.init.__name__,
-                  "activation": self.activation.__name__,
-                  "W_regularizer": self.W_regularizer.get_config() if self.W_regularizer else None,
-                  "b_regularizer": self.b_regularizer.get_config() if self.b_regularizer else None,
-                  "activity_regularizer": self.activity_regularizer.get_config() if self.activity_regularizer else None,
-                  "W_constraint": self.W_constraint.get_config() if self.W_constraint else None,
-                  "b_constraint": self.b_constraint.get_config() if self.b_constraint else None,
-                  "input_dim": self.input_dim}
+        config = {'name': self.__class__.__name__,
+                  'output_dim': self.output_dim,
+                  'init': self.init.__name__,
+                  'activation': self.activation.__name__,
+                  'W_regularizer': self.W_regularizer.get_config() if self.W_regularizer else None,
+                  'b_regularizer': self.b_regularizer.get_config() if self.b_regularizer else None,
+                  'activity_regularizer': self.activity_regularizer.get_config() if self.activity_regularizer else None,
+                  'W_constraint': self.W_constraint.get_config() if self.W_constraint else None,
+                  'b_constraint': self.b_constraint.get_config() if self.b_constraint else None,
+                  'input_dim': self.input_dim}
         base_config = super(Dense, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
