@@ -24,17 +24,21 @@ class Sequential(Layer):
             self.add(layer)
 
     def __call__(self, X, mask=None, train=False):
+        #recursively search for a layer which is not a Sequential model
+        layer = self
+        while issubclass(layer.__class__, Sequential):
+            layer = layer.layers[0]
         # set temporary input to first layer
-        tmp = self.layers[0].get_input
-        self.layers[0].get_input = lambda _: X
-        if hasattr(self, 'get_input_mask'):
-            tmp_mask = self.get_input_mask
-            self.get_input_mask = lambda _: mask
+        tmp_input = layer.get_input
+        self.layer.get_input = lambda _: X
+        if hasattr(layer, 'get_input_mask'):
+            tmp_mask = layer.get_input_mask
+            layer.get_input_mask = lambda _: mask
         Y = self.get_output(train=train)
         # return input from first layer to what it was
-        self.layers[0].get_input = tmp
-        if hasattr(self, 'get_input_mask'):
-            self.get_input_mask = tmp_mask
+        layer.get_input = tmp_input
+        if hasattr(layer, 'get_input_mask'):
+            layer.get_input_mask = tmp_mask
         return Y
 
     def set_previous(self, layer):
