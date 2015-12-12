@@ -293,7 +293,7 @@ def test_merge_overlap():
     model.train_on_batch(X_train[:32], y_train[:32])
 
     loss = model.evaluate(X_train, y_train, verbose=0)
-    assert(loss < 0.7)
+    assert(loss < 0.9)
     model.predict(X_test, verbose=0)
     model.predict_classes(X_test, verbose=0)
     model.predict_proba(X_test, verbose=0)
