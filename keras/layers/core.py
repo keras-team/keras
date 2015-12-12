@@ -21,6 +21,7 @@ class Layer(object):
     '''Abstract base layer class.
 
     All Keras layers accept certain keyword arguments:
+
         trainable: boolean. Set to "False" before model compilation
             to freeze layer weights (they won't be updated further
             during training).
