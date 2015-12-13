@@ -113,9 +113,10 @@ def test_maxout_dense():
     _runner(layer)
 
 
-@pytest.mark.skipif(K._BACKEND == 'tensorflow', reason="currently not working with TensorFlow")
+@pytest.mark.skipif(K._BACKEND == 'tensorflow',
+                    reason='currently not working with TensorFlow')
 def test_sequences():
-    """Test masking sequences with zeroes as padding"""
+    '''Test masking sequences with zeroes as padding'''
     # integer inputs, one per timestep, like embeddings
     layer = core.Masking()
     func = K.function([layer.input], [layer.get_output_mask()])
@@ -127,12 +128,13 @@ def test_sequences():
 
     # get mask for this input
     output = func([input_data])[0]
-    assert np.all(output == expected), "Output not as expected"
+    assert np.all(output == expected), 'Output not as expected'
 
 
-@pytest.mark.skipif(K._BACKEND == 'tensorflow', reason="currently not working with TensorFlow")
+@pytest.mark.skipif(K._BACKEND == 'tensorflow',
+                    reason='currently not working with TensorFlow')
 def test_non_zero():
-    """Test masking with non-zero mask value"""
+    '''Test masking with non-zero mask value'''
     layer = core.Masking(5)
     func = K.function([layer.input], [layer.get_output_mask()])
     input_data = np.array([[[1, 1], [2, 1], [3, 1], [5, 5]],
@@ -140,12 +142,13 @@ def test_non_zero():
                           dtype=np.int32)
     output = func([input_data])[0]
     expected = np.array([[1, 1, 1, 0], [1, 1, 1, 1]])
-    assert np.all(output == expected), "Output not as expected"
+    assert np.all(output == expected), 'Output not as expected'
 
 
-@pytest.mark.skipif(K._BACKEND == 'tensorflow', reason="currently not working with TensorFlow")
+@pytest.mark.skipif(K._BACKEND == 'tensorflow',
+                    reason='currently not working with TensorFlow')
 def test_non_zero_output():
-    """Test output of masking layer with non-zero mask value"""
+    '''Test output of masking layer with non-zero mask value'''
     layer = core.Masking(5)
     func = K.function([layer.input], [layer.get_output()])
 
@@ -155,7 +158,7 @@ def test_non_zero_output():
     output = func([input_data])[0]
     expected = np.array([[[1, 1], [2, 1], [3, 1], [0, 0]],
                         [[1, 5], [5, 0], [0, 0], [0, 0]]])
-    assert np.all(output == expected), "Output not as expected"
+    assert np.all(output == expected), 'Output not as expected'
 
 
 def _runner(layer):
