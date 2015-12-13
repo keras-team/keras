@@ -90,7 +90,8 @@ def test_elu():
         assert config['alpha'] == alpha
 
 
-@pytest.mark.skipif(K._BACKEND == 'tensorflow', reason="currently not working with TensorFlow")
+@pytest.mark.skipif(K._BACKEND == 'tensorflow',
+                    reason='currently not working with TensorFlow')
 def test_parametric_softplus():
     from keras.layers.advanced_activations import ParametricSoftplus
     np.random.seed(1337)
@@ -114,7 +115,8 @@ def test_parametric_softplus():
             assert config['beta_init'] == beta
 
 
-@pytest.mark.skipif(K._BACKEND == 'tensorflow', reason="currently not working with TensorFlow")
+@pytest.mark.skipif(K._BACKEND == 'tensorflow',
+                    reason='currently not working with TensorFlow')
 def test_thresholded_linear():
     from keras.layers.advanced_activations import ThresholdedLinear
     np.random.seed(1337)
@@ -135,7 +137,8 @@ def test_thresholded_linear():
         assert config['theta'] == theta
 
 
-@pytest.mark.skipif(K._BACKEND == 'tensorflow', reason="currently not working with TensorFlow")
+@pytest.mark.skipif(K._BACKEND == 'tensorflow',
+                    reason='currently not working with TensorFlow')
 def test_thresholded_relu():
     from keras.layers.advanced_activations import ThresholdedReLU
     np.random.seed(1337)

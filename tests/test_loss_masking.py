@@ -7,7 +7,8 @@ from keras import objectives
 from keras import backend as K
 
 
-@pytest.mark.skipif(K._BACKEND=='tensorflow', reason="currently not working with TensorFlow")
+@pytest.mark.skipif(K._BACKEND == 'tensorflow',
+                    reason='currently not working with TensorFlow')
 def test_masking():
     np.random.seed(1337)
     X = np.array(

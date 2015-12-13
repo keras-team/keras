@@ -137,7 +137,8 @@ def test_merge_sum():
     assert(loss == nloss)
 
 
-@pytest.mark.skipif(K._BACKEND=='tensorflow', reason="currently not working with TensorFlow")
+@pytest.mark.skipif(K._BACKEND == 'tensorflow',
+                    reason='currently not working with TensorFlow')
 def test_merge_dot():
     left = Sequential()
     left.add(Dense(input_dim=input_dim, output_dim=nb_hidden))
@@ -400,15 +401,15 @@ def test_sequential_count_params():
 ###############
 
 (X_train_graph, y_train_graph), (X_test_graph, y_test_graph) = get_test_data(nb_train=1000,
-                                                     nb_test=200,
-                                                     input_shape=(32,),
-                                                     classification=False,
-                                                     output_shape=(4,))
+                                                                             nb_test=200,
+                                                                             input_shape=(32,),
+                                                                             classification=False,
+                                                                             output_shape=(4,))
 (X2_train_graph, y2_train_graph), (X2_test_graph, y2_test_graph) = get_test_data(nb_train=1000,
-                                                         nb_test=200,
-                                                         input_shape=(32,),
-                                                         classification=False,
-                                                         output_shape=(1,))
+                                                                                 nb_test=200,
+                                                                                 input_shape=(32,),
+                                                                                 classification=False,
+                                                                                 output_shape=(1,))
 
 
 def test_1o_1i():
@@ -427,8 +428,8 @@ def test_1o_1i():
                      merge_mode='sum')
     graph.compile('rmsprop', {'output1': 'mse'})
 
-    history = graph.fit({'input1': X_train_graph, 'output1': y_train_graph},
-                        nb_epoch=10)
+    graph.fit({'input1': X_train_graph, 'output1': y_train_graph},
+              nb_epoch=10)
     out = graph.predict({'input1': X_test_graph})
     assert(type(out == dict))
     assert(len(out) == 1)
@@ -438,12 +439,12 @@ def test_1o_1i():
     assert(loss < 2.5)
 
     # test validation split
-    history = graph.fit({'input1': X_train_graph, 'output1': y_train_graph},
-                        validation_split=0.2, nb_epoch=1)
+    graph.fit({'input1': X_train_graph, 'output1': y_train_graph},
+              validation_split=0.2, nb_epoch=1)
     # test validation data
-    history = graph.fit({'input1': X_train_graph, 'output1': y_train_graph},
-                        validation_data={'input1': X_train_graph, 'output1': y_train_graph},
-                        nb_epoch=1)
+    graph.fit({'input1': X_train_graph, 'output1': y_train_graph},
+              validation_data={'input1': X_train_graph, 'output1': y_train_graph},
+              nb_epoch=1)
 
 
 def test_1o_1i_2():
@@ -463,8 +464,8 @@ def test_1o_1i_2():
                      merge_mode='sum')
     graph.compile('rmsprop', {'output1': 'mse'})
 
-    history = graph.fit({'input1': X_train_graph, 'output1': y_train_graph},
-                        nb_epoch=10)
+    graph.fit({'input1': X_train_graph, 'output1': y_train_graph},
+              nb_epoch=10)
     out = graph.predict({'input1': X_train_graph})
     assert(type(out == dict))
     assert(len(out) == 1)
@@ -492,8 +493,8 @@ def test_1o_2i():
                      merge_mode='sum')
     graph.compile('rmsprop', {'output1': 'mse'})
 
-    history = graph.fit({'input1': X_train_graph, 'input2': X2_train_graph, 'output1': y_train_graph},
-                        nb_epoch=10)
+    graph.fit({'input1': X_train_graph, 'input2': X2_train_graph, 'output1': y_train_graph},
+              nb_epoch=10)
     out = graph.predict({'input1': X_test_graph, 'input2': X2_test_graph})
     assert(type(out == dict))
     assert(len(out) == 1)
@@ -519,8 +520,8 @@ def test_2o_1i_weights():
     graph.add_output(name='output2', input='dense3')
     graph.compile('rmsprop', {'output1': 'mse', 'output2': 'mse'})
 
-    history = graph.fit({'input1': X_train_graph, 'output1': y_train_graph, 'output2': y2_train_graph},
-                        nb_epoch=10)
+    graph.fit({'input1': X_train_graph, 'output1': y_train_graph, 'output2': y2_train_graph},
+              nb_epoch=10)
     out = graph.predict({'input1': X_test_graph})
     assert(type(out == dict))
     assert(len(out) == 2)
@@ -567,9 +568,9 @@ def test_2o_1i_sample_weights():
 
     graph.compile('rmsprop', {'output1': 'mse', 'output2': 'mse'})
 
-    history = graph.fit({'input1': X_train_graph, 'output1': y_train_graph, 'output2': y2_train_graph},
-                        nb_epoch=10,
-                        sample_weight={'output1': weights1, 'output2': weights2})
+    graph.fit({'input1': X_train_graph, 'output1': y_train_graph, 'output2': y2_train_graph},
+              nb_epoch=10,
+              sample_weight={'output1': weights1, 'output2': weights2})
     out = graph.predict({'input1': X_test_graph})
     assert(type(out == dict))
     assert(len(out) == 2)
@@ -599,12 +600,12 @@ def test_recursive():
 
     seq.compile('rmsprop', 'mse')
 
-    history = seq.fit(X_train_graph, y_train_graph, batch_size=10, nb_epoch=10)
+    seq.fit(X_train_graph, y_train_graph, batch_size=10, nb_epoch=10)
     loss = seq.evaluate(X_test_graph, y_test_graph)
     assert(loss < 2.5)
 
     loss = seq.evaluate(X_test_graph, y_test_graph, show_accuracy=True)
-    pred = seq.predict(X_test_graph)
+    seq.predict(X_test_graph)
     seq.get_config(verbose=1)
 
 
@@ -659,7 +660,6 @@ def test_count_params():
     graph.compile('rmsprop', {'output': 'binary_crossentropy'})
 
     assert(n == graph.count_params())
-
 
 
 if __name__ == '__main__':
