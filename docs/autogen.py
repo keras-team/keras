@@ -87,12 +87,22 @@ def get_method_signature(method):
         return st + ')'
 
 
-def class_to_link(cls):
+def class_to_docs_link(cls):
     module_name = cls.__module__
     assert module_name[:6] == 'keras.'
     module_name = module_name[6:]
     link = ROOT + module_name.replace('.', '/') + '#' + cls.__name__.lower()
     return link
+
+
+def class_to_source_link(cls):
+    module_name = cls.__module__
+    assert module_name[:6] == 'keras.'
+    path = module_name.replace('.', '/')
+    path += '.py'
+    line = inspect.getsourcelines(cls)[-1]
+    link = 'https://github.com/fchollet/keras/blob/master/' + path + '#L' + str(line)
+    return '[[source]](' + link + ')'
 
 
 def code_snippet(snippet):
@@ -191,6 +201,7 @@ for module, module_name in MODULES:
                             methods_not_defined_here.append((method, defined_by))
 
                 blocks = []
+                blocks.append('<span style="float:right;">' + class_to_source_link(cls) + '</span>')
                 blocks.append('# ' + cls.__name__ + '\n')
                 blocks.append(code_snippet(class_signature))
                 docstring = cls.__doc__
@@ -211,7 +222,7 @@ for module, module_name in MODULES:
                             signature = get_method_signature(method)
                             method_module_name = method.__module__
                             signature = signature.replace(method_module_name + '.', '')
-                            link = '[' + defined_by.__name__ + '](' + class_to_link(defined_by) + ')'
+                            link = '[' + defined_by.__name__ + '](' + class_to_docs_link(defined_by) + ')'
                             blocks.append(code_snippet(signature))
                             blocks.append('Defined by ' + link + '.\n')
 
