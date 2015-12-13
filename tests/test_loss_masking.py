@@ -1,6 +1,5 @@
 import numpy as np
 import pytest
-np.random.seed(1337)
 
 from keras.models import Sequential, weighted_objective
 from keras.layers.core import TimeDistributedDense, Masking
@@ -10,6 +9,7 @@ from keras import backend as K
 
 @pytest.mark.skipif(K._BACKEND=='tensorflow', reason="currently not working with TensorFlow")
 def test_masking():
+    np.random.seed(1337)
     X = np.array(
         [[[1, 1], [2, 1], [3, 1], [5, 5]],
          [[1, 5], [5, 0], [0, 0], [0, 0]]], dtype=np.int32)
