@@ -4,18 +4,30 @@ from .. import backend as K
 
 
 class BatchNormalization(Layer):
-    '''
-        Reference:
-            Batch Normalization: Accelerating Deep Network Training
-            by Reducing Internal Covariate Shift
-                http://arxiv.org/pdf/1502.03167v3.pdf
+    '''Normalize the activations of the previous layer at each batch.
 
-            mode: 0 -> featurewise normalization
-                  1 -> samplewise normalization
-                       (may sometimes outperform featurewise mode)
+    # Input shape
+        Arbitrary. Use the keyword argument `input_shape`
+        (tuple of integers, does not include the samples axis)
+        when using this layer as the first layer in a model.
 
-            momentum: momentum term in the computation
-            of a running estimate of the mean and std of the data
+    # Output shape
+        Same shape as input.
+
+    # Arguments
+        epsilon: small float > 0. Fuzz parameter.
+        mode: integer, 0 or 1.
+            - 0: feature-wise normalization.
+            - 1: sample-wise normalization.
+        momentum: momentum in the computation of the
+            exponential average of the mean and standard deviation
+            of the data, for feature-wise normalization.
+        weights: Initialization weights.
+            List of 2 numpy arrays, with shapes:
+            `[(input_shape,), (input_shape,)]`
+
+    # References
+        - [Batch Normalization: Accelerating Deep Network Training by Reducing Internal Covariate Shift](http://arxiv.org/pdf/1502.03167v3.pdf)
     '''
     def __init__(self, epsilon=1e-6, mode=0, momentum=0.9,
                  weights=None, **kwargs):

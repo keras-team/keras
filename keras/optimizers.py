@@ -16,6 +16,18 @@ def kl_divergence(p, p_hat):
 
 
 class Optimizer(object):
+    '''Abstract optimizer base class.
+
+    Note: this is the parent class of all optimizers, not an actual optimizer
+    that can be used for training models.
+
+    All Keras optimizers support the following keyword arguments:
+
+        clipnorm: float >= 0. Gradients will be clipped
+            when their L2 norm exceeds this value.
+        clipvalue: float >= 0. Gradients will be clipped
+            when their absolute value exceeds this value.
+    '''
     def __init__(self, **kwargs):
         self.__dict__.update(kwargs)
         self.updates = []
@@ -45,7 +57,15 @@ class Optimizer(object):
 
 
 class SGD(Optimizer):
+    '''Stochastic gradient descent, with support for momentum,
+    decay, and Nesterov momentum.
 
+    # Arguments
+        lr: float >= 0. Learning rate.
+        momentum: float >= 0. Parameter updates momentum.
+        decay: float >= 0. Learning rate decay over each update.
+        nesterov: boolean. Whether to apply Nesterov momentum.
+    '''
     def __init__(self, lr=0.01, momentum=0., decay=0., nesterov=False,
                  *args, **kwargs):
         super(SGD, self).__init__(**kwargs)
@@ -82,6 +102,19 @@ class SGD(Optimizer):
 
 
 class RMSprop(Optimizer):
+    '''RMSProp optimizer.
+
+    It is recommended to leave the parameters of this optimizer
+    at their default values.
+
+    This optimizer is usually a good choice for recurrent
+    neural networks.
+
+    # Arguments
+        lr: float >= 0. Learning rate.
+        rho: float >= 0.
+        epsilon: float >= 0. Fuzz factor.
+    '''
     def __init__(self, lr=0.001, rho=0.9, epsilon=1e-6, *args, **kwargs):
         super(RMSprop, self).__init__(**kwargs)
         self.__dict__.update(locals())
@@ -110,6 +143,15 @@ class RMSprop(Optimizer):
 
 
 class Adagrad(Optimizer):
+    '''Adagrad optimizer.
+
+    It is recommended to leave the parameters of this optimizer
+    at their default values.
+
+    # Arguments
+        lr: float >= 0. Learning rate.
+        epsilon: float >= 0.
+    '''
     def __init__(self, lr=0.01, epsilon=1e-6, *args, **kwargs):
         super(Adagrad, self).__init__(**kwargs)
         self.__dict__.update(locals())
@@ -134,8 +176,18 @@ class Adagrad(Optimizer):
 
 
 class Adadelta(Optimizer):
-    '''
-        Reference: http://arxiv.org/abs/1212.5701
+    '''Adadelta optimizer.
+
+    It is recommended to leave the parameters of this optimizer
+    at their default values.
+
+    # Arguments
+        lr: float >= 0. Learning rate. It is recommended to leave it at the default value.
+        rho: float >= 0.
+        epsilon: float >= 0. Fuzz factor.
+
+    # References
+        - [Adadelta - an adaptive learning rate method](http://arxiv.org/abs/1212.5701)
     '''
     def __init__(self, lr=1.0, rho=0.95, epsilon=1e-6, *args, **kwargs):
         super(Adadelta, self).__init__(**kwargs)
@@ -173,10 +225,17 @@ class Adadelta(Optimizer):
 
 
 class Adam(Optimizer):
-    '''
-        Reference: http://arxiv.org/abs/1412.6980v8
+    '''Adam optimizer.
 
-        Default parameters follow those provided in the original paper.
+    Default parameters follow those provided in the original paper.
+
+    # Arguments
+        lr: float >= 0. Learning rate.
+        beta_1/beta_2: floats, 0 < beta < 1. Generally close to 1.
+        epsilon: float >= 0. Fuzz factor.
+
+    # References
+        - [Adam - A Method for Stochastic Optimization](http://arxiv.org/abs/1412.6980v8)
     '''
     def __init__(self, lr=0.001, beta_1=0.9, beta_2=0.999, epsilon=1e-8,
                  *args, **kwargs):

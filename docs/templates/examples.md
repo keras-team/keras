@@ -167,6 +167,7 @@ model.fit([images, partial_captions], next_words, batch_size=16, nb_epoch=100)
 ```
 
 In the examples folder, you will find example models for real datasets:
+
 - CIFAR10 small images classification: Convolutional Neural Network (CNN) with realtime data augmentation
 - IMDB movie review sentiment classification: LSTM over sequences of words
 - Reuters newswires topic classification: Multilayer Perceptron (MLP)
