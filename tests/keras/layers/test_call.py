@@ -36,7 +36,8 @@ class TestCall(unittest.TestCase):
         model = Sequential()
         model.add(Dense(output_dim=output_dim, input_dim=input_dim))
         model.compile('sgd', 'mse')
-
+        
+        # test flat model
         X = K.placeholder(ndim=2)
         Y = model(X)
         F = K.function([X], [Y])
@@ -46,7 +47,19 @@ class TestCall(unittest.TestCase):
         y2 = model.predict(x)
         # results of __call__ should match model.predict
         assert_allclose(y1, y2)
-
+        
+        # test nested model
+        model2 = Sequential()
+        model2.add(model)
+        model2.compile('sgd', 'mse')
+        
+        Y2 = model2(X)
+        F = K.function([X], [Y2])
+        
+        y1 = F([x])[0].astype(K.floatx())
+        y2 = model2.predict(x)
+        # results of __call__ should match model.predict
+        assert_allclose(y1, y2)
 
 if __name__ == '__main__':
     unittest.main(verbosity=2)
