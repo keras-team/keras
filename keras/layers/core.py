@@ -132,14 +132,19 @@ class Layer(object):
         if hasattr(self, 'previous'):
             # to avoid redundant computations,
             # layer outputs are cached when possible.
+            # The hash value of the previous layer output is the id
+            # of the input layer feeding this layer.
+            input_layer = self.previous
+            while hasattr(input_layer, 'previous'):
+                input_layer = input_layer.previous
             if hasattr(self, 'layer_cache'):
-                previous_layer_id = '%s_%s' % (id(self.previous), train)
-                if previous_layer_id in self.layer_cache:
-                    return self.layer_cache[previous_layer_id]
+                input_layer_id = '%s_%s' % (id(input_layer), train)
+                if input_layer_id in self.layer_cache:
+                    return self.layer_cache[input_layer]
             previous_output = self.previous.get_output(train=train)
             if hasattr(self, 'layer_cache'):
-                previous_layer_id = '%s_%s' % (id(self.previous), train)
-                self.layer_cache[previous_layer_id] = previous_output
+                input_layer_id = '%s_%s' % (id(input_layer), train)
+                self.layer_cache[input_layer_id] = previous_output
             return previous_output
         elif hasattr(self, 'input'):
             return self.input
