@@ -276,8 +276,7 @@ class ModelCheckpoint(Callback):
             else:
                 if self.monitor_op(current, self.best):
                     if self.verbose > 0:
-                        print('Epoch %05d: %s improved from %0.5f to %0.5f, ' +
-                              'saving model to %s'
+                        print('Epoch %05d: %s improved from %0.5f to %0.5f, saving model to %s'
                               % (epoch, self.monitor, self.best,
                                  current, filepath))
                     self.best = current
