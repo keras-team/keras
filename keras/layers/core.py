@@ -140,7 +140,7 @@ class Layer(object):
             if hasattr(self, 'layer_cache'):
                 input_layer_id = '%s_%s' % (id(input_layer), train)
                 if input_layer_id in self.layer_cache:
-                    return self.layer_cache[input_layer]
+                    return self.layer_cache[input_layer_id]
             previous_output = self.previous.get_output(train=train)
             if hasattr(self, 'layer_cache'):
                 input_layer_id = '%s_%s' % (id(input_layer), train)
