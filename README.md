@@ -1,6 +1,6 @@
 # Keras: Deep Learning library for Theano and TensorFlow
 
-![Build status](https://api.travis-ci.org/fchollet/keras.svg)
+![Build status](https://api.travis-ci.org/fchollet/keras.svg) ![Coverage](https://coveralls.io/repos/fchollet/keras/badge.svg?branch=master)
 
 ## You have just found Keras.
 
