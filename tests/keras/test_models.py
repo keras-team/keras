@@ -56,7 +56,7 @@ def test_sequential():
     model.train_on_batch(X_train[:32], y_train[:32])
 
     loss = model.evaluate(X_train, y_train, verbose=0)
-    assert(loss < 0.7)
+    assert(loss < 0.8)
 
     model.predict(X_test, verbose=0)
     model.predict_classes(X_test, verbose=0)
@@ -388,12 +388,11 @@ def test_sequential_count_params():
     model.add(Dense(nb_units))
     model.add(Dense(nb_classes))
     model.add(Activation('softmax'))
-
     assert(n == model.count_params())
 
     model.compile('sgd', 'binary_crossentropy')
-
     assert(n == model.count_params())
+
 
 def test_siamese_1():
     left = Sequential()
@@ -447,6 +446,7 @@ def test_siamese_1():
 
     nloss = model.evaluate([X_train, X_train], y_train, verbose=0)
     assert(loss == nloss)
+
 
 def test_siamese_2():
     left = Sequential()
@@ -626,6 +626,7 @@ def test_1o_2i():
 
     graph.get_config(verbose=1)
 
+
 def test_siamese_3():
     graph = Graph()
     graph.add_input(name='input1', input_shape=(32,))
@@ -650,6 +651,7 @@ def test_siamese_3():
     assert(loss < 3.0)
 
     graph.get_config(verbose=1)
+
 
 def test_siamese_4():
     graph = Graph()
@@ -678,6 +680,7 @@ def test_siamese_4():
 
     graph.get_config(verbose=1)
 
+
 def test_siamese_5():
     graph = Graph()
     graph.add_input(name='input1', input_shape=(32,))
@@ -705,7 +708,8 @@ def test_siamese_5():
     assert(loss < 3.0)
 
     graph.get_config(verbose=1)
-    
+
+
 def test_2o_1i_weights():
     # test a non-sequential graph with 1 input and 2 outputs
     graph = Graph()

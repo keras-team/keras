@@ -264,6 +264,7 @@ class Layer(object):
         '''
         return sum([K.count_params(p) for p in self.params])
 
+
 class MaskedLayer(Layer):
     '''If your layer trivially supports masking
     (by simply copying the input mask to the output),

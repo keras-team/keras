@@ -26,10 +26,10 @@ class Sequential(Layer):
         self._cache_enabled = True
 
     def __call__(self, X, mask=None, train=False):
-        #turn off layer cache temporarily
+        # turn off layer cache temporarily
         tmp_cache_enabled = self.cache_enabled
         self.cache_enabled = False
-        #recursively search for a layer which is not a Sequential model
+        # recursively search for a layer which is not a Sequential model
         layer = self
         while issubclass(layer.__class__, Sequential):
             layer = layer.layers[0]
@@ -50,7 +50,7 @@ class Sequential(Layer):
 
     @property
     def cache_enabled(self):
-        return  self._cache_enabled
+        return self._cache_enabled
 
     @cache_enabled.setter
     def cache_enabled(self, value):
