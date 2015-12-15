@@ -6,7 +6,7 @@ np.random.seed(1337)
 
 from keras import backend as K
 from keras.models import Graph, Sequential, model_from_json, model_from_yaml
-from keras.layers.core import Dense, Activation, Merge, Lambda, LambdaMerge
+from keras.layers.core import Dense, Activation, Merge, Lambda, LambdaMerge, Siamese, add_shared_layer
 from keras.layers import containers
 from keras.utils import np_utils
 from keras.utils.test_utils import get_test_data
@@ -395,6 +395,120 @@ def test_sequential_count_params():
 
     assert(n == model.count_params())
 
+def test_siamese_1():
+    left = Sequential()
+    left.add(Dense(nb_hidden, input_shape=(input_dim,)))
+    left.add(Activation('relu'))
+
+    right = Sequential()
+    right.add(Dense(nb_hidden, input_shape=(input_dim,)))
+    right.add(Activation('relu'))
+
+    model = Sequential()
+    model.add(Siamese(Dense(nb_hidden), [left, right], merge_mode='sum'))
+    model.add(Dense(nb_class))
+    model.add(Activation('softmax'))
+    model.compile(loss='categorical_crossentropy', optimizer='rmsprop')
+
+    model.fit([X_train, X_train], y_train, batch_size=batch_size, nb_epoch=nb_epoch, show_accuracy=True, verbose=0, validation_data=([X_test, X_test], y_test))
+    model.fit([X_train, X_train], y_train, batch_size=batch_size, nb_epoch=nb_epoch, show_accuracy=False, verbose=0, validation_data=([X_test, X_test], y_test))
+    model.fit([X_train, X_train], y_train, batch_size=batch_size, nb_epoch=nb_epoch, show_accuracy=True, verbose=0, validation_split=0.1)
+    model.fit([X_train, X_train], y_train, batch_size=batch_size, nb_epoch=nb_epoch, show_accuracy=False, verbose=0, validation_split=0.1)
+    model.fit([X_train, X_train], y_train, batch_size=batch_size, nb_epoch=nb_epoch, verbose=0)
+    model.fit([X_train, X_train], y_train, batch_size=batch_size, nb_epoch=nb_epoch, verbose=0, shuffle=False)
+
+    loss = model.evaluate([X_train, X_train], y_train, verbose=0)
+    assert(loss < 0.7)
+
+    model.predict([X_test, X_test], verbose=0)
+    model.predict_classes([X_test, X_test], verbose=0)
+    model.predict_proba([X_test, X_test], verbose=0)
+    model.get_config(verbose=0)
+
+    # test weight saving
+    fname = 'test_merge_sum_temp.h5'
+    model.save_weights(fname, overwrite=True)
+    left = Sequential()
+    left.add(Dense(nb_hidden, input_shape=(input_dim,)))
+    left.add(Activation('relu'))
+    right = Sequential()
+    right.add(Dense(nb_hidden, input_shape=(input_dim,)))
+    right.add(Activation('relu'))
+    model = Sequential()
+    model.add(Merge([left, right], mode='sum'))
+    model.add(Dense(nb_class))
+    model.add(Activation('softmax'))
+    model.load_weights(fname)
+    os.remove(fname)
+    model.compile(loss='categorical_crossentropy', optimizer='rmsprop')
+
+    nloss = model.evaluate([X_train, X_train], y_train, verbose=0)
+    assert(loss == nloss)
+
+
+@pytest.mark.skipif(K._BACKEND == 'tensorflow',
+                    reason='currently not working with TensorFlow')
+
+def test_siamese_2():
+    left = Sequential()
+    left.add(Dense(nb_hidden, input_shape=(input_dim,)))
+    left.add(Activation('relu'))
+
+    right = Sequential()
+    right.add(Dense(nb_hidden, input_shape=(input_dim,)))
+    right.add(Activation('relu'))
+
+    add_shared_layer(Dense(nb_hidden), [left, right])
+
+    left.add(Dense(nb_hidden))
+    right.add(Dense(nb_hidden))
+
+    add_shared_layer(Dense(nb_hidden), [left, right])
+
+    model = Sequential()
+    model.add(Merge([left, right], mode='sum'))
+    model.add(Dense(nb_class))
+    model.add(Activation('softmax'))
+    model.compile(loss='categorical_crossentropy', optimizer='rmsprop')
+
+    model.fit([X_train, X_train], y_train, batch_size=batch_size, nb_epoch=nb_epoch, show_accuracy=True, verbose=0, validation_data=([X_test, X_test], y_test))
+    model.fit([X_train, X_train], y_train, batch_size=batch_size, nb_epoch=nb_epoch, show_accuracy=False, verbose=0, validation_data=([X_test, X_test], y_test))
+    model.fit([X_train, X_train], y_train, batch_size=batch_size, nb_epoch=nb_epoch, show_accuracy=True, verbose=0, validation_split=0.1)
+    model.fit([X_train, X_train], y_train, batch_size=batch_size, nb_epoch=nb_epoch, show_accuracy=False, verbose=0, validation_split=0.1)
+    model.fit([X_train, X_train], y_train, batch_size=batch_size, nb_epoch=nb_epoch, verbose=0)
+    model.fit([X_train, X_train], y_train, batch_size=batch_size, nb_epoch=nb_epoch, verbose=0, shuffle=False)
+
+    loss = model.evaluate([X_train, X_train], y_train, verbose=0)
+    assert(loss < 0.7)
+
+    model.predict([X_test, X_test], verbose=0)
+    model.predict_classes([X_test, X_test], verbose=0)
+    model.predict_proba([X_test, X_test], verbose=0)
+    model.get_config(verbose=0)
+
+    # test weight saving
+    fname = 'test_merge_sum_temp.h5'
+    model.save_weights(fname, overwrite=True)
+    left = Sequential()
+    left.add(Dense(nb_hidden, input_shape=(input_dim,)))
+    left.add(Activation('relu'))
+    right = Sequential()
+    right.add(Dense(nb_hidden, input_shape=(input_dim,)))
+    right.add(Activation('relu'))
+    model = Sequential()
+    model.add(Merge([left, right], mode='sum'))
+    model.add(Dense(nb_class))
+    model.add(Activation('softmax'))
+    model.load_weights(fname)
+    os.remove(fname)
+    model.compile(loss='categorical_crossentropy', optimizer='rmsprop')
+
+    nloss = model.evaluate([X_train, X_train], y_train, verbose=0)
+    assert(loss == nloss)
+
+
+@pytest.mark.skipif(K._BACKEND == 'tensorflow',
+                    reason='currently not working with TensorFlow')
 
 ###############
 # GRAPH TEST  #
