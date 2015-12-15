@@ -427,17 +427,19 @@ def test_siamese_1():
 
     # test weight saving
     fname = 'test_merge_sum_temp.h5'
-    model.save_weights(fname, overwrite=True)
     left = Sequential()
     left.add(Dense(nb_hidden, input_shape=(input_dim,)))
     left.add(Activation('relu'))
+
     right = Sequential()
     right.add(Dense(nb_hidden, input_shape=(input_dim,)))
     right.add(Activation('relu'))
+
     model = Sequential()
-    model.add(Merge([left, right], mode='sum'))
+    model.add(Siamese(Dense(nb_hidden), [left, right], merge_mode='sum'))
     model.add(Dense(nb_class))
     model.add(Activation('softmax'))
+
     model.load_weights(fname)
     os.remove(fname)
     model.compile(loss='categorical_crossentropy', optimizer='rmsprop')
@@ -492,13 +494,23 @@ def test_siamese_2():
     left = Sequential()
     left.add(Dense(nb_hidden, input_shape=(input_dim,)))
     left.add(Activation('relu'))
+
     right = Sequential()
     right.add(Dense(nb_hidden, input_shape=(input_dim,)))
     right.add(Activation('relu'))
+
+    add_shared_layer(Dense(nb_hidden), [left, right])
+
+    left.add(Dense(nb_hidden))
+    right.add(Dense(nb_hidden))
+
+    add_shared_layer(Dense(nb_hidden), [left, right])
+
     model = Sequential()
     model.add(Merge([left, right], mode='sum'))
     model.add(Dense(nb_class))
     model.add(Activation('softmax'))
+
     model.load_weights(fname)
     os.remove(fname)
     model.compile(loss='categorical_crossentropy', optimizer='rmsprop')
