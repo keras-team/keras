@@ -449,7 +449,7 @@ class Graph(Layer):
                 self.namespace.add(sh_name)
                 self.nodes[sh_name] = sh
                 self.node_config.append({'name': sh_name,
-                                         'inputs': [s],
+                                         'inputs': [name],
                                          'create_output': create_output})
                 if create_output:
                     self.add_output(sh_name, input=sh_name)
