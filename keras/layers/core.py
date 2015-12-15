@@ -1304,6 +1304,7 @@ class Lambda(Layer):
                 self._output_shape = marshal.dumps(output_shape.__code__)
             else:
                 self._output_shape = marshal.dumps(output_shape.func_code)
+        super(Lambda, self).__init__
 
     @property
     def output_shape(self):
@@ -1378,6 +1379,7 @@ class LambdaMerge(Lambda):
                 self._output_shape = marshal.dumps(output_shape.__code__)
             else:
                 self._output_shape = marshal.dumps(output_shape.func_code)
+        super(Lambda, self).__init__()
 
     @property
     def output_shape(self):
