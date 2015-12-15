@@ -1450,7 +1450,7 @@ class Siamese(Layer):
         dot_axes: Same meaning as `dot_axes` argument of Merge layer
     '''
     def __init__(self, layer, inputs, merge_mode='concat',
-                 concat_axis=1, dot_axes=-1):
+                 concat_axis=1, dot_axes=-1, is_graph=False):
         if merge_mode not in ['sum', 'mul', 'concat', 'ave',
                               'join', 'cos', 'dot', None]:
             raise Exception('Invalid merge mode: ' + str(merge_mode))
@@ -1460,17 +1460,19 @@ class Siamese(Layer):
                 raise Exception(merge_mode + ' merge takes exactly 2 layers')
 
         self.layer = layer
+        self.trainable = layer.trainable
+        self.is_graph = is_graph
         self.inputs = inputs
-        self.params = []
+        self.layer.set_previous(inputs[0])
         self.merge_mode = merge_mode
         self.concat_axis = concat_axis
         self.dot_axes = dot_axes
-        layer.set_previous(inputs[0])
+        self.params = []
         self.regularizers = []
         self.constraints = []
         self.updates = []
         layers = [layer]
-        if merge_mode:
+        if merge_mode and not is_graph:
             layers += inputs
         for l in layers:
             params, regs, consts, updates = l.get_params()
@@ -1518,15 +1520,18 @@ class Siamese(Layer):
     def get_params(self):
         return self.params, self.regularizers, self.constraints, self.updates
 
-    def set_layer_input(self, index):
-        l = self.layer
-        while not hasattr(l, 'previous'):
-            l = l.layers[0]
-        l.previous = self.inputs[index]
+    def set_layer_input(self, head):
+        layer = self.layer
+        from ..layers.containers import Sequential
+        while issubclass(layer.__class__, Sequential):
+            layer = layer.layers[0]
+        layer.previous = self.inputs[head]
 
     def get_output_at(self, head, train=False):
-        self.set_layer_input(head)
-        return self.layer.get_output(train)
+        X = self.inputs[head].get_output(train)
+        mask = self.inputs[head].get_output_mask(train)
+        Y = self.layer(X), mask)
+        return Y
 
     def get_output_shape(self, head, train=False):
         self.set_layer_input(head)
@@ -1627,7 +1632,7 @@ class Siamese(Layer):
 
     def get_weights(self):
         weights = self.layer.get_weights()
-        if self.merge_mode:
+        if self.merge_mode and not self.is_graph:
             for m in self.inputs:
                 weights += m.get_weights()
         return weights
@@ -1636,7 +1641,7 @@ class Siamese(Layer):
         nb_param = len(self.layer.params)
         self.layer.set_weights(weights[:nb_param])
         weights = weights[nb_param:]
-        if self.merge_mode:
+        if self.merge_mode and not self.is_graph:
             for i in range(len(self.inputs)):
                 nb_param = len(self.inputs[i].params)
                 self.inputs[i].set_weights(weights[:nb_param])
@@ -1648,7 +1653,8 @@ class Siamese(Layer):
                   'inputs': [m.get_config() for m in self.inputs],
                   'merge_mode': self.merge_mode,
                   'concat_axis': self.concat_axis,
-                  'dot_axes': self.dot_axes}
+                  'dot_axes': self.dot_axes,
+                  'is_graph': self.is_graph}
         base_config = super(Siamese, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
