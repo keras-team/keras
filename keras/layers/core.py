@@ -47,7 +47,7 @@ class Layer(object):
             self._trainable = kwargs['trainable']
         if not hasattr(self, 'params'):
             self.params = []
-        self.cache_enabled = True
+        self._cache_enabled = True
         if 'cache_enabled' in kwargs:
             self._cache_enabled = kwargs['cache_enabled']
 
