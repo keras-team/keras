@@ -426,7 +426,8 @@ def test_siamese_1():
     model.get_config(verbose=0)
 
     # test weight saving
-    fname = 'test_merge_sum_temp.h5'
+    fname = 'test_siamese_1.h5'
+    model.save_weights(fname, overwrite=True)
     left = Sequential()
     left.add(Dense(nb_hidden, input_shape=(input_dim,)))
     left.add(Activation('relu'))
@@ -485,7 +486,7 @@ def test_siamese_2():
     model.get_config(verbose=0)
 
     # test weight saving
-    fname = 'test_merge_sum_temp.h5'
+    fname = 'test_siamese_2.h5'
     model.save_weights(fname, overwrite=True)
     left = Sequential()
     left.add(Dense(nb_hidden, input_shape=(input_dim,)))
