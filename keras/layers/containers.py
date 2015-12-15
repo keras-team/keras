@@ -47,6 +47,10 @@ class Sequential(Layer):
         self.cache_enabled = tmp_cache_enabled
         return Y
 
+    @propery
+    def cache_enabled(self):
+        return  self._cache_enabled
+
     @cache_enabled.setter
     def cache_enabled(self, value):
         self._cache_enabled = value
