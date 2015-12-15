@@ -59,13 +59,19 @@ class Layer(object):
     def cache_enabled(self, value):
         self._cache_enabled = value
 
-    def __call__(self, X, train=False):
+    def __call__(self, X, mask, train=False):
         # set temporary input
-        tmp = self.get_input
+        tmp_input = self.get_input
+        tmp_mask = None
+        if hasattr(self, 'get_input_mask'):
+            tmp_mask = self.get_input_mask
+            self.get_input_mask = lambda _: mask
         self.get_input = lambda _: X
         Y = self.get_output(train=train)
         # return input to what it was
-        self.get_input = tmp
+        if hasattr(self, 'get_input_mask'):
+            self.get_input_mask = tmp_mask
+        self.get_input = tmp_input
         return Y
 
     def set_previous(self, layer, connection_map={}):
