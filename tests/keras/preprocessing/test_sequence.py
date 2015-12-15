@@ -47,9 +47,6 @@ def test_skipgrams():
     for l in labels:
         assert len(l) == 2
 
-    # test categorical laels
-
-
 
 if __name__ == '__main__':
     pytest.main([__file__])
