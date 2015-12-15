@@ -620,7 +620,86 @@ def test_1o_2i():
 
     graph.get_config(verbose=1)
 
+def test_siamese_3():
+    graph = Graph()
+    graph.add_input(name='input1', input_shape=(32,))
+    graph.add_input(name='input2', input_shape=(32,))
 
+    graph.add_shared_node(Dense(16), name='shared', inputs=['input1', 'input2'], merge_mode='sum')
+    graph.add_node(Dense(4), name='dense1', input='shared')
+    graph.add_node(Dense(4), name='dense2', input='dense1')
+
+    graph.add_output(name='output1', input='dense2')
+    graph.compile('rmsprop', {'output1': 'mse'})
+
+    graph.fit({'input1': X_train_graph, 'input2': X2_train_graph, 'output1': y_train_graph},
+              nb_epoch=10)
+    out = graph.predict({'input1': X_test_graph, 'input2': X2_test_graph})
+    assert(type(out == dict))
+    assert(len(out) == 1)
+
+    loss = graph.test_on_batch({'input1': X_test_graph, 'input2': X2_test_graph, 'output1': y_test_graph})
+    loss = graph.train_on_batch({'input1': X_test_graph, 'input2': X2_test_graph, 'output1': y_test_graph})
+    loss = graph.evaluate({'input1': X_test_graph, 'input2': X2_test_graph, 'output1': y_test_graph})
+    assert(loss < 3.0)
+
+    graph.get_config(verbose=1)
+
+def test_siamese_4():
+    graph = Graph()
+    graph.add_input(name='input1', input_shape=(32,))
+    graph.add_input(name='input2', input_shape=(32,))
+
+    graph.add_shared_node(Dense(16), name='shared1', inputs['input1', 'input2'])
+    graph.add_shared_node(Dense(4), name='shared2', inputs=['shared1'])
+    graph.add_shared_node(Dense(4), name='shared3', inputs=['shared2'], merge_mode='sum')
+    graph.add_node(Dense(4), name='dense', input='shared3')
+
+    graph.add_output(name='output1', inputs=['dense2', 'dense3'],
+                     merge_mode='sum')
+    graph.compile('rmsprop', {'output1': 'mse'})
+
+    graph.fit({'input1': X_train_graph, 'input2': X2_train_graph, 'output1': y_train_graph},
+              nb_epoch=10)
+    out = graph.predict({'input1': X_test_graph, 'input2': X2_test_graph})
+    assert(type(out == dict))
+    assert(len(out) == 1)
+
+    loss = graph.test_on_batch({'input1': X_test_graph, 'input2': X2_test_graph, 'output1': y_test_graph})
+    loss = graph.train_on_batch({'input1': X_test_graph, 'input2': X2_test_graph, 'output1': y_test_graph})
+    loss = graph.evaluate({'input1': X_test_graph, 'input2': X2_test_graph, 'output1': y_test_graph})
+    assert(loss < 3.0)
+
+    graph.get_config(verbose=1)
+
+def test_siamese_5():
+    graph = Graph()
+    graph.add_input(name='input1', input_shape=(32,))
+    graph.add_input(name='input2', input_shape=(32,))
+
+    graph.add_shared_node(Dense(16), name='shared1', inputs['input1', 'input2'])
+    graph.add_shared_node(Dense(4), name='shared2', inputs=['shared1'])
+    graph.add_shared_node(Dense(4), name='shared3', inputs=['shared2'], outputs=['shared_output1','shared_output2'])
+    graph.add_node(Dense(4), name='dense1',  input='shared_output1')
+    graph.add_node(Dense(4), name='dense2',  input='shared_output2')
+
+    graph.add_output(name='output1', inputs=['dense2', 'dense3'],
+                     merge_mode='sum')
+    graph.compile('rmsprop', {'output1': 'mse'})
+
+    graph.fit({'input1': X_train_graph, 'input2': X2_train_graph, 'output1': y_train_graph},
+              nb_epoch=10)
+    out = graph.predict({'input1': X_test_graph, 'input2': X2_test_graph})
+    assert(type(out == dict))
+    assert(len(out) == 1)
+
+    loss = graph.test_on_batch({'input1': X_test_graph, 'input2': X2_test_graph, 'output1': y_test_graph})
+    loss = graph.train_on_batch({'input1': X_test_graph, 'input2': X2_test_graph, 'output1': y_test_graph})
+    loss = graph.evaluate({'input1': X_test_graph, 'input2': X2_test_graph, 'output1': y_test_graph})
+    assert(loss < 3.0)
+
+    graph.get_config(verbose=1)
+    
 def test_2o_1i_weights():
     # test a non-sequential graph with 1 input and 2 outputs
     graph = Graph()
