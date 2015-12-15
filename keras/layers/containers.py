@@ -385,9 +385,7 @@ class Graph(Layer):
             dot_axes: Same meaning as `dot_axes` argument of `add_node()`
             outputs: Used when `merge_mode=None`. Names for the output nodes.
             create_output: Same meaning as `create_output` argument of `add_node()`.
-                When creating an output, `merge_mode` must be specified.
         '''
-        layer.layer_cache = self.layer_cache
         if name in self.namespace:
             raise Exception('Duplicate node identifier: ' + name)
         for o in outputs:
@@ -418,7 +416,8 @@ class Graph(Layer):
                 raise Exception('Unknown identifier: ' + input)
         s = Siamese(layer, layers, merge_mode,
                     concat_axis=concat_axis,
-                    dot_axes=dot_axes)
+                    dot_axes=dot_axes,
+                    is_graph=True)
         self.namespace.add(name)
         self.nodes[name] = s
         self.node_config.append({'name': name,
