@@ -59,7 +59,7 @@ class Layer(object):
     def cache_enabled(self, value):
         self._cache_enabled = value
 
-    def __call__(self, X, mask, train=False):
+    def __call__(self, X, mask=None, train=False):
         # set temporary input
         tmp_input = self.get_input
         tmp_mask = None
