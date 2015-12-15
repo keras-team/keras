@@ -1687,6 +1687,7 @@ class SiameseHead(Layer):
     def __init__(self, head):
         self.head = head
         self.params = []
+        super(SiameseHead, self).__init__()
 
     def get_output(self, train=False):
         return self.get_input(train)
