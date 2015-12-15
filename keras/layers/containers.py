@@ -23,6 +23,7 @@ class Sequential(Layer):
         self.layer_cache = {}
         for layer in layers:
             self.add(layer)
+        self._cache_enabled = True
 
     def __call__(self, X, mask=None, train=False):
         #turn off layer cache temporarily
