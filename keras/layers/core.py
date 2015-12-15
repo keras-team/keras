@@ -476,6 +476,7 @@ class Merge(Layer):
                 if p not in self.params:
                     self.params.append(p)
                     self.constraints.append(c)
+        super(Merge, self).__init__()
 
     @property
     def output_shape(self):
@@ -1495,6 +1496,7 @@ class Siamese(Layer):
                 if p not in self.params:
                     self.params.append(p)
                     self.constraints.append(c)
+        super(Siamese, self).__init__()
 
     @property
     def output_shape(self):
