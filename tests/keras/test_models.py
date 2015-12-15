@@ -682,7 +682,7 @@ def test_siamese_5():
     graph.add_input(name='input1', input_shape=(32,))
     graph.add_input(name='input2', input_shape=(32,))
 
-    graph.add_shared_node(Dense(16), name='shared1', inputs['input1', 'input2'])
+    graph.add_shared_node(Dense(16), name='shared1', inputs=['input1', 'input2'])
     graph.add_shared_node(Dense(4), name='shared2', inputs=['shared1'])
     graph.add_shared_node(Dense(4), name='shared3', inputs=['shared2'], outputs=['shared_output1','shared_output2'])
     graph.add_node(Dense(4), name='dense1',  input='shared_output1')
