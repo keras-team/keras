@@ -25,6 +25,9 @@ class Sequential(Layer):
             self.add(layer)
 
     def __call__(self, X, mask=None, train=False):
+        #turn off layer cache temporarily
+        tmp_cache_enabled = self.cache_enabled
+        self.cache_enabled = False
         #recursively search for a layer which is not a Sequential model
         layer = self
         while issubclass(layer.__class__, Sequential):
@@ -41,7 +44,14 @@ class Sequential(Layer):
         layer.get_input = tmp_input
         if hasattr(layer, 'get_input_mask'):
             layer.get_input_mask = tmp_mask
+        self.cache_enabled = tmp_cache_enabled
         return Y
+
+    @cache_enabled.setter
+    def cache_enabled(self, value):
+        self._cache_enabled = value
+        for l in self.layers:
+            l.cache_enabled = value
 
     def set_previous(self, layer):
         self.layers[0].previous = layer
