@@ -667,7 +667,7 @@ def test_siamese_4():
     graph.add_shared_node(Dense(4), name='shared3', inputs=['shared2'], merge_mode='sum')
     graph.add_node(Dense(4), name='dense', input='shared3')
 
-    graph.add_output(name='output1', inputs=['dense2', 'dense3'],
+    graph.add_output(name='output1', input='dense',
                      merge_mode='sum')
     graph.compile('rmsprop', {'output1': 'mse'})
 
