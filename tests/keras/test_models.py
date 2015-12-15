@@ -418,7 +418,7 @@ def test_siamese_1():
     model.fit([X_train, X_train], y_train, batch_size=batch_size, nb_epoch=nb_epoch, verbose=0, shuffle=False)
 
     loss = model.evaluate([X_train, X_train], y_train, verbose=0)
-    assert(loss < 0.7)
+    assert(loss < 0.8)
 
     model.predict([X_test, X_test], verbose=0)
     model.predict_classes([X_test, X_test], verbose=0)
@@ -477,7 +477,7 @@ def test_siamese_2():
     model.fit([X_train, X_train], y_train, batch_size=batch_size, nb_epoch=nb_epoch, verbose=0, shuffle=False)
 
     loss = model.evaluate([X_train, X_train], y_train, verbose=0)
-    assert(loss < 0.7)
+    assert(loss < 0.8)
 
     model.predict([X_test, X_test], verbose=0)
     model.predict_classes([X_test, X_test], verbose=0)
@@ -688,7 +688,7 @@ def test_siamese_5():
     graph.add_node(Dense(4), name='dense1',  input='shared_output1')
     graph.add_node(Dense(4), name='dense2',  input='shared_output2')
 
-    graph.add_output(name='output1', inputs=['dense2', 'dense3'],
+    graph.add_output(name='output1', inputs=['dense1', 'dense2'],
                      merge_mode='sum')
     graph.compile('rmsprop', {'output1': 'mse'})
 
