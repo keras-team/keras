@@ -1463,6 +1463,7 @@ class Siamese(Layer):
         merge_mode: Same meaning as `mode` argument of Merge layer
         concat_axis: Same meaning as `concat_axis` argument of Merge layer
         dot_axes: Same meaning as `dot_axes` argument of Merge layer
+        is_graph: Should be set to True when used inside `Graph`
     '''
     def __init__(self, layer, inputs, merge_mode='concat',
                  concat_axis=1, dot_axes=-1, is_graph=False):
