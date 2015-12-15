@@ -35,7 +35,8 @@ class Layer(object):
     def __init__(self, **kwargs):
         allowed_kwargs = {'input_shape',
                           'trainable',
-                          'batch_input_shape'}
+                          'batch_input_shape',
+                          'cache_enabled'}
         for kwarg in kwargs:
             assert kwarg in allowed_kwargs, "Keyword argument not understood: " + kwarg
         if 'input_shape' in kwargs:
@@ -46,20 +47,17 @@ class Layer(object):
             self._trainable = kwargs['trainable']
         if not hasattr(self, 'params'):
             self.params = []
+        self.cache_enabled = True
+        if 'cache_enabled' in kwargs:
+            self.cache_enabled = kwargs['cache_enabled']
 
-    def __call__(self, X, mask=None, train=False):
-        # set temporary input and mask
-        tmp_input = self.get_input
-        tmp_mask = None
-        if hasattr(self, 'get_input_mask'):
-            tmp_mask = self.get_input_mask
-            self.get_input_mask = lambda _: mask
+    def __call__(self, X, train=False):
+        # set temporary input
+        tmp = self.get_input
         self.get_input = lambda _: X
         Y = self.get_output(train=train)
-        # return input and mask to what it was
-        self.get_input = tmp_input
-        if hasattr(self, 'get_input_mask'):
-            self.get_input_mask = tmp_mask
+        # return input to what it was
+        self.get_input = tmp
         return Y
 
     def set_previous(self, layer, connection_map={}):
@@ -138,12 +136,12 @@ class Layer(object):
         if hasattr(self, 'previous'):
             # to avoid redundant computations,
             # layer outputs are cached when possible.
-            if hasattr(self, 'layer_cache'):
+            if hasattr(self, 'layer_cache') and self.cache_enabled:
                 previous_layer_id = '%s_%s' % (id(self.previous), train)
                 if previous_layer_id in self.layer_cache:
                     return self.layer_cache[previous_layer_id]
             previous_output = self.previous.get_output(train=train)
-            if hasattr(self, 'layer_cache'):
+            if hasattr(self, 'layer_cache') and self.cache_enabled:
                 previous_layer_id = '%s_%s' % (id(self.previous), train)
                 self.layer_cache[previous_layer_id] = previous_output
             return previous_output
@@ -218,6 +216,7 @@ class Layer(object):
             config['input_shape'] = self._input_shape[1:]
         if hasattr(self, '_trainable'):
             config['trainable'] = self._trainable
+        config['cache_enabled'] =  self.cache_enabled
         return config
 
     def get_params(self):
