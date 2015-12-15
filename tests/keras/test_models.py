@@ -6,7 +6,7 @@ np.random.seed(1337)
 
 from keras import backend as K
 from keras.models import Graph, Sequential, model_from_json, model_from_yaml
-from keras.layers.core import Dense, Activation, Merge, Lambda, LambdaMerge
+from keras.layers.core import Dense, Activation, Merge, Lambda, LambdaMerge, Siamese, add_shared_layer
 from keras.layers import containers
 from keras.utils import np_utils
 from keras.utils.test_utils import get_test_data
@@ -56,7 +56,7 @@ def test_sequential():
     model.train_on_batch(X_train[:32], y_train[:32])
 
     loss = model.evaluate(X_train, y_train, verbose=0)
-    assert(loss < 0.7)
+    assert(loss < 0.8)
 
     model.predict(X_test, verbose=0)
     model.predict_classes(X_test, verbose=0)
@@ -388,12 +388,132 @@ def test_sequential_count_params():
     model.add(Dense(nb_units))
     model.add(Dense(nb_classes))
     model.add(Activation('softmax'))
-
     assert(n == model.count_params())
 
     model.compile('sgd', 'binary_crossentropy')
-
     assert(n == model.count_params())
+
+
+def test_siamese_1():
+    left = Sequential()
+    left.add(Dense(nb_hidden, input_shape=(input_dim,)))
+    left.add(Activation('relu'))
+
+    right = Sequential()
+    right.add(Dense(nb_hidden, input_shape=(input_dim,)))
+    right.add(Activation('relu'))
+
+    model = Sequential()
+    model.add(Siamese(Dense(nb_hidden), [left, right], merge_mode='sum'))
+    model.add(Dense(nb_class))
+    model.add(Activation('softmax'))
+    model.compile(loss='categorical_crossentropy', optimizer='rmsprop')
+
+    model.fit([X_train, X_train], y_train, batch_size=batch_size, nb_epoch=nb_epoch, show_accuracy=True, verbose=0, validation_data=([X_test, X_test], y_test))
+    model.fit([X_train, X_train], y_train, batch_size=batch_size, nb_epoch=nb_epoch, show_accuracy=False, verbose=0, validation_data=([X_test, X_test], y_test))
+    model.fit([X_train, X_train], y_train, batch_size=batch_size, nb_epoch=nb_epoch, show_accuracy=True, verbose=0, validation_split=0.1)
+    model.fit([X_train, X_train], y_train, batch_size=batch_size, nb_epoch=nb_epoch, show_accuracy=False, verbose=0, validation_split=0.1)
+    model.fit([X_train, X_train], y_train, batch_size=batch_size, nb_epoch=nb_epoch, verbose=0)
+    model.fit([X_train, X_train], y_train, batch_size=batch_size, nb_epoch=nb_epoch, verbose=0, shuffle=False)
+
+    loss = model.evaluate([X_train, X_train], y_train, verbose=0)
+    assert(loss < 0.8)
+
+    model.predict([X_test, X_test], verbose=0)
+    model.predict_classes([X_test, X_test], verbose=0)
+    model.predict_proba([X_test, X_test], verbose=0)
+    model.get_config(verbose=0)
+
+    # test weight saving
+    fname = 'test_siamese_1.h5'
+    model.save_weights(fname, overwrite=True)
+    left = Sequential()
+    left.add(Dense(nb_hidden, input_shape=(input_dim,)))
+    left.add(Activation('relu'))
+
+    right = Sequential()
+    right.add(Dense(nb_hidden, input_shape=(input_dim,)))
+    right.add(Activation('relu'))
+
+    model = Sequential()
+    model.add(Siamese(Dense(nb_hidden), [left, right], merge_mode='sum'))
+    model.add(Dense(nb_class))
+    model.add(Activation('softmax'))
+
+    model.load_weights(fname)
+    os.remove(fname)
+    model.compile(loss='categorical_crossentropy', optimizer='rmsprop')
+
+    nloss = model.evaluate([X_train, X_train], y_train, verbose=0)
+    assert(loss == nloss)
+
+
+def test_siamese_2():
+    left = Sequential()
+    left.add(Dense(nb_hidden, input_shape=(input_dim,)))
+    left.add(Activation('relu'))
+
+    right = Sequential()
+    right.add(Dense(nb_hidden, input_shape=(input_dim,)))
+    right.add(Activation('relu'))
+
+    add_shared_layer(Dense(nb_hidden), [left, right])
+
+    left.add(Dense(nb_hidden))
+    right.add(Dense(nb_hidden))
+
+    add_shared_layer(Dense(nb_hidden), [left, right])
+
+    model = Sequential()
+    model.add(Merge([left, right], mode='sum'))
+    model.add(Dense(nb_class))
+    model.add(Activation('softmax'))
+    model.compile(loss='categorical_crossentropy', optimizer='rmsprop')
+
+    model.fit([X_train, X_train], y_train, batch_size=batch_size, nb_epoch=nb_epoch, show_accuracy=True, verbose=0, validation_data=([X_test, X_test], y_test))
+    model.fit([X_train, X_train], y_train, batch_size=batch_size, nb_epoch=nb_epoch, show_accuracy=False, verbose=0, validation_data=([X_test, X_test], y_test))
+    model.fit([X_train, X_train], y_train, batch_size=batch_size, nb_epoch=nb_epoch, show_accuracy=True, verbose=0, validation_split=0.1)
+    model.fit([X_train, X_train], y_train, batch_size=batch_size, nb_epoch=nb_epoch, show_accuracy=False, verbose=0, validation_split=0.1)
+    model.fit([X_train, X_train], y_train, batch_size=batch_size, nb_epoch=nb_epoch, verbose=0)
+    model.fit([X_train, X_train], y_train, batch_size=batch_size, nb_epoch=nb_epoch, verbose=0, shuffle=False)
+
+    loss = model.evaluate([X_train, X_train], y_train, verbose=0)
+    assert(loss < 0.8)
+
+    model.predict([X_test, X_test], verbose=0)
+    model.predict_classes([X_test, X_test], verbose=0)
+    model.predict_proba([X_test, X_test], verbose=0)
+    model.get_config(verbose=0)
+
+    # test weight saving
+    fname = 'test_siamese_2.h5'
+    model.save_weights(fname, overwrite=True)
+    left = Sequential()
+    left.add(Dense(nb_hidden, input_shape=(input_dim,)))
+    left.add(Activation('relu'))
+
+    right = Sequential()
+    right.add(Dense(nb_hidden, input_shape=(input_dim,)))
+    right.add(Activation('relu'))
+
+    add_shared_layer(Dense(nb_hidden), [left, right])
+
+    left.add(Dense(nb_hidden))
+    right.add(Dense(nb_hidden))
+
+    add_shared_layer(Dense(nb_hidden), [left, right])
+
+    model = Sequential()
+    model.add(Merge([left, right], mode='sum'))
+    model.add(Dense(nb_class))
+    model.add(Activation('softmax'))
+
+    model.load_weights(fname)
+    os.remove(fname)
+    model.compile(loss='categorical_crossentropy', optimizer='rmsprop')
+
+    nloss = model.evaluate([X_train, X_train], y_train, verbose=0)
+    assert(loss == nloss)
 
 
 ###############
@@ -490,6 +610,89 @@ def test_1o_2i():
     graph.add_node(Dense(4), name='dense3', input='dense1')
 
     graph.add_output(name='output1', inputs=['dense2', 'dense3'],
+                     merge_mode='sum')
+    graph.compile('rmsprop', {'output1': 'mse'})
+
+    graph.fit({'input1': X_train_graph, 'input2': X2_train_graph, 'output1': y_train_graph},
+              nb_epoch=10)
+    out = graph.predict({'input1': X_test_graph, 'input2': X2_test_graph})
+    assert(type(out == dict))
+    assert(len(out) == 1)
+
+    loss = graph.test_on_batch({'input1': X_test_graph, 'input2': X2_test_graph, 'output1': y_test_graph})
+    loss = graph.train_on_batch({'input1': X_test_graph, 'input2': X2_test_graph, 'output1': y_test_graph})
+    loss = graph.evaluate({'input1': X_test_graph, 'input2': X2_test_graph, 'output1': y_test_graph})
+    assert(loss < 3.0)
+
+    graph.get_config(verbose=1)
+
+
+def test_siamese_3():
+    graph = Graph()
+    graph.add_input(name='input1', input_shape=(32,))
+    graph.add_input(name='input2', input_shape=(32,))
+
+    graph.add_shared_node(Dense(16), name='shared', inputs=['input1', 'input2'], merge_mode='sum')
+    graph.add_node(Dense(4), name='dense1', input='shared')
+    graph.add_node(Dense(4), name='dense2', input='dense1')
+
+    graph.add_output(name='output1', input='dense2')
+    graph.compile('rmsprop', {'output1': 'mse'})
+
+    graph.fit({'input1': X_train_graph, 'input2': X2_train_graph, 'output1': y_train_graph},
+              nb_epoch=10)
+    out = graph.predict({'input1': X_test_graph, 'input2': X2_test_graph})
+    assert(type(out == dict))
+    assert(len(out) == 1)
+
+    loss = graph.test_on_batch({'input1': X_test_graph, 'input2': X2_test_graph, 'output1': y_test_graph})
+    loss = graph.train_on_batch({'input1': X_test_graph, 'input2': X2_test_graph, 'output1': y_test_graph})
+    loss = graph.evaluate({'input1': X_test_graph, 'input2': X2_test_graph, 'output1': y_test_graph})
+    assert(loss < 3.0)
+
+    graph.get_config(verbose=1)
+
+
+def test_siamese_4():
+    graph = Graph()
+    graph.add_input(name='input1', input_shape=(32,))
+    graph.add_input(name='input2', input_shape=(32,))
+
+    graph.add_shared_node(Dense(16), name='shared1', inputs=['input1', 'input2'])
+    graph.add_shared_node(Dense(4), name='shared2', inputs=['shared1'])
+    graph.add_shared_node(Dense(4), name='shared3', inputs=['shared2'], merge_mode='sum')
+    graph.add_node(Dense(4), name='dense', input='shared3')
+
+    graph.add_output(name='output1', input='dense',
+                     merge_mode='sum')
+    graph.compile('rmsprop', {'output1': 'mse'})
+
+    graph.fit({'input1': X_train_graph, 'input2': X2_train_graph, 'output1': y_train_graph},
+              nb_epoch=10)
+    out = graph.predict({'input1': X_test_graph, 'input2': X2_test_graph})
+    assert(type(out == dict))
+    assert(len(out) == 1)
+
+    loss = graph.test_on_batch({'input1': X_test_graph, 'input2': X2_test_graph, 'output1': y_test_graph})
+    loss = graph.train_on_batch({'input1': X_test_graph, 'input2': X2_test_graph, 'output1': y_test_graph})
+    loss = graph.evaluate({'input1': X_test_graph, 'input2': X2_test_graph, 'output1': y_test_graph})
+    assert(loss < 3.0)
+
+    graph.get_config(verbose=1)
+
+
+def test_siamese_5():
+    graph = Graph()
+    graph.add_input(name='input1', input_shape=(32,))
+    graph.add_input(name='input2', input_shape=(32,))
+
+    graph.add_shared_node(Dense(16), name='shared1', inputs=['input1', 'input2'])
+    graph.add_shared_node(Dense(4), name='shared2', inputs=['shared1'])
+    graph.add_shared_node(Dense(4), name='shared3', inputs=['shared2'], outputs=['shared_output1','shared_output2'])
+    graph.add_node(Dense(4), name='dense1',  input='shared_output1')
+    graph.add_node(Dense(4), name='dense2',  input='shared_output2')
+
+    graph.add_output(name='output1', inputs=['dense1', 'dense2'],
                      merge_mode='sum')
     graph.compile('rmsprop', {'output1': 'mse'})
 
