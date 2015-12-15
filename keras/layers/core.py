@@ -49,7 +49,15 @@ class Layer(object):
             self.params = []
         self.cache_enabled = True
         if 'cache_enabled' in kwargs:
-            self.cache_enabled = kwargs['cache_enabled']
+            self._cache_enabled = kwargs['cache_enabled']
+
+    @property
+    def cache_enabled(self):
+        return self._cache_enabled
+
+    @cache_enabled.setter
+    def cache_enabled(self, value):
+        self._cache_enabled = value
 
     def __call__(self, X, train=False):
         # set temporary input
@@ -249,7 +257,6 @@ class Layer(object):
         composing the weights of the layer.
         '''
         return sum([K.count_params(p) for p in self.params])
-
 
 class MaskedLayer(Layer):
     '''If your layer trivially supports masking
