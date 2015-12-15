@@ -447,10 +447,6 @@ def test_siamese_1():
     nloss = model.evaluate([X_train, X_train], y_train, verbose=0)
     assert(loss == nloss)
 
-
-@pytest.mark.skipif(K._BACKEND == 'tensorflow',
-                    reason='currently not working with TensorFlow')
-
 def test_siamese_2():
     left = Sequential()
     left.add(Dense(nb_hidden, input_shape=(input_dim,)))
@@ -518,9 +514,6 @@ def test_siamese_2():
     nloss = model.evaluate([X_train, X_train], y_train, verbose=0)
     assert(loss == nloss)
 
-
-@pytest.mark.skipif(K._BACKEND == 'tensorflow',
-                    reason='currently not working with TensorFlow')
 
 ###############
 # GRAPH TEST  #
