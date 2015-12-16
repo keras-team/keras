@@ -43,7 +43,7 @@ def test_skipgrams():
     couples, labels = skipgrams(np.arange(5), vocabulary_size=5, window_size=1,
                                 categorical=True)
     for couple in couples:
-        assert couple[0] - couple[1] < 3
+        assert couple[0] - couple[1] <= 3
     for l in labels:
         assert len(l) == 2
 
