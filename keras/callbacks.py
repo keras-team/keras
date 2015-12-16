@@ -43,9 +43,11 @@ class CallbackList(object):
             callback.on_batch_begin(batch, logs)
         self._delta_ts_batch_begin.append(time.time() - t_before_callbacks)
         delta_t_median = np.median(self._delta_ts_batch_begin)
-        if self._delta_t_batch > 0. and delta_t_median > 0.95 * self._delta_t_batch and delta_t_median > 0.1:
+        if self._delta_t_batch > 0. and delta_t_median > 0.95 * \
+           self._delta_t_batch and delta_t_median > 0.1:
             warnings.warn('Method on_batch_begin() is slow compared '
-                          'to the batch update (%f). Check your callbacks.' % delta_t_median)
+                          'to the batch update (%f). Check your callbacks.'
+                          % delta_t_median)
         self._t_enter_batch = time.time()
 
     def on_batch_end(self, batch, logs={}):
@@ -55,9 +57,11 @@ class CallbackList(object):
             callback.on_batch_end(batch, logs)
         self._delta_ts_batch_end.append(time.time() - t_before_callbacks)
         delta_t_median = np.median(self._delta_ts_batch_end)
-        if self._delta_t_batch > 0. and delta_t_median > 0.95 * self._delta_t_batch and delta_t_median > 0.1:
+        if self._delta_t_batch > 0. and delta_t_median > 0.95 * \
+           self._delta_t_batch and delta_t_median > 0.1:
             warnings.warn('Method on_batch_end() is slow compared '
-                          'to the batch update (%f). Check your callbacks.' % delta_t_median)
+                          'to the batch update (%f). Check your callbacks.'
+                          % delta_t_median)
 
     def on_train_begin(self, logs={}):
         for callback in self.callbacks:
@@ -249,7 +253,8 @@ class ModelCheckpoint(Callback):
 
         if mode not in ['auto', 'min', 'max']:
             warnings.warn('ModelCheckpoint mode %s is unknown, '
-                          'fallback to auto mode' % (self.mode), RuntimeWarning)
+                          'fallback to auto mode' % (self.mode),
+                          RuntimeWarning)
             mode = 'auto'
 
         if mode == 'min':
@@ -276,7 +281,8 @@ class ModelCheckpoint(Callback):
             else:
                 if self.monitor_op(current, self.best):
                     if self.verbose > 0:
-                        print('Epoch %05d: %s improved from %0.5f to %0.5f, saving model to %s'
+                        print('Epoch %05d: %s improved from %0.5f to %0.5f,'
+                              ' saving model to %s'
                               % (epoch, self.monitor, self.best,
                                  current, filepath))
                     self.best = current
@@ -384,7 +390,7 @@ class LearningRateScheduler(Callback):
 class TensorBoard(Callback):
     ''' Tensorboard basic visualizations.
 
-    This callback writes a log usable with tensorboard.  
+    This callback writes a log usable with tensorboard.
 
     # Arguments
         model: a keras model linked to the tensorflow session
@@ -419,10 +425,11 @@ class TensorBoard(Callback):
                 self.w_hists.append(h_w)
             if hasattr(c_node, "b"):
                 h_b = tf.histogram_summary("{}_b".format(n), c_node.b)
-                self.b_hists.append()
+                self.b_hists.append(h_b)
             if hasattr(c_node, "get_output"):
-                tf.histogram_summary("{}_out".format(n), c_node.get_output())
-                self.out_hists.append()
+                h_o = tf.histogram_summary("{}_out".format(n),
+                                           c_node.get_output())
+                self.out_hists.append(h_o)
         self.merged = tf.merge_all_summaries()
         self.writer = tf.train.SummaryWriter(log_file, self.sess.graph_def)
 
