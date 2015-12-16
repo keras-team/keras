@@ -456,3 +456,143 @@ class LSTM(Recurrent):
                   "inner_activation": self.inner_activation.__name__}
         base_config = super(LSTM, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
+
+
+class BidirectionalRNN(MaskedLayer):
+    ''' Bidirectional wrapper for RNNs
+
+    # Arguments:
+        rnn: `Recurrent` object. 
+        merge_mode: Mode by which outputs of the forward and reverse RNNs will be combined. One of {sum, mul, concat, ave}
+
+    # TensorFlow warning
+        BidirectionalRNN only works with Theano for the time being.
+    
+    # Examples:
+    ```python
+    model = Sequential()
+    model.add(BidirectionalRNN(LSTM(10, input_shape=(10, 20))))
+    model.add(Activation('softmax'))
+    
+    model.compile(loss='categorical_crossentropy', optimizer='rmsprop')
+
+    model.fit([X_train,], Y_train, batch_size=32, nb_epoch=20,
+              validation_data=([X_test], Y_test))
+    ```
+    '''
+    def __init__(self, rnn, merge_mode='concat', weights=None):
+        if K._BACKEND != 'theano':
+            raise Exception("BidirectionalRNN will only work with Theano.")
+        import copy
+        self.forward = rnn
+        self.reverse = copy.deepcopy(rnn)
+        self.merge_mode = merge_mode
+        if not weights:
+            weights = [None, None]
+        nw = len(weights)
+        self.forward.initial_weights = weights[:nw/2]
+        self.reverse.initial_weights = weights[nw/2:]
+        self._cache_enabled = True
+
+    def get_weights(self):
+        return self.forward.get_weights() + self.reverse.get_weights()
+
+    def set_weights(self, weights):
+        nw = len(weights)
+        self.forward.set_weights(weights[:nw/2])
+        self.reverse.set_weights(weights[:nw/2])
+
+    def set_previous(self, layer):
+        self.previous = layer
+        self.forward.set_previous(layer)
+        self.reverse.set_previous(layer)
+
+    @property
+    def cache_enabled(self):
+        return self._cache_enabled
+
+    @cache_enabled.setter
+    def cache_enabled(self, value):
+        self._cache_enabled = value
+        self.forward.cache_enabled = value
+        self.reverse.cache_enabled = value
+
+    @property
+    def output_shape(self):
+        if self.merge_mode in ['sum', 'ave', 'mul']:
+            return forward.output_shape
+        elif self.merge_mode == 'concat':
+            shape = list(self.forward.output_shape)
+            shape[-1] *= 2
+            return tuple(shape)
+
+    def get_output(self, train=False):
+
+        X = self.get_input(train)
+        mask = self.get_input_mask(train)
+
+        X_rev = K.permute_dimensions(X, (1, 0, 2))
+        X_rev = X_rev[::-1]
+        X_rev = K.permute_dimensions(X_rev, (1, 0, 2))
+
+        mask_rev = mask
+        if mask:
+
+            mask_rev = K.permute_dimensions(mask_rev, (1, 0))
+            mask_rev = mask_rev[::-1]
+            mask_rev = K.permute_dimensions(mask_rev, (1, 0))
+
+            #convert right padding to left padding
+            shifts = K.sum(mask_rev, axis=1)
+            import theano
+            X_rev, _ = theano.scan(lambda x, i: theano.tensor.roll(x, -i, 0),
+                             sequences=[X_rev, shifts])
+            mask_rev = mask
+
+        Y = self.forward(X, mask)
+        Y_rev = self.reverse(X_rev, mask_rev)
+
+        if self.merge_mode == 'concat':
+            return K.concatenate([Y, Y_rev])
+        elif self.merge_mode == 'sum':
+            return Y + Y_rev
+        elif self.merge_mode == 'ave':
+            return (Y + Y_rev) / 2
+        elif self.merge_mode == 'mul':
+            return Y * Y_rev
+
+    def get_output_mask(self, train=False):
+        if self.forward.return_sequences:
+            return self.get_input_mask(train)
+        else:
+            return None
+
+    @property
+    def input_shape(self):
+        return self.forward.input_shape
+
+    def get_input(self, train=False):
+        return self.forward.get_input(train)
+
+    @property
+    def params(self):
+        return self.forward.get_params()[0] + self.reverse.get_params()[0]
+
+    @property
+    def regularizers(self):
+        return self.forward.get_params()[1] + self.reverse.get_params()[1] 
+
+    @property
+    def constraints(self):
+        return self.forward.get_params()[2] + self.reverse.get_params()[2]
+
+    @property
+    def updates(self):
+        return self.forward.get_params()[3] + self.reverse.get_params()[3]
+
+    def get_config(self):
+        config = {"rnn": self.forward.get_config(),
+                  "merge_mode": self.merge_mode}
+        base_config = super(SimpleRNN, self).get_config()
+        return dict(list(base_config.items()) + list(config.items()))
+
