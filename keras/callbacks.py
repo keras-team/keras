@@ -8,6 +8,7 @@ import warnings
 
 from collections import deque
 from .utils.generic_utils import Progbar
+from .backend import _BACKEND
 
 
 class CallbackList(object):
@@ -403,7 +404,7 @@ class TensorBoard(Callback):
     '''
     def __init__(self, model, feed, freq=2, log_file="./logs"):
         super(Callback, self).__init__()
-        assert keras._BACKEND == 'tensorflow', \
+        assert _BACKEND == 'tensorflow', \
             'Tensorboard callback only works with the tensorflow backend'
         import tensorflow as tf
         import keras.backend.tensorflow_backend as tfbe
