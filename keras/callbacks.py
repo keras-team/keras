@@ -379,3 +379,55 @@ class LearningRateScheduler(Callback):
 
     def on_epoch_begin(self, epoch, logs={}):
         self.model.optimizer.lr.set_value(self.schedule(epoch))
+
+
+class TensorBoard(Callback):
+    ''' Tensorboard basic visualizations.
+
+    This callback writes a log usable with tensorboard.  
+
+    # Arguments
+        model: a keras model linked to the tensorflow session
+        feed: a dictionnary mapping to the inputs and outputs
+            if applicable
+        freq: the frequency at which the callback will output
+            the parameters and metrics
+        log_file: the path of the directory where to save the log
+            files to be parsed by tensorboard
+    '''
+    def __init__(self, model, feed, freq=2, log_file="./logs"):
+        super(Callback, self).__init__()
+        assert keras._BACKEND == 'tensorflow', \
+            'Tensorboard callback only works with the tensorflow backend'
+        import tensorflow as tf
+        import keras.backend.tensorflow_backend as tfbe
+
+        self.model = model
+        self.freq = freq
+        self.log_file = log_file
+        self.sess = tfbe._get_session()
+        self.feed = feed
+        # TODO: verify if we need to keep w and b as attributes
+        self.w_hists = []
+        self.b_hists = []
+        self.out_hists = []
+
+        for n in self.model.nodes:
+            c_node = self.model.nodes[n]
+            if hasattr(c_node, "W"):
+                h_w = tf.histogram_summary("{}_W".format(n), c_node.W)
+                self.w_hists.append(h_w)
+            if hasattr(c_node, "b"):
+                h_b = tf.histogram_summary("{}_b".format(n), c_node.b)
+                self.b_hists.append()
+            if hasattr(c_node, "get_output"):
+                tf.histogram_summary("{}_out".format(n), c_node.get_output())
+                self.out_hists.append()
+        self.merged = tf.merge_all_summaries()
+        self.writer = tf.train.SummaryWriter(log_file, self.sess.graph_def)
+
+    def on_epoch_end(self, epoch, logs={}):
+        if epoch % self.freq == 0:
+            result = self.sess.run([self.merged], feed_dict=self.feed)
+            summary_str = result[0]
+            self.writer.add_summary(summary_str, epoch)
