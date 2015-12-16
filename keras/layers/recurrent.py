@@ -520,7 +520,7 @@ class BidirectionalRNN(MaskedLayer):
     @property
     def output_shape(self):
         if self.merge_mode in ['sum', 'ave', 'mul']:
-            return forward.output_shape
+            return self.forward.output_shape
         elif self.merge_mode == 'concat':
             shape = list(self.forward.output_shape)
             shape[-1] *= 2
