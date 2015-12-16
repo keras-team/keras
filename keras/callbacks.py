@@ -414,7 +414,7 @@ class TensorBoard(Callback):
         self.log_file = log_file
         self.sess = tfbe._get_session()
         self.feed = feed
-        # TODO: verify if we need to keep w and b as attributes
+        # TODO: verify if we need to keep summaries as lists of attributes
         self.w_hists = []
         self.b_hists = []
         self.out_hists = []
@@ -422,15 +422,19 @@ class TensorBoard(Callback):
         for n in self.model.nodes:
             c_node = self.model.nodes[n]
             if hasattr(c_node, "W"):
-                h_w = tf.histogram_summary("{}_W".format(n), c_node.W)
-                self.w_hists.append(h_w)
+                # h_w = tf.histogram_summary("{}_W".format(n), c_node.W)
+                tf.histogram_summary("{}_W".format(n), c_node.W)
+                # self.w_hists.append(h_w)
             if hasattr(c_node, "b"):
-                h_b = tf.histogram_summary("{}_b".format(n), c_node.b)
-                self.b_hists.append(h_b)
+                # h_b = tf.histogram_summary("{}_b".format(n), c_node.b)
+                tf.histogram_summary("{}_b".format(n), c_node.b)
+                # self.b_hists.append(h_b)
             if hasattr(c_node, "get_output"):
-                h_o = tf.histogram_summary("{}_out".format(n),
+                # h_o = tf.histogram_summary("{}_out".format(n),
+                #                            c_node.get_output())
+                tf.histogram_summary("{}_out".format(n),
                                            c_node.get_output())
-                self.out_hists.append(h_o)
+                # self.out_hists.append(h_o)
         self.merged = tf.merge_all_summaries()
         self.writer = tf.train.SummaryWriter(log_file, self.sess.graph_def)
 
