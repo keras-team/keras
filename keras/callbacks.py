@@ -415,9 +415,9 @@ class TensorBoard(Callback):
         self.sess = tfbe._get_session()
         self.feed = feed
         # TODO: verify if we need to keep summaries as lists of attributes
-        self.w_hists = []
-        self.b_hists = []
-        self.out_hists = []
+        # self.w_hists = []
+        # self.b_hists = []
+        # self.out_hists = []
 
         for n in self.model.nodes:
             c_node = self.model.nodes[n]
@@ -433,7 +433,7 @@ class TensorBoard(Callback):
                 # h_o = tf.histogram_summary("{}_out".format(n),
                 #                            c_node.get_output())
                 tf.histogram_summary("{}_out".format(n),
-                                           c_node.get_output())
+                                     c_node.get_output())
                 # self.out_hists.append(h_o)
         self.merged = tf.merge_all_summaries()
         self.writer = tf.train.SummaryWriter(log_file, self.sess.graph_def)
