@@ -4,6 +4,46 @@ import numpy as np
 import random
 from six.moves import range
 
+def pad_vector_sequences(vector_sequences, maxlen = None, dtype = 'int32', padding = 'pre', truncating =  'pre', value = 0.):
+    """
+        pad vector_sequences a  list (nb_samples, 1) each contain(timestep, dim).
+        return as (nb_samples, maxlen, dim) numpy tensor
+        The mask will also be returned as well for those shorter than the maxlen
+        
+        If maxlen is provided, any sequence longer
+        than maxlen is truncated to maxlen. Truncation happens off either the beginning (default) or
+        the end of the sequence.
+        
+        Supports post-padding and pre-padding (default).         
+    """
+    lengths = [len(s) for s in vector_sequences]
+    assert  vector_sequences[0] is not None     
+    dim = vector_sequences[0].shape[1] 
+    nb_samples = len(vector_sequences)
+
+    if maxlen is None:
+        maxlen = np.max(lengths)
+    x =  np.ones((nb_samples, maxlen, dim)).astype(dtype)* value
+    mask = np.zeros((nb_samples, maxlen))
+    for idx, vs in enumerate(vector_sequences):
+        if len(vs) == 0:
+            continue
+        if truncating == 'pre':
+            trunc = vs[-maxlen:,:]
+        elif truncating == 'post':
+            trunc = vs[:maxlen,:]
+        else:
+            raise ValueError("Truncating type '%s' not understood" % padding)
+        
+        if padding == 'post':
+           x[idx,:trunc.shape[0],:] = trunc
+           mask[idx, :trunc.shape[0]] = 1
+        elif padding == 'pre':
+           x[idx, -trunc.shape[0]:, :] = trunc
+           mask[idx, -trunc.shape[0]:] = 1
+        else:
+           raise ValueError("PAdding type '%s' not understood" % padding)        
+    return x , mask
 def pad_sequences(sequences, maxlen=None, dtype='int32', padding='pre', truncating='pre', value=0.):
     """
         Pad each sequence to the same length: 
