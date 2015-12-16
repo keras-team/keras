@@ -537,11 +537,12 @@ class Bidirectional(MaskedLayer):
         X_rev = K.permute_dimensions(X_rev, (1, 0, 2))
 
         mask_rev = mask
-        if mask:
 
+        if mask:
             mask_rev = K.permute_dimensions(mask_rev, (1, 0))
             mask_rev = mask_rev[::-1]
             mask_rev = K.permute_dimensions(mask_rev, (1, 0))
+
             if K._BACKEND == 'theano':
                 #convert right padding to left padding
                 shifts = K.sum(mask_rev, axis=1)
@@ -552,6 +553,12 @@ class Bidirectional(MaskedLayer):
 
         Y = self.forward(X, mask)
         Y_rev = self.reverse(X_rev, mask_rev)
+        
+        if self.forward.return_sequences:
+            #Fix allignment
+            Y_rev = K.permute_dimensions((1, 0, 2))
+            Y_rev = [::-1]
+            Y_rev = K.permute_dimensions((1, 0, 2))
 
         if self.merge_mode == 'concat':
             return K.concatenate([Y, Y_rev])
