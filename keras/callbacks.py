@@ -426,7 +426,8 @@ class TensorBoard(Callback):
                 tf.histogram_summary("{}_out".format(n),
                                      c_node.get_output())
         self.merged = tf.merge_all_summaries()
-        self.writer = tf.train.SummaryWriter(log_file, self.sess.graph_def)
+        self.writer = tf.train.SummaryWriter(self.log_file,
+                                             self.sess.graph_def)
 
     def on_epoch_end(self, epoch, logs={}):
         if epoch % self.freq == 0:
