@@ -80,6 +80,10 @@ def get_method_signature(method):
     for a in args:
         st += str(a) + ', '
     for a, v in kwargs:
+        if  type(v) == str:
+            v = '\'' + v + '\''
+        elif type(v) == unicode:
+            v = 'u\'' + v + '\''
         st += str(a) + '=' + str(v) + ', '
     if kwargs or args:
         return st[:-2] + ')'
