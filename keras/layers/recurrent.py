@@ -5,7 +5,8 @@ import numpy as np
 from .. import backend as K
 from .. import activations, initializations
 from ..layers.core import MaskedLayer
-
+from copy import deeply
+from warnings import warn
 
 class Recurrent(MaskedLayer):
     '''Abstract base class for recurrent layers.
@@ -466,7 +467,7 @@ class Bidirectional(MaskedLayer):
         merge_mode: Mode by which outputs of the forward and reverse RNNs will be combined. One of {sum, mul, concat, ave}
 
     # TensorFlow warning
-        BidirectionalRNN only works with Theano for the time being.
+        Limited accuracy for Bidirectional when using TensorFlow backend
     
     # Examples:
     ```python
@@ -481,11 +482,12 @@ class Bidirectional(MaskedLayer):
     ```
     '''
     def __init__(self, rnn, merge_mode='concat', weights=None):
+
         if K._BACKEND != 'theano':
-            raise Exception("Bidirectional will only work with Theano.")
-        import copy
+            warn('Bidirectional layers with input mask are fully supported only when using theano backend')
+
         self.forward = rnn
-        self.reverse = copy.deepcopy(rnn)
+        self.reverse = deepcopy(rnn)
         self.merge_mode = merge_mode
         if weights:
             nw = len(weights)
@@ -540,13 +542,13 @@ class Bidirectional(MaskedLayer):
             mask_rev = K.permute_dimensions(mask_rev, (1, 0))
             mask_rev = mask_rev[::-1]
             mask_rev = K.permute_dimensions(mask_rev, (1, 0))
-
-            #convert right padding to left padding
-            shifts = K.sum(mask_rev, axis=1)
-            import theano
-            X_rev, _ = theano.scan(lambda x, i: theano.tensor.roll(x, -i, 0),
+            if K._BACKEND == 'theano':
+                #convert right padding to left padding
+                shifts = K.sum(mask_rev, axis=1)
+                import theano
+                X_rev, _ = theano.scan(lambda x, i: theano.tensor.roll(x, -i, 0),
                              sequences=[X_rev, shifts])
-            mask_rev = mask
+                mask_rev = mask
 
         Y = self.forward(X, mask)
         Y_rev = self.reverse(X_rev, mask_rev)
