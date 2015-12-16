@@ -458,7 +458,7 @@ class LSTM(Recurrent):
         return dict(list(base_config.items()) + list(config.items()))
 
 
-class BidirectionalRNN(MaskedLayer):
+class Bidirectional(MaskedLayer):
     ''' Bidirectional wrapper for RNNs
 
     # Arguments:
@@ -482,7 +482,7 @@ class BidirectionalRNN(MaskedLayer):
     '''
     def __init__(self, rnn, merge_mode='concat', weights=None):
         if K._BACKEND != 'theano':
-            raise Exception("BidirectionalRNN will only work with Theano.")
+            raise Exception("Bidirectional will only work with Theano.")
         import copy
         self.forward = rnn
         self.reverse = copy.deepcopy(rnn)
