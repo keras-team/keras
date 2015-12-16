@@ -58,9 +58,9 @@ script:
   - sed -i -e 's/"backend":[[:space:]]*"[^"]*/"backend":\ "'$KERAS_BACKEND'/g' ~/.keras/keras.json;
   - echo -e "Running tests with the following config:\n$(cat ~/.keras/keras.json)"
   - if [[ "$INTEGRATION_TESTS" == "true" ]]; then
-       PYTHONPATH=$PWD:$PYTHONPATH py.test integration_tests/;
+       PYTHONPATH=$PWD:$PYTHONPATH py.test tests/integration_tests;
     else
-       PYTHONPATH=$PWD:$PYTHONPATH py.test tests/;
+       PYTHONPATH=$PWD:$PYTHONPATH py.test tests/ --ignore=tests/integration_tests;
     fi
 after_success:
   - coveralls
