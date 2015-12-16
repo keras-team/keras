@@ -487,11 +487,10 @@ class BidirectionalRNN(MaskedLayer):
         self.forward = rnn
         self.reverse = copy.deepcopy(rnn)
         self.merge_mode = merge_mode
-        if not weights:
-            weights = [None, None]
-        nw = len(weights)
-        self.forward.initial_weights = weights[:nw/2]
-        self.reverse.initial_weights = weights[nw/2:]
+        if weights:
+            nw = len(weights)
+            self.forward.initial_weights = weights[:nw/2]
+            self.reverse.initial_weights = weights[nw/2:]
         self._cache_enabled = True
 
     def get_weights(self):
