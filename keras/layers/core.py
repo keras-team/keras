@@ -1726,8 +1726,9 @@ def add_shared_layer(layer, inputs):
         inputs[i].add(s)
         inputs[i].add(sh)
 
+
 class Highway(Layer):
-    '''Densely connected highway network, 
+    '''Densely connected highway network,
     a natural extension of LSTMs to feedforward networks
 
     cite: http://arxiv.org/pdf/1505.00387v2.pdf
@@ -1768,7 +1769,8 @@ class Highway(Layer):
     '''
     input_ndim = 2
 
-    def __init__(self, init='glorot_uniform', transform_bias=-2, activation='linear', weights=None,
+    def __init__(self, init='glorot_uniform', transform_bias=-2,
+                 activation='linear', weights=None,
                  W_regularizer=None, b_regularizer=None, activity_regularizer=None,
                  W_constraint=None, b_constraint=None, input_dim=None, **kwargs):
         self.init = initializations.get(init)
@@ -1796,9 +1798,9 @@ class Highway(Layer):
 
         self.W = self.init((input_dim, input_dim))
         self.W_carry = self.init((input_dim, input_dim))
-        
+
         self.b = K.zeros((input_dim,))
-        # -- initialize with a vector of values `transform_bias`
+        # initialize with a vector of values `transform_bias`
         self.b_carry = K.variable(np.ones((input_dim,)) * self.transform_bias)
 
         self.params = [self.W, self.b, self.W_carry, self.b_carry]
@@ -1845,4 +1847,3 @@ class Highway(Layer):
                   "input_dim": self.input_dim}
         base_config = super(Highway, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
-
