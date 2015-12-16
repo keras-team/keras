@@ -79,7 +79,7 @@ def weighted_objective(fn):
             score_array *= mask
             #  the loss per batch should be proportional
             #  to the number of unmasked sampled.
-            score_array /= K.mean(mask)
+            score_array /= K.mean(mask, axis= -1, keepdims = True)
 
         # reduce score_array to 1D
         ndim = K.ndim(score_array)
