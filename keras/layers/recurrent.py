@@ -556,9 +556,9 @@ class Bidirectional(MaskedLayer):
         
         if self.forward.return_sequences:
             #Fix allignment
-            Y_rev = K.permute_dimensions((1, 0, 2))
+            Y_rev = K.permute_dimensions(Y_rev, (1, 0, 2))
             Y_rev = Y_rev[::-1]
-            Y_rev = K.permute_dimensions((1, 0, 2))
+            Y_rev = K.permute_dimensions(Y_rev, (1, 0, 2))
             #convert right padding to left padding
             if mask and K._BACKEND == 'theano':
                 Y_rev, _ = theano.scan(lambda x, i: theano.tensor.roll(x, -i, 0),
