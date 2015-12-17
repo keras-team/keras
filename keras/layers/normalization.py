@@ -4,7 +4,9 @@ from .. import backend as K
 
 
 class BatchNormalization(Layer):
-    '''Normalize the activations of the previous layer at each batch.
+    '''Normalize the activations of the previous layer at each batch,
+    i.e. applies a transformation that maintains the mean activation
+    close to 0. and the activation standard deviation close to 1.
 
     # Input shape
         Arbitrary. Use the keyword argument `input_shape`
@@ -18,7 +20,13 @@ class BatchNormalization(Layer):
         epsilon: small float > 0. Fuzz parameter.
         mode: integer, 0 or 1.
             - 0: feature-wise normalization.
-            - 1: sample-wise normalization.
+                If the input has multiple feature dimensions,
+                each will be normalized separately
+                (e.g. for an image input with shape
+                `(channels, rows, cols)`,
+                each combination of a channel, row and column
+                will be normalized separately).
+            - 1: sample-wise normalization. This mode assumes a 2D input.
         momentum: momentum in the computation of the
             exponential average of the mean and standard deviation
             of the data, for feature-wise normalization.
