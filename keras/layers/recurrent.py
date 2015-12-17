@@ -557,8 +557,10 @@ class Bidirectional(MaskedLayer):
         if self.forward.return_sequences:
             #Fix allignment
             Y_rev = K.permute_dimensions((1, 0, 2))
-            Y_rev = [::-1]
+            Y_rev = Y_rev[::-1]
             Y_rev = K.permute_dimensions((1, 0, 2))
+            #convert right padding to left padding
+            
 
         if self.merge_mode == 'concat':
             return K.concatenate([Y, Y_rev])
