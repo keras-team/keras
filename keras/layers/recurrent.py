@@ -326,7 +326,7 @@ class GRU(Recurrent):
         z = self.inner_activation(x_z + K.dot(h_tm1, self.U_z))
         r = self.inner_activation(x_r + K.dot(h_tm1, self.U_r))
 
-        hh = self.inner_activation(x_h + K.dot(r * h_tm1, self.U_h))
+        hh = self.activation(x_h + K.dot(r * h_tm1, self.U_h))
         h = z * h_tm1 + (1 - z) * hh
         return h, [h]
 

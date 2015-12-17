@@ -120,7 +120,7 @@ class ModelToDot(object):
         self.g = pydot.Dot()
         self.g.set('rankdir', 'TB')
         self.g.set('concentrate', True)
-        self.g.set_node_defaults(shape='record', fontname="Fira Mono")
+        self.g.set_node_defaults(shape='record')
 
         if hasattr(model, 'outputs'):
             # Graph
