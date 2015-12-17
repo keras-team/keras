@@ -28,11 +28,11 @@ def _runner(layer_class):
     so we can run through them with a single function.
     """
     for ret_seq in [True, False]:
+        _test_bidirectional(layer_class(output_dim, return_sequences=ret_seq, input_shape=(timesteps, input_dim)))
         layer = layer_class(output_dim, return_sequences=ret_seq,
                             weights=None, input_shape=(timesteps, input_dim))
         layer.input = K.variable(np.ones((nb_samples, timesteps, input_dim)))
         layer.get_config()
-        _test_bidirectional(layer)
         for train in [True, False]:
             out = K.eval(layer.get_output(train))
             # Make sure the output has the desired shape
