@@ -23,6 +23,15 @@ It probably looks like this:
 
 Simply change the field `backend` to either `"theano"` or `"tensorflow"`, and Keras will use the new configuration next time you run any Keras code.
 
+You can also define the environment variable ``KERAS_BACKEND`` and this will
+override what is defined in your config file :
+
+```bash
+KERAS_BACKEND=tensorflow python -c "from keras import backend; print backend._BACKEND"
+Using TensorFlow backend.
+tensorflow
+```
+
 ## Using the abstract Keras backend to write new code
 
 If you want the Keras modules you write to be compatible with both Theano and TensorFlow, you have to write them via the abstract Keras backend API. Here's an intro.
