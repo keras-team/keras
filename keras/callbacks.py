@@ -420,13 +420,13 @@ class TensorBoard(Callback):
         # TODO: test inserting batches or the full data to tensorflow
         # to monitor loss and accuracy
         if type(self.model) == keras.models.Sequential:
-            layers = {l.get_config()['name'] for l in self.model.layers}
+            layers = {l.get_config()['name']: l for l in self.model.layers}
             # val_outs = self.model._test_loop(val_f, val_ins,
             #                                  batch_size=batch_size,
             #                                  verbose=0)
         elif type(self.model) == keras.models.Graph:
             layers = self.model.nodes
-
+        # print(layers)
         for l in layers:
             cur_layer = layers[l]
             if hasattr(cur_layer, 'W'):
