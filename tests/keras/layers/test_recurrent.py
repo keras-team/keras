@@ -3,6 +3,7 @@ import numpy as np
 from numpy.testing import assert_allclose
 
 from keras.layers import recurrent
+from keras.layers.recurrent import Bidirectional
 from keras import backend as K
 from keras.models import Sequential
 
