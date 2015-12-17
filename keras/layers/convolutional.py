@@ -609,7 +609,7 @@ class UpSampling1D(Layer):
 
     def get_output(self, train=False):
         X = self.get_input(train)
-        output = K.concatenate([X] * self.length, axis=1)
+        output = K.repeat_elements(X, self.length, axis=1)
         return output
 
     def get_config(self):
@@ -669,11 +669,11 @@ class UpSampling2D(Layer):
     def get_output(self, train=False):
         X = self.get_input(train)
         if self.dim_ordering == 'th':
-            output = K.concatenate([X] * self.size[0], axis=2)
-            output = K.concatenate([output] * self.size[1], axis=3)
+            output = K.repeat_elements(X, self.size[0], axis=2)
+            output = K.repeat_elements(output, self.size[1], axis=3)
         elif self.dim_ordering == 'tf':
-            output = K.concatenate([X] * self.size[0], axis=1)
-            output = K.concatenate([output] * self.size[1], axis=2)
+            output = K.repeat_elements(X, self.size[0], axis=1)
+            output = K.repeat_elements(output, self.size[1], axis=2)
         else:
             raise Exception('Invalid dim_ordering: ' + self.dim_ordering)
         return output
