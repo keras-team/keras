@@ -418,7 +418,7 @@ class TensorBoard(Callback):
         # we don't need to store the summaries for now
 
         # TODO: test inserting batches or the full data to tensorflow
-        # to monitor loss and accuracy
+        # to monitor loss and accuracy wia the ._test_loop method
         if type(self.model) == keras.models.Sequential:
             layers = {l.get_config()['name']: l for l in self.model.layers}
             # val_outs = self.model._test_loop(val_f, val_ins,
