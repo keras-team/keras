@@ -72,7 +72,7 @@ class TestBackend(object):
             arr_th = KTH.variable(arr)
             arr_tf = KTF.variable(arr)
 
-            for rep_axis in xrange(ndims):
+            for rep_axis in range(ndims):
                 np_rep = np.repeat(arr, reps, axis=rep_axis)
                 th_rep = KTH.eval(
                     KTH.repeat_elements(arr_th, reps, axis=rep_axis))

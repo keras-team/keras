@@ -245,7 +245,7 @@ def repeat_elements(x, rep, axis):
     # slices along the repeat axis
     splits = tf.split(axis, x_shape[axis], x)
     # repeat each slice the given number of reps
-    x_rep = [s for s in splits for i in xrange(rep)]
+    x_rep = [s for s in splits for i in range(rep)]
     return tf.concat(axis, x_rep)
 
 
