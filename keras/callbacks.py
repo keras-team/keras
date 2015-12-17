@@ -402,12 +402,13 @@ class TensorBoard(Callback):
         log_file: the path of the directory where to save the log
             files to be parsed by tensorboard
     '''
-    def __init__(self, model, feed, freq=2, log_file="./logs"):
+    def __init__(self, model, feed, freq=2, log_file='./logs'):
         super(Callback, self).__init__()
         assert _BACKEND == 'tensorflow', \
             'Tensorboard callback only works with the tensorflow backend'
         import tensorflow as tf
         import keras.backend.tensorflow_backend as tfbe
+        import keras
 
         self.model = model
         self.freq = freq
@@ -418,19 +419,27 @@ class TensorBoard(Callback):
 
         for n in self.model.nodes:
             c_node = self.model.nodes[n]
-            if hasattr(c_node, "W"):
-                tf.histogram_summary("{}_W".format(n), c_node.W)
-            if hasattr(c_node, "b"):
-                tf.histogram_summary("{}_b".format(n), c_node.b)
-            if hasattr(c_node, "get_output"):
-                tf.histogram_summary("{}_out".format(n),
+            if hasattr(c_node, 'W'):
+                tf.histogram_summary('{}_W'.format(n), c_node.W)
+                # tf.image_summary('{}_W'.format(n), c_node.W)
+            if hasattr(c_node, 'b'):
+                tf.histogram_summary('{}_b'.format(n), c_node.b)
+            if hasattr(c_node, 'get_output'):
+                tf.histogram_summary('{}_out'.format(n),
                                      c_node.get_output())
+            # tf.scalar_summary('loss', self.model._train)
+            # TODO: test inserting batches or the full data to tensorflow
         self.merged = tf.merge_all_summaries()
         self.writer = tf.train.SummaryWriter(self.log_file,
                                              self.sess.graph_def)
+        if type(model) == keras.models.Sequential:
+            pass
+        elif type(model) == keras.models.Graph:
+            pass
 
     def on_epoch_end(self, epoch, logs={}):
         if epoch % self.freq == 0:
-            result = self.sess.run([self.merged], feed_dict=self.feed)
+            result = self.sess.run([self.merged],
+                                   feed_dict=self.feed)
             summary_str = result[0]
             self.writer.add_summary(summary_str, epoch)
