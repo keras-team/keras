@@ -537,7 +537,7 @@ class Bidirectional(MaskedLayer):
         X_rev = K.permute_dimensions(X_rev, (1, 0, 2))
 
         mask_rev = mask
-
+        shifts = None
         if mask:
             mask_rev = K.permute_dimensions(mask_rev, (1, 0))
             mask_rev = mask_rev[::-1]
@@ -560,7 +560,9 @@ class Bidirectional(MaskedLayer):
             Y_rev = Y_rev[::-1]
             Y_rev = K.permute_dimensions((1, 0, 2))
             #convert right padding to left padding
-            
+            if mask and K._BACKEND == 'theano':
+                Y_rev, _ = theano.scan(lambda x, i: theano.tensor.roll(x, -i, 0),
+                                sequences=[Y_rev, shifts])
 
         if self.merge_mode == 'concat':
             return K.concatenate([Y, Y_rev])
