@@ -417,25 +417,29 @@ class TensorBoard(Callback):
         self.feed = feed
         # we don't need to store the summaries for now
 
-        for n in self.model.nodes:
-            c_node = self.model.nodes[n]
-            if hasattr(c_node, 'W'):
-                tf.histogram_summary('{}_W'.format(n), c_node.W)
-                # tf.image_summary('{}_W'.format(n), c_node.W)
-            if hasattr(c_node, 'b'):
-                tf.histogram_summary('{}_b'.format(n), c_node.b)
-            if hasattr(c_node, 'get_output'):
-                tf.histogram_summary('{}_out'.format(n),
-                                     c_node.get_output())
-            # tf.scalar_summary('loss', self.model._train)
-            # TODO: test inserting batches or the full data to tensorflow
+        # TODO: test inserting batches or the full data to tensorflow
+        # to monitor loss and accuracy
+        if type(self.model) == keras.models.Sequential:
+            layers = {l.get_config()['name'] for l in self.model.layers}
+            # val_outs = self.model._test_loop(val_f, val_ins,
+            #                                  batch_size=batch_size,
+            #                                  verbose=0)
+        elif type(self.model) == keras.models.Graph:
+            layers = self.model.nodes
+
+        for l in layers:
+            cur_layer = layers[l]
+            if hasattr(cur_layer, 'W'):
+                tf.histogram_summary('{}_W'.format(l), cur_layer.W)
+                # tf.image_summary('{}_W'.format(n), cur_layer.W)
+            if hasattr(cur_layer, 'b'):
+                tf.histogram_summary('{}_b'.format(l), cur_layer.b)
+            if hasattr(cur_layer, 'get_output'):
+                tf.histogram_summary('{}_out'.format(l),
+                                     cur_layer.get_output())
         self.merged = tf.merge_all_summaries()
         self.writer = tf.train.SummaryWriter(self.log_file,
                                              self.sess.graph_def)
-        if type(model) == keras.models.Sequential:
-            pass
-        elif type(model) == keras.models.Graph:
-            pass
 
     def on_epoch_end(self, epoch, logs={}):
         if epoch % self.freq == 0:
