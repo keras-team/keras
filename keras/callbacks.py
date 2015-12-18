@@ -413,7 +413,7 @@ class TensorBoard(Callback):
 
         self.model = model
         self.freq = freq
-        self.log_file = log_file
+        self.log_dir = log_dir
         self.sess = tfbe._get_session()
         self.feed = feed
 
@@ -437,7 +437,7 @@ class TensorBoard(Callback):
                           self.model._test.outputs[0])
         self.merged = tf.merge_all_summaries()
         print(self.merged)
-        self.writer = tf.train.SummaryWriter(self.log_file,
+        self.writer = tf.train.SummaryWriter(self.log_dir,
                                              self.sess.graph_def)
 
     def on_epoch_end(self, epoch, logs={}):
