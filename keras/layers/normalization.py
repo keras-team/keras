@@ -50,12 +50,12 @@ class BatchNormalization(Layer):
         input_shape = self.input_shape  # starts with samples axis
         input_shape = input_shape[1:]
 
-        self.gamma = self.init((input_shape))
+        self.gamma = self.init(input_shape)
         self.beta = K.zeros(input_shape)
 
         self.params = [self.gamma, self.beta]
         self.running_mean = K.zeros(input_shape)
-        self.running_std = K.ones((input_shape))
+        self.running_std = K.ones(input_shape)
 
         # initialize self.updates: batch mean/std computation
         X = self.get_input(train=True)
