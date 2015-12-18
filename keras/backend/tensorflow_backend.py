@@ -406,16 +406,7 @@ def rnn(step_function, inputs, initial_states,
     for input, mask_t in zip(input_list, mask_list):
         output, new_states = step_function(input, states)
 
-        # tile the mask to be the same shape as input, due to semantics of tf.select
-        # below (it doesn't broadcast the condition parameter)
-        #mask_t = tf.tile(mask_t, tf.pack([ 1, tf.shape(output)[1]]))
-
-        # if all-zero input timestep, return
-        # all-zero output and unchanged states
-        #output = tf.python.control_flow_ops.cond(mask_t[0],
-                                                 #lambda: output,
-                                                 #lambda: zeros_like(output))
-        output = broadcasting_select(mask_t, output, zeros_like(output))
+        output = broadcasting_select(mask_t, output, states[0])
         return_states = []
         for state, new_state in zip(states, new_states):
             return_states.append(broadcasting_select(mask_t, new_state, state))
