@@ -31,6 +31,11 @@ else:
         # add new line in order for bash 'cat' display the content correctly
         f.write(json.dumps(_config) + '\n')
 
+if 'KERAS_BACKEND' in os.environ:
+    _backend = os.environ['KERAS_BACKEND']
+    assert _backend in {'theano', 'tensorflow'}
+    _BACKEND = _backend
+
 if _BACKEND == 'theano':
     print('Using Theano backend.')
     from .theano_backend import *
