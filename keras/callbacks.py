@@ -438,7 +438,6 @@ class TensorBoard(Callback):
         tf.scalar_summary(self.model._test.outputs[0].name,
                           self.model._test.outputs[0])
         self.merged = tf.merge_all_summaries()
-        print(self.merged)
         self.writer = tf.train.SummaryWriter(self.log_dir,
                                              self.sess.graph_def)
 
