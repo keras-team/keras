@@ -42,6 +42,8 @@ def _get_test_data():
 ####################
 
 def test_sequential_fit_generator():
+    (X_train, y_train), (X_test, y_test) = _get_test_data()
+
     def data_generator(train):
         if train:
             max_batch_index = len(X_train) // batch_size
