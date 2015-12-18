@@ -9,7 +9,7 @@ References:
   "End-To-End Memory Networks",
   http://arxiv.org/abs/1503.08895
 
-Reaches 93% accuracy on task 'single_supporting_fact_10k' after 70 epochs.
+Reaches 95% accuracy on task 'single_supporting_fact_10k' after 65 epochs.
 Time per epoch: 3s on CPU (core i7).
 '''
 
@@ -25,6 +25,7 @@ import tarfile
 import numpy as np
 import re
 
+np.random.seed(1337)
 
 def tokenize(sent):
     '''Return the tokens of a sentence including punctuation.
@@ -184,10 +185,11 @@ response.add(Permute((2, 1)))  # output: (samples, query_maxlen, story_maxlen)
 answer = Sequential()
 answer.add(Merge([response, question_encoder], mode='concat', concat_axis=-1))
 # the original paper uses a matrix multiplication for this reduction step.
-# we choose to use a RNN instead.
-answer.add(LSTM(64))
-# one regularization layer -- more would probably be needed.
-answer.add(Dropout(0.25))
+# we choose to use a RNN stack instead.
+answer.add(LSTM(30, return_sequences=True))
+answer.add(Dropout(0.5))
+answer.add(LSTM(30))
+answer.add(Dropout(0.5))
 answer.add(Dense(vocab_size))
 # we output a probability distribution over the vocabulary
 answer.add(Activation('softmax'))
