@@ -357,10 +357,10 @@ class Function(object):
         return self.function(*inputs)
 
 
-def function(inputs, outputs, updates=[], debug_nan=False):
+def function(inputs, outputs, updates=[]):
     mode = None
     if _DEBUG_MODE == 'detect_nan':  # use suggested Theano detect_nan implementation
-        mode = theano.compile.MonitorMode(post_func=theano.compile.monitormode.detect_nan).excluding('local_elemwise_fusion', 'inplace')
+        mode = 'NanGuardMode'
     return Function(inputs, outputs, updates=updates, mode=mode)
 
 
