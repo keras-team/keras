@@ -139,7 +139,7 @@ def test_merge_sum():
     model.fit([X_train, X_train], y_train, batch_size=batch_size, nb_epoch=nb_epoch, verbose=0, shuffle=False)
 
     loss = model.evaluate([X_test, X_test], y_test, verbose=0)
-    assert(loss < 0.7)
+    assert(loss < 0.8)
 
     model.predict([X_test, X_test], verbose=0)
     model.predict_classes([X_test, X_test], verbose=0)
@@ -224,7 +224,7 @@ def test_merge_concat():
     model.fit([X_train, X_train], y_train, batch_size=batch_size, nb_epoch=nb_epoch, verbose=0, shuffle=False)
 
     loss = model.evaluate([X_test, X_test], y_test, verbose=0)
-    assert(loss < 0.7)
+    assert(loss < 0.8)
 
     model.predict([X_test, X_test], verbose=0)
     model.predict_classes([X_test, X_test], verbose=0)
@@ -287,7 +287,7 @@ def test_merge_recursivity():
     model.fit([X_train, X_train, X_train], y_train, batch_size=batch_size, nb_epoch=nb_epoch, verbose=0, shuffle=False)
 
     loss = model.evaluate([X_test, X_test, X_test], y_test, verbose=0)
-    assert(loss < 0.7)
+    assert(loss < 0.8)
 
     model.predict([X_test, X_test, X_test], verbose=0)
     model.predict_classes([X_test, X_test, X_test], verbose=0)
@@ -375,7 +375,7 @@ def test_lambda():
     model.fit([X_train, X_train], y_train, batch_size=batch_size, nb_epoch=nb_epoch, verbose=0, shuffle=False)
 
     loss = model.evaluate([X_test, X_test], y_test, verbose=0)
-    assert(loss < 0.7)
+    assert(loss < 0.8)
 
     model.predict([X_test, X_test], verbose=0)
     model.predict_classes([X_test, X_test], verbose=0)
