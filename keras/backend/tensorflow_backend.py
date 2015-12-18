@@ -206,6 +206,9 @@ def clip(x, min_value, max_value):
 def equal(x, y):
     return tf.equal(x, y)
 
+def not_equal(x, y):
+    return tf.not_equal(x, y)
+
 
 def maximum(x, y):
     return tf.maximum(x, y)

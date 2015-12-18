@@ -213,6 +213,9 @@ def clip(x, min_value, max_value):
 def equal(x, y):
     return T.eq(x, y)
 
+def not_equal(x, y):
+    return T.neq(x, y)
+
 
 def maximum(x, y):
     return T.maximum(x, y)
@@ -412,17 +415,17 @@ def rnn(step_function, inputs, initial_states,
     '''
     inputs = inputs.dimshuffle((1, 0, 2))
     if mask is None:
-        mask = expand_dims(ones_like(tf.sum(inputs, axis=-1)))
+        mask = expand_dims(ones_like(T.sum(inputs, axis=-1)))
     else:
         mask = mask.dimshuffle((1, 0, 2))
 
     def _step(input, mask, *states):
         output, new_states = step_function(input, states)
-        output = T.switch(mask, output, zeros_like(output))
+        output = T.switch(mask, output, states[0]) # output previous output if masked.
         return_states = []
         for state, new_state in zip(states, new_states):
             return_states.append(T.switch(mask, new_state, state))
-        return [output] + new_states
+        return [output] + return_states
 
     results, _ = theano.scan(
         _step,
