@@ -41,6 +41,36 @@ def _get_test_data():
 # SEQUENTIAL TEST  #
 ####################
 
+def test_sequential_fit_generator():
+    def data_generator(train):
+        if train:
+            max_batch_index = len(X_train) // batch_size
+        else:
+            max_batch_index = len(X_test) // batch_size
+        i = 0
+        while 1:
+            if train:
+                yield (X_train[i * batch_size: (i + 1) * batch_size], y_train[i * batch_size: (i + 1) * batch_size])
+            else:
+                yield (X_test[i * batch_size: (i + 1) * batch_size], y_test[i * batch_size: (i + 1) * batch_size])
+            i += 1
+            i = i % max_batch_index
+
+    model = Sequential()
+    model.add(Dense(nb_hidden, input_shape=(input_dim,)))
+    model.add(Activation('relu'))
+    model.add(Dense(nb_class))
+    model.add(Activation('softmax'))
+    model.compile(loss='categorical_crossentropy', optimizer='rmsprop')
+
+    model.fit_generator(data_generator(True), len(X_train), nb_epoch, show_accuracy=False)
+    model.fit_generator(data_generator(True), len(X_train), nb_epoch, show_accuracy=True)
+    model.fit_generator(data_generator(True), len(X_train), nb_epoch, show_accuracy=False, validation_data=(X_test, y_test))
+    model.fit_generator(data_generator(True), len(X_train), nb_epoch, show_accuracy=True, validation_data=(X_test, y_test))
+
+    loss = model.evaluate(X_train, y_train, verbose=0)
+    assert(loss < 0.8)
+
 
 def test_sequential():
     (X_train, y_train), (X_test, y_test) = _get_test_data()
@@ -62,7 +92,7 @@ def test_sequential():
 
     model.train_on_batch(X_train[:32], y_train[:32])
 
-    loss = model.evaluate(X_train, y_train, verbose=0)
+    loss = model.evaluate(X_test, y_test, verbose=0)
     assert(loss < 0.8)
 
     model.predict(X_test, verbose=0)
@@ -81,7 +111,7 @@ def test_sequential():
     model.load_weights(fname)
     os.remove(fname)
 
-    nloss = model.evaluate(X_train, y_train, verbose=0)
+    nloss = model.evaluate(X_test, y_test, verbose=0)
     assert(loss == nloss)
 
     # test json serialization
@@ -116,7 +146,7 @@ def test_merge_sum():
     model.fit([X_train, X_train], y_train, batch_size=batch_size, nb_epoch=nb_epoch, verbose=0)
     model.fit([X_train, X_train], y_train, batch_size=batch_size, nb_epoch=nb_epoch, verbose=0, shuffle=False)
 
-    loss = model.evaluate([X_train, X_train], y_train, verbose=0)
+    loss = model.evaluate([X_test, X_test], y_test, verbose=0)
     assert(loss < 0.7)
 
     model.predict([X_test, X_test], verbose=0)
@@ -141,7 +171,7 @@ def test_merge_sum():
     os.remove(fname)
     model.compile(loss='categorical_crossentropy', optimizer='rmsprop')
 
-    nloss = model.evaluate([X_train, X_train], y_train, verbose=0)
+    nloss = model.evaluate([X_test, X_test], y_test, verbose=0)
     assert(loss == nloss)
 
 
@@ -205,7 +235,7 @@ def test_merge_concat():
     model.fit([X_train, X_train], y_train, batch_size=batch_size, nb_epoch=nb_epoch, verbose=0)
     model.fit([X_train, X_train], y_train, batch_size=batch_size, nb_epoch=nb_epoch, verbose=0, shuffle=False)
 
-    loss = model.evaluate([X_train, X_train], y_train, verbose=0)
+    loss = model.evaluate([X_test, X_test], y_test, verbose=0)
     assert(loss < 0.7)
 
     model.predict([X_test, X_test], verbose=0)
@@ -233,7 +263,7 @@ def test_merge_concat():
     model.load_weights(fname)
     os.remove(fname)
 
-    nloss = model.evaluate([X_train, X_train], y_train, verbose=0)
+    nloss = model.evaluate([X_test, X_test], y_test, verbose=0)
     assert(loss == nloss)
 
 
@@ -269,7 +299,7 @@ def test_merge_recursivity():
     model.fit([X_train, X_train, X_train], y_train, batch_size=batch_size, nb_epoch=nb_epoch, verbose=0)
     model.fit([X_train, X_train, X_train], y_train, batch_size=batch_size, nb_epoch=nb_epoch, verbose=0, shuffle=False)
 
-    loss = model.evaluate([X_train, X_train, X_train], y_train, verbose=0)
+    loss = model.evaluate([X_test, X_test, X_test], y_test, verbose=0)
     assert(loss < 0.7)
 
     model.predict([X_test, X_test, X_test], verbose=0)
@@ -282,7 +312,7 @@ def test_merge_recursivity():
     model.load_weights(fname)
     os.remove(fname)
 
-    nloss = model.evaluate([X_train, X_train, X_train], y_train, verbose=0)
+    nloss = model.evaluate([X_test, X_test, X_test], y_test, verbose=0)
     assert(loss == nloss)
 
 
@@ -307,7 +337,7 @@ def test_merge_overlap():
 
     model.train_on_batch(X_train[:32], y_train[:32])
 
-    loss = model.evaluate(X_train, y_train, verbose=0)
+    loss = model.evaluate(X_test, y_test, verbose=0)
     assert(loss < 0.9)
     model.predict(X_test, verbose=0)
     model.predict_classes(X_test, verbose=0)
@@ -319,7 +349,7 @@ def test_merge_overlap():
     model.load_weights(fname)
     os.remove(fname)
 
-    nloss = model.evaluate(X_train, y_train, verbose=0)
+    nloss = model.evaluate(X_test, y_test, verbose=0)
     assert(loss == nloss)
 
 
@@ -359,7 +389,7 @@ def test_lambda():
     model.fit([X_train, X_train], y_train, batch_size=batch_size, nb_epoch=nb_epoch, verbose=0)
     model.fit([X_train, X_train], y_train, batch_size=batch_size, nb_epoch=nb_epoch, verbose=0, shuffle=False)
 
-    loss = model.evaluate([X_train, X_train], y_train, verbose=0)
+    loss = model.evaluate([X_test, X_test], y_test, verbose=0)
     assert(loss < 0.7)
 
     model.predict([X_test, X_test], verbose=0)
@@ -385,7 +415,7 @@ def test_lambda():
     model.compile(loss='categorical_crossentropy', optimizer='rmsprop')
     os.remove(fname)
 
-    nloss = model.evaluate([X_train, X_train], y_train, verbose=0)
+    nloss = model.evaluate([X_test, X_test], y_test, verbose=0)
     assert(loss == nloss)
 
 
@@ -432,7 +462,7 @@ def test_siamese_1():
     model.fit([X_train, X_train], y_train, batch_size=batch_size, nb_epoch=nb_epoch, verbose=0)
     model.fit([X_train, X_train], y_train, batch_size=batch_size, nb_epoch=nb_epoch, verbose=0, shuffle=False)
 
-    loss = model.evaluate([X_train, X_train], y_train, verbose=0)
+    loss = model.evaluate([X_test, X_test], y_test, verbose=0)
     assert(loss < 0.8)
 
     model.predict([X_test, X_test], verbose=0)
@@ -460,7 +490,7 @@ def test_siamese_1():
     os.remove(fname)
     model.compile(loss='categorical_crossentropy', optimizer='rmsprop')
 
-    nloss = model.evaluate([X_train, X_train], y_train, verbose=0)
+    nloss = model.evaluate([X_test, X_test], y_test, verbose=0)
     assert(loss == nloss)
 
 
@@ -494,7 +524,7 @@ def test_siamese_2():
     model.fit([X_train, X_train], y_train, batch_size=batch_size, nb_epoch=nb_epoch, verbose=0)
     model.fit([X_train, X_train], y_train, batch_size=batch_size, nb_epoch=nb_epoch, verbose=0, shuffle=False)
 
-    loss = model.evaluate([X_train, X_train], y_train, verbose=0)
+    loss = model.evaluate([X_test, X_test], y_test, verbose=0)
     assert(loss < 0.8)
 
     model.predict([X_test, X_test], verbose=0)
@@ -529,7 +559,7 @@ def test_siamese_2():
     os.remove(fname)
     model.compile(loss='categorical_crossentropy', optimizer='rmsprop')
 
-    nloss = model.evaluate([X_train, X_train], y_train, verbose=0)
+    nloss = model.evaluate([X_test, X_test], y_test, verbose=0)
     assert(loss == nloss)
 
 
@@ -547,6 +577,35 @@ def test_siamese_2():
                                                                                  input_shape=(32,),
                                                                                  classification=False,
                                                                                  output_shape=(1,))
+
+
+def test_graph_fit_generator():
+    def data_generator_graph(train):
+        while 1:
+            if train:
+                yield {'input1': X_train_graph, 'output1': y_train_graph}
+            else:
+                yield {'input1': X_test_graph, 'output1': y_test_graph}
+
+    graph = Graph()
+    graph.add_input(name='input1', input_shape=(32,))
+
+    graph.add_node(Dense(16), name='dense1', input='input1')
+    graph.add_node(Dense(4), name='dense2', input='input1')
+    graph.add_node(Dense(4), name='dense3', input='dense1')
+
+    graph.add_output(name='output1',
+                     inputs=['dense2', 'dense3'],
+                     merge_mode='sum')
+    graph.compile('rmsprop', {'output1': 'mse'})
+
+    graph.fit_generator(data_generator_graph(True), 1000, nb_epoch=4)
+    graph.fit_generator(data_generator_graph(True), 1000, nb_epoch=4)
+    graph.fit_generator(data_generator_graph(True), 1000, nb_epoch=4, validation_data={'input1': X_test_graph, 'output1': y_test_graph})
+    graph.fit_generator(data_generator_graph(True), 1000, nb_epoch=4, validation_data={'input1': X_test_graph, 'output1': y_test_graph})
+
+    loss = graph.evaluate({'input1': X_test_graph, 'output1': y_test_graph}, verbose=0)
+    assert(loss < 3.)
 
 
 def test_1o_1i():
@@ -572,7 +631,7 @@ def test_1o_1i():
     assert(len(out) == 1)
     loss = graph.test_on_batch({'input1': X_test_graph, 'output1': y_test_graph})
     loss = graph.train_on_batch({'input1': X_test_graph, 'output1': y_test_graph})
-    loss = graph.evaluate({'input1': X_test_graph, 'output1': y_test_graph})
+    loss = graph.evaluate({'input1': X_test_graph, 'output1': y_test_graph}, verbose=0)
     assert(loss < 2.5)
 
     # test validation split
