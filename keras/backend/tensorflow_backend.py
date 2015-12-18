@@ -350,7 +350,7 @@ def gradients(loss, variables):
 # CONTROL FLOW
 
 def rnn(step_function, inputs, initial_states,
-        go_backwards=False, masking=True):
+        go_backwards=False, mask=None):
     '''Iterates over the time dimension of a tensor.
 
     Parameters
@@ -372,10 +372,8 @@ def rnn(step_function, inputs, initial_states,
         the step function.
     go_backwards: boolean. If True, do the iteration over
         the time dimension in reverse order.
-    masking: boolean. If true, any input timestep inputs[s, i]
-        that is all-zeros will be skipped (states will be passed to
-        the next step unchanged) and the corresponding output will
-        be all zeros.
+    mask: binary tensor with shape (samples, time, 1), with a zero for every element
+        that is masked.
 
     Returns
     -------
@@ -389,32 +387,39 @@ def rnn(step_function, inputs, initial_states,
     '''
     inputs = tf.transpose(inputs, (1, 0, 2))
     input_list = tf.unpack(inputs)
+    if mask is None:
+        print("Going down branch a) mask is None")
+        mask = tf.slice(ones_like(inputs), [0,0,0], [-1,-1,1])
+    else:
+        print("Going down branch b) mask is not None")
+        mask = tf.transpose(mask, (1, 0, 2))
+    mask = tf.cast(mask, tf.bool)
 
+    mask_list = tf.unpack(mask)
+    
     states = initial_states
     successive_states = []
     successive_outputs = []
     if go_backwards:
         input_list.reverse()
-    for input in input_list:
+    for input, mask_t in zip(input_list, mask_list):
         output, new_states = step_function(input, states)
-        if masking:
-            # for now we raise an exception because tf.reduce_any will not work
-            raise Exception("Masking is Theano-only for the time being.")
 
-            # if all-zero input timestep, return
-            # all-zero output and unchanged states
-            switch = tf.reduce_any(input)
-            output = tf.python.control_flow_ops.cond(switch,
-                                                     lambda: output,
-                                                     lambda: 0. * output)
-            return_states = []
-            for state, new_state in zip(states, new_states):
-                return_states.append(tf.python.control_flow_ops.cond(switch,
-                                                                     lambda: new_state,
-                                                                     lambda: state))
-            states = return_states
-        else:
-            states = new_states
+        # tile the mask to be the same shape as input, due to semantics of tf.select
+        # below (it doesn't broadcast the condition parameter)
+        #mask_t = tf.tile(mask_t, tf.pack([ 1, tf.shape(output)[1]]))
+
+        # if all-zero input timestep, return
+        # all-zero output and unchanged states
+        #output = tf.python.control_flow_ops.cond(mask_t[0],
+                                                 #lambda: output,
+                                                 #lambda: zeros_like(output))
+        output = broadcasting_select(mask_t, output, zeros_like(output))
+        return_states = []
+        for state, new_state in zip(states, new_states):
+            return_states.append(broadcasting_select(mask_t, new_state, state))
+
+        states = return_states
         successive_outputs.append(output)
         successive_states.append(states)
 
@@ -432,6 +437,10 @@ def switch(condition, then_expression, else_expression):
     return tf.python.control_flow_ops.cond(condition,
                                            lambda: then_expression,
                                            lambda: else_expression)
+def broadcasting_select(condition, A, B):
+    ''' broadcast the 2nd dimension of condition to be the same as that of A and B '''
+    tiled_condition = tf.tile(condition, tf.pack([1, tf.shape(A)[1]]))
+    return tf.select(tiled_condition, A, B)
 
 
 # NN OPERATIONS

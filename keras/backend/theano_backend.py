@@ -412,7 +412,7 @@ def rnn(step_function, inputs, initial_states,
     '''
     inputs = inputs.dimshuffle((1, 0, 2))
     if mask is None:
-        mask = expand_dims(ones_like(T.sum(inputs, axis=-1)))
+        mask = expand_dims(ones_like(tf.sum(inputs, axis=-1)))
     else:
         mask = mask.dimshuffle((1, 0, 2))
 

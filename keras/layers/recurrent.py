@@ -125,6 +125,8 @@ class Recurrent(MaskedLayer):
     def get_output(self, train=False):
         # input shape: (nb_samples, time (padded with zeros), input_dim)
         X = self.get_input(train)
+        mask = self.get_input_mask(train)
+
         assert K.ndim(X) == 3
         if K._BACKEND == 'tensorflow':
             if not self.input_shape[1]:
@@ -134,7 +136,6 @@ class Recurrent(MaskedLayer):
                                 'has a "batch_input_shape" argument ' +
                                 'including the samples axis.')
 
-        mask = self.get_input_mask(train)
 
         if self.stateful:
             initial_states = self.states
