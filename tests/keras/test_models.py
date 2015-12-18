@@ -64,7 +64,7 @@ def test_sequential_fit_generator():
     model.fit_generator(data_generator(True), len(X_train), nb_epoch, show_accuracy=True, validation_data=(X_test, y_test))
 
     loss = model.evaluate(X_train, y_train, verbose=0)
-    assert(loss < 0.8)
+    assert(loss < 0.9)
 
 
 def test_sequential():
