@@ -287,9 +287,6 @@ def squeeze(x, axis):
 def temporal_padding(x, padding=1):
     '''Pad the middle dimension of a 3D tensor
     with "padding" zeros left and right.
-
-    Appologies for the inane API, but Theano makes this
-    really hard.
     '''
     pattern = [[0, 0], [padding, padding], [0, 0]]
     return tf.pad(x, pattern)
