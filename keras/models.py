@@ -836,7 +836,7 @@ class Sequential(Model, containers.Sequential):
             while not _stop.is_set():
                 try:
                     if generator_queue.qsize() < max_queue_size:
-                        generator_output = generator.next()
+                        generator_output = next(generator)
                         generator_queue.put(generator_output)
                         i += 1
                     else:
@@ -1255,7 +1255,7 @@ class Graph(Model, containers.Graph):
             while not _stop.is_set():
                 try:
                     if generator_queue.qsize() < max_queue_size:
-                        generator_output = generator.next()
+                        generator_output = next(generator)
                         generator_queue.put(generator_output)
                         i += 1
                     else:
@@ -1284,7 +1284,7 @@ class Graph(Model, containers.Graph):
                 data, sample_weight = input_validation(generator_output)
 
                 batch_logs = {}
-                batch_size = len(data[data.keys()[0]])
+                batch_size = len(data[list(data.keys())[0]])
                 batch_logs['batch'] = batch_index
                 batch_logs['size'] = batch_size
                 callbacks.on_batch_begin(batch_index, batch_logs)
