@@ -388,10 +388,8 @@ def rnn(step_function, inputs, initial_states,
     inputs = tf.transpose(inputs, (1, 0, 2))
     input_list = tf.unpack(inputs)
     if mask is None:
-        print("Going down branch a) mask is None")
         mask = tf.slice(ones_like(inputs), [0,0,0], [-1,-1,1])
     else:
-        print("Going down branch b) mask is not None")
         mask = tf.transpose(mask, (1, 0, 2))
     mask = tf.cast(mask, tf.bool)
 
