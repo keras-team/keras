@@ -12,7 +12,7 @@ from keras.utils import np_utils
 from keras.utils.test_utils import get_test_data
 
 import os
-from keras.utils.layer_utils import model_summary
+
 
 input_dim = 32
 nb_hidden = 16
@@ -20,16 +20,21 @@ nb_class = 4
 batch_size = 32
 nb_epoch = 1
 
-train_samples = 2000
-test_samples = 500
 
-(X_train, y_train), (X_test, y_test) = get_test_data(nb_train=train_samples,
-                                                     nb_test=test_samples,
-                                                     input_shape=(input_dim,),
-                                                     classification=True,
-                                                     nb_class=4)
-y_test = np_utils.to_categorical(y_test)
-y_train = np_utils.to_categorical(y_train)
+def _get_test_data():
+    np.random.seed(1234)
+
+    train_samples = 2000
+    test_samples = 500
+
+    (X_train, y_train), (X_test, y_test) = get_test_data(nb_train=train_samples,
+                                                         nb_test=test_samples,
+                                                         input_shape=(input_dim,),
+                                                         classification=True,
+                                                         nb_class=4)
+    y_test = np_utils.to_categorical(y_test)
+    y_train = np_utils.to_categorical(y_train)
+    return (X_train, y_train), (X_test, y_test)
 
 
 ####################
@@ -68,6 +73,8 @@ def test_sequential_fit_generator():
 
 
 def test_sequential():
+    (X_train, y_train), (X_test, y_test) = _get_test_data()
+
     model = Sequential()
     model.add(Dense(nb_hidden, input_shape=(input_dim,)))
     model.add(Activation('relu'))
@@ -117,6 +124,7 @@ def test_sequential():
 
 
 def test_merge_sum():
+    (X_train, y_train), (X_test, y_test) = _get_test_data()
     left = Sequential()
     left.add(Dense(nb_hidden, input_shape=(input_dim,)))
     left.add(Activation('relu'))
@@ -170,6 +178,8 @@ def test_merge_sum():
 @pytest.mark.skipif(K._BACKEND == 'tensorflow',
                     reason='currently not working with TensorFlow')
 def test_merge_dot():
+    (X_train, y_train), (X_test, y_test) = _get_test_data()
+
     left = Sequential()
     left.add(Dense(input_dim=input_dim, output_dim=nb_hidden))
     left.add(Activation('relu'))
@@ -202,6 +212,8 @@ def test_merge_dot():
 
 
 def test_merge_concat():
+    (X_train, y_train), (X_test, y_test) = _get_test_data()
+
     left = Sequential()
     left.add(Dense(nb_hidden, input_shape=(input_dim,)))
     left.add(Activation('relu'))
@@ -256,6 +268,7 @@ def test_merge_concat():
 
 
 def test_merge_recursivity():
+    (X_train, y_train), (X_test, y_test) = _get_test_data()
     left = Sequential()
     left.add(Dense(nb_hidden, input_shape=(input_dim,)))
     left.add(Activation('relu'))
@@ -304,6 +317,7 @@ def test_merge_recursivity():
 
 
 def test_merge_overlap():
+    (X_train, y_train), (X_test, y_test) = _get_test_data()
     left = Sequential()
     left.add(Dense(nb_hidden, input_shape=(input_dim,)))
     left.add(Activation('relu'))
@@ -340,6 +354,7 @@ def test_merge_overlap():
 
 
 def test_lambda():
+    (X_train, y_train), (X_test, y_test) = _get_test_data()
     def func(X):
         s = X[0]
         for i in range(1, len(X)):
@@ -425,6 +440,7 @@ def test_sequential_count_params():
 
 
 def test_siamese_1():
+    (X_train, y_train), (X_test, y_test) = _get_test_data()
     left = Sequential()
     left.add(Dense(nb_hidden, input_shape=(input_dim,)))
     left.add(Activation('relu'))
@@ -479,6 +495,7 @@ def test_siamese_1():
 
 
 def test_siamese_2():
+    (X_train, y_train), (X_test, y_test) = _get_test_data()
     left = Sequential()
     left.add(Dense(nb_hidden, input_shape=(input_dim,)))
     left.add(Activation('relu'))
