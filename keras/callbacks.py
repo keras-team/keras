@@ -396,48 +396,47 @@ class TensorBoard(Callback):
     # Arguments
         model: a keras model linked to the tensorflow session
         feed: a dictionnary mapping to the inputs and outputs
-            if applicable
+            where the keys are the inputs of the model._test
+            keras function i.e. model._test.inputs and the values
+            are numpy arrays corresponding to these tensors
         freq: the frequency at which the callback will output
-            the parameters and metrics
-        log_file: the path of the directory where to save the log
+            parameters and metrics to the log
+        log_dir: the path of the directory where to save the log
             files to be parsed by tensorboard
     '''
-    def __init__(self, model, feed, freq=2, log_file='./logs'):
+    def __init__(self, model, feed, freq=2, log_dir='./logs'):
         super(Callback, self).__init__()
         assert _BACKEND == 'tensorflow', \
             'Tensorboard callback only works with the tensorflow backend'
         import tensorflow as tf
         import keras.backend.tensorflow_backend as tfbe
-        import keras
 
         self.model = model
         self.freq = freq
         self.log_file = log_file
         self.sess = tfbe._get_session()
         self.feed = feed
-        # we don't need to store the summaries for now
 
-        # TODO: test inserting batches or the full data to tensorflow
-        # to monitor loss and accuracy wia the ._test_loop method
-        if type(self.model) == keras.models.Sequential:
+        if self.model.get_config()['name'] == 'Sequential':
             layers = {l.get_config()['name']: l for l in self.model.layers}
-            # val_outs = self.model._test_loop(val_f, val_ins,
-            #                                  batch_size=batch_size,
-            #                                  verbose=0)
-        elif type(self.model) == keras.models.Graph:
+        elif self.model.get_config()['name'] == 'Graph':
             layers = self.model.nodes
-        # print(layers)
+        else:
+            raise Exception('Unrecognized model:',
+                            self.model.get_config()['name'])
         for l in layers:
             cur_layer = layers[l]
             if hasattr(cur_layer, 'W'):
                 tf.histogram_summary('{}_W'.format(l), cur_layer.W)
-                # tf.image_summary('{}_W'.format(n), cur_layer.W)
             if hasattr(cur_layer, 'b'):
                 tf.histogram_summary('{}_b'.format(l), cur_layer.b)
             if hasattr(cur_layer, 'get_output'):
                 tf.histogram_summary('{}_out'.format(l),
                                      cur_layer.get_output())
+        tf.scalar_summary(self.model._test.outputs[0].name,
+                          self.model._test.outputs[0])
         self.merged = tf.merge_all_summaries()
+        print(self.merged)
         self.writer = tf.train.SummaryWriter(self.log_file,
                                              self.sess.graph_def)
 
