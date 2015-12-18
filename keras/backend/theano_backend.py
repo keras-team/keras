@@ -9,7 +9,6 @@ from .common import _FLOATX, _EPSILON
 # INTERNAL UTILS
 theano.config.floatX = _FLOATX
 
-
 def _on_gpu():
     '''Returns whether the session is set to
     run on GPU or not (i.e. on CPU).
@@ -376,7 +375,7 @@ def gradients(loss, variables):
 # CONTROL FLOW
 
 def rnn(step_function, inputs, initial_states,
-        go_backwards=False, masking=True):
+        go_backwards=False, mask=None):
     '''Iterates over the time dimension of a tensor.
 
     Parameters
@@ -398,10 +397,8 @@ def rnn(step_function, inputs, initial_states,
         the step function.
     go_backwards: boolean. If True, do the iteration over
         the time dimension in reverse order.
-    masking: boolean. If true, any input timestep inputs[s, i]
-        that is all-zeros will be skipped (states will be passed to
-        the next step unchanged) and the corresponding output will
-        be all zeros.
+    mask: binary tensor with shape (samples, time, 1), with a zero for every element
+        that is masked.
 
     Returns
     -------
@@ -414,24 +411,22 @@ def rnn(step_function, inputs, initial_states,
             the step function, of shape (samples, ...).
     '''
     inputs = inputs.dimshuffle((1, 0, 2))
+    if mask is None:
+        mask = expand_dims(ones_like(T.sum(inputs, axis=-1)))
+    else:
+        mask = mask.dimshuffle((1, 0, 2))
 
-    def _step(input, *states):
+    def _step(input, mask, *states):
         output, new_states = step_function(input, states)
-        if masking:
-            # if all-zero input timestep, return
-            # all-zero output and unchanged states
-            switch = T.any(input, axis=-1, keepdims=True)
-            output = T.switch(switch, output, 0. * output)
-            return_states = []
-            for state, new_state in zip(states, new_states):
-                return_states.append(T.switch(switch, new_state, state))
-            return [output] + return_states
-        else:
-            return [output] + new_states
+        output = T.switch(mask, output, zeros_like(output))
+        return_states = []
+        for state, new_state in zip(states, new_states):
+            return_states.append(T.switch(mask, new_state, state))
+        return [output] + new_states
 
     results, _ = theano.scan(
         _step,
-        sequences=inputs,
+        sequences=[inputs, mask],
         outputs_info=[None] + initial_states,
         go_backwards=go_backwards)
 

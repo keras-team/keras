@@ -134,13 +134,7 @@ class Recurrent(MaskedLayer):
                                 'has a "batch_input_shape" argument ' +
                                 'including the samples axis.')
 
-        mask = self.get_output_mask(train)
-        if mask:
-            # apply mask
-            X *= K.cast(K.expand_dims(mask), X.dtype)
-            masking = True
-        else:
-            masking = False
+        mask = self.get_input_mask(train)
 
         if self.stateful:
             initial_states = self.states
@@ -149,7 +143,7 @@ class Recurrent(MaskedLayer):
 
         last_output, outputs, states = K.rnn(self.step, X, initial_states,
                                              go_backwards=self.go_backwards,
-                                             masking=masking)
+                                             mask=mask)
         if self.stateful:
             self.updates = []
             for i in range(len(states)):
