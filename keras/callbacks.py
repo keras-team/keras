@@ -52,6 +52,8 @@ class CallbackList(object):
         self._t_enter_batch = time.time()
 
     def on_batch_end(self, batch, logs={}):
+        if not hasattr(self, '_t_enter_batch'):
+            self._t_enter_batch = time.time()
         self._delta_t_batch = time.time() - self._t_enter_batch
         t_before_callbacks = time.time()
         for callback in self.callbacks:
