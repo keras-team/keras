@@ -396,11 +396,10 @@ class TensorBoard(Callback):
     This callback writes a log usable with tensorboard.
 
     # Arguments
-        model: a keras model linked to the tensorflow session
-        feed: a dictionnary mapping to the inputs and outputs
-            where the keys are the inputs of the model._test
-            keras function i.e. model._test.inputs and the values
-            are numpy arrays corresponding to these tensors
+        model: a keras model linked to a tensorflow session
+        feed: a dictionnary mapping tensors (inputs, outputs, weigths)
+            from the model._test keras function i.e. model._test.inputs
+            to the corresponding values
         freq: the frequency at which the callback will output
             parameters and metrics to the log
         log_dir: the path of the directory where to save the log
@@ -410,7 +409,7 @@ class TensorBoard(Callback):
                  show_accuracy=False):
         super(Callback, self).__init__()
         assert _BACKEND == 'tensorflow', \
-            'Tensorboard callback only works with the tensorflow backend'
+            'TensorBoard callback only works with the tensorflow backend'
         import tensorflow as tf
         import keras.backend.tensorflow_backend as tfbe
 
