@@ -223,7 +223,7 @@ class TestBackend(object):
         last_output, outputs, new_states = KTH.rnn(th_rnn_step_fn, inputs,
                                                    initial_states,
                                                    go_backwards=False,
-                                                   masking=False)
+                                                   mask=None)
         th_last_output = KTH.eval(last_output)
         th_outputs = KTH.eval(outputs)
         assert len(new_states) == 1
@@ -235,7 +235,7 @@ class TestBackend(object):
         last_output, outputs, new_states = KTF.rnn(tf_rnn_step_fn, inputs,
                                                    initial_states,
                                                    go_backwards=False,
-                                                   masking=False)
+                                                   mask=None)
         tf_last_output = KTF.eval(last_output)
         tf_outputs = KTF.eval(outputs)
         assert len(new_states) == 1
