@@ -393,13 +393,22 @@ class LearningRateScheduler(Callback):
 class TensorBoard(Callback):
     ''' Tensorboard basic visualizations.
 
-    This callback writes a log usable with tensorboard.
+    This callback writes a log usable with TensorBoard.
+    Tensorboard is a visualization tools provided with TensorFlow.
+
+    If you have installed TensorFlow with pip, you should be able
+    to launch TensorBoard from the command line:
+    ```
+    tensorboard --logdir=/full_path_to_your_logs
+    ```
+    You could find more information at:
+    https://www.tensorflow.org/versions/master/how_tos/summaries_and_tensorboard/index.html
 
     # Arguments
         model: a keras model linked to a tensorflow session
         feed: a dictionnary mapping tensors (inputs, outputs, weigths)
             from the model._test keras function i.e. model._test.inputs
-            to the corresponding values
+            to the corresponding arrays.
         freq: the frequency at which the callback will output
             parameters and metrics to the log
         log_dir: the path of the directory where to save the log
@@ -411,12 +420,12 @@ class TensorBoard(Callback):
         assert _BACKEND == 'tensorflow', \
             'TensorBoard callback only works with the tensorflow backend'
         import tensorflow as tf
-        import keras.backend.tensorflow_backend as tfbe
+        import keras.backend.tensorflow_backend as KTF
 
         self.model = model
         self.freq = freq
         self.log_dir = log_dir
-        self.sess = tfbe._get_session()
+        self.sess = KTF._get_session()
         self.feed = feed
 
         mod_type = self.model.get_config()['name']
@@ -438,12 +447,16 @@ class TensorBoard(Callback):
                                      cur_layer.get_output())
         if show_accuracy is True and mod_type == 'Sequential':
             f_output = self.model._test_with_acc
-            tf.scalar_summary(f_output.outputs[1].name,
+            tf.scalar_summary('Accuracy',
                               f_output.outputs[1])
+            tf.scalar_summary('Loss',
+                              f_output.outputs[0])
         else:
             f_output = self.model._test
-        tf.scalar_summary(f_output.outputs[0].name,
-                          f_output.outputs[0])
+            l_name = " + ".join([self.model.loss[loss]
+                                 for loss in self.model.loss])
+            tf.scalar_summary(l_name,
+                              f_output.outputs[0])
         self.merged = tf.merge_all_summaries()
         self.writer = tf.train.SummaryWriter(self.log_dir,
                                              self.sess.graph_def)
