@@ -406,7 +406,8 @@ class TensorBoard(Callback):
         log_dir: the path of the directory where to save the log
             files to be parsed by tensorboard
     '''
-    def __init__(self, model, feed, freq=2, log_dir='./logs'):
+    def __init__(self, model, feed, freq=2, log_dir='./logs',
+                 show_accuracy=False):
         super(Callback, self).__init__()
         assert _BACKEND == 'tensorflow', \
             'Tensorboard callback only works with the tensorflow backend'
@@ -419,9 +420,10 @@ class TensorBoard(Callback):
         self.sess = tfbe._get_session()
         self.feed = feed
 
-        if self.model.get_config()['name'] == 'Sequential':
+        mod_type = self.model.get_config()['name']
+        if mod_type == 'Sequential':
             layers = {l.get_config()['name']: l for l in self.model.layers}
-        elif self.model.get_config()['name'] == 'Graph':
+        elif mod_type == 'Graph':
             layers = self.model.nodes
         else:
             raise Exception('Unrecognized model:',
@@ -435,8 +437,14 @@ class TensorBoard(Callback):
             if hasattr(cur_layer, 'get_output'):
                 tf.histogram_summary('{}_out'.format(l),
                                      cur_layer.get_output())
-        tf.scalar_summary(self.model._test.outputs[0].name,
-                          self.model._test.outputs[0])
+        if show_accuracy is True and mod_type == 'Sequential':
+            f_output = self.model._test_with_acc
+            tf.scalar_summary(f_output.outputs[1].name,
+                              f_output.outputs[1])
+        else:
+            f_output = self.model._test
+        tf.scalar_summary(f_output.outputs[0].name,
+                          f_output.outputs[0])
         self.merged = tf.merge_all_summaries()
         self.writer = tf.train.SummaryWriter(self.log_dir,
                                              self.sess.graph_def)
