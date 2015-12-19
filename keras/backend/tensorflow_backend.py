@@ -406,7 +406,14 @@ def rnn(step_function, inputs, initial_states,
     for input, mask_t in zip(input_list, mask_list):
         output, new_states = step_function(input, states)
 
-        output = broadcasting_select(mask_t, output, states[0])
+        if len(states) > 0:
+            output = broadcasting_select(mask_t, output, states[0])
+        else:
+            # in some places, the RNN is used where no state is passed in (TimeDistiributedDense in
+            # particular) in which csse we can't relay the previous output because we don't have
+            # access to it here. So we'll do zeros instead in that case.
+            output = broadcasting_select(mask_t, output, zeros_like(output))
+        
         return_states = []
         for state, new_state in zip(states, new_states):
             return_states.append(broadcasting_select(mask_t, new_state, state))
