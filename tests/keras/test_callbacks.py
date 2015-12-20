@@ -127,7 +127,7 @@ def test_TensorBoard():
     import shutil
     import tensorflow as tf
     import keras.backend.tensorflow_backend as KTF
-
+    old_session = KTF._get_session()
     filepath = './logs'
     (X_train, y_train), (X_test, y_test) = get_test_data(nb_train=train_samples,
                                                          nb_test=test_samples,
@@ -199,6 +199,8 @@ def test_TensorBoard():
                   callbacks=cbks, nb_epoch=5)
         assert os.path.exists(filepath)
         shutil.rmtree(filepath)
+
+        KTF._set_session(old_session)
 
 if __name__ == '__main__':
     pytest.main([__file__])
