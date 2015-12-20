@@ -8,6 +8,7 @@ from keras.models import Graph, Sequential
 from keras.layers.core import Dense
 from keras.utils.test_utils import get_test_data
 from keras import backend as K
+from keras.utils import np_utils
 
 input_dim = 2
 nb_hidden = 4
@@ -24,6 +25,8 @@ def test_ModelCheckpoint():
                                                          input_shape=(input_dim,),
                                                          classification=True,
                                                          nb_class=nb_class)
+    y_test = np_utils.to_categorical(y_test)
+    y_train = np_utils.to_categorical(y_train)
     # case 1
     monitor = 'val_loss'
     save_best_only = False
@@ -76,6 +79,8 @@ def test_EarlyStopping():
                                                          input_shape=(input_dim,),
                                                          classification=True,
                                                          nb_class=nb_class)
+    y_test = np_utils.to_categorical(y_test)
+    y_train = np_utils.to_categorical(y_train)
     model = Sequential()
     model.add(Dense(nb_hidden, input_dim=input_dim, activation='relu'))
     model.add(Dense(nb_class, activation='softmax'))
@@ -102,6 +107,8 @@ def test_LearningRateScheduler():
                                                          input_shape=(input_dim,),
                                                          classification=True,
                                                          nb_class=nb_class)
+    y_test = np_utils.to_categorical(y_test)
+    y_train = np_utils.to_categorical(y_train)
     model = Sequential()
     model.add(Dense(nb_hidden, input_dim=input_dim, activation='relu'))
     model.add(Dense(nb_class, activation='softmax'))
@@ -115,3 +122,4 @@ def test_LearningRateScheduler():
 
 if __name__ == '__main__':
     pytest.main([__file__])
+
