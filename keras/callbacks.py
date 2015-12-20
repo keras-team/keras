@@ -445,14 +445,15 @@ class TensorBoard(Callback):
             if hasattr(cur_layer, 'get_output'):
                 tf.histogram_summary('{}_out'.format(l),
                                      cur_layer.get_output())
-        if show_accuracy is True and mod_type == 'Sequential':
-            f_output = self.model._test_with_acc
-            tf.scalar_summary('Accuracy',
-                              f_output.outputs[1])
+        f_output = self.model._test
+        if mod_type == 'Sequential':
+            if show_accuracy is True:
+                f_output = self.model._test_with_acc
+                tf.scalar_summary('Accuracy',
+                                  f_output.outputs[1])
             tf.scalar_summary('Loss',
                               f_output.outputs[0])
         else:
-            f_output = self.model._test
             losses = [self.model.loss[loss] for loss in self.model.loss]
             if len(losses) > 1:
                 l_name = " + ".join(losses)
