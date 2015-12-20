@@ -453,8 +453,11 @@ class TensorBoard(Callback):
                               f_output.outputs[0])
         else:
             f_output = self.model._test
-            l_name = " + ".join([self.model.loss[loss]
-                                 for loss in self.model.loss])
+            losses = [self.model.loss[loss] for loss in self.model.loss]
+            if len(losses) > 1:
+                l_name = " + ".join(losses)
+            else:
+                l_name = losses[0]
             tf.scalar_summary(l_name,
                               f_output.outputs[0])
         self.merged = tf.merge_all_summaries()
