@@ -9,6 +9,7 @@ import warnings
 from collections import deque
 from .utils.generic_utils import Progbar
 from .backend import _BACKEND
+from keras import backend as K
 
 
 class CallbackList(object):
@@ -308,15 +309,38 @@ class EarlyStopping(Callback):
         patience: number of epochs with no improvement
             after which training will be stopped.
         verbose: verbosity mode.
+        mode: one of {auto, min, max}. In 'min' mode,
+            training will stop when the quantity
+            monitored has stopped decreasing; in 'max'
+            mode it will stopped when the quantity
+            monitored has stopped increasing.
     '''
-    def __init__(self, monitor='val_loss', patience=0, verbose=0):
+    def __init__(self, monitor='val_loss', patience=0, verbose=0, mode='auto'):
         super(Callback, self).__init__()
 
         self.monitor = monitor
         self.patience = patience
         self.verbose = verbose
-        self.best = np.Inf
         self.wait = 0
+
+        if mode not in ['auto', 'min', 'max']:
+            warnings.warn('EarlyStopping mode %s is unknown, '
+                          'fallback to auto mode' % (self.mode), RuntimeWarning)
+            mode = 'auto'
+
+        if mode == 'min':
+            self.monitor_op = np.less
+            self.best = np.Inf
+        elif mode == 'max':
+            self.monitor_op = np.greater
+            self.best = -np.Inf
+        else:
+            if 'acc' in self.monitor:
+                self.monitor_op = np.greater
+                self.best = -np.Inf
+            else:
+                self.monitor_op = np.less
+                self.best = np.Inf
 
     def on_epoch_end(self, epoch, logs={}):
         current = logs.get(self.monitor)
@@ -324,7 +348,7 @@ class EarlyStopping(Callback):
             warnings.warn('Early stopping requires %s available!' %
                           (self.monitor), RuntimeWarning)
 
-        if current < self.best:
+        if self.monitor_op(current, self.best):
             self.best = current
             self.wait = 0
         else:
@@ -388,6 +412,9 @@ class LearningRateScheduler(Callback):
 
     def on_epoch_begin(self, epoch, logs={}):
         self.model.optimizer.lr.set_value(self.schedule(epoch))
+        assert hasattr(self.model.optimizer, 'lr'), \
+            'Optimizer must have a "lr" attribute.'
+        K.set_value(self.model.optimizer.lr, self.schedule(epoch))
 
 
 class TensorBoard(Callback):
