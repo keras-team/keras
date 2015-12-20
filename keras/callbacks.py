@@ -420,7 +420,7 @@ class TensorBoard(Callback):
     ''' Tensorboard basic visualizations.
 
     This callback writes a log usable with TensorBoard.
-    Tensorboard is a visualization tools provided with TensorFlow.
+    TensorBoard is a visualization tools provided with TensorFlow.
 
     If you have installed TensorFlow with pip, you should be able
     to launch TensorBoard from the command line:
@@ -453,7 +453,6 @@ class TensorBoard(Callback):
         self.log_dir = log_dir
         self.sess = KTF._get_session()
         self.feed = feed
-
         mod_type = self.model.get_config()['name']
         if mod_type == 'Sequential':
             layers = {l.get_config()['name']: l for l in self.model.layers}
