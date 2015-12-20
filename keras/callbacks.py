@@ -411,7 +411,6 @@ class LearningRateScheduler(Callback):
         self.schedule = schedule
 
     def on_epoch_begin(self, epoch, logs={}):
-        self.model.optimizer.lr.set_value(self.schedule(epoch))
         assert hasattr(self.model.optimizer, 'lr'), \
             'Optimizer must have a "lr" attribute.'
         K.set_value(self.model.optimizer.lr, self.schedule(epoch))
