@@ -8,7 +8,6 @@ import warnings
 
 from collections import deque
 from .utils.generic_utils import Progbar
-from .backend import _BACKEND
 from keras import backend as K
 
 
@@ -431,68 +430,82 @@ class TensorBoard(Callback):
     https://www.tensorflow.org/versions/master/how_tos/summaries_and_tensorboard/index.html
 
     # Arguments
-        model: a keras model linked to a tensorflow session
-        feed: a dictionnary mapping tensors (inputs, outputs, weigths)
-            from the model._test keras function i.e. model._test.inputs
-            to the corresponding arrays.
-        freq: the frequency at which the callback will output
-            parameters and metrics to the log
         log_dir: the path of the directory where to save the log
             files to be parsed by tensorboard
+        histogram_freq: frequency (in epochs) at which to compute activation
+            histograms for the layers of the model. If set to 0,
+            histograms won't be computed.
     '''
-    def __init__(self, model, feed, freq=2, log_dir='./logs',
-                 show_accuracy=False):
+    def __init__(self, log_dir='./logs', histogram_freq=0):
         super(Callback, self).__init__()
-        assert _BACKEND == 'tensorflow', \
-            'TensorBoard callback only works with the tensorflow backend'
+        if K._BACKEND != 'tensorflow':
+            raise Exception('TensorBoard callback only works '
+                            'with the TensorFlow backend')
+        self.log_dir = log_dir
+        self.histogram_freq = histogram_freq
+
+    def _set_model(self, model):
         import tensorflow as tf
         import keras.backend.tensorflow_backend as KTF
 
         self.model = model
-        self.freq = freq
-        self.log_dir = log_dir
         self.sess = KTF._get_session()
-        self.feed = feed
-        mod_type = self.model.get_config()['name']
-        if mod_type == 'Sequential':
-            layers = {l.get_config()['name']: l for l in self.model.layers}
-        elif mod_type == 'Graph':
-            layers = self.model.nodes
-        else:
-            raise Exception('Unrecognized model:',
-                            self.model.get_config()['name'])
-        for l in layers:
-            cur_layer = layers[l]
-            if hasattr(cur_layer, 'W'):
-                tf.histogram_summary('{}_W'.format(l), cur_layer.W)
-            if hasattr(cur_layer, 'b'):
-                tf.histogram_summary('{}_b'.format(l), cur_layer.b)
-            if hasattr(cur_layer, 'get_output'):
-                tf.histogram_summary('{}_out'.format(l),
-                                     cur_layer.get_output())
-        f_output = self.model._test
-        if mod_type == 'Sequential':
-            if show_accuracy is True:
-                f_output = self.model._test_with_acc
-                tf.scalar_summary('Accuracy',
-                                  f_output.outputs[1])
-            tf.scalar_summary('Loss',
-                              f_output.outputs[0])
-        else:
-            losses = [self.model.loss[loss] for loss in self.model.loss]
-            if len(losses) > 1:
-                l_name = " + ".join(losses)
+        if self.histogram_freq:
+            mod_type = self.model.get_config()['name']
+            if mod_type == 'Sequential':
+                layers = {l.get_config()['name']: l for l in self.model.layers}
+            elif mod_type == 'Graph':
+                layers = self.model.nodes
             else:
-                l_name = losses[0]
-            tf.scalar_summary(l_name,
-                              f_output.outputs[0])
+                raise Exception('Unrecognized model:',
+                                self.model.get_config()['name'])
+            for l in layers:
+                cur_layer = layers[l]
+                if hasattr(cur_layer, 'W'):
+                    tf.histogram_summary('{}_W'.format(l), cur_layer.W)
+                if hasattr(cur_layer, 'b'):
+                    tf.histogram_summary('{}_b'.format(l), cur_layer.b)
+                if hasattr(cur_layer, 'get_output'):
+                    tf.histogram_summary('{}_out'.format(l),
+                                         cur_layer.get_output())
         self.merged = tf.merge_all_summaries()
         self.writer = tf.train.SummaryWriter(self.log_dir,
                                              self.sess.graph_def)
 
+    def on_epoch_begin(self, epoch, logs={}):
+        self.seen = 0
+        self.totals = {}
+
+    def on_batch_end(self, batch, logs={}):
+        batch_size = logs.get('size', 0)
+        self.seen += batch_size
+        for k, v in logs.items():
+            if k in self.totals:
+                self.totals[k] += v * batch_size
+            else:
+                self.totals[k] = v * batch_size
+
     def on_epoch_end(self, epoch, logs={}):
-        if epoch % self.freq == 0:
-            result = self.sess.run([self.merged],
-                                   feed_dict=self.feed)
-            summary_str = result[0]
-            self.writer.add_summary(summary_str, epoch)
+        import tensorflow as tf
+
+        if self.model.validation_data and self.histogram_freq:
+            if epoch % self.histogram_freq == 0:
+                if self.params.get('show_accuracy'):
+                    test_function = self.model._test_with_acc
+                else:
+                    test_function = self.model._test
+                names = [v.name for v in test_function.inputs]
+                feed_dict = dict(zip(names, self.model.validation_data))
+                result = self.sess.run([self.merged], feed_dict=feed_dict)
+                summary_str = result[0]
+                self.writer.add_summary(summary_str, epoch)
+
+        for name, value in self.totals.items() + logs.items():
+            if name in ['batch', 'size']:
+                continue
+            summary = tf.Summary()
+            summary_value = summary.value.add()
+            summary_value.simple_value = value
+            summary_value.tag = name
+            self.writer.add_summary(summary, epoch)
+        self.writer.flush()

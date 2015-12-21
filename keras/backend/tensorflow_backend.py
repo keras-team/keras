@@ -235,6 +235,7 @@ def permute_dimensions(x, pattern):
     '''
     return tf.transpose(x, perm=pattern)
 
+
 def repeat_elements(x, rep, axis):
     '''Repeats the elements of a tensor along an axis, like np.repeat
 

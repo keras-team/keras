@@ -9,7 +9,6 @@ from keras.layers.core import Dense
 from keras.utils.test_utils import get_test_data
 from keras import backend as K
 from keras.utils import np_utils
-from keras.callbacks import _BACKEND
 
 input_dim = 2
 nb_hidden = 4
@@ -121,7 +120,7 @@ def test_LearningRateScheduler():
     assert (float(K.get_value(model.optimizer.lr)) - 0.2) < K.epsilon()
 
 
-@pytest.mark.skipif(_BACKEND != 'tensorflow',
+@pytest.mark.skipif(K._BACKEND != 'tensorflow',
                     reason="Requires tensorflow backend")
 def test_TensorBoard():
     import shutil
@@ -145,13 +144,10 @@ def test_TensorBoard():
         model.add(Dense(nb_class, activation='softmax'))
         model.compile(loss='categorical_crossentropy', optimizer='sgd')
 
-        feed = {model._test.inputs[0]: X_train, model._test.inputs[1]: y_train,
-                model._test.inputs[2]: np.ones(train_samples)}
-        tsb = callbacks.TensorBoard(model=model, feed=feed, log_dir=filepath,
-                                    show_accuracy=False)
+        tsb = callbacks.TensorBoard(log_dir=filepath, histogram_freq=1)
         cbks = [tsb]
         model.fit(X_train, y_train, batch_size=batch_size, show_accuracy=True,
-                  validation_data=(X_test, y_test), callbacks=cbks, nb_epoch=5)
+                  validation_data=(X_test, y_test), callbacks=cbks, nb_epoch=2)
         assert os.path.exists(filepath)
         shutil.rmtree(filepath)
 
@@ -164,13 +160,10 @@ def test_TensorBoard():
         model.add(Dense(nb_class, activation='softmax'))
         model.compile(loss='categorical_crossentropy', optimizer='sgd')
 
-        feed = {model._test.inputs[0]: X_train, model._test.inputs[1]: y_train,
-                model._test.inputs[2]: np.ones(train_samples)}
-        tsb = callbacks.TensorBoard(model=model, feed=feed, log_dir=filepath,
-                                    show_accuracy=False)
+        tsb = callbacks.TensorBoard(log_dir=filepath, histogram_freq=1)
         cbks = [tsb]
         model.fit(X_train, y_train, batch_size=batch_size, show_accuracy=True,
-                  validation_data=(X_test, y_test), callbacks=cbks, nb_epoch=5)
+                  validation_data=(X_test, y_test), callbacks=cbks, nb_epoch=2)
         assert os.path.exists(filepath)
         shutil.rmtree(filepath)
 
@@ -189,14 +182,12 @@ def test_TensorBoard():
         model.add_output(name='output', input='last_dense')
         model.compile(optimizer='sgd', loss={'output': 'mse'})
 
-        feed = {model._test.inputs[0]: X_train, model._test.inputs[1]: y_train,
-                model._test.inputs[2]: np.ones(train_samples)}
-        tsb = callbacks.TensorBoard(model=model, feed=feed, log_dir=filepath,
-                                    show_accuracy=False)
+        tsb = callbacks.TensorBoard(log_dir=filepath, histogram_freq=1)
         cbks = [tsb]
-        model.fit({'X_vars': X_train, 'output': y_train}, batch_size=batch_size,
+        model.fit({'X_vars': X_train, 'output': y_train},
+                  batch_size=batch_size,
                   validation_data={'X_vars': X_test, 'output': y_test},
-                  callbacks=cbks, nb_epoch=5)
+                  callbacks=cbks, nb_epoch=2)
         assert os.path.exists(filepath)
         shutil.rmtree(filepath)
 
@@ -204,4 +195,3 @@ def test_TensorBoard():
 
 if __name__ == '__main__':
     pytest.main([__file__])
-
