@@ -191,7 +191,7 @@ def test_TensorBoard():
         assert os.path.exists(filepath)
         shutil.rmtree(filepath)
 
-        KTF._set_session(old_session)
+    KTF._set_session(old_session)
 
 if __name__ == '__main__':
     pytest.main([__file__])
