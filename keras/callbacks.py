@@ -496,4 +496,3 @@ class TensorBoard(Callback):
                                    feed_dict=self.feed)
             summary_str = result[0]
             self.writer.add_summary(summary_str, epoch)
-
