@@ -120,6 +120,78 @@ def test_LearningRateScheduler():
     assert (float(K.get_value(model.optimizer.lr)) - 0.2) < K.epsilon()
 
 
+@pytest.mark.skipif(K._BACKEND != 'tensorflow',
+                    reason="Requires tensorflow backend")
+def test_TensorBoard():
+    import shutil
+    import tensorflow as tf
+    import keras.backend.tensorflow_backend as KTF
+    old_session = KTF._get_session()
+    filepath = './logs'
+    (X_train, y_train), (X_test, y_test) = get_test_data(nb_train=train_samples,
+                                                         nb_test=test_samples,
+                                                         input_shape=(input_dim,),
+                                                         classification=True,
+                                                         nb_class=nb_class)
+    y_test = np_utils.to_categorical(y_test)
+    y_train = np_utils.to_categorical(y_train)
+    # case 1 Sequential wo accuracy
+    with tf.Graph().as_default():
+        session = tf.Session('')
+        KTF._set_session(session)
+        model = Sequential()
+        model.add(Dense(nb_hidden, input_dim=input_dim, activation='relu'))
+        model.add(Dense(nb_class, activation='softmax'))
+        model.compile(loss='categorical_crossentropy', optimizer='sgd')
+
+        tsb = callbacks.TensorBoard(log_dir=filepath, histogram_freq=1)
+        cbks = [tsb]
+        model.fit(X_train, y_train, batch_size=batch_size, show_accuracy=True,
+                  validation_data=(X_test, y_test), callbacks=cbks, nb_epoch=2)
+        assert os.path.exists(filepath)
+        shutil.rmtree(filepath)
+
+    # case 2 Sequential w accuracy
+    with tf.Graph().as_default():
+        session = tf.Session('')
+        KTF._set_session(session)
+        model = Sequential()
+        model.add(Dense(nb_hidden, input_dim=input_dim, activation='relu'))
+        model.add(Dense(nb_class, activation='softmax'))
+        model.compile(loss='categorical_crossentropy', optimizer='sgd')
+
+        tsb = callbacks.TensorBoard(log_dir=filepath, histogram_freq=1)
+        cbks = [tsb]
+        model.fit(X_train, y_train, batch_size=batch_size, show_accuracy=True,
+                  validation_data=(X_test, y_test), callbacks=cbks, nb_epoch=2)
+        assert os.path.exists(filepath)
+        shutil.rmtree(filepath)
+
+    # case 3 Graph
+    with tf.Graph().as_default():
+        session = tf.Session('')
+        KTF._set_session(session)
+        model = Graph()
+        model.add_input(name='X_vars', input_shape=(input_dim, ))
+
+        model.add_node(Dense(nb_hidden, activation="sigmoid"),
+                       name='Dense1', input='X_vars')
+        model.add_node(Dense(nb_class, activation="softmax"),
+                       name='last_dense',
+                       input='Dense1')
+        model.add_output(name='output', input='last_dense')
+        model.compile(optimizer='sgd', loss={'output': 'mse'})
+
+        tsb = callbacks.TensorBoard(log_dir=filepath, histogram_freq=1)
+        cbks = [tsb]
+        model.fit({'X_vars': X_train, 'output': y_train},
+                  batch_size=batch_size,
+                  validation_data={'X_vars': X_test, 'output': y_test},
+                  callbacks=cbks, nb_epoch=2)
+        assert os.path.exists(filepath)
+        shutil.rmtree(filepath)
+
+        KTF._set_session(old_session)
+
 if __name__ == '__main__':
     pytest.main([__file__])
-
