@@ -49,7 +49,7 @@ We love pull requests. Here's a quick guide:
   - with the Theano backend, on Python 2.7 and Python 3.5
   - with the TensorFlow backend, on Python 2.7
 
-7. When committing, use appropriate, descriptive commit messages. Make sure that your branch history is not a string of "bug fix", "fix", "oops", etc. When submitting your PR, squash your commit history into 1-3 easy to follow commits, to make sure the project history stays clean and readable.
+7. When committing, use appropriate, descriptive commit messages. Make sure that your branch history is not a string of "bug fix", "fix", "oops", etc. When submitting your PR, squash your commits into a single commit with an appropriate commit message, to make sure the project history stays clean and readable. See ['rebase and squash'](http://rebaseandsqua.sh/) for technical help on how to squash your commits.
 
 8. Update the documentation. If introducing new functionality, make sure you include code snippets demonstrating the usage of your new feature.
 
