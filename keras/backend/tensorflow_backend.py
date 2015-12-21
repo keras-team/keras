@@ -391,7 +391,13 @@ def rnn(step_function, inputs, initial_states,
     inputs = tf.transpose(inputs, (1, 0, 2))
     input_list = tf.unpack(inputs)
     if mask is None:
-        mask = tf.slice(ones_like(inputs), [0,0,0], [-1,-1,1])
+        mask = ones_like(tf.slice(inputs, [0,0,0],[-1, -1,1]))
+        inputs_shape = inputs.get_shape()
+
+        # TODO: the mask's shape should be automatically inferred, by
+        # tensorflow yet for some reason it fails to in some test-cases. This
+        # fixes the issue, but should be removed in future.
+        mask.set_shape([inputs_shape[0].value, inputs_shape[1].value, 1])
     else:
         mask = tf.transpose(mask, (1, 0, 2))
     mask = tf.cast(mask, tf.bool)
