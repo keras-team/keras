@@ -23,15 +23,40 @@ class Sequential(Layer):
         self.layer_cache = {}
         for layer in layers:
             self.add(layer)
+        self._cache_enabled = True
 
-    def __call__(self, X, train=False):
+    def __call__(self, X, mask=None, train=False):
+        # turn off layer cache temporarily
+        tmp_cache_enabled = self.cache_enabled
+        self.cache_enabled = False
+        # recursively search for a layer which is not a Sequential model
+        layer = self
+        while issubclass(layer.__class__, Sequential):
+            layer = layer.layers[0]
         # set temporary input to first layer
-        tmp = self.layers[0].get_input
-        self.layers[0].get_input = lambda _: X
+        tmp_input = layer.get_input
+        tmp_mask = None
+        layer.get_input = lambda _: X
+        if hasattr(layer, 'get_input_mask'):
+            tmp_mask = layer.get_input_mask
+            layer.get_input_mask = lambda _: mask
         Y = self.get_output(train=train)
-        # return input to first layer to what it was
-        self.layers[0].get_input = tmp
+        # return input from first layer to what it was
+        layer.get_input = tmp_input
+        if hasattr(layer, 'get_input_mask'):
+            layer.get_input_mask = tmp_mask
+        self.cache_enabled = tmp_cache_enabled
         return Y
+
+    @property
+    def cache_enabled(self):
+        return self._cache_enabled
+
+    @cache_enabled.setter
+    def cache_enabled(self, value):
+        self._cache_enabled = value
+        for l in self.layers:
+            l.cache_enabled = value
 
     def set_previous(self, layer):
         self.layers[0].previous = layer
@@ -375,9 +400,7 @@ class Graph(Layer):
             dot_axes: Same meaning as `dot_axes` argument of `add_node()`
             outputs: Used when `merge_mode=None`. Names for the output nodes.
             create_output: Same meaning as `create_output` argument of `add_node()`.
-                When creating an output, `merge_mode` must be specified.
         '''
-        layer.layer_cache = self.layer_cache
         if name in self.namespace:
             raise Exception('Duplicate node identifier: ' + name)
         for o in outputs:
@@ -408,7 +431,8 @@ class Graph(Layer):
                 raise Exception('Unknown identifier: ' + input)
         s = Siamese(layer, layers, merge_mode,
                     concat_axis=concat_axis,
-                    dot_axes=dot_axes)
+                    dot_axes=dot_axes,
+                    is_graph=True)
         self.namespace.add(name)
         self.nodes[name] = s
         self.node_config.append({'name': name,
@@ -425,7 +449,7 @@ class Graph(Layer):
                 self.namespace.add(sh_name)
                 self.nodes[sh_name] = sh
                 self.node_config.append({'name': sh_name,
-                                         'inputs': [s],
+                                         'inputs': [name],
                                          'create_output': create_output})
                 if create_output:
                     self.add_output(sh_name, input=sh_name)

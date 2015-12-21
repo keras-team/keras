@@ -35,9 +35,10 @@ class Layer(object):
     def __init__(self, **kwargs):
         allowed_kwargs = {'input_shape',
                           'trainable',
-                          'batch_input_shape'}
+                          'batch_input_shape',
+                          'cache_enabled'}
         for kwarg in kwargs:
-            assert kwarg in allowed_kwargs, "Keyword argument not understood: " + kwarg
+            assert kwarg in allowed_kwargs, 'Keyword argument not understood: ' + kwarg
         if 'input_shape' in kwargs:
             self.set_input_shape((None,) + tuple(kwargs['input_shape']))
         if 'batch_input_shape' in kwargs:
@@ -46,25 +47,44 @@ class Layer(object):
             self._trainable = kwargs['trainable']
         if not hasattr(self, 'params'):
             self.params = []
+        self._cache_enabled = True
+        if 'cache_enabled' in kwargs:
+            self._cache_enabled = kwargs['cache_enabled']
 
-    def __call__(self, X, train=False):
+    @property
+    def cache_enabled(self):
+        return self._cache_enabled
+
+    @cache_enabled.setter
+    def cache_enabled(self, value):
+        self._cache_enabled = value
+
+    def __call__(self, X, mask=None, train=False):
         # set temporary input
-        tmp = self.get_input
+        tmp_input = self.get_input
+        tmp_mask = None
+        if hasattr(self, 'get_input_mask'):
+            tmp_mask = self.get_input_mask
+            self.get_input_mask = lambda _: mask
         self.get_input = lambda _: X
         Y = self.get_output(train=train)
         # return input to what it was
-        self.get_input = tmp
+        if hasattr(self, 'get_input_mask'):
+            self.get_input_mask = tmp_mask
+        self.get_input = tmp_input
         return Y
 
     def set_previous(self, layer, connection_map={}):
         '''Connect a layer to its parent in the computational graph.
         '''
-        assert self.nb_input == layer.nb_output == 1, "Cannot connect layers: input count and output count should be 1."
+        assert self.nb_input == layer.nb_output == 1, 'Cannot connect layers: input count and output count should be 1.'
         if hasattr(self, 'input_ndim'):
-            assert self.input_ndim == len(layer.output_shape), "Incompatible shapes: layer expected input with ndim=" +\
-                str(self.input_ndim) + " but previous layer has output_shape " + str(layer.output_shape)
+            assert self.input_ndim == len(layer.output_shape), ('Incompatible shapes: layer expected input with ndim=' +
+                                                                str(self.input_ndim) +
+                                                                ' but previous layer has output_shape ' +
+                                                                str(layer.output_shape))
         if layer.get_output_mask() is not None:
-            assert self.supports_masked_input(), "Cannot connect non-masking layer to layer with masked output"
+            assert self.supports_masked_input(), 'Cannot connect non-masking layer to layer with masked output'
         self.previous = layer
         self.build()
 
@@ -132,12 +152,12 @@ class Layer(object):
         if hasattr(self, 'previous'):
             # to avoid redundant computations,
             # layer outputs are cached when possible.
-            if hasattr(self, 'layer_cache'):
+            if hasattr(self, 'layer_cache') and self.cache_enabled:
                 previous_layer_id = '%s_%s' % (id(self.previous), train)
                 if previous_layer_id in self.layer_cache:
                     return self.layer_cache[previous_layer_id]
             previous_output = self.previous.get_output(train=train)
-            if hasattr(self, 'layer_cache'):
+            if hasattr(self, 'layer_cache') and self.cache_enabled:
                 previous_layer_id = '%s_%s' % (id(self.previous), train)
                 self.layer_cache[previous_layer_id] = previous_output
             return previous_output
@@ -188,11 +208,12 @@ class Layer(object):
             of the layer (i.e. it should match the
             output of `get_weights`).
         '''
-        assert len(self.params) == len(weights), 'Provided weight array does not match layer weights (' + \
-            str(len(self.params)) + ' layer params vs. ' + str(len(weights)) + ' provided weights)'
+        assert len(self.params) == len(weights), ('Provided weight array does not match layer weights (' +
+                                                  str(len(self.params)) + ' layer params vs. ' +
+                                                  str(len(weights)) + ' provided weights)')
         for p, w in zip(self.params, weights):
             if K.get_value(p).shape != w.shape:
-                raise Exception("Layer shape %s not compatible with weight shape %s." % (K.get_value(p).shape, w.shape))
+                raise Exception('Layer shape %s not compatible with weight shape %s.' % (K.get_value(p).shape, w.shape))
             K.set_value(p, w)
 
     def get_weights(self):
@@ -207,11 +228,12 @@ class Layer(object):
     def get_config(self):
         '''Return the parameters of the layer, as a dictionary.
         '''
-        config = {"name": self.__class__.__name__}
+        config = {'name': self.__class__.__name__}
         if hasattr(self, '_input_shape'):
             config['input_shape'] = self._input_shape[1:]
         if hasattr(self, '_trainable'):
             config['trainable'] = self._trainable
+        config['cache_enabled'] =  self.cache_enabled
         return config
 
     def get_params(self):
@@ -285,8 +307,8 @@ class Masking(MaskedLayer):
         self.input = K.placeholder(ndim=3)
 
     def get_output_mask(self, train=False):
-        if K._BACKEND == "tensorflow":
-            raise Exception("Masking is Theano-only for the time being.")
+        if K._BACKEND == 'tensorflow':
+            raise Exception('Masking is Theano-only for the time being.')
         X = self.get_input(train)
         return K.any(K.ones_like(X) * (1. - K.equal(X, self.mask_value)),
                      axis=-1)
@@ -297,8 +319,8 @@ class Masking(MaskedLayer):
                          axis=-1, keepdims=True)
 
     def get_config(self):
-        config = {"name": self.__class__.__name__,
-                  "mask_value": self.mask_value}
+        config = {'name': self.__class__.__name__,
+                  'mask_value': self.mask_value}
         base_config = super(Masking, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
@@ -344,8 +366,8 @@ class TimeDistributedMerge(Layer):
             raise Exception('Unknown merge mode')
 
     def get_config(self):
-        config = {"name": self.__class__.__name__,
-                  "mode": self.mode}
+        config = {'name': self.__class__.__name__,
+                  'mode': self.mode}
         base_config = super(TimeDistributedMerge, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
@@ -458,6 +480,7 @@ class Merge(Layer):
                 if p not in self.params:
                     self.params.append(p)
                     self.constraints.append(c)
+        super(Merge, self).__init__()
 
     @property
     def output_shape(self):
@@ -772,8 +795,8 @@ class RepeatVector(Layer):
         return K.repeat(X, self.n)
 
     def get_config(self):
-        config = {"name": self.__class__.__name__,
-                  "n": self.n}
+        config = {'name': self.__class__.__name__,
+                  'n': self.n}
         base_config = super(RepeatVector, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
@@ -918,9 +941,9 @@ class ActivityRegularization(Layer):
         return self.get_input(train)
 
     def get_config(self):
-        config = {"name": self.__class__.__name__,
-                  "l1": self.l1,
-                  "l2": self.l2}
+        config = {'name': self.__class__.__name__,
+                  'l1': self.l1,
+                  'l2': self.l2}
         base_config = super(ActivityRegularization, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
@@ -995,7 +1018,7 @@ class TimeDistributedDense(MaskedLayer):
         input_dim = self.input_shape[2]
 
         self.W = self.init((input_dim, self.output_dim))
-        self.b = K.zeros((self.output_dim))
+        self.b = K.zeros((self.output_dim,))
 
         self.params = [self.W, self.b]
         self.regularizers = []
@@ -1033,17 +1056,17 @@ class TimeDistributedDense(MaskedLayer):
         return outputs
 
     def get_config(self):
-        config = {"name": self.__class__.__name__,
-                  "output_dim": self.output_dim,
-                  "init": self.init.__name__,
-                  "activation": self.activation.__name__,
-                  "W_regularizer": self.W_regularizer.get_config() if self.W_regularizer else None,
-                  "b_regularizer": self.b_regularizer.get_config() if self.b_regularizer else None,
-                  "activity_regularizer": self.activity_regularizer.get_config() if self.activity_regularizer else None,
-                  "W_constraint": self.W_constraint.get_config() if self.W_constraint else None,
-                  "b_constraint": self.b_constraint.get_config() if self.b_constraint else None,
-                  "input_dim": self.input_dim,
-                  "input_length": self.input_length}
+        config = {'name': self.__class__.__name__,
+                  'output_dim': self.output_dim,
+                  'init': self.init.__name__,
+                  'activation': self.activation.__name__,
+                  'W_regularizer': self.W_regularizer.get_config() if self.W_regularizer else None,
+                  'b_regularizer': self.b_regularizer.get_config() if self.b_regularizer else None,
+                  'activity_regularizer': self.activity_regularizer.get_config() if self.activity_regularizer else None,
+                  'W_constraint': self.W_constraint.get_config() if self.W_constraint else None,
+                  'b_constraint': self.b_constraint.get_config() if self.b_constraint else None,
+                  'input_dim': self.input_dim,
+                  'input_length': self.input_length}
         base_config = super(TimeDistributedDense, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
@@ -1148,10 +1171,10 @@ class AutoEncoder(Layer):
         return self.decoder.get_output(train)
 
     def get_config(self):
-        return {"name": self.__class__.__name__,
-                "encoder_config": self.encoder.get_config(),
-                "decoder_config": self.decoder.get_config(),
-                "output_reconstruction": self.output_reconstruction}
+        return {'name': self.__class__.__name__,
+                'encoder_config': self.encoder.get_config(),
+                'decoder_config': self.decoder.get_config(),
+                'output_reconstruction': self.output_reconstruction}
 
 
 class MaxoutDense(Layer):
@@ -1275,6 +1298,8 @@ class Lambda(Layer):
         if py3:
             self.function = marshal.dumps(function.__code__)
         else:
+            assert hasattr(function, 'func_code'), ('The Lambda layer "function"'
+                                                    ' argument must be a Python function.')
             self.function = marshal.dumps(function.func_code)
         if output_shape is None:
             self._output_shape = None
@@ -1285,6 +1310,7 @@ class Lambda(Layer):
                 self._output_shape = marshal.dumps(output_shape.__code__)
             else:
                 self._output_shape = marshal.dumps(output_shape.func_code)
+        super(Lambda, self).__init__()
 
     @property
     def output_shape(self):
@@ -1297,7 +1323,7 @@ class Lambda(Layer):
             output_shape_func = types.FunctionType(output_shape_func, globals())
             shape = output_shape_func(self.previous.output_shape)
             if type(shape) not in {list, tuple}:
-                raise Exception("output_shape function must return a tuple")
+                raise Exception('output_shape function must return a tuple')
             return tuple(shape)
 
     def get_output(self, train=False):
@@ -1359,6 +1385,7 @@ class LambdaMerge(Lambda):
                 self._output_shape = marshal.dumps(output_shape.__code__)
             else:
                 self._output_shape = marshal.dumps(output_shape.func_code)
+        super(Lambda, self).__init__()
 
     @property
     def output_shape(self):
@@ -1442,9 +1469,10 @@ class Siamese(Layer):
         merge_mode: Same meaning as `mode` argument of Merge layer
         concat_axis: Same meaning as `concat_axis` argument of Merge layer
         dot_axes: Same meaning as `dot_axes` argument of Merge layer
+        is_graph: Should be set to True when used inside `Graph`
     '''
     def __init__(self, layer, inputs, merge_mode='concat',
-                 concat_axis=1, dot_axes=-1):
+                 concat_axis=1, dot_axes=-1, is_graph=False):
         if merge_mode not in ['sum', 'mul', 'concat', 'ave',
                               'join', 'cos', 'dot', None]:
             raise Exception('Invalid merge mode: ' + str(merge_mode))
@@ -1454,17 +1482,19 @@ class Siamese(Layer):
                 raise Exception(merge_mode + ' merge takes exactly 2 layers')
 
         self.layer = layer
+        self.trainable = layer.trainable
+        self.is_graph = is_graph
         self.inputs = inputs
-        self.params = []
+        self.layer.set_previous(inputs[0])
         self.merge_mode = merge_mode
         self.concat_axis = concat_axis
         self.dot_axes = dot_axes
-        layer.set_previous(inputs[0])
+        self.params = []
         self.regularizers = []
         self.constraints = []
         self.updates = []
         layers = [layer]
-        if merge_mode:
+        if merge_mode and not is_graph:
             layers += inputs
         for l in layers:
             params, regs, consts, updates = l.get_params()
@@ -1475,6 +1505,7 @@ class Siamese(Layer):
                 if p not in self.params:
                     self.params.append(p)
                     self.constraints.append(c)
+        super(Siamese, self).__init__()
 
     @property
     def output_shape(self):
@@ -1512,15 +1543,18 @@ class Siamese(Layer):
     def get_params(self):
         return self.params, self.regularizers, self.constraints, self.updates
 
-    def set_layer_input(self, index):
-        l = self.layer
-        while not hasattr(l, 'previous'):
-            l = l.layers[0]
-        l.previous = self.inputs[index]
+    def set_layer_input(self, head):
+        layer = self.layer
+        from ..layers.containers import Sequential
+        while issubclass(layer.__class__, Sequential):
+            layer = layer.layers[0]
+        layer.previous = self.inputs[head]
 
     def get_output_at(self, head, train=False):
-        self.set_layer_input(head)
-        return self.layer.get_output(train)
+        X = self.inputs[head].get_output(train)
+        mask = self.inputs[head].get_output_mask(train)
+        Y = self.layer(X, mask)
+        return Y
 
     def get_output_shape(self, head, train=False):
         self.set_layer_input(head)
@@ -1621,7 +1655,7 @@ class Siamese(Layer):
 
     def get_weights(self):
         weights = self.layer.get_weights()
-        if self.merge_mode:
+        if self.merge_mode and not self.is_graph:
             for m in self.inputs:
                 weights += m.get_weights()
         return weights
@@ -1630,7 +1664,7 @@ class Siamese(Layer):
         nb_param = len(self.layer.params)
         self.layer.set_weights(weights[:nb_param])
         weights = weights[nb_param:]
-        if self.merge_mode:
+        if self.merge_mode and not self.is_graph:
             for i in range(len(self.inputs)):
                 nb_param = len(self.inputs[i].params)
                 self.inputs[i].set_weights(weights[:nb_param])
@@ -1642,7 +1676,8 @@ class Siamese(Layer):
                   'inputs': [m.get_config() for m in self.inputs],
                   'merge_mode': self.merge_mode,
                   'concat_axis': self.concat_axis,
-                  'dot_axes': self.dot_axes}
+                  'dot_axes': self.dot_axes,
+                  'is_graph': self.is_graph}
         base_config = super(Siamese, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
@@ -1661,6 +1696,7 @@ class SiameseHead(Layer):
     def __init__(self, head):
         self.head = head
         self.params = []
+        super(SiameseHead, self).__init__()
 
     def get_output(self, train=False):
         return self.get_input(train)
@@ -1694,3 +1730,125 @@ def add_shared_layer(layer, inputs):
         sh = SiameseHead(i)
         inputs[i].add(s)
         inputs[i].add(sh)
+
+
+class Highway(Layer):
+    '''Densely connected highway network,
+    a natural extension of LSTMs to feedforward networks
+
+    cite: http://arxiv.org/pdf/1505.00387v2.pdf
+
+    # Input shape
+        2D tensor with shape: `(nb_samples, input_dim)`.
+
+    # Output shape
+        2D tensor with shape: `(nb_samples, input_dim)`.
+
+    # Arguments
+        init: name of initialization function for the weights of the layer
+            (see [initializations](../initializations.md)),
+            or alternatively, Theano function to use for weights
+            initialization. This parameter is only relevant
+            if you don't pass a `weights` argument.
+        transform_bias: value for the bias to take on initially (default -2)
+        activation: name of activation function to use
+            (see [activations](../activations.md)),
+            or alternatively, elementwise Theano function.
+            If you don't specify anything, no activation is applied
+            (ie. "linear" activation: a(x) = x).
+        weights: list of numpy arrays to set as initial weights.
+            The list should have 1 element, of shape `(input_dim, output_dim)`.
+        W_regularizer: instance of [WeightRegularizer](../regularizers.md)
+            (eg. L1 or L2 regularization), applied to the main weights matrix.
+        b_regularizer: instance of [WeightRegularizer](../regularizers.md),
+            applied to the bias.
+        activity_regularizer: instance of [ActivityRegularizer](../regularizers.md),
+            applied to the network output.
+        W_constraint: instance of the [constraints](../constraints.md) module
+            (eg. maxnorm, nonneg), applied to the main weights matrix.
+        b_constraint: instance of the [constraints](../constraints.md) module,
+            applied to the bias.
+        input_dim: dimensionality of the input (integer).
+            This argument (or alternatively, the keyword argument `input_shape`)
+            is required when using this layer as the first layer in a model.
+    '''
+    input_ndim = 2
+
+    def __init__(self, init='glorot_uniform', transform_bias=-2,
+                 activation='linear', weights=None,
+                 W_regularizer=None, b_regularizer=None, activity_regularizer=None,
+                 W_constraint=None, b_constraint=None, input_dim=None, **kwargs):
+        self.init = initializations.get(init)
+        self.transform_bias = transform_bias
+        self.activation = activations.get(activation)
+
+        self.W_regularizer = regularizers.get(W_regularizer)
+        self.b_regularizer = regularizers.get(b_regularizer)
+        self.activity_regularizer = regularizers.get(activity_regularizer)
+
+        self.W_constraint = constraints.get(W_constraint)
+        self.b_constraint = constraints.get(b_constraint)
+        self.constraints = [self.W_constraint, self.b_constraint]
+
+        self.initial_weights = weights
+
+        self.input_dim = input_dim
+        if self.input_dim:
+            kwargs['input_shape'] = (self.input_dim,)
+        self.input = K.placeholder(ndim=2)
+        super(Highway, self).__init__(**kwargs)
+
+    def build(self):
+        input_dim = self.input_shape[1]
+
+        self.W = self.init((input_dim, input_dim))
+        self.W_carry = self.init((input_dim, input_dim))
+
+        self.b = K.zeros((input_dim,))
+        # initialize with a vector of values `transform_bias`
+        self.b_carry = K.variable(np.ones((input_dim,)) * self.transform_bias)
+
+        self.params = [self.W, self.b, self.W_carry, self.b_carry]
+
+        self.regularizers = []
+        if self.W_regularizer:
+            self.W_regularizer.set_param(self.W)
+            self.regularizers.append(self.W_regularizer)
+
+        if self.b_regularizer:
+            self.b_regularizer.set_param(self.b)
+            self.regularizers.append(self.b_regularizer)
+
+        if self.activity_regularizer:
+            self.activity_regularizer.set_layer(self)
+            self.regularizers.append(self.activity_regularizer)
+
+        if self.initial_weights is not None:
+            self.set_weights(self.initial_weights)
+            del self.initial_weights
+
+    @property
+    def output_shape(self):
+        return (self.input_shape[0], self.input_shape[1])
+
+    def get_output(self, train=False):
+        X = self.get_input(train)
+        transform_weight = activations.sigmoid(K.dot(X, self.W_carry) + self.b_carry)
+        act = self.activation(K.dot(X, self.W) + self.b)
+        act *= transform_weight
+        output = act + (1 - transform_weight) * X
+        return output
+
+    def get_config(self):
+        config = {'name': self.__class__.__name__,
+                  'init': self.init.__name__,
+                  'transform_bias': self.transform_bias,
+                  'activation': self.activation.__name__,
+                  'W_regularizer': self.W_regularizer.get_config() if self.W_regularizer else None,
+                  'b_regularizer': self.b_regularizer.get_config() if self.b_regularizer else None,
+                  'activity_regularizer': self.activity_regularizer.get_config() if self.activity_regularizer else None,
+                  'W_constraint': self.W_constraint.get_config() if self.W_constraint else None,
+                  'b_constraint': self.b_constraint.get_config() if self.b_constraint else None,
+                  'input_dim': self.input_dim}
+        base_config = super(Highway, self).get_config()
+        return dict(list(base_config.items()) + list(config.items()))

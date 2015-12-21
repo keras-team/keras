@@ -16,10 +16,10 @@ def test_layer_call():
     W = np.asarray(K.eval(layer.W)).astype(K.floatx())
     X = K.placeholder(ndim=2)
     Y = layer(X)
-    F = K.function([X], [Y])
+    f = K.function([X], [Y])
 
     x = np.ones((nb_samples, input_dim)).astype(K.floatx())
-    y = F([x])[0].astype(K.floatx())
+    y = f([x])[0].astype(K.floatx())
     t = np.dot(x, W).astype(K.floatx())
     assert_allclose(t, y, rtol=.2)
 
@@ -31,13 +31,27 @@ def test_sequential_call():
     model.add(Dense(output_dim=output_dim, input_dim=input_dim))
     model.compile('sgd', 'mse')
 
+    # test flat model
     X = K.placeholder(ndim=2)
     Y = model(X)
-    F = K.function([X], [Y])
+    f = K.function([X], [Y])
 
     x = np.ones((nb_samples, input_dim)).astype(K.floatx())
-    y1 = F([x])[0].astype(K.floatx())
+    y1 = f([x])[0].astype(K.floatx())
     y2 = model.predict(x)
+    # results of __call__ should match model.predict
+    assert_allclose(y1, y2)
+
+    # test nested model
+    model2 = Sequential()
+    model2.add(model)
+    model2.compile('sgd', 'mse')
+
+    Y2 = model2(X)
+    f = K.function([X], [Y2])
+
+    y1 = f([x])[0].astype(K.floatx())
+    y2 = model2.predict(x)
     # results of __call__ should match model.predict
     assert_allclose(y1, y2)
 

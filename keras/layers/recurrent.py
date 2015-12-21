@@ -205,7 +205,7 @@ class SimpleRNN(Recurrent):
 
         self.W = self.init((input_dim, self.output_dim))
         self.U = self.inner_init((self.output_dim, self.output_dim))
-        self.b = K.zeros((self.output_dim))
+        self.b = K.zeros((self.output_dim,))
         self.params = [self.W, self.U, self.b]
 
         if self.initial_weights is not None:
@@ -326,7 +326,7 @@ class GRU(Recurrent):
         z = self.inner_activation(x_z + K.dot(h_tm1, self.U_z))
         r = self.inner_activation(x_r + K.dot(h_tm1, self.U_r))
 
-        hh = self.inner_activation(x_h + K.dot(r * h_tm1, self.U_h))
+        hh = self.activation(x_h + K.dot(r * h_tm1, self.U_h))
         h = z * h_tm1 + (1 - z) * hh
         return h, [h]
 
@@ -391,19 +391,19 @@ class LSTM(Recurrent):
 
         self.W_i = self.init((input_dim, self.output_dim))
         self.U_i = self.inner_init((self.output_dim, self.output_dim))
-        self.b_i = K.zeros((self.output_dim))
+        self.b_i = K.zeros((self.output_dim,))
 
         self.W_f = self.init((input_dim, self.output_dim))
         self.U_f = self.inner_init((self.output_dim, self.output_dim))
-        self.b_f = self.forget_bias_init((self.output_dim))
+        self.b_f = self.forget_bias_init((self.output_dim,))
 
         self.W_c = self.init((input_dim, self.output_dim))
         self.U_c = self.inner_init((self.output_dim, self.output_dim))
-        self.b_c = K.zeros((self.output_dim))
+        self.b_c = K.zeros((self.output_dim,))
 
         self.W_o = self.init((input_dim, self.output_dim))
         self.U_o = self.inner_init((self.output_dim, self.output_dim))
-        self.b_o = K.zeros((self.output_dim))
+        self.b_o = K.zeros((self.output_dim,))
 
         self.params = [self.W_i, self.U_i, self.b_i,
                        self.W_c, self.U_c, self.b_c,

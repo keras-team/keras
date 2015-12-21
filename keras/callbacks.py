@@ -8,6 +8,8 @@ import warnings
 
 from collections import deque
 from .utils.generic_utils import Progbar
+from .backend import _BACKEND
+from keras import backend as K
 
 
 class CallbackList(object):
@@ -43,21 +45,27 @@ class CallbackList(object):
             callback.on_batch_begin(batch, logs)
         self._delta_ts_batch_begin.append(time.time() - t_before_callbacks)
         delta_t_median = np.median(self._delta_ts_batch_begin)
-        if self._delta_t_batch > 0. and delta_t_median > 0.95 * self._delta_t_batch and delta_t_median > 0.1:
+        if self._delta_t_batch > 0. and delta_t_median > 0.95 * \
+           self._delta_t_batch and delta_t_median > 0.1:
             warnings.warn('Method on_batch_begin() is slow compared '
-                          'to the batch update (%f). Check your callbacks.' % delta_t_median)
+                          'to the batch update (%f). Check your callbacks.'
+                          % delta_t_median)
         self._t_enter_batch = time.time()
 
     def on_batch_end(self, batch, logs={}):
+        if not hasattr(self, '_t_enter_batch'):
+            self._t_enter_batch = time.time()
         self._delta_t_batch = time.time() - self._t_enter_batch
         t_before_callbacks = time.time()
         for callback in self.callbacks:
             callback.on_batch_end(batch, logs)
         self._delta_ts_batch_end.append(time.time() - t_before_callbacks)
         delta_t_median = np.median(self._delta_ts_batch_end)
-        if self._delta_t_batch > 0. and delta_t_median > 0.95 * self._delta_t_batch and delta_t_median > 0.1:
+        if self._delta_t_batch > 0. and delta_t_median > 0.95 * \
+           self._delta_t_batch and delta_t_median > 0.1:
             warnings.warn('Method on_batch_end() is slow compared '
-                          'to the batch update (%f). Check your callbacks.' % delta_t_median)
+                          'to the batch update (%f). Check your callbacks.'
+                          % delta_t_median)
 
     def on_train_begin(self, logs={}):
         for callback in self.callbacks:
@@ -249,7 +257,8 @@ class ModelCheckpoint(Callback):
 
         if mode not in ['auto', 'min', 'max']:
             warnings.warn('ModelCheckpoint mode %s is unknown, '
-                          'fallback to auto mode' % (self.mode), RuntimeWarning)
+                          'fallback to auto mode' % (self.mode),
+                          RuntimeWarning)
             mode = 'auto'
 
         if mode == 'min':
@@ -276,7 +285,8 @@ class ModelCheckpoint(Callback):
             else:
                 if self.monitor_op(current, self.best):
                     if self.verbose > 0:
-                        print('Epoch %05d: %s improved from %0.5f to %0.5f, saving model to %s'
+                        print('Epoch %05d: %s improved from %0.5f to %0.5f,'
+                              ' saving model to %s'
                               % (epoch, self.monitor, self.best,
                                  current, filepath))
                     self.best = current
@@ -299,15 +309,38 @@ class EarlyStopping(Callback):
         patience: number of epochs with no improvement
             after which training will be stopped.
         verbose: verbosity mode.
+        mode: one of {auto, min, max}. In 'min' mode,
+            training will stop when the quantity
+            monitored has stopped decreasing; in 'max'
+            mode it will stopped when the quantity
+            monitored has stopped increasing.
     '''
-    def __init__(self, monitor='val_loss', patience=0, verbose=0):
+    def __init__(self, monitor='val_loss', patience=0, verbose=0, mode='auto'):
         super(Callback, self).__init__()
 
         self.monitor = monitor
         self.patience = patience
         self.verbose = verbose
-        self.best = np.Inf
         self.wait = 0
+
+        if mode not in ['auto', 'min', 'max']:
+            warnings.warn('EarlyStopping mode %s is unknown, '
+                          'fallback to auto mode' % (self.mode), RuntimeWarning)
+            mode = 'auto'
+
+        if mode == 'min':
+            self.monitor_op = np.less
+            self.best = np.Inf
+        elif mode == 'max':
+            self.monitor_op = np.greater
+            self.best = -np.Inf
+        else:
+            if 'acc' in self.monitor:
+                self.monitor_op = np.greater
+                self.best = -np.Inf
+            else:
+                self.monitor_op = np.less
+                self.best = np.Inf
 
     def on_epoch_end(self, epoch, logs={}):
         current = logs.get(self.monitor)
@@ -315,7 +348,7 @@ class EarlyStopping(Callback):
             warnings.warn('Early stopping requires %s available!' %
                           (self.monitor), RuntimeWarning)
 
-        if current < self.best:
+        if self.monitor_op(current, self.best):
             self.best = current
             self.wait = 0
         else:
@@ -378,4 +411,88 @@ class LearningRateScheduler(Callback):
         self.schedule = schedule
 
     def on_epoch_begin(self, epoch, logs={}):
-        self.model.optimizer.lr.set_value(self.schedule(epoch))
+        assert hasattr(self.model.optimizer, 'lr'), \
+            'Optimizer must have a "lr" attribute.'
+        K.set_value(self.model.optimizer.lr, self.schedule(epoch))
+
+
+class TensorBoard(Callback):
+    ''' Tensorboard basic visualizations.
+
+    This callback writes a log usable with TensorBoard.
+    TensorBoard is a visualization tools provided with TensorFlow.
+
+    If you have installed TensorFlow with pip, you should be able
+    to launch TensorBoard from the command line:
+    ```
+    tensorboard --logdir=/full_path_to_your_logs
+    ```
+    You could find more information at:
+    https://www.tensorflow.org/versions/master/how_tos/summaries_and_tensorboard/index.html
+
+    # Arguments
+        model: a keras model linked to a tensorflow session
+        feed: a dictionnary mapping tensors (inputs, outputs, weigths)
+            from the model._test keras function i.e. model._test.inputs
+            to the corresponding arrays.
+        freq: the frequency at which the callback will output
+            parameters and metrics to the log
+        log_dir: the path of the directory where to save the log
+            files to be parsed by tensorboard
+    '''
+    def __init__(self, model, feed, freq=2, log_dir='./logs',
+                 show_accuracy=False):
+        super(Callback, self).__init__()
+        assert _BACKEND == 'tensorflow', \
+            'TensorBoard callback only works with the tensorflow backend'
+        import tensorflow as tf
+        import keras.backend.tensorflow_backend as KTF
+
+        self.model = model
+        self.freq = freq
+        self.log_dir = log_dir
+        self.sess = KTF._get_session()
+        self.feed = feed
+        mod_type = self.model.get_config()['name']
+        if mod_type == 'Sequential':
+            layers = {l.get_config()['name']: l for l in self.model.layers}
+        elif mod_type == 'Graph':
+            layers = self.model.nodes
+        else:
+            raise Exception('Unrecognized model:',
+                            self.model.get_config()['name'])
+        for l in layers:
+            cur_layer = layers[l]
+            if hasattr(cur_layer, 'W'):
+                tf.histogram_summary('{}_W'.format(l), cur_layer.W)
+            if hasattr(cur_layer, 'b'):
+                tf.histogram_summary('{}_b'.format(l), cur_layer.b)
+            if hasattr(cur_layer, 'get_output'):
+                tf.histogram_summary('{}_out'.format(l),
+                                     cur_layer.get_output())
+        f_output = self.model._test
+        if mod_type == 'Sequential':
+            if show_accuracy is True:
+                f_output = self.model._test_with_acc
+                tf.scalar_summary('Accuracy',
+                                  f_output.outputs[1])
+            tf.scalar_summary('Loss',
+                              f_output.outputs[0])
+        else:
+            losses = [self.model.loss[loss] for loss in self.model.loss]
+            if len(losses) > 1:
+                l_name = " + ".join(losses)
+            else:
+                l_name = losses[0]
+            tf.scalar_summary(l_name,
+                              f_output.outputs[0])
+        self.merged = tf.merge_all_summaries()
+        self.writer = tf.train.SummaryWriter(self.log_dir,
+                                             self.sess.graph_def)
+
+    def on_epoch_end(self, epoch, logs={}):
+        if epoch % self.freq == 0:
+            result = self.sess.run([self.merged],
+                                   feed_dict=self.feed)
+            summary_str = result[0]
+            self.writer.add_summary(summary_str, epoch)

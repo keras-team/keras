@@ -235,6 +235,19 @@ def permute_dimensions(x, pattern):
     '''
     return tf.transpose(x, perm=pattern)
 
+def repeat_elements(x, rep, axis):
+    '''Repeats the elements of a tensor along an axis, like np.repeat
+
+    If x has shape (s1, s2, s3) and axis=1, the output
+    will have shape (s1, s2 * rep, s3)
+    '''
+    x_shape = x.get_shape().as_list()
+    # slices along the repeat axis
+    splits = tf.split(axis, x_shape[axis], x)
+    # repeat each slice the given number of reps
+    x_rep = [s for s in splits for i in range(rep)]
+    return tf.concat(axis, x_rep)
+
 
 def repeat(x, n):
     '''Repeat a 2D tensor:
@@ -274,9 +287,6 @@ def squeeze(x, axis):
 def temporal_padding(x, padding=1):
     '''Pad the middle dimension of a 3D tensor
     with "padding" zeros left and right.
-
-    Appologies for the inane API, but Theano makes this
-    really hard.
     '''
     pattern = [[0, 0], [padding, padding], [0, 0]]
     return tf.pad(x, pattern)
