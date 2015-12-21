@@ -416,7 +416,7 @@ def rnn(step_function, inputs, initial_states,
             output = broadcasting_select(mask_t, output, states[0])
         else:
             # in some places, the RNN is used where no state is passed in (TimeDistiributedDense in
-            # particular) in which csse we can't relay the previous output because we don't have
+            # particular) in which case we can't relay the previous output because we don't have
             # access to it here. So we'll do zeros instead in that case.
             output = broadcasting_select(mask_t, output, zeros_like(output))
         
