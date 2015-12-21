@@ -412,17 +412,27 @@ def rnn(step_function, inputs, initial_states,
     for input, mask_t in zip(input_list, mask_list):
         output, new_states = step_function(input, states)
 
+        # tf.select needs its condition tensor to be the same shape as its two
+        # result tensors, but in our case the condition (mask) tensor is
+        # (nsamples, 1), and A and B are (nsamples, ndimensions). So we need to
+        # broadcast the mask to match the shape of A and B. That's what the
+        # tile call does, is just repeat the mask along its second dimension
+        # ndimensions times.
+        tiled_mask_t = tf.tile(mask_t, tf.pack([1, tf.shape(output)[1]]))
+
         if len(states) > 0:
-            output = broadcasting_select(mask_t, output, states[0])
+            output = tf.select(tiled_mask_t, output, states[0])
         else:
             # in some places, the RNN is used where no state is passed in (TimeDistiributedDense in
             # particular) in which case we can't relay the previous output because we don't have
             # access to it here. So we'll do zeros instead in that case.
-            output = broadcasting_select(mask_t, output, zeros_like(output))
+            output = broadcasting_select(tiled_mask_t, output, zeros_like(output))
         
         return_states = []
         for state, new_state in zip(states, new_states):
-            return_states.append(broadcasting_select(mask_t, new_state, state))
+            # (see earlier comment for tile explanation)
+            tiled_mask_t = tf.tile(mask_t, tf.pack([1, tf.shape(new_state)[1]]))
+            return_states.append(tf.select(tiled_mask_t, new_state, state))
 
         states = return_states
         successive_outputs.append(output)
