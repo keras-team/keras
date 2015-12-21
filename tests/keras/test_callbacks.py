@@ -1,5 +1,6 @@
 import pytest
 import os
+import sys
 import numpy as np
 np.random.seed(1337)
 
@@ -120,7 +121,7 @@ def test_LearningRateScheduler():
     assert (float(K.get_value(model.optimizer.lr)) - 0.2) < K.epsilon()
 
 
-@pytest.mark.skipif(K._BACKEND != 'tensorflow',
+@pytest.mark.skipif((K._BACKEND != 'tensorflow') or (sys.version_info[0] == 3),
                     reason="Requires tensorflow backend")
 def test_TensorBoard():
     import shutil
