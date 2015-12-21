@@ -185,6 +185,8 @@ class Model(object):
             Abstract fit function for f(ins).
             Assume that f returns a list, labelled by out_labels.
         '''
+        self.training_data = ins
+        self.validation_data = val_ins
         do_validation = False
         if val_f and val_ins:
             do_validation = True
