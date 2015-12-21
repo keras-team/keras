@@ -404,11 +404,6 @@ def rnn(step_function, inputs, initial_states,
     if go_backwards:
         input_list.reverse()
 
-    def broadcasting_select(condition, A, B):
-        ''' broadcast the 2nd dimension of condition to be the same as that of A and B '''
-        tiled_condition = tf.tile(condition, tf.pack([1, tf.shape(A)[1]]))
-        return tf.select(tiled_condition, A, B)
-
     for input, mask_t in zip(input_list, mask_list):
         output, new_states = step_function(input, states)
 
@@ -426,7 +421,7 @@ def rnn(step_function, inputs, initial_states,
             # in some places, the RNN is used where no state is passed in (TimeDistiributedDense in
             # particular) in which case we can't relay the previous output because we don't have
             # access to it here. So we'll do zeros instead in that case.
-            output = broadcasting_select(tiled_mask_t, output, zeros_like(output))
+            output = tf.select(tiled_mask_t, output, zeros_like(output))
         
         return_states = []
         for state, new_state in zip(states, new_states):
