@@ -359,9 +359,16 @@ class EarlyStopping(Callback):
 
 
 class RemoteMonitor(Callback):
-    '''Experimental callback used to stream events to a server.
+    '''Callback used to stream events to a server.
 
     Requires the `requests` library.
+
+    # Arguments
+        root: root url to which the events will be send (at the end
+            of every epoch). Events are sent to
+            `root + '/publish/epoch/end/'`. Calls are HTTP POST,
+            with a `data` argument which is a JSON-encoded dictionary
+            of event data.
     '''
     def __init__(self, root='http://localhost:9000'):
         self.root = root
@@ -401,9 +408,9 @@ class LearningRateScheduler(Callback):
     '''Learning rate scheduler.
 
     # Arguments
-        schedule: a function that gets an epoch index as input
+        schedule: a function that takes an epoch index as input
             (integer, indexed from 0) and returns a new
-            learning rate as output.
+            learning rate as output (float).
     '''
     def __init__(self, schedule):
         super(LearningRateScheduler, self).__init__()
@@ -412,22 +419,28 @@ class LearningRateScheduler(Callback):
     def on_epoch_begin(self, epoch, logs={}):
         assert hasattr(self.model.optimizer, 'lr'), \
             'Optimizer must have a "lr" attribute.'
-        K.set_value(self.model.optimizer.lr, self.schedule(epoch))
+        lr = self.schedule(epoch)
+        assert type(lr) == float, 'The output of the "schedule" function should be float.'
+        K.set_value(self.model.optimizer.lr, lr)
 
 
 class TensorBoard(Callback):
     ''' Tensorboard basic visualizations.
 
-    This callback writes a log usable with TensorBoard.
-    TensorBoard is a visualization tools provided with TensorFlow.
+    This callback writes a log for TensorBoard, which allows
+    you to visualize dynamic graphs of your training and test
+    metrics, as well as activation histograms for the different
+    layers in your model.
+
+    TensorBoard is a visualization tool provided with TensorFlow.
 
     If you have installed TensorFlow with pip, you should be able
     to launch TensorBoard from the command line:
     ```
     tensorboard --logdir=/full_path_to_your_logs
     ```
-    You could find more information at:
-    https://www.tensorflow.org/versions/master/how_tos/summaries_and_tensorboard/index.html
+    You can find more information about TensorBoard
+    [here](https://www.tensorflow.org/versions/master/how_tos/summaries_and_tensorboard/index.html).
 
     # Arguments
         log_dir: the path of the directory where to save the log
