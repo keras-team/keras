@@ -57,11 +57,11 @@ def ones(shape, dtype=_FLOATX, name=None):
 
 
 def ones_like(x, name=None):
-    return tf.ones_like(x)
+    return tf.ones_like(x, name=name)
 
 
 def zeros_like(x, name=None):
-    return tf.zeros_like(x)
+    return tf.zeros_like(x, name=name)
 
 
 def count_params(x):
