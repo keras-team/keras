@@ -15,13 +15,13 @@ def test_tokenizer():
     texts = ['The cat sat on the mat.',
              'The dog sat on the log.',
              'Dogs and cats living together.']
-    tokenizer = Tokenizer(nb_words=20)
+    tokenizer = Tokenizer(nb_words=10)
     tokenizer.fit_on_texts(texts)
 
     sequences = []
     for seq in tokenizer.texts_to_sequences_generator(texts):
         sequences.append(seq)
-    assert np.max(np.max(sequences)) == 12
+    assert np.max(np.max(sequences)) < 10
     assert np.min(np.min(sequences)) == 1
 
     tokenizer.fit_on_sequences(sequences)
