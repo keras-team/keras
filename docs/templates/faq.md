@@ -20,6 +20,8 @@
 
 [How can I record the training / validation loss / accuracy at each epoch?](#how-can-i-record-the-training-validation-loss-accuracy-at-each-epoch)
 
+[How can I use stateful RNNs?](#how-can-i-use-stateful-rnns)
+
 ---
 
 ### How can I run Keras on GPU?
@@ -105,7 +107,7 @@ You can build a Theano function that will return the output of a certain layer g
 
 ```python
 # with a Sequential model
-get_3rd_layer_output = theano.function([model.layers[0].input], 
+get_3rd_layer_output = theano.function([model.layers[0].input],
                                        model.layers[3].get_output(train=False))
 layer_output = get_3rd_layer_output(X)
 
@@ -120,7 +122,7 @@ conv_output = get_conv_output(input_data_dict)
 
 ### Isn't there a bug with Merge or Graph related to input concatenation?
 
-Yes, there was a known bug with tensor concatenation in Thenao that was fixed early 2015. 
+Yes, there was a known bug with tensor concatenation in Thenao that was fixed early 2015.
 Please upgrade to the latest version of Theano:
 
 ```bash
@@ -177,3 +179,51 @@ print(hist.history)
 ```
 
 ---
+
+### How can I use stateful RNNs?
+
+Making a RNN stateful means that the states for the samples of each batch will be reused as initial states for the samples in the next batch.
+
+When using stateful RNNs, it is therefore assumed that:
+
+- all batches have the same number of samples
+- If `X1` and `X2` are successive batches of samples, then `X2[i]` is the follow-up sequence to `X1[i]`, for every `i`.
+
+To use statefulness in RNNs, you need to:
+
+- explicitely specify the batch size you are using, by passing a `batch_input_shape` argument to the first layer in your model. It should be a tuple of integers, e.g. `(32, 10, 16)` for a 32-samples batch of sequences of 10 timesteps with 16 features per timestep.
+- set `stateful=True` in your RNN layer(s).
+
+To reset the states accumulated:
+
+- use `model.reset_states()` to reset the states of all layers in the model
+- use `layer.reset_states()` to reset the states of a specific stateful RNN layer
+
+Example:
+
+```python
+
+X  # this is our input data, of shape (32, 21, 16)
+# we will feed it to our model in sequences of length 10
+
+model = Sequential()
+model.add(LSTM(32, batch_input_shape=(32, 10, 16), stateful=True))
+model.add(Dense(16, activation='softmax'))
+
+model.compile(optimizer='rmsprop', loss='categorical_crossentropy')
+
+# we train the network to predict the 11th timestep given the first 10:
+model.train_on_batch(X[:, :10, :], np.reshape(X[:, 10, :], (32, 16)))
+
+# the state of the network has changed. We can feed the follow-up sequences:
+model.train_on_batch(X[:, 10:20, :], np.reshape(X[:, 20, :], (32, 16)))
+
+# let's reset the states of the LSTM layer:
+model.reset_states()
+
+# another way to do it in this case:
+model.layers[0].reset_states()
+```
+
+Notes that the methods `predict`, `fit`, `train_on_batch`, `predict_classes`, etc. will *all* update the states of the stateful layers in a model. This allows you to do not only stateful training, but also stateful prediction.
+
