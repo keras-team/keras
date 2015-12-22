@@ -39,7 +39,10 @@ def load_data(path="imdb.pkl", nb_words=None, skip_top=0,
                 new_labels.append(y)
         X = new_X
         labels = new_labels
-
+    if not X:
+        raise Exception('After filtering for sequences shorter than maxlen=' +
+                        str(maxlen) + ', no sequence was kept. '
+                        'Increase maxlen.')
     if not nb_words:
         nb_words = max([max(x) for x in X])
 
