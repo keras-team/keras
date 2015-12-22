@@ -395,6 +395,8 @@ def rnn(step_function, inputs, output_dim, initial_states,
             output: tensor with shape (samples, ...) (no time dimension),
             new_states: list of tensors, same length and shapes
                 as 'states'.
+    output_dim:
+        Number of output dimensions
     initial_states: tensor with shape (samples, ...) (no time dimension),
         containing the initial values for the states used in
         the step function.
