@@ -180,5 +180,24 @@ def _runner(layer):
     layer.trainable = True
     layer.trainable = False
 
+def test_siamese():
+    right_input_layer = core.Dense(7, input_dim=3)
+    left_input_layer = core.Dense(7, input_dim=3)
+
+    shared_layer = core.Dense(5,input_dim=7)
+    for mode in ['sum', 'mul', 'ave', 'concat']:
+        siamese_layer = core.Siamese(shared_layer, [left_input_layer, right_input_layer], merge_mode=mode)
+        siamese_layer.output_shape
+        siamese_layer.get_output()
+
+    # Merge modes 'dot' and 'cos' requires a different call signature
+    for mode in ['dot', 'cos']:
+        siamese_layer = core.Siamese(shared_layer, [left_input_layer, right_input_layer], merge_mode=mode,
+                                     dot_axes=([1], [1]))
+        siamese_layer.output_shape
+        siamese_layer.get_output()
+
+
+
 if __name__ == '__main__':
     pytest.main([__file__])
