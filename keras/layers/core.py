@@ -762,6 +762,13 @@ class Flatten(Layer):
     @property
     def output_shape(self):
         input_shape = self.input_shape
+        if not all(input_shape[1:]):
+            raise Exception('The shape of the input to "Flatten" '
+                            'is not fully defined '
+                            '(got ' + str(input_shape[1:]) + '. '
+                            'Make sure to pass a complete "input_shape" '
+                            'or "batch_input_shape" argument to the first '
+                            'layer in your model.')
         return (input_shape[0], np.prod(input_shape[1:]))
 
     def get_output(self, train=False):
