@@ -439,7 +439,6 @@ def rnn(step_function, inputs, output_dim, initial_states,
     # realize that it never needs to compute the actual outer product but that it's just for
     # shape inference.
     initial_output = zeros_like(T.outer(initial_output, zeros((output_dim,)))) # (samples, output_dim)
-    print(initial_output.shape)
 
     results, _ = theano.scan(
         _step,
