@@ -32,15 +32,15 @@ def _runner(layer_class):
             mask = layer.get_output_mask(train)
 
     # check statefulness
-    layer = layer_class(output_dim, return_sequences=False,
-                        stateful=True,
-                        weights=None,
-                        batch_input_shape=(nb_samples, timesteps, embedding_dim))
     model = Sequential()
     model.add(embeddings.Embedding(embedding_num, embedding_dim,
                         mask_zero=True,
                         input_length=timesteps,
                         batch_input_shape=(nb_samples, timesteps)))
+
+    layer = layer_class(output_dim, return_sequences=False,
+                        stateful=True, 
+                        weights=None)
     model.add(layer)
     model.compile(optimizer='sgd', loss='mse')
     out1 = model.predict(np.ones((nb_samples, timesteps)))
@@ -66,7 +66,7 @@ def _runner(layer_class):
     assert_allclose(out3, out4, atol=1e-5)
 
     # check that the call to `predict` updated the states
-    out5 = model.predict(np.ones((nb_samples, timesteps )))
+    out5 = model.predict(np.ones((nb_samples, timesteps)))
     assert(out4.max() != out5.max())
 
     # Check masking

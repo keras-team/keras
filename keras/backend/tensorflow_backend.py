@@ -352,7 +352,7 @@ def gradients(loss, variables):
 
 # CONTROL FLOW
 
-def rnn(step_function, inputs, initial_states,
+def rnn(step_function, inputs, output_dim, initial_states,
         go_backwards=False, mask=None):
     '''Iterates over the time dimension of a tensor.
 
@@ -398,9 +398,9 @@ def rnn(step_function, inputs, initial_states,
         # tensorflow yet for some reason it fails to in some test-cases. This
         # fixes the issue, but should be removed in future.
         mask.set_shape([inputs_shape[0].value, inputs_shape[1].value, 1])
+        mask = tf.cast(mask, tf.bool)
     else:
         mask = tf.transpose(mask, (1, 0, 2))
-    mask = tf.cast(mask, tf.bool)
 
     mask_list = tf.unpack(mask)
     
@@ -421,13 +421,12 @@ def rnn(step_function, inputs, initial_states,
         # ndimensions times.
         tiled_mask_t = tf.tile(mask_t, tf.pack([1, tf.shape(output)[1]]))
 
-        if len(states) > 0:
-            output = tf.select(tiled_mask_t, output, states[0])
+        if len(successive_outputs) == 0:
+            prev_output = zeros_like(output)
         else:
-            # in some places, the RNN is used where no state is passed in (TimeDistiributedDense in
-            # particular) in which case we can't relay the previous output because we don't have
-            # access to it here. So we'll do zeros instead in that case.
-            output = tf.select(tiled_mask_t, output, zeros_like(output))
+            prev_output = successive_outputs[-1]
+
+        output = tf.select(tiled_mask_t, output, prev_output)
         
         return_states = []
         for state, new_state in zip(states, new_states):

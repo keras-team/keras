@@ -377,7 +377,7 @@ def gradients(loss, variables):
 
 # CONTROL FLOW
 
-def rnn(step_function, inputs, initial_states,
+def rnn(step_function, inputs, output_dim, initial_states,
         go_backwards=False, mask=None):
     '''Iterates over the time dimension of a tensor.
 
@@ -419,24 +419,30 @@ def rnn(step_function, inputs, initial_states,
     else:
         mask = mask.dimshuffle((1, 0, 2))
 
-    def _step(input, mask, *states):
+    def _step(input, mask, output_tm1, *states):
         output, new_states = step_function(input, states)
-        if len(states) > 0:
-            output = T.switch(mask, output, states[0]) # output previous output if masked.
-        else:
-            # in some places, the RNN is used where no state is passed in (TimeDistiributedDense in
-            # particular) in which csse we can't relay the previous output because we don't have
-            # access to it here. So we'll do zeros instead in that case.
-            output = T.switch(mask, output, zeros_like(output))
+        output = T.switch(mask, output, output_tm1) # output previous output if masked.
         return_states = []
         for state, new_state in zip(states, new_states):
             return_states.append(T.switch(mask, new_state, state))
         return [output] + return_states
 
+    # build an all-zero tensor of shape (samples, output_dim)
+    # (aside, it's kind of crazy that we do this in this way, if the compiler
+    # isn't smart about the outer product below, it could be relatively expensive.
+    initial_output = zeros_like(inputs)  # (timesteps, samples, input_dim)
+    initial_output = sum(initial_output, axis=0)  # (samples, input_dim)
+    initial_output = sum(initial_output, axis=1)  # (samples,)
+    # I'm putting the extra zeros_like here in the *hopes* that it helps the optimizer
+    # realize that it never needs to compute the actual outer product but that it's just for
+    # shape inference.
+    initial_output = zeros_like(T.outer(initial_output, zeros((output_dim,)))) # (samples, output_dim)
+    print(initial_output.shape)
+
     results, _ = theano.scan(
         _step,
         sequences=[inputs, mask],
-        outputs_info=[None] + initial_states,
+        outputs_info=[initial_output] + initial_states,
         go_backwards=go_backwards)
 
     # deal with Theano API inconsistency
