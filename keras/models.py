@@ -1097,7 +1097,8 @@ class Graph(Model, containers.Graph):
         '''Generate predictions for a single batch of samples.
         '''
         ins = [data[name] for name in self.input_order]
-        return self._predict(ins)
+        outs = self._predict(ins)
+        return dict(zip(self.output_order, outs))
 
     def save_weights(self, filepath, overwrite=False):
         '''Save weights from all layers to a HDF5 files.
