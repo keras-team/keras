@@ -335,7 +335,7 @@ class TimeDistributedMerge(Layer):
         2D tensor with shape: `(samples, features)`.
 
     # Arguments
-        mode: one of {'sum', 'mul', 'ave'}
+        mode: one of {'sum', 'mul', 'ave', 'max'}
     '''
     input_ndim = 3
 
@@ -356,11 +356,14 @@ class TimeDistributedMerge(Layer):
         if self.mode == 'ave':
             s = K.mean(X, axis=1)
             return s
-        if self.mode == 'sum':
+        elif self.mode == 'sum':
             s = K.sum(X, axis=1)
             return s
         elif self.mode == 'mul':
             s = K.prod(X, axis=1)
+            return s
+        elif self.mode == 'max':
+            s = K.max(X, axis=1)
             return s
         else:
             raise Exception('Unknown merge mode')
@@ -376,7 +379,7 @@ class Merge(Layer):
     '''Merge the output of a list of layers or containers into a single tensor.
 
     # Arguments
-        mode: one of {sum, mul, concat, ave, dot}.
+        mode: one of {sum, mul, concat, ave, dot, max}.
             sum: sum the outputs (shapes must match)
             mul: multiply the outputs element-wise (shapes must match)
             concat: concatenate the outputs along the axis specified by `concat_axis`
@@ -416,10 +419,10 @@ class Merge(Layer):
             raise Exception('Please specify two or more input layers '
                             '(or containers) to merge')
 
-        if mode not in {'sum', 'mul', 'concat', 'ave', 'join', 'cos', 'dot'}:
+        if mode not in {'sum', 'mul', 'concat', 'ave', 'join', 'cos', 'dot', 'max'}:
             raise Exception('Invalid merge mode: ' + str(mode))
 
-        if mode in {'sum', 'mul', 'ave', 'cos'}:
+        if mode in {'sum', 'mul', 'ave', 'cos', 'max'}:
             input_shapes = set([l.output_shape for l in layers])
             if len(input_shapes) > 1:
                 raise Exception('Only layers of same output shape can '
@@ -485,7 +488,7 @@ class Merge(Layer):
     @property
     def output_shape(self):
         input_shapes = [layer.output_shape for layer in self.layers]
-        if self.mode in ['sum', 'mul', 'ave']:
+        if self.mode in ['sum', 'mul', 'ave', 'max']:
             return input_shapes[0]
         elif self.mode == 'concat':
             output_shape = list(input_shapes[0])
@@ -538,6 +541,11 @@ class Merge(Layer):
             s = self.layers[0].get_output(train)
             for i in range(1, len(self.layers)):
                 s *= self.layers[i].get_output(train)
+            return s
+        elif self.mode == 'max':
+            s = self.layers[0].get_output(train)
+            for i in range(1, len(self.layers)):
+                s = K.maximum(self.layers[i].get_output(train), s)
             return s
         elif self.mode == 'dot':
             if K._BACKEND != 'theano':
