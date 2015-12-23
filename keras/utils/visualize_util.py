@@ -143,8 +143,8 @@ class ModelToDot(object):
 
 def to_graph(model, **kwargs):
     """
-    `recursive` controls wether we recursively explore container layers
-    `show_shape` controls wether the shape is shown in the graph
+    `recursive` controls whether we recursively explore container layers
+    `show_shape` controls whether the shape is shown in the graph
     """
     return ModelToDot()(model, **kwargs)
 

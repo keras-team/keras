@@ -584,7 +584,7 @@ class AveragePooling2D(_Pooling2D):
 
 
 class UpSampling1D(Layer):
-    '''Repeats each temporal step `length` times along the time axis.
+    '''Repeat each temporal step `length` times along the time axis.
 
     # Input shape
         3D tensor with shape: `(samples, steps, features)`.
@@ -620,7 +620,7 @@ class UpSampling1D(Layer):
 
 
 class UpSampling2D(Layer):
-    '''Repeats the rows and columns of the data
+    '''Repeat the rows and columns of the data
     by size[0] and size[1] respectively.
 
     # Input shape

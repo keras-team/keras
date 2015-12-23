@@ -39,7 +39,7 @@ def hard_sigmoid(x):
 
 def linear(x):
     '''
-    The function returns the variable that is passed in, so all types work
+    The function returns the variable that is passed in, so all types work.
     '''
     return x
 
