@@ -498,6 +498,20 @@ class Sequential(Model, containers.Sequential):
                 output timesteps, which is useful
                 in sequence to sequence learning.
         '''
+        if type(X) == list:
+            if len(set([len(a) for a in X] + [len(y)])) != 1:
+                raise Exception('All input arrays and the target array must '
+                                'have the same number of samples.')
+        else:
+            if len(X) != len(y):
+                raise Exception('The input data tensor (X) and '
+                                'the target tensor (y) must have '
+                                'the same number of samples. Found: '
+                                'len(X) = {}, len(y) = {}'.format(len(X), len(y)))
+        if sample_weight is not None:
+            assert len(sample_weight) == len(y), ('"sample_weight" must have '
+                                                  'the same number of samples '
+                                                  'as X and y.')
         X = standardize_X(X)
         y = standardize_y(y)
 
@@ -511,11 +525,20 @@ class Sequential(Model, containers.Sequential):
         if validation_data:
             if len(validation_data) == 2:
                 X_val, y_val = validation_data
+                if type(X_val) == list:
+                    assert len(set([len(a) for a in X_val] + [len(y_val)])) == 1
+                else:
+                    assert len(X_val) == len(y_val)
                 X_val = standardize_X(X_val)
                 y_val = standardize_y(y_val)
                 sample_weight_val = standardize_weights(y_val)
             elif len(validation_data) == 3:
                 X_val, y_val, sample_weight_val = validation_data
+                if type(X_val) == list:
+                    assert len(set([len(a) for a in X_val] +
+                                   [len(y_val), len(sample_weight_val)])) == 1
+                else:
+                    assert len(X_val) == len(y_val) == len(sample_weight_val)
                 X_val = standardize_X(X_val)
                 y_val = standardize_y(y_val)
                 sample_weight_val = standardize_weights(y_val,
@@ -619,6 +642,20 @@ class Sequential(Model, containers.Sequential):
             verbose: verbosity mode, 0 or 1.
             sample_weight: sample weights, as a numpy array.
         '''
+        if type(X) == list:
+            if len(set([len(a) for a in X] + [len(y)])) != 1:
+                raise Exception('All input arrays and the target array must '
+                                'have the same number of samples.')
+        else:
+            if len(X) != len(y):
+                raise Exception('The input data tensor (X) and '
+                                'the target tensor (y) must have '
+                                'the same number of samples. Found: '
+                                'len(X) = {}, len(y) = {}'.format(len(X), len(y)))
+        if sample_weight is not None:
+            assert len(sample_weight) == len(y), ('"sample_weight" must have '
+                                                  'the same number of samples '
+                                                  'as X and y.')
         X = standardize_X(X)
         y = standardize_y(y)
         sample_weight = standardize_weights(y, sample_weight=sample_weight)
@@ -643,6 +680,20 @@ class Sequential(Model, containers.Sequential):
 
         Arguments: see `fit` method.
         '''
+        if type(X) == list:
+            if len(set([len(a) for a in X] + [len(y)])) != 1:
+                raise Exception('All input arrays and the target array must '
+                                'have the same number of samples.')
+        else:
+            if len(X) != len(y):
+                raise Exception('The input data tensor (X) and '
+                                'the target tensor (y) must have '
+                                'the same number of samples. Found: '
+                                'len(X) = {}, len(y) = {}'.format(len(X), len(y)))
+        if sample_weight is not None:
+            assert len(sample_weight) == len(y), ('"sample_weight" must have '
+                                                  'the same number of samples '
+                                                  'as X and y.')
         X = standardize_X(X)
         y = standardize_y(y)
         sample_weight = standardize_weights(y, class_weight=class_weight,
@@ -659,6 +710,20 @@ class Sequential(Model, containers.Sequential):
 
         Arguments: see `fit` method.
         '''
+        if type(X) == list:
+            if len(set([len(a) for a in X] + [len(y)])) != 1:
+                raise Exception('All input arrays and the target array must '
+                                'have the same number of samples.')
+        else:
+            if len(X) != len(y):
+                raise Exception('The input data tensor (X) and '
+                                'the target tensor (y) must have '
+                                'the same number of samples. Found: '
+                                'len(X) = {}, len(y) = {}'.format(len(X), len(y)))
+        if sample_weight is not None:
+            assert len(sample_weight) == len(y), ('"sample_weight" must have '
+                                                  'the same number of samples '
+                                                  'as X and y.')
         X = standardize_X(X)
         y = standardize_y(y)
         sample_weight = standardize_weights(y, sample_weight=sample_weight)
@@ -821,12 +886,21 @@ class Sequential(Model, containers.Sequential):
                 raise Exception('The generator output must be a tuple.')
             if len(generator_output) == 2:
                 X, y = generator_output
+                if type(X) == list:
+                    assert len(set([len(a) for a in X] + [len(y)])) == 1
+                else:
+                    assert len(X) == len(y)
                 sample_weight = None
             elif len(generator_output) == 3:
                 X, y, sample_weight = generator_output
+                if type(X) == list:
+                    assert len(set([len(a) for a in X] + [len(y), len(sample_weight)])) == 1
+                else:
+                    assert len(X) == len(y) == len(sample_weight)
             else:
                 _stop.set()
-                raise Exception('The generator output tuple must have 2 or 3 elements.')
+                raise Exception('The generator output tuple must have '
+                                '2 or 3 elements.')
             return X, y, sample_weight
 
         # start generator thread storing batches into a queue
@@ -843,7 +917,7 @@ class Sequential(Model, containers.Sequential):
                         i += 1
                     else:
                         time.sleep(wait_time)
-                except KeyboardInterrupt:
+                except:
                     _stop.set()
                     return
 
@@ -1013,6 +1087,9 @@ class Graph(Model, containers.Graph):
         '''
         X = [data[name] for name in self.input_order]
         y = [standardize_y(data[name]) for name in self.output_order]
+        if len(set([len(a) for a in X] + [len(a) for a in y])) != 1:
+            raise Exception('All input arrays and target arrays must have '
+                            'the same number of samples.')
 
         sample_weight_list = [standardize_weights(y[i],
                                                   sample_weight=sample_weight.get(self.output_order[i])) for i in range(len(self.output_order))]
@@ -1057,8 +1134,10 @@ class Graph(Model, containers.Graph):
         '''
         sample_weight = [standardize_weights(data[name],
                                              sample_weight=sample_weight.get(name)) for name in self.output_order]
-
         ins = [data[name] for name in self.input_order] + [standardize_y(data[name]) for name in self.output_order] + sample_weight
+        if len(set([len(a) for a in ins])) != 1:
+            raise Exception('All input arrays and target arrays must have '
+                            'the same number of samples.')
         outs = self._test_loop(self._test, ins, batch_size, verbose)
         return outs[0]
 
@@ -1069,6 +1148,9 @@ class Graph(Model, containers.Graph):
         Arguments: see `fit` method.
         '''
         ins = [data[name] for name in self.input_order]
+        if len(set([len(a) for a in ins])) != 1:
+            raise Exception('All input arrays and target arrays must have '
+                            'the same number of samples.')
         outs = self._predict_loop(self._predict, ins, batch_size, verbose)
         return dict(zip(self.output_order, outs))
 
@@ -1081,6 +1163,9 @@ class Graph(Model, containers.Graph):
                                              sample_weight=sample_weight.get(name),
                                              class_weight=class_weight.get(name)) for name in self.output_order]
         ins = [data[name] for name in self.input_order] + [standardize_y(data[name]) for name in self.output_order] + sample_weight
+        if len(set([len(a) for a in ins])) != 1:
+            raise Exception('All input arrays and target arrays must have '
+                            'the same number of samples.')
         return self._train(ins)
 
     def test_on_batch(self, data, sample_weight={}):
@@ -1091,12 +1176,18 @@ class Graph(Model, containers.Graph):
         sample_weight = [standardize_weights(data[name],
                                              sample_weight=sample_weight.get(name)) for name in self.output_order]
         ins = [data[name] for name in self.input_order] + [standardize_y(data[name]) for name in self.output_order] + sample_weight
+        if len(set([len(a) for a in ins])) != 1:
+            raise Exception('All input arrays and target arrays must have '
+                            'the same number of samples.')
         return self._test(ins)
 
     def predict_on_batch(self, data):
         '''Generate predictions for a single batch of samples.
         '''
         ins = [data[name] for name in self.input_order]
+        if len(set([len(a) for a in ins])) != 1:
+            raise Exception('All input arrays and target arrays must have '
+                            'the same number of samples.')
         outs = self._predict(ins)
         return dict(zip(self.output_order, outs))
 
@@ -1247,6 +1338,10 @@ class Graph(Model, containers.Graph):
                                 '(data, sample_weight).')
             assert type(data) == dict
             assert type(sample_weight) == dict
+            if len(set([len(data[name]) for name in data.keys()] +
+                       [len(sample_weight[name]) for name in sample_weight.keys()])) != 1:
+                raise Exception('All input arrays and target arrays must have '
+                                'the same number of samples.')
             return data, sample_weight
 
         # start generator thread storing batches into a queue
@@ -1263,7 +1358,7 @@ class Graph(Model, containers.Graph):
                         i += 1
                     else:
                         time.sleep(wait_time)
-                except KeyboardInterrupt:
+                except:
                     _stop.set()
                     return
 
