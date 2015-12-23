@@ -11,9 +11,6 @@ def _runner(init, shape, target_mean=None, target_std=None,
             target_max=None, target_min=None):
     variable = init(shape)
     output = K.get_value(variable)
-    print target_std
-    print output.std()
-    print output.mean()
     lim = 1e-2
     if target_std is not None:
         assert abs(output.std() - target_std) < lim
