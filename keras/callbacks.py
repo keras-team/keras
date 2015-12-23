@@ -256,7 +256,7 @@ class ModelCheckpoint(Callback):
 
         if mode not in ['auto', 'min', 'max']:
             warnings.warn('ModelCheckpoint mode %s is unknown, '
-                          'fallback to auto mode' % (self.mode),
+                          'fallback to auto mode.' % (self.mode),
                           RuntimeWarning)
             mode = 'auto'
 
@@ -311,7 +311,7 @@ class EarlyStopping(Callback):
         mode: one of {auto, min, max}. In 'min' mode,
             training will stop when the quantity
             monitored has stopped decreasing; in 'max'
-            mode it will stopped when the quantity
+            mode it will stop when the quantity
             monitored has stopped increasing.
     '''
     def __init__(self, monitor='val_loss', patience=0, verbose=0, mode='auto'):
@@ -324,7 +324,7 @@ class EarlyStopping(Callback):
 
         if mode not in ['auto', 'min', 'max']:
             warnings.warn('EarlyStopping mode %s is unknown, '
-                          'fallback to auto mode' % (self.mode), RuntimeWarning)
+                          'fallback to auto mode.' % (self.mode), RuntimeWarning)
             mode = 'auto'
 
         if mode == 'min':
@@ -364,7 +364,7 @@ class RemoteMonitor(Callback):
     Requires the `requests` library.
 
     # Arguments
-        root: root url to which the events will be send (at the end
+        root: root url to which the events will be sent (at the end
             of every epoch). Events are sent to
             `root + '/publish/epoch/end/'`. Calls are HTTP POST,
             with a `data` argument which is a JSON-encoded dictionary
@@ -453,7 +453,7 @@ class TensorBoard(Callback):
         super(Callback, self).__init__()
         if K._BACKEND != 'tensorflow':
             raise Exception('TensorBoard callback only works '
-                            'with the TensorFlow backend')
+                            'with the TensorFlow backend.')
         self.log_dir = log_dir
         self.histogram_freq = histogram_freq
 

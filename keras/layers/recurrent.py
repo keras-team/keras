@@ -30,7 +30,7 @@ class Recurrent(MaskedLayer):
         return_sequences: Boolean. Whether to return the last output
             in the output sequence, or the full sequence.
         go_backwards: Boolean (default False).
-            If True, rocess the input sequence backwards.
+            If True, process the input sequence backwards.
         stateful: Boolean (default False). If True, the last state
             for each sample at index i in a batch will be used as initial
             state for the sample of index i in the following batch.
@@ -43,7 +43,7 @@ class Recurrent(MaskedLayer):
             `Flatten` then `Dense` layers upstream
             (without it, the shape of the dense outputs cannot be computed).
             Note that if the recurrent layer is not the first layer
-            in your model, you would need to specify the input Length
+            in your model, you would need to specify the input length
             at the level of the first layer
             (e.g. via the `input_shape` argument)
 
@@ -129,7 +129,7 @@ class Recurrent(MaskedLayer):
         if K._BACKEND == 'tensorflow':
             if not self.input_shape[1]:
                 raise Exception('When using TensorFlow, you should define ' +
-                                'explicitely the number of timesteps of ' +
+                                'explicitly the number of timesteps of ' +
                                 'your sequences. Make sure the first layer ' +
                                 'has a "batch_input_shape" argument ' +
                                 'including the samples axis.')

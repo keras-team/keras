@@ -84,7 +84,7 @@ class Layer(object):
                                                                 ' but previous layer has output_shape ' +
                                                                 str(layer.output_shape))
         if layer.get_output_mask() is not None:
-            assert self.supports_masked_input(), 'Cannot connect non-masking layer to layer with masked output'
+            assert self.supports_masked_input(), 'Cannot connect non-masking layer to layer with masked output.'
         self.previous = layer
         self.build()
 
@@ -530,7 +530,7 @@ class Merge(Layer):
             for i in range(len(self.layers)):
                 X = self.layers[i].get_output(train)
                 if X.name is None:
-                    raise ValueError('merge_mode="join" only works with named inputs')
+                    raise ValueError('merge_mode="join" only works with named inputs.')
                 else:
                     inputs[X.name] = X
             return inputs
@@ -560,7 +560,7 @@ class Merge(Layer):
             output = output.dimshuffle((0, 'x'))
             return output
         else:
-            raise Exception('Unknown merge mode')
+            raise Exception('Unknown merge mode.')
 
     def get_input(self, train=False):
         res = []
@@ -748,7 +748,7 @@ class Flatten(Layer):
     '''Flatten the input. Does not affect the batch size.
 
     # Input shape
-        Arbitrary, although all dimensions in the input shaped must be fixed.
+        Arbitrary, although all dimensions in the input shape must be fixed.
         Use the keyword argument `input_shape`
         (tuple of integers, does not include the samples axis)
         when using this layer as the first layer in a model.
@@ -1363,7 +1363,7 @@ class LambdaMerge(Lambda):
     def __init__(self, layers, function, output_shape=None):
         if len(layers) < 2:
             raise Exception('Please specify two or more input layers '
-                            '(or containers) to merge')
+                            '(or containers) to merge.')
         self.layers = layers
         self.params = []
         self.regularizers = []
@@ -1406,7 +1406,7 @@ class LambdaMerge(Lambda):
             output_shape_func = types.FunctionType(output_shape_func, globals())
             shape = output_shape_func(input_shapes)
             if type(shape) not in {list, tuple}:
-                raise Exception('output_shape function must return a tuple')
+                raise Exception('output_shape function must return a tuple.')
             return tuple(shape)
 
     def get_params(self):
@@ -1486,7 +1486,7 @@ class Siamese(Layer):
 
         if merge_mode in {'cos', 'dot'}:
             if len(inputs) > 2:
-                raise Exception(merge_mode + ' merge takes exactly 2 layers')
+                raise Exception(merge_mode + ' merge takes exactly 2 layers.')
 
         self.layer = layer
         self.trainable = layer.trainable
@@ -1573,7 +1573,7 @@ class Siamese(Layer):
             X = self.get_output_at(i, train)
             if X.name is None:
                 raise ValueError('merge_mode="join" '
-                                 'only works with named inputs')
+                                 'only works with named inputs.')
             o[X.name] = X
         return o
 
@@ -1691,10 +1691,10 @@ class Siamese(Layer):
 
 class SiameseHead(Layer):
     '''This layer should be added only on top of a Siamese layer
-    with merge_mode = None
+    with merge_mode = None.
 
     Outputs the output of the Siamese layer at a given index,
-    specified by the head argument
+    specified by the head argument.
 
     # Arguments
         head: The index at which the output of the Siamese layer
@@ -1729,7 +1729,7 @@ class SiameseHead(Layer):
 
 def add_shared_layer(layer, inputs):
     '''Use this function to add a shared layer across
-    multiple Sequential models without merging the outputs
+    multiple Sequential models without merging the outputs.
     '''
     input_layers = [l.layers[-1] for l in inputs]
     s = Siamese(layer, input_layers, merge_mode=None)
@@ -1741,7 +1741,7 @@ def add_shared_layer(layer, inputs):
 
 class Highway(Layer):
     '''Densely connected highway network,
-    a natural extension of LSTMs to feedforward networks
+    a natural extension of LSTMs to feedforward networks.
 
     cite: http://arxiv.org/pdf/1505.00387v2.pdf
 

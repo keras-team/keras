@@ -69,7 +69,7 @@ def orthogonal(shape, scale=1.1):
 def identity(shape, scale=1):
     if len(shape) != 2 or shape[0] != shape[1]:
         raise Exception('Identity matrix initialization can only be used '
-                        'for 2D square matrices')
+                        'for 2D square matrices.')
     else:
         return K.variable(scale * np.identity(shape[0]))
 

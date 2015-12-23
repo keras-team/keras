@@ -59,7 +59,7 @@ def slice_X(X, start=None, stop=None):
     '''
     if type(X) == list:
         if hasattr(start, '__len__'):
-            # hdf5 dataset only support list object as indices
+            # hdf5 datasets only support list objects as indices
             if hasattr(start, 'shape'):
                 start = start.tolist()
             return [x[start] for x in X]
@@ -84,7 +84,7 @@ def weighted_objective(fn):
             # mask should have the same shape as score_array
             score_array *= mask
             #  the loss per batch should be proportional
-            #  to the number of unmasked sampled.
+            #  to the number of unmasked samples.
             score_array /= K.mean(mask)
 
         # reduce score_array to 1D
@@ -461,7 +461,7 @@ class Sequential(Model, containers.Sequential):
             show_accuracy=False, class_weight=None, sample_weight=None):
         '''Train the model for a fixed number of epochs.
 
-        Returns a history object. It `history` attribute is a record of
+        Returns a history object. Its `history` attribute is a record of
         training loss values at successive epochs,
         as well as validation loss values (if applicable).
 
@@ -984,7 +984,7 @@ class Graph(Model, containers.Graph):
             class_weight={}, sample_weight={}):
         '''Train the model for a fixed number of epochs.
 
-        Returns a history object. It `history` attribute is a record of
+        Returns a history object. Its `history` attribute is a record of
         training loss values at successive epochs,
         as well as validation loss values (if applicable).
 

@@ -11,7 +11,7 @@ theano.config.floatX = _FLOATX
 
 
 def _on_gpu():
-    '''Returns whether the session is set to
+    '''Return whether the session is set to
     run on GPU or not (i.e. on CPU).
     '''
     return theano.config.device[:3] == 'gpu'
@@ -19,7 +19,7 @@ def _on_gpu():
 
 if _on_gpu():
     '''Import cuDNN only if running on GPU:
-    not having Cuda install should not
+    not having Cuda installed should not
     prevent from running the present code.
     '''
     from theano.sandbox.cuda import dnn
@@ -244,18 +244,18 @@ def permute_dimensions(x, pattern):
 
 
 def repeat_elements(x, rep, axis):
-    '''Repeats the elements of a tensor along an axis, like np.repeat
+    '''Repeat the elements of a tensor along an axis, like np.repeat.
 
     If x has shape (s1, s2, s3) and axis=1, the output
-    will have shape (s1, s2 * rep, s3)
+    will have shape (s1, s2 * rep, s3).
     '''
     return T.repeat(x, rep, axis=axis)
 
 def repeat(x, n):
-    '''Repeat a 2D tensor:
+    '''Repeat a 2D tensor.
 
-    if x has shape (samples, dim) and n=2,
-    the output will have shape (samples, 2, dim)
+    If x has shape (samples, dim) and n=2,
+    the output will have shape (samples, 2, dim).
     '''
     tensors = [x] * n
     stacked = T.stack(*tensors)
@@ -377,7 +377,7 @@ def gradients(loss, variables):
 
 def rnn(step_function, inputs, initial_states,
         go_backwards=False, masking=True):
-    '''Iterates over the time dimension of a tensor.
+    '''Iterate over the time dimension of a tensor.
 
     Parameters
     ----------
