@@ -685,13 +685,43 @@ class Reshape(Layer):
         super(Reshape, self).__init__(**kwargs)
         self.dims = tuple(dims)
 
+    def _fix_unknown_dimension(self, input_shape, output_shape):
+        """
+        A near direct port of the internal numpy function _fix_unknown_dimension
+        in numpy/core/src/multiarray/shape.c
+        """
+
+        output_shape = list(output_shape)
+
+        msg = 'total size of new array must be unchanged'
+
+        known, unknown = 1, None
+        for index, dim in enumerate(output_shape):
+            if dim < 0:
+                if unknown is None:
+                    unknown = index
+                else:
+                    raise ValueError('can only specify one unknown dimension')
+            else:
+                known *= dim
+
+        original = np.prod(input_shape, dtype=int)
+        if not unknown is None:
+            if known == 0 or original % known != 0:
+                raise ValueError(msg)
+            output_shape[unknown] = original // known
+        elif original != known:
+            raise ValueError(msg)
+
+        return tuple(output_shape)
+
     @property
     def output_shape(self):
-        return (self.input_shape[0],) + self.dims
+        return (self.input_shape[0],) + self._fix_unknown_dimension(self.input_shape[1:], self.dims)
 
     def get_output(self, train=False):
         X = self.get_input(train)
-        return K.reshape(X, (-1,) + self.dims)
+        return K.reshape(X, (-1,) + self.output_shape[1:])
 
     def get_config(self):
         config = {'name': self.__class__.__name__,
