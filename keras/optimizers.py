@@ -283,6 +283,9 @@ adadelta = Adadelta
 adam = Adam
 
 
-def get(identifier, kwargs=None):
-    return get_from_module(identifier, globals(), 'optimizer',
-                           instantiate=True, kwargs=kwargs)
+def get(identifier, kwargs=None, custom_objects={}):
+    # Insert custom layers into globals so they can be accessed by `get_from_module`.
+    for cls_key in custom_objects:
+        globals()[cls_key] = custom_objects[cls_key]
+    return get_from_module(identifier, globals(), 'optimizer', instantiate=True,
+                           kwargs=kwargs)
