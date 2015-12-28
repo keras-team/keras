@@ -475,21 +475,23 @@ def softplus(x):
 
 
 def categorical_crossentropy(output, target, from_logits=False):
+    # avoid numerical instability with _EPSILON clipping
+    output = T.clip(output, _EPSILON, 1.0 - _EPSILON)
+   
     if from_logits:
         output = T.nnet.softmax(output)
     else:
         # scale preds so that the class probas of each sample sum to 1
         output /= output.sum(axis=-1, keepdims=True)
-    # avoid numerical instability with _EPSILON clipping
-    output = T.clip(output, _EPSILON, 1.0 - _EPSILON)
-    return T.nnet.categorical_crossentropy(output, target)
+   return T.nnet.categorical_crossentropy(output, target)
 
 
 def binary_crossentropy(output, target, from_logits=False):
-    if from_logits:
-        output = T.nnet.sigmoid(output)
     # avoid numerical instability with _EPSILON clipping
     output = T.clip(output, _EPSILON, 1.0 - _EPSILON)
+
+    if from_logits:
+        output = T.nnet.sigmoid(output)
     return T.nnet.binary_crossentropy(output, target)
 
 
