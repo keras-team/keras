@@ -686,10 +686,26 @@ class Reshape(Layer):
         self.dims = tuple(dims)
 
     def _fix_unknown_dimension(self, input_shape, output_shape):
-        """
+        '''Find and replace a single missing dimension in an output shape
+        given and input shape.
+        
         A near direct port of the internal numpy function _fix_unknown_dimension
         in numpy/core/src/multiarray/shape.c
-        """
+
+        # Arguments
+            input_shape: shape of array being reshaped
+
+            output_shape: desired shaped of the array with at most
+                a single -1 which indicates a dimension that should be
+                derived from the input shape.
+
+        # Returns
+            The new output shape with a -1 replaced with its computed value.
+
+            Raises a ValueError if the total array size of the output_shape is
+            different then the input_shape, or more then one unknown dimension
+            is specified.
+        '''
 
         output_shape = list(output_shape)
 
@@ -706,7 +722,7 @@ class Reshape(Layer):
                 known *= dim
 
         original = np.prod(input_shape, dtype=int)
-        if not unknown is None:
+        if unknown is not None:
             if known == 0 or original % known != 0:
                 raise ValueError(msg)
             output_shape[unknown] = original // known
