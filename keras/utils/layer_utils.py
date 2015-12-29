@@ -26,12 +26,14 @@ def container_from_config(original_layer_dict, custom_objects={}):
 
     if name == 'Merge':
         mode = layer_dict.get('mode')
+        concat_axis = layer_dict.get('concat_axis')
+        dot_axes = layer_dict.get('dot_axes')
         layers = layer_dict.get('layers')
         layer_list = []
         for layer in layers:
             init_layer = container_from_config(layer)
             layer_list.append(init_layer)
-        merge_layer = Merge(layer_list, mode)
+        merge_layer = Merge(layer_list, mode, concat_axis, dot_axes)
         return merge_layer
 
     elif name == 'Sequential':
