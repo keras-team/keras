@@ -46,7 +46,12 @@ def placeholder(shape=None, ndim=None, dtype=_FLOATX, name=None):
     elif ndim == 1:
         return T.vector(name=name, dtype=dtype)
     elif ndim == 2:
-        return T.matrix(name=name, dtype=dtype)
+        if shape is not None and shape[0] == 1:
+            return T.row(name=name, dtype=dtype)
+        elif shape is not None and shape[1] == 1:
+            return T.col(name=name, dtype=dtype)
+        else:
+            return T.matrix(name=name, dtype=dtype)
     elif ndim == 3:
         return T.tensor3(name=name, dtype=dtype)
     elif ndim == 4:
