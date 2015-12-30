@@ -46,7 +46,7 @@ print('X_test shape:', X_test.shape)
 
 print('Build model...')
 model = Sequential()
-model.add(Embedding(max_features, 128, input_length=maxlen))
+model.add(Embedding(max_features, 128, input_length=maxlen, mask_zero=True))
 model.add(LSTM(128))  # try using a GRU instead, for fun
 model.add(Dropout(0.5))
 model.add(Dense(1))
