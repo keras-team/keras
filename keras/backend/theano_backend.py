@@ -548,12 +548,14 @@ def conv2d(x, kernel, strides=(1, 1), border_mode='valid', dim_ordering='th',
     if _on_gpu() and dnn.dnn_available():
         if border_mode == 'same':
             assert(strides == (1, 1))
-            np_kernel = kernel.eval()
-            pad_x = (np_kernel.shape[2] - strides[0]) // 2
-            pad_y = (np_kernel.shape[3] - strides[1]) // 2
             conv_out = dnn.dnn_conv(img=x,
                                     kerns=kernel,
-                                    border_mode=(pad_x, pad_y))
+                                    border_mode='full')
+            shift_x = (kernel.shape[2] - 1) // 2
+            shift_y = (kernel.shape[3] - 1) // 2
+            conv_out = conv_out[:, :,
+                                shift_x:x.shape[2] + shift_x,
+                                shift_y:x.shape[3] + shift_y]
         else:
             conv_out = dnn.dnn_conv(img=x,
                                     kerns=kernel,
