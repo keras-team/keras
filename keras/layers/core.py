@@ -1166,6 +1166,10 @@ class AutoEncoder(Layer):
 
         self.decoder.set_previous(self.encoder)
 
+        if weights is not None:
+            self.set_weights(weights)
+
+    def build(self):
         self.params = []
         self.regularizers = []
         self.constraints = []
@@ -1179,11 +1183,9 @@ class AutoEncoder(Layer):
                     self.params.append(p)
                     self.constraints.append(c)
 
-        if weights is not None:
-            self.set_weights(weights)
-
-    def set_previous(self, node):
-        self.encoder.set_previous(node)
+    def set_previous(self, node, connection_map={}):
+        self.encoder.set_previous(node, connection_map)
+        super(AutoEncoder, self).set_previous(node, connection_map)
 
     def get_weights(self):
         weights = []
