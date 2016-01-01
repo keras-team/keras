@@ -2,7 +2,7 @@ from __future__ import print_function
 import pytest
 
 from keras.utils.test_utils import get_test_data
-from keras.optimizers import SGD, RMSprop, Adagrad, Adadelta, Adam
+from keras.optimizers import SGD, RMSprop, Adagrad, Adadelta, Adam, Adamax
 from keras.models import Sequential
 from keras.layers.core import Dense, Activation
 from keras.utils.np_utils import to_categorical
@@ -54,6 +54,10 @@ def test_adadelta():
 
 def test_adam():
     assert(_test_optimizer(Adam()))
+
+
+def test_adamax():
+    assert(_test_optimizer(Adamax()))
 
 
 if __name__ == '__main__':
