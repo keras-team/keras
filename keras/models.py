@@ -25,8 +25,6 @@ from .layers import containers
 def standardize_y(y):
     if not hasattr(y, 'shape'):
         y = np.asarray(y)
-    if len(y.shape) == 1:
-        y = np.expand_dims(y, 1)
     return y
 
 
@@ -384,7 +382,9 @@ class Sequential(Model, containers.Sequential):
     Inherits from containers.Sequential.
     '''
     def compile(self, optimizer, loss,
-                class_mode="categorical"):
+                class_mode="categorical",
+                output_ndim=None,
+                output_dtype="float"):
         '''Configure the learning process.
 
         # Arguments
@@ -395,6 +395,8 @@ class Sequential(Model, containers.Sequential):
             class_mode: one of "categorical", "binary".
                 This is only used for computing classification accuracy or
                 using the predict_classes method.
+            output_ndim: ndim of the output.
+            output_dtype: one of "float", "int".
         '''
         self.optimizer = optimizers.get(optimizer)
 
@@ -409,7 +411,15 @@ class Sequential(Model, containers.Sequential):
         self.y_test = self.get_output(train=False)
 
         # target of model
-        self.y = K.placeholder(ndim=K.ndim(self.y_train))
+        if output_ndim is None:
+            output_ndim = K.ndim(self.y_train)
+        if output_dtype == "float":
+            self.y = K.placeholder(ndim=output_ndim)
+        elif output_dtype == "int":
+            self.y = K.placeholder(ndim=output_ndim, dtype="int32")
+        else:
+            raise Exception("Invalid output_dtype:" + str(output_dtype))
+
         # weights: one scalar per sample
         self.weights = K.placeholder(ndim=1)
 
@@ -998,7 +1008,7 @@ class Graph(Model, containers.Graph):
 
     Inherits from `containers.Graph`.
     '''
-    def compile(self, optimizer, loss):
+    def compile(self, optimizer, loss, output_ndim={}, output_dtype={}):
         '''Configure the learning process.
 
         # Arguments
@@ -1007,6 +1017,10 @@ class Graph(Model, containers.Graph):
             loss: dictionary mapping the name(s) of the output(s) to
                 a loss function (string name of objective function or
                 objective function. See [objectives](objectives.md)).
+            output_ndim: dictionary mapping the name(s) of the output(s) to
+                the output ndim.
+            output_dtype: dictionary mapping the name(s) of the output(s) to
+                the output dtype, one of "float", "int".
         '''
         ys = []
         ys_train = []
@@ -1019,7 +1033,14 @@ class Graph(Model, containers.Graph):
             output = self.outputs[output_name]
             y_train = output.get_output(True)
             y_test = output.get_output(False)
-            y = K.placeholder(ndim=K.ndim(y_train))
+            output_ndim_ = output_ndim.get(output_name, K.ndim(y_train))
+            output_dtype_ = output_dtype.get(output_name, "float")
+            if output_dtype_ == "float":
+                y = K.placeholder(ndim=output_ndim_)
+            elif output_dtype_ == "int":
+                y = K.placeholder(ndim=output_ndim_, dtype="int32")
+            else:
+                raise Exception("Invalid output_dtype:" + str(output_dtype))
             ys.append(y)
             ys_train.append(y_train)
             ys_test.append(y_test)
