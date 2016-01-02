@@ -1791,8 +1791,6 @@ class Highway(Layer):
     '''Densely connected highway network,
     a natural extension of LSTMs to feedforward networks.
 
-    cite: http://arxiv.org/pdf/1505.00387v2.pdf
-
     # Input shape
         2D tensor with shape: `(nb_samples, input_dim)`.
 
@@ -1826,6 +1824,9 @@ class Highway(Layer):
         input_dim: dimensionality of the input (integer).
             This argument (or alternatively, the keyword argument `input_shape`)
             is required when using this layer as the first layer in a model.
+
+    # References
+        - [Highway Networks](http://arxiv.org/pdf/1505.00387v2.pdf)
     '''
     input_ndim = 2
 
