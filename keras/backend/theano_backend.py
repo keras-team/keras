@@ -251,6 +251,23 @@ def repeat_elements(x, rep, axis):
     '''
     return T.repeat(x, rep, axis=axis)
 
+
+def resize_images(X, height, width, height_factor, width_factor, dim_ordering):
+    '''Resize the images contained in a 4D tensor of shape
+    - [batch, channels, height, width] (for 'th' dim_ordering)
+    - [batch, height, width, channels] (for 'tf' dim_ordering)
+    by a factor of (height_factor, width_factor)
+    '''
+    if self.dim_ordering == 'th':
+        output = K.repeat_elements(X, height_factor, axis=2)
+        output = K.repeat_elements(output, width_factor, axis=3)
+    elif self.dim_ordering == 'tf':
+        output = K.repeat_elements(X, height_factor, axis=1)
+        output = K.repeat_elements(output, width_factor, axis=2)
+    else:
+        raise Exception('Invalid dim_ordering: ' + dim_ordering)
+
+
 def repeat(x, n):
     '''Repeat a 2D tensor.
 

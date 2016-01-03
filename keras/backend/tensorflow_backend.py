@@ -236,6 +236,24 @@ def permute_dimensions(x, pattern):
     return tf.transpose(x, perm=pattern)
 
 
+def resize_images(X, height, width, height_factor, width_factor, dim_ordering):
+    '''Resize the images contained in a 4D tensor of shape
+    - [batch, channels, height, width] (for 'th' dim_ordering)
+    - [batch, height, width, channels] (for 'tf' dim_ordering)
+    by a factor of (height_factor, width_factor)
+    '''
+    new_height = height * height_factor
+    new_width = width * width_factor
+    if dim_ordering == 'th':
+        X = permute_dimensions(X, [0, 2, 3, 1])
+        X = tf.image.resize_nearest_neighbor(X, (new_height, new_width))
+        return permute_dimensions(X, [0, 3, 1, 2])
+    elif dim_ordering == 'tf':
+        return tf.image.resize_nearest_neighbor(X, (new_height, new_width))
+    else:
+        raise Exception('Invalid dim_ordering: ' + dim_ordering)
+
+
 def repeat_elements(x, rep, axis):
     '''Repeats the elements of a tensor along an axis, like np.repeat
 
