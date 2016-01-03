@@ -53,8 +53,8 @@ We love pull requests. Here's a quick guide:
 
 8. Update the documentation. If introducing new functionality, make sure you include code snippets demonstrating the usage of your new feature.
 
-9. Submit your PR. If your changes have been approved in a previous discussion, and if you have have complete (and passing) unit tests, your PR is likely to be merged promptly. Otherwise, well...
+9. Submit your PR. If your changes have been approved in a previous discussion, and if you have complete (and passing) unit tests, your PR is likely to be merged promptly. Otherwise, well...
 
 ## Adding new examples
 
-Even if you don't contribute to the Keras source code, if you have an application of Keras that is concise and powerful, please consider adding it to our collection of examples. Existing examples show idiomatic Keras code: make sure to keep your own script in the same spirit.
+Even if you don't contribute to the Keras source code, if you have an application of Keras that is concise and powerful, please consider adding it to our collection of examples. [Existing examples](https://github.com/fchollet/keras/tree/master/examples) show idiomatic Keras code: make sure to keep your own script in the same spirit.
