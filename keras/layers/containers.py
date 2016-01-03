@@ -313,7 +313,7 @@ class Graph(Layer):
         if dtype == 'float':
             layer.input = K.placeholder(shape=layer.input_shape, name=name)
         else:
-            if len(input_shape) == 1:
+            if (input_shape and len(input_shape) == 1) or (batch_input_shape and len(batch_input_shape) == 2):
                 layer.input = K.placeholder(shape=layer.input_shape,
                                             dtype='int32',
                                             name=name)
