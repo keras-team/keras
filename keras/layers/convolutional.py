@@ -668,12 +668,7 @@ class UpSampling2D(Layer):
 
     def get_output(self, train=False):
         X = self.get_input(train)
-        input_shape = self.input_shape
-        if self.dim_ordering == 'th':
-            height, width = input_shape[2], input_shape[3]
-        elif self.dim_ordering == 'tf':
-            height, width = input_shape[1], input_shape[2]
-        return K.resize_images(X, height, width, self.size[0], self.size[1],
+        return K.resize_images(X, self.size[0], self.size[1],
                                self.dim_ordering)
 
     def get_config(self):
