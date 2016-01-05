@@ -517,8 +517,12 @@ def dropout(x, level, seed=None):
     return x
 
 
-# CONVOLUTIONS
+def l2_normalize(x, axis):
+    norm = T.sqrt(T.sum(T.square(x), axis=axis, keepdims=True))
+    return x / norm
 
+
+# CONVOLUTIONS
 
 def conv2d(x, kernel, strides=(1, 1), border_mode='valid', dim_ordering='th',
            image_shape=None, filter_shape=None):

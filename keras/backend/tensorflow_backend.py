@@ -510,6 +510,12 @@ def dropout(x, level, seed=None):
     return tf.nn.dropout(x * 1., retain_prob, seed=seed)
 
 
+def l2_normalize(x, axis):
+    if axis < 0:
+        axis = axis % len(x.get_shape())
+    return tf.nn.l2_normalize(x, dim=axis)
+
+
 # CONVOLUTIONS
 
 
