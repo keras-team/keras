@@ -1,6 +1,6 @@
 import itertools
 from keras.layers.containers import Graph, Sequential
-from keras.layers.core import Merge
+from keras.layers.core import Merge, Siamese
 
 try:
     # pydot-ng is a fork of pydot that is better maintained
@@ -76,7 +76,7 @@ class ModelToDot(object):
             self.layer_to_pydotnode[layer] = node
         return node
 
-    def _process_layer(self, layer, layer_to_name=None, connect_to=None):
+    def _process_layer(self, layer, seen_nodes, layer_to_name=None, connect_to=None):
         """
         Process a layer, adding its node to the graph and creating edges to its
         outputs.
@@ -96,24 +96,36 @@ class ModelToDot(object):
             else:
                 child_layers = [layer.layers[-1]]
             for l in child_layers:
-                self._process_layer(l, layer_to_name=get_layer_to_name(layer),
+                self._process_layer(l, seen_nodes=seen_nodes,
+                                    layer_to_name=get_layer_to_name(layer),
                                     connect_to=connect_to)
         else:
             # This is a simple layer.
             label = layer_to_name.get(layer, '')
-            layer_node = self._pydot_node_for_layer(layer, label=label)
+            if layer in seen_nodes:
+                layer_node = seen_nodes[layer]
+            else:
+                layer_node = self._pydot_node_for_layer(layer, label=label)
 
             if connect_to is not None:
                 self.g.add_edge(pydot.Edge(layer_node, connect_to))
+
+            if layer in seen_nodes:
+                return
+            seen_nodes[layer] = layer_node
 
             # Proceed upwards to the parent(s). Only Merge layers have more
             # than one parent
             if isinstance(layer, Merge):  # Merge layer
                 for l in layer.layers:
-                    self._process_layer(l, layer_to_name,
+                    self._process_layer(l, seen_nodes, layer_to_name,
+                                        connect_to=layer_node)
+            elif isinstance(layer, Siamese):  # Siamese layer
+                for l in layer.inputs:
+                    self._process_layer(l, seen_nodes, layer_to_name,
                                         connect_to=layer_node)
             elif hasattr(layer, 'previous') and layer.previous is not None:
-                self._process_layer(layer.previous, layer_to_name,
+                self._process_layer(layer.previous, seen_nodes, layer_to_name,
                                     connect_to=layer_node)
 
     def __call__(self, model, recursive=True, show_shape=False,
@@ -132,11 +144,11 @@ class ModelToDot(object):
         if hasattr(model, 'outputs'):
             # Graph
             for name, l in model.outputs.items():
-                self._process_layer(l, get_layer_to_name(model),
+                self._process_layer(l, {}, get_layer_to_name(model),
                                     connect_to=connect_to)
         else:
             # Sequential container
-            self._process_layer(model.layers[-1], {}, connect_to=connect_to)
+            self._process_layer(model.layers[-1], {}, {}, connect_to=connect_to)
 
         return self.g
 
