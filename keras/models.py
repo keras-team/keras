@@ -890,6 +890,7 @@ class Sequential(Model, containers.Sequential):
                     assert len(set([len(a) for a in X] + [len(y)])) == 1
                 else:
                     assert len(X) == len(y)
+                    X = [X]
                 sample_weight = None
             elif len(generator_output) == 3:
                 X, y, sample_weight = generator_output
@@ -897,6 +898,7 @@ class Sequential(Model, containers.Sequential):
                     assert len(set([len(a) for a in X] + [len(y), len(sample_weight)])) == 1
                 else:
                     assert len(X) == len(y) == len(sample_weight)
+                    X = [X]
             else:
                 _stop.set()
                 raise Exception('The generator output tuple must have '
