@@ -43,9 +43,9 @@ loss: 0.0049
 '''
 
 '''
-Demonstration of the show_accuracy argument
+Demonstration of the metrics argument
 '''
-model.fit(X_train, y_train, nb_epoch=3, batch_size=16, verbose=2, show_accuracy=True)
+model.fit(X_train, y_train, nb_epoch=3, batch_size=16, verbose=2, metrics=['acc'])
 '''
 Train on 37800 samples, validate on 4200 samples
 Epoch 0
@@ -60,7 +60,7 @@ loss: 0.0049 - acc.: 1.0000
 Demonstration of the validation_split argument
 '''
 model.fit(X_train, y_train, nb_epoch=3, batch_size=16,
-          validation_split=0.1, show_accuracy=True, verbose=1)
+          validation_split=0.1, metrics=['acc'], verbose=1)
 '''
 Train on 37800 samples, validate on 4200 samples
 Epoch 0

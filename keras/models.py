@@ -13,6 +13,7 @@ except ImportError:
     import Queue as queue
 
 from . import backend as K
+from . import metrics as metrics_
 from . import optimizers
 from . import objectives
 from . import callbacks as cbks
@@ -384,7 +385,9 @@ class Sequential(Model, containers.Sequential):
     Inherits from containers.Sequential.
     '''
     def compile(self, optimizer, loss,
-                class_mode="categorical"):
+                class_mode="categorical",
+                train_metrics=["acc"],
+                test_metrics=["acc"]):
         '''Configure the learning process.
 
         # Arguments
@@ -393,7 +396,7 @@ class Sequential(Model, containers.Sequential):
             loss: str (name of objective function) or objective function.
                 See [objectives](objectives.md).
             class_mode: one of "categorical", "binary".
-                This is only used for computing classification accuracy or
+                This is only used for computing classification metrics or
                 using the predict_classes method.
         '''
         self.optimizer = optimizers.get(optimizer)
@@ -419,18 +422,11 @@ class Sequential(Model, containers.Sequential):
             mask = None
         train_loss = weighted_loss(self.y, self.y_train, self.weights, mask)
         test_loss = weighted_loss(self.y, self.y_test, self.weights, mask)
+        self.train_metrics = [metrics_.get(metric) for metric in train_metrics]
+        self.test_metrics = [metrics_.get(metric) for metric in test_metrics]
+        train_metrics_ = [metric(self.y, self.y_test, class_mode) for metric in self.train_metrics]
+        test_metrics_ = [metric(self.y, self.y_test, class_mode) for metric in self.test_metrics]
 
-        if class_mode == "categorical":
-            train_accuracy = K.mean(K.equal(K.argmax(self.y, axis=-1),
-                                            K.argmax(self.y_train, axis=-1)))
-            test_accuracy = K.mean(K.equal(K.argmax(self.y, axis=-1),
-                                           K.argmax(self.y_test, axis=-1)))
-
-        elif class_mode == "binary":
-            train_accuracy = K.mean(K.equal(self.y, K.round(self.y_train)))
-            test_accuracy = K.mean(K.equal(self.y, K.round(self.y_test)))
-        else:
-            raise Exception("Invalid class mode:" + str(class_mode))
         self.class_mode = class_mode
 
         for r in self.regularizers:
@@ -450,15 +446,13 @@ class Sequential(Model, containers.Sequential):
             test_ins = [self.X_test, self.y, self.weights]
             predict_ins = [self.X_test]
 
-        self._train = K.function(train_ins, [train_loss], updates=updates)
-        self._train_with_acc = K.function(train_ins, [train_loss, train_accuracy], updates=updates)
-        self._predict = K.function(predict_ins, [self.y_test], updates=self.state_updates)
+        self._train = K.function(train_ins, [train_loss] + train_metrics_, updates=updates)
+        self._predict = K.function(predict_ins, [self.y_test] + test_metrics_, updates=self.state_updates)
         self._test = K.function(test_ins, [test_loss])
-        self._test_with_acc = K.function(test_ins, [test_loss, test_accuracy])
 
     def fit(self, X, y, batch_size=128, nb_epoch=100, verbose=1, callbacks=[],
             validation_split=0., validation_data=None, shuffle=True,
-            show_accuracy=False, class_weight=None, sample_weight=None):
+            class_weight=None, sample_weight=None):
         '''Train the model for a fixed number of epochs.
 
         Returns a history object. Its `history` attribute is a record of
@@ -483,8 +477,6 @@ class Sequential(Model, containers.Sequential):
                 Whether to shuffle the samples at each epoch.
                 'batch' is a special option for dealing with the
                 limitations of HDF5 data; it shuffles in batch-sized chunks.
-            show_accuracy: boolean. Whether to display
-                class accuracy in the logs to stdout at each epoch.
             class_weight: dictionary mapping classes to a weight value,
                 used for scaling the loss function (during training only).
             sample_weight: list or numpy array with 1:1 mapping to
@@ -518,10 +510,7 @@ class Sequential(Model, containers.Sequential):
         val_f = None
         val_ins = None
         if validation_data or validation_split:
-            if show_accuracy:
-                val_f = self._test_with_acc
-            else:
-                val_f = self._test
+            val_f = self._test
         if validation_data:
             if len(validation_data) == 2:
                 X_val, y_val = validation_data
@@ -563,17 +552,14 @@ class Sequential(Model, containers.Sequential):
                 sample_weight_val = standardize_weights(y_val)
             val_ins = X_val + [y_val, sample_weight_val]
 
-        if show_accuracy:
-            f = self._train_with_acc
-            out_labels = ['loss', 'acc']
-        else:
-            f = self._train
-            out_labels = ['loss']
+        f = self._train
+        out_labels = ['loss'] + [metric.__name__ for metric in self.train_metrics]
 
         sample_weight = standardize_weights(y, class_weight=class_weight,
                                             sample_weight=sample_weight)
         ins = X + [y, sample_weight]
-        metrics = ['loss', 'acc', 'val_loss', 'val_acc']
+        metrics = ['loss'] + [metric.__name__ for metric in self.train_metrics] + \
+                  ['val_loss'] + ['val_' + metric.__name__ for metric in self.test_metrics]
         return self._fit(f, ins, out_labels=out_labels,
                          batch_size=batch_size, nb_epoch=nb_epoch,
                          verbose=verbose, callbacks=callbacks,
@@ -630,7 +616,7 @@ class Sequential(Model, containers.Sequential):
         else:
             return (proba > 0.5).astype('int32')
 
-    def evaluate(self, X, y, batch_size=128, show_accuracy=False,
+    def evaluate(self, X, y, batch_size=128,
                  verbose=1, sample_weight=None):
         '''Compute the loss on some input data, batch by batch.
 
@@ -638,7 +624,6 @@ class Sequential(Model, containers.Sequential):
             X: input data, as a numpy array.
             y: labels, as a numpy array.
             batch_size: integer.
-            show_accuracy: boolean.
             verbose: verbosity mode, 0 or 1.
             sample_weight: sample weights, as a numpy array.
         '''
@@ -661,22 +646,15 @@ class Sequential(Model, containers.Sequential):
         sample_weight = standardize_weights(y, sample_weight=sample_weight)
 
         ins = X + [y, sample_weight]
-        if show_accuracy:
-            f = self._test_with_acc
-        else:
-            f = self._test
+        f = self._test
         outs = self._test_loop(f, ins, batch_size, verbose)
-        if show_accuracy:
-            return outs
-        else:
-            return outs[0]
+        return outs[0]
 
-    def train_on_batch(self, X, y, accuracy=False,
+    def train_on_batch(self, X, y,
                        class_weight=None, sample_weight=None):
         '''Single gradient update over one batch of samples.
 
-        Returns the loss over the data,
-        or a tuple `(loss, accuracy)` if `accuracy=True`.
+        Returns a tuple over the data `(loss, *metrics)`.
 
         Arguments: see `fit` method.
         '''
@@ -699,15 +677,10 @@ class Sequential(Model, containers.Sequential):
         sample_weight = standardize_weights(y, class_weight=class_weight,
                                             sample_weight=sample_weight)
         ins = X + [y, sample_weight]
-        if accuracy:
-            return self._train_with_acc(ins)
-        else:
-            return self._train(ins)
+        return self._train(ins)
 
-    def test_on_batch(self, X, y, accuracy=False, sample_weight=None):
-        '''Returns the loss over a single batch of samples,
-        or a tuple `(loss, accuracy)` if `accuracy=True`.
-
+    def test_on_batch(self, X, y, sample_weight=None):
+        '''Returns a tuple over a single batch of samples `(loss, *metrics)`.
         Arguments: see `fit` method.
         '''
         if type(X) == list:
@@ -729,10 +702,7 @@ class Sequential(Model, containers.Sequential):
         sample_weight = standardize_weights(y, sample_weight=sample_weight)
 
         ins = X + [y, sample_weight]
-        if accuracy:
-            return self._test_with_acc(ins)
-        else:
-            return self._test(ins)
+        return self._test(ins)
 
     def predict_on_batch(self, X):
         '''Returns predictions for a single batch of samples.
@@ -787,7 +757,7 @@ class Sequential(Model, containers.Sequential):
         f.close()
 
     def fit_generator(self, generator, samples_per_epoch, nb_epoch,
-                      verbose=1, show_accuracy=False, callbacks=[],
+                      verbose=1, callbacks=[],
                       validation_data=None, class_weight=None, nb_worker=1):
         '''Fit a model on data generated batch-by-batch by a Python generator.
         The generator is run in parallel to the model, for efficiency,
@@ -812,8 +782,6 @@ class Sequential(Model, containers.Sequential):
                 starting a new epoch.
             nb_epoch: integer, total number of iterations on the data.
             verbose: verbosity mode, 0, 1, or 2.
-            show_accuracy: boolean. Whether to display accuracy (only relevant
-                for classification problems).
             callbacks: list of callbacks to be called during training.
             validation_data: tuple of 2 or 3 numpy arrays. If 2 elements,
                 they are assumed to be (input_data, target_data);
@@ -854,11 +822,10 @@ class Sequential(Model, containers.Sequential):
         wait_time = 0.05  # in seconds
         epoch = 0
         do_validation = bool(validation_data)
-        if show_accuracy:
-            out_labels = ['loss', 'acc']
-        else:
-            out_labels = ['loss']
-        metrics = ['loss', 'acc', 'val_loss', 'val_acc']
+
+        out_labels = ['loss'] + [metric.__name__ for metric in self.train_metrics]
+        metrics = ['loss'] + [metric.__name__ for metric in self.train_metrics] + \
+                  ['val_loss'] + ['val_' + metric.__name__ for metric in self.test_metrics]
 
         # prepare callbacks
         history = cbks.History()
@@ -946,7 +913,6 @@ class Sequential(Model, containers.Sequential):
                 batch_logs['size'] = batch_size
                 callbacks.on_batch_begin(batch_index, batch_logs)
                 outs = self.train_on_batch(X, y,
-                                           accuracy=show_accuracy,
                                            sample_weight=sample_weight,
                                            class_weight=class_weight)
                 if type(outs) != list:
@@ -971,7 +937,6 @@ class Sequential(Model, containers.Sequential):
                             # input validation
                             X, y, sample_weight = input_validation(validation_data)
                             val_outs = self.evaluate(X, y,
-                                                     show_accuracy=show_accuracy,
                                                      sample_weight=sample_weight,
                                                      verbose=0)
                         if type(val_outs) != list:
@@ -998,7 +963,10 @@ class Graph(Model, containers.Graph):
 
     Inherits from `containers.Graph`.
     '''
-    def compile(self, optimizer, loss):
+    def compile(self, optimizer, loss,
+                class_modes={},
+                train_metrics={},
+                test_metrics={}):
         '''Configure the learning process.
 
         # Arguments
@@ -1014,6 +982,12 @@ class Graph(Model, containers.Graph):
         weights = []
         train_loss = 0.
         test_loss = 0.
+        self.train_metrics = {key: [metrics_.get(metric) for metric in metrics]
+                              for key, metrics in train_metrics.items()}
+        self.test_metrics = {key: [metrics_.get(metric) for metric in metrics]
+                             for key, metrics in test_metrics.items()}
+        train_metrics_ = []
+        test_metrics_ = []
         for output_name in self.output_order:
             loss_fn = loss[output_name]
             output = self.outputs[output_name]
@@ -1035,12 +1009,18 @@ class Graph(Model, containers.Graph):
             train_loss += weighted_loss(y, y_train, weight, mask)
             test_loss += weighted_loss(y, y_test, weight, mask)
 
+            train_metrics_.extend([metric(y, y_test, class_modes.get(output_name, "categorical"))
+                                   for metric in self.train_metrics[output_name]])
+            test_metrics_.extend([metric(y, y_test, class_modes.get(output_name, "categorical"))
+                                  for metric in self.test_metrics[output_name]])
+
         ins = [self.inputs[name].input for name in self.input_order]
         train_ins = ins + ys + weights
         test_ins = ins + ys + weights
 
         for r in self.regularizers:
             train_loss = r(train_loss)
+
         self.optimizer = optimizers.get(optimizer)
         updates = self.optimizer.get_updates(self.params,
                                              self.constraints,
@@ -1048,8 +1028,8 @@ class Graph(Model, containers.Graph):
         updates += self.updates
         self.loss = loss
 
-        self._train = K.function(train_ins, [train_loss], updates=updates)
-        self._test = K.function(test_ins, [test_loss])
+        self._train = K.function(train_ins, [train_loss] + train_metrics_, updates=updates)
+        self._test = K.function(test_ins, [test_loss] + test_metrics_)
         self._predict = K.function(inputs=ins, outputs=ys_test,
                                    updates=self.state_updates)
 
@@ -1113,8 +1093,12 @@ class Graph(Model, containers.Graph):
             val_ins = X_val + y_val + sample_weight_list_val
 
         f = self._train
-        out_labels = ['loss']
-        metrics = ['loss', 'val_loss']
+        out_labels = ['loss'] + sum(([metric.__name__ for metric in metrics]
+                                     for metrics in self.train_metrics.values()), [])
+        metrics = ['loss'] + sum(([metric.__name__ for metric in metrics]
+                                  for metrics in self.train_metrics.values()), []) + \
+                  ['val_loss'] + sum((['val' + metric.__name__ for metric in metrics]
+                                     for metrics in self.train_metrics.values()), [])
 
         sample_weight_list = [standardize_weights(y[i],
                                                   sample_weight=sample_weight_list[i],
@@ -1139,7 +1123,7 @@ class Graph(Model, containers.Graph):
             raise Exception('All input arrays and target arrays must have '
                             'the same number of samples.')
         outs = self._test_loop(self._test, ins, batch_size, verbose)
-        return outs[0]
+        return outs
 
     def predict(self, data, batch_size=128, verbose=0):
         '''Generate output predictions for the input samples
@@ -1294,8 +1278,12 @@ class Graph(Model, containers.Graph):
         wait_time = 0.05  # in seconds
         epoch = 0
         do_validation = bool(validation_data)
-        out_labels = ['loss']
-        metrics = ['loss', 'val_loss']
+        out_labels = ['loss'] + sum(([metric.__name__ for metric in metrics]
+                                     for metrics in self.train_metrics.values()), [])
+        metrics = ['loss'] + sum(([metric.__name__ for metric in metrics]
+                                  for metrics in self.train_metrics.values()), []) + \
+                  ['val_loss'] + sum((['val' + metric.__name__ for metric in metrics]
+                                     for metrics in self.train_metrics.values()), [])
         if not class_weight:
             class_weight = {}
 
