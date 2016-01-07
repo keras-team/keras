@@ -19,5 +19,4 @@ def load_data(path="mnist.pkl.gz"):
         data = cPickle.load(f, encoding="bytes")
 
     f.close()
-
     return data  # (X_train, y_train), (X_test, y_test)

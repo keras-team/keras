@@ -24,7 +24,7 @@ def test_unitnorm_constraint():
                    class_mode='binary')
     lookup.train_on_batch(X1, np.array([[1], [0]], dtype='int32'))
     norm = np.linalg.norm(K.get_value(lookup.params[0]), axis=1)
-    assert_allclose(norm, np.ones_like(norm).astype('float32'))
+    assert_allclose(norm, np.ones_like(norm).astype('float32'), rtol=1e-05)
 
 
 if __name__ == '__main__':

@@ -14,7 +14,7 @@ def uniform(shape, scale=0.05):
 
 
 def normal(shape, scale=0.05):
-    return K.variable(np.random.randn(*shape) * scale)
+    return K.variable(np.random.normal(loc=0.0, scale=scale, size=shape))
 
 
 def lecun_uniform(shape):
@@ -68,7 +68,8 @@ def orthogonal(shape, scale=1.1):
 
 def identity(shape, scale=1):
     if len(shape) != 2 or shape[0] != shape[1]:
-        raise Exception("Identity matrix initialization can only be used for 2D square matrices")
+        raise Exception('Identity matrix initialization can only be used '
+                        'for 2D square matrices.')
     else:
         return K.variable(scale * np.identity(shape[0]))
 

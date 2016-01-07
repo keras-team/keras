@@ -3,13 +3,13 @@
 References:
 - Jason Weston, Antoine Bordes, Sumit Chopra, Tomas Mikolov, Alexander M. Rush,
   "Towards AI-Complete Question Answering: A Set of Prerequisite Toy Tasks",
-  http://arxiv.org/abs/1503.08895
+  http://arxiv.org/abs/1502.05698
 
 - Sainbayar Sukhbaatar, Arthur Szlam, Jason Weston, Rob Fergus,
   "End-To-End Memory Networks",
   http://arxiv.org/abs/1503.08895
 
-Reaches 93% accuracy on task 'single_supporting_fact_10k' after 70 epochs.
+Reaches 98.6% accuracy on task 'single_supporting_fact_10k' after 120 epochs.
 Time per epoch: 3s on CPU (core i7).
 '''
 
@@ -153,12 +153,14 @@ input_encoder_m = Sequential()
 input_encoder_m.add(Embedding(input_dim=vocab_size,
                               output_dim=64,
                               input_length=story_maxlen))
+input_encoder_m.add(Dropout(0.3))
 # output: (samples, story_maxlen, embedding_dim)
 # embed the question into a sequence of vectors
 question_encoder = Sequential()
 question_encoder.add(Embedding(input_dim=vocab_size,
                                output_dim=64,
                                input_length=query_maxlen))
+question_encoder.add(Dropout(0.3))
 # output: (samples, query_maxlen, embedding_dim)
 # compute a 'match' between input sequence elements (which are vectors)
 # and the question vector sequence
@@ -172,6 +174,7 @@ input_encoder_c = Sequential()
 input_encoder_c.add(Embedding(input_dim=vocab_size,
                               output_dim=query_maxlen,
                               input_length=story_maxlen))
+input_encoder_c.add(Dropout(0.3))
 # output: (samples, story_maxlen, query_maxlen)
 # sum the match vector with the input vector:
 response = Sequential()
@@ -185,9 +188,9 @@ answer = Sequential()
 answer.add(Merge([response, question_encoder], mode='concat', concat_axis=-1))
 # the original paper uses a matrix multiplication for this reduction step.
 # we choose to use a RNN instead.
-answer.add(LSTM(64))
+answer.add(LSTM(32))
 # one regularization layer -- more would probably be needed.
-answer.add(Dropout(0.25))
+answer.add(Dropout(0.3))
 answer.add(Dense(vocab_size))
 # we output a probability distribution over the vocabulary
 answer.add(Activation('softmax'))
@@ -196,6 +199,6 @@ answer.compile(optimizer='rmsprop', loss='categorical_crossentropy')
 # Note: you could use a Graph model to avoid repeat the input twice
 answer.fit([inputs_train, queries_train, inputs_train], answers_train,
            batch_size=32,
-           nb_epoch=70,
+           nb_epoch=120,
            show_accuracy=True,
            validation_data=([inputs_test, queries_test, inputs_test], answers_test))

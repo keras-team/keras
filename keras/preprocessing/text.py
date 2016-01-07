@@ -39,7 +39,30 @@ def one_hot(text, n, filters=base_filter(), lower=True, split=" "):
 
 
 class Tokenizer(object):
-    def __init__(self, nb_words=None, filters=base_filter(), lower=True, split=" "):
+    def __init__(self, nb_words=None, filters=base_filter(),
+                 lower=True, split=' '):
+        '''The class allows to vectorize a text corpus, by turning each
+        text into either a sequence of integers (each integer being the index
+        of a token in a dictionary) or into a vector where the coefficient
+        for each token could be binary, based on word count, based on tf-idf...
+
+        # Arguments
+            nb_words: the maximum number of words to keep, based
+                on word frequency. Only the most common `nb_words` words will
+                be kept.
+            filters: a string where each element is a character that will be
+                filtered from the texts. The default is all punctuation, plus
+                tabs and line breaks, minus the `'` character.
+            lower: boolean. Whether to convert the texts to lowercase.
+            split: character or string to use for token splitting.
+
+        By default, all punctuation is removed, turning the texts into
+        space-separated sequences of words
+        (words maybe include the `'` character). These sequences are then
+        split into lists of tokens. They will then be indexed or vectorized.
+
+        `0` is a reserved index that won't be assigned to any word.
+        '''
         self.word_counts = {}
         self.word_docs = {}
         self.filters = filters
@@ -51,7 +74,10 @@ class Tokenizer(object):
     def fit_on_texts(self, texts):
         '''
             required before using texts_to_sequences or texts_to_matrix
-            @param texts: can be a list or a generator (for memory-efficiency)
+
+        # Arguments
+            texts: can be a list of strings,
+                or a generator of strings (for memory-efficiency)
         '''
         self.document_count = 0
         for text in texts:
@@ -141,12 +167,12 @@ class Tokenizer(object):
             if self.word_index:
                 nb_words = len(self.word_index) + 1
             else:
-                raise Exception("Specify a dimension (nb_words argument), or fit on some text data first")
+                raise Exception("Specify a dimension (nb_words argument), or fit on some text data first.")
         else:
             nb_words = self.nb_words
 
         if mode == "tfidf" and not self.document_count:
-            raise Exception("Fit the Tokenizer on some data before using tfidf mode")
+            raise Exception("Fit the Tokenizer on some data before using tfidf mode.")
 
         X = np.zeros((len(sequences), nb_words))
         for i, seq in enumerate(sequences):

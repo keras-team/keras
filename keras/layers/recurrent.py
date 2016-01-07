@@ -8,6 +8,78 @@ from ..layers.core import MaskedLayer
 
 
 class Recurrent(MaskedLayer):
+    '''Abstract base class for recurrent layers.
+    Do not use in a model -- it's not a functional layer!
+
+    All recurrent layers (GRU, LSTM, SimpleRNN) also
+    follow the specifications of this class and accept
+    the keyword arguments listed below.
+
+    # Input shape
+        3D tensor with shape `(nb_samples, timesteps, input_dim)`.
+
+    # Output shape
+        - if `return_sequences`: 3D tensor with shape
+            `(nb_samples, timesteps, output_dim)`.
+        - else, 2D tensor with shape `(nb_samples, output_dim)`.
+
+    # Arguments
+        weights: list of numpy arrays to set as initial weights.
+            The list should have 3 elements, of shapes:
+            `[(input_dim, output_dim), (output_dim, output_dim), (output_dim,)]`.
+        return_sequences: Boolean. Whether to return the last output
+            in the output sequence, or the full sequence.
+        go_backwards: Boolean (default False).
+            If True, process the input sequence backwards.
+        stateful: Boolean (default False). If True, the last state
+            for each sample at index i in a batch will be used as initial
+            state for the sample of index i in the following batch.
+        input_dim: dimensionality of the input (integer).
+            This argument (or alternatively, the keyword argument `input_shape`)
+            is required when using this layer as the first layer in a model.
+        input_length: Length of input sequences, to be specified
+            when it is constant.
+            This argument is required if you are going to connect
+            `Flatten` then `Dense` layers upstream
+            (without it, the shape of the dense outputs cannot be computed).
+            Note that if the recurrent layer is not the first layer
+            in your model, you would need to specify the input length
+            at the level of the first layer
+            (e.g. via the `input_shape` argument)
+
+    # Masking
+        This layer supports masking for input data with a variable number
+        of timesteps. To introduce masks to your data,
+        use an [Embedding](embeddings.md) layer with the `mask_zero` parameter
+        set to `True`.
+        **Note:** for the time being, masking is only supported with Theano.
+
+    # TensorFlow warning
+        For the time being, when using the TensorFlow backend,
+        the number of timesteps used must be specified in your model.
+        Make sure to pass an `input_length` int argument to your
+        recurrent layer (if it comes first in your model),
+        or to pass a complete `input_shape` argument to the first layer
+        in your model otherwise.
+
+
+    # Note on using statefulness in RNNs
+        You can set RNN layers to be 'stateful', which means that the states
+        computed for the samples in one batch will be reused as initial states
+        for the samples in the next batch.
+        This assumes a one-to-one mapping between
+        samples in different successive batches.
+
+        To enable statefulness:
+            - specify `stateful=True` in the layer constructor.
+            - specify a fixed batch size for your model, by passing
+                a `batch_input_shape=(...)` to the first layer in your model.
+                This is the expected shape of your inputs *including the batch size*.
+                It should be a tuple of integers, e.g. `(32, 10, 100)`.
+
+        To reset the states of your model, call `.reset_states()` on either
+        a specific layer, or on your entire model.
+    '''
     input_ndim = 3
 
     def __init__(self, weights=None,
@@ -57,7 +129,7 @@ class Recurrent(MaskedLayer):
         if K._BACKEND == 'tensorflow':
             if not self.input_shape[1]:
                 raise Exception('When using TensorFlow, you should define ' +
-                                'explicitely the number of timesteps of ' +
+                                'explicitly the number of timesteps of ' +
                                 'your sequences. Make sure the first layer ' +
                                 'has a "batch_input_shape" argument ' +
                                 'including the samples axis.')
@@ -65,7 +137,7 @@ class Recurrent(MaskedLayer):
         mask = self.get_output_mask(train)
         if mask:
             # apply mask
-            X *= K.expand_dims(mask)
+            X *= K.cast(K.expand_dims(mask), X.dtype)
             masking = True
         else:
             masking = False
@@ -100,17 +172,17 @@ class Recurrent(MaskedLayer):
 
 
 class SimpleRNN(Recurrent):
-    '''
-        Fully-connected RNN where the output is to fed back to input.
-        Takes inputs with shape:
-        (nb_samples, max_sample_length, input_dim)
-        (samples shorter than `max_sample_length`
-         are padded with zeros at the end)
-        and returns outputs with shape:
-        if not return_sequences:
-            (nb_samples, output_dim)
-        if return_sequences:
-            (nb_samples, max_sample_length, output_dim)
+    '''Fully-connected RNN where the output is to fed back to input.
+
+    # Arguments
+        output_dim: dimension of the internal projections and the final output.
+        init: weight initialization function.
+            Can be the name of an existing function (str),
+            or a Theano function (see: [initializations](../initializations.md)).
+        inner_init: initialization function of the inner cells.
+        activation: activation function.
+            Can be the name of an existing function (str),
+            or a Theano function (see: [activations](../activations.md)).
     '''
     def __init__(self, output_dim,
                  init='glorot_uniform', inner_init='orthogonal',
@@ -133,7 +205,7 @@ class SimpleRNN(Recurrent):
 
         self.W = self.init((input_dim, self.output_dim))
         self.U = self.inner_init((self.output_dim, self.output_dim))
-        self.b = K.zeros((self.output_dim))
+        self.b = K.zeros((self.output_dim,))
         self.params = [self.W, self.U, self.b]
 
         if self.initial_weights is not None:
@@ -158,7 +230,7 @@ class SimpleRNN(Recurrent):
         assert len(states) == 1
         prev_output = states[0]
         h = K.dot(x, self.W) + self.b
-        output = self.activation(h * K.dot(prev_output, self.U))
+        output = self.activation(h + K.dot(prev_output, self.U))
         return output, [output]
 
     def get_config(self):
@@ -171,26 +243,22 @@ class SimpleRNN(Recurrent):
 
 
 class GRU(Recurrent):
-    '''
-        Gated Recurrent Unit - Cho et al. 2014
-        Acts as a spatiotemporal projection,
-        turning a sequence of vectors into a single vector.
-        Takes inputs with shape:
-        (nb_samples, max_sample_length, input_dim)
-        (samples shorter than `max_sample_length`
-         are padded with zeros at the end)
-        and returns outputs with shape:
-        if not return_sequences:
-            (nb_samples, output_dim)
-        if return_sequences:
-            (nb_samples, max_sample_length, output_dim)
-        References:
-            On the Properties of Neural Machine Translation:
-            Encoder–Decoder Approaches
-                http://www.aclweb.org/anthology/W14-4012
-            Empirical Evaluation of Gated Recurrent Neural Networks
-            on Sequence Modeling
-                http://arxiv.org/pdf/1412.3555v1.pdf
+    '''Gated Recurrent Unit - Cho et al. 2014.
+
+    # Arguments
+        output_dim: dimension of the internal projections and the final output.
+        init: weight initialization function.
+            Can be the name of an existing function (str),
+            or a Theano function (see: [initializations](../initializations.md)).
+        inner_init: initialization function of the inner cells.
+        activation: activation function.
+            Can be the name of an existing function (str),
+            or a Theano function (see: [activations](../activations.md)).
+        inner_activation: activation function for the inner cells.
+
+    # References
+        - [On the Properties of Neural Machine Translation: Encoder–Decoder Approaches](http://www.aclweb.org/anthology/W14-4012)
+        - [Empirical Evaluation of Gated Recurrent Neural Networks on Sequence Modeling](http://arxiv.org/pdf/1412.3555v1.pdf)
     '''
     def __init__(self, output_dim,
                  init='glorot_uniform', inner_init='orthogonal',
@@ -258,7 +326,7 @@ class GRU(Recurrent):
         z = self.inner_activation(x_z + K.dot(h_tm1, self.U_z))
         r = self.inner_activation(x_r + K.dot(h_tm1, self.U_r))
 
-        hh = self.inner_activation(x_h + K.dot(r * h_tm1, self.U_h))
+        hh = self.activation(x_h + K.dot(r * h_tm1, self.U_h))
         h = z * h_tm1 + (1 - z) * hh
         return h, [h]
 
@@ -273,27 +341,29 @@ class GRU(Recurrent):
 
 
 class LSTM(Recurrent):
-    '''
-        Acts as a spatiotemporal projection,
-        turning a sequence of vectors into a single vector.
-        Takes inputs with shape:
-        (nb_samples, max_sample_length, input_dim)
-        (samples shorter than `max_sample_length`
-         are padded with zeros at the end)
-        and returns outputs with shape:
-        if not return_sequences:
-            (nb_samples, output_dim)
-        if return_sequences:
-            (nb_samples, max_sample_length, output_dim)
-        For a step-by-step description of the algorithm, see:
-        http://deeplearning.net/tutorial/lstm.html
-        References:
-            Long short-term memory (original 97 paper)
-                http://deeplearning.cs.cmu.edu/pdfs/Hochreiter97_lstm.pdf
-            Learning to forget: Continual prediction with LSTM
-                http://www.mitpressjournals.org/doi/pdf/10.1162/089976600300015015
-            Supervised sequence labelling with recurrent neural networks
-                http://www.cs.toronto.edu/~graves/preprint.pdf
+    '''Long-Short Term Memory unit - Hochreiter 1997.
+
+    For a step-by-step description of the algorithm, see
+    [this tutorial](http://deeplearning.net/tutorial/lstm.html).
+
+    # Arguments
+        output_dim: dimension of the internal projections and the final output.
+        init: weight initialization function.
+            Can be the name of an existing function (str),
+            or a Theano function (see: [initializations](../initializations.md)).
+        inner_init: initialization function of the inner cells.
+        forget_bias_init: initialization function for the bias of the forget gate.
+            [Jozefowicz et al.](http://www.jmlr.org/proceedings/papers/v37/jozefowicz15.pdf)
+            recommend initializing with ones.
+        activation: activation function.
+            Can be the name of an existing function (str),
+            or a Theano function (see: [activations](../activations.md)).
+        inner_activation: activation function for the inner cells.
+
+    # References
+        - [Long short-term memory](http://deeplearning.cs.cmu.edu/pdfs/Hochreiter97_lstm.pdf) (original 1997 paper)
+        - [Learning to forget: Continual prediction with LSTM](http://www.mitpressjournals.org/doi/pdf/10.1162/089976600300015015)
+        - [Supervised sequence labelling with recurrent neural networks](http://www.cs.toronto.edu/~graves/preprint.pdf)
     '''
     def __init__(self, output_dim,
                  init='glorot_uniform', inner_init='orthogonal',
@@ -321,19 +391,19 @@ class LSTM(Recurrent):
 
         self.W_i = self.init((input_dim, self.output_dim))
         self.U_i = self.inner_init((self.output_dim, self.output_dim))
-        self.b_i = K.zeros((self.output_dim))
+        self.b_i = K.zeros((self.output_dim,))
 
         self.W_f = self.init((input_dim, self.output_dim))
         self.U_f = self.inner_init((self.output_dim, self.output_dim))
-        self.b_f = self.forget_bias_init((self.output_dim))
+        self.b_f = self.forget_bias_init((self.output_dim,))
 
         self.W_c = self.init((input_dim, self.output_dim))
         self.U_c = self.inner_init((self.output_dim, self.output_dim))
-        self.b_c = K.zeros((self.output_dim))
+        self.b_c = K.zeros((self.output_dim,))
 
         self.W_o = self.init((input_dim, self.output_dim))
         self.U_o = self.inner_init((self.output_dim, self.output_dim))
-        self.b_o = K.zeros((self.output_dim))
+        self.b_o = K.zeros((self.output_dim,))
 
         self.params = [self.W_i, self.U_i, self.b_i,
                        self.W_c, self.U_c, self.b_c,
