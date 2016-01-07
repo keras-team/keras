@@ -81,6 +81,8 @@ def weighted_objective(fn):
         # score_array has ndim >= 2
         score_array = fn(y_true, y_pred)
         if mask is not None:
+            # Cast the mask to floatX to avoid float64 upcasting in theano
+            mask = K.cast(mask, K.floatx())
             # mask should have the same shape as score_array
             score_array *= mask
             #  the loss per batch should be proportional
