@@ -1785,10 +1785,12 @@ def add_shared_layer(layer, inputs):
         if len(m.layers) == 0:
             from keras.layers.embeddings import Embedding
             if issubclass(layer.__class__, Embedding):
+
                 class IntInput(Layer):
+
                     def build(self):
-                        super(IntInput, self).build()
                         self.input = K.placeholder(self._input_shape, dtype='int32')
+
                 m.add(IntInput(input_shape=(layer.input_length, )))
             else:
                 m.add(Layer(input_shape=layer.input_shape))
