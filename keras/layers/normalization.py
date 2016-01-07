@@ -4,18 +4,38 @@ from .. import backend as K
 
 
 class BatchNormalization(Layer):
-    '''
-        Reference:
-            Batch Normalization: Accelerating Deep Network Training
-            by Reducing Internal Covariate Shift
-                http://arxiv.org/pdf/1502.03167v3.pdf
+    '''Normalize the activations of the previous layer at each batch,
+    i.e. applies a transformation that maintains the mean activation
+    close to 0 and the activation standard deviation close to 1.
 
-            mode: 0 -> featurewise normalization
-                  1 -> samplewise normalization
-                       (may sometimes outperform featurewise mode)
+    # Input shape
+        Arbitrary. Use the keyword argument `input_shape`
+        (tuple of integers, does not include the samples axis)
+        when using this layer as the first layer in a model.
 
-            momentum: momentum term in the computation
-            of a running estimate of the mean and std of the data
+    # Output shape
+        Same shape as input.
+
+    # Arguments
+        epsilon: small float > 0. Fuzz parameter.
+        mode: integer, 0 or 1.
+            - 0: feature-wise normalization.
+                If the input has multiple feature dimensions,
+                each will be normalized separately
+                (e.g. for an image input with shape
+                `(channels, rows, cols)`,
+                each combination of a channel, row and column
+                will be normalized separately).
+            - 1: sample-wise normalization. This mode assumes a 2D input.
+        momentum: momentum in the computation of the
+            exponential average of the mean and standard deviation
+            of the data, for feature-wise normalization.
+        weights: Initialization weights.
+            List of 2 numpy arrays, with shapes:
+            `[(input_shape,), (input_shape,)]`
+
+    # References
+        - [Batch Normalization: Accelerating Deep Network Training by Reducing Internal Covariate Shift](http://arxiv.org/pdf/1502.03167v3.pdf)
     '''
     def __init__(self, epsilon=1e-6, mode=0, momentum=0.9,
                  weights=None, **kwargs):
@@ -30,22 +50,12 @@ class BatchNormalization(Layer):
         input_shape = self.input_shape  # starts with samples axis
         input_shape = input_shape[1:]
 
-        self.gamma = self.init((input_shape))
+        self.gamma = self.init(input_shape)
         self.beta = K.zeros(input_shape)
 
         self.params = [self.gamma, self.beta]
         self.running_mean = K.zeros(input_shape)
-        self.running_std = K.ones((input_shape))
-
-        # initialize self.updates: batch mean/std computation
-        X = self.get_input(train=True)
-        m = K.mean(X, axis=0)
-        std = K.mean(K.square(X - m) + self.epsilon, axis=0)
-        std = K.sqrt(std)
-        mean_update = self.momentum * self.running_mean + (1-self.momentum) * m
-        std_update = self.momentum * self.running_std + (1-self.momentum) * std
-        self.updates = [(self.running_mean, mean_update),
-                        (self.running_std, std_update)]
+        self.running_std = K.ones(input_shape)
 
         if self.initial_weights is not None:
             self.set_weights(self.initial_weights)
@@ -64,6 +74,13 @@ class BatchNormalization(Layer):
     def get_output(self, train):
         X = self.get_input(train)
         if self.mode == 0:
+            m = K.mean(X, axis=0)
+            std = K.mean(K.square(X - m) + self.epsilon, axis=0)
+            std = K.sqrt(std)
+            mean_update = self.momentum * self.running_mean + (1-self.momentum) * m
+            std_update = self.momentum * self.running_std + (1-self.momentum) * std
+            self.updates = [(self.running_mean, mean_update),
+                            (self.running_std, std_update)]
             X_normed = ((X - self.running_mean) /
                         (self.running_std + self.epsilon))
         elif self.mode == 1:
@@ -79,45 +96,4 @@ class BatchNormalization(Layer):
                   "mode": self.mode,
                   "momentum": self.momentum}
         base_config = super(BatchNormalization, self).get_config()
-        return dict(list(base_config.items()) + list(config.items()))
-
-
-class LRN2D(Layer):
-    """
-    This code is adapted from pylearn2.
-    License at: https://github.com/lisa-lab/pylearn2/blob/master/LICENSE.txt
-    """
-
-    def __init__(self, alpha=1e-4, k=2, beta=0.75, n=5, **kwargs):
-        if n % 2 == 0:
-            raise NotImplementedError("LRN2D only works with odd n. n provided: " + str(n))
-        super(LRN2D, self).__init__(**kwargs)
-        self.alpha = alpha
-        self.k = k
-        self.beta = beta
-        self.n = n
-
-    def get_output(self, train):
-        X = self.get_input(train)
-        b, ch, r, c = K.shape(X)
-        half_n = self.n // 2
-        input_sqr = K.square(X)
-        extra_channels = K.zeros((b, ch + 2 * half_n, r, c))
-        input_sqr = K.concatenate([extra_channels[:, :half_n, :, :],
-                                   input_sqr,
-                                   extra_channels[:, half_n + ch:, :, :]],
-                                  axis=1)
-        scale = self.k
-        for i in range(self.n):
-            scale += self.alpha * input_sqr[:, i:i + ch, :, :]
-        scale = scale ** self.beta
-        return X / scale
-
-    def get_config(self):
-        config = {"name": self.__class__.__name__,
-                  "alpha": self.alpha,
-                  "k": self.k,
-                  "beta": self.beta,
-                  "n": self.n}
-        base_config = super(LRN2D, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))

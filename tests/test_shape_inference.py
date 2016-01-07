@@ -22,10 +22,19 @@ def check_layer_output_shape(layer, input_data):
 # Core #
 ########
 def test_Reshape():
-    layer = Reshape(dims=(2, 3))
     input_data = np.random.random((2, 6))
+
+    layer = Reshape(dims=(2, 3))
     check_layer_output_shape(layer, input_data)
 
+    layer = Reshape(dims=(-1,))
+    check_layer_output_shape(layer, input_data)
+
+    layer = Reshape(dims=(-1, 2))
+    check_layer_output_shape(layer, input_data)
+
+    layer = Reshape(dims=(2, -1))
+    check_layer_output_shape(layer, input_data)
 
 def test_Permute():
     layer = Permute(dims=(1, 3, 2))

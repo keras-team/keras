@@ -1,12 +1,10 @@
 import sys
-import unittest
+import pytest
 from numpy.testing import assert_allclose
 import numpy as np
-import pytest
 
-if sys.version_info.major == 2:
-    from keras.backend import theano_backend as KTH
-    from keras.backend import tensorflow_backend as KTF
+from keras.backend import theano_backend as KTH
+from keras.backend import tensorflow_backend as KTF
 
 
 def check_single_tensor_operation(function_name, input_shape, **kwargs):
@@ -38,8 +36,7 @@ def check_two_tensor_operation(function_name, x_input_shape,
     assert_allclose(zth, ztf, atol=1e-05)
 
 
-@pytest.mark.skipif(sys.version_info.major != 2, reason="Requires Python 2.7")
-class TestBackend(unittest.TestCase):
+class TestBackend(object):
 
     def test_linear_operations(self):
         check_two_tensor_operation('dot', (4, 2), (2, 4))
@@ -66,6 +63,26 @@ class TestBackend(unittest.TestCase):
         check_single_tensor_operation('expand_dims', (4, 3), dim=-1)
         check_single_tensor_operation('expand_dims', (4, 3, 2), dim=1)
         check_single_tensor_operation('squeeze', (4, 3, 1), axis=2)
+
+    def test_repeat_elements(self):
+        reps = 3
+        for ndims in [1, 2, 3]:
+            shape = np.arange(2, 2+ndims)
+            arr = np.arange(np.prod(shape)).reshape(shape)
+            arr_th = KTH.variable(arr)
+            arr_tf = KTF.variable(arr)
+
+            for rep_axis in range(ndims):
+                np_rep = np.repeat(arr, reps, axis=rep_axis)
+                th_rep = KTH.eval(
+                    KTH.repeat_elements(arr_th, reps, axis=rep_axis))
+                tf_rep = KTF.eval(
+                    KTF.repeat_elements(arr_tf, reps, axis=rep_axis))
+
+                assert th_rep.shape == np_rep.shape
+                assert tf_rep.shape == np_rep.shape
+                assert_allclose(np_rep, th_rep, atol=1e-05)
+                assert_allclose(np_rep, tf_rep, atol=1e-05)
 
     def test_value_manipulation(self):
         val = np.random.random((4, 2))
@@ -264,8 +281,10 @@ class TestBackend(unittest.TestCase):
         check_two_tensor_operation('binary_crossentropy', (4, 2), (4, 2), from_logits=True)
         check_two_tensor_operation('categorical_crossentropy', (4, 2), (4, 2), from_logits=True)
         check_two_tensor_operation('binary_crossentropy', (4, 2), (4, 2), from_logits=False)
-
         check_two_tensor_operation('categorical_crossentropy', (4, 2), (4, 2), from_logits=False)
+
+        check_single_tensor_operation('l2_normalize', (4, 3), axis=-1)
+        check_single_tensor_operation('l2_normalize', (4, 3), axis=1)
 
     # def test_conv2d(self):
     #     '''conv2d works "properly" with Theano and TF but outputs different
@@ -332,4 +351,4 @@ class TestBackend(unittest.TestCase):
 
 
 if __name__ == '__main__':
-    unittest.main()
+    pytest.main([__file__])

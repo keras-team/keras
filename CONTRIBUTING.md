@@ -22,13 +22,13 @@ The more information you provide, the easier it is for us to validate that there
 
 ## Requesting a Feature
 
-You can also use Github issues to request features you would like to see in Keras, or changes in the Keras API. 
+You can also use Github issues to request features you would like to see in Keras, or changes in the Keras API.
 
 1. Provide a clear and detailed explanation of the feature you want and why it's important to add. Keep in mind that we want features that will be useful to the majority of our users and not just a small subset. If you're just targeting a minority of users, consider writing an add-on library for Keras. It is crucial for Keras to avoid bloating the API and codebase.
 
 2. Provide code snippets demonstrating the API you have in mind and illustrating the use cases of your feature. Of course, you don't need to write any real code at this point!
 
-3. After disussing the feature you may choose to attempt a Pull Request. If you're at all able, start writing some code. We always have more work to do than time to do it. If you can write some code then that will speed the process along.
+3. After discussing the feature you may choose to attempt a Pull Request. If you're at all able, start writing some code. We always have more work to do than time to do it. If you can write some code then that will speed the process along.
 
 ## Pull Requests
 
@@ -49,12 +49,12 @@ We love pull requests. Here's a quick guide:
   - with the Theano backend, on Python 2.7 and Python 3.5
   - with the TensorFlow backend, on Python 2.7
 
-7. When committing, use appropriate, descriptive commit messages. Make sure that your branch history is not a string of "bug fix", "fix", "oops", etc. When submitting your PR, squash your commit history into 1-3 easy to follow commits, to make sure the project history stays clean and readable.
+7. When committing, use appropriate, descriptive commit messages. Make sure that your branch history is not a string of "bug fix", "fix", "oops", etc. When submitting your PR, squash your commits into a single commit with an appropriate commit message, to make sure the project history stays clean and readable. See ['rebase and squash'](http://rebaseandsqua.sh/) for technical help on how to squash your commits.
 
 8. Update the documentation. If introducing new functionality, make sure you include code snippets demonstrating the usage of your new feature.
 
-9. Submit your PR. If your changes have been approved in a previous discussion, and if you have have complete (and passing) unit tests, your PR is likely to be merged promptly. Otherwise, well...
+9. Submit your PR. If your changes have been approved in a previous discussion, and if you have complete (and passing) unit tests, your PR is likely to be merged promptly. Otherwise, well...
 
 ## Adding new examples
 
-Even if you don't contribute to the Keras source code, if you have an application of Keras that is concise and powerful, please consider adding it to our collection of examples. Existing examples show idiomatic Keras code: make sure to keep your own script in the same spirit.
+Even if you don't contribute to the Keras source code, if you have an application of Keras that is concise and powerful, please consider adding it to our collection of examples. [Existing examples](https://github.com/fchollet/keras/tree/master/examples) show idiomatic Keras code: make sure to keep your own script in the same spirit.

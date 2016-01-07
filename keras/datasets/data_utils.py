@@ -14,7 +14,10 @@ class ParanoidURLopener(FancyURLopener):
 
 
 def get_file(fname, origin, untar=False):
-    datadir = os.path.expanduser(os.path.join('~', '.keras', 'datasets'))
+    datadir_base = os.path.expanduser(os.path.join('~', '.keras'))
+    if not os.access(datadir_base, os.W_OK):
+        datadir_base = os.path.join('/tmp', '.keras')
+    datadir = os.path.join(datadir_base, 'datasets')
     if not os.path.exists(datadir):
         os.makedirs(datadir)
 
