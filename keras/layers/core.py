@@ -1911,6 +1911,44 @@ class Highway(Layer):
 
 
 class TimeDistributedHighway(Layer):
+    '''Apply a Highway layer for each dimension[1] (time_dimension) input.
+
+    # Input shape
+        3D tensor with shape `(nb_sample, time_dimension, input_dim)`.
+
+    # Output shape
+        3D tensor with shape `(nb_sample, time_dimension, input_dim)`.
+
+    # Arguments
+        init: name of initialization function for the weights of the layer
+            (see [initializations](../initializations.md)),
+            or alternatively, Theano function to use for weights
+            initialization. This parameter is only relevant
+            if you don't pass a `weights` argument.
+        transform_bias: value for the bias to take on initially (default -2)
+        activation: name of activation function to use
+            (see [activations](../activations.md)),
+            or alternatively, elementwise Theano function.
+            If you don't specify anything, no activation is applied
+            (ie. "linear" activation: a(x) = x).
+        weights: list of numpy arrays to set as initial weights.
+            The list should have 1 element, of shape `(input_dim, output_dim)`.
+        W_regularizer: instance of [WeightRegularizer](../regularizers.md)
+            (eg. L1 or L2 regularization), applied to the main weights matrix.
+        b_regularizer: instance of [WeightRegularizer](../regularizers.md),
+            applied to the bias.
+        activity_regularizer: instance of [ActivityRegularizer](../regularizers.md),
+            applied to the network output.
+        W_constraint: instance of the [constraints](../constraints.md) module
+            (eg. maxnorm, nonneg), applied to the main weights matrix.
+        b_constraint: instance of the [constraints](../constraints.md) module,
+            applied to the bias.
+        input_dim: dimensionality of the input (integer).
+            This argument (or alternatively, the keyword argument `input_shape`)
+            is required when using this layer as the first layer in a model.
+    '''
+    input_ndim = 3
+
     def __init__(self, init='glorot_uniform', transform_bias=-2,
                  activation='linear', weights=None,
                  W_regularizer=None, b_regularizer=None, activity_regularizer=None,
