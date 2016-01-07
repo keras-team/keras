@@ -2002,10 +2002,6 @@ class TimeDistributedHighway(Layer):
             self.set_weights(self.initial_weights)
             del self.initial_weights
 
-    @property
-    def output_shape(self):
-        return self.input_shape
-
     def get_output(self, train=False):
         X = self.get_input(train)
 
