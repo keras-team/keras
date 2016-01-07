@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import
-from __future__ import division
+from __future__ import divisionla
 
 import numpy as np
 
@@ -1382,12 +1382,10 @@ class Lambda(Layer):
             return tuple(shape)
 
     def get_output(self, train=False):
+        X = self.get_input(train)
         func = marshal.loads(self.function)
         func = types.FunctionType(func, globals())
-        if hasattr(self, 'previous'):
-            return func(self.previous.get_output(train))
-        else:
-            return func(self.input)
+        return func(X)
 
 
 class MaskedLambda(MaskedLayer, Lambda):
