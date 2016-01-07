@@ -46,7 +46,7 @@ def test_clone():
     clf.fit(X, y)
     cloned = sklearn.base.clone(clf)
     assert cmp(clf.get_params().keys(), cloned.get_params().keys()) == 0
-    assert cloned.compiled_model_ is None
+    assert cloned._compiled_model is None
 
 def test_score_binary():
     # We will test the score function, and make sure the classes_ are not being changed
@@ -75,10 +75,3 @@ def test_GridSearchCV():
     grid_params = {'nb_epoch': [1,2]}
     clf_gs = GridSearchCV(clf, param_grid=grid_params, cv=2, verbose=10)
     
-    
-# test_fit()
-# test_clone()
-# test_score_binary()
-# test_score_categorical()
-# test_bagging()
-# test_GridSearchCV()
