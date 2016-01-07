@@ -21,7 +21,7 @@ batch_size = 32
 nb_epoch = 1
 
 
-def _get_test_data():
+def _get_test_data(integers=False):
     np.random.seed(1234)
 
     train_samples = 2000
@@ -32,8 +32,12 @@ def _get_test_data():
                                                          input_shape=(input_dim,),
                                                          classification=True,
                                                          nb_class=4)
-    y_test = np_utils.to_categorical(y_test)
-    y_train = np_utils.to_categorical(y_train)
+    if integers:
+        y_train = y_train.reshape(-1)
+        y_test = y_test.reshape(-1)
+    else:
+        y_train = np_utils.to_categorical(y_train)
+        y_test = np_utils.to_categorical(y_test)
     return (X_train, y_train), (X_test, y_test)
 
 
@@ -123,6 +127,47 @@ def test_sequential():
     # test yaml serialization
     yaml_data = model.to_yaml()
     model = model_from_yaml(yaml_data)
+
+
+@pytest.mark.skipif(K._BACKEND == 'tensorflow',
+                    reason='TensorFlow does not have integer cross-entropy yet')
+def test_sequential_integer():
+    (X_train, y_train), (X_test, y_test) = _get_test_data(integers=True)
+
+    model = Sequential()
+    model.add(Dense(nb_hidden, input_shape=(input_dim,)))
+    model.add(Activation('relu'))
+    model.add(Dense(nb_class))
+    model.add(Activation('softmax'))
+    model.compile(loss='categorical_crossentropy', optimizer='rmsprop', output_ndim=1, output_dtype='int')
+    model.summary()
+
+    model.fit(X_train, y_train, batch_size=batch_size, nb_epoch=nb_epoch, show_accuracy=True, verbose=1, validation_data=(X_test, y_test))
+    model.fit(X_train, y_train, batch_size=batch_size, nb_epoch=nb_epoch, show_accuracy=False, verbose=2, validation_data=(X_test, y_test))
+    model.fit(X_train, y_train, batch_size=batch_size, nb_epoch=nb_epoch, show_accuracy=True, verbose=2, validation_split=0.1)
+    model.fit(X_train, y_train, batch_size=batch_size, nb_epoch=nb_epoch, show_accuracy=False, verbose=1, validation_split=0.1)
+    model.fit(X_train, y_train, batch_size=batch_size, nb_epoch=nb_epoch, verbose=0)
+    model.fit(X_train, y_train, batch_size=batch_size, nb_epoch=nb_epoch, verbose=1, shuffle=False)
+
+    model.train_on_batch(X_train[:32], y_train[:32])
+
+    loss = model.evaluate(X_test, y_test, verbose=0)
+    assert(loss < 0.8)
+
+    model.predict(X_test, verbose=0)
+    model.predict_classes(X_test, verbose=0)
+    model.predict_proba(X_test, verbose=0)
+    model.get_config(verbose=0)
+
+    # test model saving
+    fname = 'test_sequential_integer_temp.h5'
+    model.save_weights(fname, overwrite=True)
+    model = model_from_json(model.to_json())
+    model.load_weights(fname)
+    os.remove(fname)
+
+    nloss = model.evaluate(X_test, y_test, verbose=0)
+    assert(loss == nloss)
 
 
 def test_merge_sum():
@@ -579,6 +624,13 @@ def test_siamese_2():
                                                                                  input_shape=(32,),
                                                                                  classification=False,
                                                                                  output_shape=(1,))
+(Xi_train_graph, yi_train_graph), (Xi_test_graph, yi_test_graph) = get_test_data(nb_train=1000,
+                                                                                 nb_test=200,
+                                                                                 input_shape=(32,),
+                                                                                 classification=True,
+                                                                                 output_shape=(4,))
+yi_train_graph = yi_train_graph.reshape(-1)
+yi_test_graph = yi_test_graph.reshape(-1)
 
 
 def test_graph_fit_generator():
@@ -643,6 +695,45 @@ def test_1o_1i():
     graph.fit({'input1': X_train_graph, 'output1': y_train_graph},
               validation_data={'input1': X_train_graph, 'output1': y_train_graph},
               nb_epoch=1)
+
+
+@pytest.mark.skipif(K._BACKEND == 'tensorflow',
+                    reason='TensorFlow does not have integer cross-entropy yet')
+def test_1o_1i_integer():
+    # test a non-sequential graph with 1 input and 1 output
+    np.random.seed(1337)
+
+    graph = Graph()
+    graph.add_input(name='input1', input_shape=(32,))
+
+    graph.add_node(Dense(nb_hidden), name='dense1', input='input1')
+    graph.add_node(Activation('relu'), name='act1', input='dense1')
+    graph.add_node(Dense(nb_class), name='dense2', input='act1')
+    graph.add_node(Activation('softmax'), name='act2', input='dense2')
+
+    graph.add_output(name='output1', input='act2')
+    graph.compile('rmsprop', {'output1': 'categorical_crossentropy'},
+                  output_ndim={'output1': 1}, output_dtype={'output1': 'int'})
+
+    graph.fit({'input1': Xi_train_graph, 'output1': yi_train_graph},
+              nb_epoch=10)
+    out = graph.predict({'input1': Xi_test_graph})
+    assert(type(out == dict))
+    assert(len(out) == 1)
+    loss = graph.test_on_batch({'input1': Xi_test_graph, 'output1': yi_test_graph})
+    loss = graph.train_on_batch({'input1': Xi_test_graph, 'output1': yi_test_graph})
+    loss = graph.evaluate({'input1': Xi_test_graph, 'output1': yi_test_graph}, verbose=0)
+    assert(loss < 0.8)
+
+    # test model saving
+    fname = 'test_1o_1i_weights_temp.h5'
+    graph.save_weights(fname, overwrite=True)
+    graph = model_from_json(graph.to_json())
+    graph.load_weights(fname)
+    os.remove(fname)
+
+    nloss = graph.evaluate({'input1': Xi_test_graph, 'output1': yi_test_graph})
+    assert(loss == nloss)
 
 
 def test_1o_1i_2():
