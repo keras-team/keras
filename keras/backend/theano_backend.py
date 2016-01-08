@@ -458,15 +458,9 @@ def rnn(step_function, inputs, output_dim, initial_states,
         return [output] + return_states
 
     # build an all-zero tensor of shape (samples, output_dim)
-    # (aside, it's kind of crazy that we do this in this way, if the compiler
-    # isn't smart about the outer product below, it could be relatively expensive.
-    initial_output = zeros_like(inputs)  # (timesteps, samples, input_dim)
-    initial_output = sum(initial_output, axis=0)  # (samples, input_dim)
-    initial_output = sum(initial_output, axis=1)  # (samples,)
-    # I'm putting the extra zeros_like here in the *hopes* that it helps the optimizer
-    # realize that it never needs to compute the actual outer product but that it's just for
-    # shape inference.
-    initial_output = zeros_like(T.outer(initial_output, zeros((output_dim,)))) # (samples, output_dim)
+    initial_output = T.zeros((inputs.shape[1], output_dim))
+    # Theano gets confused by broadcasting patterns in the scan op
+    initial_output = T.unbroadcast(initial_output, 0,1)
 
     results, _ = theano.scan(
         _step,
