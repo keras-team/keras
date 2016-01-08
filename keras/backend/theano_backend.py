@@ -609,8 +609,9 @@ def conv2d(x, kernel, strides=(1, 1), border_mode='valid', dim_ordering='th',
                                       image_shape=image_shape,
                                       filter_shape=filter_shape)
         if border_mode == 'same':
-            shift_x = (kernel.shape[2] - 1) // 2
-            shift_y = (kernel.shape[3] - 1) // 2
+            np_kernel = kernel.eval()
+            shift_x = (np_kernel.shape[2] - 1) // 2
+            shift_y = (np_kernel.shape[3] - 1) // 2
             conv_out = conv_out[:, :,
                                 shift_x:x.shape[2] + shift_x,
                                 shift_y:x.shape[3] + shift_y]

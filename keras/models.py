@@ -81,6 +81,8 @@ def weighted_objective(fn):
         # score_array has ndim >= 2
         score_array = fn(y_true, y_pred)
         if mask is not None:
+            # Cast the mask to floatX to avoid float64 upcasting in theano
+            mask = K.cast(mask, K.floatx())
             # mask should have the same shape as score_array
             score_array *= mask
             #  the loss per batch should be proportional
@@ -453,8 +455,8 @@ class Sequential(Model, containers.Sequential):
         self._train = K.function(train_ins, [train_loss], updates=updates)
         self._train_with_acc = K.function(train_ins, [train_loss, train_accuracy], updates=updates)
         self._predict = K.function(predict_ins, [self.y_test], updates=self.state_updates)
-        self._test = K.function(test_ins, [test_loss])
-        self._test_with_acc = K.function(test_ins, [test_loss, test_accuracy])
+        self._test = K.function(test_ins, [test_loss], updates=self.state_updates)
+        self._test_with_acc = K.function(test_ins, [test_loss, test_accuracy], updates=self.state_updates)
 
     def fit(self, X, y, batch_size=128, nb_epoch=100, verbose=1, callbacks=[],
             validation_split=0., validation_data=None, shuffle=True,
@@ -1049,7 +1051,7 @@ class Graph(Model, containers.Graph):
         self.loss = loss
 
         self._train = K.function(train_ins, [train_loss], updates=updates)
-        self._test = K.function(test_ins, [test_loss])
+        self._test = K.function(test_ins, [test_loss], updates=self.state_updates)
         self._predict = K.function(inputs=ins, outputs=ys_test,
                                    updates=self.state_updates)
 
