@@ -4,7 +4,7 @@ We build a custom activation layer called 'Antirectifier',
 which modifies the shape of the tensor that passes through it.
 We need to specify two methods: `output_shape` and `get_output`.
 
-Note that same result can also be achieved via a Lambda layer.
+Note that the same result can also be achieved via a Lambda layer.
 
 Because our custom layer is written with primitives from the Keras
 backend (`K`), our code can run both on TensorFlow and Theano.
@@ -22,8 +22,8 @@ from keras.utils import np_utils
 class Antirectifier(Layer):
     '''This is the combination of a sample-wise
     L2 normalization with the concatenation of the
-    positive part of the output with the negative part
-    of the output. The result is a tensor of samples that are
+    positive part of the input with the negative part
+    of the input. The result is a tensor of samples that are
     twice as large as the input samples.
 
     It can be used in place of a ReLU.
@@ -47,8 +47,8 @@ class Antirectifier(Layer):
         (since they are between 0 and 1 and sum to 1 for each sample).
 
         Tests on MNIST show that Antirectifier allows to train networks
-        with twice less parameters yet with the same
-        classification performance as an equivalent ReLU-based network.
+        with twice less parameters yet with comparable
+        classification accuracy as an equivalent ReLU-based network.
     '''
     @property
     def output_shape(self):
