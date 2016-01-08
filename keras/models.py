@@ -158,10 +158,13 @@ def model_from_config(config, custom_objects={}):
         loss = config.get('loss')
 
         # if a custom loss function is passed replace it in loss
-        for l in loss:
-            for c in custom_objects:
-                if loss[l] == c:
-                    loss[l] = custom_objects[c]
+        if model_name == 'Graph':
+            for l in loss:
+                for c in custom_objects:
+                    if loss[l] == c:
+                        loss[l] = custom_objects[c]
+        elif model_name == 'Sequential' and loss in custom_objects:
+            loss = custom_objects[loss]
 
         class_mode = config.get('class_mode')
 
