@@ -370,8 +370,21 @@ class Model(object):
         `keras.models.from_json(json_string, custom_objects={})`.
         '''
         import json
+
+        def get_json_type(obj):
+
+            # if obj is any numpy type
+            if type(obj).__module__ == np.__name__:
+                return obj.item();
+
+            # if obj is a python 'type'
+            if type(obj).__name__ == type.__name__:
+                return obj.__name__
+
+            raise TypeError('Not JSON Serializable')
+
         config = self.get_config()
-        return json.dumps(config, **kwargs)
+        return json.dumps(config, default=get_json_type, **kwargs)
 
     def summary(self):
         '''Print out a summary of the model architecture,
