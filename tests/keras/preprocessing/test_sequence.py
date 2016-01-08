@@ -3,8 +3,9 @@ from numpy.testing import assert_allclose
 
 import pytest
 
-from keras.preprocessing.sequence import (pad_sequences, make_sampling_table,
-                                          skipgrams)
+from keras.preprocessing.sequence import pad_sequences
+from keras.preprocessing.sequence import make_sampling_table
+from keras.preprocessing.sequence import skipgrams
 
 
 def test_pad_sequences():

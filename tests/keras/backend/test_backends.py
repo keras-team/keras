@@ -283,8 +283,10 @@ class TestBackend(object):
         check_two_tensor_operation('binary_crossentropy', (4, 2), (4, 2), from_logits=True)
         check_two_tensor_operation('categorical_crossentropy', (4, 2), (4, 2), from_logits=True)
         check_two_tensor_operation('binary_crossentropy', (4, 2), (4, 2), from_logits=False)
-
         check_two_tensor_operation('categorical_crossentropy', (4, 2), (4, 2), from_logits=False)
+
+        check_single_tensor_operation('l2_normalize', (4, 3), axis=-1)
+        check_single_tensor_operation('l2_normalize', (4, 3), axis=1)
 
     # def test_conv2d(self):
     #     '''conv2d works "properly" with Theano and TF but outputs different

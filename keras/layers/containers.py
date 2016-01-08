@@ -104,7 +104,7 @@ class Sequential(Layer):
     @property
     def state_updates(self):
         """
-        Returns the `updates` from all layers in the sequence that are
+        Return the `updates` from all layers in the sequence that are
         stateful.  This is useful for separating _training_ updates and
         _prediction_ updates for when we need to update a layers internal state
         during a stateful prediction.
@@ -232,7 +232,7 @@ class Graph(Layer):
     @property
     def state_updates(self):
         """
-        Returns the `updates` from all nodes in that graph for nodes that are
+        Return the `updates` from all nodes in that graph for nodes that are
         stateful.  This is useful for separating _training_ updates and
         _prediction_ updates for when we need to update a layers internal state
         during a stateful prediction.
@@ -313,7 +313,7 @@ class Graph(Layer):
         if dtype == 'float':
             layer.input = K.placeholder(shape=layer.input_shape, name=name)
         else:
-            if len(input_shape) == 1:
+            if (input_shape and len(input_shape) == 1) or (batch_input_shape and len(batch_input_shape) == 2):
                 layer.input = K.placeholder(shape=layer.input_shape,
                                             dtype='int32',
                                             name=name)

@@ -36,20 +36,34 @@ class Layer(object):
         allowed_kwargs = {'input_shape',
                           'trainable',
                           'batch_input_shape',
-                          'cache_enabled'}
+                          'cache_enabled',
+                          'name'}
         for kwarg in kwargs:
             assert kwarg in allowed_kwargs, 'Keyword argument not understood: ' + kwarg
+
         if 'input_shape' in kwargs:
             self.set_input_shape((None,) + tuple(kwargs['input_shape']))
         if 'batch_input_shape' in kwargs:
             self.set_input_shape(tuple(kwargs['batch_input_shape']))
+        self.trainable = True
         if 'trainable' in kwargs:
-            self._trainable = kwargs['trainable']
+            self.trainable = kwargs['trainable']
+        self.name = self.__class__.__name__.lower()
+        if 'name' in kwargs:
+            self.name = kwargs['name']
         if not hasattr(self, 'params'):
             self.params = []
-        self._cache_enabled = True
+        self.cache_enabled = True
         if 'cache_enabled' in kwargs:
-            self._cache_enabled = kwargs['cache_enabled']
+            self.cache_enabled = kwargs['cache_enabled']
+
+    @property
+    def name(self):
+        return self._name
+
+    @name.setter
+    def name(self, name):
+        self._name = name
 
     @property
     def cache_enabled(self):
@@ -84,7 +98,7 @@ class Layer(object):
                                                                 ' but previous layer has output_shape ' +
                                                                 str(layer.output_shape))
         if layer.get_output_mask() is not None:
-            assert self.supports_masked_input(), 'Cannot connect non-masking layer to layer with masked output'
+            assert self.supports_masked_input(), 'Cannot connect non-masking layer to layer with masked output.'
         self.previous = layer
         self.build()
 
@@ -233,7 +247,8 @@ class Layer(object):
             config['input_shape'] = self._input_shape[1:]
         if hasattr(self, '_trainable'):
             config['trainable'] = self._trainable
-        config['cache_enabled'] =  self.cache_enabled
+        config['cache_enabled'] = self.cache_enabled
+        config['custom_name'] = self.name
         return config
 
     def get_params(self):
@@ -530,7 +545,7 @@ class Merge(Layer):
             for i in range(len(self.layers)):
                 X = self.layers[i].get_output(train)
                 if X.name is None:
-                    raise ValueError('merge_mode="join" only works with named inputs')
+                    raise ValueError('merge_mode="join" only works with named inputs.')
                 else:
                     inputs[X.name] = X
             return inputs
@@ -560,7 +575,7 @@ class Merge(Layer):
             output = output.dimshuffle((0, 'x'))
             return output
         else:
-            raise Exception('Unknown merge mode')
+            raise Exception('Unknown merge mode.')
 
     def get_input(self, train=False):
         res = []
@@ -685,13 +700,59 @@ class Reshape(Layer):
         super(Reshape, self).__init__(**kwargs)
         self.dims = tuple(dims)
 
+    def _fix_unknown_dimension(self, input_shape, output_shape):
+        '''Find and replace a single missing dimension in an output shape
+        given and input shape.
+
+        A near direct port of the internal numpy function _fix_unknown_dimension
+        in numpy/core/src/multiarray/shape.c
+
+        # Arguments
+            input_shape: shape of array being reshaped
+
+            output_shape: desired shaped of the array with at most
+                a single -1 which indicates a dimension that should be
+                derived from the input shape.
+
+        # Returns
+            The new output shape with a -1 replaced with its computed value.
+
+            Raises a ValueError if the total array size of the output_shape is
+            different then the input_shape, or more then one unknown dimension
+            is specified.
+        '''
+
+        output_shape = list(output_shape)
+
+        msg = 'total size of new array must be unchanged'
+
+        known, unknown = 1, None
+        for index, dim in enumerate(output_shape):
+            if dim < 0:
+                if unknown is None:
+                    unknown = index
+                else:
+                    raise ValueError('can only specify one unknown dimension')
+            else:
+                known *= dim
+
+        original = np.prod(input_shape, dtype=int)
+        if unknown is not None:
+            if known == 0 or original % known != 0:
+                raise ValueError(msg)
+            output_shape[unknown] = original // known
+        elif original != known:
+            raise ValueError(msg)
+
+        return tuple(output_shape)
+
     @property
     def output_shape(self):
-        return (self.input_shape[0],) + self.dims
+        return (self.input_shape[0],) + self._fix_unknown_dimension(self.input_shape[1:], self.dims)
 
     def get_output(self, train=False):
         X = self.get_input(train)
-        return K.reshape(X, (-1,) + self.dims)
+        return K.reshape(X, (-1,) + self.output_shape[1:])
 
     def get_config(self):
         config = {'name': self.__class__.__name__,
@@ -748,7 +809,7 @@ class Flatten(Layer):
     '''Flatten the input. Does not affect the batch size.
 
     # Input shape
-        Arbitrary, although all dimensions in the input shaped must be fixed.
+        Arbitrary, although all dimensions in the input shape must be fixed.
         Use the keyword argument `input_shape`
         (tuple of integers, does not include the samples axis)
         when using this layer as the first layer in a model.
@@ -762,11 +823,18 @@ class Flatten(Layer):
     @property
     def output_shape(self):
         input_shape = self.input_shape
+        if not all(input_shape[1:]):
+            raise Exception('The shape of the input to "Flatten" '
+                            'is not fully defined '
+                            '(got ' + str(input_shape[1:]) + '. '
+                            'Make sure to pass a complete "input_shape" '
+                            'or "batch_input_shape" argument to the first '
+                            'layer in your model.')
         return (input_shape[0], np.prod(input_shape[1:]))
 
     def get_output(self, train=False):
         X = self.get_input(train)
-        return K.flatten(X)
+        return K.batch_flatten(X)
 
 
 class RepeatVector(Layer):
@@ -1018,7 +1086,7 @@ class TimeDistributedDense(MaskedLayer):
         input_dim = self.input_shape[2]
 
         self.W = self.init((input_dim, self.output_dim))
-        self.b = K.zeros((self.output_dim))
+        self.b = K.zeros((self.output_dim,))
 
         self.params = [self.W, self.b]
         self.regularizers = []
@@ -1113,6 +1181,10 @@ class AutoEncoder(Layer):
 
         self.decoder.set_previous(self.encoder)
 
+        if weights is not None:
+            self.set_weights(weights)
+
+    def build(self):
         self.params = []
         self.regularizers = []
         self.constraints = []
@@ -1126,11 +1198,9 @@ class AutoEncoder(Layer):
                     self.params.append(p)
                     self.constraints.append(c)
 
-        if weights is not None:
-            self.set_weights(weights)
-
-    def set_previous(self, node):
-        self.encoder.set_previous(node)
+    def set_previous(self, node, connection_map={}):
+        self.encoder.set_previous(node, connection_map)
+        super(AutoEncoder, self).set_previous(node, connection_map)
 
     def get_weights(self):
         weights = []
@@ -1321,18 +1391,16 @@ class Lambda(Layer):
         else:
             output_shape_func = marshal.loads(self._output_shape)
             output_shape_func = types.FunctionType(output_shape_func, globals())
-            shape = output_shape_func(self.previous.output_shape)
+            shape = output_shape_func(self.input_shape)
             if type(shape) not in {list, tuple}:
                 raise Exception('output_shape function must return a tuple')
             return tuple(shape)
 
     def get_output(self, train=False):
+        X = self.get_input(train)
         func = marshal.loads(self.function)
         func = types.FunctionType(func, globals())
-        if hasattr(self, 'previous'):
-            return func(self.previous.get_output(train))
-        else:
-            return func(self.input)
+        return func(X)
 
 
 class MaskedLambda(MaskedLayer, Lambda):
@@ -1356,7 +1424,7 @@ class LambdaMerge(Lambda):
     def __init__(self, layers, function, output_shape=None):
         if len(layers) < 2:
             raise Exception('Please specify two or more input layers '
-                            '(or containers) to merge')
+                            '(or containers) to merge.')
         self.layers = layers
         self.params = []
         self.regularizers = []
@@ -1399,7 +1467,7 @@ class LambdaMerge(Lambda):
             output_shape_func = types.FunctionType(output_shape_func, globals())
             shape = output_shape_func(input_shapes)
             if type(shape) not in {list, tuple}:
-                raise Exception('output_shape function must return a tuple')
+                raise Exception('output_shape function must return a tuple.')
             return tuple(shape)
 
     def get_params(self):
@@ -1479,7 +1547,7 @@ class Siamese(Layer):
 
         if merge_mode in {'cos', 'dot'}:
             if len(inputs) > 2:
-                raise Exception(merge_mode + ' merge takes exactly 2 layers')
+                raise Exception(merge_mode + ' merge takes exactly 2 layers.')
 
         self.layer = layer
         self.trainable = layer.trainable
@@ -1566,7 +1634,7 @@ class Siamese(Layer):
             X = self.get_output_at(i, train)
             if X.name is None:
                 raise ValueError('merge_mode="join" '
-                                 'only works with named inputs')
+                                 'only works with named inputs.')
             o[X.name] = X
         return o
 
@@ -1684,10 +1752,10 @@ class Siamese(Layer):
 
 class SiameseHead(Layer):
     '''This layer should be added only on top of a Siamese layer
-    with merge_mode = None
+    with merge_mode = None.
 
     Outputs the output of the Siamese layer at a given index,
-    specified by the head argument
+    specified by the head argument.
 
     # Arguments
         head: The index at which the output of the Siamese layer
@@ -1722,7 +1790,7 @@ class SiameseHead(Layer):
 
 def add_shared_layer(layer, inputs):
     '''Use this function to add a shared layer across
-    multiple Sequential models without merging the outputs
+    multiple Sequential models without merging the outputs.
     '''
     input_layers = [l.layers[-1] for l in inputs]
     s = Siamese(layer, input_layers, merge_mode=None)
@@ -1734,9 +1802,7 @@ def add_shared_layer(layer, inputs):
 
 class Highway(Layer):
     '''Densely connected highway network,
-    a natural extension of LSTMs to feedforward networks
-
-    cite: http://arxiv.org/pdf/1505.00387v2.pdf
+    a natural extension of LSTMs to feedforward networks.
 
     # Input shape
         2D tensor with shape: `(nb_samples, input_dim)`.
@@ -1771,6 +1837,9 @@ class Highway(Layer):
         input_dim: dimensionality of the input (integer).
             This argument (or alternatively, the keyword argument `input_shape`)
             is required when using this layer as the first layer in a model.
+
+    # References
+        - [Highway Networks](http://arxiv.org/pdf/1505.00387v2.pdf)
     '''
     input_ndim = 2
 
