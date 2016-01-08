@@ -130,6 +130,21 @@ def test_maxout_dense():
     _runner(layer)
 
 
+def test_naming():
+    layer = core.Dense(2, input_dim=2)
+    assert layer.name == 'dense'
+
+    model = Sequential()
+    model.add(core.Dense(2, input_dim=2, name='my_dense'))
+    model.add(core.Dense(2, name='my_dense'))
+
+    assert model.layers[0].name == 'my_dense'
+    assert model.layers[1].name == 'my_dense'
+
+    model.compile(optimizer='rmsprop', loss='mse')
+    model.train_on_batch(np.random.random((2, 2)), np.random.random((2, 2)))
+
+
 @pytest.mark.skipif(K._BACKEND == 'tensorflow',
                     reason='currently not working with TensorFlow')
 def test_sequences():

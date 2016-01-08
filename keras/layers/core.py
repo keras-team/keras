@@ -36,20 +36,34 @@ class Layer(object):
         allowed_kwargs = {'input_shape',
                           'trainable',
                           'batch_input_shape',
-                          'cache_enabled'}
+                          'cache_enabled',
+                          'name'}
         for kwarg in kwargs:
             assert kwarg in allowed_kwargs, 'Keyword argument not understood: ' + kwarg
+
         if 'input_shape' in kwargs:
             self.set_input_shape((None,) + tuple(kwargs['input_shape']))
         if 'batch_input_shape' in kwargs:
             self.set_input_shape(tuple(kwargs['batch_input_shape']))
+        self.trainable = True
         if 'trainable' in kwargs:
-            self._trainable = kwargs['trainable']
+            self.trainable = kwargs['trainable']
+        self.name = self.__class__.__name__.lower()
+        if 'name' in kwargs:
+            self.name = kwargs['name']
         if not hasattr(self, 'params'):
             self.params = []
-        self._cache_enabled = True
+        self.cache_enabled = True
         if 'cache_enabled' in kwargs:
-            self._cache_enabled = kwargs['cache_enabled']
+            self.cache_enabled = kwargs['cache_enabled']
+
+    @property
+    def name(self):
+        return self._name
+
+    @name.setter
+    def name(self, name):
+        self._name = name
 
     @property
     def cache_enabled(self):
@@ -233,7 +247,8 @@ class Layer(object):
             config['input_shape'] = self._input_shape[1:]
         if hasattr(self, '_trainable'):
             config['trainable'] = self._trainable
-        config['cache_enabled'] =  self.cache_enabled
+        config['cache_enabled'] = self.cache_enabled
+        config['custom_name'] = self.name
         return config
 
     def get_params(self):
@@ -688,7 +703,7 @@ class Reshape(Layer):
     def _fix_unknown_dimension(self, input_shape, output_shape):
         '''Find and replace a single missing dimension in an output shape
         given and input shape.
-        
+
         A near direct port of the internal numpy function _fix_unknown_dimension
         in numpy/core/src/multiarray/shape.c
 
@@ -819,7 +834,7 @@ class Flatten(Layer):
 
     def get_output(self, train=False):
         X = self.get_input(train)
-        return K.flatten(X)
+        return K.batch_flatten(X)
 
 
 class RepeatVector(Layer):

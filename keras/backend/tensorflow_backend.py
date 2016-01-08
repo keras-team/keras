@@ -287,6 +287,10 @@ def tile(x, n):
 
 
 def flatten(x):
+    return tf.reshape(x, [-1])
+
+
+def batch_flatten(x):
     '''Turn a n-D tensor into a 2D tensor where
     the first dimension is conserved.
     '''
@@ -345,12 +349,16 @@ def set_value(x, value):
 class Function(object):
 
     def __init__(self, inputs, outputs, updates=[]):
+        assert type(inputs) in {list, tuple}
+        assert type(outputs) in {list, tuple}
+        assert type(updates) in {list, tuple}
         self.inputs = list(inputs)
         self.outputs = list(outputs)
         with tf.control_dependencies(self.outputs):
             self.updates = [tf.assign(p, new_p) for (p, new_p) in updates]
 
     def __call__(self, inputs):
+        assert type(inputs) in {list, tuple}
         names = [v.name for v in self.inputs]
         feed_dict = dict(zip(names, inputs))
         session = _get_session()
@@ -442,7 +450,7 @@ def rnn(step_function, inputs, initial_states,
     new_states = successive_states[-1]
 
     outputs = tf.transpose(outputs, (1, 0, 2))
-    return last_output, outputs, states
+    return last_output, outputs, new_states
 
 
 def switch(condition, then_expression, else_expression):

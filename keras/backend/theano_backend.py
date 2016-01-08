@@ -287,6 +287,10 @@ def tile(x, n):
 
 
 def flatten(x):
+    return T.flatten(x)
+
+
+def batch_flatten(x):
     '''Turn a n-D tensor into a 2D tensor where
     the first dimension is conserved.
     '''
@@ -378,10 +382,14 @@ def set_value(x, value):
 class Function(object):
 
     def __init__(self, inputs, outputs, updates=[], **kwargs):
+        assert type(inputs) in {list, tuple}
+        assert type(outputs) in {list, tuple}
+        assert type(updates) in {list, tuple}
         self.function = theano.function(inputs, outputs, updates=updates,
                                         allow_input_downcast=True, **kwargs)
 
     def __call__(self, inputs):
+        assert type(inputs) in {list, tuple}
         return self.function(*inputs)
 
 
