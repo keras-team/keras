@@ -1376,18 +1376,16 @@ class Lambda(Layer):
         else:
             output_shape_func = marshal.loads(self._output_shape)
             output_shape_func = types.FunctionType(output_shape_func, globals())
-            shape = output_shape_func(self.previous.output_shape)
+            shape = output_shape_func(self.input_shape)
             if type(shape) not in {list, tuple}:
                 raise Exception('output_shape function must return a tuple')
             return tuple(shape)
 
     def get_output(self, train=False):
+        X = self.get_input(train)
         func = marshal.loads(self.function)
         func = types.FunctionType(func, globals())
-        if hasattr(self, 'previous'):
-            return func(self.previous.get_output(train))
-        else:
-            return func(self.input)
+        return func(X)
 
 
 class MaskedLambda(MaskedLayer, Lambda):
