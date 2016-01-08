@@ -42,10 +42,6 @@ class Antirectifier(Layer):
         Antirectifier allows to return all-positive outputs like ReLU,
         without discarding any data.
 
-        Further, the samplewise normalization of the output
-        allows to interpret output features as a probability distribution
-        (since they are between 0 and 1 and sum to 1 for each sample).
-
         Tests on MNIST show that Antirectifier allows to train networks
         with twice less parameters yet with comparable
         classification accuracy as an equivalent ReLU-based network.
