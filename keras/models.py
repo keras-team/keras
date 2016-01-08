@@ -156,6 +156,13 @@ def model_from_config(config, custom_objects={}):
     if 'optimizer' in config:
         # if it has an optimizer, the model is assumed to be compiled
         loss = config.get('loss')
+
+        # if a custom loss function is passed replace it in loss
+        for l in loss:
+            for c in custom_objects:
+                if loss[l] == c:
+                    loss[l] = custom_objects[c]
+
         class_mode = config.get('class_mode')
 
         optimizer_params = dict([(k, v) for k, v in config.get('optimizer').items()])
