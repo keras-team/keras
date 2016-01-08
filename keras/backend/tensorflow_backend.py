@@ -403,7 +403,8 @@ def rnn(step_function, inputs, output_dim, initial_states,
         mask.set_shape([inputs_shape[0].value, inputs_shape[1].value, 1])
         mask = tf.cast(mask, tf.bool)
     else:
-        mask = tf.transpose(mask, (1, 0, 2))
+        # Transpose not supported by bool tensor types, hence round-trip to uint8.
+        mask = tf.cast(tf.transpose(tf.cast(mask, tf.uint8), (1, 0, 2)), tf.bool)
 
     mask_list = tf.unpack(mask)
     
