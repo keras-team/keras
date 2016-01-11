@@ -17,6 +17,8 @@ python neural_style.py img/tuebingen.jpg img/starry_night.jpg results/my_result
 It is preferrable to run this script on GPU, for speed.
 If running on CPU, prefer the TensorFlow backend (much faster).
 
+Example result: https://twitter.com/fchollet/status/686631033085677568
+
 # Details
 
 Style transfer consists in generating an image
@@ -67,9 +69,6 @@ parser.add_argument('style_reference_image_path', metavar='ref', type=str,
 parser.add_argument('result_prefix', metavar='res_prefix', type=str,
                     help='Prefix for the saved results.')
 
-# base_image_path = 'tuebingen.jpg'
-# style_reference_image_path = 'starry_night.jpg'
-# result_prefix = 'my_result_th'
 args = parser.parse_args()
 base_image_path = args.base_image_path
 style_reference_image_path = args.style_reference_image_path
