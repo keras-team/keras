@@ -49,7 +49,7 @@ keeping the generated image close enough to the original one.
 '''
 
 from __future__ import print_function
-import cv2
+from scipy.misc import imread, imresize, imsave
 import numpy as np
 from scipy.optimize import fmin_l_bfgs_b
 import time
@@ -87,7 +87,7 @@ assert img_height == img_width, 'Due to the use of the Gram matrix, width and he
 
 # util function to open, resize and format pictures into appropriate tensors
 def preprocess_image(image_path):
-    im = cv2.resize(cv2.imread(image_path), (img_width, img_height))
+    im = imresize(imread(image_path), (img_width, img_height))
     im = im.transpose((2, 0, 1))
     im = np.expand_dims(im, axis=0)
     return im
@@ -252,7 +252,7 @@ for i in range(10):
     # save current generated image
     im = deprocess_image(x.reshape((3, img_width, img_height)))
     fname = result_prefix + '_at_iteration_%d.png' % i
-    cv2.imwrite(fname, im)
+    imsave(fname, im)
     end_time = time.time()
     print('Image saved as', fname)
     print('Iteration %d completed in %ds' % (i, end_time - start_time))
