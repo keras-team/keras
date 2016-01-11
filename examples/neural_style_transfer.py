@@ -29,10 +29,6 @@ This is achieved through the optimization of a loss function
 that has 3 components: "style loss", "content loss",
 and "total variation loss":
 
- - The content loss is a L2 distance between the pixels of the base
-image and the pixels of the combination image, keeping the generated image
-close enough to the original one.
-
 - The total variation loss imposes local spatial continuity between
 the pixels of the combination image, giving it visual coherence.
 
@@ -44,7 +40,11 @@ different layers of a convnet (trained on ImageNet). The general idea
 is to capture color/texture information at different spatial
 scales (fairly large scales --defined by the depth of the layer considered).
 
-# Reference:
+ - The content loss is a L2 distance between the features of the base
+image (extracted from a deep layer) and the features of the combination image,
+keeping the generated image close enough to the original one.
+
+# References
     - [A Neural Algorithm of Artistic Style](http://arxiv.org/abs/1508.06576)
 '''
 
