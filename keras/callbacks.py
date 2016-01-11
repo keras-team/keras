@@ -513,7 +513,10 @@ class TensorBoard(Callback):
                 summary_str = result[0]
                 self.writer.add_summary(summary_str, epoch)
 
-        for name, value in self.totals.items() + logs.items():
+        all_values = self.totals.copy()
+        all_values.update(logs)
+        
+        for name, value in all_values.items():
             if name in ['batch', 'size']:
                 continue
             summary = tf.Summary()
