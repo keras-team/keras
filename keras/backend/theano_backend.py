@@ -382,9 +382,6 @@ def set_value(x, value):
 class Function(object):
 
     def __init__(self, inputs, outputs, updates=[], **kwargs):
-        assert type(inputs) in {list, tuple}
-        assert type(outputs) in {list, tuple}
-        assert type(updates) in {list, tuple}
         self.function = theano.function(inputs, outputs, updates=updates,
                                         allow_input_downcast=True, **kwargs)
 
