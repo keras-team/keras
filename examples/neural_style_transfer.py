@@ -58,7 +58,6 @@ import h5py
 
 from keras.models import Sequential
 from keras.layers.convolutional import Convolution2D, ZeroPadding2D, MaxPooling2D
-from keras.layers.core import Dense, Dropout, Flatten
 from keras import backend as K
 
 parser = argparse.ArgumentParser(description='Neural style transfer with Keras.')
@@ -87,10 +86,10 @@ assert img_height == img_width, 'Due to the use of the Gram matrix, width and he
 
 # util function to open, resize and format pictures into appropriate tensors
 def preprocess_image(image_path):
-    im = imresize(imread(image_path), (img_width, img_height))
-    im = im.transpose((2, 0, 1))
-    im = np.expand_dims(im, axis=0)
-    return im
+    img = imresize(imread(image_path), (img_width, img_height))
+    img = img.transpose((2, 0, 1)).astype('float64')
+    img = np.expand_dims(img, axis=0)
+    return img
 
 # util function to convert a tensor into a valid image
 def deprocess_image(x):
@@ -244,15 +243,14 @@ def eval_loss(x):
 x = np.random.uniform(0, 255, (1, 3, img_width, img_height))
 for i in range(10):
     print('Start of iteration', i)
-    eval_loss_calls = 0
     start_time = time.time()
     x, min_val, info = fmin_l_bfgs_b(eval_loss, x.flatten(),
                                      fprime=eval_grads, maxfun=20)
     print('Current loss value:', min_val)
     # save current generated image
-    im = deprocess_image(x.reshape((3, img_width, img_height)))
+    img = deprocess_image(x.reshape((3, img_width, img_height)))
     fname = result_prefix + '_at_iteration_%d.png' % i
-    imsave(fname, im)
+    imsave(fname, img)
     end_time = time.time()
     print('Image saved as', fname)
     print('Iteration %d completed in %ds' % (i, end_time - start_time))
