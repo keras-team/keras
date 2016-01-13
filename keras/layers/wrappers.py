@@ -1,3 +1,9 @@
+# -*- coding: utf-8 -*-
+from __future__ import absolute_import
+from ..layers.core import Layer
+from ..import backend as K
+from ..import activations, initializations, regularizers, constraints
+
 class Wrapper(Layer):
     '''
     Abstract Wrapper class
