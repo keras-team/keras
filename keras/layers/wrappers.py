@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import
-from ..layers.core import Layer
+from ..layers.core import Layer, MaskedLayer
 from ..import backend as K
 from ..import activations, initializations, regularizers, constraints
 
