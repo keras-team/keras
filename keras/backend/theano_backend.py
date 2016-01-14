@@ -3,7 +3,7 @@ from theano import tensor as T
 from theano.sandbox.rng_mrg import MRG_RandomStreams as RandomStreams
 from theano.tensor.signal import downsample
 import numpy as np
-from .common import _FLOATX, _EPSILON
+from .common import _FLOATX, _EPSILON, _DEBUG_MODE
 
 
 # INTERNAL UTILS
@@ -391,7 +391,10 @@ class Function(object):
 
 
 def function(inputs, outputs, updates=[]):
-    return Function(inputs, outputs, updates=updates)
+    mode = None
+    if _DEBUG_MODE == 'detect_nan':  # use suggested Theano detect_nan implementation
+        mode = 'NanGuardMode'
+    return Function(inputs, outputs, updates=updates, mode=mode)
 
 
 def gradients(loss, variables):
