@@ -65,7 +65,6 @@ def _runner(layer_class):
     assert(out4.max() != out5.max())
 
 
-
 def test_SimpleRNN():
     _runner(recurrent.SimpleRNN)
 
