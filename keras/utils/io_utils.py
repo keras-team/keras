@@ -1,7 +1,14 @@
 from __future__ import absolute_import
 import h5py
+import itertools
+import multiprocessing
+import threading
 import numpy as np
 from collections import defaultdict
+from multiprocessing import Queue
+from Queue import Empty as QueueEmpty
+
+
 
 class HDF5Matrix():
     refs = defaultdict(int)

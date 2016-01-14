@@ -821,7 +821,7 @@ class Sequential(Model, containers.Sequential):
             show_accuracy: boolean. Whether to display accuracy (only relevant
                 for classification problems).
             callbacks: list of callbacks to be called during training.
-            validation_data: same format as `data_generator` for validation data
+            validation_generator: same format as `data_generator` for validation data
             class_weight: dictionary mapping class indices to a weight
                 for the class.
         # Returns
@@ -882,7 +882,7 @@ class Sequential(Model, containers.Sequential):
         for epoch in np.arange(1,nb_epoch+1):
             callbacks.on_epoch_begin(epoch)
             samples_seen = 0
-            gen = data_generator.next()
+            gen = next(data_generator)
             for batch_index, d in enumerate(gen):
                 if samples_seen == 0:
                   #validate first batch
@@ -940,7 +940,7 @@ class Sequential(Model, containers.Sequential):
             progbar = Progbar(target=self.val_total_nframes)
         
         samples_seen = 0
-        gen = data_generator.next()
+        gen = next(data_generator)
         for batch_index, d in enumerate(gen):
             if samples_seen == 0:
               #validate first batch
