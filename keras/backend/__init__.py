@@ -4,12 +4,16 @@ import os
 import json
 from .common import epsilon, floatx, set_epsilon, set_floatx
 
-_keras_dir = os.path.expanduser(os.path.join('~', '.keras'))
+_keras_base_dir = os.path.expanduser('~')
+if not os.access(_keras_base_dir, os.W_OK):
+    _keras_base_dir = '/tmp'
+
+_keras_dir = os.path.join(_keras_base_dir, '.keras')
 if not os.path.exists(_keras_dir):
     os.makedirs(_keras_dir)
 
 _BACKEND = 'theano'
-_config_path = os.path.expanduser(os.path.join('~', '.keras', 'keras.json'))
+_config_path = os.path.expanduser(os.path.join(_keras_dir, 'keras.json'))
 if os.path.exists(_config_path):
     _config = json.load(open(_config_path))
     _floatx = _config.get('floatx', floatx())
@@ -30,6 +34,11 @@ else:
     with open(_config_path, 'w') as f:
         # add new line in order for bash 'cat' display the content correctly
         f.write(json.dumps(_config) + '\n')
+
+if 'KERAS_BACKEND' in os.environ:
+    _backend = os.environ['KERAS_BACKEND']
+    assert _backend in {'theano', 'tensorflow'}
+    _BACKEND = _backend
 
 if _BACKEND == 'theano':
     print('Using Theano backend.')

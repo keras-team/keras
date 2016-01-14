@@ -10,7 +10,6 @@ def load_data():
     origin = "http://www.cs.toronto.edu/~kriz/cifar-10-python.tar.gz"
     path = get_file(dirname, origin=origin, untar=True)
 
-    nb_test_samples = 10000
     nb_train_samples = 50000
 
     X_train = np.zeros((nb_train_samples, 3, 32, 32), dtype="uint8")

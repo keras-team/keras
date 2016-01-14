@@ -275,12 +275,66 @@ class Adam(Optimizer):
                 "beta_2": float(K.get_value(self.beta_2)),
                 "epsilon": self.epsilon}
 
+class Adamax(Optimizer):
+    '''Adamax optimizer from Adam paper's Section 7. It is a variant
+     of Adam based on the infinity norm.
+
+    Default parameters follow those provided in the paper.
+
+    # Arguments
+        lr: float >= 0. Learning rate.
+        beta_1/beta_2: floats, 0 < beta < 1. Generally close to 1.
+        epsilon: float >= 0. Fuzz factor.
+
+    # References
+        - [Adam - A Method for Stochastic Optimization](http://arxiv.org/abs/1412.6980v8)
+    '''
+    def __init__(self, lr=0.002, beta_1=0.9, beta_2=0.999, epsilon=1e-8,
+                 *args, **kwargs):
+        super(Adamax, self).__init__(**kwargs)
+        self.__dict__.update(locals())
+        self.iterations = K.variable(0)
+        self.lr = K.variable(lr)
+        self.beta_1 = K.variable(beta_1)
+        self.beta_2 = K.variable(beta_2)
+
+    def get_updates(self, params, constraints, loss):
+        grads = self.get_gradients(loss, params)
+        self.updates = [(self.iterations, self.iterations+1.)]
+
+        t = self.iterations + 1
+        lr_t = self.lr / (1 - K.pow(self.beta_1, t))
+
+        for p, g, c in zip(params, grads, constraints):
+            # zero init of 1st moment
+            m = K.variable(np.zeros(K.get_value(p).shape))
+            # zero init of exponentially weighted infinity norm
+            u = K.variable(np.zeros(K.get_value(p).shape))
+
+            m_t = (self.beta_1 * m) + (1 - self.beta_1) * g
+            u_t = K.maximum(self.beta_2 * u, K.abs(g))
+            p_t = p - lr_t * m_t / (u_t + self.epsilon)
+
+            self.updates.append((m, m_t))
+            self.updates.append((u, u_t))
+            self.updates.append((p, c(p_t)))  # apply constraints
+        return self.updates
+
+    def get_config(self):
+        return {"name": self.__class__.__name__,
+                "lr": float(K.get_value(self.lr)),
+                "beta_1": float(K.get_value(self.beta_1)),
+                "beta_2": float(K.get_value(self.beta_2)),
+                "epsilon": self.epsilon}
+
+
 # aliases
 sgd = SGD
 rmsprop = RMSprop
 adagrad = Adagrad
 adadelta = Adadelta
 adam = Adam
+adamax = Adamax
 
 
 def get(identifier, kwargs=None):

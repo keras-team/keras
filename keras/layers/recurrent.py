@@ -30,7 +30,7 @@ class Recurrent(MaskedLayer):
         return_sequences: Boolean. Whether to return the last output
             in the output sequence, or the full sequence.
         go_backwards: Boolean (default False).
-            If True, rocess the input sequence backwards.
+            If True, process the input sequence backwards.
         stateful: Boolean (default False). If True, the last state
             for each sample at index i in a batch will be used as initial
             state for the sample of index i in the following batch.
@@ -43,7 +43,7 @@ class Recurrent(MaskedLayer):
             `Flatten` then `Dense` layers upstream
             (without it, the shape of the dense outputs cannot be computed).
             Note that if the recurrent layer is not the first layer
-            in your model, you would need to specify the input Length
+            in your model, you would need to specify the input length
             at the level of the first layer
             (e.g. via the `input_shape` argument)
 
@@ -73,7 +73,7 @@ class Recurrent(MaskedLayer):
         To enable statefulness:
             - specify `stateful=True` in the layer constructor.
             - specify a fixed batch size for your model, by passing
-                a `batch_input_size=(...)` to the first layer in your model.
+                a `batch_input_shape=(...)` to the first layer in your model.
                 This is the expected shape of your inputs *including the batch size*.
                 It should be a tuple of integers, e.g. `(32, 10, 100)`.
 
@@ -129,7 +129,7 @@ class Recurrent(MaskedLayer):
         if K._BACKEND == 'tensorflow':
             if not self.input_shape[1]:
                 raise Exception('When using TensorFlow, you should define ' +
-                                'explicitely the number of timesteps of ' +
+                                'explicitly the number of timesteps of ' +
                                 'your sequences. Make sure the first layer ' +
                                 'has a "batch_input_shape" argument ' +
                                 'including the samples axis.')
@@ -205,7 +205,7 @@ class SimpleRNN(Recurrent):
 
         self.W = self.init((input_dim, self.output_dim))
         self.U = self.inner_init((self.output_dim, self.output_dim))
-        self.b = K.zeros((self.output_dim))
+        self.b = K.zeros((self.output_dim,))
         self.params = [self.W, self.U, self.b]
 
         if self.initial_weights is not None:
@@ -326,7 +326,7 @@ class GRU(Recurrent):
         z = self.inner_activation(x_z + K.dot(h_tm1, self.U_z))
         r = self.inner_activation(x_r + K.dot(h_tm1, self.U_r))
 
-        hh = self.inner_activation(x_h + K.dot(r * h_tm1, self.U_h))
+        hh = self.activation(x_h + K.dot(r * h_tm1, self.U_h))
         h = z * h_tm1 + (1 - z) * hh
         return h, [h]
 
@@ -391,19 +391,19 @@ class LSTM(Recurrent):
 
         self.W_i = self.init((input_dim, self.output_dim))
         self.U_i = self.inner_init((self.output_dim, self.output_dim))
-        self.b_i = K.zeros((self.output_dim))
+        self.b_i = K.zeros((self.output_dim,))
 
         self.W_f = self.init((input_dim, self.output_dim))
         self.U_f = self.inner_init((self.output_dim, self.output_dim))
-        self.b_f = self.forget_bias_init((self.output_dim))
+        self.b_f = self.forget_bias_init((self.output_dim,))
 
         self.W_c = self.init((input_dim, self.output_dim))
         self.U_c = self.inner_init((self.output_dim, self.output_dim))
-        self.b_c = K.zeros((self.output_dim))
+        self.b_c = K.zeros((self.output_dim,))
 
         self.W_o = self.init((input_dim, self.output_dim))
         self.U_o = self.inner_init((self.output_dim, self.output_dim))
-        self.b_o = K.zeros((self.output_dim))
+        self.b_o = K.zeros((self.output_dim,))
 
         self.params = [self.W_i, self.U_i, self.b_i,
                        self.W_c, self.U_c, self.b_c,

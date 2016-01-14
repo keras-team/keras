@@ -1,9 +1,10 @@
 import pytest
 import numpy as np
+from keras.layers.core import Dense, Activation
 from numpy.testing import assert_allclose
 
 from keras.layers import normalization
-from keras.models import Sequential
+from keras.models import Sequential, Graph
 from keras import backend as K
 
 
@@ -83,6 +84,9 @@ def test_batchnorm_config():
     norm = normalization.BatchNormalization(input_shape=(10, 10), mode=1,
                                             epsilon=0.1, momentum=0.9)
     conf = norm.get_config()
+    del conf['cache_enabled']
+    del conf['trainable']
+    del conf['custom_name']
     conf_target = {"input_shape": (10, 10),
                    "name": normalization.BatchNormalization.__name__,
                    "epsilon": 0.1, "mode": 1, "momentum": 0.9}
@@ -95,6 +99,28 @@ def test_batchnorm_save_weights():
     weights = norm.get_weights()
     assert(len(weights) == 4)
     norm.set_weights(weights)
+
+
+def test_batchnorm_nested():
+    # regression test for issue #1386
+    g = Graph()
+    g.add_input("input", input_shape=[20])
+    g.add_node(Dense(10), "dense", "input")
+    g.add_node(normalization.BatchNormalization(), "bn", "dense")
+    g.add_node(Activation('relu'), "activ", "bn")
+    g.add_output("output", "activ")
+
+    g2 = Graph()
+    g2.add_input("input", input_shape=[10])
+    g2.add_node(Dense(15), "dense", "input")
+    g2.add_node(normalization.BatchNormalization(), "bn", "dense")
+    g2.add_node(Activation('relu'), "activ", "bn")
+    g2.add_output("output", "activ")
+
+    model = Sequential()
+    model.add(g)
+    model.add(g2)
+    model.compile(loss="mse", optimizer="adadelta")
 
 
 if __name__ == '__main__':

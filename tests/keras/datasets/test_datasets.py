@@ -11,6 +11,7 @@ def test_cifar():
 
 def test_reuters():
     (X_train, y_train), (X_test, y_test) = reuters.load_data()
+    (X_train, y_train), (X_test, y_test) = reuters.load_data(maxlen=10)
 
 
 def test_mnist():
@@ -19,6 +20,7 @@ def test_mnist():
 
 def test_imdb():
     (X_train, y_train), (X_test, y_test) = imdb.load_data()
+    (X_train, y_train), (X_test, y_test) = imdb.load_data(maxlen=40)
 
 
 if __name__ == '__main__':

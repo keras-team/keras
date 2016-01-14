@@ -11,7 +11,7 @@ theano.config.floatX = _FLOATX
 
 
 def _on_gpu():
-    '''Returns whether the session is set to
+    '''Return whether the session is set to
     run on GPU or not (i.e. on CPU).
     '''
     return theano.config.device[:3] == 'gpu'
@@ -19,7 +19,7 @@ def _on_gpu():
 
 if _on_gpu():
     '''Import cuDNN only if running on GPU:
-    not having Cuda install should not
+    not having Cuda installed should not
     prevent from running the present code.
     '''
     from theano.sandbox.cuda import dnn
@@ -243,11 +243,39 @@ def permute_dimensions(x, pattern):
     return x.dimshuffle(pattern)
 
 
-def repeat(x, n):
-    '''Repeat a 2D tensor:
+def repeat_elements(x, rep, axis):
+    '''Repeat the elements of a tensor along an axis, like np.repeat.
 
-    if x has shape (samples, dim) and n=2,
-    the output will have shape (samples, 2, dim)
+    If x has shape (s1, s2, s3) and axis=1, the output
+    will have shape (s1, s2 * rep, s3).
+    '''
+    return T.repeat(x, rep, axis=axis)
+
+
+def resize_images(X, height_factor, width_factor, dim_ordering):
+    '''Resize the images contained in a 4D tensor of shape
+    - [batch, channels, height, width] (for 'th' dim_ordering)
+    - [batch, height, width, channels] (for 'tf' dim_ordering)
+    by a factor of (height_factor, width_factor). Both factors should be
+    positive integers.
+    '''
+    if dim_ordering == 'th':
+        output = repeat_elements(X, height_factor, axis=2)
+        output = repeat_elements(output, width_factor, axis=3)
+        return output
+    elif dim_ordering == 'tf':
+        output = repeat_elements(X, height_factor, axis=1)
+        output = repeat_elements(output, width_factor, axis=2)
+        return output
+    else:
+        raise Exception('Invalid dim_ordering: ' + dim_ordering)
+
+
+def repeat(x, n):
+    '''Repeat a 2D tensor.
+
+    If x has shape (samples, dim) and n=2,
+    the output will have shape (samples, 2, dim).
     '''
     tensors = [x] * n
     stacked = T.stack(*tensors)
@@ -259,6 +287,10 @@ def tile(x, n):
 
 
 def flatten(x):
+    return T.flatten(x)
+
+
+def batch_flatten(x):
     '''Turn a n-D tensor into a 2D tensor where
     the first dimension is conserved.
     '''
@@ -354,6 +386,7 @@ class Function(object):
                                         allow_input_downcast=True, **kwargs)
 
     def __call__(self, inputs):
+        assert type(inputs) in {list, tuple}
         return self.function(*inputs)
 
 
@@ -369,7 +402,7 @@ def gradients(loss, variables):
 
 def rnn(step_function, inputs, initial_states,
         go_backwards=False, masking=True):
-    '''Iterates over the time dimension of a tensor.
+    '''Iterate over the time dimension of a tensor.
 
     Parameters
     ----------
@@ -412,7 +445,7 @@ def rnn(step_function, inputs, initial_states,
         if masking:
             # if all-zero input timestep, return
             # all-zero output and unchanged states
-            switch = T.any(input)
+            switch = T.any(input, axis=-1, keepdims=True)
             output = T.switch(switch, output, 0. * output)
             return_states = []
             for state, new_state in zip(states, new_states):
@@ -509,8 +542,12 @@ def dropout(x, level, seed=None):
     return x
 
 
-# CONVOLUTIONS
+def l2_normalize(x, axis):
+    norm = T.sqrt(T.sum(T.square(x), axis=axis, keepdims=True))
+    return x / norm
 
+
+# CONVOLUTIONS
 
 def conv2d(x, kernel, strides=(1, 1), border_mode='valid', dim_ordering='th',
            image_shape=None, filter_shape=None):
@@ -540,12 +577,15 @@ def conv2d(x, kernel, strides=(1, 1), border_mode='valid', dim_ordering='th',
     if _on_gpu() and dnn.dnn_available():
         if border_mode == 'same':
             assert(strides == (1, 1))
-            np_kernel = kernel.eval()
-            pad_x = (np_kernel.shape[2] - strides[0]) // 2
-            pad_y = (np_kernel.shape[3] - strides[1]) // 2
             conv_out = dnn.dnn_conv(img=x,
                                     kerns=kernel,
-                                    border_mode=(pad_x, pad_y))
+                                    border_mode='full')
+            np_kernel = kernel.eval()
+            shift_x = (np_kernel.shape[2] - 1) // 2
+            shift_y = (np_kernel.shape[3] - 1) // 2
+            conv_out = conv_out[:, :,
+                                shift_x:x.shape[2] + shift_x,
+                                shift_y:x.shape[3] + shift_y]
         else:
             conv_out = dnn.dnn_conv(img=x,
                                     kerns=kernel,
@@ -566,8 +606,9 @@ def conv2d(x, kernel, strides=(1, 1), border_mode='valid', dim_ordering='th',
                                       image_shape=image_shape,
                                       filter_shape=filter_shape)
         if border_mode == 'same':
-            shift_x = (kernel.shape[2] - 1) // 2
-            shift_y = (kernel.shape[3] - 1) // 2
+            np_kernel = kernel.eval()
+            shift_x = (np_kernel.shape[2] - 1) // 2
+            shift_y = (np_kernel.shape[3] - 1) // 2
             conv_out = conv_out[:, :,
                                 shift_x:x.shape[2] + shift_x,
                                 shift_y:x.shape[3] + shift_y]

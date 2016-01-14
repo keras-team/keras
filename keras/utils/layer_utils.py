@@ -26,12 +26,14 @@ def container_from_config(original_layer_dict, custom_objects={}):
 
     if name == 'Merge':
         mode = layer_dict.get('mode')
+        concat_axis = layer_dict.get('concat_axis')
+        dot_axes = layer_dict.get('dot_axes')
         layers = layer_dict.get('layers')
         layer_list = []
         for layer in layers:
             init_layer = container_from_config(layer)
             layer_list.append(init_layer)
-        merge_layer = Merge(layer_list, mode)
+        merge_layer = Merge(layer_list, mode, concat_axis, dot_axes)
         return merge_layer
 
     elif name == 'Sequential':
@@ -69,10 +71,11 @@ def container_from_config(original_layer_dict, custom_objects={}):
                 kwargs[kwarg] = layer_dict[kwarg]
         return AutoEncoder(**kwargs)
 
-    else:
+    else:  # this is a non-topological layer (e.g. Dense, etc.)
         layer_dict.pop('name')
 
         for k, v in layer_dict.items():
+            # a dictionary argument may be a regularizer or constraint
             if isinstance(v, dict):
                 vname = v.pop('name')
                 if vname in [x for x, y in inspect.getmembers(constraints, predicate=inspect.isclass)]:
@@ -83,6 +86,9 @@ def container_from_config(original_layer_dict, custom_objects={}):
                     # not a regularizer of constraint, don't touch it
                     v['name'] = vname
 
+        # the "name" keyword argument of layers is saved as "custom_name"
+        if 'custom_name' in layer_dict:
+            layer_dict['name'] = layer_dict.pop('custom_name')
         base_layer = get_layer(name, layer_dict)
         return base_layer
 

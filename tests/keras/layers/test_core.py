@@ -1,5 +1,6 @@
 import pytest
 import numpy as np
+from keras.models import Sequential
 from numpy.testing import assert_allclose
 
 from keras import backend as K
@@ -100,6 +101,11 @@ def test_time_dist_merge():
     _runner(layer)
 
 
+def test_highway():
+    layer = core.Highway(input_shape=(10,))
+    _runner(layer)
+
+
 def test_autoencoder():
     layer_1 = core.Layer()
     layer_2 = core.Layer()
@@ -108,9 +114,35 @@ def test_autoencoder():
     _runner(layer)
 
 
+def test_autoencoder_second_layer():
+    # regression test for issue #1275
+    encoder = core.Dense(input_dim=10, output_dim=2)
+    decoder = core.Dense(input_dim=2, output_dim=10)
+    model = Sequential()
+    model.add(core.Dense(input_dim=20, output_dim=10))
+    model.add(core.AutoEncoder(encoder=encoder, decoder=decoder,
+                               output_reconstruction=False))
+    model.compile(loss='mse', optimizer='sgd')
+
+
 def test_maxout_dense():
     layer = core.MaxoutDense(10, 10, input_shape=(20,))
     _runner(layer)
+
+
+def test_naming():
+    layer = core.Dense(2, input_dim=2)
+    assert layer.name == 'dense'
+
+    model = Sequential()
+    model.add(core.Dense(2, input_dim=2, name='my_dense'))
+    model.add(core.Dense(2, name='my_dense'))
+
+    assert model.layers[0].name == 'my_dense'
+    assert model.layers[1].name == 'my_dense'
+
+    model.compile(optimizer='rmsprop', loss='mse')
+    model.train_on_batch(np.random.random((2, 2)), np.random.random((2, 2)))
 
 
 @pytest.mark.skipif(K._BACKEND == 'tensorflow',
@@ -175,6 +207,29 @@ def _runner(layer):
     layer.trainable = True
     layer.trainable = False
 
+def test_siamese_all():
+    right_input_layer = core.Dense(7, input_dim=3)
+    left_input_layer = core.Dense(7, input_dim=3)
+
+    shared_layer = core.Dense(5,input_dim=7)
+    for mode in ['sum', 'mul', 'ave', 'concat']:
+        siamese_layer = core.Siamese(shared_layer, [left_input_layer, right_input_layer], merge_mode=mode)
+        siamese_layer.output_shape
+        siamese_layer.get_output()
+
+@pytest.mark.skipif(K._BACKEND == 'tensorflow',
+                    reason='currently not working with TensorFlow')
+def test_siamese_theano_only():
+    right_input_layer = core.Dense(7, input_dim=3)
+    left_input_layer = core.Dense(7, input_dim=3)
+
+    shared_layer = core.Dense(5,input_dim=7)
+
+    for mode in ['dot', 'cos']:
+        siamese_layer = core.Siamese(shared_layer, [left_input_layer, right_input_layer], merge_mode=mode,
+                                     dot_axes=([1], [1]))
+        siamese_layer.output_shape
+        siamese_layer.get_output()
+
 if __name__ == '__main__':
     pytest.main([__file__])
-

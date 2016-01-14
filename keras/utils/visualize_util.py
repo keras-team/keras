@@ -1,9 +1,16 @@
-import pydot
-# old pydot will not work with python3, must use one
-# that works with python3 such as pydot2 or pydot
 import itertools
 from keras.layers.containers import Graph, Sequential
 from keras.layers.core import Merge
+
+try:
+    # pydot-ng is a fork of pydot that is better maintained
+    import pydot_ng as pydot
+except ImportError:
+    # fall back on pydot if necessary
+    import pydot
+if not pydot.find_graphviz():
+    raise RuntimeError("Failed to import pydot. You must install pydot"
+                       " and graphviz for `pydotprint` to work.")
 
 
 def layer_typename(layer):
@@ -120,7 +127,7 @@ class ModelToDot(object):
         self.g = pydot.Dot()
         self.g.set('rankdir', 'TB')
         self.g.set('concentrate', True)
-        self.g.set_node_defaults(shape='record', fontname="Fira Mono")
+        self.g.set_node_defaults(shape='record')
 
         if hasattr(model, 'outputs'):
             # Graph
@@ -136,8 +143,8 @@ class ModelToDot(object):
 
 def to_graph(model, **kwargs):
     """
-    `recursive` controls wether we recursively explore container layers
-    `show_shape` controls wether the shape is shown in the graph
+    `recursive` controls whether we recursively explore container layers
+    `show_shape` controls whether the shape is shown in the graph
     """
     return ModelToDot()(model, **kwargs)
 
