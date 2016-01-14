@@ -771,7 +771,7 @@ class Sequential(Model, containers.Sequential):
             self.layers[k].set_weights(weights)
         f.close()
     
-    def generator_input_validation(generator_output):
+    def generator_input_validation(self, generator_output):
       '''
       Util function to validate the batches produced by the generator
       # Arguments
@@ -934,12 +934,12 @@ class Sequential(Model, containers.Sequential):
         callbacks.on_train_end()
         return history
         
-    def evaluate_on_generator(self, data_generator, verbose=1, show_accuracy=True, class_weight=None):
+    def evaluate_on_generator(self, data_generator, verbose=1, show_accuracy=False, class_weight=None):
         outs = []
         if verbose == 1:
             progbar = Progbar(target=self.val_total_nframes)
         
-        seen_frames = 0
+        samples_seen = 0
         gen = data_generator.next()
         for batch_index, d in enumerate(gen):
             if samples_seen == 0:
@@ -953,7 +953,7 @@ class Sequential(Model, containers.Sequential):
               X, y, sample_weight = d[:tuple_len]
               
             batch_len = len(y)
-            seen_frames += batch_len
+            samples_seen += batch_len
             
             batch_outs = self.test_on_batch(X, y, accuracy=show_accuracy, sample_weight=sample_weight)
             
@@ -969,11 +969,11 @@ class Sequential(Model, containers.Sequential):
                 outs[0] += batch_outs * batch_len
 
             if verbose == 1:
-                progbar.update(seen_frames)
+                progbar.update(samples_seen)
                 
         for i, out in enumerate(outs):
-            outs[i] /= seen_frames
-        self.val_total_nframes = seen_frames
+            outs[i] /= samples_seen
+        self.val_total_nframes = samples_seen
         return outs
 
 class Graph(Model, containers.Graph):

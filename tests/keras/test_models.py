@@ -40,8 +40,7 @@ def _get_test_data():
 ####################
 # SEQUENTIAL TEST  #
 ####################
-
-def test_sequential_fit_generator():
+def test_sequential_fit_on_generator():
     (X_train, y_train), (X_test, y_test) = _get_test_data()
 
     def data_generator(train):
@@ -50,13 +49,13 @@ def test_sequential_fit_generator():
         else:
             max_batch_index = len(X_test) // batch_size
         i = 0
-        while 1:
+        while i <= max_batch_index:
             if train:
                 yield (X_train[i * batch_size: (i + 1) * batch_size], y_train[i * batch_size: (i + 1) * batch_size])
             else:
                 yield (X_test[i * batch_size: (i + 1) * batch_size], y_test[i * batch_size: (i + 1) * batch_size])
             i += 1
-            i = i % max_batch_index
+            
 
     model = Sequential()
     model.add(Dense(nb_hidden, input_shape=(input_dim,)))
@@ -65,14 +64,13 @@ def test_sequential_fit_generator():
     model.add(Activation('softmax'))
     model.compile(loss='categorical_crossentropy', optimizer='rmsprop')
 
-    model.fit_generator(data_generator(True), len(X_train), nb_epoch, show_accuracy=False)
-    model.fit_generator(data_generator(True), len(X_train), nb_epoch, show_accuracy=True)
-    model.fit_generator(data_generator(True), len(X_train), nb_epoch, show_accuracy=False, validation_data=(X_test, y_test))
-    model.fit_generator(data_generator(True), len(X_train), nb_epoch, show_accuracy=True, validation_data=(X_test, y_test))
+    model.fit_on_generator(iter(lambda: data_generator(True), None), nb_epoch, show_accuracy=False)
+    model.fit_on_generator(iter(lambda: data_generator(True), None), nb_epoch, show_accuracy=True)
+    model.fit_on_generator(iter(lambda: data_generator(True), None), nb_epoch, show_accuracy=False, validation_generator=iter(lambda: data_generator(False), None))
+    model.fit_on_generator(iter(lambda: data_generator(True), None), nb_epoch, show_accuracy=True, validation_generator=iter(lambda: data_generator(False), None))
 
-    loss = model.evaluate(X_train, y_train, verbose=0)
+    loss = model.evaluate_on_generator(iter(lambda: data_generator(True), None), verbose=0)[0]
     assert(loss < 0.9)
-
 
 def test_sequential():
     (X_train, y_train), (X_test, y_test) = _get_test_data()

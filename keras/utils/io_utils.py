@@ -84,7 +84,6 @@ def generate_infinit_iterators(iterator_constructor, *args, **kwargs):
   ```python
   #this would create infinite iterator of iterators on list [0,1,2,3]
   keras.utils.io_utils.GenerateInfinitIterators(iter, [0,1,2,3])
-  
   ```
   """
   return (iterator_constructor(*args, **kwargs) for _ in itertools.count())
