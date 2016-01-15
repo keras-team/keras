@@ -673,7 +673,7 @@ class Sequential(Model, containers.Sequential):
             return outs
         else:
             return outs[0]
-            
+
 
 
     def train_on_batch(self, X, y, accuracy=False,
@@ -770,24 +770,24 @@ class Sequential(Model, containers.Sequential):
             weights = [g['param_{}'.format(p)] for p in range(g.attrs['nb_params'])]
             self.layers[k].set_weights(weights)
         f.close()
-    
+
     def generator_input_validation(self, generator_output):
-      '''
-      Util function to validate the batches produced by the generator
-      # Arguments
-          generator_output: output from generator
-      # Returns
-          int, number of valid tuple positions
-      '''
-      if not hasattr(generator_output, '__len__'):
-          raise Exception('The generator output must be a tuple.')
-      if len(generator_output) == 2:
-          return 2
-      elif len(generator_output) > 2:
-          return 3
-      else:
-          raise Exception('The generator output tuple must have '
-                          '2, 3, or more elements.')
+        '''
+        Util function to validate the batches produced by the generator
+        # Arguments
+            generator_output: output from generator
+        # Returns
+            int, number of valid tuple positions
+        '''
+        if not hasattr(generator_output, '__len__'):
+            raise Exception('The generator output must be a tuple.')
+        if len(generator_output) == 2:
+            return 2
+        elif len(generator_output) > 2:
+            return 3
+        else:
+            raise Exception('The generator output tuple must have '
+                            '2, 3, or more elements.')
 
     def fit_on_generator(self, data_generator, nb_epoch, samples_per_epoch=None,
                       verbose=1, show_accuracy=False, callbacks=[],
@@ -795,7 +795,7 @@ class Sequential(Model, containers.Sequential):
         '''Fit a model on data generated batch-by-batch by a Python generator.
 
         # Arguments
-        
+
             data_generator: a Python generator of generators,
                 `data_generator` is supposed to yield `epoch_generator`
                 `epoch_generator` is supposed to yield n-tuple
@@ -811,7 +811,7 @@ class Sequential(Model, containers.Sequential):
                 If it has three elements, they are assumed to be
                 (input_data, target_data, sample_weight).
                 If there are more than 3 items in tuple (e.g. metadata for scoring, names, etc.),they are ignored for training.
-                
+
             samples_per_epoch: integer, number of samples to process before
                 starting a new epoch.
             nb_epoch: integer, total number of iterations on the data.
@@ -840,7 +840,7 @@ class Sequential(Model, containers.Sequential):
                     x, y = process_line(line)
                     yield x, y
                 f.close()
-        
+
         it = keras.utils.io_utils.isplit_every(10000, generate_arrays_from_file('/my_file.txt'))
 
         model.fit_on_generator(it, nb_epoch=10)
@@ -849,7 +849,7 @@ class Sequential(Model, containers.Sequential):
         self.val_total_nframes = self.train_total_nframes = np.iinfo(np.int32).max
         epoch = 0
         do_validation = bool(validation_generator)
-        
+
 
         if show_accuracy:
             out_labels = ['loss', 'acc']
@@ -876,28 +876,28 @@ class Sequential(Model, containers.Sequential):
         callbacks._set_params(cbks_params)
         callbacks.on_train_begin()
 
-        
+
 
         self.stop_training = False
-        for epoch in np.arange(1,nb_epoch+1):
+        for epoch in np.arange(nb_epoch):
             callbacks.on_epoch_begin(epoch)
             samples_seen = 0
             gen = next(data_generator)
             for batch_index, d in enumerate(gen):
                 if samples_seen == 0:
-                  #validate first batch
-                  #consider generator homogenous - do not check for the rest of the iteration
-                  tuple_len = self.generator_input_validation(d)
-                  
+                    #validate first batch
+                    #consider generator homogenous - do not check for the rest of the iteration
+                    tuple_len = self.generator_input_validation(d)
+
                 if tuple_len == 2:
-                  X, y, sample_weight = d[:tuple_len]+(None,)
+                    X, y, sample_weight = d[:tuple_len]+(None,)
                 else:
-                  X, y, sample_weight = d[:tuple_len]
+                    X, y, sample_weight = d[:tuple_len]
                 batch_logs = {}
                 batch_size = len(y)
                 batch_logs['batch'] = batch_index
                 batch_logs['size'] = batch_size
-                
+
                 callbacks.on_batch_begin(batch_index, batch_logs)
                 outs = self.train_on_batch(X, y,
                                            accuracy=show_accuracy,
@@ -914,49 +914,49 @@ class Sequential(Model, containers.Sequential):
                 batch_index += 1
                 samples_seen += batch_size
                 if bool(samples_per_epoch) and samples_seen >= samples_per_epoch:  # epoch finished
-                  break
-                  
+                    break
+
             if do_validation:
-              val_outs = self.evaluate_on_generator(validation_generator, verbose=verbose, show_accuracy=True, class_weight=None)
-              if type(val_outs) != list:
-                val_outs = [val_outs]
-              # same labels assumed
-              for l, o in zip(out_labels, val_outs):
-                epoch_logs['val_' + l] = o
+                val_outs = self.evaluate_on_generator(validation_generator, verbose=verbose, show_accuracy=True, class_weight=None)
+                if type(val_outs) != list:
+                    val_outs = [val_outs]
+                # same labels assumed
+                for l, o in zip(out_labels, val_outs):
+                    epoch_logs['val_' + l] = o
 
             callbacks.on_epoch_end(epoch, epoch_logs)
-            
+
             cbks_params['nb_sample'] = samples_seen
             callbacks._set_params(cbks_params)
-            
+
             if self.stop_training:
                 break
         callbacks.on_train_end()
         return history
-        
+
     def evaluate_on_generator(self, data_generator, verbose=1, show_accuracy=False, class_weight=None):
         outs = []
         if verbose == 1:
             progbar = Progbar(target=self.val_total_nframes)
-        
+
         samples_seen = 0
         gen = next(data_generator)
         for batch_index, d in enumerate(gen):
             if samples_seen == 0:
-              #validate first batch
-              #consider generator homogenous - do not check for the rest of the iteration
-              tuple_len = self.generator_input_validation(d)
-                  
+                #validate first batch
+                #consider generator homogenous - do not check for the rest of the iteration
+                tuple_len = self.generator_input_validation(d)
+
             if tuple_len == 2:
-              X, y, sample_weight = d[:tuple_len]+(None,)
+                X, y, sample_weight = d[:tuple_len]+(None,)
             else:
-              X, y, sample_weight = d[:tuple_len]
-              
+                X, y, sample_weight = d[:tuple_len]
+
             batch_len = len(y)
             samples_seen += batch_len
-            
+
             batch_outs = self.test_on_batch(X, y, accuracy=show_accuracy, sample_weight=sample_weight)
-            
+
             if type(batch_outs) == list:
                 if batch_index == 0:
                     for batch_out in enumerate(batch_outs):
@@ -970,7 +970,7 @@ class Sequential(Model, containers.Sequential):
 
             if verbose == 1:
                 progbar.update(samples_seen)
-                
+
         for i, out in enumerate(outs):
             outs[i] /= samples_seen
         self.val_total_nframes = samples_seen
