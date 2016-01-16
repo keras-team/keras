@@ -135,7 +135,7 @@ def skipgrams(sequence, vocabulary_size,
         words = [c[0] for c in couples]
         random.shuffle(words)
 
-        couples += [[words[i%len(words)], random.randint(1, vocabulary_size-1)] for i in range(nb_negative_samples)]
+        couples += [[words[i %len(words)], random.randint(1, vocabulary_size-1)] for i in range(nb_negative_samples)]
         if categorical:
             labels += [[1,0]]*nb_negative_samples
         else:

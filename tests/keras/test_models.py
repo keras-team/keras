@@ -357,6 +357,7 @@ def test_merge_overlap():
 
 def test_lambda():
     (X_train, y_train), (X_test, y_test) = _get_test_data()
+
     def func(X):
         s = X[0]
         for i in range(1, len(X)):

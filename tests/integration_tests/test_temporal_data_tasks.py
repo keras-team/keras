@@ -48,7 +48,7 @@ def test_temporal_regression():
                                                          classification=False)
     model = Sequential()
     model.add(GRU(y_train.shape[-1],
-              input_shape=(X_train.shape[1], X_train.shape[2])))
+                  input_shape=(X_train.shape[1], X_train.shape[2])))
     model.compile(loss='hinge', optimizer='adam')
     history = model.fit(X_train, y_train, nb_epoch=5, batch_size=16,
                         validation_data=(X_test, y_test), verbose=0)
@@ -71,7 +71,7 @@ def test_sequence_to_sequence():
 
     model = Sequential()
     model.add(TimeDistributedDense(y_train.shape[-1],
-              input_shape=(X_train.shape[1], X_train.shape[2])))
+                                   input_shape=(X_train.shape[1], X_train.shape[2])))
     model.compile(loss='hinge', optimizer='rmsprop')
     history = model.fit(X_train, y_train, nb_epoch=20, batch_size=16,
                         validation_data=(X_test, y_test), verbose=0)

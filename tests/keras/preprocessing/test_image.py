@@ -55,7 +55,7 @@ def test_image_data_generator():
 
         for x,y in generator.flow(images,np.arange(images.shape[0]), shuffle=True, save_to_dir='test_images'):
             assert x.shape[1:] == images.shape[1:]
-            #TODO: make sure the normalization is working as inteded
+            # TODO: make sure the normalization is working as inteded
 
 
 if __name__ == '__main__':

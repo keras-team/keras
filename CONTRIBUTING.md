@@ -36,24 +36,29 @@ We love pull requests. Here's a quick guide:
 
 1. If your PR introduces a change in functionality, make sure you start by opening an issue to discuss whether the change should be made, and how to handle it. This will save you from having your PR closed down the road! Of course, if your PR is a simple bug fix, you don't need to do that.
 
-2. Write the code. This is the hard part! We use PEP8 syntax conventions, but we aren't dogmatic when it comes to line length. Make sure your lines stay reasonably sized, though. To make your life easier, we recommend installing a PEP8 linter.
+2. Write the code. This is the hard part!
 
 3. Make sure any new function or class you introduce has proper docstrings. Make sure any code you touch still has up-to-date docstrings and documentation.
 
 4. Write tests. Your code should have full unit test coverage. If you want to see your PR merged promptly, this is crucial.
 
 5. Run our test suite locally. It's easy: from the Keras folder, simply run: `py.test tests/`.
-  - You will need to install `pytest`, `coveralls`, `pytest-cov`, `pytest-xdist`: `pip install pytest pytest-cov python-coveralls pytest-xdist`
+  - You will need to install `pytest`, `coveralls`, `pytest-cov`, `pytest-xdist`: `pip install pytest pytest-cov python-coveralls pytest-xdist pep8 pytest-pep8`
 
 6. Make sure all tests are passing:
   - with the Theano backend, on Python 2.7 and Python 3.5
   - with the TensorFlow backend, on Python 2.7
 
-7. When committing, use appropriate, descriptive commit messages. Make sure that your branch history is not a string of "bug fix", "fix", "oops", etc. When submitting your PR, squash your commits into a single commit with an appropriate commit message, to make sure the project history stays clean and readable. See ['rebase and squash'](http://rebaseandsqua.sh/) for technical help on how to squash your commits.
+7. We use PEP8 syntax conventions, but we aren't dogmatic when it comes to line length. Make sure your lines stay reasonably sized, though. To make your life easier, we recommend running a PEP8 linter:
+  - Install PEP8 packages: `pip install pep8 pytest-pep8 autopep8`
+  - Run a standalone PEP8 check: `py.test --pep8 -m pep8`
+  - You can automatically fix some PEP8 error by running: `autopep8 -i --select <errors> <FILENAME>` for example: `autopep8 -i --select E128 tests/keras/backend/test_backends.py`
 
-8. Update the documentation. If introducing new functionality, make sure you include code snippets demonstrating the usage of your new feature.
+8. When committing, use appropriate, descriptive commit messages. Make sure that your branch history is not a string of "bug fix", "fix", "oops", etc. When submitting your PR, squash your commits into a single commit with an appropriate commit message, to make sure the project history stays clean and readable. See ['rebase and squash'](http://rebaseandsqua.sh/) for technical help on how to squash your commits.
 
-9. Submit your PR. If your changes have been approved in a previous discussion, and if you have complete (and passing) unit tests, your PR is likely to be merged promptly. Otherwise, well...
+9. Update the documentation. If introducing new functionality, make sure you include code snippets demonstrating the usage of your new feature.
+
+10. Submit your PR. If your changes have been approved in a previous discussion, and if you have complete (and passing) unit tests, your PR is likely to be merged promptly. Otherwise, well...
 
 ## Adding new examples
 
