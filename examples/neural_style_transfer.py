@@ -53,6 +53,7 @@ from scipy.misc import imread, imresize, imsave
 import numpy as np
 from scipy.optimize import fmin_l_bfgs_b
 import time
+import os
 import argparse
 import h5py
 
@@ -154,6 +155,7 @@ model.add(MaxPooling2D((2, 2), strides=(2, 2)))
 # (trained on ImageNet, won the ILSVRC competition in 2014)
 # note: when there is a complete match between your model definition
 # and your weight savefile, you can simply call model.load_weights(filename)
+assert os.path.exists(weights_path), 'Model weights not found (see "weights_path" variable in script).'
 f = h5py.File(weights_path)
 for k in range(f.attrs['nb_layers']):
     if k >= len(model.layers):
@@ -226,17 +228,49 @@ loss += total_variation_weight * total_variation_loss(combination_image)
 # get the gradients of the generated image wrt the loss
 grads = K.gradients(loss, combination_image)
 
-# set up helper functions to extract the loss and gradients
-# from the computational graph as Numpy arrays
-f_grads = K.function([combination_image], grads)
-def eval_grads(x):
-    x = x.reshape((1, 3, img_width, img_height))
-    return np.array(f_grads([x])).flatten().astype('float64')
+outputs = [loss]
+if type(grads) in {list, tuple}:
+    outputs += grads
+else:
+    outputs.append(grads)
 
-f_loss = K.function([combination_image], [loss])
-def eval_loss(x):
+f_outputs = K.function([combination_image], outputs)
+def eval_loss_and_grads(x):
     x = x.reshape((1, 3, img_width, img_height))
-    return f_loss([x])[0].astype('float64')
+    outs = f_outputs([x])
+    loss_value = outs[0]
+    if len(outs[1:]) == 1:
+        grad_values = outs[1].flatten().astype('float64')
+    else:
+        grad_values = np.array(outs[1:]).flatten().astype('float64')
+    return loss_value, grad_values
+
+# this Evaluator class makes it possible
+# to compute loss and gradients in one pass
+# while retrieving them via two separate functions,
+# "loss" and "grads". This is done because scipy.optimize
+# requires separate functions for loss and gradients,
+# but computing them separately would be inefficient.
+class Evaluator(object):
+    def __init__(self):
+        self.loss_value = None
+        self.grads_values = None
+
+    def loss(self, x):
+        assert self.loss_value is None
+        loss_value, grad_values = eval_loss_and_grads(x)
+        self.loss_value = loss_value
+        self.grad_values = grad_values
+        return self.loss_value
+
+    def grads(self, x):
+        assert self.loss_value is not None
+        grad_values = np.copy(self.grad_values)
+        self.loss_value = None
+        self.grad_values = None
+        return grad_values
+
+evaluator = Evaluator()
 
 # run scipy-based optimization (L-BFGS) over the pixels of the generated image
 # so as to minimize the neural style loss
@@ -244,8 +278,8 @@ x = np.random.uniform(0, 255, (1, 3, img_width, img_height))
 for i in range(10):
     print('Start of iteration', i)
     start_time = time.time()
-    x, min_val, info = fmin_l_bfgs_b(eval_loss, x.flatten(),
-                                     fprime=eval_grads, maxfun=20)
+    x, min_val, info = fmin_l_bfgs_b(evaluator.loss, x.flatten(),
+                                     fprime=evaluator.grads, maxfun=20)
     print('Current loss value:', min_val)
     # save current generated image
     img = deprocess_image(x.reshape((3, img_width, img_height)))
