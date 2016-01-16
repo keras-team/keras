@@ -163,29 +163,64 @@ loss += settings['dream_l2'] * K.sum(K.square(dream)) / (3 * img_width * img_hei
 # compute the gradients of the dream wrt the loss
 grads = K.gradients(loss, dream)
 
-# set up helper functions to extract the loss and gradients
-# from the computational graph as Numpy arrays
-f_grads = K.function([dream], grads)
-def eval_grads(x):
-    x = x.reshape((1, 3, img_width, img_height))
-    return np.array(f_grads([x])).flatten().astype('float64')
+outputs = [loss]
+if type(grads) in {list, tuple}:
+    outputs += grads
+else:
+    outputs.append(grads)
 
-f_loss = K.function([dream], [loss])
-def eval_loss(x):
+f_outputs = K.function([dream], outputs)
+def eval_loss_and_grads(x):
     x = x.reshape((1, 3, img_width, img_height))
-    return f_loss([x])[0].astype('float64')
+    outs = f_outputs([x])
+    loss_value = outs[0]
+    if len(outs[1:]) == 1:
+        grad_values = outs[1].flatten().astype('float64')
+    else:
+        grad_values = np.array(outs[1:]).flatten().astype('float64')
+    return loss_value, grad_values
 
-# add a random jitter to the initial image. This will be reverted at decoding time
-random_jitter = (settings['jitter'] * 2) * (np.random.random((3, img_width, img_height)) - 0.5)
-x = preprocess_image(base_image_path)
-x += random_jitter
+# this Evaluator class makes it possible
+# to compute loss and gradients in one pass
+# while retrieving them via two separate functions,
+# "loss" and "grads". This is done because scipy.optimize
+# requires separate functions for loss and gradients,
+# but computing them separately would be inefficient.
+class Evaluator(object):
+    def __init__(self):
+        self.loss_value = None
+        self.grads_values = None
+
+    def loss(self, x):
+        assert self.loss_value is None
+        loss_value, grad_values = eval_loss_and_grads(x)
+        self.loss_value = loss_value
+        self.grad_values = grad_values
+        return self.loss_value
+
+    def grads(self, x):
+        assert self.loss_value is not None
+        grad_values = np.copy(self.grad_values)
+        self.loss_value = None
+        self.grad_values = None
+        return grad_values
+
+evaluator = Evaluator()
 
 # run scipy-based optimization (L-BFGS) over the pixels of the generated image
 # so as to minimize the loss
+x = preprocess_image(base_image_path)
 for i in range(5):
+    print('Start of iteration', i)
     start_time = time.time()
-    x, min_val, info = fmin_l_bfgs_b(eval_loss, x.flatten(),
-                                     fprime=eval_grads, maxfun=7)
+
+    # add a random jitter to the initial image. This will be reverted at decoding time
+    random_jitter = (settings['jitter'] * 2) * (np.random.random((3, img_width, img_height)) - 0.5)
+    x += random_jitter
+
+    # run L-BFGS for 7 steps
+    x, min_val, info = fmin_l_bfgs_b(evaluator.loss, x.flatten(),
+                                     fprime=evaluator.grads, maxfun=7)
     print('Current loss value:', min_val)
     # decode the dream and save it
     x = x.reshape((3, img_width, img_height))
