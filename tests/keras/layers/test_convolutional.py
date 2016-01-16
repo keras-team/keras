@@ -188,7 +188,6 @@ def test_upsampling_2d():
     input_nb_row = 11
     input_nb_col = 12
 
-
     for dim_ordering in ['th', 'tf']:
         if dim_ordering == 'th':
             input = np.random.rand(nb_samples, stack_size, input_nb_row,

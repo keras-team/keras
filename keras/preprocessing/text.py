@@ -5,7 +5,8 @@
 '''
 from __future__ import absolute_import
 
-import string, sys
+import string
+import sys
 import numpy as np
 from six.moves import range
 from six.moves import zip

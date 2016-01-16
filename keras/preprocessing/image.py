@@ -7,7 +7,8 @@ from scipy import linalg
 
 from os import listdir
 from os.path import isfile, join
-import random, math
+import random
+import math
 from six.moves import range
 
 '''
@@ -74,8 +75,6 @@ def random_zoom(x, rg, fill_mode="nearest", cval=0.):
     return x # shape of result will be different from shape of input!
 
 
-
-
 def array_to_img(x, scale=True):
     from PIL import Image
     x = x.transpose(1, 2, 0) 
@@ -113,9 +112,8 @@ def load_img(path, grayscale=False):
 
 
 def list_pictures(directory, ext='jpg|jpeg|bmp|png'):
-    return [join(directory,f) for f in listdir(directory) \
-        if isfile(join(directory,f)) and re.match('([\w]+\.(?:' + ext + '))', f)]
-
+    return [join(directory,f) for f in listdir(directory)
+            if isfile(join(directory,f)) and re.match('([\w]+\.(?:' + ext + '))', f)]
 
 
 class ImageDataGenerator(object):
@@ -124,23 +122,22 @@ class ImageDataGenerator(object):
         realtime data augmentation.
     '''
     def __init__(self, 
-            featurewise_center=True, # set input mean to 0 over the dataset
-            samplewise_center=False, # set each sample mean to 0
-            featurewise_std_normalization=True, # divide inputs by std of the dataset
-            samplewise_std_normalization=False, # divide each input by its std
+                 featurewise_center=True, # set input mean to 0 over the dataset
+                 samplewise_center=False, # set each sample mean to 0
+                 featurewise_std_normalization=True, # divide inputs by std of the dataset
+                 samplewise_std_normalization=False, # divide each input by its std
 
-            zca_whitening=False, # apply ZCA whitening
-            rotation_range=0., # degrees (0 to 180)
-            width_shift_range=0., # fraction of total width
-            height_shift_range=0., # fraction of total height
-            horizontal_flip=False,
-            vertical_flip=False,
-        ):
+                 zca_whitening=False, # apply ZCA whitening
+                 rotation_range=0., # degrees (0 to 180)
+                 width_shift_range=0., # fraction of total width
+                 height_shift_range=0., # fraction of total height
+                 horizontal_flip=False,
+                 vertical_flip=False,
+                 ):
         self.__dict__.update(locals())
         self.mean = None
         self.std = None
         self.principal_components = None
-
 
     def flow(self, X, y, batch_size=32, shuffle=False, seed=None, save_to_dir=None, save_prefix="", save_format="jpeg"):
         if seed:
@@ -175,7 +172,6 @@ class ImageDataGenerator(object):
 
             yield bX, y[b*batch_size:b*batch_size+nb_samples]
 
-
     def standardize(self, x):
         if self.featurewise_center:
             x -= self.mean
@@ -193,7 +189,6 @@ class ImageDataGenerator(object):
             x /= np.std(x)
 
         return x
-
 
     def random_transform(self, x):
         if self.rotation_range:

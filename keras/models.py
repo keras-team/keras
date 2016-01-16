@@ -385,7 +385,7 @@ class Model(object):
 
             # if obj is any numpy type
             if type(obj).__module__ == np.__name__:
-                return obj.item();
+                return obj.item()
 
             # if obj is a python 'type'
             if type(obj).__name__ == type.__name__:
