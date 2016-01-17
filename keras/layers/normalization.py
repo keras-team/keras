@@ -74,15 +74,18 @@ class BatchNormalization(Layer):
     def get_output(self, train):
         X = self.get_input(train)
         if self.mode == 0:
-            m = K.mean(X, axis=0)
-            std = K.mean(K.square(X - m) + self.epsilon, axis=0)
-            std = K.sqrt(std)
-            mean_update = self.momentum * self.running_mean + (1-self.momentum) * m
-            std_update = self.momentum * self.running_std + (1-self.momentum) * std
-            self.updates = [(self.running_mean, mean_update),
-                            (self.running_std, std_update)]
-            X_normed = ((X - self.running_mean) /
-                        (self.running_std + self.epsilon))
+            if train:
+                m = K.mean(X, axis=0)
+                std = K.mean(K.square(X - m) + self.epsilon, axis=0)
+                std = K.sqrt(std)
+                mean_update = self.momentum * self.running_mean + (1-self.momentum) * m
+                std_update = self.momentum * self.running_std + (1-self.momentum) * std
+                self.updates = [(self.running_mean, mean_update),
+                                (self.running_std, std_update)]
+                X_normed = (X - m) / (std + self.epsilon)
+            else:
+                X_normed = ((X - self.running_mean) /
+                            (self.running_std + self.epsilon))
         elif self.mode == 1:
             m = K.mean(X, axis=-1, keepdims=True)
             std = K.std(X, axis=-1, keepdims=True)
