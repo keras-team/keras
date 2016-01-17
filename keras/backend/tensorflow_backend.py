@@ -96,38 +96,48 @@ def gather(reference, indices):
 
 # ELEMENT-WISE OPERATIONS
 
+def normalize_axis(axis, ndim):
+    if type(axis) is tuple:
+        axis = list(axis)
+    if type(axis) is list:
+        for i, a in enumerate(axis):
+            if a is not None and a < 0:
+                axis[i] = a % ndim
+    else:
+        if axis is not None and axis < 0:
+            axis = axis % ndim
+    return axis
+
+
 def max(x, axis=None, keepdims=False):
-    if axis is not None and axis < 0:
-        axis = axis % len(x.get_shape())
+    axis = normalize_axis(axis, ndim(x))
     return tf.reduce_max(x, reduction_indices=axis, keep_dims=keepdims)
 
 
 def min(x, axis=None, keepdims=False):
-    if axis is not None and axis < 0:
-        axis = axis % len(x.get_shape())
+    axis = normalize_axis(axis, ndim(x))
     return tf.reduce_min(x, reduction_indices=axis, keep_dims=keepdims)
 
 
 def sum(x, axis=None, keepdims=False):
     '''Sum of the values in a tensor, alongside the specified axis.
     '''
-    if axis is not None and axis < 0:
-        axis = axis % len(x.get_shape())
+    axis = normalize_axis(axis, ndim(x))
     return tf.reduce_sum(x, reduction_indices=axis, keep_dims=keepdims)
 
 
 def prod(x, axis=None, keepdims=False):
     '''Multiply the values in a tensor, alongside the specified axis.
     '''
+    axis = normalize_axis(axis, ndim(x))
     return tf.reduce_prod(x, reduction_indices=axis, keep_dims=keepdims)
 
 
 def std(x, axis=None, keepdims=False):
-    if axis is not None and axis < 0:
-        axis = axis % len(x.get_shape())
+    axis = normalize_axis(axis, ndim(x))
     if x.dtype.base_dtype == tf.bool:
         x = tf.cast(x, _FLOATX)
-    m = tf.reduce_mean(x, reduction_indices=axis, keep_dims=keepdims)
+    m = tf.reduce_mean(x, reduction_indices=axis, keep_dims=True)
     devs_squared = tf.square(x - m)
     return tf.sqrt(tf.reduce_mean(devs_squared,
                                   reduction_indices=axis,
@@ -135,8 +145,7 @@ def std(x, axis=None, keepdims=False):
 
 
 def mean(x, axis=None, keepdims=False):
-    if axis is not None and axis < 0:
-        axis = axis % len(x.get_shape())
+    axis = normalize_axis(axis, ndim(x))
     if x.dtype.base_dtype == tf.bool:
         x = tf.cast(x, _FLOATX)
     return tf.reduce_mean(x, reduction_indices=axis, keep_dims=keepdims)
@@ -147,8 +156,7 @@ def any(x, axis=None, keepdims=False):
 
     Return array of int8 (0s and 1s).
     '''
-    if axis is not None and axis < 0:
-        axis = axis % len(x.get_shape())
+    axis = normalize_axis(axis, ndim(x))
     x = tf.cast(x, tf.bool)
     x = tf.reduce_any(x, reduction_indices=axis, keep_dims=keepdims)
     return tf.cast(x, tf.int8)
