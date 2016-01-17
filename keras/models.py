@@ -897,7 +897,6 @@ class Sequential(Model, containers.Sequential):
                 batch_size = len(y)
                 batch_logs['batch'] = batch_index
                 batch_logs['size'] = batch_size
-
                 callbacks.on_batch_begin(batch_index, batch_logs)
                 outs = self.train_on_batch(X, y,
                                            accuracy=show_accuracy,
@@ -911,11 +910,9 @@ class Sequential(Model, containers.Sequential):
 
                 # construct epoch logs
                 epoch_logs = {}
-                batch_index += 1
                 samples_seen += batch_size
                 if bool(samples_per_epoch) and samples_seen >= samples_per_epoch:  # epoch finished
                     break
-
             if do_validation:
                 val_outs = self.evaluate_on_generator(validation_generator, verbose=verbose, show_accuracy=True, class_weight=None)
                 if type(val_outs) != list:
