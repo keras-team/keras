@@ -17,7 +17,7 @@ input_shapes = [np.ones((10, 10)), np.ones((10, 10, 10))]
 def test_batchnorm_mode_0():
     np.random.seed(1337)
     model = Sequential()
-    norm_m0 = normalization.BatchNormalization(input_shape=(10,))
+    norm_m0 = normalization.BatchNormalization(mode=0, input_shape=(10,))
     model.add(norm_m0)
     model.compile(loss='mse', optimizer='sgd')
 
@@ -29,6 +29,22 @@ def test_batchnorm_mode_0():
 
     assert_allclose(K.eval(K.mean(out)), 0.0, atol=1e-1)
     assert_allclose(K.eval(K.std(out)), 1.0, atol=1e-1)
+
+
+def test_batchnorm_mode_0_convnet():
+    model = Sequential()
+    norm_m0 = normalization.BatchNormalization(mode=0, axis=1, input_shape=(3, 4, 4))
+    model.add(norm_m0)
+    model.compile(loss='mse', optimizer='sgd')
+
+    # centered on 5.0, variance 10.0
+    X = np.random.normal(loc=5.0, scale=10.0, size=(1000, 3, 4, 4))
+    model.fit(X, X, nb_epoch=5, verbose=0)
+    norm_m0.input = K.variable(X)
+    out = (norm_m0.get_output(train=True) - K.reshape(norm_m0.beta, (1, 3, 1, 1))) / K.reshape(norm_m0.gamma, (1, 3, 1, 1))
+
+    assert_allclose(K.eval(K.mean(out, axis=(0, 2, 3))), 0.0, atol=1e-1)
+    assert_allclose(K.eval(K.std(out, axis=(0, 2, 3))), 1.0, atol=1e-1)
 
 
 def test_batchnorm_mode_1():
