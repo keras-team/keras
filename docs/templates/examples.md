@@ -53,7 +53,7 @@ from keras.optimizers import SGD
 model = Sequential()
 # input: 100x100 images with 3 channels -> (3, 100, 100) tensors.
 # this applies 32 convolution filters of size 3x3 each.
-model.add(Convolution2D(32, 3, 3, border_mode='full', input_shape=(3, 100, 100)))
+model.add(Convolution2D(32, 3, 3, border_mode='valid', input_shape=(3, 100, 100)))
 model.add(Activation('relu'))
 model.add(Convolution2D(32, 3, 3))
 model.add(Activation('relu'))
@@ -117,13 +117,13 @@ vocab_size = 10000
 # will encode pictures into 128-dimensional vectors.
 # it should be initialized with pre-trained weights.
 image_model = Sequential()
-image_model.add(Convolution2D(32, 3, 3, border_mode='full', input_shape=(3, 100, 100)))
+image_model.add(Convolution2D(32, 3, 3, border_mode='valid', input_shape=(3, 100, 100)))
 image_model.add(Activation('relu'))
 image_model.add(Convolution2D(32, 3, 3))
 image_model.add(Activation('relu'))
 image_model.add(MaxPooling2D(pool_size=(2, 2)))
 
-image_model.add(Convolution2D(64, 3, 3, border_mode='full'))
+image_model.add(Convolution2D(64, 3, 3, border_mode='valid'))
 image_model.add(Activation('relu'))
 image_model.add(Convolution2D(64, 3, 3))
 image_model.add(Activation('relu'))
