@@ -27,6 +27,14 @@ class BatchNormalization(Layer):
                 each combination of a channel, row and column
                 will be normalized separately).
             - 1: sample-wise normalization. This mode assumes a 2D input.
+            - 2: standard implementation feature-wise normalization on a per batch basis.
+                The running average is only used to compute the prediction.
+                If the input has multiple feature dimensions,
+                each will be normalized separately
+                (e.g. for an image input with shape
+                `(channels, rows, cols)`,
+                each combination of a channel, row and column
+                will be normalized separately).
         momentum: momentum in the computation of the
             exponential average of the mean and standard deviation
             of the data, for feature-wise normalization.
@@ -37,7 +45,7 @@ class BatchNormalization(Layer):
     # References
         - [Batch Normalization: Accelerating Deep Network Training by Reducing Internal Covariate Shift](http://arxiv.org/pdf/1502.03167v3.pdf)
     '''
-    def __init__(self, epsilon=1e-6, mode=0, momentum=0.9,
+    def __init__(self, epsilon=1e-6, mode=2, momentum=0.1,
                  weights=None, **kwargs):
         self.init = initializations.get("uniform")
         self.epsilon = epsilon
@@ -90,6 +98,20 @@ class BatchNormalization(Layer):
             m = K.mean(X, axis=-1, keepdims=True)
             std = K.std(X, axis=-1, keepdims=True)
             X_normed = (X - m) / (std + self.epsilon)
+        elif self.mode == 2:
+            if train:
+                m = K.mean(X, axis=0)
+                std = K.mean(K.square(X - m) + self.epsilon, axis=0)
+                std = K.sqrt(std)
+                mean_update = self.momentum * self.running_mean + (1-self.momentum) * m
+                std_update = self.momentum * self.running_std + (1-self.momentum) * std
+                self.updates = [(self.running_mean, mean_update),
+                                (self.running_std, std_update)]
+                X_normed = ((X - m) /
+                            (std + self.epsilon))
+            else:
+                X_normed = ((X - self.running_mean) /
+                            (self.running_std + self.epsilon))
         out = self.gamma * X_normed + self.beta
         return out
 
