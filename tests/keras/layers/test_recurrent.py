@@ -3,11 +3,24 @@ import numpy as np
 from numpy.testing import assert_allclose
 
 from keras.layers import recurrent
+from keras.layers.recurrent import Bidirectional
 from keras import backend as K
 from keras.models import Sequential
 
 nb_samples, timesteps, input_dim, output_dim = 3, 3, 10, 5
 
+def _test_bidirectional(rnn):
+
+    model =  Sequential()
+    model.add(Bidirectional(rnn))
+    model.compile(optimizer='sgd', loss='mse')
+    x =  np.zeros((nb_samples, timesteps, input_dim))
+    y = None
+    if rnn.return_sequences:
+        y = np.ones((nb_samples, timesteps, output_dim * 2))
+    else:
+        y = np.ones((nb_samples, output_dim * 2))   
+    model.fit(x,y)
 
 def _runner(layer_class):
     """
@@ -15,11 +28,11 @@ def _runner(layer_class):
     so we can run through them with a single function.
     """
     for ret_seq in [True, False]:
+        _test_bidirectional(layer_class(output_dim, return_sequences=ret_seq, input_shape=(timesteps, input_dim)))
         layer = layer_class(output_dim, return_sequences=ret_seq,
                             weights=None, input_shape=(timesteps, input_dim))
         layer.input = K.variable(np.ones((nb_samples, timesteps, input_dim)))
         layer.get_config()
-
         for train in [True, False]:
             out = K.eval(layer.get_output(train))
             # Make sure the output has the desired shape

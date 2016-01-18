@@ -12,11 +12,10 @@ import numpy as np
 np.random.seed(1337)  # for reproducibility
 
 from keras.preprocessing import sequence
-from keras.utils.np_utils import accuracy
-from keras.models import Graph
+from keras.models import Sequential
 from keras.layers.core import Dense, Dropout
 from keras.layers.embeddings import Embedding
-from keras.layers.recurrent import LSTM
+from keras.layers.recurrent import LSTM, Bidirectional
 from keras.datasets import imdb
 
 
@@ -39,24 +38,20 @@ y_train = np.array(y_train)
 y_test = np.array(y_test)
 
 print('Build model...')
-model = Graph()
-model.add_input(name='input', input_shape=(maxlen,), dtype=int)
-model.add_node(Embedding(max_features, 128, input_length=maxlen),
-               name='embedding', input='input')
-model.add_node(LSTM(64), name='forward', input='embedding')
-model.add_node(LSTM(64, go_backwards=True), name='backward', input='embedding')
-model.add_node(Dropout(0.5), name='dropout', inputs=['forward', 'backward'])
-model.add_node(Dense(1, activation='sigmoid'), name='sigmoid', input='dropout')
-model.add_output(name='output', input='sigmoid')
+model = Sequential()
+model.add(Embedding(max_features, 128, input_length=maxlen))
+model.add(Bidirectional(LSTM(64)))
+model.add(Dropout(0.5))
+model.add(Dense(1, activation='sigmoid'))
 
 # try using different optimizers and different optimizer configs
-model.compile('adam', {'output': 'binary_crossentropy'})
+model.compile(optimizer='adam', loss='binary_crossentropy')
 
 print('Train...')
-model.fit({'input': X_train, 'output': y_train},
-          batch_size=batch_size,
-          nb_epoch=4)
-acc = accuracy(y_test,
-               np.round(np.array(model.predict({'input': X_test},
-                                               batch_size=batch_size)['output'])))
+model.fit(X_train, y_train, batch_size=batch_size, nb_epoch=4,
+          validation_data=(X_test, y_test), show_accuracy=True)
+score, acc = model.evaluate(X_test, y_test,
+                            batch_size=batch_size,
+                            show_accuracy=True)
+print('Test score:', score)
 print('Test accuracy:', acc)
