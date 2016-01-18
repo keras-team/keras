@@ -89,9 +89,7 @@ class Embedding(Layer):
         if not self.mask_zero:
             return None
         else:
-            if K._BACKEND == "tensorflow":
-                raise Exception("Masking is Theano-only for the time being.")
-            return K.ones_like(X) * (1 - K.equal(X, 0))
+            return K.expand_dims(K.not_equal(X, 0))
 
     @property
     def output_shape(self):
