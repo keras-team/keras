@@ -322,8 +322,6 @@ class Masking(MaskedLayer):
         self.input = K.placeholder(ndim=3)
 
     def get_output_mask(self, train=False):
-        if K._BACKEND == 'tensorflow':
-            raise Exception('Masking is Theano-only for the time being.')
         X = self.get_input(train)
         return K.any(K.ones_like(X) * (1. - K.equal(X, self.mask_value)),
                      axis=-1)
@@ -1119,7 +1117,10 @@ class TimeDistributedDense(MaskedLayer):
             output = K.dot(x, self.W) + self.b
             return output, []
 
-        last_output, outputs, states = K.rnn(step, X, [], masking=False)
+        last_output, outputs, states = K.rnn(step, X,
+                                             output_dim=self.output_dim,
+                                             initial_states=[],
+                                             mask=None)
         outputs = self.activation(outputs)
         return outputs
 
