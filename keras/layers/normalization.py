@@ -80,7 +80,7 @@ class BatchNormalization(Layer):
         X = self.get_input(train)
         if self.mode == 0:
             input_shape = self.input_shape
-            reduction_axes = range(len(input_shape))
+            reduction_axes = list(range(len(input_shape)))
             broadcast_shape = [1] * len(input_shape)
             broadcast_shape[self.axis] = input_shape[self.axis]
             del reduction_axes[self.axis]
