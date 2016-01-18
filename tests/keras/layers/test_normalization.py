@@ -66,13 +66,15 @@ def test_batchnorm_shapes():
     Test batch normalization with various input shapes
     """
     for inp in input_shapes:
-        norm_m0 = normalization.BatchNormalization(input_shape=inp.shape, mode=0)
+        norm_m0 = normalization.BatchNormalization(batch_input_shape=inp.shape, mode=0)
         norm_m0.input = K.variable(inp)
-        out = (norm_m0.get_output(train=True) - norm_m0.beta) / norm_m0.gamma
+        out = norm_m0.get_output(train=True)
+        K.eval(out)
 
-        norm_m1 = normalization.BatchNormalization(input_shape=inp.shape, mode=1)
+        norm_m1 = normalization.BatchNormalization(batch_input_shape=inp.shape, mode=1)
         norm_m1.input = K.variable(inp)
-        out = (norm_m1.get_output(train=True) - norm_m1.beta) / norm_m1.gamma
+        out = norm_m1.get_output(train=True)
+        K.eval(out)
 
 
 def test_batchnorm_weight_init():
