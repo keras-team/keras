@@ -2,11 +2,12 @@ import pytest
 import numpy as np
 from numpy.testing import assert_allclose
 
-from keras.layers import recurrent
+from keras.layers import recurrent, embeddings
 from keras import backend as K
 from keras.models import Sequential
 
-nb_samples, timesteps, input_dim, output_dim = 3, 3, 10, 5
+nb_samples, timesteps, embedding_dim, output_dim = 3, 5, 10, 5
+embedding_num = 12
 
 
 def _runner(layer_class):
@@ -16,8 +17,8 @@ def _runner(layer_class):
     """
     for ret_seq in [True, False]:
         layer = layer_class(output_dim, return_sequences=ret_seq,
-                            weights=None, input_shape=(timesteps, input_dim))
-        layer.input = K.variable(np.ones((nb_samples, timesteps, input_dim)))
+                            weights=None, input_shape=(timesteps, embedding_dim))
+        layer.input = K.variable(np.ones((nb_samples, timesteps, embedding_dim)))
         layer.get_config()
 
         for train in [True, False]:
@@ -31,20 +32,23 @@ def _runner(layer_class):
             mask = layer.get_output_mask(train)
 
     # check statefulness
+    model = Sequential()
+    model.add(embeddings.Embedding(embedding_num, embedding_dim,
+                                   mask_zero=True,
+                                   input_length=timesteps,
+                                   batch_input_shape=(nb_samples, timesteps)))
     layer = layer_class(output_dim, return_sequences=False,
                         stateful=True,
-                        weights=None,
-                        batch_input_shape=(nb_samples, timesteps, input_dim))
-    model = Sequential()
+                        weights=None)
     model.add(layer)
     model.compile(optimizer='sgd', loss='mse')
-    out1 = model.predict(np.ones((nb_samples, timesteps, input_dim)))
+    out1 = model.predict(np.ones((nb_samples, timesteps)))
     assert(out1.shape == (nb_samples, output_dim))
 
     # train once so that the states change
-    model.train_on_batch(np.ones((nb_samples, timesteps, input_dim)),
+    model.train_on_batch(np.ones((nb_samples, timesteps)),
                          np.ones((nb_samples, output_dim)))
-    out2 = model.predict(np.ones((nb_samples, timesteps, input_dim)))
+    out2 = model.predict(np.ones((nb_samples, timesteps)))
 
     # if the state is not reset, output should be different
     assert(out1.max() != out2.max())
@@ -52,18 +56,36 @@ def _runner(layer_class):
     # check that output changes after states are reset
     # (even though the model itself didn't change)
     layer.reset_states()
-    out3 = model.predict(np.ones((nb_samples, timesteps, input_dim)))
+    out3 = model.predict(np.ones((nb_samples, timesteps)))
     assert(out2.max() != out3.max())
 
     # check that container-level reset_states() works
     model.reset_states()
-    out4 = model.predict(np.ones((nb_samples, timesteps, input_dim)))
+    out4 = model.predict(np.ones((nb_samples, timesteps)))
     assert_allclose(out3, out4, atol=1e-5)
 
     # check that the call to `predict` updated the states
-    out5 = model.predict(np.ones((nb_samples, timesteps, input_dim)))
+    out5 = model.predict(np.ones((nb_samples, timesteps)))
     assert(out4.max() != out5.max())
 
+    # Check masking
+    layer.reset_states()
+
+    left_padded_input = np.ones((nb_samples, timesteps))
+    left_padded_input[0, :1] = 0
+    left_padded_input[1, :2] = 0
+    left_padded_input[2, :3] = 0
+    out6 = model.predict(left_padded_input)
+
+    layer.reset_states()
+
+    right_padded_input = np.ones((nb_samples, timesteps))
+    right_padded_input[0, -1:] = 0
+    right_padded_input[1, -2:] = 0
+    right_padded_input[2, -3:] = 0
+    out7 = model.predict(right_padded_input)
+
+    assert_allclose(out7, out6, atol=1e-5)
 
 
 def test_SimpleRNN():

@@ -153,7 +153,7 @@ def test_sequences():
     layer = core.Masking()
     func = K.function([layer.input], [layer.get_output_mask()])
     input_data = np.array([[[1], [2], [3], [0]],
-                          [[0], [4], [5], [0]]], dtype=np.int32)
+                           [[0], [4], [5], [0]]], dtype=np.int32)
 
     # This is the expected output mask, one dimension less
     expected = np.array([[1, 1, 1, 0], [0, 1, 1, 0]])
@@ -170,7 +170,7 @@ def test_non_zero():
     layer = core.Masking(5)
     func = K.function([layer.input], [layer.get_output_mask()])
     input_data = np.array([[[1, 1], [2, 1], [3, 1], [5, 5]],
-                          [[1, 5], [5, 0], [0, 0], [0, 0]]],
+                           [[1, 5], [5, 0], [0, 0], [0, 0]]],
                           dtype=np.int32)
     output = func([input_data])[0]
     expected = np.array([[1, 1, 1, 0], [1, 1, 1, 1]])
@@ -185,11 +185,11 @@ def test_non_zero_output():
     func = K.function([layer.input], [layer.get_output()])
 
     input_data = np.array([[[1, 1], [2, 1], [3, 1], [5, 5]],
-                          [[1, 5], [5, 0], [0, 0], [0, 0]]],
+                           [[1, 5], [5, 0], [0, 0], [0, 0]]],
                           dtype=np.int32)
     output = func([input_data])[0]
     expected = np.array([[[1, 1], [2, 1], [3, 1], [0, 0]],
-                        [[1, 5], [5, 0], [0, 0], [0, 0]]])
+                         [[1, 5], [5, 0], [0, 0], [0, 0]]])
     assert np.all(output == expected), 'Output not as expected'
 
 

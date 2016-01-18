@@ -114,16 +114,20 @@ class TestBackend(object):
 
         check_single_tensor_operation('min', (4, 2))
         check_single_tensor_operation('min', (4, 2), axis=1, keepdims=True)
+        check_single_tensor_operation('min', (4, 2, 3), axis=[1, -1])
 
         check_single_tensor_operation('mean', (4, 2))
         check_single_tensor_operation('mean', (4, 2), axis=1, keepdims=True)
         check_single_tensor_operation('mean', (4, 2, 3), axis=-1, keepdims=True)
+        check_single_tensor_operation('mean', (4, 2, 3), axis=[1, -1])
 
         check_single_tensor_operation('std', (4, 2))
         check_single_tensor_operation('std', (4, 2), axis=1, keepdims=True)
+        check_single_tensor_operation('std', (4, 2, 3), axis=[1, -1])
 
         check_single_tensor_operation('prod', (4, 2))
         check_single_tensor_operation('prod', (4, 2), axis=1, keepdims=True)
+        check_single_tensor_operation('prod', (4, 2, 3), axis=[1, -1])
 
         # does not work yet, wait for bool <-> int casting in TF (coming soon)
         # check_single_tensor_operation('any', (4, 2))
@@ -221,9 +225,10 @@ class TestBackend(object):
         inputs = KTH.variable(input_val)
         initial_states = [KTH.variable(init_state_val)]
         last_output, outputs, new_states = KTH.rnn(th_rnn_step_fn, inputs,
+                                                   output_dim,
                                                    initial_states,
                                                    go_backwards=False,
-                                                   masking=False)
+                                                   mask=None)
         th_last_output = KTH.eval(last_output)
         th_outputs = KTH.eval(outputs)
         assert len(new_states) == 1
@@ -233,9 +238,10 @@ class TestBackend(object):
         inputs = KTF.variable(input_val)
         initial_states = [KTF.variable(init_state_val)]
         last_output, outputs, new_states = KTF.rnn(tf_rnn_step_fn, inputs,
+                                                   output_dim,
                                                    initial_states,
                                                    go_backwards=False,
-                                                   masking=False)
+                                                   mask=None)
         tf_last_output = KTF.eval(last_output)
         tf_outputs = KTF.eval(outputs)
         assert len(new_states) == 1
