@@ -1118,8 +1118,8 @@ class TimeDistributedDense(MaskedLayer):
         def step(x, states):
             output = K.dot(x, self.W) + self.b
             return output, []
-
-        last_output, outputs, states = K.rnn(step, X, [], masking=False)
+        
+        last_output, outputs, states = K.rnn(step, X, self.output_dim, [], mask=None)
         outputs = self.activation(outputs)
         return outputs
 
