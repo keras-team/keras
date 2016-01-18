@@ -34,12 +34,11 @@ def _runner(layer_class):
     # check statefulness
     model = Sequential()
     model.add(embeddings.Embedding(embedding_num, embedding_dim,
-                        mask_zero=True,
-                        input_length=timesteps,
-                        batch_input_shape=(nb_samples, timesteps)))
-
+                                   mask_zero=True,
+                                   input_length=timesteps,
+                                   batch_input_shape=(nb_samples, timesteps)))
     layer = layer_class(output_dim, return_sequences=False,
-                        stateful=True, 
+                        stateful=True,
                         weights=None)
     model.add(layer)
     model.compile(optimizer='sgd', loss='mse')
@@ -73,20 +72,21 @@ def _runner(layer_class):
     layer.reset_states()
 
     left_padded_input = np.ones((nb_samples, timesteps))
-    left_padded_input[0,:1] = 0
-    left_padded_input[1,:2] = 0
-    left_padded_input[2,:3] = 0 
+    left_padded_input[0, :1] = 0
+    left_padded_input[1, :2] = 0
+    left_padded_input[2, :3] = 0
     out6 = model.predict(left_padded_input)
 
     layer.reset_states()
 
     right_padded_input = np.ones((nb_samples, timesteps))
-    right_padded_input[0,-1:] = 0
-    right_padded_input[1,-2:] = 0
-    right_padded_input[2,-3:] = 0 
+    right_padded_input[0, -1:] = 0
+    right_padded_input[1, -2:] = 0
+    right_padded_input[2, -3:] = 0
     out7 = model.predict(right_padded_input)
 
     assert_allclose(out7, out6, atol=1e-5)
+
 
 def test_SimpleRNN():
     _runner(recurrent.SimpleRNN)

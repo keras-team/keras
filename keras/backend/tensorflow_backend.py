@@ -494,7 +494,6 @@ def switch(condition, then_expression, else_expression):
                                            lambda: else_expression)
 
 
-
 # NN OPERATIONS
 
 def relu(x, alpha=0., max_value=None):

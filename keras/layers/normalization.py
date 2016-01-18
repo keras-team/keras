@@ -81,9 +81,9 @@ class BatchNormalization(Layer):
         if self.mode == 0:
             input_shape = self.input_shape
             reduction_axes = list(range(len(input_shape)))
+            del reduction_axes[self.axis]
             broadcast_shape = [1] * len(input_shape)
             broadcast_shape[self.axis] = input_shape[self.axis]
-            del reduction_axes[self.axis]
             if train:
                 m = K.mean(X, axis=reduction_axes)
                 brodcast_m = K.reshape(m, broadcast_shape)
