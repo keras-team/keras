@@ -687,8 +687,6 @@ class Sequential(Model, containers.Sequential):
         else:
             return outs[0]
 
-
-
     def train_on_batch(self, X, y, accuracy=False,
                        class_weight=None, sample_weight=None):
         '''Single gradient update over one batch of samples.
@@ -803,8 +801,8 @@ class Sequential(Model, containers.Sequential):
                             '2, 3, or more elements.')
 
     def fit_on_generator(self, data_generator, nb_epoch, samples_per_epoch=None,
-                      verbose=1, show_accuracy=False, callbacks=[],
-                      validation_generator=None, class_weight=None):
+                         verbose=1, show_accuracy=False, callbacks=[],
+                         validation_generator=None, class_weight=None):
         '''Fit a model on data generated batch-by-batch by a Python generator.
 
         # Arguments
@@ -863,7 +861,6 @@ class Sequential(Model, containers.Sequential):
         epoch = 0
         do_validation = bool(validation_generator)
 
-
         if show_accuracy:
             out_labels = ['loss', 'acc']
         else:
@@ -879,7 +876,7 @@ class Sequential(Model, containers.Sequential):
         callbacks = cbks.CallbackList(callbacks)
 
         callbacks._set_model(self)
-        cbks_params =  {
+        cbks_params = {
             'nb_epoch': nb_epoch,
             'nb_sample': self.train_total_nframes,
             'verbose': verbose,
@@ -889,8 +886,6 @@ class Sequential(Model, containers.Sequential):
         callbacks._set_params(cbks_params)
         callbacks.on_train_begin()
 
-
-
         self.stop_training = False
         for epoch in np.arange(nb_epoch):
             callbacks.on_epoch_begin(epoch)
@@ -898,8 +893,8 @@ class Sequential(Model, containers.Sequential):
             gen = next(data_generator)
             for batch_index, d in enumerate(gen):
                 if samples_seen == 0:
-                    #validate first batch
-                    #consider generator homogenous - do not check for the rest of the iteration
+                    # validate first batch
+                    # consider generator homogenous - do not check for the rest of the iteration
                     tuple_len = self.generator_input_validation(d)
 
                 if tuple_len == 2:
@@ -953,8 +948,8 @@ class Sequential(Model, containers.Sequential):
         gen = next(data_generator)
         for batch_index, d in enumerate(gen):
             if samples_seen == 0:
-                #validate first batch
-                #consider generator homogenous - do not check for the rest of the iteration
+                # validate first batch
+                # consider generator homogenous - do not check for the rest of the iteration
                 tuple_len = self.generator_input_validation(d)
 
             if tuple_len == 2:

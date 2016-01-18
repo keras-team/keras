@@ -56,7 +56,6 @@ def test_sequential_fit_on_generator():
                 yield (X_test[i * batch_size: (i + 1) * batch_size], y_test[i * batch_size: (i + 1) * batch_size])
             i += 1
 
-
     model = Sequential()
     model.add(Dense(nb_hidden, input_shape=(input_dim,)))
     model.add(Activation('relu'))

@@ -9,7 +9,6 @@ from multiprocessing import Queue
 from Queue import Empty as QueueEmpty
 
 
-
 class HDF5Matrix():
     refs = defaultdict(int)
 
@@ -148,7 +147,7 @@ class ParallelizeIt(object):
             if self._closed.is_set() or self._max_records_to_read == i:
                 break
             self._queue.put(r)
-        #put sentinel to signalize end of queue
+        # put sentinel to signalize end of queue
         self._queue.put(self._sentinel)
 
     def __init__(self, iterator, max_records_to_read=None, queue_size=1000, threaded=True):
@@ -190,18 +189,17 @@ class ParallelizeIt(object):
     def _open(self):
         if self._closed.is_set():
             raise StopIteration
-        if self._initialized == False:
+        if not self._initialized:
             self._w.start()
         self._initialized = True
-
 
     def _close(self):
         if not self._closed.is_set():
             self._closed.set()
             try:
-            #for gratefull shutdown on interuption
-            # kick the worker to free up one space in queue and after another 
-            # call to worker shutdown its thread
+                # for gratefull shutdown on interuption
+                # kick the worker to free up one space in queue and after another 
+                # call to worker shutdown its thread
                 self._queue.get_nowait()
             except QueueEmpty as e:
                 pass
