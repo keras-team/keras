@@ -225,7 +225,6 @@ class TestBackend(object):
         inputs = KTH.variable(input_val)
         initial_states = [KTH.variable(init_state_val)]
         last_output, outputs, new_states = KTH.rnn(th_rnn_step_fn, inputs,
-                                                   output_dim,
                                                    initial_states,
                                                    go_backwards=False,
                                                    mask=None)
@@ -238,7 +237,6 @@ class TestBackend(object):
         inputs = KTF.variable(input_val)
         initial_states = [KTF.variable(init_state_val)]
         last_output, outputs, new_states = KTF.rnn(tf_rnn_step_fn, inputs,
-                                                   output_dim,
                                                    initial_states,
                                                    go_backwards=False,
                                                    mask=None)
