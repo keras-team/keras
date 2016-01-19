@@ -908,13 +908,14 @@ class Sequential(Model, containers.Sequential):
         def input_validation(generator_output):
             if not hasattr(generator_output, '__len__'):
                 _stop.set()
-                raise Exception('The generator output must be a tuple.')
+                raise Exception('The generator output must be a tuple. Found: ' + str(type(generator_output)))
             if len(generator_output) == 2:
                 X, y = generator_output
                 if type(X) == list:
                     assert len(set([len(a) for a in X] + [len(y)])) == 1
                 else:
                     assert len(X) == len(y)
+                    X = [X]
                 sample_weight = None
             elif len(generator_output) == 3:
                 X, y, sample_weight = generator_output
@@ -922,6 +923,7 @@ class Sequential(Model, containers.Sequential):
                     assert len(set([len(a) for a in X] + [len(y), len(sample_weight)])) == 1
                 else:
                     assert len(X) == len(y) == len(sample_weight)
+                    X = [X]
             else:
                 _stop.set()
                 raise Exception('The generator output tuple must have '
@@ -937,14 +939,17 @@ class Sequential(Model, containers.Sequential):
             while not _stop.is_set():
                 try:
                     if generator_queue.qsize() < max_queue_size:
-                        generator_output = next(generator)
+                        try:
+                            generator_output = next(generator)
+                        except ValueError:
+                            continue
                         generator_queue.put(generator_output)
                         i += 1
                     else:
                         time.sleep(wait_time)
                 except:
                     _stop.set()
-                    return
+                    raise
 
         generator_threads = [threading.Thread(target=generator_task) for _ in range(nb_worker)]
         for thread in generator_threads:
@@ -956,6 +961,7 @@ class Sequential(Model, containers.Sequential):
             samples_seen = 0
             batch_index = 0
             while samples_seen < samples_per_epoch:
+                generator_output = None
                 while not _stop.is_set():
                     if not generator_queue.empty():
                         generator_output = generator_queue.get()
