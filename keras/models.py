@@ -150,8 +150,10 @@ def model_from_config(config, custom_objects={}):
     model = container_from_config(config, custom_objects=custom_objects)
     if model_name == 'Graph':
         model.__class__ = Graph
+        model.name = model_name
     elif model_name == 'Sequential':
         model.__class__ = Sequential
+        model.name = model_name
 
     if 'optimizer' in config:
         # if it has an optimizer, the model is assumed to be compiled
