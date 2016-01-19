@@ -1,21 +1,4 @@
-from __future__ import absolute_import
-from __future__ import print_function
-from functools import reduce
-import re
-import tarfile
-
-import numpy as np
-np.random.seed(1337)  # for reproducibility
-
-from keras.datasets.data_utils import get_file
-from keras.layers.embeddings import Embedding
-from keras.layers.core import Dense, Merge
-from keras.layers import recurrent
-from keras.models import Sequential
-from keras.preprocessing.sequence import pad_sequences
-
-'''
-Trains two recurrent neural networks based upon a story and a question.
+'''Trains two recurrent neural networks based upon a story and a question.
 The resulting merged vector is then queried to answer a range of bAbI tasks.
 
 The results are comparable to those for an LSTM model provided in Weston et al.:
@@ -73,6 +56,21 @@ noise to find the relevant statements, improving performance substantially.
 This becomes especially obvious on QA2 and QA3, both far longer than QA1.
 '''
 
+from __future__ import print_function
+from functools import reduce
+import re
+import tarfile
+
+import numpy as np
+np.random.seed(1337)  # for reproducibility
+
+from keras.datasets.data_utils import get_file
+from keras.layers.embeddings import Embedding
+from keras.layers.core import Dense, Merge
+from keras.layers import recurrent
+from keras.models import Sequential
+from keras.preprocessing.sequence import pad_sequences
+
 
 def tokenize(sent):
     '''Return the tokens of a sentence including punctuation.
@@ -126,14 +124,14 @@ def get_stories(f, only_supporting=False, max_length=None):
     return data
 
 
-def vectorize_stories(data):
+def vectorize_stories(data, word_idx, story_maxlen, query_maxlen):
     X = []
     Xq = []
     Y = []
     for story, query, answer in data:
         x = [word_idx[w] for w in story]
         xq = [word_idx[w] for w in query]
-        y = np.zeros(vocab_size)
+        y = np.zeros(len(word_idx) + 1)  # let's not forget that index 0 is reserved
         y[word_idx[answer]] = 1
         X.append(x)
         Xq.append(xq)
@@ -168,8 +166,8 @@ word_idx = dict((c, i + 1) for i, c in enumerate(vocab))
 story_maxlen = max(map(len, (x for x, _, _ in train + test)))
 query_maxlen = max(map(len, (x for _, x, _ in train + test)))
 
-X, Xq, Y = vectorize_stories(train)
-tX, tXq, tY = vectorize_stories(test)
+X, Xq, Y = vectorize_stories(train, word_idx, story_maxlen, query_maxlen)
+tX, tXq, tY = vectorize_stories(test, word_idx, story_maxlen, query_maxlen)
 
 print('vocab = {}'.format(vocab))
 print('X.shape = {}'.format(X.shape))
