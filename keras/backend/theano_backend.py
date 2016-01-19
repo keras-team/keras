@@ -403,7 +403,7 @@ def gradients(loss, variables):
 
 # CONTROL FLOW
 
-def rnn(step_function, inputs, output_dim, initial_states,
+def rnn(step_function, inputs, initial_states,
         go_backwards=False, mask=None):
     '''Iterates over the time dimension of a tensor.
 
@@ -421,8 +421,6 @@ def rnn(step_function, inputs, output_dim, initial_states,
             output: tensor with shape (samples, ...) (no time dimension),
             new_states: list of tensors, same length and shapes
                 as 'states'.
-    output_dim:
-        Number of output dimensions
     initial_states: tensor with shape (samples, ...) (no time dimension),
         containing the initial values for the states used in
         the step function.
@@ -457,7 +455,7 @@ def rnn(step_function, inputs, output_dim, initial_states,
         return [output] + return_states
 
     # build an all-zero tensor of shape (samples, output_dim)
-    initial_output = T.zeros((inputs.shape[1], output_dim))
+    initial_output = step_function(inputs[0], initial_states)[0] * 0
     # Theano gets confused by broadcasting patterns in the scan op
     initial_output = T.unbroadcast(initial_output, 0, 1)
 

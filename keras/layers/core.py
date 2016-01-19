@@ -1118,7 +1118,6 @@ class TimeDistributedDense(MaskedLayer):
             return output, []
 
         last_output, outputs, states = K.rnn(step, X,
-                                             output_dim=self.output_dim,
                                              initial_states=[],
                                              mask=None)
         outputs = self.activation(outputs)
