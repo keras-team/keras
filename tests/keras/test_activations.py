@@ -32,6 +32,14 @@ def test_softmax():
     assert_allclose(result, expected, rtol=1e-05)
 
 
+def test_time_distributed_softmax():
+    x = K.placeholder(shape=(1, 1, 5))
+    f = K.function([x], [activations.softmax(x)])
+    test_values = get_standard_values()
+    test_values = np.reshape(test_values, (1, 1, np.size(test_values)))
+    f([test_values])[0]
+
+
 def test_softplus():
     '''
     Test using a reference softplus implementation
