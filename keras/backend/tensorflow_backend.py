@@ -427,7 +427,10 @@ def rnn(step_function, inputs, output_dim, initial_states,
         new_states: list of tensors, latest states returned by
             the step function, of shape (samples, ...).
     '''
-    inputs = tf.transpose(inputs, (1, 0, 2))
+    ndim = len(inputs.get_shape())
+    assert ndim >= 3, "Input should be at least 3D."
+    axes = [1, 0] + range(2, ndim)
+    inputs = tf.transpose(inputs, (axes))
     input_list = tf.unpack(inputs)
     if mask is None:
         mask = ones_like(tf.slice(inputs, [0, 0, 0], [-1, -1, 1]))
@@ -482,7 +485,8 @@ def rnn(step_function, inputs, output_dim, initial_states,
     outputs = tf.pack(successive_outputs)
     new_states = successive_states[-1]
 
-    outputs = tf.transpose(outputs, (1, 0, 2))
+    axes = [1, 0] + range(2, len(outputs.get_shape()))
+    outputs = tf.transpose(outputs, axes)
     return last_output, outputs, new_states
 
 
