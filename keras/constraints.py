@@ -35,8 +35,13 @@ class MaxNorm(Constraint):
     def __call__(self, p):
         norms = K.sqrt(K.sum(K.square(p), axis=self.axis, keepdims=True))
         desired = K.clip(norms, 0, self.m)
-        p = p * (desired / (1e-7 + norms))
+        p = p * (desired / (K.epsilon() + norms))
         return p
+
+    def get_config(self):
+        return {"name": self.__class__.__name__,
+        "m": self.m,
+        "axis": self.axis}
 
 
 class NonNeg(Constraint):
@@ -57,15 +62,22 @@ class UnitNorm(Constraint):
             In a `MaxoutDense` layer the weight tensor has shape (nb_feature, input_dim, output_dim),
             set `axis` to `1` to constrain each weight vector of length (input_dim),
             i.e. constrain the filters incident to the `max` operation.
-            In a `Convolution2D` layer the weight tensor has shape (nb_filter, stack_size, nb_row, nb_col),
-            set `axis` to `[1,2,3]` to constrain the weights of each filter tensor
-            of size (stack_size, nb_row, nb_col).
+            In a `Convolution2D` layer with the Theano backend, the weight tensor 
+            has shape (nb_filter, stack_size, nb_row, nb_col), set `axis` to `[1,2,3]` 
+            to constrain the weights of each filter tensor of size (stack_size, nb_row, nb_col).
+            In a `Convolution2D` layer with the TensorFlow backend, the weight tensor 
+            has shape (nb_row, nb_col, stack_size, nb_filter), set `axis` to `[0,1,2]` 
+            to constrain the weights of each filter tensor of size (nb_row, nb_col, stack_size).
     '''
     def __init__(self, axis=0):
         self.axis = axis
 
     def __call__(self, p):
-        return p / K.sqrt(K.sum(K.square(p), axis=self.axis, keepdims=True))
+        return p / (K.epsilon() + K.sqrt(K.sum(K.square(p), axis=self.axis, keepdims=True)))
+
+    def get_config(self):
+        return {"name": self.__class__.__name__,
+        "axis": self.axis}
 
 
 identity = Constraint
