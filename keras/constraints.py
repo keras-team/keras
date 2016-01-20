@@ -21,11 +21,11 @@ class MaxNorm(Constraint):
             In a `MaxoutDense` layer the weight tensor has shape (nb_feature, input_dim, output_dim),
             set `axis` to `1` to constrain each weight vector of length (input_dim),
             i.e. constrain the filters incident to the `max` operation.
-            In a `Convolution2D` layer with the Theano backend, the weight tensor 
-            has shape (nb_filter, stack_size, nb_row, nb_col), set `axis` to `[1,2,3]` 
+            In a `Convolution2D` layer with the Theano backend, the weight tensor
+            has shape (nb_filter, stack_size, nb_row, nb_col), set `axis` to `[1,2,3]`
             to constrain the weights of each filter tensor of size (stack_size, nb_row, nb_col).
-            In a `Convolution2D` layer with the TensorFlow backend, the weight tensor 
-            has shape (nb_row, nb_col, stack_size, nb_filter), set `axis` to `[0,1,2]` 
+            In a `Convolution2D` layer with the TensorFlow backend, the weight tensor
+            has shape (nb_row, nb_col, stack_size, nb_filter), set `axis` to `[0,1,2]`
             to constrain the weights of each filter tensor of size (nb_row, nb_col, stack_size).
 
     # References
@@ -43,8 +43,8 @@ class MaxNorm(Constraint):
 
     def get_config(self):
         return {"name": self.__class__.__name__,
-        "m": self.m,
-        "axis": self.axis}
+                "m": self.m,
+                "axis": self.axis}
 
 
 class NonNeg(Constraint):
@@ -65,11 +65,11 @@ class UnitNorm(Constraint):
             In a `MaxoutDense` layer the weight tensor has shape (nb_feature, input_dim, output_dim),
             set `axis` to `1` to constrain each weight vector of length (input_dim),
             i.e. constrain the filters incident to the `max` operation.
-            In a `Convolution2D` layer with the Theano backend, the weight tensor 
-            has shape (nb_filter, stack_size, nb_row, nb_col), set `axis` to `[1,2,3]` 
+            In a `Convolution2D` layer with the Theano backend, the weight tensor
+            has shape (nb_filter, stack_size, nb_row, nb_col), set `axis` to `[1,2,3]`
             to constrain the weights of each filter tensor of size (stack_size, nb_row, nb_col).
-            In a `Convolution2D` layer with the TensorFlow backend, the weight tensor 
-            has shape (nb_row, nb_col, stack_size, nb_filter), set `axis` to `[0,1,2]` 
+            In a `Convolution2D` layer with the TensorFlow backend, the weight tensor
+            has shape (nb_row, nb_col, stack_size, nb_filter), set `axis` to `[0,1,2]`
             to constrain the weights of each filter tensor of size (nb_row, nb_col, stack_size).
     '''
     def __init__(self, axis=0):
@@ -80,7 +80,7 @@ class UnitNorm(Constraint):
 
     def get_config(self):
         return {"name": self.__class__.__name__,
-        "axis": self.axis}
+                "axis": self.axis}
 
 
 identity = Constraint
@@ -89,5 +89,7 @@ nonneg = NonNeg
 unitnorm = UnitNorm
 
 from .utils.generic_utils import get_from_module
+
+
 def get(identifier, kwargs=None):
     return get_from_module(identifier, globals(), 'constraint', instantiate=True, kwargs=kwargs)
