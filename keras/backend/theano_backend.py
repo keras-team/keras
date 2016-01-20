@@ -440,7 +440,10 @@ def rnn(step_function, inputs, initial_states,
         new_states: list of tensors, latest states returned by
             the step function, of shape (samples, ...).
     '''
-    inputs = inputs.dimshuffle((1, 0, 2))
+    ndim = inputs.ndim
+    assert ndim >= 3, "Input should be at least 3D."
+    axes = [1, 0] + range(2, ndim)
+    inputs = inputs.dimshuffle(axes)
     if mask is None:
         mask = expand_dims(ones_like(T.sum(inputs, axis=-1)))
     else:
@@ -477,7 +480,8 @@ def rnn(step_function, inputs, initial_states,
     outputs = T.squeeze(outputs)
     last_output = outputs[-1]
 
-    outputs = outputs.dimshuffle((1, 0, 2))
+    axes = [1, 0] + range(2, outputs.ndim)
+    outputs = outputs.dimshuffle(axes)
     states = [T.squeeze(state[-1]) for state in states]
     return last_output, outputs, states
 
