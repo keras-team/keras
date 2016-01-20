@@ -9,6 +9,7 @@ from .common import _FLOATX, _EPSILON
 # INTERNAL UTILS
 theano.config.floatX = _FLOATX
 
+
 def _on_gpu():
     '''Return whether the session is set to
     run on GPU or not (i.e. on CPU).
@@ -426,8 +427,8 @@ def rnn(step_function, inputs, initial_states,
         the step function.
     go_backwards: boolean. If True, do the iteration over
         the time dimension in reverse order.
-    mask: binary tensor with shape (samples, time, 1), with a zero for every element
-        that is masked.
+    mask: binary tensor with shape (samples, time, 1),
+        with a zero for every element that is masked.
 
     Returns
     -------
