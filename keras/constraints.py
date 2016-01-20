@@ -21,9 +21,12 @@ class MaxNorm(Constraint):
             In a `MaxoutDense` layer the weight tensor has shape (nb_feature, input_dim, output_dim),
             set `axis` to `1` to constrain each weight vector of length (input_dim),
             i.e. constrain the filters incident to the `max` operation.
-            In a `Convolution2D` layer the weight tensor has shape (nb_filter, stack_size, nb_row, nb_col),
-            set `axis` to `[1,2,3]` to constrain the weights of each filter tensor
-            of size (stack_size, nb_row, nb_col).
+            In a `Convolution2D` layer with the Theano backend, the weight tensor 
+            has shape (nb_filter, stack_size, nb_row, nb_col), set `axis` to `[1,2,3]` 
+            to constrain the weights of each filter tensor of size (stack_size, nb_row, nb_col).
+            In a `Convolution2D` layer with the TensorFlow backend, the weight tensor 
+            has shape (nb_row, nb_col, stack_size, nb_filter), set `axis` to `[0,1,2]` 
+            to constrain the weights of each filter tensor of size (nb_row, nb_col, stack_size).
 
     # References
         - [Dropout: A Simple Way to Prevent Neural Networks from Overfitting Srivastava, Hinton, et al. 2014](http://www.cs.toronto.edu/~rsalakhu/papers/srivastava14a.pdf)
