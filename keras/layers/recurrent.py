@@ -140,7 +140,7 @@ class Recurrent(MaskedLayer):
         else:
             initial_states = self.get_initial_states(X)
 
-        last_output, outputs, states = K.rnn(self.step, X, self.output_dim,
+        last_output, outputs, states = K.rnn(self.step, X,
                                              initial_states,
                                              go_backwards=self.go_backwards,
                                              mask=mask)

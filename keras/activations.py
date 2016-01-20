@@ -11,7 +11,6 @@ def softmax(x):
         def step(x, states):
             return K.softmax(x), []
         last_output, outputs, states = K.rnn(step, x,
-                                             K.shape(x)[-1],
                                              [],
                                              mask=None)
         return outputs
