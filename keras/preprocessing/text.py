@@ -41,7 +41,7 @@ def one_hot(text, n, filters=base_filter(), lower=True, split=" "):
 
 class Tokenizer(object):
     def __init__(self, nb_words=None, filters=base_filter(),
-                 lower=True, split=' '):
+                 lower=True, split=' ', char_level=False):
         '''The class allows to vectorize a text corpus, by turning each
         text into either a sequence of integers (each integer being the index
         of a token in a dictionary) or into a vector where the coefficient
@@ -71,6 +71,7 @@ class Tokenizer(object):
         self.lower = lower
         self.nb_words = nb_words
         self.document_count = 0
+        self.char_level = char_level
 
     def fit_on_texts(self, texts):
         '''
@@ -83,7 +84,7 @@ class Tokenizer(object):
         self.document_count = 0
         for text in texts:
             self.document_count += 1
-            seq = text_to_word_sequence(text, self.filters, self.lower, self.split)
+            seq = text if self.char_level else text_to_word_sequence(text, self.filters, self.lower, self.split)
             for w in seq:
                 if w in self.word_counts:
                     self.word_counts[w] += 1
@@ -142,7 +143,7 @@ class Tokenizer(object):
         '''
         nb_words = self.nb_words
         for text in texts:
-            seq = text_to_word_sequence(text, self.filters, self.lower, self.split)
+            seq = text if self.char_level else text_to_word_sequence(text, self.filters, self.lower, self.split)
             vect = []
             for w in seq:
                 i = self.word_index.get(w)
