@@ -15,7 +15,7 @@ W1 = np.array([[0.1, 0.2], [0.3, 0.4], [0.5, 0.6]], dtype='float32')
 def test_unitnorm_constraint():
     lookup = Sequential()
     lookup.add(Embedding(3, 2, weights=[W1],
-                         W_constraint=unitnorm(axis=1),
+                         W_constraint=unitnorm(),
                          input_length=1))
     lookup.add(Flatten())
     lookup.add(Dense(1))
@@ -23,7 +23,7 @@ def test_unitnorm_constraint():
     lookup.compile(loss='binary_crossentropy', optimizer='sgd',
                    class_mode='binary')
     lookup.train_on_batch(X1, np.array([[1], [0]], dtype='int32'))
-    norm = np.linalg.norm(K.get_value(lookup.params[0]), axis=1)
+    norm = np.linalg.norm(K.get_value(lookup.params[0]), axis=0)
     assert_allclose(norm, np.ones_like(norm).astype('float32'), rtol=1e-05)
 
 
