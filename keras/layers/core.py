@@ -179,7 +179,7 @@ class Layer(object):
             return self.input
         else:
             raise Exception('Layer is not connected' +
-                            'and is not an input layer.')
+                            ' and is not an input layer.')
 
     def supports_masked_input(self):
         '''Whether or not this layer respects the output mask of its previous
