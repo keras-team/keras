@@ -441,7 +441,7 @@ def rnn(step_function, inputs, initial_states,
     '''
     ndim = inputs.ndim
     assert ndim >= 3, "Input should be at least 3D."
-    axes = [1, 0] + range(2, ndim)
+    axes = [1, 0] + list(range(2, ndim))
     inputs = inputs.dimshuffle(axes)
     if mask is None:
         mask = expand_dims(ones_like(T.sum(inputs, axis=-1)))
@@ -479,7 +479,7 @@ def rnn(step_function, inputs, initial_states,
     outputs = T.squeeze(outputs)
     last_output = outputs[-1]
 
-    axes = [1, 0] + range(2, outputs.ndim)
+    axes = [1, 0] + list(range(2, outputs.ndim))
     outputs = outputs.dimshuffle(axes)
     states = [T.squeeze(state[-1]) for state in states]
     return last_output, outputs, states
