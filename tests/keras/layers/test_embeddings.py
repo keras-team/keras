@@ -15,7 +15,7 @@ W1 = np.array([[0.1, 0.2], [0.3, 0.4], [0.5, 0.6]], dtype='float32')
 def test_unitnorm_constraint():
     lookup = Sequential()
     lookup.add(Embedding(3, 2, weights=[W1],
-                         W_constraint=unitnorm(),
+                         W_constraint=unitnorm(axis=1),
                          input_length=1))
     lookup.add(Flatten())
     lookup.add(Dense(1))
