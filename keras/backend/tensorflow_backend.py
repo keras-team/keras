@@ -426,7 +426,7 @@ def rnn(step_function, inputs, initial_states,
     '''
     ndim = len(inputs.get_shape())
     assert ndim >= 3, "Input should be at least 3D."
-    axes = [1, 0] + range(2, ndim)
+    axes = [1, 0] + list(range(2, ndim))
     inputs = tf.transpose(inputs, (axes))
     input_list = tf.unpack(inputs)
     if mask is None:
@@ -482,7 +482,7 @@ def rnn(step_function, inputs, initial_states,
     outputs = tf.pack(successive_outputs)
     new_states = successive_states[-1]
 
-    axes = [1, 0] + range(2, len(outputs.get_shape()))
+    axes = [1, 0] + list(range(2, len(outputs.get_shape())))
     outputs = tf.transpose(outputs, axes)
     return last_output, outputs, new_states
 
