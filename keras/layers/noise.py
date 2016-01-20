@@ -65,7 +65,7 @@ class GaussianDropout(MaskedLayer):
             # self.p refers to drop probability rather than
             # retain probability (as in paper), for consistency
             X *= K.random_normal(shape=K.shape(X), mean=1.0,
-                                 std=self.p / (1.0 - self.p))
+                                 std=K.sqrt(self.p / (1.0 - self.p)))
         return X
 
     def get_config(self):
