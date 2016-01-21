@@ -54,7 +54,7 @@ def test_identity_oddballs():
 def test_unitnorm():
     unitnorm_instance = constraints.unitnorm()
     normalized = unitnorm_instance(K.variable(example_array))
-    norm_of_normalized = np.sqrt(np.sum(K.eval(normalized)**2, axis=1))
+    norm_of_normalized = np.sqrt(np.sum(K.eval(normalized)**2, axis=0))
     # in the unit norm constraint, it should be equal to 1.
     difference = norm_of_normalized - 1.
     largest_difference = np.max(np.abs(difference))
