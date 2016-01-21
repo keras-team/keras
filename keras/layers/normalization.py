@@ -112,6 +112,7 @@ class BatchNormalization(Layer):
         config = {"name": self.__class__.__name__,
                   "epsilon": self.epsilon,
                   "mode": self.mode,
+                  "axis": self.axis,
                   "momentum": self.momentum}
         base_config = super(BatchNormalization, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
