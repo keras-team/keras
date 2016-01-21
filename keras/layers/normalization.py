@@ -42,13 +42,15 @@ class BatchNormalization(Layer):
         - [Batch Normalization: Accelerating Deep Network Training by Reducing Internal Covariate Shift](http://arxiv.org/pdf/1502.03167v3.pdf)
     '''
     def __init__(self, epsilon=1e-6, mode=0, axis=-1, momentum=0.9,
-                 weights=None, **kwargs):
+                 weights=None, running_mean=None, running_std=None, **kwargs):
         self.init = initializations.get("uniform")
         self.epsilon = epsilon
         self.mode = mode
         self.axis = axis
         self.momentum = momentum
         self.initial_weights = weights
+        self.initial_running_mean = running_mean
+        self.initial_running_std = running_std
         super(BatchNormalization, self).__init__(**kwargs)
 
     def build(self):
@@ -57,24 +59,20 @@ class BatchNormalization(Layer):
 
         self.gamma = self.init(shape)
         self.beta = K.zeros(shape)
-
         self.params = [self.gamma, self.beta]
+        
         self.running_mean = K.zeros(shape)
+        if self.initial_running_mean is not None:
+            K.set_value(self.running_mean, self.initial_running_mean)
+            del self.initial_running_mean
         self.running_std = K.ones(shape)
-
+        if self.initial_running_std is not None:
+            K.set_value(self.running_std, self.initial_running_std)
+            del self.initial_running_std
+        
         if self.initial_weights is not None:
             self.set_weights(self.initial_weights)
             del self.initial_weights
-
-    def get_weights(self):
-        super_weights = super(BatchNormalization, self).get_weights()
-        return super_weights + [K.get_value(self.running_mean),
-                                K.get_value(self.running_std)]
-
-    def set_weights(self, weights):
-        K.set_value(self.running_mean, weights[-2])
-        K.set_value(self.running_std, weights[-1])
-        super(BatchNormalization, self).set_weights(weights[:-2])
 
     def get_output(self, train):
         X = self.get_input(train)
