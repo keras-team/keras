@@ -14,7 +14,7 @@ def _on_gpu():
     '''Return whether the session is set to
     run on GPU or not (i.e. on CPU).
     '''
-    return theano.config.device[:3] == 'gpu'
+    return theano.config.device[:3] == 'gpu' or theano.sandbox.cuda.cuda_enabled
 
 
 if _on_gpu():
