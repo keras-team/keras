@@ -14,7 +14,7 @@ def _on_gpu():
     '''Return whether the session is set to
     run on GPU or not (i.e. on CPU).
     '''
-    return theano.config.device[:3] == 'gpu'
+    return theano.config.device[:3] == 'gpu' or theano.sandbox.cuda.cuda_enabled
 
 
 if _on_gpu():
@@ -447,7 +447,7 @@ def rnn(step_function, inputs, initial_states,
     if mask is None:
         mask = expand_dims(ones_like(T.sum(inputs, axis=-1)))
     else:
-        mask = mask.dimshuffle((1, 0, 2))
+        mask = mask.dimshuffle(axes)
 
     def _step(input, mask, output_tm1, *states):
         output, new_states = step_function(input, states)
