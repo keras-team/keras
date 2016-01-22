@@ -9,6 +9,7 @@ import warnings
 from collections import deque
 from .utils.generic_utils import Progbar
 from keras import backend as K
+from itertools import chain
 
 
 class CallbackList(object):
@@ -513,10 +514,7 @@ class TensorBoard(Callback):
                 summary_str = result[0]
                 self.writer.add_summary(summary_str, epoch)
 
-        all_values = self.totals.copy()
-        all_values.update(logs)
-        
-        for name, value in all_values.items():
+        for name, value in chain(self.totals.items(),logs.items()):
             if name in ['batch', 'size']:
                 continue
             summary = tf.Summary()
