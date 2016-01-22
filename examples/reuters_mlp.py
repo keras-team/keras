@@ -3,6 +3,16 @@ GPU run command:
     THEANO_FLAGS=mode=FAST_RUN,device=gpu,floatX=float32 python examples/reuters_mlp.py
 CPU run command:
     python examples/reuters_mlp.py
+
+Note
+----
+
+This example requires a Theano version that is greater than what
+is installed by pip. To get the latest version of Theano, run the
+following command:
+
+    pip install git+https://github.com/Theano/Theano
+
 '''
 
 from __future__ import print_function
@@ -15,6 +25,11 @@ from keras.layers.core import Dense, Dropout, Activation
 from keras.layers.normalization import BatchNormalization
 from keras.utils import np_utils
 from keras.preprocessing.text import Tokenizer
+
+# Quick check for theano version > 0.7.0
+import theano.tensor.nnet
+if not hasattr(theano.tensor.nnet, 'relu'):
+    raise Exception("This example requires Theano > 0.7.0. Please refer to the docstring for more information.")
 
 max_words = 1000
 batch_size = 32

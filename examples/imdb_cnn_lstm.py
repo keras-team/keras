@@ -5,6 +5,16 @@ GPU command:
     THEANO_FLAGS=mode=FAST_RUN,device=gpu,floatX=float32 python imdb_lstm.py
 
 Get to 0.8498 test accuracy after 2 epochs. 41s/epoch on K520 GPU.
+
+Note
+----
+
+This example requires a Theano version that is greater than what
+is installed by pip. To get the latest version of Theano, run the
+following command:
+
+    pip install git+https://github.com/Theano/Theano
+
 '''
 
 from __future__ import print_function
@@ -19,6 +29,10 @@ from keras.layers.recurrent import LSTM, GRU, SimpleRNN
 from keras.layers.convolutional import Convolution1D, MaxPooling1D
 from keras.datasets import imdb
 
+# Quick check for theano version > 0.7.0
+import theano.tensor.nnet
+if not hasattr(theano.tensor.nnet, 'relu'):
+    raise Exception("This example requires Theano > 0.7.0. Please refer to the docstring for more information.")
 
 # Embedding
 max_features = 20000

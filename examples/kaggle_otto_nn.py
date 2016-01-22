@@ -18,6 +18,16 @@ Try it at home:
 
 Get the data from Kaggle:
 https://www.kaggle.com/c/otto-group-product-classification-challenge/data
+
+Note
+----
+
+This example requires a Theano version that is greater than what
+is installed by pip. To get the latest version of Theano, run the
+following command:
+
+    pip install git+https://github.com/Theano/Theano
+
 '''
 
 from __future__ import print_function
@@ -33,7 +43,6 @@ from keras.utils import np_utils, generic_utils
 
 from sklearn.preprocessing import LabelEncoder
 from sklearn.preprocessing import StandardScaler
-
 
 def load_data(path, train=True):
     df = pd.read_csv(path)
@@ -75,6 +84,11 @@ def make_submission(y_prob, ids, encoder, fname):
             f.write(probas)
             f.write('\n')
     print('Wrote submission to file {}.'.format(fname))
+
+# Quick check for theano version > 0.7.0
+import theano.tensor.nnet
+if not hasattr(theano.tensor.nnet, 'relu'):
+    raise Exception("This example requires Theano > 0.7.0. Please refer to the docstring for more information.")
 
 print('Loading data...')
 X, labels = load_data('train.csv', train=True)

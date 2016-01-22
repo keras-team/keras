@@ -9,6 +9,16 @@ It gets down to 0.65 test logloss in 25 epochs, and down to 0.55 after 50 epochs
 Note: the data was pickled with Python 2, and some encoding issues might prevent you
 from loading it in Python 3. You might have to load it in Python 2,
 save it in a different format, load it in Python 3 and repickle it.
+
+Note
+----
+
+This example requires a Theano version that is greater than what
+is installed by pip. To get the latest version of Theano, run the
+following command:
+
+    pip install git+https://github.com/Theano/Theano
+
 '''
 
 from __future__ import print_function
@@ -19,6 +29,11 @@ from keras.layers.core import Dense, Dropout, Activation, Flatten
 from keras.layers.convolutional import Convolution2D, MaxPooling2D
 from keras.optimizers import SGD
 from keras.utils import np_utils
+
+# Quick check for theano version > 0.7.0
+import theano.tensor.nnet
+if not hasattr(theano.tensor.nnet, 'relu'):
+    raise Exception("This example requires Theano > 0.7.0. Please refer to the docstring for more information.")
 
 batch_size = 32
 nb_classes = 10
