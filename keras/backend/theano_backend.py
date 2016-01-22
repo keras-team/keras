@@ -495,6 +495,10 @@ def switch(condition, then_expression, else_expression):
 # NN OPERATIONS
 
 def relu(x, alpha=0., max_value=None):
+    assert hasattr(T.nnet, 'relu'), ('It looks like like your version of '
+                                     'Theano is out of date. '
+                                     'Install the latest version with:\n'
+                                     'pip install git+git://github.com/Theano/Theano.git --upgrade')
     x = T.nnet.relu(x, alpha)
     if max_value is not None:
         x = T.minimum(x, max_value)
