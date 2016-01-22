@@ -21,7 +21,6 @@ following command:
 '''
 
 from __future__ import print_function
-import theano
 import numpy as np
 from keras.models import Sequential
 from keras.layers.core import Dense, Dropout, Layer, Activation
