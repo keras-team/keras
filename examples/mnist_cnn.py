@@ -4,6 +4,16 @@ Run on GPU: THEANO_FLAGS=mode=FAST_RUN,device=gpu,floatX=float32 python mnist_cn
 
 Get to 99.25% test accuracy after 12 epochs (there is still a lot of margin for parameter tuning).
 16 seconds per epoch on a GRID K520 GPU.
+
+Note
+----
+
+This example requires a Theano version that is greater than what
+is installed by pip. To get the latest version of Theano, run the
+following command:
+
+    pip install git+https://github.com/Theano/Theano
+
 '''
 
 from __future__ import print_function
@@ -15,6 +25,11 @@ from keras.models import Sequential
 from keras.layers.core import Dense, Dropout, Activation, Flatten
 from keras.layers.convolutional import Convolution2D, MaxPooling2D
 from keras.utils import np_utils
+
+# Quick check for theano version > 0.7.0
+import theano.tensor.nnet
+if not hasattr(theano.tensor.nnet, 'relu'):
+    raise Exception("This example requires Theano > 0.7.0. Please refer to the docstring for more information.")
 
 batch_size = 128
 nb_classes = 10

@@ -11,6 +11,16 @@ improvement.
 
 Reaches 0.93 train/test accuracy after 900 epochs
 (which roughly corresponds to 1687500 steps in the original paper.)
+
+Note
+----
+
+This example requires a Theano version that is greater than what
+is installed by pip. To get the latest version of Theano, run the
+following command:
+
+    pip install git+https://github.com/Theano/Theano
+
 '''
 
 from __future__ import print_function
@@ -25,6 +35,10 @@ from keras.layers.recurrent import SimpleRNN, LSTM
 from keras.optimizers import RMSprop
 from keras.utils import np_utils
 
+# Quick check for theano version > 0.7.0
+import theano.tensor.nnet
+if not hasattr(theano.tensor.nnet, 'relu'):
+    raise Exception("This example requires Theano > 0.7.0. Please refer to the docstring for more information.")
 
 batch_size = 32
 nb_classes = 10

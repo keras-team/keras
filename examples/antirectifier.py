@@ -8,9 +8,20 @@ Note that the same result can also be achieved via a Lambda layer.
 
 Because our custom layer is written with primitives from the Keras
 backend (`K`), our code can run both on TensorFlow and Theano.
+
+Note
+----
+
+This example requires a Theano version that is greater than what
+is installed by pip. To get the latest version of Theano, run the
+following command:
+
+    pip install git+https://github.com/Theano/Theano
+
 '''
 
 from __future__ import print_function
+import theano
 import numpy as np
 from keras.models import Sequential
 from keras.layers.core import Dense, Dropout, Layer, Activation
@@ -60,6 +71,12 @@ class Antirectifier(Layer):
         pos = K.relu(x)
         neg = K.relu(-x)
         return K.concatenate([pos, neg], axis=1)
+
+
+# Quick check for theano version > 0.7.0
+import theano.tensor.nnet
+if not hasattr(theano.tensor.nnet, 'relu'):
+    raise Exception("This example requires Theano > 0.7.0. Please refer to the docstring for more information.")
 
 # global parameters
 batch_size = 128
