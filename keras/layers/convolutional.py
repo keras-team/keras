@@ -184,9 +184,10 @@ class Convolution2D(Layer):
 
     # Output shape
         4D tensor with shape:
-        `(samples, nb_filter, nb_row, nb_col)` if dim_ordering='th'
+        `(samples, nb_filter, new_rows, new_cols)` if dim_ordering='th'
         or 4D tensor with shape:
-        `(samples, nb_row, nb_col, nb_filter)` if dim_ordering='tf'.
+        `(samples, new_rows, new_cols, nb_filter)` if dim_ordering='tf'.
+        `rows` and `cols` values might have changed due to padding.
 
 
     # Arguments
