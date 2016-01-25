@@ -142,18 +142,19 @@ class ImageDataGenerator(object):
     def flow(self, X, y, batch_size=32, shuffle=False, seed=None,
              save_to_dir=None, save_prefix="", save_format="jpeg"):
         assert len(X) == len(y)
-        if seed:
-            random.seed(seed)
-
-        if shuffle:
-            seed = random.randint(1, 10e6)
-            np.random.seed(seed)
-            np.random.shuffle(X)
-            np.random.seed(seed)
-            np.random.shuffle(y)
 
         b = 0
+        total_b = 0
         while 1:
+            if b == 0:
+                if seed is not None:
+                    np.random.seed(seed + total_b)
+
+                if shuffle:
+                    index_array = np.random.permutation(X.shape[0])
+                else:
+                    index_array = np.arange(X.shape[0])
+
             current_index = (b * batch_size) % X.shape[0]
             if X.shape[0] >= current_index + batch_size:
                 current_batch_size = batch_size
@@ -161,7 +162,7 @@ class ImageDataGenerator(object):
                 current_batch_size = X.shape[0] - current_index
             bX = np.zeros(tuple([current_batch_size] + list(X.shape)[1:]))
             for i in range(current_batch_size):
-                x = X[current_index + i]
+                x = X[index_array[current_index + i]]
                 x = self.random_transform(x.astype("float32"))
                 x = self.standardize(x)
                 bX[i] = x
@@ -173,7 +174,8 @@ class ImageDataGenerator(object):
                 b += 1
             else:
                 b = 0
-            yield bX, y[current_index: current_index + batch_size]
+            total_b += 1
+            yield bX, y[index_array[current_index: current_index + batch_size]]
 
     def standardize(self, x):
         if self.featurewise_center:
