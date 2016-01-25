@@ -42,15 +42,13 @@ class BatchNormalization(Layer):
         - [Batch Normalization: Accelerating Deep Network Training by Reducing Internal Covariate Shift](http://arxiv.org/pdf/1502.03167v3.pdf)
     '''
     def __init__(self, epsilon=1e-6, mode=0, axis=-1, momentum=0.9,
-                 weights=None, running_mean=None, running_std=None, **kwargs):
+                 weights=None, **kwargs):
         self.init = initializations.get("uniform")
         self.epsilon = epsilon
         self.mode = mode
         self.axis = axis
         self.momentum = momentum
         self.initial_weights = weights
-        self.initial_running_mean = running_mean
-        self.initial_running_std = running_std
         super(BatchNormalization, self).__init__(**kwargs)
 
     def build(self):
@@ -62,13 +60,8 @@ class BatchNormalization(Layer):
         self.params = [self.gamma, self.beta]
         
         self.running_mean = K.zeros(shape)
-        if self.initial_running_mean is not None:
-            K.set_value(self.running_mean, self.initial_running_mean)
-            del self.initial_running_mean
         self.running_std = K.ones(shape)
-        if self.initial_running_std is not None:
-            K.set_value(self.running_std, self.initial_running_std)
-            del self.initial_running_std
+        self.additional_params = [self.running_mean, self.running_std]
         
         if self.initial_weights is not None:
             self.set_weights(self.initial_weights)

@@ -53,6 +53,8 @@ class Layer(object):
             self.name = kwargs['name']
         if not hasattr(self, 'params'):
             self.params = []
+        if not hasattr(self, 'additional_params'):
+            self.additional_params = []
         self.cache_enabled = True
         if 'cache_enabled' in kwargs:
             self.cache_enabled = kwargs['cache_enabled']
@@ -222,10 +224,11 @@ class Layer(object):
             of the layer (i.e. it should match the
             output of `get_weights`).
         '''
-        assert len(self.params) == len(weights), ('Provided weight array does not match layer weights (' +
-                                                  str(len(self.params)) + ' layer params vs. ' +
-                                                  str(len(weights)) + ' provided weights)')
-        for p, w in zip(self.params, weights):
+        params = self.params + self.additional_params
+        assert len(params) == len(weights), ('Provided weight array does not match layer weights (' +
+                                             str(len(params)) + ' layer params vs. ' +
+                                             str(len(weights)) + ' provided weights)')
+        for p, w in zip(params, weights):
             if K.get_value(p).shape != w.shape:
                 raise Exception('Layer shape %s not compatible with weight shape %s.' % (K.get_value(p).shape, w.shape))
             K.set_value(p, w)
@@ -234,8 +237,9 @@ class Layer(object):
         '''Return the weights of the layer,
         as a list of numpy arrays.
         '''
+        params = self.params + self.additional_params
         weights = []
-        for p in self.params:
+        for p in params:
             weights.append(K.get_value(p))
         return weights
 

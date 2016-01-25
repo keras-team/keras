@@ -155,7 +155,7 @@ class Sequential(Layer):
 
     def set_weights(self, weights):
         for i in range(len(self.layers)):
-            nb_param = len(self.layers[i].params)
+            nb_param = len(self.layers[i].params) + len(self.layers[i].additional_params)
             self.layers[i].set_weights(weights[:nb_param])
             weights = weights[nb_param:]
 
