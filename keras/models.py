@@ -929,10 +929,12 @@ class Sequential(Model, containers.Sequential):
                 for l, o in zip(out_labels, val_outs):
                     epoch_logs['val_' + l] = o
 
-            callbacks.on_epoch_end(epoch, epoch_logs)
+            
 
             cbks_params['nb_sample'] = samples_seen
             callbacks._set_params(cbks_params)
+            
+            callbacks.on_epoch_end(epoch, epoch_logs)
 
             if self.stop_training:
                 break
