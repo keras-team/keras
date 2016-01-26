@@ -41,6 +41,9 @@ def test_sgd():
     sgd = SGD(lr=0.01, momentum=0.9, nesterov=True)
     _test_optimizer(sgd)
 
+def test_sgd_scaled():
+    sgd = SGD(lr=0.01, momentum=0.9, nesterov=True, lr_scalers={0:0.9})
+    _test_optimizer(sgd)
 
 def test_rmsprop():
     _test_optimizer(RMSprop())
