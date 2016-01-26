@@ -152,8 +152,8 @@ class ImageDataGenerator(object):
             np.random.seed(seed)
             np.random.shuffle(y)
 
-        b = 0
-        while 1:
+        nb_batch = int(math.ceil(float(X.shape[0])/batch_size))
+        for b in range(nb_batch):
             current_index = (b * batch_size) % X.shape[0]
             if X.shape[0] >= current_index + batch_size:
                 current_batch_size = batch_size
@@ -168,11 +168,7 @@ class ImageDataGenerator(object):
             if save_to_dir:
                 for i in range(current_batch_size):
                     img = array_to_img(bX[i], scale=True)
-                    img.save(save_to_dir + "/" + save_prefix + "_" + str(i) + "." + save_format)
-            if current_batch_size == batch_size:
-                b += 1
-            else:
-                b = 0
+                    img.save(save_to_dir + "/" + save_prefix + "_" + str(current_index + i) + "." + save_format)
             yield bX, y[current_index: current_index + batch_size]
 
     def standardize(self, x):
