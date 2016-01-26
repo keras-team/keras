@@ -388,7 +388,7 @@ def gradients(loss, variables):
 
 # CONTROL FLOW
 
-def rnn(step_function, inputs, output_dim, initial_states,
+def rnn(step_function, inputs, initial_states,
         go_backwards=False, mask=None):
     '''Iterates over the time dimension of a tensor.
 
@@ -406,16 +406,13 @@ def rnn(step_function, inputs, output_dim, initial_states,
             output: tensor with shape (samples, ...) (no time dimension),
             new_states: list of tensors, same length and shapes
                 as 'states'.
-    output_dim:
-        Number of output dimensions (for tensorflow back-end can safely be set
-        to None, it will be inferred automatically)
     initial_states: tensor with shape (samples, ...) (no time dimension),
         containing the initial values for the states used in
         the step function.
     go_backwards: boolean. If True, do the iteration over
         the time dimension in reverse order.
-    mask: binary tensor with shape (samples, time, 1), with a zero for every element
-        that is masked.
+    mask: binary tensor with shape (samples, time, 1),
+        with a zero for every element that is masked.
 
     Returns
     -------
@@ -427,7 +424,10 @@ def rnn(step_function, inputs, output_dim, initial_states,
         new_states: list of tensors, latest states returned by
             the step function, of shape (samples, ...).
     '''
-    inputs = tf.transpose(inputs, (1, 0, 2))
+    ndim = len(inputs.get_shape())
+    assert ndim >= 3, "Input should be at least 3D."
+    axes = [1, 0] + list(range(2, ndim))
+    inputs = tf.transpose(inputs, (axes))
     input_list = tf.unpack(inputs)
     if mask is None:
         mask = ones_like(tf.slice(inputs, [0, 0, 0], [-1, -1, 1]))
@@ -440,7 +440,7 @@ def rnn(step_function, inputs, output_dim, initial_states,
         mask = tf.cast(mask, tf.bool)
     else:
         # Transpose not supported by bool tensor types, hence round-trip to uint8.
-        mask = tf.cast(tf.transpose(tf.cast(mask, tf.uint8), (1, 0, 2)), tf.bool)
+        mask = tf.cast(tf.transpose(tf.cast(mask, tf.uint8), axes), tf.bool)
 
     mask_list = tf.unpack(mask)
 
@@ -482,7 +482,8 @@ def rnn(step_function, inputs, output_dim, initial_states,
     outputs = tf.pack(successive_outputs)
     new_states = successive_states[-1]
 
-    outputs = tf.transpose(outputs, (1, 0, 2))
+    axes = [1, 0] + list(range(2, len(outputs.get_shape())))
+    outputs = tf.transpose(outputs, axes)
     return last_output, outputs, new_states
 
 

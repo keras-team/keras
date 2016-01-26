@@ -150,8 +150,10 @@ def model_from_config(config, custom_objects={}):
     model = container_from_config(config, custom_objects=custom_objects)
     if model_name == 'Graph':
         model.__class__ = Graph
+        model.name = model_name
     elif model_name == 'Sequential':
         model.__class__ = Sequential
+        model.name = model_name
 
     if 'optimizer' in config:
         # if it has an optimizer, the model is assumed to be compiled
@@ -514,14 +516,7 @@ class Sequential(Model, containers.Sequential):
                 used for scaling the loss function (during training only).
             sample_weight: list or numpy array with 1:1 mapping to
                 the training samples, used for scaling the loss function
-                (during training only). For time-distributed data,
-                there is one weight per sample *per timestep*,
-                i.e. if your output data is shaped
-                `(nb_samples, timesteps, output_dim)`,
-                your mask should be of shape `(nb_samples, timesteps, 1)`.
-                This allows you to mask out or reweight individual
-                output timesteps, which is useful
-                in sequence to sequence learning.
+                (during training only).
         '''
         if type(X) == list:
             if len(set([len(a) for a in X] + [len(y)])) != 1:
@@ -885,7 +880,6 @@ class Sequential(Model, containers.Sequential):
         }
         callbacks._set_params(cbks_params)
         callbacks.on_train_begin()
-
         self.stop_training = False
         for epoch in np.arange(nb_epoch):
             callbacks.on_epoch_begin(epoch)

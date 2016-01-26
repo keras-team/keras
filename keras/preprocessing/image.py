@@ -11,44 +11,43 @@ import random
 import math
 from six.moves import range
 
+'''Fairly basic set of tools for realtime data augmentation on image data.
+Can easily be extended to include new transformations, new preprocessing methods, etc...
 '''
-    Fairly basic set of tools for realtime data augmentation on image data.
-    Can easily be extended to include new transforms, new preprocessing methods, etc...
-'''
+
 
 def random_rotation(x, rg, fill_mode="nearest", cval=0.):
     angle = random.uniform(-rg, rg)
-    x = ndimage.interpolation.rotate(x, angle, axes=(1,2), reshape=False, mode=fill_mode, cval=cval)
+    x = ndimage.interpolation.rotate(x, angle,
+                                     axes=(1, 2),
+                                     reshape=False,
+                                     mode=fill_mode,
+                                     cval=cval)
     return x
+
 
 def random_shift(x, wrg, hrg, fill_mode="nearest", cval=0.):
     crop_left_pixels = 0
-    crop_right_pixels = 0
     crop_top_pixels = 0
-    crop_bottom_pixels = 0
-
-    original_w = x.shape[1]
-    original_h = x.shape[2]
 
     if wrg:
         crop = random.uniform(0., wrg)
         split = random.uniform(0, 1)
         crop_left_pixels = int(split*crop*x.shape[1])
-        crop_right_pixels = int((1-split)*crop*x.shape[1])
-
     if hrg:
         crop = random.uniform(0., hrg)
         split = random.uniform(0, 1)
         crop_top_pixels = int(split*crop*x.shape[2])
-        crop_bottom_pixels = int((1-split)*crop*x.shape[2])
-
-    x = ndimage.interpolation.shift(x, (0, crop_left_pixels, crop_top_pixels), mode=fill_mode, cval=cval)
+    x = ndimage.interpolation.shift(x, (0, crop_left_pixels, crop_top_pixels),
+                                    mode=fill_mode, cval=cval)
     return x
+
 
 def horizontal_flip(x):
     for i in range(x.shape[0]):
         x[i] = np.fliplr(x[i])
     return x
+
 
 def vertical_flip(x):
     for i in range(x.shape[0]):
@@ -60,24 +59,28 @@ def random_barrel_transform(x, intensity):
     # TODO
     pass
 
+
 def random_shear(x, intensity):
     # TODO
     pass
+
 
 def random_channel_shift(x, rg):
     # TODO
     pass
 
+
 def random_zoom(x, rg, fill_mode="nearest", cval=0.):
     zoom_w = random.uniform(1.-rg, 1.)
     zoom_h = random.uniform(1.-rg, 1.)
-    x = ndimage.interpolation.zoom(x, zoom=(1., zoom_w, zoom_h), mode=fill_mode, cval=cval)
-    return x # shape of result will be different from shape of input!
+    x = ndimage.interpolation.zoom(x, zoom=(1., zoom_w, zoom_h),
+                                   mode=fill_mode, cval=cval)
+    return x  # shape of result will be different from shape of input!
 
 
 def array_to_img(x, scale=True):
     from PIL import Image
-    x = x.transpose(1, 2, 0) 
+    x = x.transpose(1, 2, 0)
     if scale:
         x += max(-np.min(x), 0)
         x /= np.max(x)
@@ -87,12 +90,12 @@ def array_to_img(x, scale=True):
         return Image.fromarray(x.astype("uint8"), "RGB")
     else:
         # grayscale
-        return Image.fromarray(x[:,:,0].astype("uint8"), "L")
+        return Image.fromarray(x[:, :, 0].astype("uint8"), "L")
 
 
 def img_to_array(img):
     x = np.asarray(img, dtype='float32')
-    if len(x.shape)==3:
+    if len(x.shape) == 3:
         # RGB: height, width, channel -> channel, height, width
         x = x.transpose(2, 0, 1)
     else:
@@ -106,40 +109,39 @@ def load_img(path, grayscale=False):
     img = Image.open(path)
     if grayscale:
         img = img.convert('L')
-    else: # Assure 3 channel even when loaded image is grayscale
+    else:  # Ensure 3 channel even when loaded image is grayscale
         img = img.convert('RGB')
     return img
 
 
 def list_pictures(directory, ext='jpg|jpeg|bmp|png'):
-    return [join(directory,f) for f in listdir(directory)
-            if isfile(join(directory,f)) and re.match('([\w]+\.(?:' + ext + '))', f)]
+    return [join(directory, f) for f in listdir(directory)
+            if isfile(join(directory, f)) and re.match('([\w]+\.(?:' + ext + '))', f)]
 
 
 class ImageDataGenerator(object):
+    '''Generate minibatches with
+    realtime data augmentation.
     '''
-        Generate minibatches with 
-        realtime data augmentation.
-    '''
-    def __init__(self, 
-                 featurewise_center=True, # set input mean to 0 over the dataset
-                 samplewise_center=False, # set each sample mean to 0
-                 featurewise_std_normalization=True, # divide inputs by std of the dataset
-                 samplewise_std_normalization=False, # divide each input by its std
-
-                 zca_whitening=False, # apply ZCA whitening
-                 rotation_range=0., # degrees (0 to 180)
-                 width_shift_range=0., # fraction of total width
-                 height_shift_range=0., # fraction of total height
+    def __init__(self,
+                 featurewise_center=True,  # set input mean to 0 over the dataset
+                 samplewise_center=False,  # set each sample mean to 0
+                 featurewise_std_normalization=True,  # divide inputs by std of the dataset
+                 samplewise_std_normalization=False,  # divide each input by its std
+                 zca_whitening=False,  # apply ZCA whitening
+                 rotation_range=0.,  # degrees (0 to 180)
+                 width_shift_range=0.,  # fraction of total width
+                 height_shift_range=0.,  # fraction of total height
                  horizontal_flip=False,
-                 vertical_flip=False,
-                 ):
+                 vertical_flip=False):
         self.__dict__.update(locals())
         self.mean = None
         self.std = None
         self.principal_components = None
 
-    def flow(self, X, y, batch_size=32, shuffle=False, seed=None, save_to_dir=None, save_prefix="", save_format="jpeg"):
+    def flow(self, X, y, batch_size=32, shuffle=False, seed=None,
+             save_to_dir=None, save_prefix="", save_format="jpeg"):
+        assert len(X) == len(y)
         if seed:
             random.seed(seed)
 
@@ -150,27 +152,28 @@ class ImageDataGenerator(object):
             np.random.seed(seed)
             np.random.shuffle(y)
 
-        nb_batch = int(math.ceil(float(X.shape[0])/batch_size))
-        for b in range(nb_batch):
-            batch_end = (b+1)*batch_size
-            if batch_end > X.shape[0]:
-                nb_samples = X.shape[0] - b*batch_size
+        b = 0
+        while 1:
+            current_index = (b * batch_size) % X.shape[0]
+            if X.shape[0] >= current_index + batch_size:
+                current_batch_size = batch_size
             else:
-                nb_samples = batch_size
-
-            bX = np.zeros(tuple([nb_samples]+list(X.shape)[1:]))
-            for i in range(nb_samples):
-                x = X[b*batch_size+i]
+                current_batch_size = X.shape[0] - current_index
+            bX = np.zeros(tuple([current_batch_size] + list(X.shape)[1:]))
+            for i in range(current_batch_size):
+                x = X[current_index + i]
                 x = self.random_transform(x.astype("float32"))
                 x = self.standardize(x)
                 bX[i] = x
-
             if save_to_dir:
-                for i in range(nb_samples):
+                for i in range(current_batch_size):
                     img = array_to_img(bX[i], scale=True)
                     img.save(save_to_dir + "/" + save_prefix + "_" + str(i) + "." + save_format)
-
-            yield bX, y[b*batch_size:b*batch_size+nb_samples]
+            if current_batch_size == batch_size:
+                b += 1
+            else:
+                b = 0
+            yield bX, y[current_index: current_index + batch_size]
 
     def standardize(self, x):
         if self.featurewise_center:
@@ -213,8 +216,7 @@ class ImageDataGenerator(object):
             augment=False,  # fit on randomly augmented samples
             rounds=1,  # if augment, how many augmentation passes over the data do we use
             seed=None):
-        '''
-            Required for featurewise_center, featurewise_std_normalization and zca_whitening.
+        '''Required for featurewise_center, featurewise_std_normalization and zca_whitening.
         '''
         X = np.copy(X)
         if augment:

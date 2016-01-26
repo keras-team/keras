@@ -9,11 +9,12 @@ from .common import _FLOATX, _EPSILON
 # INTERNAL UTILS
 theano.config.floatX = _FLOATX
 
+
 def _on_gpu():
     '''Return whether the session is set to
     run on GPU or not (i.e. on CPU).
     '''
-    return theano.config.device[:3] == 'gpu'
+    return theano.config.device[:3] == 'gpu' or theano.sandbox.cuda.cuda_enabled
 
 
 if _on_gpu():
@@ -403,7 +404,7 @@ def gradients(loss, variables):
 
 # CONTROL FLOW
 
-def rnn(step_function, inputs, output_dim, initial_states,
+def rnn(step_function, inputs, initial_states,
         go_backwards=False, mask=None):
     '''Iterates over the time dimension of a tensor.
 
@@ -421,15 +422,13 @@ def rnn(step_function, inputs, output_dim, initial_states,
             output: tensor with shape (samples, ...) (no time dimension),
             new_states: list of tensors, same length and shapes
                 as 'states'.
-    output_dim:
-        Number of output dimensions
     initial_states: tensor with shape (samples, ...) (no time dimension),
         containing the initial values for the states used in
         the step function.
     go_backwards: boolean. If True, do the iteration over
         the time dimension in reverse order.
-    mask: binary tensor with shape (samples, time, 1), with a zero for every element
-        that is masked.
+    mask: binary tensor with shape (samples, time, 1),
+        with a zero for every element that is masked.
 
     Returns
     -------
@@ -441,11 +440,14 @@ def rnn(step_function, inputs, output_dim, initial_states,
         new_states: list of tensors, latest states returned by
             the step function, of shape (samples, ...).
     '''
-    inputs = inputs.dimshuffle((1, 0, 2))
+    ndim = inputs.ndim
+    assert ndim >= 3, "Input should be at least 3D."
+    axes = [1, 0] + list(range(2, ndim))
+    inputs = inputs.dimshuffle(axes)
     if mask is None:
         mask = expand_dims(ones_like(T.sum(inputs, axis=-1)))
     else:
-        mask = mask.dimshuffle((1, 0, 2))
+        mask = mask.dimshuffle(axes)
 
     def _step(input, mask, output_tm1, *states):
         output, new_states = step_function(input, states)
@@ -457,7 +459,7 @@ def rnn(step_function, inputs, output_dim, initial_states,
         return [output] + return_states
 
     # build an all-zero tensor of shape (samples, output_dim)
-    initial_output = T.zeros((inputs.shape[1], output_dim))
+    initial_output = step_function(inputs[0], initial_states)[0] * 0
     # Theano gets confused by broadcasting patterns in the scan op
     initial_output = T.unbroadcast(initial_output, 0, 1)
 
@@ -478,7 +480,8 @@ def rnn(step_function, inputs, output_dim, initial_states,
     outputs = T.squeeze(outputs)
     last_output = outputs[-1]
 
-    outputs = outputs.dimshuffle((1, 0, 2))
+    axes = [1, 0] + list(range(2, outputs.ndim))
+    outputs = outputs.dimshuffle(axes)
     states = [T.squeeze(state[-1]) for state in states]
     return last_output, outputs, states
 
@@ -492,6 +495,10 @@ def switch(condition, then_expression, else_expression):
 # NN OPERATIONS
 
 def relu(x, alpha=0., max_value=None):
+    assert hasattr(T.nnet, 'relu'), ('It looks like like your version of '
+                                     'Theano is out of date. '
+                                     'Install the latest version with:\n'
+                                     'pip install git+git://github.com/Theano/Theano.git --upgrade --no-deps')
     x = T.nnet.relu(x, alpha)
     if max_value is not None:
         x = T.minimum(x, max_value)

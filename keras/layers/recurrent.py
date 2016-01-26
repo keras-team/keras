@@ -132,15 +132,19 @@ class Recurrent(MaskedLayer):
             if not self.input_shape[1]:
                 raise Exception('When using TensorFlow, you should define ' +
                                 'explicitly the number of timesteps of ' +
-                                'your sequences. Make sure the first layer ' +
-                                'has a "batch_input_shape" argument ' +
-                                'including the samples axis.')
+                                'your sequences.\n' +
+                                'If your first layer is an Embedding, ' +
+                                'make sure to pass it an "input_length" ' +
+                                'argument. Otherwise, make sure ' +
+                                'the first layer has ' +
+                                'an "input_shape" or "batch_input_shape" ' +
+                                'argument, including the time axis.')
         if self.stateful:
             initial_states = self.states
         else:
             initial_states = self.get_initial_states(X)
 
-        last_output, outputs, states = K.rnn(self.step, X, self.output_dim,
+        last_output, outputs, states = K.rnn(self.step, X,
                                              initial_states,
                                              go_backwards=self.go_backwards,
                                              mask=mask)

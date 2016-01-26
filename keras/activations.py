@@ -10,7 +10,9 @@ def softmax(x):
         # apply softmax to each timestep
         def step(x, states):
             return K.softmax(x), []
-        last_output, outputs, states = K.rnn(step, x, [], masking=False)
+        last_output, outputs, states = K.rnn(step, x,
+                                             [],
+                                             mask=None)
         return outputs
     else:
         raise Exception('Cannot apply softmax to a tensor that is not 2D or 3D. ' +
