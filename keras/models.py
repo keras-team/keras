@@ -952,7 +952,11 @@ class Sequential(Model, containers.Sequential):
 
         self.stop_training = False
         while epoch < nb_epoch:
-            callbacks.on_epoch_begin(epoch)
+            # construct epoch logs
+            epoch_logs = {}
+            epoch_logs['epoch'] = epoch
+            callbacks.on_epoch_begin(epoch, epoch_logs)
+
             samples_seen = 0
             batch_index = 0
             while samples_seen < samples_per_epoch:
@@ -966,10 +970,12 @@ class Sequential(Model, containers.Sequential):
 
                 X, y, sample_weight = input_validation(generator_output)
 
+                # construct batch logs
                 batch_logs = {}
                 batch_size = len(X[0])
                 batch_logs['batch'] = batch_index
                 batch_logs['size'] = batch_size
+
                 callbacks.on_batch_begin(batch_index, batch_logs)
                 outs = self.train_on_batch(X, y,
                                            accuracy=show_accuracy,
@@ -979,32 +985,30 @@ class Sequential(Model, containers.Sequential):
                     outs = [outs]
                 for l, o in zip(out_labels, outs):
                     batch_logs[l] = o
-
                 callbacks.on_batch_end(batch_index, batch_logs)
 
-                # construct epoch logs
-                epoch_logs = {}
                 batch_index += 1
                 samples_seen += batch_size
-                if samples_seen >= samples_per_epoch:  # epoch finished
-                    if do_validation:
-                        if hasattr(validation_data, 'next'):
-                            # assumed to be generator
-                            # TODO: call self.evaluate_generator()
-                            _stop.set()
-                            raise NotImplementedError()
-                        else:
-                            # input validation
-                            X, y, sample_weight = input_validation(validation_data)
-                            val_outs = self.evaluate(X, y,
-                                                     show_accuracy=show_accuracy,
-                                                     sample_weight=sample_weight,
-                                                     verbose=0)
-                        if type(val_outs) != list:
-                            val_outs = [val_outs]
-                        # same labels assumed
-                        for l, o in zip(out_labels, val_outs):
-                            epoch_logs['val_' + l] = o
+
+            # epoch finished
+            if do_validation:
+                if hasattr(validation_data, 'next'):
+                    # assumed to be generator
+                    # TODO: call self.evaluate_generator()
+                    _stop.set()
+                    raise NotImplementedError()
+                else:
+                    # input validation
+                    X, y, sample_weight = input_validation(validation_data)
+                    val_outs = self.evaluate(X, y,
+                                             show_accuracy=show_accuracy,
+                                             sample_weight=sample_weight,
+                                             verbose=0)
+                if type(val_outs) != list:
+                    val_outs = [val_outs]
+                # same labels assumed
+                for l, o in zip(out_labels, val_outs):
+                    epoch_logs['val_' + l] = o
 
             callbacks.on_epoch_end(epoch, epoch_logs)
             epoch += 1
@@ -1394,7 +1398,11 @@ class Graph(Model, containers.Graph):
 
         self.stop_training = False
         while epoch < nb_epoch:
-            callbacks.on_epoch_begin(epoch)
+            # construct epoch logs
+            epoch_logs = {}
+            epoch_logs['epoch'] = epoch
+            callbacks.on_epoch_begin(epoch, epoch_logs)
+
             samples_seen = 0
             batch_index = 0
             while samples_seen < samples_per_epoch:
@@ -1407,10 +1415,12 @@ class Graph(Model, containers.Graph):
 
                 data, sample_weight = input_validation(generator_output)
 
+                # construct batch logs
                 batch_logs = {}
                 batch_size = len(data[list(data.keys())[0]])
                 batch_logs['batch'] = batch_index
                 batch_logs['size'] = batch_size
+
                 callbacks.on_batch_begin(batch_index, batch_logs)
                 outs = self.train_on_batch(data,
                                            sample_weight=sample_weight,
@@ -1419,31 +1429,29 @@ class Graph(Model, containers.Graph):
                     outs = [outs]
                 for l, o in zip(out_labels, outs):
                     batch_logs[l] = o
-
                 callbacks.on_batch_end(batch_index, batch_logs)
 
-                # construct epoch logs
-                epoch_logs = {}
                 batch_index += 1
                 samples_seen += batch_size
-                if samples_seen >= samples_per_epoch:  # epoch finished
-                    if do_validation:
-                        if hasattr(validation_data, 'next'):
-                            # assumed to be generator
-                            # TODO: call self.evaluate_generator()
-                            _stop.set()
-                            raise NotImplementedError()
-                        else:
-                            # input validation
-                            data, sample_weight = input_validation(validation_data)
-                            val_outs = self.evaluate(data,
-                                                     sample_weight=sample_weight,
-                                                     verbose=0)
-                        if type(val_outs) != list:
-                            val_outs = [val_outs]
-                        # same labels assumed
-                        for l, o in zip(out_labels, val_outs):
-                            epoch_logs['val_' + l] = o
+
+            # epoch finished
+            if do_validation:
+                if hasattr(validation_data, 'next'):
+                    # assumed to be generator
+                    # TODO: call self.evaluate_generator()
+                    _stop.set()
+                    raise NotImplementedError()
+                else:
+                    # input validation
+                    data, sample_weight = input_validation(validation_data)
+                    val_outs = self.evaluate(data,
+                                             sample_weight=sample_weight,
+                                             verbose=0)
+                if type(val_outs) != list:
+                    val_outs = [val_outs]
+                # same labels assumed
+                for l, o in zip(out_labels, val_outs):
+                    epoch_logs['val_' + l] = o
 
             callbacks.on_epoch_end(epoch, epoch_logs)
             epoch += 1
