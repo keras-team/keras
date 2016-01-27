@@ -65,22 +65,26 @@ class SGD(Optimizer):
         momentum: float >= 0. Parameter updates momentum.
         decay: float >= 0. Learning rate decay over each update.
         nesterov: boolean. Whether to apply Nesterov momentum.
+        lr_scalers: dict. Keys are param indexes (w0=0,b0=1,w1=2,b1=3,...), values are scalers to that param.
     '''
     def __init__(self, lr=0.01, momentum=0., decay=0., nesterov=False,
-                 *args, **kwargs):
+                 lr_scalers={}, *args, **kwargs):
         super(SGD, self).__init__(**kwargs)
         self.__dict__.update(locals())
         self.iterations = K.variable(0.)
         self.lr = K.variable(lr)
         self.momentum = K.variable(momentum)
         self.decay = K.variable(decay)
+        self.lr_scalers = lr_scalers
 
     def get_updates(self, params, constraints, loss):
         grads = self.get_gradients(loss, params)
-        lr = self.lr * (1.0 / (1.0 + self.decay * self.iterations))
         self.updates = [(self.iterations, self.iterations + 1.)]
-
-        for p, g, c in zip(params, grads, constraints):
+        for ii, (p, g, c) in enumerate(zip(params, grads, constraints)):
+            if ii in self.lr_scalers:  # use scaler
+                lr = self.lr * self.lr_scalers[ii] * (1.0 / (1.0 + self.decay * self.iterations))
+            else:  # no scaler
+                lr = self.lr * (1.0 / (1.0 + self.decay * self.iterations))
             m = K.variable(np.zeros(K.get_value(p).shape))  # momentum
             v = self.momentum * m - lr * g  # velocity
             self.updates.append((m, v))
@@ -98,7 +102,8 @@ class SGD(Optimizer):
                 "lr": float(K.get_value(self.lr)),
                 "momentum": float(K.get_value(self.momentum)),
                 "decay": float(K.get_value(self.decay)),
-                "nesterov": self.nesterov}
+                "nesterov": self.nesterov,
+                "lr_scalers": self.lr_scalers}
 
 
 class RMSprop(Optimizer):
