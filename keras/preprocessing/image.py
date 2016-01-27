@@ -168,7 +168,7 @@ class ImageDataGenerator(object):
             if save_to_dir:
                 for i in range(current_batch_size):
                     img = array_to_img(bX[i], scale=True)
-                    img.save(save_to_dir + "/" + save_prefix + "_" + str(i) + "." + save_format)
+                    img.save(save_to_dir + "/" + save_prefix + "_" + str(current_index + i) + "." + save_format)
             if current_batch_size == batch_size:
                 b += 1
             else:
