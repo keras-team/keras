@@ -60,10 +60,14 @@ def random_barrel_transform(x, intensity):
     pass
 
 
-def random_shear(x, intensity):
-    # TODO
-    pass
-
+def random_shear(x, intensity, fill_mode="nearest", cval=0.):
+    shear = random.uniform(-intensity, intensity)
+    shear_matrix = np.array([[1.0, -math.sin(shear), 0.0],
+                            [0.0, math.cos(shear), 0.0],
+                            [0.0, 0.0, 1.0]])
+    x = ndimage.interpolation.affine_transform(x, shear_matrix,
+                                               mode=fill_mode, order=3, cval=cval)
+    return x
 
 def random_channel_shift(x, rg):
     # TODO
@@ -132,8 +136,10 @@ class ImageDataGenerator(object):
                  rotation_range=0.,  # degrees (0 to 180)
                  width_shift_range=0.,  # fraction of total width
                  height_shift_range=0.,  # fraction of total height
+                 shear_range=0.,  # shear intensity (shear angle in radians)
                  horizontal_flip=False,
                  vertical_flip=False):
+
         self.__dict__.update(locals())
         self.mean = None
         self.std = None
@@ -206,7 +212,8 @@ class ImageDataGenerator(object):
         if self.vertical_flip:
             if random.random() < 0.5:
                 x = vertical_flip(x)
-
+        if self.shear_range:
+            x = random_shear(x,self.shear_range)
         # TODO:
         # zoom
         # barrel/fisheye
