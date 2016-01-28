@@ -12,7 +12,7 @@ def get_test_data(nb_train=1000, nb_test=500, input_shape=(10,), output_shape=(2
     '''
     nb_sample = nb_train + nb_test
     if classification:
-        y = np.random.randint(0, nb_class, size=(nb_sample, 1))
+        y = np.random.randint(0, nb_class, size=(nb_sample,))
         X = np.zeros((nb_sample,) + input_shape)
         for i in range(nb_sample):
             X[i] = np.random.normal(loc=y[i], scale=0.7, size=input_shape)
