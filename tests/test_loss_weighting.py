@@ -6,7 +6,7 @@ np.random.seed(1337)
 
 from keras.datasets import mnist
 from keras.models import Sequential, Graph
-from keras.layers.core import Dense, Activation
+from keras.layers.core import Dense, Activation, RepeatVector, TimeDistributedDense
 from keras.utils import np_utils
 
 nb_classes = 10
@@ -17,6 +17,8 @@ standard_weight = 1
 high_weight = 5
 max_train_samples = 5000
 max_test_samples = 1000
+timesteps = 3
+loss = 'mse'
 
 # the data, shuffled and split between tran and test sets
 (X_train, y_train), (X_test, y_test) = mnist.load_data()
@@ -38,6 +40,14 @@ class_weight[weighted_class] = high_weight
 sample_weight = np.ones((y_train.shape[0])) * standard_weight
 sample_weight[y_train == weighted_class] = high_weight
 
+temporal_Y_train = np.reshape(Y_train, (len(Y_train), 1, Y_train.shape[1]))
+temporal_Y_train = np.repeat(temporal_Y_train, timesteps, axis=1)
+temporal_Y_test = np.reshape(Y_test, (len(Y_test), 1, Y_test.shape[1]))
+temporal_Y_test = np.repeat(temporal_Y_test, timesteps, axis=1)
+
+temporal_sample_weight = np.reshape(sample_weight, (len(sample_weight), 1))
+temporal_sample_weight = np.repeat(temporal_sample_weight, timesteps, axis=1)
+
 
 def create_sequential_model():
     model = Sequential()
@@ -57,7 +67,28 @@ def create_graph_model():
     return model
 
 
-def _test_weights_sequential(model, class_weight=None, sample_weight=None):
+def create_temporal_sequential_model():
+    model = Sequential()
+    model.add(RepeatVector(timesteps, input_shape=(784,)))
+    model.add(TimeDistributedDense(10))
+    model.add(Activation('softmax'))
+    return model
+
+
+def create_temporal_graph_model():
+    model = Graph()
+    model.add_input(name='input', input_shape=(784,))
+    model.add_node(RepeatVector(timesteps),
+                   name='d1', input='input')
+    model.add_node(TimeDistributedDense(10, activation='softmax'),
+                   name='d2', input='d1')
+    model.add_output(name='output', input='d2')
+    return model
+
+
+def _test_weights_sequential(model, class_weight=None, sample_weight=None,
+                             X_train=X_train, Y_train=Y_train,
+                             X_test=X_test, Y_test=Y_test):
     if sample_weight is not None:
         model.fit(X_train, Y_train, batch_size=batch_size,
                   nb_epoch=nb_epoch // 3, verbose=0,
@@ -88,7 +119,9 @@ def _test_weights_sequential(model, class_weight=None, sample_weight=None):
     return score
 
 
-def _test_weights_graph(model, class_weight=None, sample_weight=None):
+def _test_weights_graph(model, class_weight=None, sample_weight=None,
+                        X_train=X_train, Y_train=Y_train,
+                        X_test=X_test, Y_test=Y_test):
     model.fit({'input': X_train, 'output': Y_train},
               batch_size=batch_size, nb_epoch=nb_epoch // 2, verbose=0,
               class_weight={'output': class_weight},
@@ -109,40 +142,66 @@ def _test_weights_graph(model, class_weight=None, sample_weight=None):
     return score
 
 
-def test_sequential():
-    for loss in ['mae', 'mse']:
-        # no weights: reference point
-        model = create_sequential_model()
-        model.compile(loss=loss, optimizer='rmsprop')
-        standard_score = _test_weights_sequential(model)
-        # test class_weight
-        model = create_sequential_model()
-        model.compile(loss=loss, optimizer='rmsprop')
-        score = _test_weights_sequential(model, class_weight=class_weight)
-        assert(score < standard_score)
-        # test sample_weight
-        model = create_sequential_model()
-        model.compile(loss=loss, optimizer='rmsprop')
-        score = _test_weights_sequential(model, sample_weight=sample_weight)
-        assert(score < standard_score)
+# no weights: reference point
+model = create_sequential_model()
+model.compile(loss=loss, optimizer='rmsprop')
+standard_score_sequential = _test_weights_sequential(model)
+
+model = create_graph_model()
+model.compile(loss={'output': loss}, optimizer='rmsprop')
+standard_score_graph = _test_weights_graph(model)
 
 
-def test_graph():
-    for loss in ['mae', 'mse']:
-        # no weights: reference point
-        model = create_graph_model()
-        model.compile(loss={'output': loss}, optimizer='rmsprop')
-        standard_score = _test_weights_graph(model)
-        # test class_weight
-        model = create_graph_model()
-        model.compile(loss={'output': loss}, optimizer='rmsprop')
-        score = _test_weights_graph(model, class_weight=class_weight)
-        assert(score < standard_score)
-        # test sample_weight
-        model = create_graph_model()
-        model.compile(loss={'output': loss}, optimizer='rmsprop')
-        score = _test_weights_graph(model, sample_weight=sample_weight)
-        assert(score < standard_score)
+def test_sequential_class_weights():
+    model = create_sequential_model()
+    model.compile(loss=loss, optimizer='rmsprop')
+    score = _test_weights_sequential(model, class_weight=class_weight)
+    assert(score < standard_score_sequential)
+
+
+def test_sequential_sample_weights():
+    model = create_sequential_model()
+    model.compile(loss=loss, optimizer='rmsprop')
+    score = _test_weights_sequential(model, sample_weight=sample_weight)
+    assert(score < standard_score_sequential)
+
+
+def test_sequential_temporal_sample_weights():
+    # just check it runs
+    model = create_temporal_sequential_model()
+    model.compile(loss=loss, optimizer='rmsprop',
+                  sample_weight_mode='temporal')
+    score = _test_weights_sequential(model,
+                                     sample_weight=temporal_sample_weight,
+                                     Y_train=temporal_Y_train,
+                                     Y_test=temporal_Y_test)
+    assert(score < standard_score_sequential)
+
+
+def test_graph_class_weights():
+    model = create_graph_model()
+    model.compile(loss={'output': loss}, optimizer='rmsprop')
+    score = _test_weights_graph(model, class_weight=class_weight)
+    assert(score < standard_score_graph)
+
+
+def test_graph_sample_weights():
+    model = create_graph_model()
+    model.compile(loss={'output': loss}, optimizer='rmsprop')
+    score = _test_weights_graph(model, sample_weight=sample_weight)
+    assert(score < standard_score_graph)
+
+
+def test_graph_temporal_sample_weight():
+    # just check it runs
+    model = create_temporal_graph_model()
+    model.compile(loss={'output': loss}, optimizer='rmsprop',
+                  sample_weight_modes={'output': 'temporal'})
+    score = _test_weights_graph(model,
+                                sample_weight=temporal_sample_weight,
+                                Y_train=temporal_Y_train,
+                                Y_test=temporal_Y_test)
+    assert(score < standard_score_graph)
 
 
 if __name__ == '__main__':
