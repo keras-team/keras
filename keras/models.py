@@ -89,11 +89,12 @@ def weighted_objective(fn):
             #  to the number of unmasked samples.
             score_array /= K.mean(mask)
 
-        # reduce score_array to 1D
+        # reduce score_array to same ndim as weight array
         ndim = K.ndim(score_array)
-        for d in range(ndim-1):
-            score_array = K.mean(score_array, axis=-1)
+        weight_ndim = K.ndim(weights)
+        score_array = K.mean(score_array, axis=list(range(weight_ndim, ndim)))
 
+        # apply sample weighting
         if weights is not None:
             score_array *= weights
         return K.mean(score_array)
@@ -104,8 +105,9 @@ def standardize_weights(y, sample_weight=None, class_weight=None):
     '''
     '''
     if sample_weight is not None:
-        assert len(sample_weight) == len(y)
-        return sample_weight.flatten()
+        assert sample_weight.ndim <= y.ndim
+        assert y.shape[:sample_weight.ndim] == sample_weight.shape
+        return sample_weight
     elif isinstance(class_weight, dict):
         if len(y.shape) > 2:
             raise Exception('class_weight not supported for '
@@ -514,9 +516,14 @@ class Sequential(Model, containers.Sequential):
                 class accuracy in the logs to stdout at each epoch.
             class_weight: dictionary mapping classes to a weight value,
                 used for scaling the loss function (during training only).
-            sample_weight: list or numpy array with 1:1 mapping to
+            sample_weight: list or numpy array of weights for
                 the training samples, used for scaling the loss function
-                (during training only).
+                (during training only). You can either pass a flat (1D)
+                Numpy array with the same length as the input samples
+                (1:1 mapping between weights and samples),
+                or in the case of temporal data,
+                you can pass a 2D array with shape (samples, sequence_length),
+                to apply a different weight to every timestep of every sample.
         '''
         if type(X) == list:
             if len(set([len(a) for a in X] + [len(y)])) != 1:
