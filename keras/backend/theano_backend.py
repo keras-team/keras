@@ -51,6 +51,9 @@ def placeholder(shape=None, ndim=None, dtype=_FLOATX, name=None):
         return T.tensor3(name=name, dtype=dtype)
     elif ndim == 4:
         return T.tensor4(name=name, dtype=dtype)
+    elif ndim == 5:
+        dtensor5 = T.TensorType(dtype, (False,)*5)
+        return dtensor5(name)
     else:
         raise Exception('ndim too large: ' + str(ndim))
 
@@ -445,7 +448,8 @@ def rnn(step_function, inputs, initial_states,
     axes = [1, 0] + list(range(2, ndim))
     inputs = inputs.dimshuffle(axes)
     if mask is None:
-        mask = expand_dims(ones_like(T.sum(inputs, axis=-1)))
+        list_sum = list(range(1, ndim))
+        mask = expand_dims(ones_like(T.sum(inputs, axis=list_sum)))
     else:
         mask = mask.dimshuffle(axes)
 
