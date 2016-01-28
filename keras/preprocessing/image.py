@@ -38,7 +38,7 @@ def random_shift(x, wrg, hrg, fill_mode="nearest", cval=0.):
         crop = random.uniform(0., hrg)
         split = random.uniform(0, 1)
         crop_top_pixels = int(split*crop*x.shape[2])
-    x = ndimage.interpolation.shift(x, (0, crop_left_pixels, crop_top_pixels),
+    x = ndimage.interpolation.shift(x, (0, crop_left_pixels, crop_top_pixels), order=0,
                                     mode=fill_mode, cval=cval)
     return x
 
