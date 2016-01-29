@@ -456,7 +456,7 @@ def rnn(step_function, inputs, initial_states,
         # ndimensions times.
         if put_mask:
             out_dim = tf.shape(output)
-            broad_dim = [1] + [out_dim[dim] for dim in range(1, len(out_dim))]
+            broad_dim = [1] + out_dim[1:]
             tiled_mask_t = tf.tile(mask_t, tf.pack(broad_dim))
 
         if len(successive_outputs) == 0:
@@ -471,7 +471,7 @@ def rnn(step_function, inputs, initial_states,
         for state, new_state in zip(states, new_states):
             # (see earlier comment for tile explanation)
             out_st = tf.shape(new_state)
-            broad_st = [1] + [out_st[dim] for dim in range(1, len(out_st))]
+            broad_st = [1] + out_st[1:]
             if put_mask:
                 tiled_mask_t = tf.tile(mask_t, tf.pack(broad_st))
                 return_states.append(tf.select(tiled_mask_t, new_state, state))
