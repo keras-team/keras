@@ -84,7 +84,7 @@ class UnitNorm(Constraint):
 
 class AllZeros(Constraint):
     '''Constrain the weights to be zero.
-       Same as no bias.
+       When b_constraint=allzeros(), it the same as no bias.
     '''
     def __call__(self, p):
         p = K.zeros_like(p)
