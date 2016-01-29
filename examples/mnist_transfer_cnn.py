@@ -4,7 +4,7 @@
 2- Freeze convolutional layers and fine-tune dense layers
    for the classification of digits [5..9].
 
-Run on GPU: THEANO_FLAGS=mode=FAST_RUN,device=gpu,floatX=float32 python mnist_cnn.py
+Run on GPU: THEANO_FLAGS=mode=FAST_RUN,device=gpu,floatX=float32 python mnist_transfer_cnn.py
 
 Get to 99.8% test accuracy after 5 epochs
 for the first five digits classifier
