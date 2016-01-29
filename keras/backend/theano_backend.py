@@ -451,7 +451,8 @@ def rnn(step_function, inputs, initial_states,
         list_sum = list(range(1, ndim))
         mask = expand_dims(ones_like(T.sum(inputs, axis=list_sum)))
     else:
-        mask = mask.dimshuffle(axes)
+        #mask has only three dimensions
+        mask = mask.dimshuffle(axes[:3])
 
     def _step(input, mask, output_tm1, *states):
         output, new_states = step_function(input, states)

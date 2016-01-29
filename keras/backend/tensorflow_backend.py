@@ -455,7 +455,9 @@ def rnn(step_function, inputs, initial_states,
         # tile call does, is just repeat the mask along its second dimension
         # ndimensions times.
         if put_mask:
-            tiled_mask_t = tf.tile(mask_t, tf.pack([1, tf.shape(output)[1]]))
+            out_dim = tf.shape(output)
+            broad_dim = [1] + [out_dim[dim] for dim in range(1, len(out_dim))]
+            tiled_mask_t = tf.tile(mask_t, tf.pack(broad_dim))
 
         if len(successive_outputs) == 0:
             prev_output = zeros_like(output)
@@ -468,9 +470,10 @@ def rnn(step_function, inputs, initial_states,
         return_states = []
         for state, new_state in zip(states, new_states):
             # (see earlier comment for tile explanation)
-        
+            out_st = tf.shape(new_state)
+            broad_st = [1] + [out_st[dim] for dim in range(1, len(out_st))]
             if put_mask:
-                tiled_mask_t = tf.tile(mask_t, tf.pack([1, tf.shape(new_state)[1]]))
+                tiled_mask_t = tf.tile(mask_t, tf.pack(broad_st))
                 return_states.append(tf.select(tiled_mask_t, new_state, state))
             else:
                 return_states.append(new_state)
