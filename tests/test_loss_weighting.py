@@ -21,12 +21,6 @@ timesteps = 3
 input_dim = 10
 loss = 'mse'
 
-# the data, shuffled and split between tran and test sets
-# (X_train, y_train), (X_test, y_test) = mnist.load_data()
-# X_train = X_train.reshape(60000, 784)[:max_train_samples]
-# X_test = X_test.reshape(10000, 784)[:max_test_samples]
-# X_train = X_train.astype("float32") / 255
-# X_test = X_test.astype("float32") / 255
 (X_train, y_train), (X_test, y_test) = get_test_data(nb_train=train_samples,
                                                      nb_test=test_samples,
                                                      input_shape=(input_dim,),
