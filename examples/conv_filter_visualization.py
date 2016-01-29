@@ -3,6 +3,11 @@
 This script can run on CPU in a few minutes (with the TensorFlow backend).
 
 Results example: http://i.imgur.com/4nj4KjN.jpg
+
+Before running this script, download the weights for the VGG16 model at:
+https://drive.google.com/file/d/0Bz7KyqmuGsilT0J5dmRCM0ROVHc/view?usp=sharing
+(source: https://gist.github.com/baraldilorenzo/07d7802847aaad0a35d3)
+and make sure the variable `weights_path` in this script matches the location of the file.
 '''
 from __future__ import print_function
 from scipy.misc import imsave
@@ -138,8 +143,8 @@ for filter_index in range(0, 200):
     # we start from a gray image with some random noise
     input_img_data = np.random.random((1, 3, img_width, img_height)) * 20 + 128.
 
-    # we run gradient ascent for 12 steps
-    for i in range(12):
+    # we run gradient ascent for 20 steps
+    for i in range(20):
         loss_value, grads_value = iterate([input_img_data])
         input_img_data += grads_value * step
 
