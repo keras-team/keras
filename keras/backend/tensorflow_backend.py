@@ -429,20 +429,15 @@ def rnn(step_function, inputs, initial_states,
     axes = [1, 0] + list(range(2, ndim))
     inputs = tf.transpose(inputs, (axes))
     input_list = tf.unpack(inputs)
+    put_mask = True
     if mask is None:
-        mask = ones_like(tf.slice(inputs, [0, 0, 0], [-1, -1, 1]))
+        put_mask = False
         inputs_shape = inputs.get_shape()
-
-        # TODO: the mask's shape should be automatically inferred, by
-        # tensorflow yet for some reason it fails to in some test-cases. This
-        # fixes the issue, but should be removed in future.
-        mask.set_shape([inputs_shape[0].value, inputs_shape[1].value, 1])
-        mask = tf.cast(mask, tf.bool)
+        mask_list = [True for timestep in range(inputs_shape[0])]
     else:
         # Transpose not supported by bool tensor types, hence round-trip to uint8.
         mask = tf.cast(tf.transpose(tf.cast(mask, tf.uint8), axes), tf.bool)
-
-    mask_list = tf.unpack(mask)
+        mask_list = tf.unpack(mask)
 
     states = initial_states
     successive_states = []
@@ -459,20 +454,26 @@ def rnn(step_function, inputs, initial_states,
         # broadcast the mask to match the shape of A and B. That's what the
         # tile call does, is just repeat the mask along its second dimension
         # ndimensions times.
-        tiled_mask_t = tf.tile(mask_t, tf.pack([1, tf.shape(output)[1]]))
+        if put_mask:
+            tiled_mask_t = tf.tile(mask_t, tf.pack([1, tf.shape(output)[1]]))
 
         if len(successive_outputs) == 0:
             prev_output = zeros_like(output)
         else:
             prev_output = successive_outputs[-1]
 
-        output = tf.select(tiled_mask_t, output, prev_output)
+        if put_mask:
+            output = tf.select(tiled_mask_t, output, prev_output)
 
         return_states = []
         for state, new_state in zip(states, new_states):
             # (see earlier comment for tile explanation)
-            tiled_mask_t = tf.tile(mask_t, tf.pack([1, tf.shape(new_state)[1]]))
-            return_states.append(tf.select(tiled_mask_t, new_state, state))
+        
+            if put_mask:
+                tiled_mask_t = tf.tile(mask_t, tf.pack([1, tf.shape(new_state)[1]]))
+                return_states.append(tf.select(tiled_mask_t, new_state, state))
+            else:
+                return_states.append(new_state)
 
         states = return_states
         successive_outputs.append(output)
