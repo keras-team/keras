@@ -28,7 +28,7 @@ img_height = 128
 weights_path = 'vgg16_weights.h5'
 
 # the name of the layer we want to visualize (see model definition below)
-filter_name = 'conv5_1'
+layer_name = 'conv5_1'
 
 # util function to convert a tensor into a valid image
 def deprocess_image(x):
@@ -125,7 +125,7 @@ for filter_index in range(0, 200):
 
     # we build a loss function that maximizes the activation
     # of the nth filter of the layer considered
-    layer_output = layer_dict[filter_name].get_output()
+    layer_output = layer_dict[layer_name].get_output()
     loss = K.mean(layer_output[:, filter_index, :, :])
 
     # we compute the gradient of the input picture wrt this loss
