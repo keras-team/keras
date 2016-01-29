@@ -461,27 +461,28 @@ def rnn(step_function, inputs, initial_states,
         # So we need to broadcast the mask to match the shape of A and B.
         # That's what the tile call does, is just repeat the mask along all its
         # dimension ndimensions times.
-        tiled_mask_t = tf.squeeze(mask_t)
+        tiled_mask_t = tf.squeeze(mask_t, range(1, len(mask_t.get_shape())))
         out_dim = output.get_shape()
+
         for last, dim in enumerate(out_dim[1:]):
             tiled_mask_t = tf.expand_dims(tiled_mask_t, -1)
 
         broad_dim = [1] + [dim for dim in out_dim[1:]]
-        tiled_mask_t = tf.tile(tiled_mask_t, tf.pack(broad_dim))
 
+        tiled_mask_t = tf.tile(tiled_mask_t, tf.pack(broad_dim))
 
         if len(successive_outputs) == 0:
             prev_output = zeros_like(output)
         else:
             prev_output = successive_outputs[-1]
 
-
         output = tf.select(tiled_mask_t, output, prev_output)
 
         return_states = []
         for state, new_state in zip(states, new_states):
             # (see earlier comment for tile explanation)
-            tiled_mask_t = tf.squeeze(mask_t)
+            tiled_mask_t = tf.squeeze(mask_t,
+                                      range(1, len(mask_t.get_shape())))
             out_dim = new_state.get_shape()
             for last, dim in enumerate(out_dim[1:]):
                 tiled_mask_t = tf.expand_dims(tiled_mask_t, -1)
@@ -490,7 +491,6 @@ def rnn(step_function, inputs, initial_states,
             tiled_mask_t = tf.tile(tiled_mask_t, tf.pack(broad_dim))
 
             return_states.append(tf.select(tiled_mask_t, new_state, state))
-
 
         states = return_states
         successive_outputs.append(output)
