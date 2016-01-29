@@ -2,7 +2,7 @@
 classification task.
 
 GPU command:
-    THEANO_FLAGS=mode=FAST_RUN,device=gpu,floatX=float32 python imdb_lstm.py
+    THEANO_FLAGS=mode=FAST_RUN,device=gpu,floatX=float32 python imdb_cnn_lstm.py
 
 Get to 0.8498 test accuracy after 2 epochs. 41s/epoch on K520 GPU.
 '''
