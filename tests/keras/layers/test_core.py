@@ -121,27 +121,35 @@ def test_autoencoder_advanced():
     X_train = np.random.random((100, 10))
     X_test = np.random.random((100, 10))
 
-    autoencoder = Sequential()
-    autoencoder.add(core.Dense(output_dim=10, input_dim=10))
-    autoencoder.add(core.AutoEncoder(encoder=encoder, decoder=decoder,
-                                     output_reconstruction=True))
+    model = Sequential()
+    model.add(core.Dense(output_dim=10, input_dim=10))
+    autoencoder = core.AutoEncoder(encoder=encoder, decoder=decoder,
+                                   output_reconstruction=True)
+    model.add(autoencoder)
 
     # training the autoencoder:
-    autoencoder.compile(optimizer='sgd', loss='mse')
-    autoencoder.fit(X_train, X_train, nb_epoch=1, batch_size=32)
+    model.compile(optimizer='sgd', loss='mse')
+    assert autoencoder.output_reconstruction
+
+    model.fit(X_train, X_train, nb_epoch=1, batch_size=32)
 
     # predicting compressed representations of inputs:
     autoencoder.output_reconstruction = False  # the autoencoder has to be recompiled after modifying this property
-    autoencoder.compile(optimizer='sgd', loss='mse')
-    representations = autoencoder.predict(X_test)
+    assert not autoencoder.output_reconstruction
+    model.compile(optimizer='sgd', loss='mse')
+    representations = model.predict(X_test)
+    assert representations.shape == (100, 5)
 
     # the model is still trainable, although it now expects compressed representations as targets:
-    autoencoder.fit(X_test, representations, nb_epoch=1, batch_size=32)
+    model.fit(X_test, representations, nb_epoch=1, batch_size=32)
 
     # to keep training against the original inputs, just switch back output_reconstruction to True:
     autoencoder.output_reconstruction = True
-    autoencoder.compile(optimizer='sgd', loss='mse')
-    autoencoder.fit(X_train, X_train, nb_epoch=1)
+    model.compile(optimizer='sgd', loss='mse')
+    model.fit(X_train, X_train, nb_epoch=1)
+
+    reconstructions = model.predict(X_test)
+    assert reconstructions.shape == (100, 10)
 
 
 def test_maxout_dense():
