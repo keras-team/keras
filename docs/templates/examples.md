@@ -5,7 +5,7 @@ Here are a few examples to get you started!
 
 ```python
 from keras.models import Sequential
-from keras.layers.core import Dense, Dropout, Activation
+from keras.layers import Dense, Dropout, Activation
 from keras.optimizers import SGD
 
 model = Sequential()
@@ -25,7 +25,10 @@ sgd = SGD(lr=0.1, decay=1e-6, momentum=0.9, nesterov=True)
 model.compile(loss='categorical_crossentropy',
               optimizer=sgd)
 
-model.fit(X_train, y_train, nb_epoch=20, batch_size=16)
+model.fit(X_train, y_train,
+          nb_epoch=20,
+          batch_size=16,
+          show_accuracy=True)
 score = model.evaluate(X_test, y_test, batch_size=16)
 ```
 
@@ -41,6 +44,7 @@ model.add(Dense(10, activation='softmax'))
 
 model.compile(loss='categorical_crossentropy', optimizer='adadelta')
 ```
+
 
 ### MLP for binary classification:
 ```python
@@ -58,13 +62,12 @@ model.compile(loss='binary_crossentropy',
               class_mode='binary')
 ```
 
-
 ### VGG-like convnet:
 
 ```python
 from keras.models import Sequential
-from keras.layers.core import Dense, Dropout, Activation, Flatten
-from keras.layers.convolutional import Convolution2D, MaxPooling2D
+from keras.layers import Dense, Dropout, Activation, Flatten
+from keras.layers import Convolution2D, MaxPooling2D
 from keras.optimizers import SGD
 
 model = Sequential()
@@ -104,9 +107,9 @@ model.fit(X_train, Y_train, batch_size=32, nb_epoch=1)
 
 ```python
 from keras.models import Sequential
-from keras.layers.core import Dense, Dropout, Activation
-from keras.layers.embeddings import Embedding
-from keras.layers.recurrent import LSTM
+from keras.layers import Dense, Dropout, Activation
+from keras.layers import Embedding
+from keras.layers import LSTM
 
 model = Sequential()
 model.add(Embedding(max_features, 256, input_length=maxlen))
