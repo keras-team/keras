@@ -1183,7 +1183,7 @@ class AutoEncoder(Layer):
     autoencoder.fit(X_test, representations, nb_epoch=1)  # in this case the loss will be 0, so it's useless
 
     # to keep training against the original inputs, just switch back output_reconstruction to True:
-    autoencoder.output_reconstruction = False
+    autoencoder.output_reconstruction = True
     autoencoder.compile(optimizer='sgd', loss='mse')
     autoencoder.fit(X_train, X_train, nb_epoch=10)
     ```
