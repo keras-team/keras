@@ -1,11 +1,11 @@
 
 Here are a few examples to get you started!
 
-### Multilayer Perceptron (MLP):
+### Multilayer Perceptron (MLP) for multi-class softmax classification:
 
 ```python
 from keras.models import Sequential
-from keras.layers.core import Dense, Dropout, Activation
+from keras.layers import Dense, Dropout, Activation
 from keras.optimizers import SGD
 
 model = Sequential()
@@ -18,36 +18,56 @@ model.add(Dropout(0.5))
 model.add(Dense(64, init='uniform'))
 model.add(Activation('tanh'))
 model.add(Dropout(0.5))
-model.add(Dense(2, init='uniform'))
+model.add(Dense(10, init='uniform'))
 model.add(Activation('softmax'))
 
 sgd = SGD(lr=0.1, decay=1e-6, momentum=0.9, nesterov=True)
-model.compile(loss='mean_squared_error', optimizer=sgd)
+model.compile(loss='categorical_crossentropy',
+              optimizer=sgd)
 
-model.fit(X_train, y_train, nb_epoch=20, batch_size=16)
+model.fit(X_train, y_train,
+          nb_epoch=20,
+          batch_size=16,
+          show_accuracy=True)
 score = model.evaluate(X_test, y_test, batch_size=16)
 ```
 
-### Alternative implementation of MLP:
+### Alternative implementation of a similar MLP:
 
 ```python
 model = Sequential()
-model.add(Dense(64, input_dim=20, init='uniform', activation='tanh'))
+model.add(Dense(64, input_dim=20, activation='relu'))
 model.add(Dropout(0.5))
-model.add(Dense(64, init='uniform', activation='tanh'))
+model.add(Dense(64, activation='relu'))
 model.add(Dropout(0.5))
-model.add(Dense(2, init='uniform', activation='softmax'))
+model.add(Dense(10, activation='softmax'))
 
-sgd = SGD(lr=0.1, decay=1e-6, momentum=0.9, nesterov=True)
-model.compile(loss='mean_squared_error', optimizer=sgd)
+model.compile(loss='categorical_crossentropy', optimizer='adadelta')
+```
+
+
+### MLP for binary classification:
+```python
+model = Sequential()
+model.add(Dense(64, input_dim=20, init='uniform', activation='relu'))
+model.add(Dropout(0.5))
+model.add(Dense(64, activation='relu'))
+model.add(Dropout(0.5))
+model.add(Dense(1, activation='sigmoid'))
+
+# "class_mode" defaults to "categorical". For correctly displaying accuracy
+# in a binary classification problem, it should be set to "binary".
+model.compile(loss='binary_crossentropy',
+              optimizer='rmsprop',
+              class_mode='binary')
 ```
 
 ### VGG-like convnet:
 
 ```python
 from keras.models import Sequential
-from keras.layers.core import Dense, Dropout, Activation, Flatten
-from keras.layers.convolutional import Convolution2D, MaxPooling2D
+from keras.layers import Dense, Dropout, Activation, Flatten
+from keras.layers import Convolution2D, MaxPooling2D
 from keras.optimizers import SGD
 
 model = Sequential()
@@ -87,9 +107,9 @@ model.fit(X_train, Y_train, batch_size=32, nb_epoch=1)
 
 ```python
 from keras.models import Sequential
-from keras.layers.core import Dense, Dropout, Activation
-from keras.layers.embeddings import Embedding
-from keras.layers.recurrent import LSTM
+from keras.layers import Dense, Dropout, Activation
+from keras.layers import Embedding
+from keras.layers import LSTM
 
 model = Sequential()
 model.add(Embedding(max_features, 256, input_length=maxlen))
