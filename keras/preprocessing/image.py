@@ -39,8 +39,10 @@ def random_shift(x, wrg, hrg, fill_mode="nearest", cval=0.):
         crop = random.uniform(0., hrg)
         split = random.uniform(0, 1)
         crop_top_pixels = int(split*crop*x.shape[2])
-    x = ndimage.interpolation.shift(x, (0, crop_left_pixels, crop_top_pixels), order=0,
-                                    mode=fill_mode, cval=cval)
+    x = ndimage.interpolation.shift(x, (0, crop_left_pixels, crop_top_pixels),
+                                    order=0,
+                                    mode=fill_mode,
+                                    cval=cval)
     return x
 
 
@@ -67,8 +69,11 @@ def random_shear(x, intensity, fill_mode="nearest", cval=0.):
                             [0.0, math.cos(shear), 0.0],
                             [0.0, 0.0, 1.0]])
     x = ndimage.interpolation.affine_transform(x, shear_matrix,
-                                               mode=fill_mode, order=3, cval=cval)
+                                               mode=fill_mode,
+                                               order=3,
+                                               cval=cval)
     return x
+
 
 def random_channel_shift(x, rg):
     # TODO
@@ -79,7 +84,8 @@ def random_zoom(x, rg, fill_mode="nearest", cval=0.):
     zoom_w = random.uniform(1.-rg, 1.)
     zoom_h = random.uniform(1.-rg, 1.)
     x = ndimage.interpolation.zoom(x, zoom=(1., zoom_w, zoom_h),
-                                   mode=fill_mode, cval=cval)
+                                   mode=fill_mode,
+                                   cval=cval)
     return x  # shape of result will be different from shape of input!
 
 
@@ -280,8 +286,11 @@ class ImageDataGenerator(object):
             U, S, V = linalg.svd(sigma)
             self.principal_components = np.dot(np.dot(U, np.diag(1. / np.sqrt(S + fudge))), U.T)
 
+
 class GraphImageDataGenerator(ImageDataGenerator):
-    """example of how to build a generator for a graph model"""
+    '''Example of how to build a generator for a Graph model
+    '''
+
     def next(self):
-        bX, bY = super(GraphImageDataGenerator,self).next()
+        bX, bY = super(GraphImageDataGenerator, self).next()
         return {'input': bX, 'output': bY}
