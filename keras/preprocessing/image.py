@@ -10,6 +10,7 @@ from os.path import isfile, join
 import random
 import math
 from six.moves import range
+import threading
 
 '''Fairly basic set of tools for realtime data augmentation on image data.
 Can easily be extended to include new transformations, new preprocessing methods, etc...
@@ -144,11 +145,9 @@ class ImageDataGenerator(object):
         self.mean = None
         self.std = None
         self.principal_components = None
+        self.lock = threading.Lock()
 
-    def flow(self, X, y, batch_size=32, shuffle=False, seed=None,
-             save_to_dir=None, save_prefix="", save_format="jpeg"):
-        assert len(X) == len(y)
-
+    def _flow_index(self, N, batch_size=32, shuffle=False, seed=None):
         b = 0
         total_b = 0
         while 1:
@@ -157,31 +156,61 @@ class ImageDataGenerator(object):
                     np.random.seed(seed + total_b)
 
                 if shuffle:
-                    index_array = np.random.permutation(X.shape[0])
+                    index_array = np.random.permutation(N)
                 else:
-                    index_array = np.arange(X.shape[0])
+                    index_array = np.arange(N)
 
-            current_index = (b * batch_size) % X.shape[0]
-            if X.shape[0] >= current_index + batch_size:
+            current_index = (b * batch_size) % N
+            if N >= current_index + batch_size:
                 current_batch_size = batch_size
             else:
-                current_batch_size = X.shape[0] - current_index
-            bX = np.zeros(tuple([current_batch_size] + list(X.shape)[1:]))
-            for i in range(current_batch_size):
-                x = X[index_array[current_index + i]]
-                x = self.random_transform(x.astype("float32"))
-                x = self.standardize(x)
-                bX[i] = x
-            if save_to_dir:
-                for i in range(current_batch_size):
-                    img = array_to_img(bX[i], scale=True)
-                    img.save(save_to_dir + "/" + save_prefix + "_" + str(current_index + i) + "." + save_format)
+                current_batch_size = N - current_index
+
             if current_batch_size == batch_size:
                 b += 1
             else:
                 b = 0
             total_b += 1
-            yield bX, y[index_array[current_index: current_index + batch_size]]
+            yield index_array[current_index: current_index + current_batch_size], current_index, current_batch_size
+
+    def flow(self, X, y, batch_size=32, shuffle=False, seed=None,
+             save_to_dir=None, save_prefix="", save_format="jpeg"):
+        assert len(X) == len(y)
+        self.X = X
+        self.y = y
+        self.save_to_dir = save_to_dir
+        self.save_prefix = save_prefix
+        self.save_format = save_format
+        self.flow_generator = self._flow_index(X.shape[0], batch_size, shuffle, seed)
+        return self
+
+    def __iter__(self):
+        # needed if we want to do something like for x,y in data_gen.flow(...):
+        return self
+
+    def next(self):
+        # for python 2.x
+        # Keep under lock only the mechainsem which advance the indexing of each batch
+        # see # http://anandology.com/blog/using-iterators-and-generators/
+        with self.lock:
+            index_array, current_index, current_batch_size = next(self.flow_generator)
+        # The transformation of images is not under thread lock so it can be done in parallel
+        bX = np.zeros(tuple([current_batch_size] + list(self.X.shape)[1:]))
+        for i, j in enumerate(index_array):
+            x = self.X[j]
+            x = self.random_transform(x.astype("float32"))
+            x = self.standardize(x)
+            bX[i] = x
+        if self.save_to_dir:
+            for i in range(current_batch_size):
+                img = array_to_img(bX[i], scale=True)
+                img.save(self.save_to_dir + "/" + self.save_prefix + "_" + str(current_index + i) + "." + self.save_format)
+        bY = self.y[index_array]
+        return bX, bY
+
+    def __next__(self):
+        # for python 3.x
+        return self.next()
 
     def standardize(self, x):
         if self.featurewise_center:
@@ -250,3 +279,9 @@ class ImageDataGenerator(object):
             sigma = np.dot(flatX.T, flatX) / flatX.shape[1]
             U, S, V = linalg.svd(sigma)
             self.principal_components = np.dot(np.dot(U, np.diag(1. / np.sqrt(S + fudge))), U.T)
+
+class GraphImageDataGenerator(ImageDataGenerator):
+    """example of how to build a generator for a graph model"""
+    def next(self):
+        bX, bY = super(GraphImageDataGenerator,self).next()
+        return {'input': bX, 'output': bY}
