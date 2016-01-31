@@ -88,7 +88,7 @@ class Layer(object):
         self.get_input = tmp_input
         return Y
 
-    def set_previous(self, layer, connection_map={}):
+    def set_previous(self, layer):
         '''Connect a layer to its parent in the computational graph.
         '''
         assert self.nb_input == layer.nb_output == 1, 'Cannot connect layers: input count and output count should be 1.'
@@ -1168,28 +1168,62 @@ class AutoEncoder(Layer):
 
     autoencoder = Sequential()
     autoencoder.add(AutoEncoder(encoder=encoder, decoder=decoder,
-                                output_reconstruction=False))
+                                output_reconstruction=True))
+
+    # training the autoencoder:
+    autoencoder.compile(optimizer='sgd', loss='mse')
+    autoencoder.fit(X_train, X_train, nb_epoch=10)
+
+    # predicting compressed representations of inputs:
+    autoencoder.output_reconstruction = False  # the autoencoder has to be recompiled after modifying this property
+    autoencoder.compile(optimizer='sgd', loss='mse')
+    representations = autoencoder.predict(X_test)
+
+    # the model is still trainable, although it now expects compressed representations as targets:
+    autoencoder.fit(X_test, representations, nb_epoch=1)  # in this case the loss will be 0, so it's useless
+
+    # to keep training against the original inputs, just switch back output_reconstruction to True:
+    autoencoder.output_reconstruction = False
+    autoencoder.compile(optimizer='sgd', loss='mse')
+    autoencoder.fit(X_train, X_train, nb_epoch=10)
     ```
     '''
     def __init__(self, encoder, decoder, output_reconstruction=True,
                  weights=None, **kwargs):
         super(AutoEncoder, self).__init__(**kwargs)
 
-        self.output_reconstruction = output_reconstruction
+        self._output_reconstruction = output_reconstruction
         self.encoder = encoder
         self.decoder = decoder
 
-        self.decoder.set_previous(self.encoder)
+        if output_reconstruction:
+            self.decoder.set_previous(self.encoder)
 
         if weights is not None:
             self.set_weights(weights)
+
+        super(AutoEncoder, self).__init__(**kwargs)
+        self.build()
+
+    @property
+    def output_reconstruction(self):
+        return self._output_reconstruction
+
+    @output_reconstruction.setter
+    def output_reconstruction(self, value):
+        self._output_reconstruction = value
+        self.build()
 
     def build(self):
         self.params = []
         self.regularizers = []
         self.constraints = []
         self.updates = []
-        for layer in [self.encoder, self.decoder]:
+        if self.output_reconstruction:
+            layers = [self.encoder, self.decoder]
+        else:
+            layers = [self.encoder]
+        for layer in layers:
             params, regularizers, constraints, updates = layer.get_params()
             self.regularizers += regularizers
             self.updates += updates
@@ -1198,9 +1232,8 @@ class AutoEncoder(Layer):
                     self.params.append(p)
                     self.constraints.append(c)
 
-    def set_previous(self, node, connection_map={}):
-        self.encoder.set_previous(node, connection_map)
-        super(AutoEncoder, self).set_previous(node, connection_map)
+    def set_previous(self, node):
+        self.encoder.set_previous(node)
 
     def get_weights(self):
         weights = []
@@ -1220,9 +1253,6 @@ class AutoEncoder(Layer):
     def input(self):
         return self.encoder.input
 
-    def _get_hidden(self, train=False):
-        return self.encoder.get_output(train)
-
     @property
     def input_shape(self):
         return self.encoder.input_shape
@@ -1230,15 +1260,15 @@ class AutoEncoder(Layer):
     @property
     def output_shape(self):
         if self.output_reconstruction:
-            return self.encoder.previous.output_shape
+            return self.decoder.output_shape
         else:
-            return self.decoder.previous.output_shape
+            return self.encoder.output_shape
 
     def get_output(self, train=False):
-        if not train and not self.output_reconstruction:
+        if self.output_reconstruction:
+            return self.decoder.get_output(train)
+        else:
             return self.encoder.get_output(train)
-
-        return self.decoder.get_output(train)
 
     def get_config(self):
         return {'name': self.__class__.__name__,

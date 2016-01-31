@@ -5,6 +5,7 @@ from numpy.testing import assert_allclose
 
 from keras import backend as K
 from keras.layers import core
+from keras.layers import containers
 
 
 def test_input_output():
@@ -114,15 +115,33 @@ def test_autoencoder():
     _runner(layer)
 
 
-def test_autoencoder_second_layer():
-    # regression test for issue #1275
-    encoder = core.Dense(input_dim=10, output_dim=2)
-    decoder = core.Dense(input_dim=2, output_dim=10)
-    model = Sequential()
-    model.add(core.Dense(input_dim=20, output_dim=10))
-    model.add(core.AutoEncoder(encoder=encoder, decoder=decoder,
-                               output_reconstruction=False))
-    model.compile(loss='mse', optimizer='sgd')
+def test_autoencoder_advanced():
+    encoder = containers.Sequential([core.Dense(5, input_shape=(10,))])
+    decoder = containers.Sequential([core.Dense(10, input_shape=(5,))])
+    X_train = np.random.random((100, 10))
+    X_test = np.random.random((100, 10))
+
+    autoencoder = Sequential()
+    autoencoder.add(core.Dense(output_dim=10, input_dim=10))
+    autoencoder.add(core.AutoEncoder(encoder=encoder, decoder=decoder,
+                                     output_reconstruction=True))
+
+    # training the autoencoder:
+    autoencoder.compile(optimizer='sgd', loss='mse')
+    autoencoder.fit(X_train, X_train, nb_epoch=1, batch_size=32)
+
+    # predicting compressed representations of inputs:
+    autoencoder.output_reconstruction = False  # the autoencoder has to be recompiled after modifying this property
+    autoencoder.compile(optimizer='sgd', loss='mse')
+    representations = autoencoder.predict(X_test)
+
+    # the model is still trainable, although it now expects compressed representations as targets:
+    autoencoder.fit(X_test, representations, nb_epoch=1, batch_size=32)
+
+    # to keep training against the original inputs, just switch back output_reconstruction to True:
+    autoencoder.output_reconstruction = False
+    autoencoder.compile(optimizer='sgd', loss='mse')
+    autoencoder.fit(X_train, X_train, nb_epoch=1)
 
 
 def test_maxout_dense():
