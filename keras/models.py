@@ -955,6 +955,10 @@ class Sequential(Model, containers.Sequential):
             # construct epoch logs
             epoch_logs = {}
             epoch_logs['epoch'] = epoch
+            for l in out_labels:
+                epoch_logs['avg_' + l] = 0.
+                epoch_logs['min_' + l] = float('inf')
+                epoch_logs['max_' + l] = float('-inf')
             callbacks.on_epoch_begin(epoch, epoch_logs)
 
             samples_seen = 0
@@ -985,6 +989,11 @@ class Sequential(Model, containers.Sequential):
                     outs = [outs]
                 for l, o in zip(out_labels, outs):
                     batch_logs[l] = o
+                    epoch_logs['avg_' + l] += o
+                    if o < epoch_logs['min_' + l]:
+                        epoch_logs['min_' + l] = o
+                    if o < epoch_logs['max_' + l]:
+                        epoch_logs['max_' + l] = o
                 callbacks.on_batch_end(batch_index, batch_logs)
 
                 batch_index += 1
@@ -1401,6 +1410,10 @@ class Graph(Model, containers.Graph):
             # construct epoch logs
             epoch_logs = {}
             epoch_logs['epoch'] = epoch
+            for l in out_labels:
+                epoch_logs['avg_' + l] = 0.
+                epoch_logs['min_' + l] = float('inf')
+                epoch_logs['max_' + l] = float('-inf')
             callbacks.on_epoch_begin(epoch, epoch_logs)
 
             samples_seen = 0
@@ -1429,6 +1442,11 @@ class Graph(Model, containers.Graph):
                     outs = [outs]
                 for l, o in zip(out_labels, outs):
                     batch_logs[l] = o
+                    epoch_logs['avg_' + l] += o
+                    if o < epoch_logs['min_' + l]:
+                        epoch_logs['min_' + l] = o
+                    if o < epoch_logs['max_' + l]:
+                        epoch_logs['max_' + l] = o
                 callbacks.on_batch_end(batch_index, batch_logs)
 
                 batch_index += 1
