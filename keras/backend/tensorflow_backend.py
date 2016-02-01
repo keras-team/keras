@@ -429,22 +429,6 @@ def rnn(step_function, inputs, initial_states,
     axes = [1, 0] + list(range(2, ndim))
     inputs = tf.transpose(inputs, (axes))
     input_list = tf.unpack(inputs)
-    if mask is None:
-        start = [0] * ndim
-        extra_dim = [1] * (ndim-2)
-        mask = tf.ones_like(tf.slice(inputs, start, [-1, -1] + extra_dim))
-        inputs_shape = inputs.get_shape()
-
-        # TODO: the mask's shape should be automatically inferred, by
-        # tensorflow yet for some reason it fails to in some test-cases. This
-        # fixes the issue, but should be removed in future.
-        mask.set_shape([inputs_shape[0].value,
-                        inputs_shape[1].value] + extra_dim)
-        mask = tf.cast(mask, tf.bool)
-    else:
-        # Transpose not supported by bool tensor types, hence round-trip to uint8.
-        mask = tf.cast(tf.transpose(tf.cast(mask, tf.uint8), axes), tf.bool)
-    mask_list = tf.unpack(mask)
 
     states = initial_states
     successive_states = []
@@ -452,49 +436,67 @@ def rnn(step_function, inputs, initial_states,
     if go_backwards:
         input_list.reverse()
 
-    for input, mask_t in zip(input_list, mask_list):
-        output, new_states = step_function(input, states)
+    if mask is None:
 
-        # tf.select needs its condition tensor to be the same shape as its two
-        # result tensors, but in our case the condition (mask) tensor is
-        # (nsamples, 1), and A and B are (nsamples, ndimensions1,ndim2,..).
-        # So we need to broadcast the mask to match the shape of A and B.
-        # That's what the tile call does, is just repeat the mask along all its
-        # dimension ndimensions times.
-        squeeze_d = list(range(1, len(mask_t.get_shape())))
-        tiled_mask_t = tf.squeeze(mask_t, squeeze_d)
-        out_dim = output.get_shape()
+        for input in input_list:
+            output, new_states = step_function(input, states)
+            successive_outputs.append(output)
+            successive_states.append(new_states)
 
-        for last, dim in enumerate(out_dim[1:]):
-            tiled_mask_t = tf.expand_dims(tiled_mask_t, -1)
+    else:
+        # Transpose not supported by bool tensor types, hence round-trip
+        # to uint8.
 
-        broad_dim = [1] + [dim for dim in out_dim[1:]]
+        ndim_m = len(mask.get_shape())
+        assert ndim_m == 3
 
-        tiled_mask_t = tf.tile(tiled_mask_t, tf.pack(broad_dim))
+        mask = tf.cast(tf.transpose(tf.cast(mask, tf.uint8), axes), tf.bool)
+        mask_list = tf.unpack(mask)
 
-        if len(successive_outputs) == 0:
-            prev_output = zeros_like(output)
-        else:
-            prev_output = successive_outputs[-1]
+        for input, mask_t in zip(input_list, mask_list):
+            output, new_states = step_function(input, states)
 
-        output = tf.select(tiled_mask_t, output, prev_output)
-
-        return_states = []
-        for state, new_state in zip(states, new_states):
-            # (see earlier comment for tile explanation)
+            # tf.select needs its condition tensor to be the same shape as its
+            # two result tensors, but in our case the condition (mask) tensor
+            # is (nsamples, 1), and A and B are
+            # (nsamples, ndimensions1,ndim2,..).
+            # So we need to broadcast the mask to match the shape of A and B.
+            # That's what the tile call does, is just repeat the mask along all
+            # its dimension ndimensions times.
+            squeeze_d = list(range(1, len(mask_t.get_shape())))
             tiled_mask_t = tf.squeeze(mask_t, squeeze_d)
-            out_dim = new_state.get_shape()
+            out_dim = output.get_shape()
+
             for last, dim in enumerate(out_dim[1:]):
                 tiled_mask_t = tf.expand_dims(tiled_mask_t, -1)
 
             broad_dim = [1] + [dim for dim in out_dim[1:]]
+
             tiled_mask_t = tf.tile(tiled_mask_t, tf.pack(broad_dim))
 
-            return_states.append(tf.select(tiled_mask_t, new_state, state))
+            if len(successive_outputs) == 0:
+                prev_output = zeros_like(output)
+            else:
+                prev_output = successive_outputs[-1]
 
-        states = return_states
-        successive_outputs.append(output)
-        successive_states.append(states)
+            output = tf.select(tiled_mask_t, output, prev_output)
+
+            return_states = []
+            for state, new_state in zip(states, new_states):
+                # (see earlier comment for tile explanation)
+                tiled_mask_t = tf.squeeze(mask_t, squeeze_d)
+                out_dim = new_state.get_shape()
+                for last, dim in enumerate(out_dim[1:]):
+                    tiled_mask_t = tf.expand_dims(tiled_mask_t, -1)
+
+                broad_dim = [1] + [dim for dim in out_dim[1:]]
+                tiled_mask_t = tf.tile(tiled_mask_t, tf.pack(broad_dim))
+
+                return_states.append(tf.select(tiled_mask_t, new_state, state))
+
+            states = return_states
+            successive_outputs.append(output)
+            successive_states.append(states)
 
     last_output = successive_outputs[-1]
     outputs = tf.pack(successive_outputs)
