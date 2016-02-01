@@ -244,7 +244,11 @@ class Layer(object):
         '''
         config = {'name': self.__class__.__name__}
         if hasattr(self, '_input_shape'):
-            config['input_shape'] = self._input_shape[1:]
+            input_shape = self._input_shape
+            if input_shape[0]:
+                config['batch_input_shape'] = input_shape[:]
+            else:
+                config['input_shape'] = input_shape[1:]
         if hasattr(self, '_trainable'):
             config['trainable'] = self._trainable
         config['cache_enabled'] = self.cache_enabled
