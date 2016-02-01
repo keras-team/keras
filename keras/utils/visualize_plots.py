@@ -1,7 +1,9 @@
 def figures(history,figure_name="plots"):
-    """ method to visualize accuracies and loss vs epoch for training as well as testind data\n
+    """ method to visualize accuracies and loss vs epoch for training 
+        as well as testind data\n
         Argumets: history     = an instance returned by model.fit method\n
-                  figure_name = a string representing file name to plots. By default it is set to "plots" \n
+                  figure_name = a string representing file name to plots.
+                  By default it is set to "plots" \n
        Usage: hist = model.fit(X,y)\n              figures(hist) """
     from keras.callbacks import History
     if isinstance(history,History):
