@@ -172,13 +172,11 @@ def test_naming():
     model.train_on_batch(np.random.random((2, 2)), np.random.random((2, 2)))
 
 
-@pytest.mark.skipif(K._BACKEND == 'tensorflow',
-                    reason='currently not working with TensorFlow')
 def test_sequences():
     '''Test masking sequences with zeroes as padding'''
     # integer inputs, one per timestep, like embeddings
     layer = core.Masking()
-    func = K.function([layer.input], [layer.get_output_mask()])
+    func = K.function([layer.get_input(True)], [layer.get_output_mask()])
     input_data = np.array([[[1], [2], [3], [0]],
                            [[0], [4], [5], [0]]], dtype=np.int32)
 
@@ -190,8 +188,6 @@ def test_sequences():
     assert np.all(output == expected), 'Output not as expected'
 
 
-@pytest.mark.skipif(K._BACKEND == 'tensorflow',
-                    reason='currently not working with TensorFlow')
 def test_non_zero():
     '''Test masking with non-zero mask value'''
     layer = core.Masking(5)
@@ -204,8 +200,6 @@ def test_non_zero():
     assert np.all(output == expected), 'Output not as expected'
 
 
-@pytest.mark.skipif(K._BACKEND == 'tensorflow',
-                    reason='currently not working with TensorFlow')
 def test_non_zero_output():
     '''Test output of masking layer with non-zero mask value'''
     layer = core.Masking(5)

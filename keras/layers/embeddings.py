@@ -89,7 +89,7 @@ class Embedding(Layer):
         if not self.mask_zero:
             return None
         else:
-            return K.expand_dims(K.not_equal(X, 0))
+            return K.not_equal(X, 0)
 
     @property
     def output_shape(self):

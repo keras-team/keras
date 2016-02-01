@@ -37,7 +37,7 @@ def hinge(y_true, y_pred):
 def categorical_crossentropy(y_true, y_pred):
     '''Expects a binary class matrix instead of a vector of scalar classes.
     '''
-    return K.mean(K.categorical_crossentropy(y_pred, y_true), axis=-1)
+    return K.categorical_crossentropy(y_pred, y_true)
 
 
 def binary_crossentropy(y_true, y_pred):
@@ -49,11 +49,9 @@ def poisson(y_true, y_pred):
 
 
 def cosine_proximity(y_true, y_pred):
-    assert K.ndim(y_true) == 2
-    assert K.ndim(y_pred) == 2
-    y_true = K.l2_normalize(y_true, axis=1)
-    y_pred = K.l2_normalize(y_pred, axis=1)
-    return -K.mean(y_true * y_pred, axis=1)
+    y_true = K.l2_normalize(y_true, axis=-1)
+    y_pred = K.l2_normalize(y_pred, axis=-1)
+    return -K.mean(y_true * y_pred, axis=-1)
 
 
 # aliases

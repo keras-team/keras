@@ -3,6 +3,9 @@ import numpy as np
 from numpy.testing import assert_allclose
 
 from keras.layers import recurrent, embeddings
+from keras.models import Sequential
+from keras.layers.core import Masking
+
 from keras import backend as K
 from keras.models import Sequential, model_from_json
 
@@ -109,6 +112,21 @@ def test_batch_input_shape_serialization():
     json_data = model.to_json()
     reconstructed_model = model_from_json(json_data)
     assert(reconstructed_model.input_shape == (2, 2))
+
+
+def test_masking_layer():
+    ''' This test based on a previously failing issue here:
+    https://github.com/fchollet/keras/issues/1567
+
+    '''
+    model = Sequential()
+    model.add(Masking(input_shape=(3, 4)))
+    model.add(recurrent.LSTM(output_dim=5, return_sequences=True))
+    model.compile(loss='categorical_crossentropy', optimizer='adam')
+    I = np.random.random((6, 3, 4))
+    V = np.abs(np.random.random((6, 3, 5)))
+    V /= V.sum(axis=-1, keepdims=True)
+    model.fit(I, V, nb_epoch=1, batch_size=100, verbose=1)
 
 
 if __name__ == '__main__':
