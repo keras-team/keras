@@ -442,6 +442,7 @@ def rnn(step_function, inputs, initial_states,
             output, new_states = step_function(input, states)
             successive_outputs.append(output)
             successive_states.append(new_states)
+            states = new_states
 
     else:
         # Transpose not supported by bool tensor types, hence round-trip
