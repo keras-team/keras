@@ -948,6 +948,7 @@ class Sequential(Model, containers.Sequential):
 
         generator_threads = [threading.Thread(target=generator_task) for _ in range(nb_worker)]
         for thread in generator_threads:
+            thread.daemon = True
             thread.start()
 
         self.stop_training = False
@@ -1403,6 +1404,7 @@ class Graph(Model, containers.Graph):
 
         generator_threads = [threading.Thread(target=generator_task) for _ in range(nb_worker)]
         for thread in generator_threads:
+            thread.daemon = True
             thread.start()
 
         self.stop_training = False
