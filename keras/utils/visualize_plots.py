@@ -38,6 +38,6 @@ def figures(history,figure_name="plots"):
         plt.xlabel("Epoch")
         plt.ylabel("Validation Loss")  
         plt.tight_layout()
-	      plt.savefig(figure_name)
+	plt.savefig(figure_name)
     else:
         print "Input Argument is not an instance of class History"
