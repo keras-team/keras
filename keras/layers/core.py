@@ -319,17 +319,16 @@ class Masking(MaskedLayer):
     def __init__(self, mask_value=0., **kwargs):
         super(Masking, self).__init__(**kwargs)
         self.mask_value = mask_value
-        self.input = K.placeholder(ndim=3)
+        if (not hasattr(self, 'input')):
+            self.input = K.placeholder(ndim=3)
 
     def get_output_mask(self, train=False):
         X = self.get_input(train)
-        return K.any(K.ones_like(X) * (1. - K.equal(X, self.mask_value)),
-                     axis=-1)
+        return K.any(K.not_equal(X, self.mask_value), axis=-1)
 
     def get_output(self, train=False):
         X = self.get_input(train)
-        return X * K.any((1. - K.equal(X, self.mask_value)),
-                         axis=-1, keepdims=True)
+        return X * K.cast(K.any(K.not_equal(X, self.mask_value), axis=-1, keepdims=True), K.floatx())
 
     def get_config(self):
         config = {'name': self.__class__.__name__,

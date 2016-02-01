@@ -154,12 +154,12 @@ def mean(x, axis=None, keepdims=False):
 def any(x, axis=None, keepdims=False):
     '''Bitwise reduction (logical OR).
 
-    Return array of int8 (0s and 1s).
+    Return array of uint8 (0s and 1s).
     '''
     axis = normalize_axis(axis, ndim(x))
     x = tf.cast(x, tf.bool)
     x = tf.reduce_any(x, reduction_indices=axis, keep_dims=keepdims)
-    return tf.cast(x, tf.int8)
+    return tf.cast(x, tf.uint8)
 
 
 def argmax(x, axis=-1):
@@ -438,7 +438,10 @@ def rnn(step_function, inputs, initial_states,
 
     if mask is not None:
         # Transpose not supported by bool tensor types, hence round-trip to uint8.
-        mask = tf.cast(tf.transpose(tf.cast(mask, tf.uint8), axes), tf.bool)
+        mask = tf.cast(mask, tf.uint8)
+        if len(mask.get_shape()) == ndim-1:
+            mask = expand_dims(mask)
+        mask = tf.cast(tf.transpose(mask, axes), tf.bool)
         mask_list = tf.unpack(mask)
 
         for input, mask_t in zip(input_list, mask_list):

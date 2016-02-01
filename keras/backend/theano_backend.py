@@ -427,7 +427,7 @@ def rnn(step_function, inputs, initial_states,
         the step function.
     go_backwards: boolean. If True, do the iteration over
         the time dimension in reverse order.
-    mask: binary tensor with shape (samples, time, 1),
+    mask: binary tensor with shape (samples, time),
         with a zero for every element that is masked.
 
     Returns
@@ -447,6 +447,9 @@ def rnn(step_function, inputs, initial_states,
     if mask is None:
         mask = expand_dims(ones_like(T.sum(inputs, axis=-1)))
     else:
+        if mask.ndim == ndim-1:
+            mask = expand_dims(mask)
+        assert mask.ndim == ndim
         mask = mask.dimshuffle(axes)
 
     def _step(input, mask, output_tm1, *states):
@@ -664,6 +667,7 @@ def pool2d(x, pool_size, strides=(1, 1), border_mode='valid',
     if dim_ordering == 'tf':
         pool_out = pool_out.dimshuffle((0, 2, 3, 1))
     return pool_out
+
 
 # RANDOMNESS
 
