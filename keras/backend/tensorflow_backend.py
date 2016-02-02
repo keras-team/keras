@@ -289,6 +289,7 @@ def repeat(x, n):
     if x has shape (samples, dim) and n=2,
     the output will have shape (samples, 2, dim)
     '''
+    assert x.ndim == 2
     tensors = [x] * n
     stacked = tf.pack(tensors)
     return tf.transpose(stacked, (1, 0, 2))

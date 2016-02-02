@@ -281,9 +281,9 @@ def repeat(x, n):
     If x has shape (samples, dim) and n=2,
     the output will have shape (samples, 2, dim).
     '''
-    tensors = [x] * n
-    stacked = T.stack(*tensors)
-    return stacked.dimshuffle((1, 0, 2))
+    assert x.ndim == 2
+    x = x.dimshuffle((0, 'x', 1))
+    return T.extra_ops.repeat(x, n, axis=1)
 
 
 def tile(x, n):
