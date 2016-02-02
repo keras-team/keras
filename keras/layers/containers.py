@@ -320,9 +320,12 @@ class Graph(Layer):
             else:
                 raise Exception('Type "int" can only be used with ndim==2 (Embedding).')
         self.inputs[name] = layer
-        self.input_config.append({'name': name,
-                                  'input_shape': input_shape,
-                                  'dtype': dtype})
+        config = {'name': name, 'dtype': dtype}
+        if batch_input_shape:
+            config['batch_input_shape'] = batch_input_shape
+        else:
+            config['input_shape'] = input_shape
+        self.input_config.append(config)
 
     def add_node(self, layer, name, input=None, inputs=[],
                  merge_mode='concat', concat_axis=-1, dot_axes=-1,

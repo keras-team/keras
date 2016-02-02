@@ -161,10 +161,14 @@ class Recurrent(MaskedLayer):
     def get_config(self):
         config = {"name": self.__class__.__name__,
                   "return_sequences": self.return_sequences,
-                  "input_dim": self.input_dim,
-                  "input_length": self.input_length,
                   "go_backwards": self.go_backwards,
                   "stateful": self.stateful}
+        if self.stateful:
+            config['batch_input_shape'] = self.input_shape
+        else:
+            config['input_dim'] = self.input_dim
+            config['input_length'] = self.input_length
+            
         base_config = super(Recurrent, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 

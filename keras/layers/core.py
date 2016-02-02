@@ -41,10 +41,10 @@ class Layer(object):
         for kwarg in kwargs:
             assert kwarg in allowed_kwargs, 'Keyword argument not understood: ' + kwarg
 
-        if 'input_shape' in kwargs:
-            self.set_input_shape((None,) + tuple(kwargs['input_shape']))
         if 'batch_input_shape' in kwargs:
             self.set_input_shape(tuple(kwargs['batch_input_shape']))
+        elif 'input_shape' in kwargs:
+            self.set_input_shape((None,) + tuple(kwargs['input_shape']))
         self.trainable = True
         if 'trainable' in kwargs:
             self.trainable = kwargs['trainable']
