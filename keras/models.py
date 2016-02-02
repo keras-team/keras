@@ -1421,6 +1421,7 @@ class Graph(Model, containers.Graph):
             samples_seen = 0
             batch_index = 0
             while samples_seen < samples_per_epoch:
+                generator_output = None
                 while not _stop.is_set():
                     if not generator_queue.empty():
                         generator_output = generator_queue.get()
