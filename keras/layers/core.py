@@ -33,6 +33,11 @@ class Layer(object):
             (e.g. `(32, 100)` for a batch of 32 100-dimensional inputs).
     '''
     def __init__(self, **kwargs):
+        if not hasattr(self, 'params'):
+            self.params = []
+        if not hasattr(self, 'non_trainable_weights'):
+            self.non_trainable_weights = []
+            
         allowed_kwargs = {'input_shape',
                           'trainable',
                           'batch_input_shape',
@@ -40,7 +45,6 @@ class Layer(object):
                           'name'}
         for kwarg in kwargs:
             assert kwarg in allowed_kwargs, 'Keyword argument not understood: ' + kwarg
-
         if 'batch_input_shape' in kwargs:
             self.set_input_shape(tuple(kwargs['batch_input_shape']))
         elif 'input_shape' in kwargs:
@@ -51,8 +55,6 @@ class Layer(object):
         self.name = self.__class__.__name__.lower()
         if 'name' in kwargs:
             self.name = kwargs['name']
-        if not hasattr(self, 'params'):
-            self.params = []
         self.cache_enabled = True
         if 'cache_enabled' in kwargs:
             self.cache_enabled = kwargs['cache_enabled']
@@ -222,10 +224,11 @@ class Layer(object):
             of the layer (i.e. it should match the
             output of `get_weights`).
         '''
-        assert len(self.params) == len(weights), ('Provided weight array does not match layer weights (' +
-                                                  str(len(self.params)) + ' layer params vs. ' +
-                                                  str(len(weights)) + ' provided weights)')
-        for p, w in zip(self.params, weights):
+        params = self.params + self.non_trainable_weights
+        assert len(params) == len(weights), ('Provided weight array does not match layer weights (' +
+                                             str(len(params)) + ' layer params vs. ' +
+                                             str(len(weights)) + ' provided weights)')
+        for p, w in zip(params, weights):
             if K.get_value(p).shape != w.shape:
                 raise Exception('Layer shape %s not compatible with weight shape %s.' % (K.get_value(p).shape, w.shape))
             K.set_value(p, w)
@@ -234,8 +237,9 @@ class Layer(object):
         '''Return the weights of the layer,
         as a list of numpy arrays.
         '''
+        params = self.params + self.non_trainable_weights
         weights = []
-        for p in self.params:
+        for p in params:
             weights.append(K.get_value(p))
         return weights
 
