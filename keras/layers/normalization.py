@@ -61,7 +61,7 @@ class BatchNormalization(Layer):
         
         self.running_mean = K.zeros(shape)
         self.running_std = K.ones(shape)
-        self.additional_params = [self.running_mean, self.running_std]
+        self.non_trainable_weights = [self.running_mean, self.running_std]
         
         if self.initial_weights is not None:
             self.set_weights(self.initial_weights)
