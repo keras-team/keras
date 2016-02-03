@@ -5,7 +5,7 @@ import numpy as np
 from .. import backend as K
 from .. import activations, initializations
 from ..layers.core import MaskedLayer
-from cPickle
+import cPickle
 from warnings import warn
 
 class Recurrent(MaskedLayer):
