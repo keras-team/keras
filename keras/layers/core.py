@@ -33,6 +33,11 @@ class Layer(object):
             (e.g. `(32, 100)` for a batch of 32 100-dimensional inputs).
     '''
     def __init__(self, **kwargs):
+        if not hasattr(self, 'params'):
+            self.params = []
+        if not hasattr(self, 'non_trainable_weights'):
+            self.non_trainable_weights = []
+            
         allowed_kwargs = {'input_shape',
                           'trainable',
                           'batch_input_shape',
@@ -40,7 +45,6 @@ class Layer(object):
                           'name'}
         for kwarg in kwargs:
             assert kwarg in allowed_kwargs, 'Keyword argument not understood: ' + kwarg
-
         if 'batch_input_shape' in kwargs:
             self.set_input_shape(tuple(kwargs['batch_input_shape']))
         elif 'input_shape' in kwargs:
@@ -51,10 +55,6 @@ class Layer(object):
         self.name = self.__class__.__name__.lower()
         if 'name' in kwargs:
             self.name = kwargs['name']
-        if not hasattr(self, 'params'):
-            self.params = []
-        if not hasattr(self, 'non_trainable_weights'):
-            self.non_trainable_weights = []
         self.cache_enabled = True
         if 'cache_enabled' in kwargs:
             self.cache_enabled = kwargs['cache_enabled']
