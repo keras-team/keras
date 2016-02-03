@@ -5,7 +5,7 @@ Here are a few examples to get you started!
 
 ```python
 from keras.models import Sequential
-from keras.layers import Dense, Dropout, Activation
+from keras.layers.core import Dense, Dropout, Activation
 from keras.optimizers import SGD
 
 model = Sequential()
@@ -66,8 +66,8 @@ model.compile(loss='binary_crossentropy',
 
 ```python
 from keras.models import Sequential
-from keras.layers import Dense, Dropout, Activation, Flatten
-from keras.layers import Convolution2D, MaxPooling2D
+from keras.layers.core import Dense, Dropout, Activation, Flatten
+from keras.layers.convolutional import Convolution2D, MaxPooling2D
 from keras.optimizers import SGD
 
 model = Sequential()
@@ -107,9 +107,9 @@ model.fit(X_train, Y_train, batch_size=32, nb_epoch=1)
 
 ```python
 from keras.models import Sequential
-from keras.layers import Dense, Dropout, Activation
-from keras.layers import Embedding
-from keras.layers import LSTM
+from keras.layers.core import Dense, Dropout, Activation
+from keras.layers.embeddings import Embedding
+from keras.layers.recurrent import LSTM
 
 model = Sequential()
 model.add(Embedding(max_features, 256, input_length=maxlen))
