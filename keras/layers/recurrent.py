@@ -459,12 +459,6 @@ class LSTM(Recurrent):
         return dict(list(base_config.items()) + list(config.items()))
 
 
-from keras import backend as K
-from copy import deepcopy
-import cPickle
-from warnings import warn
-from keras.layers.core import MaskedLayer
-
 class Bidirectional(MaskedLayer):
     ''' Bidirectional wrapper for RNNs
 
