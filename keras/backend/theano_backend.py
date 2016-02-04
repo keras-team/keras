@@ -41,18 +41,8 @@ def placeholder(shape=None, ndim=None, dtype=_FLOATX, name=None):
         raise Exception('Specify either a shape or ndim value.')
     if shape is not None:
         ndim = len(shape)
-    if ndim == 0:
-        return T.scalar(name=name, dtype=dtype)
-    elif ndim == 1:
-        return T.vector(name=name, dtype=dtype)
-    elif ndim == 2:
-        return T.matrix(name=name, dtype=dtype)
-    elif ndim == 3:
-        return T.tensor3(name=name, dtype=dtype)
-    elif ndim == 4:
-        return T.tensor4(name=name, dtype=dtype)
-    else:
-        raise Exception('ndim too large: ' + str(ndim))
+    broadcast = (False,) * ndim
+    return T.TensorType(dtype, broadcast)(name)
 
 
 def shape(x):
