@@ -706,16 +706,7 @@ class Sequential(Model, containers.Sequential):
             verbose: verbosity mode, 0 or 1.
             sample_weight: sample weights, as a numpy array.
         '''
-        if type(X) == list:
-            if len(set([len(a) for a in X] + [len(y)])) != 1:
-                raise Exception('All input arrays and the target array must '
-                                'have the same number of samples.')
-        else:
-            if len(X) != len(y):
-                raise Exception('The input data tensor (X) and '
-                                'the target tensor (y) must have '
-                                'the same number of samples. Found: '
-                                'len(X) = {}, len(y) = {}'.format(len(X), len(y)))
+
         if sample_weight is not None:
             assert len(sample_weight) == len(y), ('"sample_weight" must have '
                                                   'the same number of samples '
@@ -745,20 +736,10 @@ class Sequential(Model, containers.Sequential):
 
         Arguments: see `fit` method.
         '''
-        if type(X) == list:
-            if len(set([len(a) for a in X] + [len(y)])) != 1:
-                raise Exception('All input arrays and the target array must '
-                                'have the same number of samples.')
-        else:
-            if len(X) != len(y):
-                raise Exception('The input data tensor (X) and '
-                                'the target tensor (y) must have '
-                                'the same number of samples. Found: '
-                                'len(X) = {}, len(y) = {}'.format(len(X), len(y)))
         if sample_weight is not None:
             assert len(sample_weight) == len(y), ('"sample_weight" must have '
                                                   'the same number of samples '
-                                                  'as X and y.')
+                                                  'as y.')
         X = standardize_X(X)
         y = standardize_y(y)
         sample_weight = standardize_weights(y, class_weight=class_weight,
@@ -776,16 +757,6 @@ class Sequential(Model, containers.Sequential):
 
         Arguments: see `fit` method.
         '''
-        if type(X) == list:
-            if len(set([len(a) for a in X] + [len(y)])) != 1:
-                raise Exception('All input arrays and the target array must '
-                                'have the same number of samples.')
-        else:
-            if len(X) != len(y):
-                raise Exception('The input data tensor (X) and '
-                                'the target tensor (y) must have '
-                                'the same number of samples. Found: '
-                                'len(X) = {}, len(y) = {}'.format(len(X), len(y)))
         if sample_weight is not None:
             assert len(sample_weight) == len(y), ('"sample_weight" must have '
                                                   'the same number of samples '
@@ -853,49 +824,59 @@ class Sequential(Model, containers.Sequential):
             self.layers[k].set_weights(weights)
         f.close()
 
-    def fit_generator(self, generator, samples_per_epoch, nb_epoch,
-                      verbose=1, show_accuracy=False, callbacks=[],
-                      validation_data=None, class_weight=None, nb_worker=1):
+    def generator_input_validation(self, generator_output):
+        '''
+        Util function to validate the batches produced by the generator
+        # Arguments
+            generator_output: output from generator
+        # Returns
+            int, number of valid tuple positions
+        '''
+        if not hasattr(generator_output, '__len__'):
+            raise Exception('The generator output must be a tuple.')
+        if len(generator_output) == 2:
+            return 2
+        elif len(generator_output) > 2:
+            return 3
+        else:
+            raise Exception('The generator output tuple must have '
+                            '2, 3, or more elements.')
+
+    def fit_on_generator(self, data_generator, nb_epoch, samples_per_epoch=None,
+                         verbose=1, show_accuracy=False, callbacks=[],
+                         validation_generator=None, class_weight=None):
         '''Fit a model on data generated batch-by-batch by a Python generator.
-        The generator is run in parallel to the model, for efficiency,
-        and can be run by multiple workers at the same time.
-        For instance, this allows you to do real-time data augmentation
-        on images on CPU in parallel to training your model on GPU.
 
         # Arguments
-            generator: a Python generator,
-                yielding either (X, y) or (X, y, sample_weight).
-                The generator is expected to loop over its data
-                indefinitely. An epoch finishes when `samples_per_epoch`
-                samples have been seen by the model.
-                The output of the generator must be a tuple of either 2 or 3
-                numpy arrays.
+
+            data_generator: a Python generator of generators,
+                `data_generator` is supposed to yield `epoch_generator`
+                `epoch_generator` is supposed to yield n-tuple
+                yielding either (X, y) or (X, y, sample_weight) or (X, y, sample_weight, ...).
+                If you have just `epoch_generator`, `data_generator` can be simply created as 
+                `iter(lambda: epoch_generator, None)` which would create infinite generator of the same `epoch_generator`
+                If you have epoch_generator, which needs to be reinitialized each epoch (e.g. ParallelizeIt) you can use
+                `keras.utils.io_utils.generate_infinit_iterators(epoch_generator_constructor, epoch_generator_constructor_args)` 
+                which would create for each epoch new instance
+                X, y and sample_weight should be numpy array. len(y) and len(sample_weight) has to be the same
                 If the output tuple has two elements, they are assumed to be
                 (input_data, target_data).
                 If it has three elements, they are assumed to be
                 (input_data, target_data, sample_weight).
-                All arrays should contain the same number of samples.
+                If there are more than 3 items in tuple (e.g. metadata for scoring, names, etc.),they are ignored for training.
+
             samples_per_epoch: integer, number of samples to process before
                 starting a new epoch.
             nb_epoch: integer, total number of iterations on the data.
-            verbose: verbosity mode, 0, 1, or 2.
+            verbose: verbosity mode, 0, 1, or 2. Progress bar boundaries are evaluated on-the-fly. 
+                     On first epoch, Progressbar is set to INT_MAX. 
+                     On second epoch Progressbar boundary is correctly set to number of samples in epoch.
             show_accuracy: boolean. Whether to display accuracy (only relevant
                 for classification problems).
             callbacks: list of callbacks to be called during training.
-            validation_data: tuple of 2 or 3 numpy arrays. If 2 elements,
-                they are assumed to be (input_data, target_data);
-                if 3 elements, they are assumed to be
-                (input_data, target_data, sample weights).
+            validation_generator: same format as `data_generator` for validation data
             class_weight: dictionary mapping class indices to a weight
                 for the class.
-            nb_worker: integer, number of workers to use for running
-                the generator (in parallel to model training).
-                If using multiple workers, the processing order of batches
-                generated by the model will be non-deterministic.
-                If using multiple workers, make sure to protect
-                any thread-unsafe operation done by the generator
-                using a Python mutex.
-
         # Returns
 
         A `History` object.
@@ -913,14 +894,15 @@ class Sequential(Model, containers.Sequential):
                     yield x, y
                 f.close()
 
-        model.fit_generator(generate_arrays_from_file('/my_file.txt'),
-                            samples_per_epoch=10000, nb_epoch=10)
+        it = keras.utils.io_utils.isplit_every(10000, generate_arrays_from_file('/my_file.txt'))
+
+        model.fit_on_generator(it, nb_epoch=10)
         ```
         '''
-        max_queue_size = 10  # maximum number of batches in queue
-        wait_time = 0.05  # in seconds
+        self.val_total_nframes = self.train_total_nframes = np.iinfo(np.int32).max
         epoch = 0
-        do_validation = bool(validation_data)
+        do_validation = bool(validation_generator)
+
         if show_accuracy:
             out_labels = ['loss', 'acc']
         else:
@@ -936,85 +918,32 @@ class Sequential(Model, containers.Sequential):
         callbacks = cbks.CallbackList(callbacks)
 
         callbacks._set_model(self)
-        callbacks._set_params({
+        cbks_params = {
             'nb_epoch': nb_epoch,
-            'nb_sample': samples_per_epoch,
+            'nb_sample': self.train_total_nframes,
             'verbose': verbose,
             'do_validation': do_validation,
             'metrics': metrics,
-        })
+        }
+        callbacks._set_params(cbks_params)
         callbacks.on_train_begin()
-
-        # util function to validate the batches produced
-        # by the generator
-        def input_validation(generator_output):
-            if not hasattr(generator_output, '__len__'):
-                _stop.set()
-                raise Exception('The generator output must be a tuple. Found: ' + str(type(generator_output)))
-            if len(generator_output) == 2:
-                X, y = generator_output
-                if type(X) == list:
-                    assert len(set([len(a) for a in X] + [len(y)])) == 1
-                else:
-                    assert len(X) == len(y)
-                    X = [X]
-                sample_weight = None
-            elif len(generator_output) == 3:
-                X, y, sample_weight = generator_output
-                if type(X) == list:
-                    assert len(set([len(a) for a in X] + [len(y), len(sample_weight)])) == 1
-                else:
-                    assert len(X) == len(y) == len(sample_weight)
-                    X = [X]
-            else:
-                _stop.set()
-                raise Exception('The generator output tuple must have '
-                                '2 or 3 elements.')
-            return X, y, sample_weight
-
-        # start generator thread storing batches into a queue
-        generator_queue = queue.Queue()
-        _stop = threading.Event()
-
-        def generator_task():
-            i = 0
-            while not _stop.is_set():
-                try:
-                    if generator_queue.qsize() < max_queue_size:
-                        try:
-                            generator_output = next(generator)
-                        except ValueError:
-                            continue
-                        generator_queue.put(generator_output)
-                        i += 1
-                    else:
-                        time.sleep(wait_time)
-                except:
-                    _stop.set()
-                    raise
-
-        generator_threads = [threading.Thread(target=generator_task) for _ in range(nb_worker)]
-        for thread in generator_threads:
-            thread.start()
-
         self.stop_training = False
-        while epoch < nb_epoch:
+        for epoch in np.arange(nb_epoch):
             callbacks.on_epoch_begin(epoch)
             samples_seen = 0
-            batch_index = 0
-            while samples_seen < samples_per_epoch:
-                generator_output = None
-                while not _stop.is_set():
-                    if not generator_queue.empty():
-                        generator_output = generator_queue.get()
-                        break
-                    else:
-                        time.sleep(wait_time)
+            gen = next(data_generator)
+            for batch_index, d in enumerate(gen):
+                if samples_seen == 0:
+                    # validate first batch
+                    # consider generator homogenous - do not check for the rest of the iteration
+                    tuple_len = self.generator_input_validation(d)
 
-                X, y, sample_weight = input_validation(generator_output)
-
+                if tuple_len == 2:
+                    X, y, sample_weight = d[:tuple_len]+(None,)
+                else:
+                    X, y, sample_weight = d[:tuple_len]
                 batch_logs = {}
-                batch_size = len(X[0])
+                batch_size = len(y)
                 batch_logs['batch'] = batch_index
                 batch_logs['size'] = batch_size
                 callbacks.on_batch_begin(batch_index, batch_logs)
@@ -1026,41 +955,72 @@ class Sequential(Model, containers.Sequential):
                     outs = [outs]
                 for l, o in zip(out_labels, outs):
                     batch_logs[l] = o
-
                 callbacks.on_batch_end(batch_index, batch_logs)
 
                 # construct epoch logs
                 epoch_logs = {}
-                batch_index += 1
                 samples_seen += batch_size
-                if samples_seen >= samples_per_epoch:  # epoch finished
-                    if do_validation:
-                        if hasattr(validation_data, 'next'):
-                            # assumed to be generator
-                            # TODO: call self.evaluate_generator()
-                            _stop.set()
-                            raise NotImplementedError()
-                        else:
-                            # input validation
-                            X, y, sample_weight = input_validation(validation_data)
-                            val_outs = self.evaluate(X, y,
-                                                     show_accuracy=show_accuracy,
-                                                     sample_weight=sample_weight,
-                                                     verbose=0)
-                        if type(val_outs) != list:
-                            val_outs = [val_outs]
-                        # same labels assumed
-                        for l, o in zip(out_labels, val_outs):
-                            epoch_logs['val_' + l] = o
+                if bool(samples_per_epoch) and samples_seen >= samples_per_epoch:  # epoch finished
+                    break
+            if do_validation:
+                val_outs = self.evaluate_on_generator(validation_generator, verbose=verbose, show_accuracy=True, class_weight=None)
+                if type(val_outs) != list:
+                    val_outs = [val_outs]
+                # same labels assumed
+                for l, o in zip(out_labels, val_outs):
+                    epoch_logs['val_' + l] = o
+
+            cbks_params['nb_sample'] = samples_seen
+            callbacks._set_params(cbks_params)
 
             callbacks.on_epoch_end(epoch, epoch_logs)
-            epoch += 1
+
             if self.stop_training:
                 break
-        _stop.set()
         callbacks.on_train_end()
         return history
 
+    def evaluate_on_generator(self, data_generator, verbose=1, show_accuracy=False, class_weight=None):
+        outs = []
+        if verbose == 1:
+            progbar = Progbar(target=self.val_total_nframes)
+
+        samples_seen = 0
+        gen = next(data_generator)
+        for batch_index, d in enumerate(gen):
+            if samples_seen == 0:
+                # validate first batch
+                # consider generator homogenous - do not check for the rest of the iteration
+                tuple_len = self.generator_input_validation(d)
+
+            if tuple_len == 2:
+                X, y, sample_weight = d[:tuple_len]+(None,)
+            else:
+                X, y, sample_weight = d[:tuple_len]
+
+            batch_len = len(y)
+            samples_seen += batch_len
+
+            batch_outs = self.test_on_batch(X, y, accuracy=show_accuracy, sample_weight=sample_weight)
+
+            if type(batch_outs) == list:
+                if batch_index == 0:
+                    for batch_out in enumerate(batch_outs):
+                        outs.append(0.)
+                for i, batch_out in enumerate(batch_outs):
+                    outs[i] += batch_out * batch_len
+            else:
+                if batch_index == 0:
+                    outs.append(0.)
+                outs[0] += batch_outs * batch_len
+
+            if verbose == 1:
+                progbar.update(samples_seen)
+
+        for i, out in enumerate(outs):
+            outs[i] /= samples_seen
+        self.val_total_nframes = samples_seen
+        return outs
 
 class Graph(Model, containers.Graph):
     '''Arbitrary connection graph.
@@ -1320,7 +1280,7 @@ class Graph(Model, containers.Graph):
         self.set_weights(weights)
         f.close()
 
-    def fit_generator(self, generator, samples_per_epoch, nb_epoch,
+    def fit_generator(self, data_generator, samples_per_epoch, nb_epoch,
                       verbose=1, callbacks=[],
                       validation_data=None, class_weight={}, nb_worker=1):
         '''Fit a model on data generated batch-by-batch by a Python generator.
@@ -1330,7 +1290,7 @@ class Graph(Model, containers.Graph):
         on images on CPU in parallel to training your model on GPU.
 
         # Arguments
-            generator: a generator.
+            data_generator: a generator.
                 The output of the generator must be either a dictionary
                 mapping inputs and outputs names to numpy arrays, or
                 a tuple of dictionaries (input_data, sample_weight).
@@ -1441,7 +1401,7 @@ class Graph(Model, containers.Graph):
             while not _stop.is_set():
                 try:
                     if generator_queue.qsize() < max_queue_size:
-                        generator_output = next(generator)
+                        generator_output = next(data_generator)
                         generator_queue.put(generator_output)
                         i += 1
                     else:
