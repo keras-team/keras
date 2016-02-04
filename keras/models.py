@@ -97,6 +97,7 @@ def weighted_objective(fn):
         # apply sample weighting
         if weights is not None:
             score_array *= weights
+            score_array /= K.mean(K.cast(K.not_equal(weights, 0), K.floatx()))
         return K.mean(score_array)
     return weighted
 
