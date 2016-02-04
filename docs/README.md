@@ -8,4 +8,5 @@ Our documentation uses extended Markdown, as implemented by [MkDocs](http://mkdo
 - install MkDocs: `pip install mkdocs`
 - `cd` to the `docs/` folder and run:
     - `python autogen.py`
-    - `mkdocs serve`
+    - `mkdocs serve`    # Starts a local webserver.  Point your browser to http://0.0.0.0:8000
+    - `mkdocs build`    # Builds a static site in "site" directory
