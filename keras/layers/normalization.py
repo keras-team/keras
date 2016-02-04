@@ -57,12 +57,12 @@ class BatchNormalization(Layer):
 
         self.gamma = self.init(shape)
         self.beta = K.zeros(shape)
-        self.params = [self.gamma, self.beta]
-        
+        self.trainable_weights = [self.gamma, self.beta]
+
         self.running_mean = K.zeros(shape)
         self.running_std = K.ones(shape)
         self.non_trainable_weights = [self.running_mean, self.running_std]
-        
+
         if self.initial_weights is not None:
             self.set_weights(self.initial_weights)
             del self.initial_weights

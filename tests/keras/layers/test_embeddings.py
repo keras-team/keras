@@ -23,7 +23,7 @@ def test_unitnorm_constraint():
     lookup.compile(loss='binary_crossentropy', optimizer='sgd',
                    class_mode='binary')
     lookup.train_on_batch(X1, np.array([[1], [0]], dtype='int32'))
-    norm = np.linalg.norm(K.get_value(lookup.params[0]), axis=0)
+    norm = np.linalg.norm(K.get_value(lookup.trainable_weights[0]), axis=0)
     assert_allclose(norm, np.ones_like(norm).astype('float32'), rtol=1e-05)
 
 

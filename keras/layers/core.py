@@ -33,11 +33,11 @@ class Layer(object):
             (e.g. `(32, 100)` for a batch of 32 100-dimensional inputs).
     '''
     def __init__(self, **kwargs):
-        if not hasattr(self, 'params'):
-            self.params = []
+        if not hasattr(self, 'trainable_weights'):
+            self.trainable_weights = []
         if not hasattr(self, 'non_trainable_weights'):
             self.non_trainable_weights = []
-            
+
         allowed_kwargs = {'input_shape',
                           'trainable',
                           'batch_input_shape',
@@ -224,7 +224,7 @@ class Layer(object):
             of the layer (i.e. it should match the
             output of `get_weights`).
         '''
-        params = self.params + self.non_trainable_weights
+        params = self.trainable_weights + self.non_trainable_weights
         assert len(params) == len(weights), ('Provided weight array does not match layer weights (' +
                                              str(len(params)) + ' layer params vs. ' +
                                              str(len(weights)) + ' provided weights)')
@@ -237,7 +237,7 @@ class Layer(object):
         '''Return the weights of the layer,
         as a list of numpy arrays.
         '''
-        params = self.params + self.non_trainable_weights
+        params = self.trainable_weights + self.non_trainable_weights
         weights = []
         for p in params:
             weights.append(K.get_value(p))
@@ -268,27 +268,27 @@ class Layer(object):
         else:
             regularizers = []
 
-        if hasattr(self, 'constraints') and len(self.constraints) == len(self.params):
+        if hasattr(self, 'constraints') and len(self.constraints) == len(self.trainable_weights):
             for c in self.constraints:
                 if c:
                     consts.append(c)
                 else:
                     consts.append(constraints.identity())
         elif hasattr(self, 'constraint') and self.constraint:
-            consts += [self.constraint for _ in range(len(self.params))]
+            consts += [self.constraint for _ in range(len(self.trainable_weights))]
         else:
-            consts += [constraints.identity() for _ in range(len(self.params))]
+            consts += [constraints.identity() for _ in range(len(self.trainable_weights))]
 
         if hasattr(self, 'updates') and self.updates:
             updates += self.updates
 
-        return self.params, regularizers, consts, updates
+        return self.trainable_weights, regularizers, consts, updates
 
     def count_params(self):
         '''Return the total number of floats (or ints)
         composing the weights of the layer.
         '''
-        return sum([K.count_params(p) for p in self.params])
+        return sum([K.count_params(p) for p in self.trainable_weights])
 
 
 class MaskedLayer(Layer):
@@ -362,7 +362,7 @@ class TimeDistributedMerge(Layer):
     def __init__(self, mode='sum', **kwargs):
         super(TimeDistributedMerge, self).__init__(**kwargs)
         self.mode = mode
-        self.params = []
+        self.trainable_weights = []
         self.regularizers = []
         self.constraints = []
         self.updates = []
@@ -487,7 +487,7 @@ class Merge(Layer):
         self.concat_axis = concat_axis
         self.dot_axes = dot_axes
         self.layers = layers
-        self.params = []
+        self.trainable_weights = []
         self.regularizers = []
         self.constraints = []
         self.updates = []
@@ -497,8 +497,8 @@ class Merge(Layer):
             self.updates += updates
             # params and constraints have the same size
             for p, c in zip(params, consts):
-                if p not in self.params:
-                    self.params.append(p)
+                if p not in self.trainable_weights:
+                    self.trainable_weights.append(p)
                     self.constraints.append(c)
         super(Merge, self).__init__()
 
@@ -532,7 +532,7 @@ class Merge(Layer):
             return (input_shapes[0][0], 1)
 
     def get_params(self):
-        return self.params, self.regularizers, self.constraints, self.updates
+        return self.trainable_weights, self.regularizers, self.constraints, self.updates
 
     def get_output(self, train=False):
         if self.mode == 'sum' or self.mode == 'ave':
@@ -611,7 +611,7 @@ class Merge(Layer):
 
     def set_weights(self, weights):
         for i in range(len(self.layers)):
-            nb_param = len(self.layers[i].params)
+            nb_param = len(self.layers[i].trainable_weights)
             self.layers[i].set_weights(weights[:nb_param])
             weights = weights[nb_param:]
 
@@ -942,7 +942,7 @@ class Dense(Layer):
         self.W = self.init((input_dim, self.output_dim))
         self.b = K.zeros((self.output_dim,))
 
-        self.params = [self.W, self.b]
+        self.trainable_weights = [self.W, self.b]
 
         self.regularizers = []
         if self.W_regularizer:
@@ -1093,7 +1093,7 @@ class TimeDistributedDense(MaskedLayer):
         self.W = self.init((input_dim, self.output_dim))
         self.b = K.zeros((self.output_dim,))
 
-        self.params = [self.W, self.b]
+        self.trainable_weights = [self.W, self.b]
         self.regularizers = []
 
         if self.W_regularizer:
@@ -1222,7 +1222,7 @@ class AutoEncoder(Layer):
         self.build()
 
     def build(self):
-        self.params = []
+        self.trainable_weights = []
         self.regularizers = []
         self.constraints = []
         self.updates = []
@@ -1235,8 +1235,8 @@ class AutoEncoder(Layer):
             self.regularizers += regularizers
             self.updates += updates
             for p, c in zip(params, constraints):
-                if p not in self.params:
-                    self.params.append(p)
+                if p not in self.trainable_weights:
+                    self.trainable_weights.append(p)
                     self.constraints.append(c)
 
     def set_previous(self, node):
@@ -1249,7 +1249,7 @@ class AutoEncoder(Layer):
         return weights
 
     def set_weights(self, weights):
-        nb_param = len(self.encoder.params)
+        nb_param = len(self.encoder.trainable_weights)
         self.encoder.set_weights(weights[:nb_param])
         self.decoder.set_weights(weights[nb_param:])
 
@@ -1337,7 +1337,7 @@ class MaxoutDense(Layer):
         self.W = self.init((self.nb_feature, input_dim, self.output_dim))
         self.b = K.zeros((self.nb_feature, self.output_dim))
 
-        self.params = [self.W, self.b]
+        self.trainable_weights = [self.W, self.b]
         self.regularizers = []
 
         if self.W_regularizer:
@@ -1463,7 +1463,7 @@ class LambdaMerge(Lambda):
             raise Exception('Please specify two or more input layers '
                             '(or containers) to merge.')
         self.layers = layers
-        self.params = []
+        self.trainable_weights = []
         self.regularizers = []
         self.constraints = []
         self.updates = []
@@ -1473,8 +1473,8 @@ class LambdaMerge(Lambda):
             self.updates += updates
             # params and constraints have the same size
             for p, c in zip(params, consts):
-                if p not in self.params:
-                    self.params.append(p)
+                if p not in self.trainable_weights:
+                    self.trainable_weights.append(p)
                     self.constraints.append(c)
         py3 = sys.version_info[0] == 3
         if py3:
@@ -1508,7 +1508,7 @@ class LambdaMerge(Lambda):
             return tuple(shape)
 
     def get_params(self):
-        return self.params, self.regularizers, self.constraints, self.updates
+        return self.trainable_weights, self.regularizers, self.constraints, self.updates
 
     def get_output(self, train=False):
         func = marshal.loads(self.function)
@@ -1545,7 +1545,7 @@ class LambdaMerge(Lambda):
 
     def set_weights(self, weights):
         for i in range(len(self.layers)):
-            nb_param = len(self.layers[i].params)
+            nb_param = len(self.layers[i].trainable_weights) + len(self.non_trainable_weights)
             self.layers[i].set_weights(weights[:nb_param])
             weights = weights[nb_param:]
 
@@ -1594,7 +1594,7 @@ class Siamese(Layer):
         self.merge_mode = merge_mode
         self.concat_axis = concat_axis
         self.dot_axes = dot_axes
-        self.params = []
+        self.trainable_weights = []
         self.regularizers = []
         self.constraints = []
         self.updates = []
@@ -1607,8 +1607,8 @@ class Siamese(Layer):
             self.updates += updates
             # params and constraints have the same size
             for p, c in zip(params, consts):
-                if p not in self.params:
-                    self.params.append(p)
+                if p not in self.trainable_weights:
+                    self.trainable_weights.append(p)
                     self.constraints.append(c)
         super(Siamese, self).__init__()
 
@@ -1646,7 +1646,7 @@ class Siamese(Layer):
             return (input_shapes[0][0], 1)
 
     def get_params(self):
-        return self.params, self.regularizers, self.constraints, self.updates
+        return self.trainable_weights, self.regularizers, self.constraints, self.updates
 
     def set_layer_input(self, head):
         layer = self.layer
@@ -1766,12 +1766,12 @@ class Siamese(Layer):
         return weights
 
     def set_weights(self, weights):
-        nb_param = len(self.layer.params)
+        nb_param = len(self.layer.trainable_weights)
         self.layer.set_weights(weights[:nb_param])
         weights = weights[nb_param:]
         if self.merge_mode and not self.is_graph:
             for i in range(len(self.inputs)):
-                nb_param = len(self.inputs[i].params)
+                nb_param = len(self.inputs[i].trainable_weights)
                 self.inputs[i].set_weights(weights[:nb_param])
                 weights = weights[nb_param:]
 
@@ -1800,7 +1800,7 @@ class SiameseHead(Layer):
     '''
     def __init__(self, head):
         self.head = head
-        self.params = []
+        self.trainable_weights = []
         super(SiameseHead, self).__init__()
 
     def get_output(self, train=False):
@@ -1914,7 +1914,7 @@ class Highway(Layer):
         # initialize with a vector of values `transform_bias`
         self.b_carry = K.variable(np.ones((input_dim,)) * self.transform_bias)
 
-        self.params = [self.W, self.b, self.W_carry, self.b_carry]
+        self.trainable_weights = [self.W, self.b, self.W_carry, self.b_carry]
 
         self.regularizers = []
         if self.W_regularizer:

@@ -496,7 +496,7 @@ class Sequential(Model, containers.Sequential):
 
         for r in self.regularizers:
             train_loss = r(train_loss)
-        updates = self.optimizer.get_updates(self.params,
+        updates = self.optimizer.get_updates(self.trainable_weights,
                                              self.constraints,
                                              train_loss)
         updates += self.updates
@@ -1125,7 +1125,7 @@ class Graph(Model, containers.Graph):
         for r in self.regularizers:
             train_loss = r(train_loss)
         self.optimizer = optimizers.get(optimizer)
-        updates = self.optimizer.get_updates(self.params,
+        updates = self.optimizer.get_updates(self.trainable_weights,
                                              self.constraints,
                                              train_loss)
         updates += self.updates
