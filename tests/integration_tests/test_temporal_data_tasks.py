@@ -38,8 +38,8 @@ def test_temporal_classification():
 
 def test_temporal_regression():
     '''
-    Predict float numbers (regression) based on sequences of float numbers of length 3 using
-    single layer of GRU units
+    Predict float numbers (regression) based on sequences
+    of float numbers of length 3 using a single layer of GRU units
     '''
     np.random.seed(1337)
     (X_train, y_train), (X_test, y_test) = get_test_data(nb_train=500,
@@ -127,6 +127,7 @@ def test_stacked_lstm_char_prediction():
     # check that it did generate the alphabet correctly
     assert(generated == alphabet)
 
+
 def test_masked_temporal():
     '''
     Confirm that even with masking on both inputs and outputs, cross-entropies are
@@ -145,16 +146,17 @@ def test_masked_temporal():
     model.add(TimeDistributedDense(10))
     model.add(Activation('softmax'))
     model.compile(loss='categorical_crossentropy',
-                  optimizer='adam', sample_weight_mode="temporal")
+                  optimizer='adam',
+                  sample_weight_mode="temporal")
 
     X = np.random.random_integers(1, 9, (50000, 20))
     for rowi in range(X.shape[0]):
-        padding = np.random.random_integers(X.shape[1]/2)
+        padding = np.random.random_integers(X.shape[1] / 2)
         X[rowi, :padding] = 0
 
-    # 50% of the time the correct output is the input. The other 50% of the time
-    # it's 2*input%10
-    y = (X * np.random.random_integers(1, 2, X.shape))%10
+    # 50% of the time the correct output is the input.
+    # The other 50% of the time it's 2 * input % 10
+    y = (X * np.random.random_integers(1, 2, X.shape)) % 10
     Y = np.zeros((y.size, 10), dtype='int32')
     for i, target in enumerate(y.flat):
         Y[i, target] = 1
@@ -166,7 +168,9 @@ def test_masked_temporal():
     print("Y shape: ", Y.shape)
     print("sample_weight shape: ", Y.shape)
 
-    history = model.fit(X, Y, validation_split=0.05, sample_weight=sample_weight,verbose=1, nb_epoch=2)
+    history = model.fit(X, Y, validation_split=0.05,
+                        sample_weight=sample_weight,
+                        verbose=1, nb_epoch=2)
     ground_truth = -np.log(0.5)
     assert(np.abs(history.history['val_loss'][-1] - ground_truth) < 0.05)
 
