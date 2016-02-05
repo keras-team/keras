@@ -501,7 +501,7 @@ class TensorBoard(Callback):
     def on_epoch_end(self, epoch, logs={}):
         import tensorflow as tf
 
-        if self.model.validation_data and self.histogram_freq:
+        if self.histogram_freq and self.model.validation_data:
             if epoch % self.histogram_freq == 0:
                 if self.params.get('show_accuracy'):
                     test_function = self.model._test_with_acc
