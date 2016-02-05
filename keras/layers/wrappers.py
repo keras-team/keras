@@ -36,7 +36,7 @@ class Wrapper(Layer):
 
     def set_params(self):
         layer_params = self.layer.get_params()
-        self.params = layer_params[0]
+        self.trainable_weights = layer_params[0]
         self.regularizers = layer_params[1]
         self.constraints = layer_params[2]
         self.updates = layer_params[3]
@@ -111,7 +111,7 @@ class Highway(Wrapper):
         self.input_dim = input_dim
         self.W = self.init((input_dim, input_dim))
         self.b = K.variable(np.ones((input_dim,)) * self.transform_bias)
-        self.params += [self.W, self.b]
+        self.trainable_weights += [self.W, self.b]
 
     def get_output(self, train=False):
         X = self.get_input(train)
@@ -238,7 +238,7 @@ class Bidirectional(MaskedLayer):
         return self.forward.get_input(train)
 
     @property
-    def params(self):
+    def trainable_weights(self):
         return self.forward.get_params()[0] + self.reverse.get_params()[0]
 
     @property
@@ -264,8 +264,8 @@ class Bidirectional(MaskedLayer):
                 self.reverse._input_shape = self._input_shape
                 self.forward.previous = self.previous
                 self.reverse.previous = self.previous
-                self.forward.params = []
-                self.reverse.params = []
+                self.forward.trainable_weights = []
+                self.reverse.trainable_weights = []
                 self.forward.build()
                 self.reverse.build()
 
