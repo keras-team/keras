@@ -270,7 +270,8 @@ class Bidirectional(MaskedLayer):
                 self.reverse.build()
 
     def get_config(self):
-        config = {"rnn": self.forward.get_config(),
+        config = {'name': self.__class__.__name__, 
+                "rnn": self.forward.get_config(),
                   "merge_mode": self.merge_mode}
         base_config = super(Bidirectional, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
