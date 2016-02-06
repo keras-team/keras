@@ -38,7 +38,7 @@ class Recurrent(MaskedLayer):
             This argument (or alternatively, the keyword argument `input_shape`)
             is required when using this layer as the first layer in a model.
         input_length: Length of input sequences, to be specified
-            when it is constant.
+            when it is constant or when the unroll argument is True.
             This argument is required if you are going to connect
             `Flatten` then `Dense` layers upstream
             (without it, the shape of the dense outputs cannot be computed).
@@ -46,6 +46,8 @@ class Recurrent(MaskedLayer):
             in your model, you would need to specify the input length
             at the level of the first layer
             (e.g. via the `input_shape` argument)
+        unroll: Boolean (default False).
+            If True, the RNN will be unrolled.
 
     # Masking
         This layer supports masking for input data with a variable number
@@ -84,7 +86,7 @@ class Recurrent(MaskedLayer):
 
     def __init__(self, weights=None,
                  return_sequences=False, go_backwards=False, stateful=False,
-                 input_dim=None, input_length=None, **kwargs):
+                 input_dim=None, input_length=None, unroll=False, **kwargs):
         self.return_sequences = return_sequences
         self.initial_weights = weights
         self.go_backwards = go_backwards
@@ -94,6 +96,8 @@ class Recurrent(MaskedLayer):
         self.input_length = input_length
         if self.input_dim:
             kwargs['input_shape'] = (self.input_length, self.input_dim)
+
+        self.unroll = unroll
         super(Recurrent, self).__init__(**kwargs)
 
     def get_output_mask(self, train=False):
@@ -147,7 +151,7 @@ class Recurrent(MaskedLayer):
         last_output, outputs, states = K.rnn(self.step, X,
                                              initial_states,
                                              go_backwards=self.go_backwards,
-                                             mask=mask)
+                                             mask=mask, unroll=self.unroll, input_length=self.input_shape[1])
         if self.stateful:
             self.updates = []
             for i in range(len(states)):
@@ -162,7 +166,8 @@ class Recurrent(MaskedLayer):
         config = {"name": self.__class__.__name__,
                   "return_sequences": self.return_sequences,
                   "go_backwards": self.go_backwards,
-                  "stateful": self.stateful}
+                  "stateful": self.stateful,
+                  "unroll": self.unroll}
         if self.stateful:
             config['batch_input_shape'] = self.input_shape
         else:
