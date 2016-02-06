@@ -390,7 +390,7 @@ def gradients(loss, variables):
 # CONTROL FLOW
 
 def rnn(step_function, inputs, initial_states,
-        go_backwards=False, mask=None):
+        go_backwards=False, mask=None, unroll=False, input_length=None):
     '''Iterates over the time dimension of a tensor.
 
     Parameters
@@ -414,7 +414,8 @@ def rnn(step_function, inputs, initial_states,
         the time dimension in reverse order.
     mask: binary tensor with shape (samples, time, 1),
         with a zero for every element that is masked.
-
+    unroll: Has no effect when using tensorflow backend.
+    input_length: Has no effect when using tensorflow backend.
     Returns
     -------
     A tuple (last_output, outputs, new_states).
