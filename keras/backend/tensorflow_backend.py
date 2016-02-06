@@ -416,6 +416,7 @@ def rnn(step_function, inputs, initial_states,
         with a zero for every element that is masked.
     unroll: Has no effect when using tensorflow backend.
     input_length: Has no effect when using tensorflow backend.
+
     Returns
     -------
     A tuple (last_output, outputs, new_states).
