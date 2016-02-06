@@ -424,8 +424,8 @@ def test_lambda():
     # test "join" mode in Lambda
     def difference(input_dict):
         assert(len(input_dict) == 2)
-        keys = list(input_dict.keys())
-        return input_dict[keys[0]] - input_dict[keys[1]]
+        a,b = input_dict.values()
+        return a - b
 
     g = Graph()
     g.add_input(name='input_a', input_shape=(2,))
