@@ -1089,6 +1089,9 @@ class Graph(Model, containers.Graph):
                 you will need to set the sample weight mode for this output
                 to "temporal".
         '''
+        assert type(loss) is dict, 'The "loss" argument should be a dictionary.'
+        assert type(sample_weight_modes) is dict, 'The "sample_weight_modes" argument should be a dictionary.'
+
         self.sample_weight_modes = sample_weight_modes
         ys = []
         ys_train = []
