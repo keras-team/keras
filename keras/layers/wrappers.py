@@ -73,18 +73,18 @@ class TimeDistributed(MaskedLayer, Wrapper):
 
     def get_output_shape(self):
         input_shape = self.input_shape
-        return (input_shape[0], input_shape[1], self.layer.output_shape[-1])
+        return tuple([input_shape[0], input_shape[1]] + list(self.layer.output_shape[1:]))
 
     def get_input_shape(self):
         layer_input_shape = self.layer.input_shape
+        self.input_ndim = 1 + len(layer_input_shape)
         timesteps = None if not hasattr(self, '_input_shape') else self._input_shape[1]
-        return  (layer_input_shape[0], timesteps, layer_input_shape[1])
+        return  tuple([layer_input_shape[0], timesteps] + list(layer_input_shape[1:]))
 
     def build(self):
         input_shape = self.input_shape
-        self.layer.set_input_shape((input_shape[0], input_shape[-1]))
+        self.layer.set_input_shape(tuple([input_shape[0]] + list(input_shape[2:])))
         self.set_params()
-
 
     def get_output(self, train=False):
         X = self.get_input(train)
