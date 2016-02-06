@@ -417,7 +417,7 @@ def rnn(step_function, inputs, initial_states,
         the step function.
     go_backwards: boolean. If True, do the iteration over
         the time dimension in reverse order.
-    mask: binary tensor with shape (samples, time, 1),
+    mask: binary tensor with shape (samples, time),
         with a zero for every element that is masked.
     unroll: boolean. If True, the rnn will be unrolled.
     input_length: integer. Number of timesteps in the input sequence. Should be specified if unroll = True.
@@ -439,6 +439,9 @@ def rnn(step_function, inputs, initial_states,
     if mask is None:
         mask = expand_dims(ones_like(T.sum(inputs, axis=-1)))
     else:
+        if mask.ndim == ndim-1:
+            mask = expand_dims(mask)
+        assert mask.ndim == ndim
         mask = mask.dimshuffle(axes)
 
     # build an all-zero tensor of shape (samples, output_dim)
