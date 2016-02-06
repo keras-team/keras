@@ -305,7 +305,7 @@ class Graph(Layer):
             raise Exception('Duplicate node identifier: ' + name)
         self.namespace.add(name)
         self.input_order.append(name)
-        layer = Layer()  # empty layer
+        layer = Layer(name=name)  # empty layer
         if input_shape:
             layer.set_input_shape((None,) + tuple(input_shape))
         elif batch_input_shape:
@@ -351,6 +351,7 @@ class Graph(Layer):
         '''
         if name in self.namespace:
             raise Exception('Duplicate node identifier: ' + name)
+        layer.name = name
         if input:
             if input not in self.namespace:
                 raise Exception('Unknown node/input identifier: ' + input)
