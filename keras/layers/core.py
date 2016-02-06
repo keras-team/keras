@@ -1784,7 +1784,7 @@ def add_shared_layer(layer, inputs):
     for m in inputs:
         if len(m.layers) == 0:
             from keras.layers.embeddings import Embedding
-            if hasattr(layer, 'input') and str(layer.input.type) == 'TensorType(int32, matrix)':
+            if issubclass(layer.__class__, Embedding):
 
                 class IntInput(Layer):
 
