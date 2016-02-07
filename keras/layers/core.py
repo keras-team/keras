@@ -1285,6 +1285,27 @@ class AutoEncoder(Layer):
                 'output_reconstruction': self.output_reconstruction}
 
 
+class Maxout(Layer):
+    '''
+        Max-out layer, nb_feature is the number of pieces in the piecewise linear approx.
+        nb_feature must divide the first dimension of the input.
+    '''
+    def __init__(self, nb_feature=4):
+        super(Maxout, self).__init__()
+        self.nb_feature = int(nb_feature)
+
+    def get_output(self, train=False):
+        X = self.get_input(train)
+        nshape = T.concatenate([(X.shape[0], self.nb_feature, X.shape[1] // self.nb_feature),
+                                X.shape[2:]])
+        output = T.max(T.reshape(X, nshape, ndim=X.ndim+1), axis=1)
+        return output
+
+    def get_config(self):
+        return {"name": self.__class__.__name__,
+                "nb_feature": self.nb_feature}
+
+
 class MaxoutDense(Layer):
     '''A dense maxout layer.
 
