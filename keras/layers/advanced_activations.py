@@ -6,8 +6,8 @@ import numpy as np
 
 class LeakyReLU(MaskedLayer):
     '''Special version of a Rectified Linear Unit
-    that allows a small gradient when the unit is not active
-    (`f(x) = alpha*x for x < 0`).
+    that allows a small gradient when the unit is not active:
+    `f(x) = alpha*x for x < 0`.
 
     # Input shape
         Arbitrary. Use the keyword argument `input_shape`

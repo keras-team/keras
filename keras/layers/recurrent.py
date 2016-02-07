@@ -52,7 +52,6 @@ class Recurrent(MaskedLayer):
         of timesteps. To introduce masks to your data,
         use an [Embedding](embeddings.md) layer with the `mask_zero` parameter
         set to `True`.
-        **Note:** for the time being, masking is only supported with Theano.
 
     # TensorFlow warning
         For the time being, when using the TensorFlow backend,

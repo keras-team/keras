@@ -345,53 +345,6 @@ class Masking(MaskedLayer):
         return dict(list(base_config.items()) + list(config.items()))
 
 
-class TimeDistributedMerge(Layer):
-    '''Sum/multiply/average over the outputs of a TimeDistributed layer.
-
-    # Input shape
-        3D tensor with shape: `(samples, steps, features)`.
-
-    # Output shape
-        2D tensor with shape: `(samples, features)`.
-
-    # Arguments
-        mode: one of {'sum', 'mul', 'ave'}
-    '''
-    input_ndim = 3
-
-    def __init__(self, mode='sum', **kwargs):
-        super(TimeDistributedMerge, self).__init__(**kwargs)
-        self.mode = mode
-        self.trainable_weights = []
-        self.regularizers = []
-        self.constraints = []
-        self.updates = []
-
-    @property
-    def output_shape(self):
-        return (None, self.input_shape[2])
-
-    def get_output(self, train=False):
-        X = self.get_input(train)
-        if self.mode == 'ave':
-            s = K.mean(X, axis=1)
-            return s
-        if self.mode == 'sum':
-            s = K.sum(X, axis=1)
-            return s
-        elif self.mode == 'mul':
-            s = K.prod(X, axis=1)
-            return s
-        else:
-            raise Exception('Unknown merge mode')
-
-    def get_config(self):
-        config = {'name': self.__class__.__name__,
-                  'mode': self.mode}
-        base_config = super(TimeDistributedMerge, self).get_config()
-        return dict(list(base_config.items()) + list(config.items()))
-
-
 class Merge(Layer):
     '''Merge the output of a list of layers or containers into a single tensor.
 
@@ -411,24 +364,24 @@ class Merge(Layer):
     # Examples
 
     ```python
-    left = Sequential()
-    left.add(Dense(50, input_shape=(784,)))
-    left.add(Activation('relu'))
+        left = Sequential()
+        left.add(Dense(50, input_shape=(784,)))
+        left.add(Activation('relu'))
 
-    right = Sequential()
-    right.add(Dense(50, input_shape=(784,)))
-    right.add(Activation('relu'))
+        right = Sequential()
+        right.add(Dense(50, input_shape=(784,)))
+        right.add(Activation('relu'))
 
-    model = Sequential()
-    model.add(Merge([left, right], mode='sum'))
+        model = Sequential()
+        model.add(Merge([left, right], mode='sum'))
 
-    model.add(Dense(10))
-    model.add(Activation('softmax'))
+        model.add(Dense(10))
+        model.add(Activation('softmax'))
 
-    model.compile(loss='categorical_crossentropy', optimizer='rmsprop')
+        model.compile(loss='categorical_crossentropy', optimizer='rmsprop')
 
-    model.fit([X_train, X_train], Y_train, batch_size=128, nb_epoch=20,
-              validation_data=([X_test, X_test], Y_test))
+        model.fit([X_train, X_train], Y_train, batch_size=128, nb_epoch=20,
+                  validation_data=([X_test, X_test], Y_test))
     ```
     '''
     def __init__(self, layers, mode='sum', concat_axis=-1, dot_axes=-1):
@@ -623,6 +576,53 @@ class Merge(Layer):
                   'concat_axis': self.concat_axis,
                   'dot_axes': self.dot_axes}
         base_config = super(Merge, self).get_config()
+        return dict(list(base_config.items()) + list(config.items()))
+
+
+class TimeDistributedMerge(Layer):
+    '''Sum/multiply/average over the outputs of a TimeDistributed layer.
+
+    # Input shape
+        3D tensor with shape: `(samples, steps, features)`.
+
+    # Output shape
+        2D tensor with shape: `(samples, features)`.
+
+    # Arguments
+        mode: one of {'sum', 'mul', 'ave'}
+    '''
+    input_ndim = 3
+
+    def __init__(self, mode='sum', **kwargs):
+        super(TimeDistributedMerge, self).__init__(**kwargs)
+        self.mode = mode
+        self.trainable_weights = []
+        self.regularizers = []
+        self.constraints = []
+        self.updates = []
+
+    @property
+    def output_shape(self):
+        return (None, self.input_shape[2])
+
+    def get_output(self, train=False):
+        X = self.get_input(train)
+        if self.mode == 'ave':
+            s = K.mean(X, axis=1)
+            return s
+        if self.mode == 'sum':
+            s = K.sum(X, axis=1)
+            return s
+        elif self.mode == 'mul':
+            s = K.prod(X, axis=1)
+            return s
+        else:
+            raise Exception('Unknown merge mode')
+
+    def get_config(self):
+        config = {'name': self.__class__.__name__,
+                  'mode': self.mode}
+        base_config = super(TimeDistributedMerge, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
 
@@ -986,42 +986,6 @@ class Dense(Layer):
         return dict(list(base_config.items()) + list(config.items()))
 
 
-class ActivityRegularization(Layer):
-    '''Layer that passes through its input unchanged, but applies an update
-    to the cost function based on the activity.
-
-    # Input shape
-        Arbitrary. Use the keyword argument `input_shape`
-        (tuple of integers, does not include the samples axis)
-        when using this layer as the first layer in a model.
-
-    # Output shape
-        Same shape as input.
-
-    # Arguments
-        l1: L1 regularization factor.
-        l2: L2 regularization factor.
-    '''
-    def __init__(self, l1=0., l2=0., **kwargs):
-        super(ActivityRegularization, self).__init__(**kwargs)
-        self.l1 = l1
-        self.l2 = l2
-
-        activity_regularizer = ActivityRegularizer(l1=l1, l2=l2)
-        activity_regularizer.set_layer(self)
-        self.regularizers = [activity_regularizer]
-
-    def get_output(self, train=False):
-        return self.get_input(train)
-
-    def get_config(self):
-        config = {'name': self.__class__.__name__,
-                  'l1': self.l1,
-                  'l2': self.l2}
-        base_config = super(ActivityRegularization, self).get_config()
-        return dict(list(base_config.items()) + list(config.items()))
-
-
 class TimeDistributedDense(MaskedLayer):
     '''Apply a same Dense layer for each dimension[1] (time_dimension) input.
     Especially useful after a recurrent network with 'return_sequence=True'.
@@ -1147,6 +1111,42 @@ class TimeDistributedDense(MaskedLayer):
         return dict(list(base_config.items()) + list(config.items()))
 
 
+class ActivityRegularization(Layer):
+    '''Layer that passes through its input unchanged, but applies an update
+    to the cost function based on the activity.
+
+    # Input shape
+        Arbitrary. Use the keyword argument `input_shape`
+        (tuple of integers, does not include the samples axis)
+        when using this layer as the first layer in a model.
+
+    # Output shape
+        Same shape as input.
+
+    # Arguments
+        l1: L1 regularization factor.
+        l2: L2 regularization factor.
+    '''
+    def __init__(self, l1=0., l2=0., **kwargs):
+        super(ActivityRegularization, self).__init__(**kwargs)
+        self.l1 = l1
+        self.l2 = l2
+
+        activity_regularizer = ActivityRegularizer(l1=l1, l2=l2)
+        activity_regularizer.set_layer(self)
+        self.regularizers = [activity_regularizer]
+
+    def get_output(self, train=False):
+        return self.get_input(train)
+
+    def get_config(self):
+        config = {'name': self.__class__.__name__,
+                  'l1': self.l1,
+                  'l2': self.l2}
+        base_config = super(ActivityRegularization, self).get_config()
+        return dict(list(base_config.items()) + list(config.items()))
+
+
 class AutoEncoder(Layer):
     '''A customizable autoencoder model.
 
@@ -1168,32 +1168,33 @@ class AutoEncoder(Layer):
 
     # Examples
     ```python
-    from keras.layers import containers
+        from keras.layers import containers, AutoEncoder, Dense
+        from keras import models
 
-    # input shape: (nb_samples, 32)
-    encoder = containers.Sequential([Dense(16, input_dim=32), Dense(8)])
-    decoder = containers.Sequential([Dense(16, input_dim=8), Dense(32)])
+        # input shape: (nb_samples, 32)
+        encoder = containers.Sequential([Dense(16, input_dim=32), Dense(8)])
+        decoder = containers.Sequential([Dense(16, input_dim=8), Dense(32)])
 
-    autoencoder = AutoEncoder(encoder=encoder, decoder=decoder, output_reconstruction=True)
-    model = Sequential()
-    model.add(autoencoder)
+        autoencoder = AutoEncoder(encoder=encoder, decoder=decoder, output_reconstruction=True)
+        model = models.Sequential()
+        model.add(autoencoder)
 
-    # training the autoencoder:
-    model.compile(optimizer='sgd', loss='mse')
-    model.fit(X_train, X_train, nb_epoch=10)
+        # training the autoencoder:
+        model.compile(optimizer='sgd', loss='mse')
+        model.fit(X_train, X_train, nb_epoch=10)
 
-    # predicting compressed representations of inputs:
-    autoencoder.output_reconstruction = False  # the model has to be recompiled after modifying this property
-    model.compile(optimizer='sgd', loss='mse')
-    representations = model.predict(X_test)
+        # predicting compressed representations of inputs:
+        autoencoder.output_reconstruction = False  # the model has to be recompiled after modifying this property
+        model.compile(optimizer='sgd', loss='mse')
+        representations = model.predict(X_test)
 
-    # the model is still trainable, although it now expects compressed representations as targets:
-    model.fit(X_test, representations, nb_epoch=1)  # in this case the loss will be 0, so it's useless
+        # the model is still trainable, although it now expects compressed representations as targets:
+        model.fit(X_test, representations, nb_epoch=1)  # in this case the loss will be 0, so it's useless
 
-    # to keep training against the original inputs, just switch back output_reconstruction to True:
-    autoencoder.output_reconstruction = True
-    model.compile(optimizer='sgd', loss='mse')
-    model.fit(X_train, X_train, nb_epoch=10)
+        # to keep training against the original inputs, just switch back output_reconstruction to True:
+        autoencoder.output_reconstruction = True
+        model.compile(optimizer='sgd', loss='mse')
+        model.fit(X_train, X_train, nb_epoch=10)
     ```
     '''
     def __init__(self, encoder, decoder, output_reconstruction=True,
