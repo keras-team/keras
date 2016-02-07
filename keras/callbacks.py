@@ -275,7 +275,7 @@ class ModelCheckpoint(Callback):
                 self.best = np.Inf
 
     def on_epoch_end(self, epoch, logs={}):
-        filepath = self.filepath.format(epoch=epoch, **logs)
+        filepath = self.filepath.format(**logs)
         if self.save_best_only:
             current = logs.get(self.monitor)
             if current is None:
