@@ -549,7 +549,7 @@ class Merge(Layer):
             inputs = OrderedDict()
             for i in range(len(self.layers)):
                 X = self.layers[i].get_output(train)
-                name = getattr(self.layers[i], 'name')
+                name = getattr(self.layers[i], 'name', None)
                 if name is None:
                     raise ValueError('merge_mode="join" only works with named inputs.')
                 else:
@@ -1670,7 +1670,7 @@ class Siamese(Layer):
         o = OrderedDict()
         for i in range(len(self.inputs)):
             X = self.get_output_at(i, train)
-            name = getattr(self.inputs[i], 'name')
+            name = getattr(self.inputs[i], 'name', None)
             if name is None:
                 raise ValueError('merge_mode="join" '
                                  'only works with named inputs.')
