@@ -136,7 +136,30 @@ def test_TensorBoard():
                                                          nb_class=nb_class)
     y_test = np_utils.to_categorical(y_test)
     y_train = np_utils.to_categorical(y_train)
-    # case 1 Sequential wo accuracy
+
+    def data_generator(train):
+        if train:
+            max_batch_index = len(X_train) // batch_size
+        else:
+            max_batch_index = len(X_test) // batch_size
+        i = 0
+        while 1:
+            if train:
+                yield (X_train[i * batch_size: (i + 1) * batch_size], y_train[i * batch_size: (i + 1) * batch_size])
+            else:
+                yield (X_test[i * batch_size: (i + 1) * batch_size], y_test[i * batch_size: (i + 1) * batch_size])
+            i += 1
+            i = i % max_batch_index
+
+    def data_generator_graph(train):
+        while 1:
+            if train:
+                yield {'X_vars': X_train, 'output': y_train}
+            else:
+                yield {'X_vars': X_test, 'output': y_test}
+
+    # case 1 Sequential
+
     with tf.Graph().as_default():
         session = tf.Session('')
         KTF._set_session(session)
@@ -147,28 +170,42 @@ def test_TensorBoard():
 
         tsb = callbacks.TensorBoard(log_dir=filepath, histogram_freq=1)
         cbks = [tsb]
+
+        # fit with validation data
+        model.fit(X_train, y_train, batch_size=batch_size, show_accuracy=False,
+                  validation_data=(X_test, y_test), callbacks=cbks, nb_epoch=2)
+
+        # fit with validation data and accuracy
         model.fit(X_train, y_train, batch_size=batch_size, show_accuracy=True,
                   validation_data=(X_test, y_test), callbacks=cbks, nb_epoch=2)
+
+        # fit generator with validation data
+        model.fit_generator(data_generator(True), len(X_train), nb_epoch=2,
+                            show_accuracy=False,
+                            validation_data=(X_test, y_test),
+                            callbacks=cbks)
+
+        # fit generator without validation data
+        model.fit_generator(data_generator(True), len(X_train), nb_epoch=2,
+                            show_accuracy=False,
+                            callbacks=cbks)
+
+        # fit generator with validation data and accuracy
+        model.fit_generator(data_generator(True), len(X_train), nb_epoch=2,
+                            show_accuracy=True,
+                            validation_data=(X_test, y_test),
+                            callbacks=cbks)
+
+        # fit generator without validation data and accuracy
+        model.fit_generator(data_generator(True), len(X_train), nb_epoch=2,
+                            show_accuracy=True,
+                            callbacks=cbks)
+
         assert os.path.exists(filepath)
         shutil.rmtree(filepath)
 
-    # case 2 Sequential w accuracy
-    with tf.Graph().as_default():
-        session = tf.Session('')
-        KTF._set_session(session)
-        model = Sequential()
-        model.add(Dense(nb_hidden, input_dim=input_dim, activation='relu'))
-        model.add(Dense(nb_class, activation='softmax'))
-        model.compile(loss='categorical_crossentropy', optimizer='sgd')
+    # case 2 Graph
 
-        tsb = callbacks.TensorBoard(log_dir=filepath, histogram_freq=1)
-        cbks = [tsb]
-        model.fit(X_train, y_train, batch_size=batch_size, show_accuracy=True,
-                  validation_data=(X_test, y_test), callbacks=cbks, nb_epoch=2)
-        assert os.path.exists(filepath)
-        shutil.rmtree(filepath)
-
-    # case 3 Graph
     with tf.Graph().as_default():
         session = tf.Session('')
         KTF._set_session(session)
@@ -185,10 +222,27 @@ def test_TensorBoard():
 
         tsb = callbacks.TensorBoard(log_dir=filepath, histogram_freq=1)
         cbks = [tsb]
+
+        # fit with validation
         model.fit({'X_vars': X_train, 'output': y_train},
                   batch_size=batch_size,
                   validation_data={'X_vars': X_test, 'output': y_test},
                   callbacks=cbks, nb_epoch=2)
+
+        # fit wo validation
+        model.fit({'X_vars': X_train, 'output': y_train},
+                  batch_size=batch_size,
+                  callbacks=cbks, nb_epoch=2)
+
+        # fit generator with validation
+        model.fit_generator(data_generator_graph(True), 1000, nb_epoch=2,
+                            validation_data={'X_vars': X_test, 'output': y_test},
+                            callbacks=cbks)
+
+        # fit generator wo validation
+        model.fit_generator(data_generator_graph(True), 1000, nb_epoch=2,
+                            callbacks=cbks)
+
         assert os.path.exists(filepath)
         shutil.rmtree(filepath)
 
