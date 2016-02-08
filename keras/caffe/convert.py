@@ -1,3 +1,4 @@
+import pprint
 from ..layers.advanced_activations import *
 from ..layers.convolutional import *
 from ..layers.core import *
@@ -34,8 +35,8 @@ def caffe_to_keras(prototext, caffemodel, phase='train', debug=False):
         else:
             raise Exception('could not load any layers from prototext')
 
-	if(debug):
-	    print "CREATING MODEL"
+        if(debug):
+	    print("CREATING MODEL")
         model = create_model(layers,
                                   0 if phase == 'train' else 1,
                                   tuple(config.input_dim[1:]),
@@ -53,9 +54,9 @@ def caffe_to_keras(prototext, caffemodel, phase='train', debug=False):
         else:
             raise Exception('could not load any layers from caffemodel')
 
-	if(debug):
-	    print
-	    print "LOADING WEIGHTS"
+        if(debug):
+            print('')
+            print("LOADING WEIGHTS")
         weights = convert_weights(param_layers, v, debug)
 
         load_weights(model, weights)
@@ -149,12 +150,12 @@ def create_model(layers, phase, input_dim, debug=False):
         if len(input_layer_names) == 1:
             input_layer_name = input_layer_names[0]
 
-	if(debug):
-	    print name + ': '+ type_of_layer
-	    try:
-	    	print "input size: " +str(model.nodes[input_layer_name].output_shape)
-	    except:
-	    	pass
+        if(debug):
+            print(name + ': '+ type_of_layer)
+            try:
+                print("input size: " +str(model.nodes[input_layer_name].output_shape))
+            except:
+                pass
 
         if type_of_layer == 'concat':
             # emulation of just concatenation
@@ -170,13 +171,13 @@ def create_model(layers, phase, input_dim, debug=False):
             pad_h = (layer.convolution_param.pad or [layer.convolution_param.pad_h])[0]
             pad_w = (layer.convolution_param.pad or [layer.convolution_param.pad_w])[0]
 
-	    if(debug):
-	    	print "kernel"
-	    	print str(nb_filter)+'x'+str(nb_col)+'x'+str(nb_row)
-	    	print "stride"
-	    	print stride_h
-	    	print "pad"
-	    	print pad_h
+            if(debug):
+                print("kernel")
+                print(str(nb_filter)+'x'+str(nb_col)+'x'+str(nb_row))
+                print("stride")
+                print(stride_h)
+                print("pad")
+                print(pad_h)
 
             if pad_h + pad_w > 0:
                 model.add_node(ZeroPadding2D(padding=(pad_h, pad_w)), name=name + '_zeropadding', input=input_layer_name)
@@ -217,13 +218,13 @@ def create_model(layers, phase, input_dim, debug=False):
             pad_h = layer.pooling_param.pad or layer.pooling_param.pad_h
             pad_w = layer.pooling_param.pad or layer.pooling_param.pad_w
 
-	    if(debug):
-	    	print "kernel"
-            	print str(kernel_h)+'x'+str(kernel_w)
-            	print "stride"
-            	print stride_h
-            	print "pad"
-            	print pad_h
+            if(debug):
+                print("kernel")
+                print(str(kernel_h)+'x'+str(kernel_w))
+                print("stride")
+                print(stride_h)
+                print("pad")
+                print(pad_h)
 
             if pad_h + pad_w > 0:
                 model.add_node(ZeroPadding2D(padding=(pad_h, pad_w)), name=name + '_zeropadding', input=input_layer_name)
@@ -231,11 +232,11 @@ def create_model(layers, phase, input_dim, debug=False):
             if(layer.pooling_param.pool == 0): # MAX pooling
                 model.add_node(MaxPooling2D(pool_size=(kernel_h, kernel_w), strides=(stride_h, stride_w)), name=name, input=input_layer_name)
                 if(debug):
-                    print "MAX pooling"
+                    print("MAX pooling")
             elif(layer.pooling_param.pool == 1): # AVE pooling
                 model.add_node(AveragePooling2D(pool_size=(kernel_h, kernel_w), strides=(stride_h, stride_w)), name=name, input=input_layer_name)
                 if(debug):
-                    print "AVE pooling"
+                    print("AVE pooling")
             else: # STOCHASTIC?
                 raise NotImplementedError("Only MAX and AVE pooling are implemented in keras!")
 
@@ -339,15 +340,15 @@ def convert_weights(param_layers, v='V1', debug=False):
             group_data_size = len(blobs[0].data) // group
             stacks_size_per_group = stack_size // group
             nb_filter_per_group = nb_filter // group
-	
-	    if(debug):
-		print layer.name
-		print "nb_filter"
-		print nb_filter
-		print "(channels x height x width)"
-		print "(" + str(temp_stack_size) + " x " + str(nb_col) + " x "+ str(nb_row) + ")"
-		print "groups"
-		print group
+
+            if(debug):
+                print (layer.name)
+                print ("nb_filter")
+                print (nb_filter)
+                print ("(channels x height x width)")
+                print ("(" + str(temp_stack_size) + " x " + str(nb_col) + " x "+ str(nb_row) + ")")
+                print ("groups")
+                print (group)
 
             for i in range(group):
                 group_weights = weights_p[i * nb_filter_per_group: (i + 1) * nb_filter_per_group,

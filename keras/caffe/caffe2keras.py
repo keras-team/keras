@@ -1,4 +1,5 @@
 import keras.caffe.convert as convert
+import pprint
 import argparse
 
 """ 
@@ -28,17 +29,17 @@ def main(args):
     if(not args.store_path):
     	store_path = args.load_path
 
-    print "Converting model..."
+    print("Converting model...")
     model = convert.caffe_to_keras(args.load_path+'/'+args.prototxt, args.load_path+'/'+args.caffemodel, debug=args.debug)
-    print "Finished converting model."
+    print("Finished converting model.")
     
     # Save converted model structure
-    print "Storing model..."
+    print("Storing model...")
     json_string = model.to_json()
     open(store_path + '/Keras_model_structure.json', 'w').write(json_string)
     # Save converted model weights
     model.save_weights(store_path + '/Keras_model_weights.h5', overwrite=True)
-    print "Finished storing the converted model to "+ store_path
+    print("Finished storing the converted model to "+ store_path)
 
 main(args)
 
