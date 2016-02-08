@@ -456,6 +456,7 @@ class TensorBoard(Callback):
                             'with the TensorFlow backend.')
         self.log_dir = log_dir
         self.histogram_freq = histogram_freq
+        self.merged = None
 
     def _set_model(self, model):
         import tensorflow as tf
@@ -463,7 +464,7 @@ class TensorBoard(Callback):
 
         self.model = model
         self.sess = KTF._get_session()
-        if self.histogram_freq:
+        if self.histogram_freq and not self.merged:
             mod_type = self.model.get_config()['name']
             if mod_type == 'Sequential':
                 layers = {l.get_config()['name']: l for l in self.model.layers}
@@ -515,7 +516,7 @@ class TensorBoard(Callback):
 
         all_values = self.totals.copy()
         all_values.update(logs)
-        
+
         for name, value in all_values.items():
             if name in ['batch', 'size']:
                 continue

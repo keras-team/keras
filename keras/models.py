@@ -971,7 +971,16 @@ class Sequential(Model, containers.Sequential):
                 _stop.set()
                 raise Exception('The generator output tuple must have '
                                 '2 or 3 elements.')
+
+            sample_weight = standardize_weights(y, sample_weight=sample_weight,
+                                                sample_weight_mode=self.sample_weight_mode)
             return X, y, sample_weight
+
+        if do_validation:
+            X_val, y_val, sample_weight_val = input_validation(validation_data)
+            self.validation_data = X_val + [y_val, sample_weight_val]
+        else:
+            self.validation_data = None
 
         # start generator thread storing batches into a queue
         generator_queue = queue.Queue()
@@ -1044,10 +1053,9 @@ class Sequential(Model, containers.Sequential):
                             raise NotImplementedError()
                         else:
                             # input validation
-                            X, y, sample_weight = input_validation(validation_data)
-                            val_outs = self.evaluate(X, y,
+                            val_outs = self.evaluate(X_val, y_val,
                                                      show_accuracy=show_accuracy,
-                                                     sample_weight=sample_weight,
+                                                     sample_weight=sample_weight_val,
                                                      verbose=0)
                         if type(val_outs) != list:
                             val_outs = [val_outs]
@@ -1435,7 +1443,18 @@ class Graph(Model, containers.Graph):
                        [len(sample_weight[name]) for name in sample_weight.keys()])) != 1:
                 raise Exception('All input arrays and target arrays must have '
                                 'the same number of samples.')
+            sample_weight = {name: standardize_weights(data[name],
+                             sample_weight=sample_weight.get(name),
+                             sample_weight_mode=self.sample_weight_modes.get(name)) for name in self.output_order}
             return data, sample_weight
+
+        if do_validation:
+            data_val, sample_weight_val = input_validation(validation_data)
+            sample_weight_val_l = [sample_weight_val[name] for name in self.output_order]
+            y_val = [standardize_y(data_val[name]) for name in self.output_order]
+            self.validation_data = [data_val[name] for name in self.input_order] + y_val + sample_weight_val_l
+        else:
+            self.validation_data = None
 
         # start generator thread storing batches into a queue
         generator_queue = queue.Queue()
@@ -1502,10 +1521,8 @@ class Graph(Model, containers.Graph):
                             _stop.set()
                             raise NotImplementedError()
                         else:
-                            # input validation
-                            data, sample_weight = input_validation(validation_data)
-                            val_outs = self.evaluate(data,
-                                                     sample_weight=sample_weight,
+                            val_outs = self.evaluate(data_val,
+                                                     sample_weight=sample_weight_val,
                                                      verbose=0)
                         if type(val_outs) != list:
                             val_outs = [val_outs]
