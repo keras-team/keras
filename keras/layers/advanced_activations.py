@@ -6,8 +6,8 @@ import numpy as np
 
 class LeakyReLU(MaskedLayer):
     '''Special version of a Rectified Linear Unit
-    that allows a small gradient when the unit is not active
-    (`f(x) = alpha*x for x < 0`).
+    that allows a small gradient when the unit is not active:
+    `f(x) = alpha*x for x < 0`.
 
     # Input shape
         Arbitrary. Use the keyword argument `input_shape`
@@ -60,7 +60,7 @@ class PReLU(MaskedLayer):
     def build(self):
         input_shape = self.input_shape[1:]
         self.alphas = self.init(input_shape)
-        self.params = [self.alphas]
+        self.trainable_weights = [self.alphas]
 
         if self.initial_weights is not None:
             self.set_weights(self.initial_weights)
@@ -142,7 +142,7 @@ class ParametricSoftplus(MaskedLayer):
         input_shape = self.input_shape[1:]
         self.alphas = K.variable(self.alpha_init * np.ones(input_shape))
         self.betas = K.variable(self.beta_init * np.ones(input_shape))
-        self.params = [self.alphas, self.betas]
+        self.trainable_weights = [self.alphas, self.betas]
 
         if self.initial_weights is not None:
             self.set_weights(self.initial_weights)

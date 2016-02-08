@@ -41,18 +41,8 @@ def placeholder(shape=None, ndim=None, dtype=_FLOATX, name=None):
         raise Exception('Specify either a shape or ndim value.')
     if shape is not None:
         ndim = len(shape)
-    if ndim == 0:
-        return T.scalar(name=name, dtype=dtype)
-    elif ndim == 1:
-        return T.vector(name=name, dtype=dtype)
-    elif ndim == 2:
-        return T.matrix(name=name, dtype=dtype)
-    elif ndim == 3:
-        return T.tensor3(name=name, dtype=dtype)
-    elif ndim == 4:
-        return T.tensor4(name=name, dtype=dtype)
-    else:
-        raise Exception('ndim too large: ' + str(ndim))
+    broadcast = (False,) * ndim
+    return T.TensorType(dtype, broadcast)(name)
 
 
 def shape(x):
@@ -281,9 +271,9 @@ def repeat(x, n):
     If x has shape (samples, dim) and n=2,
     the output will have shape (samples, 2, dim).
     '''
-    tensors = [x] * n
-    stacked = T.stack(*tensors)
-    return stacked.dimshuffle((1, 0, 2))
+    assert x.ndim == 2
+    x = x.dimshuffle((0, 'x', 1))
+    return T.extra_ops.repeat(x, n, axis=1)
 
 
 def tile(x, n):
@@ -427,7 +417,7 @@ def rnn(step_function, inputs, initial_states,
         the step function.
     go_backwards: boolean. If True, do the iteration over
         the time dimension in reverse order.
-    mask: binary tensor with shape (samples, time, 1),
+    mask: binary tensor with shape (samples, time),
         with a zero for every element that is masked.
 
     Returns
@@ -447,7 +437,11 @@ def rnn(step_function, inputs, initial_states,
     inputs = inputs.dimshuffle(axes)
 
     if mask is not None:
+        if mask.ndim == ndim-1:
+            mask = expand_dims(mask)
+        assert mask.ndim == ndim
         mask = mask.dimshuffle(axes)
+
         # build an all-zero tensor of shape (samples, output_dim)
         initial_output = step_function(inputs[0], initial_states)[0] * 0
         # Theano gets confused by broadcasting patterns in the scan op
@@ -673,6 +667,7 @@ def pool2d(x, pool_size, strides=(1, 1), border_mode='valid',
     if dim_ordering == 'tf':
         pool_out = pool_out.dimshuffle((0, 2, 3, 1))
     return pool_out
+
 
 # RANDOMNESS
 

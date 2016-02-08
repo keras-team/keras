@@ -70,12 +70,12 @@ class Sequential(Layer):
                 self.set_input()
 
     @property
-    def params(self):
-        params = []
+    def trainable_weights(self):
+        weights = []
         for l in self.layers:
             if l.trainable:
-                params += l.get_params()[0]
-        return params
+                weights += l.get_params()[0]
+        return weights
 
     @property
     def regularizers(self):
@@ -155,7 +155,7 @@ class Sequential(Layer):
 
     def set_weights(self, weights):
         for i in range(len(self.layers)):
-            nb_param = len(self.layers[i].params)
+            nb_param = len(self.layers[i].trainable_weights) + len(self.layers[i].non_trainable_weights)
             self.layers[i].set_weights(weights[:nb_param])
             weights = weights[nb_param:]
 
@@ -198,12 +198,12 @@ class Graph(Layer):
         return len(self.outputs)
 
     @property
-    def params(self):
-        params = []
+    def trainable_weights(self):
+        weights = []
         for l in self.nodes.values():
             if l.trainable:
-                params += l.get_params()[0]
-        return params
+                weights += l.get_params()[0]
+        return weights
 
     @property
     def regularizers(self):
@@ -305,7 +305,7 @@ class Graph(Layer):
             raise Exception('Duplicate node identifier: ' + name)
         self.namespace.add(name)
         self.input_order.append(name)
-        layer = Layer()  # empty layer
+        layer = Layer(name=name)  # empty layer
         if input_shape:
             layer.set_input_shape((None,) + tuple(input_shape))
         elif batch_input_shape:
@@ -320,9 +320,12 @@ class Graph(Layer):
             else:
                 raise Exception('Type "int" can only be used with ndim==2 (Embedding).')
         self.inputs[name] = layer
-        self.input_config.append({'name': name,
-                                  'input_shape': input_shape,
-                                  'dtype': dtype})
+        config = {'name': name, 'dtype': dtype}
+        if batch_input_shape:
+            config['batch_input_shape'] = batch_input_shape
+        else:
+            config['input_shape'] = input_shape
+        self.input_config.append(config)
 
     def add_node(self, layer, name, input=None, inputs=[],
                  merge_mode='concat', concat_axis=-1, dot_axes=-1,
@@ -348,6 +351,7 @@ class Graph(Layer):
         '''
         if name in self.namespace:
             raise Exception('Duplicate node identifier: ' + name)
+        layer.name = name
         if input:
             if input not in self.namespace:
                 raise Exception('Unknown node/input identifier: ' + input)

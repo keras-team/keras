@@ -97,6 +97,7 @@ def weighted_objective(fn):
         # apply sample weighting
         if weights is not None:
             score_array *= weights
+            score_array /= K.mean(K.cast(K.not_equal(weights, 0), K.floatx()))
         return K.mean(score_array)
     return weighted
 
@@ -496,7 +497,7 @@ class Sequential(Model, containers.Sequential):
 
         for r in self.regularizers:
             train_loss = r(train_loss)
-        updates = self.optimizer.get_updates(self.params,
+        updates = self.optimizer.get_updates(self.trainable_weights,
                                              self.constraints,
                                              train_loss)
         updates += self.updates
@@ -903,18 +904,18 @@ class Sequential(Model, containers.Sequential):
         # Examples
 
         ```python
-        def generate_arrays_from_file(path):
-            while 1:
-                f = open(path)
-                for line in f:
-                    # create numpy arrays of input data
-                    # and labels, from each line in the file
-                    x, y = process_line(line)
-                    yield x, y
-                f.close()
+            def generate_arrays_from_file(path):
+                while 1:
+                    f = open(path)
+                    for line in f:
+                        # create numpy arrays of input data
+                        # and labels, from each line in the file
+                        x, y = process_line(line)
+                        yield x, y
+                    f.close()
 
-        model.fit_generator(generate_arrays_from_file('/my_file.txt'),
-                            samples_per_epoch=10000, nb_epoch=10)
+            model.fit_generator(generate_arrays_from_file('/my_file.txt'),
+                                samples_per_epoch=10000, nb_epoch=10)
         ```
         '''
         max_queue_size = 10  # maximum number of batches in queue
@@ -995,6 +996,7 @@ class Sequential(Model, containers.Sequential):
 
         generator_threads = [threading.Thread(target=generator_task) for _ in range(nb_worker)]
         for thread in generator_threads:
+            thread.daemon = True
             thread.start()
 
         self.stop_training = False
@@ -1087,6 +1089,9 @@ class Graph(Model, containers.Graph):
                 you will need to set the sample weight mode for this output
                 to "temporal".
         '''
+        assert type(loss) is dict, 'The "loss" argument should be a dictionary.'
+        assert type(sample_weight_modes) is dict, 'The "sample_weight_modes" argument should be a dictionary.'
+
         self.sample_weight_modes = sample_weight_modes
         ys = []
         ys_train = []
@@ -1125,7 +1130,7 @@ class Graph(Model, containers.Graph):
         for r in self.regularizers:
             train_loss = r(train_loss)
         self.optimizer = optimizers.get(optimizer)
-        updates = self.optimizer.get_updates(self.params,
+        updates = self.optimizer.get_updates(self.trainable_weights,
                                              self.constraints,
                                              train_loss)
         updates += self.updates
@@ -1364,18 +1369,18 @@ class Graph(Model, containers.Graph):
         # Examples
 
         ```python
-        def generate_arrays_from_file(path):
-            while 1:
-                f = open(path)
-                for line in f:
-                    # create numpy arrays of input data
-                    # and labels, from each line in the file
-                    x1, x2, y = process_line(line)
-                    yield {'input_1': x1, 'input_2': x2, 'output': y}
-                f.close()
+            def generate_arrays_from_file(path):
+                while 1:
+                    f = open(path)
+                    for line in f:
+                        # create numpy arrays of input data
+                        # and labels, from each line in the file
+                        x1, x2, y = process_line(line)
+                        yield {'input_1': x1, 'input_2': x2, 'output': y}
+                    f.close()
 
-        graph.fit_generator(generate_arrays_from_file('/my_file.txt'),
-                            samples_per_epoch=10000, nb_epoch=10)
+            graph.fit_generator(generate_arrays_from_file('/my_file.txt'),
+                                samples_per_epoch=10000, nb_epoch=10)
         ```
         '''
         max_queue_size = 10  # maximum number of batches in queue
@@ -1452,6 +1457,7 @@ class Graph(Model, containers.Graph):
 
         generator_threads = [threading.Thread(target=generator_task) for _ in range(nb_worker)]
         for thread in generator_threads:
+            thread.daemon = True
             thread.start()
 
         self.stop_training = False

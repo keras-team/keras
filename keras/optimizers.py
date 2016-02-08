@@ -275,6 +275,7 @@ class Adam(Optimizer):
                 "beta_2": float(K.get_value(self.beta_2)),
                 "epsilon": self.epsilon}
 
+
 class Adamax(Optimizer):
     '''Adamax optimizer from Adam paper's Section 7. It is a variant
      of Adam based on the infinity norm.
