@@ -3,11 +3,6 @@ import argparse
 
 """ 
 
-    BEFORE USING
-    
-    Make sure you have the keras' conversion module in your PYTHONPATH
-        export PYTHONPATH=$PYTHONPATH:~/code/caffe2keras
-    
     USAGE EXAMPLE
 
 	    python caffe2keras.py 	-load_path '/media/HDD_2TB/CNN_MODELS/GoogleNet-Food101/' -prototxt 'train_val_finetunning_for_keras.prototxt' -caffemodel 'foodRecognition_googlenet_finetunning_v2_1_iter_448000.caffemodel'
