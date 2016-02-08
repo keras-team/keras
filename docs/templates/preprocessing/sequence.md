@@ -12,6 +12,9 @@ Transform a list of `nb_samples sequences` (lists of scalars) into a 2D numpy ar
     - __sequences__: List of lists of int or float.
     - __maxlen__: None or int. Maximum sequence length, longer sequences are truncated and shorter sequences are padded with zeros at the end.
     - __dtype__: datatype of the numpy array returned.
+    - __padding__: 'pre' or 'post', pad either before or after each sequence.
+    - __truncating__: 'pre' or 'post', remove values from sequences larger than maxlen either in the beginning or in the end of the sequence
+    - __value__: float, value to pad the sequences to the desired value.
 
 ---
 
