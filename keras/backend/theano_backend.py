@@ -449,8 +449,8 @@ class Function(object):
         return self.function(*inputs)
 
 
-def function(inputs, outputs, updates=[]):
-    return Function(inputs, outputs, updates=updates)
+def function(inputs, outputs, updates=[], **kwargs):
+    return Function(inputs, outputs, updates=updates, **kwargs)
 
 
 def gradients(loss, variables):

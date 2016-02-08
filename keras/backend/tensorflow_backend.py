@@ -402,7 +402,7 @@ class Function(object):
         return updated[:len(self.outputs)]
 
 
-def function(inputs, outputs, updates=[]):
+def function(inputs, outputs, updates=[], **kwargs):
     return Function(inputs, outputs, updates=updates)
 
 
