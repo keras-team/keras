@@ -395,7 +395,8 @@ def gradients(loss, variables):
 # CONTROL FLOW
 
 def rnn(step_function, inputs, initial_states,
-        go_backwards=False, mask=None, unroll=False, input_length=None):
+        go_backwards=False, mask=None, unroll=False,
+input_length=None):
     '''Iterates over the time dimension of a tensor.
 
     Parameters
@@ -433,54 +434,77 @@ def rnn(step_function, inputs, initial_states,
             the step function, of shape (samples, ...).
     '''
     ndim = inputs.ndim
-    assert ndim >= 3, "Input should be at least 3D."
+    assert ndim >= 3, 'Input should be at least 3D.'
+
     axes = [1, 0] + list(range(2, ndim))
     inputs = inputs.dimshuffle(axes)
-    if mask is None:
-        mask = expand_dims(ones_like(T.sum(inputs, axis=-1)))
-    else:
+
+    if mask is not None:
         if mask.ndim == ndim-1:
             mask = expand_dims(mask)
         assert mask.ndim == ndim
         mask = mask.dimshuffle(axes)
 
-    # build an all-zero tensor of shape (samples, output_dim)
-    initial_output = step_function(inputs[0], initial_states)[0] * 0
-    # Theano gets confused by broadcasting patterns in the scan op
-    initial_output = T.unbroadcast(initial_output, 0, 1)
+        # build an all-zero tensor of shape (samples, output_dim)
+        initial_output = step_function(inputs[0], initial_states)[0] * 0
+        # Theano gets confused by broadcasting patterns in the scan op
+        initial_output = T.unbroadcast(initial_output, 0, 1)
 
-    if unroll:
-        assert input_length, "Input length is required to unroll the rnn."
-        outputs = [initial_output]
-        states = initial_states[:]
-        for i in range(input_length):
-            output, new_states = step_function(inputs[i], states)
-            output = T.switch(mask[i], output, outputs[-1])
+    	if unroll:
+        	assert input_length, "Input length is required to unroll the rnn."
+        	outputs = [initial_output]
+        	states = initial_states[:]
+        	for i in range(input_length):
+            		output, new_states = step_function(inputs[i], states)
+            		output = T.switch(mask[i], output, outputs[-1])
+            		return_states = []
+            		for state, new_state in zip(states, new_states):
+                		return_states.append(T.switch(mask[i], new_state, state))
+            		states = return_states[:]
+            		outputs.append(output)
+        	outputs = outputs[1:]
+        	outputs = T.stack(*outputs)
+        	axes = [1, 0] + list(range(2, outputs.ndim))
+        	outputs = outputs.dimshuffle(axes)
+        	return outputs[-1], outputs, states
+
+        def _step(input, mask, output_tm1, *states):
+            output, new_states = step_function(input, states)
+            # output previous output if masked.
+            output = T.switch(mask, output, output_tm1)
             return_states = []
             for state, new_state in zip(states, new_states):
-                return_states.append(T.switch(mask[i], new_state, state))
-            states = return_states[:]
-            outputs.append(output)
-        outputs = outputs[1:]
-        outputs = T.stack(*outputs)
-        axes = [1, 0] + list(range(2, outputs.ndim))
-        outputs = outputs.dimshuffle(axes)
-        return outputs[-1], outputs, states
+                return_states.append(T.switch(mask, new_state, state))
+            return [output] + return_states
 
-    def _step(input, mask, output_tm1, *states):
-        output, new_states = step_function(input, states)
-        # output previous output if masked.
-        output = T.switch(mask, output, output_tm1)
-        return_states = []
-        for state, new_state in zip(states, new_states):
-            return_states.append(T.switch(mask, new_state, state))
-        return [output] + return_states
+        results, _ = theano.scan(
+            _step,
+            sequences=[inputs, mask],
+            outputs_info=[initial_output] + initial_states,
+            go_backwards=go_backwards)
+    else:
 
-    results, _ = theano.scan(
-        _step,
-        sequences=[inputs, mask],
-        outputs_info=[initial_output] + initial_states,
-        go_backwards=go_backwards)
+    	if unroll:
+        	assert input_length, "Input length is required to unroll the rnn."
+        	outputs = []
+        	states = initial_states[:]
+        	for i in range(input_length):
+            		output, states = step_function(inputs[i], states)
+            		outputs.append(output)
+        	outputs = T.stack(*outputs)
+        	axes = [1, 0] + list(range(2, outputs.ndim))
+        	outputs = outputs.dimshuffle(axes)
+       		return outputs[-1], outputs, states
+
+        def _step(input, *states):
+            output, new_states = step_function(input, states)
+            return [output] + new_states
+
+        results, _ = theano.scan(
+            _step,
+            sequences=inputs,
+            outputs_info=[None] + initial_states,
+            go_backwards=go_backwards)
 
     # deal with Theano API inconsistency
     if type(results) is list:
