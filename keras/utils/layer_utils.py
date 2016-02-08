@@ -14,6 +14,7 @@ from ..layers import containers
 from .. import regularizers
 from .. import constraints
 
+from ..caffe.extra_layers import *
 
 def container_from_config(original_layer_dict, custom_objects={}):
     layer_dict = copy.deepcopy(original_layer_dict)
