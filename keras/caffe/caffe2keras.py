@@ -27,6 +27,8 @@ args = parser.parse_args()
 def main(args):
     if(not args.store_path):
     	store_path = args.load_path
+    else:
+        store_path = args.store_path
 
     print("Converting model...")
     model = convert.caffe_to_keras(args.load_path+'/'+args.prototxt, args.load_path+'/'+args.caffemodel, debug=args.debug)
