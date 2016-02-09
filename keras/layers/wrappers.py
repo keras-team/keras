@@ -67,6 +67,7 @@ class Wrapper(Layer):
         base_config = super(Wrapper, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
+
 class TimeDistributed(MaskedLayer, Wrapper):
 
     input_ndim = 3
@@ -93,6 +94,7 @@ class TimeDistributed(MaskedLayer, Wrapper):
             return self.layer(x), []
 
         return K.rnn(step, X, [])[1]
+
 
 class Highway(Wrapper):
 
