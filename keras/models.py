@@ -1025,7 +1025,7 @@ class Sequential(Model, containers.Sequential):
                 X, y, sample_weight = input_validation(generator_output)
 
                 batch_logs = {}
-                batch_size = len(X[0])
+                batch_size = len(X)
                 batch_logs['batch'] = batch_index
                 batch_logs['size'] = batch_size
                 callbacks.on_batch_begin(batch_index, batch_logs)
