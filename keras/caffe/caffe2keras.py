@@ -5,8 +5,7 @@ import argparse
 """ 
 
     USAGE EXAMPLE
-
-	    python caffe2keras.py 	-load_path '/media/HDD_2TB/CNN_MODELS/GoogleNet-Food101/' -prototxt 'train_val_finetunning_for_keras.prototxt' -caffemodel 'foodRecognition_googlenet_finetunning_v2_1_iter_448000.caffemodel'
+        python caffe2keras.py -load_path 'models/' -prototxt 'train_val_for_keras.prototxt' -caffemodel 'bvlc_googlenet.caffemodel'
 
 """
 

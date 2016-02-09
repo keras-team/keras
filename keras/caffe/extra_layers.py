@@ -1,5 +1,4 @@
 from keras.layers.core import Layer
-from ..utils.theano_utils import shared_zeros, shared_ones, ndim_tensor, floatX
 from .. import initializations
 
 import theano.tensor as T
