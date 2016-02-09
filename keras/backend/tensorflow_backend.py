@@ -1,17 +1,27 @@
 import tensorflow as tf
 import numpy as np
 from .common import _FLOATX, _EPSILON
+import os
 
 # INTERNAL UTILS
 
 _SESSION = None
 
 
-def _get_session():
-    global _SESSION
-    if _SESSION is None:
-        _SESSION = tf.Session('')
-    return _SESSION
+if os.environ.get('OMP_NUM_THREADS')==None:
+    def _get_session():
+        global _SESSION
+        if _SESSION is None:
+            _SESSION = tf.Session('')
+        return _SESSION
+else:
+    NUM_THREADS = int(os.environ.get('OMP_NUM_THREADS'))
+    def _get_session():
+        global _SESSION
+        if _SESSION is None:
+            _SESSION = tf.Session(config=tf.ConfigProto(
+            intra_op_parallelism_threads=NUM_THREADS))
+        return _SESSION
 
 
 def _set_session(session):
@@ -57,11 +67,11 @@ def ones(shape, dtype=_FLOATX, name=None):
 
 
 def ones_like(x, name=None):
-    return tf.ones_like(x, name=name)
+    return tf.ones_like(x)
 
 
 def zeros_like(x, name=None):
-    return tf.zeros_like(x, name=name)
+    return tf.zeros_like(x)
 
 
 def count_params(x):
@@ -96,48 +106,38 @@ def gather(reference, indices):
 
 # ELEMENT-WISE OPERATIONS
 
-def normalize_axis(axis, ndim):
-    if type(axis) is tuple:
-        axis = list(axis)
-    if type(axis) is list:
-        for i, a in enumerate(axis):
-            if a is not None and a < 0:
-                axis[i] = a % ndim
-    else:
-        if axis is not None and axis < 0:
-            axis = axis % ndim
-    return axis
-
-
 def max(x, axis=None, keepdims=False):
-    axis = normalize_axis(axis, ndim(x))
+    if axis is not None and axis < 0:
+        axis = axis % len(x.get_shape())
     return tf.reduce_max(x, reduction_indices=axis, keep_dims=keepdims)
 
 
 def min(x, axis=None, keepdims=False):
-    axis = normalize_axis(axis, ndim(x))
+    if axis is not None and axis < 0:
+        axis = axis % len(x.get_shape())
     return tf.reduce_min(x, reduction_indices=axis, keep_dims=keepdims)
 
 
 def sum(x, axis=None, keepdims=False):
     '''Sum of the values in a tensor, alongside the specified axis.
     '''
-    axis = normalize_axis(axis, ndim(x))
+    if axis is not None and axis < 0:
+        axis = axis % len(x.get_shape())
     return tf.reduce_sum(x, reduction_indices=axis, keep_dims=keepdims)
 
 
 def prod(x, axis=None, keepdims=False):
     '''Multiply the values in a tensor, alongside the specified axis.
     '''
-    axis = normalize_axis(axis, ndim(x))
     return tf.reduce_prod(x, reduction_indices=axis, keep_dims=keepdims)
 
 
 def std(x, axis=None, keepdims=False):
-    axis = normalize_axis(axis, ndim(x))
+    if axis is not None and axis < 0:
+        axis = axis % len(x.get_shape())
     if x.dtype.base_dtype == tf.bool:
         x = tf.cast(x, _FLOATX)
-    m = tf.reduce_mean(x, reduction_indices=axis, keep_dims=True)
+    m = tf.reduce_mean(x, reduction_indices=axis, keep_dims=keepdims)
     devs_squared = tf.square(x - m)
     return tf.sqrt(tf.reduce_mean(devs_squared,
                                   reduction_indices=axis,
@@ -145,7 +145,8 @@ def std(x, axis=None, keepdims=False):
 
 
 def mean(x, axis=None, keepdims=False):
-    axis = normalize_axis(axis, ndim(x))
+    if axis is not None and axis < 0:
+        axis = axis % len(x.get_shape())
     if x.dtype.base_dtype == tf.bool:
         x = tf.cast(x, _FLOATX)
     return tf.reduce_mean(x, reduction_indices=axis, keep_dims=keepdims)
@@ -154,12 +155,13 @@ def mean(x, axis=None, keepdims=False):
 def any(x, axis=None, keepdims=False):
     '''Bitwise reduction (logical OR).
 
-    Return array of uint8 (0s and 1s).
+    Return array of int8 (0s and 1s).
     '''
-    axis = normalize_axis(axis, ndim(x))
+    if axis is not None and axis < 0:
+        axis = axis % len(x.get_shape())
     x = tf.cast(x, tf.bool)
     x = tf.reduce_any(x, reduction_indices=axis, keep_dims=keepdims)
-    return tf.cast(x, tf.uint8)
+    return tf.cast(x, tf.int8)
 
 
 def argmax(x, axis=-1):
@@ -215,10 +217,6 @@ def equal(x, y):
     return tf.equal(x, y)
 
 
-def not_equal(x, y):
-    return tf.not_equal(x, y)
-
-
 def maximum(x, y):
     return tf.maximum(x, y)
 
@@ -248,27 +246,6 @@ def permute_dimensions(x, pattern):
     return tf.transpose(x, perm=pattern)
 
 
-def resize_images(X, height_factor, width_factor, dim_ordering):
-    '''Resize the images contained in a 4D tensor of shape
-    - [batch, channels, height, width] (for 'th' dim_ordering)
-    - [batch, height, width, channels] (for 'tf' dim_ordering)
-    by a factor of (height_factor, width_factor). Both factors should be
-    positive integers.
-    '''
-    if dim_ordering == 'th':
-        new_height = shape(X)[2].value * height_factor
-        new_width = shape(X)[3].value * width_factor
-        X = permute_dimensions(X, [0, 2, 3, 1])
-        X = tf.image.resize_nearest_neighbor(X, (new_height, new_width))
-        return permute_dimensions(X, [0, 3, 1, 2])
-    elif dim_ordering == 'tf':
-        new_height = shape(X)[1].value * height_factor
-        new_width = shape(X)[2].value * width_factor
-        return tf.image.resize_nearest_neighbor(X, (new_height, new_width))
-    else:
-        raise Exception('Invalid dim_ordering: ' + dim_ordering)
-
-
 def repeat_elements(x, rep, axis):
     '''Repeats the elements of a tensor along an axis, like np.repeat
 
@@ -289,7 +266,6 @@ def repeat(x, n):
     if x has shape (samples, dim) and n=2,
     the output will have shape (samples, 2, dim)
     '''
-    assert ndim(x) == 2
     tensors = [x] * n
     stacked = tf.pack(tensors)
     return tf.transpose(stacked, (1, 0, 2))
@@ -300,10 +276,6 @@ def tile(x, n):
 
 
 def flatten(x):
-    return tf.reshape(x, [-1])
-
-
-def batch_flatten(x):
     '''Turn a n-D tensor into a 2D tensor where
     the first dimension is conserved.
     '''
@@ -362,16 +334,12 @@ def set_value(x, value):
 class Function(object):
 
     def __init__(self, inputs, outputs, updates=[]):
-        assert type(inputs) in {list, tuple}
-        assert type(outputs) in {list, tuple}
-        assert type(updates) in {list, tuple}
         self.inputs = list(inputs)
         self.outputs = list(outputs)
         with tf.control_dependencies(self.outputs):
             self.updates = [tf.assign(p, new_p) for (p, new_p) in updates]
 
     def __call__(self, inputs):
-        assert type(inputs) in {list, tuple}
         names = [v.name for v in self.inputs]
         feed_dict = dict(zip(names, inputs))
         session = _get_session()
@@ -390,7 +358,7 @@ def gradients(loss, variables):
 # CONTROL FLOW
 
 def rnn(step_function, inputs, initial_states,
-        go_backwards=False, mask=None):
+        go_backwards=False, masking=True):
     '''Iterates over the time dimension of a tensor.
 
     Parameters
@@ -412,8 +380,10 @@ def rnn(step_function, inputs, initial_states,
         the step function.
     go_backwards: boolean. If True, do the iteration over
         the time dimension in reverse order.
-    mask: binary tensor with shape (samples, time, 1),
-        with a zero for every element that is masked.
+    masking: boolean. If true, any input timestep inputs[s, i]
+        that is all-zeros will be skipped (states will be passed to
+        the next step unchanged) and the corresponding output will
+        be all zeros.
 
     Returns
     -------
@@ -425,10 +395,7 @@ def rnn(step_function, inputs, initial_states,
         new_states: list of tensors, latest states returned by
             the step function, of shape (samples, ...).
     '''
-    ndim = len(inputs.get_shape())
-    assert ndim >= 3, "Input should be at least 3D."
-    axes = [1, 0] + list(range(2, ndim))
-    inputs = tf.transpose(inputs, (axes))
+    inputs = tf.transpose(inputs, (1, 0, 2))
     input_list = tf.unpack(inputs)
 
     states = initial_states
@@ -436,55 +403,35 @@ def rnn(step_function, inputs, initial_states,
     successive_outputs = []
     if go_backwards:
         input_list.reverse()
+    for input in input_list:
+        output, new_states = step_function(input, states)
+        if masking:
+            # for now we raise an exception because tf.reduce_any will not work
+            raise Exception("Masking is Theano-only for the time being.")
 
-    if mask is not None:
-        # Transpose not supported by bool tensor types, hence round-trip to uint8.
-        mask = tf.cast(mask, tf.uint8)
-        if len(mask.get_shape()) == ndim-1:
-            mask = expand_dims(mask)
-        mask = tf.cast(tf.transpose(mask, axes), tf.bool)
-        mask_list = tf.unpack(mask)
-
-        for input, mask_t in zip(input_list, mask_list):
-            output, new_states = step_function(input, states)
-
-            # tf.select needs its condition tensor to be the same shape as its two
-            # result tensors, but in our case the condition (mask) tensor is
-            # (nsamples, 1), and A and B are (nsamples, ndimensions). So we need to
-            # broadcast the mask to match the shape of A and B. That's what the
-            # tile call does, is just repeat the mask along its second dimension
-            # ndimensions times.
-            tiled_mask_t = tf.tile(mask_t, tf.pack([1, tf.shape(output)[1]]))
-
-            if len(successive_outputs) == 0:
-                prev_output = zeros_like(output)
-            else:
-                prev_output = successive_outputs[-1]
-
-            output = tf.select(tiled_mask_t, output, prev_output)
-
+            # if all-zero input timestep, return
+            # all-zero output and unchanged states
+            switch = tf.reduce_any(input)
+            output = tf.python.control_flow_ops.cond(switch,
+                                                     lambda: output,
+                                                     lambda: 0. * output)
             return_states = []
             for state, new_state in zip(states, new_states):
-                # (see earlier comment for tile explanation)
-                tiled_mask_t = tf.tile(mask_t, tf.pack([1, tf.shape(new_state)[1]]))
-                return_states.append(tf.select(tiled_mask_t, new_state, state))
-
+                return_states.append(tf.python.control_flow_ops.cond(switch,
+                                                                     lambda: new_state,
+                                                                     lambda: state))
             states = return_states
-            successive_outputs.append(output)
-            successive_states.append(states)
-    else:
-        for input in input_list:
-            output, states = step_function(input, states)
-            successive_outputs.append(output)
-            successive_states.append(states)
+        else:
+            states = new_states
+        successive_outputs.append(output)
+        successive_states.append(states)
 
     last_output = successive_outputs[-1]
     outputs = tf.pack(successive_outputs)
     new_states = successive_states[-1]
 
-    axes = [1, 0] + list(range(2, len(outputs.get_shape())))
-    outputs = tf.transpose(outputs, axes)
-    return last_output, outputs, new_states
+    outputs = tf.transpose(outputs, (1, 0, 2))
+    return last_output, outputs, states
 
 
 def switch(condition, then_expression, else_expression):
@@ -571,12 +518,6 @@ def dropout(x, level, seed=None):
     # the dummy 1. works around a TF bug
     # (float32_ref vs. float32 incomptability)
     return tf.nn.dropout(x * 1., retain_prob, seed=seed)
-
-
-def l2_normalize(x, axis):
-    if axis < 0:
-        axis = axis % len(x.get_shape())
-    return tf.nn.l2_normalize(x, dim=axis)
 
 
 # CONVOLUTIONS
