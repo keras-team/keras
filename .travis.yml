@@ -3,10 +3,10 @@ dist: trusty
 language: python
 matrix:
     include:
-        - python: 3.4
-          env: KERAS_BACKEND=theano
-        - python: 3.4
-          env: KERAS_BACKEND=tensorflow
+#        - python: 3.4
+#          env: KERAS_BACKEND=theano
+#        - python: 3.4
+#          env: KERAS_BACKEND=tensorflow
         - python: 2.7
           env: KERAS_BACKEND=theano
         - python: 2.7

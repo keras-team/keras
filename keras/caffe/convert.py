@@ -6,10 +6,10 @@ from ..layers.normalization import *
 
 from ..models import Graph
 
-import caffe_pb2 as caffe
+from . import caffe_pb2 as caffe
 import google.protobuf
-from caffe_utils import *
-from extra_layers import *
+from .caffe_utils import *
+from .extra_layers import *
 
 import numpy as np
 
@@ -36,7 +36,7 @@ def caffe_to_keras(prototext, caffemodel, phase='train', debug=False):
             raise Exception('could not load any layers from prototext')
 
         if(debug):
-	    print("CREATING MODEL")
+            print("CREATING MODEL")
         model = create_model(layers,
                                   0 if phase == 'train' else 1,
                                   tuple(config.input_dim[1:]),
@@ -47,10 +47,10 @@ def caffe_to_keras(prototext, caffemodel, phase='train', debug=False):
         
         if len(params.layers) != 0:
             param_layers = params.layers[:]    # V1
-	    v = 'V1'
+            v = 'V1'
         elif len(params.layer) != 0:
             param_layers = params.layer[:]     # V2
-	    v = 'V2'
+            v = 'V2'
         else:
             raise Exception('could not load any layers from caffemodel')
 
@@ -108,7 +108,7 @@ def create_model(layers, phase, input_dim, debug=False):
             dim = input_dim
         else:
             dim = get_data_dim(layers[network_input])
-	name = 'input_'+name
+        name = 'input_'+name
         model.add_input(name=name, input_shape=dim)
        
     # parse all the layers and build equivalent keras graph
@@ -281,24 +281,24 @@ def convert_weights(param_layers, v='V1', debug=False):
         if typ == 'innerproduct':
             blobs = layer.blobs
 
-	    if(v == 'V1'):
-            	nb_filter = blobs[0].num
-            	stack_size = blobs[0].channels
-            	nb_col = blobs[0].height
-            	nb_row = blobs[0].width
-	    elif(v == 'V2'):
-		if(len(blobs[0].shape.dim) == 4):
-		    nb_filter = int(blobs[0].shape.dim[0])
+            if(v == 'V1'):
+                nb_filter = blobs[0].num
+                stack_size = blobs[0].channels
+                nb_col = blobs[0].height
+                nb_row = blobs[0].width
+            elif(v == 'V2'):
+                if(len(blobs[0].shape.dim) == 4):
+                    nb_filter = int(blobs[0].shape.dim[0])
                     stack_size = int(blobs[0].shape.dim[1])
-		    nb_col = int(blobs[0].shape.dim[2])
-		    nb_row = int(blobs[0].shape.dim[3])
-	 	else:
-		    nb_filter = 1
-		    stack_size = 1
+                    nb_col = int(blobs[0].shape.dim[2])
+                    nb_row = int(blobs[0].shape.dim[3])
+                else:
+                    nb_filter = 1
+                    stack_size = 1
                     nb_col = int(blobs[0].shape.dim[0])
                     nb_row = int(blobs[0].shape.dim[1])
-	    else:
-		raise RuntimeError('incorrect caffemodel version "'+v+'"')
+            else:
+                raise RuntimeError('incorrect caffemodel version "'+v+'"')
 
             weights_p = np.array(blobs[0].data).reshape(nb_filter, stack_size, nb_col, nb_row)[0, 0, :, :]
             weights_p = weights_p.T     # need to swapaxes here, hence transpose. See comment in conv
@@ -310,7 +310,7 @@ def convert_weights(param_layers, v='V1', debug=False):
         elif typ == 'convolution':
             blobs = layer.blobs
 
-	    if(v == 'V1'):
+            if(v == 'V1'):
                 nb_filter = blobs[0].num
                 temp_stack_size = blobs[0].channels
                 nb_col = blobs[0].height

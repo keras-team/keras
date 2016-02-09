@@ -3,8 +3,8 @@ import pytest
 import keras.caffe.convert as convert
 
 def test_convertGoogleNet():
-    load_path = 'models'
-    store_path = 'models'
+    load_path = 'keras/caffe/models'
+    store_path = 'keras/caffe/models'
     prototxt = 'train_val_for_keras.prototxt'
     caffemodel = 'bvlc_googlenet.caffemodel'
 
@@ -14,10 +14,11 @@ def test_convertGoogleNet():
 
     # Save converted model structure
     json_string = model.to_json()
-    open(store_path + '/keras_model_structure.json', 'w').write(json_string)
+    open(store_path + '/Keras_model_structure.json', 'w').write(json_string)
     # Save converted model weights
-    model.save_weights(store_path + '/keras_model_weights.h5', overwrite=True)
+    model.save_weights(store_path + '/Keras_model_weights.h5', overwrite=True)
 
 
 if __name__ == '__main__':
     pytest.main([__file__]) 
+    # test_convertGoogleNet()

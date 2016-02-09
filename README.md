@@ -1,5 +1,7 @@
 # Caffe to Keras conversion module
 
+![Build status](https://api.travis-ci.org/MarcBS/keras.svg)
+
 This fork allows to convert Caffe models to Keras for their later training or test use.
 See keras/caffe/README.md for further information.
 
@@ -8,8 +10,6 @@ GitHub page: https://github.com/MarcBS
 
 
 # Keras: Deep Learning library for Theano and TensorFlow
-
-![Build status](https://api.travis-ci.org/fchollet/keras.svg)
 
 ## You have just found Keras.
 
