@@ -8,6 +8,7 @@ See keras/caffe/README.md for further information.
 Contact email: marc.bolanos@ub.edu 
 GitHub page: https://github.com/MarcBS
 
+The Caffe to Keras converter is only compatible with: __Python 2.7__.
 
 # Keras: Deep Learning library for Theano and TensorFlow
 
