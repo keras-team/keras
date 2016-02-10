@@ -15,6 +15,7 @@ def check_layer_output_shape(layer, input_data):
 
     function = K.function([layer.input], [layer.get_output()])
     output = function([input_data])[0]
+
     assert output.shape[1:] == expected_output_shape
 
 
@@ -35,6 +36,7 @@ def test_Reshape():
 
     layer = Reshape(dims=(2, -1))
     check_layer_output_shape(layer, input_data)
+
 
 def test_Permute():
     layer = Permute(dims=(1, 3, 2))
@@ -87,10 +89,10 @@ def test_Convolution1D():
 def test_Convolution2D():
     for border_mode in ['same', 'valid']:
         for nb_row, nb_col in [(2, 2), (3, 3)]:
-            for subsample in [(1, 1), (2, 2)]:
-                if (subsample[0] > 1 or subsample[1] > 1) and border_mode == 'same':
+            for subsample in [(1, 1), (2, 2), (3, 3)]:
+                if (subsample[0] > nb_row or subsample[1] > nb_col) and border_mode == 'same':
                     continue
-                for input_data_shape in [(2, 1, 3, 3), (2, 1, 4, 4)]:
+                for input_data_shape in [(2, 1, 4, 4), (2, 1, 5, 5)]:
                     layer = Convolution2D(nb_filter=1, nb_row=nb_row,
                                           nb_col=nb_row,
                                           border_mode=border_mode,

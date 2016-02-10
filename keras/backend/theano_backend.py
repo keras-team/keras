@@ -593,16 +593,20 @@ def conv2d(x, kernel, strides=(1, 1), border_mode='valid', dim_ordering='th',
 
     if _on_gpu() and dnn.dnn_available():
         if border_mode == 'same':
-            assert(strides == (1, 1))
+            np_kernel = kernel.eval()
+            assert strides[0] <= np_kernel.shape[2], 'strides should be smaller than the convolution window.'
+            assert strides[1] <= np_kernel.shape[3], 'strides should be smaller than the convolution window.'
             conv_out = dnn.dnn_conv(img=x,
                                     kerns=kernel,
                                     border_mode='full')
-            np_kernel = kernel.eval()
-            shift_x = (np_kernel.shape[2] - 1) // 2
-            shift_y = (np_kernel.shape[3] - 1) // 2
+            shift_x = (np_kernel.shape[2] - strides[0]) // 2
+            shift_y = (np_kernel.shape[3] - strides[1]) // 2
+            expected_width = (x.shape[2] + strides[0] - 1) // strides[0]
+            expected_height = (x.shape[3] + strides[1] - 1) // strides[1]
+
             conv_out = conv_out[:, :,
-                                shift_x:x.shape[2] + shift_x,
-                                shift_y:x.shape[3] + shift_y]
+                                shift_x: shift_x + expected_width,
+                                shift_y: shift_y + expected_height]
         else:
             conv_out = dnn.dnn_conv(img=x,
                                     kerns=kernel,
@@ -611,7 +615,9 @@ def conv2d(x, kernel, strides=(1, 1), border_mode='valid', dim_ordering='th',
     else:
         if border_mode == 'same':
             th_border_mode = 'full'
-            assert(strides == (1, 1))
+            np_kernel = kernel.eval()
+            assert strides[0] <= np_kernel.shape[2], 'strides should be smaller than the convolution window.'
+            assert strides[1] <= np_kernel.shape[3], 'strides should be smaller than the convolution window.'
         elif border_mode == 'valid':
             th_border_mode = 'valid'
         else:
@@ -623,12 +629,14 @@ def conv2d(x, kernel, strides=(1, 1), border_mode='valid', dim_ordering='th',
                                       image_shape=image_shape,
                                       filter_shape=filter_shape)
         if border_mode == 'same':
-            np_kernel = kernel.eval()
-            shift_x = (np_kernel.shape[2] - 1) // 2
-            shift_y = (np_kernel.shape[3] - 1) // 2
+            shift_x = (np_kernel.shape[2] - strides[0]) // 2
+            shift_y = (np_kernel.shape[3] - strides[1]) // 2
+            expected_width = (x.shape[2] + strides[0] - 1) // strides[0]
+            expected_height = (x.shape[3] + strides[1] - 1) // strides[1]
+
             conv_out = conv_out[:, :,
-                                shift_x:x.shape[2] + shift_x,
-                                shift_y:x.shape[3] + shift_y]
+                                shift_x: shift_x + expected_width,
+                                shift_y: shift_y + expected_height]
     if dim_ordering == 'tf':
         conv_out = conv_out.dimshuffle((0, 2, 3, 1))
     return conv_out
