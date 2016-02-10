@@ -240,8 +240,12 @@ class Bidirectional(MaskedLayer):
         return self.forward.get_input(train)
 
     @property
+    def non_trainable_weights(self):
+        return self.forward.non_trainable_weights + self.reverse.non_trainable_weights
+
+    @property
     def trainable_weights(self):
-        return self.forward.get_params()[0] + self.reverse.get_params()[0]
+        return self.forward.trainable_weights + self.reverse.trainable_weights
 
     @property
     def regularizers(self):
@@ -272,8 +276,9 @@ class Bidirectional(MaskedLayer):
                 self.reverse.build()
 
     def get_config(self):
-        config = {'name': self.__class__.__name__, 
-                "rnn": self.forward.get_config(),
+        config = {
+                  "name": self.__class__.__name__,
+                  "rnn": self.forward.get_config(),
                   "merge_mode": self.merge_mode}
         base_config = super(Bidirectional, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
