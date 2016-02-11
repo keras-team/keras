@@ -130,8 +130,8 @@ def process_class_docstring(docstring):
 
 
 def process_method_docstring(docstring):
-    docstring = re.sub(r'    # (.*)\n',
-                       r'    __\1__\n\n',
+    docstring = re.sub(r'\n        # (.*)\n',
+                       r'\n        __\1__\n\n',
                        docstring)
 
     docstring = re.sub(r'    ([^\s\\]+):(.*)\n',
