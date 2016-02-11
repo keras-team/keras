@@ -137,7 +137,15 @@ class Layer(object):
         # if layer is not connected (e.g. input layer),
         # input shape can be set manually via _input_shape attribute.
         if hasattr(self, 'previous'):
-            return self.previous.output_shape
+            if hasattr(self, 'shape_cache') and self.cache_enabled:
+                previous_layer_id = id(self.previous)
+                if previous_layer_id in self.shape_cache:
+                    return self.shape_cache[previous_layer_id]
+            previous_size = self.previous.output_shape
+            if hasattr(self, 'shape_cache') and self.cache_enabled:
+                previous_layer_id = id(self.previous)
+                self.shape_cache[previous_layer_id] = previous_size
+            return previous_size
         elif hasattr(self, '_input_shape'):
             return self._input_shape
         else:

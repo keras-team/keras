@@ -21,6 +21,7 @@ class Sequential(Layer):
     def __init__(self, layers=[]):
         self.layers = []
         self.layer_cache = {}
+        self.shape_cache = {}
         for layer in layers:
             self.add(layer)
         self._cache_enabled = True
@@ -63,6 +64,7 @@ class Sequential(Layer):
 
     def add(self, layer):
         layer.layer_cache = self.layer_cache
+        layer.shape_cache = self.shape_cache
         self.layers.append(layer)
         if len(self.layers) > 1:
             self.layers[-1].set_previous(self.layers[-2])
@@ -188,6 +190,7 @@ class Graph(Layer):
         self.output_config = []  # dicts
         self.node_config = []  # dicts
         self.layer_cache = {}
+        self.shape_cache = {}
 
     @property
     def nb_input(self):
@@ -374,6 +377,7 @@ class Graph(Layer):
 
         self.namespace.add(name)
         layer.layer_cache = self.layer_cache
+        layer.shape_cache = self.shape_cache
         self.nodes[name] = layer
         self.node_config.append({'name': name,
                                  'input': input,
