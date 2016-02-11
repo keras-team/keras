@@ -124,6 +124,8 @@ def process_class_docstring(docstring):
     docstring = re.sub(r'    ([^\s\\]+):(.*)\n',
                        r'    - __\1__:\2\n',
                        docstring)
+
+    docstring = docstring.replace('    ' * 5, '\t\t')
     docstring = docstring.replace('    ' * 3, '\t')
     docstring = docstring.replace('    ', '')
     return docstring
@@ -137,6 +139,8 @@ def process_method_docstring(docstring):
     docstring = re.sub(r'    ([^\s\\]+):(.*)\n',
                        r'    - __\1__:\2\n',
                        docstring)
+
+    docstring = docstring.replace('    ' * 6, '\t\t')
     docstring = docstring.replace('    ' * 4, '\t')
     docstring = docstring.replace('    ', '')
     return docstring
