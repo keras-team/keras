@@ -34,22 +34,13 @@ def random_shift(x, wrg, hrg, fill_mode="nearest", cval=0.):
     if wrg:
         crop = random.uniform(0., wrg)
         split = random.uniform(0, 1)
-        randSign = 2*np.random.randint(2)-1 # allows cropping from left and right both
-<<<<<<< HEAD
-        crop_left_pixels = randSign*int(split*crop*x.shape[2]) # cropping left pixels from the width dimension
+        randSign = 2*np.random.randint(2)-1 #allows cropping from left and right both
+        crop_left_pixels = randSign*int(split*crop*x.shape[2]) #x.shape[2] are actually columns
     if hrg:
         crop = random.uniform(0., hrg)
         split = random.uniform(0, 1)
-        randSign = 2*np.random.randint(2)-1 # allows cropping from top and bottom both
-        crop_top_pixels = randSign*int(split*crop*x.shape[1]) # cropping top pixels from the height dimension
-=======
-        crop_left_pixels = randSign*int(split*crop*x.shape[2]) # crop left pixels from width dimension
-    if hrg:
-        crop = random.uniform(0., hrg)
-        split = random.uniform(0, 1)
-	randSign = 2*np.random.randint(2)-1 # allows cropping from top and bottom both
-        crop_top_pixels = randSign*int(split*crop*x.shape[1]) # crop top pixels from height dimension
->>>>>>> 77e339b364af07d973b622d29aa637a9348d75dd
+        randSign = 2*np.random.randint(2)-1 #allows cropping from top and bottom both
+        crop_top_pixels = randSign*int(split*crop*x.shape[1]) #x.shape[1] are actually rows
     x = ndimage.interpolation.shift(x, (0, crop_top_pixels, crop_left_pixels),
                                     order=0,
                                     mode=fill_mode,
