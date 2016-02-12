@@ -240,9 +240,9 @@ class Model(object):
 
         history = cbks.History()
         if verbose:
-            callbacks = [history, cbks.BaseLogger()] + callbacks
+            callbacks = callbacks + [history, cbks.BaseLogger()]
         else:
-            callbacks = [history] + callbacks
+            callbacks = callbacks + [history]
         callbacks = cbks.CallbackList(callbacks)
 
         callbacks._set_model(self)
@@ -931,9 +931,9 @@ class Sequential(Model, containers.Sequential):
         # prepare callbacks
         history = cbks.History()
         if verbose:
-            callbacks = [history, cbks.BaseLogger()] + callbacks
+            callbacks = callbacks + [history, cbks.BaseLogger()]
         else:
-            callbacks = [history] + callbacks
+            callbacks = callbacks + [history]
         callbacks = cbks.CallbackList(callbacks)
 
         callbacks._set_model(self)
@@ -1403,9 +1403,9 @@ class Graph(Model, containers.Graph):
         # prepare callbacks
         history = cbks.History()
         if verbose:
-            callbacks = [history, cbks.BaseLogger()] + callbacks
+            callbacks = callbacks + [history, cbks.BaseLogger()]
         else:
-            callbacks = [history] + callbacks
+            callbacks = callbacks + [history]
         callbacks = cbks.CallbackList(callbacks)
 
         callbacks._set_model(self)
