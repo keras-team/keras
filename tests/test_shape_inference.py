@@ -88,7 +88,7 @@ def test_Convolution1D():
 
 def test_Convolution2D():
     for border_mode in ['same', 'valid']:
-        for nb_row, nb_col in [(3, 3), (4, 4)]:
+        for nb_row, nb_col in [(3, 3), (4, 4), (3, 4)]:
             for subsample in [(1, 1), (2, 2), (3, 3)]:
                 if (subsample[0] > nb_row or subsample[1] > nb_col) and border_mode == 'same':
                     continue
