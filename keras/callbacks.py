@@ -526,3 +526,27 @@ class TensorBoard(Callback):
             summary_value.tag = name
             self.writer.add_summary(summary, epoch)
         self.writer.flush()
+
+
+class VisualizationPublisher(Callback):
+
+    def __init__(self, chart_config):
+        self.chart_config = chart_config
+
+    def on_epoch_begin(self, epoch, logs={}):
+        self.chart_config._publish_all(self.model, logs, 'epoch_begin')
+
+    def on_epoch_end(self, epoch, logs={}):
+        self.chart_config._publish_all(self.model, logs, 'epoch_end')
+
+    def on_batch_begin(self, batch, logs={}):
+        self.chart_config._publish_all(self.model, logs, 'batch_begin')
+
+    def on_batch_end(self, batch, logs={}):
+        self.chart_config._publish_all(self.model, logs, 'batch_end')
+
+    def on_train_begin(self, logs={}):
+        self.chart_config._publish_all(self.model, logs, 'train_begin')
+
+    def on_train_end(self, logs={}):
+        self.chart_config._publish_all(self.model, logs, 'train_end')
