@@ -220,7 +220,7 @@ class Model(object):
     '''Abstract base model class.
     '''
     def _fit(self, f, ins, out_labels=[], batch_size=128,
-             nb_epoch=100, verbose=1, callbacks=[],
+             nb_epoch=100, samples_per_epoch=None, verbose=1, callbacks=[],
              val_f=None, val_ins=None, shuffle=True, metrics=[]):
         '''
             Abstract fit function for f(ins).
@@ -235,8 +235,9 @@ class Model(object):
                 print('Train on %d samples, validate on %d samples' %
                       (len(ins[0]), len(val_ins[0])))
 
-        nb_train_sample = len(ins[0])
-        index_array = np.arange(nb_train_sample)
+        if samples_per_epoch is None:
+            samples_per_epoch = len(ins[0])
+        index_array = np.arange(len(ins[0]))
 
         history = cbks.History()
         if verbose:
@@ -249,7 +250,7 @@ class Model(object):
         callbacks._set_params({
             'batch_size': batch_size,
             'nb_epoch': nb_epoch,
-            'nb_sample': nb_train_sample,
+            'nb_sample': samples_per_epoch,
             'verbose': verbose,
             'do_validation': do_validation,
             'metrics': metrics,
@@ -264,7 +265,7 @@ class Model(object):
             elif shuffle:
                 np.random.shuffle(index_array)
 
-            batches = make_batches(nb_train_sample, batch_size)
+            batches = make_batches(samples_per_epoch, batch_size)
             for batch_index, (batch_start, batch_end) in enumerate(batches):
                 batch_ids = index_array[batch_start:batch_end]
                 try:
@@ -518,7 +519,8 @@ class Sequential(Model, containers.Sequential):
         self._test = K.function(test_ins, [test_loss], updates=self.state_updates)
         self._test_with_acc = K.function(test_ins, [test_loss, test_accuracy], updates=self.state_updates)
 
-    def fit(self, X, y, batch_size=128, nb_epoch=100, verbose=1, callbacks=[],
+    def fit(self, X, y, batch_size=128, nb_epoch=100, samples_per_epoch=None,
+            verbose=1, callbacks=[],
             validation_split=0., validation_data=None, shuffle=True,
             show_accuracy=False, class_weight=None, sample_weight=None):
         '''Train the model for a fixed number of epochs.
@@ -532,6 +534,8 @@ class Sequential(Model, containers.Sequential):
             y: labels, as a numpy array.
             batch_size: int. Number of samples per gradient update.
             nb_epoch: int.
+            samples_per_epoch: int. Number of samples per epoch; by default,
+                the whole training set is processed in each epoch.
             verbose: 0 for no logging to stdout,
                 1 for progress bar logging, 2 for one log line per epoch.
             callbacks: `keras.callbacks.Callback` list.
@@ -641,6 +645,7 @@ class Sequential(Model, containers.Sequential):
         metrics = ['loss', 'acc', 'val_loss', 'val_acc']
         return self._fit(f, ins, out_labels=out_labels,
                          batch_size=batch_size, nb_epoch=nb_epoch,
+                         samples_per_epoch=samples_per_epoch,
                          verbose=verbose, callbacks=callbacks,
                          val_f=val_f, val_ins=val_ins,
                          shuffle=shuffle, metrics=metrics)
@@ -1149,7 +1154,8 @@ class Graph(Model, containers.Graph):
         self._predict = K.function(inputs=ins, outputs=ys_test,
                                    updates=self.state_updates)
 
-    def fit(self, data, batch_size=128, nb_epoch=100, verbose=1, callbacks=[],
+    def fit(self, data, batch_size=128, nb_epoch=100, samples_per_epoch=None,
+            verbose=1, callbacks=[],
             validation_split=0., validation_data=None, shuffle=True,
             class_weight={}, sample_weight={}):
         '''Train the model for a fixed number of epochs.
@@ -1164,6 +1170,8 @@ class Graph(Model, containers.Graph):
                 the same number of samples.
             batch_size: int. Number of samples per gradient update.
             nb_epoch: int.
+            samples_per_epoch: int. Number of samples per epoch; by default,
+                the whole training set is processed in each epoch.
             verbose: 0 for no logging to stdout,
                 1 for progress bar logging, 2 for one log line per epoch.
             callbacks: `keras.callbacks.Callback` list. List of callbacks
@@ -1220,6 +1228,7 @@ class Graph(Model, containers.Graph):
         ins = X + y + sample_weight_list
         history = self._fit(f, ins, out_labels=out_labels,
                             batch_size=batch_size, nb_epoch=nb_epoch,
+                            samples_per_epoch=samples_per_epoch,
                             verbose=verbose, callbacks=callbacks,
                             val_f=val_f, val_ins=val_ins,
                             shuffle=shuffle, metrics=metrics)
