@@ -20,6 +20,7 @@ from .utils.layer_utils import container_from_config
 from .utils.layer_utils import model_summary
 from .utils.generic_utils import Progbar
 from .layers import containers
+from .visualization import charts
 
 
 def standardize_y(y):
@@ -221,7 +222,8 @@ class Model(object):
     '''
     def _fit(self, f, ins, out_labels=[], batch_size=128,
              nb_epoch=100, verbose=1, callbacks=[],
-             val_f=None, val_ins=None, shuffle=True, metrics=[]):
+             val_f=None, val_ins=None, shuffle=True,
+             visualize=False, chart_config=None, metrics=[]):
         '''
             Abstract fit function for f(ins).
             Assume that f returns a list, labelled by out_labels.
@@ -237,6 +239,12 @@ class Model(object):
 
         nb_train_sample = len(ins[0])
         index_array = np.arange(nb_train_sample)
+
+        if visualize:
+            if not chart_config:
+                chart_config = charts.ChartConfig._default_chartconfig()
+            callbacks = [cbks.VisualizationPublisher(chart_config)] + callbacks
+            chart_config.finalize()
 
         history = cbks.History()
         if verbose:
@@ -520,7 +528,8 @@ class Sequential(Model, containers.Sequential):
 
     def fit(self, X, y, batch_size=128, nb_epoch=100, verbose=1, callbacks=[],
             validation_split=0., validation_data=None, shuffle=True,
-            show_accuracy=False, class_weight=None, sample_weight=None):
+            show_accuracy=False, class_weight=None, sample_weight=None,
+            visualize=False, chart_config=None):
         '''Train the model for a fixed number of epochs.
 
         Returns a history object. Its `history` attribute is a record of
@@ -643,7 +652,8 @@ class Sequential(Model, containers.Sequential):
                          batch_size=batch_size, nb_epoch=nb_epoch,
                          verbose=verbose, callbacks=callbacks,
                          val_f=val_f, val_ins=val_ins,
-                         shuffle=shuffle, metrics=metrics)
+                         shuffle=shuffle, metrics=metrics,
+                         visualize=visualize, chart_config=chart_config)
 
     def predict(self, X, batch_size=128, verbose=0):
         '''Generate output predictions for the input samples
@@ -1151,7 +1161,8 @@ class Graph(Model, containers.Graph):
 
     def fit(self, data, batch_size=128, nb_epoch=100, verbose=1, callbacks=[],
             validation_split=0., validation_data=None, shuffle=True,
-            class_weight={}, sample_weight={}):
+            class_weight={}, sample_weight={}, visualize=False,
+            chart_config=None):
         '''Train the model for a fixed number of epochs.
 
         Returns a history object. Its `history` attribute is a record of
@@ -1222,7 +1233,8 @@ class Graph(Model, containers.Graph):
                             batch_size=batch_size, nb_epoch=nb_epoch,
                             verbose=verbose, callbacks=callbacks,
                             val_f=val_f, val_ins=val_ins,
-                            shuffle=shuffle, metrics=metrics)
+                            shuffle=shuffle, metrics=metrics,
+                            visualize=visualize, chart_config=chart_config)
         return history
 
     def evaluate(self, data, batch_size=128, verbose=0, sample_weight={}):
