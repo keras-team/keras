@@ -1,17 +1,27 @@
 import tensorflow as tf
 import numpy as np
 from .common import _FLOATX, _EPSILON
+import os
 
 # INTERNAL UTILS
 
 _SESSION = None
 
 
-def _get_session():
-    global _SESSION
-    if _SESSION is None:
-        _SESSION = tf.Session('')
-    return _SESSION
+if os.environ.get('OMP_NUM_THREADS')==None:
+    def _get_session():
+        global _SESSION
+        if _SESSION is None:
+            _SESSION = tf.Session('')
+        return _SESSION
+else:
+    NUM_THREADS = int(os.environ.get('OMP_NUM_THREADS'))
+    def _get_session():
+        global _SESSION
+        if _SESSION is None:
+            _SESSION = tf.Session(config=tf.ConfigProto(
+            intra_op_parallelism_threads=NUM_THREADS))
+        return _SESSION
 
 
 def _set_session(session):
