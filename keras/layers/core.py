@@ -526,8 +526,8 @@ class Merge(Layer):
             return output
         elif self.mode == 'cos':
             if K._BACKEND != 'theano':
-                raise Exception('"dot" merge mode will only work with Theano.')
-            import theano
+                raise Exception('"cos" merge mode will only work with Theano.')
+            from theano import tensor as T
             l1 = self.layers[0].get_output(train)
             l2 = self.layers[1].get_output(train)
             output = T.batched_tensordot(l1, l2, self.dot_axes) / T.sqrt(T.batched_tensordot(l1, l1, self.dot_axes) * T.batched_tensordot(l2, l2, self.dot_axes))
