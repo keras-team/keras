@@ -357,11 +357,12 @@ class Merge(Layer):
     '''Merge the output of a list of layers or containers into a single tensor.
 
     # Arguments
-        mode: one of {sum, mul, concat, ave, dot}.
+        mode: one of {sum, mul, concat, ave, join, cos, dot}.
             sum: sum the outputs (shapes must match)
             mul: multiply the outputs element-wise (shapes must match)
             concat: concatenate the outputs along the axis specified by `concat_axis`
             ave: average the outputs (shapes must match)
+            join: places the outputs in an OrderedDict (inputs must be named)
         concat_axis: axis to use in `concat` mode.
         dot_axes: axis or axes to use in `dot` mode
             (see [the Numpy documentation](http://docs.scipy.org/doc/numpy-1.10.1/reference/generated/numpy.tensordot.html) for more details).
