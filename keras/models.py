@@ -845,7 +845,7 @@ class Sequential(Model, containers.Sequential):
         '''Load all layer weights from a HDF5 save file.
         '''
         import h5py
-        f = h5py.File(filepath,mode="r")
+        f = h5py.File(filepath, mode='r')
         for k in range(f.attrs['nb_layers']):
             # This method does not make use of Sequential.set_weights()
             # for backwards compatibility.
@@ -1327,7 +1327,7 @@ class Graph(Model, containers.Graph):
         '''Load weights from a HDF5 file.
         '''
         import h5py
-        f = h5py.File(filepath)
+        f = h5py.File(filepath, mode='r')
         g = f['graph']
         weights = [g['param_{}'.format(p)] for p in range(g.attrs['nb_params'])]
         self.set_weights(weights)
