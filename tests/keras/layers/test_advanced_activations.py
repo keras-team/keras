@@ -159,5 +159,23 @@ def test_thresholded_relu():
         assert config['theta'] == theta
 
 
+def test_srelu():
+    from keras.layers.advanced_activations import SReLU
+    np.random.seed(1337)
+    inp = np.array([-2, -1., -0.5, 0., 0.5, 1., 2.])
+    out = np.array([-1.5, -1., -0.5, 0., 0.5, 1., 3.])
+    input_size = len(inp)
+    for train in [True, False]:
+        layer = SReLU(input_shape=inp.flatten().shape)
+        ones_proto = np.ones(input_size)
+        layer.set_weights([ones_proto * -1., ones_proto * 0.5, ones_proto * 2., ones_proto * 2.])
+
+        layer.input = K.variable(inp)
+        outp = K.eval(layer.get_output(train))
+        assert_allclose(out, outp)
+
+        layer.get_config()
+
+
 if __name__ == '__main__':
     pytest.main([__file__])

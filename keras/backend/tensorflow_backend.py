@@ -505,7 +505,8 @@ def switch(condition, then_expression, else_expression):
 def relu(x, alpha=0., max_value=None):
     '''ReLU.
 
-    # Arguments
+    Parameters
+    ----------
         alpha: slope of negative section.
         max_value: saturation threshold.
     '''
@@ -514,7 +515,9 @@ def relu(x, alpha=0., max_value=None):
     if max_value is not None:
         x = tf.clip_by_value(x, tf.cast(0., dtype=_FLOATX),
                              tf.cast(max_value, dtype=_FLOATX))
-    x -= tf.constant(alpha, dtype=_FLOATX) * negative_part
+    if isinstance(alpha, (tuple, list, np.ndarray)) or np.isscalar(alpha):
+        alpha = tf.constant(alpha, dtype=_FLOATX)
+    x -= alpha * negative_part
     return x
 
 
