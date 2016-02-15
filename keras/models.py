@@ -845,7 +845,7 @@ class Sequential(Model, containers.Sequential):
         '''Load all layer weights from a HDF5 save file.
         '''
         import h5py
-        f = h5py.File(filepath)
+        f = h5py.File(filepath,mode="r")
         for k in range(f.attrs['nb_layers']):
             # This method does not make use of Sequential.set_weights()
             # for backwards compatibility.
