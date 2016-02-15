@@ -167,7 +167,7 @@ class Recurrent(MaskedLayer):
         else:
             config['input_dim'] = self.input_dim
             config['input_length'] = self.input_length
-            
+
         base_config = super(Recurrent, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 

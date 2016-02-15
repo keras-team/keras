@@ -29,8 +29,8 @@ class LeakyReLU(MaskedLayer):
         return K.relu(X, alpha=self.alpha)
 
     def get_config(self):
-        config = {"name": self.__class__.__name__,
-                  "alpha": self.alpha}
+        config = {'name': self.__class__.__name__,
+                  'alpha': self.alpha}
         base_config = super(LeakyReLU, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
@@ -73,8 +73,8 @@ class PReLU(MaskedLayer):
         return pos + neg
 
     def get_config(self):
-        config = {"name": self.__class__.__name__,
-                  "init": self.init.__name__}
+        config = {'name': self.__class__.__name__,
+                  'init': self.init.__name__}
         base_config = super(PReLU, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
@@ -106,8 +106,8 @@ class ELU(MaskedLayer):
         return pos + self.alpha * (K.exp(neg) - 1.)
 
     def get_config(self):
-        config = {"name": self.__class__.__name__,
-                  "alpha": self.alpha}
+        config = {'name': self.__class__.__name__,
+                  'alpha': self.alpha}
         base_config = super(ELU, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
@@ -153,9 +153,9 @@ class ParametricSoftplus(MaskedLayer):
         return K.softplus(self.betas * X) * self.alphas
 
     def get_config(self):
-        config = {"name": self.__class__.__name__,
-                  "alpha_init": self.alpha_init,
-                  "beta_init": self.beta_init}
+        config = {'name': self.__class__.__name__,
+                  'alpha_init': self.alpha_init,
+                  'beta_init': self.beta_init}
         base_config = super(ParametricSoftplus, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
@@ -186,8 +186,8 @@ class ThresholdedLinear(MaskedLayer):
         return K.switch(K.abs(X) < self.theta, 0, X)
 
     def get_config(self):
-        config = {"name": self.__class__.__name__,
-                  "theta": self.theta}
+        config = {'name': self.__class__.__name__,
+                  'theta': self.theta}
         base_config = super(ThresholdedLinear, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
@@ -218,8 +218,8 @@ class ThresholdedReLU(MaskedLayer):
         return K.switch(X > self.theta, X, 0)
 
     def get_config(self):
-        config = {"name": self.__class__.__name__,
-                  "theta": self.theta}
+        config = {'name': self.__class__.__name__,
+                  'theta': self.theta}
         base_config = super(ThresholdedReLU, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
@@ -269,11 +269,9 @@ class SReLU(MaskedLayer):
         return Y_left_and_center + Y_right
 
     def get_config(self):
-        return {
-            "name": self.__class__.__name__,
-            "input_shape": self.input_shape,
-            "t_left_init": self.t_left_init,
-            "a_left_init": self.a_left_init,
-            "t_right_init": self.t_right_init,
-            "a_right_init": self.a_right_init
-        }
+        return {'name': self.__class__.__name__,
+                'input_shape': self.input_shape,
+                't_left_init': self.t_left_init,
+                'a_left_init': self.a_left_init,
+                't_right_init': self.t_right_init,
+                'a_right_init': self.a_right_init}
