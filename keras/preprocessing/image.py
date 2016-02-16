@@ -85,6 +85,14 @@ def random_zoom(x, rg, fill_mode="nearest", cval=0.):
     return x  # shape of result will be different from shape of input!
 
 
+def random_position(x, output_size, background=0):
+    w = random.randint(0, output_size[0] - x.shape[1])
+    h = random.randint(0, output_size[1] - x.shape[2])
+    n = np.full((x.shape[0], output_size[1], output_size[0]), background)
+    n[0:x.shape[0] + 1, w:w + x.shape[1], h:h + x.shape[2]] = x
+    return n
+
+
 def array_to_img(x, scale=True):
     from PIL import Image
     x = x.transpose(1, 2, 0)
@@ -140,6 +148,9 @@ class ImageDataGenerator(object):
                  width_shift_range=0.,  # fraction of total width
                  height_shift_range=0.,  # fraction of total height
                  shear_range=0.,  # shear intensity (shear angle in radians)
+                 random_position=False, # randomly position the images in a larger one, requires output size and output background
+                 output_size=None, # output size of the images
+                 output_background=0, # background color
                  horizontal_flip=False,
                  vertical_flip=False):
 
@@ -197,7 +208,10 @@ class ImageDataGenerator(object):
         with self.lock:
             index_array, current_index, current_batch_size = next(self.flow_generator)
         # The transformation of images is not under thread lock so it can be done in parallel
-        bX = np.zeros(tuple([current_batch_size] + list(self.X.shape)[1:]))
+        if self.random_position:
+            bX = np.zeros(tuple([current_batch_size] + list((self.X.shape[1], self.output_size[0], self.output_size[1]))))  
+        else:
+            bX = np.zeros(tuple([current_batch_size] + list(self.X.shape)[1:]))
         for i, j in enumerate(index_array):
             x = self.X[j]
             x = self.random_transform(x.astype("float32"))
@@ -216,9 +230,9 @@ class ImageDataGenerator(object):
 
     def standardize(self, x):
         if self.featurewise_center:
-            x -= self.mean
+            x -= np.resize(self.mean, ((x.shape[0],) + self.output_size)) if self.random_position else self.mean
         if self.featurewise_std_normalization:
-            x /= self.std
+            x /= np.resize(self.std, ((x.shape[0],) + self.output_size)) if self.random_position else self.std
 
         if self.zca_whitening:
             flatx = np.reshape(x, (x.shape[0]*x.shape[1]*x.shape[2]))
@@ -245,6 +259,8 @@ class ImageDataGenerator(object):
                 x = vertical_flip(x)
         if self.shear_range:
             x = random_shear(x,self.shear_range)
+        if self.random_position:
+            x = random_position(x, self.output_size, self.output_background)
         # TODO:
         # zoom
         # barrel/fisheye
