@@ -238,8 +238,8 @@ class Model(object):
         nb_train_sample = len(ins[0])
         index_array = np.arange(nb_train_sample)
 
-        history = cbks.History()
-        callbacks = [cbks.BaseLogger()] + callbacks + [history]
+        self.history = cbks.History()
+        callbacks = [cbks.BaseLogger()] + callbacks + [self.history]
         if verbose:
             callbacks += [cbks.ProgbarLogger()]
         callbacks = cbks.CallbackList(callbacks)
@@ -303,7 +303,7 @@ class Model(object):
                 break
 
         callbacks.on_train_end()
-        return history
+        return self.history
 
     def _predict_loop(self, f, ins, batch_size=128, verbose=0):
         '''Abstract method to loop over some data in batches.
@@ -410,7 +410,6 @@ class Model(object):
         import json
 
         def get_json_type(obj):
-
             # if obj is any numpy type
             if type(obj).__module__ == np.__name__:
                 return obj.item()
