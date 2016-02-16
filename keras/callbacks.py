@@ -206,15 +206,21 @@ class History(Callback):
 
     def on_epoch_end(self, epoch, logs={}):
         self.epoch.append(epoch)
+
+        for k, v in logs.items():
+            if k in self.totals:
+                continue
+            if k not in self.history:
+                self.history[k] = []
+            self.history[k].append(v)
+
         for k, v in self.totals.items():
             if k not in self.history:
                 self.history[k] = []
             self.history[k].append(v / self.seen)
 
-        for k, v in logs.items():
-            if k not in self.history:
-                self.history[k] = []
-            self.history[k].append(v)
+            # make metrics available to other callbacks
+            logs[k] = v / self.seen
 
 
 class ModelCheckpoint(Callback):
