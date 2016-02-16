@@ -239,10 +239,9 @@ class Model(object):
         index_array = np.arange(nb_train_sample)
 
         history = cbks.History()
+        callbacks = [cbks.BaseLogger()] + callbacks + [history]
         if verbose:
-            callbacks = [history, cbks.BaseLogger()] + callbacks
-        else:
-            callbacks = [history] + callbacks
+            callbacks += [cbks.ProgbarLogger()]
         callbacks = cbks.CallbackList(callbacks)
 
         callbacks._set_model(self)
