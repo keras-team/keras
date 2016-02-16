@@ -5,7 +5,7 @@ Here are a few examples to get you started!
 
 ```python
 from keras.models import Sequential
-from keras.layers import Dense, Dropout, Activation
+from keras.layers.core import Dense, Dropout, Activation
 from keras.optimizers import SGD
 
 model = Sequential()
