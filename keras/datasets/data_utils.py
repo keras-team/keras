@@ -3,6 +3,7 @@ from __future__ import print_function
 
 import tarfile
 import os
+import shutil
 from six.moves.urllib.request import FancyURLopener
 
 from ..utils.generic_utils import Progbar
@@ -39,14 +40,28 @@ def get_file(fname, origin, untar=False):
             else:
                 progbar.update(count*block_size)
 
-        ParanoidURLopener().retrieve(origin, fpath, dl_progress)
+        try:
+            ParanoidURLopener().retrieve(origin, fpath, dl_progress)
+        except (Exception, KeyboardInterrupt) as e:
+            if os.path.exists(fpath):
+                os.remove(fpath)
+            raise e
         progbar = None
 
     if untar:
         if not os.path.exists(untar_fpath):
             print('Untaring file...')
             tfile = tarfile.open(fpath, 'r:gz')
-            tfile.extractall(path=datadir)
+            try:
+                tfile.extractall(path=datadir)
+            except (Exception, KeyboardInterrupt) as e:
+                if os.path.exists(untar_fpath):
+                    # Remove the partially extracted file(s).
+                    if os.path.isfile(untar_fpath):
+                        os.remove(untar_fpath)
+                    else:
+                        shutil.rmtree(untar_fpath)
+                raise e
             tfile.close()
         return untar_fpath
 
