@@ -3,14 +3,37 @@ from __future__ import print_function
 
 import tarfile
 import os
-from six.moves.urllib.request import FancyURLopener
+import sys
+from six.moves.urllib.request import urlopen, build_opener, install_opener
+from six.moves.urllib.error import URLError, HTTPError
 
 from ..utils.generic_utils import Progbar
 
 
-class ParanoidURLopener(FancyURLopener):
-    def http_error_default(self, url, fp, errcode, errmsg, headers):
-        raise Exception('URL fetch failure on {}: {} -- {}'.format(url, errcode, errmsg))
+# Under Python 2, 'urlretrieve' relies on FancyURLopener from legacy
+# urllib module, known to have issues with proxy management
+if sys.version_info[0] == 2:
+    def urlretrieve(url, filename, reporthook=None, data=None):
+        def chunk_read(response, chunk_size=8192, reporthook=None):
+            total_size = response.info().get('Content-Length').strip()
+            total_size = int(total_size)
+            bytes_so_far = 0
+            count = 0
+            while 1:
+                chunk = response.read(chunk_size)
+                if not chunk:
+                    break
+                count += 1
+                if reporthook:
+                    reporthook(count, chunk_size, total_size)
+                yield chunk
+
+        response = urlopen(url, data)
+        with open(filename, 'wb') as fd:
+            for chunk in chunk_read(response, reporthook=reporthook):
+                fd.write(chunk)
+else:
+    from six.moves.urllib.request import urlretrieve
 
 
 def get_file(fname, origin, untar=False):
@@ -39,7 +62,13 @@ def get_file(fname, origin, untar=False):
             else:
                 progbar.update(count*block_size)
 
-        ParanoidURLopener().retrieve(origin, fpath, dl_progress)
+        error_msg = 'URL fetch failure on {}: {} -- {}'
+        try:
+            urlretrieve(origin, fpath, dl_progress)
+        except URLError as e:
+            raise Exception(error_msg.format(url, e.errno, e.reason))
+        except HTTPError as e:
+            raise Exception(error_msg.format(url, e.code, e.msg))
         progbar = None
 
     if untar:
