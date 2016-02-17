@@ -240,11 +240,10 @@ class Model(object):
         nb_train_sample = len(ins[0])
         index_array = np.arange(nb_train_sample)
 
-        history = cbks.History()
+        self.history = cbks.History()
+        callbacks = [cbks.BaseLogger()] + callbacks + [self.history]
         if verbose:
-            callbacks = [history, cbks.BaseLogger()] + callbacks
-        else:
-            callbacks = [history] + callbacks
+            callbacks += [cbks.ProgbarLogger()]
         callbacks = cbks.CallbackList(callbacks)
 
         callbacks._set_model(self)
@@ -306,7 +305,7 @@ class Model(object):
                 break
 
         callbacks.on_train_end()
-        return history
+        return self.history
 
     def _predict_loop(self, f, ins, batch_size=128, verbose=0):
         '''Abstract method to loop over some data in batches.
@@ -413,7 +412,6 @@ class Model(object):
         import json
 
         def get_json_type(obj):
-
             # if obj is any numpy type
             if type(obj).__module__ == np.__name__:
                 return obj.item()
@@ -847,7 +845,7 @@ class Sequential(Model, containers.Sequential):
         '''Load all layer weights from a HDF5 save file.
         '''
         import h5py
-        f = h5py.File(filepath)
+        f = h5py.File(filepath, mode='r')
         for k in range(f.attrs['nb_layers']):
             # This method does not make use of Sequential.set_weights()
             # for backwards compatibility.
@@ -1329,7 +1327,7 @@ class Graph(Model, containers.Graph):
         '''Load weights from a HDF5 file.
         '''
         import h5py
-        f = h5py.File(filepath)
+        f = h5py.File(filepath, mode='r')
         g = f['graph']
         weights = [g['param_{}'.format(p)] for p in range(g.attrs['nb_params'])]
         self.set_weights(weights)

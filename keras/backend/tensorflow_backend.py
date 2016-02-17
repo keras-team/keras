@@ -91,10 +91,13 @@ def transpose(x):
 
 
 def gather(reference, indices):
-    '''reference: a tensor.
-    indices: an int tensor of indices.
+    '''
+    # Arguments
+        reference: a tensor.
+        indices: an int tensor of indices.
 
-    Return: a tensor of same type as reference.
+    # Returns
+        a tensor of same type as `reference`.
     '''
     return tf.gather(reference, indices)
 
@@ -247,8 +250,9 @@ def reshape(x, shape):
 def permute_dimensions(x, pattern):
     '''Transpose dimensions.
 
-    pattern should be a tuple or list of
-    dimension indices, e.g. [0, 2, 1].
+    # Arguments
+        pattern: should be a tuple or list of
+            dimension indices, e.g. [0, 2, 1].
     '''
     return tf.transpose(x, perm=pattern)
 
@@ -398,37 +402,35 @@ def rnn(step_function, inputs, initial_states,
         go_backwards=False, mask=None):
     '''Iterates over the time dimension of a tensor.
 
-    Parameters
-    ----------
-    inputs: tensor of temporal data of shape (samples, time, ...)
-        (at least 3D).
-    step_function:
-        Parameters:
-            input: tensor with shape (samples, ...) (no time dimension),
-                representing input for the batch of samples at a certain
-                time step.
-            states: list of tensors.
-        Returns:
-            output: tensor with shape (samples, ...) (no time dimension),
-            new_states: list of tensors, same length and shapes
-                as 'states'.
-    initial_states: tensor with shape (samples, ...) (no time dimension),
-        containing the initial values for the states used in
-        the step function.
-    go_backwards: boolean. If True, do the iteration over
-        the time dimension in reverse order.
-    mask: binary tensor with shape (samples, time, 1),
-        with a zero for every element that is masked.
+    # Arguments
+        inputs: tensor of temporal data of shape (samples, time, ...)
+            (at least 3D).
+        step_function:
+            Parameters:
+                input: tensor with shape (samples, ...) (no time dimension),
+                    representing input for the batch of samples at a certain
+                    time step.
+                states: list of tensors.
+            Returns:
+                output: tensor with shape (samples, ...) (no time dimension),
+                new_states: list of tensors, same length and shapes
+                    as 'states'.
+        initial_states: tensor with shape (samples, ...) (no time dimension),
+            containing the initial values for the states used in
+            the step function.
+        go_backwards: boolean. If True, do the iteration over
+            the time dimension in reverse order.
+        mask: binary tensor with shape (samples, time, 1),
+            with a zero for every element that is masked.
 
-    Returns
-    -------
-    A tuple (last_output, outputs, new_states).
-        last_output: the latest output of the rnn, of shape (samples, ...)
-        outputs: tensor with shape (samples, time, ...) where each
-            entry outputs[s, t] is the output of the step function
-            at time t for sample s.
-        new_states: list of tensors, latest states returned by
-            the step function, of shape (samples, ...).
+    # Returns
+        A tuple (last_output, outputs, new_states).
+            last_output: the latest output of the rnn, of shape (samples, ...)
+            outputs: tensor with shape (samples, time, ...) where each
+                entry outputs[s, t] is the output of the step function
+                at time t for sample s.
+            new_states: list of tensors, latest states returned by
+                the step function, of shape (samples, ...).
     '''
     ndim = len(inputs.get_shape())
     assert ndim >= 3, "Input should be at least 3D."
@@ -493,7 +495,12 @@ def rnn(step_function, inputs, initial_states,
 
 
 def switch(condition, then_expression, else_expression):
-    '''condition: scalar tensor.
+    '''Switch between two operations depending on a scalar value.
+
+    # Arguments
+        condition: scalar tensor.
+        then_expression: TensorFlow operation.
+        else_expression: TensorFlow operation.
     '''
     return tf.python.control_flow_ops.cond(condition,
                                            lambda: then_expression,
@@ -514,7 +521,9 @@ def relu(x, alpha=0., max_value=None):
     if max_value is not None:
         x = tf.clip_by_value(x, tf.cast(0., dtype=_FLOATX),
                              tf.cast(max_value, dtype=_FLOATX))
-    x -= tf.constant(alpha, dtype=_FLOATX) * negative_part
+    if isinstance(alpha, (tuple, list, np.ndarray)) or np.isscalar(alpha):
+        alpha = tf.constant(alpha, dtype=_FLOATX)
+    x -= alpha * negative_part
     return x
 
 
