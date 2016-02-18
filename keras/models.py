@@ -856,7 +856,9 @@ class Sequential(Model, containers.Sequential):
 
     def fit_generator(self, generator, samples_per_epoch, nb_epoch,
                       verbose=1, show_accuracy=False, callbacks=[],
-                      validation_data=None, class_weight=None, nb_worker=1):
+                      val_generator=None,
+                      validation_data=None, class_weight=None,
+                      nb_worker=1, nb_val_worker=1):
         '''Fit a model on data generated batch-by-batch by a Python generator.
         The generator is run in parallel to the model, for efficiency,
         and can be run by multiple workers at the same time.
@@ -887,6 +889,9 @@ class Sequential(Model, containers.Sequential):
                 they are assumed to be (input_data, target_data);
                 if 3 elements, they are assumed to be
                 (input_data, target_data, sample weights).
+            validation_generator: generator producing a batch of validation
+                data. At the end of every epoch, a single batch from this
+                generator will be used.
             class_weight: dictionary mapping class indices to a weight
                 for the class.
             nb_worker: integer, number of workers to use for running
@@ -918,10 +923,21 @@ class Sequential(Model, containers.Sequential):
                                 samples_per_epoch=10000, nb_epoch=10)
         ```
         '''
-        max_queue_size = 10  # maximum number of batches in queue
+
+        max_data_q_size = 10  # maximum number of batches in queue
+        max_val_q_size = 2  # maximum number of validation batches in queue
+
         wait_time = 0.05  # in seconds
         epoch = 0
-        do_validation = bool(validation_data)
+
+        val_data = bool(validation_data)
+        val_gen = bool(val_generator)
+        if val_gen and val_data:
+            raise ValueError('cannot specify both validation data and'
+                             ' validation generator')
+
+        do_validation = val_data or val_gen
+
         if show_accuracy:
             out_labels = ['loss', 'acc']
         else:
@@ -975,26 +991,22 @@ class Sequential(Model, containers.Sequential):
                                                 sample_weight_mode=self.sample_weight_mode)
             return X, y, sample_weight
 
-        if do_validation:
-            X_val, y_val, sample_weight_val = input_validation(validation_data)
-            self.validation_data = X_val + [y_val, sample_weight_val]
-        else:
-            self.validation_data = None
-
         # start generator thread storing batches into a queue
-        generator_queue = queue.Queue()
+        data_gen_queue = queue.Queue()
+        if val_gen:
+            val_gen_queue = queue.Queue()
         _stop = threading.Event()
 
-        def generator_task():
+        def data_generator_task():
             i = 0
             while not _stop.is_set():
                 try:
-                    if generator_queue.qsize() < max_queue_size:
+                    if data_gen_queue.qsize() < max_data_q_size:
                         try:
                             generator_output = next(generator)
                         except ValueError:
                             continue
-                        generator_queue.put(generator_output)
+                        data_gen_queue.put(generator_output)
                         i += 1
                     else:
                         time.sleep(wait_time)
@@ -1002,10 +1014,39 @@ class Sequential(Model, containers.Sequential):
                     _stop.set()
                     raise
 
-        generator_threads = [threading.Thread(target=generator_task) for _ in range(nb_worker)]
+        if val_gen:
+            def val_generator_task():
+                i = 0
+                while not _stop.is_set():
+                    try:
+                        if val_gen_queue.qsize() < max_val_q_size:
+                            try:
+                                generator_output = next(val_generator)
+                            except ValueError:
+                                continue
+                            val_gen_queue.put(generator_output)
+                            i += 1
+                        else:
+                            time.sleep(wait_time)
+                    except:
+                        _stop.set()
+                        raise
+
+        generator_threads = [threading.Thread(target=data_generator_task)
+                             for _ in range(nb_worker)]
+        if val_gen:
+            generator_threads += [threading.Thread(target=val_generator_task)
+                                  for _ in range(nb_val_worker)]
+
         for thread in generator_threads:
             thread.daemon = True
             thread.start()
+
+        if val_data:
+            X_val, y_val, sample_weight_val = input_validation(validation_data)
+            self.validation_data = X_val + [y_val, sample_weight_val]
+        else:
+            self.validation_data = None
 
         self.stop_training = False
         while epoch < nb_epoch:
@@ -1015,8 +1056,8 @@ class Sequential(Model, containers.Sequential):
             while samples_seen < samples_per_epoch:
                 generator_output = None
                 while not _stop.is_set():
-                    if not generator_queue.empty():
-                        generator_output = generator_queue.get()
+                    if not data_gen_queue.empty():
+                        generator_output = data_gen_queue.get()
                         break
                     else:
                         time.sleep(wait_time)
@@ -1045,17 +1086,15 @@ class Sequential(Model, containers.Sequential):
                 samples_seen += batch_size
                 if samples_seen >= samples_per_epoch:  # epoch finished
                     if do_validation:
-                        if hasattr(validation_data, 'next'):
-                            # assumed to be generator
-                            # TODO: call self.evaluate_generator()
-                            _stop.set()
-                            raise NotImplementedError()
-                        else:
-                            # input validation
-                            val_outs = self.evaluate(X_val, y_val,
-                                                     show_accuracy=show_accuracy,
-                                                     sample_weight=sample_weight_val,
-                                                     verbose=0)
+                        if val_gen:
+                            X_val, y_val, sample_weight_val =\
+                                input_validation(next(val_generator))
+                            self.validation_data =\
+                                X_val + [y_val, sample_weight_val]
+                        val_outs = self.evaluate(X_val, y_val,
+                                                 show_accuracy=show_accuracy,
+                                                 sample_weight=sample_weight_val,
+                                                 verbose=0)
                         if type(val_outs) != list:
                             val_outs = [val_outs]
                         # same labels assumed
@@ -1334,7 +1373,9 @@ class Graph(Model, containers.Graph):
 
     def fit_generator(self, generator, samples_per_epoch, nb_epoch,
                       verbose=1, callbacks=[],
-                      validation_data=None, class_weight={}, nb_worker=1):
+                      validation_data=None, class_weight={},
+                      val_generator=None,
+                      nb_worker=1, nb_val_worker=1):
         '''Fit a model on data generated batch-by-batch by a Python generator.
         The generator is run in parallel to the model, for efficiency,
         and can be run by multiple workers at the same time.
@@ -1390,10 +1431,20 @@ class Graph(Model, containers.Graph):
                                 samples_per_epoch=10000, nb_epoch=10)
         ```
         '''
-        max_queue_size = 10  # maximum number of batches in queue
+        max_data_q_size = 10  # maximum number of batches in queue
+        max_val_q_size = 2
+
         wait_time = 0.05  # in seconds
         epoch = 0
-        do_validation = bool(validation_data)
+
+        val_data = bool(validation_data)
+        val_gen = bool(val_generator)
+        if val_gen and val_data:
+            raise ValueError('cannot specify both validation data and'
+                             ' validation generator')
+
+        do_validation = val_data or val_gen
+
         out_labels = ['loss']
         metrics = ['loss', 'val_loss']
         if not class_weight:
@@ -1446,7 +1497,7 @@ class Graph(Model, containers.Graph):
                              sample_weight_mode=self.sample_weight_modes.get(name)) for name in self.output_order}
             return data, sample_weight
 
-        if do_validation:
+        if val_data:
             data_val, sample_weight_val = input_validation(validation_data)
             sample_weight_val_l = [sample_weight_val[name] for name in self.output_order]
             y_val = [standardize_y(data_val[name]) for name in self.output_order]
@@ -1455,16 +1506,18 @@ class Graph(Model, containers.Graph):
             self.validation_data = None
 
         # start generator thread storing batches into a queue
-        generator_queue = queue.Queue()
+        data_gen_queue = queue.Queue()
+        if val_gen:
+            val_gen_queue = queue.Queue()
         _stop = threading.Event()
 
-        def generator_task():
+        def data_generator_task():
             i = 0
             while not _stop.is_set():
                 try:
-                    if generator_queue.qsize() < max_queue_size:
+                    if data_gen_queue.qsize() < max_data_q_size:
                         generator_output = next(generator)
-                        generator_queue.put(generator_output)
+                        data_gen_queue.put(generator_output)
                         i += 1
                     else:
                         time.sleep(wait_time)
@@ -1472,7 +1525,30 @@ class Graph(Model, containers.Graph):
                     _stop.set()
                     return
 
-        generator_threads = [threading.Thread(target=generator_task) for _ in range(nb_worker)]
+        if val_gen:
+            def val_generator_task():
+                i = 0
+                while not _stop.is_set():
+                    try:
+                        if val_gen_queue.qsize() < max_val_q_size:
+                            try:
+                                generator_output = next(val_generator)
+                            except ValueError:
+                                continue
+                            val_gen_queue.put(generator_output)
+                            i += 1
+                        else:
+                            time.sleep(wait_time)
+                    except:
+                        _stop.set()
+                        raise
+
+        generator_threads = [threading.Thread(target=data_generator_task)
+                             for _ in range(nb_worker)]
+        if val_gen:
+            generator_threads += [threading.Thread(target=val_generator_task)
+                                  for _ in range(nb_val_worker)]
+
         for thread in generator_threads:
             thread.daemon = True
             thread.start()
@@ -1484,8 +1560,8 @@ class Graph(Model, containers.Graph):
             batch_index = 0
             while samples_seen < samples_per_epoch:
                 while not _stop.is_set():
-                    if not generator_queue.empty():
-                        generator_output = generator_queue.get()
+                    if not data_gen_queue.empty():
+                        generator_output = data_gen_queue.get()
                         break
                     else:
                         time.sleep(wait_time)
@@ -1513,11 +1589,12 @@ class Graph(Model, containers.Graph):
                 samples_seen += batch_size
                 if samples_seen >= samples_per_epoch:  # epoch finished
                     if do_validation:
-                        if hasattr(validation_data, 'next'):
-                            # assumed to be generator
+                        if val_gen:
                             # TODO: call self.evaluate_generator()
-                            _stop.set()
-                            raise NotImplementedError()
+                            data_val, sample_weight_val = input_validation(next(val_generator))
+                            sample_weight_val_l = [sample_weight_val[name] for name in self.output_order]
+                            y_val = [standardize_y(data_val[name]) for name in self.output_order]
+                            self.validation_data = [data_val[name] for name in self.input_order] + y_val + sample_weight_val_l
                         else:
                             val_outs = self.evaluate(data_val,
                                                      sample_weight=sample_weight_val,
