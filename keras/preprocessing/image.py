@@ -29,12 +29,11 @@ def random_rotation(x, rg, fill_mode="nearest", cval=0.):
 
 def random_shift(x, wrg, hrg, fill_mode="nearest", cval=0.):
     shift_x = shift_y = 0
-    
+
     if wrg:
         shift_x = random.uniform(-wrg, wrg) * x.shape[2]
     if hrg:
         shift_y = random.uniform(-hrg, hrg) * x.shape[1]
-        
     x = ndimage.interpolation.shift(x, (0, shift_y, shift_x),
                                     order=0,
                                     mode=fill_mode,
