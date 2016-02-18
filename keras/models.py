@@ -929,11 +929,10 @@ class Sequential(Model, containers.Sequential):
         metrics = ['loss', 'acc', 'val_loss', 'val_acc']
 
         # prepare callbacks
-        history = cbks.History()
+        self.history = cbks.History()
+        callbacks = [cbks.BaseLogger()] + callbacks + [self.history]
         if verbose:
-            callbacks = [history, cbks.BaseLogger()] + callbacks
-        else:
-            callbacks = [history] + callbacks
+            callbacks += [cbks.ProgbarLogger()]
         callbacks = cbks.CallbackList(callbacks)
 
         callbacks._set_model(self)
@@ -1069,7 +1068,7 @@ class Sequential(Model, containers.Sequential):
                 break
         _stop.set()
         callbacks.on_train_end()
-        return history
+        return self.history
 
 
 class Graph(Model, containers.Graph):
@@ -1401,11 +1400,10 @@ class Graph(Model, containers.Graph):
             class_weight = {}
 
         # prepare callbacks
-        history = cbks.History()
+        self.history = cbks.History()
+        callbacks = [cbks.BaseLogger()] + callbacks + [self.history]
         if verbose:
-            callbacks = [history, cbks.BaseLogger()] + callbacks
-        else:
-            callbacks = [history] + callbacks
+            callbacks += [cbks.ProgbarLogger()]
         callbacks = cbks.CallbackList(callbacks)
 
         callbacks._set_model(self)
@@ -1536,4 +1534,4 @@ class Graph(Model, containers.Graph):
                 break
         _stop.set()
         callbacks.on_train_end()
-        return history
+        return self.history
