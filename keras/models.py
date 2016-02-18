@@ -1084,22 +1084,29 @@ class Sequential(Model, containers.Sequential):
                 epoch_logs = {}
                 batch_index += 1
                 samples_seen += batch_size
-                if samples_seen >= samples_per_epoch:  # epoch finished
-                    if do_validation:
-                        if val_gen:
-                            X_val, y_val, sample_weight_val =\
-                                input_validation(next(val_generator))
-                            self.validation_data =\
-                                X_val + [y_val, sample_weight_val]
-                        val_outs = self.evaluate(X_val, y_val,
-                                                 show_accuracy=show_accuracy,
-                                                 sample_weight=sample_weight_val,
-                                                 verbose=0)
-                        if type(val_outs) != list:
-                            val_outs = [val_outs]
-                        # same labels assumed
-                        for l, o in zip(out_labels, val_outs):
-                            epoch_logs['val_' + l] = o
+                if samples_seen >= samples_per_epoch and do_validation:  # epoch finished
+                    if val_gen:
+                        while not _stop.is_set():
+                            if not val_gen_queue.empty():
+                                val_gen_output = val_gen_queue.get()
+                                break
+                            else:
+                                time.sleep(wait_time)
+
+                        X_val, y_val, sample_weight_val =\
+                            input_validation(val_gen_output)
+                        self.validation_data =\
+                            X_val + [y_val, sample_weight_val]
+
+                    val_outs = self.evaluate(X_val, y_val,
+                                             show_accuracy=show_accuracy,
+                                             sample_weight=sample_weight_val,
+                                             verbose=0)
+                    if type(val_outs) != list:
+                        val_outs = [val_outs]
+                    # same labels assumed
+                    for l, o in zip(out_labels, val_outs):
+                        epoch_logs['val_' + l] = o
 
             callbacks.on_epoch_end(epoch, epoch_logs)
             epoch += 1
@@ -1373,8 +1380,8 @@ class Graph(Model, containers.Graph):
 
     def fit_generator(self, generator, samples_per_epoch, nb_epoch,
                       verbose=1, callbacks=[],
-                      validation_data=None, class_weight={},
-                      val_generator=None,
+                      validation_data=None,
+                      val_generator=None, class_weight={},
                       nb_worker=1, nb_val_worker=1):
         '''Fit a model on data generated batch-by-batch by a Python generator.
         The generator is run in parallel to the model, for efficiency,
@@ -1400,6 +1407,7 @@ class Graph(Model, containers.Graph):
                 to appropriate numpy arrays to be used as
                 held-out validation data.
                 All arrays should contain the same number of samples.
+            val_generator: generator producting 
             class_weight: dictionary mapping class indices to a weight
                 for the class.
             nb_worker: integer, number of workers to use for running
@@ -1587,23 +1595,28 @@ class Graph(Model, containers.Graph):
                 epoch_logs = {}
                 batch_index += 1
                 samples_seen += batch_size
-                if samples_seen >= samples_per_epoch:  # epoch finished
-                    if do_validation:
-                        if val_gen:
-                            # TODO: call self.evaluate_generator()
-                            data_val, sample_weight_val = input_validation(next(val_generator))
-                            sample_weight_val_l = [sample_weight_val[name] for name in self.output_order]
-                            y_val = [standardize_y(data_val[name]) for name in self.output_order]
-                            self.validation_data = [data_val[name] for name in self.input_order] + y_val + sample_weight_val_l
-                        else:
-                            val_outs = self.evaluate(data_val,
-                                                     sample_weight=sample_weight_val,
-                                                     verbose=0)
-                        if type(val_outs) != list:
-                            val_outs = [val_outs]
-                        # same labels assumed
-                        for l, o in zip(out_labels, val_outs):
-                            epoch_logs['val_' + l] = o
+                # epoch finished
+                if samples_seen >= samples_per_epoch and do_validation:
+                    if val_gen:
+                        # TODO: call self.evaluate_generator()
+                        while not _stop.is_set():
+                            if not val_gen_queue.empty():
+                                val_gen_output = val_gen_queue.get()
+                                break
+                            else:
+                                time.sleep(wait_time)
+                        data_val, sample_weight_val = input_validation(val_gen_output)
+                        sample_weight_val_l = [sample_weight_val[name] for name in self.output_order]
+                        y_val = [standardize_y(data_val[name]) for name in self.output_order]
+                        self.validation_data = [data_val[name] for name in self.input_order] + y_val + sample_weight_val_l
+                    val_outs = self.evaluate(data_val,
+                                             sample_weight=sample_weight_val,
+                                             verbose=0)
+                    if type(val_outs) != list:
+                        val_outs = [val_outs]
+                    # same labels assumed
+                    for l, o in zip(out_labels, val_outs):
+                        epoch_logs['val_' + l] = o
 
             callbacks.on_epoch_end(epoch, epoch_logs)
             epoch += 1

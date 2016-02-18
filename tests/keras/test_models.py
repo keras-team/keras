@@ -69,8 +69,9 @@ def test_sequential_fit_generator():
     model.fit_generator(data_generator(True), len(X_train), nb_epoch, show_accuracy=True)
     model.fit_generator(data_generator(True), len(X_train), nb_epoch, show_accuracy=False, validation_data=(X_test, y_test))
     model.fit_generator(data_generator(True), len(X_train), nb_epoch, show_accuracy=True, validation_data=(X_test, y_test))
-    model.fit_generator(data_generator(True), len(X_train), nb_epoch, show_accuracy=False, validation_generator=data_generator(False))
-    model.fit_generator(data_generator(True), len(X_train), nb_epoch, show_accuracy=True, validation_generator=data_generator(False))
+    print('doing val. generator')
+    model.fit_generator(data_generator(True), len(X_train), nb_epoch, show_accuracy=False, val_generator=data_generator(False))
+    model.fit_generator(data_generator(True), len(X_train), nb_epoch, show_accuracy=True, val_generator=data_generator(False))
 
     loss = model.evaluate(X_train, y_train, verbose=0)
     assert(loss < 0.9)
@@ -624,6 +625,9 @@ def test_graph_fit_generator():
     graph.fit_generator(data_generator_graph(True), 1000, nb_epoch=4)
     graph.fit_generator(data_generator_graph(True), 1000, nb_epoch=4, validation_data={'input1': X_test_graph, 'output1': y_test_graph})
     graph.fit_generator(data_generator_graph(True), 1000, nb_epoch=4, validation_data={'input1': X_test_graph, 'output1': y_test_graph})
+    print('doing val. generator')
+    graph.fit_generator(data_generator_graph(True), 1000, nb_epoch=4, val_generator=data_generator_graph(False))
+    graph.fit_generator(data_generator_graph(True), 1000, nb_epoch=4, val_generator=data_generator_graph(False))
 
     loss = graph.evaluate({'input1': X_test_graph, 'output1': y_test_graph}, verbose=0)
     assert(loss < 3.)
@@ -964,4 +968,5 @@ def test_count_params():
 
 if __name__ == '__main__':
     # pytest.main([__file__])
-    test_lambda()
+    test_sequential_fit_generator()
+    test_graph_fit_generator()
