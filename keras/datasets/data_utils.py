@@ -4,7 +4,8 @@ from __future__ import print_function
 import tarfile
 import os
 import sys
-from six.moves.urllib.request import urlopen, build_opener, install_opener
+import shutil
+from six.moves.urllib.request import urlopen
 from six.moves.urllib.error import URLError, HTTPError
 
 from ..utils.generic_utils import Progbar
@@ -17,7 +18,6 @@ if sys.version_info[0] == 2:
         def chunk_read(response, chunk_size=8192, reporthook=None):
             total_size = response.info().get('Content-Length').strip()
             total_size = int(total_size)
-            bytes_so_far = 0
             count = 0
             while 1:
                 chunk = response.read(chunk_size)
@@ -64,18 +64,31 @@ def get_file(fname, origin, untar=False):
 
         error_msg = 'URL fetch failure on {}: {} -- {}'
         try:
-            urlretrieve(origin, fpath, dl_progress)
-        except URLError as e:
-            raise Exception(error_msg.format(url, e.errno, e.reason))
-        except HTTPError as e:
-            raise Exception(error_msg.format(url, e.code, e.msg))
+            try:
+                urlretrieve(origin, fpath, dl_progress)
+            except URLError as e:
+                raise Exception(error_msg.format(origin, e.errno, e.reason))
+            except HTTPError as e:
+                raise Exception(error_msg.format(origin, e.code, e.msg))
+        except (Exception, KeyboardInterrupt) as e:
+            if os.path.exists(fpath):
+                os.remove(fpath)
+            raise e
         progbar = None
 
     if untar:
         if not os.path.exists(untar_fpath):
             print('Untaring file...')
             tfile = tarfile.open(fpath, 'r:gz')
-            tfile.extractall(path=datadir)
+            try:
+                tfile.extractall(path=datadir)
+            except (Exception, KeyboardInterrupt) as e:
+                if os.path.exists(untar_fpath):
+                    if os.path.isfile(untar_fpath):
+                        os.remove(untar_fpath)
+                    else:
+                        shutil.rmtree(untar_fpath)
+                raise e
             tfile.close()
         return untar_fpath
 
