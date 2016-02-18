@@ -69,6 +69,8 @@ def test_sequential_fit_generator():
     model.fit_generator(data_generator(True), len(X_train), nb_epoch, show_accuracy=True)
     model.fit_generator(data_generator(True), len(X_train), nb_epoch, show_accuracy=False, validation_data=(X_test, y_test))
     model.fit_generator(data_generator(True), len(X_train), nb_epoch, show_accuracy=True, validation_data=(X_test, y_test))
+    model.fit_generator(data_generator(True), len(X_train), nb_epoch, show_accuracy=False, validation_data=data_generator(False))
+    model.fit_generator(data_generator(True), len(X_train), nb_epoch, show_accuracy=True, validation_data=data_generator(False))
 
     loss = model.evaluate(X_train, y_train, verbose=0)
     assert(loss < 0.9)
@@ -76,6 +78,21 @@ def test_sequential_fit_generator():
 
 def test_sequential():
     (X_train, y_train), (X_test, y_test) = _get_test_data()
+
+    # TODO: factor out
+    def data_generator(train):
+        if train:
+            max_batch_index = len(X_train) // batch_size
+        else:
+            max_batch_index = len(X_test) // batch_size
+        i = 0
+        while 1:
+            if train:
+                yield (X_train[i * batch_size: (i + 1) * batch_size], y_train[i * batch_size: (i + 1) * batch_size])
+            else:
+                yield (X_test[i * batch_size: (i + 1) * batch_size], y_test[i * batch_size: (i + 1) * batch_size])
+            i += 1
+            i = i % max_batch_index
 
     model = Sequential()
     model.add(Dense(nb_hidden, input_shape=(input_dim,)))
@@ -93,6 +110,9 @@ def test_sequential():
     model.fit(X_train, y_train, batch_size=batch_size, nb_epoch=nb_epoch, verbose=1, shuffle=False)
 
     model.train_on_batch(X_train[:32], y_train[:32])
+
+    gen_loss = model.evaluate_generator(data_generator(True), 256, verbose=0)
+    assert(gen_loss < 0.8)
 
     loss = model.evaluate(X_test, y_test, verbose=0)
     assert(loss < 0.8)
@@ -622,6 +642,11 @@ def test_graph_fit_generator():
     graph.fit_generator(data_generator_graph(True), 1000, nb_epoch=4)
     graph.fit_generator(data_generator_graph(True), 1000, nb_epoch=4, validation_data={'input1': X_test_graph, 'output1': y_test_graph})
     graph.fit_generator(data_generator_graph(True), 1000, nb_epoch=4, validation_data={'input1': X_test_graph, 'output1': y_test_graph})
+    graph.fit_generator(data_generator_graph(True), 1000, nb_epoch=4, validation_data=data_generator_graph(False))
+    graph.fit_generator(data_generator_graph(True), 1000, nb_epoch=4, validation_data=data_generator_graph(False))
+
+    gen_loss = graph.evaluate_generator(data_generator_graph(True), 128, verbose=0)
+    assert(gen_loss < 3.)
 
     loss = graph.evaluate({'input1': X_test_graph, 'output1': y_test_graph}, verbose=0)
     assert(loss < 3.)
@@ -962,4 +987,7 @@ def test_count_params():
 
 if __name__ == '__main__':
     # pytest.main([__file__])
-    test_lambda()
+    # test_sequential()
+    # test_sequential_fit_generator()
+    # test_graph_fit_generator()
+    pass
