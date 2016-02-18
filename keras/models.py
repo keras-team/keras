@@ -202,10 +202,12 @@ def model_from_config(config, custom_objects={}):
         optimizer = optimizers.get(optimizer_name, optimizer_params)
 
         if model_name == 'Sequential':
+            sample_weight_mode = config.get('sample_weight_mode')
             model.compile(loss=loss, optimizer=optimizer,
-                          class_mode=class_mode)
+                          class_mode=class_mode, sample_weight_mode=sample_weight_mode)
         elif model_name == 'Graph':
-            model.compile(loss=loss, optimizer=optimizer)
+            sample_weight_modes = config.get('sample_weight_modes', {})
+            model.compile(loss=loss, optimizer=optimizer, sample_weight_modes=sample_weight_modes)
     return model
 
 
@@ -371,7 +373,7 @@ class Model(object):
         `keras.models.model_from_config(config, custom_objects={})`.
         '''
         config = super(Model, self).get_config()
-        for p in ['class_mode']:
+        for p in ['class_mode', 'sample_weight_mode', 'sample_weight_modes']:
             if hasattr(self, p):
                 config[p] = getattr(self, p)
         if hasattr(self, 'optimizer'):
@@ -381,7 +383,7 @@ class Model(object):
                 config['loss'] = dict([(k, get_function_name(v)) for k, v in self.loss.items()])
             else:
                 config['loss'] = get_function_name(self.loss)
-
+                
         if verbose:
             pp = pprint.PrettyPrinter(indent=4)
             pp.pprint(config)
