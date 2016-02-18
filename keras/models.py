@@ -889,7 +889,7 @@ class Sequential(Model, containers.Sequential):
                 they are assumed to be (input_data, target_data);
                 if 3 elements, they are assumed to be
                 (input_data, target_data, sample weights).
-            validation_generator: generator producing a batch of validation
+            val_generator: generator producing a batch of validation
                 data. At the end of every epoch, a single batch from this
                 generator will be used.
             class_weight: dictionary mapping class indices to a weight
@@ -1407,7 +1407,9 @@ class Graph(Model, containers.Graph):
                 to appropriate numpy arrays to be used as
                 held-out validation data.
                 All arrays should contain the same number of samples.
-            val_generator: generator producting 
+            val_generator: generator producing a batch of validation
+                data. At the end of every epoch, a single batch from this
+                generator will be used.
             class_weight: dictionary mapping class indices to a weight
                 for the class.
             nb_worker: integer, number of workers to use for running
