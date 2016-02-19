@@ -79,6 +79,21 @@ def test_sequential_fit_generator():
 def test_sequential():
     (X_train, y_train), (X_test, y_test) = _get_test_data()
 
+    # TODO: factor out
+    def data_generator(train):
+        if train:
+            max_batch_index = len(X_train) // batch_size
+        else:
+            max_batch_index = len(X_test) // batch_size
+        i = 0
+        while 1:
+            if train:
+                yield (X_train[i * batch_size: (i + 1) * batch_size], y_train[i * batch_size: (i + 1) * batch_size])
+            else:
+                yield (X_test[i * batch_size: (i + 1) * batch_size], y_test[i * batch_size: (i + 1) * batch_size])
+            i += 1
+            i = i % max_batch_index
+
     model = Sequential()
     model.add(Dense(nb_hidden, input_shape=(input_dim,)))
     model.add(Activation('relu'))
@@ -97,6 +112,8 @@ def test_sequential():
     model.train_on_batch(X_train[:32], y_train[:32])
 
     loss = model.evaluate(X_test, y_test, verbose=0)
+    assert(loss < 0.8)
+    loss = model.evaluate_generator(data_generator(True), verbose=0)
     assert(loss < 0.8)
 
     model.predict(X_test, verbose=0)
