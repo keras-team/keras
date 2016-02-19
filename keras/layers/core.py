@@ -76,21 +76,30 @@ class Layer(object):
         self._cache_enabled = value
 
     def __call__(self, X, mask=None, train=False):
-        # set temporary input
-        tmp_input = self.get_input
-        tmp_mask = None
+        # turn off layer cache temporarily
+        tmp_cache_enabled = self.cache_enabled
+        self.cache_enabled = False
+        # create a temporary layer
+        layer = Layer(batch_input_shape=self.input_shape)
+        layer.name = "dummy"
+        layer.input = X
         if hasattr(self, 'get_input_mask'):
-            tmp_mask = self.get_input_mask
-            self.get_input_mask = lambda _: mask
-        self.get_input = lambda _: X
+            layer.get_input_mask = lambda _: mask 
+        # set temporary previous
+        tmp_previous = None
+        if hasattr(self, 'previous'):
+            tmp_previous = self.previous
+        self.set_previous(layer, False)
         Y = self.get_output(train=train)
-        # return input to what it was
-        if hasattr(self, 'get_input_mask'):
-            self.get_input_mask = tmp_mask
-        self.get_input = tmp_input
+        # return previous to what it was
+        if tmp_previous is not None:
+            self.set_previous(tmp_previous, False)
+        else:
+            self.clear_previous(False)
+        self.cache_enabled = tmp_cache_enabled
         return Y
 
-    def set_previous(self, layer):
+    def set_previous(self, layer, reset_weights=True):
         '''Connect a layer to its parent in the computational graph.
         '''
         assert self.nb_input == layer.nb_output == 1, 'Cannot connect layers: input count and output count should be 1.'
@@ -101,8 +110,27 @@ class Layer(object):
                                                                 str(layer.output_shape))
         if layer.get_output_mask() is not None:
             assert self.supports_masked_input(), 'Cannot connect non-masking layer to layer with masked output.'
+        if not reset_weights:
+            assert layer.output_shape == self.input_shape, ('Cannot connect layers without resetting weights: ' + 
+                                                            'expected input with shape ' +
+                                                            str(self.input_shape) +
+                                                            ' but previous layer has output_shape ' +
+                                                            str(layer.output_shape))
         self.previous = layer
-        self.build()
+        if reset_weights:
+            self.build()
+
+    def clear_previous(self, reset_weights=True):
+        '''Unlink a layer from its parent in the computational graph.
+
+        This is only allowed if the layer has an `input` attribute.
+        '''
+        if not hasattr(self, 'input'):
+            raise Exception('Cannot clear previous for non-input layers')
+        if hasattr(self, 'previous'):
+            del self.previous
+            if reset_weights:
+                self.build()
 
     def build(self):
         '''Instantiation of layer weights.
@@ -1250,8 +1278,10 @@ class AutoEncoder(Layer):
                     self.trainable_weights.append(p)
                     self.constraints.append(c)
 
-    def set_previous(self, node):
-        self.encoder.set_previous(node)
+    def set_previous(self, node, reset_weights=True):
+        self.encoder.set_previous(node, reset_weights)
+        if reset_weights:
+            self.build()
 
     def get_weights(self):
         weights = []
@@ -1660,11 +1690,7 @@ class Siamese(Layer):
         return self.trainable_weights, self.regularizers, self.constraints, self.updates
 
     def set_layer_input(self, head):
-        layer = self.layer
-        from ..layers.containers import Sequential
-        while issubclass(layer.__class__, Sequential):
-            layer = layer.layers[0]
-        layer.previous = self.inputs[head]
+        self.layer.set_previous(self.inputs[head], reset_weights=False)
 
     def get_output_at(self, head, train=False):
         X = self.inputs[head].get_output(train)
@@ -1832,9 +1858,6 @@ class SiameseHead(Layer):
 
         base_config = super(SiameseHead, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
-
-    def set_previous(self, layer):
-        self.previous = layer
 
 
 def add_shared_layer(layer, inputs):
