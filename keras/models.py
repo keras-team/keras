@@ -931,7 +931,10 @@ class Sequential(Model, containers.Sequential):
 
         do_validation = bool(validation_data)
         val_gen = False
-        if hasattr(validation_data, '__next__'):
+        # python 2 has 'next', 3 has '__next__'
+        # avoid any explicit version checks
+        if (hasattr(validation_data, 'next') or
+                hasattr(validation_data, '__next__')):
             val_generator = validation_data
             val_gen = True
 
@@ -1446,7 +1449,8 @@ class Graph(Model, containers.Graph):
 
         do_validation = bool(validation_data)
         val_gen = False
-        if hasattr(validation_data, '__next__'):
+        if (hasattr(validation_data, 'next') or
+                hasattr(validation_data, '__next__')):
             val_generator = validation_data
             val_gen = True
 
