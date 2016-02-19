@@ -856,7 +856,6 @@ class Sequential(Model, containers.Sequential):
 
     def fit_generator(self, generator, samples_per_epoch, nb_epoch,
                       verbose=1, show_accuracy=False, callbacks=[],
-                      val_generator=None,
                       validation_data=None, class_weight=None,
                       nb_worker=1, nb_val_worker=1):
         '''Fit a model on data generated batch-by-batch by a Python generator.
@@ -885,13 +884,13 @@ class Sequential(Model, containers.Sequential):
             show_accuracy: boolean. Whether to display accuracy (only relevant
                 for classification problems).
             callbacks: list of callbacks to be called during training.
-            validation_data: tuple of 2 or 3 numpy arrays. If 2 elements,
-                they are assumed to be (input_data, target_data);
+            validation_data: tuple of 2 or 3 numpy arrays, or a generator.
+                If 2 elements, they are assumed to be (input_data, target_data);
                 if 3 elements, they are assumed to be
-                (input_data, target_data, sample weights).
-            val_generator: generator producing a batch of validation
-                data. At the end of every epoch, a single batch from this
-                generator will be used.
+                (input_data, target_data, sample weights). If generator,
+                it is assumed to yield tuples of 2 or 3 elements as above.
+                A single batch yielded by this generator will be used each
+                epoch.
             class_weight: dictionary mapping class indices to a weight
                 for the class.
             nb_worker: integer, number of workers to use for running
@@ -930,13 +929,11 @@ class Sequential(Model, containers.Sequential):
         wait_time = 0.05  # in seconds
         epoch = 0
 
-        val_data = bool(validation_data)
-        val_gen = bool(val_generator)
-        if val_gen and val_data:
-            raise ValueError('cannot specify both validation data and'
-                             ' validation generator')
-
-        do_validation = val_data or val_gen
+        do_validation = bool(validation_data)
+        val_gen = False
+        if hasattr(validation_data, '__next__'):
+            val_generator = validation_data
+            val_gen = True
 
         if show_accuracy:
             out_labels = ['loss', 'acc']
@@ -1042,7 +1039,7 @@ class Sequential(Model, containers.Sequential):
             thread.daemon = True
             thread.start()
 
-        if val_data:
+        if do_validation and not val_gen:
             X_val, y_val, sample_weight_val = input_validation(validation_data)
             self.validation_data = X_val + [y_val, sample_weight_val]
         else:
@@ -1084,7 +1081,9 @@ class Sequential(Model, containers.Sequential):
                 epoch_logs = {}
                 batch_index += 1
                 samples_seen += batch_size
-                if samples_seen >= samples_per_epoch and do_validation:  # epoch finished
+
+                # epoch finished
+                if samples_seen >= samples_per_epoch and do_validation:
                     if val_gen:
                         while not _stop.is_set():
                             if not val_gen_queue.empty():
@@ -1380,8 +1379,7 @@ class Graph(Model, containers.Graph):
 
     def fit_generator(self, generator, samples_per_epoch, nb_epoch,
                       verbose=1, callbacks=[],
-                      validation_data=None,
-                      val_generator=None, class_weight={},
+                      validation_data=None, class_weight={},
                       nb_worker=1, nb_val_worker=1):
         '''Fit a model on data generated batch-by-batch by a Python generator.
         The generator is run in parallel to the model, for efficiency,
@@ -1405,11 +1403,10 @@ class Graph(Model, containers.Graph):
             callbacks: list of callbacks to be called during training.
             validation_data: dictionary mapping input names and outputs names
                 to appropriate numpy arrays to be used as
-                held-out validation data.
-                All arrays should contain the same number of samples.
-            val_generator: generator producing a batch of validation
-                data. At the end of every epoch, a single batch from this
-                generator will be used.
+                held-out validation data, or a generator yielding such
+                dictionaries. All arrays should contain the same number
+                of samples. If a generator, a single yield will be used
+                each epoch.
             class_weight: dictionary mapping class indices to a weight
                 for the class.
             nb_worker: integer, number of workers to use for running
@@ -1447,13 +1444,11 @@ class Graph(Model, containers.Graph):
         wait_time = 0.05  # in seconds
         epoch = 0
 
-        val_data = bool(validation_data)
-        val_gen = bool(val_generator)
-        if val_gen and val_data:
-            raise ValueError('cannot specify both validation data and'
-                             ' validation generator')
-
-        do_validation = val_data or val_gen
+        do_validation = bool(validation_data)
+        val_gen = False
+        if hasattr(validation_data, '__next__'):
+            val_generator = validation_data
+            val_gen = True
 
         out_labels = ['loss']
         metrics = ['loss', 'val_loss']
@@ -1507,7 +1502,7 @@ class Graph(Model, containers.Graph):
                              sample_weight_mode=self.sample_weight_modes.get(name)) for name in self.output_order}
             return data, sample_weight
 
-        if val_data:
+        if do_validation and not val_gen:
             data_val, sample_weight_val = input_validation(validation_data)
             sample_weight_val_l = [sample_weight_val[name] for name in self.output_order]
             y_val = [standardize_y(data_val[name]) for name in self.output_order]
@@ -1607,10 +1602,12 @@ class Graph(Model, containers.Graph):
                                 break
                             else:
                                 time.sleep(wait_time)
+
                         data_val, sample_weight_val = input_validation(val_gen_output)
                         sample_weight_val_l = [sample_weight_val[name] for name in self.output_order]
                         y_val = [standardize_y(data_val[name]) for name in self.output_order]
                         self.validation_data = [data_val[name] for name in self.input_order] + y_val + sample_weight_val_l
+
                     val_outs = self.evaluate(data_val,
                                              sample_weight=sample_weight_val,
                                              verbose=0)
