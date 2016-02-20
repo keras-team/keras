@@ -271,7 +271,9 @@ class SimpleRNN(Recurrent):
         return output, [output]
 
     def get_constants(self, X, train=False):
-        nb_samples = X.shape[0]
+        nb_samples = K.shape(X)[0]
+        if K._BACKEND == 'tensorflow':
+            nb_samples = int(nb_samples)
         retain_p_W = 1. - self.p_W
         retain_p_U = 1. - self.p_U
         if train and self.p_W > 0 and self.p_U > 0:
@@ -403,19 +405,21 @@ class GRU(Recurrent):
         B_W = states[1]
         B_U = states[2]
 
-        x_z = K.dot(x * B_W[0], self.W_z) + self.b_z
-        x_r = K.dot(x * B_W[1], self.W_r) + self.b_r
-        x_h = K.dot(x * B_W[2], self.W_h) + self.b_h
+        x_z = K.dot(x * K.gather(B_W, 0), self.W_z) + self.b_z
+        x_r = K.dot(x * K.gather(B_W, 1), self.W_r) + self.b_r
+        x_h = K.dot(x * K.gather(B_W, 2), self.W_h) + self.b_h
 
-        z = self.inner_activation(x_z + K.dot(h_tm1 * B_U[0], self.U_z))
-        r = self.inner_activation(x_r + K.dot(h_tm1 * B_U[1], self.U_r))
+        z = self.inner_activation(x_z + K.dot(h_tm1 * K.gather(B_U, 0), self.U_z))
+        r = self.inner_activation(x_r + K.dot(h_tm1 * K.gather(B_U, 1), self.U_r))
 
-        hh = self.activation(x_h + K.dot(r * h_tm1 * B_U[2], self.U_h))
+        hh = self.activation(x_h + K.dot(r * h_tm1 * K.gather(B_U, 2), self.U_h))
         h = z * h_tm1 + (1 - z) * hh
         return h, [h]
 
     def get_constants(self, X, train=False):
-        nb_samples = X.shape[0]
+        nb_samples = K.shape(X)[0]
+        if K._BACKEND == 'tensorflow':
+            nb_samples = int(nb_samples)
         retain_p_W = 1. - self.p_W
         retain_p_U = 1. - self.p_U
         if train and self.p_W > 0 and self.p_U > 0:
@@ -567,20 +571,22 @@ class LSTM(Recurrent):
         B_W = states[2]
         B_U = states[3]
 
-        x_i = K.dot(x * B_W[0], self.W_i) + self.b_i
-        x_f = K.dot(x * B_W[1], self.W_f) + self.b_f
-        x_c = K.dot(x * B_W[2], self.W_c) + self.b_c
-        x_o = K.dot(x * B_W[3], self.W_o) + self.b_o
+        x_i = K.dot(x * K.gather(B_W, 0), self.W_i) + self.b_i
+        x_f = K.dot(x * K.gather(B_W, 1), self.W_f) + self.b_f
+        x_c = K.dot(x * K.gather(B_W, 2), self.W_c) + self.b_c
+        x_o = K.dot(x * K.gather(B_W, 3), self.W_o) + self.b_o
 
-        i = self.inner_activation(x_i + K.dot(h_tm1 * B_U[0], self.U_i))
-        f = self.inner_activation(x_f + K.dot(h_tm1 * B_U[1], self.U_f))
-        c = f * c_tm1 + i * self.activation(x_c + K.dot(h_tm1 * B_U[2], self.U_c))
-        o = self.inner_activation(x_o + K.dot(h_tm1 * B_U[3], self.U_o))
+        i = self.inner_activation(x_i + K.dot(h_tm1 * K.gather(B_U, 0), self.U_i))
+        f = self.inner_activation(x_f + K.dot(h_tm1 * K.gather(B_U, 1), self.U_f))
+        c = f * c_tm1 + i * self.activation(x_c + K.dot(h_tm1 * K.gather(B_U, 2), self.U_c))
+        o = self.inner_activation(x_o + K.dot(h_tm1 * K.gather(B_U, 3), self.U_o))
         h = o * self.activation(c)
         return h, [h, c]
 
     def get_constants(self, X, train=False):
-        nb_samples = X.shape[0]
+        nb_samples = K.shape(X)[0]
+        if K._BACKEND == 'tensorflow':
+            nb_samples = int(nb_samples)
         retain_p_W = 1. - self.p_W
         retain_p_U = 1. - self.p_U
         if train and self.p_W > 0 and self.p_U > 0:

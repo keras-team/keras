@@ -105,10 +105,10 @@ class Embedding(Layer):
         X = self.get_input(train)
         retain_p = 1. - self.p
         if train and self.p > 0:
-            B = K.random_binomial((1, self.input_dim), p=retain_p)
+            B = K.random_binomial((self.input_dim), p=retain_p)
         else:
-            B = K.ones((1, self.input_dim)) * retain_p
-        out = K.gather(self.W * B[0][:, None], X) # (self.W * B[0][:, None])[X] - we zero-out rows of W at random
+            B = K.ones((self.input_dim)) * retain_p
+        out = K.gather(self.W * K.expand_dims(B), X) # we zero-out rows of W at random
         return out
 
     def get_config(self):
