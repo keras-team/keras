@@ -714,4 +714,3 @@ def random_binomial(shape, p=0.0, dtype=_FLOATX, seed=None):
         seed = np.random.randint(10e6)
     return tf.select(tf.random_uniform(shape, dtype=dtype, seed=seed) <= p, 
                      tf.ones(shape), tf.zeros(shape))
-
