@@ -255,7 +255,7 @@ class ModelCheckpoint(Callback):
 
         if mode not in ['auto', 'min', 'max']:
             warnings.warn('ModelCheckpoint mode %s is unknown, '
-                          'fallback to auto mode.' % (self.mode),
+                          'fallback to auto mode.' % (mode),
                           RuntimeWarning)
             mode = 'auto'
 
