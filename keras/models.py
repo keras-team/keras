@@ -890,8 +890,8 @@ class Sequential(Model, containers.Sequential):
         '''
         if not hasattr(generator_output, '__len__'):
             stop.set()
-            raise Exception('The generator output must be a tuple. Found: '
-                            + str(type(generator_output)))
+            raise Exception('The generator output must be a tuple. Found: ' +
+                            str(type(generator_output)))
         if len(generator_output) == 2:
             X, y = generator_output
             if type(X) == list:
