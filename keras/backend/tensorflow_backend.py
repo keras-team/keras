@@ -399,7 +399,7 @@ def gradients(loss, variables):
 # CONTROL FLOW
 
 def rnn(step_function, inputs, initial_states,
-        go_backwards=False, mask=None):
+        go_backwards=False, mask=None, constants=None):
     '''Iterates over the time dimension of a tensor.
 
     # Arguments
@@ -422,6 +422,7 @@ def rnn(step_function, inputs, initial_states,
             the time dimension in reverse order.
         mask: binary tensor with shape (samples, time, 1),
             with a zero for every element that is masked.
+        constants: a list of constant values passed at each step.
 
     # Returns
         A tuple (last_output, outputs, new_states).
@@ -437,6 +438,8 @@ def rnn(step_function, inputs, initial_states,
     axes = [1, 0] + list(range(2, ndim))
     inputs = tf.transpose(inputs, (axes))
     input_list = tf.unpack(inputs)
+    if constants is None:
+        constants = []
 
     states = initial_states
     successive_states = []
@@ -453,7 +456,7 @@ def rnn(step_function, inputs, initial_states,
         mask_list = tf.unpack(mask)
 
         for input, mask_t in zip(input_list, mask_list):
-            output, new_states = step_function(input, states)
+            output, new_states = step_function(input, states + constants)
 
             # tf.select needs its condition tensor to be the same shape as its two
             # result tensors, but in our case the condition (mask) tensor is
@@ -481,7 +484,7 @@ def rnn(step_function, inputs, initial_states,
             successive_states.append(states)
     else:
         for input in input_list:
-            output, states = step_function(input, states)
+            output, states = step_function(input, states + constants)
             successive_outputs.append(output)
             successive_states.append(states)
 
@@ -704,3 +707,11 @@ def random_uniform(shape, low=0.0, high=1.0, dtype=_FLOATX, seed=None):
         seed = np.random.randint(10e6)
     return tf.random_uniform(shape, minval=low, maxval=high,
                              dtype=dtype, seed=seed)
+
+
+def random_binomial(shape, p=0.0, dtype=_FLOATX, seed=None):
+    if seed is None:
+        seed = np.random.randint(10e6)
+    return tf.select(tf.random_uniform(shape, dtype=dtype, seed=seed) <= p, 
+        tf.ones(shape), tf.zeros(shape))
+

@@ -3,7 +3,7 @@ from __future__ import absolute_import
 import numpy as np
 
 from .. import backend as K
-from .. import activations, initializations
+from .. import activations, initializations, regularizers
 from ..layers.core import MaskedLayer
 
 
@@ -112,6 +112,9 @@ class Recurrent(MaskedLayer):
     def step(self, x, states):
         raise NotImplementedError
 
+    def get_constants(self, X, train=False):
+        return None
+
     def get_initial_states(self, X):
         # build an all-zero tensor of shape (samples, output_dim)
         initial_state = K.zeros_like(X)  # (samples, timesteps, input_dim)
@@ -125,6 +128,7 @@ class Recurrent(MaskedLayer):
         # input shape: (nb_samples, time (padded with zeros), input_dim)
         X = self.get_input(train)
         mask = self.get_input_mask(train)
+        constants = self.get_constants(X, train)
 
         assert K.ndim(X) == 3
         if K._BACKEND == 'tensorflow':
@@ -146,7 +150,8 @@ class Recurrent(MaskedLayer):
         last_output, outputs, states = K.rnn(self.step, X,
                                              initial_states,
                                              go_backwards=self.go_backwards,
-                                             mask=mask)
+                                             mask=mask, 
+                                             constants=constants)
         if self.stateful:
             self.updates = []
             for i in range(len(states)):
@@ -173,7 +178,7 @@ class Recurrent(MaskedLayer):
 
 
 class SimpleRNN(Recurrent):
-    '''Fully-connected RNN where the output is to fed back to input.
+    '''Fully-connected RNN where the output is to be fed back to input.
 
     # Arguments
         output_dim: dimension of the internal projections and the final output.
@@ -184,14 +189,31 @@ class SimpleRNN(Recurrent):
         activation: activation function.
             Can be the name of an existing function (str),
             or a Theano function (see: [activations](../activations.md)).
+        W_regularizer: instance of [WeightRegularizer](../regularizers.md)
+            (eg. L1 or L2 regularization), applied to the input weights matrices.
+        U_regularizer: instance of [WeightRegularizer](../regularizers.md)
+            (eg. L1 or L2 regularization), applied to the recurrent weights matrices.
+        b_regularizer: instance of [WeightRegularizer](../regularizers.md),
+            applied to the bias.
+        p_W: float between 0 and 1. Fraction of the input units to drop for inputs.
+        p_U: float between 0 and 1. Fraction of the input units to drop for recurrent connections.
+
+    # References
+        - [A Theoretically Grounded Application of Dropout in Recurrent Neural Networks](http://arxiv.org/abs/1512.05287)
     '''
     def __init__(self, output_dim,
                  init='glorot_uniform', inner_init='orthogonal',
-                 activation='sigmoid', **kwargs):
+                 activation='sigmoid', 
+                 W_regularizer=None, U_regularizer=None, b_regularizer=None, 
+                 p_W=0., p_U=0., **kwargs):
         self.output_dim = output_dim
         self.init = initializations.get(init)
         self.inner_init = initializations.get(inner_init)
         self.activation = activations.get(activation)
+        self.W_regularizer = W_regularizer
+        self.U_regularizer = U_regularizer
+        self.b_regularizer = b_regularizer
+        self.p_W, self.p_U = p_W, p_U
         super(SimpleRNN, self).__init__(**kwargs)
 
     def build(self):
@@ -207,6 +229,18 @@ class SimpleRNN(Recurrent):
         self.W = self.init((input_dim, self.output_dim))
         self.U = self.inner_init((self.output_dim, self.output_dim))
         self.b = K.zeros((self.output_dim,))
+
+        self.regularizers = []
+        def appendRegulariser(input_regulariser, param, regularizers_list):
+            regulariser = regularizers.get(input_regulariser)
+            if regulariser:
+                regulariser.set_param(param)
+                regularizers_list.append(regulariser)
+
+        appendRegulariser(self.W_regularizer, self.W, self.regularizers)
+        appendRegulariser(self.U_regularizer, self.U, self.regularizers)
+        appendRegulariser(self.b_regularizer, self.b, self.regularizers)
+
         self.trainable_weights = [self.W, self.U, self.b]
 
         if self.initial_weights is not None:
@@ -228,17 +262,36 @@ class SimpleRNN(Recurrent):
 
     def step(self, x, states):
         # states only contains the previous output.
-        assert len(states) == 1
+        assert len(states) == 3 # 1 state and 2 constants
         prev_output = states[0]
-        h = K.dot(x, self.W) + self.b
-        output = self.activation(h + K.dot(prev_output, self.U))
+        B_W = states[1]
+        B_U = states[2]
+        h = K.dot(x * B_W, self.W) + self.b
+        output = self.activation(h + K.dot(prev_output * B_U, self.U))
         return output, [output]
+
+    def get_constants(self, X, train=False):
+        nb_samples = X.shape[0]
+        retain_p_W = 1. - self.p_W
+        retain_p_U = 1. - self.p_U
+        if train and self.p_W > 0 and self.p_U > 0:
+            B_W = K.random_binomial((nb_samples, self.input_dim), p=retain_p_W)
+            B_U = K.random_binomial((nb_samples, self.output_dim), p=retain_p_U)
+        else:
+            B_W = retain_p_W
+            B_U = retain_p_U
+        return [B_W, B_U]
 
     def get_config(self):
         config = {"output_dim": self.output_dim,
                   "init": self.init.__name__,
                   "inner_init": self.inner_init.__name__,
-                  "activation": self.activation.__name__}
+                  "activation": self.activation.__name__,
+                  "W_regularizer": self.W_regularizer.get_config() if self.W_regularizer else None,
+                  "U_regularizer": self.U_regularizer.get_config() if self.U_regularizer else None,
+                  "b_regularizer": self.b_regularizer.get_config() if self.b_regularizer else None,
+                  "p_W": self.p_W, 
+                  "p_U": self.p_U}
         base_config = super(SimpleRNN, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
@@ -256,20 +309,34 @@ class GRU(Recurrent):
             Can be the name of an existing function (str),
             or a Theano function (see: [activations](../activations.md)).
         inner_activation: activation function for the inner cells.
+        W_regularizer: instance of [WeightRegularizer](../regularizers.md)
+            (eg. L1 or L2 regularization), applied to the input weights matrices.
+        U_regularizer: instance of [WeightRegularizer](../regularizers.md)
+            (eg. L1 or L2 regularization), applied to the recurrent weights matrices.
+        b_regularizer: instance of [WeightRegularizer](../regularizers.md),
+            applied to the bias.
+        p_W: float between 0 and 1. Fraction of the input units to drop for inputs.
+        p_U: float between 0 and 1. Fraction of the input units to drop for recurrent connections.
 
     # References
         - [On the Properties of Neural Machine Translation: Encoder–Decoder Approaches](http://www.aclweb.org/anthology/W14-4012)
         - [Empirical Evaluation of Gated Recurrent Neural Networks on Sequence Modeling](http://arxiv.org/pdf/1412.3555v1.pdf)
+        - [A Theoretically Grounded Application of Dropout in Recurrent Neural Networks](http://arxiv.org/abs/1512.05287)
     '''
     def __init__(self, output_dim,
                  init='glorot_uniform', inner_init='orthogonal',
                  activation='sigmoid', inner_activation='hard_sigmoid',
-                 **kwargs):
+                 W_regularizer=None, U_regularizer=None, b_regularizer=None, 
+                 p_W=0., p_U=0., **kwargs):
         self.output_dim = output_dim
         self.init = initializations.get(init)
         self.inner_init = initializations.get(inner_init)
         self.activation = activations.get(activation)
         self.inner_activation = activations.get(inner_activation)
+        self.W_regularizer = W_regularizer
+        self.U_regularizer = U_regularizer
+        self.b_regularizer = b_regularizer
+        self.p_W, self.p_U = p_W, p_U
         super(GRU, self).__init__(**kwargs)
 
     def build(self):
@@ -289,6 +356,20 @@ class GRU(Recurrent):
         self.W_h = self.init((input_dim, self.output_dim))
         self.U_h = self.inner_init((self.output_dim, self.output_dim))
         self.b_h = K.zeros((self.output_dim,))
+
+        self.regularizers = []
+        def appendRegulariser(input_regulariser, param, regularizers_list):
+            regulariser = regularizers.get(input_regulariser)
+            if regulariser:
+                regulariser.set_param(param)
+                regularizers_list.append(regulariser)
+
+        for W in [self.W_z, self.W_r, self.W_h]:
+            appendRegulariser(self.W_regularizer, W, self.regularizers)
+        for U in [self.U_z, self.U_r, self.U_h]:
+            appendRegulariser(self.U_regularizer, U, self.regularizers)
+        for b in [self.b_z, self.b_r, self.b_h]:
+            appendRegulariser(self.b_regularizer, b, self.regularizers)
 
         self.trainable_weights = [self.W_z, self.U_z, self.b_z,
                                   self.W_r, self.U_r, self.b_r,
@@ -317,25 +398,45 @@ class GRU(Recurrent):
             self.states = [K.zeros((input_shape[0], self.output_dim))]
 
     def step(self, x, states):
-        assert len(states) == 1
-        x_z = K.dot(x, self.W_z) + self.b_z
-        x_r = K.dot(x, self.W_r) + self.b_r
-        x_h = K.dot(x, self.W_h) + self.b_h
-
+        assert len(states) == 3 # 1 state and 2 constants
         h_tm1 = states[0]
-        z = self.inner_activation(x_z + K.dot(h_tm1, self.U_z))
-        r = self.inner_activation(x_r + K.dot(h_tm1, self.U_r))
+        B_W = states[1]
+        B_U = states[2]
 
-        hh = self.activation(x_h + K.dot(r * h_tm1, self.U_h))
+        x_z = K.dot(x * B_W[0], self.W_z) + self.b_z
+        x_r = K.dot(x * B_W[1], self.W_r) + self.b_r
+        x_h = K.dot(x * B_W[2], self.W_h) + self.b_h
+
+        z = self.inner_activation(x_z + K.dot(h_tm1 * B_U[0], self.U_z))
+        r = self.inner_activation(x_r + K.dot(h_tm1 * B_U[1], self.U_r))
+
+        hh = self.activation(x_h + K.dot(r * h_tm1 * B_U[2], self.U_h))
         h = z * h_tm1 + (1 - z) * hh
         return h, [h]
+
+    def get_constants(self, X, train=False):
+        nb_samples = X.shape[0]
+        retain_p_W = 1. - self.p_W
+        retain_p_U = 1. - self.p_U
+        if train and self.p_W > 0 and self.p_U > 0:
+            B_W = K.random_binomial((3, nb_samples, self.input_dim), p=retain_p_W)
+            B_U = K.random_binomial((3, nb_samples, self.output_dim), p=retain_p_U)
+        else:
+            B_W = K.ones(3) * retain_p_W
+            B_U = K.ones(3) * retain_p_U
+        return [B_W, B_U]
 
     def get_config(self):
         config = {"output_dim": self.output_dim,
                   "init": self.init.__name__,
                   "inner_init": self.inner_init.__name__,
                   "activation": self.activation.__name__,
-                  "inner_activation": self.inner_activation.__name__}
+                  "inner_activation": self.inner_activation.__name__,
+                  "W_regularizer": self.W_regularizer.get_config() if self.W_regularizer else None,
+                  "U_regularizer": self.U_regularizer.get_config() if self.U_regularizer else None,
+                  "b_regularizer": self.b_regularizer.get_config() if self.b_regularizer else None,
+                  "p_W": self.p_W, 
+                  "p_U": self.p_U}
         base_config = super(GRU, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
@@ -359,22 +460,37 @@ class LSTM(Recurrent):
             Can be the name of an existing function (str),
             or a Theano function (see: [activations](../activations.md)).
         inner_activation: activation function for the inner cells.
+        W_regularizer: instance of [WeightRegularizer](../regularizers.md)
+            (eg. L1 or L2 regularization), applied to the input weights matrices.
+        U_regularizer: instance of [WeightRegularizer](../regularizers.md)
+            (eg. L1 or L2 regularization), applied to the recurrent weights matrices.
+        b_regularizer: instance of [WeightRegularizer](../regularizers.md),
+            applied to the bias.
+        p_W: float between 0 and 1. Fraction of the input units to drop for inputs.
+        p_U: float between 0 and 1. Fraction of the input units to drop for recurrent connections.
 
     # References
         - [Long short-term memory](http://deeplearning.cs.cmu.edu/pdfs/Hochreiter97_lstm.pdf) (original 1997 paper)
         - [Learning to forget: Continual prediction with LSTM](http://www.mitpressjournals.org/doi/pdf/10.1162/089976600300015015)
         - [Supervised sequence labelling with recurrent neural networks](http://www.cs.toronto.edu/~graves/preprint.pdf)
+        - [A Theoretically Grounded Application of Dropout in Recurrent Neural Networks](http://arxiv.org/abs/1512.05287)
     '''
     def __init__(self, output_dim,
                  init='glorot_uniform', inner_init='orthogonal',
                  forget_bias_init='one', activation='tanh',
-                 inner_activation='hard_sigmoid', **kwargs):
+                 inner_activation='hard_sigmoid', 
+                 W_regularizer=None, U_regularizer=None, b_regularizer=None, 
+                 p_W=0., p_U=0., **kwargs):
         self.output_dim = output_dim
         self.init = initializations.get(init)
         self.inner_init = initializations.get(inner_init)
         self.forget_bias_init = initializations.get(forget_bias_init)
         self.activation = activations.get(activation)
         self.inner_activation = activations.get(inner_activation)
+        self.W_regularizer = W_regularizer
+        self.U_regularizer = U_regularizer
+        self.b_regularizer = b_regularizer
+        self.p_W, self.p_U = p_W, p_U
         super(LSTM, self).__init__(**kwargs)
 
     def build(self):
@@ -386,7 +502,7 @@ class LSTM(Recurrent):
         if self.stateful:
             self.reset_states()
         else:
-            # initial states: 2 all-zero tensor of shape (output_dim)
+            # initial states: 2 all-zero tensors of shape (output_dim)
             self.states = [None, None]
 
         self.W_i = self.init((input_dim, self.output_dim))
@@ -404,6 +520,20 @@ class LSTM(Recurrent):
         self.W_o = self.init((input_dim, self.output_dim))
         self.U_o = self.inner_init((self.output_dim, self.output_dim))
         self.b_o = K.zeros((self.output_dim,))
+
+        self.regularizers = []
+        def appendRegulariser(input_regulariser, param, regularizers_list):
+            regulariser = regularizers.get(input_regulariser)
+            if regulariser:
+                regulariser.set_param(param)
+                regularizers_list.append(regulariser)
+
+        for W in [self.W_i, self.W_f, self.W_i, self.W_o]:
+            appendRegulariser(self.W_regularizer, W, self.regularizers)
+        for U in [self.U_i, self.U_f, self.U_i, self.U_o]:
+            appendRegulariser(self.U_regularizer, U, self.regularizers)
+        for b in [self.b_i, self.b_f, self.b_i, self.b_o]:
+            appendRegulariser(self.b_regularizer, b, self.regularizers)
 
         self.trainable_weights = [self.W_i, self.U_i, self.b_i,
                                   self.W_c, self.U_c, self.b_c,
@@ -431,21 +561,35 @@ class LSTM(Recurrent):
                            K.zeros((input_shape[0], self.output_dim))]
 
     def step(self, x, states):
-        assert len(states) == 2
+        assert len(states) == 4 # 2 states and 2 constants
         h_tm1 = states[0]
         c_tm1 = states[1]
+        B_W = states[2]
+        B_U = states[3]
 
-        x_i = K.dot(x, self.W_i) + self.b_i
-        x_f = K.dot(x, self.W_f) + self.b_f
-        x_c = K.dot(x, self.W_c) + self.b_c
-        x_o = K.dot(x, self.W_o) + self.b_o
+        x_i = K.dot(x * B_W[0], self.W_i) + self.b_i
+        x_f = K.dot(x * B_W[1], self.W_f) + self.b_f
+        x_c = K.dot(x * B_W[2], self.W_c) + self.b_c
+        x_o = K.dot(x * B_W[3], self.W_o) + self.b_o
 
-        i = self.inner_activation(x_i + K.dot(h_tm1, self.U_i))
-        f = self.inner_activation(x_f + K.dot(h_tm1, self.U_f))
-        c = f * c_tm1 + i * self.activation(x_c + K.dot(h_tm1, self.U_c))
-        o = self.inner_activation(x_o + K.dot(h_tm1, self.U_o))
+        i = self.inner_activation(x_i + K.dot(h_tm1 * B_U[0], self.U_i))
+        f = self.inner_activation(x_f + K.dot(h_tm1 * B_U[1], self.U_f))
+        c = f * c_tm1 + i * self.activation(x_c + K.dot(h_tm1 * B_U[2], self.U_c))
+        o = self.inner_activation(x_o + K.dot(h_tm1 * B_U[3], self.U_o))
         h = o * self.activation(c)
         return h, [h, c]
+
+    def get_constants(self, X, train=False):
+        nb_samples = X.shape[0]
+        retain_p_W = 1. - self.p_W
+        retain_p_U = 1. - self.p_U
+        if train and self.p_W > 0 and self.p_U > 0:
+            B_W = K.random_binomial((4, nb_samples, self.input_dim), p=retain_p_W)
+            B_U = K.random_binomial((4, nb_samples, self.output_dim), p=retain_p_U)
+        else:
+            B_W = K.ones(4) * retain_p_W
+            B_U = K.ones(4) * retain_p_U
+        return [B_W, B_U]
 
     def get_config(self):
         config = {"output_dim": self.output_dim,
@@ -453,6 +597,11 @@ class LSTM(Recurrent):
                   "inner_init": self.inner_init.__name__,
                   "forget_bias_init": self.forget_bias_init.__name__,
                   "activation": self.activation.__name__,
-                  "inner_activation": self.inner_activation.__name__}
+                  "inner_activation": self.inner_activation.__name__,
+                  "W_regularizer": self.W_regularizer.get_config() if self.W_regularizer else None,
+                  "U_regularizer": self.U_regularizer.get_config() if self.U_regularizer else None,
+                  "b_regularizer": self.b_regularizer.get_config() if self.b_regularizer else None,
+                  "p_W": self.p_W, 
+                  "p_U": self.p_U}
         base_config = super(LSTM, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))

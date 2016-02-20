@@ -515,6 +515,7 @@ class Sequential(Model, containers.Sequential):
         self._train = K.function(train_ins, [train_loss], updates=updates)
         self._train_with_acc = K.function(train_ins, [train_loss, train_accuracy], updates=updates)
         self._predict = K.function(predict_ins, [self.y_test], updates=self.state_updates)
+        self._predict_stochastic = K.function(predict_ins, [self.y_train], updates=self.state_updates)
         self._test = K.function(test_ins, [test_loss], updates=self.state_updates)
         self._test_with_acc = K.function(test_ins, [test_loss, test_accuracy], updates=self.state_updates)
 
@@ -659,6 +660,21 @@ class Sequential(Model, containers.Sequential):
         '''
         X = standardize_X(X)
         return self._predict_loop(self._predict, X, batch_size, verbose)[0]
+
+    def predict_stochastic(self, X, batch_size=128, verbose=0):
+        '''Generate stochastic output predictions for the input samples
+        batch by batch.
+
+        # Arguments
+            X: the input data, as a numpy array.
+            batch_size: integer.
+            verbose: verbosity mode, 0 or 1.
+
+        # Returns
+            A numpy array of predictions.
+        '''
+        X = standardize_X(X)
+        return self._predict_loop(self._predict_stochastic, X, batch_size, verbose)[0]
 
     def predict_proba(self, X, batch_size=128, verbose=1):
         '''Generate class probability predictions for the input samples
@@ -929,11 +945,10 @@ class Sequential(Model, containers.Sequential):
         metrics = ['loss', 'acc', 'val_loss', 'val_acc']
 
         # prepare callbacks
-        history = cbks.History()
+        self.history = cbks.History()
+        callbacks = [cbks.BaseLogger()] + callbacks + [self.history]
         if verbose:
-            callbacks = [history, cbks.BaseLogger()] + callbacks
-        else:
-            callbacks = [history] + callbacks
+            callbacks += [cbks.ProgbarLogger()]
         callbacks = cbks.CallbackList(callbacks)
 
         callbacks._set_model(self)
@@ -1069,7 +1084,7 @@ class Sequential(Model, containers.Sequential):
                 break
         _stop.set()
         callbacks.on_train_end()
-        return history
+        return self.history
 
 
 class Graph(Model, containers.Graph):
@@ -1401,11 +1416,10 @@ class Graph(Model, containers.Graph):
             class_weight = {}
 
         # prepare callbacks
-        history = cbks.History()
+        self.history = cbks.History()
+        callbacks = [cbks.BaseLogger()] + callbacks + [self.history]
         if verbose:
-            callbacks = [history, cbks.BaseLogger()] + callbacks
-        else:
-            callbacks = [history] + callbacks
+            callbacks += [cbks.ProgbarLogger()]
         callbacks = cbks.CallbackList(callbacks)
 
         callbacks._set_model(self)
@@ -1536,4 +1550,4 @@ class Graph(Model, containers.Graph):
                 break
         _stop.set()
         callbacks.on_train_end()
-        return history
+        return self.history
