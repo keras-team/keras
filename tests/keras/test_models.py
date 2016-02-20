@@ -111,9 +111,10 @@ def test_sequential():
 
     model.train_on_batch(X_train[:32], y_train[:32])
 
+    gen_loss = model.evaluate_generator(data_generator(True), 256, verbose=0)
+    assert(gen_loss < 0.8)
+
     loss = model.evaluate(X_test, y_test, verbose=0)
-    assert(loss < 0.8)
-    loss = model.evaluate_generator(data_generator(True), verbose=0)
     assert(loss < 0.8)
 
     model.predict(X_test, verbose=0)
@@ -644,6 +645,9 @@ def test_graph_fit_generator():
     graph.fit_generator(data_generator_graph(True), 1000, nb_epoch=4, validation_data=data_generator_graph(False))
     graph.fit_generator(data_generator_graph(True), 1000, nb_epoch=4, validation_data=data_generator_graph(False))
 
+    gen_loss = graph.evaluate_generator(data_generator_graph(True), 128, verbose=0)
+    assert(gen_loss < 3.)
+
     loss = graph.evaluate({'input1': X_test_graph, 'output1': y_test_graph}, verbose=0)
     assert(loss < 3.)
 
@@ -983,5 +987,7 @@ def test_count_params():
 
 if __name__ == '__main__':
     # pytest.main([__file__])
-    test_sequential_fit_generator()
-    test_graph_fit_generator()
+    # test_sequential()
+    # test_sequential_fit_generator()
+    # test_graph_fit_generator()
+    pass
