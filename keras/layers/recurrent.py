@@ -78,6 +78,10 @@ class Recurrent(MaskedLayer):
 
         To reset the states of your model, call `.reset_states()` on either
         a specific layer, or on your entire model.
+
+    # Note on using dropout with TensorFlow
+        When using the TensorFlow backend, specify a fixed batch size for your model
+        following the notes on statefulness RNNs.
     '''
     input_ndim = 3
 
@@ -252,8 +256,7 @@ class SimpleRNN(Recurrent):
         input_shape = self.input_shape
         if not input_shape[0]:
             raise Exception('If a RNN is stateful, a complete ' +
-                            'input_shape must be provided ' +
-                            '(including batch size).')
+                            'input_shape must be provided (including batch size).')
         if hasattr(self, 'states'):
             K.set_value(self.states[0],
                         np.zeros((input_shape[0], self.output_dim)))
@@ -272,8 +275,11 @@ class SimpleRNN(Recurrent):
 
     def get_constants(self, X, train=False):
         nb_samples = K.shape(X)[0]
-        if K._BACKEND == 'tensorflow':
-            nb_samples = int(nb_samples)
+        if K._BACKEND == 'tensorflow' and train and self.p_W > 0 and self.p_U > 0:
+            if not self.input_shape[0]:
+                raise Exception('For RNN dropout in tensorflow, a complete ' +
+                                'input_shape must be provided (including batch size).')
+            nb_samples = self.input_shape[0]
         retain_p_W = 1. - self.p_W
         retain_p_U = 1. - self.p_U
         if train and self.p_W > 0 and self.p_U > 0:
@@ -391,8 +397,7 @@ class GRU(Recurrent):
         input_shape = self.input_shape
         if not input_shape[0]:
             raise Exception('If a RNN is stateful, a complete ' +
-                            'input_shape must be provided ' +
-                            '(including batch size).')
+                            'input_shape must be provided (including batch size).')
         if hasattr(self, 'states'):
             K.set_value(self.states[0],
                         np.zeros((input_shape[0], self.output_dim)))
@@ -418,8 +423,11 @@ class GRU(Recurrent):
 
     def get_constants(self, X, train=False):
         nb_samples = K.shape(X)[0]
-        if K._BACKEND == 'tensorflow':
-            nb_samples = int(nb_samples)
+        if K._BACKEND == 'tensorflow' and train and self.p_W > 0 and self.p_U > 0:
+            if not self.input_shape[0]:
+                raise Exception('For RNN dropout in tensorflow, a complete ' +
+                                'input_shape must be provided (including batch size).')
+            nb_samples = self.input_shape[0]
         retain_p_W = 1. - self.p_W
         retain_p_U = 1. - self.p_U
         if train and self.p_W > 0 and self.p_U > 0:
@@ -553,8 +561,7 @@ class LSTM(Recurrent):
         input_shape = self.input_shape
         if not input_shape[0]:
             raise Exception('If a RNN is stateful, a complete ' +
-                            'input_shape must be provided ' +
-                            '(including batch size).')
+                            'input_shape must be provided (including batch size).')
         if hasattr(self, 'states'):
             K.set_value(self.states[0],
                         np.zeros((input_shape[0], self.output_dim)))
@@ -585,8 +592,11 @@ class LSTM(Recurrent):
 
     def get_constants(self, X, train=False):
         nb_samples = K.shape(X)[0]
-        if K._BACKEND == 'tensorflow':
-            nb_samples = int(nb_samples)
+        if K._BACKEND == 'tensorflow' and train and self.p_W > 0 and self.p_U > 0:
+            if not self.input_shape[0]:
+                raise Exception('For RNN dropout in tensorflow, a complete ' +
+                                'input_shape must be provided (including batch size).')
+            nb_samples = self.input_shape[0]
         retain_p_W = 1. - self.p_W
         retain_p_U = 1. - self.p_U
         if train and self.p_W > 0 and self.p_U > 0:

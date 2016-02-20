@@ -18,23 +18,39 @@ def _runner(layer_class):
     All the recurrent layers share the same interface,
     so we can run through them with a single function.
     """
-    for p in [0., 0.5]:
-        for ret_seq in [True, False]:
-            layer = layer_class(output_dim, return_sequences=ret_seq,
-                                weights=None, input_shape=(timesteps, embedding_dim),
-                                p_W=p, p_U=p)
-            layer.input = K.variable(np.ones((nb_samples, timesteps, embedding_dim)))
-            layer.get_config()
+    for ret_seq in [True, False]:
+        layer = layer_class(output_dim, return_sequences=ret_seq,
+                            weights=None, input_shape=(timesteps, embedding_dim))
+        layer.input = K.variable(np.ones((nb_samples, timesteps, embedding_dim)))
+        layer.get_config()
 
-            for train in [True, False]:
-                out = K.eval(layer.get_output(train))
-                # Make sure the output has the desired shape
-                if ret_seq:
-                    assert(out.shape == (nb_samples, timesteps, output_dim))
-                else:
-                    assert(out.shape == (nb_samples, output_dim))
+        for train in [True, False]:
+            out = K.eval(layer.get_output(train))
+            # Make sure the output has the desired shape
+            if ret_seq:
+                assert(out.shape == (nb_samples, timesteps, output_dim))
+            else:
+                assert(out.shape == (nb_samples, output_dim))
 
-                mask = layer.get_output_mask(train)
+            mask = layer.get_output_mask(train)
+
+    # check dropout
+    for ret_seq in [True, False]:
+        layer = layer_class(output_dim, return_sequences=ret_seq, weights=None, 
+                            batch_input_shape=(nb_samples, timesteps, embedding_dim),
+                            p_W=0.5, p_U=0.5)
+        layer.input = K.variable(np.ones((nb_samples, timesteps, embedding_dim)))
+        layer.get_config()
+
+        for train in [True, False]:
+            out = K.eval(layer.get_output(train))
+            # Make sure the output has the desired shape
+            if ret_seq:
+                assert(out.shape == (nb_samples, timesteps, output_dim))
+            else:
+                assert(out.shape == (nb_samples, output_dim))
+
+            mask = layer.get_output_mask(train)
 
     # check statefulness
     model = Sequential()
