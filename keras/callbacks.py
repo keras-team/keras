@@ -521,7 +521,7 @@ class ModelTest(Callback):
         - [Dropout as a Bayesian Approximation: Representing Model Uncertainty in Deep Learning](http://arxiv.org/abs/1506.02142)
     '''
     def __init__(self, Xt, Yt, T=10, test_every_X_epochs=1, batch_size=500, verbose=1, 
-        loss=None, mean_y_train=None, std_y_train=None):
+                 loss=None, mean_y_train=None, std_y_train=None):
         super(ModelTest, self).__init__()
         self.Xt = Xt
         self.Yt = np.array(Yt)
@@ -536,12 +536,13 @@ class ModelTest(Callback):
     def on_epoch_begin(self, epoch, logs={}):
         if epoch % self.test_every_X_epochs != 0:
             return
-        model_output = self.model.predict(self.Xt, 
-            batch_size=self.batch_size, verbose=self.verbose)
+        model_output = self.model.predict(self.Xt, batch_size=self.batch_size, 
+                                          verbose=self.verbose)
         MC_model_output = []
         for _ in xrange(self.T):
             MC_model_output += [self.model.predict_stochastic(self.Xt, 
-                batch_size=self.batch_size, verbose=self.verbose)]
+                                                              batch_size=self.batch_size, 
+                                                              verbose=self.verbose)]
         MC_model_output = np.array(MC_model_output)
         MC_model_output_mean = np.mean(MC_model_output, 0)
 

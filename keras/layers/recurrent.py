@@ -234,13 +234,13 @@ class SimpleRNN(Recurrent):
         self.U = self.inner_init((self.output_dim, self.output_dim))
         self.b = K.zeros((self.output_dim,))
 
-        self.regularizers = []
         def appendRegulariser(input_regulariser, param, regularizers_list):
             regulariser = regularizers.get(input_regulariser)
             if regulariser:
                 regulariser.set_param(param)
                 regularizers_list.append(regulariser)
 
+        self.regularizers = []
         appendRegulariser(self.W_regularizer, self.W, self.regularizers)
         appendRegulariser(self.U_regularizer, self.U, self.regularizers)
         appendRegulariser(self.b_regularizer, self.b, self.regularizers)
@@ -365,13 +365,13 @@ class GRU(Recurrent):
         self.U_h = self.inner_init((self.output_dim, self.output_dim))
         self.b_h = K.zeros((self.output_dim,))
 
-        self.regularizers = []
         def appendRegulariser(input_regulariser, param, regularizers_list):
             regulariser = regularizers.get(input_regulariser)
             if regulariser:
                 regulariser.set_param(param)
                 regularizers_list.append(regulariser)
 
+        self.regularizers = []
         for W in [self.W_z, self.W_r, self.W_h]:
             appendRegulariser(self.W_regularizer, W, self.regularizers)
         for U in [self.U_z, self.U_r, self.U_h]:
@@ -533,13 +533,13 @@ class LSTM(Recurrent):
         self.U_o = self.inner_init((self.output_dim, self.output_dim))
         self.b_o = K.zeros((self.output_dim,))
 
-        self.regularizers = []
         def appendRegulariser(input_regulariser, param, regularizers_list):
             regulariser = regularizers.get(input_regulariser)
             if regulariser:
                 regulariser.set_param(param)
                 regularizers_list.append(regulariser)
 
+        self.regularizers = []
         for W in [self.W_i, self.W_f, self.W_i, self.W_o]:
             appendRegulariser(self.W_regularizer, W, self.regularizers)
         for U in [self.U_i, self.U_f, self.U_i, self.U_o]:
