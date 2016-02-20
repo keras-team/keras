@@ -355,6 +355,20 @@ class TestBackend(object):
         assert(np.max(rand) <= max)
         assert(np.min(rand) >= min)
 
+    def test_random_binomial(self):
+        p = 0.5
+        rand = KTF.eval(KTF.random_binomial((1000, 1000), p))
+        assert(rand.shape == (1000, 1000))
+        assert(np.abs(np.mean(rand) - p) < 0.01)
+        assert(np.max(rand) == 1)
+        assert(np.min(rand) == 0)
+
+        rand = KTH.eval(KTH.random_binomial((1000, 1000), p))
+        assert(rand.shape == (1000, 1000))
+        assert(np.abs(np.mean(rand) - p) < 0.01)
+        assert(np.max(rand) == 1)
+        assert(np.min(rand) == 0)
+
 
 if __name__ == '__main__':
     pytest.main([__file__])
