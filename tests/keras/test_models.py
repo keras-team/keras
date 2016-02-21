@@ -1,6 +1,7 @@
 from __future__ import absolute_import
 from __future__ import print_function
 import pytest
+import os
 import numpy as np
 np.random.seed(1337)
 
@@ -10,8 +11,6 @@ from keras.layers.core import Dense, Activation, Merge, Lambda, LambdaMerge, Sia
 from keras.layers import containers
 from keras.utils import np_utils
 from keras.utils.test_utils import get_test_data
-
-import os
 
 
 input_dim = 32
@@ -69,8 +68,10 @@ def test_sequential_fit_generator():
     model.fit_generator(data_generator(True), len(X_train), nb_epoch, show_accuracy=True)
     model.fit_generator(data_generator(True), len(X_train), nb_epoch, show_accuracy=False, validation_data=(X_test, y_test))
     model.fit_generator(data_generator(True), len(X_train), nb_epoch, show_accuracy=True, validation_data=(X_test, y_test))
-    model.fit_generator(data_generator(True), len(X_train), nb_epoch, show_accuracy=False, validation_data=data_generator(False))
-    model.fit_generator(data_generator(True), len(X_train), nb_epoch, show_accuracy=True, validation_data=data_generator(False))
+    model.fit_generator(data_generator(True), len(X_train), nb_epoch, show_accuracy=False,
+                        validation_data=data_generator(False), nb_val_samples=batch_size * 3)
+    model.fit_generator(data_generator(True), len(X_train), nb_epoch, show_accuracy=True,
+                        validation_data=data_generator(False), nb_val_samples=batch_size * 3)
 
     loss = model.evaluate(X_train, y_train, verbose=0)
     assert(loss < 0.9)
@@ -642,8 +643,10 @@ def test_graph_fit_generator():
     graph.fit_generator(data_generator_graph(True), 1000, nb_epoch=4)
     graph.fit_generator(data_generator_graph(True), 1000, nb_epoch=4, validation_data={'input1': X_test_graph, 'output1': y_test_graph})
     graph.fit_generator(data_generator_graph(True), 1000, nb_epoch=4, validation_data={'input1': X_test_graph, 'output1': y_test_graph})
-    graph.fit_generator(data_generator_graph(True), 1000, nb_epoch=4, validation_data=data_generator_graph(False))
-    graph.fit_generator(data_generator_graph(True), 1000, nb_epoch=4, validation_data=data_generator_graph(False))
+    graph.fit_generator(data_generator_graph(True), 1000, nb_epoch=4,
+                        validation_data=data_generator_graph(False), nb_val_samples=batch_size * 3)
+    graph.fit_generator(data_generator_graph(True), 1000, nb_epoch=4,
+                        validation_data=data_generator_graph(False), nb_val_samples=batch_size * 3)
 
     gen_loss = graph.evaluate_generator(data_generator_graph(True), 128, verbose=0)
     assert(gen_loss < 3.)
@@ -987,7 +990,6 @@ def test_count_params():
 
 if __name__ == '__main__':
     # pytest.main([__file__])
-    # test_sequential()
-    # test_sequential_fit_generator()
-    # test_graph_fit_generator()
-    pass
+    test_sequential()
+    test_sequential_fit_generator()
+    test_graph_fit_generator()

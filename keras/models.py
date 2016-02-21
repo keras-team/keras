@@ -218,8 +218,11 @@ def get_function_name(o):
         return o.__name__
 
 
-def mk_gen_queue(generator, max_q_size=10,
-                 wait_time=0.05, nb_worker=1):
+def generator_queue(generator, max_q_size=10,
+                    wait_time=0.05, nb_worker=1):
+    '''Builds a threading queue out of a data generator.
+    Used in `fit_generator`, `evaluate_generator`.
+    '''
     q = queue.Queue()
     _stop = threading.Event()
 
@@ -413,7 +416,6 @@ class Model(object):
                 config['loss'] = dict([(k, get_function_name(v)) for k, v in self.loss.items()])
             else:
                 config['loss'] = get_function_name(self.loss)
-                
         if verbose:
             pp = pprint.PrettyPrinter(indent=4)
             pp.pprint(config)
@@ -884,9 +886,14 @@ class Sequential(Model, containers.Sequential):
             self.layers[k].set_weights(weights)
         f.close()
 
-    def verify_gen_output(self, generator_output, stop):
+    def _check_generator_output(self, generator_output, stop):
         '''Validates the output of a generator. On error, calls
-        stop.set() with the passed Event object stop
+        stop.set().
+
+        # Arguments
+            generator_output: output of a data generator.
+            stop: threading event to be called to
+                interrupt training/evaluation.
         '''
         if not hasattr(generator_output, '__len__'):
             stop.set()
@@ -931,18 +938,18 @@ class Sequential(Model, containers.Sequential):
             val_samples:
                 total number of samples to generate from `generator`
                 to use in validation.
-
-            Other argumens are as for `fit`.
+            show_accuracy: whether to display accuracy in logs.
+            verbose: verbosity mode, 0 (silent), 1 (per-batch logs),
+                or 2 (per-epoch logs).
         '''
         done_samples = 0
         all_outs = None
         weights = []
-        q, _stop = mk_gen_queue(generator, **kwargs)
+        q, _stop = generator_queue(generator, **kwargs)
 
         while done_samples < val_samples:
-            X, y, sample_weight = self.verify_gen_output(q.get(), _stop)
+            X, y, sample_weight = self._check_generator_output(q.get(), _stop)
             do_samples = len(X[0])
-            # TODO: verbosity/output control
             outs = self.evaluate(X, y, batch_size=do_samples,
                                  sample_weight=sample_weight,
                                  show_accuracy=show_accuracy,
@@ -970,7 +977,7 @@ class Sequential(Model, containers.Sequential):
 
     def fit_generator(self, generator, samples_per_epoch, nb_epoch,
                       verbose=1, show_accuracy=False, callbacks=[],
-                      validation_data=None, validation_samples=None,
+                      validation_data=None, nb_val_samples=None,
                       class_weight=None,
                       nb_worker=1, nb_val_worker=None):
         '''Fit a model on data generated batch-by-batch by a Python generator.
@@ -1005,9 +1012,9 @@ class Sequential(Model, containers.Sequential):
                 (input_data, target_data, sample weights). If generator,
                 it is assumed to yield tuples of 2 or 3 elements as above.
                 The generator will be called at the end of every epoch until
-                at least `validation_samples` examples have been obtained,
+                at least `nb_val_samples` examples have been obtained,
                 with these examples used for validation.
-            validation_samples: number of samples to use from validation
+            nb_val_samples: number of samples to use from validation
                 generator at the end of every epoch. If `None` defaults
                 to `samples_per_epoch/5`
             class_weight: dictionary mapping class indices to a weight
@@ -1025,8 +1032,7 @@ class Sequential(Model, containers.Sequential):
                 `nb_worker`.
 
         # Returns
-
-        A `History` object.
+            A `History` object.
 
         # Examples
 
@@ -1045,10 +1051,8 @@ class Sequential(Model, containers.Sequential):
                                 samples_per_epoch=10000, nb_epoch=10)
         ```
         '''
-
         # TODO: make into kwargs?
         max_data_q_size = 10  # maximum number of batches in queue
-
         wait_time = 0.05  # in seconds
         epoch = 0
 
@@ -1057,8 +1061,9 @@ class Sequential(Model, containers.Sequential):
         # avoid any explicit version checks
         val_gen = (hasattr(validation_data, 'next') or
                    hasattr(validation_data, '__next__'))
-        if validation_samples is None:
-            validation_samples = samples_per_epoch/5
+        if val_gen and not nb_val_samples:
+            raise Exception('When using a generator for validation data, '
+                            'you must specify a value for "nb_val_samples".')
         if nb_val_worker is None:
             nb_val_worker = nb_worker
 
@@ -1086,13 +1091,11 @@ class Sequential(Model, containers.Sequential):
         callbacks.on_train_begin()
 
         # start generator thread storing batches into a queue
-        data_gen_queue, _data_stop =\
-            mk_gen_queue(generator, max_q_size=max_data_q_size,
-                         wait_time=wait_time)
-
+        data_gen_queue, _data_stop = generator_queue(generator, max_q_size=max_data_q_size,
+                                                     wait_time=wait_time)
         if do_validation and not val_gen:
-            X_val, y_val, sample_weight_val = self.verify_gen_output(validation_data,
-                                                                     _data_stop)
+            X_val, y_val, sample_weight_val = self._check_generator_output(validation_data,
+                                                                           _data_stop)
             self.validation_data = X_val + [y_val, sample_weight_val]
         else:
             self.validation_data = None
@@ -1111,9 +1114,8 @@ class Sequential(Model, containers.Sequential):
                     else:
                         time.sleep(wait_time)
 
-                X, y, sample_weight = self.verify_gen_output(generator_output,
-                                                             _data_stop)
-
+                X, y, sample_weight = self._check_generator_output(generator_output,
+                                                                   _data_stop)
                 batch_logs = {}
                 batch_size = len(X[0])
                 batch_logs['batch'] = batch_index
@@ -1139,7 +1141,7 @@ class Sequential(Model, containers.Sequential):
                 if samples_seen >= samples_per_epoch and do_validation:
                     if val_gen:
                         val_outs = self.evaluate_generator(validation_data,
-                                                           validation_samples,
+                                                           nb_val_samples,
                                                            show_accuracy=show_accuracy,
                                                            verbose=0)
                     else:
@@ -1423,18 +1425,18 @@ class Graph(Model, containers.Graph):
         self.set_weights(weights)
         f.close()
 
-    def evaluate_generator(self, generator, val_samples,
+    def evaluate_generator(self, generator, nb_val_samples,
                            verbose=1, **kwargs):
         '''Evaluates the model on a generator. The generator should
         return the same kind of data with every yield as accepted
-        by `evaluate`
+        by `evaluate`.
 
         Arguments:
             generator:
                 generator yielding dictionaries of the kind accepted
                 by `evaluate`, or tuples of such dictionaries and
                 associated dictionaries of sample weights.
-            val_samples:
+            nb_val_samples:
                 total number of samples to generate from `generator`
                 to use in validation.
 
@@ -1443,10 +1445,10 @@ class Graph(Model, containers.Graph):
         done_samples = 0
         all_outs = []
         weights = []
-        q, _stop = mk_gen_queue(generator, **kwargs)
+        q, _stop = generator_queue(generator, **kwargs)
 
-        while done_samples < val_samples:
-            data, sample_weight = self.verify_gen_output(q.get(), _stop)
+        while done_samples < nb_val_samples:
+            data, sample_weight = self._check_generator_output(q.get(), _stop)
             do_samples = len(data[next(iter(data.keys()))])
             outs = self.evaluate(data, batch_size=do_samples,
                                  sample_weight=sample_weight,
@@ -1460,10 +1462,10 @@ class Graph(Model, containers.Graph):
         return np.average(np.asarray(all_outs),
                           weights=weights)
 
-    def verify_gen_output(self, generator_output, stop):
+    def _check_generator_output(self, generator_output, stop):
         '''Verifies the output of a generator to make sure
         it is consistent with requirements. Also standardizes
-        the output
+        the output.
         '''
         if type(generator_output) in [list, tuple]:
             if len(generator_output) == 2:
@@ -1494,7 +1496,7 @@ class Graph(Model, containers.Graph):
 
     def fit_generator(self, generator, samples_per_epoch, nb_epoch,
                       verbose=1, callbacks=[],
-                      validation_data=None, validation_samples=None,
+                      validation_data=None, nb_val_samples=None,
                       class_weight={},
                       nb_worker=1, nb_val_worker=None):
         '''Fit a model on data generated batch-by-batch by a Python generator.
@@ -1522,10 +1524,10 @@ class Graph(Model, containers.Graph):
                 held-out validation data, or a generator yielding such
                 dictionaries. All arrays should contain the same number
                 of samples. If a generator, will be called until more than
-                `validation_samples` examples have been generated at the
+                `nb_val_samples` examples have been generated at the
                 end of every epoch. These examples will then be used
                 as the validation data.
-            validation_samples: number of samples to use from validation
+            nb_val_samples: number of samples to use from validation
                 generator at the end of every epoch. If `None` defaults
                 to `samples_per_epoch/5`
             class_weight: dictionary mapping class indices to a weight
@@ -1543,8 +1545,7 @@ class Graph(Model, containers.Graph):
 
 
         # Returns
-
-        A `History` object.
+            A `History` object.
 
         # Examples
 
@@ -1571,8 +1572,9 @@ class Graph(Model, containers.Graph):
         do_validation = bool(validation_data)
         val_gen = (hasattr(validation_data, 'next') or
                    hasattr(validation_data, '__next__'))
-        if validation_samples is None:
-            validation_samples = samples_per_epoch/5
+        if val_gen and not nb_val_samples:
+            raise Exception('When using a generator for validation data, '
+                            'you must specify a value for "nb_val_samples".')
         if nb_val_worker is None:
             nb_val_worker = nb_worker
 
@@ -1599,13 +1601,11 @@ class Graph(Model, containers.Graph):
         callbacks.on_train_begin()
 
         # start generator thread storing batches into a queue
-        data_gen_queue, _data_stop =\
-            mk_gen_queue(generator, max_q_size=max_data_q_size,
-                         wait_time=wait_time)
-
+        data_gen_queue, _data_stop = generator_queue(generator, max_q_size=max_data_q_size,
+                                                     wait_time=wait_time)
         if do_validation and not val_gen:
             # TODO: _data_stop not really sensical here
-            data_val, sample_weight_val = self.verify_gen_output(validation_data, _data_stop)
+            data_val, sample_weight_val = self._check_generator_output(validation_data, _data_stop)
             sample_weight_val_l = [sample_weight_val[name] for name in self.output_order]
             y_val = [standardize_y(data_val[name]) for name in self.output_order]
             self.validation_data = [data_val[name] for name in self.input_order] + y_val + sample_weight_val_l
@@ -1625,8 +1625,8 @@ class Graph(Model, containers.Graph):
                     else:
                         time.sleep(wait_time)
 
-                data, sample_weight = self.verify_gen_output(generator_output,
-                                                             _data_stop)
+                data, sample_weight = self._check_generator_output(generator_output,
+                                                                   _data_stop)
                 batch_logs = {}
                 batch_size = len(data[list(data.keys())[0]])
                 batch_logs['batch'] = batch_index
@@ -1650,7 +1650,7 @@ class Graph(Model, containers.Graph):
                 if samples_seen >= samples_per_epoch and do_validation:
                     if val_gen:
                         val_outs = self.evaluate_generator(validation_data,
-                                                           validation_samples,
+                                                           nb_val_samples,
                                                            verbose=0)
                     else:
                         val_outs = self.evaluate(data_val,
