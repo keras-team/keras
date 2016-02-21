@@ -38,7 +38,7 @@ def _runner(layer_class):
     for ret_seq in [True, False]:
         layer = layer_class(output_dim, return_sequences=ret_seq, weights=None, 
                             batch_input_shape=(nb_samples, timesteps, embedding_dim),
-                            p_W=0.5, p_U=0.5)
+                            dropout_W=0.5, dropout_U=0.5)
         layer.input = K.variable(np.ones((nb_samples, timesteps, embedding_dim)))
         layer.get_config()
 
