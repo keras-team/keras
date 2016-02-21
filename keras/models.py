@@ -1015,8 +1015,7 @@ class Sequential(Model, containers.Sequential):
                 at least `nb_val_samples` examples have been obtained,
                 with these examples used for validation.
             nb_val_samples: number of samples to use from validation
-                generator at the end of every epoch. If `None` defaults
-                to `samples_per_epoch/5`
+                generator at the end of every epoch.
             class_weight: dictionary mapping class indices to a weight
                 for the class.
             nb_worker: integer, number of workers to use for running
@@ -1528,8 +1527,7 @@ class Graph(Model, containers.Graph):
                 end of every epoch. These examples will then be used
                 as the validation data.
             nb_val_samples: number of samples to use from validation
-                generator at the end of every epoch. If `None` defaults
-                to `samples_per_epoch/5`
+                generator at the end of every epoch.
             class_weight: dictionary mapping class indices to a weight
                 for the class.
             nb_worker: integer, number of workers to use for running
