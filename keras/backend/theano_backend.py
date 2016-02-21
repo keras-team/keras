@@ -443,7 +443,7 @@ def rnn(step_function, inputs, initial_states,
         mask = mask.dimshuffle(axes)
 
         # build an all-zero tensor of shape (samples, output_dim)
-        initial_output = step_function(inputs[0], initial_states)[0] * 0
+        initial_output = step_function(inputs[0 if not go_backwards else -1], initial_states)[0] * 0
         # Theano gets confused by broadcasting patterns in the scan op
         initial_output = T.unbroadcast(initial_output, 0, 1)
 
@@ -482,7 +482,10 @@ def rnn(step_function, inputs, initial_states,
 
     outputs = T.squeeze(outputs)
     last_output = outputs[-1]
-
+    
+    if go_backwards:
+        outputs = outputs[-1::-1]
+    
     axes = [1, 0] + list(range(2, outputs.ndim))
     outputs = outputs.dimshuffle(axes)
     states = [T.squeeze(state[-1]) for state in states]
