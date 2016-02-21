@@ -972,7 +972,7 @@ class Sequential(Model, containers.Sequential):
                       verbose=1, show_accuracy=False, callbacks=[],
                       validation_data=None, validation_samples=None,
                       class_weight=None,
-                      nb_worker=1, nb_val_worker=1):
+                      nb_worker=1, nb_val_worker=None):
         '''Fit a model on data generated batch-by-batch by a Python generator.
         The generator is run in parallel to the model, for efficiency,
         and can be run by multiple workers at the same time.
@@ -1021,7 +1021,8 @@ class Sequential(Model, containers.Sequential):
                 using a Python mutex.
             nb_val_worker: same as `nb_worker`, except for validation data.
                 Has no effect if no validation data or validation data is
-                not a generator.
+                not a generator. If `nb_val_worker` is None, defaults to
+                `nb_worker`.
 
         # Returns
 
@@ -1058,6 +1059,8 @@ class Sequential(Model, containers.Sequential):
                    hasattr(validation_data, '__next__'))
         if validation_samples is None:
             validation_samples = samples_per_epoch/5
+        if nb_val_worker is None:
+            nb_val_worker = nb_worker
 
         if show_accuracy:
             out_labels = ['loss', 'acc']
@@ -1493,7 +1496,7 @@ class Graph(Model, containers.Graph):
                       verbose=1, callbacks=[],
                       validation_data=None, validation_samples=None,
                       class_weight={},
-                      nb_worker=1, nb_val_worker=1):
+                      nb_worker=1, nb_val_worker=None):
         '''Fit a model on data generated batch-by-batch by a Python generator.
         The generator is run in parallel to the model, for efficiency,
         and can be run by multiple workers at the same time.
@@ -1536,7 +1539,7 @@ class Graph(Model, containers.Graph):
                 using a Python mutex.
             nb_val_worker: same as `nb_worker`, except for validation data.
                 Has no effect if no validation data or validation data is
-                not a generator.
+                not a generator. If `None`, defaults to nb_worker.
 
 
         # Returns
@@ -1570,6 +1573,8 @@ class Graph(Model, containers.Graph):
                    hasattr(validation_data, '__next__'))
         if validation_samples is None:
             validation_samples = samples_per_epoch/5
+        if nb_val_worker is None:
+            nb_val_worker = nb_worker
 
         out_labels = ['loss']
         metrics = ['loss', 'val_loss']
