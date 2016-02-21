@@ -662,8 +662,11 @@ class Sequential(Model, containers.Sequential):
         return self._predict_loop(self._predict, X, batch_size, verbose)[0]
 
     def predict_stochastic(self, X, batch_size=128, verbose=0):
-        '''Generate stochastic output predictions for the input samples
-        batch by batch.
+        '''Generate output predictions for the input samples
+        batch by batch, using stochastic forward passes. If 
+        dropout is used at training, during prediction network 
+        units will be dropped at random as well. This procedure
+        can be used for MC dropout (see [ModelTest callback](callbacks.md)).
 
         # Arguments
             X: the input data, as a numpy array.
@@ -672,6 +675,10 @@ class Sequential(Model, containers.Sequential):
 
         # Returns
             A numpy array of predictions.
+    
+        # References
+            - [Dropout: A simple way to prevent neural networks from overfitting](http://jmlr.org/papers/v15/srivastava14a.html)
+            - [Dropout as a Bayesian Approximation: Representing Model Uncertainty in Deep Learning](http://arxiv.org/abs/1506.02142)
         '''
         X = standardize_X(X)
         return self._predict_loop(self._predict_stochastic, X, batch_size, verbose)[0]

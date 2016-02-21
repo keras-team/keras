@@ -199,8 +199,8 @@ class SimpleRNN(Recurrent):
             (eg. L1 or L2 regularization), applied to the recurrent weights matrices.
         b_regularizer: instance of [WeightRegularizer](../regularizers.md),
             applied to the bias.
-        p_W: float between 0 and 1. Fraction of the input units to drop for inputs.
-        p_U: float between 0 and 1. Fraction of the input units to drop for recurrent connections.
+        dropout_W: float between 0 and 1. Fraction of the input units to drop for input gates.
+        dropout_U: float between 0 and 1. Fraction of the input units to drop for recurrent connections.
 
     # References
         - [A Theoretically Grounded Application of Dropout in Recurrent Neural Networks](http://arxiv.org/abs/1512.05287)
@@ -209,7 +209,7 @@ class SimpleRNN(Recurrent):
                  init='glorot_uniform', inner_init='orthogonal',
                  activation='sigmoid', 
                  W_regularizer=None, U_regularizer=None, b_regularizer=None, 
-                 p_W=0., p_U=0., **kwargs):
+                 dropout_W=0., dropout_U=0., **kwargs):
         self.output_dim = output_dim
         self.init = initializations.get(init)
         self.inner_init = initializations.get(inner_init)
@@ -217,7 +217,7 @@ class SimpleRNN(Recurrent):
         self.W_regularizer = W_regularizer
         self.U_regularizer = U_regularizer
         self.b_regularizer = b_regularizer
-        self.p_W, self.p_U = p_W, p_U
+        self.dropout_W, self.dropout_U = dropout_W, dropout_U
         super(SimpleRNN, self).__init__(**kwargs)
 
     def build(self):
@@ -234,16 +234,16 @@ class SimpleRNN(Recurrent):
         self.U = self.inner_init((self.output_dim, self.output_dim))
         self.b = K.zeros((self.output_dim,))
 
-        def appendRegulariser(input_regulariser, param, regularizers_list):
+        def append_regulariser(input_regulariser, param, regularizers_list):
             regulariser = regularizers.get(input_regulariser)
             if regulariser:
                 regulariser.set_param(param)
                 regularizers_list.append(regulariser)
 
         self.regularizers = []
-        appendRegulariser(self.W_regularizer, self.W, self.regularizers)
-        appendRegulariser(self.U_regularizer, self.U, self.regularizers)
-        appendRegulariser(self.b_regularizer, self.b, self.regularizers)
+        append_regulariser(self.W_regularizer, self.W, self.regularizers)
+        append_regulariser(self.U_regularizer, self.U, self.regularizers)
+        append_regulariser(self.b_regularizer, self.b, self.regularizers)
 
         self.trainable_weights = [self.W, self.U, self.b]
 
@@ -274,15 +274,15 @@ class SimpleRNN(Recurrent):
         return output, [output]
 
     def get_constants(self, X, train=False):
-        nb_samples = K.shape(X)[0]
-        if K._BACKEND == 'tensorflow' and train and self.p_W > 0 and self.p_U > 0:
-            if not self.input_shape[0]:
-                raise Exception('For RNN dropout in tensorflow, a complete ' +
-                                'input_shape must be provided (including batch size).')
-            nb_samples = self.input_shape[0]
-        retain_p_W = 1. - self.p_W
-        retain_p_U = 1. - self.p_U
-        if train and self.p_W > 0 and self.p_U > 0:
+        retain_p_W = 1. - self.dropout_W
+        retain_p_U = 1. - self.dropout_U
+        if train and self.dropout_W > 0 and self.dropout_U > 0:
+            nb_samples = K.shape(X)[0]
+            if K._BACKEND == 'tensorflow':
+                if not self.input_shape[0]:
+                    raise Exception('For RNN dropout in tensorflow, a complete ' +
+                                    'input_shape must be provided (including batch size).')
+                nb_samples = self.input_shape[0]
             B_W = K.random_binomial((nb_samples, self.input_dim), p=retain_p_W)
             B_U = K.random_binomial((nb_samples, self.output_dim), p=retain_p_U)
         else:
@@ -298,8 +298,8 @@ class SimpleRNN(Recurrent):
                   "W_regularizer": self.W_regularizer.get_config() if self.W_regularizer else None,
                   "U_regularizer": self.U_regularizer.get_config() if self.U_regularizer else None,
                   "b_regularizer": self.b_regularizer.get_config() if self.b_regularizer else None,
-                  "p_W": self.p_W, 
-                  "p_U": self.p_U}
+                  "dropout_W": self.dropout_W, 
+                  "dropout_U": self.dropout_U}
         base_config = super(SimpleRNN, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
@@ -323,8 +323,8 @@ class GRU(Recurrent):
             (eg. L1 or L2 regularization), applied to the recurrent weights matrices.
         b_regularizer: instance of [WeightRegularizer](../regularizers.md),
             applied to the bias.
-        p_W: float between 0 and 1. Fraction of the input units to drop for inputs.
-        p_U: float between 0 and 1. Fraction of the input units to drop for recurrent connections.
+        dropout_W: float between 0 and 1. Fraction of the input units to drop for input gates.
+        dropout_U: float between 0 and 1. Fraction of the input units to drop for recurrent connections.
 
     # References
         - [On the Properties of Neural Machine Translation: Encoder–Decoder Approaches](http://www.aclweb.org/anthology/W14-4012)
@@ -335,7 +335,7 @@ class GRU(Recurrent):
                  init='glorot_uniform', inner_init='orthogonal',
                  activation='sigmoid', inner_activation='hard_sigmoid',
                  W_regularizer=None, U_regularizer=None, b_regularizer=None, 
-                 p_W=0., p_U=0., **kwargs):
+                 dropout_W=0., dropout_U=0., **kwargs):
         self.output_dim = output_dim
         self.init = initializations.get(init)
         self.inner_init = initializations.get(inner_init)
@@ -344,7 +344,7 @@ class GRU(Recurrent):
         self.W_regularizer = W_regularizer
         self.U_regularizer = U_regularizer
         self.b_regularizer = b_regularizer
-        self.p_W, self.p_U = p_W, p_U
+        self.dropout_W, self.dropout_U = dropout_W, dropout_U
         super(GRU, self).__init__(**kwargs)
 
     def build(self):
@@ -365,7 +365,7 @@ class GRU(Recurrent):
         self.U_h = self.inner_init((self.output_dim, self.output_dim))
         self.b_h = K.zeros((self.output_dim,))
 
-        def appendRegulariser(input_regulariser, param, regularizers_list):
+        def append_regulariser(input_regulariser, param, regularizers_list):
             regulariser = regularizers.get(input_regulariser)
             if regulariser:
                 regulariser.set_param(param)
@@ -373,11 +373,11 @@ class GRU(Recurrent):
 
         self.regularizers = []
         for W in [self.W_z, self.W_r, self.W_h]:
-            appendRegulariser(self.W_regularizer, W, self.regularizers)
+            append_regulariser(self.W_regularizer, W, self.regularizers)
         for U in [self.U_z, self.U_r, self.U_h]:
-            appendRegulariser(self.U_regularizer, U, self.regularizers)
+            append_regulariser(self.U_regularizer, U, self.regularizers)
         for b in [self.b_z, self.b_r, self.b_h]:
-            appendRegulariser(self.b_regularizer, b, self.regularizers)
+            append_regulariser(self.b_regularizer, b, self.regularizers)
 
         self.trainable_weights = [self.W_z, self.U_z, self.b_z,
                                   self.W_r, self.U_r, self.b_r,
@@ -422,15 +422,15 @@ class GRU(Recurrent):
         return h, [h]
 
     def get_constants(self, X, train=False):
-        nb_samples = K.shape(X)[0]
-        if K._BACKEND == 'tensorflow' and train and self.p_W > 0 and self.p_U > 0:
-            if not self.input_shape[0]:
-                raise Exception('For RNN dropout in tensorflow, a complete ' +
-                                'input_shape must be provided (including batch size).')
-            nb_samples = self.input_shape[0]
-        retain_p_W = 1. - self.p_W
-        retain_p_U = 1. - self.p_U
-        if train and self.p_W > 0 and self.p_U > 0:
+        retain_p_W = 1. - self.dropout_W
+        retain_p_U = 1. - self.dropout_U
+        if train and self.dropout_W > 0 and self.dropout_U > 0:
+            nb_samples = K.shape(X)[0]
+            if K._BACKEND == 'tensorflow':
+                if not self.input_shape[0]:
+                    raise Exception('For RNN dropout in tensorflow, a complete ' +
+                                    'input_shape must be provided (including batch size).')
+                nb_samples = self.input_shape[0]
             B_W = K.random_binomial((3, nb_samples, self.input_dim), p=retain_p_W)
             B_U = K.random_binomial((3, nb_samples, self.output_dim), p=retain_p_U)
         else:
@@ -447,8 +447,8 @@ class GRU(Recurrent):
                   "W_regularizer": self.W_regularizer.get_config() if self.W_regularizer else None,
                   "U_regularizer": self.U_regularizer.get_config() if self.U_regularizer else None,
                   "b_regularizer": self.b_regularizer.get_config() if self.b_regularizer else None,
-                  "p_W": self.p_W, 
-                  "p_U": self.p_U}
+                  "dropout_W": self.dropout_W, 
+                  "dropout_U": self.dropout_U}
         base_config = super(GRU, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
@@ -478,8 +478,8 @@ class LSTM(Recurrent):
             (eg. L1 or L2 regularization), applied to the recurrent weights matrices.
         b_regularizer: instance of [WeightRegularizer](../regularizers.md),
             applied to the bias.
-        p_W: float between 0 and 1. Fraction of the input units to drop for inputs.
-        p_U: float between 0 and 1. Fraction of the input units to drop for recurrent connections.
+        dropout_W: float between 0 and 1. Fraction of the input units to drop for input gates.
+        dropout_U: float between 0 and 1. Fraction of the input units to drop for recurrent connections.
 
     # References
         - [Long short-term memory](http://deeplearning.cs.cmu.edu/pdfs/Hochreiter97_lstm.pdf) (original 1997 paper)
@@ -492,7 +492,7 @@ class LSTM(Recurrent):
                  forget_bias_init='one', activation='tanh',
                  inner_activation='hard_sigmoid', 
                  W_regularizer=None, U_regularizer=None, b_regularizer=None, 
-                 p_W=0., p_U=0., **kwargs):
+                 dropout_W=0., dropout_U=0., **kwargs):
         self.output_dim = output_dim
         self.init = initializations.get(init)
         self.inner_init = initializations.get(inner_init)
@@ -502,7 +502,7 @@ class LSTM(Recurrent):
         self.W_regularizer = W_regularizer
         self.U_regularizer = U_regularizer
         self.b_regularizer = b_regularizer
-        self.p_W, self.p_U = p_W, p_U
+        self.dropout_W, self.dropout_U = dropout_W, dropout_U
         super(LSTM, self).__init__(**kwargs)
 
     def build(self):
@@ -533,7 +533,7 @@ class LSTM(Recurrent):
         self.U_o = self.inner_init((self.output_dim, self.output_dim))
         self.b_o = K.zeros((self.output_dim,))
 
-        def appendRegulariser(input_regulariser, param, regularizers_list):
+        def append_regulariser(input_regulariser, param, regularizers_list):
             regulariser = regularizers.get(input_regulariser)
             if regulariser:
                 regulariser.set_param(param)
@@ -541,11 +541,11 @@ class LSTM(Recurrent):
 
         self.regularizers = []
         for W in [self.W_i, self.W_f, self.W_i, self.W_o]:
-            appendRegulariser(self.W_regularizer, W, self.regularizers)
+            append_regulariser(self.W_regularizer, W, self.regularizers)
         for U in [self.U_i, self.U_f, self.U_i, self.U_o]:
-            appendRegulariser(self.U_regularizer, U, self.regularizers)
+            append_regulariser(self.U_regularizer, U, self.regularizers)
         for b in [self.b_i, self.b_f, self.b_i, self.b_o]:
-            appendRegulariser(self.b_regularizer, b, self.regularizers)
+            append_regulariser(self.b_regularizer, b, self.regularizers)
 
         self.trainable_weights = [self.W_i, self.U_i, self.b_i,
                                   self.W_c, self.U_c, self.b_c,
@@ -591,15 +591,15 @@ class LSTM(Recurrent):
         return h, [h, c]
 
     def get_constants(self, X, train=False):
-        nb_samples = K.shape(X)[0]
-        if K._BACKEND == 'tensorflow' and train and self.p_W > 0 and self.p_U > 0:
-            if not self.input_shape[0]:
-                raise Exception('For RNN dropout in tensorflow, a complete ' +
-                                'input_shape must be provided (including batch size).')
-            nb_samples = self.input_shape[0]
-        retain_p_W = 1. - self.p_W
-        retain_p_U = 1. - self.p_U
-        if train and self.p_W > 0 and self.p_U > 0:
+        retain_p_W = 1. - self.dropout_W
+        retain_p_U = 1. - self.dropout_U
+        if train and self.dropout_W > 0 and self.dropout_U > 0:
+            nb_samples = K.shape(X)[0]
+            if K._BACKEND == 'tensorflow':
+                if not self.input_shape[0]:
+                    raise Exception('For RNN dropout in tensorflow, a complete ' +
+                                    'input_shape must be provided (including batch size).')
+                nb_samples = self.input_shape[0]
             B_W = K.random_binomial((4, nb_samples, self.input_dim), p=retain_p_W)
             B_U = K.random_binomial((4, nb_samples, self.output_dim), p=retain_p_U)
         else:
@@ -617,7 +617,7 @@ class LSTM(Recurrent):
                   "W_regularizer": self.W_regularizer.get_config() if self.W_regularizer else None,
                   "U_regularizer": self.U_regularizer.get_config() if self.U_regularizer else None,
                   "b_regularizer": self.b_regularizer.get_config() if self.b_regularizer else None,
-                  "p_W": self.p_W, 
-                  "p_U": self.p_U}
+                  "dropout_W": self.dropout_W, 
+                  "dropout_U": self.dropout_U}
         base_config = super(LSTM, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))

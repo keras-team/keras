@@ -43,7 +43,7 @@ class Embedding(Layer):
           This argument is required if you are going to connect
           `Flatten` then `Dense` layers upstream
           (without it, the shape of the dense outputs cannot be computed).
-      p: float between 0 and 1. Fraction of the embeddings to drop.
+      dropout: float between 0 and 1. Fraction of the embeddings to drop.
 
     # References
         - [A Theoretically Grounded Application of Dropout in Recurrent Neural Networks](http://arxiv.org/abs/1512.05287)
@@ -55,13 +55,13 @@ class Embedding(Layer):
                  W_regularizer=None, activity_regularizer=None,
                  W_constraint=None,
                  mask_zero=False,
-                 weights=None, p=0., **kwargs):
+                 weights=None, dropout=0., **kwargs):
         self.input_dim = input_dim
         self.output_dim = output_dim
         self.init = initializations.get(init)
         self.input_length = input_length
         self.mask_zero = mask_zero
-        self.p = p
+        self.dropout = dropout
 
         self.W_constraint = constraints.get(W_constraint)
         self.constraints = [self.W_constraint]
@@ -103,8 +103,8 @@ class Embedding(Layer):
 
     def get_output(self, train=False):
         X = self.get_input(train)
-        retain_p = 1. - self.p
-        if train and self.p > 0:
+        retain_p = 1. - self.dropout
+        if train and self.dropout > 0:
             B = K.random_binomial((self.input_dim,), p=retain_p)
         else:
             B = K.ones((self.input_dim)) * retain_p
@@ -121,6 +121,6 @@ class Embedding(Layer):
                   "activity_regularizer": self.activity_regularizer.get_config() if self.activity_regularizer else None,
                   "W_regularizer": self.W_regularizer.get_config() if self.W_regularizer else None,
                   "W_constraint": self.W_constraint.get_config() if self.W_constraint else None,
-                  "p": self.p}
+                  "dropout": self.dropout}
         base_config = super(Embedding, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
