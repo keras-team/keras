@@ -5,6 +5,7 @@ import numpy as np
 from .. import backend as K
 from .. import activations, initializations, regularizers
 from ..layers.core import MaskedLayer
+from ..backend.common import _FLOATX
 
 
 class Recurrent(MaskedLayer):
@@ -154,7 +155,7 @@ class Recurrent(MaskedLayer):
         last_output, outputs, states = K.rnn(self.step, X,
                                              initial_states,
                                              go_backwards=self.go_backwards,
-                                             mask=mask, 
+                                             mask=mask,
                                              constants=constants)
         if self.stateful:
             self.updates = []
@@ -207,8 +208,8 @@ class SimpleRNN(Recurrent):
     '''
     def __init__(self, output_dim,
                  init='glorot_uniform', inner_init='orthogonal',
-                 activation='sigmoid', 
-                 W_regularizer=None, U_regularizer=None, b_regularizer=None, 
+                 activation='sigmoid',
+                 W_regularizer=None, U_regularizer=None, b_regularizer=None,
                  dropout_W=0., dropout_U=0., **kwargs):
         self.output_dim = output_dim
         self.init = initializations.get(init)
@@ -267,12 +268,8 @@ class SimpleRNN(Recurrent):
         # states only contains the previous output.
         assert len(states) == 3 # 1 state and 2 constants
         prev_output = states[0]
-        if self.dropout_W == 0 and self.dropout_U == 0: 
-            # this uses less memory when dropout is disabled
-            B_W, B_U = 1, 1
-        else:
-            B_W = states[1]
-            B_U = states[2]
+        B_W = states[1]
+        B_U = states[2]
         h = K.dot(x * B_W, self.W) + self.b
         output = self.activation(h + K.dot(prev_output * B_U, self.U))
         return output, [output]
@@ -290,8 +287,8 @@ class SimpleRNN(Recurrent):
             B_W = K.random_binomial((nb_samples, self.input_dim), p=retain_p_W)
             B_U = K.random_binomial((nb_samples, self.output_dim), p=retain_p_U)
         else:
-            B_W = retain_p_W
-            B_U = retain_p_U
+            B_W = np.ones(1, dtype=_FLOATX) * retain_p_W
+            B_U = np.ones(1, dtype=_FLOATX) * retain_p_U
         return [B_W, B_U]
 
     def get_config(self):
@@ -302,7 +299,7 @@ class SimpleRNN(Recurrent):
                   "W_regularizer": self.W_regularizer.get_config() if self.W_regularizer else None,
                   "U_regularizer": self.U_regularizer.get_config() if self.U_regularizer else None,
                   "b_regularizer": self.b_regularizer.get_config() if self.b_regularizer else None,
-                  "dropout_W": self.dropout_W, 
+                  "dropout_W": self.dropout_W,
                   "dropout_U": self.dropout_U}
         base_config = super(SimpleRNN, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
@@ -338,7 +335,7 @@ class GRU(Recurrent):
     def __init__(self, output_dim,
                  init='glorot_uniform', inner_init='orthogonal',
                  activation='sigmoid', inner_activation='hard_sigmoid',
-                 W_regularizer=None, U_regularizer=None, b_regularizer=None, 
+                 W_regularizer=None, U_regularizer=None, b_regularizer=None,
                  dropout_W=0., dropout_U=0., **kwargs):
         self.output_dim = output_dim
         self.init = initializations.get(init)
@@ -411,12 +408,8 @@ class GRU(Recurrent):
     def step(self, x, states):
         assert len(states) == 3 # 1 state and 2 constants
         h_tm1 = states[0]
-        if self.dropout_W == 0 and self.dropout_U == 0: 
-            # this uses less memory when dropout is disabled
-            B_W, B_U = [1] * 3, [1] * 3
-        else:
-            B_W = [K.gather(states[1], i) for i in range(3)]
-            B_U = [K.gather(states[2], i) for i in range(3)]
+        B_W = states[1]
+        B_U = states[2]
 
         x_z = K.dot(x * B_W[0], self.W_z) + self.b_z
         x_r = K.dot(x * B_W[1], self.W_r) + self.b_r
@@ -439,11 +432,11 @@ class GRU(Recurrent):
                     raise Exception('For RNN dropout in tensorflow, a complete ' +
                                     'input_shape must be provided (including batch size).')
                 nb_samples = self.input_shape[0]
-            B_W = K.random_binomial((3, nb_samples, self.input_dim), p=retain_p_W)
-            B_U = K.random_binomial((3, nb_samples, self.output_dim), p=retain_p_U)
+            B_W = [K.random_binomial((nb_samples, self.input_dim), p=retain_p_W) for _ in range(3)]
+            B_U = [K.random_binomial((nb_samples, self.output_dim), p=retain_p_U) for _ in range(3)]
         else:
-            B_W = K.ones(3) * retain_p_W
-            B_U = K.ones(3) * retain_p_U
+            B_W = np.ones(3, dtype=_FLOATX) * retain_p_W
+            B_U = np.ones(3, dtype=_FLOATX) * retain_p_U
         return [B_W, B_U]
 
     def get_config(self):
@@ -455,7 +448,7 @@ class GRU(Recurrent):
                   "W_regularizer": self.W_regularizer.get_config() if self.W_regularizer else None,
                   "U_regularizer": self.U_regularizer.get_config() if self.U_regularizer else None,
                   "b_regularizer": self.b_regularizer.get_config() if self.b_regularizer else None,
-                  "dropout_W": self.dropout_W, 
+                  "dropout_W": self.dropout_W,
                   "dropout_U": self.dropout_U}
         base_config = super(GRU, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
@@ -498,8 +491,8 @@ class LSTM(Recurrent):
     def __init__(self, output_dim,
                  init='glorot_uniform', inner_init='orthogonal',
                  forget_bias_init='one', activation='tanh',
-                 inner_activation='hard_sigmoid', 
-                 W_regularizer=None, U_regularizer=None, b_regularizer=None, 
+                 inner_activation='hard_sigmoid',
+                 W_regularizer=None, U_regularizer=None, b_regularizer=None,
                  dropout_W=0., dropout_U=0., **kwargs):
         self.output_dim = output_dim
         self.init = initializations.get(init)
@@ -583,12 +576,8 @@ class LSTM(Recurrent):
         assert len(states) == 4 # 2 states and 2 constants
         h_tm1 = states[0]
         c_tm1 = states[1]
-        if self.dropout_W == 0 and self.dropout_U == 0: 
-            # this uses less memory when dropout is disabled
-            B_W, B_U = [1] * 4, [1] * 4
-        else:
-            B_W = [K.gather(states[2], i) for i in range(4)]
-            B_U = [K.gather(states[3], i) for i in range(4)]
+        B_W = states[2]
+        B_U = states[3]
 
         x_i = K.dot(x * B_W[0], self.W_i) + self.b_i
         x_f = K.dot(x * B_W[1], self.W_f) + self.b_f
@@ -612,11 +601,11 @@ class LSTM(Recurrent):
                     raise Exception('For RNN dropout in tensorflow, a complete ' +
                                     'input_shape must be provided (including batch size).')
                 nb_samples = self.input_shape[0]
-            B_W = K.random_binomial((4, nb_samples, self.input_dim), p=retain_p_W)
-            B_U = K.random_binomial((4, nb_samples, self.output_dim), p=retain_p_U)
+            B_W = [K.random_binomial((nb_samples, self.input_dim), p=retain_p_W) for _ in range(4)]
+            B_U = [K.random_binomial((nb_samples, self.output_dim), p=retain_p_U) for _ in range(4)]
         else:
-            B_W = K.ones(4) * retain_p_W
-            B_U = K.ones(4) * retain_p_U
+            B_W = np.ones(4, dtype=_FLOATX) * retain_p_W
+            B_U = np.ones(4, dtype=_FLOATX) * retain_p_U
         return [B_W, B_U]
 
     def get_config(self):
@@ -629,7 +618,7 @@ class LSTM(Recurrent):
                   "W_regularizer": self.W_regularizer.get_config() if self.W_regularizer else None,
                   "U_regularizer": self.U_regularizer.get_config() if self.U_regularizer else None,
                   "b_regularizer": self.b_regularizer.get_config() if self.b_regularizer else None,
-                  "dropout_W": self.dropout_W, 
+                  "dropout_W": self.dropout_W,
                   "dropout_U": self.dropout_U}
         base_config = super(LSTM, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))

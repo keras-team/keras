@@ -515,7 +515,6 @@ class Sequential(Model, containers.Sequential):
         self._train = K.function(train_ins, [train_loss], updates=updates)
         self._train_with_acc = K.function(train_ins, [train_loss, train_accuracy], updates=updates)
         self._predict = K.function(predict_ins, [self.y_test], updates=self.state_updates)
-        self._predict_stochastic = K.function(predict_ins, [self.y_train], updates=self.state_updates)
         self._test = K.function(test_ins, [test_loss], updates=self.state_updates)
         self._test_with_acc = K.function(test_ins, [test_loss, test_accuracy], updates=self.state_updates)
 
@@ -660,28 +659,6 @@ class Sequential(Model, containers.Sequential):
         '''
         X = standardize_X(X)
         return self._predict_loop(self._predict, X, batch_size, verbose)[0]
-
-    def predict_stochastic(self, X, batch_size=128, verbose=0):
-        '''Generate output predictions for the input samples
-        batch by batch, using stochastic forward passes. If 
-        dropout is used at training, during prediction network 
-        units will be dropped at random as well. This procedure
-        can be used for MC dropout (see [ModelTest callback](callbacks.md)).
-
-        # Arguments
-            X: the input data, as a numpy array.
-            batch_size: integer.
-            verbose: verbosity mode, 0 or 1.
-
-        # Returns
-            A numpy array of predictions.
-    
-        # References
-            - [Dropout: A simple way to prevent neural networks from overfitting](http://jmlr.org/papers/v15/srivastava14a.html)
-            - [Dropout as a Bayesian Approximation: Representing Model Uncertainty in Deep Learning](http://arxiv.org/abs/1506.02142)
-        '''
-        X = standardize_X(X)
-        return self._predict_loop(self._predict_stochastic, X, batch_size, verbose)[0]
 
     def predict_proba(self, X, batch_size=128, verbose=1):
         '''Generate class probability predictions for the input samples
