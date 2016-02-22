@@ -264,7 +264,8 @@ class SimpleRNN(Recurrent):
             self.states = [K.zeros((input_shape[0], self.output_dim))]
 
     def step(self, x, states):
-        # states only contains the previous output.
+        # states contains the previous output,
+        # and the two dropout matrices from self.get_constants()
         assert len(states) == 3  # 1 state and 2 constants
         prev_output = states[0]
         B_W = states[1]
@@ -406,9 +407,9 @@ class GRU(Recurrent):
 
     def step(self, x, states):
         assert len(states) == 3  # 1 state and 2 constants
-        h_tm1 = states[0]
-        B_W = states[1]
-        B_U = states[2]
+        h_tm1 = states[0]  # previous memory
+        B_W = states[1]  # dropout matrix for input units
+        B_U = states[2]  # dropout matrix for recurrent units
 
         x_z = K.dot(x * B_W[0], self.W_z) + self.b_z
         x_r = K.dot(x * B_W[1], self.W_r) + self.b_r
