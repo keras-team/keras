@@ -191,17 +191,20 @@ def test_averagepooling_2d():
     stack_size = 7
     input_nb_row = 11
     input_nb_col = 12
-    pool_size = (3, 3)
 
     input = np.ones((nb_samples, stack_size, input_nb_row, input_nb_col))
-    for strides in [(1, 1), (2, 2)]:
-        layer = convolutional.AveragePooling2D(strides=strides,
-                                               border_mode='valid',
-                                               pool_size=pool_size)
-        layer.input = K.variable(input)
-        for train in [True, False]:
-            K.eval(layer.get_output(train))
-        layer.get_config()
+    for border_mode in ['valid', 'same']:
+        for pool_size in [(2, 2), (3, 3), (4, 4), (5, 5)]:
+            for strides in [(1, 1), (2, 2)]:
+                layer = convolutional.AveragePooling2D(strides=strides,
+                                                       border_mode=border_mode,
+                                                       pool_size=pool_size)
+                layer.input = K.variable(input)
+                for train in [True, False]:
+                    out = K.eval(layer.get_output(train))
+                    if border_mode == 'same' and strides == (1, 1):
+                        assert input.shape == out.shape
+                layer.get_config()
 
 
 @pytest.mark.skipif(K._BACKEND != 'theano', reason="Requires Theano backend")

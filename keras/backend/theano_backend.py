@@ -768,10 +768,10 @@ def conv3d(x, kernel, strides=(1, 1, 1), border_mode='valid', dim_ordering='th',
 def pool2d(x, pool_size, strides=(1, 1), border_mode='valid',
            dim_ordering='th', pool_mode='max'):
     if border_mode == 'same':
-        # TODO: add implementation for border_mode="same"
-        raise Exception('border_mode="same" not supported with Theano.')
+        w_pad = pool_size[0] - 2 if pool_size[0] % 2 == 1 else pool_size[0] - 1
+        h_pad = pool_size[1] - 2 if pool_size[1] % 2 == 1 else pool_size[1] - 1
+        padding = (w_pad, h_pad)
     elif border_mode == 'valid':
-        ignore_border = True
         padding = (0, 0)
     else:
         raise Exception('Invalid border mode: ' + str(border_mode))
@@ -784,16 +784,24 @@ def pool2d(x, pool_size, strides=(1, 1), border_mode='valid',
 
     if pool_mode == 'max':
         pool_out = downsample.max_pool_2d(x, ds=pool_size, st=strides,
-                                          ignore_border=ignore_border,
+                                          ignore_border=True,
                                           padding=padding,
                                           mode='max')
     elif pool_mode == 'avg':
         pool_out = downsample.max_pool_2d(x, ds=pool_size, st=strides,
-                                          ignore_border=ignore_border,
+                                          ignore_border=True,
                                           padding=padding,
                                           mode='average_exc_pad')
     else:
         raise Exception('Invalid pooling mode: ' + str(pool_mode))
+
+    if border_mode == 'same':
+        expected_width = (x.shape[2] + strides[0] - 1) // strides[0]
+        expected_height = (x.shape[3] + strides[1] - 1) // strides[1]
+
+        pool_out = pool_out[:, :,
+                            : expected_width,
+                            : expected_height]
 
     if dim_ordering == 'tf':
         pool_out = pool_out.dimshuffle((0, 2, 3, 1))
