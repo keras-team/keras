@@ -242,16 +242,20 @@ class ModelCheckpoint(Callback):
             this should be `max`, for `val_loss` this should
             be `min`, etc. In `auto` mode, the direction is
             automatically inferred from the name of the monitored quantity.
+        equal: True or False.
+            If True, model will be saved if model objective has relative improvement (greater_equal / less_equal),
+            otherwise model will be saved only if model objective has absolute improvement (greater / less).
 
     '''
     def __init__(self, filepath, monitor='val_loss', verbose=0,
-                 save_best_only=False, mode='auto'):
+                 save_best_only=False, mode='auto', equal=False):
 
         super(Callback, self).__init__()
         self.monitor = monitor
         self.verbose = verbose
         self.filepath = filepath
         self.save_best_only = save_best_only
+        self.equal = equal
 
         if mode not in ['auto', 'min', 'max']:
             warnings.warn('ModelCheckpoint mode %s is unknown, '
@@ -260,17 +264,17 @@ class ModelCheckpoint(Callback):
             mode = 'auto'
 
         if mode == 'min':
-            self.monitor_op = np.less
+            self.monitor_op = np.less_equal if equal else np.less
             self.best = np.Inf
         elif mode == 'max':
-            self.monitor_op = np.greater
+            self.monitor_op = np.greater_equal if equal else np.greater
             self.best = -np.Inf
         else:
             if 'acc' in self.monitor:
-                self.monitor_op = np.greater
+                self.monitor_op = np.greater_equal if equal else np.greater
                 self.best = -np.Inf
             else:
-                self.monitor_op = np.less
+                self.monitor_op = np.less_equal if equal else np.less
                 self.best = np.Inf
 
     def on_epoch_end(self, epoch, logs={}):
