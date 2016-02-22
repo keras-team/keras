@@ -1,11 +1,8 @@
 from __future__ import absolute_import
-import numpy as np
 
 from .. import backend as K
-from .. import activations, initializations, regularizers, constraints
-from ..layers.core import Layer, MaskedLayer
-
-from ..constraints import unitnorm
+from .. import initializations, regularizers, constraints
+from ..layers.core import Layer
 
 
 class Embedding(Layer):
@@ -108,7 +105,8 @@ class Embedding(Layer):
             B = K.random_binomial((self.input_dim,), p=retain_p)
         else:
             B = K.ones((self.input_dim)) * retain_p
-        out = K.gather(self.W * K.expand_dims(B), X) # we zero-out rows of W at random
+        # we zero-out rows of W at random
+        out = K.gather(self.W * K.expand_dims(B), X)
         return out
 
     def get_config(self):

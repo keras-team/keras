@@ -5,7 +5,6 @@ import numpy as np
 from .. import backend as K
 from .. import activations, initializations, regularizers
 from ..layers.core import MaskedLayer
-from ..backend.common import _FLOATX
 
 
 class Recurrent(MaskedLayer):
@@ -266,7 +265,7 @@ class SimpleRNN(Recurrent):
 
     def step(self, x, states):
         # states only contains the previous output.
-        assert len(states) == 3 # 1 state and 2 constants
+        assert len(states) == 3  # 1 state and 2 constants
         prev_output = states[0]
         B_W = states[1]
         B_U = states[2]
@@ -287,8 +286,8 @@ class SimpleRNN(Recurrent):
             B_W = K.random_binomial((nb_samples, self.input_dim), p=retain_p_W)
             B_U = K.random_binomial((nb_samples, self.output_dim), p=retain_p_U)
         else:
-            B_W = np.ones(1, dtype=_FLOATX) * retain_p_W
-            B_U = np.ones(1, dtype=_FLOATX) * retain_p_U
+            B_W = np.ones(1, dtype=K.floatx()) * retain_p_W
+            B_U = np.ones(1, dtype=K.floatx()) * retain_p_U
         return [B_W, B_U]
 
     def get_config(self):
@@ -406,7 +405,7 @@ class GRU(Recurrent):
             self.states = [K.zeros((input_shape[0], self.output_dim))]
 
     def step(self, x, states):
-        assert len(states) == 3 # 1 state and 2 constants
+        assert len(states) == 3  # 1 state and 2 constants
         h_tm1 = states[0]
         B_W = states[1]
         B_U = states[2]
@@ -435,8 +434,8 @@ class GRU(Recurrent):
             B_W = [K.random_binomial((nb_samples, self.input_dim), p=retain_p_W) for _ in range(3)]
             B_U = [K.random_binomial((nb_samples, self.output_dim), p=retain_p_U) for _ in range(3)]
         else:
-            B_W = np.ones(3, dtype=_FLOATX) * retain_p_W
-            B_U = np.ones(3, dtype=_FLOATX) * retain_p_U
+            B_W = np.ones(3, dtype=K.floatx()) * retain_p_W
+            B_U = np.ones(3, dtype=K.floatx()) * retain_p_U
         return [B_W, B_U]
 
     def get_config(self):
@@ -573,7 +572,7 @@ class LSTM(Recurrent):
                            K.zeros((input_shape[0], self.output_dim))]
 
     def step(self, x, states):
-        assert len(states) == 4 # 2 states and 2 constants
+        assert len(states) == 4  # 2 states and 2 constants
         h_tm1 = states[0]
         c_tm1 = states[1]
         B_W = states[2]
@@ -604,8 +603,8 @@ class LSTM(Recurrent):
             B_W = [K.random_binomial((nb_samples, self.input_dim), p=retain_p_W) for _ in range(4)]
             B_U = [K.random_binomial((nb_samples, self.output_dim), p=retain_p_U) for _ in range(4)]
         else:
-            B_W = np.ones(4, dtype=_FLOATX) * retain_p_W
-            B_U = np.ones(4, dtype=_FLOATX) * retain_p_U
+            B_W = np.ones(4, dtype=K.floatx()) * retain_p_W
+            B_U = np.ones(4, dtype=K.floatx()) * retain_p_U
         return [B_W, B_U]
 
     def get_config(self):

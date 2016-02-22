@@ -273,7 +273,7 @@ class TestBackend(object):
         check_single_tensor_operation('tanh', (4, 2))
 
         # dropout
-        val = np.random.random((20, 20))
+        val = np.random.random((100, 100))
         xth = KTH.variable(val)
         xtf = KTF.variable(val)
         zth = KTH.eval(KTH.dropout(xth, level=0.2))
