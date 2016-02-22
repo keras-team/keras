@@ -395,7 +395,7 @@ def gradients(loss, variables):
 # CONTROL FLOW
 
 def rnn(step_function, inputs, initial_states,
-        go_backwards=False, mask=None):
+        go_backwards=False, mask=None, constants=None):
     '''Iterates over the time dimension of a tensor.
 
     Parameters
@@ -419,6 +419,7 @@ def rnn(step_function, inputs, initial_states,
         the time dimension in reverse order.
     mask: binary tensor with shape (samples, time),
         with a zero for every element that is masked.
+    constants: a list of constant values passed at each step.
 
     Returns
     -------
@@ -442,8 +443,10 @@ def rnn(step_function, inputs, initial_states,
         assert mask.ndim == ndim
         mask = mask.dimshuffle(axes)
 
+        if constants is None:
+            constants = []
         # build an all-zero tensor of shape (samples, output_dim)
-        initial_output = step_function(inputs[0], initial_states)[0] * 0
+        initial_output = step_function(inputs[0], initial_states + constants)[0] * 0
         # Theano gets confused by broadcasting patterns in the scan op
         initial_output = T.unbroadcast(initial_output, 0, 1)
 
@@ -460,6 +463,7 @@ def rnn(step_function, inputs, initial_states,
             _step,
             sequences=[inputs, mask],
             outputs_info=[initial_output] + initial_states,
+            non_sequences=constants,
             go_backwards=go_backwards)
     else:
         def _step(input, *states):
@@ -470,6 +474,7 @@ def rnn(step_function, inputs, initial_states,
             _step,
             sequences=inputs,
             outputs_info=[None] + initial_states,
+            non_sequences=constants,
             go_backwards=go_backwards)
 
     # deal with Theano API inconsistency
@@ -692,6 +697,13 @@ def random_uniform(shape, low=0.0, high=1.0, dtype=_FLOATX, seed=None):
         seed = np.random.randint(10e6)
     rng = RandomStreams(seed=seed)
     return rng.uniform(shape, low=low, high=high, dtype=dtype)
+
+
+def random_binomial(shape, p=0.0, dtype=_FLOATX, seed=None):
+    if seed is None:
+        seed = np.random.randint(10e6)
+    rng = RandomStreams(seed=seed)
+    return rng.binomial(shape, p=p, dtype=dtype)
 
 '''
 more TODO:
