@@ -204,6 +204,92 @@ def test_averagepooling_2d():
         layer.get_config()
 
 
+@pytest.mark.skipif(K._BACKEND != 'theano', reason="Requires Theano backend")
+def test_convolution_3d():
+    nb_samples = 8
+    nb_filter = 9
+    stack_size = 7
+    len_conv_dim1 = 2
+    len_conv_dim2 = 10
+    len_conv_dim3 = 6
+
+    input_len_dim1 = 10
+    input_len_dim2 = 11
+    input_len_dim3 = 12
+
+    weights_in = [np.ones((nb_filter, stack_size, len_conv_dim1, len_conv_dim2, len_conv_dim3)),
+                  np.ones(nb_filter)]
+
+    input = np.ones((nb_samples, stack_size, input_len_dim1,
+                     input_len_dim2, input_len_dim3))
+    for weight in [None, weights_in]:
+        for border_mode in ['same', 'valid']:
+            for subsample in [(1, 1, 1), (2, 2, 2)]:
+                if border_mode == 'same' and subsample != (1, 1, 1):
+                    continue
+                for W_regularizer in [None, 'l2']:
+                    for b_regularizer in [None, 'l2']:
+                        for act_regularizer in [None, 'l2']:
+                            layer = convolutional.Convolution3D(
+                                nb_filter, len_conv_dim1, len_conv_dim2, len_conv_dim3,
+                                weights=weight,
+                                border_mode=border_mode,
+                                W_regularizer=W_regularizer,
+                                b_regularizer=b_regularizer,
+                                activity_regularizer=act_regularizer,
+                                subsample=subsample,
+                                input_shape=(stack_size, None, None, None))
+
+                            layer.input = K.variable(input)
+                            for train in [True, False]:
+                                out = K.eval(layer.get_output(train))
+                                if border_mode == 'same' and subsample == (1, 1, 1):
+                                    assert out.shape[2:] == input.shape[2:]
+                            layer.get_config()
+
+
+@pytest.mark.skipif(K._BACKEND != 'theano', reason="Requires Theano backend")
+def test_maxpooling_3d():
+    nb_samples = 9
+    stack_size = 7
+    input_len_dim1 = 10
+    input_len_dim2 = 11
+    input_len_dim3 = 12
+    pool_size = (3, 3, 3)
+
+    input = np.ones((nb_samples, stack_size, input_len_dim1,
+                     input_len_dim2, input_len_dim3))
+    for strides in [(1, 1, 1), (2, 2, 2)]:
+        layer = convolutional.MaxPooling3D(strides=strides,
+                                           border_mode='valid',
+                                           pool_size=pool_size)
+        layer.input = K.variable(input)
+        for train in [True, False]:
+            K.eval(layer.get_output(train))
+        layer.get_config()
+
+
+@pytest.mark.skipif(K._BACKEND != 'theano', reason="Requires Theano backend")
+def test_averagepooling_3d():
+    nb_samples = 9
+    stack_size = 7
+    input_len_dim1 = 10
+    input_len_dim2 = 11
+    input_len_dim3 = 12
+    pool_size = (3, 3, 3)
+
+    input = np.ones((nb_samples, stack_size, input_len_dim1,
+                     input_len_dim2, input_len_dim3))
+    for strides in [(1, 1, 1), (2, 2, 2)]:
+        layer = convolutional.AveragePooling3D(strides=strides,
+                                               border_mode='valid',
+                                               pool_size=pool_size)
+        layer.input = K.variable(input)
+        for train in [True, False]:
+            K.eval(layer.get_output(train))
+        layer.get_config()
+
+
 def test_zero_padding_2d():
     nb_samples = 9
     stack_size = 7
@@ -219,6 +305,28 @@ def test_zero_padding_2d():
             assert_allclose(out[:, :, offset, :], 0.)
             assert_allclose(out[:, :, :, offset], 0.)
         assert_allclose(out[:, :, 2:-2, 2:-2], 1.)
+    layer.get_config()
+
+
+@pytest.mark.skipif(K._BACKEND != 'theano', reason="Requires Theano backend")
+def test_zero_padding_3d():
+    nb_samples = 9
+    stack_size = 7
+    input_len_dim1 = 10
+    input_len_dim2 = 11
+    input_len_dim3 = 12
+
+    input = np.ones((nb_samples, stack_size, input_len_dim1,
+                     input_len_dim2, input_len_dim3))
+    layer = convolutional.ZeroPadding3D(padding=(2, 2, 2))
+    layer.input = K.variable(input)
+    for train in [True, False]:
+        out = K.eval(layer.get_output(train))
+        for offset in [0, 1, -1, -2]:
+            assert_allclose(out[:, :, offset, :, :], 0.)
+            assert_allclose(out[:, :, :, offset, :], 0.)
+            assert_allclose(out[:, :, :, :, offset], 0.)
+        assert_allclose(out[:, :, 2:-2, 2:-2, 2:-2], 1.)
     layer.get_config()
 
 
@@ -253,29 +361,76 @@ def test_upsampling_2d():
 
         for length_row in [2, 3, 9]:
             for length_col in [2, 3, 9]:
-                    layer = convolutional.UpSampling2D(
-                        size=(length_row, length_col),
+                layer = convolutional.UpSampling2D(
+                    size=(length_row, length_col),
+                    input_shape=input.shape[1:],
+                    dim_ordering=dim_ordering)
+                layer.input = K.variable(input)
+                for train in [True, False]:
+                    out = K.eval(layer.get_output(train))
+                    if dim_ordering == 'th':
+                        assert out.shape[2] == length_row * input_nb_row
+                        assert out.shape[3] == length_col * input_nb_col
+                    else:  # tf
+                        assert out.shape[1] == length_row * input_nb_row
+                        assert out.shape[2] == length_col * input_nb_col
+
+                    # compare with numpy
+                    if dim_ordering == 'th':
+                        expected_out = np.repeat(input, length_row, axis=2)
+                        expected_out = np.repeat(expected_out, length_col, axis=3)
+                    else:  # tf
+                        expected_out = np.repeat(input, length_row, axis=1)
+                        expected_out = np.repeat(expected_out, length_col, axis=2)
+
+                    assert_allclose(out, expected_out)
+
+                layer.get_config()
+
+
+@pytest.mark.skipif(K._BACKEND != 'theano', reason="Requires Theano backend")
+def test_upsampling_3d():
+    nb_samples = 9
+    stack_size = 7
+    input_len_dim1 = 10
+    input_len_dim2 = 11
+    input_len_dim3 = 12
+
+    for dim_ordering in ['th', 'tf']:
+        if dim_ordering == 'th':
+            input = np.random.rand(nb_samples, stack_size, input_len_dim1, input_len_dim2,
+                                   input_len_dim3)
+        else:  # tf
+            input = np.random.rand(nb_samples, input_len_dim1, input_len_dim2, input_len_dim3,
+                                   stack_size)
+        for length_dim1 in [2, 3, 9]:
+            for length_dim2 in [2, 3, 9]:
+                for length_dim3 in [2, 3, 9]:
+                    layer = convolutional.UpSampling3D(
+                        size=(length_dim1, length_dim2, length_dim3),
                         input_shape=input.shape[1:],
                         dim_ordering=dim_ordering)
                     layer.input = K.variable(input)
                     for train in [True, False]:
                         out = K.eval(layer.get_output(train))
                         if dim_ordering == 'th':
-                            assert out.shape[2] == length_row * input_nb_row
-                            assert out.shape[3] == length_col * input_nb_col
+                            assert out.shape[2] == length_dim1 * input_len_dim1
+                            assert out.shape[3] == length_dim2 * input_len_dim2
+                            assert out.shape[4] == length_dim3 * input_len_dim3
                         else:  # tf
-                            assert out.shape[1] == length_row * input_nb_row
-                            assert out.shape[2] == length_col * input_nb_col
+                            assert out.shape[1] == length_dim1 * input_len_dim1
+                            assert out.shape[2] == length_dim2 * input_len_dim2
+                            assert out.shape[3] == length_dim3 * input_len_dim3
 
                         # compare with numpy
                         if dim_ordering == 'th':
-                            expected_out = np.repeat(input, length_row, axis=2)
-                            expected_out = np.repeat(expected_out, length_col,
-                                                     axis=3)
+                            expected_out = np.repeat(input, length_dim1, axis=2)
+                            expected_out = np.repeat(expected_out, length_dim2, axis=3)
+                            expected_out = np.repeat(expected_out, length_dim3, axis=4)
                         else:  # tf
-                            expected_out = np.repeat(input, length_row, axis=1)
-                            expected_out = np.repeat(expected_out, length_col,
-                                                     axis=2)
+                            expected_out = np.repeat(input, length_dim1, axis=1)
+                            expected_out = np.repeat(expected_out, length_dim2, axis=2)
+                            expected_out = np.repeat(expected_out, length_dim3, axis=3)
 
                         assert_allclose(out, expected_out)
 
