@@ -1,8 +1,5 @@
-'''Train a simple deep NN on the MNIST dataset.
+'''Train a simple deep Variational Autoencoder on the MNIST dataset.
 
-Get to 98.40% test accuracy after 20 epochs
-(there is *a lot* of margin for parameter tuning).
-2 seconds per epoch on a K520 GPU.
 '''
 
 from __future__ import print_function
@@ -15,13 +12,11 @@ from keras.datasets import mnist
 from keras.models import Sequential
 from keras.layers.core import Dense
 from keras.layers.normalization import BatchNormalization
-from keras.utils import np_utils
 from keras.layers.variational import VariationalDense as VAE
 
 
 batch_size = 128
-nb_classes = 10
-nb_epoch = 100
+nb_epoch = 300  # VAEs usually take long to converge
 code_size = 100
 
 # the data, shuffled and split between tran and test sets
@@ -35,10 +30,6 @@ X_train /= 255
 X_test /= 255
 print(X_train.shape[0], 'train samples')
 print(X_test.shape[0], 'test samples')
-
-# convert class vectors to binary class matrices
-Y_train = np_utils.to_categorical(y_train, nb_classes)
-Y_test = np_utils.to_categorical(y_test, nb_classes)
 
 encoder = Sequential()
 encoder.add(Dense(1000, input_shape=(784,), activation='tanh'))
