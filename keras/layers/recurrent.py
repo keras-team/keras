@@ -207,7 +207,7 @@ class SimpleRNN(Recurrent):
     '''
     def __init__(self, output_dim,
                  init='glorot_uniform', inner_init='orthogonal',
-                 activation='sigmoid',
+                 activation='tanh',
                  W_regularizer=None, U_regularizer=None, b_regularizer=None,
                  dropout_W=0., dropout_U=0., **kwargs):
         self.output_dim = output_dim
@@ -333,7 +333,7 @@ class GRU(Recurrent):
     '''
     def __init__(self, output_dim,
                  init='glorot_uniform', inner_init='orthogonal',
-                 activation='sigmoid', inner_activation='hard_sigmoid',
+                 activation='tanh', inner_activation='hard_sigmoid',
                  W_regularizer=None, U_regularizer=None, b_regularizer=None,
                  dropout_W=0., dropout_U=0., **kwargs):
         self.output_dim = output_dim
