@@ -34,6 +34,24 @@ def _runner(layer_class):
 
             mask = layer.get_output_mask(train)
 
+    # check dropout
+    for ret_seq in [True, False]:
+        layer = layer_class(output_dim, return_sequences=ret_seq, weights=None, 
+                            batch_input_shape=(nb_samples, timesteps, embedding_dim),
+                            dropout_W=0.5, dropout_U=0.5)
+        layer.input = K.variable(np.ones((nb_samples, timesteps, embedding_dim)))
+        layer.get_config()
+
+        for train in [True, False]:
+            out = K.eval(layer.get_output(train))
+            # Make sure the output has the desired shape
+            if ret_seq:
+                assert(out.shape == (nb_samples, timesteps, output_dim))
+            else:
+                assert(out.shape == (nb_samples, output_dim))
+
+            mask = layer.get_output_mask(train)
+
     # check statefulness
     model = Sequential()
     model.add(embeddings.Embedding(embedding_num, embedding_dim,

@@ -1,10 +1,8 @@
 from __future__ import absolute_import
+
 from .. import backend as K
-
-from .. import activations, initializations, regularizers, constraints
-from ..layers.core import Layer, MaskedLayer
-
-from ..constraints import unitnorm
+from .. import initializations, regularizers, constraints
+from ..layers.core import Layer
 
 
 class Embedding(Layer):
@@ -42,6 +40,10 @@ class Embedding(Layer):
           This argument is required if you are going to connect
           `Flatten` then `Dense` layers upstream
           (without it, the shape of the dense outputs cannot be computed).
+      dropout: float between 0 and 1. Fraction of the embeddings to drop.
+
+    # References
+        - [A Theoretically Grounded Application of Dropout in Recurrent Neural Networks](http://arxiv.org/abs/1512.05287)
     '''
     input_ndim = 2
 
@@ -50,12 +52,13 @@ class Embedding(Layer):
                  W_regularizer=None, activity_regularizer=None,
                  W_constraint=None,
                  mask_zero=False,
-                 weights=None, **kwargs):
+                 weights=None, dropout=0., **kwargs):
         self.input_dim = input_dim
         self.output_dim = output_dim
         self.init = initializations.get(init)
         self.input_length = input_length
         self.mask_zero = mask_zero
+        self.dropout = dropout
 
         self.W_constraint = constraints.get(W_constraint)
         self.constraints = [self.W_constraint]
@@ -97,7 +100,13 @@ class Embedding(Layer):
 
     def get_output(self, train=False):
         X = self.get_input(train)
-        out = K.gather(self.W, X)
+        retain_p = 1. - self.dropout
+        if train and self.dropout > 0:
+            B = K.random_binomial((self.input_dim,), p=retain_p)
+        else:
+            B = K.ones((self.input_dim)) * retain_p
+        # we zero-out rows of W at random
+        out = K.gather(self.W * K.expand_dims(B), X)
         return out
 
     def get_config(self):
@@ -109,6 +118,7 @@ class Embedding(Layer):
                   "mask_zero": self.mask_zero,
                   "activity_regularizer": self.activity_regularizer.get_config() if self.activity_regularizer else None,
                   "W_regularizer": self.W_regularizer.get_config() if self.W_regularizer else None,
-                  "W_constraint": self.W_constraint.get_config() if self.W_constraint else None}
+                  "W_constraint": self.W_constraint.get_config() if self.W_constraint else None,
+                  "dropout": self.dropout}
         base_config = super(Embedding, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
