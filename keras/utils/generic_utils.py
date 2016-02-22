@@ -63,15 +63,15 @@ class Progbar(object):
             numdigits = int(np.floor(np.log10(self.target))) + 1
             barstr = '%%%dd/%%%dd [' % (numdigits, numdigits)
             bar = barstr % (current, self.target)
-            prog = float(current)/self.target
-            prog_width = int(self.width*prog)
+            prog = float(current) / self.target
+            prog_width = int(self.width * prog)
             if prog_width > 0:
-                bar += ('='*(prog_width-1))
+                bar += ('=' * (prog_width-1))
                 if current < self.target:
                     bar += '>'
                 else:
                     bar += '='
-            bar += ('.'*(self.width-prog_width))
+            bar += ('.' * (self.width - prog_width))
             bar += ']'
             sys.stdout.write(bar)
             self.total_width = len(bar)
@@ -80,7 +80,7 @@ class Progbar(object):
                 time_per_unit = (now - self.start) / current
             else:
                 time_per_unit = 0
-            eta = time_per_unit*(self.target - current)
+            eta = time_per_unit * (self.target - current)
             info = ''
             if current < self.target:
                 info += ' - ETA: %ds' % eta
@@ -99,7 +99,7 @@ class Progbar(object):
 
             self.total_width += len(info)
             if prev_total_width > self.total_width:
-                info += ((prev_total_width-self.total_width) * " ")
+                info += ((prev_total_width - self.total_width) * " ")
 
             sys.stdout.write(info)
             sys.stdout.flush()
@@ -120,4 +120,4 @@ class Progbar(object):
                 sys.stdout.write(info + "\n")
 
     def add(self, n, values=[]):
-        self.update(self.seen_so_far+n, values)
+        self.update(self.seen_so_far + n, values)
