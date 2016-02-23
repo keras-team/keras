@@ -1121,19 +1121,18 @@ class TimeDistributedDense(MaskedLayer):
 
     def get_output(self, train=False):
         X = self.get_input(train)
-        if K._BACKEND == 'theano':
-            import theano.tensor as T
-            z = T.tensordot(X, self.W, axes=[(2), (0)])
-            Y = z + self.b
-            Y = self.activation(Y)
-            return Y
-        elif K._BACKEND == 'tensorflow':
-            shape = self.input_shape
-            X = K.reshape(X, (-1, shape[-1]))
-            Y = K.dot(X, self.W) + self.b
-            Y = K.reshape(Y, (-1, shape[1], shape[2]))
-            Y = self.activation(Y)
-            return Y
+        x = K.reshape(X, (-1, self.input_shape[-1]))
+        Y = K.dot(x, self.W) + self.b
+        input_length = self.input_shape[1]
+        if input_length:
+            Y = K.reshape(Y, (-1, input_length, self.output_shape[-1])
+        else:
+            z = X[:, :, 0]
+            z = K.pack([z] * self.output_shape[-1])
+            z = K.permute_dimensions(z, (1, 2, 0))
+            Y = K.reshape(Y, K.shape(z))
+        Y = self.activation(Y)
+        return Y
 
     def get_config(self):
         config = {'name': self.__class__.__name__,
