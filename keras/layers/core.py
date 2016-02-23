@@ -1121,7 +1121,25 @@ class TimeDistributedDense(MaskedLayer):
 
     def get_output(self, train=False):
         X = self.get_input(train)
-
+        input_length = self.input_shape[1]
+        if input_length and K._BACKEND == 'theano':
+            import theano.tensor as T
+            #X: (nb_samples, timesteps, input_dim)
+            X = K.permute_dimensions(X, (1, 0, 2))
+            #X: (timesteps, nb_samples, input_dim)
+            W = [self.W] * input_length
+            W = T.stack(*W)
+            #W: (timesteps, input_dim, output_dim)
+            z = T.batched_tensordot(X, W, axes=[(2), (1)])
+            #z: (timesteps, nb_samples, output_dim)
+            z = K.permute_dimensions(z, (1, 0, 2))
+            #z: (nb_samples, timesteps, output_dim)
+            b = [self.b] * input_length
+            b = T.stack(*b)
+            #b: (timesteps, output_dim)
+            Y = self.activation(z + b)
+            return Y
+            
         def step(x, states):
             output = K.dot(x, self.W) + self.b
             return output, []
