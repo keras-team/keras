@@ -614,3 +614,34 @@ class Graph(Layer):
             nb_param = len(layer.get_weights())
             layer.set_weights(weights[:nb_param])
             weights = weights[nb_param:]
+
+    def get_named_weights(self):
+        '''Returns a dictionary with keys corresponding to node names
+        and values corresponding to their weights. Will recurse into subgraphs,
+        nesting their dictionaries. Non-`Graph` subcontainers' and `Layers`'
+        `get_weights` methods will be called instead.
+        '''
+        weights = {}
+        for name, node in self.nodes.items():
+            try:
+                weights[name] = node.get_named_weights()
+            except AttributeError:
+                weights[name] = node.get_weights()
+        return weights
+
+    def set_named_weights(self, weights):
+        '''Takes a dictionary of weights keyed by node name and sets
+        those respective nodes' weights to the associated value. Will attempt
+        to recurse, using `set_named_weights` on subgraphs; otherwise calls
+        `set_weights`. If `weights` is missing some node names they are simply
+        not set, and if it contains names for which a node does not exist in
+        the Graph, a `ValueError` is raised.
+        '''
+        for name, w in weights.items():
+            try:
+                self.nodes[name].set_named_weights(w)
+            except AttributeError:
+                self.nodes[name].set_weights(w)
+            except KeyError:
+                raise ValueError('key {} in weight dictionary had no '
+                                 'associated node!'.format(name))
