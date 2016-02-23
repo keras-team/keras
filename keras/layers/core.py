@@ -1120,20 +1120,18 @@ class TimeDistributedDense(MaskedLayer):
         return (input_shape[0], input_shape[1], self.output_dim)
 
     def get_output(self, train=False):
-        X = self.get_input(train)
-        if K._BACKEND == 'theano':
-            import theano.tensor as T
-            z = T.tensordot(X, self.W, axes=[(2), (0)])
-            Y = z + self.b
-            Y = self.activation(Y)
-            return Y
-        elif K._BACKEND == 'tensorflow':
-            shape = self.input_shape
-            X = K.reshape(X, (-1, shape[-1]))
-            Y = K.dot(X, self.W) + self.b
-            Y = K.reshape(Y, (-1, shape[1], shape[2]))
-            Y = self.activation(Y)
-            return Y
+        X = self.get_input(train)  # (samples, timesteps, input_dim)
+        # Squash samples and timesteps into a single axis
+        x = K.reshape(X, (-1, self.input_shape[-1]))  # (samples * timesteps, input_dim)
+        Y = K.dot(x, self.W) + self.b  # (samples * timesteps, output_dim)
+        # We have to reshape Y to (samples, timesteps, output_dim)
+        input_length = self.input_shape[1]
+        # Note: input_length will always be provided when using tensorflow backend.
+        if not input_length:
+            input_length = K.shape(X)[1]
+        Y = K.reshape(Y, (-1, input_length, self.output_shape[-1]))  # (samples, timesteps, output_dim)
+        Y = self.activation(Y)
+        return Y
 
     def get_config(self):
         config = {'name': self.__class__.__name__,

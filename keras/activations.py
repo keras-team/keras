@@ -7,7 +7,7 @@ def softmax(x):
     if ndim == 2:
         return K.softmax(x)
     elif ndim == 3:
-        e = K.exp(x)
+        e = K.exp(x - K.max(x, axis=-1, keepdims=True))
         s = K.sum(e, axis=-1, keepdims=True)
         return e / s
     else:
