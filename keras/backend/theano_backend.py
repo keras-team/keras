@@ -415,6 +415,8 @@ def spatial_3d_padding(x, padding=(1, 1, 1), dim_ordering='th'):
         raise Exception('Invalid dim_ordering: ' + dim_ordering)
     return T.set_subtensor(output[indices], x)
 
+def pack(x):
+    return T.stack(*x)
 
 # VALUE MANIPULATION
 
