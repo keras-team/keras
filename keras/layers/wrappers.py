@@ -3,7 +3,10 @@ from __future__ import absolute_import
 from ..layers.core import Layer, MaskedLayer
 from ..import backend as K
 from ..import activations, initializations, regularizers, constraints
-import cPickle
+try:
+    import cPickle as pickle
+except ImportError:
+    import pickle
 
 class Wrapper(Layer):
     '''
@@ -57,6 +60,20 @@ class Wrapper(Layer):
         '''
         return self.layer.output_shape
 
+    @property
+    def trainable_weights(self):
+        return self.layer.trainable_weights
+
+    @property
+    def non_trainable_weights(self):
+        return self.layer.non_trainable_weights
+
+    def get_weights(self):
+        return self.layer.get_weights()
+
+    def set_weights(self, weights):
+        self.layer.set_weights(weights)
+
     def get_output(self, train=False):
         x = self.get_input(train)
         return self.layer(x, None, train)
@@ -69,8 +86,6 @@ class Wrapper(Layer):
 
 
 class TimeDistributed(MaskedLayer, Wrapper):
-
-    input_ndim = 3
 
     def get_output_shape(self):
         input_shape = self.input_shape
@@ -133,19 +148,15 @@ class Highway(Wrapper):
 
 class Bidirectional(MaskedLayer):
     ''' Bidirectional wrapper for RNNs
-
     # Arguments:
-        rnn: `Recurrent` object. 
+        rnn: `Recurrent` object.
         merge_mode: Mode by which outputs of the forward and reverse RNNs will be combined. One of {sum, mul, concat, ave}
-
     # Examples:
     ```python
     model = Sequential()
     model.add(Bidirectional(LSTM(10, input_shape=(10, 20))))
     model.add(Activation('softmax'))
-    
     model.compile(loss='categorical_crossentropy', optimizer='rmsprop')
-
     model.fit([X_train,], Y_train, batch_size=32, nb_epoch=20,
               validation_data=([X_test], Y_test))
     ```
@@ -153,12 +164,12 @@ class Bidirectional(MaskedLayer):
     def __init__(self, rnn, merge_mode='concat', weights=None):
 
         self.forward = rnn
-        self.reverse = cPickle.loads(cPickle.dumps(rnn))
+        self.reverse = pickle.loads(pickle.dumps(rnn))
         self.merge_mode = merge_mode
         if weights:
             nw = len(weights)
-            self.forward.initial_weights = weights[:nw/2]
-            self.reverse.initial_weights = weights[nw/2:]
+            self.forward.initial_weights = weights[:nw//2]
+            self.reverse.initial_weights = weights[nw//2:]
         self._cache_enabled = True
         self.stateful = rnn.stateful
         self.return_sequences = rnn.return_sequences
@@ -172,8 +183,8 @@ class Bidirectional(MaskedLayer):
 
     def set_weights(self, weights):
         nw = len(weights)
-        self.forward.set_weights(weights[:nw/2])
-        self.reverse.set_weights(weights[:nw/2])
+        self.forward.set_weights(weights[:nw//2])
+        self.reverse.set_weights(weights[:nw//2])
 
     def set_previous(self, layer):
         self.previous = layer
@@ -249,7 +260,7 @@ class Bidirectional(MaskedLayer):
 
     @property
     def regularizers(self):
-        return self.forward.get_params()[1] + self.reverse.get_params()[1] 
+        return self.forward.get_params()[1] + self.reverse.get_params()[1]
 
     @property
     def constraints(self):
