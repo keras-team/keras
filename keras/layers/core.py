@@ -108,7 +108,7 @@ class Layer(object):
         layer.name = "dummy"
         layer.input = X
         if hasattr(self, 'get_input_mask'):
-            layer.get_input_mask = lambda _: mask 
+            layer.get_input_mask = lambda _: mask
         # set temporary previous
         tmp_previous = None
         if hasattr(self, 'previous'):
@@ -136,7 +136,7 @@ class Layer(object):
         if layer.get_output_mask() is not None:
             assert self.supports_masked_input(), 'Cannot connect non-masking layer to layer with masked output.'
         if not reset_weights:
-            assert layer.output_shape == self.input_shape, ('Cannot connect layers without resetting weights: ' + 
+            assert layer.output_shape == self.input_shape, ('Cannot connect layers without resetting weights: ' +
                                                             'expected input with shape ' +
                                                             str(self.input_shape) +
                                                             ' but previous layer has output_shape ' +

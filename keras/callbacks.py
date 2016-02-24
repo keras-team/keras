@@ -479,6 +479,8 @@ class TensorBoard(Callback):
                 else:
                     test_function = self.model._test
                 names = [v.name for v in test_function.inputs]
+                # TODO: implement batched calls to sess.run
+                # (current call will likely go OOM on GPU)
                 feed_dict = dict(zip(names, self.model.validation_data))
                 result = self.sess.run([self.merged], feed_dict=feed_dict)
                 summary_str = result[0]
