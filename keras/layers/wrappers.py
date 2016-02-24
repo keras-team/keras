@@ -216,7 +216,7 @@ class Bidirectional(MaskedLayer):
         mask = self.get_input_mask(train) # 0,0,0,1,1,1,1
 
         def reverse(x):
-            if K.ndim == 3:
+            if K.ndim == 2:
                 x = K.expand_dims(x, -1)
                 rev = K.permute_dimensions(x, (1, 0, 2))[::-1]
                 rev = K.squeeze(rev, -1)
