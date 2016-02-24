@@ -63,6 +63,8 @@ def shape(x):
     '''
     return x.shape
 
+def dtype(x):
+    return x.dtype
 
 def ndim(x):
     return x.ndim
