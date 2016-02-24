@@ -75,10 +75,34 @@ class Layer(object):
     def cache_enabled(self, value):
         self._cache_enabled = value
 
+    @property
+    def layer_cache(self):
+        if hasattr(self, '_layer_cache'):
+            return self._layer_cache
+        else:
+            return None
+
+    @layer_cache.setter
+    def layer_cache(self, value):
+        self._layer_cache = value
+
+    @property
+    def shape_cache(self):
+        if hasattr(self, '_shape_cache'):
+            return self._shape_cache
+        else:
+            return None
+
+    @shape_cache.setter
+    def shape_cache(self, value):
+        self._shape_cache = value
+
     def __call__(self, X, mask=None, train=False):
-        # turn off layer cache temporarily
-        tmp_cache_enabled = self.cache_enabled
-        self.cache_enabled = False
+        # reset layer cache temporarily
+        tmp_layer_cache = self.layer_cache
+        tmp_shape_cache = self.shape_cache
+        self.layer_cache = {}
+        self.shape_cache = {}
         # create a temporary layer
         layer = Layer(batch_input_shape=self.input_shape)
         layer.name = "dummy"
@@ -96,7 +120,8 @@ class Layer(object):
             self.set_previous(tmp_previous, False)
         else:
             self.clear_previous(False)
-        self.cache_enabled = tmp_cache_enabled
+        self.layer_cache = tmp_layer_cache
+        self.shape_cache = tmp_shape_cache
         return Y
 
     def set_previous(self, layer, reset_weights=True):
@@ -165,12 +190,12 @@ class Layer(object):
         # if layer is not connected (e.g. input layer),
         # input shape can be set manually via _input_shape attribute.
         if hasattr(self, 'previous'):
-            if hasattr(self, 'shape_cache') and self.cache_enabled:
+            if self.shape_cache is not None and self.cache_enabled:
                 previous_layer_id = id(self.previous)
                 if previous_layer_id in self.shape_cache:
                     return self.shape_cache[previous_layer_id]
             previous_size = self.previous.output_shape
-            if hasattr(self, 'shape_cache') and self.cache_enabled:
+            if self.shape_cache is not None and self.cache_enabled:
                 previous_layer_id = id(self.previous)
                 self.shape_cache[previous_layer_id] = previous_size
             return previous_size
@@ -204,12 +229,12 @@ class Layer(object):
         if hasattr(self, 'previous'):
             # to avoid redundant computations,
             # layer outputs are cached when possible.
-            if hasattr(self, 'layer_cache') and self.cache_enabled:
+            if self.layer_cache is not None and self.cache_enabled:
                 previous_layer_id = '%s_%s' % (id(self.previous), train)
                 if previous_layer_id in self.layer_cache:
                     return self.layer_cache[previous_layer_id]
             previous_output = self.previous.get_output(train=train)
-            if hasattr(self, 'layer_cache') and self.cache_enabled:
+            if self.layer_cache is not None and self.cache_enabled:
                 previous_layer_id = '%s_%s' % (id(self.previous), train)
                 self.layer_cache[previous_layer_id] = previous_output
             return previous_output
@@ -1240,7 +1265,9 @@ class AutoEncoder(Layer):
 
         self._output_reconstruction = output_reconstruction
         self.encoder = encoder
+        self.encoder.layer_cache = self.layer_cache
         self.decoder = decoder
+        self.decoder.layer_cache = self.layer_cache
 
         if output_reconstruction:
             self.decoder.set_previous(self.encoder)
@@ -1277,6 +1304,26 @@ class AutoEncoder(Layer):
                 if p not in self.trainable_weights:
                     self.trainable_weights.append(p)
                     self.constraints.append(c)
+
+    @property
+    def layer_cache(self):
+        return super(AutoEncoder, self).layer_cache
+
+    @layer_cache.setter
+    def layer_cache(self, value):
+        self._layer_cache = value
+        self.encoder.layer_cache = self._layer_cache
+        self.decoder.layer_cache = self._layer_cache
+
+    @property
+    def shape_cache(self):
+        return super(AutoEncoder, self).shape_cache
+
+    @shape_cache.setter
+    def shape_cache(self, value):
+        self._shape_cache = value
+        self.encoder.shape_cache = self._shape_cache
+        self.decoder.shape_cache = self._shape_cache
 
     def set_previous(self, node, reset_weights=True):
         self.encoder.set_previous(node, reset_weights)

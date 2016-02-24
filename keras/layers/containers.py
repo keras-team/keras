@@ -36,6 +36,26 @@ class Sequential(Layer):
         for l in self.layers:
             l.cache_enabled = value
 
+    @property
+    def layer_cache(self):
+        return super(Sequential, self).layer_cache
+
+    @layer_cache.setter
+    def layer_cache(self, value):
+        self._layer_cache = value
+        for layer in self.layers:
+            layer.layer_cache = self._layer_cache
+
+    @property
+    def shape_cache(self):
+        return super(Sequential, self).shape_cache
+
+    @shape_cache.setter
+    def shape_cache(self, value):
+        self._shape_cache = value
+        for layer in self.layers:
+            layer.shape_cache = self._shape_cache
+
     def set_previous(self, layer, reset_weights=True):
         self.layers[0].set_previous(layer, reset_weights)
 
@@ -212,6 +232,30 @@ class Graph(Layer):
             l.cache_enabled = value
         for l in self.inputs.values():
             l.cache_enabled = value
+
+    @property
+    def layer_cache(self):
+        return super(Graph, self).layer_cache
+
+    @layer_cache.setter
+    def layer_cache(self, value):
+        self._layer_cache = value
+        for layer in self.nodes.values():
+            layer.layer_cache = self._layer_cache
+        for layer in self.inputs.values():
+            layer.layer_cache = self._layer_cache
+
+    @property
+    def shape_cache(self):
+        return super(Graph, self).shape_cache
+
+    @shape_cache.setter
+    def shape_cache(self, value):
+        self._shape_cache = value
+        for layer in self.nodes.values():
+            layer.shape_cache = self._shape_cache
+        for layer in self.inputs.values():
+            layer.shape_cache = self._shape_cache
 
     @property
     def nb_input(self):
