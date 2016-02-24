@@ -1,7 +1,11 @@
 import theano
 from theano import tensor as T
 from theano.sandbox.rng_mrg import MRG_RandomStreams as RandomStreams
-from theano.tensor.signal import downsample
+
+# [SM] Fix theano warning: "downsample module has been moved to the pool module."
+# from theano.tensor.signal import downsample
+from theano.tensor.signal import pool
+
 from theano.tensor.nnet import conv3d2d
 import numpy as np
 from .common import _FLOATX, _EPSILON
@@ -119,6 +123,8 @@ def gather(reference, indices):
     indices: an int tensor of indices.
 
     Return: a tensor of same type as reference.
+    [SM] output shape = indices.shape + reference.shape[1:]
+    So if reference is 2d (n, w) then output shape = indices.shape + [w]
     '''
     return reference[indices]
 
@@ -333,6 +339,13 @@ def squeeze(x, axis):
     '''
     x = T.addbroadcast(x, axis)
     return T.squeeze(x)
+
+
+def addbroadcast(x, *axes):
+    '''
+    Make x broadcastable along specified axis/axes. Corresponding dimensions of `x` should be 1.
+    '''
+    return T.addbroadcast(x, *axes)
 
 
 def temporal_padding(x, padding=1):
@@ -783,12 +796,16 @@ def pool2d(x, pool_size, strides=(1, 1), border_mode='valid',
         x = x.dimshuffle((0, 3, 1, 2))
 
     if pool_mode == 'max':
-        pool_out = downsample.max_pool_2d(x, ds=pool_size, st=strides,
+        # pool_out = downsample.max_pool_2d(x, ds=pool_size, st=strides,
+        # [SM] ...
+        pool_out = pool.pool_2d(x, ds=pool_size, st=strides,
                                           ignore_border=True,
                                           padding=padding,
                                           mode='max')
     elif pool_mode == 'avg':
-        pool_out = downsample.max_pool_2d(x, ds=pool_size, st=strides,
+        # pool_out = downsample.max_pool_2d(x, ds=pool_size, st=strides,
+        # [SM] ...
+        pool_out = pool.pool_2d(x, ds=pool_size, st=strides,
                                           ignore_border=True,
                                           padding=padding,
                                           mode='average_exc_pad')
@@ -827,7 +844,9 @@ def pool3d(x, pool_size, strides=(1, 1, 1), border_mode='valid',
 
     if pool_mode == 'max':
         # pooling over conv_dim2, conv_dim1 (last two channels)
-        output = downsample.max_pool_2d(input=x.dimshuffle(0, 1, 4, 3, 2),
+        # output = downsample.max_pool_2d(input=x.dimshuffle(0, 1, 4, 3, 2),
+        # [SM] ...
+        output = pool.pool_2d(input=x.dimshuffle(0, 1, 4, 3, 2),
                                         ds=(pool_size[1], pool_size[0]),
                                         st=(strides[1], strides[0]),
                                         ignore_border=ignore_border,
@@ -835,7 +854,9 @@ def pool3d(x, pool_size, strides=(1, 1, 1), border_mode='valid',
                                         mode='max')
 
         # pooling over conv_dim3
-        pool_out = downsample.max_pool_2d(input=output.dimshuffle(0, 1, 4, 3, 2),
+        # pool_out = downsample.max_pool_2d(input=output.dimshuffle(0, 1, 4, 3, 2),
+        # [SM] ...
+        pool_out = pool.pool_2d(input=output.dimshuffle(0, 1, 4, 3, 2),
                                           ds=(1, pool_size[2]),
                                           st=(1, strides[2]),
                                           ignore_border=ignore_border,
@@ -844,7 +865,9 @@ def pool3d(x, pool_size, strides=(1, 1, 1), border_mode='valid',
 
     elif pool_mode == 'avg':
         # pooling over conv_dim2, conv_dim1 (last two channels)
-        output = downsample.max_pool_2d(input=x.dimshuffle(0, 1, 4, 3, 2),
+        # output = downsample.max_pool_2d(input=x.dimshuffle(0, 1, 4, 3, 2),
+        # [SM] ...
+        output = pool.pool_2d(input=x.dimshuffle(0, 1, 4, 3, 2),
                                         ds=(pool_size[1], pool_size[0]),
                                         st=(strides[1], strides[0]),
                                         ignore_border=ignore_border,
@@ -852,7 +875,9 @@ def pool3d(x, pool_size, strides=(1, 1, 1), border_mode='valid',
                                         mode='average_exc_pad')
 
         # pooling over conv_dim3
-        pool_out = downsample.max_pool_2d(input=output.dimshuffle(0, 1, 4, 3, 2),
+        # pool_out = downsample.max_pool_2d(input=output.dimshuffle(0, 1, 4, 3, 2),
+        # [SM] ...
+        pool_out = pool.pool_2d(input=output.dimshuffle(0, 1, 4, 3, 2),
                                           ds=(1, pool_size[2]),
                                           st=(1, strides[2]),
                                           ignore_border=ignore_border,
