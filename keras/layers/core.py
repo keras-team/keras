@@ -1120,17 +1120,25 @@ class TimeDistributedDense(MaskedLayer):
         return (input_shape[0], input_shape[1], self.output_dim)
 
     def get_output(self, train=False):
-        X = self.get_input(train)
-        x = K.reshape(X, (-1, self.input_shape[-1]))
-        Y = K.dot(x, self.W) + self.b
+        X = self.get_input(train)  # (samples, timesteps, input_dim)
+        # Squash samples and timesteps into a single axis
+        x = K.reshape(X, (-1, self.input_shape[-1]))  # (samples * timesteps, input_dim)
+        Y = K.dot(x, self.W) + self.b  # (samples * timesteps, output_dim)
+        
+        # We have to reshape Y to (samples, timesteps, output_dim)
         input_length = self.input_shape[1]
+        # Note: input_length will always be provided when using tensorflow backend.
         if input_length:
-            Y = K.reshape(Y, (-1, input_length, self.output_shape[-1])
+            # Works with both theano and tensorflow backends.
+            Y = K.reshape(Y, (-1, input_length, self.output_shape[-1]))  # (samples, timesteps, output_dim)
         else:
-            z = X[:, :, 0]
-            z = K.pack([z] * self.output_shape[-1])
-            z = K.permute_dimensions(z, (1, 2, 0))
-            Y = K.reshape(Y, K.shape(z))
+            # Does not work with tensorflow backend.
+            # Create a tensor of shape (samples, timesteps, output_dim)
+            z = X[:, :, 0]  # (samples, timesteps)
+            z = K.pack([z] * self.output_shape[-1])  # (output_dim, samples, timesteps)
+            z = K.permute_dimensions(z, (1, 2, 0))  # (samples, timesteps, output_dim)
+            Y = K.reshape(Y, K.shape(z))  # (samples, timesteps, output_dim)
+
         Y = self.activation(Y)
         return Y
 

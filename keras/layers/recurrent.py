@@ -120,6 +120,7 @@ class Recurrent(MaskedLayer):
         return None
 
     def get_initial_states(self, X):
+        # build an all-zero tensor of shape (samples, output_dim)
         initial_state = X[:, 0, 0] * 0  # (samples, )
         initial_state = K.pack([initial_state] * self.output_dim)  # (output_dim, samples)
         initial_state = K.permute_dimensions(initial_state, (1, 0))  # (samples, output_dim)
