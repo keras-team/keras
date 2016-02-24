@@ -1783,17 +1783,13 @@ def add_shared_layer(layer, inputs):
     input_layers = []
     for m in inputs:
         if len(m.layers) == 0:
-            from keras.layers.embeddings import Embedding
-            if issubclass(layer.__class__, Embedding):
 
-                class IntInput(Layer):
+        class InputLayer(Layer):
 
-                    def build(self):
-                        self.input = K.placeholder(self._input_shape, dtype='int32')
+            def build(self):
+                self.input = K.placeholder(self._input_shape, dtype=K.dtype(layer.input))
 
-                m.add(IntInput(input_shape=(layer.input_length, )))
-            else:
-                m.add(Layer(input_shape=layer.input_shape))
+        m.add(InputLayer(batch_input_shape = layer.input_shape))
         input_layers.append(m.layers[-1])
     s = Siamese(layer, input_layers, merge_mode=None)
     for i in range(len(inputs)):
