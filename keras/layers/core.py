@@ -1465,7 +1465,8 @@ class Lambda(Layer):
         if self._output_shape is None:
             return self.input_shape
         elif type(self._output_shape) == tuple:
-            return (self.input_shape[0], ) + self._output_shape
+            nb_samples = self.input_shape[0] if self.input_shape else None
+            return (nb_samples, ) + self._output_shape
         else:
             output_shape_func = marshal.loads(self._output_shape)
             output_shape_func = types.FunctionType(output_shape_func, globals())
