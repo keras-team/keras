@@ -10,6 +10,13 @@ GitHub page: https://github.com/MarcBS
 
 The Caffe to Keras converter is only compatible with: __Python 2.7__.
 
+## Installation
+
+In order to install the library you just have to include the repository path into your PYTHONPATH the following way:
+
+```export PYTHONPATH=$PYTHONPATH:/path/to/keras```
+
+
 # Keras: Deep Learning library for Theano and TensorFlow
 
 ## You have just found Keras.
