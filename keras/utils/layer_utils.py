@@ -71,6 +71,12 @@ def container_from_config(original_layer_dict, custom_objects={}):
                 kwargs[kwarg] = layer_dict[kwarg]
         return AutoEncoder(**kwargs)
 
+    elif name == 'TimeDistributed':
+        layer_dict['layer'] = container_from_config(layer_dict.get('layer'))
+        if 'custom_name' in layer_dict:
+            layer_dict['name'] = layer_dict.pop('custom_name')
+        return TimeDistributed(**layer_dict)
+
     else:  # this is a non-topological layer (e.g. Dense, etc.)
         layer_dict.pop('name')
 
