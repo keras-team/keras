@@ -4,7 +4,8 @@ from ..layers.core import MaskedLayer
 
 from ..layers.convolutional import conv_output_length
 import numpy as np
- 
+
+
 class RecurrentConv2D(MaskedLayer):
     '''Abstract base class for recurrent layers.
     Do not use in a model -- it's not a functional layer!
@@ -37,7 +38,6 @@ class RecurrentConv2D(MaskedLayer):
         nb_col: Number of columns in the convolution kernel.
             is required when using this layer as the first layer in a model.
         input_shape: input_shape
-           
 
     # Masking
         This layer supports masking for input data with a variable number
@@ -66,7 +66,8 @@ class RecurrentConv2D(MaskedLayer):
             - specify `stateful=True` in the layer constructor.
             - specify a fixed batch size for your model, by passing
                 a `batch_input_size=(...)` to the first layer in your model.
-                This is the expected shape of your inputs *including the batch size*.
+                This is the expected shape of your inputs *including the batch
+                size*.
                 It should be a tuple of integers, e.g. `(32, 10, 100)`.
 
         To reset the states of your model, call `.reset_states()` on either
@@ -76,7 +77,8 @@ class RecurrentConv2D(MaskedLayer):
 
     def __init__(self, weights=None,
                  return_sequences=False, go_backwards=False, stateful=False,
-                 nb_row=None,nb_col=None,nb_filter=None, dim_ordering = None, **kwargs):
+                 nb_row=None, nb_col=None, nb_filter=None,
+                 dim_ordering=None, **kwargs):
         self.return_sequences = return_sequences
         self.initial_weights = weights
         self.go_backwards = go_backwards
@@ -86,8 +88,7 @@ class RecurrentConv2D(MaskedLayer):
         self.nb_col = nb_col
         self.nb_filter = nb_filter
         self.dim_ordering = dim_ordering
-        #if self.input_dim:
-        #    kwargs['input_shape'] = (self.input_length, self.input_dim1,self.input_dim2)
+
         super(RecurrentConv2D, self).__init__(**kwargs)
 
     def get_output_mask(self, train=False):
@@ -98,7 +99,7 @@ class RecurrentConv2D(MaskedLayer):
 
     @property
     def output_shape(self):
-        
+
         input_shape = self.input_shape
         if self.dim_ordering == 'th':
             rows = input_shape[2+1]
@@ -116,40 +117,43 @@ class RecurrentConv2D(MaskedLayer):
 
         if self.return_sequences:
             if self.dim_ordering == 'th':
-                return (input_shape[0],input_shape[1], self.nb_filter, rows, cols)
+                return (input_shape[0], input_shape[1],
+                        self.nb_filter, rows, cols)
             elif self.dim_ordering == 'tf':
-                return (input_shape[0],input_shape[1], rows, cols, self.nb_filter)
+                return (input_shape[0], input_shape[1],
+                        rows, cols, self.nb_filter)
             else:
-                raise Exception('Invalid dim_ordering: ' + self.dim_ordering)      
+                raise Exception('Invalid dim_ordering: ' + self.dim_ordering)
         else:
             if self.dim_ordering == 'th':
                 return (input_shape[0], self.nb_filter, rows, cols)
             elif self.dim_ordering == 'tf':
                 return (input_shape[0], rows, cols, self.nb_filter)
             else:
-                raise Exception('Invalid dim_ordering: ' + self.dim_ordering)    
+                raise Exception('Invalid dim_ordering: ' + self.dim_ordering)
 
     def step(self, x, states):
         raise NotImplementedError
- 
+
     def get_constants(self, X, train=False):
         return None
 
     def get_initial_states(self, X):
-        # build an all-zero tensor of shape (samples, nb_filter)
-        initial_state = K.zeros_like(X)  # (samples, timesteps, row, col, filter)
-        initial_state = K.sum(initial_state, axis=1)  # (samples,row, col, filter)
-        #initial_state = initial_state[::,]
-        initial_state = self.conv_step(initial_state,K.zeros(self.W_shape),border_mode=self.border_mode)
+        # (samples, timesteps, row, col, filter)
+        initial_state = K.zeros_like(X)
+        # (samples,row, col, filter)
+        initial_state = K.sum(initial_state, axis=1)
+        # initial_state = initial_state[::,]
+        initial_state = self.conv_step(initial_state, K.zeros(self.W_shape),
+                                       border_mode=self.border_mode)
 
-
-        #initial_state= np.zeros((5,20,30,30),dtype=np.float32)
         initial_states = [initial_state for _ in range(len(self.states))]
         return initial_states
 
     def get_output(self, train=False):
-        # input shape: (nb_samples, time (padded with zeros), input_dim1,input_dim2,filter)
+
         X = self.get_input(train)
+        mask = self.get_input_mask(train)
         assert K.ndim(X) == 5
         if K._BACKEND == 'tensorflow':
             if not self.input_shape[1]:
@@ -159,21 +163,15 @@ class RecurrentConv2D(MaskedLayer):
                                 'has a "batch_input_shape" argument ' +
                                 'including the samples axis.')
 
-        #mask = self.get_output_mask(train)
-        #if mask:
-            # apply mask
-        #    X *= K.cast(K.expand_dims(mask), X.dtype)
-        #    masking = True
-        #else:
-        #    masking = False
-
         if self.stateful:
             initial_states = self.states
         else:
             initial_states = self.get_initial_states(X)
-        
-        last_output, outputs, states = K.rnn(self.step, X, initial_states,
-                                             go_backwards=self.go_backwards)
+
+        last_output, outputs, states = K.rnn(self.step, X,
+                                             initial_states,
+                                             go_backwards=self.go_backwards,
+                                             mask=mask)
         if self.stateful:
             self.updates = []
             for i in range(len(states)):
@@ -202,12 +200,10 @@ class LSTMConv2D(RecurrentConv2D):
             `(samples,time, channels, rows, cols)` if dim_ordering='th'
             or 5D tensor with shape:
             `(samples,time, rows, cols, channels)` if dim_ordering='tf'.
-            
-            
-    
+
      # Output shape
         if return_sequences=False
-        
+
             4D tensor with shape:
             `(samples, nb_filter, o_row, o_col)` if dim_ordering='th'
             or 4D tensor with shape:
@@ -217,9 +213,10 @@ class LSTMConv2D(RecurrentConv2D):
             `(samples, time,nb_filter, o_row, o_col)` if dim_ordering='th'
             or 5D tensor with shape:
             `(samples, time, o_row, o_col, nb_filter)` if dim_ordering='tf'.
-    
-        where o_row and o_col depend on the shape of the filter and the border_mode
-    
+
+        where o_row and o_col depend on the shape of the filter and
+        the border_mode
+
         # Arguments
             nb_filter: Number of convolution filters to use.
             nb_row: Number of rows in the convolution kernel.
@@ -230,13 +227,16 @@ class LSTMConv2D(RecurrentConv2D):
             dim_ordering: "tf" if the feature are at the last dimension or "th"
             stateful : has not been checked yet.
 
-     
+
             init: weight initialization function.
                 Can be the name of an existing function (str),
-                or a Theano function (see: [initializations](../initializations.md)).
+                or a Theano function
+                (see: [initializations](../initializations.md)).
             inner_init: initialization function of the inner cells.
-            forget_bias_init: initialization function for the bias of the forget gate.
-                [Jozefowicz et al.](http://www.jmlr.org/proceedings/papers/v37/jozefowicz15.pdf)
+            forget_bias_init: initialization function for the bias of the
+            forget gate.
+                [Jozefowicz et al.]
+                (http://www.jmlr.org/proceedings/papers/v37/jozefowicz15.pdf)
                 recommend initializing with ones.
             activation: activation function.
                 Can be the name of an existing function (str),
@@ -244,15 +244,16 @@ class LSTMConv2D(RecurrentConv2D):
             inner_activation: activation function for the inner cells.
 
     # References
-        - [Convolutional LSTM Network: A Machine Learning Approach for Precipitation Nowcasting](http://arxiv.org/pdf/1506.04214v1.pdf)
-        The current implementation does not include the feedback loop on the cells output
-       
+        - [Convolutional LSTM Network: A Machine Learning Approach for
+        Precipitation Nowcasting](http://arxiv.org/pdf/1506.04214v1.pdf)
+        The current implementation does not include the feedback loop on the
+        cells output
     '''
-    def __init__(self, nb_filter,nb_row,nb_col,
+    def __init__(self, nb_filter, nb_row, nb_col,
                  init='glorot_uniform', inner_init='orthogonal',
                  forget_bias_init='one', activation='tanh',
-                 inner_activation='hard_sigmoid',dim_ordering="tf",
-                 border_mode="valid",sub_sample =(1,1),
+                 inner_activation='hard_sigmoid', dim_ordering="tf",
+                 border_mode="valid", sub_sample=(1, 1),
                  W_regularizer=None, U_regularizer=None, b_regularizer=None,
                  dropout_W=0., dropout_U=0., **kwargs):
         self.nb_filter = nb_filter
@@ -263,56 +264,54 @@ class LSTMConv2D(RecurrentConv2D):
         self.forget_bias_init = initializations.get(forget_bias_init)
         self.activation = activations.get(activation)
         self.inner_activation = activations.get(inner_activation)
-        #self.input_shape = input_shape
         self.border_mode = border_mode
         self.subsample = sub_sample
-        
-        assert dim_ordering in {'tf',"th"}, 'dim_ordering must be in {tf,"th}'
-        self.dim_ordering= dim_ordering
+
+        assert dim_ordering in {'tf', "th"}, 'dim_ordering must be in {tf,"th}'
+        self.dim_ordering = dim_ordering
 
         kwargs["nb_filter"] = nb_filter
         kwargs["nb_row"] = nb_row
         kwargs["nb_col"] = nb_col
         kwargs["dim_ordering"] = dim_ordering
-        
+
         self.W_regularizer = W_regularizer
         self.U_regularizer = U_regularizer
         self.b_regularizer = b_regularizer
         self.dropout_W, self.dropout_U = dropout_W, dropout_U
-        
+
         super(LSTMConv2D, self).__init__(**kwargs)
 
     def build(self):
         input_shape = self.input_shape
         self.input = K.placeholder(input_shape)
 
-        
         if self.dim_ordering == 'th':
             stack_size = self.input_shape[1+1]
-            self.W_shape = (self.nb_filter, stack_size, self.nb_row, self.nb_col)
+            self.W_shape = (self.nb_filter, stack_size,
+                            self.nb_row, self.nb_col)
         elif self.dim_ordering == 'tf':
             stack_size = self.input_shape[3+1]
-            self.W_shape = (self.nb_row, self.nb_col, stack_size, self.nb_filter)
+            self.W_shape = (self.nb_row, self.nb_col,
+                            stack_size, self.nb_filter)
         else:
             raise Exception('Invalid dim_ordering: ' + self.dim_ordering)
-            
+
         if self.dim_ordering == 'th':
-            self.W_shape1 = (self.nb_filter, self.nb_filter, self.nb_row, self.nb_col)
+            self.W_shape1 = (self.nb_filter, self.nb_filter,
+                             self.nb_row, self.nb_col)
         elif self.dim_ordering == 'tf':
-            self.W_shape1 = (self.nb_row, self.nb_col, self.nb_filter, self.nb_filter)
+            self.W_shape1 = (self.nb_row, self.nb_col,
+                             self.nb_filter, self.nb_filter)
         else:
             raise Exception('Invalid dim_ordering: ' + self.dim_ordering)
-        #self.W = self.init(self.W_shape)
-        #self.input_dims = input_dims
 
         if self.stateful:
             self.reset_states()
         else:
             # initial states: 2 all-zero tensor of shape (nb_filter)
             self.states = [None, None]
-            
-        
-        
+
         self.W_i = self.init(self.W_shape)
         self.U_i = self.inner_init(self.W_shape1)
         self.b_i = K.zeros((self.nb_filter,))
@@ -328,7 +327,7 @@ class LSTMConv2D(RecurrentConv2D):
         self.W_o = self.init(self.W_shape)
         self.U_o = self.inner_init(self.W_shape1)
         self.b_o = K.zeros((self.nb_filter,))
-     
+
         def append_regulariser(input_regulariser, param, regularizers_list):
             regulariser = regularizers.get(input_regulariser)
             if regulariser:
@@ -344,9 +343,9 @@ class LSTMConv2D(RecurrentConv2D):
             append_regulariser(self.b_regularizer, b, self.regularizers)
 
         self.trainable_weights = [self.W_i, self.U_i, self.b_i,
-                       self.W_c, self.U_c, self.b_c,
-                       self.W_f, self.U_f, self.b_f,
-                       self.W_o, self.U_o, self.b_o]
+                                  self.W_c, self.U_c, self.b_c,
+                                  self.W_f, self.U_f, self.b_f,
+                                  self.W_o, self.U_o, self.b_o]
 
         if self.initial_weights is not None:
             self.set_weights(self.initial_weights)
@@ -359,29 +358,33 @@ class LSTMConv2D(RecurrentConv2D):
             raise Exception('If a RNN is stateful, a complete ' +
                             'input_shape must be provided ' +
                             '(including batch size).')
-                            
+
         if self.return_sequences:
-            out_row,out_col,out_filter = self.output_shape[2:]
+            out_row, out_col, out_filter = self.output_shape[2:]
         else:
-            out_row,out_col,out_filter = self.output_shape[1:]
-            
+            out_row, out_col, out_filter = self.output_shape[1:]
+
         if hasattr(self, 'states'):
             K.set_value(self.states[0],
-                        np.zeros((input_shape[0],  out_row,out_col,out_filter)))
+                        np.zeros((input_shape[0],
+                                  out_row, out_col, out_filter)))
             K.set_value(self.states[1],
-                        np.zeros((input_shape[0], out_row,out_col,out_filter)))
+                        np.zeros((input_shape[0],
+                                  out_row, out_col, out_filter)))
         else:
-            self.states = [K.zeros((input_shape[0],  out_row,out_col,out_filter)),
-                           K.zeros((input_shape[0],  out_row,out_col,out_filter))]
+            self.states = [K.zeros((input_shape[0],
+                                    out_row, out_col, out_filter)),
+                           K.zeros((input_shape[0],
+                                    out_row, out_col, out_filter))]
 
+    def conv_step(self, x, W, b=None, border_mode="valid"):
 
-    def conv_step(self,x,W,b=None,border_mode="valid"):
-        
         conv_out = K.conv2d(x, W, strides=self.subsample,
                             border_mode=border_mode,
                             dim_ordering=self.dim_ordering,
                             image_shape=(self.input_shape[0],
-                                         self.input_shape[2],self.input_shape[3],
+                                         self.input_shape[2],
+                                         self.input_shape[3],
                                          self.input_shape[4]),
                             filter_shape=self.W_shape)
         if b:
@@ -391,52 +394,57 @@ class LSTMConv2D(RecurrentConv2D):
                 conv_out = conv_out + K.reshape(b, (1, 1, 1, self.nb_filter))
             else:
                 raise Exception('Invalid dim_ordering: ' + self.dim_ordering)
-            
+
         return conv_out
-    
-    def conv_step_hidden(self,x,W,border_mode="valid"):
-        #This new function was defined because the image shape must be hardcoded
-        
+
+    def conv_step_hidden(self, x, W, border_mode="valid"):
+        # This new function was defined because the
+        # image shape must be hardcoded
+
         if self.return_sequences:
-            out_row,out_col,out_filter = self.output_shape[2:]
+            out_row, out_col, out_filter = self.output_shape[2:]
         else:
-            out_row,out_col,out_filter = self.output_shape[1:]
-            
-        conv_out = K.conv2d(x, W, strides=(1,1),
+            out_row, out_col, out_filter = self.output_shape[1:]
+
+        conv_out = K.conv2d(x, W, strides=(1, 1),
                             border_mode=border_mode,
                             dim_ordering=self.dim_ordering,
                             image_shape=(self.input_shape[0],
-                                         out_row,out_col,
+                                         out_row, out_col,
                                          out_filter),
                             filter_shape=self.W_shape1)
 
         return conv_out
-            
+
     def step(self, x, states):
         assert len(states) == 2
         h_tm1 = states[0]
         c_tm1 = states[1]
-        
 
-        x_i = self.conv_step(x,self.W_i, self.b_i, border_mode=self.border_mode)
-        x_f = self.conv_step(x,self.W_f, self.b_f, border_mode=self.border_mode)
-        x_c = self.conv_step(x,self.W_c, self.b_c, border_mode=self.border_mode)
-        x_o = self.conv_step(x,self.W_o, self.b_o, border_mode=self.border_mode)
-        
-        #U : from nb_filter to nb_filter
-        h_i = self.conv_step_hidden(h_tm1, self.U_i, border_mode="same") #Same because must be stable
+        x_i = self.conv_step(x, self.W_i, self.b_i,
+                             border_mode=self.border_mode)
+        x_f = self.conv_step(x, self.W_f, self.b_f,
+                             border_mode=self.border_mode)
+        x_c = self.conv_step(x, self.W_c, self.b_c,
+                             border_mode=self.border_mode)
+        x_o = self.conv_step(x, self.W_o, self.b_o,
+                             border_mode=self.border_mode)
+
+        # U : from nb_filter to nb_filter
+        # Same because must be stable
+        h_i = self.conv_step_hidden(h_tm1, self.U_i, border_mode="same")
         h_f = self.conv_step_hidden(h_tm1, self.U_f, border_mode="same")
         h_c = self.conv_step_hidden(h_tm1, self.U_c, border_mode="same")
         h_o = self.conv_step_hidden(h_tm1, self.U_o, border_mode="same")
-       
+
         i = self.inner_activation(x_i + h_i)
         f = self.inner_activation(x_f + h_f)
         c = f * c_tm1 + i * self.activation(x_c + h_c)
         o = self.inner_activation(x_o + h_o)
         h = o * self.activation(c)
-  
+
         return h, [h, c]
-        
+
     def get_constants(self, X, train=False):
         retain_p_W = 1. - self.dropout_W
         retain_p_U = 1. - self.dropout_U
@@ -444,15 +452,19 @@ class LSTMConv2D(RecurrentConv2D):
             nb_samples = K.shape(X)[0]
             if K._BACKEND == 'tensorflow':
                 if not self.input_shape[0]:
-                    raise Exception('For RNN dropout in tensorflow, a complete ' +
-                                    'input_shape must be provided (including batch size).')
+                    raise Exception('For RNN dropout in tensorflow, ' +
+                                    'a complete input_shape must be ' +
+                                    'provided (including batch size).')
                 nb_samples = self.input_shape[0]
-            B_W = [K.random_binomial((nb_samples, self.input_dim), p=retain_p_W) for _ in range(4)]
-            B_U = [K.random_binomial((nb_samples, self.output_dim), p=retain_p_U) for _ in range(4)]
+            B_W = [K.random_binomial((nb_samples, self.input_dim),
+                                     p=retain_p_W) for _ in range(4)]
+            B_U = [K.random_binomial((nb_samples, self.output_dim),
+                                     p=retain_p_U) for _ in range(4)]
         else:
             B_W = np.ones(4, dtype=K.floatx()) * retain_p_W
             B_U = np.ones(4, dtype=K.floatx()) * retain_p_U
         return [B_W, B_U]
+
     def get_config(self):
         config = {
                   "name": self.__class__.__name__,
