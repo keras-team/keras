@@ -52,7 +52,7 @@ def pad_sequences(sequences, maxlen=None, dtype='int32', padding='pre', truncati
         elif truncating == 'post':
             trunc = s[:maxlen]
         else:
-            raise ValueError("Truncating type '%s' not understood" % padding)
+            raise ValueError("Truncating type '%s' not understood" % truncating)
 
         # check `trunc` has expected shape
         trunc = np.asarray(trunc, dtype=dtype)
