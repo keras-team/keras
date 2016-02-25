@@ -353,6 +353,8 @@ def spatial_2d_padding(x, padding=(1, 1), dim_ordering='th'):
                    [0, 0]]
     return tf.pad(x, pattern)
 
+def pack(x):
+    return tf.pack(x)
 
 # VALUE MANIPULATION
 
