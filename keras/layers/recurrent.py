@@ -9,6 +9,8 @@ from ..layers.core import MaskedLayer
 
 def time_distributed_dense(x, w, b=None, dropout=None,
                            input_dim=None, output_dim=None, timesteps=None):
+    '''Apply y.w + b for every temporal slice y of x.
+    '''
     if not input_dim:
         # won't work with TensorFlow
         input_dim = K.shape(x)[2]
@@ -16,13 +18,19 @@ def time_distributed_dense(x, w, b=None, dropout=None,
         # won't work with TensorFlow
         timesteps = K.shape(x)[1]
     if not output_dim:
+        # won't work with TensorFlow
         output_dim = K.shape(w)[1]
+    if dropout:
+        ones = K.ones_like(K.reshape(x[:, 0, :], (-1, input_dim)))
+        dropout_matrix = K.dropout(ones, dropout)
+    # collapse time dimension and batch dimension together
     x = K.reshape(x, (-1, input_dim))
     if dropout:
-        x *= K.concatenate([dropout] * timesteps, 0)
+        x *= K.concatenate([dropout_matrix] * timesteps, 0)
     x = K.dot(x, w)
     if b:
         x = x + b
+    # reshape to 3D tensor
     x = K.reshape(x, (-1, timesteps, output_dim))
     return x
 
@@ -289,18 +297,13 @@ class SimpleRNN(Recurrent):
 
     def preprocess_input(self, x, train=False):
         if train and (0 < self.dropout_W < 1):
-            ones = K.ones_like(K.reshape(x[:, 0, :], (-1, self.input_dim)))
-            B_W = K.dropout(ones, self.dropout_W)
+            dropout = self.dropout_W
         else:
-            B_W = None
+            dropout = 0
         input_shape = self.input_shape
         input_dim = input_shape[2]
-        if input_shape[1]:
-            timesteps = input_shape[1]
-        else:
-            # this won't work with TensorFlow
-            timesteps = K.shape(x)[1]
-        return time_distributed_dense(x, self.W, self.b, B_W,
+        timesteps = input_shape[1]
+        return time_distributed_dense(x, self.W, self.b, dropout,
                                       input_dim, self.output_dim, timesteps)
 
     def step(self, h, states):
@@ -318,8 +321,7 @@ class SimpleRNN(Recurrent):
             ones = K.concatenate([ones] * self.output_dim, 1)
             B_U = K.dropout(ones, self.dropout_U)
             return [B_U]
-        else:
-            B_U = []
+        return []
 
     def get_config(self):
         config = {"output_dim": self.output_dim,
@@ -437,24 +439,19 @@ class GRU(Recurrent):
 
     def preprocess_input(self, x, train=False):
         if train and (0 < self.dropout_W < 1):
-            ones = K.ones_like(K.reshape(x[:, 0, :], (-1, self.input_dim)))
-            B_W = [K.dropout(ones, self.dropout_W) for _ in range(3)]
+            dropout = self.dropout_W
         else:
-            B_W = [None for _ in range(3)]
+            dropout = 0
         input_shape = self.input_shape
         input_dim = input_shape[2]
-        if input_shape[1]:
-            timesteps = input_shape[1]
-        else:
-            # this won't work with TensorFlow
-            timesteps = K.shape(x)[1]
+        timesteps = input_shape[1]
 
-        x_z = time_distributed_dense(x, self.W_z, self.b_z,
-                                     B_W[0], input_dim, self.output_dim, timesteps)
-        x_r = time_distributed_dense(x, self.W_r, self.b_r,
-                                     B_W[1], input_dim, self.output_dim, timesteps)
-        x_h = time_distributed_dense(x, self.W_h, self.b_h,
-                                     B_W[2], input_dim, self.output_dim, timesteps)
+        x_z = time_distributed_dense(x, self.W_z, self.b_z, dropout,
+                                     input_dim, self.output_dim, timesteps)
+        x_r = time_distributed_dense(x, self.W_r, self.b_r, dropout,
+                                     input_dim, self.output_dim, timesteps)
+        x_h = time_distributed_dense(x, self.W_h, self.b_h, dropout,
+                                     input_dim, self.output_dim, timesteps)
         return K.concatenate([x_z, x_r, x_h], axis=2)
 
     def step(self, x, states):
@@ -481,8 +478,7 @@ class GRU(Recurrent):
             ones = K.concatenate([ones] * self.output_dim, 1)
             B_U = [K.dropout(ones, self.dropout_U) for _ in range(3)]
             return [B_U]
-        else:
-            B_U = []
+        return []
 
     def get_config(self):
         config = {"output_dim": self.output_dim,
@@ -619,26 +615,21 @@ class LSTM(Recurrent):
 
     def preprocess_input(self, x, train=False):
         if train and (0 < self.dropout_W < 1):
-            ones = K.ones_like(K.reshape(x[:, 0, :], (-1, self.input_dim)))
-            B_W = [K.dropout(ones, self.dropout_W) for _ in range(4)]
+            dropout = self.dropout_W
         else:
-            B_W = [None for _ in range(4)]
+            dropout = 0
         input_shape = self.input_shape
         input_dim = input_shape[2]
-        if input_shape[1]:
-            timesteps = input_shape[1]
-        else:
-            # this won't work with TensorFlow
-            timesteps = K.shape(x)[1]
+        timesteps = input_shape[1]
 
-        x_i = time_distributed_dense(x, self.W_i, self.b_i,
-                                     B_W[0], input_dim, self.output_dim, timesteps)
-        x_f = time_distributed_dense(x, self.W_f, self.b_f,
-                                     B_W[1], input_dim, self.output_dim, timesteps)
-        x_c = time_distributed_dense(x, self.W_c, self.b_c,
-                                     B_W[2], input_dim, self.output_dim, timesteps)
-        x_o = time_distributed_dense(x, self.W_o, self.b_o,
-                                     B_W[3], input_dim, self.output_dim, timesteps)
+        x_i = time_distributed_dense(x, self.W_i, self.b_i, dropout,
+                                     input_dim, self.output_dim, timesteps)
+        x_f = time_distributed_dense(x, self.W_f, self.b_f, dropout,
+                                     input_dim, self.output_dim, timesteps)
+        x_c = time_distributed_dense(x, self.W_c, self.b_c, dropout,
+                                     input_dim, self.output_dim, timesteps)
+        x_o = time_distributed_dense(x, self.W_o, self.b_o, dropout,
+                                     input_dim, self.output_dim, timesteps)
         return K.concatenate([x_i, x_f, x_c, x_o], axis=2)
 
     def step(self, x, states):
@@ -668,8 +659,7 @@ class LSTM(Recurrent):
             ones = K.concatenate([ones] * self.output_dim, 1)
             B_U = [K.dropout(ones, self.dropout_U) for _ in range(4)]
             return [B_U]
-        else:
-            return []
+        return []
 
     def get_config(self):
         config = {"output_dim": self.output_dim,
