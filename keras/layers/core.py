@@ -119,7 +119,7 @@ class Layer(object):
         if tmp_previous is not None:
             self.set_previous(tmp_previous, False)
         else:
-            self.clear_previous(False)
+            del self.previous
         self.layer_cache = tmp_layer_cache
         self.shape_cache = tmp_shape_cache
         return Y
@@ -740,6 +740,25 @@ class Activation(MaskedLayer):
     def get_output(self, train=False):
         X = self.get_input(train)
         return self.activation(X)
+
+    @property
+    def input_shape(self):
+        if hasattr(self, 'previous'):
+            if self.shape_cache is not None and self.cache_enabled:
+                previous_layer_id = id(self.previous)
+                if previous_layer_id in self.shape_cache:
+                    return self.shape_cache[previous_layer_id]
+            previous_size = self.previous.output_shape
+            if self.shape_cache is not None and self.cache_enabled:
+                previous_layer_id = id(self.previous)
+                self.shape_cache[previous_layer_id] = previous_size
+            return previous_size
+        elif hasattr(self, '_input_shape'):
+            return self._input_shape
+        elif hasattr(self, 'input_ndim'):
+            return (None, ) * self.input_ndim
+        else:
+            return (None, )
 
     def get_config(self):
         config = {'name': self.__class__.__name__,
