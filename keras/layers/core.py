@@ -1743,7 +1743,7 @@ class Siamese(Layer):
     def get_output_at(self, head, train=False):
         X = self.inputs[head].get_output(train)
         mask = self.inputs[head].get_output_mask(train)
-        Y = self.layer(X, mask)
+        Y = self.layer(X, mask=mask, train=train)
         return Y
 
     def get_output_shape(self, head, train=False):
