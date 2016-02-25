@@ -99,7 +99,9 @@ class TimeDistributed(MaskedLayer, Wrapper):
 
     def build(self):
         input_shape = self.input_shape
-        self.layer.set_input_shape(tuple([input_shape[0]] + list(input_shape[2:])))
+        if not hasattr(self.layer, 'input'):
+            # already has input if lasyer is container
+            self.layer.set_input_shape(tuple([input_shape[0]] + list(input_shape[2:])))
         self.set_params()
 
     def get_output(self, train=False):
