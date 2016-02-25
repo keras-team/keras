@@ -1145,17 +1145,18 @@ class TimeDistributedDense(MaskedLayer):
         return (input_shape[0], input_shape[1], self.output_dim)
 
     def get_output(self, train=False):
-        X = self.get_input(train)
-
-        def step(x, states):
-            output = K.dot(x, self.W) + self.b
-            return output, []
-
-        last_output, outputs, states = K.rnn(step, X,
-                                             initial_states=[],
-                                             mask=None)
-        outputs = self.activation(outputs)
-        return outputs
+        X = self.get_input(train)  # (samples, timesteps, input_dim)
+        # Squash samples and timesteps into a single axis
+        x = K.reshape(X, (-1, self.input_shape[-1]))  # (samples * timesteps, input_dim)
+        Y = K.dot(x, self.W) + self.b  # (samples * timesteps, output_dim)
+        # We have to reshape Y to (samples, timesteps, output_dim)
+        input_length = self.input_shape[1]
+        # Note: input_length will always be provided when using tensorflow backend.
+        if not input_length:
+            input_length = K.shape(X)[1]
+        Y = K.reshape(Y, (-1, input_length, self.output_shape[-1]))  # (samples, timesteps, output_dim)
+        Y = self.activation(Y)
+        return Y
 
     def get_config(self):
         config = {'name': self.__class__.__name__,
