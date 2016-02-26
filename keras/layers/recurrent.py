@@ -581,11 +581,11 @@ class LSTM(Recurrent):
                 regularizers_list.append(regulariser)
 
         self.regularizers = []
-        for W in [self.W_i, self.W_f, self.W_i, self.W_o]:
+        for W in [self.W_i, self.W_f, self.W_c, self.W_o]:
             append_regulariser(self.W_regularizer, W, self.regularizers)
-        for U in [self.U_i, self.U_f, self.U_i, self.U_o]:
+        for U in [self.U_i, self.U_f, self.U_c, self.U_o]:
             append_regulariser(self.U_regularizer, U, self.regularizers)
-        for b in [self.b_i, self.b_f, self.b_i, self.b_o]:
+        for b in [self.b_i, self.b_f, self.b_c, self.b_o]:
             append_regulariser(self.b_regularizer, b, self.regularizers)
 
         self.trainable_weights = [self.W_i, self.U_i, self.b_i,
