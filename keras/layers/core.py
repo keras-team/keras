@@ -518,6 +518,10 @@ class Merge(Layer):
         super(Merge, self).__init__()
 
     @property
+    def input_shape(self):
+        return [layer.input_shape for layer in self.layers]
+
+    @property
     def output_shape(self):
         input_shapes = [layer.output_shape for layer in self.layers]
         if self.mode in ['sum', 'mul', 'ave']:
