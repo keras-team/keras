@@ -466,8 +466,7 @@ class LSTMConv2D(RecurrentConv2D):
         return [B_W, B_U]
 
     def get_config(self):
-        config = {
-                  "name": self.__class__.__name__,
+        config = {"name": self.__class__.__name__,
                   "nb_filter": self.nb_filter,
                   'nb_row': self.nb_row,
                   'nb_col': self.nb_col,
