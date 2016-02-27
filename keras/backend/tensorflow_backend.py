@@ -43,6 +43,11 @@ def shape(x):
     return x.get_shape()
 
 
+def int_shape(x):
+    shape = x.get_shape()
+    return tuple([i.__int__() for i in shape])
+
+
 def ndim(x):
     return len(x.get_shape())
 

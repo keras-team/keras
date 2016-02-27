@@ -241,8 +241,8 @@ class Layer(object):
         elif hasattr(self, 'input'):
             return self.input
         else:
-            raise Exception('Layer is not connected' +
-                            ' and is not an input layer.')
+            self.input = K.placeholder(shape=self.input_shape)
+            return self.input
 
     def supports_masked_input(self):
         '''Whether or not this layer respects the output mask of its previous
@@ -1510,6 +1510,12 @@ class Lambda(Layer):
     @property
     def output_shape(self):
         if self._output_shape is None:
+            # if TensorFlow, we can infer the output shape directly:
+            if K._BACKEND == 'tensorflow':
+                # we assume output shape is not dependent on train/test mode
+                x = self.get_input()
+                return K.int_shape(x)
+            # otherwise, we default to the input shape
             return self.input_shape
         elif type(self._output_shape) == tuple:
             nb_samples = self.input_shape[0] if self.input_shape else None
