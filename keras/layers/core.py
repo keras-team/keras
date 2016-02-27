@@ -388,8 +388,6 @@ class Masking(MaskedLayer):
     def __init__(self, mask_value=0., **kwargs):
         super(Masking, self).__init__(**kwargs)
         self.mask_value = mask_value
-        if (not hasattr(self, 'input')):
-            self.input = K.placeholder(ndim=3)
 
     def get_output_mask(self, train=False):
         X = self.get_input(train)
@@ -1000,7 +998,6 @@ class Dense(Layer):
         self.input_dim = input_dim
         if self.input_dim:
             kwargs['input_shape'] = (self.input_dim,)
-        self.input = K.placeholder(ndim=2)
         super(Dense, self).__init__(**kwargs)
 
     def build(self):
@@ -1115,7 +1112,6 @@ class TimeDistributedDense(MaskedLayer):
         self.input_length = input_length
         if self.input_dim:
             kwargs['input_shape'] = (self.input_length, self.input_dim)
-        self.input = K.placeholder(ndim=3)
         super(TimeDistributedDense, self).__init__(**kwargs)
 
     def build(self):
@@ -1421,7 +1417,6 @@ class MaxoutDense(Layer):
         self.input_dim = input_dim
         if self.input_dim:
             kwargs['input_shape'] = (self.input_dim,)
-        self.input = K.placeholder(ndim=2)
         super(MaxoutDense, self).__init__(**kwargs)
 
     def build(self):
@@ -1989,7 +1984,6 @@ class Highway(Layer):
         self.input_dim = input_dim
         if self.input_dim:
             kwargs['input_shape'] = (self.input_dim,)
-        self.input = K.placeholder(ndim=2)
         super(Highway, self).__init__(**kwargs)
 
     def build(self):

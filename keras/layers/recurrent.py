@@ -383,7 +383,6 @@ class GRU(Recurrent):
         input_shape = self.input_shape
         input_dim = input_shape[2]
         self.input_dim = input_dim
-        self.input = K.placeholder(input_shape)
 
         self.W_z = self.init((input_dim, self.output_dim))
         self.U_z = self.inner_init((self.output_dim, self.output_dim))
@@ -550,7 +549,6 @@ class LSTM(Recurrent):
         input_shape = self.input_shape
         input_dim = input_shape[2]
         self.input_dim = input_dim
-        self.input = K.placeholder(input_shape)
 
         if self.stateful:
             self.reset_states()

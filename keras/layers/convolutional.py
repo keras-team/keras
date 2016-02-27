@@ -101,7 +101,6 @@ class Convolution1D(Layer):
         self.input_length = input_length
         if self.input_dim:
             kwargs['input_shape'] = (self.input_length, self.input_dim)
-        self.input = K.placeholder(ndim=3)
         super(Convolution1D, self).__init__(**kwargs)
 
     def build(self):
@@ -251,7 +250,6 @@ class Convolution2D(Layer):
         self.constraints = [self.W_constraint, self.b_constraint]
 
         self.initial_weights = weights
-        self.input = K.placeholder(ndim=4)
         super(Convolution2D, self).__init__(**kwargs)
 
     def build(self):
@@ -431,7 +429,6 @@ class Convolution3D(Layer):
         self.constraints = [self.W_constraint, self.b_constraint]
 
         self.initial_weights = weights
-        self.input = K.placeholder(ndim=5)
         super(Convolution3D, self).__init__(**kwargs)
 
     def build(self):
@@ -546,7 +543,6 @@ class _Pooling1D(Layer):
         self.pool_length = pool_length
         self.stride = stride
         self.st = (self.stride, 1)
-        self.input = K.placeholder(ndim=3)
         self.pool_size = (pool_length, 1)
         assert border_mode in {'valid', 'same'}, 'border_mode must be in {valid, same}'
         self.border_mode = border_mode
@@ -646,7 +642,6 @@ class _Pooling2D(Layer):
     def __init__(self, pool_size=(2, 2), strides=None, border_mode='valid',
                  dim_ordering='th', **kwargs):
         super(_Pooling2D, self).__init__(**kwargs)
-        self.input = K.placeholder(ndim=4)
         self.pool_size = tuple(pool_size)
         if strides is None:
             strides = self.pool_size
@@ -786,7 +781,6 @@ class _Pooling3D(Layer):
     def __init__(self, pool_size=(2, 2, 2), strides=None, border_mode='valid',
                  dim_ordering='th', **kwargs):
         super(_Pooling3D, self).__init__(**kwargs)
-        self.input = K.placeholder(ndim=5)
         self.pool_size = tuple(pool_size)
         if strides is None:
             strides = self.pool_size
@@ -947,7 +941,6 @@ class UpSampling1D(Layer):
     def __init__(self, length=2, **kwargs):
         super(UpSampling1D, self).__init__(**kwargs)
         self.length = length
-        self.input = K.placeholder(ndim=3)
 
     @property
     def output_shape(self):
@@ -992,7 +985,6 @@ class UpSampling2D(Layer):
 
     def __init__(self, size=(2, 2), dim_ordering='th', **kwargs):
         super(UpSampling2D, self).__init__(**kwargs)
-        self.input = K.placeholder(ndim=4)
         self.size = tuple(size)
         assert dim_ordering in {'tf', 'th'}, 'dim_ordering must be in {tf, th}'
         self.dim_ordering = dim_ordering
@@ -1056,7 +1048,6 @@ class UpSampling3D(Layer):
             raise Exception(self.__class__.__name__ +
                             ' is currently only working with Theano backend.')
         super(UpSampling3D, self).__init__(**kwargs)
-        self.input = K.placeholder(ndim=5)
         self.size = tuple(size)
         assert dim_ordering in {'tf', 'th'}, 'dim_ordering must be in {tf, th}'
         self.dim_ordering = dim_ordering
@@ -1110,7 +1101,6 @@ class ZeroPadding1D(Layer):
     def __init__(self, padding=1, **kwargs):
         super(ZeroPadding1D, self).__init__(**kwargs)
         self.padding = padding
-        self.input = K.placeholder(ndim=3)
 
     @property
     def output_shape(self):
@@ -1151,7 +1141,6 @@ class ZeroPadding2D(Layer):
     def __init__(self, padding=(1, 1), dim_ordering='th', **kwargs):
         super(ZeroPadding2D, self).__init__(**kwargs)
         self.padding = tuple(padding)
-        self.input = K.placeholder(ndim=4)
         assert dim_ordering in {'tf', 'th'}, 'dim_ordering must be in {tf, th}'
         self.dim_ordering = dim_ordering
 
@@ -1209,7 +1198,6 @@ class ZeroPadding3D(Layer):
                             ' is currently only working with Theano backend.')
         super(ZeroPadding3D, self).__init__(**kwargs)
         self.padding = tuple(padding)
-        self.input = K.placeholder(ndim=5)
         assert dim_ordering in {'tf', 'th'}, 'dim_ordering must be in {tf, th}'
         self.dim_ordering = dim_ordering
 
