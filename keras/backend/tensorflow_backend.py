@@ -43,6 +43,11 @@ def shape(x):
     return x.get_shape()
 
 
+def int_shape(x):
+    shape = x.get_shape()
+    return tuple([i.__int__() for i in shape])
+
+
 def ndim(x):
     return len(x.get_shape())
 
@@ -353,6 +358,8 @@ def spatial_2d_padding(x, padding=(1, 1), dim_ordering='th'):
                    [0, 0]]
     return tf.pad(x, pattern)
 
+def pack(x):
+    return tf.pack(x)
 
 # VALUE MANIPULATION
 

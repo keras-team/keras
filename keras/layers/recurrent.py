@@ -149,10 +149,9 @@ class Recurrent(MaskedLayer):
 
     def get_initial_states(self, x):
         # build an all-zero tensor of shape (samples, output_dim)
-        initial_state = K.zeros_like(x)  # (samples, timesteps, input_dim)
-        initial_state = K.sum(initial_state, axis=1)  # (samples, input_dim)
-        reducer = K.zeros((self.input_dim, self.output_dim))
-        initial_state = K.dot(initial_state, reducer)  # (samples, output_dim)
+        initial_state = x[:, 0, 0] * 0  # (samples, )
+        initial_state = K.pack([initial_state] * self.output_dim)  # (output_dim, samples)
+        initial_state = K.permute_dimensions(initial_state, (1, 0))  # (samples, output_dim)
         initial_states = [initial_state for _ in range(len(self.states))]
         return initial_states
 
@@ -384,7 +383,6 @@ class GRU(Recurrent):
         input_shape = self.input_shape
         input_dim = input_shape[2]
         self.input_dim = input_dim
-        self.input = K.placeholder(input_shape)
 
         self.W_z = self.init((input_dim, self.output_dim))
         self.U_z = self.inner_init((self.output_dim, self.output_dim))
@@ -551,7 +549,6 @@ class LSTM(Recurrent):
         input_shape = self.input_shape
         input_dim = input_shape[2]
         self.input_dim = input_dim
-        self.input = K.placeholder(input_shape)
 
         if self.stateful:
             self.reset_states()
@@ -582,11 +579,11 @@ class LSTM(Recurrent):
                 regularizers_list.append(regulariser)
 
         self.regularizers = []
-        for W in [self.W_i, self.W_f, self.W_i, self.W_o]:
+        for W in [self.W_i, self.W_f, self.W_c, self.W_o]:
             append_regulariser(self.W_regularizer, W, self.regularizers)
-        for U in [self.U_i, self.U_f, self.U_i, self.U_o]:
+        for U in [self.U_i, self.U_f, self.U_c, self.U_o]:
             append_regulariser(self.U_regularizer, U, self.regularizers)
-        for b in [self.b_i, self.b_f, self.b_i, self.b_o]:
+        for b in [self.b_i, self.b_f, self.b_c, self.b_o]:
             append_regulariser(self.b_regularizer, b, self.regularizers)
 
         self.trainable_weights = [self.W_i, self.U_i, self.b_i,

@@ -1,7 +1,7 @@
 import theano
 from theano import tensor as T
 from theano.sandbox.rng_mrg import MRG_RandomStreams as RandomStreams
-from theano.tensor.signal import downsample
+from theano.tensor.signal import pool
 from theano.tensor.nnet import conv3d2d
 import numpy as np
 from .common import _FLOATX, _EPSILON
@@ -147,7 +147,10 @@ def prod(x, axis=None, keepdims=False):
 
 
 def mean(x, axis=None, keepdims=False):
-    return T.mean(x, axis=axis, keepdims=keepdims)
+    dtype = None
+    if 'int' in x.dtype:
+        dtype = _FLOATX
+    return T.mean(x, axis=axis, keepdims=keepdims, dtype=dtype)
 
 
 def std(x, axis=None, keepdims=False):
@@ -415,6 +418,8 @@ def spatial_3d_padding(x, padding=(1, 1, 1), dim_ordering='th'):
         raise Exception('Invalid dim_ordering: ' + dim_ordering)
     return T.set_subtensor(output[indices], x)
 
+def pack(x):
+    return T.stack(*x)
 
 # VALUE MANIPULATION
 
@@ -783,15 +788,15 @@ def pool2d(x, pool_size, strides=(1, 1), border_mode='valid',
         x = x.dimshuffle((0, 3, 1, 2))
 
     if pool_mode == 'max':
-        pool_out = downsample.max_pool_2d(x, ds=pool_size, st=strides,
-                                          ignore_border=True,
-                                          padding=padding,
-                                          mode='max')
+        pool_out = pool.pool_2d(x, ds=pool_size, st=strides,
+                                ignore_border=True,
+                                padding=padding,
+                                mode='max')
     elif pool_mode == 'avg':
-        pool_out = downsample.max_pool_2d(x, ds=pool_size, st=strides,
-                                          ignore_border=True,
-                                          padding=padding,
-                                          mode='average_exc_pad')
+        pool_out = pool.pool_2d(x, ds=pool_size, st=strides,
+                                ignore_border=True,
+                                padding=padding,
+                                mode='average_exc_pad')
     else:
         raise Exception('Invalid pooling mode: ' + str(pool_mode))
 
@@ -827,37 +832,37 @@ def pool3d(x, pool_size, strides=(1, 1, 1), border_mode='valid',
 
     if pool_mode == 'max':
         # pooling over conv_dim2, conv_dim1 (last two channels)
-        output = downsample.max_pool_2d(input=x.dimshuffle(0, 1, 4, 3, 2),
-                                        ds=(pool_size[1], pool_size[0]),
-                                        st=(strides[1], strides[0]),
-                                        ignore_border=ignore_border,
-                                        padding=padding,
-                                        mode='max')
+        output = pool.pool_2d(input=x.dimshuffle(0, 1, 4, 3, 2),
+                              ds=(pool_size[1], pool_size[0]),
+                              st=(strides[1], strides[0]),
+                              ignore_border=ignore_border,
+                              padding=padding,
+                              mode='max')
 
         # pooling over conv_dim3
-        pool_out = downsample.max_pool_2d(input=output.dimshuffle(0, 1, 4, 3, 2),
-                                          ds=(1, pool_size[2]),
-                                          st=(1, strides[2]),
-                                          ignore_border=ignore_border,
-                                          padding=padding,
-                                          mode='max')
+        pool_out = pool.pool_2d(input=output.dimshuffle(0, 1, 4, 3, 2),
+                                ds=(1, pool_size[2]),
+                                st=(1, strides[2]),
+                                ignore_border=ignore_border,
+                                padding=padding,
+                                mode='max')
 
     elif pool_mode == 'avg':
         # pooling over conv_dim2, conv_dim1 (last two channels)
-        output = downsample.max_pool_2d(input=x.dimshuffle(0, 1, 4, 3, 2),
-                                        ds=(pool_size[1], pool_size[0]),
-                                        st=(strides[1], strides[0]),
-                                        ignore_border=ignore_border,
-                                        padding=padding,
-                                        mode='average_exc_pad')
+        output = pool.pool_2d(input=x.dimshuffle(0, 1, 4, 3, 2),
+                              ds=(pool_size[1], pool_size[0]),
+                              st=(strides[1], strides[0]),
+                              ignore_border=ignore_border,
+                              padding=padding,
+                              mode='average_exc_pad')
 
         # pooling over conv_dim3
-        pool_out = downsample.max_pool_2d(input=output.dimshuffle(0, 1, 4, 3, 2),
-                                          ds=(1, pool_size[2]),
-                                          st=(1, strides[2]),
-                                          ignore_border=ignore_border,
-                                          padding=padding,
-                                          mode='average_exc_pad')
+        pool_out = pool.pool_2d(input=output.dimshuffle(0, 1, 4, 3, 2),
+                                ds=(1, pool_size[2]),
+                                st=(1, strides[2]),
+                                ignore_border=ignore_border,
+                                padding=padding,
+                                mode='average_exc_pad')
     else:
         raise Exception('Invalid pooling mode: ' + str(pool_mode))
 
