@@ -9,46 +9,44 @@ from ..models import Sequential
 
 
 class BaseWrapper(object):
-
     '''Base class for the Keras scikit-learn wrapper.
 
     Warning: This class should not be used directly.
-    Use derived classes instead.
+    Use descendant classes instead.
 
     # Arguments
-        build_fn: callable function or class instance,  optional
-            Implementing the logic of the model.
+        build_fn: callable function or class instance
         sk_params: model parameters & fitting parameters
 
     The build_fn should construct, compile and return a Keras model, which
-    will then be used to fit data or predict unknow data. One of the following
+    will then be used to fit/predict. One of the following
     three values could be passed to build_fn:
-    1. A function instance
-    2. An instance of a class that implements the __call__ function
-    3. None. This means you implement a class that inherits either
-    KerasClassifier or KerasRegressor. The __call__ function of the class will
-    then be treated as the default build_fn
+    1. A function
+    2. An instance of a class that implements the __call__ method
+    3. None. This means you implement a class that inherits from either
+    `KerasClassifier` or `KerasRegressor`. The __call__ method of the
+    present class will then be treated as the default build_fn.
 
-    'sk_params' takes both model parameters and fitting parameters. Legal model
-    parameters are the arguments of 'build_fn'. Note that like all other
-    estimators in scikit_learn, 'build_fn' should provide defalult velues for
+    `sk_params` takes both model parameters and fitting parameters. Legal model
+    parameters are the arguments of `build_fn`. Note that like all other
+    estimators in scikit-learn, 'build_fn' should provide defalult values for
     its arguments, so that you could create the estimator without passing any
-    values to 'sk_params'.
+    values to `sk_params`.
 
-    'sk_params' could also accept parameters for calling 'fit', 'predict',
-    'predict_proba', and 'score' function (e.g., nb_epoch, batch_size).
-    fitting (predicting) parameters are adopts in the following order:
+    `sk_params` could also accept parameters for calling `fit`, `predict`,
+    `predict_proba`, and `score` methods (e.g., `nb_epoch`, `batch_size`).
+    fitting (predicting) parameters are selected in the following order:
 
     1. Values passed to the dictionary arguments of
-    'fit', 'predict', 'predict_proba', and 'score' functions
-    2. Values passed to 'sk_params'
-    3. The default values of the keras.models.Sequential's
-    'fit', 'predict', 'predict_proba' and 'score' functions
+    `fit`, `predict`, `predict_proba`, and `score` methods
+    2. Values passed to `sk_params`
+    3. The default values of the `keras.models.Sequential`
+    `fit`, `predict`, `predict_proba` and `score` methods
 
-    When using scikit_learn's grid_search api, legal tunable parameters are
-    those you could pass to 'sk_params', including fitting parameters.
-    In other words, you could use grid_search to search for the best
-    batch_size or nb_epoch as well as the model parameters.
+    When using scikit-learn's `grid_search` API, legal tunable parameters are
+    those you could pass to `sk_params`, including fitting parameters.
+    In other words, you could use `grid_search` to search for the best
+    `batch_size` or `nb_epoch` as well as the model parameters.
     '''
 
     def __init__(self, build_fn=None, **sk_params):
@@ -61,7 +59,7 @@ class BaseWrapper(object):
         # Arguments
             deep: boolean, optional
                 If True, will return the parameters for this estimator and
-                contained subobjects that are estimators.
+                contained sub-objects that are estimators.
 
         # Returns
             params : dict
@@ -89,13 +87,13 @@ class BaseWrapper(object):
         to the given training data.
 
         # Arguments
-            X : array-like, shape = (n_samples, n_features)
+            X : array-like, shape `(n_samples, n_features)`
                 Training samples where n_samples in the number of samples
                 and n_features is the number of features.
-            y : array-like, shape = (n_samples) or (n_samples, n_outputs)
+            y : array-like, shape `(n_samples,)` or `(n_samples, n_outputs)`
                 True labels for X.
             kwargs: dictionary arguments
-                Legal arguments are the arguments of Sequential.fit
+                Legal arguments are the arguments of `Sequential.fit`
 
         # Returns
             history : object
@@ -110,8 +108,7 @@ class BaseWrapper(object):
         else:
             self.model = self.build_fn(**self.filter_sk_params(self.build_fn))
 
-        if self.model.loss.__name__ == 'categorical_crossentropy'\
-                and len(y.shape) != 2:
+        if self.model.loss.__name__ == 'categorical_crossentropy' and len(y.shape) != 2:
             y = to_categorical(y)
 
         fit_args = copy.deepcopy(self.filter_sk_params(Sequential.fit))
@@ -142,57 +139,57 @@ class BaseWrapper(object):
 
 
 class KerasClassifier(BaseWrapper):
-
-    '''Implementation of the scikit-learn classifier API for Keras.'''
+    '''Implementation of the scikit-learn classifier API for Keras.
+    '''
 
     def predict(self, X, **kwargs):
-        '''# Returns the class predictions for the given test data.
+        '''Returns the class predictions for the given test data.
 
         # Arguments
-            X : array-like, shape = (n_samples, n_features)
+            X: array-like, shape `(n_samples, n_features)`
                 Test samples where n_samples in the number of samples
                 and n_features is the number of features.
             kwargs: dictionary arguments
-                Legal arguments are the arguments of Sequential.predict_classes
+                Legal arguments are the arguments of `Sequential.predict_classes`.
 
         # Returns
-            preds : array-like, shape = (n_samples)
+            preds: array-like, shape `(n_samples,)`
                 Class predictions.
         '''
         kwargs = self.filter_sk_params(Sequential.predict_classes, kwargs)
         return self.model.predict_classes(X, **kwargs)
 
     def predict_proba(self, X, **kwargs):
-        '''# Returns class probability estimates for the given test data.
+        '''Returns class probability estimates for the given test data.
 
         # Arguments
-            X : array-like, shape = (n_samples, n_features)
+            X: array-like, shape `(n_samples, n_features)`
                 Test samples where n_samples in the number of samples
                 and n_features is the number of features.
             kwargs: dictionary arguments
-                Legal arguments are the arguments of Sequential.predict_classes
+                Legal arguments are the arguments of `Sequential.predict_classes`.
 
         # Returns
-            proba : array-like, shape = (n_samples, n_outputs)
+            proba: array-like, shape `(n_samples, n_outputs)`
                 Class probability estimates.
         '''
         kwargs = self.filter_sk_params(Sequential.predict_proba, kwargs)
         return self.model.predict_proba(X, **kwargs)
 
     def score(self, X, y, **kwargs):
-        '''# Returns the mean accuracy on the given test data and labels.
+        '''Returns the mean accuracy on the given test data and labels.
 
         # Arguments
-            X : array-like, shape = (n_samples, n_features)
+            X: array-like, shape `(n_samples, n_features)`
                 Test samples where n_samples in the number of samples
                 and n_features is the number of features.
-            y : array-like, shape = (n_samples) or (n_samples, n_outputs)
+            y: array-like, shape `(n_samples,)` or `(n_samples, n_outputs)`
                 True labels for X.
             kwargs: dictionary arguments
-                Legal arguments are the arguments of Sequential.evaluate
+                Legal arguments are the arguments of `Sequential.evaluate`.
 
         # Returns
-            score : float
+            score: float
                 Mean accuracy of predictions on X wrt. y.
         '''
         kwargs = self.filter_sk_params(Sequential.evaluate, kwargs)
@@ -202,20 +199,20 @@ class KerasClassifier(BaseWrapper):
 
 
 class KerasRegressor(BaseWrapper):
-
-    '''Implementation of the scikit-learn regressor API for Keras.'''
+    '''Implementation of the scikit-learn regressor API for Keras.
+    '''
 
     def predict(self, X, **kwargs):
-        ''' Returns predictions for the given test data.
+        '''Returns predictions for the given test data.
 
         # Arguments
-            X : array-like, shape = (n_samples, n_features)
+            X: array-like, shape `(n_samples, n_features)`
                 Test samples where n_samples in the number of samples
                 and n_features is the number of features.
             kwargs: dictionary arguments
-                Legal arguments are the arguments of Sequential.predict
+                Legal arguments are the arguments of `Sequential.predict`.
         # Returns
-            preds : array-like, shape = (n_samples)
+            preds: array-like, shape `(n_samples,)`
                 Predictions.
         '''
         kwargs = self.filter_sk_params(Sequential.predict, kwargs)
@@ -225,16 +222,16 @@ class KerasRegressor(BaseWrapper):
         '''Returns the mean accuracy on the given test data and labels.
 
         # Arguments
-            X : array-like, shape = (n_samples, n_features)
+            X: array-like, shape `(n_samples, n_features)`
                 Test samples where n_samples in the number of samples
                 and n_features is the number of features.
-            y : array-like, shape = (n_samples)
+            y: array-like, shape `(n_samples,)`
                 True labels for X.
             kwargs: dictionary arguments
-                Legal arguments are the arguments of Sequential.evaluate
+                Legal arguments are the arguments of `Sequential.evaluate`.
 
         # Returns
-            score : float
+            score: float
                 Mean accuracy of predictions on X wrt. y.
         '''
         kwargs = self.filter_sk_params(Sequential.evaluate, kwargs)
