@@ -106,8 +106,8 @@ class Convolution1D(Layer):
     def build(self):
         input_dim = self.input_shape[2]
         self.W_shape = (self.nb_filter, input_dim, self.filter_length, 1)
-        self.W = self.init(self.W_shape)
-        self.b = K.zeros((self.nb_filter,))
+        self.W = self.init(self.W_shape, name='{}_W'.format(self.name))
+        self.b = K.zeros((self.nb_filter,), name='{}_b'.format(self.name))
         self.trainable_weights = [self.W, self.b]
         self.regularizers = []
 
@@ -261,8 +261,8 @@ class Convolution2D(Layer):
             self.W_shape = (self.nb_row, self.nb_col, stack_size, self.nb_filter)
         else:
             raise Exception('Invalid dim_ordering: ' + self.dim_ordering)
-        self.W = self.init(self.W_shape)
-        self.b = K.zeros((self.nb_filter,))
+        self.W = self.init(self.W_shape, name='{}_W'.format(self.name))
+        self.b = K.zeros((self.nb_filter,), name='{}_b'.format(self.name))
         self.trainable_weights = [self.W, self.b]
         self.regularizers = []
 
@@ -444,8 +444,8 @@ class Convolution3D(Layer):
         else:
             raise Exception('Invalid dim_ordering: ' + self.dim_ordering)
 
-        self.W = self.init(self.W_shape)
-        self.b = K.zeros((self.nb_filter,))
+        self.W = self.init(self.W_shape, name='{}_W'.format(self.name))
+        self.b = K.zeros((self.nb_filter,), name='{}_b'.format(self.name))
         self.trainable_weights = [self.W, self.b]
         self.regularizers = []
 

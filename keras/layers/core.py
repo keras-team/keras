@@ -45,19 +45,26 @@ class Layer(object):
                           'name'}
         for kwarg in kwargs:
             assert kwarg in allowed_kwargs, 'Keyword argument not understood: ' + kwarg
+
+        if 'name' in kwargs:
+            self.name = kwargs['name']
+        else:
+            self.name = self.__class__.__name__.lower()
+
+        if 'cache_enabled' in kwargs:
+            self.cache_enabled = kwargs['cache_enabled']
+        else:
+            self.cache_enabled = True
+
         if 'batch_input_shape' in kwargs:
             self.set_input_shape(tuple(kwargs['batch_input_shape']))
         elif 'input_shape' in kwargs:
             self.set_input_shape((None,) + tuple(kwargs['input_shape']))
-        self.trainable = True
+
         if 'trainable' in kwargs:
             self.trainable = kwargs['trainable']
-        self.name = self.__class__.__name__.lower()
-        if 'name' in kwargs:
-            self.name = kwargs['name']
-        self.cache_enabled = True
-        if 'cache_enabled' in kwargs:
-            self.cache_enabled = kwargs['cache_enabled']
+        else:
+            self.trainable = True
 
     @property
     def name(self):
@@ -1003,8 +1010,10 @@ class Dense(Layer):
     def build(self):
         input_dim = self.input_shape[1]
 
-        self.W = self.init((input_dim, self.output_dim))
-        self.b = K.zeros((self.output_dim,))
+        self.W = self.init((input_dim, self.output_dim),
+                           name='{}_W'.format(self.name))
+        self.b = K.zeros((self.output_dim,),
+                         name='{}_b'.format(self.name))
 
         self.trainable_weights = [self.W, self.b]
 
@@ -1117,8 +1126,10 @@ class TimeDistributedDense(MaskedLayer):
     def build(self):
         input_dim = self.input_shape[2]
 
-        self.W = self.init((input_dim, self.output_dim))
-        self.b = K.zeros((self.output_dim,))
+        self.W = self.init((input_dim, self.output_dim),
+                           name='{}_W'.format(self.name))
+        self.b = K.zeros((self.output_dim,),
+                         name='{}_b'.format(self.name))
 
         self.trainable_weights = [self.W, self.b]
         self.regularizers = []
@@ -1422,8 +1433,10 @@ class MaxoutDense(Layer):
     def build(self):
         input_dim = self.input_shape[1]
 
-        self.W = self.init((self.nb_feature, input_dim, self.output_dim))
-        self.b = K.zeros((self.nb_feature, self.output_dim))
+        self.W = self.init((self.nb_feature, input_dim, self.output_dim),
+                           name='{}_W'.format(self.name))
+        self.b = K.zeros((self.nb_feature, self.output_dim),
+                         name='{}_b'.format(self.name))
 
         self.trainable_weights = [self.W, self.b]
         self.regularizers = []
@@ -1995,12 +2008,15 @@ class Highway(Layer):
     def build(self):
         input_dim = self.input_shape[1]
 
-        self.W = self.init((input_dim, input_dim))
-        self.W_carry = self.init((input_dim, input_dim))
+        self.W = self.init((input_dim, input_dim),
+                           name='{}_W'.format(self.name))
+        self.W_carry = self.init((input_dim, input_dim),
+                                 name='{}_W_carry'.format(self.name))
 
-        self.b = K.zeros((input_dim,))
+        self.b = K.zeros((input_dim,), name='{}_b'.format(self.name))
         # initialize with a vector of values `transform_bias`
-        self.b_carry = K.variable(np.ones((input_dim,)) * self.transform_bias)
+        self.b_carry = K.variable(np.ones((input_dim,)) * self.transform_bias,
+                                  name='{}_b_carry'.format(self.name))
 
         self.trainable_weights = [self.W, self.b, self.W_carry, self.b_carry]
 
