@@ -84,6 +84,14 @@ def one(shape, name=None):
     return K.ones(shape, name=name)
 
 
+def fn_wrapper(fn):
+    def wrapper(*args, **kwargs):
+        name = kwargs.pop('name') if 'name' in kwargs else None
+        return K.variable(fn(*args, **kwargs), name=name)
+    return wrapper
 from .utils.generic_utils import get_from_module
 def get(identifier):
-    return get_from_module(identifier, globals(), 'initialization')
+    if isinstance(identifier, str):
+        return get_from_module(identifier, globals(), 'initialization')
+    else:
+        return fn_wrapper(identifier)
