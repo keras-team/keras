@@ -979,7 +979,7 @@ class Sequential(Model, containers.Sequential):
                       verbose=1, show_accuracy=False, callbacks=[],
                       validation_data=None, nb_val_samples=None,
                       class_weight=None,
-                      nb_worker=1, nb_val_worker=None):
+                      nb_worker=1, nb_val_worker=None, batch_size=128):
         '''Fit a model on data generated batch-by-batch by a Python generator.
         The generator is run in parallel to the model, for efficiency,
         and can be run by multiple workers at the same time.
@@ -1147,7 +1147,7 @@ class Sequential(Model, containers.Sequential):
                         val_outs = self.evaluate(X_val, y_val,
                                                  show_accuracy=show_accuracy,
                                                  sample_weight=sample_weight_val,
-                                                 verbose=0)
+                                                 verbose=0, batch_size=batch_size)
                     if type(val_outs) != list:
                         val_outs = [val_outs]
                     # same labels assumed
