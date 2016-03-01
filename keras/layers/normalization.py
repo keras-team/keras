@@ -39,17 +39,17 @@ class BatchNormalization(Layer):
             `[(input_shape,), (input_shape,)]`
         beta_init: name of initialization function for shift parameter
             (see [initializations](../initializations.md)), or alternatively,
-            Theano function to use for weights initialization. This parameter
-            is only relevant if you don't pass a `weights` argument.
+            Theano/TensorFlow function to use for weights initialization.
+            This parameter is only relevant if you don't pass a `weights` argument.
         gamma_init: name of initialization function for scale parameter (see
-            [initializations](../initializations.md)), or alternatively, Theano
-            function to use for weights initialization. This parameter is only
-            relevant if you don't pass a `weights` argument.
+            [initializations](../initializations.md)), or alternatively,
+            Theano/TensorFlow function to use for weights initialization.
+            This parameter is only relevant if you don't pass a `weights` argument.
     # References
         - [Batch Normalization: Accelerating Deep Network Training by Reducing Internal Covariate Shift](http://arxiv.org/pdf/1502.03167v3.pdf)
     '''
     def __init__(self, epsilon=1e-6, mode=0, axis=-1, momentum=0.9,
-                 weights=None, beta_init="zero", gamma_init="one", **kwargs):
+                 weights=None, beta_init='zero', gamma_init='one', **kwargs):
         self.beta_init = initializations.get(beta_init)
         self.gamma_init = initializations.get(gamma_init)
         self.epsilon = epsilon
