@@ -20,13 +20,17 @@ def time_distributed_dense(x, w, b=None, dropout=None,
     if not output_dim:
         # won't work with TensorFlow
         output_dim = K.shape(w)[1]
+
     if dropout:
+        # apply the same dropout pattern at every timestep
         ones = K.ones_like(K.reshape(x[:, 0, :], (-1, input_dim)))
         dropout_matrix = K.dropout(ones, dropout)
+        expanded_dropout_matrix = K.repeat(dropout_matrix, timesteps)
+        x *= expanded_dropout_matrix
+
     # collapse time dimension and batch dimension together
     x = K.reshape(x, (-1, input_dim))
-    if dropout:
-        x *= K.concatenate([dropout_matrix] * timesteps, 0)
+
     x = K.dot(x, w)
     if b:
         x = x + b
