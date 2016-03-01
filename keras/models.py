@@ -1091,7 +1091,7 @@ class Sequential(Model, containers.Sequential):
 
         # start generator thread storing batches into a queue
         data_gen_queue, _data_stop = generator_queue(generator, max_q_size=max_data_q_size,
-                                                     wait_time=wait_time)
+                                                     wait_time=wait_time, nb_worker=nb_worker)
         if do_validation and not val_gen:
             X_val, y_val, sample_weight_val = self._check_generator_output(validation_data,
                                                                            _data_stop)
@@ -1142,7 +1142,8 @@ class Sequential(Model, containers.Sequential):
                         val_outs = self.evaluate_generator(validation_data,
                                                            nb_val_samples,
                                                            show_accuracy=show_accuracy,
-                                                           verbose=0)
+                                                           verbose=0, nb_worker=nb_val_worker,
+                                                           wait_time=wait_time)
                     else:
                         val_outs = self.evaluate(X_val, y_val,
                                                  show_accuracy=show_accuracy,
@@ -1600,7 +1601,7 @@ class Graph(Model, containers.Graph):
 
         # start generator thread storing batches into a queue
         data_gen_queue, _data_stop = generator_queue(generator, max_q_size=max_data_q_size,
-                                                     wait_time=wait_time)
+                                                     wait_time=wait_time, nb_worker=nb_worker)
         if do_validation and not val_gen:
             # TODO: _data_stop not really sensical here
             data_val, sample_weight_val = self._check_generator_output(validation_data, _data_stop)
@@ -1649,7 +1650,9 @@ class Graph(Model, containers.Graph):
                     if val_gen:
                         val_outs = self.evaluate_generator(validation_data,
                                                            nb_val_samples,
-                                                           verbose=0)
+                                                           verbose=0,
+                                                           nb_worker=nb_val_worker,
+                                                           wait_time=wait_time)
                     else:
                         val_outs = self.evaluate(data_val,
                                                  sample_weight=sample_weight_val,
