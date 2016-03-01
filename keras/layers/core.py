@@ -1871,12 +1871,12 @@ class Siamese(Layer):
         return weights
 
     def set_weights(self, weights):
-        nb_param = len(self.layer.trainable_weights)
+        nb_param = len(self.layer.get_weights())
         self.layer.set_weights(weights[:nb_param])
         weights = weights[nb_param:]
         if self.merge_mode and not self.is_graph:
             for i in range(len(self.inputs)):
-                nb_param = len(self.inputs[i].trainable_weights)
+                nb_param = len(self.inputs[i].get_weights())
                 self.inputs[i].set_weights(weights[:nb_param])
                 weights = weights[nb_param:]
 
