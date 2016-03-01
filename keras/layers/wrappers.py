@@ -11,7 +11,7 @@ class Wrapper(MaskedLayer):
     def __init__(self, layer, initial_weights=None, **kwargs):
         self.layer = layer
         super(Wrapper, self).__init__(**kwargs)
-        if hasattr(layer, '_input_shape'): #Layer is already built.
+        if hasattr(layer, '_input_shape'):
             self.set_input_shape(self.get_input_shape())
             self.set_params()
         if initial_weights:
@@ -96,3 +96,41 @@ class Wrapper(MaskedLayer):
                   'layer': self.layer.get_config()}
         base_config = super(Wrapper, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
+
+
+class TimeDistributed(Wrapper):
+
+    def get_output_shape(self):
+        input_shape = self.input_shape
+        return (input_shape[0], input_shape[1]) + (self.layer.output_shape[1:])
+
+    def get_input_shape(self):
+        layer_input_shape = self.layer.input_shape
+        self.input_ndim = 1 + len(layer_input_shape)
+        timesteps = None if not hasattr(self, '_input_shape') else self._input_shape[1]
+        return (layer_input_shape[0], timesteps) + (layer_input_shape[1:])
+
+    def get_child_input_shape(self):
+        input_shape = list(self.input_shape)
+        input_shape.pop(1)
+        return input_shape
+
+def get_output(self, train=False):
+    X = self.get_input(train)  # (nb_samples, timesteps, ..., input_dim)
+    if self.layer.input_sahpe[0]:
+        # batch size matters, use rnn-based implementation
+        def step(x, states):
+            return self.layer(x), []
+        Y = K.rnn(step, X, [])[1]
+        return Y
+    else:
+        # No batch size specified, therefore the layer will be able to process batches of any size.
+        # We can go with reshape-based implementation for performance
+        input_shape = self.input_shape
+        x = K.reshape(X, (-1, ) + input_shape[2:])  # (nb_samples * timesteps, ..., input_dim)
+        Y = self.layer(x, train=False)  # (nb_samples * timesteps, ...., output_dim)
+        input_length = input_shape[1]
+        if not input_length:
+                input_length = K.shape(X)[1]
+        Y = K.reshape(Y, (-1, input_length) + self.layer.output_shape[1:])  # (nb_samples, timesteps, ..., output_dim)
+        return Y
