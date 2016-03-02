@@ -32,24 +32,24 @@ def test_TimeDistributed():
     reference_output = reference.predict(test_input)
     assert_allclose(test_output, reference_output, atol=1e-05)
 
+    # nested TimeDistributed wrappers
+    model = Sequential()
+    model.add(wrappers.TimeDistributed(wrappers.TimeDistributed(core.Dense(input_dim=3, output_dim=5))))
+    model.add(wrappers.TimeDistributed(wrappers.TimeDistributed(core.Dense(2))))
+
+    model.compile(optimizer='rmsprop', loss='mse')
+    model.train_on_batch(np.random.random((7, 5, 4, 3)), np.random.random((7, 5, 4, 2)))
+
+    model = model_from_json(model.to_json())
+    model.summary()
+
     # test with Convolution2D
     model = Sequential()
     model.add(wrappers.TimeDistributed(convolutional.Convolution2D(5, 2, 2, border_mode='same'), input_shape=(2, 3, 4, 4)))
     model.add(core.Activation('relu'))
 
     model.compile(optimizer='rmsprop', loss='mse')
-    model.train_on_batch(np.random.random((1, 2, 3, 4, 4)), np.random.random((1, 2, 5, 4, 4)))
-
-    model = model_from_json(model.to_json())
-    model.summary()
-
-    # nested TimeDistributed wrappers
-    model = Sequential()
-    model.add(TimeDistributed(TimeDistributed(Dense(input_dim=3, output_dim=5))))
-    model.add(TimeDistributed(TimeDistributed(Dense(2))))
-
-    model.compile(optimizer='rmsprop', loss='mse')
-    model.train_on_batch(np.random.random((7, 5, 4, 3)), np.random.random((7, 5, 4, 2)))
+    model.train_on_batch(np.random.random((10, 5, 1, 2, 3, 4, 4)), np.random.random((10, 5, 1, 2, 5, 4, 4)))
 
     model = model_from_json(model.to_json())
     model.summary()
