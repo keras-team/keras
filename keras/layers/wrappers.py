@@ -117,7 +117,7 @@ class TimeDistributed(Wrapper):
 
 def get_output(self, train=False):
     X = self.get_input(train)  # (nb_samples, timesteps, ..., input_dim)
-    if self.layer.input_sahpe[0]:
+    if self.layer.input_shape[0]:
         # batch size matters, use rnn-based implementation
         def step(x, states):
             return self.layer(x), []
