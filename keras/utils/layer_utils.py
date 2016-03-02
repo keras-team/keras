@@ -5,6 +5,7 @@ import copy
 
 from ..layers.advanced_activations import *
 from ..layers.core import *
+from ..layers.wrappers import *
 from ..layers.convolutional import *
 from ..layers.embeddings import *
 from ..layers.noise import *
