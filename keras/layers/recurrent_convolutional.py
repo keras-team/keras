@@ -78,7 +78,8 @@ class RecurrentConv2D(MaskedLayer):
     def __init__(self, weights=None,
                  return_sequences=False, go_backwards=False, stateful=False,
                  nb_row=None, nb_col=None, nb_filter=None,
-                 dim_ordering=None, **kwargs):
+                 dim_ordering=None,
+                 input_dim=None, input_length=None, **kwargs):
         self.return_sequences = return_sequences
         self.initial_weights = weights
         self.go_backwards = go_backwards
@@ -88,6 +89,11 @@ class RecurrentConv2D(MaskedLayer):
         self.nb_col = nb_col
         self.nb_filter = nb_filter
         self.dim_ordering = dim_ordering
+
+        self.input_dim = input_dim
+        self.input_length = input_length
+        if self.input_dim:
+            kwargs['input_shape'] = (self.input_length, self.input_dim)
 
         super(RecurrentConv2D, self).__init__(**kwargs)
 
@@ -147,13 +153,15 @@ class RecurrentConv2D(MaskedLayer):
         initial_state = self.conv_step(initial_state, K.zeros(self.W_shape),
                                        border_mode=self.border_mode)
 
-        initial_states = [initial_state for _ in range(len(self.states))]
+        initial_states = [initial_state for _ in range(2)]
         return initial_states
 
     def get_output(self, train=False):
 
         X = self.get_input(train)
         mask = self.get_input_mask(train)
+        constants = self.get_constants(X, train)
+
         assert K.ndim(X) == 5
         if K._BACKEND == 'tensorflow':
             if not self.input_shape[1]:
@@ -171,7 +179,8 @@ class RecurrentConv2D(MaskedLayer):
         last_output, outputs, states = K.rnn(self.step, X,
                                              initial_states,
                                              go_backwards=self.go_backwards,
-                                             mask=mask)
+                                             mask=mask,
+                                             constants=constants)
         if self.stateful:
             self.updates = []
             for i in range(len(states)):
@@ -185,10 +194,14 @@ class RecurrentConv2D(MaskedLayer):
     def get_config(self):
         config = {"name": self.__class__.__name__,
                   "return_sequences": self.return_sequences,
-                  "input_dim": self.input_dim,
-                  "input_length": self.input_length,
                   "go_backwards": self.go_backwards,
                   "stateful": self.stateful}
+        if self.stateful:
+            config['batch_input_shape'] = self.input_shape
+        else:
+            config['input_dim'] = self.input_dim
+            config['input_length'] = self.input_length
+
         base_config = super(RecurrentConv2D, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
@@ -310,7 +323,7 @@ class LSTMConv2D(RecurrentConv2D):
             self.reset_states()
         else:
             # initial states: 2 all-zero tensor of shape (nb_filter)
-            self.states = [None, None]
+            self.states = [None, None, None, None]
 
         self.W_i = self.init(self.W_shape)
         self.U_i = self.inner_init(self.W_shape1)
@@ -417,25 +430,31 @@ class LSTMConv2D(RecurrentConv2D):
         return conv_out
 
     def step(self, x, states):
-        assert len(states) == 2
+        assert len(states) == 4
         h_tm1 = states[0]
         c_tm1 = states[1]
+        B_W = states[2]
+        B_U = states[3]
 
-        x_i = self.conv_step(x, self.W_i, self.b_i,
+        x_i = self.conv_step(x * B_W[0], self.W_i, self.b_i,
                              border_mode=self.border_mode)
-        x_f = self.conv_step(x, self.W_f, self.b_f,
+        x_f = self.conv_step(x * B_W[1], self.W_f, self.b_f,
                              border_mode=self.border_mode)
-        x_c = self.conv_step(x, self.W_c, self.b_c,
+        x_c = self.conv_step(x * B_W[2], self.W_c, self.b_c,
                              border_mode=self.border_mode)
-        x_o = self.conv_step(x, self.W_o, self.b_o,
+        x_o = self.conv_step(x * B_W[3], self.W_o, self.b_o,
                              border_mode=self.border_mode)
 
         # U : from nb_filter to nb_filter
-        # Same because must be stable
-        h_i = self.conv_step_hidden(h_tm1, self.U_i, border_mode="same")
-        h_f = self.conv_step_hidden(h_tm1, self.U_f, border_mode="same")
-        h_c = self.conv_step_hidden(h_tm1, self.U_c, border_mode="same")
-        h_o = self.conv_step_hidden(h_tm1, self.U_o, border_mode="same")
+        # Same because must be stable in the ouptut space
+        h_i = self.conv_step_hidden(h_tm1, self.U_i * B_U[0],
+                                    border_mode="same")
+        h_f = self.conv_step_hidden(h_tm1, self.U_f * B_U[1],
+                                    border_mode="same")
+        h_c = self.conv_step_hidden(h_tm1, self.U_c * B_U[2],
+                                    border_mode="same")
+        h_o = self.conv_step_hidden(h_tm1, self.U_o * B_U[3],
+                                    border_mode="same")
 
         i = self.inner_activation(x_i + h_i)
         f = self.inner_activation(x_f + h_f)
