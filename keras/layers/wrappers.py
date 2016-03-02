@@ -102,7 +102,7 @@ class TimeDistributed(Wrapper):
 
     def get_output_shape(self):
         input_shape = self.input_shape
-        return input_shape[0], input_shape[1] + self.layer.output_shape[1:]
+        return (input_shape[0], input_shape[1]) + self.layer.output_shape[1:]
 
     def get_input_shape(self):
         layer_input_shape = self.layer.input_shape
