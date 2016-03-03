@@ -506,7 +506,7 @@ class Sequential(Model, containers.Sequential):
 
         # target of model
         if self.y_ndim:
-            self.y = K.placeholder(ndim=K.ndim(y_ndim))
+            self.y = K.placeholder(ndim=y_ndim)
         else:
             self.y = K.placeholder(ndim=K.ndim(self.y_train))
 
