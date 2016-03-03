@@ -203,8 +203,10 @@ def model_from_config(config, custom_objects={}):
 
         if model_name == 'Sequential':
             sample_weight_mode = config.get('sample_weight_mode')
+            y_ndim = config.get('y_ndim')
             model.compile(loss=loss, optimizer=optimizer,
-                          class_mode=class_mode, sample_weight_mode=sample_weight_mode)
+                          class_mode=class_mode, sample_weight_mode=sample_weight_mode,
+                          y_ndim=y_ndim)
         elif model_name == 'Graph':
             sample_weight_modes = config.get('sample_weight_modes', {})
             model.compile(loss=loss, optimizer=optimizer, sample_weight_modes=sample_weight_modes)
@@ -406,7 +408,7 @@ class Model(object):
         `keras.models.model_from_config(config, custom_objects={})`.
         '''
         config = super(Model, self).get_config()
-        for p in ['class_mode', 'sample_weight_mode', 'sample_weight_modes']:
+        for p in ['class_mode', 'sample_weight_mode', 'sample_weight_modes', 'y_ndim']:
             if hasattr(self, p):
                 config[p] = getattr(self, p)
         if hasattr(self, 'optimizer'):
@@ -471,7 +473,8 @@ class Sequential(Model, containers.Sequential):
     '''
     def compile(self, optimizer, loss,
                 class_mode="categorical",
-                sample_weight_mode=None):
+                sample_weight_mode=None,
+                y_ndim=None):
         '''Configure the learning process.
 
         # Arguments
@@ -485,9 +488,11 @@ class Sequential(Model, containers.Sequential):
             sample_weight_mode: if you need to do timestep-wise
                 sample weighting (2D weights), set this to "temporal".
                 "None" defaults to sample-wise weights (1D).
+            y_ndim: if using a custom objective function where y.ndim != x.ndim.
         '''
         self.optimizer = optimizers.get(optimizer)
         self.sample_weight_mode = sample_weight_mode
+        self.y_ndim = y_ndim
 
         self.loss = objectives.get(loss)
         weighted_loss = weighted_objective(self.loss)
@@ -500,7 +505,10 @@ class Sequential(Model, containers.Sequential):
         self.y_test = self.get_output(train=False)
 
         # target of model
-        self.y = K.placeholder(ndim=K.ndim(self.y_train))
+        if self.y_ndim:
+            self.y = K.placeholder(ndim=K.ndim(y_ndim))
+        else:
+            self.y = K.placeholder(ndim=K.ndim(self.y_train))
 
         if self.sample_weight_mode == 'temporal':
             self.weights = K.placeholder(ndim=2)

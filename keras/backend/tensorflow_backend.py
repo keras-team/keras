@@ -358,8 +358,19 @@ def spatial_2d_padding(x, padding=(1, 1), dim_ordering='th'):
                    [0, 0]]
     return tf.pad(x, pattern)
 
+
 def pack(x):
     return tf.pack(x)
+
+
+def to_one_hot(x, nb_class):
+    nb_class = int(nb_class)
+    flat = tf.to_int32(tf.reshape(x, [-1, 1]))
+    out_shape = tf.pack([tf.shape(flat)[0], nb_class])
+    indices = tf.concat(1, [tf.expand_dims(tf.range(0, tf.shape(flat)[0], 1), -1), flat])
+    out = tf.sparse_to_dense(indices, out_shape, 1, 0)
+    return tf.reshape(out, tf.concat(0, [tf.shape(x), [nb_class]]))
+
 
 # VALUE MANIPULATION
 
@@ -561,6 +572,11 @@ def categorical_crossentropy(output, target, from_logits=False):
                                reduction_indices=len(output.get_shape())-1)
     else:
         return tf.nn.softmax_cross_entropy_with_logits(output, target)
+
+
+def categorical_crossentropy_1hot(output, target, from_logits=False):
+    target = tf.cast((to_one_hot(target, output.get_shape()[-1])), dtype=_FLOATX)
+    return categorical_crossentropy(output, target, from_logits)
 
 
 def binary_crossentropy(output, target, from_logits=False):

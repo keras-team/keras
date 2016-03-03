@@ -418,8 +418,17 @@ def spatial_3d_padding(x, padding=(1, 1, 1), dim_ordering='th'):
         raise Exception('Invalid dim_ordering: ' + dim_ordering)
     return T.set_subtensor(output[indices], x)
 
+
 def pack(x):
     return T.stack(*x)
+
+
+def to_one_hot(x, nb_class):
+    output_shape = T.concatenate([x.shape, [nb_class]])
+    out = T.cast(T.flatten(x), 'int32')
+    out = T.extra_ops.to_one_hot(out, nb_class=nb_class)
+    out = T.reshape(out, (output_shape), ndim=x.ndim + 1)
+    return out
 
 # VALUE MANIPULATION
 
@@ -592,6 +601,11 @@ def categorical_crossentropy(output, target, from_logits=False):
     # avoid numerical instability with _EPSILON clipping
     output = T.clip(output, _EPSILON, 1.0 - _EPSILON)
     return T.nnet.categorical_crossentropy(output, target)
+
+
+def categorical_crossentropy_1hot(output, target, from_logits=False):
+    target = to_one_hot(target, output.shape[-1])
+    return categorical_crossentropy(output, target, from_logits)
 
 
 def binary_crossentropy(output, target, from_logits=False):
