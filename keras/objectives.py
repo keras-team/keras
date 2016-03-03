@@ -36,10 +36,10 @@ def categorical_crossentropy(y_true, y_pred):
     return K.categorical_crossentropy(y_pred, y_true)
 
 
-def categorical_crossentropy_1hot(y_true, y_pred):
+def categorical_crossentropy_one_hot(y_true, y_pred):
     '''expects a 1-D or 2-D array of scalar classes.
     '''
-    return K.categorical_crossentropy_1hot(y_pred, y_true)
+    return K.categorical_crossentropy_one_hot(y_pred, y_true)
 
 
 def binary_crossentropy(y_true, y_pred):

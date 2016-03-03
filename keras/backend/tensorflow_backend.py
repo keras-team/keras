@@ -574,7 +574,7 @@ def categorical_crossentropy(output, target, from_logits=False):
         return tf.nn.softmax_cross_entropy_with_logits(output, target)
 
 
-def categorical_crossentropy_1hot(output, target, from_logits=False):
+def categorical_crossentropy_one_hot(output, target, from_logits=False):
     target = tf.cast((to_one_hot(target, output.get_shape()[-1])), dtype=_FLOATX)
     return categorical_crossentropy(output, target, from_logits)
 

@@ -603,7 +603,7 @@ def categorical_crossentropy(output, target, from_logits=False):
     return T.nnet.categorical_crossentropy(output, target)
 
 
-def categorical_crossentropy_1hot(output, target, from_logits=False):
+def categorical_crossentropy_one_hot(output, target, from_logits=False):
     target = to_one_hot(target, output.shape[-1])
     return categorical_crossentropy(output, target, from_logits)
 
