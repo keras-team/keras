@@ -89,17 +89,11 @@ assert img_height == img_width, 'Due to the use of the Gram matrix, width and he
 def preprocess_image(image_path):
     img = imresize(imread(image_path), (img_width, img_height))
     img = img.transpose((2, 0, 1)).astype('float64')
-    img[0, :, :] -= 103.939
-    img[1, :, :] -= 116.779
-    img[2, :, :] -= 123.68
     img = np.expand_dims(img, axis=0)
     return img
 
 # util function to convert a tensor into a valid image
 def deprocess_image(x):
-    x[0, :, :] += 103.939
-    x[1, :, :] += 116.779
-    x[2, :, :] += 123.68
     x = x.transpose((1, 2, 0))
     x = np.clip(x, 0, 255).astype('uint8')
     return x
