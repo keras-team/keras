@@ -7,32 +7,33 @@ from keras.regularizers import GaussianKL
 
 class VariationalDense(Layer):
     """VariationalDense
-        Hidden layer for Variational Autoencoding Bayes method [1].
-        This layer projects the input twice to calculate the mean and variance
-        of a Gaussian distribution. During training, the output is sampled from
-        that distribution as mean + random_noise * variance, during testing the
-        output is the mean, i.e the expected value of the encoded distribution.
+    Hidden layer for Variational Autoencoding Bayes method - Kigma and
+    Welling 2013.
+    This layer projects the input twice to calculate the mean and variance
+    of a Gaussian distribution. During training, the output is sampled from
+    that distribution as mean + random_noise * variance, during testing the
+    output is the mean, i.e the expected value of the encoded distribution.
 
-        Parameters:
-        -----------
-        output_dim: int, output dimension
-        batch_size: Tensorflow backend need the batch_size to be defined
-            for sampling random numbers. Make sure your batch size is kept
-            fixed during training. We infer the batch size for Theano backend.
-            You can use any batch size for testing.
-        regularizer_scale: By default the regularization is already properly
-            scaled if you use binary or categorical crossentropy cost functions.
-            In most cases this regularizers should be kept fixed at one.
+    Parameters:
+    -----------
+    output_dim: int, output dimension
+    batch_size: Tensorflow backend need the batch_size to be defined
+        for sampling random numbers. Make sure your batch size is kept
+        fixed during training. We infer the batch size for Theano backend.
+        You can use any batch size for testing.
+    regularizer_scale: By default the regularization is already properly
+        scaled if you use binary or categorical crossentropy cost functions.
+        In most cases this regularizers should be kept fixed at one.
 
-        Notes:
-        ------
-        During training we output ONE sample from the reparameterized
-        distribution given by "mean + std * noise".
-        For testing, the output of this layer is deterministic given by "mean".
+    Notes:
+    ------
+    During training we output ONE sample from the reparameterized
+    distribution given by "mean + std * noise".
+    For testing, the output of this layer is deterministic given by "mean".
 
-        References:
-        -----------
-        [1] Auto-Encoding Variational Bayes, by: Diederik P Kingma, Max Welling
+    References:
+    -----------
+    - [Auto-Encoding Variational Bayes](http://arxiv.org/pdf/1312.6114v10.pdf)
 
     """
     def __init__(self, output_dim, batch_size, init='glorot_uniform',
