@@ -186,7 +186,7 @@ class ImageDataGenerator(object):
         return self
 
     def __iter__(self):
-        # needed if we want to do something like for x,y in data_gen.flow(...):
+        # needed if we want to do something like for x, y in data_gen.flow(...):
         return self
 
     def next(self):
@@ -217,7 +217,7 @@ class ImageDataGenerator(object):
         if self.featurewise_center:
             x -= self.mean
         if self.featurewise_std_normalization:
-            x /= self.std
+            x /= (self.std + 1e-7)
 
         if self.zca_whitening:
             flatx = np.reshape(x, (x.shape[0]*x.shape[1]*x.shape[2]))
@@ -225,9 +225,9 @@ class ImageDataGenerator(object):
             x = np.reshape(whitex, (x.shape[0], x.shape[1], x.shape[2]))
 
         if self.samplewise_center:
-            x -= np.mean(x)
+            x -= np.mean(x, axis=1, keepdims=True)
         if self.samplewise_std_normalization:
-            x /= np.std(x)
+            x /= (np.std(x, axis=1, keepdims=True) + 1e-7)
 
         return x
 
@@ -243,11 +243,10 @@ class ImageDataGenerator(object):
             if random.random() < 0.5:
                 x = vertical_flip(x)
         if self.shear_range:
-            x = random_shear(x,self.shear_range)
+            x = random_shear(x, self.shear_range)
         # TODO:
         # zoom
         # barrel/fisheye
-        # shearing
         # channel shifting
         return x
 
@@ -272,14 +271,13 @@ class ImageDataGenerator(object):
             X -= self.mean
         if self.featurewise_std_normalization:
             self.std = np.std(X, axis=0)
-            X /= self.std
+            X /= (self.std + 1e-7)
 
         if self.zca_whitening:
             flatX = np.reshape(X, (X.shape[0], X.shape[1]*X.shape[2]*X.shape[3]))
-            fudge = 10e-6
             sigma = np.dot(flatX.T, flatX) / flatX.shape[1]
             U, S, V = linalg.svd(sigma)
-            self.principal_components = np.dot(np.dot(U, np.diag(1. / np.sqrt(S + fudge))), U.T)
+            self.principal_components = np.dot(np.dot(U, np.diag(1. / np.sqrt(S + 10e-7))), U.T)
 
 
 class GraphImageDataGenerator(ImageDataGenerator):

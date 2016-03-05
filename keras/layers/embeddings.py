@@ -73,7 +73,8 @@ class Embedding(Layer):
     def build(self):
         self.input = K.placeholder(shape=(self.input_shape[0], self.input_length),
                                    dtype='int32')
-        self.W = self.init((self.input_dim, self.output_dim))
+        self.W = self.init((self.input_dim, self.output_dim),
+                           name='{}_W'.format(self.name))
         self.trainable_weights = [self.W]
         self.regularizers = []
         if self.W_regularizer:

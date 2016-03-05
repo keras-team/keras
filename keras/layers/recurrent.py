@@ -7,6 +7,38 @@ from .. import activations, initializations, regularizers
 from ..layers.core import MaskedLayer
 
 
+def time_distributed_dense(x, w, b=None, dropout=None,
+                           input_dim=None, output_dim=None, timesteps=None):
+    '''Apply y.w + b for every temporal slice y of x.
+    '''
+    if not input_dim:
+        # won't work with TensorFlow
+        input_dim = K.shape(x)[2]
+    if not timesteps:
+        # won't work with TensorFlow
+        timesteps = K.shape(x)[1]
+    if not output_dim:
+        # won't work with TensorFlow
+        output_dim = K.shape(w)[1]
+
+    if dropout:
+        # apply the same dropout pattern at every timestep
+        ones = K.ones_like(K.reshape(x[:, 0, :], (-1, input_dim)))
+        dropout_matrix = K.dropout(ones, dropout)
+        expanded_dropout_matrix = K.repeat(dropout_matrix, timesteps)
+        x *= expanded_dropout_matrix
+
+    # collapse time dimension and batch dimension together
+    x = K.reshape(x, (-1, input_dim))
+
+    x = K.dot(x, w)
+    if b:
+        x = x + b
+    # reshape to 3D tensor
+    x = K.reshape(x, (-1, timesteps, output_dim))
+    return x
+
+
 class Recurrent(MaskedLayer):
     '''Abstract base class for recurrent layers.
     Do not use in a model -- it's not a functional layer!
@@ -116,23 +148,25 @@ class Recurrent(MaskedLayer):
     def step(self, x, states):
         raise NotImplementedError
 
-    def get_constants(self, X, train=False):
-        return None
+    def get_constants(self, x, train=False):
+        return []
 
-    def get_initial_states(self, X):
+    def get_initial_states(self, x):
         # build an all-zero tensor of shape (samples, output_dim)
-        initial_state = K.zeros_like(X)  # (samples, timesteps, input_dim)
+        initial_state = K.zeros_like(x)  # (samples, timesteps, input_dim)
         initial_state = K.sum(initial_state, axis=1)  # (samples, input_dim)
         reducer = K.zeros((self.input_dim, self.output_dim))
         initial_state = K.dot(initial_state, reducer)  # (samples, output_dim)
         initial_states = [initial_state for _ in range(len(self.states))]
         return initial_states
 
+    def preprocess_input(self, x, train=False):
+        return x
+
     def get_output(self, train=False):
         # input shape: (nb_samples, time (padded with zeros), input_dim)
         X = self.get_input(train)
         mask = self.get_input_mask(train)
-        constants = self.get_constants(X, train)
 
         assert K.ndim(X) == 3
         if K._BACKEND == 'tensorflow':
@@ -150,8 +184,10 @@ class Recurrent(MaskedLayer):
             initial_states = self.states
         else:
             initial_states = self.get_initial_states(X)
+        constants = self.get_constants(X, train)
+        preprocessed_input = self.preprocess_input(X, train)
 
-        last_output, outputs, states = K.rnn(self.step, X,
+        last_output, outputs, states = K.rnn(self.step, preprocessed_input,
                                              initial_states,
                                              go_backwards=self.go_backwards,
                                              mask=mask,
@@ -207,7 +243,7 @@ class SimpleRNN(Recurrent):
     '''
     def __init__(self, output_dim,
                  init='glorot_uniform', inner_init='orthogonal',
-                 activation='sigmoid',
+                 activation='tanh',
                  W_regularizer=None, U_regularizer=None, b_regularizer=None,
                  dropout_W=0., dropout_U=0., **kwargs):
         self.output_dim = output_dim
@@ -230,9 +266,11 @@ class SimpleRNN(Recurrent):
         input_dim = input_shape[2]
         self.input_dim = input_dim
 
-        self.W = self.init((input_dim, self.output_dim))
-        self.U = self.inner_init((self.output_dim, self.output_dim))
-        self.b = K.zeros((self.output_dim,))
+        self.W = self.init((input_dim, self.output_dim),
+                           name='{}_W'.format(self.name))
+        self.U = self.inner_init((self.output_dim, self.output_dim),
+                                 name='{}_U'.format(self.name))
+        self.b = K.zeros((self.output_dim,), name='{}_b'.format(self.name))
 
         def append_regulariser(input_regulariser, param, regularizers_list):
             regulariser = regularizers.get(input_regulariser)
@@ -263,32 +301,33 @@ class SimpleRNN(Recurrent):
         else:
             self.states = [K.zeros((input_shape[0], self.output_dim))]
 
-    def step(self, x, states):
-        # states only contains the previous output.
-        assert len(states) == 3  # 1 state and 2 constants
+    def preprocess_input(self, x, train=False):
+        if train and (0 < self.dropout_W < 1):
+            dropout = self.dropout_W
+        else:
+            dropout = 0
+        input_shape = self.input_shape
+        input_dim = input_shape[2]
+        timesteps = input_shape[1]
+        return time_distributed_dense(x, self.W, self.b, dropout,
+                                      input_dim, self.output_dim, timesteps)
+
+    def step(self, h, states):
         prev_output = states[0]
-        B_W = states[1]
-        B_U = states[2]
-        h = K.dot(x * B_W, self.W) + self.b
+        if len(states) == 2:
+            B_U = states[1]
+        else:
+            B_U = 1.
         output = self.activation(h + K.dot(prev_output * B_U, self.U))
         return output, [output]
 
-    def get_constants(self, X, train=False):
-        retain_p_W = 1. - self.dropout_W
-        retain_p_U = 1. - self.dropout_U
-        if train and (self.dropout_W > 0 or self.dropout_U > 0):
-            nb_samples = K.shape(X)[0]
-            if K._BACKEND == 'tensorflow':
-                if not self.input_shape[0]:
-                    raise Exception('For RNN dropout in tensorflow, a complete ' +
-                                    'input_shape must be provided (including batch size).')
-                nb_samples = self.input_shape[0]
-            B_W = K.random_binomial((nb_samples, self.input_dim), p=retain_p_W)
-            B_U = K.random_binomial((nb_samples, self.output_dim), p=retain_p_U)
-        else:
-            B_W = np.ones(1, dtype=K.floatx()) * retain_p_W
-            B_U = np.ones(1, dtype=K.floatx()) * retain_p_U
-        return [B_W, B_U]
+    def get_constants(self, x, train=False):
+        if train and (0 < self.dropout_U < 1):
+            ones = K.ones_like(K.reshape(x[:, 0, 0], (-1, 1)))
+            ones = K.concatenate([ones] * self.output_dim, 1)
+            B_U = K.dropout(ones, self.dropout_U)
+            return [B_U]
+        return []
 
     def get_config(self):
         config = {"output_dim": self.output_dim,
@@ -333,7 +372,7 @@ class GRU(Recurrent):
     '''
     def __init__(self, output_dim,
                  init='glorot_uniform', inner_init='orthogonal',
-                 activation='sigmoid', inner_activation='hard_sigmoid',
+                 activation='tanh', inner_activation='hard_sigmoid',
                  W_regularizer=None, U_regularizer=None, b_regularizer=None,
                  dropout_W=0., dropout_U=0., **kwargs):
         self.output_dim = output_dim
@@ -351,19 +390,24 @@ class GRU(Recurrent):
         input_shape = self.input_shape
         input_dim = input_shape[2]
         self.input_dim = input_dim
-        self.input = K.placeholder(input_shape)
 
-        self.W_z = self.init((input_dim, self.output_dim))
-        self.U_z = self.inner_init((self.output_dim, self.output_dim))
-        self.b_z = K.zeros((self.output_dim,))
+        self.W_z = self.init((input_dim, self.output_dim),
+                             name='{}_W_z'.format(self.name))
+        self.U_z = self.inner_init((self.output_dim, self.output_dim),
+                                   name='{}_U_z'.format(self.name))
+        self.b_z = K.zeros((self.output_dim,), name='{}_b_z'.format(self.name))
 
-        self.W_r = self.init((input_dim, self.output_dim))
-        self.U_r = self.inner_init((self.output_dim, self.output_dim))
-        self.b_r = K.zeros((self.output_dim,))
+        self.W_r = self.init((input_dim, self.output_dim),
+                             name='{}_W_r'.format(self.name))
+        self.U_r = self.inner_init((self.output_dim, self.output_dim),
+                                   name='{}_U_r'.format(self.name))
+        self.b_r = K.zeros((self.output_dim,), name='{}_b_r'.format(self.name))
 
-        self.W_h = self.init((input_dim, self.output_dim))
-        self.U_h = self.inner_init((self.output_dim, self.output_dim))
-        self.b_h = K.zeros((self.output_dim,))
+        self.W_h = self.init((input_dim, self.output_dim),
+                             name='{}_W_h'.format(self.name))
+        self.U_h = self.inner_init((self.output_dim, self.output_dim),
+                                   name='{}_U_h'.format(self.name))
+        self.b_h = K.zeros((self.output_dim,), name='{}_b_h'.format(self.name))
 
         def append_regulariser(input_regulariser, param, regularizers_list):
             regulariser = regularizers.get(input_regulariser)
@@ -404,15 +448,33 @@ class GRU(Recurrent):
         else:
             self.states = [K.zeros((input_shape[0], self.output_dim))]
 
-    def step(self, x, states):
-        assert len(states) == 3  # 1 state and 2 constants
-        h_tm1 = states[0]
-        B_W = states[1]
-        B_U = states[2]
+    def preprocess_input(self, x, train=False):
+        if train and (0 < self.dropout_W < 1):
+            dropout = self.dropout_W
+        else:
+            dropout = 0
+        input_shape = self.input_shape
+        input_dim = input_shape[2]
+        timesteps = input_shape[1]
 
-        x_z = K.dot(x * B_W[0], self.W_z) + self.b_z
-        x_r = K.dot(x * B_W[1], self.W_r) + self.b_r
-        x_h = K.dot(x * B_W[2], self.W_h) + self.b_h
+        x_z = time_distributed_dense(x, self.W_z, self.b_z, dropout,
+                                     input_dim, self.output_dim, timesteps)
+        x_r = time_distributed_dense(x, self.W_r, self.b_r, dropout,
+                                     input_dim, self.output_dim, timesteps)
+        x_h = time_distributed_dense(x, self.W_h, self.b_h, dropout,
+                                     input_dim, self.output_dim, timesteps)
+        return K.concatenate([x_z, x_r, x_h], axis=2)
+
+    def step(self, x, states):
+        h_tm1 = states[0]  # previous memory
+        if len(states) == 2:
+            B_U = states[1]  # dropout matrices for recurrent units
+        else:
+            B_U = [1., 1., 1.]
+
+        x_z = x[:, :self.output_dim]
+        x_r = x[:, self.output_dim: 2 * self.output_dim]
+        x_h = x[:, 2 * self.output_dim:]
 
         z = self.inner_activation(x_z + K.dot(h_tm1 * B_U[0], self.U_z))
         r = self.inner_activation(x_r + K.dot(h_tm1 * B_U[1], self.U_r))
@@ -421,22 +483,13 @@ class GRU(Recurrent):
         h = z * h_tm1 + (1 - z) * hh
         return h, [h]
 
-    def get_constants(self, X, train=False):
-        retain_p_W = 1. - self.dropout_W
-        retain_p_U = 1. - self.dropout_U
-        if train and (self.dropout_W > 0 or self.dropout_U > 0):
-            nb_samples = K.shape(X)[0]
-            if K._BACKEND == 'tensorflow':
-                if not self.input_shape[0]:
-                    raise Exception('For RNN dropout in tensorflow, a complete ' +
-                                    'input_shape must be provided (including batch size).')
-                nb_samples = self.input_shape[0]
-            B_W = [K.random_binomial((nb_samples, self.input_dim), p=retain_p_W) for _ in range(3)]
-            B_U = [K.random_binomial((nb_samples, self.output_dim), p=retain_p_U) for _ in range(3)]
-        else:
-            B_W = np.ones(3, dtype=K.floatx()) * retain_p_W
-            B_U = np.ones(3, dtype=K.floatx()) * retain_p_U
-        return [B_W, B_U]
+    def get_constants(self, x, train=False):
+        if train and (0 < self.dropout_U < 1):
+            ones = K.ones_like(K.reshape(x[:, 0, 0], (-1, 1)))
+            ones = K.concatenate([ones] * self.output_dim, 1)
+            B_U = [K.dropout(ones, self.dropout_U) for _ in range(3)]
+            return [B_U]
+        return []
 
     def get_config(self):
         config = {"output_dim": self.output_dim,
@@ -509,7 +562,6 @@ class LSTM(Recurrent):
         input_shape = self.input_shape
         input_dim = input_shape[2]
         self.input_dim = input_dim
-        self.input = K.placeholder(input_shape)
 
         if self.stateful:
             self.reset_states()
@@ -517,21 +569,30 @@ class LSTM(Recurrent):
             # initial states: 2 all-zero tensors of shape (output_dim)
             self.states = [None, None]
 
-        self.W_i = self.init((input_dim, self.output_dim))
-        self.U_i = self.inner_init((self.output_dim, self.output_dim))
-        self.b_i = K.zeros((self.output_dim,))
+        self.W_i = self.init((input_dim, self.output_dim),
+                             name='{}_W_i'.format(self.name))
+        self.U_i = self.inner_init((self.output_dim, self.output_dim),
+                                   name='{}_U_i'.format(self.name))
+        self.b_i = K.zeros((self.output_dim,), name='{}_b_i'.format(self.name))
 
-        self.W_f = self.init((input_dim, self.output_dim))
-        self.U_f = self.inner_init((self.output_dim, self.output_dim))
-        self.b_f = self.forget_bias_init((self.output_dim,))
+        self.W_f = self.init((input_dim, self.output_dim),
+                             name='{}_W_f'.format(self.name))
+        self.U_f = self.inner_init((self.output_dim, self.output_dim),
+                                   name='{}_U_f'.format(self.name))
+        self.b_f = self.forget_bias_init((self.output_dim,),
+                                         name='{}_b_f'.format(self.name))
 
-        self.W_c = self.init((input_dim, self.output_dim))
-        self.U_c = self.inner_init((self.output_dim, self.output_dim))
-        self.b_c = K.zeros((self.output_dim,))
+        self.W_c = self.init((input_dim, self.output_dim),
+                             name='{}_W_c'.format(self.name))
+        self.U_c = self.inner_init((self.output_dim, self.output_dim),
+                                   name='{}_U_c'.format(self.name))
+        self.b_c = K.zeros((self.output_dim,), name='{}_b_c'.format(self.name))
 
-        self.W_o = self.init((input_dim, self.output_dim))
-        self.U_o = self.inner_init((self.output_dim, self.output_dim))
-        self.b_o = K.zeros((self.output_dim,))
+        self.W_o = self.init((input_dim, self.output_dim),
+                             name='{}_W_o'.format(self.name))
+        self.U_o = self.inner_init((self.output_dim, self.output_dim),
+                                   name='{}_U_o'.format(self.name))
+        self.b_o = K.zeros((self.output_dim,), name='{}_b_o'.format(self.name))
 
         def append_regulariser(input_regulariser, param, regularizers_list):
             regulariser = regularizers.get(input_regulariser)
@@ -540,11 +601,11 @@ class LSTM(Recurrent):
                 regularizers_list.append(regulariser)
 
         self.regularizers = []
-        for W in [self.W_i, self.W_f, self.W_i, self.W_o]:
+        for W in [self.W_i, self.W_f, self.W_c, self.W_o]:
             append_regulariser(self.W_regularizer, W, self.regularizers)
-        for U in [self.U_i, self.U_f, self.U_i, self.U_o]:
+        for U in [self.U_i, self.U_f, self.U_c, self.U_o]:
             append_regulariser(self.U_regularizer, U, self.regularizers)
-        for b in [self.b_i, self.b_f, self.b_i, self.b_o]:
+        for b in [self.b_i, self.b_f, self.b_c, self.b_o]:
             append_regulariser(self.b_regularizer, b, self.regularizers)
 
         self.trainable_weights = [self.W_i, self.U_i, self.b_i,
@@ -571,41 +632,53 @@ class LSTM(Recurrent):
             self.states = [K.zeros((input_shape[0], self.output_dim)),
                            K.zeros((input_shape[0], self.output_dim))]
 
+    def preprocess_input(self, x, train=False):
+        if train and (0 < self.dropout_W < 1):
+            dropout = self.dropout_W
+        else:
+            dropout = 0
+        input_shape = self.input_shape
+        input_dim = input_shape[2]
+        timesteps = input_shape[1]
+
+        x_i = time_distributed_dense(x, self.W_i, self.b_i, dropout,
+                                     input_dim, self.output_dim, timesteps)
+        x_f = time_distributed_dense(x, self.W_f, self.b_f, dropout,
+                                     input_dim, self.output_dim, timesteps)
+        x_c = time_distributed_dense(x, self.W_c, self.b_c, dropout,
+                                     input_dim, self.output_dim, timesteps)
+        x_o = time_distributed_dense(x, self.W_o, self.b_o, dropout,
+                                     input_dim, self.output_dim, timesteps)
+        return K.concatenate([x_i, x_f, x_c, x_o], axis=2)
+
     def step(self, x, states):
-        assert len(states) == 4  # 2 states and 2 constants
         h_tm1 = states[0]
         c_tm1 = states[1]
-        B_W = states[2]
-        B_U = states[3]
+        if len(states) == 3:
+            B_U = states[2]
+        else:
+            B_U = [1. for _ in range(4)]
 
-        x_i = K.dot(x * B_W[0], self.W_i) + self.b_i
-        x_f = K.dot(x * B_W[1], self.W_f) + self.b_f
-        x_c = K.dot(x * B_W[2], self.W_c) + self.b_c
-        x_o = K.dot(x * B_W[3], self.W_o) + self.b_o
+        x_i = x[:, :self.output_dim]
+        x_f = x[:, self.output_dim: 2 * self.output_dim]
+        x_c = x[:, 2 * self.output_dim: 3 * self.output_dim]
+        x_o = x[:, 3 * self.output_dim:]
 
         i = self.inner_activation(x_i + K.dot(h_tm1 * B_U[0], self.U_i))
         f = self.inner_activation(x_f + K.dot(h_tm1 * B_U[1], self.U_f))
         c = f * c_tm1 + i * self.activation(x_c + K.dot(h_tm1 * B_U[2], self.U_c))
         o = self.inner_activation(x_o + K.dot(h_tm1 * B_U[3], self.U_o))
+
         h = o * self.activation(c)
         return h, [h, c]
 
-    def get_constants(self, X, train=False):
-        retain_p_W = 1. - self.dropout_W
-        retain_p_U = 1. - self.dropout_U
-        if train and (self.dropout_W > 0 or self.dropout_U > 0):
-            nb_samples = K.shape(X)[0]
-            if K._BACKEND == 'tensorflow':
-                if not self.input_shape[0]:
-                    raise Exception('For RNN dropout in tensorflow, a complete ' +
-                                    'input_shape must be provided (including batch size).')
-                nb_samples = self.input_shape[0]
-            B_W = [K.random_binomial((nb_samples, self.input_dim), p=retain_p_W) for _ in range(4)]
-            B_U = [K.random_binomial((nb_samples, self.output_dim), p=retain_p_U) for _ in range(4)]
-        else:
-            B_W = np.ones(4, dtype=K.floatx()) * retain_p_W
-            B_U = np.ones(4, dtype=K.floatx()) * retain_p_U
-        return [B_W, B_U]
+    def get_constants(self, x, train=False):
+        if train and (0 < self.dropout_U < 1):
+            ones = K.ones_like(K.reshape(x[:, 0, 0], (-1, 1)))
+            ones = K.concatenate([ones] * self.output_dim, 1)
+            B_U = [K.dropout(ones, self.dropout_U) for _ in range(4)]
+            return [B_U]
+        return []
 
     def get_config(self):
         config = {"output_dim": self.output_dim,

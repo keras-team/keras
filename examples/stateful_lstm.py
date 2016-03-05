@@ -59,7 +59,7 @@ model.add(LSTM(50,
                return_sequences=False,
                stateful=True))
 model.add(Dense(1))
-model.compile(loss='rmse', optimizer='rmsprop')
+model.compile(loss='mse', optimizer='rmsprop')
 
 print('Training')
 for i in range(epochs):
@@ -68,7 +68,8 @@ for i in range(epochs):
               expected_output,
               batch_size=batch_size,
               verbose=1,
-              nb_epoch=1)
+              nb_epoch=1,
+              shuffle=False)
     model.reset_states()
 
 print('Predicting')

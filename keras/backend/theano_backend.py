@@ -1,7 +1,8 @@
 import theano
 from theano import tensor as T
 from theano.sandbox.rng_mrg import MRG_RandomStreams as RandomStreams
-from theano.tensor.signal import downsample
+from theano.tensor.signal import pool
+from theano.tensor.nnet import conv3d2d
 import numpy as np
 from .common import _FLOATX, _EPSILON
 
@@ -41,6 +42,7 @@ def placeholder(shape=None, ndim=None, dtype=_FLOATX, name=None):
         raise Exception('Specify either a shape or ndim value.')
     if shape is not None:
         ndim = len(shape)
+
     broadcast = (False,) * ndim
     return T.TensorType(dtype, broadcast)(name)
 
@@ -145,7 +147,10 @@ def prod(x, axis=None, keepdims=False):
 
 
 def mean(x, axis=None, keepdims=False):
-    return T.mean(x, axis=axis, keepdims=keepdims)
+    dtype = None
+    if 'int' in x.dtype:
+        dtype = _FLOATX
+    return T.mean(x, axis=axis, keepdims=keepdims, dtype=dtype)
 
 
 def std(x, axis=None, keepdims=False):
@@ -265,6 +270,27 @@ def resize_images(X, height_factor, width_factor, dim_ordering):
         raise Exception('Invalid dim_ordering: ' + dim_ordering)
 
 
+def resize_volumes(X, depth_factor, height_factor, width_factor, dim_ordering):
+    '''Resize the volume contained in a 5D tensor of shape
+    - [batch, channels, depth, height, width] (for 'th' dim_ordering)
+    - [batch, depth, height, width, channels] (for 'tf' dim_ordering)
+    by a factor of (depth_factor, height_factor, width_factor).
+    Both factors should be positive integers.
+    '''
+    if dim_ordering == 'th':
+        output = repeat_elements(X, depth_factor, axis=2)
+        output = repeat_elements(output, height_factor, axis=3)
+        output = repeat_elements(output, width_factor, axis=4)
+        return output
+    elif dim_ordering == 'tf':
+        output = repeat_elements(X, depth_factor, axis=1)
+        output = repeat_elements(output, height_factor, axis=2)
+        output = repeat_elements(output, width_factor, axis=3)
+        return output
+    else:
+        raise Exception('Invalid dim_ordering: ' + dim_ordering)
+
+
 def repeat(x, n):
     '''Repeat a 2D tensor.
 
@@ -357,6 +383,44 @@ def spatial_2d_padding(x, padding=(1, 1), dim_ordering='th'):
         raise Exception('Invalid dim_ordering: ' + dim_ordering)
     return T.set_subtensor(output[indices], x)
 
+
+def spatial_3d_padding(x, padding=(1, 1, 1), dim_ordering='th'):
+    '''Pad the 2nd, 3rd and 4th dimensions of a 5D tensor
+    with "padding[0]", "padding[1]" and "padding[2]" (resp.) zeros left and right.
+    '''
+    input_shape = x.shape
+    if dim_ordering == 'th':
+        output_shape = (input_shape[0],
+                        input_shape[1],
+                        input_shape[2] + 2 * padding[0],
+                        input_shape[3] + 2 * padding[1],
+                        input_shape[4] + 2 * padding[2])
+        output = T.zeros(output_shape)
+        indices = (slice(None),
+                   slice(None),
+                   slice(padding[0], input_shape[2] + padding[0]),
+                   slice(padding[1], input_shape[3] + padding[1]),
+                   slice(padding[2], input_shape[4] + padding[2]))
+
+    elif dim_ordering == 'tf':
+        output_shape = (input_shape[0],
+                        input_shape[1] + 2 * padding[0],
+                        input_shape[2] + 2 * padding[1],
+                        input_shape[3] + 2 * padding[2],
+                        input_shape[4])
+        output = T.zeros(output_shape)
+        indices = (slice(None),
+                   slice(padding[0], input_shape[1] + padding[0]),
+                   slice(padding[1], input_shape[2] + padding[1]),
+                   slice(padding[2], input_shape[3] + padding[2]),
+                   slice(None))
+    else:
+        raise Exception('Invalid dim_ordering: ' + dim_ordering)
+    return T.set_subtensor(output[indices], x)
+
+def pack(x):
+    return T.stack(*x)
+
 # VALUE MANIPULATION
 
 
@@ -397,7 +461,6 @@ def gradients(loss, variables):
 def rnn(step_function, inputs, initial_states,
         go_backwards=False, mask=None, constants=None):
     '''Iterates over the time dimension of a tensor.
-
     Parameters
     ----------
     inputs: tensor of temporal data of shape (samples, time, ...)
@@ -420,7 +483,6 @@ def rnn(step_function, inputs, initial_states,
     mask: binary tensor with shape (samples, time),
         with a zero for every element that is masked.
     constants: a list of constant values passed at each step.
-
     Returns
     -------
     A tuple (last_output, outputs, new_states).
@@ -647,7 +709,111 @@ def conv2d(x, kernel, strides=(1, 1), border_mode='valid', dim_ordering='th',
     return conv_out
 
 
+def conv3d(x, kernel, strides=(1, 1, 1), border_mode='valid', dim_ordering='th',
+           volume_shape=None, filter_shape=None):
+    '''
+    Run on cuDNN if available.
+    border_mode: string, "same" or "valid".
+    '''
+    if dim_ordering not in {'th', 'tf'}:
+        raise Exception('Unknown dim_ordering ' + str(dim_ordering))
+
+    if border_mode not in {'same', 'valid'}:
+        raise Exception('Invalid border mode: ' + str(border_mode))
+
+    if dim_ordering == 'tf':
+        # TF uses the last dimension as channel dimension,
+        # instead of the 2nd one.
+        # TH input shape: (samples, input_depth, conv_dim1, conv_dim2, conv_dim3)
+        # TF input shape: (samples, conv_dim1, conv_dim2, conv_dim3, input_depth)
+        # TH kernel shape: (out_depth, input_depth, kernel_dim1, kernel_dim2, kernel_dim3)
+        # TF kernel shape: (kernel_dim1, kernel_dim2, kernel_dim3, input_depth, out_depth)
+        x = x.dimshuffle((0, 4, 1, 2, 3))
+        kernel = kernel.dimshuffle((4, 3, 0, 1, 2))
+        if volume_shape:
+            volume_shape = (volume_shape[0], volume_shape[4],
+                            volume_shape[1], volume_shape[2], volume_shape[3])
+        if filter_shape:
+            filter_shape = (filter_shape[4], filter_shape[3],
+                            filter_shape[0], filter_shape[1], filter_shape[2])
+
+    if border_mode == 'same':
+        assert(strides == (1, 1, 1))
+        pad_dim1 = (kernel.shape[2] - 1)
+        pad_dim2 = (kernel.shape[3] - 1)
+        pad_dim3 = (kernel.shape[4] - 1)
+        output_shape = (x.shape[0], x.shape[1],
+                        x.shape[2] + pad_dim1,
+                        x.shape[3] + pad_dim2,
+                        x.shape[4] + pad_dim3)
+        output = T.zeros(output_shape)
+        indices = (slice(None), slice(None),
+                   slice(pad_dim1 // 2, x.shape[2] + pad_dim1 // 2),
+                   slice(pad_dim2 // 2, x.shape[3] + pad_dim2 // 2),
+                   slice(pad_dim3 // 2, x.shape[4] + pad_dim3 // 2))
+        x = T.set_subtensor(output[indices], x)
+        border_mode = 'valid'
+
+    border_mode_3d = (border_mode, border_mode, border_mode)
+    conv_out = conv3d2d.conv3d(signals=x.dimshuffle(0, 2, 1, 3, 4),
+                               filters=kernel.dimshuffle(0, 2, 1, 3, 4),
+                               border_mode=border_mode_3d)
+    conv_out = conv_out.dimshuffle(0, 2, 1, 3, 4)
+
+    # support strides by manually slicing the output
+    if strides != (1, 1, 1):
+        conv_out = conv_out[:, :, ::strides[0], ::strides[1], ::strides[2]]
+
+    if dim_ordering == 'tf':
+        conv_out = conv_out.dimshuffle((0, 2, 3, 4, 1))
+
+    return conv_out
+
+
 def pool2d(x, pool_size, strides=(1, 1), border_mode='valid',
+           dim_ordering='th', pool_mode='max'):
+    if border_mode == 'same':
+        w_pad = pool_size[0] - 2 if pool_size[0] % 2 == 1 else pool_size[0] - 1
+        h_pad = pool_size[1] - 2 if pool_size[1] % 2 == 1 else pool_size[1] - 1
+        padding = (w_pad, h_pad)
+    elif border_mode == 'valid':
+        padding = (0, 0)
+    else:
+        raise Exception('Invalid border mode: ' + str(border_mode))
+
+    if dim_ordering not in {'th', 'tf'}:
+        raise Exception('Unknown dim_ordering ' + str(dim_ordering))
+
+    if dim_ordering == 'tf':
+        x = x.dimshuffle((0, 3, 1, 2))
+
+    if pool_mode == 'max':
+        pool_out = pool.pool_2d(x, ds=pool_size, st=strides,
+                                ignore_border=True,
+                                padding=padding,
+                                mode='max')
+    elif pool_mode == 'avg':
+        pool_out = pool.pool_2d(x, ds=pool_size, st=strides,
+                                ignore_border=True,
+                                padding=padding,
+                                mode='average_exc_pad')
+    else:
+        raise Exception('Invalid pooling mode: ' + str(pool_mode))
+
+    if border_mode == 'same':
+        expected_width = (x.shape[2] + strides[0] - 1) // strides[0]
+        expected_height = (x.shape[3] + strides[1] - 1) // strides[1]
+
+        pool_out = pool_out[:, :,
+                            : expected_width,
+                            : expected_height]
+
+    if dim_ordering == 'tf':
+        pool_out = pool_out.dimshuffle((0, 2, 3, 1))
+    return pool_out
+
+
+def pool3d(x, pool_size, strides=(1, 1, 1), border_mode='valid',
            dim_ordering='th', pool_mode='max'):
     if border_mode == 'same':
         # TODO: add implementation for border_mode="same"
@@ -662,23 +828,46 @@ def pool2d(x, pool_size, strides=(1, 1), border_mode='valid',
         raise Exception('Unknown dim_ordering ' + str(dim_ordering))
 
     if dim_ordering == 'tf':
-        x = x.dimshuffle((0, 3, 1, 2))
+        x = x.dimshuffle((0, 4, 1, 2, 3))
 
     if pool_mode == 'max':
-        pool_out = downsample.max_pool_2d(x, ds=pool_size, st=strides,
-                                          ignore_border=ignore_border,
-                                          padding=padding,
-                                          mode='max')
+        # pooling over conv_dim2, conv_dim1 (last two channels)
+        output = pool.pool_2d(input=x.dimshuffle(0, 1, 4, 3, 2),
+                              ds=(pool_size[1], pool_size[0]),
+                              st=(strides[1], strides[0]),
+                              ignore_border=ignore_border,
+                              padding=padding,
+                              mode='max')
+
+        # pooling over conv_dim3
+        pool_out = pool.pool_2d(input=output.dimshuffle(0, 1, 4, 3, 2),
+                                ds=(1, pool_size[2]),
+                                st=(1, strides[2]),
+                                ignore_border=ignore_border,
+                                padding=padding,
+                                mode='max')
+
     elif pool_mode == 'avg':
-        pool_out = downsample.max_pool_2d(x, ds=pool_size, st=strides,
-                                          ignore_border=ignore_border,
-                                          padding=padding,
-                                          mode='average_exc_pad')
+        # pooling over conv_dim2, conv_dim1 (last two channels)
+        output = pool.pool_2d(input=x.dimshuffle(0, 1, 4, 3, 2),
+                              ds=(pool_size[1], pool_size[0]),
+                              st=(strides[1], strides[0]),
+                              ignore_border=ignore_border,
+                              padding=padding,
+                              mode='average_exc_pad')
+
+        # pooling over conv_dim3
+        pool_out = pool.pool_2d(input=output.dimshuffle(0, 1, 4, 3, 2),
+                                ds=(1, pool_size[2]),
+                                st=(1, strides[2]),
+                                ignore_border=ignore_border,
+                                padding=padding,
+                                mode='average_exc_pad')
     else:
         raise Exception('Invalid pooling mode: ' + str(pool_mode))
 
     if dim_ordering == 'tf':
-        pool_out = pool_out.dimshuffle((0, 2, 3, 1))
+        pool_out = pool_out.dimshuffle((0, 2, 3, 4, 1))
     return pool_out
 
 
