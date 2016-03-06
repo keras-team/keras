@@ -49,7 +49,7 @@ class TimeDistributed(MaskedLayer):
 
         trainable_weights, regularizers, constraints, updates = self.layer.get_params()
         self.trainable_weights = trainable_weights
-        self.non_trainable_weights = self.layer.non_traible_weights
+        self.non_trainable_weights = self.layer.non_trainable_weights
         self.regularizers = regularizers
         self.constraints = constraints
         self.updates = updates
