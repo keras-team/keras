@@ -60,6 +60,5 @@ def test_TimeDistributed():
     model.fit(np.random.random((10, 3, 4)), np.random.random((10, 3, 3)), nb_epoch=1, batch_size=10)
 
 
-
 if __name__ == '__main__':
     pytest.main([__file__])
