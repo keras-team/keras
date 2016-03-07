@@ -1523,11 +1523,11 @@ class Lambda(Layer):
             self._output_shape = tuple(output_shape)
         else:
             if py3:
-            	assert hasattr(output_shape, '__code__'), ('The Lambda layer "output_shape"'
+                assert hasattr(output_shape, '__code__'), ('The Lambda layer "output_shape"'
                                                     ' argument must be either None, a tuple or a Python function.')                
                 self._output_shape = marshal.dumps(output_shape.__code__)
             else:
-            	assert hasattr(output_shape, 'unc_code'), ('The Lambda layer "output_shape"'
+                assert hasattr(output_shape, 'unc_code'), ('The Lambda layer "output_shape"'
                                                     ' argument must be either None, a tuple or a Python function.')  
                 self._output_shape = marshal.dumps(output_shape.func_code)
         super(Lambda, self).__init__()
@@ -1560,16 +1560,16 @@ class Lambda(Layer):
         func = types.FunctionType(func, globals())
         arg_spec = inspect.getargspec(func)
         if 'train' in arg_spec.args:
-        	if type(arguments) == dict:
-        		arguments['train'] = train
-       			return func(X, **arguments)
-       		elif type(arguments) == list:
-       			return func(X, *arguments, train=train)
-       	else:
-       		if type(arguments) == dict:
-       			return func(X, **arguments)
-       		elif type(arguments) == list:
-       			return func(X, *arguments)
+            if type(arguments) == dict:
+                arguments['train'] = train
+                return func(X, **arguments)
+            elif type(arguments) == list:
+                return func(X, *arguments, train=train)
+        else:
+            if type(arguments) == dict:
+                return func(X, **arguments)
+            elif type(arguments) == list:
+                return func(X, *arguments)
 
     def get_config(self):
         config = {'name': self.__class__.__name__,
@@ -1634,11 +1634,11 @@ class LambdaMerge(Lambda):
             self._output_shape = tuple(output_shape)
         else:
             if py3:
-            	assert hasattr(output_shape, '__code__'), ('The Lambda layer "output_shape"'
+                assert hasattr(output_shape, '__code__'), ('The Lambda layer "output_shape"'
                                                     ' argument must be either None, a tuple or a Python function.')                
                 self._output_shape = marshal.dumps(output_shape.__code__)
             else:
-            	assert hasattr(output_shape, 'unc_code'), ('The Lambda layer "output_shape"'
+                assert hasattr(output_shape, 'unc_code'), ('The Lambda layer "output_shape"'
                                                     ' argument must be either None, a tuple or a Python function.')  
                 self._output_shape = marshal.dumps(output_shape.func_code)
         super(Lambda, self).__init__()
@@ -1668,16 +1668,16 @@ class LambdaMerge(Lambda):
         arguments = self.arguments
         arg_spec = inspect.getargspec(func)
         if 'train' in arg_spec.args:
-        	if type(arguments) == dict:
-        		arguments['train'] = train
-        		return func(inputs, **arguments)
-        	elif type(arguments) == list:
-        		return func(inputs, *arguments, train=train)
+            if type(arguments) == dict:
+                arguments['train'] = train
+                return func(inputs, **arguments)
+            elif type(arguments) == list:
+                return func(inputs, *arguments, train=train)
         else:
-        	if type(arguments) == dict:
-        		return func(inputs, **arguments)
-        	elif type(arguments) == list:
-        		return func(inputs, *arguments)
+            if type(arguments) == dict:
+                return func(inputs, **arguments)
+            elif type(arguments) == list:
+                return func(inputs, *arguments)
 
     def get_input(self, train=False):
         res = []
@@ -1716,7 +1716,8 @@ class LambdaMerge(Lambda):
         config = {'name': self.__class__.__name__,
                   'layers': [l.get_config() for l in self.layers],
                   'function': self.function,
-                  'output_shape': self._output_shape}
+                  'output_shape': self._output_shape,
+                  'arguments': self.arguments}
         base_config = super(LambdaMerge, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
