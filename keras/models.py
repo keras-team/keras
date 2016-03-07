@@ -166,7 +166,7 @@ def model_from_json(json_string, custom_objects={}):
     return model_from_config(config, custom_objects=custom_objects)
 
 
-def model_from_config(config, custom_objects={}):
+def model_from_config(config, custom_objects={}, reset=False):
     '''
     '''
     model_name = config.get('name')
@@ -181,6 +181,10 @@ def model_from_config(config, custom_objects={}):
     elif model_name == 'Sequential':
         model.__class__ = Sequential
         model.name = model_name
+        model.name = model_name
+        if reset:
+            for layer in model.layers:
+                layer.build()
 
     if 'optimizer' in config:
         # if it has an optimizer, the model is assumed to be compiled
@@ -462,6 +466,14 @@ class Model(object):
         include parameter count information.
         '''
         model_summary(self)
+
+    def reset(self):
+        ''' Reset all weights and biases to random values
+
+        Returns: Model
+        '''
+
+        return model_from_config(self.get_config(), reset=True)
 
 
 class Sequential(Model, containers.Sequential):
