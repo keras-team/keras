@@ -22,6 +22,45 @@ from .utils.generic_utils import Progbar
 from .layers import containers
 
 
+def create_hdf5_tree(root, weights):
+    '''Recursive function to save a weight dictionary to
+    an hdf5 file. To be used in conjuction with `save_named_weights`.
+    '''
+    for k, w in weights.items():
+        subroot = root.create_group(k)
+        if isinstance(w, dict):
+            create_hdf5_tree(subroot, w)
+        else:
+            for n, param in enumerate(w):
+                param_name = 'param_{}'.format(n)
+                param_dset = subroot.create_dataset(param_name, param.shape,
+                                                    dtype=param.dtype)
+                param_dset[:] = param
+
+
+def read_hdf5_tree(root):
+    '''Inverse of mk_hdf5 tree. Should be called with the 'graph' Group,
+    not the file root
+    '''
+    # using visititems to add to dict would be more cumbersome
+    # and less direct than crawling directly because of how
+    # visititems stringifies names
+
+    assert root.__class__.__name__ == 'Group'
+
+    if all(v.__class__.__name__ == 'Dataset' for v in root.values()):
+        weights = [root['param_{}'.format(p)]
+                   for p in range(len(root))]
+    elif all(v.__class__.__name__ == 'Group' for v in root.values()):
+        weights = {}
+        for k, v in root.items():
+            weights[k] = read_hdf5_tree(v)
+    else:
+        raise ValueError('ill-formatted weights file')
+
+    return weights
+
+
 def standardize_y(y):
     if not hasattr(y, 'shape'):
         y = np.asarray(y)
@@ -1384,8 +1423,14 @@ class Graph(Model, containers.Graph):
         outs = self._predict(ins)
         return dict(zip(self.output_order, outs))
 
-    def save_weights(self, filepath, overwrite=False):
+    def save_weights(self, filepath, overwrite=False, named=False):
         '''Save weights from all layers to a HDF5 files.
+
+        Arguments:
+            filepath: file to which to save weights
+            overwrite: whether to overwrite the file if it already exists
+            named: whether to save named versions of weights as returned
+                by `containers.Graph.get_named_weights`.
         '''
         import h5py
         import os.path
@@ -1404,14 +1449,21 @@ class Graph(Model, containers.Graph):
             print('[TIP] Next time specify overwrite=True in save_weights!')
 
         f = h5py.File(filepath, 'w')
+        f.attrs['is_named'] = named
+
         g = f.create_group('graph')
-        weights = self.get_weights()
-        g.attrs['nb_params'] = len(weights)
-        for n, param in enumerate(weights):
-            param_name = 'param_{}'.format(n)
-            param_dset = g.create_dataset(param_name, param.shape,
-                                          dtype=param.dtype)
-            param_dset[:] = param
+        if not named:
+            weights = self.get_weights()
+            g.attrs['nb_params'] = len(weights)
+            for n, param in enumerate(weights):
+                param_name = 'param_{}'.format(n)
+                param_dset = g.create_dataset(param_name, param.shape,
+                                              dtype=param.dtype)
+                param_dset[:] = param
+        else:
+            weights = self.get_named_weights()
+            create_hdf5_tree(g, weights)
+
         f.flush()
         f.close()
 
@@ -1420,9 +1472,15 @@ class Graph(Model, containers.Graph):
         '''
         import h5py
         f = h5py.File(filepath, mode='r')
+        named = f.attrs.get('is_named', False)
         g = f['graph']
-        weights = [g['param_{}'.format(p)] for p in range(g.attrs['nb_params'])]
-        self.set_weights(weights)
+        if not named:
+            weights = [g['param_{}'.format(p)]
+                       for p in range(g.attrs['nb_params'])]
+            self.set_weights(weights)
+        else:
+            weights = read_hdf5_tree(g)
+            self.set_named_weights(weights)
         f.close()
 
     def evaluate_generator(self, generator, nb_val_samples,
@@ -1432,13 +1490,11 @@ class Graph(Model, containers.Graph):
         by `evaluate`.
 
         Arguments:
-            generator:
-                generator yielding dictionaries of the kind accepted
+            generator: generator yielding dictionaries of the kind accepted
                 by `evaluate`, or tuples of such dictionaries and
                 associated dictionaries of sample weights.
-            nb_val_samples:
-                total number of samples to generate from `generator`
-                to use in validation.
+            nb_val_samples: total number of samples to generate from
+                `generator` to use in validation.
 
             Other argumens are as for `fit`.
         '''

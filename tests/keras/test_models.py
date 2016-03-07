@@ -1052,8 +1052,59 @@ def test_count_params():
     assert(n == graph.count_params())
 
 
+def test_graph_named_weights():
+    m = Graph()
+    sg = containers.Graph()
+
+    # need all unique weight shapes for tests!
+    # prefer nested graphs
+    sg.add_input(name='si0', input_shape=(7,))
+    sg.add_node(Dense(2), name='sgl0', input='si0')
+    sg.add_output('so0', input='sgl0')
+
+    m.add_input(name='i0', input_shape=(3,))
+    m.add_node(Dense(3), name='gl0', input='i0')
+    m.add_node(Dense(4), name='gl1', input='i0')
+    m.add_node(sg, name='sg0', inputs=['gl0', 'gl1'], merge_mode='concat')
+    m.add_node(Dense(5), name='ol0', input='sg0', create_output=True)
+
+    m.compile('adam', {'ol0': 'mse'})
+    ws = m.get_weights()
+
+    # test get_named_weights against get_weights
+    nws = m.get_named_weights()
+
+    def unravel_dict(d):
+        out = []
+        for k, v in d.items():
+            if isinstance(v, list):
+                out += v
+            else:
+                assert isinstance(v, dict)
+                out += unravel_dict(v)
+        return out
+
+    flat_nws = unravel_dict(nws)
+
+    assert all(np.allclose(w, nw) for w, nw in
+               zip(sorted(ws, key=lambda x: x.shape),
+                   sorted(flat_nws, key=lambda x: x.shape)))
+
+    # test set_named_weights against set_weights
+    blank = [np.zeros(w.shape) for w in ws]
+    m.set_weights(blank)
+    m.set_named_weights(nws)
+    ws_named_reset = m.get_weights()
+
+    assert all(np.allclose(w1, w2) for w1, w2 in zip(ws, ws_named_reset))
+
+    # test save/load cycle with named = True
+    m.save_weights('named.hdf5', named=True, overwrite=True)
+    m.load_weights('named.hdf5')
+    save_named = m.get_weights()
+
+    assert all(np.allclose(w1, w2) for w1, w2 in zip(ws, save_named))
+
 if __name__ == '__main__':
     # pytest.main([__file__])
-    test_sequential()
-    test_sequential_fit_generator()
-    test_graph_fit_generator()
+    test_graph_named_weights()
