@@ -473,8 +473,7 @@ class Sequential(Model, containers.Sequential):
     '''
     def compile(self, optimizer, loss,
                 class_mode="categorical",
-                sample_weight_mode=None,
-                y_ndim=None):
+                sample_weight_mode=None):
         '''Configure the learning process.
 
         # Arguments
@@ -492,7 +491,6 @@ class Sequential(Model, containers.Sequential):
         '''
         self.optimizer = optimizers.get(optimizer)
         self.sample_weight_mode = sample_weight_mode
-        self.y_ndim = y_ndim
 
         self.loss = objectives.get(loss)
         weighted_loss = weighted_objective(self.loss)
@@ -505,8 +503,8 @@ class Sequential(Model, containers.Sequential):
         self.y_test = self.get_output(train=False)
 
         # target of model
-        if self.y_ndim:
-            self.y = K.placeholder(ndim=y_ndim)
+        if loss == 'categorical_crossentropy_one_hot':
+            self.y = K.placeholder(ndim=K.ndim(self.y_train)-1)
         else:
             self.y = K.placeholder(ndim=K.ndim(self.y_train))
 
