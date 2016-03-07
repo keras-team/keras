@@ -1502,6 +1502,8 @@ class Lambda(Layer):
             Takes one argument: the output of previous layer
         output_shape: Expected output shape from function.
             Could be a tuple or a function of the shape of the input
+        arguments: Additional arguments for the function to be evaluated.
+            Could be a list or a dictionary.     
     '''
     def __init__(self, function, output_shape=None, arguments={}, **kwargs):
         super(Lambda, self).__init__(**kwargs)
@@ -1595,6 +1597,8 @@ class LambdaMerge(Lambda):
             list of outputs from input layers
         output_shape - Expected output shape from function.
             Could be a tuple or a function of list of input shapes
+        arguments: Additional arguments for the function to be evaluated.
+            Could be a list or a dictionary.     
     '''
     def __init__(self, layers, function, output_shape=None, arguments={}):
         if len(layers) < 2:
