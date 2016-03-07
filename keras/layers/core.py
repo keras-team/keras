@@ -1524,11 +1524,11 @@ class Lambda(Layer):
         else:
             if py3:
                 assert hasattr(output_shape, '__code__'), ('The Lambda layer "output_shape"'
-                                                    ' argument must be either None, a tuple or a Python function.')
+                                                            ' argument must be either None, a tuple or a Python function.')
                 self._output_shape = marshal.dumps(output_shape.__code__)
             else:
                 assert hasattr(output_shape, 'func_code'), ('The Lambda layer "output_shape"'
-                                                    ' argument must be either None, a tuple or a Python function.')
+                                                            ' argument must be either None, a tuple or a Python function.')
                 self._output_shape = marshal.dumps(output_shape.func_code)
         super(Lambda, self).__init__()
 
@@ -1621,10 +1621,10 @@ class LambdaMerge(Lambda):
         py3 = sys.version_info[0] == 3
         if py3:
             self.function = marshal.dumps(function.__code__)
-            assert hasattr(function, '__code__'), ('The Lambda layer "function"'
+            assert hasattr(function, '__code__'), ('The LambdaMerge layer "function"'
                                                     ' argument must be a Python function.')
         else:
-            assert hasattr(function, 'func_code'), ('The Lambda layer "function"'
+            assert hasattr(function, 'func_code'), ('The LambdaMerge layer "function"'
                                                     ' argument must be a Python function.')
             self.function = marshal.dumps(function.func_code)
         self.arguments = arguments
@@ -1634,11 +1634,11 @@ class LambdaMerge(Lambda):
             self._output_shape = tuple(output_shape)
         else:
             if py3:
-                assert hasattr(output_shape, '__code__'), ('The Lambda layer "output_shape"'
+                assert hasattr(output_shape, '__code__'), ('The LambdaMerge layer "output_shape"'
                                                     ' argument must be either None, a tuple or a Python function.')
                 self._output_shape = marshal.dumps(output_shape.__code__)
             else:
-                assert hasattr(output_shape, 'func_code'), ('The Lambda layer "output_shape"'
+                assert hasattr(output_shape, 'func_code'), ('The LambdaMerge layer "output_shape"'
                                                     ' argument must be either None, a tuple or a Python function.') 
                 self._output_shape = marshal.dumps(output_shape.func_code)
         super(Lambda, self).__init__()
