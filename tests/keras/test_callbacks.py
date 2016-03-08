@@ -1,6 +1,7 @@
 import pytest
 import os
 import sys
+import threading
 import numpy as np
 np.random.seed(1337)
 
@@ -137,19 +138,28 @@ def test_TensorBoard():
     y_test = np_utils.to_categorical(y_test)
     y_train = np_utils.to_categorical(y_train)
 
-    def data_generator(train):
-        if train:
-            max_batch_index = len(X_train) // batch_size
-        else:
-            max_batch_index = len(X_test) // batch_size
-        i = 0
-        while 1:
+    class data_generator:
+        def __init__(self, train):
+            self.train = train
             if train:
-                yield (X_train[i * batch_size: (i + 1) * batch_size], y_train[i * batch_size: (i + 1) * batch_size])
+                self.max_batch_index = len(X_train) // batch_size
             else:
-                yield (X_test[i * batch_size: (i + 1) * batch_size], y_test[i * batch_size: (i + 1) * batch_size])
-            i += 1
-            i = i % max_batch_index
+                self.max_batch_index = len(X_test) // batch_size
+
+            self.cur_batch = 0
+            self.lock = threading.Lock()
+
+        def get_data(self):
+            while 1:
+                with self.lock:
+                    i = self.cur_batch
+                    self.cur_batch += 1
+                    self.cur_batch = self.cur_batch % self.max_batch_index
+
+                if self.train:
+                    return (X_train[i * batch_size: (i + 1) * batch_size], y_train[i * batch_size: (i + 1) * batch_size])
+                else:
+                    return (X_test[i * batch_size: (i + 1) * batch_size], y_test[i * batch_size: (i + 1) * batch_size])
 
     def data_generator_graph(train):
         while 1:
@@ -179,25 +189,25 @@ def test_TensorBoard():
         model.fit(X_train, y_train, batch_size=batch_size, show_accuracy=True,
                   validation_data=(X_test, y_test), callbacks=cbks, nb_epoch=2)
 
-        # fit generator with validation data
-        model.fit_generator(data_generator(True), len(X_train), nb_epoch=2,
+        # fit function with validation data
+        model.fit_data_func(data_generator(True).get_data, len(X_train), nb_epoch=2,
                             show_accuracy=False,
                             validation_data=(X_test, y_test),
                             callbacks=cbks)
 
-        # fit generator without validation data
-        model.fit_generator(data_generator(True), len(X_train), nb_epoch=2,
+        # fit function without validation data
+        model.fit_data_func(data_generator(True).get_data, len(X_train), nb_epoch=2,
                             show_accuracy=False,
                             callbacks=cbks)
 
-        # fit generator with validation data and accuracy
-        model.fit_generator(data_generator(True), len(X_train), nb_epoch=2,
+        # fit function with validation data and accuracy
+        model.fit_data_func(data_generator(True).get_data, len(X_train), nb_epoch=2,
                             show_accuracy=True,
                             validation_data=(X_test, y_test),
                             callbacks=cbks)
 
-        # fit generator without validation data and accuracy
-        model.fit_generator(data_generator(True), len(X_train), nb_epoch=2,
+        # fit function without validation data and accuracy
+        model.fit_data_func(data_generator(True).get_data, len(X_train), nb_epoch=2,
                             show_accuracy=True,
                             callbacks=cbks)
 
@@ -234,13 +244,13 @@ def test_TensorBoard():
                   batch_size=batch_size,
                   callbacks=cbks, nb_epoch=2)
 
-        # fit generator with validation
-        model.fit_generator(data_generator_graph(True), 1000, nb_epoch=2,
+        # fit function with validation
+        model.fit_data_func(data_generator_graph(True).get_data, 1000, nb_epoch=2,
                             validation_data={'X_vars': X_test, 'output': y_test},
                             callbacks=cbks)
 
-        # fit generator wo validation
-        model.fit_generator(data_generator_graph(True), 1000, nb_epoch=2,
+        # fit function wo validation
+        model.fit_data_func(data_generator_graph(True).get_data, 1000, nb_epoch=2,
                             callbacks=cbks)
 
         assert os.path.exists(filepath)
@@ -249,4 +259,5 @@ def test_TensorBoard():
     KTF.set_session(old_session)
 
 if __name__ == '__main__':
-    pytest.main([__file__])
+    test_TensorBoard()    
+    #pytest.main([__file__])

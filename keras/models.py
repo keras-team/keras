@@ -218,33 +218,30 @@ def get_function_name(o):
         return o.__name__
 
 
-def generator_queue(generator, max_q_size=10,
+def data_func_queue(data_func, max_q_size=10,
                     wait_time=0.05, nb_worker=1):
-    '''Builds a threading queue out of a data generator.
-    Used in `fit_generator`, `evaluate_generator`.
+    '''Builds a threading queue out of a data function.
+    Used in `fit_data_func`, `evaluate_data_func`.
     '''
     q = queue.Queue()
     _stop = threading.Event()
 
-    def data_generator_task():
+    def data_task():
         while not _stop.is_set():
             try:
                 if q.qsize() < max_q_size:
-                    try:
-                        generator_output = next(generator)
-                    except ValueError:
-                        continue
-                    q.put(generator_output)
+                    data_func_output = data_func()
+                    q.put(data_func_output)
                 else:
                     time.sleep(wait_time)
             except Exception:
                 _stop.set()
                 raise
 
-    generator_threads = [threading.Thread(target=data_generator_task)
-                         for _ in range(nb_worker)]
+    data_threads = [threading.Thread(target=data_task)
+                    for _ in range(nb_worker)]
 
-    for thread in generator_threads:
+    for thread in data_threads:
         thread.daemon = True
         thread.start()
 
@@ -886,29 +883,29 @@ class Sequential(Model, containers.Sequential):
             self.layers[k].set_weights(weights)
         f.close()
 
-    def _check_generator_output(self, generator_output, stop):
-        '''Validates the output of a generator. On error, calls
+    def _check_data_func_output(self, data_func_output, stop):
+        '''Validates the output of a function. On error, calls
         stop.set().
 
         # Arguments
-            generator_output: output of a data generator.
+            data_func_output: output of a data function.
             stop: threading event to be called to
                 interrupt training/evaluation.
         '''
-        if not hasattr(generator_output, '__len__'):
+        if not hasattr(data_func_output, '__len__'):
             stop.set()
-            raise Exception('The generator output must be a tuple. Found: ' +
-                            str(type(generator_output)))
-        if len(generator_output) == 2:
-            X, y = generator_output
+            raise Exception('The function output must be a tuple. Found: ' +
+                            str(type(data_func_output)))
+        if len(data_func_output) == 2:
+            X, y = data_func_output
             if type(X) == list:
                 assert len(set([len(a) for a in X] + [len(y)])) == 1
             else:
                 assert len(X) == len(y)
                 X = [X]
             sample_weight = None
-        elif len(generator_output) == 3:
-            X, y, sample_weight = generator_output
+        elif len(data_func_output) == 3:
+            X, y, sample_weight = data_func_output
             if type(X) == list:
                 assert len(set([len(a) for a in X] +
                                [len(y), len(sample_weight)])) == 1
@@ -917,26 +914,26 @@ class Sequential(Model, containers.Sequential):
                 X = [X]
         else:
             stop.set()
-            raise Exception('The generator output tuple must have '
+            raise Exception('The function output tuple must have '
                             '2 or 3 elements.')
 
         sample_weight = standardize_weights(y, sample_weight=sample_weight,
                                             sample_weight_mode=self.sample_weight_mode)
         return X, y, sample_weight
 
-    def evaluate_generator(self, generator, val_samples, show_accuracy=False,
+    def evaluate_data_func(self, data_func, val_samples, show_accuracy=False,
                            verbose=1, **kwargs):
-        '''Evaluates the model on a generator. The generator should
-        return the same kind of data with every yield as accepted
+        '''Evaluates the model on a function. The function should
+        return the same kind of data with every call as accepted
         by `evaluate`
 
         Arguments:
-            generator:
-                generator yielding dictionaries of the kind accepted
+            data_func:
+                function returning dictionaries of the kind accepted
                 by `evaluate`, or tuples of such dictionaries and
                 associated dictionaries of sample weights.
             val_samples:
-                total number of samples to generate from `generator`
+                total number of samples to generate from `data_func`
                 to use in validation.
             show_accuracy: whether to display accuracy in logs.
             verbose: verbosity mode, 0 (silent), 1 (per-batch logs),
@@ -945,10 +942,10 @@ class Sequential(Model, containers.Sequential):
         done_samples = 0
         all_outs = None
         weights = []
-        q, _stop = generator_queue(generator, **kwargs)
+        q, _stop = data_func_queue(data_func, **kwargs)
 
         while done_samples < val_samples:
-            X, y, sample_weight = self._check_generator_output(q.get(), _stop)
+            X, y, sample_weight = self._check_data_func_output(q.get(), _stop)
             do_samples = len(X[0])
             outs = self.evaluate(X, y, batch_size=do_samples,
                                  sample_weight=sample_weight,
@@ -975,24 +972,24 @@ class Sequential(Model, containers.Sequential):
             return np.average(np.asarray(all_outs),
                               weights=weights)
 
-    def fit_generator(self, generator, samples_per_epoch, nb_epoch,
+    def fit_data_func(self, data_func, samples_per_epoch, nb_epoch,
                       verbose=1, show_accuracy=False, callbacks=[],
                       validation_data=None, nb_val_samples=None,
                       class_weight=None,
                       nb_worker=1, nb_val_worker=None):
-        '''Fit a model on data generated batch-by-batch by a Python generator.
-        The generator is run in parallel to the model, for efficiency,
+        '''Fit a model on data generated batch-by-batch by a function.
+        The function is run in parallel to the model, for efficiency,
         and can be run by multiple workers at the same time.
         For instance, this allows you to do real-time data augmentation
         on images on CPU in parallel to training your model on GPU.
 
         # Arguments
-            generator: a Python generator,
-                yielding either (X, y) or (X, y, sample_weight).
-                The generator is expected to loop over its data
+            data_function: a function returning data batches,
+                returning either (X, y) or (X, y, sample_weight).
+                The function is expected to return data
                 indefinitely. An epoch finishes when `samples_per_epoch`
                 samples have been seen by the model.
-                The output of the generator must be a tuple of either 2 or 3
+                The output of the function must be a tuple of either 2 or 3
                 numpy arrays.
                 If the output tuple has two elements, they are assumed to be
                 (input_data, target_data).
@@ -1001,33 +998,33 @@ class Sequential(Model, containers.Sequential):
                 All arrays should contain the same number of samples.
             samples_per_epoch: integer, number of samples to process before
                 starting a new epoch.
-            nb_epoch: integer, total number of iterations on the data.
+            nb_epoch: integer, total number of epochs to run.
             verbose: verbosity mode, 0, 1, or 2.
             show_accuracy: boolean. Whether to display accuracy (only relevant
                 for classification problems).
             callbacks: list of callbacks to be called during training.
-            validation_data: tuple of 2 or 3 numpy arrays, or a generator.
+            validation_data: tuple of 2 or 3 numpy arrays, or a function.
                 If 2 elements, they are assumed to be (input_data, target_data);
                 if 3 elements, they are assumed to be
-                (input_data, target_data, sample weights). If generator,
-                it is assumed to yield tuples of 2 or 3 elements as above.
-                The generator will be called at the end of every epoch until
+                (input_data, target_data, sample weights). If function,
+                it is assumed to return tuples of 2 or 3 elements as above.
+                The function will be called at the end of every epoch until
                 at least `nb_val_samples` examples have been obtained,
                 with these examples used for validation.
             nb_val_samples: number of samples to use from validation
-                generator at the end of every epoch.
+                function at the end of every epoch.
             class_weight: dictionary mapping class indices to a weight
                 for the class.
             nb_worker: integer, number of workers to use for running
-                the generator (in parallel to model training).
+                the function (in parallel to model training).
                 If using multiple workers, the processing order of batches
                 generated by the model will be non-deterministic.
                 If using multiple workers, make sure to protect
-                any thread-unsafe operation done by the generator
+                any thread-unsafe operation done by the function
                 using a Python mutex.
             nb_val_worker: same as `nb_worker`, except for validation data.
                 Has no effect if no validation data or validation data is
-                not a generator. If `nb_val_worker` is None, defaults to
+                not a function. If `nb_val_worker` is None, defaults to
                 `nb_worker`.
 
         # Returns
@@ -1036,17 +1033,23 @@ class Sequential(Model, containers.Sequential):
         # Examples
 
         ```python
-            def generate_arrays_from_file(path):
-                while 1:
-                    f = open(path)
-                    for line in f:
-                        # create numpy arrays of input data
-                        # and labels, from each line in the file
-                        x, y = process_line(line)
-                        yield x, y
-                    f.close()
+            class ArrayGenerator:
+                def __init__(self, f):
+                    self.f = f
+                    self.fp = open(f, 'r')
+                    self.file_iter = iter(self.fp)
 
-            model.fit_generator(generate_arrays_from_file('/my_file.txt'),
+                def get_data():
+                    try:
+                        x, y = process_line(next(self.fp_iter))
+                        return x, y
+                    except StopIteration:
+                        self.fp.close()
+                        self.fp = open(self.f, 'r')
+                        self.file_iter = iter(self.fp)
+                        return self.get_data()
+
+            model.fit_data_func(generate_arrays_from_file('/my_file.txt').get_data,
                                 samples_per_epoch=10000, nb_epoch=10)
         ```
         '''
@@ -1058,10 +1061,9 @@ class Sequential(Model, containers.Sequential):
         do_validation = bool(validation_data)
         # python 2 has 'next', 3 has '__next__'
         # avoid any explicit version checks
-        val_gen = (hasattr(validation_data, 'next') or
-                   hasattr(validation_data, '__next__'))
+        val_gen = hasattr(validation_data, '__call__')
         if val_gen and not nb_val_samples:
-            raise Exception('When using a generator for validation data, '
+            raise Exception('When using a function for validation data, '
                             'you must specify a value for "nb_val_samples".')
         if nb_val_worker is None:
             nb_val_worker = nb_worker
@@ -1089,11 +1091,11 @@ class Sequential(Model, containers.Sequential):
         })
         callbacks.on_train_begin()
 
-        # start generator thread storing batches into a queue
-        data_gen_queue, _data_stop = generator_queue(generator, max_q_size=max_data_q_size,
+        # start data generating thread storing batches into a queue
+        data_gen_queue, _data_stop = data_func_queue(data_func, max_q_size=max_data_q_size,
                                                      wait_time=wait_time, nb_worker=nb_worker)
         if do_validation and not val_gen:
-            X_val, y_val, sample_weight_val = self._check_generator_output(validation_data,
+            X_val, y_val, sample_weight_val = self._check_data_func_output(validation_data,
                                                                            _data_stop)
             self.validation_data = X_val + [y_val, sample_weight_val]
         else:
@@ -1105,15 +1107,15 @@ class Sequential(Model, containers.Sequential):
             samples_seen = 0
             batch_index = 0
             while samples_seen < samples_per_epoch:
-                generator_output = None
+                data_func_output = None
                 while not _data_stop.is_set():
                     if not data_gen_queue.empty():
-                        generator_output = data_gen_queue.get()
+                        data_func_output = data_gen_queue.get()
                         break
                     else:
                         time.sleep(wait_time)
 
-                X, y, sample_weight = self._check_generator_output(generator_output,
+                X, y, sample_weight = self._check_data_func_output(data_func_output,
                                                                    _data_stop)
                 batch_logs = {}
                 batch_size = len(X[0])
@@ -1139,7 +1141,7 @@ class Sequential(Model, containers.Sequential):
                 # epoch finished
                 if samples_seen >= samples_per_epoch and do_validation:
                     if val_gen:
-                        val_outs = self.evaluate_generator(validation_data,
+                        val_outs = self.evaluate_data_func(validation_data,
                                                            nb_val_samples,
                                                            show_accuracy=show_accuracy,
                                                            verbose=0, nb_worker=nb_val_worker,
@@ -1425,19 +1427,19 @@ class Graph(Model, containers.Graph):
         self.set_weights(weights)
         f.close()
 
-    def evaluate_generator(self, generator, nb_val_samples,
+    def evaluate_data_func(self, data_func, nb_val_samples,
                            verbose=1, **kwargs):
-        '''Evaluates the model on a generator. The generator should
-        return the same kind of data with every yield as accepted
+        '''Evaluates the model on a function. The function should
+        return the same kind of data with every call as accepted
         by `evaluate`.
 
         Arguments:
-            generator:
-                generator yielding dictionaries of the kind accepted
+            data_func:
+                function returning dictionaries of the kind accepted
                 by `evaluate`, or tuples of such dictionaries and
                 associated dictionaries of sample weights.
             nb_val_samples:
-                total number of samples to generate from `generator`
+                total number of samples to generate from `data_func`
                 to use in validation.
 
             Other argumens are as for `fit`.
@@ -1445,10 +1447,10 @@ class Graph(Model, containers.Graph):
         done_samples = 0
         all_outs = []
         weights = []
-        q, _stop = generator_queue(generator, **kwargs)
+        q, _stop = data_func_queue(data_func, **kwargs)
 
         while done_samples < nb_val_samples:
-            data, sample_weight = self._check_generator_output(q.get(), _stop)
+            data, sample_weight = self._check_data_func_output(q.get(), _stop)
             do_samples = len(data[next(iter(data.keys()))])
             outs = self.evaluate(data, batch_size=do_samples,
                                  sample_weight=sample_weight,
@@ -1462,25 +1464,25 @@ class Graph(Model, containers.Graph):
         return np.average(np.asarray(all_outs),
                           weights=weights)
 
-    def _check_generator_output(self, generator_output, stop):
-        '''Verifies the output of a generator to make sure
+    def _check_data_func_output(self, data_func_output, stop):
+        '''Verifies the output of a function to make sure
         it is consistent with requirements. Also standardizes
         the output.
         '''
-        if type(generator_output) in [list, tuple]:
-            if len(generator_output) == 2:
-                data, sample_weight = generator_output
+        if type(data_func_output) in [list, tuple]:
+            if len(data_func_output) == 2:
+                data, sample_weight = data_func_output
             else:
                 stop.set()
-                raise Exception('The generator output tuple must have '
+                raise Exception('The function output tuple must have '
                                 '2 dictionary elements: '
                                 '(data, sample_weight).')
-        elif type(generator_output) == dict:
-            data = generator_output
+        elif type(data_func_output) == dict:
+            data = data_func_output
             sample_weight = {}
         else:
             stop.set()
-            raise Exception('The generator output must be '
+            raise Exception('The function output must be '
                             'a data dictionary or a tuple '
                             '(data, sample_weight).')
         assert type(data) == dict
@@ -1494,25 +1496,25 @@ class Graph(Model, containers.Graph):
                          sample_weight_mode=self.sample_weight_modes.get(name)) for name in self.output_order}
         return data, sample_weight
 
-    def fit_generator(self, generator, samples_per_epoch, nb_epoch,
+    def fit_data_func(self, data_func, samples_per_epoch, nb_epoch,
                       verbose=1, callbacks=[],
                       validation_data=None, nb_val_samples=None,
                       class_weight={},
                       nb_worker=1, nb_val_worker=None):
-        '''Fit a model on data generated batch-by-batch by a Python generator.
-        The generator is run in parallel to the model, for efficiency,
+        '''Fit a model on data generated batch-by-batch by a function.
+        The function is called in parallel to the model, for efficiency,
         and can be run by multiple workers at the same time.
         For instance, this allows you to do real-time data augmentation
         on images on CPU in parallel to training your model on GPU.
 
         # Arguments
-            generator: a generator.
-                The output of the generator must be either a dictionary
+            data_func: a function returning a batch of data.
+                The output of the function must be either a dictionary
                 mapping inputs and outputs names to numpy arrays, or
                 a tuple of dictionaries (input_data, sample_weight).
                 All arrays should contain the same number of samples.
-                The generator is expected to loop over its data
-                indefinitely. An epoch finishes when `samples_per_epoch`
+                The function is expected to produce data indefinitely.
+                An epoch finishes when `samples_per_epoch`
                 samples have been seen by the model.
             samples_per_epoch: integer, number of samples to process before
                 going to the next epoch.
@@ -1521,26 +1523,26 @@ class Graph(Model, containers.Graph):
             callbacks: list of callbacks to be called during training.
             validation_data: dictionary mapping input names and outputs names
                 to appropriate numpy arrays to be used as
-                held-out validation data, or a generator yielding such
+                held-out validation data, or a function returning such
                 dictionaries. All arrays should contain the same number
-                of samples. If a generator, will be called until more than
+                of samples. If a function, will be called until more than
                 `nb_val_samples` examples have been generated at the
                 end of every epoch. These examples will then be used
                 as the validation data.
             nb_val_samples: number of samples to use from validation
-                generator at the end of every epoch.
+                function at the end of every epoch.
             class_weight: dictionary mapping class indices to a weight
                 for the class.
             nb_worker: integer, number of workers to use for running
-                the generator (in parallel to model training).
+                the function (in parallel to model training).
                 If using multiple workers, the processing order of batches
                 generated by the model will be non-deterministic.
                 If using multiple workers, make sure to protect
-                any thread-unsafe operation done by the generator
+                any thread-unsafe operation done by the function
                 using a Python mutex.
             nb_val_worker: same as `nb_worker`, except for validation data.
                 Has no effect if no validation data or validation data is
-                not a generator. If `None`, defaults to nb_worker.
+                not a function. If `None`, defaults to nb_worker.
 
 
         # Returns
@@ -1549,17 +1551,23 @@ class Graph(Model, containers.Graph):
         # Examples
 
         ```python
-            def generate_arrays_from_file(path):
-                while 1:
-                    f = open(path)
-                    for line in f:
-                        # create numpy arrays of input data
-                        # and labels, from each line in the file
-                        x1, x2, y = process_line(line)
-                        yield {'input_1': x1, 'input_2': x2, 'output': y}
-                    f.close()
+            class ArrayGenerator:
+                def __init__(self, f):
+                    self.f = f
+                    self.fp = open(f, 'r')
+                    self.file_iter = iter(self.fp)
 
-            graph.fit_generator(generate_arrays_from_file('/my_file.txt'),
+                def get_data():
+                    try:
+                        x1, x2, y = process_line(next(self.fp_iter))
+                        return {'input_1': x1, 'input_2': x2, 'output': y}
+                    except StopIteration:
+                        self.fp.close()
+                        self.fp = open(self.f, 'r')
+                        self.file_iter = iter(self.fp)
+                        return self.get_data()
+
+            graph.fit_data_func(generate_arrays_from_file('/my_file.txt').get_data,
                                 samples_per_epoch=10000, nb_epoch=10)
         ```
         '''
@@ -1569,10 +1577,9 @@ class Graph(Model, containers.Graph):
         epoch = 0
 
         do_validation = bool(validation_data)
-        val_gen = (hasattr(validation_data, 'next') or
-                   hasattr(validation_data, '__next__'))
+        val_gen = hasattr(validation_data, '__call__')
         if val_gen and not nb_val_samples:
-            raise Exception('When using a generator for validation data, '
+            raise Exception('When using a function for validation data, '
                             'you must specify a value for "nb_val_samples".')
         if nb_val_worker is None:
             nb_val_worker = nb_worker
@@ -1599,12 +1606,12 @@ class Graph(Model, containers.Graph):
         })
         callbacks.on_train_begin()
 
-        # start generator thread storing batches into a queue
-        data_gen_queue, _data_stop = generator_queue(generator, max_q_size=max_data_q_size,
+        # start data generating thread storing batches into a queue
+        data_gen_queue, _data_stop = data_func_queue(data_func, max_q_size=max_data_q_size,
                                                      wait_time=wait_time, nb_worker=nb_worker)
         if do_validation and not val_gen:
             # TODO: _data_stop not really sensical here
-            data_val, sample_weight_val = self._check_generator_output(validation_data, _data_stop)
+            data_val, sample_weight_val = self._check_data_func_output(validation_data, _data_stop)
             sample_weight_val_l = [sample_weight_val[name] for name in self.output_order]
             y_val = [standardize_y(data_val[name]) for name in self.output_order]
             self.validation_data = [data_val[name] for name in self.input_order] + y_val + sample_weight_val_l
@@ -1619,12 +1626,12 @@ class Graph(Model, containers.Graph):
             while samples_seen < samples_per_epoch:
                 while not _data_stop.is_set():
                     if not data_gen_queue.empty():
-                        generator_output = data_gen_queue.get()
+                        data_func_output = data_gen_queue.get()
                         break
                     else:
                         time.sleep(wait_time)
 
-                data, sample_weight = self._check_generator_output(generator_output,
+                data, sample_weight = self._check_data_func_output(data_func_output,
                                                                    _data_stop)
                 batch_logs = {}
                 batch_size = len(data[list(data.keys())[0]])
@@ -1648,7 +1655,7 @@ class Graph(Model, containers.Graph):
                 # epoch finished
                 if samples_seen >= samples_per_epoch and do_validation:
                     if val_gen:
-                        val_outs = self.evaluate_generator(validation_data,
+                        val_outs = self.evaluate_data_func(validation_data,
                                                            nb_val_samples,
                                                            verbose=0,
                                                            nb_worker=nb_val_worker,

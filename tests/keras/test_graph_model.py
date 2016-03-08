@@ -26,13 +26,18 @@ batch_size = 32
                                                                                  output_shape=(1,))
 
 
-def test_graph_fit_generator():
-    def data_generator_graph(train):
-        while 1:
-            if train:
-                yield {'input1': X_train_graph, 'output1': y_train_graph}
-            else:
-                yield {'input1': X_test_graph, 'output1': y_test_graph}
+def test_graph_fit_data_func():
+
+    class data_generator_graph:
+        def __init__(self, train):
+            self.train = train
+
+        def get_data(self):
+            while 1:
+                if self.train:
+                    return {'input1': X_train_graph, 'output1': y_train_graph}
+                else:
+                    return {'input1': X_test_graph, 'output1': y_test_graph}
 
     graph = Graph()
     graph.add_input(name='input1', input_shape=(32,))
@@ -46,16 +51,16 @@ def test_graph_fit_generator():
                      merge_mode='sum')
     graph.compile('rmsprop', {'output1': 'mse'})
 
-    graph.fit_generator(data_generator_graph(True), 1000, nb_epoch=4)
-    graph.fit_generator(data_generator_graph(True), 1000, nb_epoch=4)
-    graph.fit_generator(data_generator_graph(True), 1000, nb_epoch=4, validation_data={'input1': X_test_graph, 'output1': y_test_graph})
-    graph.fit_generator(data_generator_graph(True), 1000, nb_epoch=4, validation_data={'input1': X_test_graph, 'output1': y_test_graph})
-    graph.fit_generator(data_generator_graph(True), 1000, nb_epoch=4,
-                        validation_data=data_generator_graph(False), nb_val_samples=batch_size * 3)
-    graph.fit_generator(data_generator_graph(True), 1000, nb_epoch=4,
-                        validation_data=data_generator_graph(False), nb_val_samples=batch_size * 3)
+    graph.fit_data_func(data_generator_graph(True).get_data, 1000, nb_epoch=4)
+    graph.fit_data_func(data_generator_graph(True).get_data, 1000, nb_epoch=4)
+    graph.fit_data_func(data_generator_graph(True).get_data, 1000, nb_epoch=4, validation_data={'input1': X_test_graph, 'output1': y_test_graph})
+    graph.fit_data_func(data_generator_graph(True).get_data, 1000, nb_epoch=4, validation_data={'input1': X_test_graph, 'output1': y_test_graph})
+    graph.fit_data_func(data_generator_graph(True).get_data, 1000, nb_epoch=4,
+                        validation_data=data_generator_graph(False).get_data, nb_val_samples=batch_size * 3)
+    graph.fit_data_func(data_generator_graph(True).get_data, 1000, nb_epoch=4,
+                        validation_data=data_generator_graph(False).get_data, nb_val_samples=batch_size * 3)
 
-    gen_loss = graph.evaluate_generator(data_generator_graph(True), 128, verbose=0)
+    gen_loss = graph.evaluate_data_func(data_generator_graph(True).get_data, 128, verbose=0)
     assert(gen_loss < 3.)
 
     loss = graph.evaluate({'input1': X_test_graph, 'output1': y_test_graph}, verbose=0)
@@ -401,4 +406,5 @@ def test_count_params():
 
 
 if __name__ == '__main__':
-    pytest.main([__file__])
+    test_graph_fit_data_func()
+    # pytest.main([__file__])
