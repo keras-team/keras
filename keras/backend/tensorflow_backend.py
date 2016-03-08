@@ -12,10 +12,10 @@ def get_session():
     global _SESSION
     if _SESSION is None:
         if not os.environ.get('OMP_NUM_THREADS'):
-            _SESSION = tf.Session('')
+            _SESSION = tf.Session(config=tf.ConfigProto(allow_soft_placement=True))
         else:
             nb_thread = int(os.environ.get('OMP_NUM_THREADS'))
-            _SESSION = tf.Session(config=tf.ConfigProto(intra_op_parallelism_threads=nb_thread))
+            _SESSION = tf.Session(config=tf.ConfigProto(intra_op_parallelism_threads=nb_thread, allow_soft_placement=True))
     return _SESSION
 
 
