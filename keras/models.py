@@ -496,12 +496,7 @@ class Sequential(Model, containers.Sequential):
 
         self.y_train = self.get_output(train=True)
         self.y_test = self.get_output(train=False)
-
-        # target of model
-        if loss == 'categorical_crossentropy_one_hot':
-            self.y = K.placeholder(ndim=K.ndim(self.y_train)-1)
-        else:
-            self.y = K.placeholder(ndim=K.ndim(self.y_train))
+        self.y = K.placeholder(ndim=K.ndim(self.y_train))
 
         if self.sample_weight_mode == 'temporal':
             self.weights = K.placeholder(ndim=2)

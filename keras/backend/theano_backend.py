@@ -422,14 +422,6 @@ def spatial_3d_padding(x, padding=(1, 1, 1), dim_ordering='th'):
 def pack(x):
     return T.stack(*x)
 
-
-def to_one_hot(x, nb_class):
-    output_shape = T.concatenate([x.shape, [nb_class]])
-    out = T.cast(T.flatten(x), 'int32')
-    out = T.extra_ops.to_one_hot(out, nb_class=nb_class)
-    out = T.reshape(out, (output_shape), ndim=x.ndim + 1)
-    return out
-
 # VALUE MANIPULATION
 
 
@@ -604,7 +596,9 @@ def categorical_crossentropy(output, target, from_logits=False):
 
 
 def categorical_crossentropy_one_hot(output, target, from_logits=False):
-    target = to_one_hot(target, output.shape[-1])
+    target = T.cast(T.flatten(target), 'int32')
+    target = T.extra_ops.to_one_hot(target, nb_class=output.shape[-1])
+    target = reshape(target, shape(output))
     return categorical_crossentropy(output, target, from_logits)
 
 

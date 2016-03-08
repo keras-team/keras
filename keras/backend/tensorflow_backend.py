@@ -363,15 +363,6 @@ def pack(x):
     return tf.pack(x)
 
 
-def to_one_hot(x, nb_class):
-    nb_class = int(nb_class)
-    flat = tf.to_int32(tf.reshape(x, [-1, 1]))
-    out_shape = tf.pack([tf.shape(flat)[0], nb_class])
-    indices = tf.concat(1, [tf.expand_dims(tf.range(0, tf.shape(flat)[0], 1), -1), flat])
-    out = tf.sparse_to_dense(indices, out_shape, 1, 0)
-    return tf.reshape(out, tf.concat(0, [tf.shape(x), [nb_class]]))
-
-
 # VALUE MANIPULATION
 
 def get_value(x):
@@ -575,8 +566,23 @@ def categorical_crossentropy(output, target, from_logits=False):
 
 
 def categorical_crossentropy_one_hot(output, target, from_logits=False):
-    target = tf.cast((to_one_hot(target, output.get_shape()[-1])), dtype=_FLOATX)
-    return categorical_crossentropy(output, target, from_logits)
+    '''Note: tf.nn.sparse_softmax_cross_entropy_with_logits
+    expects logits, Keras expects prbabilities.
+    '''
+    if not from_logits:
+        output = tf.clip_by_value(output, tf.cast(_EPSILON, dtype=_FLOATX),
+                                  tf.cast(1.-_EPSILON, dtype=_FLOATX))
+        output = tf.log(output / (1 - output))
+
+    output_shape = output.get_shape()
+    res = tf.nn.sparse_softmax_cross_entropy_with_logits(
+        tf.reshape(output, [-1, int(output_shape[-1])]),
+        cast(flatten(target), 'int64'))
+    if len(output_shape) == 3:
+        # if our output includes timesteps we need to reshape
+        return tf.reshape(res, [-1, int(output_shape[-2])])
+    else:
+        return res
 
 
 def binary_crossentropy(output, target, from_logits=False):
