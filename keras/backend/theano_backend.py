@@ -418,6 +418,7 @@ def spatial_3d_padding(x, padding=(1, 1, 1), dim_ordering='th'):
         raise Exception('Invalid dim_ordering: ' + dim_ordering)
     return T.set_subtensor(output[indices], x)
 
+
 def pack(x):
     return T.stack(*x)
 
@@ -461,37 +462,38 @@ def gradients(loss, variables):
 def rnn(step_function, inputs, initial_states,
         go_backwards=False, mask=None, constants=None):
     '''Iterates over the time dimension of a tensor.
-    Parameters
-    ----------
-    inputs: tensor of temporal data of shape (samples, time, ...)
-        (at least 3D).
-    step_function:
-        Parameters:
-            input: tensor with shape (samples, ...) (no time dimension),
-                representing input for the batch of samples at a certain
-                time step.
-            states: list of tensors.
-        Returns:
-            output: tensor with shape (samples, ...) (no time dimension),
-            new_states: list of tensors, same length and shapes
-                as 'states'.
-    initial_states: tensor with shape (samples, ...) (no time dimension),
-        containing the initial values for the states used in
-        the step function.
-    go_backwards: boolean. If True, do the iteration over
-        the time dimension in reverse order.
-    mask: binary tensor with shape (samples, time),
-        with a zero for every element that is masked.
-    constants: a list of constant values passed at each step.
-    Returns
-    -------
-    A tuple (last_output, outputs, new_states).
-        last_output: the latest output of the rnn, of shape (samples, ...)
-        outputs: tensor with shape (samples, time, ...) where each
-            entry outputs[s, t] is the output of the step function
-            at time t for sample s.
-        new_states: list of tensors, latest states returned by
-            the step function, of shape (samples, ...).
+
+    # Arguments
+        inputs: tensor of temporal data of shape (samples, time, ...)
+            (at least 3D).
+        step_function:
+            Parameters:
+                input: tensor with shape (samples, ...) (no time dimension),
+                    representing input for the batch of samples at a certain
+                    time step.
+                states: list of tensors.
+            Returns:
+                output: tensor with shape (samples, ...) (no time dimension),
+                new_states: list of tensors, same length and shapes
+                    as 'states'.
+        initial_states: tensor with shape (samples, ...) (no time dimension),
+            containing the initial values for the states used in
+            the step function.
+        go_backwards: boolean. If True, do the iteration over
+            the time dimension in reverse order.
+        mask: binary tensor with shape (samples, time),
+            with a zero for every element that is masked.
+        constants: a list of constant values passed at each step.
+
+
+    # Returns
+        A tuple (last_output, outputs, new_states).
+            last_output: the latest output of the rnn, of shape (samples, ...)
+            outputs: tensor with shape (samples, time, ...) where each
+                entry outputs[s, t] is the output of the step function
+                at time t for sample s.
+            new_states: list of tensors, latest states returned by
+                the step function, of shape (samples, ...).
     '''
     ndim = inputs.ndim
     assert ndim >= 3, 'Input should be at least 3D.'
@@ -709,7 +711,8 @@ def conv2d(x, kernel, strides=(1, 1), border_mode='valid', dim_ordering='th',
     return conv_out
 
 
-def conv3d(x, kernel, strides=(1, 1, 1), border_mode='valid', dim_ordering='th',
+def conv3d(x, kernel, strides=(1, 1, 1),
+           border_mode='valid', dim_ordering='th',
            volume_shape=None, filter_shape=None):
     '''
     Run on cuDNN if available.
