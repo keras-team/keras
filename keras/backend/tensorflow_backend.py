@@ -385,9 +385,9 @@ def set_value(x, value):
 class Function(object):
 
     def __init__(self, inputs, outputs, updates=[]):
-        assert type(inputs) in {list, tuple}
-        assert type(outputs) in {list, tuple}
-        assert type(updates) in {list, tuple}
+        assert type(inputs) in {list, tuple}, 'Input to a TensorFlow backend function should be a list or tuple.'
+        assert type(outputs) in {list, tuple}, 'Output to a TensorFlow backend function should be a list or tuple.'
+        assert type(updates) in {list, tuple}, 'Updates in a TensorFlow backend function should be a list or tuple.'
         self.inputs = list(inputs)
         self.outputs = list(outputs)
         with tf.control_dependencies(self.outputs):

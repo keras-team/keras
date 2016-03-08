@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 import gzip
-from .data_utils import get_file
+from ..utils.data_utils import get_file
 from six.moves import cPickle
 import sys
 

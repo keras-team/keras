@@ -4,6 +4,7 @@ import sys
 from six.moves import cPickle
 from six.moves import range
 
+
 def load_batch(fpath, label_key='labels'):
     f = open(fpath, 'rb')
     if sys.version_info < (3,):
