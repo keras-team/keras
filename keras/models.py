@@ -198,10 +198,8 @@ def model_from_config(config, custom_objects={}):
 
         if model_name == 'Sequential':
             sample_weight_mode = config.get('sample_weight_mode')
-            y_ndim = config.get('y_ndim')
             model.compile(loss=loss, optimizer=optimizer,
-                          class_mode=class_mode, sample_weight_mode=sample_weight_mode,
-                          y_ndim=y_ndim)
+                          class_mode=class_mode, sample_weight_mode=sample_weight_mode)
         elif model_name == 'Graph':
             sample_weight_modes = config.get('sample_weight_modes', {})
             model.compile(loss=loss, optimizer=optimizer, sample_weight_modes=sample_weight_modes)
@@ -403,7 +401,7 @@ class Model(object):
         `keras.models.model_from_config(config, custom_objects={})`.
         '''
         config = super(Model, self).get_config()
-        for p in ['class_mode', 'sample_weight_mode', 'sample_weight_modes', 'y_ndim']:
+        for p in ['class_mode', 'sample_weight_mode', 'sample_weight_modes']:
             if hasattr(self, p):
                 config[p] = getattr(self, p)
         if hasattr(self, 'optimizer'):
@@ -482,7 +480,6 @@ class Sequential(Model, containers.Sequential):
             sample_weight_mode: if you need to do timestep-wise
                 sample weighting (2D weights), set this to "temporal".
                 "None" defaults to sample-wise weights (1D).
-            y_ndim: if using a custom objective function where y.ndim != x.ndim.
         '''
         self.optimizer = optimizers.get(optimizer)
         self.sample_weight_mode = sample_weight_mode
