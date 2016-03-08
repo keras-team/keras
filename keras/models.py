@@ -1281,7 +1281,9 @@ class Graph(Model, containers.Graph):
 
         sample_weight_list = [standardize_weights(y[i],
                                                   sample_weight=sample_weight.get(self.output_order[i]),
-                                                  sample_weight_mode=self.sample_weight_modes.get(self.output_order[i])) for i in range(len(self.output_order))]
+                                                  sample_weight_mode=self.sample_weight_modes.get(self.output_order[i]))
+                              if sample_weight.get(self.output_order[i]) is not None else None
+                              for i in range(len(self.output_order))]
         class_weight_list = [class_weight.get(name) for name in self.output_order]
 
         val_f = None
