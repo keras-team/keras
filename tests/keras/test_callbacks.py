@@ -127,7 +127,7 @@ def test_TensorBoard():
     import shutil
     import tensorflow as tf
     import keras.backend.tensorflow_backend as KTF
-    old_session = KTF._get_session()
+    old_session = KTF.get_session()
     filepath = './logs'
     (X_train, y_train), (X_test, y_test) = get_test_data(nb_train=train_samples,
                                                          nb_test=test_samples,
@@ -162,7 +162,7 @@ def test_TensorBoard():
 
     with tf.Graph().as_default():
         session = tf.Session('')
-        KTF._set_session(session)
+        KTF.set_session(session)
         model = Sequential()
         model.add(Dense(nb_hidden, input_dim=input_dim, activation='relu'))
         model.add(Dense(nb_class, activation='softmax'))
@@ -208,7 +208,7 @@ def test_TensorBoard():
 
     with tf.Graph().as_default():
         session = tf.Session('')
-        KTF._set_session(session)
+        KTF.set_session(session)
         model = Graph()
         model.add_input(name='X_vars', input_shape=(input_dim, ))
 
@@ -246,7 +246,7 @@ def test_TensorBoard():
         assert os.path.exists(filepath)
         shutil.rmtree(filepath)
 
-    KTF._set_session(old_session)
+    KTF.set_session(old_session)
 
 if __name__ == '__main__':
     pytest.main([__file__])

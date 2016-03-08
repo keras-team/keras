@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import
-from .data_utils import get_file
+from ..utils.data_utils import get_file
 from six.moves import cPickle
 from six.moves import zip
 import numpy as np

@@ -7,11 +7,11 @@ and make sure the variable `weights_path` in this script matches the location of
 
 Run the script with:
 ```
-python neural_style.py path_to_your_base_image.jpg path_to_your_reference.jpg prefix_for_results
+python neural_style_transfer.py path_to_your_base_image.jpg path_to_your_reference.jpg prefix_for_results
 ```
 e.g.:
 ```
-python neural_style.py img/tuebingen.jpg img/starry_night.jpg results/my_result
+python neural_style_transfer.py img/tuebingen.jpg img/starry_night.jpg results/my_result
 ```
 
 It is preferrable to run this script on GPU, for speed.
@@ -89,17 +89,11 @@ assert img_height == img_width, 'Due to the use of the Gram matrix, width and he
 def preprocess_image(image_path):
     img = imresize(imread(image_path), (img_width, img_height))
     img = img.transpose((2, 0, 1)).astype('float64')
-    img[:, :, 0] -= 103.939
-    img[:, :, 1] -= 116.779
-    img[:, :, 2] -= 123.68
     img = np.expand_dims(img, axis=0)
     return img
 
 # util function to convert a tensor into a valid image
 def deprocess_image(x):
-    x[:, :, 0] += 103.939
-    x[:, :, 1] += 116.779
-    x[:, :, 2] += 123.68
     x = x.transpose((1, 2, 0))
     x = np.clip(x, 0, 255).astype('uint8')
     return x
