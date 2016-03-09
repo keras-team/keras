@@ -570,9 +570,9 @@ def categorical_crossentropy(output, target, from_logits=False):
         return tf.nn.softmax_cross_entropy_with_logits(output, target)
 
 
-def categorical_crossentropy_one_hot(output, target, from_logits=False):
+def sparse_categorical_crossentropy(output, target, from_logits=False):
     '''Note: tf.nn.sparse_softmax_cross_entropy_with_logits
-    expects logits, Keras expects prbabilities.
+    expects logits, Keras expects probabilities.
     '''
     if not from_logits:
         output = tf.clip_by_value(output, tf.cast(_EPSILON, dtype=_FLOATX),

@@ -596,7 +596,7 @@ def categorical_crossentropy(output, target, from_logits=False):
     return T.nnet.categorical_crossentropy(output, target)
 
 
-def categorical_crossentropy_one_hot(output, target, from_logits=False):
+def sparse_categorical_crossentropy(output, target, from_logits=False):
     target = T.cast(T.flatten(target), 'int32')
     target = T.extra_ops.to_one_hot(target, nb_class=output.shape[-1])
     target = reshape(target, shape(output))
