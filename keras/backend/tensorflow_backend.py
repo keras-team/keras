@@ -469,6 +469,9 @@ def rnn(step_function, inputs, initial_states,
         mask = tf.cast(tf.transpose(mask, axes), tf.bool)
         mask_list = tf.unpack(mask)
 
+        if go_backwards:
+            mask_list.reverse()
+
         for input, mask_t in zip(input_list, mask_list):
             output, new_states = step_function(input, states + constants)
 
