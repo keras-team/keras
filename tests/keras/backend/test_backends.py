@@ -327,23 +327,6 @@ class TestBackend(object):
     #     check_single_tensor_operation('pool2d', (5, 3, 9, 11), pool_size=(2, 3),
     #                                   strides=(1, 1), border_mode='valid')
 
-    def test_one_hot(self):
-        y = np.expand_dims(np.arange(4), 0)
-        exp = np.array([
-            [1, 0, 0, 0],
-            [0, 1, 0, 0],
-            [0, 0, 1, 0],
-            [0, 0, 0, 1]])
-
-        yth = KTH.variable(y, dtype='int32')
-        ytf = KTF.variable(y, dtype='int32')
-
-        th_result = KTH.eval(KTH.to_one_hot(yth, 4))
-        tf_result = KTF.eval(KTF.to_one_hot(ytf, 4))
-
-        assert np.all(th_result == tf_result)
-        assert np.all(th_result == exp)
-
     def test_random_normal(self):
         mean = 0.
         std = 1.
