@@ -161,13 +161,6 @@ def test_TensorBoard():
                 else:
                     return (X_test[i * batch_size: (i + 1) * batch_size], y_test[i * batch_size: (i + 1) * batch_size])
 
-    def data_generator_graph(train):
-        while 1:
-            if train:
-                yield {'X_vars': X_train, 'output': y_train}
-            else:
-                yield {'X_vars': X_test, 'output': y_test}
-
     # case 1 Sequential
 
     with tf.Graph().as_default():
@@ -245,12 +238,12 @@ def test_TensorBoard():
                   callbacks=cbks, nb_epoch=2)
 
         # fit function with validation
-        model.fit_data_func(data_generator_graph(True).get_data, 1000, nb_epoch=2,
+        model.fit_data_func(data_generator(True).get_data, 1000, nb_epoch=2,
                             validation_data={'X_vars': X_test, 'output': y_test},
                             callbacks=cbks)
 
         # fit function wo validation
-        model.fit_data_func(data_generator_graph(True).get_data, 1000, nb_epoch=2,
+        model.fit_data_func(data_generator(True).get_data, 1000, nb_epoch=2,
                             callbacks=cbks)
 
         assert os.path.exists(filepath)
