@@ -57,6 +57,7 @@ def container_from_config(original_layer_dict, custom_objects={}):
         for node in nodes:
             layer = container_from_config(layer_dict['nodes'].get(node['name']))
             node['layer'] = layer
+            node['create_output'] = False  # outputs will be added below
             graph_layer.add_node(**node)
 
         outputs = layer_dict.get('output_config')
