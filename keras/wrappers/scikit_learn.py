@@ -55,8 +55,8 @@ class BaseWrapper(object):
         self.check_params(sk_params)
 
     def check_params(self, params):
-        '''Check user's typo in params' name to avoid unwanted usage of
-        default values
+        '''Check for user typos in "params" keys to avoid
+        unwanted usage of default values
 
         # Arguments
             params: dictionary
