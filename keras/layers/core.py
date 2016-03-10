@@ -45,19 +45,26 @@ class Layer(object):
                           'name'}
         for kwarg in kwargs:
             assert kwarg in allowed_kwargs, 'Keyword argument not understood: ' + kwarg
+
+        if 'name' in kwargs:
+            self.name = kwargs['name']
+        else:
+            self.name = self.__class__.__name__.lower()
+
+        if 'cache_enabled' in kwargs:
+            self.cache_enabled = kwargs['cache_enabled']
+        else:
+            self.cache_enabled = True
+
         if 'batch_input_shape' in kwargs:
             self.set_input_shape(tuple(kwargs['batch_input_shape']))
         elif 'input_shape' in kwargs:
             self.set_input_shape((None,) + tuple(kwargs['input_shape']))
-        self.trainable = True
+
         if 'trainable' in kwargs:
             self.trainable = kwargs['trainable']
-        self.name = self.__class__.__name__.lower()
-        if 'name' in kwargs:
-            self.name = kwargs['name']
-        self.cache_enabled = True
-        if 'cache_enabled' in kwargs:
-            self.cache_enabled = kwargs['cache_enabled']
+        else:
+            self.trainable = True
 
     @property
     def name(self):
@@ -75,22 +82,56 @@ class Layer(object):
     def cache_enabled(self, value):
         self._cache_enabled = value
 
+    @property
+    def layer_cache(self):
+        if hasattr(self, '_layer_cache'):
+            return self._layer_cache
+        else:
+            return None
+
+    @layer_cache.setter
+    def layer_cache(self, value):
+        self._layer_cache = value
+
+    @property
+    def shape_cache(self):
+        if hasattr(self, '_shape_cache'):
+            return self._shape_cache
+        else:
+            return None
+
+    @shape_cache.setter
+    def shape_cache(self, value):
+        self._shape_cache = value
+
     def __call__(self, X, mask=None, train=False):
-        # set temporary input
-        tmp_input = self.get_input
-        tmp_mask = None
+        # reset layer cache temporarily
+        tmp_layer_cache = self.layer_cache
+        tmp_shape_cache = self.shape_cache
+        self.layer_cache = {}
+        self.shape_cache = {}
+        # create a temporary layer
+        layer = Layer(batch_input_shape=self.input_shape)
+        layer.name = "dummy"
+        layer.input = X
         if hasattr(self, 'get_input_mask'):
-            tmp_mask = self.get_input_mask
-            self.get_input_mask = lambda _: mask
-        self.get_input = lambda _: X
+            layer.get_input_mask = lambda _: mask
+        # set temporary previous
+        tmp_previous = None
+        if hasattr(self, 'previous'):
+            tmp_previous = self.previous
+        self.set_previous(layer, False)
         Y = self.get_output(train=train)
-        # return input to what it was
-        if hasattr(self, 'get_input_mask'):
-            self.get_input_mask = tmp_mask
-        self.get_input = tmp_input
+        # return previous to what it was
+        if tmp_previous is not None:
+            self.set_previous(tmp_previous, False)
+        else:
+            self.clear_previous(False)
+        self.layer_cache = tmp_layer_cache
+        self.shape_cache = tmp_shape_cache
         return Y
 
-    def set_previous(self, layer):
+    def set_previous(self, layer, reset_weights=True):
         '''Connect a layer to its parent in the computational graph.
         '''
         assert self.nb_input == layer.nb_output == 1, 'Cannot connect layers: input count and output count should be 1.'
@@ -101,8 +142,27 @@ class Layer(object):
                                                                 str(layer.output_shape))
         if layer.get_output_mask() is not None:
             assert self.supports_masked_input(), 'Cannot connect non-masking layer to layer with masked output.'
+        if not reset_weights:
+            assert layer.output_shape == self.input_shape, ('Cannot connect layers without resetting weights: ' +
+                                                            'expected input with shape ' +
+                                                            str(self.input_shape) +
+                                                            ' but previous layer has output_shape ' +
+                                                            str(layer.output_shape))
         self.previous = layer
-        self.build()
+        if reset_weights:
+            self.build()
+
+    def clear_previous(self, reset_weights=True):
+        '''Unlink a layer from its parent in the computational graph.
+
+        This is only allowed if the layer has an `input` attribute.
+        '''
+        if not hasattr(self, 'input'):
+            raise Exception('Cannot clear previous for non-input layers')
+        if hasattr(self, 'previous'):
+            del self.previous
+            if reset_weights:
+                self.build()
 
     def build(self):
         '''Instantiation of layer weights.
@@ -137,7 +197,15 @@ class Layer(object):
         # if layer is not connected (e.g. input layer),
         # input shape can be set manually via _input_shape attribute.
         if hasattr(self, 'previous'):
-            return self.previous.output_shape
+            if self.shape_cache is not None and self.cache_enabled:
+                previous_layer_id = id(self.previous)
+                if previous_layer_id in self.shape_cache:
+                    return self.shape_cache[previous_layer_id]
+            previous_size = self.previous.output_shape
+            if self.shape_cache is not None and self.cache_enabled:
+                previous_layer_id = id(self.previous)
+                self.shape_cache[previous_layer_id] = previous_size
+            return previous_size
         elif hasattr(self, '_input_shape'):
             return self._input_shape
         else:
@@ -168,20 +236,20 @@ class Layer(object):
         if hasattr(self, 'previous'):
             # to avoid redundant computations,
             # layer outputs are cached when possible.
-            if hasattr(self, 'layer_cache') and self.cache_enabled:
+            if self.layer_cache is not None and self.cache_enabled:
                 previous_layer_id = '%s_%s' % (id(self.previous), train)
                 if previous_layer_id in self.layer_cache:
                     return self.layer_cache[previous_layer_id]
             previous_output = self.previous.get_output(train=train)
-            if hasattr(self, 'layer_cache') and self.cache_enabled:
+            if self.layer_cache is not None and self.cache_enabled:
                 previous_layer_id = '%s_%s' % (id(self.previous), train)
                 self.layer_cache[previous_layer_id] = previous_output
             return previous_output
         elif hasattr(self, 'input'):
             return self.input
         else:
-            raise Exception('Layer is not connected' +
-                            ' and is not an input layer.')
+            self.input = K.placeholder(shape=self.input_shape)
+            return self.input
 
     def supports_masked_input(self):
         '''Whether or not this layer respects the output mask of its previous
@@ -230,7 +298,7 @@ class Layer(object):
                                              str(len(weights)) + ' provided weights)')
         for p, w in zip(params, weights):
             if K.get_value(p).shape != w.shape:
-                raise Exception('Layer shape %s not compatible with weight shape %s.' % (K.get_value(p).shape, w.shape))
+                raise Exception('Layer weight shape %s not compatible with provided weight shape %s.' % (K.get_value(p).shape, w.shape))
             K.set_value(p, w)
 
     def get_weights(self):
@@ -327,8 +395,6 @@ class Masking(MaskedLayer):
     def __init__(self, mask_value=0., **kwargs):
         super(Masking, self).__init__(**kwargs)
         self.mask_value = mask_value
-        if (not hasattr(self, 'input')):
-            self.input = K.placeholder(ndim=3)
 
     def get_output_mask(self, train=False):
         X = self.get_input(train)
@@ -349,11 +415,12 @@ class Merge(Layer):
     '''Merge the output of a list of layers or containers into a single tensor.
 
     # Arguments
-        mode: one of {sum, mul, concat, ave, dot}.
+        mode: one of {sum, mul, concat, ave, join, cos, dot}.
             sum: sum the outputs (shapes must match)
             mul: multiply the outputs element-wise (shapes must match)
             concat: concatenate the outputs along the axis specified by `concat_axis`
             ave: average the outputs (shapes must match)
+            join: places the outputs in an OrderedDict (inputs must be named)
         concat_axis: axis to use in `concat` mode.
         dot_axes: axis or axes to use in `dot` mode
             (see [the Numpy documentation](http://docs.scipy.org/doc/numpy-1.10.1/reference/generated/numpy.tensordot.html) for more details).
@@ -456,6 +523,10 @@ class Merge(Layer):
         super(Merge, self).__init__()
 
     @property
+    def input_shape(self):
+        return [layer.input_shape for layer in self.layers]
+
+    @property
     def output_shape(self):
         input_shapes = [layer.output_shape for layer in self.layers]
         if self.mode in ['sum', 'mul', 'ave']:
@@ -526,8 +597,8 @@ class Merge(Layer):
             return output
         elif self.mode == 'cos':
             if K._BACKEND != 'theano':
-                raise Exception('"dot" merge mode will only work with Theano.')
-            import theano
+                raise Exception('"cos" merge mode will only work with Theano.')
+            from theano import tensor as T
             l1 = self.layers[0].get_output(train)
             l2 = self.layers[1].get_output(train)
             output = T.batched_tensordot(l1, l2, self.dot_axes) / T.sqrt(T.batched_tensordot(l1, l1, self.dot_axes) * T.batched_tensordot(l2, l2, self.dot_axes))
@@ -897,7 +968,8 @@ class Dense(Layer):
             If you don't specify anything, no activation is applied
             (ie. "linear" activation: a(x) = x).
         weights: list of numpy arrays to set as initial weights.
-            The list should have 1 element, of shape `(input_dim, output_dim)`.
+            The list should have 2 elements, of shape `(input_dim, output_dim)`
+            and (output_dim,) for weights and biases respectively.
         W_regularizer: instance of [WeightRegularizer](../regularizers.md)
             (eg. L1 or L2 regularization), applied to the main weights matrix.
         b_regularizer: instance of [WeightRegularizer](../regularizers.md),
@@ -934,14 +1006,15 @@ class Dense(Layer):
         self.input_dim = input_dim
         if self.input_dim:
             kwargs['input_shape'] = (self.input_dim,)
-        self.input = K.placeholder(ndim=2)
         super(Dense, self).__init__(**kwargs)
 
     def build(self):
         input_dim = self.input_shape[1]
 
-        self.W = self.init((input_dim, self.output_dim))
-        self.b = K.zeros((self.output_dim,))
+        self.W = self.init((input_dim, self.output_dim),
+                           name='{}_W'.format(self.name))
+        self.b = K.zeros((self.output_dim,),
+                         name='{}_b'.format(self.name))
 
         self.trainable_weights = [self.W, self.b]
 
@@ -1009,7 +1082,8 @@ class TimeDistributedDense(MaskedLayer):
             If you don't specify anything, no activation is applied
             (ie. "linear" activation: a(x) = x).
         weights: list of numpy arrays to set as initial weights.
-            The list should have 1 element, of shape `(input_dim, output_dim)`.
+            The list should have 2 elements, of shape `(input_dim, output_dim)`
+            and (output_dim,) for weights and biases respectively.
         W_regularizer: instance of [WeightRegularizer](../regularizers.md)
             (eg. L1 or L2 regularization), applied to the main weights matrix.
         b_regularizer: instance of [WeightRegularizer](../regularizers.md),
@@ -1049,14 +1123,15 @@ class TimeDistributedDense(MaskedLayer):
         self.input_length = input_length
         if self.input_dim:
             kwargs['input_shape'] = (self.input_length, self.input_dim)
-        self.input = K.placeholder(ndim=3)
         super(TimeDistributedDense, self).__init__(**kwargs)
 
     def build(self):
         input_dim = self.input_shape[2]
 
-        self.W = self.init((input_dim, self.output_dim))
-        self.b = K.zeros((self.output_dim,))
+        self.W = self.init((input_dim, self.output_dim),
+                           name='{}_W'.format(self.name))
+        self.b = K.zeros((self.output_dim,),
+                         name='{}_b'.format(self.name))
 
         self.trainable_weights = [self.W, self.b]
         self.regularizers = []
@@ -1083,17 +1158,18 @@ class TimeDistributedDense(MaskedLayer):
         return (input_shape[0], input_shape[1], self.output_dim)
 
     def get_output(self, train=False):
-        X = self.get_input(train)
-
-        def step(x, states):
-            output = K.dot(x, self.W) + self.b
-            return output, []
-
-        last_output, outputs, states = K.rnn(step, X,
-                                             initial_states=[],
-                                             mask=None)
-        outputs = self.activation(outputs)
-        return outputs
+        X = self.get_input(train)  # (samples, timesteps, input_dim)
+        # Squash samples and timesteps into a single axis
+        x = K.reshape(X, (-1, self.input_shape[-1]))  # (samples * timesteps, input_dim)
+        Y = K.dot(x, self.W) + self.b  # (samples * timesteps, output_dim)
+        # We have to reshape Y to (samples, timesteps, output_dim)
+        input_length = self.input_shape[1]
+        # Note: input_length will always be provided when using tensorflow backend.
+        if not input_length:
+            input_length = K.shape(X)[1]
+        Y = K.reshape(Y, (-1, input_length, self.output_shape[-1]))  # (samples, timesteps, output_dim)
+        Y = self.activation(Y)
+        return Y
 
     def get_config(self):
         config = {'name': self.__class__.__name__,
@@ -1203,7 +1279,9 @@ class AutoEncoder(Layer):
 
         self._output_reconstruction = output_reconstruction
         self.encoder = encoder
+        self.encoder.layer_cache = self.layer_cache
         self.decoder = decoder
+        self.decoder.layer_cache = self.layer_cache
 
         if output_reconstruction:
             self.decoder.set_previous(self.encoder)
@@ -1241,8 +1319,30 @@ class AutoEncoder(Layer):
                     self.trainable_weights.append(p)
                     self.constraints.append(c)
 
-    def set_previous(self, node):
-        self.encoder.set_previous(node)
+    @property
+    def layer_cache(self):
+        return super(AutoEncoder, self).layer_cache
+
+    @layer_cache.setter
+    def layer_cache(self, value):
+        self._layer_cache = value
+        self.encoder.layer_cache = self._layer_cache
+        self.decoder.layer_cache = self._layer_cache
+
+    @property
+    def shape_cache(self):
+        return super(AutoEncoder, self).shape_cache
+
+    @shape_cache.setter
+    def shape_cache(self, value):
+        self._shape_cache = value
+        self.encoder.shape_cache = self._shape_cache
+        self.decoder.shape_cache = self._shape_cache
+
+    def set_previous(self, node, reset_weights=True):
+        self.encoder.set_previous(node, reset_weights)
+        if reset_weights:
+            self.build()
 
     def get_weights(self):
         weights = []
@@ -1330,14 +1430,15 @@ class MaxoutDense(Layer):
         self.input_dim = input_dim
         if self.input_dim:
             kwargs['input_shape'] = (self.input_dim,)
-        self.input = K.placeholder(ndim=2)
         super(MaxoutDense, self).__init__(**kwargs)
 
     def build(self):
         input_dim = self.input_shape[1]
 
-        self.W = self.init((self.nb_feature, input_dim, self.output_dim))
-        self.b = K.zeros((self.nb_feature, self.output_dim))
+        self.W = self.init((self.nb_feature, input_dim, self.output_dim),
+                           name='{}_W'.format(self.name))
+        self.b = K.zeros((self.nb_feature, self.output_dim),
+                         name='{}_b'.format(self.name))
 
         self.trainable_weights = [self.W, self.b]
         self.regularizers = []
@@ -1424,9 +1525,16 @@ class Lambda(Layer):
     @property
     def output_shape(self):
         if self._output_shape is None:
+            # if TensorFlow, we can infer the output shape directly:
+            if K._BACKEND == 'tensorflow':
+                # we assume output shape is not dependent on train/test mode
+                x = self.get_input()
+                return K.int_shape(x)
+            # otherwise, we default to the input shape
             return self.input_shape
         elif type(self._output_shape) == tuple:
-            return (self.input_shape[0], ) + self._output_shape
+            nb_samples = self.input_shape[0] if self.input_shape else None
+            return (nb_samples, ) + self._output_shape
         else:
             output_shape_func = marshal.loads(self._output_shape)
             output_shape_func = types.FunctionType(output_shape_func, globals())
@@ -1651,16 +1759,12 @@ class Siamese(Layer):
         return self.trainable_weights, self.regularizers, self.constraints, self.updates
 
     def set_layer_input(self, head):
-        layer = self.layer
-        from ..layers.containers import Sequential
-        while issubclass(layer.__class__, Sequential):
-            layer = layer.layers[0]
-        layer.previous = self.inputs[head]
+        self.layer.set_previous(self.inputs[head], reset_weights=False)
 
     def get_output_at(self, head, train=False):
         X = self.inputs[head].get_output(train)
         mask = self.inputs[head].get_output_mask(train)
-        Y = self.layer(X, mask)
+        Y = self.layer(X, mask=mask, train=train)
         return Y
 
     def get_output_shape(self, head, train=False):
@@ -1769,12 +1873,12 @@ class Siamese(Layer):
         return weights
 
     def set_weights(self, weights):
-        nb_param = len(self.layer.trainable_weights)
+        nb_param = len(self.layer.get_weights())
         self.layer.set_weights(weights[:nb_param])
         weights = weights[nb_param:]
         if self.merge_mode and not self.is_graph:
             for i in range(len(self.inputs)):
-                nb_param = len(self.inputs[i].trainable_weights)
+                nb_param = len(self.inputs[i].get_weights())
                 self.inputs[i].set_weights(weights[:nb_param])
                 weights = weights[nb_param:]
 
@@ -1824,9 +1928,6 @@ class SiameseHead(Layer):
         base_config = super(SiameseHead, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
-    def set_previous(self, layer):
-        self.previous = layer
-
 
 def add_shared_layer(layer, inputs):
     '''Use this function to add a shared layer across
@@ -1863,7 +1964,8 @@ class Highway(Layer):
             If you don't specify anything, no activation is applied
             (ie. "linear" activation: a(x) = x).
         weights: list of numpy arrays to set as initial weights.
-            The list should have 1 element, of shape `(input_dim, output_dim)`.
+            The list should have 2 elements, of shape `(input_dim, output_dim)`
+            and (output_dim,) for weights and biases respectively.
         W_regularizer: instance of [WeightRegularizer](../regularizers.md)
             (eg. L1 or L2 regularization), applied to the main weights matrix.
         b_regularizer: instance of [WeightRegularizer](../regularizers.md),
@@ -1904,18 +2006,20 @@ class Highway(Layer):
         self.input_dim = input_dim
         if self.input_dim:
             kwargs['input_shape'] = (self.input_dim,)
-        self.input = K.placeholder(ndim=2)
         super(Highway, self).__init__(**kwargs)
 
     def build(self):
         input_dim = self.input_shape[1]
 
-        self.W = self.init((input_dim, input_dim))
-        self.W_carry = self.init((input_dim, input_dim))
+        self.W = self.init((input_dim, input_dim),
+                           name='{}_W'.format(self.name))
+        self.W_carry = self.init((input_dim, input_dim),
+                                 name='{}_W_carry'.format(self.name))
 
-        self.b = K.zeros((input_dim,))
+        self.b = K.zeros((input_dim,), name='{}_b'.format(self.name))
         # initialize with a vector of values `transform_bias`
-        self.b_carry = K.variable(np.ones((input_dim,)) * self.transform_bias)
+        self.b_carry = K.variable(np.ones((input_dim,)) * self.transform_bias,
+                                  name='{}_b_carry'.format(self.name))
 
         self.trainable_weights = [self.W, self.b, self.W_carry, self.b_carry]
 

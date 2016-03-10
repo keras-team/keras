@@ -1,3 +1,4 @@
+import pytest
 import numpy as np
 
 from keras import objectives
@@ -29,3 +30,7 @@ def test_objective_shapes_2d():
     for obj in allobj:
         objective_output = obj(y_a, y_b)
         assert K.eval(objective_output).shape == (6,)
+
+
+if __name__ == "__main__":
+    pytest.main([__file__])

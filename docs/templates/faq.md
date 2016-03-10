@@ -1,5 +1,7 @@
 # Keras FAQ: Frequently Asked Keras Questions
 
+[How should I cite Keras?](#how-should-i-cite-keras)
+
 [How can I run Keras on GPU?](#how-can-i-run-keras-on-gpu)
 
 [How can I save a Keras model?](#how-can-i-save-a-keras-model)
@@ -22,7 +24,25 @@
 
 ---
 
+### How should I cite Keras?
+
+Please cite Keras in your publications if it helps your research. Here is an example BibTeX entry:
+
+```
+@misc{chollet2015keras,
+  author = {Chollet, François},
+  title = {Keras},
+  year = {2015},
+  publisher = {GitHub},
+  journal = {GitHub repository},
+  howpublished = {\url{https://github.com/fchollet/keras}}
+}
+```
+
 ### How can I run Keras on GPU?
+
+If you are running on the TensorFlow backend, your code will automatically run on GPU if any available GPU is detected.
+If you are running on the Theano backend, you can use one of the following methods:
 
 Method 1: use Theano flags.
 ```bash
@@ -67,7 +87,10 @@ model = model_from_json(json_string)
 model = model_from_yaml(yaml_string)
 ```
 
-If you need to save the weights of a model, you can do so in HDF5:
+If you need to save the weights of a model, you can do so in HDF5 with the code below.
+
+Note that you will first need to install HDF5 and the Python library h5py, which do not come bundled with Keras.
+
 ```python
 model.save_weights('my_model_weights.h5')
 ```

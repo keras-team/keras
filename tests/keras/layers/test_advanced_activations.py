@@ -29,7 +29,7 @@ def test_leaky_relu():
         layer.input = K.variable(-inp)
         for train in [True, False]:
             outp = K.eval(layer.get_output(train))
-            assert_allclose(outp, -inp*alpha)
+            assert_allclose(outp, -inp * alpha)
 
         config = layer.get_config()
         assert config['alpha'] == alpha
@@ -53,7 +53,7 @@ def test_prelu():
 
         layer.input = K.variable(-inp)
         outp = K.eval(layer.get_output(train))
-        assert_allclose(-alphas*inp, outp)
+        assert_allclose(-alphas * inp, outp)
 
         # test with default weights
         layer = PReLU(input_shape=inp.flatten().shape)
@@ -65,7 +65,7 @@ def test_prelu():
         layer.input = K.variable(-inp)
         outp = K.eval(layer.get_output(train))
 
-        assert_allclose(0., alphas*outp)
+        assert_allclose(0., alphas * outp)
 
         layer.get_config()
 
@@ -84,7 +84,7 @@ def test_elu():
         layer.input = K.variable(-inp)
         for train in [True, False]:
             outp = K.eval(layer.get_output(train))
-            assert_allclose(outp, alpha*(np.exp(-inp)-1.), rtol=1e-3)
+            assert_allclose(outp, alpha * (np.exp(-inp) - 1.), rtol=1e-3)
 
         config = layer.get_config()
         assert config['alpha'] == alpha
@@ -107,7 +107,7 @@ def test_parametric_softplus():
             layer.build()
             for train in [True, False]:
                 outp = K.eval(layer.get_output(train))
-                assert_allclose(outp, alpha*np.log(1.+np.exp(beta*inp)),
+                assert_allclose(outp, alpha * np.log(1. + np.exp(beta * inp)),
                                 atol=1e-3)
 
             config = layer.get_config()
@@ -126,12 +126,12 @@ def test_thresholded_linear():
         layer.input = K.variable(inp)
         for train in [True, False]:
             outp = K.eval(layer.get_output(train))
-            assert_allclose(outp, inp*(np.abs(inp) >= theta))
+            assert_allclose(outp, inp * (np.abs(inp) >= theta))
 
         layer.input = K.variable(-inp)
         for train in [True, False]:
             outp = K.eval(layer.get_output(train))
-            assert_allclose(outp, -inp*(np.abs(inp) >= theta))
+            assert_allclose(outp, -inp * (np.abs(inp) >= theta))
 
         config = layer.get_config()
         assert config['theta'] == theta
@@ -148,15 +148,33 @@ def test_thresholded_relu():
         layer.input = K.variable(inp)
         for train in [True, False]:
             outp = K.eval(layer.get_output(train))
-            assert_allclose(outp, inp*(inp > theta))
+            assert_allclose(outp, inp * (inp > theta))
 
         layer.input = K.variable(-inp)
         for train in [True, False]:
             outp = K.eval(layer.get_output(train))
-            assert_allclose(outp, -inp*(-inp > theta))
+            assert_allclose(outp, -inp * (-inp > theta))
 
         config = layer.get_config()
         assert config['theta'] == theta
+
+
+def test_srelu():
+    from keras.layers.advanced_activations import SReLU
+    np.random.seed(1337)
+    inp = np.array([-2, -1., -0.5, 0., 0.5, 1., 2.])
+    out = np.array([-1.5, -1., -0.5, 0., 0.5, 1., 3.])
+    input_size = len(inp)
+    for train in [True, False]:
+        layer = SReLU(input_shape=inp.flatten().shape)
+        ones_proto = np.ones(input_size)
+        layer.set_weights([ones_proto * -1., ones_proto * 0.5,
+                           ones_proto * 2., ones_proto * 2.])
+        layer.input = K.variable(inp)
+        outp = K.eval(layer.get_output(train))
+        assert_allclose(out, outp)
+
+        layer.get_config()
 
 
 if __name__ == '__main__':
