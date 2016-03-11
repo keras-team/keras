@@ -1,6 +1,7 @@
 import tensorflow as tf
 import numpy as np
 import os
+import warnings
 from .common import _FLOATX, _EPSILON
 
 # INTERNAL UTILS
@@ -402,7 +403,13 @@ class Function(object):
         return updated[:len(self.outputs)]
 
 
-def function(inputs, outputs, updates=[]):
+def function(inputs, outputs, updates=[], **kwargs):
+    if len(kwargs) > 0:
+        msg = [
+            "Expected no kwargs, you passed %s" % len(kwargs),
+            "kwargs passed to function are ignored with Tensorflow backend"
+        ]
+        warnings.warn('\n'.join(msg))
     return Function(inputs, outputs, updates=updates)
 
 
