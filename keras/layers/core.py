@@ -524,7 +524,7 @@ class Merge(Layer):
 
     @property
     def input_shape(self):
-        return [layer.input_shape for layer in self.layers]
+        return [layer.output_shape for layer in self.layers]
 
     @property
     def output_shape(self):
