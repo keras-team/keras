@@ -1723,6 +1723,10 @@ class Siamese(Layer):
         super(Siamese, self).__init__()
 
     @property
+    def input_shape(self):
+        return [layer.output_shape for layer in self.inputs]
+
+    @property
     def output_shape(self):
         if self.merge_mode is None:
             return self.layer.output_shape
