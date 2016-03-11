@@ -21,6 +21,7 @@ from scipy.optimize import fmin_l_bfgs_b
 import time
 import argparse
 import h5py
+import os
 
 from keras.models import Sequential
 from keras.layers.convolutional import Convolution2D, ZeroPadding2D, MaxPooling2D
