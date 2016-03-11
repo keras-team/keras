@@ -3,6 +3,7 @@ from theano import tensor as T
 from theano.sandbox.rng_mrg import MRG_RandomStreams as RandomStreams
 from theano.tensor.signal import pool
 from theano.tensor.nnet import conv3d2d
+import inspect
 import numpy as np
 from .common import _FLOATX, _EPSILON
 
@@ -449,8 +450,14 @@ class Function(object):
         return self.function(*inputs)
 
 
-def function(inputs, outputs, updates=[]):
-    return Function(inputs, outputs, updates=updates)
+def function(inputs, outputs, updates=[], **kwargs):
+    if len(kwargs) > 0:
+        function_args = inspect.getargspec(theano.function)[0]
+        for key in kwargs.keys():
+            if key not in function_args:
+                msg = "Invalid argument '%s' passed to K.function" % key
+                raise ValueError(msg)
+    return Function(inputs, outputs, updates=updates, **kwargs)
 
 
 def gradients(loss, variables):

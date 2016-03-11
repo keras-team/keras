@@ -1,6 +1,7 @@
 import tensorflow as tf
 import numpy as np
 import os
+import warnings
 from .common import _FLOATX, _EPSILON
 
 # INTERNAL UTILS
@@ -12,10 +13,10 @@ def get_session():
     global _SESSION
     if _SESSION is None:
         if not os.environ.get('OMP_NUM_THREADS'):
-            _SESSION = tf.Session('')
+            _SESSION = tf.Session(config=tf.ConfigProto(allow_soft_placement=True))
         else:
             nb_thread = int(os.environ.get('OMP_NUM_THREADS'))
-            _SESSION = tf.Session(config=tf.ConfigProto(intra_op_parallelism_threads=nb_thread))
+            _SESSION = tf.Session(config=tf.ConfigProto(intra_op_parallelism_threads=nb_thread, allow_soft_placement=True))
     return _SESSION
 
 
@@ -402,7 +403,13 @@ class Function(object):
         return updated[:len(self.outputs)]
 
 
-def function(inputs, outputs, updates=[]):
+def function(inputs, outputs, updates=[], **kwargs):
+    if len(kwargs) > 0:
+        msg = [
+            "Expected no kwargs, you passed %s" % len(kwargs),
+            "kwargs passed to function are ignored with Tensorflow backend"
+        ]
+        warnings.warn('\n'.join(msg))
     return Function(inputs, outputs, updates=updates)
 
 
@@ -468,6 +475,9 @@ def rnn(step_function, inputs, initial_states,
             mask = expand_dims(mask)
         mask = tf.cast(tf.transpose(mask, axes), tf.bool)
         mask_list = tf.unpack(mask)
+
+        if go_backwards:
+            mask_list.reverse()
 
         for input, mask_t in zip(input_list, mask_list):
             output, new_states = step_function(input, states + constants)

@@ -471,7 +471,8 @@ class Sequential(Model, containers.Sequential):
     '''
     def compile(self, optimizer, loss,
                 class_mode="categorical",
-                sample_weight_mode=None):
+                sample_weight_mode=None,
+                **kwargs):
         '''Configure the learning process.
 
         # Arguments
@@ -485,6 +486,8 @@ class Sequential(Model, containers.Sequential):
             sample_weight_mode: if you need to do timestep-wise
                 sample weighting (2D weights), set this to "temporal".
                 "None" defaults to sample-wise weights (1D).
+            kwargs: for Theano backend, these are passed into K.function.
+                Ignored for Tensorflow backend.
         '''
         self.optimizer = optimizers.get(optimizer)
         self.sample_weight_mode = sample_weight_mode
@@ -544,11 +547,18 @@ class Sequential(Model, containers.Sequential):
             test_ins = [self.X_test, self.y, self.weights]
             predict_ins = [self.X_test]
 
-        self._train = K.function(train_ins, [train_loss], updates=updates)
-        self._train_with_acc = K.function(train_ins, [train_loss, train_accuracy], updates=updates)
-        self._predict = K.function(predict_ins, [self.y_test], updates=self.state_updates)
-        self._test = K.function(test_ins, [test_loss], updates=self.state_updates)
-        self._test_with_acc = K.function(test_ins, [test_loss, test_accuracy], updates=self.state_updates)
+        self._train = K.function(train_ins, [train_loss],
+                                 updates=updates, **kwargs)
+        self._train_with_acc = K.function(train_ins,
+                                          [train_loss, train_accuracy],
+                                          updates=updates, **kwargs)
+        self._predict = K.function(predict_ins, [self.y_test],
+                                   updates=self.state_updates, **kwargs)
+        self._test = K.function(test_ins, [test_loss],
+                                updates=self.state_updates, **kwargs)
+        self._test_with_acc = K.function(test_ins,
+                                         [test_loss, test_accuracy],
+                                         updates=self.state_updates, **kwargs)
 
     def fit(self, X, y, batch_size=128, nb_epoch=100, verbose=1, callbacks=[],
             validation_split=0., validation_data=None, shuffle=True,
@@ -1173,7 +1183,7 @@ class Graph(Model, containers.Graph):
 
     Inherits from `containers.Graph`.
     '''
-    def compile(self, optimizer, loss, sample_weight_modes={}):
+    def compile(self, optimizer, loss, sample_weight_modes={}, **kwargs):
         '''Configure the learning process.
 
         # Arguments
@@ -1188,6 +1198,8 @@ class Graph(Model, containers.Graph):
                 timestep-wise loss weighting on one of your graph outputs,
                 you will need to set the sample weight mode for this output
                 to "temporal".
+            kwargs: for Theano backend, these are passed into K.function.
+                Ignored for Tensorflow backend.
         '''
         assert type(loss) is dict, 'The "loss" argument should be a dictionary.'
         assert type(sample_weight_modes) is dict, 'The "sample_weight_modes" argument should be a dictionary.'
@@ -1236,10 +1248,12 @@ class Graph(Model, containers.Graph):
         updates += self.updates
         self.loss = loss
 
-        self._train = K.function(train_ins, [train_loss], updates=updates)
-        self._test = K.function(test_ins, [test_loss], updates=self.state_updates)
+        self._train = K.function(train_ins, [train_loss],
+                                 updates=updates, **kwargs)
+        self._test = K.function(test_ins, [test_loss],
+                                updates=self.state_updates, **kwargs)
         self._predict = K.function(inputs=ins, outputs=ys_test,
-                                   updates=self.state_updates)
+                                   updates=self.state_updates, **kwargs)
 
     def fit(self, data, batch_size=128, nb_epoch=100, verbose=1, callbacks=[],
             validation_split=0., validation_data=None, shuffle=True,
