@@ -15,6 +15,7 @@ from ..regularizers import ActivityRegularizer
 import marshal
 import types
 import sys
+import inspect
 
 
 class Layer(object):
@@ -1501,24 +1502,33 @@ class Lambda(Layer):
             Takes one argument: the output of previous layer
         output_shape: Expected output shape from function.
             Could be a tuple or a function of the shape of the input
+        arguments: Additional arguments for the function to be evaluated.
+            Could be a list or a dictionary.     
     '''
-    def __init__(self, function, output_shape=None, **kwargs):
+    def __init__(self, function, output_shape=None, arguments={}, **kwargs):
         super(Lambda, self).__init__(**kwargs)
         py3 = sys.version_info[0] == 3
         if py3:
             self.function = marshal.dumps(function.__code__)
+            assert hasattr(function, '__code__'), ('The Lambda layer "function"'
+                                                    ' argument must be a Python function.')
         else:
             assert hasattr(function, 'func_code'), ('The Lambda layer "function"'
                                                     ' argument must be a Python function.')
             self.function = marshal.dumps(function.func_code)
+        self.arguments = arguments
         if output_shape is None:
             self._output_shape = None
         elif type(output_shape) in {tuple, list}:
             self._output_shape = tuple(output_shape)
         else:
             if py3:
+                assert hasattr(output_shape, '__code__'), ('The Lambda layer "output_shape"'
+                                                            ' argument must be either None, a tuple or a Python function.')
                 self._output_shape = marshal.dumps(output_shape.__code__)
             else:
+                assert hasattr(output_shape, 'func_code'), ('The Lambda layer "output_shape"'
+                                                            ' argument must be either None, a tuple or a Python function.')
                 self._output_shape = marshal.dumps(output_shape.func_code)
         super(Lambda, self).__init__()
 
@@ -1545,9 +1555,29 @@ class Lambda(Layer):
 
     def get_output(self, train=False):
         X = self.get_input(train)
+        arguments = self.arguments
         func = marshal.loads(self.function)
         func = types.FunctionType(func, globals())
-        return func(X)
+        arg_spec = inspect.getargspec(func)
+        if 'train' in arg_spec.args:
+            if type(arguments) == dict:
+                arguments['train'] = train
+                return func(X, **arguments)
+            elif type(arguments) == list:
+                return func(X, *arguments, train=train)
+        else:
+            if type(arguments) == dict:
+                return func(X, **arguments)
+            elif type(arguments) == list:
+                return func(X, *arguments)
+
+    def get_config(self):
+        config = {'name': self.__class__.__name__,
+                  'function': self.function,
+                  'output_shape': self._output_shape,
+                  'arguments': self.arguments}
+        base_config = super(Lambda, self).get_config()
+        return dict(list(base_config.items()) + list(config.items()))
 
 
 class MaskedLambda(MaskedLayer, Lambda):
@@ -1567,8 +1597,10 @@ class LambdaMerge(Lambda):
             list of outputs from input layers
         output_shape - Expected output shape from function.
             Could be a tuple or a function of list of input shapes
+        arguments: Additional arguments for the function to be evaluated.
+            Could be a list or a dictionary.     
     '''
-    def __init__(self, layers, function, output_shape=None):
+    def __init__(self, layers, function, output_shape=None, arguments={}):
         if len(layers) < 2:
             raise Exception('Please specify two or more input layers '
                             '(or containers) to merge.')
@@ -1589,16 +1621,25 @@ class LambdaMerge(Lambda):
         py3 = sys.version_info[0] == 3
         if py3:
             self.function = marshal.dumps(function.__code__)
+            assert hasattr(function, '__code__'), ('The LambdaMerge layer "function"'
+                                                    ' argument must be a Python function.')
         else:
+            assert hasattr(function, 'func_code'), ('The LambdaMerge layer "function"'
+                                                    ' argument must be a Python function.')
             self.function = marshal.dumps(function.func_code)
+        self.arguments = arguments
         if output_shape is None:
             self._output_shape = None
         elif type(output_shape) in {tuple, list}:
             self._output_shape = tuple(output_shape)
         else:
             if py3:
+                assert hasattr(output_shape, '__code__'), ('The LambdaMerge layer "output_shape"'
+                                                    ' argument must be either None, a tuple or a Python function.')
                 self._output_shape = marshal.dumps(output_shape.__code__)
             else:
+                assert hasattr(output_shape, 'func_code'), ('The LambdaMerge layer "output_shape"'
+                                                    ' argument must be either None, a tuple or a Python function.') 
                 self._output_shape = marshal.dumps(output_shape.func_code)
         super(Lambda, self).__init__()
 
@@ -1624,7 +1665,19 @@ class LambdaMerge(Lambda):
         func = marshal.loads(self.function)
         func = types.FunctionType(func, globals())
         inputs = [layer.get_output(train) for layer in self.layers]
-        return func(inputs)
+        arguments = self.arguments
+        arg_spec = inspect.getargspec(func)
+        if 'train' in arg_spec.args:
+            if type(arguments) == dict:
+                arguments['train'] = train
+                return func(inputs, **arguments)
+            elif type(arguments) == list:
+                return func(inputs, *arguments, train=train)
+        else:
+            if type(arguments) == dict:
+                return func(inputs, **arguments)
+            elif type(arguments) == list:
+                return func(inputs, *arguments)
 
     def get_input(self, train=False):
         res = []
@@ -1663,7 +1716,8 @@ class LambdaMerge(Lambda):
         config = {'name': self.__class__.__name__,
                   'layers': [l.get_config() for l in self.layers],
                   'function': self.function,
-                  'output_shape': self._output_shape}
+                  'output_shape': self._output_shape,
+                  'arguments': self.arguments}
         base_config = super(LambdaMerge, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
