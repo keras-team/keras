@@ -329,12 +329,22 @@ class Layer(object):
 
     def get_params(self):
         consts = []
+        lmuls = []
         updates = []
 
         if hasattr(self, 'regularizers'):
             regularizers = self.regularizers
         else:
             regularizers = []
+
+        if hasattr(self, 'learning_rate_multipliers'):
+            for lmul in self.learning_rate_multipliers:
+                if (lmul is not None):
+                    lmuls.append(lmul)
+                else:
+                    lmuls.append(1.0)
+        else:
+            lmuls = [1.0 for p in self.trainable_weights]
 
         if hasattr(self, 'constraints') and len(self.constraints) == len(self.trainable_weights):
             for c in self.constraints:
@@ -350,7 +360,7 @@ class Layer(object):
         if hasattr(self, 'updates') and self.updates:
             updates += self.updates
 
-        return self.trainable_weights, regularizers, consts, updates
+        return self.trainable_weights, regularizers, consts, lmuls, updates
 
     def count_params(self):
         '''Return the total number of floats (or ints)
@@ -510,16 +520,18 @@ class Merge(Layer):
         self.trainable_weights = []
         self.regularizers = []
         self.constraints = []
+        self.learning_rate_multipliers = []
         self.updates = []
         for l in self.layers:
-            params, regs, consts, updates = l.get_params()
+            params, regs, consts, lmuls, updates = l.get_params()
             self.regularizers += regs
             self.updates += updates
             # params and constraints have the same size
-            for p, c in zip(params, consts):
+            for p, c, lmul in zip(params, consts, lmuls):
                 if p not in self.trainable_weights:
                     self.trainable_weights.append(p)
                     self.constraints.append(c)
+                    self.learning_rate_multipliers.append(lmul)
         super(Merge, self).__init__()
 
     @property
@@ -556,7 +568,8 @@ class Merge(Layer):
             return (input_shapes[0][0], 1)
 
     def get_params(self):
-        return self.trainable_weights, self.regularizers, self.constraints, self.updates
+        return self.trainable_weights, self.regularizers, self.constraints,\
+               self.learning_rate_multipliers, self.updates
 
     def get_output(self, train=False):
         if self.mode == 'sum' or self.mode == 'ave':
@@ -988,7 +1001,8 @@ class Dense(Layer):
 
     def __init__(self, output_dim, init='glorot_uniform', activation='linear', weights=None,
                  W_regularizer=None, b_regularizer=None, activity_regularizer=None,
-                 W_constraint=None, b_constraint=None, input_dim=None, **kwargs):
+                 W_constraint=None, b_constraint=None, input_dim=None, 
+                 W_learning_rate_multiplier=None, b_learning_rate_multiplier=None, **kwargs):
         self.init = initializations.get(init)
         self.activation = activations.get(activation)
         self.output_dim = output_dim
@@ -1000,6 +1014,11 @@ class Dense(Layer):
         self.W_constraint = constraints.get(W_constraint)
         self.b_constraint = constraints.get(b_constraint)
         self.constraints = [self.W_constraint, self.b_constraint]
+
+        self.W_learning_rate_multiplier = W_learning_rate_multiplier
+        self.b_learning_rate_multiplier = b_learning_rate_multiplier
+        self.learning_rate_multipliers = [self.W_learning_rate_multiplier,
+                                          self.b_learning_rate_multiplier]
 
         self.initial_weights = weights
 
@@ -1054,6 +1073,8 @@ class Dense(Layer):
                   'activity_regularizer': self.activity_regularizer.get_config() if self.activity_regularizer else None,
                   'W_constraint': self.W_constraint.get_config() if self.W_constraint else None,
                   'b_constraint': self.b_constraint.get_config() if self.b_constraint else None,
+                  'W_learning_rate_multiplier': self.W_learning_rate_multiplier,
+                  'b_learning_rate_multiplier': self.b_learning_rate_multiplier,
                   'input_dim': self.input_dim}
         base_config = super(Dense, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
@@ -1305,19 +1326,22 @@ class AutoEncoder(Layer):
         self.trainable_weights = []
         self.regularizers = []
         self.constraints = []
+        self.learning_rate_multipliers = []
         self.updates = []
         if self.output_reconstruction:
             layers = [self.encoder, self.decoder]
         else:
             layers = [self.encoder]
         for layer in layers:
-            params, regularizers, constraints, updates = layer.get_params()
+            params, regularizers, constraints,\
+            learning_rate_multipliers, updates = layer.get_params()
             self.regularizers += regularizers
             self.updates += updates
-            for p, c in zip(params, constraints):
+            for p, c, lmul in zip(params, constraints, learning_rate_multipliers):
                 if p not in self.trainable_weights:
                     self.trainable_weights.append(p)
                     self.constraints.append(c)
+                    self.learning_rate_multipliers.append(lmul)
 
     @property
     def layer_cache(self):
@@ -1425,6 +1449,11 @@ class MaxoutDense(Layer):
         self.W_constraint = constraints.get(W_constraint)
         self.b_constraint = constraints.get(b_constraint)
         self.constraints = [self.W_constraint, self.b_constraint]
+
+        self.W_learning_rate_multiplier = W_learning_rate_multiplier
+        self.b_learning_rate_multiplier = b_learning_rate_multiplier
+        self.learning_rate_multipliers = [self.W_learning_rate_multiplier,
+                                          self.b_learning_rate_multiplier]
 
         self.initial_weights = weights
         self.input_dim = input_dim
@@ -1576,16 +1605,18 @@ class LambdaMerge(Lambda):
         self.trainable_weights = []
         self.regularizers = []
         self.constraints = []
+        self.learning_rate_multipliers = []
         self.updates = []
         for l in self.layers:
-            params, regs, consts, updates = l.get_params()
+            params, regs, consts, learning_rate_multipliers, updates = l.get_params()
             self.regularizers += regs
             self.updates += updates
             # params and constraints have the same size
-            for p, c in zip(params, consts):
+            for p, c, lmul in zip(params, consts, learning_rate_multipliers):
                 if p not in self.trainable_weights:
                     self.trainable_weights.append(p)
                     self.constraints.append(c)
+                    self.learning_rate_multipliers.append(lmul)
         py3 = sys.version_info[0] == 3
         if py3:
             self.function = marshal.dumps(function.__code__)
@@ -1618,7 +1649,7 @@ class LambdaMerge(Lambda):
             return tuple(shape)
 
     def get_params(self):
-        return self.trainable_weights, self.regularizers, self.constraints, self.updates
+        return self.trainable_weights, self.regularizers, self.constraints, self.learning_rate_multipliers, self.updates
 
     def get_output(self, train=False):
         func = marshal.loads(self.function)
@@ -1707,19 +1738,21 @@ class Siamese(Layer):
         self.trainable_weights = []
         self.regularizers = []
         self.constraints = []
+        self.learning_rate_multipliers = []
         self.updates = []
         layers = [layer]
         if merge_mode and not is_graph:
             layers += inputs
         for l in layers:
-            params, regs, consts, updates = l.get_params()
+            params, regs, consts, lmuls, updates = l.get_params()
             self.regularizers += regs
             self.updates += updates
             # params and constraints have the same size
-            for p, c in zip(params, consts):
+            for p, c, lmul in zip(params, consts, lmuls):
                 if p not in self.trainable_weights:
                     self.trainable_weights.append(p)
                     self.constraints.append(c)
+                    self.learning_rate_multipliers.append(lmul)
         super(Siamese, self).__init__()
 
     @property
@@ -1756,7 +1789,7 @@ class Siamese(Layer):
             return (input_shapes[0][0], 1)
 
     def get_params(self):
-        return self.trainable_weights, self.regularizers, self.constraints, self.updates
+        return self.trainable_weights, self.regularizers, self.constraints, self.learning_rate_multipliers, self.updates
 
     def set_layer_input(self, head):
         self.layer.set_previous(self.inputs[head], reset_weights=False)
@@ -2000,6 +2033,8 @@ class Highway(Layer):
         self.W_constraint = constraints.get(W_constraint)
         self.b_constraint = constraints.get(b_constraint)
         self.constraints = [self.W_constraint, self.b_constraint]
+
+        self.learning_rate_multipliers = []
 
         self.initial_weights = weights
 
