@@ -1,3 +1,4 @@
+import numpy as np
 from keras import backend as K
 from keras.layers.core import Layer
 from keras import initializations, activations
@@ -17,10 +18,6 @@ class VariationalDense(Layer):
     Parameters:
     -----------
     output_dim: int, output dimension
-    batch_size: Tensorflow backend need the batch_size to be defined
-        for sampling random numbers. Make sure your batch size is kept
-        fixed during training. We infer the batch size for Theano backend.
-        You can use any batch size for testing.
     regularizer_scale: By default the regularization is already properly
         scaled if you use binary or categorical crossentropy cost functions.
         In most cases this regularizers should be kept fixed at one.
@@ -36,14 +33,13 @@ class VariationalDense(Layer):
     - [Auto-Encoding Variational Bayes](http://arxiv.org/pdf/1312.6114v10.pdf)
 
     """
-    def __init__(self, output_dim, batch_size, init='glorot_uniform',
+    def __init__(self, output_dim, init='glorot_uniform',
                  activation='tanh',
                  weights=None, input_dim=None, regularizer_scale=1,
                  prior_mean=0, prior_logsigma=1, **kwargs):
         self.prior_mean = prior_mean
         self.prior_logsigma = prior_logsigma
         self.regularizer_scale = regularizer_scale
-        self.batch_size = batch_size
         self.init = initializations.get(init)
         self.activation = activations.get(activation)
         self.output_dim = output_dim
@@ -89,7 +85,9 @@ class VariationalDense(Layer):
             if K._BACKEND == 'theano':
                 eps = K.random_normal((X.shape[0], self.output_dim))
             else:
-                eps = K.random_normal((self.batch_size, self.output_dim))
+                sizes = K.concatenate([K.shape(X)[0:1],
+                                       np.asarray([self.output_dim, ])])
+                eps = K.random_normal(sizes)
             # return sample : mean + std * noise
             return mean + K.exp(logsigma) * eps
         else:
