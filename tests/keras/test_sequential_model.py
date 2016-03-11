@@ -2,6 +2,7 @@ from __future__ import absolute_import
 from __future__ import print_function
 import pytest
 import os
+import threading
 import numpy as np
 np.random.seed(1337)
 
@@ -36,23 +37,30 @@ def _get_test_data():
     return (X_train, y_train), (X_test, y_test)
 
 
-def test_sequential_fit_generator():
+def test_sequential_fit_data_func():
     (X_train, y_train), (X_test, y_test) = _get_test_data()
 
-    def data_generator(train):
-        if train:
-            max_batch_index = len(X_train) // batch_size
-        else:
-            max_batch_index = len(X_test) // batch_size
-        i = 0
-        while 1:
+    class data_generator:
+        def __init__(self, train):
+            self.train = train
             if train:
-                yield (X_train[i * batch_size: (i + 1) * batch_size], y_train[i * batch_size: (i + 1) * batch_size])
+                self.max_batch_index = len(X_train) // batch_size
             else:
-                yield (X_test[i * batch_size: (i + 1) * batch_size], y_test[i * batch_size: (i + 1) * batch_size])
-            i += 1
-            i = i % max_batch_index
+                self.max_batch_index = len(X_test) // batch_size
 
+            self.cur_batch = 0
+            self.lock = threading.Lock()
+
+        def get_data(self):
+            while 1:
+                with self.lock:
+                    i = self.cur_batch
+                    self.cur_batch += 1
+                    self.cur_batch = self.cur_batch % self.max_batch_index
+                if self.train:
+                    return (X_train[i * batch_size: (i + 1) * batch_size], y_train[i * batch_size: (i + 1) * batch_size])
+                else:
+                    return (X_test[i * batch_size: (i + 1) * batch_size], y_test[i * batch_size: (i + 1) * batch_size])
     model = Sequential()
     model.add(Dense(nb_hidden, input_shape=(input_dim,)))
     model.add(Activation('relu'))
@@ -60,36 +68,21 @@ def test_sequential_fit_generator():
     model.add(Activation('softmax'))
     model.compile(loss='categorical_crossentropy', optimizer='rmsprop')
 
-    model.fit_generator(data_generator(True), len(X_train), nb_epoch, show_accuracy=False)
-    model.fit_generator(data_generator(True), len(X_train), nb_epoch, show_accuracy=True)
-    model.fit_generator(data_generator(True), len(X_train), nb_epoch, show_accuracy=False, validation_data=(X_test, y_test))
-    model.fit_generator(data_generator(True), len(X_train), nb_epoch, show_accuracy=True, validation_data=(X_test, y_test))
-    model.fit_generator(data_generator(True), len(X_train), nb_epoch, show_accuracy=False,
-                        validation_data=data_generator(False), nb_val_samples=batch_size * 3)
-    model.fit_generator(data_generator(True), len(X_train), nb_epoch, show_accuracy=True,
-                        validation_data=data_generator(False), nb_val_samples=batch_size * 3)
+    model.fit_data_func(data_generator(True).get_data, len(X_train), nb_epoch, show_accuracy=False)
+    model.fit_data_func(data_generator(True).get_data, len(X_train), nb_epoch, show_accuracy=True)
+    model.fit_data_func(data_generator(True).get_data, len(X_train), nb_epoch, show_accuracy=False, validation_data=(X_test, y_test))
+    model.fit_data_func(data_generator(True).get_data, len(X_train), nb_epoch, show_accuracy=True, validation_data=(X_test, y_test))
+    model.fit_data_func(data_generator(True).get_data, len(X_train), nb_epoch, show_accuracy=False,
+                        validation_data=data_generator(False).get_data, nb_val_samples=batch_size * 3)
+    model.fit_data_func(data_generator(True).get_data, len(X_train), nb_epoch, show_accuracy=True,
+                        validation_data=data_generator(False).get_data, nb_val_samples=batch_size * 3)
 
-    loss = model.evaluate(X_train, y_train, verbose=0)
+    loss = model.evaluate_data_func(data_generator(False).get_data, 256, verbose=0)
     assert(loss < 0.9)
 
 
 def test_sequential():
     (X_train, y_train), (X_test, y_test) = _get_test_data()
-
-    # TODO: factor out
-    def data_generator(train):
-        if train:
-            max_batch_index = len(X_train) // batch_size
-        else:
-            max_batch_index = len(X_test) // batch_size
-        i = 0
-        while 1:
-            if train:
-                yield (X_train[i * batch_size: (i + 1) * batch_size], y_train[i * batch_size: (i + 1) * batch_size])
-            else:
-                yield (X_test[i * batch_size: (i + 1) * batch_size], y_test[i * batch_size: (i + 1) * batch_size])
-            i += 1
-            i = i % max_batch_index
 
     model = Sequential()
     model.add(Dense(nb_hidden, input_shape=(input_dim,)))
@@ -107,9 +100,6 @@ def test_sequential():
     model.fit(X_train, y_train, batch_size=batch_size, nb_epoch=nb_epoch, verbose=1, shuffle=False)
 
     model.train_on_batch(X_train[:32], y_train[:32])
-
-    gen_loss = model.evaluate_generator(data_generator(True), 256, verbose=0)
-    assert(gen_loss < 0.8)
 
     loss = model.evaluate(X_test, y_test, verbose=0)
     assert(loss < 0.8)
@@ -664,4 +654,6 @@ def test_siamese_2():
 
 
 if __name__ == '__main__':
-    pytest.main([__file__])
+    test_sequential()
+    test_sequential_fit_data_func()
+    #pytest.main([__file__])
