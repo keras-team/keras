@@ -524,7 +524,7 @@ class Merge(Layer):
 
     @property
     def input_shape(self):
-        return [layer.output_shape for layer in self.layers]
+        return [layer.input_shape for layer in self.layers]
 
     @property
     def output_shape(self):
@@ -537,7 +537,7 @@ class Merge(Layer):
                 output_shape[self.concat_axis] += shape[self.concat_axis]
             return tuple(output_shape)
         elif self.mode == 'join':
-            return None
+            return input_shapes
         elif self.mode == 'dot':
             shape1 = list(input_shapes[0])
             shape2 = list(input_shapes[1])
