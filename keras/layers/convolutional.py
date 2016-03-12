@@ -174,6 +174,11 @@ class Convolution1D(Layer):
         base_config = super(Convolution1D, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
+    def set_lr_multipliers(self, W_learning_rate_multiplier, b_learning_rate_multiplier):
+        self.W_learning_rate_multiplier = W_learning_rate_multiplier
+        self.b_learning_rate_multiplier = b_learning_rate_multiplier
+        self.learning_rate_multipliers = [self.W_learning_rate_multiplier,
+                                          self.b_learning_rate_multiplier]
 
 class Convolution2D(Layer):
     '''Convolution operator for filtering windows of two-dimensional inputs.
@@ -355,6 +360,12 @@ class Convolution2D(Layer):
                   'b_learning_rate_multiplier': self.b_learning_rate_multiplier}
         base_config = super(Convolution2D, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
+
+    def set_lr_multipliers(self, W_learning_rate_multiplier, b_learning_rate_multiplier):
+        self.W_learning_rate_multiplier = W_learning_rate_multiplier
+        self.b_learning_rate_multiplier = b_learning_rate_multiplier
+        self.learning_rate_multipliers = [self.W_learning_rate_multiplier,
+                                          self.b_learning_rate_multiplier]
 
 
 class Convolution3D(Layer):
@@ -552,6 +563,12 @@ class Convolution3D(Layer):
                   'b_learning_rate_multiplier': self.b_learning_rate_multiplier}
         base_config = super(Convolution3D, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
+
+    def set_lr_multipliers(self, W_learning_rate_multiplier, b_learning_rate_multiplier):
+        self.W_learning_rate_multiplier = W_learning_rate_multiplier
+        self.b_learning_rate_multiplier = b_learning_rate_multiplier
+        self.learning_rate_multipliers = [self.W_learning_rate_multiplier,
+                                          self.b_learning_rate_multiplier]
 
 
 class _Pooling1D(Layer):
