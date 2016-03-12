@@ -1080,6 +1080,11 @@ class Dense(Layer):
         base_config = super(Dense, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
+    def set_lr_multipliers(self, W_learning_rate_multiplier, b_learning_rate_multiplier):
+        self.W_learning_rate_multiplier = W_learning_rate_multiplier
+        self.b_learning_rate_multiplier = b_learning_rate_multiplier
+        self.learning_rate_multipliers = [self.W_learning_rate_multiplier,
+                                          self.b_learning_rate_multiplier]
 
 class TimeDistributedDense(MaskedLayer):
     '''Apply a same Dense layer for each dimension[1] (time_dimension) input.
@@ -1215,6 +1220,12 @@ class TimeDistributedDense(MaskedLayer):
                   'input_length': self.input_length}
         base_config = super(TimeDistributedDense, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
+
+    def set_lr_multipliers(self, W_learning_rate_multiplier, b_learning_rate_multiplier):
+        self.W_learning_rate_multiplier = W_learning_rate_multiplier
+        self.b_learning_rate_multiplier = b_learning_rate_multiplier
+        self.learning_rate_multipliers = [self.W_learning_rate_multiplier,
+                                          self.b_learning_rate_multiplier]
 
 
 class ActivityRegularization(Layer):
@@ -1526,6 +1537,11 @@ class MaxoutDense(Layer):
         base_config = super(MaxoutDense, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
+    def set_lr_multipliers(self, W_learning_rate_multiplier, b_learning_rate_multiplier):
+        self.W_learning_rate_multiplier = W_learning_rate_multiplier
+        self.b_learning_rate_multiplier = b_learning_rate_multiplier
+        self.learning_rate_multipliers = [self.W_learning_rate_multiplier,
+                                          self.b_learning_rate_multiplier]
 
 class Lambda(Layer):
     '''Used for evaluating an arbitrary Theano / TensorFlow expression
