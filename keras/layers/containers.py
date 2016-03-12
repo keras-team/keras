@@ -96,6 +96,14 @@ class Sequential(Layer):
         return constraints
 
     @property
+    def learning_rate_multipliers(self):
+        learning_rate_multipliers = []
+        for l in self.layers:
+            if l.trainable:
+                learning_rate_multipliers += l.get_params()[3]
+        return learning_rate_multipliers
+
+    @property
     def updates(self):
         updates = []
         for l in self.layers:
@@ -288,6 +296,14 @@ class Graph(Layer):
             if l.trainable:
                 constraints += l.get_params()[2]
         return constraints
+
+    @property
+    def learning_rate_multipliers(self):
+        learning_rate_multipliers = []
+        for l in self.nodes.values():
+            if l.trainable:
+                learning_rate_multipliers += l.get_params()[3]
+        return learning_rate_multipliers
 
     @property
     def updates(self):
