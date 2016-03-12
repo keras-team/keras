@@ -53,10 +53,12 @@ class VariationalDense(Layer):
     def build(self):
         input_dim = self.input_shape[-1]
 
-        self.W_mean = self.init((input_dim, self.output_dim))
-        self.b_mean = K.zeros((self.output_dim,))
-        self.W_logsigma = self.init((input_dim, self.output_dim))
-        self.b_logsigma = K.zeros((self.output_dim,))
+        self.W_mean = self.init((input_dim, self.output_dim),
+                                name='{}_W_mean'.format(self.name))
+        self.b_mean = K.zeros((self.output_dim,), name='{}_b_mean'.format(self.name))
+        self.W_logsigma = self.init((input_dim, self.output_dim),
+                                    name='{}_W_logsigma'.format(self.name))
+        self.b_logsigma = K.zeros((self.output_dim,), name='{}_b_logsigma'.format(self.name))
 
         self.trainable_weights = [self.W_mean, self.b_mean, self.W_logsigma,
                                   self.b_logsigma]
