@@ -37,7 +37,7 @@ encoder.add(BatchNormalization())
 encoder.add(Dense(1000, activation='tanh'))
 encoder.add(BatchNormalization())
 encoder.add(VAE(code_size, activation="linear"))
-# encoder.add(Dense(code_size, activation='linear'))
+
 decoder = Sequential()
 decoder.add(Dense(1000, input_shape=(code_size,), activation='tanh'))
 decoder.add(Dense(1000, activation='tanh'))
