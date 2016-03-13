@@ -55,7 +55,7 @@ model.compile('adam', {'output': 'binary_crossentropy'})
 print('Train...')
 model.fit({'input': X_train, 'output': y_train},
           batch_size=batch_size,
-          nb_epoch=4)
+          nb_epoch=4, show_accuracy=True)
 acc = accuracy(y_test,
                np.round(np.array(model.predict({'input': X_test},
                                                batch_size=batch_size)['output'])))

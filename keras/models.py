@@ -202,10 +202,15 @@ def model_from_config(config, custom_objects={}):
         optimizer = optimizers.get(optimizer_name, optimizer_params)
 
         if model_name == 'Sequential':
+            sample_weight_mode = config.get('sample_weight_mode')
             model.compile(loss=loss, optimizer=optimizer,
-                          class_mode=class_mode)
+                          class_mode=class_mode, sample_weight_mode=sample_weight_mode)
         elif model_name == 'Graph':
-            model.compile(loss=loss, optimizer=optimizer)
+            sample_weight_modes = config.get('sample_weight_modes', {})
+            loss_weights = config.get('loss_weights', {})
+            model.compile(loss=loss, optimizer=optimizer,
+                          sample_weight_modes=sample_weight_modes,
+                          loss_weights=loss_weights)
     return model
 
 
@@ -214,6 +219,39 @@ def get_function_name(o):
         return o
     else:
         return o.__name__
+
+
+def generator_queue(generator, max_q_size=10,
+                    wait_time=0.05, nb_worker=1):
+    '''Builds a threading queue out of a data generator.
+    Used in `fit_generator`, `evaluate_generator`.
+    '''
+    q = queue.Queue()
+    _stop = threading.Event()
+
+    def data_generator_task():
+        while not _stop.is_set():
+            try:
+                if q.qsize() < max_q_size:
+                    try:
+                        generator_output = next(generator)
+                    except ValueError:
+                        continue
+                    q.put(generator_output)
+                else:
+                    time.sleep(wait_time)
+            except Exception:
+                _stop.set()
+                raise
+
+    generator_threads = [threading.Thread(target=data_generator_task)
+                         for _ in range(nb_worker)]
+
+    for thread in generator_threads:
+        thread.daemon = True
+        thread.start()
+
+    return q, _stop
 
 
 class Model(object):
@@ -238,11 +276,10 @@ class Model(object):
         nb_train_sample = len(ins[0])
         index_array = np.arange(nb_train_sample)
 
-        history = cbks.History()
+        self.history = cbks.History()
+        callbacks = [cbks.BaseLogger()] + callbacks + [self.history]
         if verbose:
-            callbacks = [history, cbks.BaseLogger()] + callbacks
-        else:
-            callbacks = [history] + callbacks
+            callbacks += [cbks.ProgbarLogger()]
         callbacks = cbks.CallbackList(callbacks)
 
         callbacks._set_model(self)
@@ -304,7 +341,7 @@ class Model(object):
                 break
 
         callbacks.on_train_end()
-        return history
+        return self.history
 
     def _predict_loop(self, f, ins, batch_size=128, verbose=0):
         '''Abstract method to loop over some data in batches.
@@ -372,7 +409,7 @@ class Model(object):
         `keras.models.model_from_config(config, custom_objects={})`.
         '''
         config = super(Model, self).get_config()
-        for p in ['class_mode']:
+        for p in ['sample_weight_mode', 'sample_weight_modes', 'loss_weights']:
             if hasattr(self, p):
                 config[p] = getattr(self, p)
         if hasattr(self, 'optimizer'):
@@ -382,7 +419,6 @@ class Model(object):
                 config['loss'] = dict([(k, get_function_name(v)) for k, v in self.loss.items()])
             else:
                 config['loss'] = get_function_name(self.loss)
-
         if verbose:
             pp = pprint.PrettyPrinter(indent=4)
             pp.pprint(config)
@@ -411,7 +447,6 @@ class Model(object):
         import json
 
         def get_json_type(obj):
-
             # if obj is any numpy type
             if type(obj).__module__ == np.__name__:
                 return obj.item()
@@ -438,8 +473,9 @@ class Sequential(Model, containers.Sequential):
     Inherits from containers.Sequential.
     '''
     def compile(self, optimizer, loss,
-                class_mode="categorical",
-                sample_weight_mode=None):
+                class_mode=None,
+                sample_weight_mode=None,
+                **kwargs):
         '''Configure the learning process.
 
         # Arguments
@@ -447,13 +483,17 @@ class Sequential(Model, containers.Sequential):
                 See [optimizers](optimizers.md).
             loss: str (name of objective function) or objective function.
                 See [objectives](objectives.md).
-            class_mode: one of "categorical", "binary".
-                This is only used for computing classification accuracy or
-                using the predict_classes method.
+            class_mode: deprecated argument,
+                it is set automatically starting with Keras 0.3.3.
             sample_weight_mode: if you need to do timestep-wise
                 sample weighting (2D weights), set this to "temporal".
                 "None" defaults to sample-wise weights (1D).
+            kwargs: for Theano backend, these are passed into K.function.
+                Ignored for Tensorflow backend.
         '''
+        if class_mode is not None:
+            warnings.warn('The "class_mode" argument is deprecated, please remove it from your code.')
+
         self.optimizer = optimizers.get(optimizer)
         self.sample_weight_mode = sample_weight_mode
 
@@ -475,25 +515,33 @@ class Sequential(Model, containers.Sequential):
         else:
             self.weights = K.placeholder(ndim=1)
 
-        if hasattr(self.layers[-1], "get_output_mask"):
+        if hasattr(self.layers[-1], 'get_output_mask'):
             mask = self.layers[-1].get_output_mask()
         else:
             mask = None
         train_loss = weighted_loss(self.y, self.y_train, self.weights, mask)
         test_loss = weighted_loss(self.y, self.y_test, self.weights, mask)
 
-        if class_mode == "categorical":
+        # set class_mode, for accuracy computation:
+        if self.output_shape[-1] == 1:
+            class_mode = 'binary'
+        else:
+            class_mode = 'categorical'
+        self.class_mode = class_mode
+
+        if class_mode == 'categorical':
             train_accuracy = K.mean(K.equal(K.argmax(self.y, axis=-1),
                                             K.argmax(self.y_train, axis=-1)))
             test_accuracy = K.mean(K.equal(K.argmax(self.y, axis=-1),
                                            K.argmax(self.y_test, axis=-1)))
-
-        elif class_mode == "binary":
+        elif class_mode == 'binary':
+            if self.loss.__name__ == 'categorical_crossentropy':
+                warnings.warn('Your model output has shape ' + str(self.output_shape) +
+                              ' (1-dimensional features), but you are using ' +
+                              ' the `categorical_crossentropy` loss. You ' +
+                              'almost certainly want to use `binary_crossentropy` instead.')
             train_accuracy = K.mean(K.equal(self.y, K.round(self.y_train)))
             test_accuracy = K.mean(K.equal(self.y, K.round(self.y_test)))
-        else:
-            raise Exception("Invalid class mode:" + str(class_mode))
-        self.class_mode = class_mode
 
         for r in self.regularizers:
             train_loss = r(train_loss)
@@ -512,11 +560,18 @@ class Sequential(Model, containers.Sequential):
             test_ins = [self.X_test, self.y, self.weights]
             predict_ins = [self.X_test]
 
-        self._train = K.function(train_ins, [train_loss], updates=updates)
-        self._train_with_acc = K.function(train_ins, [train_loss, train_accuracy], updates=updates)
-        self._predict = K.function(predict_ins, [self.y_test], updates=self.state_updates)
-        self._test = K.function(test_ins, [test_loss], updates=self.state_updates)
-        self._test_with_acc = K.function(test_ins, [test_loss, test_accuracy], updates=self.state_updates)
+        self._train = K.function(train_ins, [train_loss],
+                                 updates=updates, **kwargs)
+        self._train_with_acc = K.function(train_ins,
+                                          [train_loss, train_accuracy],
+                                          updates=updates, **kwargs)
+        self._predict = K.function(predict_ins, [self.y_test],
+                                   updates=self.state_updates, **kwargs)
+        self._test = K.function(test_ins, [test_loss],
+                                updates=self.state_updates, **kwargs)
+        self._test_with_acc = K.function(test_ins,
+                                         [test_loss, test_accuracy],
+                                         updates=self.state_updates, **kwargs)
 
     def fit(self, X, y, batch_size=128, nb_epoch=100, verbose=1, callbacks=[],
             validation_split=0., validation_data=None, shuffle=True,
@@ -854,9 +909,100 @@ class Sequential(Model, containers.Sequential):
             self.layers[k].set_weights(weights)
         f.close()
 
+    def _check_generator_output(self, generator_output, stop):
+        '''Validates the output of a generator. On error, calls
+        stop.set().
+
+        # Arguments
+            generator_output: output of a data generator.
+            stop: threading event to be called to
+                interrupt training/evaluation.
+        '''
+        if not hasattr(generator_output, '__len__'):
+            stop.set()
+            raise Exception('The generator output must be a tuple. Found: ' +
+                            str(type(generator_output)))
+        if len(generator_output) == 2:
+            X, y = generator_output
+            if type(X) == list:
+                assert len(set([len(a) for a in X] + [len(y)])) == 1
+            else:
+                assert len(X) == len(y)
+                X = [X]
+            sample_weight = None
+        elif len(generator_output) == 3:
+            X, y, sample_weight = generator_output
+            if type(X) == list:
+                assert len(set([len(a) for a in X] +
+                               [len(y), len(sample_weight)])) == 1
+            else:
+                assert len(X) == len(y) == len(sample_weight)
+                X = [X]
+        else:
+            stop.set()
+            raise Exception('The generator output tuple must have '
+                            '2 or 3 elements.')
+
+        sample_weight = standardize_weights(y, sample_weight=sample_weight,
+                                            sample_weight_mode=self.sample_weight_mode)
+        return X, y, sample_weight
+
+    def evaluate_generator(self, generator, val_samples, show_accuracy=False,
+                           verbose=1, **kwargs):
+        '''Evaluates the model on a generator. The generator should
+        return the same kind of data with every yield as accepted
+        by `evaluate`
+
+        Arguments:
+            generator:
+                generator yielding dictionaries of the kind accepted
+                by `evaluate`, or tuples of such dictionaries and
+                associated dictionaries of sample weights.
+            val_samples:
+                total number of samples to generate from `generator`
+                to use in validation.
+            show_accuracy: whether to display accuracy in logs.
+            verbose: verbosity mode, 0 (silent), 1 (per-batch logs),
+                or 2 (per-epoch logs).
+        '''
+        done_samples = 0
+        all_outs = None
+        weights = []
+        q, _stop = generator_queue(generator, **kwargs)
+
+        while done_samples < val_samples:
+            X, y, sample_weight = self._check_generator_output(q.get(), _stop)
+            do_samples = len(X[0])
+            outs = self.evaluate(X, y, batch_size=do_samples,
+                                 sample_weight=sample_weight,
+                                 show_accuracy=show_accuracy,
+                                 verbose=verbose)
+            if show_accuracy:
+                if all_outs is None:
+                    all_outs = [[] for _ in outs]
+                for ox, out in enumerate(outs):
+                    all_outs[ox].append(out)
+            else:
+                if all_outs is None:
+                    all_outs = []
+                all_outs.append(outs)
+
+            done_samples += do_samples
+            weights.append(do_samples)
+
+        _stop.set()
+        if show_accuracy:
+            return [np.average(outx, weights=weights)
+                    for outx in all_outs]
+        else:
+            return np.average(np.asarray(all_outs),
+                              weights=weights)
+
     def fit_generator(self, generator, samples_per_epoch, nb_epoch,
                       verbose=1, show_accuracy=False, callbacks=[],
-                      validation_data=None, class_weight=None, nb_worker=1):
+                      validation_data=None, nb_val_samples=None,
+                      class_weight=None,
+                      nb_worker=1, nb_val_worker=None):
         '''Fit a model on data generated batch-by-batch by a Python generator.
         The generator is run in parallel to the model, for efficiency,
         and can be run by multiple workers at the same time.
@@ -883,10 +1029,16 @@ class Sequential(Model, containers.Sequential):
             show_accuracy: boolean. Whether to display accuracy (only relevant
                 for classification problems).
             callbacks: list of callbacks to be called during training.
-            validation_data: tuple of 2 or 3 numpy arrays. If 2 elements,
-                they are assumed to be (input_data, target_data);
+            validation_data: tuple of 2 or 3 numpy arrays, or a generator.
+                If 2 elements, they are assumed to be (input_data, target_data);
                 if 3 elements, they are assumed to be
-                (input_data, target_data, sample weights).
+                (input_data, target_data, sample weights). If generator,
+                it is assumed to yield tuples of 2 or 3 elements as above.
+                The generator will be called at the end of every epoch until
+                at least `nb_val_samples` examples have been obtained,
+                with these examples used for validation.
+            nb_val_samples: number of samples to use from validation
+                generator at the end of every epoch.
             class_weight: dictionary mapping class indices to a weight
                 for the class.
             nb_worker: integer, number of workers to use for running
@@ -896,10 +1048,13 @@ class Sequential(Model, containers.Sequential):
                 If using multiple workers, make sure to protect
                 any thread-unsafe operation done by the generator
                 using a Python mutex.
+            nb_val_worker: same as `nb_worker`, except for validation data.
+                Has no effect if no validation data or validation data is
+                not a generator. If `nb_val_worker` is None, defaults to
+                `nb_worker`.
 
         # Returns
-
-        A `History` object.
+            A `History` object.
 
         # Examples
 
@@ -918,10 +1073,22 @@ class Sequential(Model, containers.Sequential):
                                 samples_per_epoch=10000, nb_epoch=10)
         ```
         '''
-        max_queue_size = 10  # maximum number of batches in queue
+        # TODO: make into kwargs?
+        max_data_q_size = 10  # maximum number of batches in queue
         wait_time = 0.05  # in seconds
         epoch = 0
+
         do_validation = bool(validation_data)
+        # python 2 has 'next', 3 has '__next__'
+        # avoid any explicit version checks
+        val_gen = (hasattr(validation_data, 'next') or
+                   hasattr(validation_data, '__next__'))
+        if val_gen and not nb_val_samples:
+            raise Exception('When using a generator for validation data, '
+                            'you must specify a value for "nb_val_samples".')
+        if nb_val_worker is None:
+            nb_val_worker = nb_worker
+
         if show_accuracy:
             out_labels = ['loss', 'acc']
         else:
@@ -929,11 +1096,10 @@ class Sequential(Model, containers.Sequential):
         metrics = ['loss', 'acc', 'val_loss', 'val_acc']
 
         # prepare callbacks
-        history = cbks.History()
+        self.history = cbks.History()
+        callbacks = [cbks.BaseLogger()] + callbacks + [self.history]
         if verbose:
-            callbacks = [history, cbks.BaseLogger()] + callbacks
-        else:
-            callbacks = [history] + callbacks
+            callbacks += [cbks.ProgbarLogger()]
         callbacks = cbks.CallbackList(callbacks)
 
         callbacks._set_model(self)
@@ -946,67 +1112,15 @@ class Sequential(Model, containers.Sequential):
         })
         callbacks.on_train_begin()
 
-        # util function to validate the batches produced
-        # by the generator
-        def input_validation(generator_output):
-            if not hasattr(generator_output, '__len__'):
-                _stop.set()
-                raise Exception('The generator output must be a tuple. Found: ' + str(type(generator_output)))
-            if len(generator_output) == 2:
-                X, y = generator_output
-                if type(X) == list:
-                    assert len(set([len(a) for a in X] + [len(y)])) == 1
-                else:
-                    assert len(X) == len(y)
-                    X = [X]
-                sample_weight = None
-            elif len(generator_output) == 3:
-                X, y, sample_weight = generator_output
-                if type(X) == list:
-                    assert len(set([len(a) for a in X] + [len(y), len(sample_weight)])) == 1
-                else:
-                    assert len(X) == len(y) == len(sample_weight)
-                    X = [X]
-            else:
-                _stop.set()
-                raise Exception('The generator output tuple must have '
-                                '2 or 3 elements.')
-
-            sample_weight = standardize_weights(y, sample_weight=sample_weight,
-                                                sample_weight_mode=self.sample_weight_mode)
-            return X, y, sample_weight
-
-        if do_validation:
-            X_val, y_val, sample_weight_val = input_validation(validation_data)
+        # start generator thread storing batches into a queue
+        data_gen_queue, _data_stop = generator_queue(generator, max_q_size=max_data_q_size,
+                                                     wait_time=wait_time, nb_worker=nb_worker)
+        if do_validation and not val_gen:
+            X_val, y_val, sample_weight_val = self._check_generator_output(validation_data,
+                                                                           _data_stop)
             self.validation_data = X_val + [y_val, sample_weight_val]
         else:
             self.validation_data = None
-
-        # start generator thread storing batches into a queue
-        generator_queue = queue.Queue()
-        _stop = threading.Event()
-
-        def generator_task():
-            i = 0
-            while not _stop.is_set():
-                try:
-                    if generator_queue.qsize() < max_queue_size:
-                        try:
-                            generator_output = next(generator)
-                        except ValueError:
-                            continue
-                        generator_queue.put(generator_output)
-                        i += 1
-                    else:
-                        time.sleep(wait_time)
-                except:
-                    _stop.set()
-                    raise
-
-        generator_threads = [threading.Thread(target=generator_task) for _ in range(nb_worker)]
-        for thread in generator_threads:
-            thread.daemon = True
-            thread.start()
 
         self.stop_training = False
         while epoch < nb_epoch:
@@ -1015,15 +1129,15 @@ class Sequential(Model, containers.Sequential):
             batch_index = 0
             while samples_seen < samples_per_epoch:
                 generator_output = None
-                while not _stop.is_set():
-                    if not generator_queue.empty():
-                        generator_output = generator_queue.get()
+                while not _data_stop.is_set():
+                    if not data_gen_queue.empty():
+                        generator_output = data_gen_queue.get()
                         break
                     else:
                         time.sleep(wait_time)
 
-                X, y, sample_weight = input_validation(generator_output)
-
+                X, y, sample_weight = self._check_generator_output(generator_output,
+                                                                   _data_stop)
                 batch_logs = {}
                 batch_size = len(X[0])
                 batch_logs['batch'] = batch_index
@@ -1044,32 +1158,33 @@ class Sequential(Model, containers.Sequential):
                 epoch_logs = {}
                 batch_index += 1
                 samples_seen += batch_size
-                if samples_seen >= samples_per_epoch:  # epoch finished
-                    if do_validation:
-                        if hasattr(validation_data, 'next'):
-                            # assumed to be generator
-                            # TODO: call self.evaluate_generator()
-                            _stop.set()
-                            raise NotImplementedError()
-                        else:
-                            # input validation
-                            val_outs = self.evaluate(X_val, y_val,
-                                                     show_accuracy=show_accuracy,
-                                                     sample_weight=sample_weight_val,
-                                                     verbose=0)
-                        if type(val_outs) != list:
-                            val_outs = [val_outs]
-                        # same labels assumed
-                        for l, o in zip(out_labels, val_outs):
-                            epoch_logs['val_' + l] = o
+
+                # epoch finished
+                if samples_seen >= samples_per_epoch and do_validation:
+                    if val_gen:
+                        val_outs = self.evaluate_generator(validation_data,
+                                                           nb_val_samples,
+                                                           show_accuracy=show_accuracy,
+                                                           verbose=0, nb_worker=nb_val_worker,
+                                                           wait_time=wait_time)
+                    else:
+                        val_outs = self.evaluate(X_val, y_val,
+                                                 show_accuracy=show_accuracy,
+                                                 sample_weight=sample_weight_val,
+                                                 verbose=0)
+                    if type(val_outs) != list:
+                        val_outs = [val_outs]
+                    # same labels assumed
+                    for l, o in zip(out_labels, val_outs):
+                        epoch_logs['val_' + l] = o
 
             callbacks.on_epoch_end(epoch, epoch_logs)
             epoch += 1
             if self.stop_training:
                 break
-        _stop.set()
+        _data_stop.set()
         callbacks.on_train_end()
-        return history
+        return self.history
 
 
 class Graph(Model, containers.Graph):
@@ -1081,7 +1196,8 @@ class Graph(Model, containers.Graph):
 
     Inherits from `containers.Graph`.
     '''
-    def compile(self, optimizer, loss, sample_weight_modes={}):
+    def compile(self, optimizer, loss, sample_weight_modes={},
+                loss_weights={}, **kwargs):
         '''Configure the learning process.
 
         # Arguments
@@ -1096,11 +1212,18 @@ class Graph(Model, containers.Graph):
                 timestep-wise loss weighting on one of your graph outputs,
                 you will need to set the sample weight mode for this output
                 to "temporal".
+            loss_weights: dictionary you can pass to specify a weight
+                coefficient for each loss function (in a multi-output model).
+                If no loss weight is specified for an output,
+                the weight for this output's loss will be considered to be 1.
+            kwargs: for Theano backend, these are passed into K.function.
+                Ignored for Tensorflow backend.
         '''
         assert type(loss) is dict, 'The "loss" argument should be a dictionary.'
         assert type(sample_weight_modes) is dict, 'The "sample_weight_modes" argument should be a dictionary.'
 
         self.sample_weight_modes = sample_weight_modes
+        self.loss_weights = loss_weights
         ys = []
         ys_train = []
         ys_test = []
@@ -1128,8 +1251,42 @@ class Graph(Model, containers.Graph):
                 weight = K.placeholder(ndim=1)
             weights.append(weight)
             weighted_loss = weighted_objective(objectives.get(loss_fn))
-            train_loss += weighted_loss(y, y_train, weight, mask)
-            test_loss += weighted_loss(y, y_test, weight, mask)
+            train_loss += loss_weights.get(output_name, 1.) * weighted_loss(y, y_train, weight, mask)
+            test_loss += loss_weights.get(output_name, 1.) * weighted_loss(y, y_test, weight, mask)
+
+        # deal with accuracy computation
+        if len(self.output_order) == 1:
+            y = ys[0]
+            y_train = ys_train[0]
+            y_test = ys_test[0]
+            # set class_mode, for accuracy computation:
+            if self.outputs[self.output_order[0]].output_shape[-1] == 1:
+                class_mode = 'binary'
+            else:
+                class_mode = 'categorical'
+            self.class_mode = class_mode
+
+            if class_mode == 'categorical':
+                train_accuracy = K.mean(K.equal(K.argmax(y, axis=-1),
+                                                K.argmax(y_train, axis=-1)))
+                test_accuracy = K.mean(K.equal(K.argmax(y, axis=-1),
+                                               K.argmax(y_test, axis=-1)))
+            elif class_mode == 'binary':
+                is_categorical_xent = False
+                loss_type = loss[self.output_order[0]]
+                if loss_type == 'categorical_crossentropy':
+                    is_categorical_xent = True
+                if hasattr(loss_type, '__name__') and loss_type.__name__ == 'categorical_crossentropy':
+                    is_categorical_xent = True
+                if is_categorical_xent:
+                    warnings.warn('Your model output has shape ' + str(self.output_shape) +
+                                  ' (1-dimensional features), but you are using ' +
+                                  ' the `categorical_crossentropy` loss. You ' +
+                                  'almost certainly want to use `binary_crossentropy` instead.')
+                train_accuracy = K.mean(K.equal(y, K.round(y_train)))
+                test_accuracy = K.mean(K.equal(y, K.round(y_test)))
+        else:
+            self.class_mode = None
 
         ins = [self.inputs[name].input for name in self.input_order]
         train_ins = ins + ys + weights
@@ -1144,13 +1301,22 @@ class Graph(Model, containers.Graph):
         updates += self.updates
         self.loss = loss
 
-        self._train = K.function(train_ins, [train_loss], updates=updates)
-        self._test = K.function(test_ins, [test_loss], updates=self.state_updates)
+        self._train = K.function(train_ins, [train_loss],
+                                 updates=updates, **kwargs)
+        if self.class_mode:
+            self._train_with_acc = K.function(train_ins, [train_loss, train_accuracy],
+                                              updates=updates, **kwargs)
+        self._test = K.function(test_ins, [test_loss],
+                                updates=self.state_updates, **kwargs)
+        if self.class_mode:
+            self._test_with_acc = K.function(test_ins, [test_loss, test_accuracy],
+                                             updates=self.state_updates, **kwargs)
         self._predict = K.function(inputs=ins, outputs=ys_test,
-                                   updates=self.state_updates)
+                                   updates=self.state_updates, **kwargs)
 
     def fit(self, data, batch_size=128, nb_epoch=100, verbose=1, callbacks=[],
             validation_split=0., validation_data=None, shuffle=True,
+            show_accuracy=False,
             class_weight={}, sample_weight={}):
         '''Train the model for a fixed number of epochs.
 
@@ -1176,11 +1342,19 @@ class Graph(Model, containers.Graph):
                 All arrays should contain the same number of samples.
                 Will override validation_split.
             shuffle: boolean. Whether to shuffle the samples at each epoch.
+            show_accuracy: whether to log accuracy.
+                Can only be used if your Graph has a single output (otherwise "accuracy"
+                is ill-defined).
             class_weight: dictionary mapping output names to
                 class weight dictionaries.
             sample_weight: dictionary mapping output names to
                 numpy arrays of sample weights.
         '''
+        if show_accuracy:
+            if len(self.output_order) != 1:
+                raise Exception('In a Graph model, "show_accuracy" can only '
+                                'be used if your Graph has exactly one output.'
+                                ' Otherwise accuracy is ill-defined.')
         X = [data[name] for name in self.input_order]
         y = [standardize_y(data[name]) for name in self.output_order]
         if len(set([len(a) for a in X] + [len(a) for a in y])) != 1:
@@ -1209,9 +1383,14 @@ class Graph(Model, containers.Graph):
             sample_weight_list, sample_weight_list_val = (slice_X(sample_weight_list, 0, split_at), slice_X(sample_weight_list, split_at))
             val_ins = X_val + y_val + sample_weight_list_val
 
-        f = self._train
-        out_labels = ['loss']
-        metrics = ['loss', 'val_loss']
+        if self.class_mode and show_accuracy:
+            f = self._train_with_acc
+            out_labels = ['loss', 'acc']
+            metrics = ['loss', 'acc', 'val_loss', 'val_acc']
+        else:
+            f = self._train
+            out_labels = ['loss']
+            metrics = ['loss', 'val_loss']
 
         sample_weight_list = [standardize_weights(y[i],
                                                   sample_weight=sample_weight_list[i],
@@ -1225,8 +1404,12 @@ class Graph(Model, containers.Graph):
                             shuffle=shuffle, metrics=metrics)
         return history
 
-    def evaluate(self, data, batch_size=128, verbose=0, sample_weight={}):
+    def evaluate(self, data, batch_size=128, show_accuracy=False,
+                 verbose=0, sample_weight={}):
         '''Compute the loss on some input data, batch by batch.
+
+        Returns the loss over the data,
+        or a tuple `(loss, accuracy)` if `show_accuracy=True`.
 
         Arguments: see `fit` method.
         '''
@@ -1237,8 +1420,19 @@ class Graph(Model, containers.Graph):
         if len(set([len(a) for a in ins])) != 1:
             raise Exception('All input arrays and target arrays must have '
                             'the same number of samples.')
-        outs = self._test_loop(self._test, ins, batch_size, verbose)
-        return outs[0]
+        if show_accuracy:
+            if len(self.output_order) != 1:
+                raise Exception('In a Graph model, "show_accuracy" can only '
+                                'be used if your Graph has exactly one output.'
+                                ' Otherwise accuracy is ill-defined.')
+            fn = self._test_with_acc
+        else:
+            fn = self._test
+        outs = self._test_loop(fn, ins, batch_size, verbose)
+        if show_accuracy:
+            return outs
+        else:
+            return outs[0]
 
     def predict(self, data, batch_size=128, verbose=0):
         '''Generate output predictions for the input samples
@@ -1253,8 +1447,12 @@ class Graph(Model, containers.Graph):
         outs = self._predict_loop(self._predict, ins, batch_size, verbose)
         return dict(zip(self.output_order, outs))
 
-    def train_on_batch(self, data, class_weight={}, sample_weight={}):
+    def train_on_batch(self, data, accuracy=False,
+                       class_weight={}, sample_weight={}):
         '''Single gradient update on a batch of samples.
+
+        Returns the loss over the data,
+        or a tuple `(loss, accuracy)` if `accuracy=True`.
 
         Arguments: see `fit` method.
         '''
@@ -1266,10 +1464,19 @@ class Graph(Model, containers.Graph):
         if len(set([len(a) for a in ins])) != 1:
             raise Exception('All input arrays and target arrays must have '
                             'the same number of samples.')
+        if accuracy:
+            if len(self.output_order) != 1:
+                raise Exception('In a Graph model, "accuracy" can only '
+                                'be used if your Graph has exactly one output.'
+                                ' Otherwise accuracy is ill-defined.')
+            return self._train_with_acc(ins)
         return self._train(ins)
 
-    def test_on_batch(self, data, sample_weight={}):
-        '''Compute the loss on a single batch of samples.
+    def test_on_batch(self, data, accuracy=False, sample_weight={}):
+        '''Test the network on a single batch of samples.
+
+        If `accuracy`, it returns a tuple `(loss, accuracy)`,
+        otherwise it returns the loss value.
 
         Arguments: see `fit` method.
         '''
@@ -1280,6 +1487,12 @@ class Graph(Model, containers.Graph):
         if len(set([len(a) for a in ins])) != 1:
             raise Exception('All input arrays and target arrays must have '
                             'the same number of samples.')
+        if accuracy:
+            if len(self.output_order) != 1:
+                raise Exception('In a Graph model, "accuracy" can only '
+                                'be used if your Graph has exactly one output.'
+                                ' Otherwise accuracy is ill-defined.')
+            return self._test_with_acc(ins)
         return self._test(ins)
 
     def predict_on_batch(self, data):
@@ -1333,9 +1546,104 @@ class Graph(Model, containers.Graph):
         self.set_weights(weights)
         f.close()
 
+    def evaluate_generator(self, generator, nb_val_samples, show_accuracy=False,
+                           verbose=1, **kwargs):
+        '''Evaluates the model on a generator. The generator should
+        return the same kind of data with every yield as accepted
+        by `evaluate`.
+
+        If `show_accuracy`, it returns a tuple `(loss, accuracy)`,
+        otherwise it returns the loss value.
+
+        Arguments:
+            generator:
+                generator yielding dictionaries of the kind accepted
+                by `evaluate`, or tuples of such dictionaries and
+                associated dictionaries of sample weights.
+            nb_val_samples:
+                total number of samples to generate from `generator`
+                to use in validation.
+            show_accuracy: whether to log accuracy.
+                Can only be used if your Graph has a single output (otherwise "accuracy"
+                is ill-defined).
+
+            Other arguments are the same as for `fit`.
+        '''
+        if show_accuracy:
+            if len(self.output_order) != 1:
+                raise Exception('In a Graph model, "show_accuracy" can only '
+                                'be used if your Graph has exactly one output.'
+                                ' Otherwise accuracy is ill-defined.')
+        done_samples = 0
+        all_outs = None
+        weights = []
+        q, _stop = generator_queue(generator, **kwargs)
+
+        while done_samples < nb_val_samples:
+            data, sample_weight = self._check_generator_output(q.get(), _stop)
+            do_samples = len(data[next(iter(data.keys()))])
+            outs = self.evaluate(data, batch_size=do_samples,
+                                 sample_weight=sample_weight,
+                                 show_accuracy=show_accuracy,
+                                 verbose=verbose)
+            if show_accuracy:
+                if all_outs is None:
+                    all_outs = [[] for _ in outs]
+                for ox, out in enumerate(outs):
+                    all_outs[ox].append(out)
+            else:
+                if all_outs is None:
+                    all_outs = []
+                all_outs.append(outs)
+
+            done_samples += do_samples
+            weights.append(do_samples)
+
+        _stop.set()
+        if show_accuracy:
+            return [np.average(outx, weights=weights)
+                    for outx in all_outs]
+        else:
+            return np.average(np.asarray(all_outs),
+                              weights=weights)
+
+    def _check_generator_output(self, generator_output, stop):
+        '''Verifies the output of a generator to make sure
+        it is consistent with requirements. Also standardizes
+        the output.
+        '''
+        if type(generator_output) in [list, tuple]:
+            if len(generator_output) == 2:
+                data, sample_weight = generator_output
+            else:
+                stop.set()
+                raise Exception('The generator output tuple must have '
+                                '2 dictionary elements: '
+                                '(data, sample_weight).')
+        elif type(generator_output) == dict:
+            data = generator_output
+            sample_weight = {}
+        else:
+            stop.set()
+            raise Exception('The generator output must be '
+                            'a data dictionary or a tuple '
+                            '(data, sample_weight).')
+        assert type(data) == dict
+        assert type(sample_weight) == dict
+        if len(set([len(data[name]) for name in data.keys()] +
+                   [len(sample_weight[name]) for name in sample_weight.keys()])) != 1:
+            raise Exception('All input arrays and target arrays must have '
+                            'the same number of samples.')
+        sample_weight = {name: standardize_weights(data[name],
+                         sample_weight=sample_weight.get(name),
+                         sample_weight_mode=self.sample_weight_modes.get(name)) for name in self.output_order}
+        return data, sample_weight
+
     def fit_generator(self, generator, samples_per_epoch, nb_epoch,
-                      verbose=1, callbacks=[],
-                      validation_data=None, class_weight={}, nb_worker=1):
+                      verbose=1, show_accuracy=False, callbacks=[],
+                      validation_data=None, nb_val_samples=None,
+                      class_weight={},
+                      nb_worker=1, nb_val_worker=None):
         '''Fit a model on data generated batch-by-batch by a Python generator.
         The generator is run in parallel to the model, for efficiency,
         and can be run by multiple workers at the same time.
@@ -1355,11 +1663,20 @@ class Graph(Model, containers.Graph):
                 going to the next epoch.
             nb_epoch: integer, total number of iterations on the data.
             verbose: verbosity mode, 0, 1, or 2.
+            show_accuracy: whether to log accuracy.
+                Can only be used if your Graph has a single output (otherwise "accuracy"
+                is ill-defined).
             callbacks: list of callbacks to be called during training.
             validation_data: dictionary mapping input names and outputs names
                 to appropriate numpy arrays to be used as
-                held-out validation data.
-                All arrays should contain the same number of samples.
+                held-out validation data, or a generator yielding such
+                dictionaries. All arrays should contain the same number
+                of samples. If a generator, will be called until more than
+                `nb_val_samples` examples have been generated at the
+                end of every epoch. These examples will then be used
+                as the validation data.
+            nb_val_samples: number of samples to use from validation
+                generator at the end of every epoch.
             class_weight: dictionary mapping class indices to a weight
                 for the class.
             nb_worker: integer, number of workers to use for running
@@ -1369,10 +1686,13 @@ class Graph(Model, containers.Graph):
                 If using multiple workers, make sure to protect
                 any thread-unsafe operation done by the generator
                 using a Python mutex.
+            nb_val_worker: same as `nb_worker`, except for validation data.
+                Has no effect if no validation data or validation data is
+                not a generator. If `None`, defaults to nb_worker.
+
 
         # Returns
-
-        A `History` object.
+            A `History` object.
 
         # Examples
 
@@ -1391,21 +1711,38 @@ class Graph(Model, containers.Graph):
                                 samples_per_epoch=10000, nb_epoch=10)
         ```
         '''
-        max_queue_size = 10  # maximum number of batches in queue
+        max_data_q_size = 10  # maximum number of batches in queue
+
         wait_time = 0.05  # in seconds
         epoch = 0
+
         do_validation = bool(validation_data)
-        out_labels = ['loss']
-        metrics = ['loss', 'val_loss']
+        val_gen = (hasattr(validation_data, 'next') or
+                   hasattr(validation_data, '__next__'))
+        if val_gen and not nb_val_samples:
+            raise Exception('When using a generator for validation data, '
+                            'you must specify a value for "nb_val_samples".')
+        if nb_val_worker is None:
+            nb_val_worker = nb_worker
+
+        if show_accuracy:
+            if len(self.output_order) != 1:
+                raise Exception('In a Graph model, "show_accuracy" can only '
+                                'be used if your Graph has exactly one output.'
+                                ' Otherwise accuracy is ill-defined.')
+            out_labels = ['loss', 'acc']
+            metrics = ['loss', 'acc', 'val_loss', 'val_acc']
+        else:
+            out_labels = ['loss']
+            metrics = ['loss', 'val_loss']
         if not class_weight:
             class_weight = {}
 
         # prepare callbacks
-        history = cbks.History()
+        self.history = cbks.History()
+        callbacks = [cbks.BaseLogger()] + callbacks + [self.history]
         if verbose:
-            callbacks = [history, cbks.BaseLogger()] + callbacks
-        else:
-            callbacks = [history] + callbacks
+            callbacks += [cbks.ProgbarLogger()]
         callbacks = cbks.CallbackList(callbacks)
 
         callbacks._set_model(self)
@@ -1418,66 +1755,17 @@ class Graph(Model, containers.Graph):
         })
         callbacks.on_train_begin()
 
-        # util function to validate the batches produced
-        # by the generator
-        def input_validation(generator_output):
-            if type(generator_output) in [list, tuple]:
-                if len(generator_output) == 2:
-                    data, sample_weight = generator_output
-                else:
-                    _stop.set()
-                    raise Exception('The generator output tuple must have '
-                                    '2 dictionary elements: '
-                                    '(data, sample_weight).')
-            elif type(generator_output) == dict:
-                data = generator_output
-                sample_weight = {}
-            else:
-                _stop.set()
-                raise Exception('The generator output must be '
-                                'a data dictionary or a tuple '
-                                '(data, sample_weight).')
-            assert type(data) == dict
-            assert type(sample_weight) == dict
-            if len(set([len(data[name]) for name in data.keys()] +
-                       [len(sample_weight[name]) for name in sample_weight.keys()])) != 1:
-                raise Exception('All input arrays and target arrays must have '
-                                'the same number of samples.')
-            sample_weight = {name: standardize_weights(data[name],
-                             sample_weight=sample_weight.get(name),
-                             sample_weight_mode=self.sample_weight_modes.get(name)) for name in self.output_order}
-            return data, sample_weight
-
-        if do_validation:
-            data_val, sample_weight_val = input_validation(validation_data)
+        # start generator thread storing batches into a queue
+        data_gen_queue, _data_stop = generator_queue(generator, max_q_size=max_data_q_size,
+                                                     wait_time=wait_time, nb_worker=nb_worker)
+        if do_validation and not val_gen:
+            # TODO: _data_stop not really sensical here
+            data_val, sample_weight_val = self._check_generator_output(validation_data, _data_stop)
             sample_weight_val_l = [sample_weight_val[name] for name in self.output_order]
             y_val = [standardize_y(data_val[name]) for name in self.output_order]
             self.validation_data = [data_val[name] for name in self.input_order] + y_val + sample_weight_val_l
         else:
             self.validation_data = None
-
-        # start generator thread storing batches into a queue
-        generator_queue = queue.Queue()
-        _stop = threading.Event()
-
-        def generator_task():
-            i = 0
-            while not _stop.is_set():
-                try:
-                    if generator_queue.qsize() < max_queue_size:
-                        generator_output = next(generator)
-                        generator_queue.put(generator_output)
-                        i += 1
-                    else:
-                        time.sleep(wait_time)
-                except:
-                    _stop.set()
-                    return
-
-        generator_threads = [threading.Thread(target=generator_task) for _ in range(nb_worker)]
-        for thread in generator_threads:
-            thread.daemon = True
-            thread.start()
 
         self.stop_training = False
         while epoch < nb_epoch:
@@ -1485,15 +1773,15 @@ class Graph(Model, containers.Graph):
             samples_seen = 0
             batch_index = 0
             while samples_seen < samples_per_epoch:
-                while not _stop.is_set():
-                    if not generator_queue.empty():
-                        generator_output = generator_queue.get()
+                while not _data_stop.is_set():
+                    if not data_gen_queue.empty():
+                        generator_output = data_gen_queue.get()
                         break
                     else:
                         time.sleep(wait_time)
 
-                data, sample_weight = input_validation(generator_output)
-
+                data, sample_weight = self._check_generator_output(generator_output,
+                                                                   _data_stop)
                 batch_logs = {}
                 batch_size = len(data[list(data.keys())[0]])
                 batch_logs['batch'] = batch_index
@@ -1501,7 +1789,8 @@ class Graph(Model, containers.Graph):
                 callbacks.on_batch_begin(batch_index, batch_logs)
                 outs = self.train_on_batch(data,
                                            sample_weight=sample_weight,
-                                           class_weight=class_weight)
+                                           class_weight=class_weight,
+                                           accuracy=show_accuracy)
                 if type(outs) != list:
                     outs = [outs]
                 for l, o in zip(out_labels, outs):
@@ -1513,27 +1802,30 @@ class Graph(Model, containers.Graph):
                 epoch_logs = {}
                 batch_index += 1
                 samples_seen += batch_size
-                if samples_seen >= samples_per_epoch:  # epoch finished
-                    if do_validation:
-                        if hasattr(validation_data, 'next'):
-                            # assumed to be generator
-                            # TODO: call self.evaluate_generator()
-                            _stop.set()
-                            raise NotImplementedError()
-                        else:
-                            val_outs = self.evaluate(data_val,
-                                                     sample_weight=sample_weight_val,
-                                                     verbose=0)
-                        if type(val_outs) != list:
-                            val_outs = [val_outs]
-                        # same labels assumed
-                        for l, o in zip(out_labels, val_outs):
-                            epoch_logs['val_' + l] = o
+                # epoch finished
+                if samples_seen >= samples_per_epoch and do_validation:
+                    if val_gen:
+                        val_outs = self.evaluate_generator(validation_data,
+                                                           nb_val_samples,
+                                                           verbose=0,
+                                                           show_accuracy=show_accuracy,
+                                                           nb_worker=nb_val_worker,
+                                                           wait_time=wait_time)
+                    else:
+                        val_outs = self.evaluate(data_val,
+                                                 sample_weight=sample_weight_val,
+                                                 show_accuracy=show_accuracy,
+                                                 verbose=0)
+                    if type(val_outs) != list:
+                        val_outs = [val_outs]
+                    # same labels assumed
+                    for l, o in zip(out_labels, val_outs):
+                        epoch_logs['val_' + l] = o
 
             callbacks.on_epoch_end(epoch, epoch_logs)
             epoch += 1
             if self.stop_training:
                 break
-        _stop.set()
+        _data_stop.set()
         callbacks.on_train_end()
-        return history
+        return self.history

@@ -1,6 +1,7 @@
 import tensorflow as tf
 import numpy as np
 import os
+import warnings
 from .common import _FLOATX, _EPSILON
 
 # INTERNAL UTILS
@@ -8,18 +9,18 @@ from .common import _FLOATX, _EPSILON
 _SESSION = None
 
 
-def _get_session():
+def get_session():
     global _SESSION
     if _SESSION is None:
         if not os.environ.get('OMP_NUM_THREADS'):
-            _SESSION = tf.Session('')
+            _SESSION = tf.Session(config=tf.ConfigProto(allow_soft_placement=True))
         else:
             nb_thread = int(os.environ.get('OMP_NUM_THREADS'))
-            _SESSION = tf.Session(config=tf.ConfigProto(intra_op_parallelism_threads=nb_thread))
+            _SESSION = tf.Session(config=tf.ConfigProto(intra_op_parallelism_threads=nb_thread, allow_soft_placement=True))
     return _SESSION
 
 
-def _set_session(session):
+def set_session(session):
     global _SESSION
     _SESSION = session
 
@@ -28,7 +29,7 @@ def _set_session(session):
 
 def variable(value, dtype=_FLOATX, name=None):
     v = tf.Variable(np.asarray(value, dtype=dtype), name=name)
-    _get_session().run(v.initializer)
+    get_session().run(v.initializer)
     return v
 
 
@@ -40,7 +41,13 @@ def placeholder(shape=None, ndim=None, dtype=_FLOATX, name=None):
 
 
 def shape(x):
-    return x.get_shape()
+    # symbolic shape
+    return tf.shape(x)
+
+
+def int_shape(x):
+    shape = x.get_shape()
+    return tuple([i.__int__() for i in shape])
 
 
 def ndim(x):
@@ -50,7 +57,7 @@ def ndim(x):
 def eval(x):
     '''Run a graph.
     '''
-    return x.eval(session=_get_session())
+    return x.eval(session=get_session())
 
 
 def zeros(shape, dtype=_FLOATX, name=None):
@@ -239,7 +246,10 @@ def minimum(x, y):
 
 def concatenate(tensors, axis=-1):
     if axis < 0:
-        axis = axis % len(tensors[0].get_shape())
+        if len(tensors[0].get_shape()):
+            axis = axis % len(tensors[0].get_shape())
+        else:
+            axis = 0
     return tf.concat(axis, tensors)
 
 
@@ -265,15 +275,15 @@ def resize_images(X, height_factor, width_factor, dim_ordering):
     positive integers.
     '''
     if dim_ordering == 'th':
-        new_height = shape(X)[2].value * height_factor
-        new_width = shape(X)[3].value * width_factor
+        new_shape = tf.shape(X)[2:]
+        new_shape *= tf.constant(np.array([height_factor, width_factor]).astype('int32'))
         X = permute_dimensions(X, [0, 2, 3, 1])
-        X = tf.image.resize_nearest_neighbor(X, (new_height, new_width))
+        X = tf.image.resize_nearest_neighbor(X, new_shape)
         return permute_dimensions(X, [0, 3, 1, 2])
     elif dim_ordering == 'tf':
-        new_height = shape(X)[1].value * height_factor
-        new_width = shape(X)[2].value * width_factor
-        return tf.image.resize_nearest_neighbor(X, (new_height, new_width))
+        new_shape = tf.shape(X)[1:3]
+        new_shape *= tf.constant(np.array([height_factor, width_factor]).astype('int32'))
+        return tf.image.resize_nearest_neighbor(X, new_shape)
     else:
         raise Exception('Invalid dim_ordering: ' + dim_ordering)
 
@@ -354,16 +364,21 @@ def spatial_2d_padding(x, padding=(1, 1), dim_ordering='th'):
     return tf.pad(x, pattern)
 
 
+def pack(x):
+    return tf.pack(x)
+
+
 # VALUE MANIPULATION
+
 
 def get_value(x):
     '''Technically the same as eval() for TF.
     '''
-    return x.eval(session=_get_session())
+    return x.eval(session=get_session())
 
 
 def set_value(x, value):
-    tf.assign(x, np.asarray(value)).op.run(session=_get_session())
+    tf.assign(x, np.asarray(value)).op.run(session=get_session())
 
 
 # GRAPH MANIPULATION
@@ -371,9 +386,9 @@ def set_value(x, value):
 class Function(object):
 
     def __init__(self, inputs, outputs, updates=[]):
-        assert type(inputs) in {list, tuple}
-        assert type(outputs) in {list, tuple}
-        assert type(updates) in {list, tuple}
+        assert type(inputs) in {list, tuple}, 'Input to a TensorFlow backend function should be a list or tuple.'
+        assert type(outputs) in {list, tuple}, 'Output to a TensorFlow backend function should be a list or tuple.'
+        assert type(updates) in {list, tuple}, 'Updates in a TensorFlow backend function should be a list or tuple.'
         self.inputs = list(inputs)
         self.outputs = list(outputs)
         with tf.control_dependencies(self.outputs):
@@ -383,12 +398,18 @@ class Function(object):
         assert type(inputs) in {list, tuple}
         names = [v.name for v in self.inputs]
         feed_dict = dict(zip(names, inputs))
-        session = _get_session()
+        session = get_session()
         updated = session.run(self.outputs + self.updates, feed_dict=feed_dict)
         return updated[:len(self.outputs)]
 
 
-def function(inputs, outputs, updates=[]):
+def function(inputs, outputs, updates=[], **kwargs):
+    if len(kwargs) > 0:
+        msg = [
+            "Expected no kwargs, you passed %s" % len(kwargs),
+            "kwargs passed to function are ignored with Tensorflow backend"
+        ]
+        warnings.warn('\n'.join(msg))
     return Function(inputs, outputs, updates=updates)
 
 
@@ -399,7 +420,7 @@ def gradients(loss, variables):
 # CONTROL FLOW
 
 def rnn(step_function, inputs, initial_states,
-        go_backwards=False, mask=None):
+        go_backwards=False, mask=None, constants=None):
     '''Iterates over the time dimension of a tensor.
 
     # Arguments
@@ -422,6 +443,7 @@ def rnn(step_function, inputs, initial_states,
             the time dimension in reverse order.
         mask: binary tensor with shape (samples, time, 1),
             with a zero for every element that is masked.
+        constants: a list of constant values passed at each step.
 
     # Returns
         A tuple (last_output, outputs, new_states).
@@ -437,6 +459,8 @@ def rnn(step_function, inputs, initial_states,
     axes = [1, 0] + list(range(2, ndim))
     inputs = tf.transpose(inputs, (axes))
     input_list = tf.unpack(inputs)
+    if constants is None:
+        constants = []
 
     states = initial_states
     successive_states = []
@@ -452,8 +476,11 @@ def rnn(step_function, inputs, initial_states,
         mask = tf.cast(tf.transpose(mask, axes), tf.bool)
         mask_list = tf.unpack(mask)
 
+        if go_backwards:
+            mask_list.reverse()
+
         for input, mask_t in zip(input_list, mask_list):
-            output, new_states = step_function(input, states)
+            output, new_states = step_function(input, states + constants)
 
             # tf.select needs its condition tensor to be the same shape as its two
             # result tensors, but in our case the condition (mask) tensor is
@@ -481,7 +508,7 @@ def rnn(step_function, inputs, initial_states,
             successive_states.append(states)
     else:
         for input in input_list:
-            output, states = step_function(input, states)
+            output, states = step_function(input, states + constants)
             successive_outputs.append(output)
             successive_states.append(states)
 
@@ -542,13 +569,13 @@ def categorical_crossentropy(output, target, from_logits=False):
     if not from_logits:
         # scale preds so that the class probas of each sample sum to 1
         output /= tf.reduce_sum(output,
-                                reduction_indices=len(output.get_shape())-1,
+                                reduction_indices=len(output.get_shape()) - 1,
                                 keep_dims=True)
         # manual computation of crossentropy
         output = tf.clip_by_value(output, tf.cast(_EPSILON, dtype=_FLOATX),
-                                  tf.cast(1.-_EPSILON, dtype=_FLOATX))
+                                  tf.cast(1. - _EPSILON, dtype=_FLOATX))
         return - tf.reduce_sum(target * tf.log(output),
-                               reduction_indices=len(output.get_shape())-1)
+                               reduction_indices=len(output.get_shape()) - 1)
     else:
         return tf.nn.softmax_cross_entropy_with_logits(output, target)
 
@@ -704,3 +731,10 @@ def random_uniform(shape, low=0.0, high=1.0, dtype=_FLOATX, seed=None):
         seed = np.random.randint(10e6)
     return tf.random_uniform(shape, minval=low, maxval=high,
                              dtype=dtype, seed=seed)
+
+
+def random_binomial(shape, p=0.0, dtype=_FLOATX, seed=None):
+    if seed is None:
+        seed = np.random.randint(10e6)
+    return tf.select(tf.random_uniform(shape, dtype=dtype, seed=seed) <= p, 
+                     tf.ones(shape), tf.zeros(shape))

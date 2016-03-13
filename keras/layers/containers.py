@@ -26,29 +26,6 @@ class Sequential(Layer):
             self.add(layer)
         self._cache_enabled = True
 
-    def __call__(self, X, mask=None, train=False):
-        # turn off layer cache temporarily
-        tmp_cache_enabled = self.cache_enabled
-        self.cache_enabled = False
-        # recursively search for a layer which is not a Sequential model
-        layer = self
-        while issubclass(layer.__class__, Sequential):
-            layer = layer.layers[0]
-        # set temporary input to first layer
-        tmp_input = layer.get_input
-        tmp_mask = None
-        layer.get_input = lambda _: X
-        if hasattr(layer, 'get_input_mask'):
-            tmp_mask = layer.get_input_mask
-            layer.get_input_mask = lambda _: mask
-        Y = self.get_output(train=train)
-        # return input from first layer to what it was
-        layer.get_input = tmp_input
-        if hasattr(layer, 'get_input_mask'):
-            layer.get_input_mask = tmp_mask
-        self.cache_enabled = tmp_cache_enabled
-        return Y
-
     @property
     def cache_enabled(self):
         return self._cache_enabled
@@ -59,8 +36,31 @@ class Sequential(Layer):
         for l in self.layers:
             l.cache_enabled = value
 
-    def set_previous(self, layer):
-        self.layers[0].previous = layer
+    @property
+    def layer_cache(self):
+        return super(Sequential, self).layer_cache
+
+    @layer_cache.setter
+    def layer_cache(self, value):
+        self._layer_cache = value
+        for layer in self.layers:
+            layer.layer_cache = self._layer_cache
+
+    @property
+    def shape_cache(self):
+        return super(Sequential, self).shape_cache
+
+    @shape_cache.setter
+    def shape_cache(self, value):
+        self._shape_cache = value
+        for layer in self.layers:
+            layer.shape_cache = self._shape_cache
+
+    def set_previous(self, layer, reset_weights=True):
+        self.layers[0].set_previous(layer, reset_weights)
+
+    def clear_previous(self, reset_weights=True):
+        self.layers[0].clear_previous(reset_weights)
 
     def add(self, layer):
         layer.layer_cache = self.layer_cache
@@ -156,9 +156,9 @@ class Sequential(Layer):
         return weights
 
     def set_weights(self, weights):
-        for i in range(len(self.layers)):
-            nb_param = len(self.layers[i].trainable_weights) + len(self.layers[i].non_trainable_weights)
-            self.layers[i].set_weights(weights[:nb_param])
+        for layer in self.layers:
+            nb_param = len(layer.get_weights())
+            layer.set_weights(weights[:nb_param])
             weights = weights[nb_param:]
 
     def get_config(self):
@@ -191,6 +191,71 @@ class Graph(Layer):
         self.node_config = []  # dicts
         self.layer_cache = {}
         self.shape_cache = {}
+        self._cache_enabled = True
+
+    def __call__(self, X, mask=None, train=False):
+        if type(X) != dict:
+            return super(Graph, self).__call__(X, mask, train)
+        else:
+            # turn off layer cache temporarily
+            tmp_cache_enabled = self.cache_enabled
+            self.cache_enabled = False
+            # create a temporary layer for each input
+            tmp_previous = {}
+            for name, input in self.inputs.items():
+                layer = Layer(batch_input_shape=input.input_shape)
+                layer.input = X[name]
+                if hasattr(self, 'get_input_mask'):
+                    layer.get_input_mask = lambda _: mask[name]
+                # set temporary previous
+                if hasattr(input, 'previous'):
+                    tmp_previous[name] = input.previous
+                input.set_previous(layer, False)
+            Y = self.get_output(train=train)
+            # return previous to what it was
+            for name, input in self.inputs.items():
+                if name in tmp_previous:
+                    input.set_previous(tmp_previous[name], False)
+                else:
+                    input.clear_previous(False)
+            self.cache_enabled = tmp_cache_enabled
+            return Y
+
+    @property
+    def cache_enabled(self):
+        return self._cache_enabled
+
+    @cache_enabled.setter
+    def cache_enabled(self, value):
+        self._cache_enabled = value
+        for l in self.nodes.values():
+            l.cache_enabled = value
+        for l in self.inputs.values():
+            l.cache_enabled = value
+
+    @property
+    def layer_cache(self):
+        return super(Graph, self).layer_cache
+
+    @layer_cache.setter
+    def layer_cache(self, value):
+        self._layer_cache = value
+        for layer in self.nodes.values():
+            layer.layer_cache = self._layer_cache
+        for layer in self.inputs.values():
+            layer.layer_cache = self._layer_cache
+
+    @property
+    def shape_cache(self):
+        return super(Graph, self).shape_cache
+
+    @shape_cache.setter
+    def shape_cache(self, value):
+        self._shape_cache = value
+        for layer in self.nodes.values():
+            layer.shape_cache = self._shape_cache
+        for layer in self.inputs.values():
+            layer.shape_cache = self._shape_cache
 
     @property
     def nb_input(self):
@@ -251,21 +316,34 @@ class Graph(Layer):
             if hasattr(l, 'reset_states') and getattr(l, 'stateful', False):
                 l.reset_states()
 
-    def set_previous(self, layer, connection_map={}):
+    def set_previous(self, layer, connection_map={}, reset_weights=True):
         if self.nb_input != layer.nb_output:
             raise Exception('Cannot connect layers: '
                             'input count does not match output count.')
         if self.nb_input == 1:
-            self.inputs[self.input_order[0]].set_previous(layer)
+            self.inputs[self.input_order[0]].set_previous(layer, reset_weights)
         else:
             if not connection_map:
                 raise Exception('Cannot attach multi-input layer: '
                                 'no connection_map provided.')
             for k, v in connection_map.items():
                 if k in self.inputs and v in layer.outputs:
-                    self.inputs[k].set_previous(layer.outputs[v])
+                    self.inputs[k].set_previous(layer.outputs[v], reset_weights)
                 else:
                     raise Exception('Invalid connection map.')
+
+    def clear_previous(self, reset_weights=True):
+        for k in self.inputs.values():
+            k.clear_previous(reset_weights)
+
+    @property
+    def input_shape(self):
+        if self.nb_input == 1:
+            # return tuple
+            return self.inputs[self.input_order[0]].input_shape
+        else:
+            # return dictionary mapping input names to shape tuples
+            return dict([(k, v.input_shape) for k, v in self.inputs.items()])
 
     def get_input(self, train=False):
         if len(self.inputs) == len(self.outputs) == 1:
@@ -454,6 +532,7 @@ class Graph(Layer):
                 sh = SiameseHead(i)
                 sh.previous = s
                 sh_name = outputs[i]
+                sh.name = sh_name
                 self.namespace.add(sh_name)
                 self.nodes[sh_name] = sh
                 self.node_config.append({'name': sh_name,

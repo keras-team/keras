@@ -1,6 +1,6 @@
 from __future__ import absolute_import
 from .cifar import load_batch
-from .data_utils import get_file
+from ..utils.data_utils import get_file
 import numpy as np
 import os
 

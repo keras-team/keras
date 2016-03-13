@@ -1,6 +1,18 @@
 
 Here are a few examples to get you started!
 
+In the examples folder, you will also find example models for real datasets:
+
+- CIFAR10 small images classification: Convolutional Neural Network (CNN) with realtime data augmentation
+- IMDB movie review sentiment classification: LSTM over sequences of words
+- Reuters newswires topic classification: Multilayer Perceptron (MLP)
+- MNIST handwritten digits classification: MLP & CNN
+- Character-level text generation with LSTM
+
+...and more.
+
+------------------
+
 ### Multilayer Perceptron (MLP) for multi-class softmax classification:
 
 ```python
@@ -32,6 +44,8 @@ model.fit(X_train, y_train,
 score = model.evaluate(X_test, y_test, batch_size=16)
 ```
 
+------------------
+
 ### Alternative implementation of a similar MLP:
 
 ```python
@@ -45,6 +59,7 @@ model.add(Dense(10, activation='softmax'))
 model.compile(loss='categorical_crossentropy', optimizer='adadelta')
 ```
 
+------------------
 
 ### MLP for binary classification:
 ```python
@@ -55,12 +70,11 @@ model.add(Dense(64, activation='relu'))
 model.add(Dropout(0.5))
 model.add(Dense(1, activation='sigmoid'))
 
-# "class_mode" defaults to "categorical". For correctly displaying accuracy
-# in a binary classification problem, it should be set to "binary".
 model.compile(loss='binary_crossentropy',
-              optimizer='rmsprop',
-              class_mode='binary')
+              optimizer='rmsprop')
 ```
+
+------------------
 
 ### VGG-like convnet:
 
@@ -102,6 +116,8 @@ model.compile(loss='categorical_crossentropy', optimizer=sgd)
 model.fit(X_train, Y_train, batch_size=32, nb_epoch=1)
 
 ```
+
+------------------
 
 ### Sequence classification with LSTM:
 
@@ -186,12 +202,188 @@ model.compile(loss='categorical_crossentropy', optimizer='rmsprop')
 model.fit([images, partial_captions], next_words, batch_size=16, nb_epoch=100)
 ```
 
-In the examples folder, you will find example models for real datasets:
+------------------
 
-- CIFAR10 small images classification: Convolutional Neural Network (CNN) with realtime data augmentation
-- IMDB movie review sentiment classification: LSTM over sequences of words
-- Reuters newswires topic classification: Multilayer Perceptron (MLP)
-- MNIST handwritten digits classification: MLP & CNN
-- Character-level text generation with LSTM
+### Stacked LSTM for sequence classification
 
-...and more.
+In this model, we stack 3 LSTM layers on top of each other,
+making the model capable of learning higher-level temporal representations.
+
+The first two LSTMs return their full output sequences, but the last one only returns
+the last step in its output sequence, thus dropping the temporal dimension
+(i.e. converting the input sequence into a single vector).
+
+<img src="http://keras.io/img/regular_stacked_lstm.png" alt="stacked LSTM" style="width: 300px;"/>
+
+(N.B.: in Keras, "None" in an input shape indicates a variable dimension. In the graph above, the batch size is "None",
+meaning that any batch size is allowed for the input data).
+
+```python
+from keras.models import Sequential
+from keras.layers import LSTM, Dense
+import numpy as np
+
+data_dim = 16
+timesteps = 8
+nb_classes = 10
+
+# expected input data shape: (batch_size, timesteps, data_dim)
+model = Sequential()
+model.add(LSTM(32, return_sequences=True,
+               input_shape=(timesteps, data_dim)))  # returns a sequence of vectors of dimension 32
+model.add(LSTM(32, return_sequences=True))  # returns a sequence of vectors of dimension 32
+model.add(LSTM(32))  # return a single vector of dimension 32
+model.add(Dense(10, activation='softmax'))
+
+model.compile(loss='categorical_crossentropy', optimizer='rmsprop')
+
+# generate dummy training data
+x_train = np.random.random((1000, timesteps, data_dim))
+y_train = np.random.random((1000, nb_classes))
+
+# generate dummy validation data
+x_val = np.random.random((100, timesteps, data_dim))
+y_val = np.random.random((100, nb_classes))
+
+model.fit(x_train, y_train,
+          batch_size=64, nb_epoch=5, show_accuracy=True,
+          validation_data=(x_val, y_val))
+```
+
+------------------
+
+### Same stacked LSTM model, rendered "stateful"
+
+A stateful recurrent model is one for which the internal states (memories) obtained after processing a batch
+of samples are reused as initial states for the samples of the next batch. This allows to process longer sequences
+while keeping computational complexity manageable.
+
+[You can read more about stateful RNNs in the FAQ.](/faq/#how-can-i-use-stateful-rnns)
+
+```python
+from keras.models import Sequential
+from keras.layers import LSTM, Dense
+import numpy as np
+
+data_dim = 16
+timesteps = 8
+nb_classes = 10
+batch_size = 32
+
+# expected input batch shape: (batch_size, timesteps, data_dim)
+# note that we have to provide the full batch_input_shape since the network is stateful.
+# the sample of index i in batch k is the follow-up for the sample i in batch k-1.
+model = Sequential()
+model.add(LSTM(32, return_sequences=True, stateful=True,
+               batch_input_shape=(batch_size, timesteps, data_dim)))
+model.add(LSTM(32, return_sequences=True, stateful=True))
+model.add(LSTM(32, stateful=True))
+model.add(Dense(10, activation='softmax'))
+
+model.compile(loss='categorical_crossentropy', optimizer='rmsprop')
+
+# generate dummy training data
+x_train = np.random.random((batch_size * 10, timesteps, data_dim))
+y_train = np.random.random((batch_size * 10, nb_classes))
+
+# generate dummy validation data
+x_val = np.random.random((batch_size * 3, timesteps, data_dim))
+y_val = np.random.random((batch_size * 3, nb_classes))
+
+model.fit(x_train, y_train,
+          batch_size=batch_size, nb_epoch=5, show_accuracy=True,
+          validation_data=(x_val, y_val))
+```
+
+------------------
+
+### Two merged LSTM encoders for classification over two parallel sequences
+
+In this model, two input sequences are encoded into vectors by two separate LSTM modules.
+
+These two vectors are then concatenated, and a fully connected network is trained on top of the concatenated representations.
+
+![Dual LSTM](http://keras.io/img/dual_lstm.png)
+
+```python
+from keras.models import Sequential
+from keras.layers import Merge, LSTM, Dense
+import numpy as np
+
+data_dim = 16
+timesteps = 8
+nb_classes = 10
+
+encoder_a = Sequential()
+encoder_a.add(LSTM(32, input_shape=(timesteps, data_dim)))
+
+encoder_b = Sequential()
+encoder_b.add(LSTM(32, input_shape=(timesteps, data_dim)))
+
+decoder = Sequential()
+decoder.add(Merge([encoder_a, encoder_b], mode='concat'))
+decoder.add(Dense(32, activation='relu'))
+decoder.add(Dense(nb_classes, activation='softmax'))
+
+decoder.compile(loss='categorical_crossentropy', optimizer='rmsprop')
+
+# generate dummy training data
+x_train_a = np.random.random((1000, timesteps, data_dim))
+x_train_b = np.random.random((1000, timesteps, data_dim))
+y_train = np.random.random((1000, nb_classes))
+
+# generate dummy validation data
+x_val_a = np.random.random((100, timesteps, data_dim))
+x_val_b = np.random.random((100, timesteps, data_dim))
+y_val = np.random.random((100, nb_classes))
+
+decoder.fit([x_train_a, x_train_b], y_train,
+            batch_size=64, nb_epoch=5, show_accuracy=True,
+            validation_data=([x_val_a, x_val_b], y_val))
+```
+
+------------------
+
+### Single shared LSTM over two parallel sequences, for classification
+
+This is a similar setup as above, but now a single LSTM encoder is used for both input sequences.
+Such a setup makes sense if the two input sequences are the same type of object.
+
+<img src="http://keras.io/img/shared_lstm.png" alt="Shared LSTM" style="width: 500px;"/>
+
+```python
+from keras.models import Graph
+from keras.layers import LSTM, Dense
+import numpy as np
+
+data_dim = 16
+timesteps = 8
+nb_classes = 10
+
+encoder = Sequential()
+encoder.add(LSTM(32, input_shape=(timesteps, data_dim)))
+
+model = Graph()
+model.add_input(name='input_a', input_shape=(timesteps, data_dim))
+model.add_input(name='input_b', input_shape=(timesteps, data_dim))
+model.add_shared_node(encoder, name='shared_encoder', inputs=['input_a', 'input_b'],
+                      merge_mode='concat')
+model.add_node(Dense(64, activation='relu'), name='fc1', input='shared_encoder')
+model.add_node(Dense(3, activation='softmax'), name='output', input='fc1', create_output=True)
+
+model.compile(optimizer='adam', loss={'output': 'categorical_crossentropy'})
+
+# generate dummy training data
+x_train_a = np.random.random((1000, timesteps, data_dim))
+x_train_b = np.random.random((1000, timesteps, data_dim))
+y_train = np.random.random((1000, 3))
+
+# generate dummy validation data
+x_val_a = np.random.random((100, timesteps, data_dim))
+x_val_b = np.random.random((100, timesteps, data_dim))
+y_val = np.random.random((100, 3))
+
+model.fit({'input_a': x_train_a, 'input_b': x_train_b, 'output': y_train},
+          batch_size=64, nb_epoch=5,
+          validation_data={'input_a': x_val_a, 'input_b': x_val_b, 'output': y_val})
+```

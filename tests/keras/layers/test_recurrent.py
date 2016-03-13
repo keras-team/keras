@@ -5,6 +5,7 @@ from numpy.testing import assert_allclose
 from keras.layers import recurrent, embeddings
 from keras.models import Sequential
 from keras.layers.core import Masking
+from keras import regularizers
 
 from keras import backend as K
 from keras.models import Sequential, model_from_json
@@ -21,6 +22,24 @@ def _runner(layer_class):
     for ret_seq in [True, False]:
         layer = layer_class(output_dim, return_sequences=ret_seq,
                             weights=None, input_shape=(timesteps, embedding_dim))
+        layer.input = K.variable(np.ones((nb_samples, timesteps, embedding_dim)))
+        layer.get_config()
+
+        for train in [True, False]:
+            out = K.eval(layer.get_output(train))
+            # Make sure the output has the desired shape
+            if ret_seq:
+                assert(out.shape == (nb_samples, timesteps, output_dim))
+            else:
+                assert(out.shape == (nb_samples, output_dim))
+
+            mask = layer.get_output_mask(train)
+
+    # check dropout
+    for ret_seq in [True, False]:
+        layer = layer_class(output_dim, return_sequences=ret_seq, weights=None, 
+                            batch_input_shape=(nb_samples, timesteps, embedding_dim),
+                            dropout_W=0.5, dropout_U=0.5)
         layer.input = K.variable(np.ones((nb_samples, timesteps, embedding_dim)))
         layer.get_config()
 
@@ -89,6 +108,15 @@ def _runner(layer_class):
     out7 = model.predict(right_padded_input)
 
     assert_allclose(out7, out6, atol=1e-5)
+
+    # check regularizers
+    layer = layer_class(output_dim, return_sequences=ret_seq, weights=None,
+                        batch_input_shape=(nb_samples, timesteps, embedding_dim),
+                        W_regularizer=regularizers.WeightRegularizer(l1=0.01),
+                        U_regularizer=regularizers.WeightRegularizer(l1=0.01),
+                        b_regularizer='l2')
+    layer.input = K.variable(np.ones((nb_samples, timesteps, embedding_dim)))
+    out = K.eval(layer.get_output(train=True))
 
 
 def test_SimpleRNN():
