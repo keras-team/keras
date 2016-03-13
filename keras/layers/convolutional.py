@@ -265,8 +265,7 @@ class Convolution2D(Layer):
 
         self.W_learning_rate_multiplier = W_learning_rate_multiplier
         self.b_learning_rate_multiplier = b_learning_rate_multiplier
-        self.learning_rate_multipliers = [self.W_learning_rate_multiplier,\
-                                          self.b_learning_rate_multiplier]
+        self.learning_rate_multipliers = [self.W_learning_rate_multiplier, self.b_learning_rate_multiplier]
 
         self.initial_weights = weights
         super(Convolution2D, self).__init__(**kwargs)
@@ -458,8 +457,7 @@ class Convolution3D(Layer):
 
         self.W_learning_rate_multiplier = W_learning_rate_multiplier
         self.b_learning_rate_multiplier = b_learning_rate_multiplier
-        self.learning_rate_multipliers = [self.W_learning_rate_multiplier,\
-                                          self.b_learning_rate_multiplier]
+        self.learning_rate_multipliers = [self.W_learning_rate_multiplier, self.b_learning_rate_multiplier]
 
         self.initial_weights = weights
         super(Convolution3D, self).__init__(**kwargs)

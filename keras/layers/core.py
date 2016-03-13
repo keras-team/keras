@@ -683,6 +683,7 @@ class TimeDistributedMerge(Layer):
         self.trainable_weights = []
         self.regularizers = []
         self.constraints = []
+        self.learning_rate_multipliers = []
         self.updates = []
 
     @property

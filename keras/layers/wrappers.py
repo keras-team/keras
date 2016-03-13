@@ -47,11 +47,12 @@ class TimeDistributed(MaskedLayer):
         self.layer.set_input_shape(child_input_shape)
         self.layer.build()
 
-        trainable_weights, regularizers, constraints, updates = self.layer.get_params()
+        trainable_weights, regularizers, constraints, self.learning_rate_multipliers, updates = self.layer.get_params()
         self.trainable_weights = trainable_weights
         self.non_trainable_weights = self.layer.non_trainable_weights
         self.regularizers = regularizers
         self.constraints = constraints
+        self.learning_rate_multipliers = self.learning_rate_multipliers
         self.updates = updates
 
     @property
