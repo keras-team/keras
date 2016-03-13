@@ -568,8 +568,7 @@ class Merge(Layer):
             return (input_shapes[0][0], 1)
 
     def get_params(self):
-        return self.trainable_weights, self.regularizers, self.constraints,\
-               self.learning_rate_multipliers, self.updates
+        return self.trainable_weights, self.regularizers, self.constraints, self.learning_rate_multipliers, self.updates
 
     def get_output(self, train=False):
         if self.mode == 'sum' or self.mode == 'ave':
@@ -1354,8 +1353,7 @@ class AutoEncoder(Layer):
         else:
             layers = [self.encoder]
         for layer in layers:
-            params, regularizers, constraints,\
-            learning_rate_multipliers, updates = layer.get_params()
+            params, regularizers, constraints, learning_rate_multipliers, updates = layer.get_params()
             self.regularizers += regularizers
             self.updates += updates
             for p, c, lmul in zip(params, constraints, learning_rate_multipliers):
