@@ -280,7 +280,6 @@ class SReLU(MaskedLayer):
 
     def get_config(self):
         return {'name': self.__class__.__name__,
-                'input_shape': self.input_shape,
                 't_left_init': self.t_left_init.__name__,
                 'a_left_init': self.a_left_init.__name__,
                 't_right_init': self.t_right_init.__name__,
