@@ -70,11 +70,8 @@ model.add(Dense(64, activation='relu'))
 model.add(Dropout(0.5))
 model.add(Dense(1, activation='sigmoid'))
 
-# "class_mode" defaults to "categorical". For correctly displaying accuracy
-# in a binary classification problem, it should be set to "binary".
 model.compile(loss='binary_crossentropy',
-              optimizer='rmsprop',
-              class_mode='binary')
+              optimizer='rmsprop')
 ```
 
 ------------------

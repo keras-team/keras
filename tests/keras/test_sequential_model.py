@@ -511,7 +511,7 @@ def test_lambda():
     g = Graph()
     g.add_input(name='input_a', input_shape=(2,))
     g.add_input(name='input_b', input_shape=(2,))
-    g.add_node(Lambda(difference),
+    g.add_node(Lambda(difference, output_shape=(2,)),
                inputs=['input_a', 'input_b'],
                merge_mode='join',
                name='d')
