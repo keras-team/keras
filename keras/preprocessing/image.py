@@ -84,8 +84,8 @@ def random_zoom(x, rg, fill_mode='nearest', cval=0.):
 
 
 def random_position(x, output_size, background=0):
-    w = random.randint(0, output_size[0] - x.shape[1])
-    h = random.randint(0, output_size[1] - x.shape[2])
+    w = np.random.randint(0, output_size[0] - x.shape[1])
+    h = np.random.randint(0, output_size[1] - x.shape[2])
     n = np.full((x.shape[0], output_size[1], output_size[0]), background)
     n[0:x.shape[0] + 1, w:w + x.shape[1], h:h + x.shape[2]] = x
     return n
