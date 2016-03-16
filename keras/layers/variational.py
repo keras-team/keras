@@ -10,14 +10,34 @@ class VariationalDense(Layer):
     """VariationalDense
     Hidden layer for Variational Autoencoding Bayes method - Kigma and
     Welling 2013.
-    This layer projects the input twice to calculate the mean and variance
-    of a Gaussian distribution. During training, the output is sampled from
-    that distribution as mean + random_noise * variance, during testing the
-    output is the mean, i.e the expected value of the encoded distribution.
+    Given and input `X=self.get_input()`, we calculate a mean and a log standard
+    deviation as:
+
+    ``` python
+    mean = K.dot(X, W_mean) + b_mean
+    logsigma = K.dot(X, W_logsigma) + b_logsigma
+    ```
+
+    and we sample Gaussian random variable as:
+
+    ```python
+    z = mean + K.exp(logsigma) * K.random_normal
+    ```
+
+    Thus, we reparameterize the distribution of the output of this layer to be
+    Gaussian, this is called `reparametrization trick`. Further, as
+    required by the Variational Autoencoder method, we
+    impoose a regularizer on that Gaussian distribution to be as close as
+    possible to a given prior Gaussian defined by mean_prior and logsigma_prior.
+    They are both zero by default, which equals to choosing the prior to be zero
+    mean and unit standard deviation.
 
     Parameters:
     -----------
     output_dim: int, output dimension
+    prior_mean: float (default 0), mean of the prior Gaussian distribution
+    prior_logsigma: float (default 0), logarithm of the standard deviation of
+        the prior Gaussian distributions
     regularizer_scale: By default the regularization is already properly
         scaled if you use binary or categorical crossentropy cost functions.
         In most cases this regularizers should be kept fixed at one.

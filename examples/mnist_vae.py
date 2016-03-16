@@ -1,4 +1,22 @@
-'''Train a simple deep Variational Autoencoder on the MNIST dataset.
+'''Train a deep Variational Autoencoder on the MNIST dataset.
+Here, we want to learn hidden factors z from a dataset x, optimally we would do
+that by sampling from the posterior p(z|x), but when that distribution is
+unknown, VAE proposes calculating instead an approximation q(z|x) as a
+parametirized approximation by maximizing the lower bound:
+
+L = - KL(q(z|x) || p(z)) + E[log p(x|z)]
+
+In practical terms, this means that we have to train a good decoder to maximize
+E[log p(x|z)], which can be done by minimizing the error between true samples
+and generated samples, and minimize the KL-divergence between q(z|x) and a prior
+distribution p(z). Here we assume the prior is a zero mean, unit std Gaussian,
+thus, the output of the encoder must have the same Gaussian distribution. This
+Gaussian distribution constraint is imposed by the `keras.layers.VariationalDense`
+layer.
+
+After the model is trained, the decoder can be used to transform samples from a
+zero mean, unit std Gaussian into realistic looking samples. We sample data
+using this technique in the last lines of this script.
 
 '''
 
