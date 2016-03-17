@@ -33,7 +33,6 @@ def test_learning_rate_multipliers_dense():
     model0.train_on_batch(X_train, y_train)
     (m0w0_end,m0b0_end) = model0.layers[0].get_weights() 
     (m0w1_end,m0b1_end) = model0.layers[1].get_weights()
-
     
     np.random.seed(seed)
     model1 = Sequential()
@@ -52,11 +51,9 @@ def test_learning_rate_multipliers_dense():
     np.testing.assert_almost_equal(np.mean((m1w0_end - m1w0_ini)), 0.0, decimal=2)
     np.testing.assert_almost_equal(np.mean((m1b0_end - m1b0_ini)), 0.0, decimal=2)
 
-
     # This should be ~0.5
     np.testing.assert_almost_equal(np.mean((m1w1_end - m1w1_ini)/(m0w1_end - m0w1_ini)), 0.5, decimal=2)
     np.testing.assert_almost_equal(np.mean((m1b1_end - m1b1_ini)/(m0b1_end - m0b1_ini)), 0.5, decimal=2)
-
 
 
 def test_learning_rate_multipliers_conv():
