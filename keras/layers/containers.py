@@ -460,7 +460,7 @@ class Graph(Layer):
         layer.shape_cache = self.shape_cache
         self.nodes[name] = layer
         self.node_config.append({'name': name,
-                                 'input': input,
+                                 'inputs': inputs,
                                  'merge_mode': merge_mode,
                                  'concat_axis': concat_axis,
                                  'dot_axes': dot_axes,
