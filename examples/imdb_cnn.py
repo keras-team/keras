@@ -2,7 +2,7 @@
 
 Run on GPU: THEANO_FLAGS=mode=FAST_RUN,device=gpu,floatX=float32 python imdb_cnn.py
 
-Get to 0.845 test accuracy after 2 epochs. 100s/epoch on K520 GPU.
+Get to 0.835 test accuracy after 2 epochs. 100s/epoch on K520 GPU.
 '''
 
 from __future__ import print_function
@@ -76,13 +76,11 @@ model.add(c)
 # so that we can add a vanilla dense layer:
 model.add(Flatten())
 
-# We add a vanilla hidden layer and clip gradients as described in the paper
-model.add(Dense(hidden_dims,  W_constraint=MaxNorm(m=3, axis=0)))
+# Add dropout at penultimate layer
 model.add(Dropout(0.5))
-model.add(Activation('relu'))
 
-# We project onto a single unit output layer, and squash it with a sigmoid:
-model.add(Dense(1))
+# Fully connected with clipping regularization
+model.add(Dense(1,  W_constraint=MaxNorm(m=3, axis=0)))
 model.add(Activation('sigmoid'))
 
 # The paper adopt adadelta.
