@@ -408,7 +408,7 @@ class Graph(Layer):
             config['input_shape'] = input_shape
         self.input_config.append(config)
 
-    def add_node(self, layer, name, input=None, inputs=[],
+    def add_node(self, layer, name, inputs=[],
                  merge_mode='concat', concat_axis=-1, dot_axes=-1,
                  create_output=False):
         '''Add a node in the graph. It can be connected to multiple
@@ -418,10 +418,8 @@ class Graph(Layer):
         # Arguments
             layer: the layer at the node.
             name: name for the node.
-            input: when connecting the layer to a single input,
-                this is the name of the incoming node.
-            inputs: when connecting the layer to multiple inputs,
-                this is a list of names of incoming nodes.
+            inputs: when connecting the layer to (single) multiple input(s),
+                this is the name of the incoming node or a list of names of incoming nodes.
             merge_mode: one of {concat, sum, dot, ave, mul}
             concat_axis: when `merge_mode=='concat'`, this is the
                 input concatenation axis.
@@ -433,14 +431,18 @@ class Graph(Layer):
         if name in self.namespace:
             raise Exception('Duplicate node identifier: ' + name)
         layer.name = name
-        if input:
+        if 'input' in kwargs:
+            print ('input will be depreciated, please use inputs instead')
+            inputs = input
+        if not isinstance(inputs, list):  # Single input
+            input =inputs
             if input not in self.namespace:
                 raise Exception('Unknown node/input identifier: ' + input)
             if input in self.nodes:
                 layer.set_previous(self.nodes[input])
             elif input in self.inputs:
                 layer.set_previous(self.inputs[input])
-        if inputs:
+        else:                           # Mutiple inputs
             to_merge = []
             for n in inputs:
                 if n in self.nodes:
@@ -459,7 +461,6 @@ class Graph(Layer):
         self.nodes[name] = layer
         self.node_config.append({'name': name,
                                  'input': input,
-                                 'inputs': inputs,
                                  'merge_mode': merge_mode,
                                  'concat_axis': concat_axis,
                                  'dot_axes': dot_axes,
@@ -546,18 +547,16 @@ class Graph(Layer):
                 raise Exception('Output can not be of type OrderedDict')
             self.add_output(name, input=name)
 
-    def add_output(self, name, input=None, inputs=[],
-                   merge_mode='concat', concat_axis=-1, dot_axes=-1):
+    def add_output(self, name, inputs=[],
+                   merge_mode='concat', concat_axis=-1, dot_axes=-1, **kwargs):
         '''Add an output to the graph.
 
         This output can merge several node outputs into a single output.
 
         # Arguments
             name: name of the output.
-            input: when connecting the layer to a single input,
-                this is the name of the incoming node.
-            inputs: when connecting the layer to multiple inputs,
-                this is a list of names of incoming nodes.
+            inputs: when connecting the layer to (single) multiple input(s),
+                this is the name of the incoming node or a list of names of incoming nodes.
             merge_mode: one of {concat, sum, dot, ave, mul}
             concat_axis: when `merge_mode=='concat'`, this is the
                 input concatenation axis.
@@ -566,14 +565,18 @@ class Graph(Layer):
         '''
         if name in self.output_order:
             raise Exception('Duplicate output identifier: ' + name)
-        if input:
+        if 'input' in kwargs:
+            print ('input will be depreciated, please use inputs instead')
+            inputs = input
+        if not isinstance(inputs, list):  # Single input
+            input =inputs
             if input not in self.namespace:
                 raise Exception('Unknown node/input identifier: ' + input)
             if input in self.nodes:
                 self.outputs[name] = self.nodes[input]
             elif input in self.inputs:
                 self.outputs[name] = self.inputs[input]
-        if inputs:
+        else:
             to_merge = []
             for n in inputs:
                 if n not in self.nodes:
@@ -585,7 +588,6 @@ class Graph(Layer):
 
         self.output_order.append(name)
         self.output_config.append({'name': name,
-                                   'input': input,
                                    'inputs': inputs,
                                    'merge_mode': merge_mode,
                                    'concat_axis': concat_axis,
