@@ -433,7 +433,7 @@ class Graph(Layer):
         layer.name = name
         if 'input' in kwargs:
             print ('input will be depreciated, please use inputs instead')
-            inputs = input
+            inputs = kwargs['input']
         if not isinstance(inputs, list):  # Single input
             input =inputs
             if input not in self.namespace:
@@ -567,7 +567,7 @@ class Graph(Layer):
             raise Exception('Duplicate output identifier: ' + name)
         if 'input' in kwargs:
             print ('input will be depreciated, please use inputs instead')
-            inputs = input
+            inputs = kwargs['input']
         if not isinstance(inputs, list):  # Single input
             input =inputs
             if input not in self.namespace:
