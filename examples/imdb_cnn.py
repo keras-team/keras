@@ -2,7 +2,7 @@
 
 Run on GPU: THEANO_FLAGS=mode=FAST_RUN,device=gpu,floatX=float32 python imdb_cnn.py
 
-Get to 0.841 test accuracy after 2 epochs. 100s/epoch on K520 GPU.
+Get to 0.845 test accuracy after 2 epochs. 100s/epoch on K520 GPU.
 '''
 
 from __future__ import print_function
@@ -77,7 +77,7 @@ model.add(c)
 model.add(Flatten())
 
 # We add a vanilla hidden layer and clip gradients as described in the paper
-model.add(Dense(hidden_dims,  W_constraint=MaxNorm(m=3, axis=1)))
+model.add(Dense(hidden_dims,  W_constraint=MaxNorm(m=3, axis=0)))
 model.add(Dropout(0.5))
 model.add(Activation('relu'))
 
