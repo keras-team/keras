@@ -410,7 +410,7 @@ class Graph(Layer):
 
     def add_node(self, layer, name, inputs=[],
                  merge_mode='concat', concat_axis=-1, dot_axes=-1,
-                 create_output=False):
+                 create_output=False, **kwargs):
         '''Add a node in the graph. It can be connected to multiple
         inputs, which will first be merged into one tensor
         according to the mode specified.
