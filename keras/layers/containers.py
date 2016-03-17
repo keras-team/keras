@@ -434,7 +434,8 @@ class Graph(Layer):
         if 'input' in kwargs:
             print ('input will be depreciated, please use inputs instead')
             inputs = kwargs['input']
-        if not isinstance(inputs, list):  # Single input
+        # Single input
+        if not isinstance(inputs, list) or (isinstance(inputs, list) and len(inputs)==1):
             input =inputs
             if input not in self.namespace:
                 raise Exception('Unknown node/input identifier: ' + input)
@@ -442,7 +443,8 @@ class Graph(Layer):
                 layer.set_previous(self.nodes[input])
             elif input in self.inputs:
                 layer.set_previous(self.inputs[input])
-        else:                           # Mutiple inputs
+        # Mutiple inputs
+        else:
             to_merge = []
             for n in inputs:
                 if n in self.nodes:
@@ -568,7 +570,8 @@ class Graph(Layer):
         if 'input' in kwargs:
             print ('input will be depreciated, please use inputs instead')
             inputs = kwargs['input']
-        if not isinstance(inputs, list):  # Single input
+        # Single input
+        if not isinstance(inputs, list) or (isinstance(inputs, list) and len(inputs)==1):
             input =inputs
             if input not in self.namespace:
                 raise Exception('Unknown node/input identifier: ' + input)
@@ -576,6 +579,7 @@ class Graph(Layer):
                 self.outputs[name] = self.nodes[input]
             elif input in self.inputs:
                 self.outputs[name] = self.inputs[input]
+        # Mutiple inputs
         else:
             to_merge = []
             for n in inputs:
