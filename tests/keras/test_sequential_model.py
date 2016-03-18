@@ -54,8 +54,8 @@ def test_sequential_fit_generator():
             i = i % max_batch_index
 
     model = Sequential()
-    model.add(Input())
-    model.add(Dense(nb_hidden, input_shape=(input_dim,)))
+    model.add(Input((input_dim,)))
+    model.add(Dense(nb_hidden))
     model.add(Activation('relu'))
     model.add(Dense(nb_class))
     model.add(Activation('softmax'))
@@ -93,7 +93,8 @@ def test_sequential():
             i = i % max_batch_index
 
     model = Sequential()
-    model.add(Dense(nb_hidden, input_shape=(input_dim,)))
+    model.add(Input((input_dim,)))
+    model.add(Dense(nb_hidden))
     model.add(Activation('relu'))
     model.add(Dense(nb_class))
     model.add(Activation('softmax'))
@@ -123,7 +124,8 @@ def test_sequential():
     fname = 'test_sequential_temp.h5'
     model.save_weights(fname, overwrite=True)
     model = Sequential()
-    model.add(Dense(nb_hidden, input_shape=(input_dim,)))
+    model.add(Input((input_dim,)))
+    model.add(Dense(nb_hidden))
     model.add(Activation('relu'))
     model.add(Dense(nb_class))
     model.add(Activation('softmax'))
@@ -147,7 +149,8 @@ def test_nested_sequential():
     (X_train, y_train), (X_test, y_test) = _get_test_data()
 
     inner = Sequential()
-    inner.add(Dense(nb_hidden, input_shape=(input_dim,)))
+    inner.add(Input((input_dim,)))
+    inner.add(Dense(nb_hidden))
     inner.add(Activation('relu'))
     inner.add(Dense(nb_class))
 
@@ -181,7 +184,8 @@ def test_nested_sequential():
     model.save_weights(fname, overwrite=True)
 
     inner = Sequential()
-    inner.add(Dense(nb_hidden, input_shape=(input_dim,)))
+    inner.add(Input((input_dim,)))
+    inner.add(Dense(nb_hidden))
     inner.add(Activation('relu'))
     inner.add(Dense(nb_class))
 
@@ -210,11 +214,13 @@ def test_nested_sequential():
 def test_merge_sum():
     (X_train, y_train), (X_test, y_test) = _get_test_data()
     left = Sequential()
-    left.add(Dense(nb_hidden, input_shape=(input_dim,)))
+    left.add(Input((input_dim,)))
+    left.add(Dense(nb_hidden))
     left.add(Activation('relu'))
 
     right = Sequential()
-    right.add(Dense(nb_hidden, input_shape=(input_dim,)))
+    right.add(Input((input_dim,)))
+    right.add(Dense(nb_hidden))
     right.add(Activation('relu'))
 
     model = Sequential()
@@ -242,10 +248,12 @@ def test_merge_sum():
     fname = 'test_merge_sum_temp.h5'
     model.save_weights(fname, overwrite=True)
     left = Sequential()
-    left.add(Dense(nb_hidden, input_shape=(input_dim,)))
+    left.add(Input((input_dim,)))
+    left.add(Dense(nb_hidden))
     left.add(Activation('relu'))
     right = Sequential()
-    right.add(Dense(nb_hidden, input_shape=(input_dim,)))
+    right.add(Input((input_dim,)))
+    right.add(Dense(nb_hidden))
     right.add(Activation('relu'))
     model = Sequential()
     model.add(Merge([left, right], mode='sum'))
@@ -265,11 +273,13 @@ def test_merge_dot():
     (X_train, y_train), (X_test, y_test) = _get_test_data()
 
     left = Sequential()
-    left.add(Dense(input_dim=input_dim, output_dim=nb_hidden))
+    left.add(Input((input_dim,)))
+    left.add(Dense(nb_hidden))
     left.add(Activation('relu'))
 
     right = Sequential()
-    right.add(Dense(input_dim=input_dim, output_dim=nb_hidden))
+    right.add(Input((input_dim,)))
+    right.add(Dense(nb_hidden))
     right.add(Activation('relu'))
 
     model = Sequential()
@@ -280,11 +290,13 @@ def test_merge_dot():
     model.compile(loss='categorical_crossentropy', optimizer='rmsprop')
 
     left = Sequential()
-    left.add(Dense(input_dim=input_dim, output_dim=nb_hidden))
+    left.add(Input((input_dim,)))
+    left.add(Dense(nb_hidden))
     left.add(Activation('relu'))
 
     right = Sequential()
-    right.add(Dense(input_dim=input_dim, output_dim=nb_hidden))
+    right.add(Input((input_dim,)))
+    right.add(Dense(nb_hidden))
     right.add(Activation('relu'))
 
     model = Sequential()
@@ -299,11 +311,13 @@ def test_merge_concat():
     (X_train, y_train), (X_test, y_test) = _get_test_data()
 
     left = Sequential()
-    left.add(Dense(nb_hidden, input_shape=(input_dim,)))
+    left.add(Input((input_dim,)))
+    left.add(Dense(nb_hidden))
     left.add(Activation('relu'))
 
     right = Sequential()
-    right.add(Dense(nb_hidden, input_shape=(input_dim,)))
+    right.add(Input((input_dim,)))
+    right.add(Dense(nb_hidden))
     right.add(Activation('relu'))
 
     model = Sequential()
@@ -330,11 +344,13 @@ def test_merge_concat():
     fname = 'test_merge_concat_temp.h5'
     model.save_weights(fname, overwrite=True)
     left = Sequential()
-    left.add(Dense(nb_hidden, input_shape=(input_dim,)))
+    left.add(Input((input_dim,)))
+    left.add(Dense(nb_hidden))
     left.add(Activation('relu'))
 
     right = Sequential()
-    right.add(Dense(nb_hidden, input_shape=(input_dim,)))
+    right.add(Input((input_dim,)))
+    right.add(Dense(nb_hidden))
     right.add(Activation('relu'))
 
     model = Sequential()
@@ -354,16 +370,18 @@ def test_merge_concat():
 def test_merge_recursivity():
     (X_train, y_train), (X_test, y_test) = _get_test_data()
     left = Sequential()
-    left.add(Dense(nb_hidden, input_shape=(input_dim,)))
+    left.add(Input((input_dim,)))
+    left.add(Dense(nb_hidden))
     left.add(Activation('relu'))
 
     right = Sequential()
-    right.add(Dense(nb_hidden, input_shape=(input_dim,)))
+    right.add(Input((input_dim,)))
+    right.add(Dense(nb_hidden))
     right.add(Activation('relu'))
 
     righter = Sequential()
-    righter.add(Dense(nb_hidden, input_shape=(input_dim,)))
-    righter.add(Activation('relu'))
+    righter.add(Input((input_dim,)))
+    righter.add(Dense(nb_hidden))
 
     intermediate = Sequential()
     intermediate.add(Merge([left, right], mode='sum'))
@@ -403,7 +421,8 @@ def test_merge_recursivity():
 def test_merge_overlap():
     (X_train, y_train), (X_test, y_test) = _get_test_data()
     left = Sequential()
-    left.add(Dense(nb_hidden, input_shape=(input_dim,)))
+    left.add(Input((input_dim,)))
+    left.add(Dense(nb_hidden))
     left.add(Activation('relu'))
 
     model = Sequential()
@@ -453,11 +472,13 @@ def test_lambda():
         return input_shapes[0]
 
     left = Sequential()
-    left.add(Dense(nb_hidden, input_shape=(input_dim,)))
+    left.add(Input((input_dim,)))
+    left.add(Dense(nb_hidden))
     left.add(Activation('relu'))
 
     right = Sequential()
-    right.add(Dense(nb_hidden, input_shape=(input_dim,)))
+    right.add(Input((input_dim,)))
+    right.add(Dense(nb_hidden))
     right.add(Activation('relu'))
 
     model = Sequential()
@@ -486,10 +507,12 @@ def test_lambda():
     fname = 'test_lambda_temp.h5'
     model.save_weights(fname, overwrite=True)
     left = Sequential()
-    left.add(Dense(nb_hidden, input_shape=(input_dim,)))
+    left.add(Input((input_dim,)))
+    left.add(Dense(nb_hidden))
     left.add(Activation('relu'))
     right = Sequential()
-    right.add(Dense(nb_hidden, input_shape=(input_dim,)))
+    right.add(Input((input_dim,)))
+    right.add(Dense(nb_hidden))
     right.add(Activation('relu'))
     model = Sequential()
     model.add(LambdaMerge([left, right], function=func,
@@ -530,7 +553,8 @@ def test_sequential_count_params():
     n += nb_units * nb_classes + nb_classes
 
     model = Sequential()
-    model.add(Dense(nb_units, input_shape=(input_dim,)))
+    model.add(Input((input_dim,)))
+    model.add(Dense(nb_units))
     model.add(Dense(nb_units))
     model.add(Dense(nb_classes))
     model.add(Activation('softmax'))
@@ -543,11 +567,13 @@ def test_sequential_count_params():
 def test_siamese_1():
     (X_train, y_train), (X_test, y_test) = _get_test_data()
     left = Sequential()
-    left.add(Dense(nb_hidden, input_shape=(input_dim,)))
+    left.add(Input((input_dim,)))
+    left.add(Dense(nb_hidden))
     left.add(Activation('relu'))
 
     right = Sequential()
-    right.add(Dense(nb_hidden, input_shape=(input_dim,)))
+    right.add(Input((input_dim,)))
+    right.add(Dense(nb_hidden))
     right.add(Activation('relu'))
 
     model = Sequential()
@@ -575,11 +601,13 @@ def test_siamese_1():
     fname = 'test_siamese_1.h5'
     model.save_weights(fname, overwrite=True)
     left = Sequential()
-    left.add(Dense(nb_hidden, input_shape=(input_dim,)))
+    left.add(Input((input_dim,)))
+    left.add(Dense(nb_hidden))
     left.add(Activation('relu'))
 
     right = Sequential()
-    right.add(Dense(nb_hidden, input_shape=(input_dim,)))
+    right.add(Input((input_dim,)))
+    right.add(Dense(nb_hidden))
     right.add(Activation('relu'))
 
     model = Sequential()
@@ -598,11 +626,13 @@ def test_siamese_1():
 def test_siamese_2():
     (X_train, y_train), (X_test, y_test) = _get_test_data()
     left = Sequential()
-    left.add(Dense(nb_hidden, input_shape=(input_dim,)))
+    left.add(Input((input_dim,)))
+    left.add(Dense(nb_hidden))
     left.add(Activation('relu'))
 
     right = Sequential()
-    right.add(Dense(nb_hidden, input_shape=(input_dim,)))
+    right.add(Input((input_dim,)))
+    right.add(Dense(nb_hidden))
     right.add(Activation('relu'))
 
     add_shared_layer(Dense(nb_hidden), [left, right])
@@ -637,11 +667,13 @@ def test_siamese_2():
     fname = 'test_siamese_2.h5'
     model.save_weights(fname, overwrite=True)
     left = Sequential()
-    left.add(Dense(nb_hidden, input_shape=(input_dim,)))
+    left.add(Input((input_dim,)))
+    left.add(Dense(nb_hidden))
     left.add(Activation('relu'))
 
     right = Sequential()
-    right.add(Dense(nb_hidden, input_shape=(input_dim,)))
+    right.add(Input((input_dim,)))
+    right.add(Dense(nb_hidden))
     right.add(Activation('relu'))
 
     add_shared_layer(Dense(nb_hidden), [left, right])

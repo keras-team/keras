@@ -3,7 +3,7 @@ import numpy as np
 np.random.seed(1337) # for reproducibility
 
 from keras.models import Sequential
-from keras.layers.core import Merge, Dense, Activation, Flatten, ActivityRegularization
+from keras.layers.core import Input, Merge, Dense, Activation, Flatten, ActivityRegularization
 from keras.layers.embeddings import Embedding
 from keras.datasets import mnist
 from keras.utils import np_utils
@@ -35,7 +35,8 @@ test_ids = np.where(y_test == np.array(weighted_class))[0]
 
 def create_model(weight_reg=None, activity_reg=None):
     model = Sequential()
-    model.add(Dense(50, input_shape=(784,)))
+    model.add(Input((784,)))
+    model.add(Dense(50))
     model.add(Activation('relu'))
     model.add(Dense(10, W_regularizer=weight_reg,
                     activity_regularizer=activity_reg))

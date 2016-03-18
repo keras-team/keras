@@ -4,7 +4,7 @@ import pytest
 from keras.utils.test_utils import get_test_data
 from keras.optimizers import SGD, RMSprop, Adagrad, Adadelta, Adam, Adamax
 from keras.models import Sequential
-from keras.layers.core import Dense, Activation
+from keras.layers.core import Input, Dense, Activation
 from keras.utils.np_utils import to_categorical
 
 
@@ -19,7 +19,8 @@ y_test = to_categorical(y_test)
 
 def get_model(input_dim, nb_hidden, output_dim):
     model = Sequential()
-    model.add(Dense(nb_hidden, input_shape=(input_dim,)))
+    model.add(Input((input_dim,)))
+    model.add(Dense(nb_hidden))
     model.add(Activation('relu'))
     model.add(Dense(output_dim))
     model.add(Activation('softmax'))
