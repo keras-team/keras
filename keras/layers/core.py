@@ -11,6 +11,7 @@ from six.moves import zip
 from .. import backend as K
 from .. import activations, initializations, regularizers, constraints
 from ..regularizers import ActivityRegularizer
+from ..backend.common import _FLOATX, _EPSILON
 
 import inspect
 
@@ -39,6 +40,7 @@ class Layer(object):
         allowed_kwargs = {'input_shape',
                           'trainable',
                           'batch_input_shape',
+                          'input_dtype',
                           'cache_enabled',
                           'name'}
         for kwarg in kwargs:
@@ -54,10 +56,15 @@ class Layer(object):
         else:
             self.cache_enabled = True
 
+        if 'input_dtype' in kwargs:
+            dtype = kwargs['input_dtype']
+        else:
+            dtype=_FLOATX
+
         if 'batch_input_shape' in kwargs:
-            self.set_input_shape(tuple(kwargs['batch_input_shape']))
+            self.set_input_shape(tuple(kwargs['batch_input_shape']), dtype=dtype)
         elif 'input_shape' in kwargs:
-            self.set_input_shape((None,) + tuple(kwargs['input_shape']))
+            self.set_input_shape((None,) + tuple(kwargs['input_shape']), dtype=dtype)
 
         if 'trainable' in kwargs:
             self.trainable = kwargs['trainable']
@@ -209,7 +216,7 @@ class Layer(object):
         else:
             raise Exception('Layer is not connected. Did you forget to set "input_shape"?')
 
-    def set_input_shape(self, input_shape):
+    def set_input_shape(self, input_shape, dtype=_FLOATX):
         if type(input_shape) not in [tuple, list]:
             raise Exception('Invalid input shape - input_shape should be a tuple of int.')
         input_shape = tuple(input_shape)
@@ -219,7 +226,7 @@ class Layer(object):
                                 str(self.input_ndim) +
                                 ', was provided with input shape ' + str(input_shape))
         self._input_shape = input_shape
-        self.input = K.placeholder(shape=self._input_shape)
+        self.input = K.placeholder(shape=self._input_shape, dtype=dtype)
         self.build()
 
     @property
@@ -244,9 +251,6 @@ class Layer(object):
                 self.layer_cache[previous_layer_id] = previous_output
             return previous_output
         elif hasattr(self, 'input'):
-            return self.input
-        else:
-            self.input = K.placeholder(shape=self.input_shape)
             return self.input
 
     def supports_masked_input(self):
@@ -356,6 +360,35 @@ class Layer(object):
         '''
         return sum([K.count_params(p) for p in self.trainable_weights])
 
+class Input(Layer):
+    '''The first layer of the model'''
+
+    def __init__(self, shape=None, batch_shape=None, dtype=_FLOATX, **kwargs):
+        assert shape is not None or batch_shape is not None,\
+            "You should provide either shape or batch_shape argument to Input layer"
+        self.shape = shape
+        self.batch_shape = batch_shape
+
+        if shape:
+            assert isinstance(shape, tuple) or isinstance(shape, list),\
+                "Shape should be of type tuple or list"
+            kwargs['input_shape'] = shape
+        elif batch_shape:
+            assert isinstance(batch_shape, tuple) or isinstance(batch_shape, list),\
+                "batch_shape should be of type tuple or list"
+            kwargs['batch_input_shape'] = batch_shape
+        kwargs['input_dtype'] = dtype
+        super(Input, self).__init__(**kwargs)
+
+        def get_output(self, train=False):
+            return self.input
+
+        def get_config(self):
+            config = {'name': self.__class__.__name__,
+                      'shape': self.shape,
+                      'batch_shape': self.batch_shape}
+            base_config = super(Input, self).get_config()
+            return dict(list(base_config.items()) + list(config.items()))
 
 class MaskedLayer(Layer):
     '''If your layer trivially supports masking
