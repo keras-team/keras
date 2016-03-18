@@ -11,7 +11,7 @@ np.random.seed(1337)  # for reproducibility
 
 from keras.preprocessing import sequence
 from keras.models import Sequential
-from keras.layers.core import Dense, Dropout, Activation, Flatten
+from keras.layers.core import Input, Dense, Dropout, Activation, Flatten
 from keras.layers.embeddings import Embedding
 from keras.layers.convolutional import Convolution1D, MaxPooling1D
 from keras.datasets import imdb
@@ -44,7 +44,9 @@ model = Sequential()
 
 # we start off with an efficient embedding layer which maps
 # our vocab indices into embedding_dims dimensions
-model.add(Embedding(max_features, embedding_dims, input_length=maxlen))
+model.add(Input((maxlen,), dtype='int32'))
+model.add(Embedding(max_features, embedding_dims))
+# model.add(Embedding(max_features, embedding_dims, input_length=maxlen))
 model.add(Dropout(0.25))
 
 # we add a Convolution1D, which will learn nb_filter

@@ -4,7 +4,7 @@ from numpy.testing import assert_allclose
 
 from keras.layers import recurrent, embeddings
 from keras.models import Sequential
-from keras.layers.core import Masking
+from keras.layers.core import Input, Masking
 from keras import regularizers
 
 from keras import backend as K
@@ -55,10 +55,9 @@ def _runner(layer_class):
 
     # check statefulness
     model = Sequential()
+    model.add(Input(batch_shape=(nb_samples, timesteps), dtype='int32'))
     model.add(embeddings.Embedding(embedding_num, embedding_dim,
-                                   mask_zero=True,
-                                   input_length=timesteps,
-                                   batch_input_shape=(nb_samples, timesteps)))
+                                   mask_zero=True))
     layer = layer_class(output_dim, return_sequences=False,
                         stateful=True,
                         weights=None)
@@ -133,10 +132,8 @@ def test_LSTM():
 
 def test_batch_input_shape_serialization():
     model = Sequential()
-    model.add(embeddings.Embedding(2, 2,
-                                   mask_zero=True,
-                                   input_length=2,
-                                   batch_input_shape=(2, 2)))
+    model.add(Input(batch_shape=(2,2), dtype='int32'))
+    model.add(embeddings.Embedding(2, 2, mask_zero=True))
     json_data = model.to_json()
     reconstructed_model = model_from_json(json_data)
     assert(reconstructed_model.input_shape == (2, 2))

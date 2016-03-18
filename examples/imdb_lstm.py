@@ -23,7 +23,7 @@ np.random.seed(1337)  # for reproducibility
 from keras.preprocessing import sequence
 from keras.utils import np_utils
 from keras.models import Sequential
-from keras.layers.core import Dense, Dropout, Activation
+from keras.layers.core import Input, Dense, Dropout, Activation
 from keras.layers.embeddings import Embedding
 from keras.layers.recurrent import LSTM
 from keras.datasets import imdb
@@ -46,6 +46,7 @@ print('X_test shape:', X_test.shape)
 
 print('Build model...')
 model = Sequential()
+model.add(Input((maxlen,), dtype='int32'))
 model.add(Embedding(max_features, 128, input_length=maxlen, dropout=0.5))
 model.add(LSTM(128, dropout_W=0.5, dropout_U=0.1))  # try using a GRU instead, for fun
 model.add(Dropout(0.5))
