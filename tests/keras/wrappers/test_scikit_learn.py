@@ -6,7 +6,7 @@ from keras.utils import np_utils
 from keras import backend as K
 
 from keras.models import Sequential
-from keras.layers.core import Dense, Activation
+from keras.layers.core import Input, Dense, Activation
 from keras.wrappers.scikit_learn import KerasClassifier, KerasRegressor
 
 np.random.seed(1337)
@@ -39,8 +39,7 @@ y_test = np_utils.to_categorical(y_test, nb_classes=nb_class)
 
 def build_fn_clf(hidden_dims=50):
     model = Sequential()
-    model.add(Dense(input_dim, input_shape=(input_dim,)))
-    model.add(Activation('relu'))
+    model.add(Input((input_dim,)))
     model.add(Dense(hidden_dims))
     model.add(Activation('relu'))
     model.add(Dense(nb_class))
@@ -62,8 +61,8 @@ class Inherit_class_build_fn_clf(KerasClassifier):
 
 def build_fn_reg(hidden_dims=50):
     model = Sequential()
-    model.add(Dense(input_dim, input_shape=(input_dim,)))
-    model.add(Activation('relu'))
+    model = Sequential()
+    model.add(Input((input_dim,)))
     model.add(Dense(hidden_dims))
     model.add(Activation('relu'))
     model.add(Dense(1))

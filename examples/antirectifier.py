@@ -13,7 +13,7 @@ backend (`K`), our code can run both on TensorFlow and Theano.
 from __future__ import print_function
 import numpy as np
 from keras.models import Sequential
-from keras.layers.core import Dense, Dropout, Layer, Activation
+from keras.layers.core import Input, Dense, Dropout, Layer, Activation
 from keras.datasets import mnist
 from keras import backend as K
 from keras.utils import np_utils
@@ -84,7 +84,8 @@ Y_test = np_utils.to_categorical(y_test, nb_classes)
 
 # build the model
 model = Sequential()
-model.add(Dense(256, input_shape=(784,)))
+model.add(Input((784,)))
+model.add(Dense(256))
 model.add(Antirectifier())
 model.add(Dropout(0.1))
 model.add(Dense(256))

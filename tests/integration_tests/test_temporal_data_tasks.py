@@ -5,7 +5,7 @@ import string
 
 from keras.utils.test_utils import get_test_data
 from keras.models import Sequential
-from keras.layers.core import TimeDistributedDense, Dropout, Dense, Activation
+from keras.layers.core import Input, TimeDistributedDense, Dropout, Dense, Activation
 from keras.layers.recurrent import GRU, LSTM
 from keras.layers.embeddings import Embedding
 from keras.utils.np_utils import to_categorical
@@ -142,6 +142,7 @@ def test_masked_temporal():
     '''
     np.random.seed(55318)
     model = Sequential()
+    model.add(Input(shape=(None,), dtype='int32'))
     model.add(Embedding(10, 20, mask_zero=True))
     model.add(TimeDistributedDense(10))
     model.add(Activation('softmax'))

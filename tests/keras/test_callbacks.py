@@ -6,7 +6,7 @@ np.random.seed(1337)
 
 from keras import callbacks
 from keras.models import Graph, Sequential
-from keras.layers.core import Dense
+from keras.layers.core import Input, Dense
 from keras.utils.test_utils import get_test_data
 from keras import backend as K
 from keras.utils import np_utils
@@ -34,7 +34,8 @@ def test_ModelCheckpoint():
     mode = 'auto'
 
     model = Sequential()
-    model.add(Dense(nb_hidden, input_dim=input_dim, activation='relu'))
+    model.add(Input((input_dim,)))
+    model.add(Dense(nb_hidden, activation='relu'))
     model.add(Dense(nb_class, activation='softmax'))
     model.compile(loss='categorical_crossentropy', optimizer='rmsprop')
 
@@ -83,7 +84,8 @@ def test_EarlyStopping():
     y_test = np_utils.to_categorical(y_test)
     y_train = np_utils.to_categorical(y_train)
     model = Sequential()
-    model.add(Dense(nb_hidden, input_dim=input_dim, activation='relu'))
+    model.add(Input((input_dim,)))
+    model.add(Dense(nb_hidden, activation='relu'))
     model.add(Dense(nb_class, activation='softmax'))
     model.compile(loss='categorical_crossentropy', optimizer='rmsprop')
 
@@ -111,7 +113,8 @@ def test_LearningRateScheduler():
     y_test = np_utils.to_categorical(y_test)
     y_train = np_utils.to_categorical(y_train)
     model = Sequential()
-    model.add(Dense(nb_hidden, input_dim=input_dim, activation='relu'))
+    model.add(Input((input_dim,)))
+    model.add(Dense(nb_hidden, activation='relu'))
     model.add(Dense(nb_class, activation='softmax'))
     model.compile(loss='categorical_crossentropy', optimizer='sgd')
 
@@ -164,7 +167,8 @@ def test_TensorBoard():
         session = tf.Session('')
         KTF.set_session(session)
         model = Sequential()
-        model.add(Dense(nb_hidden, input_dim=input_dim, activation='relu'))
+        model.add(Input((input_dim,)))
+        model.add(Dense(nb_hidden, activation='relu'))
         model.add(Dense(nb_class, activation='softmax'))
         model.compile(loss='categorical_crossentropy', optimizer='sgd')
 

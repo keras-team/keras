@@ -7,7 +7,7 @@ np.random.seed(1337)
 
 from keras import backend as K
 from keras.models import Graph, Sequential, model_from_json, model_from_yaml
-from keras.layers.core import Dense, Activation, Merge, Lambda, LambdaMerge, Siamese, add_shared_layer
+from keras.layers.core import Input, Dense, Activation, Merge, Lambda, LambdaMerge, Siamese, add_shared_layer
 from keras.layers import containers
 from keras.utils.test_utils import get_test_data
 
@@ -348,7 +348,8 @@ def test_recursive():
                      merge_mode='sum')
 
     seq = Sequential()
-    seq.add(Dense(32, input_shape=(32,)))
+    seq.add(Input((32,)))
+    seq.add(Dense(32))
     seq.add(graph)
     seq.add(Dense(4))
 

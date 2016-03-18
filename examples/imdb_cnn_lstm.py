@@ -13,7 +13,7 @@ np.random.seed(1337)  # for reproducibility
 
 from keras.preprocessing import sequence
 from keras.models import Sequential
-from keras.layers.core import Dense, Dropout, Activation
+from keras.layers.core import Input, Dense, Dropout, Activation
 from keras.layers.embeddings import Embedding
 from keras.layers.recurrent import LSTM, GRU, SimpleRNN
 from keras.layers.convolutional import Convolution1D, MaxPooling1D
@@ -57,7 +57,8 @@ print('X_test shape:', X_test.shape)
 print('Build model...')
 
 model = Sequential()
-model.add(Embedding(max_features, embedding_size, input_length=maxlen))
+model.add(Input((maxlen,), dtype='int32'))
+model.add(Embedding(max_features, embedding_size))
 model.add(Dropout(0.25))
 model.add(Convolution1D(nb_filter=nb_filter,
                         filter_length=filter_length,

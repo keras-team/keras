@@ -11,6 +11,7 @@ from six.moves import zip
 from .. import backend as K
 from .. import activations, initializations, regularizers, constraints
 from ..regularizers import ActivityRegularizer
+from ..backend.common import _FLOATX, _EPSILON
 
 import inspect
 
@@ -39,6 +40,7 @@ class Layer(object):
         allowed_kwargs = {'input_shape',
                           'trainable',
                           'batch_input_shape',
+                          'input_dtype',
                           'cache_enabled',
                           'name'}
         for kwarg in kwargs:
@@ -54,10 +56,15 @@ class Layer(object):
         else:
             self.cache_enabled = True
 
+        if 'input_dtype' in kwargs:
+            dtype = kwargs['input_dtype']
+        else:
+            dtype=_FLOATX
+
         if 'batch_input_shape' in kwargs:
-            self.set_input_shape(tuple(kwargs['batch_input_shape']))
+            self.set_input_shape(tuple(kwargs['batch_input_shape']), dtype=dtype)
         elif 'input_shape' in kwargs:
-            self.set_input_shape((None,) + tuple(kwargs['input_shape']))
+            self.set_input_shape((None,) + tuple(kwargs['input_shape']), dtype=dtype)
 
         if 'trainable' in kwargs:
             self.trainable = kwargs['trainable']
@@ -209,7 +216,7 @@ class Layer(object):
         else:
             raise Exception('Layer is not connected. Did you forget to set "input_shape"?')
 
-    def set_input_shape(self, input_shape):
+    def set_input_shape(self, input_shape, dtype=_FLOATX):
         if type(input_shape) not in [tuple, list]:
             raise Exception('Invalid input shape - input_shape should be a tuple of int.')
         input_shape = tuple(input_shape)
@@ -219,7 +226,7 @@ class Layer(object):
                                 str(self.input_ndim) +
                                 ', was provided with input shape ' + str(input_shape))
         self._input_shape = input_shape
-        self.input = K.placeholder(shape=self._input_shape)
+        self.input = K.placeholder(shape=self._input_shape, dtype=dtype)
         self.build()
 
     @property
@@ -244,9 +251,6 @@ class Layer(object):
                 self.layer_cache[previous_layer_id] = previous_output
             return previous_output
         elif hasattr(self, 'input'):
-            return self.input
-        else:
-            self.input = K.placeholder(shape=self.input_shape)
             return self.input
 
     def supports_masked_input(self):
@@ -356,6 +360,35 @@ class Layer(object):
         '''
         return sum([K.count_params(p) for p in self.trainable_weights])
 
+class Input(Layer):
+    '''The first layer of the model'''
+
+    def __init__(self, shape=None, batch_shape=None, dtype=_FLOATX, **kwargs):
+        assert shape is not None or batch_shape is not None,\
+            "You should provide either shape or batch_shape argument to Input layer"
+        self.shape = shape
+        self.batch_shape = batch_shape
+
+        if shape:
+            assert isinstance(shape, tuple) or isinstance(shape, list),\
+                "Shape should be of type tuple or list"
+            kwargs['input_shape'] = shape
+        elif batch_shape:
+            assert isinstance(batch_shape, tuple) or isinstance(batch_shape, list),\
+                "batch_shape should be of type tuple or list"
+            kwargs['batch_input_shape'] = batch_shape
+        kwargs['input_dtype'] = dtype
+        super(Input, self).__init__(**kwargs)
+
+    def get_output(self, train=False):
+        return self.input
+
+    def get_config(self):
+        config = {'name': self.__class__.__name__,
+                  'shape': self.shape,
+                  'batch_shape': self.batch_shape}
+        base_config = super(Input, self).get_config()
+        return dict(list(base_config.items()) + list(config.items()))
 
 class MaskedLayer(Layer):
     '''If your layer trivially supports masking
@@ -430,11 +463,13 @@ class Merge(Layer):
 
     ```python
         left = Sequential()
-        left.add(Dense(50, input_shape=(784,)))
+        left.add(Input((784,)))
+        left.add(Dense(50))
         left.add(Activation('relu'))
 
         right = Sequential()
-        right.add(Dense(50, input_shape=(784,)))
+        right.add(Input(784,))
+        right.add(Dense(50))
         right.add(Activation('relu'))
 
         model = Sequential()
@@ -986,7 +1021,7 @@ class Dense(Layer):
 
     def __init__(self, output_dim, init='glorot_uniform', activation='linear', weights=None,
                  W_regularizer=None, b_regularizer=None, activity_regularizer=None,
-                 W_constraint=None, b_constraint=None, input_dim=None, **kwargs):
+                 W_constraint=None, b_constraint=None, **kwargs):
         self.init = initializations.get(init)
         self.activation = activations.get(activation)
         self.output_dim = output_dim
@@ -1001,9 +1036,6 @@ class Dense(Layer):
 
         self.initial_weights = weights
 
-        self.input_dim = input_dim
-        if self.input_dim:
-            kwargs['input_shape'] = (self.input_dim,)
         super(Dense, self).__init__(**kwargs)
 
     def build(self):
@@ -1051,8 +1083,7 @@ class Dense(Layer):
                   'b_regularizer': self.b_regularizer.get_config() if self.b_regularizer else None,
                   'activity_regularizer': self.activity_regularizer.get_config() if self.activity_regularizer else None,
                   'W_constraint': self.W_constraint.get_config() if self.W_constraint else None,
-                  'b_constraint': self.b_constraint.get_config() if self.b_constraint else None,
-                  'input_dim': self.input_dim}
+                  'b_constraint': self.b_constraint.get_config() if self.b_constraint else None}
         base_config = super(Dense, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
@@ -1246,8 +1277,8 @@ class AutoEncoder(Layer):
         from keras import models
 
         # input shape: (nb_samples, 32)
-        encoder = containers.Sequential([Dense(16, input_dim=32), Dense(8)])
-        decoder = containers.Sequential([Dense(16, input_dim=8), Dense(32)])
+        encoder = containers.Sequential([Input((32,)), Dense(16), Dense(8)])
+        decoder = containers.Sequential([Input((8,)), Dense(16), Dense(32)])
 
         autoencoder = AutoEncoder(encoder=encoder, decoder=decoder, output_reconstruction=True)
         model = models.Sequential()

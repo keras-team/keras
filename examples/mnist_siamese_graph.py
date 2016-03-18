@@ -20,7 +20,7 @@ np.random.seed(1337)  # for reproducibility
 import random
 from keras.datasets import mnist
 from keras.models import Sequential, Graph
-from keras.layers.core import Dense, Dropout, Lambda
+from keras.layers.core import Input, Dense, Dropout, Lambda
 from keras.optimizers import SGD, RMSprop
 from keras import backend as K
 
@@ -63,7 +63,8 @@ def create_base_network(input_dim):
     '''Base network to be shared (eq. to feature extraction).
     '''
     seq = Sequential()
-    seq.add(Dense(128, input_shape=(input_dim,), activation='relu'))
+    seq.add(Input((input_dim,)))
+    seq.add(Dense(128, activation='relu'))
     seq.add(Dropout(0.1))
     seq.add(Dense(128, activation='relu'))
     seq.add(Dropout(0.1))

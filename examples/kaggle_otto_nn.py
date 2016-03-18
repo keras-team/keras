@@ -26,7 +26,7 @@ import pandas as pd
 np.random.seed(1337)  # for reproducibility
 
 from keras.models import Sequential
-from keras.layers.core import Dense, Dropout, Activation
+from keras.layers.core import Input, Dense, Dropout, Activation
 from keras.layers.normalization import BatchNormalization
 from keras.layers.advanced_activations import PReLU
 from keras.utils import np_utils, generic_utils
@@ -93,7 +93,8 @@ print(dims, 'dims')
 print('Building model...')
 
 model = Sequential()
-model.add(Dense(512, input_shape=(dims,)))
+model.add(Input((dims,)))
+model.add(Dense(512))
 model.add(PReLU())
 model.add(BatchNormalization())
 model.add(Dropout(0.5))

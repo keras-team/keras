@@ -9,7 +9,7 @@ class Embedding(Layer):
     '''Turn positive integers (indexes) into dense vectors of fixed size.
     eg. [[4], [20]] -> [[0.25, 0.1], [0.6, -0.2]]
 
-    This layer can only be used as the first layer in a model.
+    This layer should always be connected to the input layer
 
     # Input shape
         2D tensor with shape: `(nb_samples, sequence_length)`.
@@ -36,10 +36,6 @@ class Embedding(Layer):
           This is useful for [recurrent layers](recurrent.md) which may take
           variable length input. If this is `True` then all subsequent layers
           in the model need to support masking or an exception will be raised.
-      input_length: Length of input sequences, when it is constant.
-          This argument is required if you are going to connect
-          `Flatten` then `Dense` layers upstream
-          (without it, the shape of the dense outputs cannot be computed).
       dropout: float between 0 and 1. Fraction of the embeddings to drop.
 
     # References
@@ -48,15 +44,14 @@ class Embedding(Layer):
     input_ndim = 2
 
     def __init__(self, input_dim, output_dim,
-                 init='uniform', input_length=None,
-                 W_regularizer=None, activity_regularizer=None,
+                 init='uniform', W_regularizer=None,
+                 activity_regularizer=None,
                  W_constraint=None,
                  mask_zero=False,
                  weights=None, dropout=0., **kwargs):
         self.input_dim = input_dim
         self.output_dim = output_dim
         self.init = initializations.get(init)
-        self.input_length = input_length
         self.mask_zero = mask_zero
         self.dropout = dropout
 
@@ -67,12 +62,9 @@ class Embedding(Layer):
         self.activity_regularizer = regularizers.get(activity_regularizer)
 
         self.initial_weights = weights
-        kwargs['input_shape'] = (self.input_dim,)
         super(Embedding, self).__init__(**kwargs)
 
     def build(self):
-        self.input = K.placeholder(shape=(self.input_shape[0], self.input_length),
-                                   dtype='int32')
         self.W = self.init((self.input_dim, self.output_dim),
                            name='{}_W'.format(self.name))
         self.trainable_weights = [self.W]
@@ -97,7 +89,8 @@ class Embedding(Layer):
 
     @property
     def output_shape(self):
-        return (self.input_shape[0], self.input_length, self.output_dim)
+        input_shape = self.input_shape
+        return input_shape+(self.output_dim, )
 
     def get_output(self, train=False):
         X = self.get_input(train)
@@ -115,7 +108,6 @@ class Embedding(Layer):
                   "input_dim": self.input_dim,
                   "output_dim": self.output_dim,
                   "init": self.init.__name__,
-                  "input_length": self.input_length,
                   "mask_zero": self.mask_zero,
                   "activity_regularizer": self.activity_regularizer.get_config() if self.activity_regularizer else None,
                   "W_regularizer": self.W_regularizer.get_config() if self.W_regularizer else None,

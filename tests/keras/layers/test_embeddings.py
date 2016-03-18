@@ -2,7 +2,7 @@ import pytest
 import numpy as np
 from numpy.testing import assert_allclose
 from keras.models import Sequential
-from keras.layers.core import Dense, Activation, Flatten
+from keras.layers.core import Input, Dense, Activation, Flatten
 from keras.layers.embeddings import Embedding
 from keras.constraints import unitnorm
 from keras import backend as K
@@ -14,9 +14,9 @@ W1 = np.array([[0.1, 0.2], [0.3, 0.4], [0.5, 0.6]], dtype='float32')
 
 def test_unitnorm_constraint():
     lookup = Sequential()
+    lookup.add(Input((1,), dtype='int32'))
     lookup.add(Embedding(3, 2, weights=[W1],
-                         W_constraint=unitnorm(),
-                         input_length=1))
+                         W_constraint=unitnorm()))
     lookup.add(Flatten())
     lookup.add(Dense(1))
     lookup.add(Activation('sigmoid'))
