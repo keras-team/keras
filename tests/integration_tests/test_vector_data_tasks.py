@@ -4,7 +4,7 @@ import pytest
 
 from keras.utils.test_utils import get_test_data
 from keras.models import Sequential
-from keras.layers.core import Dense
+from keras.layers.core import Input, Dense
 from keras.utils.np_utils import to_categorical
 
 
@@ -25,7 +25,8 @@ def test_vector_classification():
     y_test = to_categorical(y_test)
 
     model = Sequential([
-        Dense(nb_hidden, input_shape=(X_train.shape[-1],), activation='relu'),
+        Input((X_train.shape[-1],)),
+        Dense(nb_hidden, activation='relu'),
         Dense(y_train.shape[-1], activation='softmax')
     ])
     model.compile(loss='categorical_crossentropy', optimizer='rmsprop')
@@ -49,7 +50,8 @@ def test_vector_regression():
                                                          classification=False)
 
     model = Sequential([
-        Dense(nb_hidden, input_shape=(X_train.shape[-1],), activation='tanh'),
+        Input((X_train.shape[-1],)),
+        Dense(nb_hidden, activation='tanh'),
         Dense(y_train.shape[-1])
     ])
 
@@ -57,7 +59,6 @@ def test_vector_regression():
     history = model.fit(X_train, y_train, nb_epoch=20, batch_size=16,
                         validation_data=(X_test, y_test), verbose=0)
     assert (history.history['val_loss'][-1] < 0.9)
-
 
 if __name__ == '__main__':
     pytest.main([__file__])

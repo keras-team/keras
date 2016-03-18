@@ -83,7 +83,9 @@ def test_repeat_vector():
 
 
 def test_dense():
-    layer = core.Dense(10, input_shape=(10,))
+    input = core.Input((10,))
+    layer = core.Dense(10)
+    layer.set_previous(input)
     _runner(layer)
 
 
@@ -93,7 +95,7 @@ def test_act_reg():
 
 
 def test_time_dist_dense():
-    layer = core.TimeDistributedDense(10, input_shape=(None, 10))
+    layer = core.TimeDistributedDense(10)
     _runner(layer)
 
 
@@ -116,13 +118,14 @@ def test_autoencoder():
 
 
 def test_autoencoder_advanced():
-    encoder = containers.Sequential([core.Dense(5, input_shape=(10,))])
-    decoder = containers.Sequential([core.Dense(10, input_shape=(5,))])
+    encoder = containers.Sequential([core.Input((10,)), core.Dense(5)])
+    decoder = containers.Sequential([core.Input((5,)), core.Dense(10)])
     X_train = np.random.random((100, 10))
     X_test = np.random.random((100, 10))
 
     model = Sequential()
-    model.add(core.Dense(output_dim=10, input_dim=10))
+    model.add(core.Input((10,)))
+    model.add(core.Dense(output_dim=10))
     autoencoder = core.AutoEncoder(encoder=encoder, decoder=decoder,
                                    output_reconstruction=True)
     model.add(autoencoder)
@@ -153,16 +156,19 @@ def test_autoencoder_advanced():
 
 
 def test_maxout_dense():
-    layer = core.MaxoutDense(10, 10, input_shape=(20,))
+    input = core.Input((20,))
+    layer = core.MaxoutDense(10, 10)
+    layer.set_previous(input)
     _runner(layer)
 
 
 def test_naming():
-    layer = core.Dense(2, input_dim=2)
+    layer = core.Dense(2)
     assert layer.name == 'dense'
 
     model = Sequential()
-    model.add(core.Dense(2, input_dim=2, name='my_dense'))
+    model.add(core.Input((2,)))
+    model.add(core.Dense(2, name='my_dense'))
     model.add(core.Dense(2, name='my_dense'))
 
     assert model.layers[0].name == 'my_dense'
@@ -230,12 +236,18 @@ def _runner(layer):
 
 
 def test_siamese_all():
-    right_input_layer = core.Dense(7, input_dim=3)
-    left_input_layer = core.Dense(7, input_dim=3)
+    right_input = core.Input((3,))
+    left_input = core.Input((3,))
+    right_dense_layer = core.Dense(7)
+    left_dense_layer = core.Dense(7)
+    right_dense_layer.set_previous(right_input)
+    left_dense_layer.set_previous(left_input)
 
-    shared_layer = core.Dense(5,input_dim=7)
+    shared_input = core.Input((7,))
+    shared_layer = core.Dense(5)
+    shared_layer.set_previous(shared_input)
     for mode in ['sum', 'mul', 'ave', 'concat']:
-        siamese_layer = core.Siamese(shared_layer, [left_input_layer, right_input_layer], merge_mode=mode)
+        siamese_layer = core.Siamese(shared_layer, [left_dense_layer, right_dense_layer], merge_mode=mode)
         siamese_layer.output_shape
         siamese_layer.get_output()
 
@@ -243,13 +255,19 @@ def test_siamese_all():
 @pytest.mark.skipif(K._BACKEND == 'tensorflow',
                     reason='currently not working with TensorFlow')
 def test_siamese_theano_only():
-    right_input_layer = core.Dense(7, input_dim=3)
-    left_input_layer = core.Dense(7, input_dim=3)
+    right_input = core.Input((3,))
+    left_input = core.Input((3,))
+    right_dense_layer = core.Dense(7)
+    left_dense_layer = core.Dense(7)
+    right_dense_layer.set_previous(right_input)
+    left_dense_layer.set_previous(left_input)
 
-    shared_layer = core.Dense(5,input_dim=7)
+    shared_input = core.Input((7,))
+    shared_layer = core.Dense(5)
+    shared_layer.set_previous(shared_input)
 
     for mode in ['dot', 'cos']:
-        siamese_layer = core.Siamese(shared_layer, [left_input_layer, right_input_layer], merge_mode=mode,
+        siamese_layer = core.Siamese(shared_layer, [left_dense_layer, right_dense_layer], merge_mode=mode,
                                      dot_axes=([1], [1]))
         siamese_layer.output_shape
         siamese_layer.get_output()

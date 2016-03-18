@@ -5,14 +5,15 @@ import numpy as np
 from numpy.testing import assert_allclose
 
 from keras import backend as K
-from keras.layers.core import Dense
+from keras.layers.core import Input, Dense
 from keras.models import Sequential, Graph
 
 
 def test_layer_call():
     """Test keras.layers.core.Layer.__call__"""
     nb_samples, input_dim, output_dim = 3, 10, 5
-    layer = Dense(output_dim, input_dim=input_dim)
+    layer = Dense(output_dim)
+    layer.set_previous(Input((input_dim,)))
     W = np.asarray(K.eval(layer.W)).astype(K.floatx())
     X = K.placeholder(ndim=2)
     Y = layer(X)
@@ -28,7 +29,8 @@ def test_sequential_call():
     """Test keras.models.Sequential.__call__"""
     nb_samples, input_dim, output_dim = 3, 10, 5
     model = Sequential()
-    model.add(Dense(output_dim=output_dim, input_dim=input_dim))
+    model.add(Input((input_dim,)))
+    model.add(Dense(output_dim=output_dim))
     model.compile('sgd', 'mse')
 
     # test flat model
@@ -61,7 +63,7 @@ def test_graph_call():
     nb_samples, input_dim, output_dim = 3, 10, 5
     model = Graph()
     model.add_input('input', input_shape=(input_dim, ))
-    model.add_node(Dense(output_dim=output_dim, input_dim=input_dim),
+    model.add_node(Dense(output_dim=output_dim),
                    input='input', name='output', create_output=True)
 
     model.compile('sgd', {'output': 'mse'})
@@ -100,7 +102,7 @@ def test_graph_multiple_in_out_call():
     model = Graph()
     model.add_input('input1', input_shape=(input_dim, ))
     model.add_input('input2', input_shape=(input_dim, ))
-    model.add_node(Dense(output_dim=output_dim, input_dim=input_dim),
+    model.add_node(Dense(output_dim=output_dim),
                    inputs=['input1', 'input2'], merge_mode='sum', name='output', create_output=True)
 
     model.compile('sgd', {'output': 'mse'})
@@ -121,9 +123,9 @@ def test_graph_multiple_in_out_call():
     # test with single input, multiple outputs
     model2 = Graph()
     model2.add_input('input', input_shape=(input_dim, ))
-    model2.add_node(Dense(output_dim=output_dim, input_dim=input_dim),
+    model2.add_node(Dense(output_dim=output_dim),
                     input='input', name='output1', create_output=True)
-    model2.add_node(Dense(output_dim=output_dim, input_dim=input_dim),
+    model2.add_node(Dense(output_dim=output_dim),
                     input='input', name='output2', create_output=True)
 
     model2.compile('sgd', {'output1': 'mse', 'output2': 'mse'})
@@ -146,7 +148,7 @@ def test_graph_multiple_in_out_call():
     model3 = Graph()
     model3.add_input('input1', input_shape=(input_dim, ))
     model3.add_input('input2', input_shape=(input_dim, ))
-    model3.add_shared_node(Dense(output_dim=output_dim, input_dim=input_dim),
+    model3.add_shared_node(Dense(output_dim=output_dim),
                            inputs=['input1', 'input2'], name='output',
                            outputs=['output1', 'output2'], create_output=True)
     model3.compile('sgd', {'output1': 'mse', 'output2': 'mse'})
@@ -175,7 +177,7 @@ def test_nested_call():
     # test Graph model nested inside Sequential model
     model = Graph()
     model.add_input('input', input_shape=(input_dim, ))
-    model.add_node(Dense(output_dim=output_dim, input_dim=input_dim),
+    model.add_node(Dense(output_dim=output_dim),
                    input='input', name='output', create_output=True)
 
     model2 = Sequential()
@@ -192,7 +194,7 @@ def test_nested_call():
 
     # test Sequential model inside Graph model
     model3 = Sequential()
-    model3.add(Dense(output_dim=output_dim, input_dim=input_dim))
+    model3.add(Dense(output_dim=output_dim))
 
     model4 = Graph()
     model4.add_input('input', input_shape=(input_dim, ))

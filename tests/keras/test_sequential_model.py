@@ -7,7 +7,7 @@ np.random.seed(1337)
 
 from keras import backend as K
 from keras.models import Graph, Sequential, model_from_json, model_from_yaml
-from keras.layers.core import Dense, Activation, Merge, Lambda, LambdaMerge, Siamese, add_shared_layer
+from keras.layers.core import Input, Dense, Activation, Merge, Lambda, LambdaMerge, Siamese, add_shared_layer
 from keras.layers import containers
 from keras.utils import np_utils
 from keras.utils.test_utils import get_test_data
@@ -54,6 +54,7 @@ def test_sequential_fit_generator():
             i = i % max_batch_index
 
     model = Sequential()
+    model.add(Input())
     model.add(Dense(nb_hidden, input_shape=(input_dim,)))
     model.add(Activation('relu'))
     model.add(Dense(nb_class))
