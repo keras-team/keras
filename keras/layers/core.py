@@ -463,11 +463,13 @@ class Merge(Layer):
 
     ```python
         left = Sequential()
-        left.add(Dense(50, input_shape=(784,)))
+        left.add(Input((784,)))
+        left.add(Dense(50))
         left.add(Activation('relu'))
 
         right = Sequential()
-        right.add(Dense(50, input_shape=(784,)))
+        right.add(Input(784,))
+        right.add(Dense(50))
         right.add(Activation('relu'))
 
         model = Sequential()
@@ -1019,7 +1021,7 @@ class Dense(Layer):
 
     def __init__(self, output_dim, init='glorot_uniform', activation='linear', weights=None,
                  W_regularizer=None, b_regularizer=None, activity_regularizer=None,
-                 W_constraint=None, b_constraint=None, input_dim=None, **kwargs):
+                 W_constraint=None, b_constraint=None, **kwargs):
         self.init = initializations.get(init)
         self.activation = activations.get(activation)
         self.output_dim = output_dim
@@ -1034,9 +1036,6 @@ class Dense(Layer):
 
         self.initial_weights = weights
 
-        self.input_dim = input_dim
-        if self.input_dim:
-            kwargs['input_shape'] = (self.input_dim,)
         super(Dense, self).__init__(**kwargs)
 
     def build(self):
@@ -1084,8 +1083,7 @@ class Dense(Layer):
                   'b_regularizer': self.b_regularizer.get_config() if self.b_regularizer else None,
                   'activity_regularizer': self.activity_regularizer.get_config() if self.activity_regularizer else None,
                   'W_constraint': self.W_constraint.get_config() if self.W_constraint else None,
-                  'b_constraint': self.b_constraint.get_config() if self.b_constraint else None,
-                  'input_dim': self.input_dim}
+                  'b_constraint': self.b_constraint.get_config() if self.b_constraint else None}
         base_config = super(Dense, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
@@ -1279,8 +1277,8 @@ class AutoEncoder(Layer):
         from keras import models
 
         # input shape: (nb_samples, 32)
-        encoder = containers.Sequential([Dense(16, input_dim=32), Dense(8)])
-        decoder = containers.Sequential([Dense(16, input_dim=8), Dense(32)])
+        encoder = containers.Sequential([Input((32,)), Dense(16), Dense(8)])
+        decoder = containers.Sequential([Input((8,)), Dense(16), Dense(32)])
 
         autoencoder = AutoEncoder(encoder=encoder, decoder=decoder, output_reconstruction=True)
         model = models.Sequential()
