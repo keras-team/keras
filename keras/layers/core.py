@@ -380,15 +380,15 @@ class Input(Layer):
         kwargs['input_dtype'] = dtype
         super(Input, self).__init__(**kwargs)
 
-        def get_output(self, train=False):
-            return self.input
+    def get_output(self, train=False):
+        return self.input
 
-        def get_config(self):
-            config = {'name': self.__class__.__name__,
-                      'shape': self.shape,
-                      'batch_shape': self.batch_shape}
-            base_config = super(Input, self).get_config()
-            return dict(list(base_config.items()) + list(config.items()))
+    def get_config(self):
+        config = {'name': self.__class__.__name__,
+                  'shape': self.shape,
+                  'batch_shape': self.batch_shape}
+        base_config = super(Input, self).get_config()
+        return dict(list(base_config.items()) + list(config.items()))
 
 class MaskedLayer(Layer):
     '''If your layer trivially supports masking
