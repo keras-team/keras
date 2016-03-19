@@ -15,6 +15,9 @@ def set_epsilon(e):
 
 
 def floatx():
+    '''Returns the default float type, as a string
+    (e.g. 'float32', 'float64').
+    '''
     return _FLOATX
 
 

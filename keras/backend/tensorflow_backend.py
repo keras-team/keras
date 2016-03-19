@@ -7,6 +7,12 @@ from .common import _FLOATX, _EPSILON
 # INTERNAL UTILS
 
 _SESSION = None
+_LEARNING_PHASE = tf.placeholder(dtype='uint8')  # 0 = test, 1 = train
+
+
+def learning_phase():
+    # False = test, True = train
+    return _LEARNING_PHASE
 
 
 def get_session():
@@ -36,8 +42,11 @@ def variable(value, dtype=_FLOATX, name=None):
 def placeholder(shape=None, ndim=None, dtype=_FLOATX, name=None):
     if not shape:
         if ndim:
-            shape = [None for _ in range(ndim)]
-    return tf.placeholder(dtype, shape=shape, name=name)
+            shape = tuple([None for _ in range(ndim)])
+    x = tf.placeholder(dtype, shape=shape, name=name)
+    x._keras_shape = shape
+    x._uses_learning_phase = False
+    return x
 
 
 def shape(x):
@@ -52,6 +61,10 @@ def int_shape(x):
 
 def ndim(x):
     return len(x.get_shape())
+
+
+def dtype(x):
+    return x.dtype.name
 
 
 def eval(x):
@@ -533,6 +546,21 @@ def switch(condition, then_expression, else_expression):
                                            lambda: then_expression,
                                            lambda: else_expression)
 
+
+def in_train_phase(x, expression):
+    x = tf.python.control_flow_ops.cond(_LEARNING_PHASE,
+                                        lambda: x,
+                                        lambda: expression)
+    x._uses_learning_phase = True
+    return x
+
+
+def in_test_phase(x, expression):
+    x = tf.python.control_flow_ops.cond(_LEARNING_PHASE,
+                                        lambda: expression,
+                                        lambda: x)
+    x._uses_learning_phase = True
+    return x
 
 # NN OPERATIONS
 

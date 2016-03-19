@@ -10,6 +10,12 @@ from .common import _FLOATX, _EPSILON
 
 # INTERNAL UTILS
 theano.config.floatX = _FLOATX
+_LEARNING_PHASE = T.scalar(dtype='uint8')  # 0 = test, 1 = train
+
+
+def learning_phase():
+    # False = test, True = train
+    return _LEARNING_PHASE
 
 
 def _on_gpu():
@@ -43,9 +49,14 @@ def placeholder(shape=None, ndim=None, dtype=_FLOATX, name=None):
         raise Exception('Specify either a shape or ndim value.')
     if shape is not None:
         ndim = len(shape)
+    else:
+        shape = tuple([None for _ in range(ndim)])
 
     broadcast = (False,) * ndim
-    return T.TensorType(dtype, broadcast)(name)
+    x = T.TensorType(dtype, broadcast)(name)
+    x._keras_shape = shape
+    x._uses_learning_phase = False
+    return x
 
 
 def shape(x):
@@ -59,6 +70,10 @@ def shape(x):
 
 def ndim(x):
     return x.ndim
+
+
+def dtype(x):
+    return x.dtype
 
 
 def eval(x):
@@ -569,6 +584,18 @@ def switch(condition, then_expression, else_expression):
     '''condition: scalar tensor.
     '''
     return T.switch(condition, then_expression, else_expression)
+
+
+def in_train_phase(x, expression):
+    x = T.switch(_LEARNING_PHASE, x, expression)
+    x._uses_learning_phase = True
+    return x
+
+
+def in_test_phase(x, expression):
+    x = T.switch(_LEARNING_PHASE, expression, x)
+    x._uses_learning_phase = True
+    return x
 
 
 # NN OPERATIONS
