@@ -126,7 +126,8 @@ class RMSprop(Optimizer):
         accumulators = [K.variable(np.zeros(K.get_value(p).shape)) for p in params]
         self.updates = []
 
-        for p, g, a, c, lmul in zip(params, grads, accumulators, constraints, learning_rate_multipliers):
+        for p, g, a, c, lmul in zip(params, grads, accumulators, constraints, 
+                                    learning_rate_multipliers):
             # update accumulator
             new_a = self.rho * a + (1 - self.rho) * K.square(g)
             self.updates.append((a, new_a))
@@ -162,7 +163,8 @@ class Adagrad(Optimizer):
         accumulators = [K.variable(np.zeros(K.get_value(p).shape)) for p in params]
         self.updates = []
 
-        for p, g, a, c, lmul in zip(params, grads, accumulators, constraints, learning_rate_multipliers):
+        for p, g, a, c, lmul in zip(params, grads, accumulators, constraints, 
+                                    learning_rate_multipliers):
             new_a = a + K.square(g)  # update accumulator
             self.updates.append((a, new_a))
             new_p = p - (self.lr*lmul) * g / K.sqrt(new_a + self.epsilon)
