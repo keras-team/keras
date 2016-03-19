@@ -9,14 +9,13 @@ from keras.layers.recurrent import SimpleRNN
 
 def check_layer_output_shape(layer, input_data):
     ndim = len(input_data.shape)
-    layer.input = K.placeholder(ndim=ndim)
-    layer.set_input_shape(input_data.shape)
-    expected_output_shape = layer.output_shape[1:]
+    layer.set_input(K.placeholder(ndim=ndim), input_data.shape)
+    expected_output_shape = layer.get_output_shape_for(input_data.shape)
 
-    function = K.function([layer.input], [layer.get_output()])
+    function = K.function([layer.input], [layer.output])
     output = function([input_data])[0]
 
-    assert output.shape[1:] == expected_output_shape
+    assert output.shape == expected_output_shape, str(output.shape) + ' != ' + str(expected_output_shape)
 
 
 ########
@@ -25,16 +24,16 @@ def check_layer_output_shape(layer, input_data):
 def test_Reshape():
     input_data = np.random.random((2, 6))
 
-    layer = Reshape(dims=(2, 3))
+    layer = Reshape((2, 3))
     check_layer_output_shape(layer, input_data)
 
-    layer = Reshape(dims=(-1,))
+    layer = Reshape((-1,))
     check_layer_output_shape(layer, input_data)
 
-    layer = Reshape(dims=(-1, 2))
+    layer = Reshape((-1, 2))
     check_layer_output_shape(layer, input_data)
 
-    layer = Reshape(dims=(2, -1))
+    layer = Reshape((2, -1))
     check_layer_output_shape(layer, input_data)
 
 

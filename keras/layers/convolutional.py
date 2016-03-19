@@ -3,7 +3,7 @@ from __future__ import absolute_import
 
 from .. import backend as K
 from .. import activations, initializations, regularizers, constraints
-from ..layers.core import Layer
+from ..engine import Layer, InputSpec
 
 
 def conv_output_length(input_length, filter_size, border_mode, stride):
@@ -66,8 +66,6 @@ class Convolution1D(Layer):
             `Flatten` then `Dense` layers upstream
             (without it, the shape of the dense outputs cannot be computed).
     '''
-    input_ndim = 3
-
     def __init__(self, nb_filter, filter_length,
                  init='uniform', activation='linear', weights=None,
                  border_mode='valid', subsample_length=1,
@@ -95,16 +93,16 @@ class Convolution1D(Layer):
         self.b_constraint = constraints.get(b_constraint)
         self.constraints = [self.W_constraint, self.b_constraint]
 
+        self.input_spec = [InputSpec(ndim=3)]
         self.initial_weights = weights
-
         self.input_dim = input_dim
         self.input_length = input_length
         if self.input_dim:
             kwargs['input_shape'] = (self.input_length, self.input_dim)
         super(Convolution1D, self).__init__(**kwargs)
 
-    def build(self):
-        input_dim = self.input_shape[2]
+    def build(self, input_shape):
+        input_dim = input_shape[2]
         self.W_shape = (self.nb_filter, input_dim, self.filter_length, 1)
         self.W = self.init(self.W_shape, name='{}_W'.format(self.name))
         self.b = K.zeros((self.nb_filter,), name='{}_b'.format(self.name))
@@ -127,19 +125,17 @@ class Convolution1D(Layer):
             self.set_weights(self.initial_weights)
             del self.initial_weights
 
-    @property
-    def output_shape(self):
-        length = conv_output_length(self.input_shape[1],
+    def get_output_shape_for(self, input_shape):
+        length = conv_output_length(input_shape[1],
                                     self.filter_length,
                                     self.border_mode,
                                     self.subsample[0])
-        return (self.input_shape[0], length, self.nb_filter)
+        return (input_shape[0], length, self.nb_filter)
 
-    def get_output(self, train=False):
-        X = self.get_input(train)
-        X = K.expand_dims(X, -1)  # add a dimension of the right
-        X = K.permute_dimensions(X, (0, 2, 1, 3))
-        conv_out = K.conv2d(X, self.W, strides=self.subsample,
+    def call(self, x, mask=None):
+        x = K.expand_dims(x, -1)  # add a dimension of the right
+        x = K.permute_dimensions(x, (0, 2, 1, 3))
+        conv_out = K.conv2d(x, self.W, strides=self.subsample,
                             border_mode=self.border_mode,
                             dim_ordering='th')
 
@@ -150,8 +146,7 @@ class Convolution1D(Layer):
         return output
 
     def get_config(self):
-        config = {'name': self.__class__.__name__,
-                  'nb_filter': self.nb_filter,
+        config = {'nb_filter': self.nb_filter,
                   'filter_length': self.filter_length,
                   'init': self.init.__name__,
                   'activation': self.activation.__name__,
@@ -220,8 +215,6 @@ class Convolution2D(Layer):
         dim_ordering: 'th' or 'tf'. In 'th' mode, the channels dimension
             (the depth) is at index 1, in 'tf' mode is it at index 3.
     '''
-    input_ndim = 4
-
     def __init__(self, nb_filter, nb_row, nb_col,
                  init='glorot_uniform', activation='linear', weights=None,
                  border_mode='valid', subsample=(1, 1), dim_ordering='th',
@@ -249,15 +242,16 @@ class Convolution2D(Layer):
         self.b_constraint = constraints.get(b_constraint)
         self.constraints = [self.W_constraint, self.b_constraint]
 
+        self.input_spec = [InputSpec(ndim=4)]
         self.initial_weights = weights
         super(Convolution2D, self).__init__(**kwargs)
 
-    def build(self):
+    def build(self, input_shape):
         if self.dim_ordering == 'th':
-            stack_size = self.input_shape[1]
+            stack_size = input_shape[1]
             self.W_shape = (self.nb_filter, stack_size, self.nb_row, self.nb_col)
         elif self.dim_ordering == 'tf':
-            stack_size = self.input_shape[3]
+            stack_size = input_shape[3]
             self.W_shape = (self.nb_row, self.nb_col, stack_size, self.nb_filter)
         else:
             raise Exception('Invalid dim_ordering: ' + self.dim_ordering)
@@ -282,9 +276,7 @@ class Convolution2D(Layer):
             self.set_weights(self.initial_weights)
             del self.initial_weights
 
-    @property
-    def output_shape(self):
-        input_shape = self.input_shape
+    def get_output_shape_for(self, input_shape):
         if self.dim_ordering == 'th':
             rows = input_shape[2]
             cols = input_shape[3]
@@ -306,12 +298,10 @@ class Convolution2D(Layer):
         else:
             raise Exception('Invalid dim_ordering: ' + self.dim_ordering)
 
-    def get_output(self, train=False):
-        X = self.get_input(train)
-        conv_out = K.conv2d(X, self.W, strides=self.subsample,
+    def call(self, x, mask=None):
+        conv_out = K.conv2d(x, self.W, strides=self.subsample,
                             border_mode=self.border_mode,
                             dim_ordering=self.dim_ordering,
-                            image_shape=self.input_shape,
                             filter_shape=self.W_shape)
         if self.dim_ordering == 'th':
             output = conv_out + K.reshape(self.b, (1, self.nb_filter, 1, 1))
@@ -323,8 +313,7 @@ class Convolution2D(Layer):
         return output
 
     def get_config(self):
-        config = {'name': self.__class__.__name__,
-                  'nb_filter': self.nb_filter,
+        config = {'nb_filter': self.nb_filter,
                   'nb_row': self.nb_row,
                   'nb_col': self.nb_col,
                   'init': self.init.__name__,
@@ -396,7 +385,6 @@ class Convolution3D(Layer):
         dim_ordering: 'th' or 'tf'. In 'th' mode, the channels dimension
             (the depth) is at index 1, in 'tf' mode is it at index 4.
     '''
-    input_ndim = 5
 
     def __init__(self, nb_filter, kernel_dim1, kernel_dim2, kernel_dim3,
                  init='glorot_uniform', activation='linear', weights=None,
@@ -428,17 +416,17 @@ class Convolution3D(Layer):
         self.b_constraint = constraints.get(b_constraint)
         self.constraints = [self.W_constraint, self.b_constraint]
 
+        self.input_spec = [InputSpec(ndim=5)]
         self.initial_weights = weights
         super(Convolution3D, self).__init__(**kwargs)
 
-    def build(self):
-
+    def build(self, input_shape):
         if self.dim_ordering == 'th':
-            stack_size = self.input_shape[1]
+            stack_size = input_shape[1]
             self.W_shape = (self.nb_filter, stack_size,
                             self.kernel_dim1, self.kernel_dim2, self.kernel_dim3)
         elif self.dim_ordering == 'tf':
-            stack_size = self.input_shape[4]
+            stack_size = input_shape[4]
             self.W_shape = (self.kernel_dim1, self.kernel_dim2, self.kernel_dim3,
                             stack_size, self.nb_filter)
         else:
@@ -465,9 +453,7 @@ class Convolution3D(Layer):
             self.set_weights(self.initial_weights)
             del self.initial_weights
 
-    @property
-    def output_shape(self):
-        input_shape = self.input_shape
+    def get_output_shape_for(self, input_shape):
         if self.dim_ordering == 'th':
             conv_dim1 = input_shape[2]
             conv_dim2 = input_shape[3]
@@ -493,9 +479,8 @@ class Convolution3D(Layer):
         else:
             raise Exception('Invalid dim_ordering: ' + self.dim_ordering)
 
-    def get_output(self, train=False):
-        X = self.get_input(train)
-        conv_out = K.conv3d(X, self.W, strides=self.subsample,
+    def call(self, x, mask=None):
+        conv_out = K.conv3d(x, self.W, strides=self.subsample,
                             border_mode=self.border_mode,
                             dim_ordering=self.dim_ordering,
                             volume_shape=self.input_shape,
@@ -511,8 +496,7 @@ class Convolution3D(Layer):
         return output
 
     def get_config(self):
-        config = {"name": self.__class__.__name__,
-                  "nb_filter": self.nb_filter,
+        config = {"nb_filter": self.nb_filter,
                   "kernel_dim1": self.kernel_dim1,
                   "kernel_dim2": self.kernel_dim2,
                   "kernel_dim3": self.kernel_dim3,
@@ -546,10 +530,9 @@ class _Pooling1D(Layer):
         self.pool_size = (pool_length, 1)
         assert border_mode in {'valid', 'same'}, 'border_mode must be in {valid, same}'
         self.border_mode = border_mode
+        self.input_spec = [InputSpec(ndim=3)]
 
-    @property
-    def output_shape(self):
-        input_shape = self.input_shape
+    def get_output_shape_for(self, input_shape):
         length = conv_output_length(input_shape[1], self.pool_length,
                                     self.border_mode, self.stride)
         return (input_shape[0], length, input_shape[2])
@@ -558,11 +541,10 @@ class _Pooling1D(Layer):
                           border_mode, dim_ordering):
         raise NotImplementedError
 
-    def get_output(self, train=False):
-        X = self.get_input(train)
-        X = K.expand_dims(X, -1)   # add dummy last dimension
-        X = K.permute_dimensions(X, (0, 2, 1, 3))
-        output = self._pooling_function(inputs=X, pool_size=self.pool_size,
+    def call(self, x, mask=None):
+        x = K.expand_dims(x, -1)   # add dummy last dimension
+        x = K.permute_dimensions(x, (0, 2, 1, 3))
+        output = self._pooling_function(inputs=x, pool_size=self.pool_size,
                                         strides=self.st,
                                         border_mode=self.border_mode,
                                         dim_ordering='th')
@@ -570,8 +552,7 @@ class _Pooling1D(Layer):
         return K.squeeze(output, 3)  # remove dummy last dimension
 
     def get_config(self):
-        config = {'name': self.__class__.__name__,
-                  'stride': self.stride,
+        config = {'stride': self.stride,
                   'pool_length': self.pool_length,
                   'border_mode': self.border_mode}
         base_config = super(_Pooling1D, self).get_config()
@@ -637,7 +618,6 @@ class AveragePooling1D(_Pooling1D):
 class _Pooling2D(Layer):
     '''Abstract class for different pooling 2D layers.
     '''
-    input_ndim = 4
 
     def __init__(self, pool_size=(2, 2), strides=None, border_mode='valid',
                  dim_ordering='th', **kwargs):
@@ -650,10 +630,9 @@ class _Pooling2D(Layer):
         self.border_mode = border_mode
         assert dim_ordering in {'tf', 'th'}, 'dim_ordering must be in {tf, th}'
         self.dim_ordering = dim_ordering
+        self.input_spec = [InputSpec(ndim=4)]
 
-    @property
-    def output_shape(self):
-        input_shape = self.input_shape
+    def get_output_shape_for(self, input_shape):
         if self.dim_ordering == 'th':
             rows = input_shape[2]
             cols = input_shape[3]
@@ -679,17 +658,15 @@ class _Pooling2D(Layer):
                           border_mode, dim_ordering):
         raise NotImplementedError
 
-    def get_output(self, train=False):
-        X = self.get_input(train)
-        output = self._pooling_function(inputs=X, pool_size=self.pool_size,
+    def call(self, x, mask=None):
+        output = self._pooling_function(inputs=x, pool_size=self.pool_size,
                                         strides=self.strides,
                                         border_mode=self.border_mode,
                                         dim_ordering=self.dim_ordering)
         return output
 
     def get_config(self):
-        config = {'name': self.__class__.__name__,
-                  'pool_size': self.pool_size,
+        config = {'pool_size': self.pool_size,
                   'border_mode': self.border_mode,
                   'strides': self.strides,
                   'dim_ordering': self.dim_ordering}
@@ -776,7 +753,6 @@ class AveragePooling2D(_Pooling2D):
 class _Pooling3D(Layer):
     '''Abstract class for different pooling 3D layers.
     '''
-    input_ndim = 5
 
     def __init__(self, pool_size=(2, 2, 2), strides=None, border_mode='valid',
                  dim_ordering='th', **kwargs):
@@ -789,10 +765,9 @@ class _Pooling3D(Layer):
         self.border_mode = border_mode
         assert dim_ordering in {'tf', 'th'}, 'dim_ordering must be in {tf, th}'
         self.dim_ordering = dim_ordering
+        self.input_spec = [InputSpec(ndim=5)]
 
-    @property
-    def output_shape(self):
-        input_shape = self.input_shape
+    def get_output_shape_for(self, input_shape):
         if self.dim_ordering == 'th':
             len_dim1 = input_shape[2]
             len_dim2 = input_shape[3]
@@ -822,17 +797,15 @@ class _Pooling3D(Layer):
                           border_mode, dim_ordering):
         raise NotImplementedError
 
-    def get_output(self, train=False):
-        X = self.get_input(train)
-        output = self._pooling_function(inputs=X, pool_size=self.pool_size,
+    def call(self, x, mask=None):
+        output = self._pooling_function(inputs=x, pool_size=self.pool_size,
                                         strides=self.strides,
                                         border_mode=self.border_mode,
                                         dim_ordering=self.dim_ordering)
         return output
 
     def get_config(self):
-        config = {'name': self.__class__.__name__,
-                  'pool_size': self.pool_size,
+        config = {'pool_size': self.pool_size,
                   'border_mode': self.border_mode,
                   'strides': self.strides,
                   'dim_ordering': self.dim_ordering}
@@ -936,25 +909,21 @@ class UpSampling1D(Layer):
     # Arguments:
         length: integer. Upsampling factor.
     '''
-    input_ndim = 3
 
     def __init__(self, length=2, **kwargs):
         super(UpSampling1D, self).__init__(**kwargs)
         self.length = length
+        self.input_spec = [InputSpec(ndim=3)]
 
-    @property
-    def output_shape(self):
-        input_shape = self.input_shape
+    def get_output_shape_for(self, input_shape):
         return (input_shape[0], self.length * input_shape[1], input_shape[2])
 
-    def get_output(self, train=False):
-        X = self.get_input(train)
-        output = K.repeat_elements(X, self.length, axis=1)
+    def call(self, x, mask=None):
+        output = K.repeat_elements(x, self.length, axis=1)
         return output
 
     def get_config(self):
-        config = {'name': self.__class__.__name__,
-                  'length': self.length}
+        config = {'length': self.length}
         base_config = super(UpSampling1D, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
@@ -981,17 +950,15 @@ class UpSampling2D(Layer):
             In 'th' mode, the channels dimension (the depth)
             is at index 1, in 'tf' mode is it at index 3.
     '''
-    input_ndim = 4
 
     def __init__(self, size=(2, 2), dim_ordering='th', **kwargs):
         super(UpSampling2D, self).__init__(**kwargs)
         self.size = tuple(size)
         assert dim_ordering in {'tf', 'th'}, 'dim_ordering must be in {tf, th}'
         self.dim_ordering = dim_ordering
+        self.input_spec = [InputSpec(ndim=4)]
 
-    @property
-    def output_shape(self):
-        input_shape = self.input_shape
+    def get_output_shape_for(self, input_shape):
         if self.dim_ordering == 'th':
             return (input_shape[0],
                     input_shape[1],
@@ -1005,14 +972,12 @@ class UpSampling2D(Layer):
         else:
             raise Exception('Invalid dim_ordering: ' + self.dim_ordering)
 
-    def get_output(self, train=False):
-        X = self.get_input(train)
-        return K.resize_images(X, self.size[0], self.size[1],
+    def call(self, x, mask=None):
+        return K.resize_images(x, self.size[0], self.size[1],
                                self.dim_ordering)
 
     def get_config(self):
-        config = {'name': self.__class__.__name__,
-                  'size': self.size}
+        config = {'size': self.size}
         base_config = super(UpSampling2D, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
@@ -1041,7 +1006,6 @@ class UpSampling3D(Layer):
             In 'th' mode, the channels dimension (the depth)
             is at index 1, in 'tf' mode is it at index 4.
     '''
-    input_ndim = 5
 
     def __init__(self, size=(2, 2, 2), dim_ordering='th', **kwargs):
         if K._BACKEND != 'theano':
@@ -1051,10 +1015,9 @@ class UpSampling3D(Layer):
         self.size = tuple(size)
         assert dim_ordering in {'tf', 'th'}, 'dim_ordering must be in {tf, th}'
         self.dim_ordering = dim_ordering
+        self.input_spec = [InputSpec(ndim=5)]
 
-    @property
-    def output_shape(self):
-        input_shape = self.input_shape
+    def get_output_shape_for(self, input_shape):
         if self.dim_ordering == 'th':
             return (input_shape[0],
                     input_shape[1],
@@ -1070,14 +1033,12 @@ class UpSampling3D(Layer):
         else:
             raise Exception('Invalid dim_ordering: ' + self.dim_ordering)
 
-    def get_output(self, train=False):
-        X = self.get_input(train)
-        return K.resize_volumes(X, self.size[0], self.size[1], self.size[2],
+    def call(self, x, mask=None):
+        return K.resize_volumes(x, self.size[0], self.size[1], self.size[2],
                                 self.dim_ordering)
 
     def get_config(self):
-        config = {'name': self.__class__.__name__,
-                  'size': self.size}
+        config = {'size': self.size}
         base_config = super(UpSampling3D, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
@@ -1096,27 +1057,23 @@ class ZeroPadding1D(Layer):
             How many zeros to add at the beginning and end of
             the padding dimension (axis 1).
     '''
-    input_ndim = 3
 
     def __init__(self, padding=1, **kwargs):
         super(ZeroPadding1D, self).__init__(**kwargs)
         self.padding = padding
+        self.input_spec = [InputSpec(ndim=3)]
 
-    @property
-    def output_shape(self):
-        input_shape = self.input_shape
+    def get_output_shape_for(self, input_shape):
         length = input_shape[1] + self.padding * 2 if input_shape[1] is not None else None
         return (input_shape[0],
                 length,
                 input_shape[2])
 
-    def get_output(self, train=False):
-        X = self.get_input(train)
-        return K.temporal_padding(X, padding=self.padding)
+    def call(self, x, mask=None):
+        return K.temporal_padding(x, padding=self.padding)
 
     def get_config(self):
-        config = {'name': self.__class__.__name__,
-                  'padding': self.padding}
+        config = {'padding': self.padding}
         base_config = super(ZeroPadding1D, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
@@ -1137,17 +1094,15 @@ class ZeroPadding2D(Layer):
             How many zeros to add at the beginning and end of
             the 2 padding dimensions (axis 3 and 4).
     '''
-    input_ndim = 4
 
     def __init__(self, padding=(1, 1), dim_ordering='th', **kwargs):
         super(ZeroPadding2D, self).__init__(**kwargs)
         self.padding = tuple(padding)
         assert dim_ordering in {'tf', 'th'}, 'dim_ordering must be in {tf, th}'
         self.dim_ordering = dim_ordering
+        self.input_spec = [InputSpec(ndim=4)]
 
-    @property
-    def output_shape(self):
-        input_shape = self.input_shape
+    def get_output_shape_for(self, input_shape):
         if self.dim_ordering == 'th':
             width = input_shape[2] + 2 * self.padding[0] if input_shape[2] is not None else None
             height = input_shape[3] + 2 * self.padding[1] if input_shape[3] is not None else None
@@ -1165,14 +1120,12 @@ class ZeroPadding2D(Layer):
         else:
             raise Exception('Invalid dim_ordering: ' + self.dim_ordering)
 
-    def get_output(self, train=False):
-        X = self.get_input(train)
-        return K.spatial_2d_padding(X, padding=self.padding,
+    def call(self, x, mask=None):
+        return K.spatial_2d_padding(x, padding=self.padding,
                                     dim_ordering=self.dim_ordering)
 
     def get_config(self):
-        config = {'name': self.__class__.__name__,
-                  'padding': self.padding}
+        config = {'padding': self.padding}
         base_config = super(ZeroPadding2D, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
@@ -1195,7 +1148,6 @@ class ZeroPadding3D(Layer):
             How many zeros to add at the beginning and end of
             the 3 padding dimensions (axis 3, 4 and 5).
     '''
-    input_ndim = 5
 
     def __init__(self, padding=(1, 1, 1), dim_ordering='th', **kwargs):
         if K._BACKEND != 'theano':
@@ -1205,10 +1157,9 @@ class ZeroPadding3D(Layer):
         self.padding = tuple(padding)
         assert dim_ordering in {'tf', 'th'}, 'dim_ordering must be in {tf, th}'
         self.dim_ordering = dim_ordering
+        self.input_spec = [InputSpec(ndim=5)]
 
-    @property
-    def output_shape(self):
-        input_shape = self.input_shape
+    def get_output_shape_for(self, input_shape):
         if self.dim_ordering == 'th':
             dim1 = input_shape[2] + 2 * self.padding[0] if input_shape[2] is not None else None
             dim2 = input_shape[3] + 2 * self.padding[1] if input_shape[3] is not None else None
@@ -1230,13 +1181,11 @@ class ZeroPadding3D(Layer):
         else:
             raise Exception('Invalid dim_ordering: ' + self.dim_ordering)
 
-    def get_output(self, train=False):
-        X = self.get_input(train)
-        return K.spatial_3d_padding(X, padding=self.padding,
+    def call(self, x, mask=None):
+        return K.spatial_3d_padding(x, padding=self.padding,
                                     dim_ordering=self.dim_ordering)
 
     def get_config(self):
-        config = {'name': self.__class__.__name__,
-                  'padding': self.padding}
+        config = {'padding': self.padding}
         base_config = super(ZeroPadding3D, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))

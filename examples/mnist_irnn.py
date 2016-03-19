@@ -56,16 +56,19 @@ model = Sequential()
 model.add(SimpleRNN(output_dim=hidden_units,
                     init=lambda shape: normal(shape, scale=0.001),
                     inner_init=lambda shape: identity(shape, scale=1.0),
-                    activation='relu', input_shape=X_train.shape[1:]))
+                    activation='relu',
+                    input_shape=X_train.shape[1:]))
 model.add(Dense(nb_classes))
 model.add(Activation('softmax'))
 rmsprop = RMSprop(lr=learning_rate)
-model.compile(loss='categorical_crossentropy', optimizer=rmsprop)
+model.compile(loss='categorical_crossentropy',
+              optimizer=rmsprop,
+              metrics=['accuracy'])
 
 model.fit(X_train, Y_train, batch_size=batch_size, nb_epoch=nb_epochs,
-          show_accuracy=True, verbose=1, validation_data=(X_test, Y_test))
+          verbose=1, validation_data=(X_test, Y_test))
 
-scores = model.evaluate(X_test, Y_test, show_accuracy=True, verbose=0)
+scores = model.evaluate(X_test, Y_test, verbose=0)
 print('IRNN test score:', scores[0])
 print('IRNN test accuracy:', scores[1])
 
@@ -75,11 +78,13 @@ model.add(LSTM(hidden_units, input_shape=X_train.shape[1:]))
 model.add(Dense(nb_classes))
 model.add(Activation('softmax'))
 rmsprop = RMSprop(lr=learning_rate)
-model.compile(loss='categorical_crossentropy', optimizer=rmsprop)
+model.compile(loss='categorical_crossentropy',
+              optimizer=rmsprop,
+              metrics=['accuracy'])
 
 model.fit(X_train, Y_train, batch_size=batch_size, nb_epoch=nb_epochs,
-          show_accuracy=True, verbose=1, validation_data=(X_test, Y_test))
+          verbose=1, validation_data=(X_test, Y_test))
 
-scores = model.evaluate(X_test, Y_test, show_accuracy=True, verbose=0)
+scores = model.evaluate(X_test, Y_test, verbose=0)
 print('LSTM test score:', scores[0])
 print('LSTM test accuracy:', scores[1])

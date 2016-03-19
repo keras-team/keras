@@ -10,7 +10,7 @@ from .common import _FLOATX, _EPSILON
 
 # INTERNAL UTILS
 theano.config.floatX = _FLOATX
-_LEARNING_PHASE = T.scalar(dtype='uint8')  # 0 = test, 1 = train
+_LEARNING_PHASE = T.scalar(dtype='uint8', name='keras_learning_phase')  # 0 = test, 1 = train
 
 
 def learning_phase():
@@ -482,7 +482,8 @@ def gradients(loss, variables):
 # CONTROL FLOW
 
 def rnn(step_function, inputs, initial_states,
-        go_backwards=False, mask=None, constants=None):
+        go_backwards=False, mask=None, constants=None,
+        unroll=False, input_length=None):
     '''Iterates over the time dimension of a tensor.
 
     # Arguments
@@ -506,7 +507,8 @@ def rnn(step_function, inputs, initial_states,
         mask: binary tensor with shape (samples, time),
             with a zero for every element that is masked.
         constants: a list of constant values passed at each step.
-
+        unroll: whether to unroll the RNN or to use a symbolic loop (`scan`).
+        input_length: must be specified if using `unroll`.
 
     # Returns
         A tuple (last_output, outputs, new_states).
@@ -520,6 +522,11 @@ def rnn(step_function, inputs, initial_states,
     ndim = inputs.ndim
     assert ndim >= 3, 'Input should be at least 3D.'
 
+    if unroll:
+        if input_length is None:
+            raise Exception('When specifying `unroll=True`, an `input_length` '
+                            'must be provided to `rnn`.')
+
     axes = [1, 0] + list(range(2, ndim))
     inputs = inputs.dimshuffle(axes)
 
@@ -531,45 +538,102 @@ def rnn(step_function, inputs, initial_states,
 
         if constants is None:
             constants = []
-        # build an all-zero tensor of shape (samples, output_dim)
-        initial_output = step_function(inputs[0], initial_states + constants)[0] * 0
-        # Theano gets confused by broadcasting patterns in the scan op
-        initial_output = T.unbroadcast(initial_output, 0, 1)
 
-        def _step(input, mask, output_tm1, *states):
-            output, new_states = step_function(input, states)
-            # output previous output if masked.
-            output = T.switch(mask, output, output_tm1)
-            return_states = []
-            for state, new_state in zip(states, new_states):
-                return_states.append(T.switch(mask, new_state, state))
-            return [output] + return_states
+        if unroll:
+            indices = list(range(input_length))
+            if go_backwards:
+                indices = indices[::-1]
 
-        results, _ = theano.scan(
-            _step,
-            sequences=[inputs, mask],
-            outputs_info=[initial_output] + initial_states,
-            non_sequences=constants,
-            go_backwards=go_backwards)
+            successive_outputs = []
+            successive_states = []
+            states = initial_states
+            for i in indices:
+                output, new_states = step_function(inputs[i], states)
+
+                if len(successive_outputs) == 0:
+                    prev_output = zeros_like(output)
+                else:
+                    prev_output = successive_outputs[-1]
+
+                output = T.switch(mask[i], output, prev_output)
+                kept_states = []
+                for state, new_state in zip(states, new_states):
+                    kept_states.append(T.switch(mask[i], new_state, state))
+                states = kept_states
+
+                successive_outputs.append(output)
+                successive_states.append(states)
+
+            outputs = T.stack(*successive_outputs)
+            states = []
+            for i in range(len(successive_states[-1])):
+                states.append(T.stack(*[states_at_step[i] for states_at_step in successive_states]))
+        else:
+            # build an all-zero tensor of shape (samples, output_dim)
+            initial_output = step_function(inputs[0], initial_states + constants)[0] * 0
+            # Theano gets confused by broadcasting patterns in the scan op
+            initial_output = T.unbroadcast(initial_output, 0, 1)
+
+            def _step(input, mask, output_tm1, *states):
+                output, new_states = step_function(input, states)
+                # output previous output if masked.
+                output = T.switch(mask, output, output_tm1)
+                return_states = []
+                for state, new_state in zip(states, new_states):
+                    return_states.append(T.switch(mask, new_state, state))
+                return [output] + return_states
+
+            results, _ = theano.scan(
+                _step,
+                sequences=[inputs, mask],
+                outputs_info=[initial_output] + initial_states,
+                non_sequences=constants,
+                go_backwards=go_backwards)
+
+            # deal with Theano API inconsistency
+            if type(results) is list:
+                outputs = results[0]
+                states = results[1:]
+            else:
+                outputs = results
+                states = []
     else:
-        def _step(input, *states):
-            output, new_states = step_function(input, states)
-            return [output] + new_states
+        if unroll:
+            indices = list(range(input_length))
+            if go_backwards:
+                indices = indices[::-1]
 
-        results, _ = theano.scan(
-            _step,
-            sequences=inputs,
-            outputs_info=[None] + initial_states,
-            non_sequences=constants,
-            go_backwards=go_backwards)
+            successive_outputs = []
+            successive_states = []
+            states = initial_states
+            for i in indices:
+                output, states = step_function(inputs[i], states)
+                successive_outputs.append(output)
+                successive_states.append(states)
+            outputs = T.stack(*successive_outputs)
+            states = []
+            for i in range(len(successive_states[-1])):
+                states.append(T.stack(*[states_at_step[i] for states_at_step in successive_states]))
 
-    # deal with Theano API inconsistency
-    if type(results) is list:
-        outputs = results[0]
-        states = results[1:]
-    else:
-        outputs = results
-        states = []
+        else:
+            def _step(input, *states):
+                output, new_states = step_function(input, states)
+                return [output] + new_states
+
+            results, _ = theano.scan(
+                _step,
+                sequences=inputs,
+                outputs_info=[None] + initial_states,
+                non_sequences=constants,
+                go_backwards=go_backwards)
+
+            # deal with Theano API inconsistency
+            if type(results) is list:
+                outputs = results[0]
+                states = results[1:]
+            else:
+                outputs = results
+                states = []
 
     outputs = T.squeeze(outputs)
     last_output = outputs[-1]

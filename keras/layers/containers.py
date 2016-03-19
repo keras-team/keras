@@ -4,7 +4,7 @@ from __future__ import print_function
 
 from collections import OrderedDict
 from .. import backend as K
-from ..layers.core import Layer, Merge, Siamese, SiameseHead
+from ..engine import Layer, Merge, merge
 from six.moves import range
 
 

@@ -1,13 +1,14 @@
 import tensorflow as tf
 import numpy as np
 import os
+import copy
 import warnings
 from .common import _FLOATX, _EPSILON
 
 # INTERNAL UTILS
 
 _SESSION = None
-_LEARNING_PHASE = tf.placeholder(dtype='uint8')  # 0 = test, 1 = train
+_LEARNING_PHASE = tf.placeholder(dtype='uint8', name='keras_learning_phase')  # 0 = test, 1 = train
 
 
 def learning_phase():
@@ -433,7 +434,8 @@ def gradients(loss, variables):
 # CONTROL FLOW
 
 def rnn(step_function, inputs, initial_states,
-        go_backwards=False, mask=None, constants=None):
+        go_backwards=False, mask=None, constants=None,
+        unroll=False, input_length=None):
     '''Iterates over the time dimension of a tensor.
 
     # Arguments
@@ -457,6 +459,9 @@ def rnn(step_function, inputs, initial_states,
         mask: binary tensor with shape (samples, time, 1),
             with a zero for every element that is masked.
         constants: a list of constant values passed at each step.
+        unroll: with TensorFlow the RNN is always unrolled, so this
+            does do anything for the time being.
+        input_length: not relevant in the TensorFlow implementation.
 
     # Returns
         A tuple (last_output, outputs, new_states).
@@ -535,32 +540,48 @@ def rnn(step_function, inputs, initial_states,
 
 
 def switch(condition, then_expression, else_expression):
-    '''Switch between two operations depending on a scalar value.
+    '''Switch between two operations depending on a scalar value (int or bool).
+    Note that both `then_expression` and `else_expression`
+    should be symbolic tensors of the *same shape*.
 
     # Arguments
         condition: scalar tensor.
         then_expression: TensorFlow operation.
         else_expression: TensorFlow operation.
     '''
-    return tf.python.control_flow_ops.cond(condition,
-                                           lambda: then_expression,
-                                           lambda: else_expression)
+    x_shape = copy.copy(then_expression.get_shape())
+    x = tf.python.control_flow_ops.cond(tf.cast(condition, 'bool'),
+                                        lambda: then_expression,
+                                        lambda: else_expression)
+    x.set_shape(x_shape)
+    return x
 
 
 def in_train_phase(x, expression):
-    x = tf.python.control_flow_ops.cond(_LEARNING_PHASE,
+    '''Inserts an expression to be only applied at training time.
+    Note that `expression` should have the *same shape* as `x`.
+    '''
+    x_shape = copy.copy(x.get_shape())
+    x = tf.python.control_flow_ops.cond(tf.cast(_LEARNING_PHASE, 'bool'),
                                         lambda: x,
                                         lambda: expression)
     x._uses_learning_phase = True
+    x.set_shape(x_shape)
     return x
 
 
 def in_test_phase(x, expression):
-    x = tf.python.control_flow_ops.cond(_LEARNING_PHASE,
+    '''Inserts an expression to be only applied at test time.
+    Note that `expression` should have the *same shape* as `x`.
+    '''
+    x_shape = copy.copy(x.get_shape())
+    x = tf.python.control_flow_ops.cond(tf.cast(_LEARNING_PHASE, 'bool'),
                                         lambda: expression,
                                         lambda: x)
     x._uses_learning_phase = True
+    x.set_shape(x_shape)
     return x
+
 
 # NN OPERATIONS
 

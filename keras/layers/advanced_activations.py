@@ -1,10 +1,10 @@
 from .. import initializations
-from ..layers.core import MaskedLayer
+from ..engine import Layer
 from .. import backend as K
 import numpy as np
 
 
-class LeakyReLU(MaskedLayer):
+class LeakyReLU(Layer):
     '''Special version of a Rectified Linear Unit
     that allows a small gradient when the unit is not active:
     `f(x) = alpha*x for x < 0`.
@@ -21,8 +21,9 @@ class LeakyReLU(MaskedLayer):
         alpha: float >= 0. Negative slope coefficient.
     '''
     def __init__(self, alpha=0.3, **kwargs):
-        super(LeakyReLU, self).__init__(**kwargs)
+        self.supports_masking = True
         self.alpha = alpha
+        super(LeakyReLU, self).__init__(**kwargs)
 
     def get_output(self, train):
         X = self.get_input(train)
@@ -35,7 +36,7 @@ class LeakyReLU(MaskedLayer):
         return dict(list(base_config.items()) + list(config.items()))
 
 
-class PReLU(MaskedLayer):
+class PReLU(Layer):
     '''
     # Input shape
         Arbitrary. Use the keyword argument `input_shape`
@@ -53,6 +54,7 @@ class PReLU(MaskedLayer):
         - [Delving Deep into Rectifiers: Surpassing Human-Level Performance on ImageNet Classification](http://arxiv.org/pdf/1502.01852v1.pdf)
     '''
     def __init__(self, init='zero', weights=None, **kwargs):
+        self.supports_masking = True
         self.init = initializations.get(init)
         self.initial_weights = weights
         super(PReLU, self).__init__(**kwargs)
@@ -80,7 +82,7 @@ class PReLU(MaskedLayer):
         return dict(list(base_config.items()) + list(config.items()))
 
 
-class ELU(MaskedLayer):
+class ELU(Layer):
     '''
     # Input shape
         Arbitrary. Use the keyword argument `input_shape`
@@ -97,8 +99,9 @@ class ELU(MaskedLayer):
         - [Fast and Accurate Deep Network Learning by Exponential Linear Units (ELUs)](http://arxiv.org/pdf/1511.07289v1.pdf)
     '''
     def __init__(self, alpha=1.0, **kwargs):
-        super(ELU, self).__init__(**kwargs)
+        self.supports_masking = True
         self.alpha = alpha
+        super(ELU, self).__init__(**kwargs)
 
     def get_output(self, train):
         X = self.get_input(train)
@@ -113,7 +116,7 @@ class ELU(MaskedLayer):
         return dict(list(base_config.items()) + list(config.items()))
 
 
-class ParametricSoftplus(MaskedLayer):
+class ParametricSoftplus(Layer):
     '''Parametric Softplus of the form: alpha * log(1 + exp(beta * X))
 
     # Input shape
@@ -134,6 +137,7 @@ class ParametricSoftplus(MaskedLayer):
     '''
     def __init__(self, alpha_init=0.2, beta_init=5.0,
                  weights=None, **kwargs):
+        self.supports_masking = True
         self.alpha_init = alpha_init
         self.beta_init = beta_init
         self.initial_weights = weights
@@ -163,7 +167,7 @@ class ParametricSoftplus(MaskedLayer):
         return dict(list(base_config.items()) + list(config.items()))
 
 
-class ThresholdedLinear(MaskedLayer):
+class ThresholdedLinear(Layer):
     '''Thresholded Linear Activation.
 
     # Input shape
@@ -181,8 +185,9 @@ class ThresholdedLinear(MaskedLayer):
         [Zero-Bias Autoencoders and the Benefits of Co-Adapting Features](http://arxiv.org/pdf/1402.3337.pdf)
     '''
     def __init__(self, theta=1.0, **kwargs):
-        super(ThresholdedLinear, self).__init__(**kwargs)
+        self.supports_masking = True
         self.theta = theta
+        super(ThresholdedLinear, self).__init__(**kwargs)
 
     def get_output(self, train):
         X = self.get_input(train)
@@ -195,7 +200,7 @@ class ThresholdedLinear(MaskedLayer):
         return dict(list(base_config.items()) + list(config.items()))
 
 
-class ThresholdedReLU(MaskedLayer):
+class ThresholdedReLU(Layer):
     '''Thresholded Rectified Activation.
 
     # Input shape
@@ -213,8 +218,9 @@ class ThresholdedReLU(MaskedLayer):
         [Zero-Bias Autoencoders and the Benefits of Co-Adapting Features](http://arxiv.org/pdf/1402.3337.pdf)
     '''
     def __init__(self, theta=1.0, **kwargs):
-        super(ThresholdedReLU, self).__init__(**kwargs)
+        self.supports_masking = True
         self.theta = theta
+        super(ThresholdedReLU, self).__init__(**kwargs)
 
     def get_output(self, train):
         X = self.get_input(train)
@@ -227,7 +233,7 @@ class ThresholdedReLU(MaskedLayer):
         return dict(list(base_config.items()) + list(config.items()))
 
 
-class SReLU(MaskedLayer):
+class SReLU(Layer):
     '''SReLU
 
     # Input shape
@@ -249,6 +255,7 @@ class SReLU(MaskedLayer):
     '''
     def __init__(self, t_left_init='zero', a_left_init='glorot_uniform',
                  t_right_init='glorot_uniform', a_right_init='one', **kwargs):
+        self.supports_masking = True
         self.t_left_init = initializations.get(t_left_init)
         self.a_left_init = initializations.get(a_left_init)
         self.t_right_init = initializations.get(t_right_init)

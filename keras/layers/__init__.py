@@ -1,4 +1,5 @@
 from __future__ import absolute_import
+from ..engine import Layer, Input, InputLayer, Merge, merge, InputSpec
 from .core import *
 from .convolutional import *
 from .recurrent import *

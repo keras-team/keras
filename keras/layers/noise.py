@@ -1,9 +1,9 @@
 from __future__ import absolute_import
-from .core import MaskedLayer
+from ..engine import Layer
 from .. import backend as K
 
 
-class GaussianNoise(MaskedLayer):
+class GaussianNoise(Layer):
     '''Apply to the input an additive zero-centred gaussian noise with
     standard deviation `sigma`. This is useful to mitigate overfitting
     (you could see it as a kind of random data augmentation).
@@ -24,8 +24,9 @@ class GaussianNoise(MaskedLayer):
         sigma: float, standard deviation of the noise distribution.
     '''
     def __init__(self, sigma, **kwargs):
-        super(GaussianNoise, self).__init__(**kwargs)
+        self.supports_masking = True
         self.sigma = sigma
+        super(GaussianNoise, self).__init__(**kwargs)
 
     def get_output(self, train=False):
         X = self.get_input(train)
@@ -43,7 +44,7 @@ class GaussianNoise(MaskedLayer):
         return dict(list(base_config.items()) + list(config.items()))
 
 
-class GaussianDropout(MaskedLayer):
+class GaussianDropout(Layer):
     '''Apply to the input an multiplicative one-centred gaussian noise
     with standard deviation `sqrt(p/(1-p))`.
 
@@ -56,8 +57,9 @@ class GaussianDropout(MaskedLayer):
         [Dropout: A Simple Way to Prevent Neural Networks from Overfitting Srivastava, Hinton, et al. 2014](http://www.cs.toronto.edu/~rsalakhu/papers/srivastava14a.pdf)
     '''
     def __init__(self, p, **kwargs):
-        super(GaussianDropout, self).__init__(**kwargs)
+        self.supports_masking = True
         self.p = p
+        super(GaussianDropout, self).__init__(**kwargs)
 
     def get_output(self, train):
         X = self.get_input(train)

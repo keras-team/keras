@@ -6,15 +6,15 @@ import numpy as np
 np.random.seed(1337)
 
 from keras import backend as K
-from keras.models import Graph, Sequential, model_from_json, model_from_yaml
-from keras.layers.core import Dense, Activation, Merge, Lambda, LambdaMerge, Siamese, add_shared_layer
-from keras.layers import containers
+from keras.models import Graph, Sequential #, model_from_json, model_from_yaml
+from keras.layers.core import Dense, Activation, Merge, Lambda
 from keras.utils import np_utils
 from keras.utils.test_utils import get_test_data
+from keras.models import model_from_json, model_from_yaml
 
 
-input_dim = 32
-nb_hidden = 16
+input_dim = 16
+nb_hidden = 8
 nb_class = 4
 batch_size = 32
 nb_epoch = 1
@@ -23,8 +23,8 @@ nb_epoch = 1
 def _get_test_data():
     np.random.seed(1234)
 
-    train_samples = 2000
-    test_samples = 500
+    train_samples = 100
+    test_samples = 50
 
     (X_train, y_train), (X_test, y_test) = get_test_data(nb_train=train_samples,
                                                          nb_test=test_samples,
@@ -60,17 +60,12 @@ def test_sequential_fit_generator():
     model.add(Activation('softmax'))
     model.compile(loss='categorical_crossentropy', optimizer='rmsprop')
 
-    model.fit_generator(data_generator(True), len(X_train), nb_epoch, show_accuracy=False)
-    model.fit_generator(data_generator(True), len(X_train), nb_epoch, show_accuracy=True)
-    model.fit_generator(data_generator(True), len(X_train), nb_epoch, show_accuracy=False, validation_data=(X_test, y_test))
-    model.fit_generator(data_generator(True), len(X_train), nb_epoch, show_accuracy=True, validation_data=(X_test, y_test))
-    model.fit_generator(data_generator(True), len(X_train), nb_epoch, show_accuracy=False,
-                        validation_data=data_generator(False), nb_val_samples=batch_size * 3)
-    model.fit_generator(data_generator(True), len(X_train), nb_epoch, show_accuracy=True,
+    model.fit_generator(data_generator(True), len(X_train), nb_epoch)
+    model.fit_generator(data_generator(True), len(X_train), nb_epoch, validation_data=(X_test, y_test))
+    model.fit_generator(data_generator(True), len(X_train), nb_epoch,
                         validation_data=data_generator(False), nb_val_samples=batch_size * 3)
 
-    loss = model.evaluate(X_train, y_train, verbose=0)
-    assert(loss < 0.9)
+    loss = model.evaluate(X_train, y_train)
 
 
 def test_sequential():
@@ -97,27 +92,20 @@ def test_sequential():
     model.add(Dense(nb_class))
     model.add(Activation('softmax'))
     model.compile(loss='categorical_crossentropy', optimizer='rmsprop')
-    model.summary()
 
-    model.fit(X_train, y_train, batch_size=batch_size, nb_epoch=nb_epoch, show_accuracy=True, verbose=1, validation_data=(X_test, y_test))
-    model.fit(X_train, y_train, batch_size=batch_size, nb_epoch=nb_epoch, show_accuracy=False, verbose=2, validation_data=(X_test, y_test))
-    model.fit(X_train, y_train, batch_size=batch_size, nb_epoch=nb_epoch, show_accuracy=True, verbose=2, validation_split=0.1)
-    model.fit(X_train, y_train, batch_size=batch_size, nb_epoch=nb_epoch, show_accuracy=False, verbose=1, validation_split=0.1)
+    model.fit(X_train, y_train, batch_size=batch_size, nb_epoch=nb_epoch, verbose=1, validation_data=(X_test, y_test))
+    model.fit(X_train, y_train, batch_size=batch_size, nb_epoch=nb_epoch, verbose=2, validation_split=0.1)
     model.fit(X_train, y_train, batch_size=batch_size, nb_epoch=nb_epoch, verbose=0)
     model.fit(X_train, y_train, batch_size=batch_size, nb_epoch=nb_epoch, verbose=1, shuffle=False)
 
     model.train_on_batch(X_train[:32], y_train[:32])
 
-    gen_loss = model.evaluate_generator(data_generator(True), 256, verbose=0)
-    assert(gen_loss < 0.8)
-
-    loss = model.evaluate(X_test, y_test, verbose=0)
-    assert(loss < 0.8)
+    gen_loss = model.evaluate_generator(data_generator(True), 256)
+    loss = model.evaluate(X_test, y_test)
 
     model.predict(X_test, verbose=0)
     model.predict_classes(X_test, verbose=0)
     model.predict_proba(X_test, verbose=0)
-    model.get_config(verbose=0)
 
     fname = 'test_sequential_temp.h5'
     model.save_weights(fname, overwrite=True)
@@ -133,13 +121,16 @@ def test_sequential():
     nloss = model.evaluate(X_test, y_test, verbose=0)
     assert(loss == nloss)
 
-    # test json serialization
-    json_data = model.to_json()
-    model = model_from_json(json_data)
+    # test serialization
+    config = model.get_config()
+    new_model = Sequential.from_config(config)
 
-    # test yaml serialization
-    yaml_data = model.to_yaml()
-    model = model_from_yaml(yaml_data)
+    model.summary()
+    json_str = model.to_json()
+    new_model = model_from_json(json_str)
+
+    yaml_str = model.to_yaml()
+    new_model = model_from_yaml(yaml_str)
 
 
 def test_nested_sequential():
@@ -157,24 +148,19 @@ def test_nested_sequential():
     model.add(middle)
     model.add(Activation('softmax'))
     model.compile(loss='categorical_crossentropy', optimizer='rmsprop')
-    model.summary()
 
-    model.fit(X_train, y_train, batch_size=batch_size, nb_epoch=nb_epoch, show_accuracy=True, verbose=1, validation_data=(X_test, y_test))
-    model.fit(X_train, y_train, batch_size=batch_size, nb_epoch=nb_epoch, show_accuracy=False, verbose=2, validation_data=(X_test, y_test))
-    model.fit(X_train, y_train, batch_size=batch_size, nb_epoch=nb_epoch, show_accuracy=True, verbose=2, validation_split=0.1)
-    model.fit(X_train, y_train, batch_size=batch_size, nb_epoch=nb_epoch, show_accuracy=False, verbose=1, validation_split=0.1)
+    model.fit(X_train, y_train, batch_size=batch_size, nb_epoch=nb_epoch, verbose=1, validation_data=(X_test, y_test))
+    model.fit(X_train, y_train, batch_size=batch_size, nb_epoch=nb_epoch, verbose=2, validation_split=0.1)
     model.fit(X_train, y_train, batch_size=batch_size, nb_epoch=nb_epoch, verbose=0)
     model.fit(X_train, y_train, batch_size=batch_size, nb_epoch=nb_epoch, verbose=1, shuffle=False)
 
     model.train_on_batch(X_train[:32], y_train[:32])
 
     loss = model.evaluate(X_test, y_test, verbose=0)
-    assert(loss < 0.8)
 
     model.predict(X_test, verbose=0)
     model.predict_classes(X_test, verbose=0)
     model.predict_proba(X_test, verbose=0)
-    model.get_config(verbose=0)
 
     fname = 'test_nested_sequential_temp.h5'
     model.save_weights(fname, overwrite=True)
@@ -197,13 +183,16 @@ def test_nested_sequential():
     nloss = model.evaluate(X_test, y_test, verbose=0)
     assert(loss == nloss)
 
-    # test json serialization
-    json_data = model.to_json()
-    model = model_from_json(json_data)
+    # test serialization
+    config = model.get_config()
+    new_model = Sequential.from_config(config)
 
-    # test yaml serialization
-    yaml_data = model.to_yaml()
-    model = model_from_yaml(yaml_data)
+    model.summary()
+    json_str = model.to_json()
+    new_model = model_from_json(json_str)
+
+    yaml_str = model.to_yaml()
+    new_model = model_from_yaml(yaml_str)
 
 
 def test_merge_sum():
@@ -222,20 +211,16 @@ def test_merge_sum():
     model.add(Activation('softmax'))
     model.compile(loss='categorical_crossentropy', optimizer='rmsprop')
 
-    model.fit([X_train, X_train], y_train, batch_size=batch_size, nb_epoch=nb_epoch, show_accuracy=True, verbose=0, validation_data=([X_test, X_test], y_test))
-    model.fit([X_train, X_train], y_train, batch_size=batch_size, nb_epoch=nb_epoch, show_accuracy=False, verbose=0, validation_data=([X_test, X_test], y_test))
-    model.fit([X_train, X_train], y_train, batch_size=batch_size, nb_epoch=nb_epoch, show_accuracy=True, verbose=0, validation_split=0.1)
-    model.fit([X_train, X_train], y_train, batch_size=batch_size, nb_epoch=nb_epoch, show_accuracy=False, verbose=0, validation_split=0.1)
+    model.fit([X_train, X_train], y_train, batch_size=batch_size, nb_epoch=nb_epoch, verbose=0, validation_data=([X_test, X_test], y_test))
+    model.fit([X_train, X_train], y_train, batch_size=batch_size, nb_epoch=nb_epoch, verbose=0, validation_split=0.1)
     model.fit([X_train, X_train], y_train, batch_size=batch_size, nb_epoch=nb_epoch, verbose=0)
     model.fit([X_train, X_train], y_train, batch_size=batch_size, nb_epoch=nb_epoch, verbose=0, shuffle=False)
 
     loss = model.evaluate([X_test, X_test], y_test, verbose=0)
-    assert(loss < 0.8)
 
     model.predict([X_test, X_test], verbose=0)
     model.predict_classes([X_test, X_test], verbose=0)
     model.predict_proba([X_test, X_test], verbose=0)
-    model.get_config(verbose=0)
 
     # test weight saving
     fname = 'test_merge_sum_temp.h5'
@@ -256,6 +241,17 @@ def test_merge_sum():
 
     nloss = model.evaluate([X_test, X_test], y_test, verbose=0)
     assert(loss == nloss)
+
+    # test serialization
+    config = model.get_config()
+    new_model = Sequential.from_config(config)
+
+    model.summary()
+    json_str = model.to_json()
+    new_model = model_from_json(json_str)
+
+    yaml_str = model.to_yaml()
+    new_model = model_from_yaml(yaml_str)
 
 
 @pytest.mark.skipif(K._BACKEND == 'tensorflow',
@@ -297,52 +293,35 @@ def test_merge_dot():
 def test_merge_concat():
     (X_train, y_train), (X_test, y_test) = _get_test_data()
 
-    left = Sequential()
-    left.add(Dense(nb_hidden, input_shape=(input_dim,)))
-    left.add(Activation('relu'))
+    left = Sequential(name='branch_1')
+    left.add(Dense(nb_hidden, input_shape=(input_dim,), name='dense_1'))
+    left.add(Activation('relu', name='relu_1'))
 
-    right = Sequential()
-    right.add(Dense(nb_hidden, input_shape=(input_dim,)))
-    right.add(Activation('relu'))
+    right = Sequential(name='branch_2')
+    right.add(Dense(nb_hidden, input_shape=(input_dim,), name='dense_2'))
+    right.add(Activation('relu', name='relu_2'))
 
-    model = Sequential()
-    model.add(Merge([left, right], mode='concat'))
-    model.add(Dense(nb_class))
-    model.add(Activation('softmax'))
+    model = Sequential(name='merged_branches')
+    model.add(Merge([left, right], mode='concat', name='merge'))
+    model.add(Dense(nb_class, name='final_dense'))
+    model.add(Activation('softmax', name='softmax'))
     model.compile(loss='categorical_crossentropy', optimizer='rmsprop')
 
-    model.fit([X_train, X_train], y_train, batch_size=batch_size, nb_epoch=nb_epoch, show_accuracy=True, verbose=0, validation_data=([X_test, X_test], y_test))
-    model.fit([X_train, X_train], y_train, batch_size=batch_size, nb_epoch=nb_epoch, show_accuracy=False, verbose=0, validation_data=([X_test, X_test], y_test))
-    model.fit([X_train, X_train], y_train, batch_size=batch_size, nb_epoch=nb_epoch, show_accuracy=True, verbose=0, validation_split=0.1)
-    model.fit([X_train, X_train], y_train, batch_size=batch_size, nb_epoch=nb_epoch, show_accuracy=False, verbose=0, validation_split=0.1)
+    model.fit([X_train, X_train], y_train, batch_size=batch_size, nb_epoch=nb_epoch, verbose=0, validation_data=([X_test, X_test], y_test))
+    model.fit([X_train, X_train], y_train, batch_size=batch_size, nb_epoch=nb_epoch, verbose=0, validation_split=0.1)
     model.fit([X_train, X_train], y_train, batch_size=batch_size, nb_epoch=nb_epoch, verbose=0)
     model.fit([X_train, X_train], y_train, batch_size=batch_size, nb_epoch=nb_epoch, verbose=0, shuffle=False)
 
     loss = model.evaluate([X_test, X_test], y_test, verbose=0)
-    assert(loss < 0.8)
 
     model.predict([X_test, X_test], verbose=0)
     model.predict_classes([X_test, X_test], verbose=0)
     model.predict_proba([X_test, X_test], verbose=0)
-    model.get_config(verbose=0)
+    model.get_config()
 
     fname = 'test_merge_concat_temp.h5'
     model.save_weights(fname, overwrite=True)
-    left = Sequential()
-    left.add(Dense(nb_hidden, input_shape=(input_dim,)))
-    left.add(Activation('relu'))
-
-    right = Sequential()
-    right.add(Dense(nb_hidden, input_shape=(input_dim,)))
-    right.add(Activation('relu'))
-
-    model = Sequential()
-    model.add(Merge([left, right], mode='concat'))
-
-    model.add(Dense(nb_class))
-    model.add(Activation('softmax'))
-
-    model.compile(loss='categorical_crossentropy', optimizer='rmsprop')
+    model.fit([X_train, X_train], y_train, batch_size=batch_size, nb_epoch=nb_epoch, verbose=0)
     model.load_weights(fname)
     os.remove(fname)
 
@@ -375,20 +354,16 @@ def test_merge_recursivity():
     model.add(Activation('softmax'))
     model.compile(loss='categorical_crossentropy', optimizer='rmsprop')
 
-    model.fit([X_train, X_train, X_train], y_train, batch_size=batch_size, nb_epoch=nb_epoch, show_accuracy=True, verbose=0, validation_data=([X_test, X_test, X_test], y_test))
-    model.fit([X_train, X_train, X_train], y_train, batch_size=batch_size, nb_epoch=nb_epoch, show_accuracy=False, verbose=0, validation_data=([X_test, X_test, X_test], y_test))
-    model.fit([X_train, X_train, X_train], y_train, batch_size=batch_size, nb_epoch=nb_epoch, show_accuracy=True, verbose=0, validation_split=0.1)
-    model.fit([X_train, X_train, X_train], y_train, batch_size=batch_size, nb_epoch=nb_epoch, show_accuracy=False, verbose=0, validation_split=0.1)
+    model.fit([X_train, X_train, X_train], y_train, batch_size=batch_size, nb_epoch=nb_epoch, verbose=0, validation_data=([X_test, X_test, X_test], y_test))
+    model.fit([X_train, X_train, X_train], y_train, batch_size=batch_size, nb_epoch=nb_epoch, verbose=0, validation_split=0.1)
     model.fit([X_train, X_train, X_train], y_train, batch_size=batch_size, nb_epoch=nb_epoch, verbose=0)
     model.fit([X_train, X_train, X_train], y_train, batch_size=batch_size, nb_epoch=nb_epoch, verbose=0, shuffle=False)
 
     loss = model.evaluate([X_test, X_test, X_test], y_test, verbose=0)
-    assert(loss < 0.8)
 
     model.predict([X_test, X_test, X_test], verbose=0)
     model.predict_classes([X_test, X_test, X_test], verbose=0)
     model.predict_proba([X_test, X_test, X_test], verbose=0)
-    model.get_config(verbose=0)
 
     fname = 'test_merge_recursivity_temp.h5'
     model.save_weights(fname, overwrite=True)
@@ -397,6 +372,17 @@ def test_merge_recursivity():
 
     nloss = model.evaluate([X_test, X_test, X_test], y_test, verbose=0)
     assert(loss == nloss)
+
+    # test serialization
+    config = model.get_config()
+    new_model = Sequential.from_config(config)
+
+    model.summary()
+    json_str = model.to_json()
+    new_model = model_from_json(json_str)
+
+    yaml_str = model.to_yaml()
+    new_model = model_from_yaml(yaml_str)
 
 
 def test_merge_overlap():
@@ -411,112 +397,39 @@ def test_merge_overlap():
     model.add(Activation('softmax'))
     model.compile(loss='categorical_crossentropy', optimizer='rmsprop')
 
-    model.fit(X_train, y_train, batch_size=batch_size, nb_epoch=nb_epoch, show_accuracy=True, verbose=1, validation_data=(X_test, y_test))
-    model.fit(X_train, y_train, batch_size=batch_size, nb_epoch=nb_epoch, show_accuracy=False, verbose=2, validation_data=(X_test, y_test))
-    model.fit(X_train, y_train, batch_size=batch_size, nb_epoch=nb_epoch, show_accuracy=True, verbose=2, validation_split=0.1)
-    model.fit(X_train, y_train, batch_size=batch_size, nb_epoch=nb_epoch, show_accuracy=False, verbose=1, validation_split=0.1)
+    model.fit(X_train, y_train, batch_size=batch_size, nb_epoch=nb_epoch, verbose=1, validation_data=(X_test, y_test))
+    model.fit(X_train, y_train, batch_size=batch_size, nb_epoch=nb_epoch, verbose=2, validation_split=0.1)
     model.fit(X_train, y_train, batch_size=batch_size, nb_epoch=nb_epoch, verbose=0)
     model.fit(X_train, y_train, batch_size=batch_size, nb_epoch=nb_epoch, verbose=1, shuffle=False)
 
     model.train_on_batch(X_train[:32], y_train[:32])
 
     loss = model.evaluate(X_test, y_test, verbose=0)
-    assert(loss < 0.9)
     model.predict(X_test, verbose=0)
     model.predict_classes(X_test, verbose=0)
     model.predict_proba(X_test, verbose=0)
-    model.get_config(verbose=0)
 
     fname = 'test_merge_overlap_temp.h5'
+    print(model.layers)
     model.save_weights(fname, overwrite=True)
+    print(model.trainable_weights)
+
     model.load_weights(fname)
     os.remove(fname)
 
     nloss = model.evaluate(X_test, y_test, verbose=0)
     assert(loss == nloss)
 
+    # test serialization
+    config = model.get_config()
+    new_model = Sequential.from_config(config)
 
-def test_lambda():
-    (X_train, y_train), (X_test, y_test) = _get_test_data()
+    model.summary()
+    json_str = model.to_json()
+    new_model = model_from_json(json_str)
 
-    def func(X):
-        s = X[0]
-        for i in range(1, len(X)):
-            s += X[i]
-        return s
-
-    def activation(X):
-        return K.softmax(X)
-
-    def output_shape(input_shapes):
-        return input_shapes[0]
-
-    left = Sequential()
-    left.add(Dense(nb_hidden, input_shape=(input_dim,)))
-    left.add(Activation('relu'))
-
-    right = Sequential()
-    right.add(Dense(nb_hidden, input_shape=(input_dim,)))
-    right.add(Activation('relu'))
-
-    model = Sequential()
-    model.add(LambdaMerge([left, right], function=func,
-                          output_shape=output_shape))
-    model.add(Dense(nb_class))
-    model.add(Lambda(activation))
-    model.compile(loss='categorical_crossentropy', optimizer='rmsprop')
-
-    model.fit([X_train, X_train], y_train, batch_size=batch_size, nb_epoch=nb_epoch, show_accuracy=True, verbose=0, validation_data=([X_test, X_test], y_test))
-    model.fit([X_train, X_train], y_train, batch_size=batch_size, nb_epoch=nb_epoch, show_accuracy=False, verbose=0, validation_data=([X_test, X_test], y_test))
-    model.fit([X_train, X_train], y_train, batch_size=batch_size, nb_epoch=nb_epoch, show_accuracy=True, verbose=0, validation_split=0.1)
-    model.fit([X_train, X_train], y_train, batch_size=batch_size, nb_epoch=nb_epoch, show_accuracy=False, verbose=0, validation_split=0.1)
-    model.fit([X_train, X_train], y_train, batch_size=batch_size, nb_epoch=nb_epoch, verbose=0)
-    model.fit([X_train, X_train], y_train, batch_size=batch_size, nb_epoch=nb_epoch, verbose=0, shuffle=False)
-
-    loss = model.evaluate([X_test, X_test], y_test, verbose=0)
-    assert(loss < 0.8)
-
-    model.predict([X_test, X_test], verbose=0)
-    model.predict_classes([X_test, X_test], verbose=0)
-    model.predict_proba([X_test, X_test], verbose=0)
-    model.get_config(verbose=0)
-
-    # test weight saving
-    fname = 'test_lambda_temp.h5'
-    model.save_weights(fname, overwrite=True)
-    left = Sequential()
-    left.add(Dense(nb_hidden, input_shape=(input_dim,)))
-    left.add(Activation('relu'))
-    right = Sequential()
-    right.add(Dense(nb_hidden, input_shape=(input_dim,)))
-    right.add(Activation('relu'))
-    model = Sequential()
-    model.add(LambdaMerge([left, right], function=func,
-                          output_shape=output_shape))
-    model.add(Dense(nb_class))
-    model.add(Lambda(activation))
-    model.load_weights(fname)
-    model.compile(loss='categorical_crossentropy', optimizer='rmsprop')
-    os.remove(fname)
-
-    nloss = model.evaluate([X_test, X_test], y_test, verbose=0)
-    assert(loss == nloss)
-
-    # test "join" mode in Lambda
-    def difference(input_dict):
-        assert(len(input_dict) == 2)
-        keys = list(input_dict.keys())
-        return input_dict[keys[0]] - input_dict[keys[1]]
-
-    g = Graph()
-    g.add_input(name='input_a', input_shape=(2,))
-    g.add_input(name='input_b', input_shape=(2,))
-    g.add_node(Lambda(difference, output_shape=(2,)),
-               inputs=['input_a', 'input_b'],
-               merge_mode='join',
-               name='d')
-    g.add_output(name='output', input='d')
-    g.compile(loss={'output': 'categorical_crossentropy'}, optimizer='rmsprop')
+    yaml_str = model.to_yaml()
+    new_model = model_from_yaml(yaml_str)
 
 
 def test_sequential_count_params():
@@ -533,134 +446,12 @@ def test_sequential_count_params():
     model.add(Dense(nb_units))
     model.add(Dense(nb_classes))
     model.add(Activation('softmax'))
+    model.build()
+
     assert(n == model.count_params())
 
     model.compile('sgd', 'binary_crossentropy')
     assert(n == model.count_params())
-
-
-def test_siamese_1():
-    (X_train, y_train), (X_test, y_test) = _get_test_data()
-    left = Sequential()
-    left.add(Dense(nb_hidden, input_shape=(input_dim,)))
-    left.add(Activation('relu'))
-
-    right = Sequential()
-    right.add(Dense(nb_hidden, input_shape=(input_dim,)))
-    right.add(Activation('relu'))
-
-    model = Sequential()
-    model.add(Siamese(Dense(nb_hidden), [left, right], merge_mode='sum'))
-    model.add(Dense(nb_class))
-    model.add(Activation('softmax'))
-    model.compile(loss='categorical_crossentropy', optimizer='rmsprop')
-
-    model.fit([X_train, X_train], y_train, batch_size=batch_size, nb_epoch=nb_epoch, show_accuracy=True, verbose=0, validation_data=([X_test, X_test], y_test))
-    model.fit([X_train, X_train], y_train, batch_size=batch_size, nb_epoch=nb_epoch, show_accuracy=False, verbose=0, validation_data=([X_test, X_test], y_test))
-    model.fit([X_train, X_train], y_train, batch_size=batch_size, nb_epoch=nb_epoch, show_accuracy=True, verbose=0, validation_split=0.1)
-    model.fit([X_train, X_train], y_train, batch_size=batch_size, nb_epoch=nb_epoch, show_accuracy=False, verbose=0, validation_split=0.1)
-    model.fit([X_train, X_train], y_train, batch_size=batch_size, nb_epoch=nb_epoch, verbose=0)
-    model.fit([X_train, X_train], y_train, batch_size=batch_size, nb_epoch=nb_epoch, verbose=0, shuffle=False)
-
-    loss = model.evaluate([X_test, X_test], y_test, verbose=0)
-    assert(loss < 0.8)
-
-    model.predict([X_test, X_test], verbose=0)
-    model.predict_classes([X_test, X_test], verbose=0)
-    model.predict_proba([X_test, X_test], verbose=0)
-    model.get_config(verbose=0)
-
-    # test weight saving
-    fname = 'test_siamese_1.h5'
-    model.save_weights(fname, overwrite=True)
-    left = Sequential()
-    left.add(Dense(nb_hidden, input_shape=(input_dim,)))
-    left.add(Activation('relu'))
-
-    right = Sequential()
-    right.add(Dense(nb_hidden, input_shape=(input_dim,)))
-    right.add(Activation('relu'))
-
-    model = Sequential()
-    model.add(Siamese(Dense(nb_hidden), [left, right], merge_mode='sum'))
-    model.add(Dense(nb_class))
-    model.add(Activation('softmax'))
-
-    model.load_weights(fname)
-    os.remove(fname)
-    model.compile(loss='categorical_crossentropy', optimizer='rmsprop')
-
-    nloss = model.evaluate([X_test, X_test], y_test, verbose=0)
-    assert(loss == nloss)
-
-
-def test_siamese_2():
-    (X_train, y_train), (X_test, y_test) = _get_test_data()
-    left = Sequential()
-    left.add(Dense(nb_hidden, input_shape=(input_dim,)))
-    left.add(Activation('relu'))
-
-    right = Sequential()
-    right.add(Dense(nb_hidden, input_shape=(input_dim,)))
-    right.add(Activation('relu'))
-
-    add_shared_layer(Dense(nb_hidden), [left, right])
-
-    left.add(Dense(nb_hidden))
-    right.add(Dense(nb_hidden))
-
-    add_shared_layer(Dense(nb_hidden), [left, right])
-
-    model = Sequential()
-    model.add(Merge([left, right], mode='sum'))
-    model.add(Dense(nb_class))
-    model.add(Activation('softmax'))
-    model.compile(loss='categorical_crossentropy', optimizer='rmsprop')
-
-    model.fit([X_train, X_train], y_train, batch_size=batch_size, nb_epoch=nb_epoch, show_accuracy=True, verbose=0, validation_data=([X_test, X_test], y_test))
-    model.fit([X_train, X_train], y_train, batch_size=batch_size, nb_epoch=nb_epoch, show_accuracy=False, verbose=0, validation_data=([X_test, X_test], y_test))
-    model.fit([X_train, X_train], y_train, batch_size=batch_size, nb_epoch=nb_epoch, show_accuracy=True, verbose=0, validation_split=0.1)
-    model.fit([X_train, X_train], y_train, batch_size=batch_size, nb_epoch=nb_epoch, show_accuracy=False, verbose=0, validation_split=0.1)
-    model.fit([X_train, X_train], y_train, batch_size=batch_size, nb_epoch=nb_epoch, verbose=0)
-    model.fit([X_train, X_train], y_train, batch_size=batch_size, nb_epoch=nb_epoch, verbose=0, shuffle=False)
-
-    loss = model.evaluate([X_test, X_test], y_test, verbose=0)
-    assert(loss < 0.8)
-
-    model.predict([X_test, X_test], verbose=0)
-    model.predict_classes([X_test, X_test], verbose=0)
-    model.predict_proba([X_test, X_test], verbose=0)
-    model.get_config(verbose=0)
-
-    # test weight saving
-    fname = 'test_siamese_2.h5'
-    model.save_weights(fname, overwrite=True)
-    left = Sequential()
-    left.add(Dense(nb_hidden, input_shape=(input_dim,)))
-    left.add(Activation('relu'))
-
-    right = Sequential()
-    right.add(Dense(nb_hidden, input_shape=(input_dim,)))
-    right.add(Activation('relu'))
-
-    add_shared_layer(Dense(nb_hidden), [left, right])
-
-    left.add(Dense(nb_hidden))
-    right.add(Dense(nb_hidden))
-
-    add_shared_layer(Dense(nb_hidden), [left, right])
-
-    model = Sequential()
-    model.add(Merge([left, right], mode='sum'))
-    model.add(Dense(nb_class))
-    model.add(Activation('softmax'))
-
-    model.load_weights(fname)
-    os.remove(fname)
-    model.compile(loss='categorical_crossentropy', optimizer='rmsprop')
-
-    nloss = model.evaluate([X_test, X_test], y_test, verbose=0)
-    assert(loss == nloss)
 
 
 if __name__ == '__main__':

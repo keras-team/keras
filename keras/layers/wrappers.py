@@ -1,8 +1,51 @@
-from .core import MaskedLayer
+from ..engine import Layer
 from .. import backend as K
 
 
-class TimeDistributed(MaskedLayer):
+class Wrapper(Layer):
+
+    def __init__(self, layer, **kwargs):
+        self.layer = layer
+        super(Wrapper, self).__init__(**kwargs)
+
+    @property
+    def trainable_weights(self):
+        return self.layer.trainable_weights
+
+    @property
+    def non_trainable_weights(self):
+        return self.layer.non_trainable_weights
+
+    @property
+    def regularizers(self):
+        return self.layer.regularizers
+
+    @property
+    def updates(self):
+        return self.layer.updates
+
+    def get_weights(self):
+        weights = self.layer.get_weights()
+        return weights
+
+    def set_weights(self, weights):
+        self.layer.set_weights(weights)
+
+    def get_config(self):
+        config = {'name': self.__class__.__name__,
+                  'layer': {'class_name': self.layer.__class__.__name__,
+                            'config': self.layer.get_config()}}
+        base_config = super(TimeDistributed, self).get_config()
+        return dict(list(base_config.items()) + list(config.items()))
+
+    @classmethod
+    def from_config(cls, config):
+        from keras.utils.layer_utils import layer_from_config
+        layer = layer_from_config(config.pop('layer'))
+        return cls(layer, **config)
+
+
+class TimeDistributed(Wrapper):
     """This wrapper allows to apply a layer to every
     temporal slice of an input.
 
@@ -36,55 +79,37 @@ class TimeDistributed(MaskedLayer):
         layer: a layer instance.
     """
 
-    def __init__(self, layer, **kwargs):
-        self.layer = layer
-        super(TimeDistributed, self).__init__(**kwargs)
-
-    def build(self):
-        input_shape = self.input_shape
+    def build(self, input_shape):
         assert len(input_shape) >= 3
-        child_input_shape = (input_shape[0],) + input_shape[2:]
-        self.layer.set_input_shape(child_input_shape)
-        self.layer.build()
-
-        trainable_weights, regularizers, constraints, updates = self.layer.get_params()
-        self.trainable_weights = trainable_weights
-        self.non_trainable_weights = self.layer.non_trainable_weights
-        self.regularizers = regularizers
-        self.constraints = constraints
-        self.updates = updates
-
-    @property
-    def output_shape(self):
-        child_output_shape = self.layer.output_shape
-        timesteps = self.input_shape[1]
-        return (child_output_shape[0], timesteps) + child_output_shape[1:]
-
-    def get_output(self, train=False):
-        X = self.get_input(train)
-        mask = self.get_input_mask(train)
-
         if K._BACKEND == 'tensorflow':
             if not self.input_shape[1]:
-                raise Exception('When using TensorFlow, you should define ' +
-                                'explicitly the number of timesteps of ' +
-                                'your sequences.\n' +
-                                'If your first layer is an Embedding, ' +
-                                'make sure to pass it an "input_length" ' +
-                                'argument. Otherwise, make sure ' +
-                                'the first layer has ' +
-                                'an "input_shape" or "batch_input_shape" ' +
+                raise Exception('When using TensorFlow, you should define '
+                                'explicitly the number of timesteps of '
+                                'your sequences.\n'
+                                'If your first layer is an Embedding, '
+                                'make sure to pass it an "input_length" '
+                                'argument. Otherwise, make sure '
+                                'the first layer has '
+                                'an "input_shape" or "batch_input_shape" '
                                 'argument, including the time axis.')
+        child_input_shape = (input_shape[0],) + input_shape[2:]
+        self.layer.build(child_input_shape)
 
+    def get_output_shape_for(self, input_shape):
+        child_input_shape = (input_shape[0], input_shape[2:])
+        child_output_shape = self.layer.get_output_shape_for(child_input_shape)
+        timesteps = input_shape[1]
+        return (child_output_shape[0], timesteps) + child_output_shape[1:]
+
+    def call(self, X, mask=None):
         if self.input_shape[0]:
             # batch size matters, use rnn-based implementation
             def step(x, states):
-                output = self.layer(x, train=train)
+                output = self.layer.call(x)
                 return output, []
 
             last_output, outputs, states = K.rnn(step, X,
-                                                 initial_states=[],
-                                                 mask=mask)
+                                                 initial_states=[])
             y = outputs
         else:
             # no batch size specified, therefore the layer will be able
@@ -99,16 +124,3 @@ class TimeDistributed(MaskedLayer):
             # (nb_samples, timesteps, ...)
             y = K.reshape(y, (-1, input_length) + self.layer.output_shape[1:])
         return y
-
-    def get_weights(self):
-        weights = self.layer.get_weights()
-        return weights
-
-    def set_weights(self, weights):
-        self.layer.set_weights(weights)
-
-    def get_config(self):
-        config = {'name': self.__class__.__name__,
-                  'layer': self.layer.get_config()}
-        base_config = super(TimeDistributed, self).get_config()
-        return dict(list(base_config.items()) + list(config.items()))

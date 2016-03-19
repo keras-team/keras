@@ -222,10 +222,10 @@ class TestBackend(object):
             return step_function
 
         th_rnn_step_fn = rnn_step_fn(input_dim, output_dim, KTH)
-        inputs = KTH.variable(input_val)
-        initial_states = [KTH.variable(init_state_val)]
-        last_output, outputs, new_states = KTH.rnn(th_rnn_step_fn, inputs,
-                                                   initial_states,
+        th_inputs = KTH.variable(input_val)
+        th_initial_states = [KTH.variable(init_state_val)]
+        last_output, outputs, new_states = KTH.rnn(th_rnn_step_fn, th_inputs,
+                                                   th_initial_states,
                                                    go_backwards=False,
                                                    mask=None)
         th_last_output = KTH.eval(last_output)
@@ -234,10 +234,10 @@ class TestBackend(object):
         th_state = KTH.eval(new_states[0])
 
         tf_rnn_step_fn = rnn_step_fn(input_dim, output_dim, KTF)
-        inputs = KTF.variable(input_val)
-        initial_states = [KTF.variable(init_state_val)]
-        last_output, outputs, new_states = KTF.rnn(tf_rnn_step_fn, inputs,
-                                                   initial_states,
+        tf_inputs = KTF.variable(input_val)
+        tf_initial_states = [KTF.variable(init_state_val)]
+        last_output, outputs, new_states = KTF.rnn(tf_rnn_step_fn, tf_inputs,
+                                                   tf_initial_states,
                                                    go_backwards=False,
                                                    mask=None)
         tf_last_output = KTF.eval(last_output)
@@ -248,6 +248,80 @@ class TestBackend(object):
         assert_allclose(tf_last_output, th_last_output, atol=1e-04)
         assert_allclose(tf_outputs, th_outputs, atol=1e-04)
         assert_allclose(tf_state, th_state, atol=1e-04)
+
+        # test unroll
+        unrolled_last_output, unrolled_outputs, unrolled_new_states = KTH.rnn(
+            th_rnn_step_fn, th_inputs,
+            th_initial_states,
+            go_backwards=False,
+            mask=None,
+            unroll=True,
+            input_length=timesteps)
+
+        unrolled_th_last_output = KTH.eval(unrolled_last_output)
+        unrolled_th_outputs = KTH.eval(unrolled_outputs)
+        assert len(unrolled_new_states) == 1
+        unrolled_th_state = KTH.eval(unrolled_new_states[0])
+        assert_allclose(th_last_output, unrolled_th_last_output, atol=1e-04)
+        assert_allclose(th_outputs, unrolled_th_outputs, atol=1e-04)
+        assert_allclose(th_state, unrolled_th_state, atol=1e-04)
+
+        # test unroll with backwards = True
+        bwd_last_output, bwd_outputs, bwd_new_states = KTH.rnn(
+            th_rnn_step_fn, th_inputs,
+            th_initial_states,
+            go_backwards=True,
+            mask=None)
+        bwd_th_last_output = KTH.eval(bwd_last_output)
+        bwd_th_outputs = KTH.eval(bwd_outputs)
+        assert len(bwd_new_states) == 1
+        bwd_th_state = KTH.eval(bwd_new_states[0])
+
+        bwd_unrolled_last_output, bwd_unrolled_outputs, bwd_unrolled_new_states = KTH.rnn(
+            th_rnn_step_fn, th_inputs,
+            th_initial_states,
+            go_backwards=True,
+            mask=None,
+            unroll=True,
+            input_length=timesteps)
+
+        bwd_unrolled_th_last_output = KTH.eval(bwd_unrolled_last_output)
+        bwd_unrolled_th_outputs = KTH.eval(bwd_unrolled_outputs)
+        assert len(bwd_unrolled_new_states) == 1
+        bwd_unrolled_th_state = KTH.eval(bwd_unrolled_new_states[0])
+        assert_allclose(bwd_th_last_output, bwd_unrolled_th_last_output, atol=1e-04)
+        assert_allclose(bwd_th_outputs, bwd_unrolled_th_outputs, atol=1e-04)
+        assert_allclose(bwd_th_state, bwd_unrolled_th_state, atol=1e-04)
+
+        # test unroll with masking
+        np_mask = np.random.randint(2, size=(32, timesteps))
+        th_mask = KTH.variable(np_mask)
+
+        masked_last_output, masked_outputs, masked_new_states = KTH.rnn(
+            th_rnn_step_fn, th_inputs,
+            th_initial_states,
+            go_backwards=False,
+            mask=th_mask)
+        masked_th_last_output = KTH.eval(masked_last_output)
+        masked_th_outputs = KTH.eval(masked_outputs)
+        assert len(masked_new_states) == 1
+        masked_th_state = KTH.eval(masked_new_states[0])
+
+        unrolled_masked_last_output, unrolled_masked_outputs, unrolled_masked_new_states = KTH.rnn(
+            th_rnn_step_fn, th_inputs,
+            th_initial_states,
+            go_backwards=False,
+            mask=th_mask,
+            unroll=True,
+            input_length=timesteps)
+        unrolled_masked_th_last_output = KTH.eval(unrolled_masked_last_output)
+        unrolled_masked_th_outputs = KTH.eval(unrolled_masked_outputs)
+        assert len(unrolled_masked_new_states) == 1
+        unrolled_masked_th_state = KTH.eval(unrolled_masked_new_states[0])
+
+        assert_allclose(unrolled_masked_th_last_output, masked_th_last_output, atol=1e-04)
+        assert_allclose(unrolled_masked_th_outputs, masked_th_outputs, atol=1e-04)
+        assert_allclose(unrolled_masked_th_state, masked_th_state, atol=1e-04)
 
     def test_switch(self):
         val = np.random.random()
