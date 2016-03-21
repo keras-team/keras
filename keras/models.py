@@ -181,6 +181,7 @@ def model_from_config(config, custom_objects={}, reset=False):
     elif model_name == 'Sequential':
         model.__class__ = Sequential
         model.name = model_name
+        model.name = model_name
         if reset:
             for layer in model.layers:
                 layer.build()
