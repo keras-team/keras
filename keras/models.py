@@ -468,7 +468,7 @@ class Model(object):
         model_summary(self)
 
     def reset(self):
-        ''' Reset all weights and biases to random values, then recompiles
+        ''' Reset all weights and biases to random values
 
         Returns: Model
         '''
