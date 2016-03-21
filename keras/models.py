@@ -1161,7 +1161,7 @@ class Sequential(Model, containers.Sequential):
 
                 # epoch finished
                 if samples_seen > samples_per_epoch:
-                    warnings.warn('Epoch contained duplicated samples which might affect learning results. Set "samples_per_epoch" correctly to avoid this warning.')
+                    warnings.warn('Epoch contained too many samples which might affect learning results. Set "samples_per_epoch" correctly to avoid this warning.')
                 if samples_seen >= samples_per_epoch and do_validation:
                     if val_gen:
                         val_outs = self.evaluate_generator(validation_data,
