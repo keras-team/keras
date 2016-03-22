@@ -111,24 +111,24 @@ def standardize_weights(y, sample_weight=None, class_weight=None,
         if sample_weight_mode != 'temporal':
             raise Exception('"sample_weight_mode '
                             'should be None or "temporal".')
-        if y.ndim < 3:
+        if len(y.shape) < 3:
             raise Exception('Timestep-wise sample weighting (use of '
                             'sample_weight_mode="temporal") is restricted to '
                             'outputs that are at least 3D, i.e. that have '
                             'a time dimension.')
-        if sample_weight is not None and sample_weight.ndim != 2:
+        if sample_weight is not None and len(sample_weight.shape) != 2:
             raise Exception('In order to use timestep-wise sample weighting, '
                             'you should pass a 2D sample_weight array.')
     else:
-        if sample_weight is not None and sample_weight.ndim != 1:
+        if sample_weight is not None and len(sample_weight.shape) != 1:
             raise Exception('In order to use timestep-wise sample weights, '
                             'you should specify sample_weight_mode="temporal" '
                             'in compile(). If you just mean to use '
                             'sample-wise weights, make sure your '
                             'sample_weight array is 1D.')
     if sample_weight is not None:
-        assert sample_weight.ndim <= y.ndim
-        assert y.shape[:sample_weight.ndim] == sample_weight.shape
+        assert len(sample_weight.shape) <= len(y.shape)
+        assert y.shape[:len(sample_weight.shape)] == sample_weight.shape
         return sample_weight
     elif isinstance(class_weight, dict):
         if len(y.shape) > 2:
