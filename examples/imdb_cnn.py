@@ -2,7 +2,7 @@
 
 Run on GPU: THEANO_FLAGS=mode=FAST_RUN,device=gpu,floatX=float32 python imdb_cnn.py
 
-Get to 0.835 test accuracy after 2 epochs. 100s/epoch on K520 GPU.
+Get to 0.835 test accuracy after 2 epochs. 100s/epoch on K40c GPU.
 '''
 
 from __future__ import print_function
