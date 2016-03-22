@@ -1232,6 +1232,8 @@ class Graph(Model, containers.Graph):
         weights = []
         train_loss = 0.
         test_loss = 0.
+
+        assert len(self.output_order) > 0, 'There must be at least one output layer in a graph model.'
         for output_name in self.output_order:
             loss_fn = loss[output_name]
             output = self.outputs[output_name]
