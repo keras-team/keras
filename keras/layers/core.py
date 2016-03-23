@@ -423,9 +423,6 @@ class Merge(Layer):
         dot_axes: axis or axes to use in `dot` mode
             (see [the Numpy documentation](http://docs.scipy.org/doc/numpy-1.10.1/reference/generated/numpy.tensordot.html) for more details).
 
-    # TensorFlow warning
-        `dot` mode only works with Theano for the time being.
-
     # Examples
 
     ```python
@@ -464,9 +461,6 @@ class Merge(Layer):
                                 'be merged using ' + mode + ' mode. ' +
                                 'Layer shapes: %s' % ([l.output_shape for l in layers]))
         if mode in {'cos', 'dot'}:
-            if K._BACKEND != 'theano':
-                raise Exception('"' + mode + '" merge mode will only work with Theano.')
-
             if len(layers) > 2:
                 raise Exception(mode + ' merge takes exactly 2 layers')
             shape1 = layers[0].output_shape
@@ -583,23 +577,19 @@ class Merge(Layer):
                 s *= self.layers[i].get_output(train)
             return s
         elif self.mode == 'dot':
-            if K._BACKEND != 'theano':
-                raise Exception('"dot" merge mode will only work with Theano.')
-            from theano import tensor as T
+            print "DEBUG: ", self.dot_axes
             l1 = self.layers[0].get_output(train)
             l2 = self.layers[1].get_output(train)
-            output = T.batched_tensordot(l1, l2, self.dot_axes)
+            output = K.tensordot(l1, l2, self.dot_axes)  # T.batched_tensordot(l1, l2, self.dot_axes)
             output_shape = list(self.output_shape)
-            output_shape[0] = l1.shape[0]
-            output = output.reshape(tuple(output_shape))
+            output_shape[0] = -1
+            output = K.reshape(output, (tuple(output_shape)))
             return output
         elif self.mode == 'cos':
-            if K._BACKEND != 'theano':
-                raise Exception('"cos" merge mode will only work with Theano.')
-            from theano import tensor as T
             l1 = self.layers[0].get_output(train)
             l2 = self.layers[1].get_output(train)
-            output = T.batched_tensordot(l1, l2, self.dot_axes) / T.sqrt(T.batched_tensordot(l1, l1, self.dot_axes) * T.batched_tensordot(l2, l2, self.dot_axes))
+            output = K.tensordot(l1, l2, self.dot_axes) / K.sqrt(
+                K.tensordot(l1, l1, self.dot_axes) * K.tensordot(l2, l2, self.dot_axes))
             output = output.dimshuffle((0, 'x'))
             return output
         else:

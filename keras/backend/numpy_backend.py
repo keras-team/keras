@@ -1,111 +1,77 @@
 import tensorflow as tf
 import numpy as np
-import os
 import warnings
 from .common import _FLOATX, _EPSILON
-
-# INTERNAL UTILS
-
-_SESSION = None
-
-
-def get_session():
-    global _SESSION
-    if _SESSION is None:
-        if not os.environ.get('OMP_NUM_THREADS'):
-            _SESSION = tf.Session(config=tf.ConfigProto(allow_soft_placement=True))
-        else:
-            nb_thread = int(os.environ.get('OMP_NUM_THREADS'))
-            _SESSION = tf.Session(config=tf.ConfigProto(intra_op_parallelism_threads=nb_thread, allow_soft_placement=True))
-    return _SESSION
-
-
-def set_session(session):
-    global _SESSION
-    _SESSION = session
+from scipy.misc import imresize
 
 
 # VARIABLE MANIPULATION
 
-def variable(value, dtype=_FLOATX, name=None):
-    v = tf.Variable(np.asarray(value, dtype=dtype), name=name)
-    get_session().run(v.initializer)
+def variable(value, dtype=_FLOATX):
+    v = np.asarray(value, dtype=dtype)
     return v
 
 
-def placeholder(shape=None, ndim=None, dtype=_FLOATX, name=None):
+def placeholder(shape=None, ndim=None, dtype=_FLOATX):
     if not shape:
         if ndim:
             shape = [None for _ in range(ndim)]
-    return tf.placeholder(dtype, shape=shape, name=name)
+    return np.empty(shape, dtype=dtype)
 
 
 def shape(x):
-    # symbolic shape
-    return tf.shape(x)
+    return np.shape(x)
 
 
 def int_shape(x):
-    shape = x.get_shape()
+    shape = x.shape
     return tuple([i.__int__() for i in shape])
 
 
 def ndim(x):
-    return len(x.get_shape())
+    return len(x.shape)
 
 
 def eval(x):
-    '''Run a graph.
+    '''Do nothing
     '''
-    return x.eval(session=get_session())
+    return x
 
 
 def zeros(shape, dtype=_FLOATX, name=None):
-    return variable(np.zeros(shape), dtype, name)
+    return np.zeros(shape).astype(dtype)
 
 
-def ones(shape, dtype=_FLOATX, name=None):
-    return variable(np.ones(shape), dtype, name)
+def ones(shape, dtype=_FLOATX):
+    return np.ones(shape).astype(dtype)
 
 
-def ones_like(x, name=None):
-    return tf.ones_like(x, name=name)
+def ones_like(x):
+    return np.ones_like(x)
 
 
-def zeros_like(x, name=None):
-    return tf.zeros_like(x, name=name)
+def zeros_like(x):
+    return np.zeros_like(x)
 
 
 def count_params(x):
     '''Return number of scalars in a tensor.
     '''
-    shape = x.get_shape()
-    return np.prod([shape[i]._value for i in range(len(shape))])
+    return np.prod(x.shape)
 
 
 def cast(x, dtype):
-    return tf.cast(x, dtype)
+    return np.cast(x, dtype)
 
 
 # LINEAR ALGEBRA
 
 def dot(x, y):
-    return tf.matmul(x, y)
-
-
-def tensordot(x, y, axes=None):
-    if axes:
-        axes = [a[0] for a in axes]
-        adj_x = None if axes[0] == 2 else True
-        adj_y = True if axes[1] == 2 else None
-    else:
-        adj_x = None
-        adj_y = None
-    return tf.batch_matmul(x, y, adj_x=adj_x, adj_y=adj_y)
+    return np.dot(x, y)
 
 
 def transpose(x):
-    return tf.transpose(x)
+    return np.transpose(x)
 
 
 def gather(reference, indices):
@@ -116,8 +82,10 @@ def gather(reference, indices):
 
     # Returns
         a tensor of same type as `reference`.
+
+    TODO raise informative error if indices are not int
     '''
-    return tf.gather(reference, indices)
+    return reference[indices]
 
 
 # ELEMENT-WISE OPERATIONS
@@ -137,44 +105,40 @@ def normalize_axis(axis, ndim):
 
 def max(x, axis=None, keepdims=False):
     axis = normalize_axis(axis, ndim(x))
-    return tf.reduce_max(x, reduction_indices=axis, keep_dims=keepdims)
+    return np.max(x, axis=axis, keepdims=keepdims)
 
 
 def min(x, axis=None, keepdims=False):
     axis = normalize_axis(axis, ndim(x))
-    return tf.reduce_min(x, reduction_indices=axis, keep_dims=keepdims)
+    return np.min(x, axis=axis, keepdims=keepdims)
 
 
 def sum(x, axis=None, keepdims=False):
     '''Sum of the values in a tensor, alongside the specified axis.
     '''
     axis = normalize_axis(axis, ndim(x))
-    return tf.reduce_sum(x, reduction_indices=axis, keep_dims=keepdims)
+    return np.sum(x, axis=axis, keepdims=keepdims)
 
 
 def prod(x, axis=None, keepdims=False):
     '''Multiply the values in a tensor, alongside the specified axis.
     '''
     axis = normalize_axis(axis, ndim(x))
-    return tf.reduce_prod(x, reduction_indices=axis, keep_dims=keepdims)
+    return np.prod(x, axis=axis, keepdims=keepdims)
 
 
 def std(x, axis=None, keepdims=False):
     axis = normalize_axis(axis, ndim(x))
     if x.dtype.base_dtype == tf.bool:
         x = tf.cast(x, _FLOATX)
-    m = tf.reduce_mean(x, reduction_indices=axis, keep_dims=True)
-    devs_squared = tf.square(x - m)
-    return tf.sqrt(tf.reduce_mean(devs_squared,
-                                  reduction_indices=axis,
-                                  keep_dims=keepdims))
+    return np.std(x, axis=axis, keepdims=keepdims)
 
 
 def mean(x, axis=None, keepdims=False):
     axis = normalize_axis(axis, ndim(x))
     if x.dtype.base_dtype == tf.bool:
         x = tf.cast(x, _FLOATX)
-    return tf.reduce_mean(x, reduction_indices=axis, keep_dims=keepdims)
+    return np.mean(x, axis=axis, keepdims=keepdims)
 
 
 def any(x, axis=None, keepdims=False):
@@ -184,88 +148,79 @@ def any(x, axis=None, keepdims=False):
     '''
     axis = normalize_axis(axis, ndim(x))
     x = tf.cast(x, tf.bool)
-    x = tf.reduce_any(x, reduction_indices=axis, keep_dims=keepdims)
-    return tf.cast(x, tf.uint8)
+    x = np.any(x, axis=axis, keepdims=keepdims)
+    return np.cast(x, np.uint8)
 
 
 def argmax(x, axis=-1):
-    if axis < 0:
-        axis = axis % len(x.get_shape())
-    return tf.argmax(x, axis)
+    return np.argmax(x, axis)
 
 
 def argmin(x, axis=-1):
-    if axis < 0:
-        axis = axis % len(x.get_shape())
-    return tf.argmin(x, axis)
+    return np.argmin(x, axis)
 
 
 def square(x):
-    return tf.square(x)
+    return x**2
 
 
 def abs(x):
-    return tf.abs(x)
+    return np.absolute(x)
 
 
 def sqrt(x):
-    x = tf.clip_by_value(x, tf.cast(0., dtype=_FLOATX),
-                         tf.cast(np.inf, dtype=_FLOATX))
-    return tf.sqrt(x)
+    x = np.clip(x, np.cast(0., dtype=_FLOATX),
+                np.cast(np.inf, dtype=_FLOATX))
+    return np.sqrt(x)
 
 
 def exp(x):
-    return tf.exp(x)
+    return np.exp(x)
 
 
 def log(x):
-    return tf.log(x)
+    return np.log(x)
 
 
 def round(x):
-    return tf.round(x)
+    return np.round(x)
 
 
 def pow(x, a):
-    return tf.pow(x, a)
+    return np.pow(x, a)
 
 
 def clip(x, min_value, max_value):
     if max_value < min_value:
         max_value = min_value
-    return tf.clip_by_value(x, tf.cast(min_value, dtype=_FLOATX),
-                            tf.cast(max_value, dtype=_FLOATX))
+    return np.clip(x, np.cast(min_value, dtype=_FLOATX),
+                   np.cast(max_value, dtype=_FLOATX))
 
 
 def equal(x, y):
-    return tf.equal(x, y)
+    return np.equal(x, y)
 
 
 def not_equal(x, y):
-    return tf.not_equal(x, y)
+    return np.not_equal(x, y)
 
 
 def maximum(x, y):
-    return tf.maximum(x, y)
+    return np.maximum(x, y)
 
 
 def minimum(x, y):
-    return tf.minimum(x, y)
+    return np.minimum(x, y)
 
 
 # SHAPE OPERATIONS
 
 def concatenate(tensors, axis=-1):
-    if axis < 0:
-        if len(tensors[0].get_shape()):
-            axis = axis % len(tensors[0].get_shape())
-        else:
-            axis = 0
-    return tf.concat(axis, tensors)
+    return np.concatenate(tensors, axis=axis)
 
 
 def reshape(x, shape):
-    return tf.reshape(x, shape)
+    return np.reshape(x, shape)
 
 
 def permute_dimensions(x, pattern):
@@ -275,7 +230,7 @@ def permute_dimensions(x, pattern):
         pattern: should be a tuple or list of
             dimension indices, e.g. [0, 2, 1].
     '''
-    return tf.transpose(x, perm=pattern)
+    return np.transpose(x, pattern)
 
 
 def resize_images(X, height_factor, width_factor, dim_ordering):
@@ -286,31 +241,26 @@ def resize_images(X, height_factor, width_factor, dim_ordering):
     positive integers.
     '''
     if dim_ordering == 'th':
-        new_shape = tf.shape(X)[2:]
-        new_shape *= tf.constant(np.array([height_factor, width_factor]).astype('int32'))
+        new_shape = np.shape(X)[2:]
+        new_shape *= np.constant(np.array([height_factor, width_factor]).astype('int32'))
         X = permute_dimensions(X, [0, 2, 3, 1])
-        X = tf.image.resize_nearest_neighbor(X, new_shape)
+        X = imresize(X, new_shape)
         return permute_dimensions(X, [0, 3, 1, 2])
     elif dim_ordering == 'tf':
-        new_shape = tf.shape(X)[1:3]
-        new_shape *= tf.constant(np.array([height_factor, width_factor]).astype('int32'))
-        return tf.image.resize_nearest_neighbor(X, new_shape)
+        new_shape = np.shape(X)[1:3]
+        new_shape *= np.constant(np.array([height_factor, width_factor]).astype('int32'))
+        return np.image.resize_nearest_neighbor(X, new_shape)
     else:
         raise Exception('Invalid dim_ordering: ' + dim_ordering)
 
 
 def repeat_elements(x, rep, axis):
-    '''Repeats the elements of a tensor along an axis, like np.repeat
+    '''Repeats the elements of a tensor along an axis
 
     If x has shape (s1, s2, s3) and axis=1, the output
     will have shape (s1, s2 * rep, s3)
     '''
-    x_shape = x.get_shape().as_list()
-    # slices along the repeat axis
-    splits = tf.split(axis, x_shape[axis], x)
-    # repeat each slice the given number of reps
-    x_rep = [s for s in splits for i in range(rep)]
-    return tf.concat(axis, x_rep)
+    return np.repeat(x, rep, axis)
 
 
 def repeat(x, n):
@@ -321,36 +271,36 @@ def repeat(x, n):
     '''
     assert ndim(x) == 2
     tensors = [x] * n
-    stacked = tf.pack(tensors)
-    return tf.transpose(stacked, (1, 0, 2))
+    stacked = np.concatenate(tensors)
+    return np.transpose(stacked, (1, 0, 2))
 
 
 def tile(x, n):
-    return tf.tile(x, n)
+    return np.tile(x, n)
 
 
 def flatten(x):
-    return tf.reshape(x, [-1])
+    return np.reshape(x, [-1])
 
 
 def batch_flatten(x):
     '''Turn a n-D tensor into a 2D tensor where
     the first dimension is conserved.
     '''
-    x = tf.reshape(x, [-1, np.prod(x.get_shape()[1:].as_list())])
+    x = np.reshape(x, [-1, np.prod(x.shape[1:].as_list())])
     return x
 
 
 def expand_dims(x, dim=-1):
     '''Add a 1-sized dimension at index "dim".
     '''
-    return tf.expand_dims(x, dim)
+    return np.expand_dims(x, dim)
 
 
 def squeeze(x, axis):
     '''Remove a 1-dimension from the tensor at index "axis".
     '''
-    return tf.squeeze(x, [axis])
+    return np.squeeze(x, [axis])
 
 
 def temporal_padding(x, padding=1):
@@ -358,7 +308,7 @@ def temporal_padding(x, padding=1):
     with "padding" zeros left and right.
     '''
     pattern = [[0, 0], [padding, padding], [0, 0]]
-    return tf.pad(x, pattern)
+    return np.pad(x, pattern)
 
 
 def spatial_2d_padding(x, padding=(1, 1), dim_ordering='th'):
@@ -372,24 +322,25 @@ def spatial_2d_padding(x, padding=(1, 1), dim_ordering='th'):
         pattern = [[0, 0],
                    [padding[0], padding[0]], [padding[1], padding[1]],
                    [0, 0]]
-    return tf.pad(x, pattern)
+    return np.pad(x, pattern)
 
 
 def pack(x):
-    return tf.pack(x)
+    return np.concatenate(x)
 
 
 # VALUE MANIPULATION
 
 
 def get_value(x):
-    '''Technically the same as eval() for TF.
+    '''Same eval
     '''
-    return x.eval(session=get_session())
+    return x
 
 
 def set_value(x, value):
-    tf.assign(x, np.asarray(value)).op.run(session=get_session())
+    x = np.sort(x)
+    x = np.asarray(value)
 
 
 # GRAPH MANIPULATION
