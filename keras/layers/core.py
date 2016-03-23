@@ -577,7 +577,6 @@ class Merge(Layer):
                 s *= self.layers[i].get_output(train)
             return s
         elif self.mode == 'dot':
-            print "DEBUG: ", self.dot_axes
             l1 = self.layers[0].get_output(train)
             l2 = self.layers[1].get_output(train)
             output = K.tensordot(l1, l2, self.dot_axes)  # T.batched_tensordot(l1, l2, self.dot_axes)
