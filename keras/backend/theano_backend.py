@@ -111,6 +111,13 @@ def dot(x, y):
     return T.dot(x, y)
 
 
+def tensordot(x, y, axes=None):
+    if axes is None:
+        # behaves like tf.batch_matmul as default
+        axes = [(x.ndim,), (y.ndim-1,)]
+    return T.batched_tensordot(x, y, axes=axes)
+
+
 def transpose(x):
     return T.transpose(x)
 
