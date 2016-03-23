@@ -629,7 +629,9 @@ def l2_normalize(x, axis):
 
 def conv2d(x, kernel, strides=(1, 1), border_mode='valid', dim_ordering='th',
            image_shape=None, filter_shape=None):
-
+    '''
+    border_mode: string, "same" or "valid".
+    '''
     if dim_ordering not in {'th', 'tf'}:
         raise Exception('Unknown dim_ordering ' + str(dim_ordering))
 
@@ -659,17 +661,30 @@ def conv2d(x, kernel, strides=(1, 1), border_mode='valid', dim_ordering='th',
     else:
         raise Exception('Border mode not supported: ' + str(border_mode))
 
+    # Theano might not accept like longs
+    def int_or_none(value):
+        try: return int(value)
+        except TypeError: return None
+
+    if image_shape is not None:
+        image_shape = tuple(int_or_none(v) for v in image_shape)
+
+    if filter_shape is not None:
+        filter_shape = tuple(int_or_none(v) for v in filter_shape)
+
     conv_out = T.nnet.conv2d(x, kernel,
                              border_mode=th_border_mode,
                              subsample=strides,
                              input_shape=image_shape,
                              filter_shape=filter_shape)
-    
+
     if border_mode == 'same':
+        slices = [slice(None)] * 4
         if np_kernel.shape[2] % 2 == 0:
-            conv_out = conv_out[:,:,:-1,:]
+            slices[2] = slice((x.shape[2]+strides[0]-1) // strides[0])
         if np_kernel.shape[3] % 2 == 0:
-            conv_out = conv_out[:,:,:,:-1]
+            slices[3] = slice((x.shape[3]+strides[1]-1) // strides[1])
+        conv_out = conv_out[slices]
 
     if dim_ordering == 'tf':
         conv_out = conv_out.dimshuffle((0, 2, 3, 1))
