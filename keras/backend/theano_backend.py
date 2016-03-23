@@ -681,12 +681,10 @@ def conv2d(x, kernel, strides=(1, 1), border_mode='valid', dim_ordering='th',
                              filter_shape=filter_shape)
 
     if border_mode == 'same':
-        slices = [slice(None)] * 4
         if np_kernel.shape[2] % 2 == 0:
-            slices[2] = slice((x.shape[2]+strides[0]-1) // strides[0])
+            conv_out = conv_out[:,:,:(x.shape[2]+strides[0]-1) // strides[0],:]
         if np_kernel.shape[3] % 2 == 0:
-            slices[3] = slice((x.shape[3]+strides[1]-1) // strides[1])
-        conv_out = conv_out[slices]
+            conv_out = conv_out[:,:,:,:(x.shape[3]+strides[1]-1) // strides[1]]
 
     if dim_ordering == 'tf':
         conv_out = conv_out.dimshuffle((0, 2, 3, 1))
