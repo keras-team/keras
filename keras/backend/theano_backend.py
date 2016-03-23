@@ -663,8 +663,10 @@ def conv2d(x, kernel, strides=(1, 1), border_mode='valid', dim_ordering='th',
 
     # Theano might not accept like longs
     def int_or_none(value):
-        try: return int(value)
-        except TypeError: return None
+        try:
+            return int(value)
+        except TypeError:
+            return None
 
     if image_shape is not None:
         image_shape = tuple(int_or_none(v) for v in image_shape)
