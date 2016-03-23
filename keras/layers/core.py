@@ -579,7 +579,7 @@ class Merge(Layer):
         elif self.mode == 'dot':
             l1 = self.layers[0].get_output(train)
             l2 = self.layers[1].get_output(train)
-            output = K.tensordot(l1, l2, self.dot_axes)  # T.batched_tensordot(l1, l2, self.dot_axes)
+            output = K.batch_dot(l1, l2, self.dot_axes)
             output_shape = list(self.output_shape)
             output_shape[0] = -1
             output = K.reshape(output, (tuple(output_shape)))
@@ -587,8 +587,8 @@ class Merge(Layer):
         elif self.mode == 'cos':
             l1 = self.layers[0].get_output(train)
             l2 = self.layers[1].get_output(train)
-            output = K.tensordot(l1, l2, self.dot_axes) / K.sqrt(
-                K.tensordot(l1, l1, self.dot_axes) * K.tensordot(l2, l2, self.dot_axes))
+            output = K.batch_dot(l1, l2, self.dot_axes) / K.sqrt(
+                K.batch_dot(l1, l1, self.dot_axes) * K.batch_dot(l2, l2, self.dot_axes))
             output = output.dimshuffle((0, 'x'))
             return output
         else:
@@ -1800,24 +1800,17 @@ class Siamese(Layer):
         return s
 
     def get_output_dot(self, train=False):
-        if K._BACKEND != 'theano':
-            raise Exception('"dot" merge mode will only work with Theano.')
-        from theano import tensor as T
         l1 = self.get_output_at(0, train)
         l2 = self.get_output_at(1, train)
-        output = T.batched_tensordot(l1, l2, self.dot_axes)
-        output = output.dimshuffle((0, 'x'))
+        output = K.batch_dot(l1, l2, self.dot_axes)
+        output = K.expand_dims(output, -1)
         return output
 
     def get_output_cos(self, train=False):
-        if K._BACKEND != 'theano':
-            raise Exception('"cos" merge mode will only work with Theano.')
-        import theano
-        from theano import tensor as T
         l1 = self.get_output_at(0, train)
         l2 = self.get_output_at(1, train)
-        output = T.batched_tensordot(l1, l2, self.dot_axes) / T.sqrt(T.batched_tensordot(l1, l1, self.dot_axes) * T.batched_tensordot(l2, l2, self.dot_axes))
-        output = output.dimshuffle((0, 'x'))
+        output = K.batch_dot(l1, l2, self.dot_axes) / K.sqrt(K.batch_dot(l1, l1, self.dot_axes) * K.batch_dot(l2, l2, self.dot_axes))
+        output = K.expand_dims(output, -1)
         return output
 
     def get_output(self, train=False):
