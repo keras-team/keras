@@ -12,21 +12,6 @@ from .common import _FLOATX, _EPSILON
 theano.config.floatX = _FLOATX
 
 
-def _on_gpu():
-    '''Return whether the session is set to
-    run on GPU or not (i.e. on CPU).
-    '''
-    return theano.config.device[:3] == 'gpu' or theano.sandbox.cuda.cuda_enabled
-
-
-if _on_gpu():
-    '''Import cuDNN only if running on GPU:
-    not having Cuda installed should not
-    prevent from running the present code.
-    '''
-    from theano.sandbox.cuda import dnn
-
-
 # VARIABLE MANIPULATION
 
 def variable(value, dtype=_FLOATX, name=None):
@@ -644,10 +629,7 @@ def l2_normalize(x, axis):
 
 def conv2d(x, kernel, strides=(1, 1), border_mode='valid', dim_ordering='th',
            image_shape=None, filter_shape=None):
-    '''
-    Run on cuDNN if available.
-    border_mode: string, "same" or "valid".
-    '''
+
     if dim_ordering not in {'th', 'tf'}:
         raise Exception('Unknown dim_ordering ' + str(dim_ordering))
 
@@ -667,52 +649,28 @@ def conv2d(x, kernel, strides=(1, 1), border_mode='valid', dim_ordering='th',
             filter_shape = (filter_shape[3], filter_shape[2],
                             filter_shape[0], filter_shape[1])
 
-    if _on_gpu() and dnn.dnn_available():
-        if border_mode == 'same':
-            np_kernel = kernel.eval()
-            assert strides[0] <= np_kernel.shape[2], 'strides should be smaller than the convolution window.'
-            assert strides[1] <= np_kernel.shape[3], 'strides should be smaller than the convolution window.'
-            conv_out = dnn.dnn_conv(img=x,
-                                    kerns=kernel,
-                                    border_mode='full')
-            shift_x = (np_kernel.shape[2] - strides[0]) // 2
-            shift_y = (np_kernel.shape[3] - strides[1]) // 2
-            expected_width = (x.shape[2] + strides[0] - 1) // strides[0]
-            expected_height = (x.shape[3] + strides[1] - 1) // strides[1]
-
-            conv_out = conv_out[:, :,
-                                shift_x: shift_x + expected_width,
-                                shift_y: shift_y + expected_height]
-        else:
-            conv_out = dnn.dnn_conv(img=x,
-                                    kerns=kernel,
-                                    border_mode=border_mode,
-                                    subsample=strides)
+    if border_mode == 'same':
+        th_border_mode = 'half'
+        np_kernel = kernel.eval()
+        assert strides[0] <= np_kernel.shape[2], 'strides should be smaller than the convolution window.'
+        assert strides[1] <= np_kernel.shape[3], 'strides should be smaller than the convolution window.'
+    elif border_mode == 'valid':
+        th_border_mode = 'valid'
     else:
-        if border_mode == 'same':
-            th_border_mode = 'full'
-            np_kernel = kernel.eval()
-            assert strides[0] <= np_kernel.shape[2], 'strides should be smaller than the convolution window.'
-            assert strides[1] <= np_kernel.shape[3], 'strides should be smaller than the convolution window.'
-        elif border_mode == 'valid':
-            th_border_mode = 'valid'
-        else:
-            raise Exception('Border mode not supported: ' + str(border_mode))
+        raise Exception('Border mode not supported: ' + str(border_mode))
 
-        conv_out = T.nnet.conv.conv2d(x, kernel,
-                                      border_mode=th_border_mode,
-                                      subsample=strides,
-                                      image_shape=image_shape,
-                                      filter_shape=filter_shape)
-        if border_mode == 'same':
-            shift_x = (np_kernel.shape[2] - strides[0]) // 2
-            shift_y = (np_kernel.shape[3] - strides[1]) // 2
-            expected_width = (x.shape[2] + strides[0] - 1) // strides[0]
-            expected_height = (x.shape[3] + strides[1] - 1) // strides[1]
+    conv_out = T.nnet.conv2d(x, kernel,
+                             border_mode=th_border_mode,
+                             subsample=strides,
+                             input_shape=image_shape,
+                             filter_shape=filter_shape)
+    
+    if border_mode == 'same':
+        if np_kernel.shape[2] % 2 == 0:
+            conv_out = conv_out[:,:,:-1,:]
+        if np_kernel.shape[3] % 2 == 0:
+            conv_out = conv_out[:,:,:,:-1]
 
-            conv_out = conv_out[:, :,
-                                shift_x: shift_x + expected_width,
-                                shift_y: shift_y + expected_height]
     if dim_ordering == 'tf':
         conv_out = conv_out.dimshuffle((0, 2, 3, 1))
     return conv_out
