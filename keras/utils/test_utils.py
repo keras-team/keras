@@ -30,6 +30,6 @@ def get_test_data(nb_train=1000, nb_test=500, input_shape=(10,), output_shape=(2
 
         if sparse:
             X = sps.csr_matrix(X)
-            #y = sps.csr_matrix(y)
+            y = sps.csr_matrix(y)
 
     return (X[:nb_train], y[:nb_train]), (X[nb_train:], y[nb_train:])
