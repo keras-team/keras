@@ -1,8 +1,9 @@
 import numpy as np
+import scipy.sparse as sps
 
 
 def get_test_data(nb_train=1000, nb_test=500, input_shape=(10,), output_shape=(2,),
-                  classification=True, nb_class=2):
+                  classification=True, nb_class=2, sparse=False):
     '''
         classification=True overrides output_shape
         (i.e. output_shape is set to (1,)) and the output
@@ -16,6 +17,9 @@ def get_test_data(nb_train=1000, nb_test=500, input_shape=(10,), output_shape=(2
         X = np.zeros((nb_sample,) + input_shape)
         for i in range(nb_sample):
             X[i] = np.random.normal(loc=y[i], scale=0.7, size=input_shape)
+
+        if sparse:
+            X = sps.csr_matrix(X)
     else:
         y_loc = np.random.random((nb_sample,))
         X = np.zeros((nb_sample,) + input_shape)
@@ -23,5 +27,9 @@ def get_test_data(nb_train=1000, nb_test=500, input_shape=(10,), output_shape=(2
         for i in range(nb_sample):
             X[i] = np.random.normal(loc=y_loc[i], scale=0.7, size=input_shape)
             y[i] = np.random.normal(loc=y_loc[i], scale=0.7, size=output_shape)
+
+        if sparse:
+            X = sps.csr_matrix(X)
+            #y = sps.csr_matrix(y)
 
     return (X[:nb_train], y[:nb_train]), (X[nb_train:], y[nb_train:])

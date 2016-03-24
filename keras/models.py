@@ -1,6 +1,7 @@
 from __future__ import absolute_import
 from __future__ import print_function
 import numpy as np
+import scipy.sparse as sps
 import warnings
 import pprint
 from six.moves import range
@@ -271,9 +272,9 @@ class Model(object):
             do_validation = True
             if verbose:
                 print('Train on %d samples, validate on %d samples' %
-                      (len(ins[0]), len(val_ins[0])))
+                      (ins[0].shape[0], val_ins[0].shape[0]))
 
-        nb_train_sample = len(ins[0])
+        nb_train_sample = ins[0].shape[0]
         index_array = np.arange(nb_train_sample)
 
         self.history = cbks.History()
@@ -314,6 +315,12 @@ class Model(object):
                 batch_logs['batch'] = batch_index
                 batch_logs['size'] = len(batch_ids)
                 callbacks.on_batch_begin(batch_index, batch_logs)
+
+                if sps.issparse(ins_batch[0]):
+                    ins_batch[0] = ins_batch[0].toarray()
+                if sps.issparse(ins_batch[1]):
+                    ins_batch[1] = ins_batch[1].toarray()
+
                 outs = f(ins_batch)
                 if type(outs) != list:
                     outs = [outs]
@@ -326,6 +333,11 @@ class Model(object):
                 if batch_index == len(batches) - 1:  # last batch
                     # validation
                     if do_validation:
+                        if sps.issparse(val_ins[0]):
+                            val_ins[0] = val_ins[0].toarray()
+                        if sps.issparse(val_ins[1]):
+                            val_ins[1] = val_ins[1].toarray()
+
                         # replace with self._evaluate
                         val_outs = self._test_loop(val_f, val_ins,
                                                    batch_size=batch_size,
@@ -346,7 +358,7 @@ class Model(object):
     def _predict_loop(self, f, ins, batch_size=128, verbose=0):
         '''Abstract method to loop over some data in batches.
         '''
-        nb_sample = len(ins[0])
+        nb_sample = ins[0].shape[0]
         outs = []
         if verbose == 1:
             progbar = Progbar(target=nb_sample)
@@ -355,6 +367,9 @@ class Model(object):
         for batch_index, (batch_start, batch_end) in enumerate(batches):
             batch_ids = index_array[batch_start:batch_end]
             ins_batch = slice_X(ins, batch_ids)
+
+            if sps.issparse(ins_batch[0]):
+                ins_batch[0] = ins_batch[0].toarray()
 
             batch_outs = f(ins_batch)
             if type(batch_outs) != list:
@@ -373,7 +388,7 @@ class Model(object):
     def _test_loop(self, f, ins, batch_size=128, verbose=0):
         '''Abstract method to loop over some data in batches.
         '''
-        nb_sample = len(ins[0])
+        nb_sample = ins[0].shape[0]
         outs = []
         if verbose == 1:
             progbar = Progbar(target=nb_sample)
@@ -382,6 +397,11 @@ class Model(object):
         for batch_index, (batch_start, batch_end) in enumerate(batches):
             batch_ids = index_array[batch_start:batch_end]
             ins_batch = slice_X(ins, batch_ids)
+
+            if sps.issparse(ins_batch[0]):
+                ins_batch[0] = ins_batch[0].toarray()
+            if sps.issparse(ins_batch[1]):
+                ins_batch[1] = ins_batch[1].toarray()
 
             batch_outs = f(ins_batch)
             if type(batch_outs) == list:
@@ -620,13 +640,13 @@ class Sequential(Model, containers.Sequential):
                 raise Exception('All input arrays and the target array must '
                                 'have the same number of samples.')
         else:
-            if len(X) != len(y):
+            if X.shape[0] != y.shape[0]:
                 raise Exception('The input data tensor (X) and '
                                 'the target tensor (y) must have '
                                 'the same number of samples. Found: '
-                                'len(X) = {}, len(y) = {}'.format(len(X), len(y)))
+                                'len(X) = {}, len(y) = {}'.format(X.shape[0], y.shape[0]))
         if sample_weight is not None:
-            assert len(sample_weight) == len(y), ('"sample_weight" must have '
+            assert sample_weight.shape[0] == y.shape[0], ('"sample_weight" must have '
                                                   'the same number of samples '
                                                   'as X and y.')
         X = standardize_X(X)
@@ -645,7 +665,7 @@ class Sequential(Model, containers.Sequential):
                 if type(X_val) == list:
                     assert len(set([len(a) for a in X_val] + [len(y_val)])) == 1
                 else:
-                    assert len(X_val) == len(y_val)
+                    assert X_val.shape[0] == y_val.shape[0]
                 X_val = standardize_X(X_val)
                 y_val = standardize_y(y_val)
                 sample_weight_val = standardize_weights(y_val)
@@ -655,7 +675,7 @@ class Sequential(Model, containers.Sequential):
                     assert len(set([len(a) for a in X_val] +
                                    [len(y_val), len(sample_weight_val)])) == 1
                 else:
-                    assert len(X_val) == len(y_val) == len(sample_weight_val)
+                    assert X_val.shape[0] == y_val.shape[0] == sample_weight_val.shape[0]
                 X_val = standardize_X(X_val)
                 y_val = standardize_y(y_val)
                 sample_weight_val = standardize_weights(y_val,
@@ -670,7 +690,7 @@ class Sequential(Model, containers.Sequential):
             val_ins = X_val + [y_val, sample_weight_val]
 
         elif 0 < validation_split < 1:
-            split_at = int(len(X[0]) * (1 - validation_split))
+            split_at = int(X[0].shape[0] * (1 - validation_split))
             X, X_val = (slice_X(X, 0, split_at), slice_X(X, split_at))
             y, y_val = (slice_X(y, 0, split_at), slice_X(y, split_at))
             if sample_weight is not None:
@@ -763,19 +783,25 @@ class Sequential(Model, containers.Sequential):
             sample_weight: sample weights, as a numpy array.
         '''
         if type(X) == list:
-            if len(set([len(a) for a in X] + [len(y)])) != 1:
+            if len(set([a.shape[0] for a in X] + [len(y)])) != 1:
                 raise Exception('All input arrays and the target array must '
                                 'have the same number of samples.')
         else:
-            if len(X) != len(y):
+            if X.shape[0] != y.shape[0]:
                 raise Exception('The input data tensor (X) and '
                                 'the target tensor (y) must have '
                                 'the same number of samples. Found: '
-                                'len(X) = {}, len(y) = {}'.format(len(X), len(y)))
+                                'len(X) = {}, len(y) = {}'.format(X.shape[0], y.shape[0]))
         if sample_weight is not None:
-            assert len(sample_weight) == len(y), ('"sample_weight" must have '
+            assert sample_weight.shape[0] == y.shape[0], ('"sample_weight" must have '
                                                   'the same number of samples '
                                                   'as X and y.')
+
+        if sps.issparse(X):
+            X = X.toarray()
+        if sps.issparse(y):
+            y = y.toarray()
+
         X = standardize_X(X)
         y = standardize_y(y)
         sample_weight = standardize_weights(y, sample_weight=sample_weight,
@@ -806,15 +832,20 @@ class Sequential(Model, containers.Sequential):
                 raise Exception('All input arrays and the target array must '
                                 'have the same number of samples.')
         else:
-            if len(X) != len(y):
+            if X.shape[0] != y.shape[0]:
                 raise Exception('The input data tensor (X) and '
                                 'the target tensor (y) must have '
                                 'the same number of samples. Found: '
-                                'len(X) = {}, len(y) = {}'.format(len(X), len(y)))
+                                'len(X) = {}, len(y) = {}'.format(X.shape[0], y.shape[0]))
         if sample_weight is not None:
-            assert len(sample_weight) == len(y), ('"sample_weight" must have '
+            assert sample_weight.shape[0] == y.shape[0], ('"sample_weight" must have '
                                                   'the same number of samples '
                                                   'as X and y.')
+        if sps.issparse(X):
+            X = X.toarray()
+        if sps.issparse(y):
+            y = y.toarray()
+
         X = standardize_X(X)
         y = standardize_y(y)
         sample_weight = standardize_weights(y, class_weight=class_weight,
@@ -837,15 +868,20 @@ class Sequential(Model, containers.Sequential):
                 raise Exception('All input arrays and the target array must '
                                 'have the same number of samples.')
         else:
-            if len(X) != len(y):
+            if X.shape[0] != y.shape[0]:
                 raise Exception('The input data tensor (X) and '
                                 'the target tensor (y) must have '
                                 'the same number of samples. Found: '
-                                'len(X) = {}, len(y) = {}'.format(len(X), len(y)))
+                                'len(X) = {}, len(y) = {}'.format(X.shape[0], y.shape[0]))
         if sample_weight is not None:
-            assert len(sample_weight) == len(y), ('"sample_weight" must have '
+            assert sample_weight.shape[0] == y.shape[0], ('"sample_weight" must have '
                                                   'the same number of samples '
                                                   'as X and y.')
+        if sps.issparse(X):
+            X = X.toarray()
+        if sps.issparse(y):
+            y = y.toarray()
+
         X = standardize_X(X)
         y = standardize_y(y)
         sample_weight = standardize_weights(y, sample_weight=sample_weight,
@@ -860,6 +896,9 @@ class Sequential(Model, containers.Sequential):
     def predict_on_batch(self, X):
         '''Returns predictions for a single batch of samples.
         '''
+        if sps.issparse(X):
+            X = X.toarray()
+
         ins = standardize_X(X)
         return self._predict(ins)
 
@@ -927,7 +966,7 @@ class Sequential(Model, containers.Sequential):
             if type(X) == list:
                 assert len(set([len(a) for a in X] + [len(y)])) == 1
             else:
-                assert len(X) == len(y)
+                assert X.shape[0] == y.shape[0]
                 X = [X]
             sample_weight = None
         elif len(generator_output) == 3:
@@ -936,7 +975,7 @@ class Sequential(Model, containers.Sequential):
                 assert len(set([len(a) for a in X] +
                                [len(y), len(sample_weight)])) == 1
             else:
-                assert len(X) == len(y) == len(sample_weight)
+                assert X.shape[0] == y.shape[0] == sample_weight.shape[0]
                 X = [X]
         else:
             stop.set()
@@ -972,7 +1011,7 @@ class Sequential(Model, containers.Sequential):
 
         while done_samples < val_samples:
             X, y, sample_weight = self._check_generator_output(q.get(), _stop)
-            do_samples = len(X[0])
+            do_samples = X[0].shape[0]
             outs = self.evaluate(X, y, batch_size=do_samples,
                                  sample_weight=sample_weight,
                                  show_accuracy=show_accuracy,
