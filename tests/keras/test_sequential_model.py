@@ -36,6 +36,23 @@ def _get_test_data():
     return (X_train, y_train), (X_test, y_test)
 
 
+def _get_sparse_test_data():
+    np.random.seed(1234)
+
+    train_samples = 2000
+    test_samples = 500
+
+    (X_train, y_train), (X_test, y_test) = get_test_data(nb_train=train_samples,
+                                                         nb_test=test_samples,
+                                                         input_shape=(input_dim,),
+                                                         classification=True,
+                                                         nb_class=4,
+                                                         sparse=True)
+    y_test = np_utils.to_categorical(y_test)
+    y_train = np_utils.to_categorical(y_train)
+    return (X_train, y_train), (X_test, y_test)
+
+
 def test_sequential_fit_generator():
     (X_train, y_train), (X_test, y_test) = _get_test_data()
 
@@ -132,6 +149,79 @@ def test_sequential():
 
     nloss = model.evaluate(X_test, y_test, verbose=0)
     assert(loss == nloss)
+
+    # test json serialization
+    json_data = model.to_json()
+    model = model_from_json(json_data)
+
+    # test yaml serialization
+    yaml_data = model.to_yaml()
+    model = model_from_yaml(yaml_data)
+
+
+def test_sequential_sparse():
+    (X_train, y_train), (X_test, y_test) = _get_sparse_test_data()
+
+    # TODO: factor out
+    def data_generator(train):
+        if train:
+            max_batch_index = X_train.shape[0] // batch_size
+        else:
+            max_batch_index = X_test.shape[0] // batch_size
+        i = 0
+        while 1:
+            if train:
+                yield (X_train[i * batch_size: (i + 1) * batch_size], y_train[i * batch_size: (i + 1) * batch_size])
+            else:
+                yield (X_test[i * batch_size: (i + 1) * batch_size], y_test[i * batch_size: (i + 1) * batch_size])
+            i += 1
+            i = i % max_batch_index
+
+    model = Sequential()
+    model.add(Dense(nb_hidden, input_shape=(input_dim,)))
+    model.add(Activation('relu'))
+    model.add(Dense(nb_class))
+    model.add(Activation('softmax'))
+    model.compile(loss='categorical_crossentropy', optimizer='rmsprop')
+    model.summary()
+
+    model.fit(X_train, y_train, batch_size=batch_size, nb_epoch=nb_epoch, show_accuracy=True, verbose=1,
+              validation_data=(X_test, y_test))
+    model.fit(X_train, y_train, batch_size=batch_size, nb_epoch=nb_epoch, show_accuracy=False, verbose=2,
+              validation_data=(X_test, y_test))
+    model.fit(X_train, y_train, batch_size=batch_size, nb_epoch=nb_epoch, show_accuracy=True, verbose=2,
+              validation_split=0.1)
+    model.fit(X_train, y_train, batch_size=batch_size, nb_epoch=nb_epoch, show_accuracy=False, verbose=1,
+              validation_split=0.1)
+    model.fit(X_train, y_train, batch_size=batch_size, nb_epoch=nb_epoch, verbose=0)
+    model.fit(X_train, y_train, batch_size=batch_size, nb_epoch=nb_epoch, verbose=1, shuffle=False)
+
+    model.train_on_batch(X_train[:32], y_train[:32])
+
+    gen_loss = model.evaluate_generator(data_generator(True), 256, verbose=0)
+    assert (gen_loss < 0.8)
+
+    loss = model.evaluate(X_test, y_test, verbose=0)
+    assert (loss < 0.8)
+
+    model.predict(X_test, verbose=0)
+    model.predict_classes(X_test, verbose=0)
+    model.predict_proba(X_test, verbose=0)
+    model.get_config(verbose=0)
+
+    fname = 'test_sequential_sparse_temp.h5'
+    model.save_weights(fname, overwrite=True)
+    model = Sequential()
+    model.add(Dense(nb_hidden, input_shape=(input_dim,)))
+    model.add(Activation('relu'))
+    model.add(Dense(nb_class))
+    model.add(Activation('softmax'))
+    model.compile(loss='categorical_crossentropy', optimizer='rmsprop')
+    model.load_weights(fname)
+    os.remove(fname)
+
+    nloss = model.evaluate(X_test, y_test, verbose=0)
+    assert (loss == nloss)
 
     # test json serialization
     json_data = model.to_json()

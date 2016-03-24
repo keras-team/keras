@@ -10,6 +10,7 @@ Use Keras if you need a deep learning library that:
 - supports both convolutional networks and recurrent networks, as well as combinations of the two.
 - supports arbitrary connectivity schemes (including multi-input and multi-output training).
 - runs seamlessly on CPU and GPU.
+- runs seamlessly with python lists, dense numpy arrays and sparse scipy matrices.
 
 Read the documentation at [Keras.io](http://keras.io).
 
