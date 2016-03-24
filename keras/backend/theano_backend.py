@@ -112,13 +112,9 @@ def dot(x, y):
 
 
 def batch_dot(x, y, axes=None):
-    if ndim(x) != 3 or ndim(y) != 3:
-        raise Exception('batch_dot supports only 3D tensor. ' +
-                        'Input1 dim is {}, Input2 ndim is {}.'.format(
-                            ndim(x), ndim(y)))
     if axes is None:
         # behaves like tf.batch_matmul as default
-        axes = [(2,), (1,)]
+        axes = [(x.ndim-1,), (y.ndim-2,)]
     return T.batched_tensordot(x, y, axes=axes)
 
 

@@ -94,13 +94,9 @@ def dot(x, y):
 
 
 def batch_dot(x, y, axes=None):
-    if ndim(x) != 3 or ndim(y) != 3:
-        raise Exception('batch_dot supports only 3D tensor. ' +
-                        'Input1 dim is {}, Input2 ndim is {}.'.format(
-                            ndim(x), ndim(y)))
     if axes:
-        adj_x = None if axes[0][0] == 2 else True
-        adj_y = True if axes[1][0] == 2 else None
+        adj_x = None if axes[0][0] == x.ndim-1 else True
+        adj_y = True if axes[1][0] == y.ndim-1 else None
     else:
         adj_x = None
         adj_y = None
