@@ -37,13 +37,21 @@ class BatchNormalization(Layer):
         weights: Initialization weights.
             List of 2 numpy arrays, with shapes:
             `[(input_shape,), (input_shape,)]`
-
+        beta_init: name of initialization function for shift parameter
+            (see [initializations](../initializations.md)), or alternatively,
+            Theano/TensorFlow function to use for weights initialization.
+            This parameter is only relevant if you don't pass a `weights` argument.
+        gamma_init: name of initialization function for scale parameter (see
+            [initializations](../initializations.md)), or alternatively,
+            Theano/TensorFlow function to use for weights initialization.
+            This parameter is only relevant if you don't pass a `weights` argument.
     # References
         - [Batch Normalization: Accelerating Deep Network Training by Reducing Internal Covariate Shift](http://arxiv.org/pdf/1502.03167v3.pdf)
     '''
     def __init__(self, epsilon=1e-6, mode=0, axis=-1, momentum=0.9,
-                 weights=None, **kwargs):
-        self.init = initializations.get("uniform")
+                 weights=None, beta_init='zero', gamma_init='one', **kwargs):
+        self.beta_init = initializations.get(beta_init)
+        self.gamma_init = initializations.get(gamma_init)
         self.epsilon = epsilon
         self.mode = mode
         self.axis = axis
@@ -55,12 +63,14 @@ class BatchNormalization(Layer):
         input_shape = self.input_shape  # starts with samples axis
         shape = (input_shape[self.axis],)
 
-        self.gamma = self.init(shape)
-        self.beta = K.zeros(shape)
+        self.gamma = self.gamma_init(shape, name='{}_gamma'.format(self.name))
+        self.beta = self.beta_init(shape, name='{}_beta'.format(self.name))
         self.trainable_weights = [self.gamma, self.beta]
 
-        self.running_mean = K.zeros(shape)
-        self.running_std = K.ones(shape)
+        self.running_mean = K.zeros(shape,
+                                    name='{}_running_mean'.format(self.name))
+        self.running_std = K.ones(shape,
+                                  name='{}_running_std'.format(self.name))
         self.non_trainable_weights = [self.running_mean, self.running_std]
 
         if self.initial_weights is not None:

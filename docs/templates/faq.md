@@ -87,7 +87,10 @@ model = model_from_json(json_string)
 model = model_from_yaml(yaml_string)
 ```
 
-If you need to save the weights of a model, you can do so in HDF5:
+If you need to save the weights of a model, you can do so in HDF5 with the code below.
+
+Note that you will first need to install HDF5 and the Python library h5py, which do not come bundled with Keras.
+
 ```python
 model.save_weights('my_model_weights.h5')
 ```

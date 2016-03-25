@@ -446,7 +446,7 @@ class TensorBoard(Callback):
         import keras.backend.tensorflow_backend as KTF
 
         self.model = model
-        self.sess = KTF._get_session()
+        self.sess = KTF.get_session()
         if self.histogram_freq and not self.merged:
             mod_type = self.model.get_config()['name']
             if mod_type == 'Sequential':

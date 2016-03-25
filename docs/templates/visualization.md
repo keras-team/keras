@@ -10,6 +10,11 @@ from keras.utils.visualize_util import plot
 plot(model, to_file='model.png')
 ```
 
+`plot` takes two optional arguments:
+
+- `recursive` (defaults to True) controls whether we recursively explore container layers.
+- `show_shape` (defaults to False) controls whether output shapes are shown in the graph.
+
 You can also directly obtain the `pydot.Graph` object and render it yourself,
 for example to show it in an ipython notebook :
 ```python

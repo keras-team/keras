@@ -79,7 +79,7 @@ class Convolution1D(Layer):
             raise Exception('Invalid border mode for Convolution1D:', border_mode)
         self.nb_filter = nb_filter
         self.filter_length = filter_length
-        self.init = initializations.get(init)
+        self.init = initializations.get(init, dim_ordering='th')
         self.activation = activations.get(activation)
         assert border_mode in {'valid', 'same'}, 'border_mode must be in {valid, same}'
         self.border_mode = border_mode
@@ -101,14 +101,13 @@ class Convolution1D(Layer):
         self.input_length = input_length
         if self.input_dim:
             kwargs['input_shape'] = (self.input_length, self.input_dim)
-        self.input = K.placeholder(ndim=3)
         super(Convolution1D, self).__init__(**kwargs)
 
     def build(self):
         input_dim = self.input_shape[2]
         self.W_shape = (self.nb_filter, input_dim, self.filter_length, 1)
-        self.W = self.init(self.W_shape)
-        self.b = K.zeros((self.nb_filter,))
+        self.W = self.init(self.W_shape, name='{}_W'.format(self.name))
+        self.b = K.zeros((self.nb_filter,), name='{}_b'.format(self.name))
         self.trainable_weights = [self.W, self.b]
         self.regularizers = []
 
@@ -234,7 +233,7 @@ class Convolution2D(Layer):
         self.nb_filter = nb_filter
         self.nb_row = nb_row
         self.nb_col = nb_col
-        self.init = initializations.get(init)
+        self.init = initializations.get(init, dim_ordering=dim_ordering)
         self.activation = activations.get(activation)
         assert border_mode in {'valid', 'same'}, 'border_mode must be in {valid, same}'
         self.border_mode = border_mode
@@ -251,7 +250,6 @@ class Convolution2D(Layer):
         self.constraints = [self.W_constraint, self.b_constraint]
 
         self.initial_weights = weights
-        self.input = K.placeholder(ndim=4)
         super(Convolution2D, self).__init__(**kwargs)
 
     def build(self):
@@ -263,8 +261,8 @@ class Convolution2D(Layer):
             self.W_shape = (self.nb_row, self.nb_col, stack_size, self.nb_filter)
         else:
             raise Exception('Invalid dim_ordering: ' + self.dim_ordering)
-        self.W = self.init(self.W_shape)
-        self.b = K.zeros((self.nb_filter,))
+        self.W = self.init(self.W_shape, name='{}_W'.format(self.name))
+        self.b = K.zeros((self.nb_filter,), name='{}_b'.format(self.name))
         self.trainable_weights = [self.W, self.b]
         self.regularizers = []
 
@@ -414,7 +412,7 @@ class Convolution3D(Layer):
         self.kernel_dim1 = kernel_dim1
         self.kernel_dim2 = kernel_dim2
         self.kernel_dim3 = kernel_dim3
-        self.init = initializations.get(init)
+        self.init = initializations.get(init, dim_ordering=dim_ordering)
         self.activation = activations.get(activation)
         assert border_mode in {'valid', 'same'}, 'border_mode must be in {valid, same}'
         self.border_mode = border_mode
@@ -431,7 +429,6 @@ class Convolution3D(Layer):
         self.constraints = [self.W_constraint, self.b_constraint]
 
         self.initial_weights = weights
-        self.input = K.placeholder(ndim=5)
         super(Convolution3D, self).__init__(**kwargs)
 
     def build(self):
@@ -447,8 +444,8 @@ class Convolution3D(Layer):
         else:
             raise Exception('Invalid dim_ordering: ' + self.dim_ordering)
 
-        self.W = self.init(self.W_shape)
-        self.b = K.zeros((self.nb_filter,))
+        self.W = self.init(self.W_shape, name='{}_W'.format(self.name))
+        self.b = K.zeros((self.nb_filter,), name='{}_b'.format(self.name))
         self.trainable_weights = [self.W, self.b]
         self.regularizers = []
 
@@ -546,7 +543,6 @@ class _Pooling1D(Layer):
         self.pool_length = pool_length
         self.stride = stride
         self.st = (self.stride, 1)
-        self.input = K.placeholder(ndim=3)
         self.pool_size = (pool_length, 1)
         assert border_mode in {'valid', 'same'}, 'border_mode must be in {valid, same}'
         self.border_mode = border_mode
@@ -646,7 +642,6 @@ class _Pooling2D(Layer):
     def __init__(self, pool_size=(2, 2), strides=None, border_mode='valid',
                  dim_ordering='th', **kwargs):
         super(_Pooling2D, self).__init__(**kwargs)
-        self.input = K.placeholder(ndim=4)
         self.pool_size = tuple(pool_size)
         if strides is None:
             strides = self.pool_size
@@ -786,7 +781,6 @@ class _Pooling3D(Layer):
     def __init__(self, pool_size=(2, 2, 2), strides=None, border_mode='valid',
                  dim_ordering='th', **kwargs):
         super(_Pooling3D, self).__init__(**kwargs)
-        self.input = K.placeholder(ndim=5)
         self.pool_size = tuple(pool_size)
         if strides is None:
             strides = self.pool_size
@@ -947,7 +941,6 @@ class UpSampling1D(Layer):
     def __init__(self, length=2, **kwargs):
         super(UpSampling1D, self).__init__(**kwargs)
         self.length = length
-        self.input = K.placeholder(ndim=3)
 
     @property
     def output_shape(self):
@@ -992,7 +985,6 @@ class UpSampling2D(Layer):
 
     def __init__(self, size=(2, 2), dim_ordering='th', **kwargs):
         super(UpSampling2D, self).__init__(**kwargs)
-        self.input = K.placeholder(ndim=4)
         self.size = tuple(size)
         assert dim_ordering in {'tf', 'th'}, 'dim_ordering must be in {tf, th}'
         self.dim_ordering = dim_ordering
@@ -1056,7 +1048,6 @@ class UpSampling3D(Layer):
             raise Exception(self.__class__.__name__ +
                             ' is currently only working with Theano backend.')
         super(UpSampling3D, self).__init__(**kwargs)
-        self.input = K.placeholder(ndim=5)
         self.size = tuple(size)
         assert dim_ordering in {'tf', 'th'}, 'dim_ordering must be in {tf, th}'
         self.dim_ordering = dim_ordering
@@ -1110,13 +1101,13 @@ class ZeroPadding1D(Layer):
     def __init__(self, padding=1, **kwargs):
         super(ZeroPadding1D, self).__init__(**kwargs)
         self.padding = padding
-        self.input = K.placeholder(ndim=3)
 
     @property
     def output_shape(self):
         input_shape = self.input_shape
+        length = input_shape[1] + self.padding * 2 if input_shape[1] is not None else None
         return (input_shape[0],
-                input_shape[1] + self.padding * 2,
+                length,
                 input_shape[2])
 
     def get_output(self, train=False):
@@ -1151,7 +1142,6 @@ class ZeroPadding2D(Layer):
     def __init__(self, padding=(1, 1), dim_ordering='th', **kwargs):
         super(ZeroPadding2D, self).__init__(**kwargs)
         self.padding = tuple(padding)
-        self.input = K.placeholder(ndim=4)
         assert dim_ordering in {'tf', 'th'}, 'dim_ordering must be in {tf, th}'
         self.dim_ordering = dim_ordering
 
@@ -1159,14 +1149,18 @@ class ZeroPadding2D(Layer):
     def output_shape(self):
         input_shape = self.input_shape
         if self.dim_ordering == 'th':
+            width = input_shape[2] + 2 * self.padding[0] if input_shape[2] is not None else None
+            height = input_shape[3] + 2 * self.padding[1] if input_shape[3] is not None else None
             return (input_shape[0],
                     input_shape[1],
-                    input_shape[2] + 2 * self.padding[0],
-                    input_shape[3] + 2 * self.padding[1])
+                    width,
+                    height)
         elif self.dim_ordering == 'tf':
+            width = input_shape[1] + 2 * self.padding[0] if input_shape[1] is not None else None
+            height = input_shape[2] + 2 * self.padding[1] if input_shape[2] is not None else None
             return (input_shape[0],
-                    input_shape[1] + 2 * self.padding[0],
-                    input_shape[2] + 2 * self.padding[1],
+                    width,
+                    height,
                     input_shape[3])
         else:
             raise Exception('Invalid dim_ordering: ' + self.dim_ordering)
@@ -1209,7 +1203,6 @@ class ZeroPadding3D(Layer):
                             ' is currently only working with Theano backend.')
         super(ZeroPadding3D, self).__init__(**kwargs)
         self.padding = tuple(padding)
-        self.input = K.placeholder(ndim=5)
         assert dim_ordering in {'tf', 'th'}, 'dim_ordering must be in {tf, th}'
         self.dim_ordering = dim_ordering
 
@@ -1217,16 +1210,22 @@ class ZeroPadding3D(Layer):
     def output_shape(self):
         input_shape = self.input_shape
         if self.dim_ordering == 'th':
+            dim1 = input_shape[2] + 2 * self.padding[0] if input_shape[2] is not None else None
+            dim2 = input_shape[3] + 2 * self.padding[1] if input_shape[3] is not None else None
+            dim3 = input_shape[4] + 2 * self.padding[2] if input_shape[4] is not None else None
             return (input_shape[0],
                     input_shape[1],
-                    input_shape[2] + 2 * self.padding[0],
-                    input_shape[3] + 2 * self.padding[1],
-                    input_shape[4] + 2 * self.padding[2])
+                    dim1,
+                    dim2,
+                    dim3)
         elif self.dim_ordering == 'tf':
+            dim1 = input_shape[1] + 2 * self.padding[0] if input_shape[1] is not None else None
+            dim2 = input_shape[2] + 2 * self.padding[1] if input_shape[2] is not None else None
+            dim3 = input_shape[3] + 2 * self.padding[2] if input_shape[3] is not None else None
             return (input_shape[0],
-                    input_shape[1] + 2 * self.padding[0],
-                    input_shape[2] + 2 * self.padding[1],
-                    input_shape[3] + 2 * self.padding[2],
+                    dim1,
+                    dim2,
+                    dim3,
                     input_shape[4])
         else:
             raise Exception('Invalid dim_ordering: ' + self.dim_ordering)

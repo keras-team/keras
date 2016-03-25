@@ -175,7 +175,7 @@ def test_naming():
 def test_sequences():
     '''Test masking sequences with zeroes as padding'''
     # integer inputs, one per timestep, like embeddings
-    layer = core.Masking()
+    layer = core.Masking(input_shape=(4, 1))
     func = K.function([layer.get_input(True)], [layer.get_output_mask()])
     input_data = np.array([[[1], [2], [3], [0]],
                            [[0], [4], [5], [0]]], dtype=np.int32)
@@ -190,7 +190,7 @@ def test_sequences():
 
 def test_non_zero():
     '''Test masking with non-zero mask value'''
-    layer = core.Masking(5)
+    layer = core.Masking(5, input_shape=(4, 2))
     func = K.function([layer.input], [layer.get_output_mask()])
     input_data = np.array([[[1, 1], [2, 1], [3, 1], [5, 5]],
                            [[1, 5], [5, 0], [0, 0], [0, 0]]],
@@ -202,7 +202,7 @@ def test_non_zero():
 
 def test_non_zero_output():
     '''Test output of masking layer with non-zero mask value'''
-    layer = core.Masking(5)
+    layer = core.Masking(5, input_shape=(4, 2))
     func = K.function([layer.input], [layer.get_output()])
 
     input_data = np.array([[[1, 1], [2, 1], [3, 1], [5, 5]],
@@ -228,6 +228,7 @@ def _runner(layer):
     layer.trainable = True
     layer.trainable = False
 
+
 def test_siamese_all():
     right_input_layer = core.Dense(7, input_dim=3)
     left_input_layer = core.Dense(7, input_dim=3)
@@ -237,6 +238,7 @@ def test_siamese_all():
         siamese_layer = core.Siamese(shared_layer, [left_input_layer, right_input_layer], merge_mode=mode)
         siamese_layer.output_shape
         siamese_layer.get_output()
+
 
 @pytest.mark.skipif(K._BACKEND == 'tensorflow',
                     reason='currently not working with TensorFlow')

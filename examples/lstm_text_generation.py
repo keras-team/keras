@@ -14,13 +14,19 @@ from __future__ import print_function
 from keras.models import Sequential
 from keras.layers.core import Dense, Activation, Dropout
 from keras.layers.recurrent import LSTM
-from keras.datasets.data_utils import get_file
+from keras.utils.data_utils import get_file
 import numpy as np
 import random
 import sys
 
 path = get_file('nietzsche.txt', origin="https://s3.amazonaws.com/text-datasets/nietzsche.txt")
-text = open(path).read().lower()
+
+try: 
+    text = open(path).read().lower()
+except UnicodeDecodeError:
+    import codecs
+    text = codecs.open(path, encoding='utf-8').read().lower()
+
 print('corpus length:', len(text))
 
 chars = set(text)

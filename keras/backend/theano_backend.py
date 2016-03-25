@@ -1,29 +1,15 @@
 import theano
 from theano import tensor as T
 from theano.sandbox.rng_mrg import MRG_RandomStreams as RandomStreams
-from theano.tensor.signal import downsample
+from theano.tensor.signal import pool
 from theano.tensor.nnet import conv3d2d
+import inspect
 import numpy as np
 from .common import _FLOATX, _EPSILON
 
 
 # INTERNAL UTILS
 theano.config.floatX = _FLOATX
-
-
-def _on_gpu():
-    '''Return whether the session is set to
-    run on GPU or not (i.e. on CPU).
-    '''
-    return theano.config.device[:3] == 'gpu' or theano.sandbox.cuda.cuda_enabled
-
-
-if _on_gpu():
-    '''Import cuDNN only if running on GPU:
-    not having Cuda installed should not
-    prevent from running the present code.
-    '''
-    from theano.sandbox.cuda import dnn
 
 
 # VARIABLE MANIPULATION
@@ -147,7 +133,10 @@ def prod(x, axis=None, keepdims=False):
 
 
 def mean(x, axis=None, keepdims=False):
-    return T.mean(x, axis=axis, keepdims=keepdims)
+    dtype = None
+    if 'int' in x.dtype:
+        dtype = _FLOATX
+    return T.mean(x, axis=axis, keepdims=keepdims, dtype=dtype)
 
 
 def std(x, axis=None, keepdims=False):
@@ -415,6 +404,7 @@ def spatial_3d_padding(x, padding=(1, 1, 1), dim_ordering='th'):
         raise Exception('Invalid dim_ordering: ' + dim_ordering)
     return T.set_subtensor(output[indices], x)
 
+
 def pack(x):
     return T.stack(*x)
 
@@ -445,8 +435,14 @@ class Function(object):
         return self.function(*inputs)
 
 
-def function(inputs, outputs, updates=[]):
-    return Function(inputs, outputs, updates=updates)
+def function(inputs, outputs, updates=[], **kwargs):
+    if len(kwargs) > 0:
+        function_args = inspect.getargspec(theano.function)[0]
+        for key in kwargs.keys():
+            if key not in function_args:
+                msg = "Invalid argument '%s' passed to K.function" % key
+                raise ValueError(msg)
+    return Function(inputs, outputs, updates=updates, **kwargs)
 
 
 def gradients(loss, variables):
@@ -458,37 +454,38 @@ def gradients(loss, variables):
 def rnn(step_function, inputs, initial_states,
         go_backwards=False, mask=None, constants=None):
     '''Iterates over the time dimension of a tensor.
-    Parameters
-    ----------
-    inputs: tensor of temporal data of shape (samples, time, ...)
-        (at least 3D).
-    step_function:
-        Parameters:
-            input: tensor with shape (samples, ...) (no time dimension),
-                representing input for the batch of samples at a certain
-                time step.
-            states: list of tensors.
-        Returns:
-            output: tensor with shape (samples, ...) (no time dimension),
-            new_states: list of tensors, same length and shapes
-                as 'states'.
-    initial_states: tensor with shape (samples, ...) (no time dimension),
-        containing the initial values for the states used in
-        the step function.
-    go_backwards: boolean. If True, do the iteration over
-        the time dimension in reverse order.
-    mask: binary tensor with shape (samples, time),
-        with a zero for every element that is masked.
-    constants: a list of constant values passed at each step.
-    Returns
-    -------
-    A tuple (last_output, outputs, new_states).
-        last_output: the latest output of the rnn, of shape (samples, ...)
-        outputs: tensor with shape (samples, time, ...) where each
-            entry outputs[s, t] is the output of the step function
-            at time t for sample s.
-        new_states: list of tensors, latest states returned by
-            the step function, of shape (samples, ...).
+
+    # Arguments
+        inputs: tensor of temporal data of shape (samples, time, ...)
+            (at least 3D).
+        step_function:
+            Parameters:
+                input: tensor with shape (samples, ...) (no time dimension),
+                    representing input for the batch of samples at a certain
+                    time step.
+                states: list of tensors.
+            Returns:
+                output: tensor with shape (samples, ...) (no time dimension),
+                new_states: list of tensors, same length and shapes
+                    as 'states'.
+        initial_states: tensor with shape (samples, ...) (no time dimension),
+            containing the initial values for the states used in
+            the step function.
+        go_backwards: boolean. If True, do the iteration over
+            the time dimension in reverse order.
+        mask: binary tensor with shape (samples, time),
+            with a zero for every element that is masked.
+        constants: a list of constant values passed at each step.
+
+
+    # Returns
+        A tuple (last_output, outputs, new_states).
+            last_output: the latest output of the rnn, of shape (samples, ...)
+            outputs: tensor with shape (samples, time, ...) where each
+                entry outputs[s, t] is the output of the step function
+                at time t for sample s.
+            new_states: list of tensors, latest states returned by
+                the step function, of shape (samples, ...).
     '''
     ndim = inputs.ndim
     assert ndim >= 3, 'Input should be at least 3D.'
@@ -633,7 +630,6 @@ def l2_normalize(x, axis):
 def conv2d(x, kernel, strides=(1, 1), border_mode='valid', dim_ordering='th',
            image_shape=None, filter_shape=None):
     '''
-    Run on cuDNN if available.
     border_mode: string, "same" or "valid".
     '''
     if dim_ordering not in {'th', 'tf'}:
@@ -655,58 +651,48 @@ def conv2d(x, kernel, strides=(1, 1), border_mode='valid', dim_ordering='th',
             filter_shape = (filter_shape[3], filter_shape[2],
                             filter_shape[0], filter_shape[1])
 
-    if _on_gpu() and dnn.dnn_available():
-        if border_mode == 'same':
-            np_kernel = kernel.eval()
-            assert strides[0] <= np_kernel.shape[2], 'strides should be smaller than the convolution window.'
-            assert strides[1] <= np_kernel.shape[3], 'strides should be smaller than the convolution window.'
-            conv_out = dnn.dnn_conv(img=x,
-                                    kerns=kernel,
-                                    border_mode='full')
-            shift_x = (np_kernel.shape[2] - strides[0]) // 2
-            shift_y = (np_kernel.shape[3] - strides[1]) // 2
-            expected_width = (x.shape[2] + strides[0] - 1) // strides[0]
-            expected_height = (x.shape[3] + strides[1] - 1) // strides[1]
-
-            conv_out = conv_out[:, :,
-                                shift_x: shift_x + expected_width,
-                                shift_y: shift_y + expected_height]
-        else:
-            conv_out = dnn.dnn_conv(img=x,
-                                    kerns=kernel,
-                                    border_mode=border_mode,
-                                    subsample=strides)
+    if border_mode == 'same':
+        th_border_mode = 'half'
+        np_kernel = kernel.eval()
+        assert strides[0] <= np_kernel.shape[2], 'strides should be smaller than the convolution window.'
+        assert strides[1] <= np_kernel.shape[3], 'strides should be smaller than the convolution window.'
+    elif border_mode == 'valid':
+        th_border_mode = 'valid'
     else:
-        if border_mode == 'same':
-            th_border_mode = 'full'
-            np_kernel = kernel.eval()
-            assert strides[0] <= np_kernel.shape[2], 'strides should be smaller than the convolution window.'
-            assert strides[1] <= np_kernel.shape[3], 'strides should be smaller than the convolution window.'
-        elif border_mode == 'valid':
-            th_border_mode = 'valid'
-        else:
-            raise Exception('Border mode not supported: ' + str(border_mode))
+        raise Exception('Border mode not supported: ' + str(border_mode))
 
-        conv_out = T.nnet.conv.conv2d(x, kernel,
-                                      border_mode=th_border_mode,
-                                      subsample=strides,
-                                      image_shape=image_shape,
-                                      filter_shape=filter_shape)
-        if border_mode == 'same':
-            shift_x = (np_kernel.shape[2] - strides[0]) // 2
-            shift_y = (np_kernel.shape[3] - strides[1]) // 2
-            expected_width = (x.shape[2] + strides[0] - 1) // strides[0]
-            expected_height = (x.shape[3] + strides[1] - 1) // strides[1]
+    # Theano might not accept like longs
+    def int_or_none(value):
+        try:
+            return int(value)
+        except TypeError:
+            return None
 
-            conv_out = conv_out[:, :,
-                                shift_x: shift_x + expected_width,
-                                shift_y: shift_y + expected_height]
+    if image_shape is not None:
+        image_shape = tuple(int_or_none(v) for v in image_shape)
+
+    if filter_shape is not None:
+        filter_shape = tuple(int_or_none(v) for v in filter_shape)
+
+    conv_out = T.nnet.conv2d(x, kernel,
+                             border_mode=th_border_mode,
+                             subsample=strides,
+                             input_shape=image_shape,
+                             filter_shape=filter_shape)
+
+    if border_mode == 'same':
+        if np_kernel.shape[2] % 2 == 0:
+            conv_out = conv_out[:,:,:(x.shape[2]+strides[0]-1) // strides[0],:]
+        if np_kernel.shape[3] % 2 == 0:
+            conv_out = conv_out[:,:,:,:(x.shape[3]+strides[1]-1) // strides[1]]
+
     if dim_ordering == 'tf':
         conv_out = conv_out.dimshuffle((0, 2, 3, 1))
     return conv_out
 
 
-def conv3d(x, kernel, strides=(1, 1, 1), border_mode='valid', dim_ordering='th',
+def conv3d(x, kernel, strides=(1, 1, 1),
+           border_mode='valid', dim_ordering='th',
            volume_shape=None, filter_shape=None):
     '''
     Run on cuDNN if available.
@@ -785,15 +771,15 @@ def pool2d(x, pool_size, strides=(1, 1), border_mode='valid',
         x = x.dimshuffle((0, 3, 1, 2))
 
     if pool_mode == 'max':
-        pool_out = downsample.max_pool_2d(x, ds=pool_size, st=strides,
-                                          ignore_border=True,
-                                          padding=padding,
-                                          mode='max')
+        pool_out = pool.pool_2d(x, ds=pool_size, st=strides,
+                                ignore_border=True,
+                                padding=padding,
+                                mode='max')
     elif pool_mode == 'avg':
-        pool_out = downsample.max_pool_2d(x, ds=pool_size, st=strides,
-                                          ignore_border=True,
-                                          padding=padding,
-                                          mode='average_exc_pad')
+        pool_out = pool.pool_2d(x, ds=pool_size, st=strides,
+                                ignore_border=True,
+                                padding=padding,
+                                mode='average_exc_pad')
     else:
         raise Exception('Invalid pooling mode: ' + str(pool_mode))
 
@@ -829,37 +815,37 @@ def pool3d(x, pool_size, strides=(1, 1, 1), border_mode='valid',
 
     if pool_mode == 'max':
         # pooling over conv_dim2, conv_dim1 (last two channels)
-        output = downsample.max_pool_2d(input=x.dimshuffle(0, 1, 4, 3, 2),
-                                        ds=(pool_size[1], pool_size[0]),
-                                        st=(strides[1], strides[0]),
-                                        ignore_border=ignore_border,
-                                        padding=padding,
-                                        mode='max')
+        output = pool.pool_2d(input=x.dimshuffle(0, 1, 4, 3, 2),
+                              ds=(pool_size[1], pool_size[0]),
+                              st=(strides[1], strides[0]),
+                              ignore_border=ignore_border,
+                              padding=padding,
+                              mode='max')
 
         # pooling over conv_dim3
-        pool_out = downsample.max_pool_2d(input=output.dimshuffle(0, 1, 4, 3, 2),
-                                          ds=(1, pool_size[2]),
-                                          st=(1, strides[2]),
-                                          ignore_border=ignore_border,
-                                          padding=padding,
-                                          mode='max')
+        pool_out = pool.pool_2d(input=output.dimshuffle(0, 1, 4, 3, 2),
+                                ds=(1, pool_size[2]),
+                                st=(1, strides[2]),
+                                ignore_border=ignore_border,
+                                padding=padding,
+                                mode='max')
 
     elif pool_mode == 'avg':
         # pooling over conv_dim2, conv_dim1 (last two channels)
-        output = downsample.max_pool_2d(input=x.dimshuffle(0, 1, 4, 3, 2),
-                                        ds=(pool_size[1], pool_size[0]),
-                                        st=(strides[1], strides[0]),
-                                        ignore_border=ignore_border,
-                                        padding=padding,
-                                        mode='average_exc_pad')
+        output = pool.pool_2d(input=x.dimshuffle(0, 1, 4, 3, 2),
+                              ds=(pool_size[1], pool_size[0]),
+                              st=(strides[1], strides[0]),
+                              ignore_border=ignore_border,
+                              padding=padding,
+                              mode='average_exc_pad')
 
         # pooling over conv_dim3
-        pool_out = downsample.max_pool_2d(input=output.dimshuffle(0, 1, 4, 3, 2),
-                                          ds=(1, pool_size[2]),
-                                          st=(1, strides[2]),
-                                          ignore_border=ignore_border,
-                                          padding=padding,
-                                          mode='average_exc_pad')
+        pool_out = pool.pool_2d(input=output.dimshuffle(0, 1, 4, 3, 2),
+                                ds=(1, pool_size[2]),
+                                st=(1, strides[2]),
+                                ignore_border=ignore_border,
+                                padding=padding,
+                                mode='average_exc_pad')
     else:
         raise Exception('Invalid pooling mode: ' + str(pool_mode))
 
