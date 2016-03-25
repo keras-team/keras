@@ -240,6 +240,18 @@ def test_siamese_all():
         siamese_layer.get_output()
 
 
+def test_clone_layer():
+    shared_layer1 = core.Dense(5,input_dim=7)
+    shared_layer2 = core.Dense(5,input_dim=7, weights=shared_layer1.trainable_weights)
+    assert shared_layer1.W is shared_layer2.W
+    assert shared_layer1.b is shared_layer2.b
+
+    shared_layer1 = core.Dense(5,input_dim=7)
+    shared_layer2 = core.Dense(5,input_dim=7, weights=[w.eval() for w in shared_layer1.trainable_weights])
+    assert shared_layer1.W is not shared_layer2.W
+    assert shared_layer1.b is not shared_layer2.b
+
+
 @pytest.mark.skipif(K._BACKEND == 'tensorflow',
                     reason='currently not working with TensorFlow')
 def test_siamese_theano_only():

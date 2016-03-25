@@ -21,6 +21,13 @@ def variable(value, dtype=_FLOATX, name=None):
     return theano.shared(value=value, name=name, strict=False)
 
 
+def is_variable(x):
+    '''
+    returns True iff x is a TensorSharedVariable instance.
+    '''
+    return isinstance(x, (T.sharedvar.TensorSharedVariable, theano.sandbox.cuda.var.CudaNdarraySharedVariable))
+
+
 def placeholder(shape=None, ndim=None, dtype=_FLOATX, name=None):
     '''Instantiate an input data placeholder variable.
     '''

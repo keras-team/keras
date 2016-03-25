@@ -294,10 +294,28 @@ class Layer(object):
         assert len(params) == len(weights), ('Provided weight array does not match layer weights (' +
                                              str(len(params)) + ' layer params vs. ' +
                                              str(len(weights)) + ' provided weights)')
+        is_var = [K.is_variable(w) for w in weights]
+        if any(is_var) and not all(is_var):
+            raise Exception('Either all weights or no weight should be a shared variable.')
+
+        if len(weights) and all(is_var):
+            self.trainable_weights = []
+
         for p, w in zip(params, weights):
-            if K.get_value(p).shape != w.shape:
-                raise Exception('Layer weight shape %s not compatible with provided weight shape %s.' % (K.get_value(p).shape, w.shape))
-            K.set_value(p, w)
+            if K.is_variable(w):
+                found = False
+                for prop, value in self.__dict__.items():
+                    if value is p:
+                        if K.get_value(p).shape != K.get_value(w).shape:
+                            raise Exception('Layer weight shape %s not compatible with provided weight shape %s.' % (K.get_value(p).shape, w.shape))
+                        setattr(self, prop, w)
+                        found = True
+                if not found:
+                    raise Exception('Could not find a member variable to substitute with initial weights')
+            else:
+                if K.get_value(p).shape != w.shape:
+                    raise Exception('Layer weight shape %s not compatible with provided weight shape %s.' % (K.get_value(p).shape, w.shape))
+                K.set_value(p, w)
 
     def get_weights(self):
         '''Return the weights of the layer,
