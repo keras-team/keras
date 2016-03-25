@@ -53,6 +53,8 @@ class Embedding(Layer):
                  W_constraint=None,
                  mask_zero=False,
                  weights=None, dropout=0., **kwargs):
+        self.resettable = True
+
         self.input_dim = input_dim
         self.output_dim = output_dim
         self.init = initializations.get(init)
@@ -73,8 +75,7 @@ class Embedding(Layer):
     def build(self):
         self.input = K.placeholder(shape=(self.input_shape[0], self.input_length),
                                    dtype='int32')
-        self.W = self.init((self.input_dim, self.output_dim),
-                           name='{}_W'.format(self.name))
+        self.W = self.init_weights()
         self.trainable_weights = [self.W]
         self.regularizers = []
         if self.W_regularizer:
@@ -87,6 +88,14 @@ class Embedding(Layer):
 
         if self.initial_weights is not None:
             self.set_weights(self.initial_weights)
+
+    def init_weights(self):
+        return self.init((self.input_dim, self.output_dim),
+                           name='{}_W'.format(self.name))
+
+    def reinit_weights(self):
+        W = self.init_weights()
+        self.trainable_weights[0].set_value(W.get_value())
 
     def get_output_mask(self, train=None):
         X = self.get_input(train)

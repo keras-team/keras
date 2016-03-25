@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import
-
 from .. import backend as K
 from .. import activations, initializations, regularizers, constraints
 from ..layers.core import Layer
@@ -74,6 +73,7 @@ class Convolution1D(Layer):
                  W_regularizer=None, b_regularizer=None, activity_regularizer=None,
                  W_constraint=None, b_constraint=None,
                  input_dim=None, input_length=None, **kwargs):
+        self.resettable = True
 
         if border_mode not in {'valid', 'same'}:
             raise Exception('Invalid border mode for Convolution1D:', border_mode)
@@ -106,8 +106,9 @@ class Convolution1D(Layer):
     def build(self):
         input_dim = self.input_shape[2]
         self.W_shape = (self.nb_filter, input_dim, self.filter_length, 1)
-        self.W = self.init(self.W_shape, name='{}_W'.format(self.name))
-        self.b = K.zeros((self.nb_filter,), name='{}_b'.format(self.name))
+
+        (self.W, self.b) = self.init_weights()
+
         self.trainable_weights = [self.W, self.b]
         self.regularizers = []
 
@@ -126,6 +127,16 @@ class Convolution1D(Layer):
         if self.initial_weights is not None:
             self.set_weights(self.initial_weights)
             del self.initial_weights
+
+    def init_weights(self):
+        W = self.init(self.W_shape, name='{}_W'.format(self.name))
+        b = K.zeros((self.nb_filter,), name='{}_b'.format(self.name))
+        return (W, b)
+
+    def reinit_weights(self):
+        (W, b) = self.init_weights()
+        self.trainable_weights[0].set_value(W.get_value())
+        self.trainable_weights[1].set_value(b.get_value())
 
     @property
     def output_shape(self):
@@ -227,6 +238,7 @@ class Convolution2D(Layer):
                  border_mode='valid', subsample=(1, 1), dim_ordering='th',
                  W_regularizer=None, b_regularizer=None, activity_regularizer=None,
                  W_constraint=None, b_constraint=None, **kwargs):
+        self.resettable = True
 
         if border_mode not in {'valid', 'same'}:
             raise Exception('Invalid border mode for Convolution2D:', border_mode)
@@ -261,8 +273,9 @@ class Convolution2D(Layer):
             self.W_shape = (self.nb_row, self.nb_col, stack_size, self.nb_filter)
         else:
             raise Exception('Invalid dim_ordering: ' + self.dim_ordering)
-        self.W = self.init(self.W_shape, name='{}_W'.format(self.name))
-        self.b = K.zeros((self.nb_filter,), name='{}_b'.format(self.name))
+
+        (self.W, self.b) = self.init_weights()
+
         self.trainable_weights = [self.W, self.b]
         self.regularizers = []
 
@@ -281,6 +294,16 @@ class Convolution2D(Layer):
         if self.initial_weights is not None:
             self.set_weights(self.initial_weights)
             del self.initial_weights
+
+    def init_weights(self):
+        W = self.init(self.W_shape, name='{}_W'.format(self.name))
+        b = K.zeros((self.nb_filter,), name='{}_b'.format(self.name))
+        return (W, b)
+
+    def reinit_weights(self):
+        (W, b) = self.init_weights()
+        self.trainable_weights[0].set_value(W.get_value())
+        self.trainable_weights[1].set_value(b.get_value())
 
     @property
     def output_shape(self):
@@ -403,6 +426,8 @@ class Convolution3D(Layer):
                  border_mode='valid', subsample=(1, 1, 1), dim_ordering='th',
                  W_regularizer=None, b_regularizer=None, activity_regularizer=None,
                  W_constraint=None, b_constraint=None, **kwargs):
+        self.resettable = True
+
         if K._BACKEND != 'theano':
             raise Exception(self.__class__.__name__ +
                             ' is currently only working with Theano backend.')
@@ -444,8 +469,8 @@ class Convolution3D(Layer):
         else:
             raise Exception('Invalid dim_ordering: ' + self.dim_ordering)
 
-        self.W = self.init(self.W_shape, name='{}_W'.format(self.name))
-        self.b = K.zeros((self.nb_filter,), name='{}_b'.format(self.name))
+        (self.W, self.b) = self.init_weights()
+
         self.trainable_weights = [self.W, self.b]
         self.regularizers = []
 
@@ -464,6 +489,16 @@ class Convolution3D(Layer):
         if self.initial_weights is not None:
             self.set_weights(self.initial_weights)
             del self.initial_weights
+
+    def init_weights(self):
+        W = self.init(self.W_shape, name='{}_W'.format(self.name))
+        b = K.zeros((self.nb_filter,), name='{}_b'.format(self.name))
+        return (W, b)
+
+    def reinit_weights(self):
+        (W, b) = self.init_weights()
+        self.trainable_weights[0].set_value(W.get_value())
+        self.trainable_weights[1].set_value(b.get_value())
 
     @property
     def output_shape(self):
@@ -560,7 +595,7 @@ class _Pooling1D(Layer):
 
     def get_output(self, train=False):
         X = self.get_input(train)
-        X = K.expand_dims(X, -1)   # add dummy last dimension
+        X = K.expand_dims(X, -1)  # add dummy last dimension
         X = K.permute_dimensions(X, (0, 2, 1, 3))
         output = self._pooling_function(inputs=X, pool_size=self.pool_size,
                                         strides=self.st,
