@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import
 import numpy as np
-
 from .. import backend as K
 from .. import activations, initializations, regularizers
 from ..layers.core import MaskedLayer
@@ -241,11 +240,14 @@ class SimpleRNN(Recurrent):
     # References
         - [A Theoretically Grounded Application of Dropout in Recurrent Neural Networks](http://arxiv.org/abs/1512.05287)
     '''
+
     def __init__(self, output_dim,
                  init='glorot_uniform', inner_init='orthogonal',
                  activation='tanh',
                  W_regularizer=None, U_regularizer=None, b_regularizer=None,
                  dropout_W=0., dropout_U=0., **kwargs):
+        self.resettable = True
+
         self.output_dim = output_dim
         self.init = initializations.get(init)
         self.inner_init = initializations.get(inner_init)
@@ -257,20 +259,15 @@ class SimpleRNN(Recurrent):
         super(SimpleRNN, self).__init__(**kwargs)
 
     def build(self):
-        input_shape = self.input_shape
+        self.input_dim = self.input_shape[2]
+
         if self.stateful:
             self.reset_states()
         else:
             # initial states: all-zero tensor of shape (output_dim)
             self.states = [None]
-        input_dim = input_shape[2]
-        self.input_dim = input_dim
 
-        self.W = self.init((input_dim, self.output_dim),
-                           name='{}_W'.format(self.name))
-        self.U = self.inner_init((self.output_dim, self.output_dim),
-                                 name='{}_U'.format(self.name))
-        self.b = K.zeros((self.output_dim,), name='{}_b'.format(self.name))
+        (self.W, self.U, self.b) = self.init_weights()
 
         def append_regulariser(input_regulariser, param, regularizers_list):
             regulariser = regularizers.get(input_regulariser)
@@ -288,6 +285,22 @@ class SimpleRNN(Recurrent):
         if self.initial_weights is not None:
             self.set_weights(self.initial_weights)
             del self.initial_weights
+
+    def init_weights(self):
+        W = self.init((self.input_dim, self.output_dim),
+                           name='{}_W'.format(self.name))
+        U = self.inner_init((self.output_dim, self.output_dim),
+                                 name='{}_U'.format(self.name))
+        b = K.zeros((self.output_dim,), name='{}_b'.format(self.name))
+
+        return (W,U,b)
+
+    def reinit_weights(self):
+        new_weights = self.init_weights()
+
+        for i in range(len(self.trainable_weights)):
+            self.trainable_weights[i].set_value(new_weights[i].get_value())
+
 
     def reset_states(self):
         assert self.stateful, 'Layer must be stateful.'
@@ -370,11 +383,14 @@ class GRU(Recurrent):
         - [Empirical Evaluation of Gated Recurrent Neural Networks on Sequence Modeling](http://arxiv.org/pdf/1412.3555v1.pdf)
         - [A Theoretically Grounded Application of Dropout in Recurrent Neural Networks](http://arxiv.org/abs/1512.05287)
     '''
+
     def __init__(self, output_dim,
                  init='glorot_uniform', inner_init='orthogonal',
                  activation='tanh', inner_activation='hard_sigmoid',
                  W_regularizer=None, U_regularizer=None, b_regularizer=None,
                  dropout_W=0., dropout_U=0., **kwargs):
+        self.resettable = True
+
         self.output_dim = output_dim
         self.init = initializations.get(init)
         self.inner_init = initializations.get(inner_init)
@@ -387,27 +403,11 @@ class GRU(Recurrent):
         super(GRU, self).__init__(**kwargs)
 
     def build(self):
-        input_shape = self.input_shape
-        input_dim = input_shape[2]
-        self.input_dim = input_dim
+        self.input_dim = self.input_shape[2]
 
-        self.W_z = self.init((input_dim, self.output_dim),
-                             name='{}_W_z'.format(self.name))
-        self.U_z = self.inner_init((self.output_dim, self.output_dim),
-                                   name='{}_U_z'.format(self.name))
-        self.b_z = K.zeros((self.output_dim,), name='{}_b_z'.format(self.name))
-
-        self.W_r = self.init((input_dim, self.output_dim),
-                             name='{}_W_r'.format(self.name))
-        self.U_r = self.inner_init((self.output_dim, self.output_dim),
-                                   name='{}_U_r'.format(self.name))
-        self.b_r = K.zeros((self.output_dim,), name='{}_b_r'.format(self.name))
-
-        self.W_h = self.init((input_dim, self.output_dim),
-                             name='{}_W_h'.format(self.name))
-        self.U_h = self.inner_init((self.output_dim, self.output_dim),
-                                   name='{}_U_h'.format(self.name))
-        self.b_h = K.zeros((self.output_dim,), name='{}_b_h'.format(self.name))
+        (self.W_z, self.U_z, self.b_z,
+         self.W_r, self.U_r, self.b_r,
+         self.W_h, self.U_h, self.b_h) = self.init_weights()
 
         def append_regulariser(input_regulariser, param, regularizers_list):
             regulariser = regularizers.get(input_regulariser)
@@ -435,6 +435,36 @@ class GRU(Recurrent):
         if self.initial_weights is not None:
             self.set_weights(self.initial_weights)
             del self.initial_weights
+
+    def init_weights(self):
+
+        W_z = self.init((self.input_dim, self.output_dim),
+                        name='{}_W_z'.format(self.name))
+        U_z = self.inner_init((self.output_dim, self.output_dim),
+                              name='{}_U_z'.format(self.name))
+        b_z = K.zeros((self.output_dim,), name='{}_b_z'.format(self.name))
+
+        W_r = self.init((self.input_dim, self.output_dim),
+                        name='{}_W_r'.format(self.name))
+        U_r = self.inner_init((self.output_dim, self.output_dim),
+                              name='{}_U_r'.format(self.name))
+        b_r = K.zeros((self.output_dim,), name='{}_b_r'.format(self.name))
+
+        W_h = self.init((self.input_dim, self.output_dim),
+                        name='{}_W_h'.format(self.name))
+        U_h = self.inner_init((self.output_dim, self.output_dim),
+                              name='{}_U_h'.format(self.name))
+        b_h = K.zeros((self.output_dim,), name='{}_b_h'.format(self.name))
+
+        return (W_z, U_z, b_z,
+                W_r, U_r, b_r,
+                W_h, U_h, b_h)
+
+    def reinit_weights(self):
+        new_weights = self.init_weights()
+
+        for i in range(len(self.trainable_weights)):
+            self.trainable_weights[i].set_value(new_weights[i].get_value())
 
     def reset_states(self):
         assert self.stateful, 'Layer must be stateful.'
@@ -540,12 +570,15 @@ class LSTM(Recurrent):
         - [Supervised sequence labelling with recurrent neural networks](http://www.cs.toronto.edu/~graves/preprint.pdf)
         - [A Theoretically Grounded Application of Dropout in Recurrent Neural Networks](http://arxiv.org/abs/1512.05287)
     '''
+
     def __init__(self, output_dim,
                  init='glorot_uniform', inner_init='orthogonal',
                  forget_bias_init='one', activation='tanh',
                  inner_activation='hard_sigmoid',
                  W_regularizer=None, U_regularizer=None, b_regularizer=None,
                  dropout_W=0., dropout_U=0., **kwargs):
+        self.resettable = True
+
         self.output_dim = output_dim
         self.init = initializations.get(init)
         self.inner_init = initializations.get(inner_init)
@@ -559,9 +592,7 @@ class LSTM(Recurrent):
         super(LSTM, self).__init__(**kwargs)
 
     def build(self):
-        input_shape = self.input_shape
-        input_dim = input_shape[2]
-        self.input_dim = input_dim
+        self.input_dim = self.input_shape[2]
 
         if self.stateful:
             self.reset_states()
@@ -569,30 +600,10 @@ class LSTM(Recurrent):
             # initial states: 2 all-zero tensors of shape (output_dim)
             self.states = [None, None]
 
-        self.W_i = self.init((input_dim, self.output_dim),
-                             name='{}_W_i'.format(self.name))
-        self.U_i = self.inner_init((self.output_dim, self.output_dim),
-                                   name='{}_U_i'.format(self.name))
-        self.b_i = K.zeros((self.output_dim,), name='{}_b_i'.format(self.name))
-
-        self.W_f = self.init((input_dim, self.output_dim),
-                             name='{}_W_f'.format(self.name))
-        self.U_f = self.inner_init((self.output_dim, self.output_dim),
-                                   name='{}_U_f'.format(self.name))
-        self.b_f = self.forget_bias_init((self.output_dim,),
-                                         name='{}_b_f'.format(self.name))
-
-        self.W_c = self.init((input_dim, self.output_dim),
-                             name='{}_W_c'.format(self.name))
-        self.U_c = self.inner_init((self.output_dim, self.output_dim),
-                                   name='{}_U_c'.format(self.name))
-        self.b_c = K.zeros((self.output_dim,), name='{}_b_c'.format(self.name))
-
-        self.W_o = self.init((input_dim, self.output_dim),
-                             name='{}_W_o'.format(self.name))
-        self.U_o = self.inner_init((self.output_dim, self.output_dim),
-                                   name='{}_U_o'.format(self.name))
-        self.b_o = K.zeros((self.output_dim,), name='{}_b_o'.format(self.name))
+        (self.W_i, self.U_i, self.b_i,
+         self.W_c, self.U_c, self.b_c,
+         self.W_f, self.U_f, self.b_f,
+         self.W_o, self.U_o, self.b_o) = self.init_weights()
 
         def append_regulariser(input_regulariser, param, regularizers_list):
             regulariser = regularizers.get(input_regulariser)
@@ -616,6 +627,43 @@ class LSTM(Recurrent):
         if self.initial_weights is not None:
             self.set_weights(self.initial_weights)
             del self.initial_weights
+
+    def init_weights(self):
+        W_i = self.init((self.input_dim, self.output_dim),
+                        name='{}_W_i'.format(self.name))
+        U_i = self.inner_init((self.output_dim, self.output_dim),
+                              name='{}_U_i'.format(self.name))
+        b_i = K.zeros((self.output_dim,), name='{}_b_i'.format(self.name))
+
+        W_f = self.init((self.input_dim, self.output_dim),
+                        name='{}_W_f'.format(self.name))
+        U_f = self.inner_init((self.output_dim, self.output_dim),
+                              name='{}_U_f'.format(self.name))
+        b_f = self.forget_bias_init((self.output_dim,),
+                                    name='{}_b_f'.format(self.name))
+
+        W_c = self.init((self.input_dim, self.output_dim),
+                        name='{}_W_c'.format(self.name))
+        U_c = self.inner_init((self.output_dim, self.output_dim),
+                              name='{}_U_c'.format(self.name))
+        b_c = K.zeros((self.output_dim,), name='{}_b_c'.format(self.name))
+
+        W_o = self.init((self.input_dim, self.output_dim),
+                        name='{}_W_o'.format(self.name))
+        U_o = self.inner_init((self.output_dim, self.output_dim),
+                              name='{}_U_o'.format(self.name))
+        b_o = K.zeros((self.output_dim,), name='{}_b_o'.format(self.name))
+
+        return (W_i, U_i, b_i,
+                W_c, U_c, b_c,
+                W_f, U_f, b_f,
+                W_o, U_o, b_o)
+
+    def reinit_weights(self):
+        new_weights = self.init_weights()
+
+        for i in range(len(self.trainable_weights)):
+            self.trainable_weights[i].set_value(new_weights[i].get_value())
 
     def reset_states(self):
         assert self.stateful, 'Layer must be stateful.'
