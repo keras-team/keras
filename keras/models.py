@@ -486,6 +486,7 @@ class Sequential(Model, containers.Sequential):
                 sample weighting (2D weights), set this to "temporal".
                 "None" defaults to sample-wise weights (1D).
         '''
+        self.class_mode = class_mode
         self.optimizer = optimizers.get(optimizer)
         self.sample_weight_mode = sample_weight_mode
 
@@ -549,6 +550,9 @@ class Sequential(Model, containers.Sequential):
         self._predict = K.function(predict_ins, [self.y_test], updates=self.state_updates)
         self._test = K.function(test_ins, [test_loss], updates=self.state_updates)
         self._test_with_acc = K.function(test_ins, [test_loss, test_accuracy], updates=self.state_updates)
+
+        self.stored_weights = [l.get_weights() for l in self.layers]
+
 
     def fit(self, X, y, batch_size=128, nb_epoch=100, verbose=1, callbacks=[],
             validation_split=0., validation_data=None, shuffle=True,
@@ -676,6 +680,16 @@ class Sequential(Model, containers.Sequential):
                          verbose=verbose, callbacks=callbacks,
                          val_f=val_f, val_ins=val_ins,
                          shuffle=shuffle, metrics=metrics)
+
+    def reset(self, use_stored=False):
+        if use_stored:
+            for i in range(len(self.stored_weights)):
+                self.layers[i].set_weights(self.stored_weights[i])
+        else:
+            for i in range(len(self.layers)):
+                if hasattr(self.layers[i], "resettable") and self.layers[i].resettable:
+                    self.layers[i].reinit_weights()
+
 
     def predict(self, X, batch_size=128, verbose=0):
         '''Generate output predictions for the input samples

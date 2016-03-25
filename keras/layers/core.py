@@ -989,6 +989,8 @@ class Dense(Layer):
     def __init__(self, output_dim, init='glorot_uniform', activation='linear', weights=None,
                  W_regularizer=None, b_regularizer=None, activity_regularizer=None,
                  W_constraint=None, b_constraint=None, input_dim=None, **kwargs):
+        self.resettable = True
+
         self.init = initializations.get(init)
         self.activation = activations.get(activation)
         self.output_dim = output_dim
@@ -1009,14 +1011,7 @@ class Dense(Layer):
         super(Dense, self).__init__(**kwargs)
 
     def build(self):
-        input_dim = self.input_shape[1]
-
-        self.W = self.init((input_dim, self.output_dim),
-                           name='{}_W'.format(self.name))
-        self.b = K.zeros((self.output_dim,),
-                         name='{}_b'.format(self.name))
-
-        self.trainable_weights = [self.W, self.b]
+        self.init_weights()
 
         self.regularizers = []
         if self.W_regularizer:
@@ -1034,6 +1029,22 @@ class Dense(Layer):
         if self.initial_weights is not None:
             self.set_weights(self.initial_weights)
             del self.initial_weights
+
+    def init_weights(self):
+        input_dim = self.input_shape[1]
+
+        self.W = self.init((input_dim, self.output_dim),
+                           name='{}_W'.format(self.name))
+        self.b = K.zeros((self.output_dim,),
+                         name='{}_b'.format(self.name))
+
+        self.trainable_weights = [self.W, self.b]
+
+    def reinit_weights(self):
+        input_dim = self.input_shape[1]
+        new_weights = self.init((input_dim, self.output_dim), name='{}_W'.format(self.name))
+
+        self.trainable_weights[0].set_value(new_weights.get_value())
 
     @property
     def output_shape(self):
