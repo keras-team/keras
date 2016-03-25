@@ -1011,7 +1011,11 @@ class Dense(Layer):
         super(Dense, self).__init__(**kwargs)
 
     def build(self):
-        self.init_weights()
+        self.input_dim = self.input_shape[1]
+
+        (self.W, self.b) = self.init_weights()
+
+        self.trainable_weights = [self.W, self.b]
 
         self.regularizers = []
         if self.W_regularizer:
@@ -1031,20 +1035,18 @@ class Dense(Layer):
             del self.initial_weights
 
     def init_weights(self):
-        input_dim = self.input_shape[1]
-
-        self.W = self.init((input_dim, self.output_dim),
+        W = self.init((self.input_dim, self.output_dim),
                            name='{}_W'.format(self.name))
-        self.b = K.zeros((self.output_dim,),
+        b = K.zeros((self.output_dim,),
                          name='{}_b'.format(self.name))
 
-        self.trainable_weights = [self.W, self.b]
+        return (W, b)
 
     def reinit_weights(self):
-        input_dim = self.input_shape[1]
-        new_weights = self.init((input_dim, self.output_dim), name='{}_W'.format(self.name))
+        new_weights = self.init_weights()
 
-        self.trainable_weights[0].set_value(new_weights.get_value())
+        self.trainable_weights[0].set_value(new_weights[0].get_value())
+        self.trainable_weights[1].set_value(new_weights[1].get_value())
 
     @property
     def output_shape(self):
@@ -1139,7 +1141,11 @@ class TimeDistributedDense(MaskedLayer):
         super(TimeDistributedDense, self).__init__(**kwargs)
 
     def build(self):
-        self.init_weights()
+        self.input_dim = self.input_shape[2]
+
+        (self.W, self.b) = self.init_weights()
+
+        self.trainable_weights = [self.W, self.b]
 
         self.regularizers = []
 
@@ -1160,21 +1166,18 @@ class TimeDistributedDense(MaskedLayer):
             del self.initial_weights
 
     def init_weights(self):
-        input_dim = self.input_shape[2]
-
-        self.W = self.init((input_dim, self.output_dim),
+        W = self.init((self.input_dim, self.output_dim),
                            name='{}_W'.format(self.name))
-        self.b = K.zeros((self.output_dim,),
+        b = K.zeros((self.output_dim,),
                          name='{}_b'.format(self.name))
 
-        self.trainable_weights = [self.W, self.b]
+        return (W, b)
 
     def reinit_weights(self):
-        input_dim = self.input_shape[2]
-        new_weights = self.W = self.init((input_dim, self.output_dim),
-                           name='{}_W'.format(self.name))
+        new_weights = self.init_weights()
 
-        self.trainable_weights[0].set_value(new_weights.get_value())
+        self.trainable_weights[0].set_value(new_weights[0].get_value())
+        self.trainable_weights[1].set_value(new_weights[1].get_value())
 
     @property
     def output_shape(self):
@@ -1459,7 +1462,10 @@ class MaxoutDense(Layer):
         super(MaxoutDense, self).__init__(**kwargs)
 
     def build(self):
-        self.init_weights()
+        self.input_dim = self.input_shape[1]
+        (self.W, self.b) = self.init_weights()
+
+        self.trainable_weights = [self.W, self.b]
 
         self.regularizers = []
 
@@ -1480,21 +1486,17 @@ class MaxoutDense(Layer):
             del self.initial_weights
 
     def init_weights(self):
-        input_dim = self.input_shape[1]
-
-        self.W = self.init((self.nb_feature, input_dim, self.output_dim),
-                           name='{}_W'.format(self.name))
-        self.b = K.zeros((self.nb_feature, self.output_dim),
-                         name='{}_b'.format(self.name))
-
-        self.trainable_weights = [self.W, self.b]
+        W = self.init((self.nb_feature, self.input_dim, self.output_dim),
+                      name='{}_W'.format(self.name))
+        b = K.zeros((self.nb_feature, self.output_dim),
+                    name='{}_b'.format(self.name))
+        return (W, b)
 
     def reinit_weights(self):
-        input_dim = self.input_shape[1]
-        new_weights = self.init((self.nb_feature, input_dim, self.output_dim),
-                           name='{}_W'.format(self.name))
+        new_weights = self.init_weights()
 
-        self.trainable_weights[0].set_value(new_weights.get_value())
+        self.trainable_weights[0].set_value(new_weights[0].get_value())
+        self.trainable_weights[1].set_value(new_weights[1].get_value())
 
     @property
     def output_shape(self):
@@ -2048,7 +2050,11 @@ class Highway(Layer):
         super(Highway, self).__init__(**kwargs)
 
     def build(self):
-        self.init_weights()
+        self.input_dim = self.input_shape[1]
+
+        (self.W, self.b, self.W_carry, self.b_carry) = self.init_weights()
+
+        self.trainable_weights = [self.W, self.b, self.W_carry, self.b_carry]
 
         self.regularizers = []
         if self.W_regularizer:
@@ -2068,29 +2074,23 @@ class Highway(Layer):
             del self.initial_weights
 
     def init_weights(self):
-        input_dim = self.input_shape[1]
-
-        self.W = self.init((input_dim, input_dim),
+        W = self.init((self.input_dim, self.input_dim),
                            name='{}_W'.format(self.name))
-        self.W_carry = self.init((input_dim, input_dim),
+        W_carry = self.init((self.input_dim, self.input_dim),
                                  name='{}_W_carry'.format(self.name))
 
-        self.b = K.zeros((input_dim,), name='{}_b'.format(self.name))
+        b = K.zeros((self.input_dim,), name='{}_b'.format(self.name))
         # initialize with a vector of values `transform_bias`
-        self.b_carry = K.variable(np.ones((input_dim,)) * self.transform_bias,
+        b_carry = K.variable(np.ones((self.input_dim,)) * self.transform_bias,
                                   name='{}_b_carry'.format(self.name))
 
-        self.trainable_weights = [self.W, self.b, self.W_carry, self.b_carry]
+        return (W, b, W_carry, b_carry)
 
     def reinit_weights(self):
-        input_dim = self.input_shape[1]
-        new_weights = self.init((input_dim, input_dim),
-                           name='{}_W'.format(self.name))
-        new_weights_carry = self.init((input_dim, input_dim),
-                                 name='{}_W_carry'.format(self.name))
+        new_weights = self.init_weights()
 
-        self.trainable_weights[0].set_value(new_weights.get_value())
-        self.trainable_weights[2].set_value(new_weights_carry.get_value())
+        for i in range(len(self.trainable_weights)):
+            self.trainable_weights[i].set_value(new_weights[i].get_value())
 
     @property
     def output_shape(self):
