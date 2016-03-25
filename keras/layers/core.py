@@ -98,6 +98,11 @@ class Layer(object):
         else:
             return None
 
+    @property
+    def grad_dictionary(self):
+        weights = self.get_params()[0]
+        return {param: {None: param} for param in weights}
+
     @shape_cache.setter
     def shape_cache(self, value):
         self._shape_cache = value
@@ -247,6 +252,7 @@ class Layer(object):
             return self.input
         else:
             self.input = K.placeholder(shape=self.input_shape)
+            self.input.name = self.name
             return self.input
 
     def supports_masked_input(self):
@@ -546,6 +552,22 @@ class Merge(Layer):
             return (shape1[0],) + shape
         elif self.mode == 'cos':
             return (input_shapes[0][0], 1)
+
+    @property
+    def grad_dictionary(self):
+        grad_dict = {}
+        for l in self.layers:
+            layer_grad_dict = l.grad_dictionary
+            for param in layer_grad_dict:
+                if param not in grad_dict:
+                    grad_dict[param] = layer_grad_dict[param]
+                else:
+                    for key in [x for x in grad_dict[param] if x in layer_grad_dict[param]]:
+                        assert grad_dict[param][key] == layer_grad_dict[param][key], \
+                        "inconsistent gradient variable associated with param {}, key {}".format(param, key)
+                    grad_dict[param].update(layer_grad_dict[param])
+        return grad_dict
+
 
     def get_params(self):
         return self.trainable_weights, self.regularizers, self.constraints, self.updates
@@ -1602,6 +1624,21 @@ class LambdaMerge(Lambda):
                 raise Exception('In LambdaMerge, the `output_shape` function must return a tuple.')
             return tuple(shape)
 
+    @property
+    def grad_dictionary(self):
+        grad_dict = {}
+        for l in self.layers:
+            layer_grad_dict = l.grad_dictionary
+            for param in layer_grad_dict:
+                if param not in grad_dict:
+                    grad_dict[param] = layer_grad_dict[param]
+                else:
+                    for key in [x for x in grad_dict[param] if x in layer_grad_dict[param]]:
+                        assert grad_dict[param][key] == layer_grad_dict[param][key], \
+                        "inconsistent gradient variable associated with param {}, key {}".format(param, key)
+                    grad_dict[param].update(layer_grad_dict[param])
+        return grad_dict
+
     def get_params(self):
         return self.trainable_weights, self.regularizers, self.constraints, self.updates
 
@@ -1700,6 +1737,7 @@ class Siamese(Layer):
         layers = [layer]
         if merge_mode and not is_graph:
             layers += inputs
+        self.layers = layers
         for l in layers:
             params, regs, consts, updates = l.get_params()
             self.regularizers += regs
@@ -1747,6 +1785,21 @@ class Siamese(Layer):
 
         elif self.merge_mode == 'cos':
             return (input_shapes[0][0], 1)
+
+    @property
+    def grad_dictionary(self):
+        grad_dict = {}
+        for l in self.layers:
+            layer_grad_dict = l.grad_dictionary
+            for param in layer_grad_dict:
+                if param not in grad_dict:
+                    grad_dict[param] = layer_grad_dict[param]
+                else:
+                    for key in [x for x in grad_dict[param] if x in layer_grad_dict[param]]:
+                        assert grad_dict[param][key] == layer_grad_dict[param][key], \
+                        "inconsistent gradient variable associated with param {}, key {}".format(param, key)
+                    grad_dict[param].update(layer_grad_dict[param])
+        return grad_dict
 
     def get_params(self):
         return self.trainable_weights, self.regularizers, self.constraints, self.updates

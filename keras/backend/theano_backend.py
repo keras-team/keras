@@ -884,6 +884,24 @@ def random_binomial(shape, p=0.0, dtype=_FLOATX, seed=None):
     rng = RandomStreams(seed=seed)
     return rng.binomial(shape, p=p, dtype=dtype)
 
+
+# SUBTENSOR UPDATES
+
+
+def scatter_add(tensor, indices, updates):
+    return T.inc_subtensor(tensor[indices], updates)
+
+
+def scatter_update(tensor, indices, updates):
+    # Theano current has a bug when the indices of the subtensor is an n-dim
+    # tensor (n > 1). We have to flatten indices, call set_subtensor and then
+    # reshape the result
+    flattened_indices = T.flatten(indices)
+    flattened_updates = updates.reshape((T.prod(updates.shape[:-1]),
+                                         updates.shape[-1]))
+    return T.set_subtensor(tensor[flattened_indices], flattened_updates)
+
+
 '''
 more TODO:
 

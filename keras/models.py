@@ -545,8 +545,11 @@ class Sequential(Model, containers.Sequential):
 
         for r in self.regularizers:
             train_loss = r(train_loss)
-        updates = self.optimizer.get_updates(self.trainable_weights,
-                                             self.constraints,
+
+        constraint_dictionary = dict(zip(self.trainable_weights,
+                                         self.constraints))
+        updates = self.optimizer.get_updates(self.grad_dictionary,
+                                             constraint_dictionary,
                                              train_loss)
         updates += self.updates
 
@@ -1296,9 +1299,12 @@ class Graph(Model, containers.Graph):
 
         for r in self.regularizers:
             train_loss = r(train_loss)
+
+        constraint_dictionary = dict(zip(self.trainable_weights,
+                                         self.constraints))
         self.optimizer = optimizers.get(optimizer)
-        updates = self.optimizer.get_updates(self.trainable_weights,
-                                             self.constraints,
+        updates = self.optimizer.get_updates(self.grad_dictionary,
+                                             constraint_dictionary,
                                              train_loss)
         updates += self.updates
         self.loss = loss

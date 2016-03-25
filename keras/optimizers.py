@@ -2,6 +2,7 @@ from __future__ import absolute_import
 from . import backend as K
 import numpy as np
 from .utils.generic_utils import get_from_module
+from collections import defaultdict
 from six.moves import zip
 
 
@@ -13,6 +14,27 @@ def clip_norm(g, c, n):
 
 def kl_divergence(p, p_hat):
     return p_hat - p + p * K.log(p / p_hat)
+
+
+def do_subtensor_update(grads):
+    return len(grads) > 1 or list(grads)[0]
+
+
+def tensor_set(tensor, grads, update_expr, *args):
+    '''Wraps tensor and subtensor updates into one function'''
+    if not do_subtensor_update(grads):
+        g = grads.items()[0][1]
+        tensor = update_expr(tensor, g, *args)
+    else:
+        for i, (indices, g) in enumerate(grads.items()):
+            tensor_sub = tensor[indices]
+            sliced_args = [arg[indices] for arg in args]
+
+            update = update_expr(tensor_sub, g, *sliced_args)
+
+            tensor = K.scatter_update(tensor, indices, update)
+
+    return tensor
 
 
 class Optimizer(object):
@@ -44,13 +66,20 @@ class Optimizer(object):
         raise NotImplementedError
 
     def get_gradients(self, loss, params):
-        grads = K.gradients(loss, params)
+        dict_to_list = []
+        for param in params:
+            for inner_param in params[param]:
+                dict_to_list.append((param, inner_param, params[param][inner_param]))
+        grads = K.gradients(loss, [item[2] for item in dict_to_list])
         if hasattr(self, 'clipnorm') and self.clipnorm > 0:
             norm = K.sqrt(sum([K.sum(K.square(g)) for g in grads]))
             grads = [clip_norm(g, self.clipnorm, norm) for g in grads]
         if hasattr(self, 'clipvalue') and self.clipvalue > 0:
             grads = [K.clip(g, -self.clipvalue, self.clipvalue) for g in grads]
-        return grads
+        dict_of_grads = defaultdict(dict)
+        for (key, inner_key, _), grad in zip(dict_to_list, grads):
+            dict_of_grads[key][inner_key] = grad
+        return dict_of_grads
 
     def get_config(self):
         return {"name": self.__class__.__name__}
@@ -76,21 +105,25 @@ class SGD(Optimizer):
         self.decay = K.variable(decay)
 
     def get_updates(self, params, constraints, loss):
-        grads = self.get_gradients(loss, params)
+        grad_dict = self.get_gradients(loss, params)
         lr = self.lr * (1.0 / (1.0 + self.decay * self.iterations))
         self.updates = [(self.iterations, self.iterations + 1.)]
 
-        for p, g, c in zip(params, grads, constraints):
+        for p in grad_dict:
             m = K.variable(np.zeros(K.get_value(p).shape))  # momentum
-            v = self.momentum * m - lr * g  # velocity
+            v = tensor_set(m, grad_dict[p],
+                           lambda x, y: self.momentum * x - lr * y)  # velocity
             self.updates.append((m, v))
 
             if self.nesterov:
-                new_p = p + self.momentum * v - lr * g
+                new_p = tensor_set(p, grad_dict[p],
+                                   lambda x, y, v: x + self.momentum * v - lr * y,
+                                   v)
             else:
-                new_p = p + v
-
-            self.updates.append((p, c(new_p)))  # apply constraints
+                new_p = tensor_set(p, grad_dict[p],
+                                   lambda x, y, v: x + v,
+                                   v)
+            self.updates.append((p, constraints[p](new_p)))  # apply constraints
         return self.updates
 
     def get_config(self):
@@ -122,17 +155,21 @@ class RMSprop(Optimizer):
         self.rho = K.variable(rho)
 
     def get_updates(self, params, constraints, loss):
-        grads = self.get_gradients(loss, params)
-        accumulators = [K.variable(np.zeros(K.get_value(p).shape)) for p in params]
+        grad_dict = self.get_gradients(loss, params)
+        param_list = list(params.keys())
+        accumulators = [K.variable(np.zeros(K.get_value(p).shape)) for p in param_list]
         self.updates = []
 
-        for p, g, a, c in zip(params, grads, accumulators, constraints):
+        for p, a in zip(param_list, accumulators):
             # update accumulator
-            new_a = self.rho * a + (1 - self.rho) * K.square(g)
+            new_a = tensor_set(a, grad_dict[p],
+                               lambda x, y: self.rho * x + (1 - self.rho) * K.square(y))
             self.updates.append((a, new_a))
 
-            new_p = p - self.lr * g / K.sqrt(new_a + self.epsilon)
-            self.updates.append((p, c(new_p)))  # apply constraints
+            new_p = tensor_set(p, grad_dict[p],
+                               lambda x, y, a: x - self.lr * y / K.sqrt(a + self.epsilon),
+                               new_a)
+            self.updates.append((p, constraints[p](new_p)))  # apply constraints
         return self.updates
 
     def get_config(self):
@@ -158,15 +195,19 @@ class Adagrad(Optimizer):
         self.lr = K.variable(lr)
 
     def get_updates(self, params, constraints, loss):
-        grads = self.get_gradients(loss, params)
-        accumulators = [K.variable(np.zeros(K.get_value(p).shape)) for p in params]
+        grad_dict = self.get_gradients(loss, params)
+        param_list = list(params.keys())
+        accumulators = [K.variable(np.zeros(K.get_value(p).shape)) for p in param_list]
         self.updates = []
 
-        for p, g, a, c in zip(params, grads, accumulators, constraints):
-            new_a = a + K.square(g)  # update accumulator
+        for p, a in zip(param_list, accumulators):
+            new_a = tensor_set(a, grad_dict[p],
+                               lambda x, y: x + K.square(y))
             self.updates.append((a, new_a))
-            new_p = p - self.lr * g / K.sqrt(new_a + self.epsilon)
-            self.updates.append((p, c(new_p)))  # apply constraints
+            new_p = tensor_set(p, grad_dict[p],
+                               lambda x, y, a: x - self.lr * y / K.sqrt(a + self.epsilon),
+                               new_a)
+            self.updates.append((p, constraints[p](new_p)))  # apply constraints
         return self.updates
 
     def get_config(self):
@@ -195,25 +236,34 @@ class Adadelta(Optimizer):
         self.lr = K.variable(lr)
 
     def get_updates(self, params, constraints, loss):
-        grads = self.get_gradients(loss, params)
-        accumulators = [K.variable(np.zeros(K.get_value(p).shape)) for p in params]
-        delta_accumulators = [K.variable(np.zeros(K.get_value(p).shape)) for p in params]
+        grad_dict = self.get_gradients(loss, params)
+        param_list = list(params.keys())
+        accumulators = [K.variable(np.zeros(K.get_value(p).shape)) for p in param_list]
+        delta_accumulators = [K.variable(np.zeros(K.get_value(p).shape)) for p in param_list]
         self.updates = []
 
-        for p, g, a, d_a, c in zip(params, grads, accumulators,
-                                   delta_accumulators, constraints):
+        for p, a, d_a in zip(param_list, accumulators, delta_accumulators):
             # update accumulator
-            new_a = self.rho * a + (1 - self.rho) * K.square(g)
+            new_a = tensor_set(a, grad_dict[p],
+                               lambda x, y: self.rho * x + (1 - self.rho) * K.square(y))
             self.updates.append((a, new_a))
 
             # use the new accumulator and the *old* delta_accumulator
-            update = g * K.sqrt(d_a + self.epsilon) / K.sqrt(new_a + self.epsilon)
+            # update = g * K.sqrt(d_a + self.epsilon) / K.sqrt(new_a + self.epsilon)
 
-            new_p = p - self.lr * update
-            self.updates.append((p, c(new_p)))  # apply constraints
+            new_p = tensor_set(
+                p, grad_dict[p],
+                lambda x, y, p, q: x - self.lr * (y * K.sqrt(p + self.epsilon) /
+                                                  K.sqrt(q + self.epsilon)),
+                d_a, new_a)
+            self.updates.append((p, constraints[p](new_p)))  # apply constraints
 
             # update delta_accumulator
-            new_d_a = self.rho * d_a + (1 - self.rho) * K.square(update)
+            new_d_a = tensor_set(
+                d_a, grad_dict[p],
+                lambda x, y, p, q: (self.rho * x + (1 - self.rho) *
+                                    K.square(y * K.sqrt(p + self.epsilon) / K.sqrt(q + self.epsilon))),
+                d_a, new_a)
             self.updates.append((d_a, new_d_a))
         return self.updates
 
@@ -247,25 +297,29 @@ class Adam(Optimizer):
         self.beta_2 = K.variable(beta_2)
 
     def get_updates(self, params, constraints, loss):
-        grads = self.get_gradients(loss, params)
+        grad_dict = self.get_gradients(loss, params)
         self.updates = [(self.iterations, self.iterations+1.)]
 
         t = self.iterations + 1
         lr_t = self.lr * K.sqrt(1 - K.pow(self.beta_2, t)) / (1 - K.pow(self.beta_1, t))
 
-        for p, g, c in zip(params, grads, constraints):
+        for p in grad_dict:
             # zero init of moment
             m = K.variable(np.zeros(K.get_value(p).shape))
             # zero init of velocity
             v = K.variable(np.zeros(K.get_value(p).shape))
 
-            m_t = (self.beta_1 * m) + (1 - self.beta_1) * g
-            v_t = (self.beta_2 * v) + (1 - self.beta_2) * K.square(g)
-            p_t = p - lr_t * m_t / (K.sqrt(v_t) + self.epsilon)
+            m_t = tensor_set(m, grad_dict[p],
+                             lambda x, y: (self.beta_1 * x) + (1 - self.beta_1) * y)
+            v_t = tensor_set(v, grad_dict[p],
+                             lambda x, y: (self.beta_2 * x) + (1 - self.beta_2) * K.square(y))
+            p_t = tensor_set(p, grad_dict[p],
+                             lambda x, y, a, b: x - lr_t * a / (K.sqrt(b) + self.epsilon),
+                             m_t, v_t)
 
             self.updates.append((m, m_t))
             self.updates.append((v, v_t))
-            self.updates.append((p, c(p_t)))  # apply constraints
+            self.updates.append((p, constraints[p](p_t)))  # apply constraints
         return self.updates
 
     def get_config(self):
@@ -300,25 +354,29 @@ class Adamax(Optimizer):
         self.beta_2 = K.variable(beta_2)
 
     def get_updates(self, params, constraints, loss):
-        grads = self.get_gradients(loss, params)
+        grad_dict = self.get_gradients(loss, params)
         self.updates = [(self.iterations, self.iterations+1.)]
 
         t = self.iterations + 1
         lr_t = self.lr / (1 - K.pow(self.beta_1, t))
 
-        for p, g, c in zip(params, grads, constraints):
+        for p in params:
             # zero init of 1st moment
             m = K.variable(np.zeros(K.get_value(p).shape))
             # zero init of exponentially weighted infinity norm
             u = K.variable(np.zeros(K.get_value(p).shape))
 
-            m_t = (self.beta_1 * m) + (1 - self.beta_1) * g
-            u_t = K.maximum(self.beta_2 * u, K.abs(g))
-            p_t = p - lr_t * m_t / (u_t + self.epsilon)
+            m_t = tensor_set(m, grad_dict[p],
+                             lambda x, y: (self.beta_1 * x) + (1 - self.beta_1) * y)
+            u_t = tensor_set(u, grad_dict[p],
+                             lambda x, y: K.maximum(self.beta_2 * x, K.abs(y)))
+            p_t = tensor_set(p, grad_dict[p],
+                             lambda x, y, a, b: x - lr_t * a / (b + self.epsilon),
+                             m_t, u_t)
 
             self.updates.append((m, m_t))
             self.updates.append((u, u_t))
-            self.updates.append((p, c(p_t)))  # apply constraints
+            self.updates.append((p, constraints[p](p_t)))  # apply constraints
         return self.updates
 
     def get_config(self):
