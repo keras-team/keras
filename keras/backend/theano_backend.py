@@ -189,6 +189,10 @@ def round(x):
     return T.round(x)
 
 
+def sign(x):
+    return T.sgn(x)
+
+
 def pow(x, a):
     return T.pow(x, a)
 
