@@ -250,9 +250,9 @@ class SimpleRNN(Recurrent):
         self.init = initializations.get(init)
         self.inner_init = initializations.get(inner_init)
         self.activation = activations.get(activation)
-        self.W_regularizer = W_regularizer
-        self.U_regularizer = U_regularizer
-        self.b_regularizer = b_regularizer
+        self.W_regularizer = regularizers.get(W_regularizer)
+        self.U_regularizer = regularizers.get(U_regularizer)
+        self.b_regularizer = regularizers.get(b_regularizer)
         self.dropout_W, self.dropout_U = dropout_W, dropout_U
         super(SimpleRNN, self).__init__(**kwargs)
 
@@ -272,16 +272,16 @@ class SimpleRNN(Recurrent):
                                  name='{}_U'.format(self.name))
         self.b = K.zeros((self.output_dim,), name='{}_b'.format(self.name))
 
-        def append_regulariser(input_regulariser, param, regularizers_list):
-            regulariser = regularizers.get(input_regulariser)
-            if regulariser:
-                regulariser.set_param(param)
-                regularizers_list.append(regulariser)
-
         self.regularizers = []
-        append_regulariser(self.W_regularizer, self.W, self.regularizers)
-        append_regulariser(self.U_regularizer, self.U, self.regularizers)
-        append_regulariser(self.b_regularizer, self.b, self.regularizers)
+        if self.W_regularizer:
+            self.W_regularizer.set_param(self.W)
+            self.regularizers.append(self.W_regularizer)
+        if self.U_regularizer:
+            self.W_regularizer.set_param(self.U)
+            self.regularizers.append(self.U_regularizer)
+        if self.b_regularizer:
+            self.W_regularizer.set_param(self.b)
+            self.regularizers.append(self.b_regularizer)
 
         self.trainable_weights = [self.W, self.U, self.b]
 
@@ -380,9 +380,9 @@ class GRU(Recurrent):
         self.inner_init = initializations.get(inner_init)
         self.activation = activations.get(activation)
         self.inner_activation = activations.get(inner_activation)
-        self.W_regularizer = W_regularizer
-        self.U_regularizer = U_regularizer
-        self.b_regularizer = b_regularizer
+        self.W_regularizer = regularizers.get(W_regularizer)
+        self.U_regularizer = regularizers.get(U_regularizer)
+        self.b_regularizer = regularizers.get(b_regularizer)
         self.dropout_W, self.dropout_U = dropout_W, dropout_U
         super(GRU, self).__init__(**kwargs)
 
@@ -409,19 +409,22 @@ class GRU(Recurrent):
                                    name='{}_U_h'.format(self.name))
         self.b_h = K.zeros((self.output_dim,), name='{}_b_h'.format(self.name))
 
-        def append_regulariser(input_regulariser, param, regularizers_list):
-            regulariser = regularizers.get(input_regulariser)
-            if regulariser:
-                regulariser.set_param(param)
-                regularizers_list.append(regulariser)
-
         self.regularizers = []
-        for W in [self.W_z, self.W_r, self.W_h]:
-            append_regulariser(self.W_regularizer, W, self.regularizers)
-        for U in [self.U_z, self.U_r, self.U_h]:
-            append_regulariser(self.U_regularizer, U, self.regularizers)
-        for b in [self.b_z, self.b_r, self.b_h]:
-            append_regulariser(self.b_regularizer, b, self.regularizers)
+        if self.W_regularizer:
+            self.W_regularizer.set_param(K.concatenate([self.W_z,
+                                                        self.W_r,
+                                                        self.W_h]))
+            self.regularizers.append(self.W_regularizer)
+        if self.U_regularizer:
+            self.U_regularizer.set_param(K.concatenate([self.U_z,
+                                                        self.U_r,
+                                                        self.U_h]))
+            self.regularizers.append(self.U_regularizer)
+        if self.b_regularizer:
+            self.b_regularizer.set_param(K.concatenate([self.b_z,
+                                                        self.b_r,
+                                                        self.b_h]))
+            self.regularizers.append(self.b_regularizer)
 
         self.trainable_weights = [self.W_z, self.U_z, self.b_z,
                                   self.W_r, self.U_r, self.b_r,
@@ -552,9 +555,9 @@ class LSTM(Recurrent):
         self.forget_bias_init = initializations.get(forget_bias_init)
         self.activation = activations.get(activation)
         self.inner_activation = activations.get(inner_activation)
-        self.W_regularizer = W_regularizer
-        self.U_regularizer = U_regularizer
-        self.b_regularizer = b_regularizer
+        self.W_regularizer = regularizers.get(W_regularizer)
+        self.U_regularizer = regularizers.get(U_regularizer)
+        self.b_regularizer = regularizers.get(b_regularizer)
         self.dropout_W, self.dropout_U = dropout_W, dropout_U
         super(LSTM, self).__init__(**kwargs)
 
@@ -594,19 +597,25 @@ class LSTM(Recurrent):
                                    name='{}_U_o'.format(self.name))
         self.b_o = K.zeros((self.output_dim,), name='{}_b_o'.format(self.name))
 
-        def append_regulariser(input_regulariser, param, regularizers_list):
-            regulariser = regularizers.get(input_regulariser)
-            if regulariser:
-                regulariser.set_param(param)
-                regularizers_list.append(regulariser)
-
         self.regularizers = []
-        for W in [self.W_i, self.W_f, self.W_c, self.W_o]:
-            append_regulariser(self.W_regularizer, W, self.regularizers)
-        for U in [self.U_i, self.U_f, self.U_c, self.U_o]:
-            append_regulariser(self.U_regularizer, U, self.regularizers)
-        for b in [self.b_i, self.b_f, self.b_c, self.b_o]:
-            append_regulariser(self.b_regularizer, b, self.regularizers)
+        if self.W_regularizer:
+            self.W_regularizer.set_param(K.concatenate([self.W_i,
+                                                        self.W_f,
+                                                        self.W_c,
+                                                        self.W_o]))
+            self.regularizers.append(self.W_regularizer)
+        if self.U_regularizer:
+            self.U_regularizer.set_param(K.concatenate([self.U_i,
+                                                        self.U_f,
+                                                        self.U_c,
+                                                        self.U_o]))
+            self.regularizers.append(self.U_regularizer)
+        if self.b_regularizer:
+            self.b_regularizer.set_param(K.concatenate([self.b_i,
+                                                        self.b_f,
+                                                        self.b_c,
+                                                        self.b_o]))
+            self.regularizers.append(self.b_regularizer)
 
         self.trainable_weights = [self.W_i, self.U_i, self.b_i,
                                   self.W_c, self.U_c, self.b_c,

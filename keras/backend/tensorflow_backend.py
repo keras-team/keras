@@ -1,6 +1,7 @@
 import tensorflow as tf
 import numpy as np
 import os
+import warnings
 from .common import _FLOATX, _EPSILON
 
 # INTERNAL UTILS
@@ -90,6 +91,16 @@ def cast(x, dtype):
 
 def dot(x, y):
     return tf.matmul(x, y)
+
+
+def batch_dot(x, y, axes=None):
+    if axes:
+        adj_x = None if axes[0][0] == ndim(x)-1 else True
+        adj_y = True if axes[1][0] == ndim(y)-1 else None
+    else:
+        adj_x = None
+        adj_y = None
+    return tf.batch_matmul(x, y, adj_x=adj_x, adj_y=adj_y)
 
 
 def transpose(x):
@@ -402,7 +413,13 @@ class Function(object):
         return updated[:len(self.outputs)]
 
 
-def function(inputs, outputs, updates=[]):
+def function(inputs, outputs, updates=[], **kwargs):
+    if len(kwargs) > 0:
+        msg = [
+            "Expected no kwargs, you passed %s" % len(kwargs),
+            "kwargs passed to function are ignored with Tensorflow backend"
+        ]
+        warnings.warn('\n'.join(msg))
     return Function(inputs, outputs, updates=updates)
 
 
@@ -468,6 +485,9 @@ def rnn(step_function, inputs, initial_states,
             mask = expand_dims(mask)
         mask = tf.cast(tf.transpose(mask, axes), tf.bool)
         mask_list = tf.unpack(mask)
+
+        if go_backwards:
+            mask_list.reverse()
 
         for input, mask_t in zip(input_list, mask_list):
             output, new_states = step_function(input, states + constants)
@@ -746,5 +766,5 @@ def random_uniform(shape, low=0.0, high=1.0, dtype=_FLOATX, seed=None):
 def random_binomial(shape, p=0.0, dtype=_FLOATX, seed=None):
     if seed is None:
         seed = np.random.randint(10e6)
-    return tf.select(tf.random_uniform(shape, dtype=dtype, seed=seed) <= p, 
+    return tf.select(tf.random_uniform(shape, dtype=dtype, seed=seed) <= p,
                      tf.ones(shape), tf.zeros(shape))

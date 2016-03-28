@@ -5,6 +5,7 @@ from numpy.testing import assert_allclose
 from keras.layers import recurrent, embeddings
 from keras.models import Sequential
 from keras.layers.core import Masking
+from keras import regularizers
 
 from keras import backend as K
 from keras.models import Sequential, model_from_json
@@ -107,6 +108,15 @@ def _runner(layer_class):
     out7 = model.predict(right_padded_input)
 
     assert_allclose(out7, out6, atol=1e-5)
+
+    # check regularizers
+    layer = layer_class(output_dim, return_sequences=ret_seq, weights=None,
+                        batch_input_shape=(nb_samples, timesteps, embedding_dim),
+                        W_regularizer=regularizers.WeightRegularizer(l1=0.01),
+                        U_regularizer=regularizers.WeightRegularizer(l1=0.01),
+                        b_regularizer='l2')
+    layer.input = K.variable(np.ones((nb_samples, timesteps, embedding_dim)))
+    out = K.eval(layer.get_output(train=True))
 
 
 def test_SimpleRNN():

@@ -52,6 +52,33 @@ class BaseWrapper(object):
     def __init__(self, build_fn=None, **sk_params):
         self.build_fn = build_fn
         self.sk_params = sk_params
+        self.check_params(sk_params)
+
+    def check_params(self, params):
+        '''Check for user typos in "params" keys to avoid
+        unwanted usage of default values
+
+        # Arguments
+            params: dictionary
+                The parameters to be checked
+        '''
+        legal_params_fns = [Sequential.fit, Sequential.predict,
+                            Sequential.predict_classes, Sequential.evaluate]
+        if self.build_fn is None:
+            legal_params_fns.append(self.__call__)
+        elif not isinstance(self.build_fn, types.FunctionType):
+            legal_params_fns.append(self.build_fn.__call__)
+        else:
+            legal_params_fns.append(self.build_fn)
+
+        legal_params = []
+        for fn in legal_params_fns:
+            legal_params += inspect.getargspec(fn)[0]
+        legal_params = set(legal_params)
+
+        for params_name in params:
+            if params_name not in legal_params:
+                assert False, '{} is not a legal parameter'.format(params_name)
 
     def get_params(self, deep=True):
         '''Get parameters for this estimator.
@@ -79,6 +106,7 @@ class BaseWrapper(object):
         # Returns
             self
         '''
+        self.check_params(params)
         self.sk_params.update(params)
         return self
 

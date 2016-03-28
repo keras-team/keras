@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
-'''
-    These preprocessing utils would greatly benefit
-    from a fast Cython rewrite.
+'''These preprocessing utilities would greatly benefit
+from a fast Cython rewrite.
 '''
 from __future__ import absolute_import
 
@@ -75,8 +74,7 @@ class Tokenizer(object):
         self.char_level = char_level
 
     def fit_on_texts(self, texts):
-        '''
-            required before using texts_to_sequences or texts_to_matrix
+        '''Required before using texts_to_sequences or texts_to_matrix
 
         # Arguments
             texts: can be a list of strings,
@@ -107,9 +105,8 @@ class Tokenizer(object):
             self.index_docs[self.word_index[w]] = c
 
     def fit_on_sequences(self, sequences):
-        '''
-            required before using sequences_to_matrix
-            (if fit_on_texts was never called)
+        '''Required before using sequences_to_matrix
+        (if fit_on_texts was never called)
         '''
         self.document_count = len(sequences)
         self.index_docs = {}
@@ -122,12 +119,11 @@ class Tokenizer(object):
                     self.index_docs[i] += 1
 
     def texts_to_sequences(self, texts):
-        '''
-            Transform each text in texts in a sequence of integers.
-            Only top "nb_words" most frequent words will be taken into account.
-            Only words known by the tokenizer will be taken into account.
+        '''Transforms each text in texts in a sequence of integers.
+        Only top "nb_words" most frequent words will be taken into account.
+        Only words known by the tokenizer will be taken into account.
 
-            Returns a list of sequences.
+        Returns a list of sequences.
         '''
         res = []
         for vect in self.texts_to_sequences_generator(texts):
@@ -135,12 +131,14 @@ class Tokenizer(object):
         return res
 
     def texts_to_sequences_generator(self, texts):
-        '''
-            Transform each text in texts in a sequence of integers.
-            Only top "nb_words" most frequent words will be taken into account.
-            Only words known by the tokenizer will be taken into account.
+        '''Transforms each text in texts in a sequence of integers.
+        Only top "nb_words" most frequent words will be taken into account.
+        Only words known by the tokenizer will be taken into account.
 
-            Yields individual sequences.
+        Yields individual sequences.
+
+        # Arguments:
+            texts: list of strings.
         '''
         nb_words = self.nb_words
         for text in texts:
@@ -150,56 +148,67 @@ class Tokenizer(object):
                 i = self.word_index.get(w)
                 if i is not None:
                     if nb_words and i >= nb_words:
-                        pass
+                        continue
                     else:
                         vect.append(i)
             yield vect
 
-    def texts_to_matrix(self, texts, mode="binary"):
-        '''
-            modes: binary, count, tfidf, freq
+    def texts_to_matrix(self, texts, mode='binary'):
+        '''Convert a list of texts to a Numpy matrix,
+        according to some vectorization mode.
+
+        # Arguments:
+            texts: list of strings.
+            modes: one of "binary", "count", "tfidf", "freq"
         '''
         sequences = self.texts_to_sequences(texts)
         return self.sequences_to_matrix(sequences, mode=mode)
 
-    def sequences_to_matrix(self, sequences, mode="binary"):
-        '''
-            modes: binary, count, tfidf, freq
+    def sequences_to_matrix(self, sequences, mode='binary'):
+        '''Converts a list of sequences into a Numpy matrix,
+        according to some vectorization mode.
+
+        # Arguments:
+            sequences: list of sequences
+                (a sequence is a list of integer word indices).
+            modes: one of "binary", "count", "tfidf", "freq"
         '''
         if not self.nb_words:
             if self.word_index:
                 nb_words = len(self.word_index) + 1
             else:
-                raise Exception("Specify a dimension (nb_words argument), or fit on some text data first.")
+                raise Exception('Specify a dimension (nb_words argument), '
+                                'or fit on some text data first.')
         else:
             nb_words = self.nb_words
 
-        if mode == "tfidf" and not self.document_count:
-            raise Exception("Fit the Tokenizer on some data before using tfidf mode.")
+        if mode == 'tfidf' and not self.document_count:
+            raise Exception('Fit the Tokenizer on some data '
+                            'before using tfidf mode.')
 
         X = np.zeros((len(sequences), nb_words))
         for i, seq in enumerate(sequences):
             if not seq:
-                pass
+                continue
             counts = {}
             for j in seq:
                 if j >= nb_words:
-                    pass
+                    continue
                 if j not in counts:
                     counts[j] = 1.
                 else:
                     counts[j] += 1
             for j, c in list(counts.items()):
-                if mode == "count":
+                if mode == 'count':
                     X[i][j] = c
-                elif mode == "freq":
+                elif mode == 'freq':
                     X[i][j] = c / len(seq)
-                elif mode == "binary":
+                elif mode == 'binary':
                     X[i][j] = 1
-                elif mode == "tfidf":
+                elif mode == 'tfidf':
                     tf = np.log(c / len(seq))
                     df = (1 + np.log(1 + self.index_docs.get(j, 0) / (1 + self.document_count)))
                     X[i][j] = tf / df
                 else:
-                    raise Exception("Unknown vectorization mode: " + str(mode))
+                    raise Exception('Unknown vectorization mode: ' + str(mode))
         return X

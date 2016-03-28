@@ -149,6 +149,6 @@ def to_graph(model, **kwargs):
     return ModelToDot()(model, **kwargs)
 
 
-def plot(model, to_file='model.png'):
-    graph = to_graph(model)
+def plot(model, to_file='model.png', **kwargs):
+    graph = to_graph(model, **kwargs)
     graph.write_png(to_file)

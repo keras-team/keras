@@ -12,9 +12,7 @@ from .. import backend as K
 from .. import activations, initializations, regularizers, constraints
 from ..regularizers import ActivityRegularizer
 
-import marshal
-import types
-import sys
+import inspect
 
 
 class Layer(object):
@@ -425,9 +423,6 @@ class Merge(Layer):
         dot_axes: axis or axes to use in `dot` mode
             (see [the Numpy documentation](http://docs.scipy.org/doc/numpy-1.10.1/reference/generated/numpy.tensordot.html) for more details).
 
-    # TensorFlow warning
-        `dot` mode only works with Theano for the time being.
-
     # Examples
 
     ```python
@@ -466,9 +461,6 @@ class Merge(Layer):
                                 'be merged using ' + mode + ' mode. ' +
                                 'Layer shapes: %s' % ([l.output_shape for l in layers]))
         if mode in {'cos', 'dot'}:
-            if K._BACKEND != 'theano':
-                raise Exception('"' + mode + '" merge mode will only work with Theano.')
-
             if len(layers) > 2:
                 raise Exception(mode + ' merge takes exactly 2 layers')
             shape1 = layers[0].output_shape
@@ -585,23 +577,18 @@ class Merge(Layer):
                 s *= self.layers[i].get_output(train)
             return s
         elif self.mode == 'dot':
-            if K._BACKEND != 'theano':
-                raise Exception('"dot" merge mode will only work with Theano.')
-            from theano import tensor as T
             l1 = self.layers[0].get_output(train)
             l2 = self.layers[1].get_output(train)
-            output = T.batched_tensordot(l1, l2, self.dot_axes)
+            output = K.batch_dot(l1, l2, self.dot_axes)
             output_shape = list(self.output_shape)
-            output_shape[0] = l1.shape[0]
-            output = output.reshape(tuple(output_shape))
+            output_shape[0] = -1
+            output = K.reshape(output, (tuple(output_shape)))
             return output
         elif self.mode == 'cos':
-            if K._BACKEND != 'theano':
-                raise Exception('"cos" merge mode will only work with Theano.')
-            from theano import tensor as T
             l1 = self.layers[0].get_output(train)
             l2 = self.layers[1].get_output(train)
-            output = T.batched_tensordot(l1, l2, self.dot_axes) / T.sqrt(T.batched_tensordot(l1, l1, self.dot_axes) * T.batched_tensordot(l2, l2, self.dot_axes))
+            output = K.batch_dot(l1, l2, self.dot_axes) / K.sqrt(
+                K.batch_dot(l1, l1, self.dot_axes) * K.batch_dot(l2, l2, self.dot_axes))
             output = output.dimshuffle((0, 'x'))
             return output
         else:
@@ -1501,25 +1488,20 @@ class Lambda(Layer):
             Takes one argument: the output of previous layer
         output_shape: Expected output shape from function.
             Could be a tuple or a function of the shape of the input
+        arguments: optional dictionary of keyword arguments to be passed
+            to the function.
     '''
-    def __init__(self, function, output_shape=None, **kwargs):
+    def __init__(self, function, output_shape=None, arguments={}, **kwargs):
         super(Lambda, self).__init__(**kwargs)
-        py3 = sys.version_info[0] == 3
-        if py3:
-            self.function = marshal.dumps(function.__code__)
-        else:
-            assert hasattr(function, 'func_code'), ('The Lambda layer "function"'
-                                                    ' argument must be a Python function.')
-            self.function = marshal.dumps(function.func_code)
+        self.function = function
+        self.arguments = arguments
         if output_shape is None:
             self._output_shape = None
         elif type(output_shape) in {tuple, list}:
             self._output_shape = tuple(output_shape)
         else:
-            if py3:
-                self._output_shape = marshal.dumps(output_shape.__code__)
-            else:
-                self._output_shape = marshal.dumps(output_shape.func_code)
+            assert hasattr(output_shape, '__call__'), 'In Lambda, `output_shape` must be a list, a tuple, or a function.'
+            self._output_shape = output_shape
         super(Lambda, self).__init__()
 
     @property
@@ -1528,26 +1510,34 @@ class Lambda(Layer):
             # if TensorFlow, we can infer the output shape directly:
             if K._BACKEND == 'tensorflow':
                 # we assume output shape is not dependent on train/test mode
-                x = self.get_input()
+                x = self.get_output()
                 return K.int_shape(x)
             # otherwise, we default to the input shape
             return self.input_shape
-        elif type(self._output_shape) == tuple:
+        elif type(self._output_shape) in {tuple, list}:
             nb_samples = self.input_shape[0] if self.input_shape else None
-            return (nb_samples, ) + self._output_shape
+            return (nb_samples,) + tuple(self._output_shape)
         else:
-            output_shape_func = marshal.loads(self._output_shape)
-            output_shape_func = types.FunctionType(output_shape_func, globals())
-            shape = output_shape_func(self.input_shape)
+            shape = self._output_shape(self.input_shape)
             if type(shape) not in {list, tuple}:
                 raise Exception('output_shape function must return a tuple')
             return tuple(shape)
 
     def get_output(self, train=False):
         X = self.get_input(train)
-        func = marshal.loads(self.function)
-        func = types.FunctionType(func, globals())
-        return func(X)
+        arguments = self.arguments
+        arg_spec = inspect.getargspec(self.function)
+        if 'train' in arg_spec.args:
+            arguments['train'] = train
+        return self.function(X, **arguments)
+
+    def get_config(self):
+        # note: not serializable at the moment.
+        config = {'function': self.function,
+                  'output_shape': self._output_shape,
+                  'arguments': self.arguments}
+        base_config = super(Lambda, self).get_config()
+        return dict(list(base_config.items()) + list(config.items()))
 
 
 class MaskedLambda(MaskedLayer, Lambda):
@@ -1567,8 +1557,10 @@ class LambdaMerge(Lambda):
             list of outputs from input layers
         output_shape - Expected output shape from function.
             Could be a tuple or a function of list of input shapes
+        arguments: optional dictionary of keyword arguments to be passed
+            to the function.
     '''
-    def __init__(self, layers, function, output_shape=None):
+    def __init__(self, layers, function, output_shape=None, arguments={}):
         if len(layers) < 2:
             raise Exception('Please specify two or more input layers '
                             '(or containers) to merge.')
@@ -1577,6 +1569,7 @@ class LambdaMerge(Lambda):
         self.regularizers = []
         self.constraints = []
         self.updates = []
+        self.arguments = arguments
         for l in self.layers:
             params, regs, consts, updates = l.get_params()
             self.regularizers += regs
@@ -1586,20 +1579,14 @@ class LambdaMerge(Lambda):
                 if p not in self.trainable_weights:
                     self.trainable_weights.append(p)
                     self.constraints.append(c)
-        py3 = sys.version_info[0] == 3
-        if py3:
-            self.function = marshal.dumps(function.__code__)
-        else:
-            self.function = marshal.dumps(function.func_code)
+        self.function = function
         if output_shape is None:
             self._output_shape = None
         elif type(output_shape) in {tuple, list}:
             self._output_shape = tuple(output_shape)
         else:
-            if py3:
-                self._output_shape = marshal.dumps(output_shape.__code__)
-            else:
-                self._output_shape = marshal.dumps(output_shape.func_code)
+            assert hasattr(output_shape, '__call__'), 'In LambdaMerge, `output_shape` must be a list, a tuple, or a function.'
+            self._output_shape = output_shape
         super(Lambda, self).__init__()
 
     @property
@@ -1607,24 +1594,24 @@ class LambdaMerge(Lambda):
         input_shapes = [layer.output_shape for layer in self.layers]
         if self._output_shape is None:
             return input_shapes[0]
-        elif type(self._output_shape) == tuple:
-            return (input_shapes[0][0], ) + self._output_shape
+        elif type(self._output_shape) in {tuple, list}:
+            return (input_shapes[0][0],) + self._output_shape
         else:
-            output_shape_func = marshal.loads(self._output_shape)
-            output_shape_func = types.FunctionType(output_shape_func, globals())
-            shape = output_shape_func(input_shapes)
+            shape = self._output_shape(input_shapes)
             if type(shape) not in {list, tuple}:
-                raise Exception('output_shape function must return a tuple.')
+                raise Exception('In LambdaMerge, the `output_shape` function must return a tuple.')
             return tuple(shape)
 
     def get_params(self):
         return self.trainable_weights, self.regularizers, self.constraints, self.updates
 
     def get_output(self, train=False):
-        func = marshal.loads(self.function)
-        func = types.FunctionType(func, globals())
         inputs = [layer.get_output(train) for layer in self.layers]
-        return func(inputs)
+        arguments = self.arguments
+        arg_spec = inspect.getargspec(self.function)
+        if 'train' in arg_spec.args:
+            arguments['train'] = train
+        return self.function(inputs, **arguments)
 
     def get_input(self, train=False):
         res = []
@@ -1660,10 +1647,12 @@ class LambdaMerge(Lambda):
             weights = weights[nb_param:]
 
     def get_config(self):
+        # note: not serializable at the moment.
         config = {'name': self.__class__.__name__,
                   'layers': [l.get_config() for l in self.layers],
                   'function': self.function,
-                  'output_shape': self._output_shape}
+                  'output_shape': self._output_shape,
+                  'arguments': self.arguments}
         base_config = super(LambdaMerge, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
@@ -1721,6 +1710,10 @@ class Siamese(Layer):
                     self.trainable_weights.append(p)
                     self.constraints.append(c)
         super(Siamese, self).__init__()
+
+    @property
+    def input_shape(self):
+        return [layer.output_shape for layer in self.inputs]
 
     @property
     def output_shape(self):
@@ -1807,24 +1800,17 @@ class Siamese(Layer):
         return s
 
     def get_output_dot(self, train=False):
-        if K._BACKEND != 'theano':
-            raise Exception('"dot" merge mode will only work with Theano.')
-        from theano import tensor as T
         l1 = self.get_output_at(0, train)
         l2 = self.get_output_at(1, train)
-        output = T.batched_tensordot(l1, l2, self.dot_axes)
-        output = output.dimshuffle((0, 'x'))
+        output = K.batch_dot(l1, l2, self.dot_axes)
+        output = K.expand_dims(output, -1)
         return output
 
     def get_output_cos(self, train=False):
-        if K._BACKEND != 'theano':
-            raise Exception('"cos" merge mode will only work with Theano.')
-        import theano
-        from theano import tensor as T
         l1 = self.get_output_at(0, train)
         l2 = self.get_output_at(1, train)
-        output = T.batched_tensordot(l1, l2, self.dot_axes) / T.sqrt(T.batched_tensordot(l1, l1, self.dot_axes) * T.batched_tensordot(l2, l2, self.dot_axes))
-        output = output.dimshuffle((0, 'x'))
+        output = K.batch_dot(l1, l2, self.dot_axes) / K.sqrt(K.batch_dot(l1, l1, self.dot_axes) * K.batch_dot(l2, l2, self.dot_axes))
+        output = K.expand_dims(output, -1)
         return output
 
     def get_output(self, train=False):

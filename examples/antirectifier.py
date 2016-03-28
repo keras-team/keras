@@ -66,7 +66,7 @@ batch_size = 128
 nb_classes = 10
 nb_epoch = 40
 
-# the data, shuffled and split between tran and test sets
+# the data, shuffled and split between train and test sets
 (X_train, y_train), (X_test, y_test) = mnist.load_data()
 
 X_train = X_train.reshape(60000, 784)

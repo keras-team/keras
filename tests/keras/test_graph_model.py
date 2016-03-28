@@ -47,19 +47,27 @@ def test_graph_fit_generator():
     graph.compile('rmsprop', {'output1': 'mse'})
 
     graph.fit_generator(data_generator_graph(True), 1000, nb_epoch=4)
-    graph.fit_generator(data_generator_graph(True), 1000, nb_epoch=4)
-    graph.fit_generator(data_generator_graph(True), 1000, nb_epoch=4, validation_data={'input1': X_test_graph, 'output1': y_test_graph})
-    graph.fit_generator(data_generator_graph(True), 1000, nb_epoch=4, validation_data={'input1': X_test_graph, 'output1': y_test_graph})
+    graph.fit_generator(data_generator_graph(True), 1000, nb_epoch=4,
+                        validation_data={'input1': X_test_graph, 'output1': y_test_graph})
     graph.fit_generator(data_generator_graph(True), 1000, nb_epoch=4,
                         validation_data=data_generator_graph(False), nb_val_samples=batch_size * 3)
     graph.fit_generator(data_generator_graph(True), 1000, nb_epoch=4,
                         validation_data=data_generator_graph(False), nb_val_samples=batch_size * 3)
-
     gen_loss = graph.evaluate_generator(data_generator_graph(True), 128, verbose=0)
     assert(gen_loss < 3.)
 
     loss = graph.evaluate({'input1': X_test_graph, 'output1': y_test_graph}, verbose=0)
     assert(loss < 3.)
+
+    # test show_accuracy
+    graph.fit_generator(data_generator_graph(True), 1000, nb_epoch=4, show_accuracy=True)
+    graph.fit_generator(data_generator_graph(True), 1000, nb_epoch=4,
+                        validation_data={'input1': X_test_graph, 'output1': y_test_graph}, show_accuracy=True)
+    graph.fit_generator(data_generator_graph(True), 1000, nb_epoch=4,
+                        validation_data=data_generator_graph(False), nb_val_samples=batch_size * 3, show_accuracy=True)
+    graph.fit_generator(data_generator_graph(True), 1000, nb_epoch=4,
+                        validation_data=data_generator_graph(False), nb_val_samples=batch_size * 3, show_accuracy=True)
+    gen_loss = graph.evaluate_generator(data_generator_graph(True), 128, verbose=0, show_accuracy=True)
 
 
 def test_1o_1i():
@@ -87,6 +95,13 @@ def test_1o_1i():
     loss = graph.train_on_batch({'input1': X_test_graph, 'output1': y_test_graph})
     loss = graph.evaluate({'input1': X_test_graph, 'output1': y_test_graph}, verbose=0)
     assert(loss < 2.5)
+
+    # test show_accuracy:
+    graph.fit({'input1': X_train_graph, 'output1': y_train_graph},
+              nb_epoch=1, show_accuracy=True)
+    loss, acc = graph.test_on_batch({'input1': X_test_graph, 'output1': y_test_graph}, accuracy=True)
+    loss, acc = graph.train_on_batch({'input1': X_test_graph, 'output1': y_test_graph}, accuracy=True)
+    loss, acc = graph.evaluate({'input1': X_test_graph, 'output1': y_test_graph}, verbose=0, show_accuracy=True)
 
     # test validation split
     graph.fit({'input1': X_train_graph, 'output1': y_train_graph},
@@ -280,6 +295,12 @@ def test_2o_1i_weights():
 
     nloss = graph.evaluate({'input1': X_test_graph, 'output1': y_test_graph, 'output2': y2_test_graph})
     assert(loss == nloss)
+
+    # test loss weights
+    graph.compile('rmsprop', {'output1': 'mse', 'output2': 'mse'},
+                  loss_weights={'output1': 1., 'output2': 2.})
+    graph.fit({'input1': X_train_graph, 'output1': y_train_graph, 'output2': y2_train_graph},
+              nb_epoch=1)
 
 
 def test_2o_1i_sample_weights():

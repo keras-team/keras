@@ -29,7 +29,7 @@ nb_pool = 2
 # convolution kernel size
 nb_conv = 3
 
-# the data, shuffled and split between tran and test sets
+# the data, shuffled and split between train and test sets
 (X_train, y_train), (X_test, y_test) = mnist.load_data()
 
 X_train = X_train.reshape(X_train.shape[0], 1, img_rows, img_cols)
