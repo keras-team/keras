@@ -23,6 +23,10 @@ def relu(x, alpha=0., max_value=None):
     return K.relu(x, alpha=alpha, max_value=max_value)
 
 
+def clipped_relu(x, z=20.0):
+    return K.min(K.relu(x), z)
+
+
 def tanh(x):
     return K.tanh(x)
 
