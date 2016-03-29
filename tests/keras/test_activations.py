@@ -115,6 +115,22 @@ def test_relu():
     assert_allclose(result, test_values, rtol=1e-05)
 
 
+def test_clipped_relu():
+    '''
+    Test using a reference clipped ReLU implementation
+    '''
+    def ref_clipped_relu(x, z):
+        return np.minimum(x, z)
+
+    x = K.placeholder(ndim=2)
+    f = K.function([x], [activations.clipped_relu(x, z=0.5)])
+    test_values = get_standard_values()
+
+    result = f([test_values])[0]
+    expected = ref_clipped_relu(test_values, z=0.5)
+    assert_allclose(result, expected, rtol=1e-05)
+
+
 def test_tanh():
     test_values = get_standard_values()
 
