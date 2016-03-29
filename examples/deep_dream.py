@@ -216,9 +216,9 @@ for i in range(5):
     print('Start of iteration', i)
     start_time = time.time()
 
-    # add a random jitter to the initial image. This will be reverted at decoding time
-    random_jitter = (settings['jitter'] * 2) * (np.random.random((3, img_width, img_height)) - 0.5)
-    x += random_jitter
+    # add a random offset jitter to the initial image. This will be reverted at decoding time
+    ox, oy = np.random.randint(-settings['jitter'], settings['jitter']+1, 2)
+    x = np.roll(np.roll(x, ox, -1), oy, -2)
 
     # run L-BFGS for 7 steps
     x, min_val, info = fmin_l_bfgs_b(evaluator.loss, x.flatten(),
@@ -226,7 +226,7 @@ for i in range(5):
     print('Current loss value:', min_val)
     # decode the dream and save it
     x = x.reshape((3, img_width, img_height))
-    x -= random_jitter
+    x = np.roll(np.roll(x, -ox, -1), -oy, -2) # unshift image
     img = deprocess_image(x)
     fname = result_prefix + '_at_iteration_%d.png' % i
     imsave(fname, img)

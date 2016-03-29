@@ -20,7 +20,13 @@ import random
 import sys
 
 path = get_file('nietzsche.txt', origin="https://s3.amazonaws.com/text-datasets/nietzsche.txt")
-text = open(path).read().lower()
+
+try: 
+    text = open(path).read().lower()
+except UnicodeDecodeError:
+    import codecs
+    text = codecs.open(path, encoding='utf-8').read().lower()
+
 print('corpus length:', len(text))
 
 chars = set(text)
