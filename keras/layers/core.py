@@ -550,21 +550,32 @@ class Merge(Layer):
     def get_params(self):
         return self.trainable_weights, self.regularizers, self.constraints, self.updates
 
+    def _get_output_with_cache(self, layer, train=False):
+        layer_id = '%s_%s' % (id(layer), train)
+        if self.layer_cache is not None and self.cache_enabled:
+            if layer_id in self.layer_cache:
+                return self.layer_cache[layer_id]
+        output = layer.get_output(train=train)
+        if self.layer_cache is not None and self.cache_enabled:
+            self.layer_cache[layer_id] = output
+        return output
+
     def get_output(self, train=False):
         if self.mode == 'sum' or self.mode == 'ave':
-            s = self.layers[0].get_output(train)
+            s = self._get_output(self.layers[0])
+
             for i in range(1, len(self.layers)):
-                s += self.layers[i].get_output(train)
+                s += self._get_output_with_cache(self.layers[i], train)
             if self.mode == 'ave':
                 s /= len(self.layers)
             return s
         elif self.mode == 'concat':
-            inputs = [self.layers[i].get_output(train) for i in range(len(self.layers))]
+            inputs = [self._get_output_with_cache(layer, train) for layer in self.layers]
             return K.concatenate(inputs, axis=self.concat_axis)
         elif self.mode == 'join':
             inputs = OrderedDict()
             for i in range(len(self.layers)):
-                X = self.layers[i].get_output(train)
+                X = self._get_output_with_cache(self.layers[i], train)
                 name = getattr(self.layers[i], 'name', None)
                 if name is None:
                     raise ValueError('merge_mode="join" only works with named inputs.')
@@ -572,21 +583,21 @@ class Merge(Layer):
                     inputs[name] = X
             return inputs
         elif self.mode == 'mul':
-            s = self.layers[0].get_output(train)
+            s = self._get_output_with_cache(self.layers[0], train)
             for i in range(1, len(self.layers)):
-                s *= self.layers[i].get_output(train)
+                s *= self._get_output_with_cache(self.layers[i], train)
             return s
         elif self.mode == 'dot':
-            l1 = self.layers[0].get_output(train)
-            l2 = self.layers[1].get_output(train)
+            l1 = self._get_output_with_cache(self.layers[0], train)
+            l2 = self._get_output_with_cache(self.layers[1], train)
             output = K.batch_dot(l1, l2, self.dot_axes)
             output_shape = list(self.output_shape)
             output_shape[0] = -1
             output = K.reshape(output, (tuple(output_shape)))
             return output
         elif self.mode == 'cos':
-            l1 = self.layers[0].get_output(train)
-            l2 = self.layers[1].get_output(train)
+            l1 = self._get_output_with_cache(self.layers[0], train)
+            l2 = self._get_output_with_cache(self.layers[1], train)
             output = K.batch_dot(l1, l2, self.dot_axes) / K.sqrt(
                 K.batch_dot(l1, l1, self.dot_axes) * K.batch_dot(l2, l2, self.dot_axes))
             output = output.dimshuffle((0, 'x'))
