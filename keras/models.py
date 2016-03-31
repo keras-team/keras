@@ -519,7 +519,7 @@ class Sequential(Model, containers.Sequential):
             mask = self.layers[-1].get_output_mask()
         else:
             mask = None
-        train_loss = weighted_loss(self.y, self.y_train, self.weights, mask)
+        self.train_loss = weighted_loss(self.y, self.y_train, self.weights, mask)
         test_loss = weighted_loss(self.y, self.y_test, self.weights, mask)
 
         # set class_mode, for accuracy computation:
@@ -544,10 +544,10 @@ class Sequential(Model, containers.Sequential):
             test_accuracy = K.mean(K.equal(self.y, K.round(self.y_test)))
 
         for r in self.regularizers:
-            train_loss = r(train_loss)
+            self.train_loss = r(self.train_loss)
         updates = self.optimizer.get_updates(self.trainable_weights,
                                              self.constraints,
-                                             train_loss)
+                                             self.train_loss)
         updates += self.updates
 
         if type(self.X_train) == list:
@@ -560,10 +560,10 @@ class Sequential(Model, containers.Sequential):
             test_ins = [self.X_test, self.y, self.weights]
             predict_ins = [self.X_test]
 
-        self._train = K.function(train_ins, [train_loss],
+        self._train = K.function(train_ins, [self.train_loss],
                                  updates=updates, **kwargs)
         self._train_with_acc = K.function(train_ins,
-                                          [train_loss, train_accuracy],
+                                          [self.train_loss, train_accuracy],
                                           updates=updates, **kwargs)
         self._predict = K.function(predict_ins, [self.y_test],
                                    updates=self.state_updates, **kwargs)
@@ -1230,7 +1230,7 @@ class Graph(Model, containers.Graph):
         ys_train = []
         ys_test = []
         weights = []
-        train_loss = 0.
+        self.train_loss = 0.
         test_loss = 0.
         for output_name in self.output_order:
             loss_fn = loss[output_name]
@@ -1253,7 +1253,7 @@ class Graph(Model, containers.Graph):
                 weight = K.placeholder(ndim=1)
             weights.append(weight)
             weighted_loss = weighted_objective(objectives.get(loss_fn))
-            train_loss += loss_weights.get(output_name, 1.) * weighted_loss(y, y_train, weight, mask)
+            self.train_loss += loss_weights.get(output_name, 1.) * weighted_loss(y, y_train, weight, mask)
             test_loss += loss_weights.get(output_name, 1.) * weighted_loss(y, y_test, weight, mask)
 
         # deal with accuracy computation
@@ -1295,18 +1295,18 @@ class Graph(Model, containers.Graph):
         test_ins = ins + ys + weights
 
         for r in self.regularizers:
-            train_loss = r(train_loss)
+            self.train_loss = r(self.train_loss)
         self.optimizer = optimizers.get(optimizer)
         updates = self.optimizer.get_updates(self.trainable_weights,
                                              self.constraints,
-                                             train_loss)
+                                             self.train_loss)
         updates += self.updates
         self.loss = loss
 
-        self._train = K.function(train_ins, [train_loss],
+        self._train = K.function(train_ins, [self.train_loss],
                                  updates=updates, **kwargs)
         if self.class_mode:
-            self._train_with_acc = K.function(train_ins, [train_loss, train_accuracy],
+            self._train_with_acc = K.function(train_ins, [self.train_loss, train_accuracy],
                                               updates=updates, **kwargs)
         self._test = K.function(test_ins, [test_loss],
                                 updates=self.state_updates, **kwargs)
