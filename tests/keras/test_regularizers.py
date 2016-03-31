@@ -1,10 +1,14 @@
 import pytest
 import numpy as np
-np.random.seed(1337) # for reproducibility
+np.random.seed(1337)
 
 from keras.models import Sequential
-from keras.layers.core import Merge, Dense, Activation, Flatten, ActivityRegularization
-from keras.layers.embeddings import Embedding
+from keras.layers import Merge
+from keras.layers import Dense
+from keras.layers import Activation
+from keras.layers import Flatten
+from keras.layers import ActivityRegularization
+from keras.layers import Embedding
 from keras.datasets import mnist
 from keras.utils import np_utils
 from keras import regularizers
@@ -44,7 +48,10 @@ def create_model(weight_reg=None, activity_reg=None):
 
 
 def test_W_reg():
-    for reg in [regularizers.identity(), regularizers.l1(), regularizers.l2(), regularizers.l1l2()]:
+    for reg in [regularizers.identity(),
+                regularizers.l1(),
+                regularizers.l2(),
+                regularizers.l1l2()]:
         model = create_model(weight_reg=reg)
         model.compile(loss='categorical_crossentropy', optimizer='rmsprop')
         model.fit(X_train, Y_train, batch_size=batch_size,

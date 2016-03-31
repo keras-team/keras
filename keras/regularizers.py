@@ -13,13 +13,13 @@ class Regularizer(object):
         return loss
 
     def get_config(self):
-        return {"name": self.__class__.__name__}
+        return {'name': self.__class__.__name__}
 
 
 class WeightRegularizer(Regularizer):
     def __init__(self, l1=0., l2=0.):
-        self.l1 = l1
-        self.l2 = l2
+        self.l1 = K.cast_to_floatx(l1)
+        self.l2 = K.cast_to_floatx(l2)
 
     def set_param(self, p):
         self.p = p
@@ -30,29 +30,30 @@ class WeightRegularizer(Regularizer):
         return loss
 
     def get_config(self):
-        return {"name": self.__class__.__name__,
-                "l1": self.l1,
-                "l2": self.l2}
+        return {'name': self.__class__.__name__,
+                'l1': self.l1,
+                'l2': self.l2}
 
 
 class ActivityRegularizer(Regularizer):
     def __init__(self, l1=0., l2=0.):
-        self.l1 = l1
-        self.l2 = l2
+        self.l1 = K.cast_to_floatx(l1)
+        self.l2 = K.cast_to_floatx(l2)
 
     def set_layer(self, layer):
         self.layer = layer
+        layer.uses_learning_phase = True
 
     def __call__(self, loss):
-        output = self.layer.get_output(True)
-        loss += self.l1 * K.sum(K.mean(K.abs(output), axis=0))
-        loss += self.l2 * K.sum(K.mean(K.square(output), axis=0))
-        return loss
+        output = self.layer.output
+        regularized_loss = self.l1 * K.sum(K.mean(K.abs(output), axis=0))
+        regularized_loss += self.l2 * K.sum(K.mean(K.square(output), axis=0))
+        return K.in_train_phase(regularized_loss, loss)
 
     def get_config(self):
-        return {"name": self.__class__.__name__,
-                "l1": self.l1,
-                "l2": self.l2}
+        return {'name': self.__class__.__name__,
+                'l1': self.l1,
+                'l2': self.l2}
 
 
 def l1(l=0.01):
