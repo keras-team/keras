@@ -1163,7 +1163,7 @@ class TimeDistributedDense(MaskedLayer):
         # We have to reshape Y to (samples, timesteps, output_dim)
         input_length = self.input_shape[1]
         # Note: input_length will always be provided when using tensorflow backend.
-        if not input_length:
+        if not input_length or K._BACKEND == "theano":
             input_length = K.shape(X)[1]
         Y = K.reshape(Y, (-1, input_length, self.output_shape[-1]))  # (samples, timesteps, output_dim)
         Y = self.activation(Y)

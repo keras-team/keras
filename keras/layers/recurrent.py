@@ -14,7 +14,7 @@ def time_distributed_dense(x, w, b=None, dropout=None,
     if not input_dim:
         # won't work with TensorFlow
         input_dim = K.shape(x)[2]
-    if not timesteps:
+    if not timesteps or K._BACKEND == "theano":
         # won't work with TensorFlow
         timesteps = K.shape(x)[1]
     if not output_dim:
