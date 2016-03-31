@@ -20,7 +20,7 @@ def floatx():
 
 def set_floatx(floatx):
     global _FLOATX
-    if floatx not in {'float32', 'float64'}:
+    if floatx not in {'float16', 'float32', 'float64'}:
         raise Exception('Unknown floatx type: ' + str(floatx))
     floatx = str(floatx)
     _FLOATX = floatx
