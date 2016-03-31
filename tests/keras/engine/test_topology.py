@@ -9,56 +9,6 @@ from keras import backend as K
 from keras.models import model_from_json, model_from_yaml
 
 
-def test_masking():
-    from keras.models import Sequential
-    from keras.layers import Embedding, Masking
-
-    model = Sequential()
-    model.add(Masking(input_shape=(10,)))
-    model.compile(loss='categorical_crossentropy',
-                  optimizer='adam',
-                  sample_weight_mode=None)
-
-    model = Sequential()
-    model.add(Masking(input_shape=(10,)))
-    model.compile(loss='categorical_crossentropy',
-                  optimizer='adam',
-                  sample_weight_mode='temporal')
-
-    model = Sequential()
-    model.add(Embedding(10, 10, mask_zero=True, input_length=2))
-    model.compile(loss='categorical_crossentropy',
-                  optimizer='adam',
-                  sample_weight_mode='temporal')
-
-    X = np.random.random_integers(1, 9, (100, 2))
-    for rowi in range(X.shape[0]):
-        padding = np.random.random_integers(X.shape[1] / 2)
-        X[rowi, :padding] = 0
-
-    # 50% of the time the correct output is the input.
-    # The other 50% of the time it's 2 * input % 10
-    y = (X * np.random.random_integers(1, 2, X.shape)) % 10
-    Y = np.zeros((y.size, 10), dtype='int32')
-    for i, target in enumerate(y.flat):
-        Y[i, target] = 1
-    Y = Y.reshape(y.shape + (10,))
-
-    print('X shape:', X.shape)
-    print('Y shape:', Y.shape)
-    model.fit(X, Y, validation_split=0.05,
-              sample_weight=None,
-              verbose=1, nb_epoch=1)
-    # with sample_weight
-    sample_weight = np.random.random_integers(0, 1, y.shape)
-    print('X shape:', X.shape)
-    print('Y shape:', Y.shape)
-    print('sample_weight shape:', Y.shape)
-    model.fit(X, Y, validation_split=0.05,
-              sample_weight=sample_weight,
-              verbose=1, nb_epoch=1)
-
-
 def test_lambda_serialization():
     from keras.layers import Lambda
     from keras.utils.layer_utils import layer_from_config
@@ -640,6 +590,3 @@ def test_sequential_regression():
 
 if __name__ == "__main__":
     pytest.main([__file__])
-    # test_lambda_serialization()
-    # test_masking()
-

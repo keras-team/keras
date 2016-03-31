@@ -715,10 +715,6 @@ class Graph(Model):
             if name in self._graph_shared_nodes_names:
                 nodes[name]['shared'] = True
         config['nodes'] = nodes
-        print('node_config')
-        print(config['node_config'])
-        print('nodes')
-        print(config['nodes'])
         return copy.deepcopy(config)
 
     @classmethod
@@ -745,12 +741,8 @@ class Graph(Model):
 
         nodes = config.get('node_config')
         for node in nodes:
-            print('node:')
-            print(node)
             layer_config = config['nodes'][node['name']]
             layer_config = normalize_legacy_config(layer_config)
-            print('layer config:', layer_config)
-
             if 'layer' in node:
                 # for add_shared_node
                 node['layer'] = layer_from_config(node['layer'])
@@ -760,8 +752,6 @@ class Graph(Model):
 
             node['create_output'] = False  # outputs will be added below
             if layer_config.get('shared'):
-                print('calling add_shared_node with:')
-                print(node)
                 graph.add_shared_node(**node)
             else:
                 graph.add_node(**node)

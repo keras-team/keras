@@ -2227,7 +2227,6 @@ class Container(Layer):
                                 str(len(flattened_layers)) + ' layers.')
 
             for k, name in enumerate(layer_names):
-                print('layer', name)
                 g = f[name]
                 weight_names = g.attrs['weight_names']
                 if len(weight_names):
