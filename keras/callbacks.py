@@ -448,23 +448,15 @@ class TensorBoard(Callback):
         self.model = model
         self.sess = KTF.get_session()
         if self.histogram_freq and not self.merged:
-            mod_type = self.model.get_config()['name']
-            if mod_type == 'Sequential':
-                layers = {l.get_config()['name']: l for l in self.model.layers}
-            elif mod_type == 'Graph':
-                layers = self.model.nodes
-            else:
-                raise Exception('Unrecognized model:',
-                                self.model.get_config()['name'])
-            for l in layers:
-                cur_layer = layers[l]
-                if hasattr(cur_layer, 'W'):
-                    tf.histogram_summary('{}_W'.format(l), cur_layer.W)
-                if hasattr(cur_layer, 'b'):
-                    tf.histogram_summary('{}_b'.format(l), cur_layer.b)
-                if hasattr(cur_layer, 'get_output'):
-                    tf.histogram_summary('{}_out'.format(l),
-                                         cur_layer.get_output())
+            layers = self.model.layers
+            for layer in layers:
+                if hasattr(layer, 'W'):
+                    tf.histogram_summary('{}_W'.format(layer), layer.W)
+                if hasattr(layer, 'b'):
+                    tf.histogram_summary('{}_b'.format(layer), layer.b)
+                if hasattr(layer, 'output'):
+                    tf.histogram_summary('{}_out'.format(layer),
+                                         layer.output)
         self.merged = tf.merge_all_summaries()
         self.writer = tf.train.SummaryWriter(self.log_dir,
                                              self.sess.graph_def)
@@ -474,14 +466,10 @@ class TensorBoard(Callback):
 
         if self.model.validation_data and self.histogram_freq:
             if epoch % self.histogram_freq == 0:
-                if self.params.get('show_accuracy'):
-                    test_function = self.model._test_with_acc
-                else:
-                    test_function = self.model._test
-                names = [v.name for v in test_function.inputs]
                 # TODO: implement batched calls to sess.run
                 # (current call will likely go OOM on GPU)
-                feed_dict = dict(zip(names, self.model.validation_data))
+                feed_dict = dict(zip(self.model.inputs,
+                                     self.model.validation_data))
                 result = self.sess.run([self.merged], feed_dict=feed_dict)
                 summary_str = result[0]
                 self.writer.add_summary(summary_str, epoch)

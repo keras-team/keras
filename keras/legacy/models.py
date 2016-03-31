@@ -35,7 +35,8 @@ class Graph(Model):
         self._graph_shared_nodes_names = []
 
         if not name:
-            name = 'graph_' + str(id(self))
+            prefix = 'graph_'
+            name = prefix + str(K.get_uid(prefix))
         self.name = name
 
     def __call__(self, x, mask=None):

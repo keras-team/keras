@@ -2,6 +2,7 @@ from __future__ import print_function
 import warnings
 import copy
 
+from . import backend as K
 from .engine.training import Model
 from .engine.topology import get_source_inputs, Node
 from .legacy.models import Graph
@@ -77,7 +78,8 @@ class Sequential(Model):
         self.built = False
 
         if not name:
-            name = 'sequential_' + str(id(self))
+            prefix = 'sequential_'
+            name = prefix + str(K.get_uid(prefix))
         self.name = name
 
         for layer in layers:
@@ -173,6 +175,8 @@ class Sequential(Model):
         self.output_layers_tensor_indices = self.model.output_layers_tensor_indices
         self.nodes_by_depth = self.model.nodes_by_depth
         self.container_nodes = self.model.container_nodes
+        self.output_names = self.model.output_names
+        self.input_names = self.model.input_names
 
         self.built = True
 
@@ -265,6 +269,14 @@ class Sequential(Model):
             layer.set_weights(weights[:nb_param])
             weights = weights[nb_param:]
 
+    @property
+    def validation_data(self):
+        return self.model.validation_data
+
+    @property
+    def training_data(self):
+        return self.model.training_data
+
     def compile(self, optimizer, loss,
                 metrics=[],
                 sample_weight_mode=None,
@@ -306,6 +318,8 @@ class Sequential(Model):
                            metrics=metrics,
                            sample_weight_mode=sample_weight_mode,
                            **kwargs)
+        self.optimizer = self.model.optimizer
+        self.sample_weight_mode = self.model.sample_weight_mode
 
     def fit(self, x, y, batch_size=32, nb_epoch=10, verbose=1, callbacks=[],
             validation_split=0., validation_data=None, shuffle=True,
