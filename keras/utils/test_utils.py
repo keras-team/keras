@@ -1,9 +1,14 @@
 import numpy as np
+from numpy.testing import assert_allclose
+import inspect
+
 from ..engine import Model, Input
-from ..models import Sequential
+from ..models import Sequential, model_from_json
+from .. import backend as K
 
 
-def get_test_data(nb_train=1000, nb_test=500, input_shape=(10,), output_shape=(2,),
+def get_test_data(nb_train=1000, nb_test=500, input_shape=(10,),
+                  output_shape=(2,),
                   classification=True, nb_class=2):
     '''
         classification=True overrides output_shape
@@ -29,27 +34,43 @@ def get_test_data(nb_train=1000, nb_test=500, input_shape=(10,), output_shape=(2
     return (X[:nb_train], y[:nb_train]), (X[nb_train:], y[nb_train:])
 
 
-def test_layer(layer, input_shape, input_dtype=None):
+def test_layer(layer_cls, kwargs={}, input_shape=None, input_dtype=None,
+               input_data=None, expected_output=None):
     '''Test routine for a layer with a single input tensor
     and single output tensor.
     '''
-    if not input_dtype:
-        input_dtype = K.float()
-    input_data = (10 * np.random.random(input_shape)).astype(input_dtype)
+    if input_data is None:
+        assert input_shape
+        if not input_dtype:
+            input_dtype = K.floatx()
+        input_data = (10 * np.random.random(input_shape)).astype(input_dtype)
+    elif input_shape is None:
+        input_shape = input_data.shape
 
-    # test basic serialization
-    layer_config = layer.get_config()
-    layer = layer.__class__.from_config(layer_config)
+    # instantiation
+    layer = layer_cls(**kwargs)
+
+    # test get_weights , set_weights
+    weights = layer.get_weights()
+    layer.set_weights(weights)
+
+    # test and instantiation from weights
+    if 'weights' in inspect.getargspec(layer_cls.__init__):
+        kwargs['weights'] = weights
+        layer = layer_cls(**kwargs)
 
     # test in functional API
     x = Input(shape=input_shape[1:], dtype=input_dtype)
     y = layer(x)
-    model = Model(x, y)
+    model = Model(input=x, output=y)
     model.compile('rmsprop', 'mse')
 
     expected_output_shape = layer.get_output_shape_for(input_shape)
-    actual_output_shape = model.predict(input_data).shape
+    actual_output = model.predict(input_data)
+    actual_output_shape = actual_output.shape
     assert expected_output_shape == actual_output_shape
+    if expected_output is not None:
+        assert_allclose(actual_output, expected_output, rtol=1e-3)
 
     # test serialization
     model_config = model.get_config()
@@ -62,8 +83,11 @@ def test_layer(layer, input_shape, input_dtype=None):
     outer_model = Model(x_outer, y_outer)
     outer_model.compile('rmsprop', 'mse')
 
-    actual_output_shape = outer_model.predict(input_data).shape
+    actual_output = outer_model.predict(input_data)
+    actual_output_shape = actual_output.shape
     assert expected_output_shape == actual_output_shape
+    if expected_output is not None:
+        assert_allclose(actual_output, expected_output, rtol=1e-3)
 
     outer_model_config = outer_model.get_config()
     outer_model = Model.from_config(outer_model_config)
@@ -77,5 +101,15 @@ def test_layer(layer, input_shape, input_dtype=None):
     model = Sequential()
     model.add(layer)
     model.compile('rmsprop', 'mse')
-    actual_output_shape = model.predict(input_data).shape
+    actual_output = model.predict(input_data)
+    actual_output_shape = actual_output.shape
     assert expected_output_shape == actual_output_shape
+    if expected_output is not None:
+        assert_allclose(actual_output, expected_output, rtol=1e-3)
+
+    # test JSON serialization
+    json_model = model.to_json()
+    model = model_from_json(json_model)
+
+    # for further checks in the caller function
+    return actual_output
