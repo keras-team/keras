@@ -63,7 +63,7 @@ def layer_test(layer_cls, kwargs={}, input_shape=None, input_dtype=None,
     x = Input(shape=input_shape[1:], dtype=input_dtype)
     y = layer(x)
     model = Model(input=x, output=y)
-    model.compile('rmsprop', 'mse', mode='FAST_COMPILE')
+    model.compile('rmsprop', 'mse')
 
     expected_output_shape = layer.get_output_shape_for(input_shape)
     actual_output = model.predict(input_data)

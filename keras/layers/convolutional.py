@@ -430,6 +430,9 @@ class Convolution3D(Layer):
         super(Convolution3D, self).__init__(**kwargs)
 
     def build(self, input_shape):
+        assert len(input_shape) == 5
+        self.input_spec = [InputSpec(shape=input_shape)]
+
         if self.dim_ordering == 'th':
             stack_size = input_shape[1]
             self.W_shape = (self.nb_filter, stack_size,
@@ -495,10 +498,11 @@ class Convolution3D(Layer):
             raise Exception('Invalid dim_ordering: ' + self.dim_ordering)
 
     def call(self, x, mask=None):
+        input_shape = self.input_spec[0].shape
         conv_out = K.conv3d(x, self.W, strides=self.subsample,
                             border_mode=self.border_mode,
                             dim_ordering=self.dim_ordering,
-                            volume_shape=self.input_shape,
+                            volume_shape=input_shape,
                             filter_shape=self.W_shape)
 
         if self.dim_ordering == 'th':

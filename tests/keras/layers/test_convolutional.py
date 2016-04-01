@@ -133,7 +133,8 @@ def test_convolution_3d():
                                'kernel_dim3': kernel_dim3,
                                'border_mode': border_mode,
                                'subsample': subsample},
-                       input_shape=(nb_samples, stack_size, nb_row, nb_col))
+                       input_shape=(nb_samples, stack_size,
+                                    input_len_dim1, input_len_dim2, input_len_dim3))
 
             layer_test(convolutional.Convolution3D,
                        kwargs={'nb_filter': nb_filter,
@@ -320,4 +321,4 @@ def test_upsampling_3d():
 
 if __name__ == '__main__':
     # pytest.main([__file__])
-    test_convolution_1d()
+    test_convolution_3d()

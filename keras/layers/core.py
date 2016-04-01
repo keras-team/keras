@@ -372,7 +372,7 @@ class Lambda(Layer):
                 else:
                     return K.int_shape(x)
             # otherwise, we default to the input shape
-            return self.input_shape
+            return input_shape
         elif type(self._output_shape) in {tuple, list}:
             nb_samples = input_shape[0] if input_shape else None
             return (nb_samples,) + tuple(self._output_shape)
