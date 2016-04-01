@@ -36,6 +36,12 @@ def categorical_crossentropy(y_true, y_pred):
     return K.categorical_crossentropy(y_pred, y_true)
 
 
+def sparse_categorical_crossentropy(y_true, y_pred):
+    '''expects a 1-D or 2-D array of scalar classes.
+    '''
+    return K.sparse_categorical_crossentropy(y_pred, y_true)
+
+
 def binary_crossentropy(y_true, y_pred):
     return K.mean(K.binary_crossentropy(y_pred, y_true), axis=-1)
 
