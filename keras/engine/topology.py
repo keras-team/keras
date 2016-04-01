@@ -1530,12 +1530,24 @@ class Container(Layer):
         nodes_depths = {}  # map {node: depth value}
         layers_depths = {}  # map {layer: depth value}
 
-        def build_map_of_graph(tensor, seen_nodes=set(), depth=0):
+        def build_map_of_graph(tensor, seen_nodes=set(), depth=0,
+                               layer=None, node_index=None, tensor_index=None):
             '''This recursively updates the maps nodes_depths,
             layers_depths and the set container_nodes.
             Does not try to detect cycles in graph (TODO?)
+
+            # Arguments
+                tensor: some tensor in a graph
+                seen_nodes: set of node ids ("{layer.name}_ib-{node_index}")
+                    of nodes seen so far. Useful to prevent infinite loops.
+                depth: current depth in the graph (0 = last output).
+                layer: layer from which `tensor` comes from. If not provided,
+                    will be obtained from `tensor._keras_history`.
+                node_index: node index from which `tensor` comes from.
+                tensor_index: tensor_index from which `tensor` comes from.
             '''
-            layer, node_index, tensor_index = tensor._keras_history
+            if not layer or node_index is None or tensor_index is None:
+                layer, node_index, tensor_index = tensor._keras_history
             node = layer.inbound_nodes[node_index]
 
             # prevent cycles
@@ -1562,8 +1574,13 @@ class Container(Layer):
                 layers_depths[layer] = max(depth, layers_depths[layer])
 
             # propagate to all previous tensors connected to this node
-            for x in node.input_tensors:
-                build_map_of_graph(x, copy.copy(seen_nodes), depth + 1)
+            for i in range(len(node.inbound_layers)):
+                x = node.input_tensors[i]
+                layer = node.inbound_layers[i]
+                node_index = node.node_indices[i]
+                tensor_index = node.tensor_indices[i]
+                build_map_of_graph(x, copy.copy(seen_nodes), depth + 1,
+                                   layer, node_index, tensor_index)
 
         for x in self.outputs:
             build_map_of_graph(x, seen_nodes=set(), depth=0)
