@@ -66,6 +66,8 @@ class Embedding(Layer):
         self.W_regularizer = regularizers.get(W_regularizer)
         self.activity_regularizer = regularizers.get(activity_regularizer)
 
+        self.subtensor_cache = {}
+
         self.initial_weights = weights
         kwargs['input_shape'] = (self.input_dim,)
         super(Embedding, self).__init__(**kwargs)
@@ -96,19 +98,35 @@ class Embedding(Layer):
             return K.not_equal(X, 0)
 
     @property
+    def grad_dictionary(self):
+        grads_to_take = {}
+        for param in self.trainable_weights:
+            grads_to_take[param] = self.subtensor_cache
+        return grads_to_take
+
+    @property
     def output_shape(self):
         return (self.input_shape[0], self.input_length, self.output_dim)
 
     def get_output(self, train=False):
         X = self.get_input(train)
-        retain_p = 1. - self.dropout
-        if train and self.dropout > 0:
-            B = K.random_binomial((self.input_dim,), p=retain_p)
+        if train:
+            if X in self.subtensor_cache:
+                Y = self.subtensor_cache[X]
+            else:
+                # we have a version of W with randomly zeroed out rows for
+                # dropout
+                if self.dropout > 0:
+                    retain_p = 1.0 - self.dropout
+                    B = K.random_binomial((self.input_dim,), p=retain_p)
+                    W_train = self.W * K.expand_dims(B)
+                else:
+                    W_train = self.W
+                Y = K.gather(W_train, X)
+                self.subtensor_cache[X] = Y
         else:
-            B = K.ones((self.input_dim)) * retain_p
-        # we zero-out rows of W at random
-        out = K.gather(self.W * K.expand_dims(B), X)
-        return out
+                Y = K.gather(self.W, X)
+        return Y
 
     def get_config(self):
         config = {"name": self.__class__.__name__,
