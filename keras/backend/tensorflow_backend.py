@@ -61,7 +61,10 @@ def int_shape(x):
 
 
 def ndim(x):
-    return len(x.get_shape())
+    dims = x.get_shape()._dims
+    if dims is not None:
+        return len(dims)
+    return None
 
 
 def dtype(x):
@@ -104,7 +107,21 @@ def cast(x, dtype):
 # LINEAR ALGEBRA
 
 def dot(x, y):
-    return tf.matmul(x, y)
+    '''Multiplies 2 tensors.
+    When attempting to multiply a 2D tensor
+    with a 3D tensor, reproduces the Theano behavior
+    (e.g. (2, 3).(4, 3, 5) = (2, 4, 5))
+    '''
+    if ndim(x) == 2 and ndim(y) == 3:
+        slices = []
+        for i in range(int_shape(y)[0]):
+            slice_i = tf.matmul(x, y[i, :, :])
+            slice_i = expand_dims(slice_i, 1)
+            slices.append(slice_i)
+        out = tf.concat(1, slices)
+        return out
+    out = tf.matmul(x, y)
+    return out
 
 
 def batch_dot(x, y, axes=None):
