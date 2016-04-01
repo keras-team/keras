@@ -465,7 +465,9 @@ class Function(object):
 
     def __init__(self, inputs, outputs, updates=[], **kwargs):
         self.function = theano.function(inputs, outputs, updates=updates,
-                                        allow_input_downcast=True, **kwargs)
+                                        allow_input_downcast=True,
+                                        on_unused_input='warn',
+                                        **kwargs)
 
     def __call__(self, inputs):
         assert type(inputs) in {list, tuple}
