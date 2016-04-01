@@ -224,7 +224,7 @@ class Recurrent(Layer):
                   'unroll': self.unroll,
                   'consume_less': self.consume_less}
         if self.stateful:
-            config['batch_input_shape'] = self.input_shape
+            config['batch_input_shape'] = self.input_spec[0].shape
         else:
             config['input_dim'] = self.input_dim
             config['input_length'] = self.input_length
@@ -479,7 +479,7 @@ class GRU(Recurrent):
 
     def reset_states(self):
         assert self.stateful, 'Layer must be stateful.'
-        input_shape = self.input_shape
+        input_shape = self.input_spec[0].shape
         if not input_shape[0]:
             raise Exception('If a RNN is stateful, a complete ' +
                             'input_shape must be provided (including batch size).')
