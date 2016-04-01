@@ -114,9 +114,23 @@ def test_dense():
 
 
 def test_activity_regularization():
-    layer_test(core.ActivityRegularization,
-               kwargs={'l1': 0.01, 'l2': 0.01},
-               input_shape=(3, 2, 3))
+    from keras.engine import Input, Model
+
+    layer = core.ActivityRegularization(l1=0.01, l2=0.01)
+
+    # test in functional API
+    x = Input(shape=(3,))
+    z = core.Dense(2)(x)
+    y = layer(z)
+    model = Model(input=x, output=y)
+    model.compile('rmsprop', 'mse', mode='FAST_COMPILE')
+
+    model.predict(np.random.random((2, 3)))
+
+    # test serialization
+    model_config = model.get_config()
+    model = Model.from_config(model_config)
+    model.compile('rmsprop', 'mse')
 
 
 def test_maxout_dense():
