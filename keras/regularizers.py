@@ -46,7 +46,7 @@ class ActivityRegularizer(Regularizer):
 
     def __call__(self, loss):
         output = self.layer.output
-        regularized_loss = self.l1 * K.sum(K.mean(K.abs(output), axis=0))
+        regularized_loss = loss + self.l1 * K.sum(K.mean(K.abs(output), axis=0))
         regularized_loss += self.l2 * K.sum(K.mean(K.square(output), axis=0))
         return K.in_train_phase(regularized_loss, loss)
 
