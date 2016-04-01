@@ -1919,13 +1919,23 @@ def add_shared_layer(layer, inputs):
     '''Use this function to add a shared layer across
     multiple Sequential models without merging the outputs.
     '''
-    input_layers = [l.layers[-1] for l in inputs]
+
+    input_layers = []
+    for m in inputs:
+        if len(m.layers) == 0:
+
+            class InputLayer(Layer):
+
+                def build(self):
+                    self.input = K.placeholder(self._input_shape, dtype=K.dtype(layer.input))
+
+            m.add(InputLayer(batch_input_shape = layer.input_shape))
+        input_layers.append(m.layers[-1])
     s = Siamese(layer, input_layers, merge_mode=None)
     for i in range(len(inputs)):
         sh = SiameseHead(i)
         inputs[i].add(s)
         inputs[i].add(sh)
-
 
 class Highway(Layer):
     '''Densely connected highway network,

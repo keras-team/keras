@@ -39,6 +39,8 @@ def placeholder(shape=None, ndim=None, dtype=_FLOATX, name=None):
             shape = [None for _ in range(ndim)]
     return tf.placeholder(dtype, shape=shape, name=name)
 
+def dtype(x):
+    return x.dtype.name
 
 def shape(x):
     # symbolic shape
