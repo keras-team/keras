@@ -9,33 +9,6 @@ from keras import backend as K
 from keras.models import model_from_json, model_from_yaml
 
 
-def test_lambda_serialization():
-    from keras.layers import Lambda
-    from keras.utils.layer_utils import layer_from_config
-    ld = Lambda(lambda x: x + 1)
-    config = ld.get_config()
-    ld = Lambda.from_config(config)
-
-    def f(x):
-        return x + 1
-    ld = Lambda(f)
-    config = ld.get_config()
-    ld = layer_from_config({'class_name': 'Lambda', 'config': config})
-
-    ld = Lambda(lambda x: K.concatenate([K.square(x), x]),
-                output_shape=lambda s: tuple(list(s)[:-1] + [2 * s[-1]]))
-    config = ld.get_config()
-    ld = Lambda.from_config(config)
-
-    def f(x):
-        return K.concatenate([K.square(x), x])
-    def f_shape(s):
-        return tuple(list(s)[:-1] + [2 * s[-1]])
-    ld = Lambda(f, output_shape=f_shape)
-    config = ld.get_config()
-    ld = layer_from_config({'class_name': 'Lambda', 'config': config})
-
-
 def test_learning_phase():
     a = Input(shape=(32,), name='input_a')
     b = Input(shape=(32,), name='input_b')

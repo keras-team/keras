@@ -820,17 +820,15 @@ class Highway(Layer):
             self.set_weights(self.initial_weights)
             del self.initial_weights
 
-    def call(self, train=False):
-        X = self.get_input(train)
-        transform_weight = activations.sigmoid(K.dot(X, self.W_carry) + self.b_carry)
-        act = self.activation(K.dot(X, self.W) + self.b)
+    def call(self, x, mask=None):
+        transform_weight = activations.sigmoid(K.dot(x, self.W_carry) + self.b_carry)
+        act = self.activation(K.dot(x, self.W) + self.b)
         act *= transform_weight
-        output = act + (1 - transform_weight) * X
+        output = act + (1 - transform_weight) * x
         return output
 
     def get_config(self):
-        config = {'name': self.__class__.__name__,
-                  'init': self.init.__name__,
+        config = {'init': self.init.__name__,
                   'transform_bias': self.transform_bias,
                   'activation': self.activation.__name__,
                   'W_regularizer': self.W_regularizer.get_config() if self.W_regularizer else None,
@@ -968,8 +966,7 @@ class TimeDistributedDense(Layer):
         return y
 
     def get_config(self):
-        config = {'name': self.__class__.__name__,
-                  'output_dim': self.output_dim,
+        config = {'output_dim': self.output_dim,
                   'init': self.init.__name__,
                   'activation': self.activation.__name__,
                   'W_regularizer': self.W_regularizer.get_config() if self.W_regularizer else None,

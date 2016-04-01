@@ -18,6 +18,14 @@ def get_from_module(identifier, module_params, module_name,
             return res(**kwargs)
         else:
             return res
+    elif type(identifier) is dict:
+        name = identifier.pop('name')
+        res = module_params.get(name)
+        if res:
+            return res(**identifier)
+        else:
+            raise Exception('Invalid ' + str(module_name) + ': ' +
+                            str(identifier))
     return identifier
 
 

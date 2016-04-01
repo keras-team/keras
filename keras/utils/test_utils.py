@@ -34,7 +34,7 @@ def get_test_data(nb_train=1000, nb_test=500, input_shape=(10,),
     return (X[:nb_train], y[:nb_train]), (X[nb_train:], y[nb_train:])
 
 
-def test_layer(layer_cls, kwargs={}, input_shape=None, input_dtype=None,
+def layer_test(layer_cls, kwargs={}, input_shape=None, input_dtype=None,
                input_data=None, expected_output=None):
     '''Test routine for a layer with a single input tensor
     and single output tensor.
@@ -63,7 +63,7 @@ def test_layer(layer_cls, kwargs={}, input_shape=None, input_dtype=None,
     x = Input(shape=input_shape[1:], dtype=input_dtype)
     y = layer(x)
     model = Model(input=x, output=y)
-    model.compile('rmsprop', 'mse')
+    model.compile('rmsprop', 'mse', mode='FAST_COMPILE')
 
     expected_output_shape = layer.get_output_shape_for(input_shape)
     actual_output = model.predict(input_data)
