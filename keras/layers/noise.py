@@ -26,20 +26,17 @@ class GaussianNoise(Layer):
     def __init__(self, sigma, **kwargs):
         self.supports_masking = True
         self.sigma = sigma
+        self.uses_learning_phase = True
         super(GaussianNoise, self).__init__(**kwargs)
 
-    def get_output(self, train=False):
-        X = self.get_input(train)
-        if not train or self.sigma == 0:
-            return X
-        else:
-            return X + K.random_normal(shape=K.shape(X),
-                                       mean=0.,
-                                       std=self.sigma)
+    def call(self, x, mask=None):
+        noise_x = x + K.random_normal(shape=K.shape(x),
+                                      mean=0.,
+                                      std=self.sigma)
+        return K.in_train_phase(noise_x, x)
 
     def get_config(self):
-        config = {"name": self.__class__.__name__,
-                  "sigma": self.sigma}
+        config = {'sigma': self.sigma}
         base_config = super(GaussianNoise, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
@@ -59,19 +56,18 @@ class GaussianDropout(Layer):
     def __init__(self, p, **kwargs):
         self.supports_masking = True
         self.p = p
+        if 0 < p < 1:
+            self.uses_learning_phase = True
         super(GaussianDropout, self).__init__(**kwargs)
 
-    def get_output(self, train):
-        X = self.get_input(train)
-        if train:
-            # self.p refers to drop probability rather than
-            # retain probability (as in paper), for consistency
-            X *= K.random_normal(shape=K.shape(X), mean=1.0,
-                                 std=K.sqrt(self.p / (1.0 - self.p)))
-        return X
+    def call(self, x, mask=None):
+        if 0 < self.p < 1:
+            noise_x = x * K.random_normal(shape=K.shape(x), mean=1.0,
+                                          std=K.sqrt(self.p / (1.0 - self.p)))
+            return K.in_train_phase(noise_x, x)
+        return x
 
     def get_config(self):
-        config = {"name": self.__class__.__name__,
-                  "p": self.p}
+        config = {'p': self.p}
         base_config = super(GaussianDropout, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
