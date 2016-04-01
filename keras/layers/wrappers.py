@@ -1,4 +1,4 @@
-from ..engine import Layer
+from ..engine import Layer, InputSpec
 from .. import backend as K
 
 
@@ -8,21 +8,16 @@ class Wrapper(Layer):
         self.layer = layer
         super(Wrapper, self).__init__(**kwargs)
 
-    @property
-    def trainable_weights(self):
-        return self.layer.trainable_weights
-
-    @property
-    def non_trainable_weights(self):
-        return self.layer.non_trainable_weights
-
-    @property
-    def regularizers(self):
-        return self.layer.regularizers
-
-    @property
-    def updates(self):
-        return self.layer.updates
+    def build(self, input_shape=None):
+        '''Assumes that self.layer is already set.
+        Should be called at the end of .build() in the
+        children classes.
+        '''
+        self.trainable_weights = getattr(self.layer, 'trainable_weights', [])
+        self.non_trainable_weights = getattr(self.layer, 'non_trainable_weights', [])
+        self.updates = getattr(self.layer, 'updates', [])
+        self.regularizers = getattr(self.layer, 'regularizers', [])
+        self.constraints = getattr(self.layer, 'constraints', {})
 
     def get_weights(self):
         weights = self.layer.get_weights()
@@ -32,10 +27,9 @@ class Wrapper(Layer):
         self.layer.set_weights(weights)
 
     def get_config(self):
-        config = {'name': self.__class__.__name__,
-                  'layer': {'class_name': self.layer.__class__.__name__,
+        config = {'layer': {'class_name': self.layer.__class__.__name__,
                             'config': self.layer.get_config()}}
-        base_config = super(TimeDistributed, self).get_config()
+        base_config = super(Wrapper, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
     @classmethod
@@ -81,8 +75,9 @@ class TimeDistributed(Wrapper):
 
     def build(self, input_shape):
         assert len(input_shape) >= 3
+        self.input_spec = [InputSpec(shape=input_shape)]
         if K._BACKEND == 'tensorflow':
-            if not self.input_shape[1]:
+            if not input_shape[1]:
                 raise Exception('When using TensorFlow, you should define '
                                 'explicitly the number of timesteps of '
                                 'your sequences.\n'
@@ -94,15 +89,17 @@ class TimeDistributed(Wrapper):
                                 'argument, including the time axis.')
         child_input_shape = (input_shape[0],) + input_shape[2:]
         self.layer.build(child_input_shape)
+        super(TimeDistributed, self).build()
 
     def get_output_shape_for(self, input_shape):
-        child_input_shape = (input_shape[0], input_shape[2:])
+        child_input_shape = (input_shape[0],) + input_shape[2:]
         child_output_shape = self.layer.get_output_shape_for(child_input_shape)
         timesteps = input_shape[1]
         return (child_output_shape[0], timesteps) + child_output_shape[1:]
 
     def call(self, X, mask=None):
-        if self.input_shape[0]:
+        input_shape = self.input_spec[0].shape
+        if input_shape[0]:
             # batch size matters, use rnn-based implementation
             def step(x, states):
                 output = self.layer.call(x)
@@ -115,12 +112,12 @@ class TimeDistributed(Wrapper):
             # no batch size specified, therefore the layer will be able
             # to process batches of any size
             # we can go with reshape-based implementation for performance
-            input_shape = self.input_shape
-            x = K.reshape(X, (-1, ) + input_shape[2:])  # (nb_samples * timesteps, ...)
-            y = self.layer(x, train=False)  # (nb_samples * timesteps, ...)
+            X = K.reshape(X, (-1, ) + input_shape[2:])  # (nb_samples * timesteps, ...)
+            y = self.layer.call(X)  # (nb_samples * timesteps, ...)
             input_length = input_shape[1]
             if not input_length:
                 input_length = K.shape(X)[1]
             # (nb_samples, timesteps, ...)
-            y = K.reshape(y, (-1, input_length) + self.layer.output_shape[1:])
+            output_shape = self.get_output_shape_for(input_shape)
+            y = K.reshape(y, (-1, input_length) + output_shape[2:])
         return y
