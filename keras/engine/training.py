@@ -931,12 +931,13 @@ class Model(Container):
                                    self.internal_input_shapes,
                                    check_batch_dim=False)
         if self.stateful:
-            if x[0].shape[0] % batch_size != 0:
+            if x[0].shape[0] > batch_size and x[0].shape[0] % batch_size != 0:
                 raise Exception('In a stateful network, '
                                 'you should only pass inputs with '
                                 'a number of samples that can be '
                                 'divided by the batch size. Found: ' +
-                                str(x[0].shape[0]) + ' samples')
+                                str(x[0].shape[0]) + ' samples. '
+                                'Batch size: ' + str(batch_size) + '.')
 
         # prepare inputs, delegate logic to _predict_loop
         if self.uses_learning_phase:

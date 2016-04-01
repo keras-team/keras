@@ -500,7 +500,6 @@ class Dense(Layer):
 
         self.W_constraint = constraints.get(W_constraint)
         self.b_constraint = constraints.get(b_constraint)
-        self.constraints = [self.W_constraint, self.b_constraint]
 
         self.initial_weights = weights
         self.input_spec = [InputSpec(ndim=2)]
@@ -533,6 +532,12 @@ class Dense(Layer):
         if self.activity_regularizer:
             self.activity_regularizer.set_layer(self)
             self.regularizers.append(self.activity_regularizer)
+
+        self.constraints = {}
+        if self.W_constraint:
+            self.constraints[self.W] = self.W_constraint
+        if self.b_constraint:
+            self.constraints[self.b] = self.b_constraint
 
         if self.initial_weights is not None:
             self.set_weights(self.initial_weights)
@@ -658,7 +663,6 @@ class MaxoutDense(Layer):
 
         self.W_constraint = constraints.get(W_constraint)
         self.b_constraint = constraints.get(b_constraint)
-        self.constraints = [self.W_constraint, self.b_constraint]
 
         self.initial_weights = weights
         self.input_spec = [InputSpec(ndim=2)]
@@ -692,6 +696,12 @@ class MaxoutDense(Layer):
         if self.activity_regularizer:
             self.activity_regularizer.set_layer(self)
             self.regularizers.append(self.activity_regularizer)
+
+        self.constraints = {}
+        if self.W_constraint:
+            self.constraints[self.W] = self.W_constraint
+        if self.b_constraint:
+            self.constraints[self.b] = self.b_constraint
 
         if self.initial_weights is not None:
             self.set_weights(self.initial_weights)
@@ -776,7 +786,6 @@ class Highway(Layer):
 
         self.W_constraint = constraints.get(W_constraint)
         self.b_constraint = constraints.get(b_constraint)
-        self.constraints = [self.W_constraint, self.b_constraint]
 
         self.initial_weights = weights
         self.input_spec = [InputSpec(ndim=2)]
@@ -815,6 +824,12 @@ class Highway(Layer):
         if self.activity_regularizer:
             self.activity_regularizer.set_layer(self)
             self.regularizers.append(self.activity_regularizer)
+
+        self.constraints = {}
+        if self.W_constraint:
+            self.constraints[self.W] = self.W_constraint
+        if self.b_constraint:
+            self.constraints[self.b] = self.b_constraint
 
         if self.initial_weights is not None:
             self.set_weights(self.initial_weights)
@@ -895,7 +910,6 @@ class TimeDistributedDense(Layer):
 
         self.W_constraint = constraints.get(W_constraint)
         self.b_constraint = constraints.get(b_constraint)
-        self.constraints = [self.W_constraint, self.b_constraint]
 
         self.initial_weights = weights
         self.input_spec = [InputSpec(ndim=3)]
@@ -931,6 +945,12 @@ class TimeDistributedDense(Layer):
         if self.activity_regularizer:
             self.activity_regularizer.set_layer(self)
             self.regularizers.append(self.activity_regularizer)
+
+        self.constraints = {}
+        if self.W_constraint:
+            self.constraints[self.W] = self.W_constraint
+        if self.b_constraint:
+            self.constraints[self.b] = self.b_constraint
 
         if self.initial_weights is not None:
             self.set_weights(self.initial_weights)

@@ -77,22 +77,6 @@ def layer_test(layer_cls, kwargs={}, input_shape=None, input_dtype=None,
     model = Model.from_config(model_config)
     model.compile('rmsprop', 'mse')
 
-    # test whether container recursion works
-    x_outer = Input(shape=input_shape[1:], dtype=input_dtype)
-    y_outer = model(x_outer)
-    outer_model = Model(x_outer, y_outer)
-    outer_model.compile('rmsprop', 'mse')
-
-    actual_output = outer_model.predict(input_data)
-    actual_output_shape = actual_output.shape
-    assert expected_output_shape == actual_output_shape
-    if expected_output is not None:
-        assert_allclose(actual_output, expected_output, rtol=1e-3)
-
-    outer_model_config = outer_model.get_config()
-    outer_model = Model.from_config(outer_model_config)
-    outer_model.compile('rmsprop', 'mse')
-
     # test as first layer in Sequential API
     layer_config = layer.get_config()
     layer_config['batch_input_shape'] = input_shape

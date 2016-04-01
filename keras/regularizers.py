@@ -25,6 +25,15 @@ class WeightRegularizer(Regularizer):
         self.p = p
 
     def __call__(self, loss):
+        if not hasattr(self, 'p'):
+            raise Exception('Need to call `set_param` on '
+                            'WeightRegularizer instance '
+                            'before calling the instance. '
+                            'Check that you are not passing '
+                            'a WeightRegularizer instead of an '
+                            'ActivityRegularizer '
+                            '(i.e. activity_regularizer="l2" instead '
+                            'of activity_regularizer="activity_l2".')
         loss += K.sum(K.abs(self.p)) * self.l1
         loss += K.sum(K.square(self.p)) * self.l2
         return loss
@@ -45,6 +54,10 @@ class ActivityRegularizer(Regularizer):
         layer.uses_learning_phase = True
 
     def __call__(self, loss):
+        if not hasattr(self, 'layer'):
+            raise Exception('Need to call `set_layer` on '
+                            'ActivityRegularizer instance '
+                            'before calling the instance.')
         output = self.layer.output
         regularized_loss = loss + self.l1 * K.sum(K.mean(K.abs(output), axis=0))
         regularized_loss += self.l2 * K.sum(K.mean(K.square(output), axis=0))
