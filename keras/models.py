@@ -319,6 +319,8 @@ class Sequential(Model):
                            sample_weight_mode=sample_weight_mode,
                            **kwargs)
         self.optimizer = self.model.optimizer
+        self.loss = self.model.loss
+        self.metrics_names = self.model.metrics_names
         self.sample_weight_mode = self.model.sample_weight_mode
 
     def fit(self, x, y, batch_size=32, nb_epoch=10, verbose=1, callbacks=[],

@@ -136,7 +136,10 @@ class BaseWrapper(object):
         else:
             self.model = self.build_fn(**self.filter_sk_params(self.build_fn))
 
-        if self.model.loss.__name__ == 'categorical_crossentropy' and len(y.shape) != 2:
+        loss_name = self.model.loss
+        if hasattr(loss_name, '__name__'):
+            loss_name = loss_name.__name__
+        if loss_name == 'categorical_crossentropy' and len(y.shape) != 2:
             y = to_categorical(y)
 
         fit_args = copy.deepcopy(self.filter_sk_params(Sequential.fit))
@@ -221,9 +224,15 @@ class KerasClassifier(BaseWrapper):
                 Mean accuracy of predictions on X wrt. y.
         '''
         kwargs = self.filter_sk_params(Sequential.evaluate, kwargs)
-        kwargs.update({'show_accuracy': True})
-        loss, accuracy = self.model.evaluate(X, y, **kwargs)
-        return accuracy
+        outputs = self.model.evaluate(X, y, **kwargs)
+        if type(outputs) is not list:
+            outputs = [outputs]
+        for name, output in zip(self.model.metrics_names, outputs):
+            if name == 'acc':
+                return output
+        raise Exception('The model is not configured to compute accuracy. '
+                        'You should pass `metrics=["accuracy"]` to '
+                        'the `model.compile()` method.')
 
 
 class KerasRegressor(BaseWrapper):
@@ -247,7 +256,7 @@ class KerasRegressor(BaseWrapper):
         return self.model.predict(X, **kwargs)
 
     def score(self, X, y, **kwargs):
-        '''Returns the mean accuracy on the given test data and labels.
+        '''Returns the mean loss on the given test data and labels.
 
         # Arguments
             X: array-like, shape `(n_samples, n_features)`
@@ -263,6 +272,7 @@ class KerasRegressor(BaseWrapper):
                 Mean accuracy of predictions on X wrt. y.
         '''
         kwargs = self.filter_sk_params(Sequential.evaluate, kwargs)
-        kwargs.update({'show_accuracy': False})
         loss = self.model.evaluate(X, y, **kwargs)
+        if type(loss) is list:
+            return loss[0]
         return loss

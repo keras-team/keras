@@ -254,8 +254,6 @@ def test_merge_sum():
     new_model = model_from_yaml(yaml_str)
 
 
-@pytest.mark.skipif(K._BACKEND == 'tensorflow',
-                    reason='currently not working with TensorFlow')
 def test_merge_dot():
     (X_train, y_train), (X_test, y_test) = _get_test_data()
 

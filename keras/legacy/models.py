@@ -56,7 +56,7 @@ class Graph(Model):
 
     def compile(self, optimizer, loss,
                 metrics=[],
-                sample_weight_mode=None,
+                sample_weight_modes=None,
                 loss_weights=None,
                 **kwargs):
         '''Configures the learning process.
@@ -87,7 +87,7 @@ class Graph(Model):
             self.build()
         super(Graph, self).compile(optimizer, loss,
                                    metrics=metrics,
-                                   sample_weight_mode=sample_weight_mode,
+                                   sample_weight_mode=sample_weight_modes,
                                    loss_weights=loss_weights,
                                    **kwargs)
 

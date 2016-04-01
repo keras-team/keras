@@ -384,6 +384,7 @@ class Model(Container):
         '''
         self.optimizer = optimizers.get(optimizer)
         self.sample_weight_mode = sample_weight_mode
+        self.loss = loss
 
         # prepare loss weights
         if loss_weights is None:
