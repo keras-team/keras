@@ -107,6 +107,16 @@ def dot(x, y):
     return tf.matmul(x, y)
 
 
+def batch_dot(x, y, axes=None):
+    if axes:
+        adj_x = None if axes[0][0] == x.ndim-1 else True
+        adj_y = True if axes[1][0] == y.ndim-1 else None
+    else:
+        adj_x = None
+        adj_y = None
+    return tf.batch_matmul(x, y, adj_x=adj_x, adj_y=adj_y)
+
+
 def transpose(x):
     return tf.transpose(x)
 
@@ -785,5 +795,5 @@ def random_uniform(shape, low=0.0, high=1.0, dtype=_FLOATX, seed=None):
 def random_binomial(shape, p=0.0, dtype=_FLOATX, seed=None):
     if seed is None:
         seed = np.random.randint(10e6)
-    return tf.select(tf.random_uniform(shape, dtype=dtype, seed=seed) <= p, 
+    return tf.select(tf.random_uniform(shape, dtype=dtype, seed=seed) <= p,
                      tf.ones(shape), tf.zeros(shape))
