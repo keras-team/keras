@@ -1104,9 +1104,6 @@ class Merge(Layer):
                                 'be merged using ' + mode + ' mode. ' +
                                 'Layer shapes: %s' % input_shapes)
         if mode in {'cos', 'dot'}:
-            if K._BACKEND != 'theano':
-                raise Exception('"' + mode + '" merge mode will only work with Theano.')
-
             if len(layers) > 2:
                 raise Exception(mode + ' merge takes exactly 2 layers')
             shape1 = input_shapes[0]
@@ -1170,27 +1167,21 @@ class Merge(Layer):
             return s
 
         elif self.mode == 'dot':
-            if K._BACKEND != 'theano':
-                raise Exception('"dot" merge mode will only work with Theano.')
-            from theano import tensor as T
             l1 = inputs[0]
             l2 = inputs[1]
-            output = T.batched_tensordot(l1, l2, self.dot_axes)
+            output = K.batch_dot(l1, l2, self.dot_axes)
             # output_shape = list(self.get_output_shape_for(inputs[0]._keras_shape))
             # output_shape[0] = l1.shape[0]
             # output = output.reshape(tuple(output_shape))
             return output
 
         elif self.mode == 'cos':
-            if K._BACKEND != 'theano':
-                raise Exception('"cos" merge mode will only work with Theano.')
-            from theano import tensor as T
             l1 = inputs[0]
             l2 = inputs[1]
-            denominator = T.sqrt(T.batched_tensordot(l1, l1, self.dot_axes) *
-                                 T.batched_tensordot(l2, l2, self.dot_axes))
-            output = T.batched_tensordot(l1, l2, self.dot_axes) / denominator
-            output = output.dimshuffle((0, 'x'))
+            denominator = K.sqrt(K.batch_dot(l1, l1, self.dot_axes) *
+                                 K.batch_dot(l2, l2, self.dot_axes))
+            output = K.batch_dot(l1, l2, self.dot_axes) / denominator
+            output = K.expand_dims(output, 1)
             return output
         else:
             raise Exception('Unknown merge mode.')
