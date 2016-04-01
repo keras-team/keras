@@ -91,7 +91,6 @@ class Convolution1D(Layer):
 
         self.W_constraint = constraints.get(W_constraint)
         self.b_constraint = constraints.get(b_constraint)
-        self.constraints = [self.W_constraint, self.b_constraint]
 
         self.input_spec = [InputSpec(ndim=3)]
         self.initial_weights = weights
@@ -120,6 +119,12 @@ class Convolution1D(Layer):
         if self.activity_regularizer:
             self.activity_regularizer.set_layer(self)
             self.regularizers.append(self.activity_regularizer)
+
+        self.constraints = {}
+        if self.W_constraint:
+            self.constraints[self.W] = self.W_constraint
+        if self.b_constraint:
+            self.constraints[self.b] = self.b_constraint
 
         if self.initial_weights is not None:
             self.set_weights(self.initial_weights)
@@ -240,7 +245,6 @@ class Convolution2D(Layer):
 
         self.W_constraint = constraints.get(W_constraint)
         self.b_constraint = constraints.get(b_constraint)
-        self.constraints = [self.W_constraint, self.b_constraint]
 
         self.input_spec = [InputSpec(ndim=4)]
         self.initial_weights = weights
@@ -271,6 +275,12 @@ class Convolution2D(Layer):
         if self.activity_regularizer:
             self.activity_regularizer.set_layer(self)
             self.regularizers.append(self.activity_regularizer)
+
+        self.constraints = {}
+        if self.W_constraint:
+            self.constraints[self.W] = self.W_constraint
+        if self.b_constraint:
+            self.constraints[self.b] = self.b_constraint
 
         if self.initial_weights is not None:
             self.set_weights(self.initial_weights)
@@ -414,7 +424,6 @@ class Convolution3D(Layer):
 
         self.W_constraint = constraints.get(W_constraint)
         self.b_constraint = constraints.get(b_constraint)
-        self.constraints = [self.W_constraint, self.b_constraint]
 
         self.input_spec = [InputSpec(ndim=5)]
         self.initial_weights = weights
@@ -448,6 +457,12 @@ class Convolution3D(Layer):
         if self.activity_regularizer:
             self.activity_regularizer.set_layer(self)
             self.regularizers.append(self.activity_regularizer)
+
+        self.constraints = {}
+        if self.W_constraint:
+            self.constraints[self.W] = self.W_constraint
+        if self.b_constraint:
+            self.constraints[self.b] = self.b_constraint
 
         if self.initial_weights is not None:
             self.set_weights(self.initial_weights)
@@ -911,9 +926,9 @@ class UpSampling1D(Layer):
     '''
 
     def __init__(self, length=2, **kwargs):
-        super(UpSampling1D, self).__init__(**kwargs)
         self.length = length
         self.input_spec = [InputSpec(ndim=3)]
+        super(UpSampling1D, self).__init__(**kwargs)
 
     def get_output_shape_for(self, input_shape):
         return (input_shape[0], self.length * input_shape[1], input_shape[2])
@@ -952,11 +967,11 @@ class UpSampling2D(Layer):
     '''
 
     def __init__(self, size=(2, 2), dim_ordering='th', **kwargs):
-        super(UpSampling2D, self).__init__(**kwargs)
         self.size = tuple(size)
         assert dim_ordering in {'tf', 'th'}, 'dim_ordering must be in {tf, th}'
         self.dim_ordering = dim_ordering
         self.input_spec = [InputSpec(ndim=4)]
+        super(UpSampling2D, self).__init__(**kwargs)
 
     def get_output_shape_for(self, input_shape):
         if self.dim_ordering == 'th':
@@ -1010,12 +1025,12 @@ class UpSampling3D(Layer):
     def __init__(self, size=(2, 2, 2), dim_ordering='th', **kwargs):
         if K._BACKEND != 'theano':
             raise Exception(self.__class__.__name__ +
-                            ' is currently only working with Theano backend.')
-        super(UpSampling3D, self).__init__(**kwargs)
+                            ' is currently only working with Theano backend.') 
         self.size = tuple(size)
         assert dim_ordering in {'tf', 'th'}, 'dim_ordering must be in {tf, th}'
         self.dim_ordering = dim_ordering
         self.input_spec = [InputSpec(ndim=5)]
+        super(UpSampling3D, self).__init__(**kwargs)
 
     def get_output_shape_for(self, input_shape):
         if self.dim_ordering == 'th':
