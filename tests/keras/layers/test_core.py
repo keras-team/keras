@@ -14,10 +14,63 @@ def test_masking():
 
 
 def test_merge():
+    from keras.layers import Input, merge
+    from keras.models import Model
+
     # test modes: 'sum', 'mul', 'concat', 'ave', 'cos', 'dot'.
+    input_shapes = [(3, 2), (3, 2)]
+    inputs = [np.random.random(shape) for shape in input_shapes]
+
+    # test graph API
+    for mode in ['sum', 'mul', 'concat', 'ave', 'cos', 'dot']:
+        print(mode)
+        input_a = Input(shape=input_shapes[0][1:])
+        input_b = Input(shape=input_shapes[1][1:])
+        merged = merge([input_a, input_b], mode='sum')
+        model = Model([input_a, input_b], merged)
+        model.compile('rmsprop', 'mse')
+
+        expected_output_shape = model.get_output_shape_for(input_shapes)
+        actual_output_shape = model.predict(inputs).shape
+        assert expected_output_shape == actual_output_shape
+
+        config = model.get_config()
+        model = Model.from_config(config)
+        model.compile('rmsprop', 'mse')
+
     # test lambda with output_shape lambda
+    input_a = Input(shape=input_shapes[0][1:])
+    input_b = Input(shape=input_shapes[1][1:])
+    merged = merge([input_a, input_b],
+                   mode=lambda (x, y): K.concatenate([x, y]),
+                   output_shape=lambda (s1, s2): (s1[:-1],) + (s1[-1] + s2[-1],))
+    expected_output_shape = model.get_output_shape_for(input_shapes)
+    actual_output_shape = model.predict(inputs).shape
+    assert expected_output_shape == actual_output_shape
+
+    config = model.get_config()
+    model = Model.from_config(config)
+    model.compile('rmsprop', 'mse')
+
     # test function with output_shape function
-    pass
+    def fn_mode((x, y)):
+        return K.concatenate([x, y])
+
+    def fn_output_shape((s1, s2)):
+        return (s1[:-1],) + (s1[-1] + s2[-1],)
+
+    input_a = Input(shape=input_shapes[0][1:])
+    input_b = Input(shape=input_shapes[1][1:])
+    merged = merge([input_a, input_b],
+                   mode=fn_mode,
+                   output_shape=fn_output_shape)
+    expected_output_shape = model.get_output_shape_for(input_shapes)
+    actual_output_shape = model.predict(inputs).shape
+    assert expected_output_shape == actual_output_shape
+
+    config = model.get_config()
+    model = Model.from_config(config)
+    model.compile('rmsprop', 'mse')
 
 
 def test_dropout():

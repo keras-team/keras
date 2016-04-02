@@ -1151,10 +1151,10 @@ class Merge(Layer):
 
         if self.mode == 'sum' or self.mode == 'ave':
             s = inputs[0]
-            for i in range(1, len(self.layers)):
+            for i in range(1, len(inputs)):
                 s += inputs[i]
             if self.mode == 'ave':
-                s /= len(self.layers)
+                s /= len(inputs)
             return s
 
         elif self.mode == 'concat':
@@ -1162,7 +1162,7 @@ class Merge(Layer):
 
         elif self.mode == 'mul':
             s = inputs[0]
-            for i in range(1, len(self.layers)):
+            for i in range(1, len(inputs)):
                 s *= inputs[i]
             return s
 
@@ -1170,9 +1170,6 @@ class Merge(Layer):
             l1 = inputs[0]
             l2 = inputs[1]
             output = K.batch_dot(l1, l2, self.dot_axes)
-            # output_shape = list(self.get_output_shape_for(inputs[0]._keras_shape))
-            # output_shape[0] = l1.shape[0]
-            # output = output.reshape(tuple(output_shape))
             return output
 
         elif self.mode == 'cos':
@@ -1844,7 +1841,10 @@ class Container(Layer):
 
         cache_key = ','.join([str(x) for x in input_shapes])
         if cache_key in self._output_shape_cache:
-            return self._output_shape_cache[cache_key]
+            output_shapes = self._output_shape_cache[cache_key]
+            if type(output_shapes) is list and len(output_shapes) == 1:
+                return output_shapes[0]
+            return output_shapes
         else:
             # bad luck, have to run the graph manually
             layers_to_output_shapes = {}
@@ -1906,6 +1906,8 @@ class Container(Layer):
                 output_shapes.append(layers_to_output_shapes[key])
             # store in cache
             self._output_shape_cache[cache_key] = output_shapes
+            if type(output_shapes) is list and len(output_shapes) == 1:
+                return output_shapes[0]
             return output_shapes
 
     def run_internal_graph(self, inputs, masks=None):

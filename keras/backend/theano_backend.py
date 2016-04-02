@@ -129,7 +129,7 @@ def dot(x, y):
 def batch_dot(x, y, axes=None):
     if axes is None:
         # behaves like tf.batch_matmul as default
-        axes = [(x.ndim-1,), (y.ndim-2,)]
+        axes = [(x.ndim - 1,), (y.ndim - 2,)]
     return T.batched_tensordot(x, y, axes=axes)
 
 
