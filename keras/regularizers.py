@@ -34,9 +34,9 @@ class WeightRegularizer(Regularizer):
                             'ActivityRegularizer '
                             '(i.e. activity_regularizer="l2" instead '
                             'of activity_regularizer="activity_l2".')
-        loss += K.sum(K.abs(self.p)) * self.l1
-        loss += K.sum(K.square(self.p)) * self.l2
-        return loss
+        regularized_loss = loss + K.sum(K.abs(self.p)) * self.l1
+        regularized_loss += K.sum(K.square(self.p)) * self.l2
+        return K.in_train_phase(regularized_loss, loss)
 
     def get_config(self):
         return {'name': self.__class__.__name__,
