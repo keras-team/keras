@@ -558,7 +558,15 @@ class Model(Container):
 
         # prepare gradient updates and state updates
         self.optimizer = optimizers.get(optimizer)
-        train_updates = self.optimizer.get_updates(self.trainable_weights,
+        # dedupe trainable weights
+        trainable_weights_set = set()
+        trainable_weights = []
+        for w in self.trainable_weights:
+            if w not in trainable_weights_set:
+                trainable_weights_set.add(w)
+                trainable_weights.append(w)
+        # compute weight updates
+        train_updates = self.optimizer.get_updates(trainable_weights,
                                                    self.constraints,
                                                    total_loss)
         train_updates += self.updates
