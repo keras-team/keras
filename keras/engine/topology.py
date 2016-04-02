@@ -2303,12 +2303,19 @@ class Container(Layer):
         print_summary(flattened_layers, getattr(self, 'container_nodes', None))
 
 
-def get_source_inputs(tensor):
+def get_source_inputs(tensor, layer=None, node_index=None, tensor_index=None):
     '''Returns the list of input tensors
     necessary to compute `tensor`.
 
     Output will always be a list of tensors
     (potentially with 1 element).
+
+    # Arguments
+        tensor: the tensor to start from.
+        layer: origin layer of the tensor. Will be
+            determined via tensor._keras_history if not provided.
+        node_index: origin node index of the tensor.
+        tensor_index: origin tensor index of the tensor.
     '''
     if not hasattr(tensor, '_keras_history'):
         raise Exception('Tensor must be a Keras tensor. Found: ' + str(tensor))
@@ -2323,9 +2330,15 @@ def get_source_inputs(tensor):
             return node.input_tensors
         else:
             source_tensors = []
-            for x in node.input_tensors:
-                # TODO: what about graph cycles?
-                previous_sources = get_source_inputs(x)
+            for i in range(len(node.inbound_layers)):
+                x = node.input_tensors[i]
+                layer = node.inbound_layers[i]
+                node_index = node.node_indices[i]
+                tensor_index = node.tensor_indices[i]
+                previous_sources = get_source_inputs(x,
+                                                     layer,
+                                                     node_index,
+                                                     tensor_index)
                 # avoid input redundancy
                 for x in previous_sources:
                     if x not in source_tensors:
