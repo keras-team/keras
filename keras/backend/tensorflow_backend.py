@@ -280,6 +280,10 @@ def round(x):
     return tf.round(x)
 
 
+def sign(x):
+    return tf.sign(x)
+
+
 def pow(x, a):
     return tf.pow(x, a)
 
