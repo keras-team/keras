@@ -17,14 +17,14 @@ def set_epsilon(e):
 
 def floatx():
     '''Returns the default float type, as a string
-    (e.g. 'float32', 'float64').
+    (e.g. 'float16', 'float32', 'float64').
     '''
     return _FLOATX
 
 
 def set_floatx(floatx):
     global _FLOATX
-    if floatx not in {'float32', 'float64'}:
+    if floatx not in {'float16', 'float32', 'float64'}:
         raise Exception('Unknown floatx type: ' + str(floatx))
     floatx = str(floatx)
     _FLOATX = floatx
