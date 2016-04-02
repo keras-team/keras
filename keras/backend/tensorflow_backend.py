@@ -130,11 +130,25 @@ def batch_dot(x, y, axes=None):
     If the number of dimensions is reduced to 1, we use `expand_dims` to
     make sure that ndim is at least 2.
 
+    Example:
+        Assume x = [[1, 2]   and y = [[5, 6]
+                    [3, 4]]           [7, 8]]
+        batch_dot(x, y, axes=1) = [[17, 53]] which is the main diagonal
+        of x.dot(y.T), although we never have to calculate the off-diagonal
+        elementes.
+
+
+    Parameters:
+        x, y: tensors with ndim >= 2
+        axes: list (or single) int with target dimensions
+
     Return: tensor with ndim >= 2
     '''
-    if axes:
-        adj_x = None if axes[0][0] == ndim(x) - 1 else True
-        adj_y = True if axes[1][0] == ndim(y) - 1 else None
+    if type(axes) == int:
+        axes = (axes, axes)
+    if axes is not None:
+        adj_x = None if axes[0] == ndim(x) - 1 else True
+        adj_y = True if axes[1] == ndim(y) - 1 else None
     else:
         adj_x = None
         adj_y = None

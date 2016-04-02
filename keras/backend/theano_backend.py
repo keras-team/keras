@@ -132,11 +132,25 @@ def batch_dot(x, y, axes=None):
     If the number of dimensions is reduced to 1, we use `expand_dims` to
     make sure that ndim is at least 2.
 
+    Example:
+        Assume x = [[1, 2]   and y = [[5, 6]
+                    [3, 4]]           [7, 8]]
+        batch_dot(x, y, axes=1) = [[17, 53]] which is the main diagonal
+        of x.dot(y.T), although we never have to calculate the off-diagonal
+        elementes.
+
+
+    Parameters:
+        x, y: tensors with ndim >= 2
+        axes: list (or single) int with target dimensions
+
     Return: tensor with ndim >= 2
     '''
+    if type(axes) == int:
+        axes = (axes, axes)
     if axes is None:
         # behaves like tf.batch_matmul as default
-        axes = [(x.ndim - 1,), (y.ndim - 2,)]
+        axes = [x.ndim - 1, y.ndim - 2]
     out = T.batched_tensordot(x, y, axes=axes)
     if ndim(out) == 1:
         out = expand_dims(out, 1)

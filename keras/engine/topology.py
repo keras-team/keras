@@ -1038,6 +1038,8 @@ class Merge(Layer):
         self.mode = mode
         self.concat_axis = concat_axis
         self.dot_axes = dot_axes
+        if type(self.dot_axes) == int:
+            self.dot_axes = [self.dot_axes, ] * 2
         self._output_shape = output_shape
         self.node_indices = node_indices
 
@@ -1113,20 +1115,19 @@ class Merge(Layer):
             if mode == 'dot':
                 if type(dot_axes) == int:
                     if dot_axes < 0:
-                        dot_axes = [range(dot_axes % n1, n1), range(dot_axes % n2, n2)]
+                        dot_axes = [dot_axes % n1, dot_axes % n2]
                     else:
-                        dot_axes = [range(n1 - dot_axes, n2), range(1, dot_axes + 1)]
+                        dot_axes = [n1 - dot_axes, n2-dot_axes]
                 if type(dot_axes) not in [list, tuple]:
                     raise Exception('Invalid type for dot_axes - should be a list.')
                 if len(dot_axes) != 2:
                     raise Exception('Invalid format for dot_axes - should contain two elements.')
-                if type(dot_axes[0]) not in [list, tuple, range] or type(dot_axes[1]) not in [list, tuple, range]:
-                    raise Exception('Invalid format for dot_axes - list elements should have type "list" or "tuple".')
-                for i in range(len(dot_axes[0])):
-                    if shape1[dot_axes[0][i]] != shape2[dot_axes[1][i]]:
-                        raise Exception('Dimension incompatibility using dot mode: ' +
-                                        '%s != %s. ' % (shape1[dot_axes[0][i]], shape2[dot_axes[1][i]]) +
-                                        'Layer shapes: %s, %s' % (shape1, shape2))
+                if type(dot_axes[0]) is not int or type(dot_axes[1]) is not int:
+                    raise Exception('Invalid format for dot_axes - list elements should be "int".')
+                if shape1[dot_axes[0]] != shape2[dot_axes[1]]:
+                    raise Exception('Dimension incompatibility using dot mode: ' +
+                                    '%s != %s. ' % (shape1[dot_axes[0]], shape2[dot_axes[1][i]]) +
+                                    'Layer shapes: %s, %s' % (shape1, shape2))
         elif mode == 'concat':
             reduced_inputs_shapes = [list(shape) for shape in input_shapes]
             shape_set = set()
@@ -1242,9 +1243,7 @@ class Merge(Layer):
         elif self.mode == 'dot':
             shape1 = list(input_shapes[0])
             shape2 = list(input_shapes[1])
-            dot_axes = []
-            for axes in self.dot_axes:
-                dot_axes.append([index-1 for index in axes])
+            dot_axes = [a-1 for a in self.dot_axes]
             tensordot_output = np.tensordot(np.zeros(tuple(shape1[1:])),
                                             np.zeros(tuple(shape2[1:])),
                                             axes=dot_axes)
