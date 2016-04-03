@@ -2184,7 +2184,9 @@ class Container(Layer):
             flattened_layers = self.layers
 
         f = h5py.File(filepath, 'w')
-        f.attrs['layer_names'] = [layer.name for layer in flattened_layers]
+        for layer in flattened_layers:
+            print(layer.name)
+        f.attrs['layer_names'] = [layer.name.encode('utf8') for layer in flattened_layers]
 
         for layer in flattened_layers:
             g = f.create_group(layer.name)
@@ -2196,7 +2198,7 @@ class Container(Layer):
                     name = str(w.name)
                 else:
                     name = 'param_' + str(i)
-                weight_names.append(name)
+                weight_names.append(name.encode('utf8'))
             g.attrs['weight_names'] = weight_names
             for name, val in zip(weight_names, weight_values):
                 param_dset = g.create_dataset(name, val.shape,
@@ -2232,7 +2234,7 @@ class Container(Layer):
                 flattened_layers[k].set_weights(weights)
         else:
             # new file format
-            layer_names = f.attrs['layer_names']
+            layer_names = [n.decode('utf8') for n in f.attrs['layer_names']]
             if len(layer_names) != len(flattened_layers):
                 raise Exception('You are trying to load a weight file '
                                 'containing ' + str(len(layer_names)) +
@@ -2241,7 +2243,7 @@ class Container(Layer):
 
             for k, name in enumerate(layer_names):
                 g = f[name]
-                weight_names = g.attrs['weight_names']
+                weight_names = [n.decode('utf8') for n in g.attrs['weight_names']]
                 if len(weight_names):
                     weights = [g[weight_name] for weight_name in weight_names]
                     flattened_layers[k].set_weights(weights)
