@@ -1236,6 +1236,9 @@ class Merge(Layer):
         elif self.mode == 'concat':
             output_shape = list(input_shapes[0])
             for shape in input_shapes[1:]:
+                if output_shape[self.concat_axis] is None or shape[self.concat_axis] is None:
+                    output_shape[self.concat_axis] = None
+                    break
                 output_shape[self.concat_axis] += shape[self.concat_axis]
             return tuple(output_shape)
         elif self.mode == 'join':
