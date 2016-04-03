@@ -154,7 +154,7 @@ class Node(object):
             output_masks = to_list(outbound_layer.compute_mask(input_tensors, input_masks))
             output_shapes = to_list(outbound_layer.get_output_shape_for(input_shapes))
 
-        assert output_tensors and output_tensors[0], ('The `call` method of layer "' +
+        assert output_tensors is not None and output_tensors[0] is not None, ('The `call` method of layer "' +
             outbound_layer.name + '" should return a tensor. Found: ' + str(output_tensors[0]))
         assert len(output_tensors) == len(output_shapes), ('The `get_output_shape_for` method of layer "' + outbound_layer.name +
             '"" should return one shape tuple per output tensor of the layer. Found: ' + str(output_shapes))
