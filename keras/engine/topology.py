@@ -1787,7 +1787,9 @@ class Container(Layer):
     def uses_learning_phase(self):
         '''True if any layer in the graph uses it.
         '''
-        return any([layer.uses_learning_phase for layer in self.layers])
+        layers_learning_phase = any([layer.uses_learning_phase for layer in self.layers])
+        regs_learning_phase = any([reg.uses_learning_phase for reg in self.regularizers])
+        return layers_learning_phase or regs_learning_phase
 
     def call(self, input, mask=None):
         '''`call` just reapplies all ops in the graph to the new inputs
