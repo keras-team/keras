@@ -92,7 +92,7 @@ class Optimizer(object):
 
 class SGD(Optimizer):
     '''Stochastic gradient descent, with support for momentum,
-    decay, and Nesterov momentum.
+    learning rate decay, and Nesterov momentum.
 
     # Arguments
         lr: float >= 0. Learning rate.
@@ -143,7 +143,8 @@ class RMSprop(Optimizer):
     '''RMSProp optimizer.
 
     It is recommended to leave the parameters of this optimizer
-    at their default values.
+    at their default values
+    (except the learning rate, which can be freely tuned).
 
     This optimizer is usually a good choice for recurrent
     neural networks.
@@ -230,7 +231,8 @@ class Adadelta(Optimizer):
     at their default values.
 
     # Arguments
-        lr: float >= 0. Learning rate. It is recommended to leave it at the default value.
+        lr: float >= 0. Learning rate.
+            It is recommended to leave it at the default value.
         rho: float >= 0.
         epsilon: float >= 0. Fuzz factor.
 
