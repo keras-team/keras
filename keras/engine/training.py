@@ -150,19 +150,27 @@ def check_array_lengths(X, Y, W):
     y_lengths = [y.shape[0] for y in Y]
     w_lengths = [w.shape[0] for w in W]
     set_x = set(x_lengths)
-    assert len(set_x) == 1, 'All input arrays (x) should have the same number of samples.'
+    if len(set_x) != 1:
+        raise Exception('All input arrays (x) should have '
+                        'the same number of samples.')
     set_y = set(y_lengths)
-    assert len(set_x) == 1, 'All target arrays (y) should have the same number of samples.'
+    if len(set_x) != 1:
+        raise Exception('All target arrays (y) should have '
+                        'the same number of samples.')
     set_w = set(w_lengths)
-    assert len(set_w) == 1, 'All sample_weight arrays should have the same number of samples.'
-    assert list(set_x)[0] == list(set_y)[0], ('Input arrays should have '
-            'the same number of samples as target arrays. Found ' +
-            str(list(set_x)[0]) + ' input samples and ' + str(list(set_y)[0]) +
-            ' target samples.')
-    assert list(set_x)[0] == list(set_w)[0], ('Sample_weight arrays should have '
-            'the same number of samples as input arrays. Found ' +
-            str(list(set_x)[0]) + ' input samples and ' + str(list(set_w)[0]) +
-            ' target samples.')
+    if len(set_w) != 1:
+        raise Exception('All sample_weight arrays should have '
+                        'the same number of samples.')
+    if list(set_x)[0] != list(set_y)[0]:
+        raise Exception('Input arrays should have '
+                        'the same number of samples as target arrays. Found ' +
+                        str(list(set_x)[0]) + ' input samples and ' +
+                        str(list(set_y)[0]) + ' target samples.')
+    if list(set_x)[0] != list(set_w)[0]:
+        raise Exception('Sample_weight arrays should have '
+                        'the same number of samples as input arrays. Found ' +
+                        str(list(set_x)[0]) + ' input samples and ' +
+                        str(list(set_w)[0]) + ' target samples.')
 
 
 def collect_metrics(metrics, output_names):

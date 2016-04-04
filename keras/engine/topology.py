@@ -154,12 +154,23 @@ class Node(object):
             output_masks = to_list(outbound_layer.compute_mask(input_tensors, input_masks))
             output_shapes = to_list(outbound_layer.get_output_shape_for(input_shapes))
 
-        assert output_tensors and output_tensors[0], ('The `call` method of layer "' +
-            outbound_layer.name + '" should return a tensor. Found: ' + str(output_tensors[0]))
-        assert len(output_tensors) == len(output_shapes), ('The `get_output_shape_for` method of layer "' + outbound_layer.name +
-            '"" should return one shape tuple per output tensor of the layer. Found: ' + str(output_shapes))
-        assert len(output_tensors) == len(output_masks), ('The `compute_mask` method of layer "' + outbound_layer.name +
-            '" should return one mask tensor per output tensor of the layer. Found: ' + str(output_masks))
+        if not output_tensors or output_tensors[0] is None:
+            raise Exception('The `call` method of layer "' +
+                            outbound_layer.name +
+                            '" should return a tensor. Found: ' +
+                            str(output_tensors[0]))
+        if len(output_tensors) != len(output_shapes):
+            raise Exception('The `get_output_shape_for` method of layer "' +
+                            outbound_layer.name +
+                            '"" should return one shape tuple per '
+                            'output tensor of the layer. Found: ' +
+                            str(output_shapes))
+        if len(output_tensors) != len(output_masks):
+            raise Exception('The `compute_mask` method of layer "' +
+                            outbound_layer.name +
+                            '" should return one mask tensor per '
+                            'output tensor of the layer. Found: ' +
+                            str(output_masks))
 
         for i in range(len(output_tensors)):
             output_tensors[i]._keras_shape = output_shapes[i]
@@ -356,18 +367,26 @@ class Layer(object):
                 if type(spec.ndim) is str:
                     int_ndim = spec.ndim[:spec.ndim.find('+')]
                     ndim = int(int_ndim)
-                    assert K.ndim(x) >= ndim, ('Input ' + str(input_index) +
-                            ' is incompatible with layer ' + self.name +
-                            ': expected ndim >= ' + str(ndim), ' found ndim=' + str(K.ndim(x)))
+                    if K.ndim(x) < ndim:
+                        raise Exception('Input ' + str(input_index) +
+                                        ' is incompatible with layer ' +
+                                        self.name + ': expected ndim >= ' +
+                                        str(ndim) + ' found ndim=' +
+                                        str(K.ndim(x)))
                 else:
-                    assert K.ndim(x) == spec.ndim, ('Input ' + str(input_index) +
-                            ' is incompatible with layer ' + self.name +
-                            ': expected ndim=' + str(spec.ndim), ' found ndim=' + str(K.ndim(x)))
+                    if K.ndim(x) != spec.ndim:
+                        raise Exception('Input ' + str(input_index) +
+                                        ' is incompatible with layer ' +
+                                        self.name + ': expected ndim=' +
+                                        str(spec.ndim), ' found ndim=' +
+                                        str(K.ndim(x)))
             if spec.dtype is not None:
-                assert K.dtype(x) == spec.dtype, ('Input ' + str(input_index) +
-                        ' is incompatible with layer ' + self.name +
-                        ': expected dtype=' + str(spec.dtype), ' found dtype=' + str(K.dtype(x)))
-
+                if K.dtype(x) != spec.dtype:
+                    raise Exception('Input ' + str(input_index) +
+                                    ' is incompatible with layer ' +
+                                    self.name + ': expected dtype=' +
+                                    str(spec.dtype), ' found dtype=' +
+                                    str(K.dtype(x)))
             if spec.shape is not None:
                 if hasattr(x, '_keras_shape'):
                     x_shape = x._keras_shape
@@ -378,9 +397,12 @@ class Layer(object):
                     continue
                 for spec_dim, dim in zip(spec.shape, x_shape):
                     if spec_dim is not None:
-                        assert spec_dim == dim, ('Input ' + str(input_index) +
-                                ' is incompatible with layer ' + self.name +
-                                ': expected shape=' + str(spec.shape) + ', found shape=' + str(x_shape))
+                        if spec_dim != dim:
+                            raise Exception('Input ' + str(input_index) +
+                                            ' is incompatible with layer ' +
+                                            self.name + ': expected shape=' +
+                                            str(spec.shape) + ', found shape=' +
+                                            str(x_shape))
 
     def call(self, x, mask=None):
         '''This is where the layer's logic lives.
@@ -716,8 +738,12 @@ class Layer(object):
         the layer has exactly one inbound node, i.e. if it is connected
         to one incoming layer).
         '''
-        assert len(self.inbound_nodes) == 1, ('Layer ' + self.name + ' has multiple inbound nodes, ' +
-            'hence the notion of "layer output" is ill-defined. Use `get_output_at(node_index)` instead.')
+        if len(self.inbound_nodes) != 1:
+            raise Exception('Layer ' + self.name +
+                            ' has multiple inbound nodes, ' +
+                            'hence the notion of "layer output" '
+                            'is ill-defined. '
+                            'Use `get_output_at(node_index)` instead.')
         return self._get_node_attribute_at_index(0, 'output_tensors',
                                                  'output')
 
@@ -727,8 +753,12 @@ class Layer(object):
         the layer has exactly one inbound node, i.e. if it is connected
         to one incoming layer).
         '''
-        assert len(self.inbound_nodes) == 1, ('Layer ' + self.name + ' has multiple inbound nodes, ' +
-            'hence the notion of "layer input mask" is ill-defined. Use `get_input_mask_at(node_index)` instead.')
+        if len(self.inbound_nodes) != 1:
+            raise Exception('Layer ' + self.name +
+                            ' has multiple inbound nodes, ' +
+                            'hence the notion of "layer input mask" '
+                            'is ill-defined. '
+                            'Use `get_input_mask_at(node_index)` instead.')
         return self._get_node_attribute_at_index(0, 'input_masks',
                                                  'input mask')
 
@@ -738,8 +768,12 @@ class Layer(object):
         the layer has exactly one inbound node, i.e. if it is connected
         to one incoming layer).
         '''
-        assert len(self.inbound_nodes) == 1, ('Layer ' + self.name + ' has multiple inbound nodes, ' +
-            'hence the notion of "layer output mask" is ill-defined. Use `get_output_mask_at(node_index)` instead.')
+        if len(self.inbound_nodes) != 1:
+            raise Exception('Layer ' + self.name +
+                            ' has multiple inbound nodes, ' +
+                            'hence the notion of "layer output mask" '
+                            'is ill-defined. '
+                            'Use `get_output_mask_at(node_index)` instead.')
         return self._get_node_attribute_at_index(0, 'output_masks',
                                                  'output mask')
 

@@ -67,8 +67,10 @@ class Optimizer(object):
                 output of `get_weights`).
         '''
         params = self.weights
-        assert len(params) == len(weights), ('Provided weight array does not match  weights (' +
-            str(len(params)) + ' optimizer params vs. ' + str(len(weights)) + ' provided weights)')
+        if len(params) != len(weights):
+            raise Exception('Provided weight array does not match  weights (' +
+                            str(len(params)) + ' optimizer params vs. ' +
+                            str(len(weights)) + ' provided weights)')
         for p, w in zip(params, weights):
             if K.get_value(p).shape != w.shape:
                 raise Exception('Optimizer weight shape ' +
