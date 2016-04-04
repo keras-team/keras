@@ -183,9 +183,10 @@ image_model.add(RepeatVector(max_caption_len))
 
 # the output of both models will be tensors of shape (samples, max_caption_len, 128).
 # let's concatenate these 2 vector sequences.
-model = Merge([image_model, language_model], mode='concat', concat_axis=-1)
+model = Sequential()
+model.add(Merge([image_model, language_model], mode='concat', concat_axis=-1))
 # let's encode this vector sequence into a single vector
-model.add(GRU(256, 256, return_sequences=False))
+model.add(GRU(256, return_sequences=False))
 # which will be used to compute a probability
 # distribution over what the next word in the caption should be!
 model.add(Dense(vocab_size))
