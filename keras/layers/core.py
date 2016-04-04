@@ -394,9 +394,9 @@ class Lambda(Layer):
 
         if isinstance(self.function, python_types.LambdaType):
             if py3:
-                function = marshal.dumps(self.function.__code__)
+                function = marshal.dumps(self.function.__code__).decode('raw_unicode_escape')
             else:
-                function = marshal.dumps(self.function.func_code)
+                function = marshal.dumps(self.function.func_code).decode('raw_unicode_escape')
             function_type = 'lambda'
         else:
             function = self.function.__name__
@@ -429,7 +429,7 @@ class Lambda(Layer):
         if function_type == 'function':
             function = globals()[config['function']]
         elif function_type == 'lambda':
-            function = marshal.loads(config['function'])
+            function = marshal.loads(config['function'].encode('raw_unicode_escape'))
             function = python_types.FunctionType(function, globals())
         else:
             raise Exception('Unknown function type: ' + function_type)
