@@ -83,7 +83,6 @@ class UnitNorm(Constraint):
                 "axis": self.axis}
 
 
-identity = Constraint
 maxnorm = MaxNorm
 nonneg = NonNeg
 unitnorm = UnitNorm

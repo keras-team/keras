@@ -2,9 +2,9 @@ import pytest
 import numpy as np
 from numpy.testing import assert_allclose
 
-from keras.layers import wrappers
+from keras.layers import wrappers, Input
 from keras.layers import core, convolutional
-from keras.models import Sequential, model_from_json
+from keras.models import Sequential, Model, model_from_json
 
 
 def test_TimeDistributed():
@@ -58,6 +58,21 @@ def test_TimeDistributed():
     model.compile(optimizer='rmsprop', loss='mse')
 
     model.fit(np.random.random((10, 3, 4)), np.random.random((10, 3, 3)), nb_epoch=1, batch_size=10)
+
+    # test wrapping Sequential model
+    model = Sequential()
+    model.add(core.Dense(3, input_dim=2))
+    outer_model = Sequential()
+    outer_model.add(wrappers.TimeDistributed(model, input_shape=(3, 2)))
+    outer_model.compile(optimizer='rmsprop', loss='mse')
+    outer_model.fit(np.random.random((10, 3, 2)), np.random.random((10, 3, 3)), nb_epoch=1, batch_size=10)
+
+    # test with functional API
+    x = Input(shape=(3, 2))
+    y = wrappers.TimeDistributed(model)(x)
+    outer_model = Model(x, y)
+    outer_model.compile(optimizer='rmsprop', loss='mse')
+    outer_model.fit(np.random.random((10, 3, 2)), np.random.random((10, 3, 3)), nb_epoch=1, batch_size=10)
 
 
 if __name__ == '__main__':

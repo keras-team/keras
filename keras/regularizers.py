@@ -20,6 +20,7 @@ class WeightRegularizer(Regularizer):
     def __init__(self, l1=0., l2=0.):
         self.l1 = K.cast_to_floatx(l1)
         self.l2 = K.cast_to_floatx(l2)
+        self.uses_learning_phase = True
 
     def set_param(self, p):
         self.p = p
@@ -48,10 +49,10 @@ class ActivityRegularizer(Regularizer):
     def __init__(self, l1=0., l2=0.):
         self.l1 = K.cast_to_floatx(l1)
         self.l2 = K.cast_to_floatx(l2)
+        self.uses_learning_phase = True
 
     def set_layer(self, layer):
         self.layer = layer
-        layer.uses_learning_phase = True
 
     def __call__(self, loss):
         if not hasattr(self, 'layer'):
@@ -92,7 +93,6 @@ def activity_l2(l=0.01):
 def activity_l1l2(l1=0.01, l2=0.01):
     return ActivityRegularizer(l1=l1, l2=l2)
 
-identity = Regularizer
 
 from .utils.generic_utils import get_from_module
 def get(identifier, kwargs=None):

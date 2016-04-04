@@ -214,13 +214,13 @@ class Sequential(Model):
     def _gather_list_attr(self, attr):
         all_attrs = []
         for layer in self.flattened_layers:
-            all_attrs += getattr(layer, attr)
+            all_attrs += getattr(layer, attr, [])
         return all_attrs
 
     def _gather_dict_attr(self, attr):
         all_attrs = {}
         for layer in self.flattened_layers:
-            layer_dict = getattr(layer, attr)
+            layer_dict = getattr(layer, attr, {})
             all_attrs = dict(list(all_attrs.items()) +
                              list(layer_dict.items()))
         return all_attrs

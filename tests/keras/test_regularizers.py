@@ -48,8 +48,7 @@ def create_model(weight_reg=None, activity_reg=None):
 
 
 def test_W_reg():
-    for reg in [regularizers.identity(),
-                regularizers.l1(),
+    for reg in [regularizers.l1(),
                 regularizers.l2(),
                 regularizers.l1l2()]:
         model = create_model(weight_reg=reg)

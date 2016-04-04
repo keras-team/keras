@@ -1,7 +1,7 @@
 
 ## Simple fully connected network
 
-THe `Sequential` model is probably a better choice to implement such a network, but it helps to start with something really simple.
+The `Sequential` model is probably a better choice to implement such a network, but it helps to start with something really simple.
 
 ```python
 from keras.layers import Input, Dense
@@ -30,9 +30,9 @@ As you can see, a layer instance is callable (on a tensor), and it returns a ten
 
 A good use case for the functional API: models with multiple inputs and outputs. The functional API makes it really easy to manipulate a large number of intertwinned datastreams.
 
-Let's consider a model that learns a question answering model, that learns a relevance embedding space where questions and their answers will be embedded at closed positions (which will allow us to quickly query a database of answers to find those that are relevant to a new question).
+Let's consider a model that learns question-answering, this model learns a relevance embedding space where questions and their answers will be embedded at close positions. This embedding will allow us to quickly query a database of answers to find those that are relevant to a new question based on distances.
 
-The model has three input branches: an embedding for the question, and two embeddings for two different answers, a relevant answer and an unrelated answer. We'll train the model with a triplet loss, teaching the model to maximize the dot product between the question embedding and the embedding for the relevant answer, while minimizing the dot product between the question and the irrelevant answer.
+The model has three input branches: an embedding for the question, and two embeddings for two different answers, a relevant answer and an unrelated answer. We'll train the model with a triplet loss, teaching the model to maximize the dot product between the question embedding and the embedding for the relevant answer, while minimizing the dot product between the question and the irrelevant answer. Dot products only has all information necessary to calculate distances when talking about unit norm vectors. For simplicity, let us assume dot products are sufficient here. 
 
 [model graph]
 
@@ -64,15 +64,16 @@ encoded_bad_answer = answer_lstm(embedded_bad_answer)
 # let's take the dot product between the question embedding
 # and the embedding of the answers
 good_answer_score = merge([encoded_question, encoded_good_answer], mode='dot')
-good_answer_score = merge([encoded_question, encoded_bad_answer], mode='dot')
+bad_answer_score = merge([encoded_question, encoded_bad_answer], mode='dot')
 
 # this is a lambda layer. It allows you to create
 # simple stateless layers on the fly to take care of basic operations.
-# Note how the layer below has multiple inputs.
-output = Lambda(lambda x, y: x - y)([good_answer_score, good_answer_score])
+# Note how the layer below has multiple inputs. Also, here we are using
+# a function from `keras.backend` that squares the error.
+output = Lambda(lambda x, y: K.square(x - y))([good_answer_score, bad_answer_score])
 ```
 
-Now let's say that we want out model to return not only the final output, but also each of the two previous scores (so you can apply auxilliary loss functions to them).
+Now let's say that we want our model to return not only the final output, but also each of the two previous scores (so you can apply auxilliary loss functions to them).
 You can define the following model:
 
 ```python
@@ -93,13 +94,13 @@ answer_embedder = Model(input=good_answer_input, output=encoded_good_answer)
 embedded_ans = answer_embedder.predict(ans_data)
 ```
 
-Great. Now if you have some training data, you got yourself a question/answer matching model.
+Great! Now if you have some training data, you got yourself a question/answer matching model.
 
 ## Shared layers
 
-Another good use case for the functional API: models that use shared layers. Let's take a look at shared layers.
+Another good use for the functional API are models that use shared layers. Let's take a look at shared layers.
 
-Let's consider a dataset of tweets. We want to build a model that can tell whether two tweets are from the same person or not (this can allow us to compare users by similarity, for instance).
+Let's consider a dataset of tweets. We want to build a model that can tell whether two tweets are from the same person or not (this can allow us to compare users by the similarity of their tweets, for instance).
 
 One way to achieve this is to build a model that encodes two tweets into two vectors, concatenates the vectors and adds a logistic regression of top, outputting a probability that the tweets share the same author. The model would then be trained on positive tweet pairs and negative tweet pairs.
 
@@ -107,9 +108,9 @@ Because the problem is symetric, the mechanism that encodes the first tweet shou
 
 (graph: shared lstm)
 
-Here we use a LSTM layer to encode the tweets.
+Here we use an LSTM layer to encode the tweets.
 
-Let's build this with the functional API. We will take as input for a tweet a binary matrix of shape `(140, 256)`, i.e. a sequence of 140 vectors of size 256, where each dimension in the 256-dimensional vector encodes the presence/absence of a character (out of an alphabet of 256 frequent character).
+Let's build this with the functional API. We will take as input for a tweet a binary matrix of shape `(140, 256)`, i.e. a sequence of 140 vectors of size 256, where each dimension in the 256-dimensional vector encodes the presence/absence of a character (out of an alphabet of 256 frequent characters).
 
 ```python
 from keras.layers import Input, LSTM, Dense, merge
@@ -153,7 +154,7 @@ Let's pause to take a look at how to read the shared layer's output or output sh
 
 ## The concept of layer "node"
 
-Whenever you are calling a layer on some input, you are creating a new tensor (the output of the layer), and you are creating adding a "node" to the layer, linking the input tensor to the output tensor. When you are calling a same layer multiple times, the layer owns multiple nodes, indexed as 0, 1, 2...
+Whenever you are calling a layer on some input, you are creating a new tensor (the output of the layer), and you are creating adding a "node" to the layer, linking the input tensor to the output tensor. When you are calling the same layer multiple times, that layer owns multiple nodes indexed as 0, 1, 2...
 
 In previous versions of Keras, you could obtain the output tensor of a layer instance via `layer.get_output()`, or its output shape via `layer.output_shape`. You still can (except `get_output()` has been replaced by the property `output`). But what if a layer is connected to multiple inputs?
 
