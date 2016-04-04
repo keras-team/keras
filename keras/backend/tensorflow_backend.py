@@ -112,7 +112,7 @@ def dot(x, y):
     with a ND tensor, reproduces the Theano behavior
     (e.g. (2, 3).(4, 3, 5) = (2, 4, 5))
     '''
-    if ndim(x) > 2 or ndim(y) > 2:
+    if ndim(x) is not None and (ndim(x) > 2 or ndim(y) > 2):
         x_shape = (-1,) + int_shape(x)[1:]
         y_shape = int_shape(y)
         y_permute_dim = list(range(ndim(y)))
