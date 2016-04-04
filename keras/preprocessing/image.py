@@ -11,14 +11,13 @@ from scipy import linalg
 
 from os import listdir
 from os.path import isfile, join
-import random
 import math
 from six.moves import range
 import threading
 
 
 def random_rotation(x, rg, fill_mode='nearest', cval=0.):
-    angle = random.uniform(-rg, rg)
+    angle = np.random.uniform(-rg, rg)
     x = ndimage.interpolation.rotate(x, angle,
                                      axes=(1, 2),
                                      reshape=False,
@@ -31,9 +30,9 @@ def random_shift(x, wrg, hrg, fill_mode='nearest', cval=0.):
     shift_x = shift_y = 0
 
     if wrg:
-        shift_x = random.uniform(-wrg, wrg) * x.shape[2]
+        shift_x = np.random.uniform(-wrg, wrg) * x.shape[2]
     if hrg:
-        shift_y = random.uniform(-hrg, hrg) * x.shape[1]
+        shift_y = np.random.uniform(-hrg, hrg) * x.shape[1]
     x = ndimage.interpolation.shift(x, (0, shift_y, shift_x),
                                     order=0,
                                     mode=fill_mode,
@@ -59,7 +58,7 @@ def random_barrel_transform(x, intensity):
 
 
 def random_shear(x, intensity, fill_mode='nearest', cval=0.):
-    shear = random.uniform(-intensity, intensity)
+    shear = np.random.uniform(-intensity, intensity)
     shear_matrix = np.array([[1.0, -math.sin(shear), 0.0],
                             [0.0, math.cos(shear), 0.0],
                             [0.0, 0.0, 1.0]])
@@ -76,8 +75,8 @@ def random_channel_shift(x, rg):
 
 
 def random_zoom(x, rg, fill_mode='nearest', cval=0.):
-    zoom_w = random.uniform(1.-rg, 1.)
-    zoom_h = random.uniform(1.-rg, 1.)
+    zoom_w = np.random.uniform(1.-rg, 1.)
+    zoom_h = np.random.uniform(1.-rg, 1.)
     x = ndimage.interpolation.zoom(x, zoom=(1., zoom_w, zoom_h),
                                    mode=fill_mode,
                                    cval=cval)
@@ -253,10 +252,10 @@ class ImageDataGenerator(object):
         if self.width_shift_range or self.height_shift_range:
             x = random_shift(x, self.width_shift_range, self.height_shift_range)
         if self.horizontal_flip:
-            if random.random() < 0.5:
+            if np.random.random() < 0.5:
                 x = horizontal_flip(x)
         if self.vertical_flip:
-            if random.random() < 0.5:
+            if np.random.random() < 0.5:
                 x = vertical_flip(x)
         if self.shear_range:
             x = random_shear(x, self.shear_range)

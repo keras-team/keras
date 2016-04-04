@@ -3,6 +3,7 @@
 from __future__ import print_function
 from __future__ import absolute_import
 
+import warnings
 import copy
 import time
 import numpy as np
@@ -1170,6 +1171,12 @@ class Model(Container):
                 samples_seen += batch_size
 
                 # epoch finished
+                if samples_seen > samples_per_epoch:
+                    warnings.warn('Epoch comprised more than '
+                                  '`samples_per_epoch` samples, '
+                                  'which might affect learning results. '
+                                  'Set `samples_per_epoch` correctly '
+                                  'to avoid this warning.')
                 if samples_seen >= samples_per_epoch and do_validation:
                     if val_gen:
                         val_outs = self.evaluate_generator(validation_data,
