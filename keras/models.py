@@ -295,7 +295,8 @@ class Model(object):
 
         self.stop_training = False
         for epoch in range(nb_epoch):
-            callbacks.on_epoch_begin(epoch)
+            epoch_logs = {}
+            callbacks.on_epoch_begin(epoch, epoch_logs)
             if shuffle == 'batch':
                 index_array = batch_shuffle(index_array, batch_size)
             elif shuffle:
@@ -322,7 +323,6 @@ class Model(object):
 
                 callbacks.on_batch_end(batch_index, batch_logs)
 
-                epoch_logs = {}
                 if batch_index == len(batches) - 1:  # last batch
                     # validation
                     if do_validation:
