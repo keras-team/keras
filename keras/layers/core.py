@@ -623,7 +623,7 @@ class Merge(Layer):
 
     def set_weights(self, weights):
         for i in range(len(self.layers)):
-            nb_param = len(self.layers[i].trainable_weights)
+            nb_param = len(self.layers[i].get_weights())
             self.layers[i].set_weights(weights[:nb_param])
             weights = weights[nb_param:]
 
@@ -1338,7 +1338,7 @@ class AutoEncoder(Layer):
         return weights
 
     def set_weights(self, weights):
-        nb_param = len(self.encoder.trainable_weights)
+        nb_param = len(self.encoder.get_weights())
         self.encoder.set_weights(weights[:nb_param])
         self.decoder.set_weights(weights[nb_param:])
 
@@ -1642,7 +1642,7 @@ class LambdaMerge(Lambda):
 
     def set_weights(self, weights):
         for i in range(len(self.layers)):
-            nb_param = len(self.layers[i].trainable_weights) + len(self.non_trainable_weights)
+            nb_param = len(self.layers[i].get_weights())
             self.layers[i].set_weights(weights[:nb_param])
             weights = weights[nb_param:]
 

@@ -80,6 +80,14 @@ class Sequential(Layer):
         return weights
 
     @property
+    def non_trainable_weights(self):
+        weights = []
+        for l in self.layers:
+            if l.trainable:
+                weights += l.non_trainable_weights
+        return weights
+
+    @property
     def regularizers(self):
         regularizers = []
         for l in self.layers:
