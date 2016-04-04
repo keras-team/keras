@@ -31,12 +31,6 @@ def test_parametric_softplus():
                    input_shape=(2, 3, 4))
 
 
-def test_thresholded_linear():
-    from keras.layers.advanced_activations import ThresholdedLinear
-    layer_test(ThresholdedLinear, kwargs={'theta': 0.5},
-               input_shape=(2, 3, 4))
-
-
 def test_thresholded_relu():
     from keras.layers.advanced_activations import ThresholdedReLU
     layer_test(ThresholdedReLU, kwargs={'theta': 0.5},
@@ -50,5 +44,4 @@ def test_srelu():
 
 
 if __name__ == '__main__':
-    # pytest.main([__file__])
-    test_srelu()
+    pytest.main([__file__])

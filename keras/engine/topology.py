@@ -1812,7 +1812,7 @@ class Container(Layer):
     @property
     def input_spec(self):
         specs = []
-        for layer in self.input_layers:
+        for layer in getattr(self, 'input_layers', []):
             if layer.input_spec is None:
                 specs.append(None)
             else:
