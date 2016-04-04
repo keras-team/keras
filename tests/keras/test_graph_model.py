@@ -420,6 +420,14 @@ def test_count_params():
 
     assert(n == graph.count_params())
 
+def test_no_output_layer():
+    # Catch the when there are no output layers early
+
+    graph = Graph()
+    graph.add_input(name='input1', input_shape=(32,))
+    graph.add_node(Dense(2), name='dense3', input='input1')
+
+    pytest.raises(AssertionError, graph.compile, 'rmsprop', {})
 
 if __name__ == '__main__':
     pytest.main([__file__])
