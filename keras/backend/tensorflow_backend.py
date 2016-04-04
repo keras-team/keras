@@ -685,6 +685,26 @@ def categorical_crossentropy(output, target, from_logits=False):
         return tf.nn.softmax_cross_entropy_with_logits(output, target)
 
 
+def sparse_categorical_crossentropy(output, target, from_logits=False):
+    '''Note: tf.nn.sparse_softmax_cross_entropy_with_logits
+    expects logits, Keras expects probabilities.
+    '''
+    if not from_logits:
+        output = tf.clip_by_value(output, tf.cast(_EPSILON, dtype=_FLOATX),
+                                  tf.cast(1.-_EPSILON, dtype=_FLOATX))
+        output = tf.log(output)
+
+    output_shape = output.get_shape()
+    res = tf.nn.sparse_softmax_cross_entropy_with_logits(
+        tf.reshape(output, [-1, int(output_shape[-1])]),
+        cast(flatten(target), 'int32'))
+    if len(output_shape) == 3:
+        # if our output includes timesteps we need to reshape
+        return tf.reshape(res, [-1, int(output_shape[-2])])
+    else:
+        return res
+
+
 def binary_crossentropy(output, target, from_logits=False):
     '''Note: tf.nn.sigmoid_cross_entropy_with_logits
     expects logits, Keras expects probabilities.
