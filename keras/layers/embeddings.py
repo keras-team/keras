@@ -11,11 +11,21 @@ class Embedding(Layer):
 
     This layer can only be used as the first layer in a model.
 
-    # Input shape
-        2D tensor with shape: `(nb_samples, sequence_length)`.
+    # Example
 
-    # Output shape
-        3D tensor with shape: `(nb_samples, sequence_length, output_dim)`.
+    ```python
+      model = Sequential()
+      model.add(Embedding(1000, 64, input_length=10))
+      # the model will take as input an integer matrix of size (batch, input_length).
+      # the largest integer (i.e. word index) in the input should be no larger than 1000 (vocabulary size).
+      # now model.output_shape == (None, 10, 64), where None is the batch dimension.
+
+      input_array = np.random.randint(1000, size=(32, 10))
+
+      model.compile('rmsprop', 'mse')
+      output_array = model.predict(input_array)
+      assert output_array.shape == (32, 10, 64)
+    ```
 
     # Arguments
       input_dim: int >= 0. Size of the vocabulary, ie.
@@ -41,6 +51,12 @@ class Embedding(Layer):
           `Flatten` then `Dense` layers upstream
           (without it, the shape of the dense outputs cannot be computed).
       dropout: float between 0 and 1. Fraction of the embeddings to drop.
+
+    # Input shape
+        2D tensor with shape: `(nb_samples, sequence_length)`.
+
+    # Output shape
+        3D tensor with shape: `(nb_samples, sequence_length, output_dim)`.
 
     # References
         - [A Theoretically Grounded Application of Dropout in Recurrent Neural Networks](http://arxiv.org/abs/1512.05287)

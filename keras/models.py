@@ -256,6 +256,9 @@ class Sequential(Model):
         return self._gather_dict_attr('constraints')
 
     def get_weights(self):
+        '''Returns the weights of the model,
+        as a flat list of Numpy arrays.
+        '''
         # support for legacy behavior
         weights = []
         for layer in self.flattened_layers:
@@ -263,6 +266,11 @@ class Sequential(Model):
         return weights
 
     def set_weights(self, weights):
+        '''Sets the weights of the model.
+        The `weights` argument should be a list
+        of Numpy arrays with shapes and types matching
+        the output of `model.get_weights()`.
+        '''
         # support for legacy behavior
         for layer in self.flattened_layers:
             nb_param = len(layer.get_weights())
@@ -421,9 +429,22 @@ class Sequential(Model):
                                    sample_weight=sample_weight)
 
     def predict(self, x, batch_size=32, verbose=0):
+        '''Generates output predictions for the input samples,
+        processing the samples in a batched way.
+
+        # Arguments
+            x: the input data, as a Numpy array.
+            batch_size: integer.
+            verbose: verbosity mode, 0 or 1.
+
+        # Returns
+            A Numpy array of predictions.
+        '''
         return self.model.predict(x, batch_size=batch_size, verbose=verbose)
 
     def predict_on_batch(self, x):
+        '''Returns predictions for a single batch of samples.
+        '''
         return self.model.predict_on_batch(x)
 
     def train_on_batch(self, x, y, class_weight=None,
@@ -639,18 +660,8 @@ class Sequential(Model):
                                              val_samples)
 
     def get_config(self):
-        '''
-        how to handle Merge layers:
-            encoding:
-                if first layer is Merge:
-                    - get merge config (no connectivity)
-                    - get config of Merge input layers
-                    - insert into merge config as 'layers' (for backwards compatibility)
-            decoding:
-                if first layer is Merge:
-                    - get config['layers']
-                    - instantiate input layers
-                    - merge them
+        '''Returns the model configuration
+        as a Python dictionary.
         '''
         config = []
         if self.layers[0].__class__.__name__ == 'Merge':

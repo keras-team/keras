@@ -8,14 +8,6 @@ class BatchNormalization(Layer):
     i.e. applies a transformation that maintains the mean activation
     close to 0 and the activation standard deviation close to 1.
 
-    # Input shape
-        Arbitrary. Use the keyword argument `input_shape`
-        (tuple of integers, does not include the samples axis)
-        when using this layer as the first layer in a model.
-
-    # Output shape
-        Same shape as input.
-
     # Arguments
         epsilon: small float > 0. Fuzz parameter.
         mode: integer, 0 or 1.
@@ -45,6 +37,15 @@ class BatchNormalization(Layer):
             [initializations](../initializations.md)), or alternatively,
             Theano/TensorFlow function to use for weights initialization.
             This parameter is only relevant if you don't pass a `weights` argument.
+
+    # Input shape
+        Arbitrary. Use the keyword argument `input_shape`
+        (tuple of integers, does not include the samples axis)
+        when using this layer as the first layer in a model.
+
+    # Output shape
+        Same shape as input.
+
     # References
         - [Batch Normalization: Accelerating Deep Network Training by Reducing Internal Covariate Shift](http://arxiv.org/pdf/1502.03167v3.pdf)
     '''

@@ -1,5 +1,3 @@
-'''TODO: docstrings
-'''
 from __future__ import print_function
 from __future__ import absolute_import
 
@@ -174,6 +172,38 @@ def check_array_lengths(X, Y, W):
                         str(list(set_w)[0]) + ' target samples.')
 
 
+def check_loss_and_target_compatibility(targets, losses, output_shapes):
+    assert len(targets) == len(losses) == len(output_shapes)
+    key_losses = {'mean_square_error',
+                  'binary_crossentropy',
+                  'categorical_crossentropy'}
+    for y, loss, shape in zip(targets, losses, output_shapes):
+        if loss.__name__ == 'categorical_crossentropy':
+            if y.shape[1] == 1:
+                raise Exception('You are passing a target array of shape ' + str(y.shape) +
+                                ' while using as loss `categorical_crossentropy`. '
+                                '`categorical_crossentropy` expects '
+                                'targets to be binary matrices (1s and 0s) '
+                                'of shape (samples, classes). '
+                                'If your targets are integer classes, '
+                                'you can convert them to the expected format via:\n'
+                                '```\n'
+                                'from keras.utils.np_utils import to_categorical\n'
+                                'y_binary = to_categorical(y_int)\n'
+                                '```\n'
+                                '\n'
+                                'Alternatively, you can use the loss function '
+                                '`sparse_categorical_crossentropy` instead, '
+                                'which does expect integer targets.')
+        if loss.__name__ in key_losses and y.shape[1] != shape[1]:
+                raise Exception('A target array with shape ' + str(y.shape) +
+                                ' was passed for an output of shape ' + str(shape) +
+                                ' while using as loss `' + loss.__name__ + '`. '
+                                'This loss expects '
+                                'targets to have the same shape '
+                                'as the output.')
+
+
 def collect_metrics(metrics, output_names):
     if not metrics:
         return [[] for _ in output_names]
@@ -281,8 +311,8 @@ def weighted_objective(fn):
 
 def standardize_weights(y, sample_weight=None, class_weight=None,
                         sample_weight_mode=None):
-    '''Weight input validation and standardization to a single sample-wise
-    (or timestep-wise) weight array.
+    '''Performs weight input validation and standardization
+    to a single sample-wise (or timestep-wise) weight array.
     '''
     if sample_weight_mode is not None:
         if sample_weight_mode != 'temporal':
@@ -445,6 +475,7 @@ class Model(Container):
         else:
             loss_function = objectives.get(loss)
             loss_functions = [loss_function for _ in range(len(self.outputs))]
+        self.loss_functions = loss_functions
         weighted_losses = [weighted_objective(fn) for fn in loss_functions]
 
         # prepare output masks
@@ -507,7 +538,9 @@ class Model(Container):
 
         # prepare targets of model
         self.targets = []
-        for y, shape, name in zip(self.outputs, self.internal_output_shapes, self.output_names):
+        for i in range(len(self.outputs)):
+            shape = self.internal_output_shapes[i]
+            name = self.output_names[i]
             self.targets.append(K.placeholder(ndim=len(shape), name=name + '_target'))
 
         # compute total loss
@@ -826,6 +859,7 @@ class Model(Container):
                           for (ref, sw, cw, mode)
                           in zip(y, sample_weights, class_weights, self.sample_weight_modes)]
         check_array_lengths(x, y, sample_weights)
+        check_loss_and_target_compatibility(y, self.loss_functions, self.internal_output_shapes)
         if self.stateful and batch_size:
             if x[0].shape[0] % batch_size != 0:
                 raise Exception('In a stateful network, '
@@ -838,7 +872,47 @@ class Model(Container):
     def fit(self, x, y, batch_size=32, nb_epoch=10, verbose=1, callbacks=[],
             validation_split=0., validation_data=None, shuffle=True,
             class_weight=None, sample_weight=None):
-        '''
+        '''Trains the model for a fixed number of epochs (iterations on a dataset).
+
+        # Arguments
+            x: Numpy array of training data,
+                or list of Numpy arrays if the model has multiple inputs.
+                If all inputs in the model are named, you can also pass a dictionary
+                mapping input names to Numpy arrays.
+            y: Numpy array of target data,
+                or list of Numpy arrays if the model has multiple outputs.
+                If all outputs in the model are named, you can also pass a dictionary
+                mapping output names to Numpy arrays.
+            batch_size: integer. Number of samples per gradient update.
+            nb_epoch: integer, the number of times to iterate over the training data arrays.
+            verbose: 0, 1, or 2. Verbosity mode. 0 = silent, 1 = verbose, 2 = one log line per epoch.
+            callbacks: list of callbacks to be called during training.
+                See [callbacks](callbacks.md).
+            validation_split: float between 0 and 1:
+                fraction of the training data to be used as validation data.
+                The model will set apart this fraction of the training data,
+                will not train on it, and will evaluate the loss and any model metrics
+                on this data at the end of each epoch.
+            validation_data: data on which to evaluate the loss and any model metrics
+                at the end of each epoch. The model will not be trained on this data.
+                This could be a tuple (x_val, y_val) or a tuple (val_x, val_y, val_sample_weights).
+            shuffle: boolean, whether to shuffle the training data before each epoch.
+            class_weight: optional dictionary mapping classe indices (integers) to
+                a weight (float) to apply to the model's loss for the samples
+                from this class during training.
+                This can be useful to tell the model to "pay more attention" to
+                samples from an under-represented class.
+            sample_weight: optional array of the same length as x, containing
+                weights to apply to the model's loss for each sample.
+                In the case of temporal data, you can pass a 2D array
+                with shape (samples, sequence_length),
+                to apply a different weight to every timestep of every sample.
+                In this case you should make sure to specify sample_weight_mode="temporal" in compile().
+
+
+        # Returns
+            A `History` instance. Its `history` attribute contains
+            all information collected during training.
         '''
         # validate user data
         x, y, sample_weights = self._standardize_user_data(x, y,
@@ -908,7 +982,15 @@ class Model(Container):
         in test mode. Computation in done in batches.
 
         # Arguments
-            TODO
+            x: Numpy array of test data,
+                or list of Numpy arrays if the model has multiple inputs.
+                If all inputs in the model are named, you can also pass a dictionary
+                mapping input names to Numpy arrays.
+            y: Numpy array of target data,
+                or list of Numpy arrays if the model has multiple outputs.
+                If all outputs in the model are named, you can also pass a dictionary
+                mapping output names to Numpy arrays.
+            batch_size: integer. Number of samples per gradient update.
 
         # Returns
             Scalar test loss (if the model has a single output and no metrics)
@@ -967,7 +1049,34 @@ class Model(Container):
                                   batch_size=batch_size, verbose=verbose)
 
     def train_on_batch(self, x, y, sample_weight=None, class_weight=None):
-        '''
+        '''Runs a single gradient update on a single batch of data.
+
+        # Arguments
+            x: Numpy array of training data,
+                or list of Numpy arrays if the model has multiple inputs.
+                If all inputs in the model are named, you can also pass a dictionary
+                mapping input names to Numpy arrays.
+            y: Numpy array of target data,
+                or list of Numpy arrays if the model has multiple outputs.
+                If all outputs in the model are named, you can also pass a dictionary
+                mapping output names to Numpy arrays.
+            sample_weight: optional array of the same length as x, containing
+                weights to apply to the model's loss for each sample.
+                In the case of temporal data, you can pass a 2D array
+                with shape (samples, sequence_length),
+                to apply a different weight to every timestep of every sample.
+                In this case you should make sure to specify sample_weight_mode="temporal" in compile().
+            class_weight: optional dictionary mapping classe indices (integers) to
+                a weight (float) to apply to the model's loss for the samples
+                from this class during training.
+                This can be useful to tell the model to "pay more attention" to
+                samples from an under-represented class.
+
+        # Returns
+            Scalar training loss (if the model has a single output and no metrics)
+            or list of scalars (if the model has multiple outputs
+            and/or metrics). The attribute `model.metrics_names` will give you
+            the display labels for the scalar outputs.
         '''
         x, y, sample_weights = self._standardize_user_data(x, y,
                                                            sample_weight=sample_weight,
@@ -983,7 +1092,29 @@ class Model(Container):
         return outputs
 
     def test_on_batch(self, x, y, sample_weight=None):
-        '''
+        '''Test the model on a single batch of samples.
+
+        # Arguments
+            x: Numpy array of test data,
+                or list of Numpy arrays if the model has multiple inputs.
+                If all inputs in the model are named, you can also pass a dictionary
+                mapping input names to Numpy arrays.
+            y: Numpy array of target data,
+                or list of Numpy arrays if the model has multiple outputs.
+                If all outputs in the model are named, you can also pass a dictionary
+                mapping output names to Numpy arrays.
+            sample_weight: optional array of the same length as x, containing
+                weights to apply to the model's loss for each sample.
+                In the case of temporal data, you can pass a 2D array
+                with shape (samples, sequence_length),
+                to apply a different weight to every timestep of every sample.
+                In this case you should make sure to specify sample_weight_mode="temporal" in compile().
+
+        # Returns
+            Scalar test loss (if the model has a single output and no metrics)
+            or list of scalars (if the model has multiple outputs
+            and/or metrics). The attribute `model.metrics_names` will give you
+            the display labels for the scalar outputs.
         '''
         x, y, sample_weights = self._standardize_user_data(x, y,
                                                            sample_weight=sample_weight,

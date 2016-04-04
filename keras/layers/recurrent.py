@@ -47,6 +47,23 @@ class Recurrent(Layer):
     follow the specifications of this class and accept
     the keyword arguments listed below.
 
+    # Example
+
+    ```python
+        # as the first layer in a Sequential model
+        model = Sequential()
+        model.add(LSTM(32, input_shape=(10, 64)))
+        # now model.output_shape == (None, 10, 32)
+        # note: `None` is the batch dimension.
+
+        # the following is identical:
+        model = Sequential()
+        model.add(LSTM(32, input_dim=64, input_length=10))
+
+        # for subsequent layers, not need to specify the input size:
+        model.add(LSTM(16))
+    ```
+
     # Arguments
         weights: list of numpy arrays to set as initial weights.
             The list should have 3 elements, of shapes:

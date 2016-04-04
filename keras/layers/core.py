@@ -119,6 +119,20 @@ class Reshape(Layer):
 
     # Output shape
         `(batch_size,) + target_shape`
+
+    # Example
+
+    ```python
+        # as first layer in a Sequential model
+        model = Sequential()
+        model.add(Reshape((3, 4), input_shape=(12,)))
+        # now: model.output_shape == (None, 3, 4)
+        # note: `None` is the batch dimension
+
+        # as intermediate layer in a Sequential model
+        model.add(Reshape((6, 2)))
+        # now: model.output_shape == (None, 6, 2)
+    ```
     '''
     def __init__(self, target_shape, **kwargs):
         super(Reshape, self).__init__(**kwargs)
@@ -201,6 +215,15 @@ class Permute(Layer):
 
     Useful for e.g. connecting RNNs and convnets together.
 
+    # Example
+
+    ```python
+        model = Sequential()
+        model.add(Permute((2, 1), input_shape=(10, 64)))
+        # now: model.output_shape == (None, 64, 10)
+        # note: `None` is the batch dimension
+    ```
+
     # Arguments
         dims: Tuple of integers. Permutation pattern, does not include the
             samples dimension. Indexing starts at 1.
@@ -240,6 +263,17 @@ class Permute(Layer):
 class Flatten(Layer):
     '''Flattens the input. Does not affect the batch size.
 
+    # Example
+
+    ```python
+        model = Sequential()
+        model.add(Convolution2D(64, 3, 3, border_mode='same', input_shape=(3, 32, 32)))
+        # now: model.output_shape == (None, 64, 32, 32)
+
+        model.add(Flatten())
+        # now: model.output_shape == (None, 65536)
+    ```
+
     # Input shape
         Arbitrary, although all dimensions in the input shape must be fixed.
         Use the keyword argument `input_shape`
@@ -268,7 +302,19 @@ class Flatten(Layer):
 
 
 class RepeatVector(Layer):
-    '''Repeat the input n times.
+    '''Repeats the input n times.
+
+    # Example
+
+    ```python
+        model = Sequential()
+        model.add(Dense(32, input_dim=32))
+        # now: model.output_shape == (None, 32)
+        # note: `None` is the batch dimension
+
+        model.add(RepeatVector(3))
+        # now: model.output_shape == (None, 3, 32)
+    ```
 
     # Arguments
         n: integer, repetition factor.
@@ -300,22 +346,6 @@ class Lambda(Layer):
     '''Used for evaluating an arbitrary Theano / TensorFlow expression
     on the output of the previous layer.
 
-    # Arguments
-        function: The function to be evaluated.
-            Takes one argument: the output of previous layer
-        output_shape: Expected output shape from function.
-            Could be a tuple or a function of the shape of the input
-        arguments: optional dictionary of keyword arguments to be passed
-            to the function.
-
-    # Input shape
-        Arbitrary. Use the keyword argument input_shape
-        (tuple of integers, does not include the samples axis)
-        when using this layer as the first layer in a model.
-
-    # Output shape
-        Specified by `output_shape` argument.
-
     # Examples
 
     ```python
@@ -342,6 +372,22 @@ class Lambda(Layer):
 
         model.add(Lambda(antirectifier, output_shape=antirectifier_output_shape))
     ```
+
+    # Arguments
+        function: The function to be evaluated.
+            Takes one argument: the output of previous layer
+        output_shape: Expected output shape from function.
+            Could be a tuple or a function of the shape of the input
+        arguments: optional dictionary of keyword arguments to be passed
+            to the function.
+
+    # Input shape
+        Arbitrary. Use the keyword argument input_shape
+        (tuple of integers, does not include the samples axis)
+        when using this layer as the first layer in a model.
+
+    # Output shape
+        Specified by `output_shape` argument.
     '''
     def __init__(self, function, output_shape=None, arguments={}, **kwargs):
         self.function = function
@@ -450,6 +496,22 @@ class Lambda(Layer):
 
 class Dense(Layer):
     '''Just your regular fully connected NN layer.
+
+    # Example
+
+    ```python
+        # as first layer in a sequential model:
+        model = Sequential(Dense(32, input_dim=16))
+        # now the model will take as input arrays of shape (*, 16)
+        # and output arrays of shape (*, 32)
+
+        # this is equivalent to the above:
+        model = Sequential(Dense(32, input_shape=(16,)))
+
+        # after the first layer, you don't need to specify
+        # the size of the input anymore:
+        model.add(Dense(32))
+    ```
 
     # Arguments
         output_dim: int > 0.
@@ -859,6 +921,12 @@ class Highway(Layer):
 class TimeDistributedDense(Layer):
     '''Apply a same Dense layer for each dimension[1] (time_dimension) input.
     Especially useful after a recurrent network with 'return_sequence=True'.
+
+    Note: this layer is deprecated, prefer using the `TimeDistributed` wrapper:
+    ```python
+        model.add(TimeDistributed(Dense(32)))
+    ```
+
     # Input shape
         3D tensor with shape `(nb_sample, time_dimension, input_dim)`.
     # Output shape

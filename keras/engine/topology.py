@@ -371,21 +371,21 @@ class Layer(object):
                         raise Exception('Input ' + str(input_index) +
                                         ' is incompatible with layer ' +
                                         self.name + ': expected ndim >= ' +
-                                        str(ndim) + ' found ndim=' +
+                                        str(ndim) + ', found ndim=' +
                                         str(K.ndim(x)))
                 else:
                     if K.ndim(x) != spec.ndim:
                         raise Exception('Input ' + str(input_index) +
                                         ' is incompatible with layer ' +
                                         self.name + ': expected ndim=' +
-                                        str(spec.ndim), ' found ndim=' +
+                                        str(spec.ndim) + ', found ndim=' +
                                         str(K.ndim(x)))
             if spec.dtype is not None:
                 if K.dtype(x) != spec.dtype:
                     raise Exception('Input ' + str(input_index) +
                                     ' is incompatible with layer ' +
                                     self.name + ': expected dtype=' +
-                                    str(spec.dtype), ' found dtype=' +
+                                    str(spec.dtype) + ', found dtype=' +
                                     str(K.dtype(x)))
             if spec.shape is not None:
                 if hasattr(x, '_keras_shape'):
@@ -438,6 +438,10 @@ class Layer(object):
             mask: tensor or list/tuple of tensors.
         '''
         if not self.built:
+            # raise exceptions in case the input is not compatible
+            # with the input_spec specified in the layer constructor
+            self.assert_input_compatibility(x)
+
             # collect input shapes to build layer
             input_shapes = []
             for x_elem in to_list(x):
@@ -458,7 +462,8 @@ class Layer(object):
                 self.build(input_shapes)
             self.built = True
 
-        # raise exceptions in case the input is not compatible with the layer
+        # raise exceptions in case the input is not compatible
+        # with the input_spec set at build time
         self.assert_input_compatibility(x)
         # build and connect layer
         input_added = False

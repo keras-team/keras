@@ -25,12 +25,19 @@ class Convolution1D(Layer):
     or `input_shape` (tuple of integers, e.g. (10, 128) for sequences
     of 10 vectors of 128-dimensional vectors).
 
-    # Input shape
-        3D tensor with shape: `(samples, steps, input_dim)`.
+    # Example
 
-    # Output shape
-        3D tensor with shape: `(samples, new_steps, nb_filter)`.
-        `steps` value might have changed due to padding.
+    ```python
+        # apply a convolution 1d of length 3 to a sequence with 10 timesteps,
+        # with 64 output filters
+        model = Sequential()
+        model.add(Convolution1D(64, 3, border_mode='same', input_shape=(10, 32)))
+        # now model.output_shape == (None, 10, 64)
+
+        # add a new conv1d on top
+        model.add(Convolution1D(32, 3, border_mode='same'))
+        # now model.output_shape == (None, 10, 32)
+    ```
 
     # Arguments
         nb_filter: Number of convolution kernels to use
@@ -65,6 +72,13 @@ class Convolution1D(Layer):
             This argument is required if you are going to connect
             `Flatten` then `Dense` layers upstream
             (without it, the shape of the dense outputs cannot be computed).
+
+    # Input shape
+        3D tensor with shape: `(samples, steps, input_dim)`.
+
+    # Output shape
+        3D tensor with shape: `(samples, new_steps, nb_filter)`.
+        `steps` value might have changed due to padding.
     '''
     def __init__(self, nb_filter, filter_length,
                  init='uniform', activation='linear', weights=None,
@@ -175,19 +189,18 @@ class Convolution2D(Layer):
     (tuple of integers, does not include the sample axis),
     e.g. `input_shape=(3, 128, 128)` for 128x128 RGB pictures.
 
-    # Input shape
-        4D tensor with shape:
-        `(samples, channels, rows, cols)` if dim_ordering='th'
-        or 4D tensor with shape:
-        `(samples, rows, cols, channels)` if dim_ordering='tf'.
+    # Examples
 
-    # Output shape
-        4D tensor with shape:
-        `(samples, nb_filter, new_rows, new_cols)` if dim_ordering='th'
-        or 4D tensor with shape:
-        `(samples, new_rows, new_cols, nb_filter)` if dim_ordering='tf'.
-        `rows` and `cols` values might have changed due to padding.
+    ```python
+        # apply a 3x3 convolution with 64 output filters on a 256x256 image:
+        model = Sequential()
+        model.add(Convolution2D(64, 3, 3, border_mode='same', input_shape=(3, 256, 256)))
+        # now model.output_shape == (None, 64, 256, 256)
 
+        # add a 3x3 convolution on top, with 32 output filters:
+        model.add(Convolution2D(32, 3, 3, border_mode='same'))
+        # now model.output_shape == (None, 32, 256, 256)
+    ```
 
     # Arguments
         nb_filter: Number of convolution filters to use.
@@ -219,6 +232,19 @@ class Convolution2D(Layer):
             applied to the bias.
         dim_ordering: 'th' or 'tf'. In 'th' mode, the channels dimension
             (the depth) is at index 1, in 'tf' mode is it at index 3.
+
+    # Input shape
+        4D tensor with shape:
+        `(samples, channels, rows, cols)` if dim_ordering='th'
+        or 4D tensor with shape:
+        `(samples, rows, cols, channels)` if dim_ordering='tf'.
+
+    # Output shape
+        4D tensor with shape:
+        `(samples, nb_filter, new_rows, new_cols)` if dim_ordering='th'
+        or 4D tensor with shape:
+        `(samples, new_rows, new_cols, nb_filter)` if dim_ordering='tf'.
+        `rows` and `cols` values might have changed due to padding.
     '''
     def __init__(self, nb_filter, nb_row, nb_col,
                  init='glorot_uniform', activation='linear', weights=None,
@@ -349,19 +375,6 @@ class Convolution3D(Layer):
 
     Note: this layer will only work with Theano for the time being.
 
-    # Input shape
-        5D tensor with shape:
-        `(samples, channels, conv_dim1, conv_dim2, conv_dim3)` if dim_ordering='th'
-        or 5D tensor with shape:
-        `(samples, conv_dim1, conv_dim2, conv_dim3, channels)` if dim_ordering='tf'.
-
-    # Output shape
-        5D tensor with shape:
-        `(samples, nb_filter, new_conv_dim1, new_conv_dim2, new_conv_dim3)` if dim_ordering='th'
-        or 5D tensor with shape:
-        `(samples, new_conv_dim1, new_conv_dim2, new_conv_dim3, nb_filter)` if dim_ordering='tf'.
-        `new_conv_dim1`, `new_conv_dim2` and `new_conv_dim3` values might have changed due to padding.
-
     # Arguments
         nb_filter: Number of convolution filters to use.
         kernel_dim1: Length of the first dimension in the covolution kernel.
@@ -394,6 +407,19 @@ class Convolution3D(Layer):
             applied to the bias.
         dim_ordering: 'th' or 'tf'. In 'th' mode, the channels dimension
             (the depth) is at index 1, in 'tf' mode is it at index 4.
+
+    # Input shape
+        5D tensor with shape:
+        `(samples, channels, conv_dim1, conv_dim2, conv_dim3)` if dim_ordering='th'
+        or 5D tensor with shape:
+        `(samples, conv_dim1, conv_dim2, conv_dim3, channels)` if dim_ordering='tf'.
+
+    # Output shape
+        5D tensor with shape:
+        `(samples, nb_filter, new_conv_dim1, new_conv_dim2, new_conv_dim3)` if dim_ordering='th'
+        or 5D tensor with shape:
+        `(samples, new_conv_dim1, new_conv_dim2, new_conv_dim3, nb_filter)` if dim_ordering='tf'.
+        `new_conv_dim1`, `new_conv_dim2` and `new_conv_dim3` values might have changed due to padding.
     '''
 
     def __init__(self, nb_filter, kernel_dim1, kernel_dim2, kernel_dim3,
@@ -609,17 +635,17 @@ class MaxPooling1D(_Pooling1D):
 class AveragePooling1D(_Pooling1D):
     '''Average pooling for temporal data.
 
-    # Input shape
-        3D tensor with shape: `(samples, steps, features)`.
-
-    # Output shape
-        3D tensor with shape: `(samples, downsampled_steps, features)`.
-
     # Arguments
         pool_length: factor by which to downscale. 2 will halve the input.
         stride: integer or None. Stride value.
         border_mode: 'valid' or 'same'.
             Note: 'same' will only work with TensorFlow for the time being.
+
+    # Input shape
+        3D tensor with shape: `(samples, steps, features)`.
+
+    # Output shape
+        3D tensor with shape: `(samples, downsampled_steps, features)`.
     '''
 
     def __init__(self, pool_length=2, stride=None,
@@ -696,6 +722,16 @@ class _Pooling2D(Layer):
 class MaxPooling2D(_Pooling2D):
     '''Max pooling operation for spatial data.
 
+    # Arguments
+        pool_size: tuple of 2 integers,
+            factors by which to downscale (vertical, horizontal).
+            (2, 2) will halve the image in each dimension.
+        strides: tuple of 2 integers, or None. Strides values.
+        border_mode: 'valid' or 'same'.
+            Note: 'same' will only work with TensorFlow for the time being.
+        dim_ordering: 'th' or 'tf'. In 'th' mode, the channels dimension
+            (the depth) is at index 1, in 'tf' mode is it at index 3.
+
     # Input shape
         4D tensor with shape:
         `(samples, channels, rows, cols)` if dim_ordering='th'
@@ -707,16 +743,6 @@ class MaxPooling2D(_Pooling2D):
         `(nb_samples, channels, pooled_rows, pooled_cols)` if dim_ordering='th'
         or 4D tensor with shape:
         `(samples, pooled_rows, pooled_cols, channels)` if dim_ordering='tf'.
-
-    # Arguments
-        pool_size: tuple of 2 integers,
-            factors by which to downscale (vertical, horizontal).
-            (2, 2) will halve the image in each dimension.
-        strides: tuple of 2 integers, or None. Strides values.
-        border_mode: 'valid' or 'same'.
-            Note: 'same' will only work with TensorFlow for the time being.
-        dim_ordering: 'th' or 'tf'. In 'th' mode, the channels dimension
-            (the depth) is at index 1, in 'tf' mode is it at index 3.
     '''
 
     def __init__(self, pool_size=(2, 2), strides=None, border_mode='valid',
@@ -734,6 +760,16 @@ class MaxPooling2D(_Pooling2D):
 class AveragePooling2D(_Pooling2D):
     '''Average pooling operation for spatial data.
 
+    # Arguments
+        pool_size: tuple of 2 integers,
+            factors by which to downscale (vertical, horizontal).
+            (2, 2) will halve the image in each dimension.
+        strides: tuple of 2 integers, or None. Strides values.
+        border_mode: 'valid' or 'same'.
+            Note: 'same' will only work with TensorFlow for the time being.
+        dim_ordering: 'th' or 'tf'. In 'th' mode, the channels dimension
+            (the depth) is at index 1, in 'tf' mode is it at index 3.
+
     # Input shape
         4D tensor with shape:
         `(samples, channels, rows, cols)` if dim_ordering='th'
@@ -745,16 +781,6 @@ class AveragePooling2D(_Pooling2D):
         `(nb_samples, channels, pooled_rows, pooled_cols)` if dim_ordering='th'
         or 4D tensor with shape:
         `(samples, pooled_rows, pooled_cols, channels)` if dim_ordering='tf'.
-
-    # Arguments
-        pool_size: tuple of 2 integers,
-            factors by which to downscale (vertical, horizontal).
-            (2, 2) will halve the image in each dimension.
-        strides: tuple of 2 integers, or None. Strides values.
-        border_mode: 'valid' or 'same'.
-            Note: 'same' will only work with TensorFlow for the time being.
-        dim_ordering: 'th' or 'tf'. In 'th' mode, the channels dimension
-            (the depth) is at index 1, in 'tf' mode is it at index 3.
     '''
 
     def __init__(self, pool_size=(2, 2), strides=None, border_mode='valid',
@@ -837,6 +863,15 @@ class MaxPooling3D(_Pooling3D):
 
     Note: this layer will only work with Theano for the time being.
 
+    # Arguments
+        pool_size: tuple of 3 integers,
+            factors by which to downscale (dim1, dim2, dim3).
+            (2, 2, 2) will halve the size of the 3D input in each dimension.
+        strides: tuple of 3 integers, or None. Strides values.
+        border_mode: 'valid' or 'same'.
+        dim_ordering: 'th' or 'tf'. In 'th' mode, the channels dimension
+            (the depth) is at index 1, in 'tf' mode is it at index 4.
+
     # Input shape
         5D tensor with shape:
         `(samples, channels, len_pool_dim1, len_pool_dim2, len_pool_dim3)` if dim_ordering='th'
@@ -848,15 +883,6 @@ class MaxPooling3D(_Pooling3D):
         `(nb_samples, channels, pooled_dim1, pooled_dim2, pooled_dim3)` if dim_ordering='th'
         or 5D tensor with shape:
         `(samples, pooled_dim1, pooled_dim2, pooled_dim3, channels)` if dim_ordering='tf'.
-
-    # Arguments
-        pool_size: tuple of 3 integers,
-            factors by which to downscale (dim1, dim2, dim3).
-            (2, 2, 2) will halve the size of the 3D input in each dimension.
-        strides: tuple of 3 integers, or None. Strides values.
-        border_mode: 'valid' or 'same'.
-        dim_ordering: 'th' or 'tf'. In 'th' mode, the channels dimension
-            (the depth) is at index 1, in 'tf' mode is it at index 4.
     '''
 
     def __init__(self, pool_size=(2, 2, 2), strides=None, border_mode='valid',
@@ -879,6 +905,15 @@ class AveragePooling3D(_Pooling3D):
 
     Note: this layer will only work with Theano for the time being.
 
+    # Arguments
+        pool_size: tuple of 3 integers,
+            factors by which to downscale (dim1, dim2, dim3).
+            (2, 2, 2) will halve the size of the 3D input in each dimension.
+        strides: tuple of 3 integers, or None. Strides values.
+        border_mode: 'valid' or 'same'.
+        dim_ordering: 'th' or 'tf'. In 'th' mode, the channels dimension
+            (the depth) is at index 1, in 'tf' mode is it at index 4.
+
     # Input shape
         5D tensor with shape:
         `(samples, channels, len_pool_dim1, len_pool_dim2, len_pool_dim3)` if dim_ordering='th'
@@ -890,15 +925,6 @@ class AveragePooling3D(_Pooling3D):
         `(nb_samples, channels, pooled_dim1, pooled_dim2, pooled_dim3)` if dim_ordering='th'
         or 5D tensor with shape:
         `(samples, pooled_dim1, pooled_dim2, pooled_dim3, channels)` if dim_ordering='tf'.
-
-    # Arguments
-        pool_size: tuple of 3 integers,
-            factors by which to downscale (dim1, dim2, dim3).
-            (2, 2, 2) will halve the size of the 3D input in each dimension.
-        strides: tuple of 3 integers, or None. Strides values.
-        border_mode: 'valid' or 'same'.
-        dim_ordering: 'th' or 'tf'. In 'th' mode, the channels dimension
-            (the depth) is at index 1, in 'tf' mode is it at index 4.
     '''
 
     def __init__(self, pool_size=(2, 2, 2), strides=None, border_mode='valid',
@@ -919,14 +945,14 @@ class AveragePooling3D(_Pooling3D):
 class UpSampling1D(Layer):
     '''Repeat each temporal step `length` times along the time axis.
 
+    # Arguments:
+        length: integer. Upsampling factor.
+
     # Input shape
         3D tensor with shape: `(samples, steps, features)`.
 
     # Output shape
         3D tensor with shape: `(samples, upsampled_steps, features)`.
-
-    # Arguments:
-        length: integer. Upsampling factor.
     '''
 
     def __init__(self, length=2, **kwargs):
@@ -951,6 +977,12 @@ class UpSampling2D(Layer):
     '''Repeat the rows and columns of the data
     by size[0] and size[1] respectively.
 
+    # Arguments
+        size: tuple of 2 integers. The upsampling factors for rows and columns.
+        dim_ordering: 'th' or 'tf'.
+            In 'th' mode, the channels dimension (the depth)
+            is at index 1, in 'tf' mode is it at index 3.
+
     # Input shape
         4D tensor with shape:
         `(samples, channels, rows, cols)` if dim_ordering='th'
@@ -962,12 +994,6 @@ class UpSampling2D(Layer):
         `(samples, channels, upsampled_rows, upsampled_cols)` if dim_ordering='th'
         or 4D tensor with shape:
         `(samples, upsampled_rows, upsampled_cols, channels)` if dim_ordering='tf'.
-
-    # Arguments
-        size: tuple of 2 integers. The upsampling factors for rows and columns.
-        dim_ordering: 'th' or 'tf'.
-            In 'th' mode, the channels dimension (the depth)
-            is at index 1, in 'tf' mode is it at index 3.
     '''
 
     def __init__(self, size=(2, 2), dim_ordering='th', **kwargs):
@@ -1007,6 +1033,12 @@ class UpSampling3D(Layer):
 
     Note: this layer will only work with Theano for the time being.
 
+    # Arguments
+        size: tuple of 3 integers. The upsampling factors for dim1, dim2 and dim3.
+        dim_ordering: 'th' or 'tf'.
+            In 'th' mode, the channels dimension (the depth)
+            is at index 1, in 'tf' mode is it at index 4.
+
     # Input shape
         5D tensor with shape:
         `(samples, channels, dim1, dim2, dim3)` if dim_ordering='th'
@@ -1018,12 +1050,6 @@ class UpSampling3D(Layer):
         `(samples, channels, upsampled_dim1, upsampled_dim2, upsampled_dim3)` if dim_ordering='th'
         or 5D tensor with shape:
         `(samples, upsampled_dim1, upsampled_dim2, upsampled_dim3, channels)` if dim_ordering='tf'.
-
-    # Arguments
-        size: tuple of 3 integers. The upsampling factors for dim1, dim2 and dim3.
-        dim_ordering: 'th' or 'tf'.
-            In 'th' mode, the channels dimension (the depth)
-            is at index 1, in 'tf' mode is it at index 4.
     '''
 
     def __init__(self, size=(2, 2, 2), dim_ordering='th', **kwargs):
@@ -1065,16 +1091,16 @@ class UpSampling3D(Layer):
 class ZeroPadding1D(Layer):
     '''Zero-padding layer for 1D input (e.g. temporal sequence).
 
+    # Arguments
+        padding: int
+            How many zeros to add at the beginning and end of
+            the padding dimension (axis 1).
+
     # Input shape
         3D tensor with shape (samples, axis_to_pad, features)
 
     # Output shape
         3D tensor with shape (samples, padded_axis, features)
-
-    # Arguments
-        padding: int
-            How many zeros to add at the beginning and end of
-            the padding dimension (axis 1).
     '''
 
     def __init__(self, padding=1, **kwargs):
@@ -1100,6 +1126,11 @@ class ZeroPadding1D(Layer):
 class ZeroPadding2D(Layer):
     '''Zero-padding layer for 2D input (e.g. picture).
 
+    # Arguments
+        padding: tuple of int (length 2)
+            How many zeros to add at the beginning and end of
+            the 2 padding dimensions (axis 3 and 4).
+
     # Input shape
         4D tensor with shape:
         (samples, depth, first_axis_to_pad, second_axis_to_pad)
@@ -1107,11 +1138,6 @@ class ZeroPadding2D(Layer):
     # Output shape
         4D tensor with shape:
         (samples, depth, first_padded_axis, second_padded_axis)
-
-    # Arguments
-        padding: tuple of int (length 2)
-            How many zeros to add at the beginning and end of
-            the 2 padding dimensions (axis 3 and 4).
     '''
 
     def __init__(self, padding=(1, 1), dim_ordering='th', **kwargs):
@@ -1154,6 +1180,11 @@ class ZeroPadding3D(Layer):
 
     Note: this layer will only work with Theano for the time being.
 
+    # Arguments
+        padding: tuple of int (length 3)
+            How many zeros to add at the beginning and end of
+            the 3 padding dimensions (axis 3, 4 and 5).
+
     # Input shape
         5D tensor with shape:
         (samples, depth, first_axis_to_pad, second_axis_to_pad, third_axis_to_pad)
@@ -1161,11 +1192,6 @@ class ZeroPadding3D(Layer):
     # Output shape
         5D tensor with shape:
         (samples, depth, first_padded_axis, second_padded_axis, third_axis_to_pad)
-
-    # Arguments
-        padding: tuple of int (length 3)
-            How many zeros to add at the beginning and end of
-            the 3 padding dimensions (axis 3, 4 and 5).
     '''
 
     def __init__(self, padding=(1, 1, 1), dim_ordering='th', **kwargs):
