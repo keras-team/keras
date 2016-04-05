@@ -1,4 +1,4 @@
-from .engine.training import make_batches
+from .engine.training import make_batches, standardize_input_data, standardize_sample_weights
 import numpy as np
 
 
@@ -8,7 +8,7 @@ def time_delay_generator(x, y, delays, batch_size, weights=None, shuffle=True):
 
     # Arguments
     x: input data, as a Numpy array
-    y: targets, as a Numpy array.
+    y: targets, as a Numpy array or None for prediction generation
     delays: number of time-steps to include in model
     weights: Numpy array of weights for the samples
     shuffle: Whether or not to shuffle the data (set True for training)
@@ -33,11 +33,15 @@ def time_delay_generator(x, y, delays, batch_size, weights=None, shuffle=True):
         for batch_index, (batch_start, batch_end) in enumerate(batches):
             batch_ids = index_array[batch_start:batch_end]
             batch_ids = [np.maximum(0, batch_ids - d) for d in range(delays)]
-            x_batch = x[batch_ids, :].transpose(tlist)
-            y_batch = y[batch_ids[0], :]
-            if weights is not None:
-                w_batch = weights[batch_ids[0], :][:, 0]
+            x_batch = standardize_input_data(x[batch_ids, :].transpose(tlist), ['x_batch'])
+            if y is None:
+                yield x_batch
             else:
-                w_batch = np.ones(x_batch.shape[0])
-            w_batch[batch_ids[0] < delays] = 0.
-            yield (x_batch, y_batch, w_batch)
+                y_batch = standardize_input_data(y[batch_ids[0], :], ['y_batch'])
+                if weights is not None:
+                    w_batch = weights[batch_ids[0], :][:, 0]
+                else:
+                    w_batch = np.ones(x_batch.shape[0])
+                w_batch[batch_ids[0] < delays] = 0.
+                w_batch = standardize_sample_weights(w_batch, ['w_batch'])
+                yield (x_batch, y_batch, w_batch)
