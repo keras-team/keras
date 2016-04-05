@@ -11,12 +11,13 @@ from keras.layers.core import Dense, Activation, Merge, Lambda
 from keras.utils import np_utils
 from keras.utils.test_utils import get_test_data
 from keras.models import model_from_json, model_from_yaml
+from keras import objectives
 
 
 input_dim = 16
 nb_hidden = 8
 nb_class = 4
-batch_size = 32
+batch_size = 50
 nb_epoch = 1
 
 
@@ -100,8 +101,14 @@ def test_sequential():
 
     model.train_on_batch(X_train[:32], y_train[:32])
 
-    gen_loss = model.evaluate_generator(data_generator(True), 256)
     loss = model.evaluate(X_test, y_test)
+
+    prediction = model.predict_generator(data_generator(False), 10)
+    gen_loss = model.evaluate_generator(data_generator(False), 10)
+    pred_loss = K.eval(K.mean(objectives.get(model.loss)(K.variable(y_test), K.variable(prediction))))
+
+    assert(np.isclose(pred_loss, loss))
+    assert(np.isclose(gen_loss, loss))
 
     model.predict(X_test, verbose=0)
     model.predict_classes(X_test, verbose=0)
