@@ -60,7 +60,7 @@ Here's a good use case for the functional API: models with multiple inputs and o
 Let's consider the following model. We seek to predict how many retweets and likes a news headline will receive on Twitter. The main input to the model will be the headline itself, as a sequence of words, but to spice things up, our model will also have an auxiliary input, receiving extra data such as the time of day when the headline was posted, etc.
 The model will also be supervised via two loss functions. Using the main loss function earlier in a model is a good regularization mechanism for deep models.
 
-Here's how our model looks like:
+Here's what our model looks like:
 
 [model graph]
 
@@ -75,10 +75,10 @@ from keras.models import Model
 # The integers will be between 1 and 10000 (a vocabuary of 10000 words)
 # and the sequences will be 100 words long.
 # Note that we can name any layer by passing it a "name" argument.
-main_input = Input(shape=(10,), dtype='int32', name='main_input')
+main_input = Input(shape=(100,), dtype='int32', name='main_input')
 # this embedding layer will encode the input sequence
 # into a sequence of dense 512-dimensional vectors
-x = Embedding(output_dim=512, input_dim=10000, input_length=10)(main_input)
+x = Embedding(output_dim=512, input_dim=10000, input_length=100)(main_input)
 # a LSTM will transform the vector sequence into a single vector,
 # containing information about the entire sequence
 lstm_out = LSTM(32)(x)
@@ -105,10 +105,6 @@ model = Model(input=[main_input, auxiliary_input], output=[main_loss, auxiliary_
 # here we pass a single loss so the same loss will be used on all outputs.
 model.compile(optimizer='rmsprop', loss='binary_crossentropy',
               loss_weight=[1., 0.2])
-
-headline_data = np.random.randint(5000, size=(20, 10))
-additional_data = np.random.random((20, 5))
-labels = np.random.randint(2, size=(20, 1))
 
 # we can train the model by passing it lists of input arrays and target arrays:
 model.fit([headline_data, additional_data], [labels, labels],
