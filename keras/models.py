@@ -659,7 +659,7 @@ class Sequential(Model):
         return self.model.evaluate_generator(generator,
                                              val_samples)
 
-    def predict_generator(self, generator, val_samples, **kwargs):
+    def predict_generator(self, generator, val_samples):
         '''Generate predictions for the input samples from a data generator.
         The generator should return the same kind of data as accepted by
         `predict_on_batch`.
@@ -674,12 +674,7 @@ class Sequential(Model):
         # Returns
             A Numpy array of predictions.
         '''
-        if 'verbose' in kwargs:
-            kwargs.pop('verbose')
-            warnings.warn('The "verbose" argument is deprecated.')
-        if kwargs:
-            raise Exception('Received unknown keyword arguments: ' +
-                            str(kwargs))
+
         return self.model.predict_generator(generator, val_samples)
 
     def get_config(self):

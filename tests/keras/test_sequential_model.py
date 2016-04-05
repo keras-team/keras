@@ -103,8 +103,8 @@ def test_sequential():
 
     loss = model.evaluate(X_test, y_test)
 
-    prediction = model.predict_generator(data_generator(False), 10)
-    gen_loss = model.evaluate_generator(data_generator(False), 10)
+    prediction = model.predict_generator(data_generator(False), 50)
+    gen_loss = model.evaluate_generator(data_generator(False), 50)
     pred_loss = K.eval(K.mean(objectives.get(model.loss)(K.variable(y_test), K.variable(prediction))))
 
     assert(np.isclose(pred_loss, loss))

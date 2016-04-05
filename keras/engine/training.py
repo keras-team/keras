@@ -1456,9 +1456,12 @@ class Model(Container):
                 raise e
 
             nb_samples = len(x[0])
-            all_outs.append(outs)
+            if len(all_outs) == 0:
+                all_outs = np.zeros((val_samples,) + outs.shape[1:])
+
+            all_outs[processed_samples:processed_samples + nb_samples] = outs
 
             processed_samples += nb_samples
 
         _stop.set()
-        return np.vstack(all_outs)
+        return all_outs
