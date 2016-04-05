@@ -83,7 +83,7 @@ x = Embedding(output_dim=512, input_dim=10000, input_length=100)(main_input)
 # containing information about the entire sequence
 lstm_out = LSTM(32)(x)
 # here we insert the auxiliary loss, allowing the LSTM and Embedding layer
-# to be trained smoothly even the main loss will be much higher in the model
+# to be trained smoothly even though the main loss will be much higher in the model
 auxiliary_loss = Dense(1, activation='sigmoid', name='aux_output')(lstm_out)
 
 # at this point we feed into the model our auxiliary input data
@@ -356,7 +356,7 @@ vqa_model = Model(input=[image_input, question_input], output=output)
 # the next stage would be training this model on actual data.
 ```
 
-### Video question answering model.
+### Video question answering model
 
 Now that we have trained our image QA model, we can quickly turn it into a video QA model. With appropriate training, you will be able to show it a short video (e.g. 100-frame human action) and ask a natural language question about the video (e.g. "what sport is the boy playing?" -> "footbal").
 
