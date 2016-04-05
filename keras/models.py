@@ -659,9 +659,8 @@ class Sequential(Model):
         return self.model.evaluate_generator(generator,
                                              val_samples)
 
-    def predict_generator(self, generator, val_samples,
-                           **kwargs):
-        '''Generate predictions for the input samples from a data generator. 
+    def predict_generator(self, generator, val_samples, **kwargs):
+        '''Generate predictions for the input samples from a data generator.
         The generator should return the same kind of data as accepted by
         `predict_on_batch`.
 
@@ -681,8 +680,7 @@ class Sequential(Model):
         if kwargs:
             raise Exception('Received unknown keyword arguments: ' +
                             str(kwargs))
-        return self.model.predict_generator(generator,
-                                             val_samples)
+        return self.model.predict_generator(generator, val_samples)
 
     def get_config(self):
         '''Returns the model configuration
