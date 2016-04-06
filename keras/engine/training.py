@@ -1447,7 +1447,7 @@ class Model(Container):
             else:
                 x = generator_output
 
-            x = standardize_input_data(x, self.input_names, self.internal_input_shapes)
+            x = standardize_input_data(x, self.input_names)
 
             try:
                 outs = self.predict_on_batch(x)
@@ -1456,12 +1456,21 @@ class Model(Container):
                 raise e
 
             nb_samples = len(x[0])
-            if len(all_outs) == 0:
-                all_outs = np.zeros((val_samples,) + outs.shape[1:])
 
-            all_outs[processed_samples:processed_samples + nb_samples] = outs
+            if type(outs) != list:
+                outs = [outs]
+
+            if len(all_outs) == 0:
+                for out in outs:
+                    shape = (val_samples,) + out.shape[1:]
+                    all_outs.append(np.zeros(shape))
+
+            for i, out in enumerate(outs):
+                all_outs[i][processed_samples:(processed_samples + nb_samples)] = out
 
             processed_samples += nb_samples
 
         _stop.set()
+        if len(all_outs) == 1:
+            return all_outs[0]
         return all_outs
