@@ -12,12 +12,13 @@ from keras.utils import np_utils
 from keras.utils.test_utils import get_test_data
 from keras.models import model_from_json, model_from_yaml
 from keras import objectives
+from keras.engine.training import make_batches
 
 
 input_dim = 16
 nb_hidden = 8
 nb_class = 4
-batch_size = 50
+batch_size = 32
 nb_epoch = 1
 
 
@@ -73,19 +74,15 @@ def test_sequential():
     (X_train, y_train), (X_test, y_test) = _get_test_data()
 
     # TODO: factor out
-    def data_generator(train):
-        if train:
-            max_batch_index = len(X_train) // batch_size
-        else:
-            max_batch_index = len(X_test) // batch_size
-        i = 0
+    def data_generator(x, y, batch_size=50):
+        index_array = np.arange(len(x))
         while 1:
-            if train:
-                yield (X_train[i * batch_size: (i + 1) * batch_size], y_train[i * batch_size: (i + 1) * batch_size])
-            else:
-                yield (X_test[i * batch_size: (i + 1) * batch_size], y_test[i * batch_size: (i + 1) * batch_size])
-            i += 1
-            i = i % max_batch_index
+            batches = make_batches(len(X_test), batch_size)
+            for batch_index, (batch_start, batch_end) in enumerate(batches):
+                batch_ids = index_array[batch_start:batch_end]
+                x_batch = x[batch_ids]
+                y_batch = y[batch_ids]
+                yield (x_batch, y_batch)
 
     model = Sequential()
     model.add(Dense(nb_hidden, input_shape=(input_dim,)))
@@ -103,8 +100,8 @@ def test_sequential():
 
     loss = model.evaluate(X_test, y_test)
 
-    prediction = model.predict_generator(data_generator(False), 50)
-    gen_loss = model.evaluate_generator(data_generator(False), 50)
+    prediction = model.predict_generator(data_generator(X_test, y_test), X_test.shape[0])
+    gen_loss = model.evaluate_generator(data_generator(X_test, y_test, 50), X_test.shape[0])
     pred_loss = K.eval(K.mean(objectives.get(model.loss)(K.variable(y_test), K.variable(prediction))))
 
     assert(np.isclose(pred_loss, loss))
