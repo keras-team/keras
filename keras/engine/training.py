@@ -412,6 +412,12 @@ class Model(Container):
                 See [objectives](objectives.md).
                 If the model has multiple outputs, you can use a different loss
                 on each output by passing a dictionary or a list of objectives.
+            metrics: list of metrics to be evaluated by the model
+                during training and testing.
+                Typically you will use `metrics=['accuracy']`.
+                To specify different metrics for different outputs of a
+                multi-output model, you could also pass a dictionary,
+                such as `metrics={'output_a': 'accuracy'}`.
             sample_weight_mode: if you need to do timestep-wise
                 sample weighting (2D weights), set this to "temporal".
                 "None" defaults to sample-wise weights (1D).

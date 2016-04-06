@@ -77,7 +77,7 @@ class Dropout(Layer):
 class Activation(Layer):
     '''Applies an activation function to an output.
 
-    # Arguments:
+    # Arguments
         activation: name of activation function to use
             (see: [activations](../activations.md)),
             or alternatively, a Theano or TensorFlow operation.

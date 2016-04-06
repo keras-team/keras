@@ -58,7 +58,7 @@ class GaussianDropout(Layer):
     # Output shape
         Same shape as input.
 
-    # References:
+    # References
         [Dropout: A Simple Way to Prevent Neural Networks from Overfitting Srivastava, Hinton, et al. 2014](http://www.cs.toronto.edu/~rsalakhu/papers/srivastava14a.pdf)
     '''
     def __init__(self, p, **kwargs):

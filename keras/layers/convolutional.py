@@ -945,7 +945,7 @@ class AveragePooling3D(_Pooling3D):
 class UpSampling1D(Layer):
     '''Repeat each temporal step `length` times along the time axis.
 
-    # Arguments:
+    # Arguments
         length: integer. Upsampling factor.
 
     # Input shape

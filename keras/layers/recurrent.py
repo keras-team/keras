@@ -41,9 +41,10 @@ def time_distributed_dense(x, w, b=None, dropout=None,
 
 class Recurrent(Layer):
     '''Abstract base class for recurrent layers.
-    Do not use in a model -- it's not a functional layer!
+    Do not use in a model -- it's not a valid layer!
+    Use its children classes `LSTM`, `GRU` and `SimpleRNN` instead.
 
-    All recurrent layers (GRU, LSTM, SimpleRNN) also
+    All recurrent layers (`LSTM`, `GRU`, `SimpleRNN`) also
     follow the specifications of this class and accept
     the keyword arguments listed below.
 

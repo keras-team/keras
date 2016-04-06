@@ -49,7 +49,7 @@ class PReLU(Layer):
     # Output shape
         Same shape as the input.
 
-    # Arguments:
+    # Arguments
         init: initialization function for the weights.
         weights: initial weights, as a list of a single numpy array.
 

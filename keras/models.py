@@ -294,10 +294,11 @@ class Sequential(Model):
         # Arguments
             optimizer: str (name of optimizer) or optimizer object.
                 See [optimizers](optimizers.md).
-            metrics: list of str (name of metrics) or
-                list of metrics functions. See [metrics](metrics.md).
             loss: str (name of objective function) or objective function.
                 See [objectives](objectives.md).
+            metrics: list of metrics to be evaluated by the model
+                during training and testing.
+                Typically you will use `metrics=['accuracy']`.
             sample_weight_mode: if you need to do timestep-wise
                 sample weighting (2D weights), set this to "temporal".
                 "None" defaults to sample-wise weights (1D).
