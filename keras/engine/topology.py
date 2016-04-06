@@ -1591,27 +1591,23 @@ class Container(Layer):
             node = layer.inbound_nodes[node_index]
 
             # prevent cycles
-            if node in seen_nodes:
-                return
             seen_nodes.add(node)
-
-            # basic sanity checks
-            assert node.outbound_layer == layer
-            assert node.output_tensors[tensor_index] == tensor
 
             node_key = layer.name + '_ib-' + str(node_index)
             # update container_nodes
             container_nodes.add(node_key)
             # update nodes_depths
-            if node not in nodes_depths:
+            node_depth = nodes_depths.get(node)
+            if node_depth is None:
                 nodes_depths[node] = depth
             else:
-                nodes_depths[node] = max(depth, nodes_depths[node])
+                nodes_depths[node] = max(depth, node_depth)
             # update layers_depths
-            if layer not in layers_depths:
+            layer_depth = layers_depths.get(layer)
+            if layer_depth is None:
                 layers_depths[layer] = depth
             else:
-                layers_depths[layer] = max(depth, layers_depths[layer])
+                layers_depths[layer] = max(depth, layer_depth)
 
             # propagate to all previous tensors connected to this node
             for i in range(len(node.inbound_layers)):
@@ -1619,8 +1615,9 @@ class Container(Layer):
                 layer = node.inbound_layers[i]
                 node_index = node.node_indices[i]
                 tensor_index = node.tensor_indices[i]
-                build_map_of_graph(x, copy.copy(seen_nodes), depth + 1,
-                                   layer, node_index, tensor_index)
+                if not layer.inbound_nodes[node_index] in seen_nodes:
+                    build_map_of_graph(x, copy.copy(seen_nodes), depth + 1,
+                                       layer, node_index, tensor_index)
 
         for x in self.outputs:
             build_map_of_graph(x, seen_nodes=set(), depth=0)
