@@ -1570,6 +1570,9 @@ class Container(Layer):
         nodes_depths = {}  # map {node: depth value}
         layers_depths = {}  # map {layer: depth value}
 
+        def make_node_key(node, depth):
+            return str(id(node)) + '-' + str(depth)
+
         def build_map_of_graph(tensor, seen_nodes=set(), depth=0,
                                layer=None, node_index=None, tensor_index=None):
             '''This recursively updates the maps nodes_depths,
@@ -1591,7 +1594,7 @@ class Container(Layer):
             node = layer.inbound_nodes[node_index]
 
             # prevent cycles
-            seen_nodes.add(node)
+            seen_nodes.add(make_node_key(node, depth))
 
             node_key = layer.name + '_ib-' + str(node_index)
             # update container_nodes
@@ -1615,12 +1618,15 @@ class Container(Layer):
                 layer = node.inbound_layers[i]
                 node_index = node.node_indices[i]
                 tensor_index = node.tensor_indices[i]
-                if not layer.inbound_nodes[node_index] in seen_nodes:
-                    build_map_of_graph(x, copy.copy(seen_nodes), depth + 1,
+                next_node = layer.inbound_nodes[node_index]
+                node_key = make_node_key(next_node, depth + 1)
+                if node_key not in seen_nodes:
+                    build_map_of_graph(x, seen_nodes, depth + 1,
                                        layer, node_index, tensor_index)
 
         for x in self.outputs:
-            build_map_of_graph(x, seen_nodes=set(), depth=0)
+            seen_nodes = set()
+            build_map_of_graph(x, seen_nodes, depth=0)
 
         # build a map {depth: list of nodes with this depth}
         nodes_by_depth = {}
