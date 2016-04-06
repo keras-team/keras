@@ -41,7 +41,7 @@ def time_delay_generator(x, y, delays, batch_size, weights=None, shuffle=True):
                 if weights is not None:
                     w_batch = weights[batch_ids[0], :][:, 0]
                 else:
-                    w_batch = np.ones(x_batch.shape[0])
+                    w_batch = np.ones(x_batch[0].shape[0])
                 w_batch[batch_ids[0] < delays] = 0.
                 w_batch = standardize_sample_weights(w_batch, ['w_batch'])
                 yield (x_batch, y_batch, w_batch)
