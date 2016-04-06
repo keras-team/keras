@@ -1403,3 +1403,74 @@ class Model(Container):
                 averages.append(np.average([out[i] for out in all_outs],
                                 weights=weights))
             return averages
+
+    def predict_generator(self, generator, val_samples):
+        '''Generate predictions for the input samples from a data generator.
+        The generator should return the same kind of data as accepted by
+        `predict_on_batch`.
+
+        Arguments:
+            generator:
+                generator yielding input samples
+            val_samples:
+                total number of samples to generate from `generator`
+                before returning.
+
+        # Returns
+            A Numpy array of predictions.
+        '''
+        processed_samples = 0
+        wait_time = 0.05
+        all_outs = []
+        data_gen_queue, _stop = generator_queue(generator)
+
+        while processed_samples < val_samples:
+            generator_output = None
+            while not _stop.is_set():
+                if not data_gen_queue.empty():
+                    generator_output = data_gen_queue.get()
+                    break
+                else:
+                    time.sleep(wait_time)
+
+            if isinstance(generator_output, tuple):
+                if len(generator_output) == 2:
+                    x, y = generator_output
+                    sample_weight = None
+                elif len(generator_output) == 3:
+                    x, y, sample_weight = generator_output
+                else:
+                    _stop.set()
+                    raise Exception('output of generator should be a tuple '
+                                    '(x, y, sample_weight) '
+                                    'or (x, y). Found: ' + str(generator_output))
+            else:
+                x = generator_output
+
+            x = standardize_input_data(x, self.input_names)
+
+            try:
+                outs = self.predict_on_batch(x)
+            except Exception as e:
+                _stop.set()
+                raise e
+
+            nb_samples = len(x[0])
+
+            if type(outs) != list:
+                outs = [outs]
+
+            if len(all_outs) == 0:
+                for out in outs:
+                    shape = (val_samples,) + out.shape[1:]
+                    all_outs.append(np.zeros(shape))
+
+            for i, out in enumerate(outs):
+                all_outs[i][processed_samples:(processed_samples + nb_samples)] = out
+
+            processed_samples += nb_samples
+
+        _stop.set()
+        if len(all_outs) == 1:
+            return all_outs[0]
+        return all_outs

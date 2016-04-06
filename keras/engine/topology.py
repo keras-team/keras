@@ -708,8 +708,8 @@ class Layer(object):
         # reset layer connections
         self.inbound_nodes = []
         self.outbound_nodes = []
-        self.build(input_shape=shape)
-        input_shape = shape
+        input_shape = tuple(shape)
+        self.build(input_shape=input_shape)
 
         # set Keras tensor metadata
         input_tensor._uses_learning_phase = False
@@ -937,6 +937,8 @@ class InputLayer(Layer):
         if not batch_input_shape:
             assert input_shape, 'An Input layer should be passed either a `batch_input_shape` or an `input_shape`.'
             batch_input_shape = (None,) + tuple(input_shape)
+        else:
+            batch_input_shape = tuple(batch_input_shape)
         if not input_dtype:
             input_dtype = K.floatx()
 
@@ -2227,8 +2229,6 @@ class Container(Layer):
             flattened_layers = self.layers
 
         f = h5py.File(filepath, 'w')
-        for layer in flattened_layers:
-            print(layer.name)
         f.attrs['layer_names'] = [layer.name.encode('utf8') for layer in flattened_layers]
 
         for layer in flattened_layers:

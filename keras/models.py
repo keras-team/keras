@@ -659,6 +659,24 @@ class Sequential(Model):
         return self.model.evaluate_generator(generator,
                                              val_samples)
 
+    def predict_generator(self, generator, val_samples):
+        '''Generate predictions for the input samples from a data generator.
+        The generator should return the same kind of data as accepted by
+        `predict_on_batch`.
+
+        Arguments:
+            generator:
+                generator yielding input samples
+            val_samples:
+                total number of samples to generate from `generator`
+                before returning.
+
+        # Returns
+            A Numpy array of predictions.
+        '''
+
+        return self.model.predict_generator(generator, val_samples)
+
     def get_config(self):
         '''Returns the model configuration
         as a Python dictionary.

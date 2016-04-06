@@ -190,9 +190,9 @@ def test_multi_input_layer():
     assert get_source_inputs(c) == [a, b]
 
     # serialization / deserialization
-    model_config = model.get_config()
-    print(json.dumps(model_config, indent=4))
-    recreated_model = Model.from_config(model_config)
+    json_config = model.to_json()
+    recreated_model = model_from_json(json_config)
+    recreated_model.compile('rmsprop', 'mse')
 
     print('recreated:')
     print([layer.name for layer in recreated_model.layers])
