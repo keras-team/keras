@@ -35,7 +35,7 @@ def get_test_data(nb_train=1000, nb_test=500, input_shape=(10,),
 
 
 def layer_test(layer_cls, kwargs={}, input_shape=None, input_dtype=None,
-               input_data=None, expected_output=None):
+               input_data=None, expected_output=None, expected_output_dtype=None):
     '''Test routine for a layer with a single input tensor
     and single output tensor.
     '''
@@ -46,6 +46,9 @@ def layer_test(layer_cls, kwargs={}, input_shape=None, input_dtype=None,
         input_data = (10 * np.random.random(input_shape)).astype(input_dtype)
     elif input_shape is None:
         input_shape = input_data.shape
+
+    if expected_output_dtype is None:
+        expected_output_dtype = input_dtype
 
     # instantiation
     layer = layer_cls(**kwargs)
@@ -62,6 +65,8 @@ def layer_test(layer_cls, kwargs={}, input_shape=None, input_dtype=None,
     # test in functional API
     x = Input(shape=input_shape[1:], dtype=input_dtype)
     y = layer(x)
+    assert K.dtype(y) == expected_output_dtype
+
     model = Model(input=x, output=y)
     model.compile('rmsprop', 'mse')
 
