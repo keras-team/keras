@@ -627,19 +627,42 @@ class Model(Container):
             train_test_inputs = self.inputs + self.targets + sample_weights
             predict_inputs = self.inputs
 
-        # returns loss and metrics. Updates weights at each call.
-        self.train_function = K.function(train_test_inputs, all_outputs,
-                                         updates=train_updates, **kwargs)
+        # functions for train, test and predict will
+        # be compiled lazily when required.
+        # This saves time when the user is not using all functions.
+        self._train_updates = train_updates
+        self._train_test_inputs = train_test_inputs
+        self._all_outputs = all_outputs
+        self._predict_inputs = predict_inputs
+        self._function_kwargs = kwargs
 
-        # return loss and metrics, no gradient updates.
-        self.test_function = K.function(train_test_inputs,
-                                        all_outputs, **kwargs)
+        self.train_function = None
+        self.test_function = None
+        self.predict_function = None
 
-        # returns network outputs. Does not update weights.
-        # Does update the network states.
-        self.predict_function = K.function(predict_inputs, self.outputs,
-                                           updates=self.state_updates,
-                                           **kwargs)
+    def _make_train_function(self):
+        if self.train_function is None:
+            # returns loss and metrics. Updates weights at each call.
+            self.train_function = K.function(self._train_test_inputs,
+                                             self._all_outputs,
+                                             updates=self._train_updates,
+                                             **self._function_kwargs)
+
+    def _make_test_function(self):
+        if self.test_function is None:
+            # return loss and metrics, no gradient updates.
+            self.test_function = K.function(self._train_test_inputs,
+                                            self._all_outputs,
+                                            **self._function_kwargs)
+
+    def _make_predict_function(self):
+        if self.predict_function is None:
+            # returns network outputs. Does not update weights.
+            # Does update the network states.
+            self.predict_function = K.function(self._predict_inputs,
+                                               self.outputs,
+                                               updates=self.state_updates,
+                                               **self._function_kwargs)
 
     def _fit_loop(self, f, ins, out_labels=[], batch_size=32,
                   nb_epoch=100, verbose=1, callbacks=[],
@@ -931,6 +954,7 @@ class Model(Container):
             ins = x + y + sample_weights + [1.]
         else:
             ins = x + y + sample_weights
+        self._make_train_function()
         f = self.train_function
 
         # prepare validation data
@@ -947,6 +971,7 @@ class Model(Container):
                                                                            sample_weight=val_sample_weight,
                                                                            check_batch_dim=False,
                                                                            batch_size=batch_size)
+            self._make_test_function()
             val_f = self.test_function
             if self.uses_learning_phase:
                 val_ins = val_x + val_y + val_sample_weights + [0.]
@@ -959,6 +984,7 @@ class Model(Container):
             x, val_x = (slice_X(x, 0, split_at), slice_X(x, split_at))
             y, val_y = (slice_X(y, 0, split_at), slice_X(y, split_at))
             sample_weights, val_sample_weights = (slice_X(sample_weights, 0, split_at), slice_X(sample_weights, split_at))
+            self._make_test_function()
             val_f = self.test_function
             if self.uses_learning_phase:
                 val_ins = val_x + val_y + val_sample_weights + [0.]
@@ -1014,6 +1040,7 @@ class Model(Container):
             ins = x + y + sample_weights + [0.]
         else:
             ins = x + y + sample_weights
+        self._make_test_function()
         f = self.test_function
         return self._test_loop(f, ins,
                                batch_size=batch_size,
@@ -1050,6 +1077,7 @@ class Model(Container):
             ins = x + [0.]
         else:
             ins = x
+        self._make_predict_function()
         f = self.predict_function
         return self._predict_loop(f, ins,
                                   batch_size=batch_size, verbose=verbose)
@@ -1092,6 +1120,7 @@ class Model(Container):
             ins = x + y + sample_weights + [1.]
         else:
             ins = x + y + sample_weights
+        self._make_train_function()
         outputs = self.train_function(ins)
         if len(outputs) == 1:
             return outputs[0]
@@ -1129,6 +1158,7 @@ class Model(Container):
             ins = x + y + sample_weights + [1.]
         else:
             ins = x + y + sample_weights
+        self._make_test_function()
         outputs = self.test_function(ins)
         if len(outputs) == 1:
             return outputs[0]
@@ -1143,6 +1173,7 @@ class Model(Container):
             ins = x + [1.]
         else:
             ins = x
+        self._make_predict_function()
         outputs = self.predict_function(ins)
         if len(outputs) == 1:
             return outputs[0]
@@ -1206,6 +1237,10 @@ class Model(Container):
         epoch = 0
 
         do_validation = bool(validation_data)
+        self._make_train_function()
+        if do_validation:
+            self._make_test_function()
+
         # python 2 has 'next', 3 has '__next__'
         # avoid any explicit version checks
         val_gen = (hasattr(validation_data, 'next') or
@@ -1357,6 +1392,8 @@ class Model(Container):
             and/or metrics). The attribute `model.metrics_names` will give you
             the display labels for the scalar outputs.
         '''
+        self._make_test_function()
+
         processed_samples = 0
         wait_time = 0.05
         all_outs = []
@@ -1423,6 +1460,8 @@ class Model(Container):
         # Returns
             Numpy array(s) of predictions.
         '''
+        self._make_predict_function()
+
         processed_samples = 0
         wait_time = 0.05
         all_outs = []
