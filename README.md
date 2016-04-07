@@ -96,7 +96,6 @@ For a more in-depth tutorial about Keras, you can check out:
 
 - [Getting started with the Sequential model](http://keras.io/getting-started/sequential-model-guide)
 - [Getting started with the functional API](http://keras.io/getting-started/functional-api-guide)
-- [Starter examples](http://keras.io/examples)
 
 In the [examples folder](https://github.com/fchollet/keras/tree/master/examples) of the repository, you will find more advanced models: question-answering with memory networks, text generation with stacked LSTMs, etc.
 

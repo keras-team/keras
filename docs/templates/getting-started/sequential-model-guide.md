@@ -73,10 +73,10 @@ Multiple `Sequential` instances can be merged into a single output via a `Merge`
 from keras.layers import Merge
 
 left_branch = Sequential()
-left_branch.add(Dense(32, input_shape=784))
+left_branch.add(Dense(32, input_dim=784))
 
 right_branch = Sequential()
-right_branch.add(Dense(32, input_shape=784))
+right_branch.add(Dense(32, input_dim=784))
 
 merged = Merge([left_branch, right_branch], mode='concat')
 
@@ -84,6 +84,8 @@ final_model = Sequential()
 final_model.add(merged)
 final_model.add(Dense(10, activation='softmax'))
 ```
+
+<img src="http://s3.amazonaws.com/keras.io/img/two_branches_sequential_model.png" alt="two branch Sequential" style="width: 400px;"/>
 
 The `Merge` layer supports a number of pre-defined modes:
 
@@ -157,16 +159,16 @@ model.fit(data, labels, nb_epoch=10, batch_size=32)
 # for a multi-input model with 10 classes:
 
 left_branch = Sequential()
-left_branch.add(Dense(32, input_shape=784))
+left_branch.add(Dense(32, input_dim=784))
 
 right_branch = Sequential()
-right_branch.add(Dense(32, input_shape=784))
+right_branch.add(Dense(32, input_dim=784))
 
 merged = Merge([left_branch, right_branch], mode='concat')
 
-final_model = Sequential()
-final_model.add(merged)
-final_model.add(Dense(10, activation='softmax'))
+model = Sequential()
+model.add(merged)
+model.add(Dense(10, activation='softmax'))
 
 model.compile(optimizer='rmsprop',
               loss='categorical_crossentropy',
@@ -497,7 +499,7 @@ In this model, two input sequences are encoded into vectors by two separate LSTM
 
 These two vectors are then concatenated, and a fully connected network is trained on top of the concatenated representations.
 
-![Dual LSTM](http://keras.io/img/dual_lstm.png)
+<img src="http://keras.io/img/dual_lstm.png" alt="Dual LSTM" style="width: 600px;"/>
 
 ```python
 from keras.models import Sequential

@@ -75,7 +75,7 @@ The model will also be supervised via two loss functions. Using the main loss fu
 
 Here's what our model looks like:
 
-[model graph]
+<img src="http://s3.amazonaws.com/keras.io/img/multi-input-multi-output-graph.png" alt="multi-input-multi-output-graph" style="width: 400px;"/>
 
 Let's implement it with the functional API.
 
@@ -166,11 +166,7 @@ Let's consider a dataset of tweets. We want to build a model that can tell wheth
 
 One way to achieve this is to build a model that encodes two tweets into two vectors, concatenates the vectors and adds a logistic regression of top, outputting a probability that the two tweets share the same author. The model would then be trained on positive tweet pairs and negative tweet pairs.
 
-Because the problem is symetric, the mechanism that encodes the first tweet should be reused (weights and all) to encode the second tweet, as such:
-
-[graph: shared lstm]
-
-Here we use an LSTM layer to encode the tweets.
+Because the problem is symetric, the mechanism that encodes the first tweet should be reused (weights and all) to encode the second tweet. Here we use a shared LSTM layer to encode the tweets.
 
 Let's build this with the functional API. We will take as input for a tweet a binary matrix of shape `(140, 256)`, i.e. a sequence of 140 vectors of size 256, where each dimension in the 256-dimensional vector encodes the presence/absence of a character (out of an alphabet of 256 frequent characters).
 
