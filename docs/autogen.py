@@ -78,6 +78,9 @@ from keras import regularizers
 
 EXCLUDE = {
     'Optimizer',
+    'Wrapper',
+    'get_session',
+    'set_session',
 }
 
 PAGES = [
@@ -229,10 +232,13 @@ def get_classes_ancestors(classes):
         return filtered_ancestors
 
 
-def get_function_signature(function):
+def get_function_signature(function, method=True):
     signature = inspect.getargspec(function)
     defaults = signature.defaults
-    args = signature.args[1:]
+    if method:
+        args = signature.args[1:]
+    else:
+        args = signature.args
     if defaults:
         kwargs = zip(args[-len(defaults):], defaults)
         args = args[:-len(defaults)]
@@ -305,6 +311,9 @@ def process_class_docstring(docstring):
 
 
 def process_function_docstring(docstring):
+    docstring = re.sub(r'\n    # (.*)\n',
+                       r'\n    __\1__\n\n',
+                       docstring)
     docstring = re.sub(r'\n        # (.*)\n',
                        r'\n        __\1__\n\n',
                        docstring)
@@ -368,9 +377,9 @@ for page_data in PAGES:
             if name[0] == '_' or name in EXCLUDE:
                 continue
             module_member = getattr(module, name)
-            if inspect.isclass(module_member):
+            if inspect.isfunction(module_member):
                 function = module_member
-                if function.__module__ == module.__name__:
+                if module.__name__ in function.__module__:
                     if function not in module_functions:
                         module_functions.append(function)
         module_functions.sort(key=lambda x: id(x))
@@ -378,14 +387,14 @@ for page_data in PAGES:
 
     for function in functions:
         subblocks = []
-        signature = get_function_signature(function)
+        signature = get_function_signature(function, method=False)
         signature = signature.replace(function.__module__ + '.', '')
-        subblocks.append('### ' + function.im_class.__name__ + '.' + function.__name__ + '\n')
+        subblocks.append('### ' + function.__name__ + '\n')
         subblocks.append(code_snippet(signature))
         docstring = function.__doc__
         if docstring:
             subblocks.append(process_function_docstring(docstring))
-        blocks.append('\n\n'.join(subblocks))
+            blocks.append('\n\n'.join(subblocks))
 
     mkdown = '\n----\n\n'.join(blocks)
     # save module page.

@@ -145,7 +145,7 @@ layer_output = get_3rd_layer_output([X, 1])[0]
 
 ### How can I use Keras with datasets that don't fit in memory?
 
-You can do batch training using `model.train_on_batch(X, y)` and `model.test_on_batch(X, y)`. See the [models documentation](models.md).
+You can do batch training using `model.train_on_batch(X, y)` and `model.test_on_batch(X, y)`. See the [models documentation](/models/sequential).
 
 Alternatively, you can write a generator that yields batches of training data and use the method `model.fit_generator(data_generator, samples_per_epoch, nb_epoch)`.
 
@@ -163,7 +163,7 @@ early_stopping = EarlyStopping(monitor='val_loss', patience=2)
 model.fit(X, y, validation_split=0.2, callbacks=[early_stopping])
 ```
 
-Find out more in the [callbacks documentation](callbacks.md).
+Find out more in the [callbacks documentation](/callbacks).
 
 ---
 

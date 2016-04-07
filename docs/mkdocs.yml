@@ -30,7 +30,7 @@ pages:
   - Normalization Layers: layers/normalization.md
   - Noise layers: layers/noise.md
   - Layer wrappers: layers/wrappers.md
-  - Writing your own Keras layers: layers/writing-your-own-keras-lqyers.md
+  - Writing your own Keras layers: layers/writing-your-own-keras-layers.md
 - Preprocessing:
   - Sequence Preprocessing: preprocessing/sequence.md
   - Text Preprocessing: preprocessing/text.md
@@ -46,4 +46,7 @@ pages:
 - Constraints: constraints.md
 - Visualization: visualization.md
 - Scikit-learn API: scikit-learn-api.md
+
+
+
 

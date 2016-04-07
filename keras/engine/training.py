@@ -407,9 +407,9 @@ class Model(Container):
 
         # Arguments
             optimizer: str (name of optimizer) or optimizer object.
-                See [optimizers](optimizers.md).
+                See [optimizers](/optimizers).
             loss: str (name of objective function) or objective function.
-                See [objectives](objectives.md).
+                See [objectives](/objectives).
                 If the model has multiple outputs, you can use a different loss
                 on each output by passing a dictionary or a list of objectives.
             metrics: list of metrics to be evaluated by the model
@@ -916,7 +916,7 @@ class Model(Container):
             nb_epoch: integer, the number of times to iterate over the training data arrays.
             verbose: 0, 1, or 2. Verbosity mode. 0 = silent, 1 = verbose, 2 = one log line per epoch.
             callbacks: list of callbacks to be called during training.
-                See [callbacks](callbacks.md).
+                See [callbacks](/callbacks).
             validation_split: float between 0 and 1:
                 fraction of the training data to be used as validation data.
                 The model will set apart this fraction of the training data,

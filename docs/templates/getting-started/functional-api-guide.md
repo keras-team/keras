@@ -12,9 +12,9 @@ Let's start with something simple.
 
 The `Sequential` model is probably a better choice to implement such a network, but it helps to start with something really simple.
 
-- As you can see, a layer instance is callable (on a tensor), and it returns a tensor
+- A layer instance is callable (on a tensor), and it returns a tensor
 - Input tensor(s) and output tensor(s) can then be used to define a `Model`
-- such a model can be trained just like Keras `Sequential` models.
+- Such a model can be trained just like Keras `Sequential` models.
 
 ```python
 from keras.layers import Input, Dense
@@ -68,7 +68,7 @@ processed_sequences = TimeDistributed(model)(input_sequences)
 
 ## Multi-input and multi-output models
 
-Here's a good use case for the functional API: models with multiple inputs and outputs. The functional API makes it really easy to manipulate a large number of intertwinned datastreams.
+Here's a good use case for the functional API: models with multiple inputs and outputs. The functional API makes it easy to manipulate a large number of intertwinned datastreams.
 
 Let's consider the following model. We seek to predict how many retweets and likes a news headline will receive on Twitter. The main input to the model will be the headline itself, as a sequence of words, but to spice things up, our model will also have an auxiliary input, receiving extra data such as the time of day when the headline was posted, etc.
 The model will also be supervised via two loss functions. Using the main loss function earlier in a model is a good regularization mechanism for deep models.
@@ -80,7 +80,7 @@ Here's what our model looks like:
 Let's implement it with the functional API.
 
 The main input will receive the headline, as a sequence of integers (each integer encodes a word).
-The integers will be between 1 and 10000 (a vocabuary of 10000 words) and the sequences will be 100 words long.
+The integers will be between 1 and 10,000 (a vocabuary of 10,000 words) and the sequences will be 100 words long.
 
 ```python
 from keras.layers import Input, Embedding, LSTM, Dense, merge
@@ -127,8 +127,8 @@ model = Model(input=[main_input, auxiliary_input], output=[main_loss, auxiliary_
 ```
 
 We compile the model and assign a weight of 0.2 to the auxiliary loss.
-To specify `loss_weight` or `loss`, you can use a list or a dictionary.
-Here we pass a single loss so the same loss will be used on all outputs.
+To specify different `loss_weight` or `loss` for each different output, you can use a list or a dictionary.
+Here we pass a single loss as the `loss` argument, so the same loss will be used on all outputs.
 
 ```python
 model.compile(optimizer='rmsprop', loss='binary_crossentropy',
@@ -245,7 +245,9 @@ encoded_b = lstm(b)
 lstm.output
 ```
 ```
->> AssertionError: Layer lstm_1 has multiple inbound nodes, hence the notion of "layer output" is ill-defined. Use `get_output_at(node_index)` instead.
+>> AssertionError: Layer lstm_1 has multiple inbound nodes,
+hence the notion of "layer output" is ill-defined.
+Use `get_output_at(node_index)` instead.
 ```
 
 Okay then. The following works:
@@ -257,7 +259,7 @@ assert lstm.get_output_at(1) == encoded_b
 
 Simple enough, right?
 
-The same is true for the properties `input_shape` and `output_shape`: as long as the layer has only one node, or as long as all nodes have the same input/output shape, then the notion of "layer output/input shape" is well defined, and that one shape will be returned by `layer.output_shape`/`layer.input_shape`. But if, for instance, you apply a same `Convolution2D` layer to an input of shape (3, 32, 32) then to an input of shape `(3, 64, 64)`, the layer will have multiple input/output shapes, and you will have to fetch them via the index of the node they belong to:
+The same is true for the properties `input_shape` and `output_shape`: as long as the layer has only one node, or as long as all nodes have the same input/output shape, then the notion of "layer output/input shape" is well defined, and that one shape will be returned by `layer.output_shape`/`layer.input_shape`. But if, for instance, you apply a same `Convolution2D` layer to an input of shape `(3, 32, 32)`, and then to an input of shape `(3, 64, 64)`, the layer will have multiple input/output shapes, and you will have to fetch them by specifying the index of the node they belong to:
 
 ```python
 a = Input(shape=(3, 32, 32))
@@ -270,7 +272,7 @@ conved_a = conv(a)
 assert conv.input_shape == (None, 3, 32, 32)
 
 conved_b = conv(b)
-# now the `.input_shape` wouldn't work, but this does:
+# now the `.input_shape` property wouldn't work, but this does:
 assert conv.get_input_shape_at(0) == (None, 3, 32, 32)
 assert conv.get_input_shape_at(1) == (None, 3, 64, 64)
 ```

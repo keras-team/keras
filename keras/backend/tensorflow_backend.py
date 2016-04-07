@@ -62,7 +62,7 @@ def variable(value, dtype=_FLOATX, name=None):
 def placeholder(shape=None, ndim=None, dtype=_FLOATX, name=None):
     '''Instantiates a placeholder.
 
-    # Arguments:
+    # Arguments
         shape: shape of the placeholder
             (integer tuple, may include None entries).
         ndim: number of axes of the tensor.
@@ -71,7 +71,7 @@ def placeholder(shape=None, ndim=None, dtype=_FLOATX, name=None):
         dtype: placeholder type.
         name: optional name string for the placeholder.
 
-    # Returns:
+    # Returns
         Placeholder tensor instance.
     '''
     if not shape:
@@ -641,12 +641,13 @@ def rnn(step_function, inputs, initial_states,
 
     # Returns
         A tuple (last_output, outputs, new_states).
-            last_output: the latest output of the rnn, of shape (samples, ...)
-            outputs: tensor with shape (samples, time, ...) where each
-                entry outputs[s, t] is the output of the step function
-                at time t for sample s.
-            new_states: list of tensors, latest states returned by
-                the step function, of shape (samples, ...).
+
+        last_output: the latest output of the rnn, of shape (samples, ...)
+        outputs: tensor with shape (samples, time, ...) where each
+            entry outputs[s, t] is the output of the step function
+            at time t for sample s.
+        new_states: list of tensors, latest states returned by
+            the step function, of shape (samples, ...).
     '''
     ndim = len(inputs.get_shape())
     assert ndim >= 3, "Input should be at least 3D."

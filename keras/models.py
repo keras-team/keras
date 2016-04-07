@@ -293,9 +293,9 @@ class Sequential(Model):
 
         # Arguments
             optimizer: str (name of optimizer) or optimizer object.
-                See [optimizers](optimizers.md).
+                See [optimizers](/optimizers).
             loss: str (name of objective function) or objective function.
-                See [objectives](objectives.md).
+                See [objectives](/objectives).
             metrics: list of metrics to be evaluated by the model
                 during training and testing.
                 Typically you will use `metrics=['accuracy']`.
@@ -347,7 +347,7 @@ class Sequential(Model):
                 1 for progress bar logging, 2 for one log line per epoch.
             callbacks: list of `keras.callbacks.Callback` instances.
                 List of callbacks to apply during training.
-                See [callbacks](callbacks.md).
+                See [callbacks](/callbacks).
             validation_split: float (0. < x < 1).
                 Fraction of the data to use as held-out validation data.
             validation_data: tuple (X, y) to be used as held-out

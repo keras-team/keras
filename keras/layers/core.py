@@ -18,14 +18,32 @@ from ..regularizers import ActivityRegularizer
 
 
 class Masking(Layer):
-    '''Masks an input sequence by using a mask value to identify padding.
+    '''Masks an input sequence by using a mask value to
+    identify timesteps to be skipped.
 
-    This layer copies the input to the output layer with identified padding
-    replaced with 0s and creates an output mask in the process.
+    For each timestep in the input tensor (dimension #1 in the tensor),
+    if all values in the input tensor at that timestep
+    are equal to `mask_value`, then the timestep will masked (skipped)
+    in all downstream layers (as long as they support masking).
 
-    At each timestep, if the values all equal `mask_value`,
-    then the corresponding mask value for the timestep is 0 (skipped),
-    otherwise it is 1.
+    If any downstream layer does not support masking yet receives such
+    an input mask, an exception will be raised.
+
+    # Example
+
+    Consider a Numpy data array `x` of shape `(samples, timesteps, features)`,
+    to be fed to a LSTM layer.
+    You want to mask timestep #3 and #5 because you lack data for
+    these timesteps. You can:
+
+        - set `x[:, 3, :] = 0.` and `x[:, 5, :] = 0.`
+        - insert a `Masking` layer with `mask_value=0.` before the LSTM layer:
+
+    ```python
+        model = Sequential()
+        model.add(Masking(mask_value=0., input_shape=(timesteps, features)))
+        model.add(LSTM(32))
+    ```
     '''
     def __init__(self, mask_value=0., **kwargs):
         self.supports_masking = True
