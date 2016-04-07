@@ -1155,7 +1155,7 @@ class Model(Container):
                                                            sample_weight=sample_weight,
                                                            check_batch_dim=True)
         if self.uses_learning_phase:
-            ins = x + y + sample_weights + [1.]
+            ins = x + y + sample_weights + [0.]
         else:
             ins = x + y + sample_weights
         self._make_test_function()
@@ -1170,7 +1170,7 @@ class Model(Container):
         x = standardize_input_data(x, self.input_names,
                                    self.internal_input_shapes)
         if self.uses_learning_phase:
-            ins = x + [1.]
+            ins = x + [0.]
         else:
             ins = x
         self._make_predict_function()
