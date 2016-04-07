@@ -37,7 +37,7 @@ Keras is compatible with: __Python 2.7-3.5__.
 
 ## Getting started: 30 seconds to Keras
 
-The core data structure of Keras is a __model__, a way to organize layers. The main type of model is the [`Sequential`](http://keras.io/models/#sequential) model, a linear stack of layers. For more complex architectures, you should use the [Keras function API]().
+The core data structure of Keras is a __model__, a way to organize layers. The main type of model is the [`Sequential`](http://keras.io/getting-started/sequential-model-guide) model, a linear stack of layers. For more complex architectures, you should use the [Keras function API](http://keras.io/getting-started/functional-api-guide).
 
 Here's the `Sequential` model:
 
@@ -81,7 +81,7 @@ model.train_on_batch(X_batch, Y_batch)
 
 Evaluate your performance in one line:
 ```python
-objective_score = model.evaluate(X_test, Y_test, batch_size=32)
+loss_and_metrics = model.evaluate(X_test, Y_test, batch_size=32)
 ```
 
 Or generate predictions on new data:
@@ -90,13 +90,13 @@ classes = model.predict_classes(X_test, batch_size=32)
 proba = model.predict_proba(X_test, batch_size=32)
 ```
 
-Building a network of LSTMs, a deep CNN, a Neural Turing Machine, a word2vec embedder or any other model is just as fast. The ideas behind deep learning are simple, so why should their implementation be painful?
+Building a question answering system, an image classification model, a Neural Turing Machine, a word2vec embedder or any other model is just as fast. The ideas behind deep learning are simple, so why should their implementation be painful?
 
 For a more in-depth tutorial about Keras, you can check out:
 
-- [Getting started with the Sequential model]()
-- [Getting started with the functional API]()
-- [Starter examples]()
+- [Getting started with the Sequential model](http://keras.io/getting-started/sequential-model-guide)
+- [Getting started with the functional API](http://keras.io/getting-started/functional-api-guide)
+- [Starter examples](http://keras.io/examples)
 
 In the [examples folder](https://github.com/fchollet/keras/tree/master/examples) of the repository, you will find more advanced models: question-answering with memory networks, text generation with stacked LSTMs, etc.
 
