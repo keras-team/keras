@@ -273,15 +273,6 @@ class Flatten(Layer):
         model.add(Flatten())
         # now: model.output_shape == (None, 65536)
     ```
-
-    # Input shape
-        Arbitrary, although all dimensions in the input shape must be fixed.
-        Use the keyword argument `input_shape`
-        (tuple of integers, does not include the samples axis)
-        when using this layer as the first layer in a model.
-
-    # Output shape
-        `(batch_size,)`
     '''
     def __init__(self, **kwargs):
         self.input_spec = [InputSpec(ndim='3+')]
