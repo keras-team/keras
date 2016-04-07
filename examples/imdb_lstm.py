@@ -12,7 +12,6 @@ Some configurations won't converge.
 - LSTM loss decrease patterns during training can be quite different
 from what you see with CNNs/MLPs/etc.
 '''
-
 from __future__ import print_function
 import numpy as np
 np.random.seed(1337)  # for reproducibility
@@ -43,9 +42,8 @@ print('X_test shape:', X_test.shape)
 
 print('Build model...')
 model = Sequential()
-model.add(Embedding(max_features, 128, input_length=maxlen, dropout=0.5))
-model.add(LSTM(128, dropout_W=0.5, dropout_U=0.5))  # try using a GRU instead, for fun
-model.add(Dropout(0.5))
+model.add(Embedding(max_features, 128, input_length=maxlen, dropout=0.2))
+model.add(LSTM(128, dropout_W=0.2, dropout_U=0.2))  # try using a GRU instead, for fun
 model.add(Dense(1))
 model.add(Activation('sigmoid'))
 
