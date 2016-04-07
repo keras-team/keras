@@ -1,5 +1,14 @@
+# Getting started with the Keras functional API
 
-## Simple fully connected network
+The Keras functional API is the way to go for defining complex models, such as multi-output models, directed acyclic graphs, or models with shared layers.
+
+This guide assumes that you are already familiar with the `Sequential` model.
+
+Let's start with something simple.
+
+-----
+
+## First example: fully connected network
 
 The `Sequential` model is probably a better choice to implement such a network, but it helps to start with something really simple.
 
@@ -28,9 +37,11 @@ model.compile(optimizer='rmsprop',
 model.fit(data, labels)  # starts training
 ```
 
+-----
+
 ## All models are callable, just like layers
 
-With the functional API, it is easy to re-use trained models: you can use any model as if it were a layer, by calling it on a tensor. Note that by calling a model you aren't just re-using the *architecture* of the model, you are also re-using its weights.
+With the functional API, it is easy to re-use trained models: you can treat any model as if it were a layer, by calling it on a tensor. Note that by calling a model you aren't just re-using the *architecture* of the model, you are also re-using its weights.
 
 ```python
 x = Input(shape=(784,))
@@ -53,6 +64,8 @@ input_sequences = Input(shape=(20, 784))
 processed_sequences = TimeDistributed(model)(input_sequences)
 ```
 
+-----
+
 ## Multi-input and multi-output models
 
 Here's a good use case for the functional API: models with multiple inputs and outputs. The functional API makes it really easy to manipulate a large number of intertwinned datastreams.
@@ -66,60 +79,84 @@ Here's what our model looks like:
 
 Let's implement it with the functional API.
 
+The main input will receive the headline, as a sequence of integers (each integer encodes a word).
+The integers will be between 1 and 10000 (a vocabuary of 10000 words) and the sequences will be 100 words long.
+
 ```python
 from keras.layers import Input, Embedding, LSTM, Dense, merge
 from keras.models import Model
 
-# the main input will receive the headline,
-# as a sequence of integers (each integer encodes a word).
-# The integers will be between 1 and 10000 (a vocabuary of 10000 words)
-# and the sequences will be 100 words long.
-# Note that we can name any layer by passing it a "name" argument.
+# headline input: meant to receive sequences of 100 integers, between 1 and 10000.
+# note that we can name any layer by passing it a "name" argument.
 main_input = Input(shape=(100,), dtype='int32', name='main_input')
+
 # this embedding layer will encode the input sequence
-# into a sequence of dense 512-dimensional vectors
+# into a sequence of dense 512-dimensional vectors.
 x = Embedding(output_dim=512, input_dim=10000, input_length=100)(main_input)
+
 # a LSTM will transform the vector sequence into a single vector,
 # containing information about the entire sequence
 lstm_out = LSTM(32)(x)
-# here we insert the auxiliary loss, allowing the LSTM and Embedding layer
-# to be trained smoothly even though the main loss will be much higher in the model
-auxiliary_loss = Dense(1, activation='sigmoid', name='aux_output')(lstm_out)
+```
 
-# at this point we feed into the model our auxiliary input data
-# by concatenating it with the LSTM output
+Here we insert the auxiliary loss, allowing the LSTM and Embedding layer to be trained smoothly even though the main loss will be much higher in the model.
+
+```python
+auxiliary_loss = Dense(1, activation='sigmoid', name='aux_output')(lstm_out)
+```
+
+At this point, we feed into the model our auxiliary input data by concatenating it with the LSTM output:
+
+```python
 auxiliary_input = Input(shape=(5,), name='aux_input')
 x = merge([lstm_out, auxiliary_input], mode='concat')
+
 # we stack a deep fully-connected network on top
 x = Dense(64, activation='relu')(x)
 x = Dense(64, activation='relu')(x)
 x = Dense(64, activation='relu')(x)
+
 # and finally we add the main logistic regression layer
 main_loss = Dense(1, activation='sigmoid', name='main_output')(x)
+```
 
-# this defines a model with two inputs and two outputs
+This defines a model with two inputs and two outputs:
+
+```python
 model = Model(input=[main_input, auxiliary_input], output=[main_loss, auxiliary_loss])
+```
 
-# we compile the model and assign a weight of 0.2 to the auxiliary loss.
-# to specify `loss_weight` or `loss`, you can use a list or a dictionary.
-# here we pass a single loss so the same loss will be used on all outputs.
+We compile the model and assign a weight of 0.2 to the auxiliary loss.
+To specify `loss_weight` or `loss`, you can use a list or a dictionary.
+Here we pass a single loss so the same loss will be used on all outputs.
+
+```python
 model.compile(optimizer='rmsprop', loss='binary_crossentropy',
               loss_weight=[1., 0.2])
+```
 
-# we can train the model by passing it lists of input arrays and target arrays:
+We can train the model by passing it lists of input arrays and target arrays:
+
+```python
 model.fit([headline_data, additional_data], [labels, labels],
           nb_epoch=50, batch_size=32)
+```
 
-# since our inputs and outputs are named (we passed them a "name" argument),
-# we could also have compiled the model via:
+Since our inputs and outputs are named (we passed them a "name" argument),
+We could also have compiled the model via:
+
+```python
 model.compile(optimizer='rmsprop',
               loss={'main_output': 'binary_crossentropy', 'aux_output': 'binary_crossentropy'},
               loss_weight={'main_output': 1., 'aux_output': 0.2})
+
 # and trained it via:
 model.fit({'main_input': headline_data, 'aux_input': additional_data},
           {'main_output': labels, 'aux_output': labels},
           nb_epoch=50, batch_size=32)
 ```
+
+-----
 
 ## Shared layers
 
@@ -177,6 +214,8 @@ model.fit([data_a, data_b], labels, nb_epoch=10)
 
 Let's pause to take a look at how to read the shared layer's output or output shape.
 
+-----
+
 ## The concept of layer "node"
 
 Whenever you are calling a layer on some input, you are creating a new tensor (the output of the layer), and you are adding a "node" to the layer, linking the input tensor to the output tensor. When you are calling the same layer multiple times, that layer owns multiple nodes indexed as 0, 1, 2...
@@ -206,7 +245,7 @@ encoded_b = lstm(b)
 lstm.output
 ```
 ```
-AssertionError: Layer lstm_1 has multiple inbound nodes, hence the notion of "layer output" is ill-defined. Use `get_output_at(node_index)` instead.
+>> AssertionError: Layer lstm_1 has multiple inbound nodes, hence the notion of "layer output" is ill-defined. Use `get_output_at(node_index)` instead.
 ```
 
 Okay then. The following works:
@@ -236,7 +275,9 @@ assert conv.get_input_shape_at(0) == (None, 3, 32, 32)
 assert conv.get_input_shape_at(1) == (None, 3, 64, 64)
 ```
 
-# More examples
+-----
+
+## More examples
 
 Code examples are still the best way to get started, so here are a few more.
 
@@ -358,7 +399,7 @@ vqa_model = Model(input=[image_input, question_input], output=output)
 
 ### Video question answering model
 
-Now that we have trained our image QA model, we can quickly turn it into a video QA model. With appropriate training, you will be able to show it a short video (e.g. 100-frame human action) and ask a natural language question about the video (e.g. "what sport is the boy playing?" -> "footbal").
+Now that we have trained our image QA model, we can quickly turn it into a video QA model. With appropriate training, you will be able to show it a short video (e.g. 100-frame human action) and ask a natural language question about the video (e.g. "what sport is the boy playing?" -> "football").
 
 ```python
 from keras.layers import TimeDistributed
