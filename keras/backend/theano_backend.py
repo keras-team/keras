@@ -673,14 +673,14 @@ def switch(condition, then_expression, else_expression):
     return T.switch(condition, then_expression, else_expression)
 
 
-def in_train_phase(x, expression):
-    x = T.switch(_LEARNING_PHASE, x, expression)
+def in_train_phase(x, alt):
+    x = T.switch(_LEARNING_PHASE, x, alt)
     x._uses_learning_phase = True
     return x
 
 
-def in_test_phase(x, expression):
-    x = T.switch(_LEARNING_PHASE, expression, x)
+def in_test_phase(x, alt):
+    x = T.switch(_LEARNING_PHASE, alt, x)
     x._uses_learning_phase = True
     return x
 
