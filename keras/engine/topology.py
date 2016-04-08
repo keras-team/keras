@@ -503,14 +503,14 @@ class Layer(object):
                          node_indices=None, tensor_indices=None):
         '''
         # Arguments:
-            inbound_layer: can be a layer instance
+            inbound_layers: can be a layer instance
                 or a list/tuple of layer instances.
-            node_index: integer (or list of integers).
+            node_indices: integer (or list of integers).
                 The input layer might have a number of
                 parallel output streams;
                 this is the index of the stream (in the input layer)
                 where to connect the current layer.
-            tensor_index: integer or list of integers.
+            tensor_indices: integer or list of integers.
                 The output of the inbound node might be a list/tuple
                 of tensor, and we might only be interested in one sepcific entry.
                 This index allows you to specify the index of the entry in the output list
