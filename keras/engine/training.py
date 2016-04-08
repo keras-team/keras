@@ -1082,7 +1082,8 @@ class Model(Container):
         return self._predict_loop(f, ins,
                                   batch_size=batch_size, verbose=verbose)
 
-    def train_on_batch(self, x, y, sample_weight=None, class_weight=None):
+    def train_on_batch(self, x, y,
+                       sample_weight=None, class_weight=None):
         '''Runs a single gradient update on a single batch of data.
 
         # Arguments
@@ -1233,7 +1234,7 @@ class Model(Container):
                                 samples_per_epoch=10000, nb_epoch=10)
         ```
         '''
-        wait_time = 0.05  # in seconds
+        wait_time = 0.01  # in seconds
         epoch = 0
 
         do_validation = bool(validation_data)
@@ -1316,8 +1317,12 @@ class Model(Container):
                     raise Exception('output of generator should be a tuple '
                                     '(x, y, sample_weight) '
                                     'or (x, y). Found: ' + str(generator_output))
+                # build batch logs
                 batch_logs = {}
-                batch_size = len(x[0])
+                if type(x) is list:
+                    batch_size = len(x[0])
+                else:
+                    batch_size = len(x)
                 batch_logs['batch'] = batch_index
                 batch_logs['size'] = batch_size
                 callbacks.on_batch_begin(batch_index, batch_logs)
@@ -1359,7 +1364,7 @@ class Model(Container):
                         val_outs = self.evaluate(val_x, val_y,
                                                  sample_weight=val_sample_weights,
                                                  verbose=0)
-                    if type(val_outs) != list:
+                    if type(val_outs) is not list:
                         val_outs = [val_outs]
                     # same labels assumed
                     for l, o in zip(out_labels, val_outs):
@@ -1395,7 +1400,7 @@ class Model(Container):
         self._make_test_function()
 
         processed_samples = 0
-        wait_time = 0.05
+        wait_time = 0.01
         all_outs = []
         weights = []
         data_gen_queue, _stop = generator_queue(generator)
@@ -1430,7 +1435,10 @@ class Model(Container):
                 _stop.set()
                 raise e
 
-            nb_samples = len(x[0])
+            if type(x) is list:
+                nb_samples = len(x[0])
+            else:
+                nb_samples = len(x)
             all_outs.append(outs)
 
             processed_samples += nb_samples
@@ -1463,7 +1471,7 @@ class Model(Container):
         self._make_predict_function()
 
         processed_samples = 0
-        wait_time = 0.05
+        wait_time = 0.01
         all_outs = []
         data_gen_queue, _stop = generator_queue(generator)
 
@@ -1490,15 +1498,16 @@ class Model(Container):
             else:
                 x = generator_output
 
-            x = standardize_input_data(x, self.input_names)
-
             try:
                 outs = self.predict_on_batch(x)
             except Exception as e:
                 _stop.set()
                 raise e
 
-            nb_samples = len(x[0])
+            if type(x) is list:
+                nb_samples = len(x[0])
+            else:
+                nb_samples = len(x)
 
             if type(outs) != list:
                 outs = [outs]
