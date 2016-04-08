@@ -409,8 +409,6 @@ class Layer(object):
 
         # Arguments
             x: input tensor, or list/tuple of input tensors.
-            train: boolean, whether the layer should behave
-                in train behavior (e.g. dropout on) or test behavior.
             mask: a masking tensor (or list of tensors). Used mainly in RNNs.
 
         # Returns:
