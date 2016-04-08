@@ -31,7 +31,7 @@ class InputSpec(object):
     Every layer should expose (if appropriate) an `input_spec` attribute:
     a list of instances of InputSpec (one per input tensor).
 
-    A None entry in a shaple is compatible with any dimension,
+    A None entry in a shape is compatible with any dimension,
     a None shape is compatible with any shape.
     '''
     def __init__(self, dtype=None, shape=None, ndim=None):
