@@ -29,10 +29,10 @@
 Please cite Keras in your publications if it helps your research. Here is an example BibTeX entry:
 
 ```
-@misc{chollet2015keras,
+@misc{chollet2016keras,
   author = {Chollet, François},
   title = {Keras},
-  year = {2015},
+  year = {2016},
   publisher = {GitHub},
   journal = {GitHub repository},
   howpublished = {\url{https://github.com/fchollet/keras}}
@@ -241,4 +241,3 @@ model.layers[0].reset_states()
 ```
 
 Notes that the methods `predict`, `fit`, `train_on_batch`, `predict_classes`, etc. will *all* update the states of the stateful layers in a model. This allows you to do not only stateful training, but also stateful prediction.
-
