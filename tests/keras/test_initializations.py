@@ -4,8 +4,14 @@ import numpy as np
 from keras import initializations
 from keras import backend as K
 
-SHAPE = (100, 100)
+# 2D tensor test fixture
+FC_SHAPE = (100, 100)
 
+# 4D convolution in th order. This shape has the same effective shape as FC_SHAPE
+CONV_SHAPE = (25, 25, 2, 2)
+
+# The equivalent shape of both test fixtures
+SHAPE = (100, 100)
 
 def _runner(init, shape, target_mean=None, target_std=None,
             target_max=None, target_min=None):
@@ -22,62 +28,78 @@ def _runner(init, shape, target_mean=None, target_std=None,
         assert abs(output.min() - target_min) < lim
 
 
-def test_uniform():
-    _runner(initializations.uniform, SHAPE, target_mean=0.,
+@pytest.mark.parametrize('tensor_shape', [FC_SHAPE, CONV_SHAPE], ids=['FC', 'CONV'])
+def test_uniform(tensor_shape):
+    _runner(initializations.uniform, tensor_shape, target_mean=0.,
             target_max=0.05, target_min=-0.05)
 
 
-def test_normal():
-    _runner(initializations.normal, SHAPE, target_mean=0., target_std=0.05)
+@pytest.mark.parametrize('tensor_shape', [FC_SHAPE, CONV_SHAPE], ids=['FC', 'CONV'])
+def test_normal(tensor_shape):
+    _runner(initializations.normal, tensor_shape, target_mean=0., target_std=0.05)
 
 
-def test_lecun_uniform():
+@pytest.mark.parametrize('tensor_shape', [FC_SHAPE, CONV_SHAPE], ids=['FC', 'CONV'])
+def test_lecun_uniform(tensor_shape):
     scale = np.sqrt(3. / SHAPE[0])
-    _runner(initializations.lecun_uniform, SHAPE,
+    _runner(initializations.lecun_uniform, tensor_shape,
             target_mean=0., target_max=scale, target_min=-scale)
 
 
-def test_glorot_uniform():
+@pytest.mark.parametrize('tensor_shape', [FC_SHAPE, CONV_SHAPE], ids=['FC', 'CONV'])
+def test_glorot_uniform(tensor_shape):
     scale = np.sqrt(6. / (SHAPE[0] + SHAPE[1]))
-    _runner(initializations.glorot_uniform, SHAPE, target_mean=0.,
+    _runner(initializations.glorot_uniform, tensor_shape, target_mean=0.,
             target_max=scale, target_min=-scale)
 
 
-def test_glorot_normal():
+@pytest.mark.parametrize('tensor_shape', [FC_SHAPE, CONV_SHAPE], ids=['FC', 'CONV'])
+def test_glorot_normal(tensor_shape):
     scale = np.sqrt(2. / (SHAPE[0] + SHAPE[1]))
-    _runner(initializations.glorot_normal, SHAPE,
+    _runner(initializations.glorot_normal, tensor_shape,
             target_mean=0., target_std=scale)
 
 
-def test_he_uniform():
+@pytest.mark.parametrize('tensor_shape', [FC_SHAPE, CONV_SHAPE], ids=['FC', 'CONV'])
+def test_he_uniform(tensor_shape):
     scale = np.sqrt(6. / SHAPE[0])
-    _runner(initializations.he_uniform, SHAPE, target_mean=0.,
+    _runner(initializations.he_uniform, tensor_shape, target_mean=0.,
             target_max=scale, target_min=-scale)
 
 
-def test_he_normal():
+@pytest.mark.parametrize('tensor_shape', [FC_SHAPE, CONV_SHAPE], ids=['FC', 'CONV'])
+def test_he_normal(tensor_shape):
     scale = np.sqrt(2. / SHAPE[0])
-    _runner(initializations.he_normal, SHAPE,
+    _runner(initializations.he_normal, tensor_shape,
             target_mean=0., target_std=scale)
 
 
-def test_orthogonal():
-    _runner(initializations.orthogonal, SHAPE,
+@pytest.mark.parametrize('tensor_shape', [FC_SHAPE, CONV_SHAPE], ids=['FC', 'CONV'])
+def test_orthogonal(tensor_shape):
+    _runner(initializations.orthogonal, tensor_shape,
             target_mean=0.)
 
 
-def test_identity():
-    _runner(initializations.identity, SHAPE,
-            target_mean=1./SHAPE[0], target_max=1.)
+@pytest.mark.parametrize('tensor_shape', [FC_SHAPE, CONV_SHAPE], ids=['FC', 'CONV'])
+def test_identity(tensor_shape):
+    if len(tensor_shape) > 2:
+        with pytest.raises(Exception):
+            _runner(initializations.identity, tensor_shape,
+                    target_mean=1./SHAPE[0], target_max=1.)
+    else:
+        _runner(initializations.identity, tensor_shape,
+                target_mean=1./SHAPE[0], target_max=1.)
 
 
-def test_zero():
-    _runner(initializations.zero, SHAPE,
+@pytest.mark.parametrize('tensor_shape', [FC_SHAPE, CONV_SHAPE], ids=['FC', 'CONV'])
+def test_zero(tensor_shape):
+    _runner(initializations.zero, tensor_shape,
             target_mean=0., target_max=0.)
 
 
-def test_one():
-    _runner(initializations.one, SHAPE,
+@pytest.mark.parametrize('tensor_shape', [FC_SHAPE, CONV_SHAPE], ids=['FC', 'CONV'])
+def test_one(tensor_shape):
+    _runner(initializations.one, tensor_shape,
             target_mean=1., target_max=1.)
 
 
