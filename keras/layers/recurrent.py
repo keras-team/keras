@@ -314,10 +314,10 @@ class SimpleRNN(Recurrent):
             self.W_regularizer.set_param(self.W)
             self.regularizers.append(self.W_regularizer)
         if self.U_regularizer:
-            self.W_regularizer.set_param(self.U)
+            self.U_regularizer.set_param(self.U)
             self.regularizers.append(self.U_regularizer)
         if self.b_regularizer:
-            self.W_regularizer.set_param(self.b)
+            self.b_regularizer.set_param(self.b)
             self.regularizers.append(self.b_regularizer)
 
         self.trainable_weights = [self.W, self.U, self.b]
