@@ -631,7 +631,7 @@ class Model(Container):
                     trainable_weights.append(w)
 
             training_updates = self.optimizer.get_updates(trainable_weights, self.constraints, self.total_loss)
-            updates = self.state_updates + self.updates + training_updates
+            updates = self.updates + training_updates
 
             # returns loss and metrics. Updates weights at each call.
             self.train_function = K.function(inputs,
