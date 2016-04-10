@@ -601,39 +601,14 @@ class Model(Container):
                     else:
                         self.metrics_names.append(self.output_layers[i].name + '_' + metric_fn.__name__)
 
-        # define symbolic outptus
-        all_outputs = [total_loss] + self.metrics
-
         # prepare gradient updates and state updates
         self.optimizer = optimizers.get(optimizer)
-        # dedupe trainable weights
-        trainable_weights_set = set()
-        trainable_weights = []
-        for w in self.trainable_weights:
-            if w not in trainable_weights_set:
-                trainable_weights_set.add(w)
-                trainable_weights.append(w)
-        # compute weight updates
-        train_updates = self.optimizer.get_updates(trainable_weights,
-                                                   self.constraints,
-                                                   total_loss)
-        train_updates += self.updates
-
-        # model inputs: add learning phase if necessary
-        if self.uses_learning_phase:
-            train_test_inputs = self.inputs + self.targets + sample_weights + [K.learning_phase()]
-            predict_inputs = self.inputs + [K.learning_phase()]
-        else:
-            train_test_inputs = self.inputs + self.targets + sample_weights
-            predict_inputs = self.inputs
+        self.total_loss = total_loss
+        self.sample_weights = sample_weights
 
         # functions for train, test and predict will
         # be compiled lazily when required.
         # This saves time when the user is not using all functions.
-        self._train_updates = train_updates
-        self._train_test_inputs = train_test_inputs
-        self._all_outputs = all_outputs
-        self._predict_inputs = predict_inputs
         self._function_kwargs = kwargs
 
         self.train_function = None
@@ -642,24 +617,50 @@ class Model(Container):
 
     def _make_train_function(self):
         if self.train_function is None:
+            if self.uses_learning_phase:
+                inputs = self.inputs + self.targets + self.sample_weights + [K.learning_phase()]
+            else:
+                inputs = self.inputs + self.targets + self.sample_weights
+
+            # dedupe trainable weights
+            trainable_weights_set = set()
+            trainable_weights = []
+            for w in self.trainable_weights:
+                if w not in trainable_weights_set:
+                    trainable_weights_set.add(w)
+                    trainable_weights.append(w)
+
+            training_updates = self.optimizer.get_updates(trainable_weights, self.constraints, self.total_loss)
+            updates = self.state_updates + self.updates + training_updates
+
             # returns loss and metrics. Updates weights at each call.
-            self.train_function = K.function(self._train_test_inputs,
-                                             self._all_outputs,
-                                             updates=self._train_updates,
+            self.train_function = K.function(inputs,
+                                             [self.total_loss] + self.metrics,
+                                             updates=updates,
                                              **self._function_kwargs)
 
     def _make_test_function(self):
         if self.test_function is None:
+            if self.uses_learning_phase:
+                inputs = self.inputs + self.targets + self.sample_weights + [K.learning_phase()]
+            else:
+                inputs = self.inputs + self.targets + self.sample_weights
             # return loss and metrics, no gradient updates.
-            self.test_function = K.function(self._train_test_inputs,
-                                            self._all_outputs,
+            # Does update the network states.
+            self.test_function = K.function(inputs,
+                                            [self.total_loss] + self.metrics,
+                                            updates=self.state_updates,
                                             **self._function_kwargs)
 
     def _make_predict_function(self):
         if self.predict_function is None:
+            if self.uses_learning_phase:
+                inputs = self.inputs + [K.learning_phase()]
+            else:
+                inputs = self.inputs
             # returns network outputs. Does not update weights.
             # Does update the network states.
-            self.predict_function = K.function(self._predict_inputs,
+            self.predict_function = K.function(inputs,
                                                self.outputs,
                                                updates=self.state_updates,
                                                **self._function_kwargs)
