@@ -790,8 +790,6 @@ def conv2d(x, kernel, strides=(1, 1), border_mode='valid', dim_ordering='th',
     if border_mode == 'same':
         th_border_mode = 'half'
         np_kernel = kernel.eval()
-        assert strides[0] <= np_kernel.shape[2], 'strides should be smaller than the convolution window.'
-        assert strides[1] <= np_kernel.shape[3], 'strides should be smaller than the convolution window.'
     elif border_mode == 'valid':
         th_border_mode = 'valid'
     else:
