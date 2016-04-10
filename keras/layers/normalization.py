@@ -1,117 +1,119 @@
 from ..layers.core import Layer
-from ..utils.theano_utils import shared_zeros, shared_ones, ndim_tensor, floatX
 from .. import initializations
-
-import theano.tensor as T
+from .. import backend as K
 
 
 class BatchNormalization(Layer):
-    '''
-        Reference:
-            Batch Normalization: Accelerating Deep Network Training by Reducing Internal Covariate Shift
-                http://arxiv.org/pdf/1502.03167v3.pdf
+    '''Normalize the activations of the previous layer at each batch,
+    i.e. applies a transformation that maintains the mean activation
+    close to 0 and the activation standard deviation close to 1.
 
-            mode: 0 -> featurewise normalization
-                  1 -> samplewise normalization (may sometimes outperform featurewise mode)
+    # Input shape
+        Arbitrary. Use the keyword argument `input_shape`
+        (tuple of integers, does not include the samples axis)
+        when using this layer as the first layer in a model.
 
-            momentum: momentum term in the computation of a running estimate of the mean and std of the data
+    # Output shape
+        Same shape as input.
+
+    # Arguments
+        epsilon: small float > 0. Fuzz parameter.
+        mode: integer, 0 or 1.
+            - 0: feature-wise normalization.
+                Each feature map in the input will
+                be normalized separately. The axis on which
+                to normalize is specified by the `axis` argument.
+                Note that if the input is a 4D image tensor
+                using Theano conventions (samples, channels, rows, cols)
+                then you should set `axis` to `1` to normalize along
+                the channels axis.
+            - 1: sample-wise normalization. This mode assumes a 2D input.
+        axis: integer, axis along which to normalize in mode 0. For instance,
+            if your input tensor has shape (samples, channels, rows, cols),
+            set axis to 1 to normalize per feature map (channels axis).
+        momentum: momentum in the computation of the
+            exponential average of the mean and standard deviation
+            of the data, for feature-wise normalization.
+        weights: Initialization weights.
+            List of 2 numpy arrays, with shapes:
+            `[(input_shape,), (input_shape,)]`
+        beta_init: name of initialization function for shift parameter
+            (see [initializations](../initializations.md)), or alternatively,
+            Theano/TensorFlow function to use for weights initialization.
+            This parameter is only relevant if you don't pass a `weights` argument.
+        gamma_init: name of initialization function for scale parameter (see
+            [initializations](../initializations.md)), or alternatively,
+            Theano/TensorFlow function to use for weights initialization.
+            This parameter is only relevant if you don't pass a `weights` argument.
+    # References
+        - [Batch Normalization: Accelerating Deep Network Training by Reducing Internal Covariate Shift](http://arxiv.org/pdf/1502.03167v3.pdf)
     '''
-    def __init__(self, epsilon=1e-6, mode=0, momentum=0.9, weights=None, **kwargs):
-        self.init = initializations.get("uniform")
+    def __init__(self, epsilon=1e-6, mode=0, axis=-1, momentum=0.9,
+                 weights=None, beta_init='zero', gamma_init='one', **kwargs):
+        self.beta_init = initializations.get(beta_init)
+        self.gamma_init = initializations.get(gamma_init)
         self.epsilon = epsilon
         self.mode = mode
+        self.axis = axis
         self.momentum = momentum
         self.initial_weights = weights
         super(BatchNormalization, self).__init__(**kwargs)
 
     def build(self):
         input_shape = self.input_shape  # starts with samples axis
-        input_shape = input_shape[1:]
-        self.input = ndim_tensor(len(input_shape) + 1)
+        shape = (input_shape[self.axis],)
 
-        self.gamma = self.init((input_shape))
-        self.beta = shared_zeros(input_shape)
+        self.gamma = self.gamma_init(shape, name='{}_gamma'.format(self.name))
+        self.beta = self.beta_init(shape, name='{}_beta'.format(self.name))
+        self.trainable_weights = [self.gamma, self.beta]
 
-        self.params = [self.gamma, self.beta]
-        self.running_mean = shared_zeros(input_shape)
-        self.running_std = shared_ones((input_shape))
-
-        # initialize self.updates: batch mean/std computation
-        X = self.get_input(train=True)
-        m = X.mean(axis=0)
-        std = T.mean((X - m) ** 2 + self.epsilon, axis=0) ** 0.5
-        mean_update = self.momentum * self.running_mean + (1-self.momentum) * m
-        std_update = self.momentum * self.running_std + (1-self.momentum) * std
-        self.updates = [(self.running_mean, mean_update), (self.running_std, std_update)]
+        self.running_mean = K.zeros(shape,
+                                    name='{}_running_mean'.format(self.name))
+        self.running_std = K.ones(shape,
+                                  name='{}_running_std'.format(self.name))
+        self.non_trainable_weights = [self.running_mean, self.running_std]
 
         if self.initial_weights is not None:
             self.set_weights(self.initial_weights)
             del self.initial_weights
 
-    def get_weights(self):
-        return super(BatchNormalization, self).get_weights() + [self.running_mean.get_value(), self.running_std.get_value()]
-
-    def set_weights(self, weights):
-        self.running_mean.set_value(floatX(weights[-2]))
-        self.running_std.set_value(floatX(weights[-1]))
-        super(BatchNormalization, self).set_weights(weights[:-2])
-
     def get_output(self, train):
         X = self.get_input(train)
-
         if self.mode == 0:
-            X_normed = (X - self.running_mean) / (self.running_std + self.epsilon)
-
+            input_shape = self.input_shape
+            reduction_axes = list(range(len(input_shape)))
+            del reduction_axes[self.axis]
+            broadcast_shape = [1] * len(input_shape)
+            broadcast_shape[self.axis] = input_shape[self.axis]
+            if train:
+                m = K.mean(X, axis=reduction_axes)
+                brodcast_m = K.reshape(m, broadcast_shape)
+                std = K.mean(K.square(X - brodcast_m) + self.epsilon, axis=reduction_axes)
+                std = K.sqrt(std)
+                brodcast_std = K.reshape(std, broadcast_shape)
+                mean_update = self.momentum * self.running_mean + (1-self.momentum) * m
+                std_update = self.momentum * self.running_std + (1-self.momentum) * std
+                self.updates = [(self.running_mean, mean_update),
+                                (self.running_std, std_update)]
+                X_normed = (X - brodcast_m) / (brodcast_std + self.epsilon)
+            else:
+                brodcast_m = K.reshape(self.running_mean, broadcast_shape)
+                brodcast_std = K.reshape(self.running_std, broadcast_shape)
+                X_normed = ((X - brodcast_m) /
+                            (brodcast_std + self.epsilon))
+            out = K.reshape(self.gamma, broadcast_shape) * X_normed + K.reshape(self.beta, broadcast_shape)
         elif self.mode == 1:
-            m = X.mean(axis=-1, keepdims=True)
-            std = X.std(axis=-1, keepdims=True)
+            m = K.mean(X, axis=-1, keepdims=True)
+            std = K.std(X, axis=-1, keepdims=True)
             X_normed = (X - m) / (std + self.epsilon)
-
-        out = self.gamma * X_normed + self.beta
+            out = self.gamma * X_normed + self.beta
         return out
 
     def get_config(self):
         config = {"name": self.__class__.__name__,
                   "epsilon": self.epsilon,
                   "mode": self.mode,
+                  "axis": self.axis,
                   "momentum": self.momentum}
         base_config = super(BatchNormalization, self).get_config()
-        return dict(list(base_config.items()) + list(config.items()))
-
-
-class LRN2D(Layer):
-    """
-    This code is adapted from pylearn2.
-    License at: https://github.com/lisa-lab/pylearn2/blob/master/LICENSE.txt
-    """
-
-    def __init__(self, alpha=1e-4, k=2, beta=0.75, n=5, **kwargs):
-        if n % 2 == 0:
-            raise NotImplementedError("LRN2D only works with odd n. n provided: " + str(n))
-        super(LRN2D, self).__init__(**kwargs)
-        self.alpha = alpha
-        self.k = k
-        self.beta = beta
-        self.n = n
-
-    def get_output(self, train):
-        X = self.get_input(train)
-        b, ch, r, c = X.shape
-        half_n = self.n // 2
-        input_sqr = T.sqr(X)
-        extra_channels = T.alloc(0., b, ch + 2*half_n, r, c)
-        input_sqr = T.set_subtensor(extra_channels[:, half_n:half_n+ch, :, :], input_sqr)
-        scale = self.k
-        for i in range(self.n):
-            scale += self.alpha * input_sqr[:, i:i+ch, :, :]
-        scale = scale ** self.beta
-        return X / scale
-
-    def get_config(self):
-        config = {"name": self.__class__.__name__,
-                  "alpha": self.alpha,
-                  "k": self.k,
-                  "beta": self.beta,
-                  "n": self.n}
-        base_config = super(LRN2D, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))

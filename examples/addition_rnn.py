@@ -1,20 +1,8 @@
 # -*- coding: utf-8 -*-
-from __future__ import print_function
-from keras.models import Sequential, slice_X
-from keras.layers.core import Activation, TimeDistributedDense, RepeatVector
-from keras.layers import recurrent
-import numpy as np
-
-"""
-An implementation of sequence to sequence learning for performing addition
+'''An implementation of sequence to sequence learning for performing addition
 Input: "535+61"
 Output: "596"
 Padding is handled by using a repeated sentinel character (space)
-
-By default, the JZS1 recurrent neural network is used
-JZS1 was an "evolved" recurrent neural network performing well on arithmetic benchmark in:
-"An Empirical Exploration of Recurrent Network Architectures"
-http://jmlr.org/proceedings/papers/v37/jozefowicz15.pdf
 
 Input may optionally be inverted, shown to increase performance in many tasks in:
 "Learning to Execute"
@@ -25,27 +13,34 @@ http://papers.nips.cc/paper/5346-sequence-to-sequence-learning-with-neural-netwo
 Theoretically it introduces shorter term dependencies between source and target.
 
 Two digits inverted:
-+ One layer JZS1 (128 HN), 5k training examples = 99% train/test accuracy in 55 epochs
++ One layer LSTM (128 HN), 5k training examples = 99% train/test accuracy in 55 epochs
 
 Three digits inverted:
-+ One layer JZS1 (128 HN), 50k training examples = 99% train/test accuracy in 100 epochs
++ One layer LSTM (128 HN), 50k training examples = 99% train/test accuracy in 100 epochs
 
 Four digits inverted:
-+ One layer JZS1 (128 HN), 400k training examples = 99% train/test accuracy in 20 epochs
++ One layer LSTM (128 HN), 400k training examples = 99% train/test accuracy in 20 epochs
 
 Five digits inverted:
-+ One layer JZS1 (128 HN), 550k training examples = 99% train/test accuracy in 30 epochs
++ One layer LSTM (128 HN), 550k training examples = 99% train/test accuracy in 30 epochs
 
-"""
+'''
+
+from __future__ import print_function
+from keras.models import Sequential, slice_X
+from keras.layers.core import Activation, TimeDistributedDense, RepeatVector
+from keras.layers import recurrent
+import numpy as np
+from six.moves import range
 
 
 class CharacterTable(object):
-    """
+    '''
     Given a set of characters:
     + Encode them to a one hot integer representation
     + Decode the one hot integer representation to their character output
     + Decode a vector of probabilties to their character output
-    """
+    '''
     def __init__(self, chars, maxlen):
         self.chars = sorted(set(chars))
         self.char_indices = dict((c, i) for i, c in enumerate(self.chars))
@@ -74,8 +69,8 @@ class colors:
 TRAINING_SIZE = 50000
 DIGITS = 3
 INVERT = True
-# Try replacing JZS1 with LSTM, GRU, or SimpleRNN
-RNN = recurrent.JZS1
+# Try replacing GRU, or SimpleRNN
+RNN = recurrent.LSTM
 HIDDEN_SIZE = 128
 BATCH_SIZE = 128
 LAYERS = 1
@@ -89,7 +84,7 @@ expected = []
 seen = set()
 print('Generating data...')
 while len(questions) < TRAINING_SIZE:
-    f = lambda: int(''.join(np.random.choice(list('0123456789')) for i in xrange(np.random.randint(1, DIGITS + 1))))
+    f = lambda: int(''.join(np.random.choice(list('0123456789')) for i in range(np.random.randint(1, DIGITS + 1))))
     a, b = f(), f()
     # Skip any addition questions we've already seen
     # Also skip any such that X+Y == Y+X (hence the sorting)
@@ -122,6 +117,7 @@ indices = np.arange(len(y))
 np.random.shuffle(indices)
 X = X[indices]
 y = y[indices]
+
 # Explicitly set apart 10% for validation data that we never train over
 split_at = len(X) - len(X) / 10
 (X_train, X_val) = (slice_X(X, 0, split_at), slice_X(X, split_at))
@@ -135,11 +131,11 @@ model = Sequential()
 # "Encode" the input sequence using an RNN, producing an output of HIDDEN_SIZE
 # note: in a situation where your input sequences have a variable length,
 # use input_shape=(None, nb_feature).
-model.add(RNN(HIDDEN_SIZE, input_shape=(None, len(chars))))
+model.add(RNN(HIDDEN_SIZE, input_shape=(MAXLEN, len(chars))))
 # For the decoder's input, we repeat the encoded input for each time step
 model.add(RepeatVector(DIGITS + 1))
 # The decoder RNN could be multiple layers stacked or a single layer
-for _ in xrange(LAYERS):
+for _ in range(LAYERS):
     model.add(RNN(HIDDEN_SIZE, return_sequences=True))
 
 # For each of step of the output sequence, decide which character should be chosen
@@ -153,10 +149,11 @@ for iteration in range(1, 200):
     print()
     print('-' * 50)
     print('Iteration', iteration)
-    model.fit(X_train, y_train, batch_size=BATCH_SIZE, nb_epoch=1, validation_data=(X_val, y_val), show_accuracy=True)
+    model.fit(X_train, y_train, batch_size=BATCH_SIZE, nb_epoch=1,
+              validation_data=(X_val, y_val), show_accuracy=True)
     ###
     # Select 10 samples from the validation set at random so we can visualize errors
-    for i in xrange(10):
+    for i in range(10):
         ind = np.random.randint(0, len(X_val))
         rowX, rowy = X_val[np.array([ind])], y_val[np.array([ind])]
         preds = model.predict_classes(rowX, verbose=0)

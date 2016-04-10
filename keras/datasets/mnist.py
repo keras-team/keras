@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 import gzip
-from .data_utils import get_file
+from ..utils.data_utils import get_file
 from six.moves import cPickle
 import sys
 
@@ -19,5 +19,4 @@ def load_data(path="mnist.pkl.gz"):
         data = cPickle.load(f, encoding="bytes")
 
     f.close()
-
     return data  # (X_train, y_train), (X_test, y_test)

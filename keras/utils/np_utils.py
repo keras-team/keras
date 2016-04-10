@@ -7,7 +7,7 @@ from six.moves import zip
 
 def to_categorical(y, nb_classes=None):
     '''Convert class vector (integers from 0 to nb_classes)
-    to binary class matrix, for use with categorical_crossentropy
+    to binary class matrix, for use with categorical_crossentropy.
     '''
     y = np.asarray(y, dtype='int32')
     if not nb_classes:
@@ -34,7 +34,6 @@ def binary_logloss(p, y):
 
 
 def multiclass_logloss(P, Y):
-    score = 0.
     npreds = [P[i][Y[i]-1] for i in range(len(Y))]
     score = -(1. / len(Y)) * np.sum(np.log(npreds))
     return score
