@@ -49,7 +49,7 @@ model.add(Activation('softmax'))
 model.summary()
 
 model.compile(loss='categorical_crossentropy',
-              optimizer=Adam(),
+              optimizer=RMSprop(),
               metrics=['accuracy'])
 
 history = model.fit(X_train, Y_train,
