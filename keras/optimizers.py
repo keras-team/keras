@@ -15,6 +15,10 @@ def kl_divergence(p, p_hat):
     return p_hat - p + p * K.log(p / p_hat)
 
 
+def gradient_noise(eta, t):
+    return np.random.normal(0, np.sqrt(eta / np.power(1 + t, 0.55)))
+
+
 class Optimizer(object):
     '''Abstract optimizer base class.
 
@@ -27,10 +31,14 @@ class Optimizer(object):
             when their L2 norm exceeds this value.
         clipvalue: float >= 0. Gradients will be clipped
             when their absolute value exceeds this value.
+        gradient_noise: adds Gaussian noise to the gradient
+            http://arxiv.org/abs/1511.06807
+            recommend value: 0.01, 0.3 or 1.0
     '''
     def __init__(self, **kwargs):
         self.__dict__.update(kwargs)
         self.updates = []
+        self.t = 0
 
     def get_state(self):
         return [K.get_value(u[0]) for u in self.updates]
@@ -50,6 +58,9 @@ class Optimizer(object):
             grads = [clip_norm(g, self.clipnorm, norm) for g in grads]
         if hasattr(self, 'clipvalue') and self.clipvalue > 0:
             grads = [K.clip(g, -self.clipvalue, self.clipvalue) for g in grads]
+        if hasattr(self, 'gradient_noise') and self.gradient_noise > 0:
+            grads = [g + gradient_noise(self.gradient_noise, self.t) for g in grads]
+            self.t += 1
         return grads
 
     def get_config(self):
