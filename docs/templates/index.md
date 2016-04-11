@@ -115,11 +115,6 @@ Keras uses the following dependencies:
 - Theano
     - [See installation instructions](http://deeplearning.net/software/theano/install.html#install).
 
-**Note**: You should use the latest version of Theano, not the PyPI version. Install it with:
-```
-sudo pip install git+git://github.com/Theano/Theano.git
-```
-
 *When using the TensorFlow backend:*
 
 - TensorFlow
