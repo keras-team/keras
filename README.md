@@ -1,6 +1,7 @@
 # Keras: Deep Learning library for Theano and TensorFlow
 
-![Build status](https://api.travis-ci.org/fchollet/keras.svg)
+[![Build Status](https://travis-ci.org/fchollet/keras.svg?branch=master)](https://travis-ci.org/fchollet/keras)
+[![PyPI version](https://badge.fury.io/py/keras.svg)](https://badge.fury.io/py/keras)
 
 ## You have just found Keras.
 
