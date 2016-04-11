@@ -375,6 +375,8 @@ class Sequential(Model):
             at successive epochs, as well as validation loss values
             and validation metrics values (if applicable).
         '''
+        if self.model is None:
+            raise Exception('The model needs to be compiled before being used.')
         if 'show_accuracy' in kwargs:
             kwargs.pop('show_accuracy')
             warnings.warn('The "show_accuracy" argument is deprecated, '
@@ -414,6 +416,8 @@ class Sequential(Model):
             The attribute `model.metrics_names` will give you
             the display labels for the scalar outputs.
         '''
+        if self.model is None:
+            raise Exception('The model needs to be compiled before being used.')
         if 'show_accuracy' in kwargs:
             kwargs.pop('show_accuracy')
             warnings.warn('The "show_accuracy" argument is deprecated, '
@@ -441,6 +445,8 @@ class Sequential(Model):
         # Returns
             A Numpy array of predictions.
         '''
+        if self.model is None:
+            raise Exception('The model needs to be compiled before being used.')
         return self.model.predict(x, batch_size=batch_size, verbose=verbose)
 
     def predict_on_batch(self, x):
@@ -522,6 +528,8 @@ class Sequential(Model):
         # Returns
             A Numpy array of probability predictions.
         '''
+        if self.model is None:
+            raise Exception('The model needs to be compiled before being used.')
         preds = self.predict(x, batch_size, verbose)
         if preds.min() < 0. or preds.max() > 1.:
             warnings.warn('Network returning invalid probability values. '
@@ -543,6 +551,8 @@ class Sequential(Model):
         # Returns
             A numpy array of class predictions.
         '''
+        if self.model is None:
+            raise Exception('The model needs to be compiled before being used.')
         proba = self.predict(x, batch_size=batch_size, verbose=verbose)
         if proba.shape[-1] > 1:
             return proba.argmax(axis=-1)
@@ -604,6 +614,8 @@ class Sequential(Model):
                                 samples_per_epoch=10000, nb_epoch=10)
         ```
         '''
+        if self.model is None:
+            raise Exception('The model needs to be compiled before being used.')
         if 'show_accuracy' in kwargs:
             kwargs.pop('show_accuracy')
             warnings.warn('The "show_accuracy" argument is deprecated, '
@@ -644,6 +656,8 @@ class Sequential(Model):
                 total number of samples to generate from `generator`
                 before returning.
         '''
+        if self.model is None:
+            raise Exception('The model needs to be compiled before being used.')
         if 'show_accuracy' in kwargs:
             kwargs.pop('show_accuracy')
             warnings.warn('The "show_accuracy" argument is deprecated, '
@@ -673,7 +687,8 @@ class Sequential(Model):
         # Returns
             A Numpy array of predictions.
         '''
-
+        if self.model is None:
+            raise Exception('The model needs to be compiled before being used.')
         return self.model.predict_generator(generator, val_samples)
 
     def get_config(self):
