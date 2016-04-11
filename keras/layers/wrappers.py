@@ -78,6 +78,9 @@ class TimeDistributed(Wrapper):
     # Arguments
         layer: a layer instance.
     """
+    def __init__(self, layer, **kwargs):
+        self.supports_masking = True
+        super(TimeDistributed, self).__init__(layer, **kwargs)
 
     def build(self, input_shape):
         assert len(input_shape) >= 3
