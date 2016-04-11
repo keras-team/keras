@@ -16,7 +16,7 @@ def get_fans(shape, dim_ordering='th'):
             fan_in = shape[1] * receptive_field_size
             fan_out = shape[0] * receptive_field_size
         elif dim_ordering == 'tf':
-            kernel_size = np.prod(shape[:2])
+            receptive_field_size = np.prod(shape[:2])
             fan_in = shape[-2] * receptive_field_size
             fan_out = shape[-1] * receptive_field_size
         else:
