@@ -196,7 +196,7 @@ class Recurrent(Layer):
     def call(self, x, mask=None):
         # input shape: (nb_samples, time (padded with zeros), input_dim)
         # note that the .build() method of subclasses MUST define
-        # self.input_sepc with a complete input shape.
+        # self.input_spec with a complete input shape.
         input_shape = self.input_spec[0].shape
         if K._BACKEND == 'tensorflow':
             if not input_shape[1]:
