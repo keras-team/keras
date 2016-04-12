@@ -66,6 +66,8 @@ def test_sequential_fit_generator():
     model.fit_generator(data_generator(True), len(X_train), nb_epoch, validation_data=(X_test, y_test))
     model.fit_generator(data_generator(True), len(X_train), nb_epoch,
                         validation_data=data_generator(False), nb_val_samples=batch_size * 3)
+    model.fit_generator(data_generator(True), len(X_train), nb_epoch,
+                        max_q_size=2, wait_time=0.1, nb_worker=2)
 
     loss = model.evaluate(X_train, y_train)
 
@@ -100,8 +102,10 @@ def test_sequential():
 
     loss = model.evaluate(X_test, y_test)
 
-    prediction = model.predict_generator(data_generator(X_test, y_test), X_test.shape[0])
-    gen_loss = model.evaluate_generator(data_generator(X_test, y_test, 50), X_test.shape[0])
+    prediction = model.predict_generator(data_generator(X_test, y_test), X_test.shape[0],
+                                         max_q_size=2, wait_time=0.1, nb_worker=2)
+    gen_loss = model.evaluate_generator(data_generator(X_test, y_test, 50), X_test.shape[0],
+                                        max_q_size=2, wait_time=0.1, nb_worker=2)
     pred_loss = K.eval(K.mean(objectives.get(model.loss)(K.variable(y_test), K.variable(prediction))))
 
     assert(np.isclose(pred_loss, loss))

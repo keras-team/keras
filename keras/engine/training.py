@@ -369,7 +369,7 @@ def standardize_weights(y, sample_weight=None, class_weight=None,
 def generator_queue(generator, max_q_size=10,
                     wait_time=0.05, nb_worker=1):
     '''Builds a threading queue out of a data generator.
-    Used in `fit_generator`, `evaluate_generator`.
+    Used in `fit_generator`, `evaluate_generator`, `predict_generator`.
     '''
     q = queue.Queue()
     _stop = threading.Event()
@@ -1184,7 +1184,8 @@ class Model(Container):
     def fit_generator(self, generator, samples_per_epoch, nb_epoch,
                       verbose=1, callbacks=[],
                       validation_data=None, nb_val_samples=None,
-                      class_weight={}):
+                      class_weight={}, max_q_size=10, wait_time=0.05,
+                      nb_worker=1):
         '''Fits the model on data generated batch-by-batch by
         a Python generator.
         The generator is run in parallel to the model, for efficiency.
@@ -1214,6 +1215,9 @@ class Model(Container):
                 at the end of every epoch.
             class_weight: dictionary mapping class indices to a weight
                 for the class.
+            max_q_size: maximum size for the generator queue
+            wait_time: time to sleep before retry when queue is full
+            nb_worker: number of threads for running generator task
 
         # Returns
             A `History` object.
@@ -1287,7 +1291,8 @@ class Model(Container):
             self.validation_data = None
 
         # start generator thread storing batches into a queue
-        data_gen_queue, _stop = generator_queue(generator)
+        data_gen_queue, _stop = generator_queue(generator, max_q_size=max_q_size,
+                                                wait_time=wait_time, nb_worker=nb_worker)
 
         self.stop_training = False
         while epoch < nb_epoch:
@@ -1380,7 +1385,8 @@ class Model(Container):
         callbacks.on_train_end()
         return self.history
 
-    def evaluate_generator(self, generator, val_samples):
+    def evaluate_generator(self, generator, val_samples, max_q_size=10,
+                           wait_time=0.05, nb_worker=1):
         '''Evaluates the model on a data generator. The generator should
         return the same kind of data as accepted by `test_on_batch`.
 
@@ -1391,6 +1397,9 @@ class Model(Container):
             val_samples:
                 total number of samples to generate from `generator`
                 before returning.
+            max_q_size: maximum size for the generator queue
+            wait_time: time to sleep before retry when queue is full
+            nb_worker: number of threads for running generator task
 
         # Returns
             Scalar test loss (if the model has a single output and no metrics)
@@ -1404,7 +1413,8 @@ class Model(Container):
         wait_time = 0.01
         all_outs = []
         weights = []
-        data_gen_queue, _stop = generator_queue(generator)
+        data_gen_queue, _stop = generator_queue(generator, max_q_size=max_q_size,
+                                                wait_time=wait_time, nb_worker=nb_worker)
 
         while processed_samples < val_samples:
             generator_output = None
@@ -1456,7 +1466,8 @@ class Model(Container):
                                 weights=weights))
             return averages
 
-    def predict_generator(self, generator, val_samples):
+    def predict_generator(self, generator, val_samples, max_q_size=10,
+                          wait_time=0.05, nb_worker=1):
         '''Generates predictions for the input samples from a data generator.
         The generator should return the same kind of data as accepted by
         `predict_on_batch`.
@@ -1465,6 +1476,9 @@ class Model(Container):
             generator: generator yielding batches of input samples.
             val_samples: total number of samples to generate from `generator`
                 before returning.
+            max_q_size: maximum size for the generator queue
+            wait_time: time to sleep before retry when queue is full
+            nb_worker: number of threads for running generator task
 
         # Returns
             Numpy array(s) of predictions.
@@ -1474,7 +1488,8 @@ class Model(Container):
         processed_samples = 0
         wait_time = 0.01
         all_outs = []
-        data_gen_queue, _stop = generator_queue(generator)
+        data_gen_queue, _stop = generator_queue(generator, max_q_size=max_q_size,
+                                                wait_time=wait_time, nb_worker=nb_worker)
 
         while processed_samples < val_samples:
             generator_output = None
