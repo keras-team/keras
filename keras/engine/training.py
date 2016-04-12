@@ -692,8 +692,6 @@ class Model(Container):
         # Returns
             `History` object.
         '''
-        self.training_data = ins
-        self.validation_data = val_ins
         do_validation = False
         if val_f and val_ins:
             do_validation = True
@@ -710,7 +708,14 @@ class Model(Container):
             callbacks += [cbks.ProgbarLogger()]
         callbacks = cbks.CallbackList(callbacks)
 
-        callbacks._set_model(self)
+        # it's possible to callback a different model than self
+        # (used by Sequential models)
+        if hasattr(self, 'callback_model') and self.callback_model:
+            callback_model = self.callback_model
+        else:
+            callback_model = self
+
+        callbacks._set_model(callback_model)
         callbacks._set_params({
             'batch_size': batch_size,
             'nb_epoch': nb_epoch,
@@ -720,8 +725,9 @@ class Model(Container):
             'metrics': callback_metrics,
         })
         callbacks.on_train_begin()
+        callback_model.stop_training = False
+        self.validation_data = val_ins
 
-        self.stop_training = False
         for epoch in range(nb_epoch):
             callbacks.on_epoch_begin(epoch)
             if shuffle == 'batch':
@@ -768,7 +774,7 @@ class Model(Container):
                         for l, o in zip(out_labels, val_outs):
                             epoch_logs['val_' + l] = o
             callbacks.on_epoch_end(epoch, epoch_logs)
-            if self.stop_training:
+            if callback_model.stop_training:
                 break
         callbacks.on_train_end()
         return self.history
@@ -1261,7 +1267,12 @@ class Model(Container):
             callbacks += [cbks.ProgbarLogger()]
         callbacks = cbks.CallbackList(callbacks)
 
-        callbacks._set_model(self)
+        # it's possible to callback a different model than self:
+        if hasattr(self, 'callback_model') and self.callback_model:
+            callback_model = self.callback_model
+        else:
+            callback_model = self
+        callbacks._set_model(callback_model)
         callbacks._set_params({
             'nb_epoch': nb_epoch,
             'nb_sample': samples_per_epoch,
@@ -1289,7 +1300,7 @@ class Model(Container):
         # start generator thread storing batches into a queue
         data_gen_queue, _stop = generator_queue(generator)
 
-        self.stop_training = False
+        callback_model.stop_training = False
         while epoch < nb_epoch:
             callbacks.on_epoch_begin(epoch)
             samples_seen = 0
@@ -1375,7 +1386,7 @@ class Model(Container):
 
             callbacks.on_epoch_end(epoch, epoch_logs)
             epoch += 1
-            if self.stop_training:
+            if callback_model.stop_training:
                 break
 
         _stop.set()

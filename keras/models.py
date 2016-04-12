@@ -178,6 +178,9 @@ class Sequential(Model):
         self.output_names = self.model.output_names
         self.input_names = self.model.input_names
 
+        # make sure child model callbacks will call the parent Sequential model:
+        self.model.callback_model = self
+
         self.built = True
 
     @property
