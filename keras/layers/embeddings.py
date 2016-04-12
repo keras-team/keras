@@ -77,7 +77,6 @@ class Embedding(Layer):
         self.dropout = dropout
 
         self.W_constraint = constraints.get(W_constraint)
-        self.constraints = [self.W_constraint]
 
         self.W_regularizer = regularizers.get(W_regularizer)
         self.activity_regularizer = regularizers.get(activity_regularizer)
@@ -93,6 +92,11 @@ class Embedding(Layer):
         self.W = self.init((self.input_dim, self.output_dim),
                            name='{}_W'.format(self.name))
         self.trainable_weights = [self.W]
+
+        self.constraints = {}
+        if self.W_constraint:
+            self.constraints[self.W] = self.W_constraint
+
         self.regularizers = []
         if self.W_regularizer:
             self.W_regularizer.set_param(self.W)
