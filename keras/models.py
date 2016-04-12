@@ -312,7 +312,7 @@ class Sequential(Model):
                 model.add(Dense(10, activation='softmax'))
                 model.compile(optimizer='rmsprop',
                               loss='categorical_crossentropy',
-                              metrics=['acccuracy'])
+                              metrics=['accuracy'])
             ```
         '''
         # create the underlying model
