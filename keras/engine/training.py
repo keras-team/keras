@@ -1322,6 +1322,8 @@ class Model(Container):
                 batch_logs = {}
                 if type(x) is list:
                     batch_size = len(x[0])
+                elif type(x) is dict:
+                    batch_size = len(list(x.values())[0])
                 else:
                     batch_size = len(x)
                 batch_logs['batch'] = batch_index
@@ -1438,6 +1440,8 @@ class Model(Container):
 
             if type(x) is list:
                 nb_samples = len(x[0])
+            elif type(x) is dict:
+                nb_samples = len(list(x.values())[0])
             else:
                 nb_samples = len(x)
             all_outs.append(outs)
@@ -1507,6 +1511,8 @@ class Model(Container):
 
             if type(x) is list:
                 nb_samples = len(x[0])
+            elif type(x) is dict:
+                nb_samples = len(list(x.values())[0])
             else:
                 nb_samples = len(x)
 
