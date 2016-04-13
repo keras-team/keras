@@ -467,10 +467,10 @@ class TensorBoard(Callback):
             if epoch % self.histogram_freq == 0:
                 # TODO: implement batched calls to sess.run
                 # (current call will likely go OOM on GPU)
-		cut_v_data = len(self.model.inputs)
-		val_data = self.model.validation_data[:cut_v_data] + [0]
-		tensors = self.model.inputs + [K.learning_phase()]
-		feed_dict = dict(zip(tensors, val_data))
+                cut_v_data = len(self.model.inputs)
+                val_data = self.model.validation_data[:cut_v_data] + [0]
+                tensors = self.model.inputs + [K.learning_phase()]
+                feed_dict = dict(zip(tensors, val_data))
                 result = self.sess.run([self.merged], feed_dict=feed_dict)
                 summary_str = result[0]
                 self.writer.add_summary(summary_str, epoch)
