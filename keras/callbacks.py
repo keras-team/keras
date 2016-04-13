@@ -462,7 +462,6 @@ class TensorBoard(Callback):
 
     def on_epoch_end(self, epoch, logs={}):
         import tensorflow as tf
-	import keras.backend.tensorflow_backend as KTF
 
         if self.model.validation_data and self.histogram_freq:
             if epoch % self.histogram_freq == 0:
@@ -470,7 +469,7 @@ class TensorBoard(Callback):
                 # (current call will likely go OOM on GPU)
 		cut_v_data = len(self.model.inputs)
 		val_data = self.model.validation_data[:cut_v_data] + [0]
-		tensors = self.model.inputs + [KTF.learning_phase()]
+		tensors = self.model.inputs + [K.learning_phase()]
 		feed_dict = dict(zip(tensors, val_data))
                 result = self.sess.run([self.merged], feed_dict=feed_dict)
                 summary_str = result[0]
