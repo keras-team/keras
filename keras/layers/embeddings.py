@@ -2,7 +2,7 @@ from __future__ import absolute_import
 
 from .. import backend as K
 from .. import initializations, regularizers, constraints
-from ..layers.core import Layer
+from ..engine import Layer
 
 
 class Embedding(Layer):
@@ -11,11 +11,21 @@ class Embedding(Layer):
 
     This layer can only be used as the first layer in a model.
 
-    # Input shape
-        2D tensor with shape: `(nb_samples, sequence_length)`.
+    # Example
 
-    # Output shape
-        3D tensor with shape: `(nb_samples, sequence_length, output_dim)`.
+    ```python
+      model = Sequential()
+      model.add(Embedding(1000, 64, input_length=10))
+      # the model will take as input an integer matrix of size (batch, input_length).
+      # the largest integer (i.e. word index) in the input should be no larger than 1000 (vocabulary size).
+      # now model.output_shape == (None, 10, 64), where None is the batch dimension.
+
+      input_array = np.random.randint(1000, size=(32, 10))
+
+      model.compile('rmsprop', 'mse')
+      output_array = model.predict(input_array)
+      assert output_array.shape == (32, 10, 64)
+    ```
 
     # Arguments
       input_dim: int >= 0. Size of the vocabulary, ie.
@@ -42,6 +52,12 @@ class Embedding(Layer):
           (without it, the shape of the dense outputs cannot be computed).
       dropout: float between 0 and 1. Fraction of the embeddings to drop.
 
+    # Input shape
+        2D tensor with shape: `(nb_samples, sequence_length)`.
+
+    # Output shape
+        3D tensor with shape: `(nb_samples, sequence_length, output_dim)`.
+
     # References
         - [A Theoretically Grounded Application of Dropout in Recurrent Neural Networks](http://arxiv.org/abs/1512.05287)
     '''
@@ -61,21 +77,26 @@ class Embedding(Layer):
         self.dropout = dropout
 
         self.W_constraint = constraints.get(W_constraint)
-        self.constraints = [self.W_constraint]
 
         self.W_regularizer = regularizers.get(W_regularizer)
         self.activity_regularizer = regularizers.get(activity_regularizer)
 
+        if 0. < self.dropout < 1.:
+            self.uses_learning_phase = True
         self.initial_weights = weights
-        kwargs['input_shape'] = (self.input_dim,)
+        kwargs['input_shape'] = (self.input_length,)
+        kwargs['input_dtype'] = 'int32'
         super(Embedding, self).__init__(**kwargs)
 
-    def build(self):
-        self.input = K.placeholder(shape=(self.input_shape[0], self.input_length),
-                                   dtype='int32')
+    def build(self, input_shape):
         self.W = self.init((self.input_dim, self.output_dim),
                            name='{}_W'.format(self.name))
         self.trainable_weights = [self.W]
+
+        self.constraints = {}
+        if self.W_constraint:
+            self.constraints[self.W] = self.W_constraint
+
         self.regularizers = []
         if self.W_regularizer:
             self.W_regularizer.set_param(self.W)
@@ -88,38 +109,35 @@ class Embedding(Layer):
         if self.initial_weights is not None:
             self.set_weights(self.initial_weights)
 
-    def get_output_mask(self, train=None):
-        X = self.get_input(train)
+    def compute_mask(self, x, mask=None):
         if not self.mask_zero:
             return None
         else:
-            return K.not_equal(X, 0)
+            return K.not_equal(x, 0)
 
-    @property
-    def output_shape(self):
-        return (self.input_shape[0], self.input_length, self.output_dim)
+    def get_output_shape_for(self, input_shape):
+        return (input_shape[0], self.input_length, self.output_dim)
 
-    def get_output(self, train=False):
-        X = self.get_input(train)
-        retain_p = 1. - self.dropout
-        if train and self.dropout > 0:
-            B = K.random_binomial((self.input_dim,), p=retain_p)
+    def call(self, x, mask=None):
+        if 0. < self.dropout < 1.:
+            retain_p = 1. - self.dropout
+            B = K.random_binomial((self.input_dim,), p=retain_p) * (1. / retain_p)
+            B = K.expand_dims(B)
+            W = K.in_train_phase(self.W * B, self.W)
         else:
-            B = K.ones((self.input_dim)) * retain_p
-        # we zero-out rows of W at random
-        out = K.gather(self.W * K.expand_dims(B), X)
+            W = self.W
+        out = K.gather(W, x)
         return out
 
     def get_config(self):
-        config = {"name": self.__class__.__name__,
-                  "input_dim": self.input_dim,
-                  "output_dim": self.output_dim,
-                  "init": self.init.__name__,
-                  "input_length": self.input_length,
-                  "mask_zero": self.mask_zero,
-                  "activity_regularizer": self.activity_regularizer.get_config() if self.activity_regularizer else None,
-                  "W_regularizer": self.W_regularizer.get_config() if self.W_regularizer else None,
-                  "W_constraint": self.W_constraint.get_config() if self.W_constraint else None,
-                  "dropout": self.dropout}
+        config = {'input_dim': self.input_dim,
+                  'output_dim': self.output_dim,
+                  'init': self.init.__name__,
+                  'input_length': self.input_length,
+                  'mask_zero': self.mask_zero,
+                  'activity_regularizer': self.activity_regularizer.get_config() if self.activity_regularizer else None,
+                  'W_regularizer': self.W_regularizer.get_config() if self.W_regularizer else None,
+                  'W_constraint': self.W_constraint.get_config() if self.W_constraint else None,
+                  'dropout': self.dropout}
         base_config = super(Embedding, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))

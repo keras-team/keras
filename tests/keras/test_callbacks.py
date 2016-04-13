@@ -36,11 +36,13 @@ def test_ModelCheckpoint():
     model = Sequential()
     model.add(Dense(nb_hidden, input_dim=input_dim, activation='relu'))
     model.add(Dense(nb_class, activation='softmax'))
-    model.compile(loss='categorical_crossentropy', optimizer='rmsprop')
+    model.compile(loss='categorical_crossentropy',
+                  optimizer='rmsprop',
+                  metrics=['accuracy'])
 
     cbks = [callbacks.ModelCheckpoint(filepath, monitor=monitor,
                                       save_best_only=save_best_only, mode=mode)]
-    model.fit(X_train, y_train, batch_size=batch_size, show_accuracy=True,
+    model.fit(X_train, y_train, batch_size=batch_size,
               validation_data=(X_test, y_test), callbacks=cbks, nb_epoch=1)
     assert os.path.exists(filepath)
     os.remove(filepath)
@@ -49,7 +51,7 @@ def test_ModelCheckpoint():
     mode = 'min'
     cbks = [callbacks.ModelCheckpoint(filepath, monitor=monitor,
                                       save_best_only=save_best_only, mode=mode)]
-    model.fit(X_train, y_train, batch_size=batch_size, show_accuracy=True,
+    model.fit(X_train, y_train, batch_size=batch_size,
               validation_data=(X_test, y_test), callbacks=cbks, nb_epoch=1)
     assert os.path.exists(filepath)
     os.remove(filepath)
@@ -59,7 +61,7 @@ def test_ModelCheckpoint():
     monitor = 'val_acc'
     cbks = [callbacks.ModelCheckpoint(filepath, monitor=monitor,
                                       save_best_only=save_best_only, mode=mode)]
-    model.fit(X_train, y_train, batch_size=batch_size, show_accuracy=True,
+    model.fit(X_train, y_train, batch_size=batch_size,
               validation_data=(X_test, y_test), callbacks=cbks, nb_epoch=1)
     assert os.path.exists(filepath)
     os.remove(filepath)
@@ -68,7 +70,7 @@ def test_ModelCheckpoint():
     save_best_only = True
     cbks = [callbacks.ModelCheckpoint(filepath, monitor=monitor,
                                       save_best_only=save_best_only, mode=mode)]
-    model.fit(X_train, y_train, batch_size=batch_size, show_accuracy=True,
+    model.fit(X_train, y_train, batch_size=batch_size,
               validation_data=(X_test, y_test), callbacks=cbks, nb_epoch=1)
     assert os.path.exists(filepath)
     os.remove(filepath)
@@ -85,20 +87,21 @@ def test_EarlyStopping():
     model = Sequential()
     model.add(Dense(nb_hidden, input_dim=input_dim, activation='relu'))
     model.add(Dense(nb_class, activation='softmax'))
-    model.compile(loss='categorical_crossentropy', optimizer='rmsprop')
-
+    model.compile(loss='categorical_crossentropy',
+                  optimizer='rmsprop',
+                  metrics=['accuracy'])
     mode = 'max'
     monitor = 'val_acc'
     patience = 0
     cbks = [callbacks.EarlyStopping(patience=patience, monitor=monitor, mode=mode)]
-    history = model.fit(X_train, y_train, batch_size=batch_size, show_accuracy=True,
+    history = model.fit(X_train, y_train, batch_size=batch_size,
                         validation_data=(X_test, y_test), callbacks=cbks, nb_epoch=20)
 
     mode = 'auto'
     monitor = 'val_acc'
     patience = 2
     cbks = [callbacks.EarlyStopping(patience=patience, monitor=monitor, mode=mode)]
-    history = model.fit(X_train, y_train, batch_size=batch_size, show_accuracy=True,
+    history = model.fit(X_train, y_train, batch_size=batch_size,
                         validation_data=(X_test, y_test), callbacks=cbks, nb_epoch=20)
 
 
@@ -113,10 +116,12 @@ def test_LearningRateScheduler():
     model = Sequential()
     model.add(Dense(nb_hidden, input_dim=input_dim, activation='relu'))
     model.add(Dense(nb_class, activation='softmax'))
-    model.compile(loss='categorical_crossentropy', optimizer='sgd')
+    model.compile(loss='categorical_crossentropy',
+                  optimizer='sgd',
+                  metrics=['accuracy'])
 
     cbks = [callbacks.LearningRateScheduler(lambda x: 1. / (1. + x))]
-    model.fit(X_train, y_train, batch_size=batch_size, show_accuracy=True,
+    model.fit(X_train, y_train, batch_size=batch_size,
               validation_data=(X_test, y_test), callbacks=cbks, nb_epoch=5)
     assert (float(K.get_value(model.optimizer.lr)) - 0.2) < K.epsilon()
 
@@ -166,39 +171,37 @@ def test_TensorBoard():
         model = Sequential()
         model.add(Dense(nb_hidden, input_dim=input_dim, activation='relu'))
         model.add(Dense(nb_class, activation='softmax'))
-        model.compile(loss='categorical_crossentropy', optimizer='sgd')
+        model.compile(loss='categorical_crossentropy',
+                      optimizer='sgd',
+                      metrics=['accuracy'])
 
         tsb = callbacks.TensorBoard(log_dir=filepath, histogram_freq=1)
         cbks = [tsb]
 
         # fit with validation data
-        model.fit(X_train, y_train, batch_size=batch_size, show_accuracy=False,
+        model.fit(X_train, y_train, batch_size=batch_size,
                   validation_data=(X_test, y_test), callbacks=cbks, nb_epoch=2)
 
         # fit with validation data and accuracy
-        model.fit(X_train, y_train, batch_size=batch_size, show_accuracy=True,
+        model.fit(X_train, y_train, batch_size=batch_size,
                   validation_data=(X_test, y_test), callbacks=cbks, nb_epoch=2)
 
         # fit generator with validation data
         model.fit_generator(data_generator(True), len(X_train), nb_epoch=2,
-                            show_accuracy=False,
                             validation_data=(X_test, y_test),
                             callbacks=cbks)
 
         # fit generator without validation data
         model.fit_generator(data_generator(True), len(X_train), nb_epoch=2,
-                            show_accuracy=False,
                             callbacks=cbks)
 
         # fit generator with validation data and accuracy
         model.fit_generator(data_generator(True), len(X_train), nb_epoch=2,
-                            show_accuracy=True,
                             validation_data=(X_test, y_test),
                             callbacks=cbks)
 
         # fit generator without validation data and accuracy
         model.fit_generator(data_generator(True), len(X_train), nb_epoch=2,
-                            show_accuracy=True,
                             callbacks=cbks)
 
         assert os.path.exists(filepath)
@@ -249,4 +252,8 @@ def test_TensorBoard():
     KTF.set_session(old_session)
 
 if __name__ == '__main__':
-    pytest.main([__file__])
+    # pytest.main([__file__])
+    # test_ModelCheckpoint()
+    # test_EarlyStopping()
+    # test_LearningRateScheduler()
+    test_TensorBoard()

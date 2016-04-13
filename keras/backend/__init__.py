@@ -3,7 +3,12 @@ from __future__ import print_function
 import os
 import json
 import sys
-from .common import epsilon, floatx, set_epsilon, set_floatx
+from .common import epsilon
+from .common import floatx
+from .common import set_epsilon
+from .common import set_floatx
+from .common import get_uid
+from .common import cast_to_floatx
 
 _keras_base_dir = os.path.expanduser('~')
 if not os.access(_keras_base_dir, os.W_OK):
@@ -18,7 +23,7 @@ _config_path = os.path.expanduser(os.path.join(_keras_dir, 'keras.json'))
 if os.path.exists(_config_path):
     _config = json.load(open(_config_path))
     _floatx = _config.get('floatx', floatx())
-    assert _floatx in {'float32', 'float64'}
+    assert _floatx in {'float16', 'float32', 'float64'}
     _epsilon = _config.get('epsilon', epsilon())
     assert type(_epsilon) == float
     _backend = _config.get('backend', _BACKEND)

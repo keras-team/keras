@@ -47,15 +47,13 @@ def deprocess_image(x):
     x = np.clip(x, 0, 255).astype('uint8')
     return x
 
-# this will contain our generated image
-input_img = K.placeholder((1, 3, img_width, img_height))
-
-# build the VGG16 network with our input_img as input
-first_layer = ZeroPadding2D((1, 1), input_shape=(3, img_width, img_height))
-first_layer.input = input_img
-
+# build the VGG16 network
 model = Sequential()
-model.add(first_layer)
+model.add(ZeroPadding2D((1, 1), batch_input_shape=(1, 3, img_width, img_height)))
+first_layer = model.layers[-1]
+# this is a placeholder tensor that will contain our generated images
+input_img = first_layer.input
+
 model.add(Convolution2D(64, 3, 3, activation='relu', name='conv1_1'))
 model.add(ZeroPadding2D((1, 1)))
 model.add(Convolution2D(64, 3, 3, activation='relu', name='conv1_2'))
@@ -125,7 +123,7 @@ for filter_index in range(0, 200):
 
     # we build a loss function that maximizes the activation
     # of the nth filter of the layer considered
-    layer_output = layer_dict[layer_name].get_output()
+    layer_output = layer_dict[layer_name].output
     loss = K.mean(layer_output[:, filter_index, :, :])
 
     # we compute the gradient of the input picture wrt this loss
