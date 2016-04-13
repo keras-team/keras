@@ -956,14 +956,6 @@ class Model(Container):
                                                            class_weight=class_weight,
                                                            check_batch_dim=False,
                                                            batch_size=batch_size)
-        # prepare input arrays and training function
-        if self.uses_learning_phase:
-            ins = x + y + sample_weights + [1.]
-        else:
-            ins = x + y + sample_weights
-        self._make_train_function()
-        f = self.train_function
-
         # prepare validation data
         if validation_data:
             do_validation = True
@@ -1001,6 +993,14 @@ class Model(Container):
             do_validation = False
             val_f = None
             val_ins = None
+
+        # prepare input arrays and training function
+        if self.uses_learning_phase:
+            ins = x + y + sample_weights + [1.]
+        else:
+            ins = x + y + sample_weights
+        self._make_train_function()
+        f = self.train_function
 
         # prepare display labels
         out_labels = self.metrics_names
