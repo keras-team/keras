@@ -1,9 +1,11 @@
 import pytest
 import numpy as np
+from numpy.testing import assert_allclose
 
 from keras.layers import Dense, Dropout
 from keras.engine.topology import merge, Input
 from keras.engine.training import Model
+from keras.models import Sequential, Graph
 from keras import backend as K
 
 
@@ -151,6 +153,30 @@ def test_model_methods():
     out = model.fit([input_a_np, input_b_np], [output_a_np, output_b_np], batch_size=4, nb_epoch=1)
     out = model.evaluate([input_a_np, input_b_np], [output_a_np, output_b_np], batch_size=4)
     out = model.predict([input_a_np, input_b_np], batch_size=4)
+
+
+def test_trainable_argument():
+    x = np.random.random((5, 3))
+    y = np.random.random((5, 2))
+
+    model = Sequential()
+    model.add(Dense(2, input_dim=3, trainable=False))
+    model.compile('rmsprop', 'mse')
+    out = model.predict(x)
+    model.train_on_batch(x, y)
+    out_2 = model.predict(x)
+    assert_allclose(out, out_2)
+
+    # test with nesting
+    input = Input(shape=(3,))
+    output = model(input)
+    model = Model(input, output)
+    model.compile('rmsprop', 'mse')
+    out = model.predict(x)
+    model.train_on_batch(x, y)
+    out_2 = model.predict(x)
+    assert_allclose(out, out_2)
+
 
 
 if __name__ == '__main__':

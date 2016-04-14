@@ -224,6 +224,22 @@ def collect_metrics(metrics, output_names):
                         str(metrics))
 
 
+def collect_trainable_weights(layer):
+    trainable = getattr(layer, 'trainable', True)
+    if not trainable:
+        return []
+    weights = []
+    if layer.__class__.__name__ in ['Sequential', 'Model']:
+        for sublayer in layer.layers:
+            weights += collect_trainable_weights(sublayer)
+    elif layer.__class__.__name__ == 'Graph':
+        for sublayer in layer._graph_nodes.values():
+            weights += collect_trainable_weights(sublayer)
+    else:
+        weights += layer.trainable_weights
+    return weights
+
+
 def batch_shuffle(index_array, batch_size):
     '''This shuffles an array in a batch-wise fashion.
     Useful for shuffling HDF5 arrays
@@ -622,13 +638,10 @@ class Model(Container):
             else:
                 inputs = self.inputs + self.targets + self.sample_weights
 
-            # dedupe trainable weights
-            trainable_weights_set = set()
+            # get trainable weights
             trainable_weights = []
-            for w in self.trainable_weights:
-                if w not in trainable_weights_set:
-                    trainable_weights_set.add(w)
-                    trainable_weights.append(w)
+            for layer in self.layers:
+                trainable_weights += collect_trainable_weights(layer)
 
             training_updates = self.optimizer.get_updates(trainable_weights, self.constraints, self.total_loss)
             updates = self.updates + training_updates
