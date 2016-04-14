@@ -624,17 +624,18 @@ def infer_shape(func, input_shape):
     # Returns
         tuple if func returns a single tensor, list of tuple if func returns a list of tuples.
     '''
-    if type(input_shape) is not list:
-        input_shape = [input_shape]
-    xs = [placeholder(shape=shape) for shape in input_shape]
-    outputs = func(xs if len(xs) > 1 else xs[0])
-    if type(outputs) is not list:
-        outputs = [outputs]
-    output_shapes = [int_shape(o) for o in outputs]
-    if len(output_shapes) == 1:
-        return output_shapes[0]
+    if type(input_shape) is list:
+        xs = [placeholder(shape=shape) for shape in input_shape]
+        output = func(xs)
     else:
+        x = placeholder(shape=input_shape)
+        output = func(x)
+    if type(output) in [list, tuple]:
+        output_shapes = [int_shape(o) for o in output]
         return output_shapes
+    else:
+        output_shape = int_shape(output)
+        return output_shape
 
 
 # CONTROL FLOW
