@@ -611,6 +611,30 @@ def gradients(loss, variables):
     return tf.gradients(loss, variables)
 
 
+# SHAPE INFERENCE
+
+def infer_shape(func, input_shape):
+    '''Automatic shape inference
+
+    # Arguments
+        func: Function, lambda or callable object which accepts a tensor or a list of tensors
+        and returns a tensor or a list of tensors.
+        input_shape: tuple or list of tuples. Shape(s) of input(s).
+
+    # Returns
+        tuple if func returns a single tensor, list of tuple if func returns a list of tuples.
+    '''
+    if type(input_shape) is not list:
+        input_shape = [input_shape]
+    xs = [placeholder(shape=shape) for shape in input_shape]
+    outputs = func(xs if len(xs) > 1 else xs[0])
+    output_shapes = [int_shape(o) for o in outputs]
+    if len(output_shapes) == 1:
+        return output_shapes[0]
+    else:
+        return output_shapes
+
+
 # CONTROL FLOW
 
 def rnn(step_function, inputs, initial_states,
