@@ -512,7 +512,7 @@ def infer_shape(func, input_shape):
         input_shape: tuple or list of tuples. Shape(s) of input(s).
 
     # Returns
-        tuple if func returns a single tensor, list of tuple if func returns a list of tuples.
+        tuple if func returns a single tensor, list of tuple if func returns a list of tensors.
     '''
     if not input_shape[0] or type(input_shape[0]) == int:
         input_shapes = [input_shape]
