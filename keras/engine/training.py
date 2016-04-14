@@ -31,8 +31,8 @@ def standardize_input_data(data, names, shapes=None, check_batch_dim=True,
         arrays = []
         for name in names:
             if name not in data:
-                raise Exception('No data provided for input "' +
-                                name + '". Input data keys: ' +
+                raise Exception('No data provided for "' +
+                                name + '". Need data for each key in: ' +
                                 str(data.keys()))
             arrays.append(data[name])
     elif type(data) is list:
