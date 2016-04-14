@@ -628,6 +628,8 @@ def infer_shape(func, input_shape):
         input_shape = [input_shape]
     xs = [placeholder(shape=shape) for shape in input_shape]
     outputs = func(xs if len(xs) > 1 else xs[0])
+    if type(outputs) is not list:
+        outputs = [outputs]
     output_shapes = [int_shape(o) for o in outputs]
     if len(output_shapes) == 1:
         return output_shapes[0]
