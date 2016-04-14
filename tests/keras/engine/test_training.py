@@ -178,6 +178,5 @@ def test_trainable_argument():
     assert_allclose(out, out_2)
 
 
-
 if __name__ == '__main__':
     pytest.main([__file__])
