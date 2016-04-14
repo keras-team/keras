@@ -116,7 +116,11 @@ class Embedding(Layer):
             return K.not_equal(x, 0)
 
     def get_output_shape_for(self, input_shape):
-        return (input_shape[0], self.input_length, self.output_dim)
+        if not self.input_length:
+            input_length = input_shape[1]
+        else:
+            input_length = self.input_length
+        return (input_shape[0], input_length, self.output_dim)
 
     def call(self, x, mask=None):
         if 0. < self.dropout < 1.:
