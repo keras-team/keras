@@ -16,7 +16,8 @@ from six.moves import range
 import threading
 
 
-def random_rotation(x, rg, fill_mode='nearest', cval=0., axes=(1,2)):
+def random_rotation(x, rg, fill_mode='nearest',
+                    cval=0., axes=(1, 2)):
     angle = np.random.uniform(-rg, rg)
     x = ndimage.interpolation.rotate(x, angle,
                                      axes=axes,
@@ -26,7 +27,8 @@ def random_rotation(x, rg, fill_mode='nearest', cval=0., axes=(1,2)):
     return x
 
 
-def random_shift(x, wrg, hrg, fill_mode='nearest', cval=0., row_index=1, col_index=2):
+def random_shift(x, wrg, hrg, fill_mode='nearest',
+                 cval=0., row_index=1, col_index=2):
     shift_x = shift_y = 0
     if wrg:
         shift_x = np.random.uniform(-wrg, wrg) * x.shape[col_index]
@@ -38,11 +40,13 @@ def random_shift(x, wrg, hrg, fill_mode='nearest', cval=0., row_index=1, col_ind
                                     cval=cval)
     return x
 
+
 def flip_axis(x, axis):
     x = np.asarray(x).swapaxes(axis, 0)
-    x = x[::-1,...]
+    x = x[::-1, ...]
     x = x.swapaxes(0, axis)
     return x
+
 
 def random_barrel_transform(x, intensity):
     # TODO
