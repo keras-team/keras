@@ -75,6 +75,24 @@ def random_zoom(x, rg, fill_mode='nearest', cval=0.):
     return x  # shape of result will be different from shape of input!
 
 
+def resize(x, size, background=0, position='random', dim_ordering='th'):
+    n = np.full((x.shape[0], size[0], size[1]) if dim_ordering == 'th' else (size[0], size[1], x.shape[2]), background)
+    if position == 'center':
+        h = (size[0] - x.shape[1 if dim_ordering == 'th' else 0]) / 2
+        w = (size[1] - x.shape[2 if dim_ordering == 'th' else 1]) / 2
+    elif position == 'top left':
+        h = 0
+        w = 0
+    else:
+        h = np.random.randint(0, size[0] - x.shape[1 if dim_ordering == 'th' else 0])
+        w = np.random.randint(0, size[1] - x.shape[2 if dim_ordering == 'th' else 1])
+    if dim_ordering == 'th':
+        n[0:x.shape[0] + 1, h:h + x.shape[1], w:w + x.shape[2]] = x
+    else:
+        n[h:h + x.shape[0], w:w + x.shape[1], 0:x.shape[3] + 1] = x
+    return n
+
+
 def array_to_img(x, scale=True):
     from PIL import Image
     x = x.transpose(1, 2, 0)
@@ -132,6 +150,9 @@ class ImageDataGenerator(object):
         shear_range: shear intensity (shear angle in radians).
         horizontal_flip: whether to randomly flip images horizontally.
         vertical_flip: whether to randomly flip images vertically.
+        resize: resize images tuple of height and width according to dim_ordering
+        position: how to postion the images in the resized one
+        background: background of the resized image
         dim_ordering: 'th' or 'tf'. In 'th' mode, the channels dimension
             (the depth) is at index 1, in 'tf' mode it is at index 3.
     '''
@@ -147,12 +168,19 @@ class ImageDataGenerator(object):
                  shear_range=0.,
                  horizontal_flip=False,
                  vertical_flip=False,
+                 resize=None,
+                 position='random',
+                 background=1,
                  dim_ordering='th'):
         self.__dict__.update(locals())
         self.mean = None
         self.std = None
         self.principal_components = None
         self.lock = threading.Lock()
+        assert not self.resize or type(self.resize) is tuple
+        if self.position not in ['random', 'center', 'top left']:
+            raise Exception('position can either be "random", "center" or \
+                "top_left". Received arg: ', self.position)
         if dim_ordering not in {'tf', 'th'}:
             raise Exception('dim_ordering should be "tf" (channel after row and \
             column) or "th" (channel before row and column). Received arg: ', dim_ordering)
@@ -201,7 +229,7 @@ class ImageDataGenerator(object):
         self.save_to_dir = save_to_dir
         self.save_prefix = save_prefix
         self.save_format = save_format
-        self.flow_generator = self._flow_index(X.shape[0], batch_size,
+        self.flow_generator = self._flow_index(len(X), batch_size,
                                                shuffle, seed)
         return self
 
@@ -218,7 +246,14 @@ class ImageDataGenerator(object):
         with self.lock:
             index_array, current_index, current_batch_size = next(self.flow_generator)
         # The transformation of images is not under thread lock so it can be done in parallel
-        bX = np.zeros(tuple([current_batch_size] + list(self.X.shape)[1:]))
+        if self.resize:
+            if self.dim_ordering == 'th':
+                output_shape = list((max([x.shape[0] for x in self.X]), self.resize[0], self.resize[1]))
+            else:
+                output_shape = list((self.resize[0], self.resize[1], max([x.shape[0] for x in self.X])))
+            bX = np.zeros(tuple([current_batch_size] + output_shape))
+        else:
+            bX = np.zeros(tuple([current_batch_size] + list(self.X.shape)[1:]))
         for i, j in enumerate(index_array):
             x = self.X[j]
             x = self.random_transform(x.astype('float32'))
@@ -272,6 +307,8 @@ class ImageDataGenerator(object):
                 x = flip_axis(x, img_row_index)
         if self.shear_range:
             x = random_shear(x, self.shear_range)
+        if self.resize:
+            x = resize(x, self.resize, self.background, self.position, self.dim_ordering)
         # TODO:
         # zoom
         # barrel/fisheye
@@ -292,7 +329,7 @@ class ImageDataGenerator(object):
                 how many augmentation passes to do over the data
             seed: random seed.
         '''
-        X = np.copy(X)
+        X = np.asarray([resize(x, self.resize, self.background, self.position, self.dim_ordering) for x in X]) if self.resize else np.copy(X)
         if augment:
             aX = np.zeros(tuple([rounds * X.shape[0]] + list(X.shape)[1:]))
             for r in range(rounds):
