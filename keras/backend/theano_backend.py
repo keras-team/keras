@@ -501,6 +501,50 @@ def function(inputs, outputs, updates=[], **kwargs):
 def gradients(loss, variables):
     return T.grad(loss, variables)
 
+# SHAPE INFERENCE
+
+def infer_shape(func, input_shape):
+    '''Automatic shape inference
+
+    # Arguments
+        func: Function, lambda or callable object which accepts a tensor or a list of tensors
+        and returns a tensor or a list of tensors.
+        input_shape: tuple or list of tuples. Shape(s) of input(s).
+
+    # Returns
+        tuple if func returns a single tensor, list of tuple if func returns a list of tuples.
+    '''
+    if not input_shape[0] or type(input_shape[0]) == int:
+        input_shapes = [input_shape]
+    else:
+        input_shapes = input_shape
+    input_shapes_1 = map(list, input_shapes)
+    input_shapes_2 = map(list, input_shapes)
+    for i in range(len(input_shapes)):
+        for j in range(len(input_shapes[i])):
+            if not input_shapes_1[i][j]:
+                input_shapes_1[i][j] = 10
+            if not input_shapes_2[i][j]:
+                input_shapes_2[i][j] = 20
+    input1 = [np.zeros(input_shapes_1[i]) for i in range(len(input_shapes))]
+    input2 = [np.zeros(input_shapes_2[i]) for i in range(len(input_shapes))]
+    xs = [placeholder(ndim=len(input_shapes[i])) for i in range(len(input_shapes))]
+    ys = func(xs if len(xs) > 1 else xs[0])
+    if type(ys) not in [list, tuple]:
+        ys = [ys]
+    f = function(inputs=xs, outputs=[y.shape for y in ys])
+    output_shapes_1 = map(list, f(input1))
+    output_shapes_2 = map(list, f(input2))
+    for i in range(len(output_shapes_1)):
+        for j in range(len(output_shapes_1[i])):
+            if output_shapes_1[i][j] != output_shapes_2[i][j]:
+                output_shapes_1[i][j] = None
+    output_shapes_1 = map(tuple, output_shapes_1)
+    if len(output_shapes_1) == 1:
+        return output_shapes_1[0]
+    else:
+        return output_shapes_1
+
 
 # CONTROL FLOW
 
