@@ -7,9 +7,10 @@ import shutil
 
 
 def setup_function(func):
-    os.mkdir('test_images')
-    os.mkdir('test_images/rgb')
-    os.mkdir('test_images/gsc')
+    paths = ['test_images', 'test_images/rgb', 'test_images/gsc']
+    for path in paths:
+        if not os.path.exists(path):
+            os.mkdir(path)
 
     img_w = img_h = 20
     for n in range(8):
@@ -55,8 +56,9 @@ def test_image_data_generator():
             assert x.shape[1:] == images.shape[1:]
             break
 
+
 def test_img_flip():
-    x = np.array(range(4)).reshape([1,1,2,2])
+    x = np.array(range(4)).reshape([1, 1, 2, 2])
     assert (flip_axis(x, 0) == x).all()
     assert (flip_axis(x, 1) == x).all()
     assert (flip_axis(x, 2) == [[[[2, 3], [0, 1]]]]).all()
@@ -79,8 +81,8 @@ def test_img_flip():
             dim_ordering=dim_ordering).flow(x, [1])
         for i in range(10):
             potentially_flipped_x, _ = next(image_generator_th)
-            assert (potentially_flipped_x==x).all() or \
-                   (potentially_flipped_x==flip_axis(x, col_index)).all()
+            assert ((potentially_flipped_x == x).all() or
+                    (potentially_flipped_x == flip_axis(x, col_index)).all())
 
 
 if __name__ == '__main__':
