@@ -21,6 +21,11 @@ def learning_phase():
     return _LEARNING_PHASE
 
 
+def set_learning_phase(value):
+    global _LEARNING_PHASE
+    _LEARNING_PHASE = tf.constant(value, name='keras_learning_phase')
+
+
 def get_session():
     '''Returns the TF session in use by the backend.
     '''
