@@ -1,6 +1,9 @@
 '''This example demonstrates the use of Convolution1D for text classification.
 
-Gets to 0.885 test accuracy after 2 epochs. 90s/epoch on Intel i5 2.4Ghz CPU.
+Gets to 0.88 test accuracy after 2 epochs. 
+90s/epoch on Intel i5 2.4Ghz CPU.
+10s/epoch on Tesla K40 GPU.
+
 '''
 
 from __future__ import print_function
