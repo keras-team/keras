@@ -82,6 +82,31 @@ def test_img_flip():
             assert (potentially_flipped_x==x).all() or \
                    (potentially_flipped_x==flip_axis(x, col_index)).all()
 
+def test_img_output_size():
+    images = []
+    for i in range(10):
+        images.append(np.random.random((3, int(np.random.normal(15, 4)), int(np.random.normal(15, 4)))))
+
+    generator = ImageDataGenerator(
+        featurewise_center=True,
+        samplewise_center=True,
+        featurewise_std_normalization=True,
+        samplewise_std_normalization=True,
+        zca_whitening=True,
+        rotation_range=90.,
+        width_shift_range=10.,
+        height_shift_range=10.,
+        shear_range=0.5,
+        horizontal_flip=True,
+        vertical_flip=True,
+        output_size=(40, 40),
+        position='random',
+        background=1)
+    generator.fit(images)
+
+    for x, y in generator.flow(images, np.ones((len(images),)), shuffle=True):
+        assert x.shape[2:] == (40, 40)
+        break
 
 if __name__ == '__main__':
     pytest.main([__file__])
