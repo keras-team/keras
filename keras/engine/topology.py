@@ -1259,6 +1259,8 @@ class Merge(Layer):
             if hasattr(self._output_shape, '__call__'):
                 output_shape = self._output_shape(input_shape)
                 return output_shape
+            elif self._output_shape is not None:
+                return self._output_shape
             else:
                 # TODO: consider shape auto-inference with TF
                 raise Exception('The Merge layer ' + self.name +
