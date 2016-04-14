@@ -518,8 +518,8 @@ def infer_shape(func, input_shape):
         input_shapes = [input_shape]
     else:
         input_shapes = input_shape
-    input_shapes_1 = map(list, input_shapes)
-    input_shapes_2 = map(list, input_shapes)
+    input_shapes_1 = list(map(list, input_shapes))
+    input_shapes_2 = list(map(list, input_shapes))
     for i in range(len(input_shapes)):
         for j in range(len(input_shapes[i])):
             if not input_shapes_1[i][j]:
@@ -533,13 +533,13 @@ def infer_shape(func, input_shape):
     if type(ys) not in [list, tuple]:
         ys = [ys]
     f = function(inputs=xs, outputs=[y.shape for y in ys])
-    output_shapes_1 = map(list, f(input1))
-    output_shapes_2 = map(list, f(input2))
+    output_shapes_1 = list(map(list, f(input1)))
+    output_shapes_2 = list(map(list, f(input2)))
     for i in range(len(output_shapes_1)):
         for j in range(len(output_shapes_1[i])):
             if output_shapes_1[i][j] != output_shapes_2[i][j]:
                 output_shapes_1[i][j] = None
-    output_shapes_1 = map(tuple, output_shapes_1)
+    output_shapes_1 = list(map(tuple, output_shapes_1))
     if len(output_shapes_1) == 1:
         return output_shapes_1[0]
     else:
