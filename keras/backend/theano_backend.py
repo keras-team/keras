@@ -514,7 +514,7 @@ def infer_shape(func, input_shape):
     # Returns
         tuple if func returns a single tensor, list of tuple if func returns a list of tensors.
     '''
-    if not input_shape[0] or type(input_shape[0]) == int:
+    if not type(input_shape[0]) in [list, tuple]:
         input_shapes = [input_shape]
     else:
         input_shapes = input_shape
@@ -524,8 +524,7 @@ def infer_shape(func, input_shape):
         for j in range(len(input_shapes[i])):
             if not input_shapes_1[i][j]:
                 input_shapes_1[i][j] = 10
-            if not input_shapes_2[i][j]:
-                input_shapes_2[i][j] = 20
+                input_shapes_2[i][j] = 0
     input1 = [np.zeros(input_shapes_1[i]) for i in range(len(input_shapes))]
     input2 = [np.zeros(input_shapes_2[i]) for i in range(len(input_shapes))]
     xs = [placeholder(ndim=len(input_shapes[i])) for i in range(len(input_shapes))]
