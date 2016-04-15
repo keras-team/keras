@@ -536,7 +536,7 @@ def infer_shape(func, input_shape):
     output_shapes_2 = list(map(list, f(input2)))
     for i in range(len(output_shapes_1)):
         for j in range(len(output_shapes_1[i])):
-            if output_shapes_1[i][j] != output_shapes_2[i][j]:
+            if output_shapes_1[i][j] != output_shapes_2[i][j] or output_shapes_1[i][j] == 0:
                 output_shapes_1[i][j] = None
     output_shapes_1 = list(map(tuple, output_shapes_1))
     if len(output_shapes_1) == 1:
