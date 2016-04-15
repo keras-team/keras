@@ -30,10 +30,11 @@ Generate batches of tensor image data with real-time data augmentation. The data
     - __shear_range__: Float. Shear Intensity (Shear angle in counter-clockwise direction as radians)
     - __horizontal_flip__: Boolean. Randomly flip inputs horizontally.
     - __vertical_flip__: Boolean. Randomly flip inputs vertically.
-    - __output_size__: Tuple. Resize images (tuple of height and width according to dim_ordering)
-    - __position__: One if {"random", "center", "top left"}.
-        defines where to position a image in the resized one
-    - __background__: Float. Background color to be used for resized image
+    - __output_size__: Tuple. output size the images should have (tuple of height and width according to dim_ordering)
+        needs position and background
+    - __position__: One of {"random", "center", "top left"}.
+        defines how the image is positioned in the output image (see output_size)
+    - __background__: Float. Background color of the output image (see output_size)
     - __dim_ordering__: One of {"th", "tf"}.
         "tf" mode means that the images should have shape `(samples, width, height, channels)`,
         "th" mode means that the images should have shape `(samples, channels, width, height)`.
