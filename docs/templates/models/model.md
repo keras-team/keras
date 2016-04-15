@@ -11,7 +11,7 @@ b = Dense(32)(a)
 model = Model(input=a, output=b)
 ```
 
-This model will include all layers required in the computation of `a` given `b`.
+This model will include all layers required in the computation of `b` given `a`.
 
 In the case of multi-input or multi-output models, you can use lists as well:
 
