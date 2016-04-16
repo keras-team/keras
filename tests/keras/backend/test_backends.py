@@ -5,6 +5,7 @@ import numpy as np
 
 from keras.backend import theano_backend as KTH
 from keras.backend import tensorflow_backend as KTF
+from keras.utils.np_utils import convert_kernel
 
 
 def check_single_tensor_operation(function_name, input_shape, **kwargs):
@@ -22,10 +23,12 @@ def check_single_tensor_operation(function_name, input_shape, **kwargs):
 def check_two_tensor_operation(function_name, x_input_shape,
                                y_input_shape, **kwargs):
     xval = np.random.random(x_input_shape) - 0.5
+
     xth = KTH.variable(xval)
     xtf = KTF.variable(xval)
 
     yval = np.random.random(y_input_shape) - 0.5
+
     yth = KTH.variable(yval)
     ytf = KTF.variable(yval)
 
@@ -369,42 +372,56 @@ class TestBackend(object):
         check_single_tensor_operation('l2_normalize', (4, 3), axis=-1)
         check_single_tensor_operation('l2_normalize', (4, 3), axis=1)
 
-    # def test_conv2d(self):
-    #     '''conv2d works "properly" with Theano and TF but outputs different
-    #     values in each case. Cause unclear (input / kernel shape format?)
-    #     '''
-    #     # TH kernel shape: (depth, input_depth, rows, cols)
-    #     check_two_tensor_operation('conv2d', (5, 3, 10, 12), (4, 3, 2, 2),
-    #                                strides=(1, 1), border_mode='valid')
-    #     check_two_tensor_operation('conv2d', (5, 3, 10, 12), (4, 3, 2, 2),
-    #                                strides=(1, 1), border_mode='same')
+    def test_conv2d(self):
+        # TH kernel shape: (depth, input_depth, rows, cols)
+        # TF kernel shape: (rows, cols, input_depth, depth)
 
-    #     # TF kernel shape: (rows, cols, input_depth, depth)
-    #     check_two_tensor_operation('conv2d', (5, 10, 12, 3), (2, 2, 3, 4),
-    #                                strides=(1, 1), border_mode='valid', dim_ordering='tf')
-    #     check_two_tensor_operation('conv2d', (5, 10, 12, 3), (2, 2, 3, 4),
-    #                                strides=(1, 1), border_mode='same', dim_ordering='tf')
+        for input_shape in [(2, 3, 4, 5), (2, 3, 5, 6)]:
+            for kernel_shape in [(4, 3, 2, 2), (4, 3, 3, 4)]:
+                xval = np.random.random(input_shape)
 
-    #     check_two_tensor_operation('conv2d', (5, 3, 10, 12), (4, 3, 3, 3),
-    #                                strides=(1, 1), border_mode='valid')
-    #     check_two_tensor_operation('conv2d', (5, 3, 10, 12), (4, 3, 3, 3),
-    #                                strides=(1, 1), border_mode='same')
+                xth = KTH.variable(xval)
+                xtf = KTF.variable(xval)
 
-    #     check_two_tensor_operation('conv2d', (5, 3, 10, 12), (4, 3, 3, 3),
-    #                                strides=(2, 2), border_mode='valid')
+                kernel_val = np.random.random(kernel_shape) - 0.5
 
-    # def test_pool2d(self):
-    #     '''pool2d works "properly" with Theano and TF but outputs different
-    #     values in each case. Cause unclear (input shape format?)
-    #     '''
-    #     check_single_tensor_operation('pool2d', (5, 3, 10, 12), pool_size=(2, 2),
-    #                                   strides=(1, 1), border_mode='valid')
+                kernel_th = KTH.variable(convert_kernel(kernel_val))
+                kernel_tf = KTF.variable(kernel_val)
 
-    #     check_single_tensor_operation('pool2d', (5, 3, 9, 11), pool_size=(2, 2),
-    #                                   strides=(1, 1), border_mode='valid')
+                zth = KTH.eval(KTH.conv2d(xth, kernel_th))
+                ztf = KTF.eval(KTF.conv2d(xtf, kernel_tf))
 
-    #     check_single_tensor_operation('pool2d', (5, 3, 9, 11), pool_size=(2, 3),
-    #                                   strides=(1, 1), border_mode='valid')
+                assert zth.shape == ztf.shape
+                assert_allclose(zth, ztf, atol=1e-05)
+
+        input_shape = (1, 6, 5, 3)
+        kernel_shape = (3, 3, 3, 2)
+
+        xval = np.random.random(input_shape)
+
+        xth = KTH.variable(xval)
+        xtf = KTF.variable(xval)
+
+        kernel_val = np.random.random(kernel_shape) - 0.5
+
+        kernel_th = KTH.variable(convert_kernel(kernel_val, dim_ordering='tf'))
+        kernel_tf = KTF.variable(kernel_val)
+
+        zth = KTH.eval(KTH.conv2d(xth, kernel_th, dim_ordering='tf'))
+        ztf = KTF.eval(KTF.conv2d(xtf, kernel_tf, dim_ordering='tf'))
+
+        assert zth.shape == ztf.shape
+        assert_allclose(zth, ztf, atol=1e-05)
+
+    def test_pool2d(self):
+        check_single_tensor_operation('pool2d', (5, 3, 10, 12), pool_size=(2, 2),
+                                      strides=(1, 1), border_mode='valid')
+
+        check_single_tensor_operation('pool2d', (5, 3, 9, 11), pool_size=(2, 2),
+                                      strides=(1, 1), border_mode='valid')
+
+        check_single_tensor_operation('pool2d', (5, 3, 9, 11), pool_size=(2, 3),
+                                      strides=(1, 1), border_mode='valid')
 
     def test_random_normal(self):
         mean = 0.
