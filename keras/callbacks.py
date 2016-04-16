@@ -446,7 +446,7 @@ class TensorBoard(Callback):
 
         self.model = model
         self.sess = KTF.get_session()
-        if self.histogram_freq and not self.merged:
+        if self.histogram_freq and self.merged is None:
             layers = self.model.layers
             for layer in layers:
                 if hasattr(layer, 'W'):
