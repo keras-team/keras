@@ -54,43 +54,55 @@ def _compatible(shape1, shape2):
 def _override_operator(tensor_class, operator):
     _operator = '_keras' + operator[1:-2]  # we add '_keras' so that it does not conflict with any existing functions
     setattr(tensor_class, _operator, getattr(tensor_class, operator))
-    def op(x, y):
-        x_k = hasattr(x, '_keras_history')
-        y_k = hasattr(y, '_keras_history')
-        if not x_k and not y_k :
-            res = getattr(x, _operator)(y)
-        elif x_k and not y_k:
-            def func(x):
-                return getattr(x, _operator)(y)
-            if operator == '__getitem__':
-                output_shape = lambda _ : _slice_shape(x._keras_shape, y)
+    if operator in ['__neg__', '__pos__', '__abs__', '__invert__']:
+        # unary operator
+        def op(x):
+            x_k = hasattr(x, '_keras_history')
+            if not x_k:
+                return getattr(x, _operator)()
             else:
-                output_shape = lambda x : x
-            lambda_layer = Lambda(func, output_shape=output_shape)
-            lambda_layer.build(None)
-            res = lambda_layer(x)
-        elif not x_k and y_k:
-            def func(y):
-                return getattr(x, _operator)(y)
-            lambda_layer = Lambda(func, output_shape=lambda x : x)
-            lambda_layer.build(None)
-            res = lambda_layer(y)
-        else:
-            shape1 = x._keras_shape
-            shape2 = y._keras_shape
-            assert _compatible(shape1, shape2), 'Incompatible shapes : ' + str(shape1) + ' and ' + str(shape2) + '.'
-            def func(X):
-                x = X[0]
-                y = X[1]
-                return getattr(x, _operator)(y)
-            res = merge([x, y], mode=func, output_shape=lambda _ : shape1)
-        override_operators(res.__class__)
-        return res
+                def func(x):
+                    return getattr(x, _operator)()
+                lambda_layer = Lambda(func, output_shape=lambda x : x)
+                lambda_layer.build(None)
+                return lambda_layer(x)
+    else:
+        # binary operator
+        def op(x, y):
+            x_k = hasattr(x, '_keras_history')
+            y_k = hasattr(y, '_keras_history')
+            if not x_k and not y_k :
+                res = getattr(x, _operator)(y)
+            elif x_k and not y_k:
+                def func(x):
+                    return getattr(x, _operator)(y)
+                if operator == '__getitem__':
+                    output_shape = lambda _ : _slice_shape(x._keras_shape, y)
+                else:
+                    output_shape = lambda x : x
+                lambda_layer = Lambda(func, output_shape=output_shape)
+                lambda_layer.build(None)
+                res = lambda_layer(x)
+            elif not x_k and y_k:
+                def func(y):
+                    return getattr(x, _operator)(y)
+                lambda_layer = Lambda(func, output_shape=lambda x : x)
+                lambda_layer.build(None)
+                res = lambda_layer(y)
+            else:
+                shape1 = x._keras_shape
+                shape2 = y._keras_shape
+                assert _compatible(shape1, shape2), 'Incompatible shapes : ' + str(shape1) + ' and ' + str(shape2) + '.'
+                def func(X):
+                    x = X[0]
+                    y = X[1]
+                    return getattr(x, _operator)(y)
+                res = merge([x, y], mode=func, output_shape=lambda _ : shape1)
+            override_operators(res.__class__)
+            return res
     setattr(tensor_class, operator, op)
 
 def override_operators(tensor_class):
-    '''override operators of a tensor class so that topology information is preserved
-    '''
     if hasattr(tensor_class, 'operators_overridden'):
         return
     else:
