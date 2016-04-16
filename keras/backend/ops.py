@@ -84,10 +84,13 @@ def _override_operator(tensor_class, operator):
                 y = X[1]
                 return getattr(x, _operator)(y)
             res = merge([x, y], mode=func, output_shape=lambda _ : shape1)
+        override_operators(res.__class__)
         return res
     setattr(tensor_class, operator, op)
 
 def override_operators(tensor_class):
+    '''override operators of a tensor class so that topology information is preserved
+    '''
     if hasattr(tensor_class, 'operators_overridden'):
         return
     else:
