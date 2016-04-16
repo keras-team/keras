@@ -39,6 +39,9 @@ def placeholder(shape=None, ndim=None, dtype=_FLOATX, name=None):
 
     broadcast = (False,) * ndim
     x = T.TensorType(dtype, broadcast)(name)
+    if not hasattr(x.__class__, 'operators_overridden'):
+        from .ops import override_operators
+        override_operators(x.__class__)
     x._keras_shape = shape
     x._uses_learning_phase = False
     return x
