@@ -65,6 +65,7 @@ def _override_operator(tensor_class, operator):
                     return getattr(x, _operator)()
                 lambda_layer = Lambda(func, output_shape=lambda x : x)
                 lambda_layer.build(None)
+                lambda_layer.supports_masking = True
                 return lambda_layer(x)
     else:
         # binary operator
@@ -82,12 +83,14 @@ def _override_operator(tensor_class, operator):
                     output_shape = lambda x : x
                 lambda_layer = Lambda(func, output_shape=output_shape)
                 lambda_layer.build(None)
+                lambda_layer.supports_masking = True
                 res = lambda_layer(x)
             elif not x_k and y_k:
                 def func(y):
                     return getattr(x, _operator)(y)
                 lambda_layer = Lambda(func, output_shape=lambda x : x)
                 lambda_layer.build(None)
+                lambda_layer.supports_masking = True
                 res = lambda_layer(y)
             else:
                 shape1 = x._keras_shape
