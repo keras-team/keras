@@ -473,6 +473,11 @@ def set_value(x, value):
     x.set_value(np.asarray(value, dtype=x.dtype))
 
 
+def batch_set_value(tuples):
+    for x, value in tuples:
+        x.set_value(np.asarray(value, dtype=x.dtype))
+
+
 # GRAPH MANIPULATION
 
 class Function(object):

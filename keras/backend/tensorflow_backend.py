@@ -565,6 +565,17 @@ def set_value(x, value):
     tf.assign(x, np.asarray(value)).op.run(session=get_session())
 
 
+def batch_set_value(tuples):
+    '''Sets the values of many tensor variables at once.
+
+    # Arguments
+        tuples: a list of tuples `(tensor, value)`.
+            `value` should be a Numpy array.
+    '''
+    if tuples:
+        ops = [tf.assign(x, np.asarray(value)) for x, value in tuples]
+        get_session().run(ops)
+
 # GRAPH MANIPULATION
 
 class Function(object):
