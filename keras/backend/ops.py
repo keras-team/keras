@@ -63,7 +63,7 @@ def _override_operator(tensor_class, operator):
             else:
                 def func(x):
                     return getattr(x, _operator)()
-                lambda_layer = Lambda(func, output_shape=lambda x : x)
+                lambda_layer = Lambda(func, output_shape=lambda x: x)
                 lambda_layer.build(None)
                 lambda_layer.supports_masking = True
                 return lambda_layer(x)
@@ -72,15 +72,15 @@ def _override_operator(tensor_class, operator):
         def op(x, y):
             x_k = hasattr(x, '_keras_history')
             y_k = hasattr(y, '_keras_history')
-            if not x_k and not y_k :
+            if not x_k and not y_k:
                 res = getattr(x, _operator)(y)
             elif x_k and not y_k:
                 def func(x):
                     return getattr(x, _operator)(y)
                 if operator == '__getitem__':
-                    output_shape = lambda _ : _slice_shape(x._keras_shape, y)
+                    output_shape = lambda _: _slice_shape(x._keras_shape, y)
                 else:
-                    output_shape = lambda x : x
+                    output_shape = lambda x: x
                 lambda_layer = Lambda(func, output_shape=output_shape)
                 lambda_layer.build(None)
                 lambda_layer.supports_masking = True
@@ -88,7 +88,7 @@ def _override_operator(tensor_class, operator):
             elif not x_k and y_k:
                 def func(y):
                     return getattr(x, _operator)(y)
-                lambda_layer = Lambda(func, output_shape=lambda x : x)
+                lambda_layer = Lambda(func, output_shape=lambda x: x)
                 lambda_layer.build(None)
                 lambda_layer.supports_masking = True
                 res = lambda_layer(y)
@@ -96,11 +96,12 @@ def _override_operator(tensor_class, operator):
                 shape1 = x._keras_shape
                 shape2 = y._keras_shape
                 assert _compatible(shape1, shape2), 'Incompatible shapes : ' + str(shape1) + ' and ' + str(shape2) + '.'
+
                 def func(X):
                     x = X[0]
                     y = X[1]
                     return getattr(x, _operator)(y)
-                res = merge([x, y], mode=func, output_shape=lambda _ : shape1)
+                res = merge([x, y], mode=func, output_shape=lambda _: shape1)
             override_operators(res.__class__)
             return res
     setattr(tensor_class, operator, op)
@@ -111,10 +112,10 @@ def override_operators(tensor_class):
     else:
         setattr(tensor_class, 'operators_overridden', True)
     operators = ['add', 'sub', 'mul', 'matmul', 'truediv', 'floordiv', 'mod', 'divmod', 'pow', 'lshift', 'rshift', 'and', 'xor', 'or']
-    operators += map(lambda x : 'r' + x, operators)
+    operators += map(lambda x: 'r' + x, operators)
     operators += ['neg', 'pos', 'abs', 'invert']
     operators += ['getitem']
-    operators = map(lambda x : '__' + x + '__', operators)
+    operators = map(lambda x: '__' + x + '__', operators)
     for op in operators:
         if hasattr(tensor_class, op):
             _override_operator(tensor_class, op)
