@@ -904,43 +904,22 @@ class DSGU(Recurrent):
         else:
             return x
 
-    # def step(self, x, states):
-    #     h_tm1 = states[0]  # previous memory
-    #     B_U = states[1]  # dropout matrices for recurrent units
-    #     B_W = states[2]
-
-    #     if self.consume_less == 'cpu':
-    #         xx = x[:, :self.output_dim]
-    #         x_gate = x[:, self.output_dim: 2 * self.output_dim]
-    #     else:
-    #         xx = K.dot(x * B_W[0], self.W) + self.b
-    #         x_gate = K.dot(x * B_W[1], self.W_gate) + self.b_gate
-
-    #     z = self.inner_activation(xx + K.dot(h_tm1 * B_U[0], self.U))
-        
-    #     z_gate = self.tanh(K.dot(x_gate * h_tm1 * B_U[1], self.U_gate))
-    #     z_out = self.sig(K.dot(z_gate * h_tm1 * B_U[2], self.U_gate2))
-
-    #     h = z * z_out + (1 - z) * h_tm1
-    #     return h, [h]
-
-
     def step(self, x, states):
         h_tm1 = states[0]  # previous memory
-        #B_U = states[1]  # dropout matrices for recurrent units
-        #B_W = states[2]
-
+        B_U = states[1]  # dropout matrices for recurrent units
+        B_W = states[2]
+        
         if self.consume_less == 'cpu':
-            x_t = x[:, :self.output_dim]
+            xx = x[:, :self.output_dim]
             x_gate = x[:, self.output_dim: 2 * self.output_dim]
         else:
-            x_t = K.dot(x, self.W) + self.b
-            x_gate = K.dot(x, self.W_gate) + self.b_gate
+            xx = K.dot(x * B_W[0], self.W) + self.b
+            x_gate = K.dot(x * B_W[1], self.W_gate) + self.b_gate
 
-        z = self.inner_activation(x_t + K.dot(h_tm1, self.U))
+        z = self.inner_activation(xx + K.dot(h_tm1 * B_U[0], self.U))
         
-        z_gate = self.tanh(K.dot(x_gate * h_tm1, self.U_gate))
-        z_out = self.sig(K.dot(z_gate * h_tm1, self.U_gate2))
+        z_gate = self.tanh(K.dot(x_gate * h_tm1 * B_U[1], self.U_gate))
+        z_out = self.sig(K.dot(z_gate * h_tm1 * B_U[2], self.U_gate2))
 
         h = z * z_out + (1 - z) * h_tm1
         return h, [h]

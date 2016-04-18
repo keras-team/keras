@@ -4,7 +4,7 @@ from keras.datasets import mnist
 from keras.models import Sequential
 from keras.layers.core import Dense, Activation
 from keras.initializations import normal, identity
-from keras.layers.recurrent import SimpleRNN
+from keras.layers.recurrent import DSGU
 from keras.optimizers import Adam
 from keras.utils import np_utils
 
@@ -31,9 +31,9 @@ print(X_test.shape[0], 'test samples')
 Y_train = np_utils.to_categorical(y_train, nb_classes)
 Y_test = np_utils.to_categorical(y_test, nb_classes)
 
-print('Evaluate IRNN...')
+print('Evaluate DSGU...')
 model = Sequential()
-model.add(SimpleRNN(output_dim=hidden_units,
+model.add(DSGU(output_dim=hidden_units,
                     init=lambda shape, name: normal(shape, scale=0.001, name=name),
                     inner_init=lambda shape, name: identity(shape, scale=1.0, name=name),
                     activation='relu',
@@ -49,5 +49,5 @@ model.fit(X_train, Y_train, batch_size=batch_size, nb_epoch=nb_epochs,
           verbose=1, validation_data=(X_test, Y_test))
 
 scores = model.evaluate(X_test, Y_test, verbose=0)
-print('IRNN test score:', scores[0])
-print('IRNN test accuracy:', scores[1])
+print('DSGU test score:', scores[0])
+print('DSGU test accuracy:', scores[1])
