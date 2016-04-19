@@ -402,6 +402,8 @@ class Lambda(Layer):
     def __init__(self, function, output_shape=None, arguments={}, **kwargs):
         self.function = function
         self.arguments = arguments
+        self.supports_masking = True
+
         if output_shape is None:
             self._output_shape = None
         elif type(output_shape) in {tuple, list}:
