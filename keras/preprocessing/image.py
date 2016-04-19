@@ -5,40 +5,11 @@ new preprocessing methods, etc...
 from __future__ import absolute_import
 
 import numpy as np
-import re
 from scipy import ndimage
 from scipy import linalg
-
-from os import listdir
-from os.path import isfile, join
-import math
+from skimage import transform
 from six.moves import range
 import threading
-
-
-def random_rotation(x, rg, fill_mode='nearest',
-                    cval=0., axes=(1, 2)):
-    angle = np.random.uniform(-rg, rg)
-    x = ndimage.interpolation.rotate(x, angle,
-                                     axes=axes,
-                                     reshape=False,
-                                     mode=fill_mode,
-                                     cval=cval)
-    return x
-
-
-def random_shift(x, wrg, hrg, fill_mode='nearest',
-                 cval=0., row_index=1, col_index=2):
-    shift_x = shift_y = 0
-    if wrg:
-        shift_x = np.random.uniform(-wrg, wrg) * x.shape[col_index]
-    if hrg:
-        shift_y = np.random.uniform(-hrg, hrg) * x.shape[row_index]
-    x = ndimage.interpolation.shift(x, (0, shift_y, shift_x),
-                                    order=0,
-                                    mode=fill_mode,
-                                    cval=cval)
-    return x
 
 
 def flip_axis(x, axis):
@@ -51,18 +22,6 @@ def flip_axis(x, axis):
 def random_barrel_transform(x, intensity):
     # TODO
     pass
-
-
-def random_shear(x, intensity, fill_mode='nearest', cval=0.):
-    shear = np.random.uniform(-intensity, intensity)
-    shear_matrix = np.array([[1.0, -math.sin(shear), 0.0],
-                            [0.0, math.cos(shear), 0.0],
-                            [0.0, 0.0, 1.0]])
-    x = ndimage.interpolation.affine_transform(x, shear_matrix,
-                                               mode=fill_mode,
-                                               order=3,
-                                               cval=cval)
-    return x
 
 
 def random_channel_shift(x, rg):
@@ -115,11 +74,6 @@ def load_img(path, grayscale=False):
     return img
 
 
-def list_pictures(directory, ext='jpg|jpeg|bmp|png'):
-    return [join(directory, f) for f in listdir(directory)
-            if isfile(join(directory, f)) and re.match('([\w]+\.(?:' + ext + '))', f)]
-
-
 class ImageDataGenerator(object):
     '''Generate minibatches with
     real-time data augmentation.
@@ -134,6 +88,9 @@ class ImageDataGenerator(object):
         width_shift_range: fraction of total width.
         height_shift_range: fraction of total height.
         shear_range: shear intensity (shear angle in radians).
+        zoom: amount of zoom. if scalar z, zoom will be randomly picked in
+                the range [1-z, 1+z]. A sequence of two can be passed instead
+                to select this range.          
         horizontal_flip: whether to randomly flip images horizontally.
         vertical_flip: whether to randomly flip images vertically.
         dim_ordering: 'th' or 'tf'. In 'th' mode, the channels dimension
@@ -149,6 +106,7 @@ class ImageDataGenerator(object):
                  width_shift_range=0.,
                  height_shift_range=0.,
                  shear_range=0.,
+                 zoom=0.,
                  horizontal_flip=False,
                  vertical_flip=False,
                  dim_ordering='th'):
@@ -169,6 +127,11 @@ class ImageDataGenerator(object):
             self.channel_index = 3
             self.row_index = 1
             self.col_index = 2
+
+        if np.isscalar(zoom):
+            self.zoom_range = [1 - zoom, 1 + zoom]
+        else:
+            self.zoom_range = [zoom[0], zoom[1]]
 
         self.batch_index = 0
         self.total_batches_seen = 0
@@ -265,23 +228,77 @@ class ImageDataGenerator(object):
         # x is a single image, so it doesn't have image number at index 0
         img_col_index = self.col_index - 1
         img_row_index = self.row_index - 1
+        img_channel_index = self.channel_index - 1
 
+
+        #find inverse permutation
+        inverse_transpose = [0,0,0]
+        inverse_transpose[img_row_index], inverse_transpose[img_col_index], inverse_transpose[img_channel_index] = 0,1,2
+        orig_dtype = x.dtype
+
+        #for compatability with skimage
+        x = x.transpose((img_row_index, img_col_index, img_channel_index)).astype('float64')
+        img_min, img_max = np.min(x), np.max(x)
+        x = (x - img_min)/(img_max - img_min)
+        
         if self.rotation_range:
-            x = random_rotation(x, self.rotation_range,
-                                axes=(img_row_index, img_col_index))
-        if self.width_shift_range or self.height_shift_range:
-            x = random_shift(x, self.width_shift_range, self.height_shift_range,
-                             row_index=img_row_index, col_index=img_col_index)
+            theta = np.pi/180*np.random.uniform(-self.rotation_range, self.rotation_range)
+        else:
+            theta = 0
+
+        rotation_matrix = np.array([[np.cos(theta), -np.sin(theta), 0],
+                                    [np.sin(theta),  np.cos(theta), 0],
+                                    [0,              0,             1]])
+        
+        if self.height_shift_range:
+            tx = np.random.uniform(-self.height_shift_range, self.height_shift_range) * x.shape[0]
+        else:
+            tx = 0
+
+        if self.width_shift_range:
+            ty = np.random.uniform(-self.width_shift_range, self.width_shift_range) * x.shape[1]
+        else:
+            ty = 0
+
+        translation_matrix = np.array([[1, 0, tx],
+                                       [0, 1, ty],
+                                       [0, 0, 1 ]])
+
+        if self.shear_range:
+            shear = np.random.uniform(-self.shear_range, self.shear_range)
+        else:
+            shear = 0
+
+        shear_matrix = np.array([[1.0, -np.sin(shear), 0.0],
+                                 [0.0, np.cos(shear),  0.0],
+                                 [0.0, 0.0 ,           1.0]])
+
+        if self.zoom_range != [1.,1.]:
+            zx = np.random.uniform(self.zoom_range[0], self.zoom_range[1])
+            zy = np.random.uniform(self.zoom_range[0], self.zoom_range[1])
+        else:
+            zx,zy = 1,1
+
+        zoom_matrix = np.array([[zx, 0, 0],
+                                [0, zy, 0],
+                                [0, 0,  1]])
+
+        H = np.dot(np.dot(np.dot(rotation_matrix, translation_matrix), shear_matrix), zoom_matrix)
+        t = transform.ProjectiveTransform(H)
+        x = transform.warp(x, t, mode='edge', order=0)
+
+        #revert back to original dim ordering and scale
+        x = x.transpose(inverse_transpose)
+        x = (x*(img_max-img_min) + img_min).astype(orig_dtype)
+
         if self.horizontal_flip:
             if np.random.random() < 0.5:
                 x = flip_axis(x, img_col_index)
         if self.vertical_flip:
             if np.random.random() < 0.5:
                 x = flip_axis(x, img_row_index)
-        if self.shear_range:
-            x = random_shear(x, self.shear_range)
+        
         # TODO:
-        # zoom
         # barrel/fisheye
         # channel shifting
         return x
