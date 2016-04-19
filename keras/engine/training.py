@@ -153,7 +153,7 @@ def check_array_lengths(X, Y, W):
         raise Exception('All input arrays (x) should have '
                         'the same number of samples.')
     set_y = set(y_lengths)
-    if len(set_x) != 1:
+    if len(set_y) != 1:
         raise Exception('All target arrays (y) should have '
                         'the same number of samples.')
     set_w = set(w_lengths)
