@@ -136,6 +136,12 @@ def ones(shape, dtype=_FLOATX, name=None):
     return variable(np.ones(shape), dtype, name)
 
 
+def eye(size, dtype=_FLOATX, name=None):
+    '''Instantiate an identity matrix.
+    '''
+    return variable(np.eye(size), dtype, name)
+
+
 def zeros_like(x, name=None):
     '''Instantiates an all-zeros tensor
     of the same shape as another tensor.
