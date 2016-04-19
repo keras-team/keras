@@ -29,15 +29,6 @@ def random_channel_shift(x, rg):
     pass
 
 
-def random_zoom(x, rg, fill_mode='nearest', cval=0.):
-    zoom_w = np.random.uniform(1.-rg, 1.)
-    zoom_h = np.random.uniform(1.-rg, 1.)
-    x = ndimage.interpolation.zoom(x, zoom=(1., zoom_w, zoom_h),
-                                   mode=fill_mode,
-                                   cval=cval)
-    return x  # shape of result will be different from shape of input!
-
-
 def array_to_img(x, scale=True):
     from PIL import Image
     x = x.transpose(1, 2, 0)
