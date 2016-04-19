@@ -1,6 +1,6 @@
 '''Example of how to use sklearn wrapper
 
-Builds simple CNN models on MNIST, calls GridSearchCV, and reports best model params
+Builds simple CNN models on MNIST and uses sklearn's GridSearchCV to find best model
 '''
 
 from __future__ import print_function
@@ -22,13 +22,17 @@ nb_classes = 10
 img_rows, img_cols = 28, 28
 
 # load training data and do basic data normalization
-(X_train, y_train), (_, _) = mnist.load_data()
+(X_train, y_train), (X_test, y_test) = mnist.load_data()
 X_train = X_train.reshape(X_train.shape[0], 1, img_rows, img_cols)
+X_test = X_test.reshape(X_test.shape[0], 1, img_rows, img_cols)
 X_train = X_train.astype('float32')
+X_test = X_test.astype('float32')
 X_train /= 255
+X_test /= 255
 
 # convert class vectors to binary class matrices
-Y_train = np_utils.to_categorical(y_train, nb_classes)
+y_train = np_utils.to_categorical(y_train, nb_classes)
+y_test = np_utils.to_categorical(y_test, nb_classes)
 
 def make_model(dense_layer_sizes, nb_filters, nb_conv, nb_pool):
     '''Creates model comprised of 2 convolutional layers followed by dense layers
@@ -78,5 +82,13 @@ validator = GridSearchCV(my_classifier,
                          n_jobs=1)
 validator.fit(X_train, y_train)
 
-print('The best model uses the following parameters')
+print('The parameters of the best model are: ')
 print(validator.best_params_)
+
+# validator.best_estimator_ returns sklearn-wrapped version of best model.
+# validator.best_estimator_.model returns the (unwrapped) keras model
+best_model = validator.best_estimator_.model
+metric_names = best_model.metrics_names
+metric_values = best_model.evaluate(X_test, y_test)
+for metric, value in zip(metric_names, metric_values):
+    print(metric, ': ', value)
