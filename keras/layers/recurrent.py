@@ -798,11 +798,36 @@ class LSTM(Recurrent):
         base_config = super(LSTM, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
+
 class DSGU(Recurrent):
+    '''Deep Simple Gated Unit - Yuan et al. 2016.
+
+    # Arguments
+        output_dim: dimension of the internal projections and the final output.
+        init: weight initialization function.
+            Can be the name of an existing function (str),
+            or a Theano function (see: [initializations](../initializations.md)).
+        inner_init: initialization function of the inner cells.
+        l1_activation: activation function of first layer of gate.
+            Can be the name of an existing function (str),
+            or a Theano function (see: [activations](../activations.md)).
+        l12_activation: activation function. of second layer of gate
+        inner_activation: activation function for the inner cells.
+        W_regularizer: instance of [WeightRegularizer](../regularizers.md)
+            (eg. L1 or L2 regularization), applied to the input weights matrices.
+        U_regularizer: instance of [WeightRegularizer](../regularizers.md)
+            (eg. L1 or L2 regularization), applied to the recurrent weights matrices.
+        b_regularizer: instance of [WeightRegularizer](../regularizers.md),
+            applied to the bias.
+        dropout_W: float between 0 and 1. Fraction of the input units to drop for input gates.
+        dropout_U: float between 0 and 1. Fraction of the input units to drop for recurrent connections.
+
+    # References
+        - [Deep Gate Recurrent Neural Network](http://arxiv.org/abs/1604.02910)
+    '''
     def __init__(self, output_dim,
                  init='uniform', inner_init='glorot_normal',
-                 activation='softplus', inner_activation='hard_sigmoid',
-                 gate_activation = 'tanh',
+                 l1_activation='tanh', l2_activation='sigmoid', inner_activation='hard_sigmoid',
                  W_regularizer=None, U_regularizer=None, b_regularizer=None,
                  dropout_W=0., dropout_U=0., **kwargs):
 
@@ -816,8 +841,8 @@ class DSGU(Recurrent):
         self.b_regularizer = regularizers.get(b_regularizer)
         self.dropout_W, self.dropout_U = dropout_W, dropout_U
 
-        self.sig= activations.get("sigmoid")
-        self.tanh = activations.get("tanh")
+        self.l1_activation = activations.get(l1_activation)
+        self.l2_activation = activations.get(l2_activation)
 
         if self.dropout_W or self.dropout_U:
             self.uses_learning_phase = True
@@ -830,23 +855,17 @@ class DSGU(Recurrent):
 
         self.W = self.init((input_dim, self.output_dim),
                            name='{}_W'.format(self.name))
-
         self.U = self.inner_init((self.output_dim, self.output_dim),
                                  name='{}_U'.format(self.name))
-
         self.b = K.zeros((self.output_dim,), name='{}_b'.format(self.name))
-
         self.W_gate = self.init((input_dim, self.output_dim),
-                             name='{}_W_gate'.format(self.name))
-
+                                name='{}_W_gate'.format(self.name))
         self.U_gate = self.inner_init((self.output_dim, self.output_dim),
-                                   name='{}_U_gate'.format(self.name))
-
+                                      name='{}_U_gate'.format(self.name))
         self.U_gate2 = self.inner_init((self.output_dim, self.output_dim),
-                                   name='{}_U_gate2'.format(self.name))
-
-        self.b_gate = K.zeros((self.output_dim,), name='{}_b_gate'.format(self.name))
-
+                                       name='{}_U_gate2'.format(self.name))
+        self.b_gate = K.zeros((self.output_dim,),
+                              name='{}_b_gate'.format(self.name))
         self.regularizers = []
         if self.W_regularizer:
             self.W_regularizer.set_param(K.concatenate([self.W,
@@ -908,7 +927,7 @@ class DSGU(Recurrent):
         h_tm1 = states[0]  # previous memory
         B_U = states[1]  # dropout matrices for recurrent units
         B_W = states[2]
-        
+
         if self.consume_less == 'cpu':
             xx = x[:, :self.output_dim]
             x_gate = x[:, self.output_dim: 2 * self.output_dim]
@@ -917,7 +936,7 @@ class DSGU(Recurrent):
             x_gate = K.dot(x * B_W[1], self.W_gate) + self.b_gate
 
         z = self.inner_activation(xx + K.dot(h_tm1 * B_U[0], self.U))
-        
+
         z_gate = self.tanh(K.dot(x_gate * h_tm1 * B_U[1], self.U_gate))
         z_out = self.sig(K.dot(z_gate * h_tm1 * B_U[2], self.U_gate2))
 
@@ -929,7 +948,8 @@ class DSGU(Recurrent):
         if 0 < self.dropout_W < 1:
             ones = K.ones_like(K.reshape(x[:, 0, 0], (-1, 1)))
             ones = K.concatenate([ones] * self.output_dim, 1)
-            B_U = [K.in_train_phase(K.dropout(ones, self.dropout_U), ones) for _ in range(3)]
+            B_U = [K.in_train_phase(
+                K.dropout(ones, self.dropout_U), ones) for _ in range(3)]
             constants.append(B_U)
         else:
             constants.append([K.cast_to_floatx(1.) for _ in range(4)])
@@ -939,7 +959,8 @@ class DSGU(Recurrent):
             input_dim = input_shape[-1]
             ones = K.ones_like(K.reshape(x[:, 0, 0], (-1, 1)))
             ones = K.concatenate([ones] * input_dim, 1)
-            B_W = [K.in_train_phase(K.dropout(ones, self.dropout_W), ones) for _ in range(2)]
+            B_W = [K.in_train_phase(
+                K.dropout(ones, self.dropout_W), ones) for _ in range(2)]
             constants.append(B_W)
         else:
             constants.append([K.cast_to_floatx(1.) for _ in range(3)])
@@ -949,7 +970,8 @@ class DSGU(Recurrent):
         config = {"output_dim": self.output_dim,
                   "init": self.init.__name__,
                   "inner_init": self.inner_init.__name__,
-                  "activation": self.activation.__name__,
+                  "l1_activation": self.l1_activation.__name__,
+                  "l2_activation": self.l2_activation.__name__,
                   "inner_activation": self.inner_activation.__name__,
                   "W_regularizer": self.W_regularizer.get_config() if self.W_regularizer else None,
                   "U_regularizer": self.U_regularizer.get_config() if self.U_regularizer else None,

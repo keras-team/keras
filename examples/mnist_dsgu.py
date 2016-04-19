@@ -13,7 +13,6 @@ nb_classes = 10
 nb_epochs = 200
 hidden_units = 100
 
-learning_rate = 1e-6
 clip_norm = 1.0
 
 # the data, shuffled and split between train and test sets
@@ -34,10 +33,9 @@ Y_test = np_utils.to_categorical(y_test, nb_classes)
 print('Evaluate DSGU...')
 model = Sequential()
 model.add(DSGU(output_dim=hidden_units,
-                    init=lambda shape, name: normal(shape, scale=0.001, name=name),
-                    inner_init=lambda shape, name: identity(shape, scale=1.0, name=name),
-                    activation='relu',
-                    input_shape=X_train.shape[1:]))
+               init=lambda shape, name: normal(shape, scale=0.001, name=name),
+               inner_init=lambda shape, name: identity(shape, scale=1.0, name=name),
+               input_shape=X_train.shape[1:]))
 model.add(Dense(nb_classes))
 model.add(Activation('sigmoid'))
 adam = Adam()
