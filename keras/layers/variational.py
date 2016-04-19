@@ -56,7 +56,7 @@ class VariationalDense(Layer):
     def __init__(self, output_dim, init='glorot_uniform',
                  activation='tanh',
                  weights=None, input_dim=None, regularizer_scale=1,
-                 prior_mean=0, prior_logsigma=1, **kwargs):
+                 prior_mean=0, prior_logsigma=0, **kwargs):
         self.prior_mean = prior_mean
         self.prior_logsigma = prior_logsigma
         self.regularizer_scale = regularizer_scale
