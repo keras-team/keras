@@ -45,7 +45,7 @@ With the functional API, it is easy to re-use trained models: you can treat any 
 
 ```python
 x = Input(shape=(784,))
-# this works, and returns the 10-way softmax we defined above. 
+# this works, and returns the 10-way softmax we defined above.
 y = model(x)
 ```
 
@@ -127,12 +127,12 @@ model = Model(input=[main_input, auxiliary_input], output=[main_loss, auxiliary_
 ```
 
 We compile the model and assign a weight of 0.2 to the auxiliary loss.
-To specify different `loss_weight` or `loss` for each different output, you can use a list or a dictionary.
+To specify different `loss_weights` or `loss` for each different output, you can use a list or a dictionary.
 Here we pass a single loss as the `loss` argument, so the same loss will be used on all outputs.
 
 ```python
 model.compile(optimizer='rmsprop', loss='binary_crossentropy',
-              loss_weight=[1., 0.2])
+              loss_weights=[1., 0.2])
 ```
 
 We can train the model by passing it lists of input arrays and target arrays:
@@ -148,7 +148,7 @@ We could also have compiled the model via:
 ```python
 model.compile(optimizer='rmsprop',
               loss={'main_output': 'binary_crossentropy', 'aux_output': 'binary_crossentropy'},
-              loss_weight={'main_output': 1., 'aux_output': 0.2})
+              loss_weights={'main_output': 1., 'aux_output': 0.2})
 
 # and trained it via:
 model.fit({'main_input': headline_data, 'aux_input': additional_data},
@@ -196,7 +196,7 @@ encoded_b = shared_lstm(tweet_b)
 merged_vector = merge([encoded_a, encoded_b], mode='concat', concat_axis=-1)
 
 # and add a logistic regression on top
-predictions = Dense(1, activation='sigmoid')(merged_vector) 
+predictions = Dense(1, activation='sigmoid')(merged_vector)
 
 # we define a trainable model linking the
 # tweet inputs to the predictions

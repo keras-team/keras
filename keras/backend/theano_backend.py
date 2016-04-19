@@ -473,6 +473,11 @@ def set_value(x, value):
     x.set_value(np.asarray(value, dtype=x.dtype))
 
 
+def batch_set_value(tuples):
+    for x, value in tuples:
+        x.set_value(np.asarray(value, dtype=x.dtype))
+
+
 # GRAPH MANIPULATION
 
 class Function(object):
@@ -571,7 +576,7 @@ def rnn(step_function, inputs, initial_states,
             successive_states = []
             states = initial_states
             for i in indices:
-                output, new_states = step_function(inputs[i], states)
+                output, new_states = step_function(inputs[i], states + constants)
 
                 if len(successive_outputs) == 0:
                     prev_output = zeros_like(output)

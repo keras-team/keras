@@ -28,6 +28,11 @@ def euclidean_distance(vects):
     return K.sqrt(K.sum(K.square(x - y), axis=1, keepdims=True))
 
 
+def eucl_dist_output_shape(shapes):
+    shape1, shape2 = shapes
+    return shape1
+
+
 def contrastive_loss(y_true, y_pred):
     '''Contrastive loss from Hadsell-et-al.'06
     http://yann.lecun.com/exdb/publis/pdf/hadsell-chopra-lecun-06.pdf
@@ -103,7 +108,7 @@ input_b = Input(shape=(input_dim,))
 processed_a = base_network(input_a)
 processed_b = base_network(input_b)
 
-distance = Lambda(euclidean_distance)([processed_a, processed_b])
+distance = Lambda(euclidean_distance, output_shape=eucl_dist_output_shape)([processed_a, processed_b])
 
 model = Model(input=[input_a, input_b], output=distance)
 

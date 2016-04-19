@@ -76,9 +76,10 @@ class Dropout(Layer):
         - [Dropout: A Simple Way to Prevent Neural Networks from Overfitting](http://www.cs.toronto.edu/~rsalakhu/papers/srivastava14a.pdf)
     '''
     def __init__(self, p, **kwargs):
-        self.supports_masking = True
-        self.uses_learning_phase = True
         self.p = p
+        if 0. < self.p < 1.:
+            self.uses_learning_phase = True
+        self.supports_masking = True
         super(Dropout, self).__init__(**kwargs)
 
     def call(self, x, mask=None):

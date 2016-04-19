@@ -6,6 +6,7 @@ class Wrapper(Layer):
 
     def __init__(self, layer, **kwargs):
         self.layer = layer
+        self.uses_learning_phase = layer.uses_learning_phase
         super(Wrapper, self).__init__(**kwargs)
 
     def build(self, input_shape=None):

@@ -126,7 +126,7 @@ def test_LearningRateScheduler():
     assert (float(K.get_value(model.optimizer.lr)) - 0.2) < K.epsilon()
 
 
-@pytest.mark.skipif((K._BACKEND != 'tensorflow') or (sys.version_info[0] == 3),
+@pytest.mark.skipif((K._BACKEND != 'tensorflow'),
                     reason="Requires tensorflow backend")
 def test_TensorBoard():
     import shutil
@@ -252,8 +252,4 @@ def test_TensorBoard():
     KTF.set_session(old_session)
 
 if __name__ == '__main__':
-    # pytest.main([__file__])
-    # test_ModelCheckpoint()
-    # test_EarlyStopping()
-    # test_LearningRateScheduler()
-    test_TensorBoard()
+    pytest.main([__file__])
