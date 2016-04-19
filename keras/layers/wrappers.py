@@ -108,13 +108,13 @@ class TimeDistributed(Wrapper):
 
     def call(self, X, mask=None):
         input_shape = self.input_spec[0].shape
-        if input_shape[0]:
+        if input_shape[0] or mask is not None:
             # batch size matters, use rnn-based implementation
             def step(x, states):
                 output = self.layer.call(x)
                 return output, []
 
-            last_output, outputs, states = K.rnn(step, X,
+            last_output, outputs, states = K.rnn(step, X, mask=mask,
                                                  initial_states=[])
             y = outputs
         else:
