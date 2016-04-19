@@ -140,9 +140,9 @@ class ImageDataGenerator(object):
             (the depth) is at index 1, in 'tf' mode it is at index 3.
     '''
     def __init__(self,
-                 featurewise_center=True,
+                 featurewise_center=False,
                  samplewise_center=False,
-                 featurewise_std_normalization=True,
+                 featurewise_std_normalization=False,
                  samplewise_std_normalization=False,
                  zca_whitening=False,
                  rotation_range=0.,
@@ -170,30 +170,34 @@ class ImageDataGenerator(object):
             self.row_index = 1
             self.col_index = 2
 
+        self.batch_index = 0
+        self.total_batches_seen = 0
+
+    def reset(self):
+        self.batch_index = 0
+
     def _flow_index(self, N, batch_size=32, shuffle=False, seed=None):
-        b = 0
-        total_b = 0
         while 1:
-            if b == 0:
+            if self.batch_index == 0:
                 if seed is not None:
-                    np.random.seed(seed + total_b)
+                    np.random.seed(seed + self.total_batches_seen)
 
                 if shuffle:
                     index_array = np.random.permutation(N)
                 else:
                     index_array = np.arange(N)
 
-            current_index = (b * batch_size) % N
+            current_index = (self.batch_index * batch_size) % N
             if N >= current_index + batch_size:
                 current_batch_size = batch_size
             else:
                 current_batch_size = N - current_index
 
             if current_batch_size == batch_size:
-                b += 1
+                self.batch_index += 1
             else:
-                b = 0
-            total_b += 1
+                self.batch_index = 0
+            self.total_batches_seen += 1
             yield (index_array[current_index: current_index + current_batch_size],
                    current_index, current_batch_size)
 
