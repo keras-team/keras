@@ -31,7 +31,7 @@ class InputSpec(object):
     Every layer should expose (if appropriate) an `input_spec` attribute:
     a list of instances of InputSpec (one per input tensor).
 
-    A None entry in a shaple is compatible with any dimension,
+    A None entry in a shape is compatible with any dimension,
     a None shape is compatible with any shape.
     '''
     def __init__(self, dtype=None, shape=None, ndim=None):
@@ -154,12 +154,23 @@ class Node(object):
             output_masks = to_list(outbound_layer.compute_mask(input_tensors, input_masks))
             output_shapes = to_list(outbound_layer.get_output_shape_for(input_shapes))
 
-        assert output_tensors and output_tensors[0], ('The `call` method of layer "' +
-            outbound_layer.name + '" should return a tensor. Found: ' + str(output_tensors[0]))
-        assert len(output_tensors) == len(output_shapes), ('The `get_output_shape_for` method of layer "' + outbound_layer.name +
-            '"" should return one shape tuple per output tensor of the layer. Found: ' + str(output_shapes))
-        assert len(output_tensors) == len(output_masks), ('The `compute_mask` method of layer "' + outbound_layer.name +
-            '" should return one mask tensor per output tensor of the layer. Found: ' + str(output_masks))
+        if not output_tensors or output_tensors[0] is None:
+            raise Exception('The `call` method of layer "' +
+                            outbound_layer.name +
+                            '" should return a tensor. Found: ' +
+                            str(output_tensors[0]))
+        if len(output_tensors) != len(output_shapes):
+            raise Exception('The `get_output_shape_for` method of layer "' +
+                            outbound_layer.name +
+                            '"" should return one shape tuple per '
+                            'output tensor of the layer. Found: ' +
+                            str(output_shapes))
+        if len(output_tensors) != len(output_masks):
+            raise Exception('The `compute_mask` method of layer "' +
+                            outbound_layer.name +
+                            '" should return one mask tensor per '
+                            'output tensor of the layer. Found: ' +
+                            str(output_masks))
 
         for i in range(len(output_tensors)):
             output_tensors[i]._keras_shape = output_shapes[i]
@@ -356,18 +367,26 @@ class Layer(object):
                 if type(spec.ndim) is str:
                     int_ndim = spec.ndim[:spec.ndim.find('+')]
                     ndim = int(int_ndim)
-                    assert K.ndim(x) >= ndim, ('Input ' + str(input_index) +
-                            ' is incompatible with layer ' + self.name +
-                            ': expected ndim >= ' + str(ndim), ' found ndim=' + str(K.ndim(x)))
+                    if K.ndim(x) < ndim:
+                        raise Exception('Input ' + str(input_index) +
+                                        ' is incompatible with layer ' +
+                                        self.name + ': expected ndim >= ' +
+                                        str(ndim) + ', found ndim=' +
+                                        str(K.ndim(x)))
                 else:
-                    assert K.ndim(x) == spec.ndim, ('Input ' + str(input_index) +
-                            ' is incompatible with layer ' + self.name +
-                            ': expected ndim=' + str(spec.ndim), ' found ndim=' + str(K.ndim(x)))
+                    if K.ndim(x) != spec.ndim:
+                        raise Exception('Input ' + str(input_index) +
+                                        ' is incompatible with layer ' +
+                                        self.name + ': expected ndim=' +
+                                        str(spec.ndim) + ', found ndim=' +
+                                        str(K.ndim(x)))
             if spec.dtype is not None:
-                assert K.dtype(x) == spec.dtype, ('Input ' + str(input_index) +
-                        ' is incompatible with layer ' + self.name +
-                        ': expected dtype=' + str(spec.dtype), ' found dtype=' + str(K.dtype(x)))
-
+                if K.dtype(x) != spec.dtype:
+                    raise Exception('Input ' + str(input_index) +
+                                    ' is incompatible with layer ' +
+                                    self.name + ': expected dtype=' +
+                                    str(spec.dtype) + ', found dtype=' +
+                                    str(K.dtype(x)))
             if spec.shape is not None:
                 if hasattr(x, '_keras_shape'):
                     x_shape = x._keras_shape
@@ -378,17 +397,18 @@ class Layer(object):
                     continue
                 for spec_dim, dim in zip(spec.shape, x_shape):
                     if spec_dim is not None:
-                        assert spec_dim == dim, ('Input ' + str(input_index) +
-                                ' is incompatible with layer ' + self.name +
-                                ': expected shape=' + str(spec.shape) + ', found shape=' + str(x_shape))
+                        if spec_dim != dim:
+                            raise Exception('Input ' + str(input_index) +
+                                            ' is incompatible with layer ' +
+                                            self.name + ': expected shape=' +
+                                            str(spec.shape) + ', found shape=' +
+                                            str(x_shape))
 
     def call(self, x, mask=None):
         '''This is where the layer's logic lives.
 
         # Arguments
             x: input tensor, or list/tuple of input tensors.
-            train: boolean, whether the layer should behave
-                in train behavior (e.g. dropout on) or test behavior.
             mask: a masking tensor (or list of tensors). Used mainly in RNNs.
 
         # Returns:
@@ -416,6 +436,10 @@ class Layer(object):
             mask: tensor or list/tuple of tensors.
         '''
         if not self.built:
+            # raise exceptions in case the input is not compatible
+            # with the input_spec specified in the layer constructor
+            self.assert_input_compatibility(x)
+
             # collect input shapes to build layer
             input_shapes = []
             for x_elem in to_list(x):
@@ -436,7 +460,8 @@ class Layer(object):
                 self.build(input_shapes)
             self.built = True
 
-        # raise exceptions in case the input is not compatible with the layer
+        # raise exceptions in case the input is not compatible
+        # with the input_spec set at build time
         self.assert_input_compatibility(x)
         # build and connect layer
         input_added = False
@@ -478,14 +503,14 @@ class Layer(object):
                          node_indices=None, tensor_indices=None):
         '''
         # Arguments:
-            inbound_layer: can be a layer instance
+            inbound_layers: can be a layer instance
                 or a list/tuple of layer instances.
-            node_index: integer (or list of integers).
+            node_indices: integer (or list of integers).
                 The input layer might have a number of
                 parallel output streams;
                 this is the index of the stream (in the input layer)
                 where to connect the current layer.
-            tensor_index: integer or list of integers.
+            tensor_indices: integer or list of integers.
                 The output of the inbound node might be a list/tuple
                 of tensor, and we might only be interested in one sepcific entry.
                 This index allows you to specify the index of the entry in the output list
@@ -681,8 +706,8 @@ class Layer(object):
         # reset layer connections
         self.inbound_nodes = []
         self.outbound_nodes = []
-        self.build(input_shape=shape)
-        input_shape = shape
+        input_shape = tuple(shape)
+        self.build(input_shape=input_shape)
 
         # set Keras tensor metadata
         input_tensor._uses_learning_phase = False
@@ -716,8 +741,12 @@ class Layer(object):
         the layer has exactly one inbound node, i.e. if it is connected
         to one incoming layer).
         '''
-        assert len(self.inbound_nodes) == 1, ('Layer ' + self.name + ' has multiple inbound nodes, ' +
-            'hence the notion of "layer output" is ill-defined. Use `get_output_at(node_index)` instead.')
+        if len(self.inbound_nodes) != 1:
+            raise Exception('Layer ' + self.name +
+                            ' has multiple inbound nodes, ' +
+                            'hence the notion of "layer output" '
+                            'is ill-defined. '
+                            'Use `get_output_at(node_index)` instead.')
         return self._get_node_attribute_at_index(0, 'output_tensors',
                                                  'output')
 
@@ -727,8 +756,12 @@ class Layer(object):
         the layer has exactly one inbound node, i.e. if it is connected
         to one incoming layer).
         '''
-        assert len(self.inbound_nodes) == 1, ('Layer ' + self.name + ' has multiple inbound nodes, ' +
-            'hence the notion of "layer input mask" is ill-defined. Use `get_input_mask_at(node_index)` instead.')
+        if len(self.inbound_nodes) != 1:
+            raise Exception('Layer ' + self.name +
+                            ' has multiple inbound nodes, ' +
+                            'hence the notion of "layer input mask" '
+                            'is ill-defined. '
+                            'Use `get_input_mask_at(node_index)` instead.')
         return self._get_node_attribute_at_index(0, 'input_masks',
                                                  'input mask')
 
@@ -738,8 +771,12 @@ class Layer(object):
         the layer has exactly one inbound node, i.e. if it is connected
         to one incoming layer).
         '''
-        assert len(self.inbound_nodes) == 1, ('Layer ' + self.name + ' has multiple inbound nodes, ' +
-            'hence the notion of "layer output mask" is ill-defined. Use `get_output_mask_at(node_index)` instead.')
+        if len(self.inbound_nodes) != 1:
+            raise Exception('Layer ' + self.name +
+                            ' has multiple inbound nodes, ' +
+                            'hence the notion of "layer output mask" '
+                            'is ill-defined. '
+                            'Use `get_output_mask_at(node_index)` instead.')
         return self._get_node_attribute_at_index(0, 'output_masks',
                                                  'output mask')
 
@@ -898,6 +935,8 @@ class InputLayer(Layer):
         if not batch_input_shape:
             assert input_shape, 'An Input layer should be passed either a `batch_input_shape` or an `input_shape`.'
             batch_input_shape = (None,) + tuple(input_shape)
+        else:
+            batch_input_shape = tuple(batch_input_shape)
         if not input_dtype:
             input_dtype = K.floatx()
 
@@ -1236,6 +1275,9 @@ class Merge(Layer):
         elif self.mode == 'concat':
             output_shape = list(input_shapes[0])
             for shape in input_shapes[1:]:
+                if output_shape[self.concat_axis] is None or shape[self.concat_axis] is None:
+                    output_shape[self.concat_axis] = None
+                    break
                 output_shape[self.concat_axis] += shape[self.concat_axis]
             return tuple(output_shape)
         elif self.mode == 'join':
@@ -1474,19 +1516,19 @@ class Container(Layer):
             layer, node_index, tensor_index = x._keras_history
             if len(layer.inbound_nodes) > 1 or (layer.inbound_nodes and layer.inbound_nodes[0].inbound_layers):
                 cls_name = self.__class__.__name__
-                raise Exception(cls_name + ' inputs must come from '
-                                'a Keras Input layer, '
-                                'they cannot be the output of '
-                                'a previous non-Input layer. '
-                                'Here, a tensor specified as '
-                                'input to "' + self.name +
-                                '" was not an Input tensor, '
-                                'it was generated by layer ' +
-                                layer.name + '.\n'
-                                'Note that input tensors are '
-                                'instantiated via `tensor = Input(shape)`.\n'
-                                'The tensor that caused the issue was: ' +
-                                str(x.name))
+                warnings.warn(cls_name + ' inputs must come from '
+                              'a Keras Input layer, '
+                              'they cannot be the output of '
+                              'a previous non-Input layer. '
+                              'Here, a tensor specified as '
+                              'input to "' + self.name +
+                              '" was not an Input tensor, '
+                              'it was generated by layer ' +
+                              layer.name + '.\n'
+                              'Note that input tensors are '
+                              'instantiated via `tensor = Input(shape)`.\n'
+                              'The tensor that caused the issue was: ' +
+                              str(x.name))
         for x in self.outputs:
             if not hasattr(x, '_keras_history'):
                 cls_name = self.__class__.__name__
@@ -1526,6 +1568,9 @@ class Container(Layer):
         nodes_depths = {}  # map {node: depth value}
         layers_depths = {}  # map {layer: depth value}
 
+        def make_node_key(node, depth):
+            return str(id(node)) + '-' + str(depth)
+
         def build_map_of_graph(tensor, seen_nodes=set(), depth=0,
                                layer=None, node_index=None, tensor_index=None):
             '''This recursively updates the maps nodes_depths,
@@ -1547,27 +1592,23 @@ class Container(Layer):
             node = layer.inbound_nodes[node_index]
 
             # prevent cycles
-            if node in seen_nodes:
-                return
-            seen_nodes.add(node)
-
-            # basic sanity checks
-            assert node.outbound_layer == layer
-            assert node.output_tensors[tensor_index] == tensor
+            seen_nodes.add(make_node_key(node, depth))
 
             node_key = layer.name + '_ib-' + str(node_index)
             # update container_nodes
             container_nodes.add(node_key)
             # update nodes_depths
-            if node not in nodes_depths:
+            node_depth = nodes_depths.get(node)
+            if node_depth is None:
                 nodes_depths[node] = depth
             else:
-                nodes_depths[node] = max(depth, nodes_depths[node])
+                nodes_depths[node] = max(depth, node_depth)
             # update layers_depths
-            if layer not in layers_depths:
+            layer_depth = layers_depths.get(layer)
+            if layer_depth is None:
                 layers_depths[layer] = depth
             else:
-                layers_depths[layer] = max(depth, layers_depths[layer])
+                layers_depths[layer] = max(depth, layer_depth)
 
             # propagate to all previous tensors connected to this node
             for i in range(len(node.inbound_layers)):
@@ -1575,11 +1616,15 @@ class Container(Layer):
                 layer = node.inbound_layers[i]
                 node_index = node.node_indices[i]
                 tensor_index = node.tensor_indices[i]
-                build_map_of_graph(x, copy.copy(seen_nodes), depth + 1,
-                                   layer, node_index, tensor_index)
+                next_node = layer.inbound_nodes[node_index]
+                node_key = make_node_key(next_node, depth + 1)
+                if node_key not in seen_nodes:
+                    build_map_of_graph(x, seen_nodes, depth + 1,
+                                       layer, node_index, tensor_index)
 
         for x in self.outputs:
-            build_map_of_graph(x, seen_nodes=set(), depth=0)
+            seen_nodes = set()
+            build_map_of_graph(x, seen_nodes, depth=0)
 
         # build a map {depth: list of nodes with this depth}
         nodes_by_depth = {}
@@ -1770,7 +1815,7 @@ class Container(Layer):
     @property
     def input_spec(self):
         specs = []
-        for layer in self.input_layers:
+        for layer in getattr(self, 'input_layers', []):
             if layer.input_spec is None:
                 specs.append(None)
             else:
@@ -2185,8 +2230,6 @@ class Container(Layer):
             flattened_layers = self.layers
 
         f = h5py.File(filepath, 'w')
-        for layer in flattened_layers:
-            print(layer.name)
         f.attrs['layer_names'] = [layer.name.encode('utf8') for layer in flattened_layers]
 
         for layer in flattened_layers:
@@ -2306,7 +2349,7 @@ class Container(Layer):
         print_summary(flattened_layers, getattr(self, 'container_nodes', None))
 
 
-def get_source_inputs(tensor, layer=None, node_index=None, tensor_index=None):
+def get_source_inputs(tensor, layer=None, node_index=None):
     '''Returns the list of input tensors
     necessary to compute `tensor`.
 
@@ -2318,12 +2361,12 @@ def get_source_inputs(tensor, layer=None, node_index=None, tensor_index=None):
         layer: origin layer of the tensor. Will be
             determined via tensor._keras_history if not provided.
         node_index: origin node index of the tensor.
-        tensor_index: origin tensor index of the tensor.
     '''
     if not hasattr(tensor, '_keras_history'):
         raise Exception('Tensor must be a Keras tensor. Found: ' + str(tensor))
 
-    layer, node_index, tensor_index = tensor._keras_history
+    if layer is None or node_index:
+        layer, node_index, _ = tensor._keras_history
     if not layer.inbound_nodes:
         return [tensor]
     else:
@@ -2337,11 +2380,9 @@ def get_source_inputs(tensor, layer=None, node_index=None, tensor_index=None):
                 x = node.input_tensors[i]
                 layer = node.inbound_layers[i]
                 node_index = node.node_indices[i]
-                tensor_index = node.tensor_indices[i]
                 previous_sources = get_source_inputs(x,
                                                      layer,
-                                                     node_index,
-                                                     tensor_index)
+                                                     node_index)
                 # avoid input redundancy
                 for x in previous_sources:
                     if x not in source_tensors:

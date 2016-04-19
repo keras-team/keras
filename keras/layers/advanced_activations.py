@@ -7,7 +7,8 @@ import numpy as np
 class LeakyReLU(Layer):
     '''Special version of a Rectified Linear Unit
     that allows a small gradient when the unit is not active:
-    `f(x) = alpha*x for x < 0`.
+    `f(x) = alpha * x for x < 0`,
+    `f(x) = x for x >= 0`.
 
     # Input shape
         Arbitrary. Use the keyword argument `input_shape`
@@ -22,7 +23,7 @@ class LeakyReLU(Layer):
     '''
     def __init__(self, alpha=0.3, **kwargs):
         self.supports_masking = True
-        self.alpha = K.cast_to_floatx(alpha)
+        self.alpha = alpha
         super(LeakyReLU, self).__init__(**kwargs)
 
     def call(self, x, mask=None):
@@ -35,7 +36,10 @@ class LeakyReLU(Layer):
 
 
 class PReLU(Layer):
-    '''Parametric Rectified Linear Unit.
+    '''Parametric Rectified Linear Unit:
+    `f(x) = alphas * x for x < 0`,
+    `f(x) = x for x >= 0`,
+    where `alphas` is a learned array with the same shape as x.
 
     # Input shape
         Arbitrary. Use the keyword argument `input_shape`
@@ -45,11 +49,11 @@ class PReLU(Layer):
     # Output shape
         Same shape as the input.
 
-    # Arguments:
+    # Arguments
         init: initialization function for the weights.
         weights: initial weights, as a list of a single numpy array.
 
-    # References:
+    # References
         - [Delving Deep into Rectifiers: Surpassing Human-Level Performance on ImageNet Classification](http://arxiv.org/pdf/1502.01852v1.pdf)
     '''
     def __init__(self, init='zero', weights=None, **kwargs):
@@ -79,7 +83,9 @@ class PReLU(Layer):
 
 
 class ELU(Layer):
-    '''Exponential Linear Unit.
+    '''Exponential Linear Unit:
+    `f(x) =  alpha * (exp(x) - 1.) for x < 0`,
+    `f(x) = x for x >= 0`.
 
     # Input shape
         Arbitrary. Use the keyword argument `input_shape`
@@ -112,7 +118,8 @@ class ELU(Layer):
 
 
 class ParametricSoftplus(Layer):
-    '''Parametric Softplus of the form: alpha * log(1 + exp(beta * X))
+    '''Parametric Softplus:
+    `alpha * log(1 + exp(beta * x))`
 
     # Input shape
         Arbitrary. Use the keyword argument `input_shape`
@@ -127,7 +134,7 @@ class ParametricSoftplus(Layer):
         beta_init: float. Initial values of the beta weights.
         weights: initial weights, as a list of 2 numpy arrays.
 
-    # References:
+    # References
         - [Inferring Nonlinear Neuronal Computation Based on Physiologically Plausible Inputs](http://journals.plos.org/ploscompbiol/article?id=10.1371/journal.pcbi.1003143)
     '''
     def __init__(self, alpha_init=0.2, beta_init=5.0,
@@ -160,39 +167,10 @@ class ParametricSoftplus(Layer):
         return dict(list(base_config.items()) + list(config.items()))
 
 
-class ThresholdedLinear(Layer):
-    '''Thresholded Linear Activation.
-
-    # Input shape
-        Arbitrary. Use the keyword argument `input_shape`
-        (tuple of integers, does not include the samples axis)
-        when using this layer as the first layer in a model.
-
-    # Output shape
-        Same shape as the input.
-
-    # Arguments
-        theta: float >= 0. Threshold location of activation.
-
-    # References
-        [Zero-Bias Autoencoders and the Benefits of Co-Adapting Features](http://arxiv.org/pdf/1402.3337.pdf)
-    '''
-    def __init__(self, theta=1.0, **kwargs):
-        self.supports_masking = True
-        self.theta = K.cast_to_floatx(theta)
-        super(ThresholdedLinear, self).__init__(**kwargs)
-
-    def call(self, x, mask=None):
-        return x * K.cast(x > self.theta, K.floatx())
-
-    def get_config(self):
-        config = {'theta': self.theta}
-        base_config = super(ThresholdedLinear, self).get_config()
-        return dict(list(base_config.items()) + list(config.items()))
-
-
 class ThresholdedReLU(Layer):
-    '''Thresholded Rectified Linear Unit.
+    '''Thresholded Rectified Linear Unit:
+    `f(x) = x for x > theta`
+    `f(x) = 0 otherwise`.
 
     # Input shape
         Arbitrary. Use the keyword argument `input_shape`
@@ -206,7 +184,7 @@ class ThresholdedReLU(Layer):
         theta: float >= 0. Threshold location of activation.
 
     # References
-        [Zero-Bias Autoencoders and the Benefits of Co-Adapting Features](http://arxiv.org/pdf/1402.3337.pdf)
+        - [Zero-Bias Autoencoders and the Benefits of Co-Adapting Features](http://arxiv.org/pdf/1402.3337.pdf)
     '''
     def __init__(self, theta=1.0, **kwargs):
         self.supports_masking = True
@@ -240,7 +218,7 @@ class SReLU(Layer):
         a_right_init: initialization function for the right part slope
 
     # References
-        [Deep Learning with S-shaped Rectified Linear Activation Units](http://arxiv.org/abs/1512.07030)
+        - [Deep Learning with S-shaped Rectified Linear Activation Units](http://arxiv.org/abs/1512.07030)
     '''
     def __init__(self, t_left_init='zero', a_left_init='glorot_uniform',
                  t_right_init='glorot_uniform', a_right_init='one', **kwargs):

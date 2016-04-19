@@ -53,8 +53,14 @@ class TimeDistributed(Wrapper):
 
     You can then use `TimeDistributed` to apply a `Dense` layer to each of the 10 timesteps, independently:
     ```python
+        # as the first layer in a model
         model = Sequential()
         model.add(TimeDistributed(Dense(8), input_shape=(10, 16)))
+        # now model.output_shape == (None, 10, 8)
+
+        # subsequent layers: no need for input_shape
+        model.add(TimeDistributed(Dense(32)))
+        # now model.output_shape == (None, 10, 32)
     ```
 
     The output will then have shape `(32, 10, 8)`.
@@ -72,6 +78,9 @@ class TimeDistributed(Wrapper):
     # Arguments
         layer: a layer instance.
     """
+    def __init__(self, layer, **kwargs):
+        self.supports_masking = True
+        super(TimeDistributed, self).__init__(layer, **kwargs)
 
     def build(self, input_shape):
         assert len(input_shape) >= 3

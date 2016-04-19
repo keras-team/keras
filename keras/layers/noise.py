@@ -12,6 +12,9 @@ class GaussianNoise(Layer):
 
     As it is a regularization layer, it is only active at training time.
 
+    # Arguments
+        sigma: float, standard deviation of the noise distribution.
+
     # Input shape
         Arbitrary. Use the keyword argument `input_shape`
         (tuple of integers, does not include the samples axis)
@@ -19,9 +22,6 @@ class GaussianNoise(Layer):
 
     # Output shape
         Same shape as input.
-
-    # Arguments
-        sigma: float, standard deviation of the noise distribution.
     '''
     def __init__(self, sigma, **kwargs):
         self.supports_masking = True
@@ -50,7 +50,15 @@ class GaussianDropout(Layer):
     # Arguments
         p: float, drop probability (as with `Dropout`).
 
-    # References:
+    # Input shape
+        Arbitrary. Use the keyword argument `input_shape`
+        (tuple of integers, does not include the samples axis)
+        when using this layer as the first layer in a model.
+
+    # Output shape
+        Same shape as input.
+
+    # References
         [Dropout: A Simple Way to Prevent Neural Networks from Overfitting Srivastava, Hinton, et al. 2014](http://www.cs.toronto.edu/~rsalakhu/papers/srivastava14a.pdf)
     '''
     def __init__(self, p, **kwargs):

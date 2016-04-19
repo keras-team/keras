@@ -20,7 +20,7 @@ batch_size = 128
 nb_classes = 10
 nb_epoch = 20
 
-# the data, shuffled and split between tran and test sets
+# the data, shuffled and split between train and test sets
 (X_train, y_train), (X_test, y_test) = mnist.load_data()
 
 X_train = X_train.reshape(60000, 784)
@@ -49,7 +49,7 @@ model.add(Activation('softmax'))
 model.summary()
 
 model.compile(loss='categorical_crossentropy',
-              optimizer=Adam(),
+              optimizer=RMSprop(),
               metrics=['accuracy'])
 
 history = model.fit(X_train, Y_train,

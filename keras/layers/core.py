@@ -18,14 +18,32 @@ from ..regularizers import ActivityRegularizer
 
 
 class Masking(Layer):
-    '''Masks an input sequence by using a mask value to identify padding.
+    '''Masks an input sequence by using a mask value to
+    identify timesteps to be skipped.
 
-    This layer copies the input to the output layer with identified padding
-    replaced with 0s and creates an output mask in the process.
+    For each timestep in the input tensor (dimension #1 in the tensor),
+    if all values in the input tensor at that timestep
+    are equal to `mask_value`, then the timestep will masked (skipped)
+    in all downstream layers (as long as they support masking).
 
-    At each timestep, if the values all equal `mask_value`,
-    then the corresponding mask value for the timestep is 0 (skipped),
-    otherwise it is 1.
+    If any downstream layer does not support masking yet receives such
+    an input mask, an exception will be raised.
+
+    # Example
+
+    Consider a Numpy data array `x` of shape `(samples, timesteps, features)`,
+    to be fed to a LSTM layer.
+    You want to mask timestep #3 and #5 because you lack data for
+    these timesteps. You can:
+
+        - set `x[:, 3, :] = 0.` and `x[:, 5, :] = 0.`
+        - insert a `Masking` layer with `mask_value=0.` before the LSTM layer:
+
+    ```python
+        model = Sequential()
+        model.add(Masking(mask_value=0., input_shape=(timesteps, features)))
+        model.add(LSTM(32))
+    ```
     '''
     def __init__(self, mask_value=0., **kwargs):
         self.supports_masking = True
@@ -77,7 +95,7 @@ class Dropout(Layer):
 class Activation(Layer):
     '''Applies an activation function to an output.
 
-    # Arguments:
+    # Arguments
         activation: name of activation function to use
             (see: [activations](../activations.md)),
             or alternatively, a Theano or TensorFlow operation.
@@ -119,6 +137,20 @@ class Reshape(Layer):
 
     # Output shape
         `(batch_size,) + target_shape`
+
+    # Example
+
+    ```python
+        # as first layer in a Sequential model
+        model = Sequential()
+        model.add(Reshape((3, 4), input_shape=(12,)))
+        # now: model.output_shape == (None, 3, 4)
+        # note: `None` is the batch dimension
+
+        # as intermediate layer in a Sequential model
+        model.add(Reshape((6, 2)))
+        # now: model.output_shape == (None, 6, 2)
+    ```
     '''
     def __init__(self, target_shape, **kwargs):
         super(Reshape, self).__init__(**kwargs)
@@ -201,6 +233,15 @@ class Permute(Layer):
 
     Useful for e.g. connecting RNNs and convnets together.
 
+    # Example
+
+    ```python
+        model = Sequential()
+        model.add(Permute((2, 1), input_shape=(10, 64)))
+        # now: model.output_shape == (None, 64, 10)
+        # note: `None` is the batch dimension
+    ```
+
     # Arguments
         dims: Tuple of integers. Permutation pattern, does not include the
             samples dimension. Indexing starts at 1.
@@ -240,14 +281,16 @@ class Permute(Layer):
 class Flatten(Layer):
     '''Flattens the input. Does not affect the batch size.
 
-    # Input shape
-        Arbitrary, although all dimensions in the input shape must be fixed.
-        Use the keyword argument `input_shape`
-        (tuple of integers, does not include the samples axis)
-        when using this layer as the first layer in a model.
+    # Example
 
-    # Output shape
-        `(batch_size,)`
+    ```python
+        model = Sequential()
+        model.add(Convolution2D(64, 3, 3, border_mode='same', input_shape=(3, 32, 32)))
+        # now: model.output_shape == (None, 64, 32, 32)
+
+        model.add(Flatten())
+        # now: model.output_shape == (None, 65536)
+    ```
     '''
     def __init__(self, **kwargs):
         self.input_spec = [InputSpec(ndim='3+')]
@@ -268,7 +311,19 @@ class Flatten(Layer):
 
 
 class RepeatVector(Layer):
-    '''Repeat the input n times.
+    '''Repeats the input n times.
+
+    # Example
+
+    ```python
+        model = Sequential()
+        model.add(Dense(32, input_dim=32))
+        # now: model.output_shape == (None, 32)
+        # note: `None` is the batch dimension
+
+        model.add(RepeatVector(3))
+        # now: model.output_shape == (None, 3, 32)
+    ```
 
     # Arguments
         n: integer, repetition factor.
@@ -300,22 +355,6 @@ class Lambda(Layer):
     '''Used for evaluating an arbitrary Theano / TensorFlow expression
     on the output of the previous layer.
 
-    # Arguments
-        function: The function to be evaluated.
-            Takes one argument: the output of previous layer
-        output_shape: Expected output shape from function.
-            Could be a tuple or a function of the shape of the input
-        arguments: optional dictionary of keyword arguments to be passed
-            to the function.
-
-    # Input shape
-        Arbitrary. Use the keyword argument input_shape
-        (tuple of integers, does not include the samples axis)
-        when using this layer as the first layer in a model.
-
-    # Output shape
-        Specified by `output_shape` argument.
-
     # Examples
 
     ```python
@@ -342,6 +381,22 @@ class Lambda(Layer):
 
         model.add(Lambda(antirectifier, output_shape=antirectifier_output_shape))
     ```
+
+    # Arguments
+        function: The function to be evaluated.
+            Takes one argument: the output of previous layer
+        output_shape: Expected output shape from function.
+            Could be a tuple or a function of the shape of the input
+        arguments: optional dictionary of keyword arguments to be passed
+            to the function.
+
+    # Input shape
+        Arbitrary. Use the keyword argument input_shape
+        (tuple of integers, does not include the samples axis)
+        when using this layer as the first layer in a model.
+
+    # Output shape
+        Specified by `output_shape` argument.
     '''
     def __init__(self, function, output_shape=None, arguments={}, **kwargs):
         self.function = function
@@ -394,9 +449,9 @@ class Lambda(Layer):
 
         if isinstance(self.function, python_types.LambdaType):
             if py3:
-                function = marshal.dumps(self.function.__code__)
+                function = marshal.dumps(self.function.__code__).decode('raw_unicode_escape')
             else:
-                function = marshal.dumps(self.function.func_code)
+                function = marshal.dumps(self.function.func_code).decode('raw_unicode_escape')
             function_type = 'lambda'
         else:
             function = self.function.__name__
@@ -429,7 +484,7 @@ class Lambda(Layer):
         if function_type == 'function':
             function = globals()[config['function']]
         elif function_type == 'lambda':
-            function = marshal.loads(config['function'])
+            function = marshal.loads(config['function'].encode('raw_unicode_escape'))
             function = python_types.FunctionType(function, globals())
         else:
             raise Exception('Unknown function type: ' + function_type)
@@ -450,6 +505,22 @@ class Lambda(Layer):
 
 class Dense(Layer):
     '''Just your regular fully connected NN layer.
+
+    # Example
+
+    ```python
+        # as first layer in a sequential model:
+        model = Sequential(Dense(32, input_dim=16))
+        # now the model will take as input arrays of shape (*, 16)
+        # and output arrays of shape (*, 32)
+
+        # this is equivalent to the above:
+        model = Sequential(Dense(32, input_shape=(16,)))
+
+        # after the first layer, you don't need to specify
+        # the size of the input anymore:
+        model.add(Dense(32))
+    ```
 
     # Arguments
         output_dim: int > 0.
@@ -859,6 +930,12 @@ class Highway(Layer):
 class TimeDistributedDense(Layer):
     '''Apply a same Dense layer for each dimension[1] (time_dimension) input.
     Especially useful after a recurrent network with 'return_sequence=True'.
+
+    Note: this layer is deprecated, prefer using the `TimeDistributed` wrapper:
+    ```python
+        model.add(TimeDistributed(Dense(32)))
+    ```
+
     # Input shape
         3D tensor with shape `(nb_sample, time_dimension, input_dim)`.
     # Output shape

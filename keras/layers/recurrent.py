@@ -41,11 +41,29 @@ def time_distributed_dense(x, w, b=None, dropout=None,
 
 class Recurrent(Layer):
     '''Abstract base class for recurrent layers.
-    Do not use in a model -- it's not a functional layer!
+    Do not use in a model -- it's not a valid layer!
+    Use its children classes `LSTM`, `GRU` and `SimpleRNN` instead.
 
-    All recurrent layers (GRU, LSTM, SimpleRNN) also
+    All recurrent layers (`LSTM`, `GRU`, `SimpleRNN`) also
     follow the specifications of this class and accept
     the keyword arguments listed below.
+
+    # Example
+
+    ```python
+        # as the first layer in a Sequential model
+        model = Sequential()
+        model.add(LSTM(32, input_shape=(10, 64)))
+        # now model.output_shape == (None, 10, 32)
+        # note: `None` is the batch dimension.
+
+        # the following is identical:
+        model = Sequential()
+        model.add(LSTM(32, input_dim=64, input_length=10))
+
+        # for subsequent layers, not need to specify the input size:
+        model.add(LSTM(16))
+    ```
 
     # Arguments
         weights: list of numpy arrays to set as initial weights.
@@ -296,10 +314,10 @@ class SimpleRNN(Recurrent):
             self.W_regularizer.set_param(self.W)
             self.regularizers.append(self.W_regularizer)
         if self.U_regularizer:
-            self.W_regularizer.set_param(self.U)
+            self.U_regularizer.set_param(self.U)
             self.regularizers.append(self.U_regularizer)
         if self.b_regularizer:
-            self.W_regularizer.set_param(self.b)
+            self.b_regularizer.set_param(self.b)
             self.regularizers.append(self.b_regularizer)
 
         self.trainable_weights = [self.W, self.U, self.b]

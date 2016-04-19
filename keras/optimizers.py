@@ -67,8 +67,10 @@ class Optimizer(object):
                 output of `get_weights`).
         '''
         params = self.weights
-        assert len(params) == len(weights), ('Provided weight array does not match  weights (' +
-            str(len(params)) + ' optimizer params vs. ' + str(len(weights)) + ' provided weights)')
+        if len(params) != len(weights):
+            raise Exception('Provided weight array does not match  weights (' +
+                            str(len(params)) + ' optimizer params vs. ' +
+                            str(len(weights)) + ' provided weights)')
         for p, w in zip(params, weights):
             if K.get_value(p).shape != w.shape:
                 raise Exception('Optimizer weight shape ' +
@@ -92,7 +94,7 @@ class Optimizer(object):
 
 class SGD(Optimizer):
     '''Stochastic gradient descent, with support for momentum,
-    decay, and Nesterov momentum.
+    learning rate decay, and Nesterov momentum.
 
     # Arguments
         lr: float >= 0. Learning rate.
@@ -143,7 +145,8 @@ class RMSprop(Optimizer):
     '''RMSProp optimizer.
 
     It is recommended to leave the parameters of this optimizer
-    at their default values.
+    at their default values
+    (except the learning rate, which can be freely tuned).
 
     This optimizer is usually a good choice for recurrent
     neural networks.
@@ -230,7 +233,8 @@ class Adadelta(Optimizer):
     at their default values.
 
     # Arguments
-        lr: float >= 0. Learning rate. It is recommended to leave it at the default value.
+        lr: float >= 0. Learning rate.
+            It is recommended to leave it at the default value.
         rho: float >= 0.
         epsilon: float >= 0. Fuzz factor.
 

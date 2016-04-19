@@ -6,11 +6,13 @@ import numpy as np
 np.random.seed(1337)
 
 from keras import backend as K
-from keras.models import Graph, Sequential #, model_from_json, model_from_yaml
+from keras.models import Graph, Sequential
 from keras.layers.core import Dense, Activation, Merge, Lambda
 from keras.utils import np_utils
 from keras.utils.test_utils import get_test_data
 from keras.models import model_from_json, model_from_yaml
+from keras import objectives
+from keras.engine.training import make_batches
 
 
 input_dim = 16
@@ -72,19 +74,15 @@ def test_sequential():
     (X_train, y_train), (X_test, y_test) = _get_test_data()
 
     # TODO: factor out
-    def data_generator(train):
-        if train:
-            max_batch_index = len(X_train) // batch_size
-        else:
-            max_batch_index = len(X_test) // batch_size
-        i = 0
+    def data_generator(x, y, batch_size=50):
+        index_array = np.arange(len(x))
         while 1:
-            if train:
-                yield (X_train[i * batch_size: (i + 1) * batch_size], y_train[i * batch_size: (i + 1) * batch_size])
-            else:
-                yield (X_test[i * batch_size: (i + 1) * batch_size], y_test[i * batch_size: (i + 1) * batch_size])
-            i += 1
-            i = i % max_batch_index
+            batches = make_batches(len(X_test), batch_size)
+            for batch_index, (batch_start, batch_end) in enumerate(batches):
+                batch_ids = index_array[batch_start:batch_end]
+                x_batch = x[batch_ids]
+                y_batch = y[batch_ids]
+                yield (x_batch, y_batch)
 
     model = Sequential()
     model.add(Dense(nb_hidden, input_shape=(input_dim,)))
@@ -100,8 +98,14 @@ def test_sequential():
 
     model.train_on_batch(X_train[:32], y_train[:32])
 
-    gen_loss = model.evaluate_generator(data_generator(True), 256)
     loss = model.evaluate(X_test, y_test)
+
+    prediction = model.predict_generator(data_generator(X_test, y_test), X_test.shape[0])
+    gen_loss = model.evaluate_generator(data_generator(X_test, y_test, 50), X_test.shape[0])
+    pred_loss = K.eval(K.mean(objectives.get(model.loss)(K.variable(y_test), K.variable(prediction))))
+
+    assert(np.isclose(pred_loss, loss))
+    assert(np.isclose(gen_loss, loss))
 
     model.predict(X_test, verbose=0)
     model.predict_classes(X_test, verbose=0)

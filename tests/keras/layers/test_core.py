@@ -42,8 +42,8 @@ def test_merge():
     input_a = Input(shape=input_shapes[0][1:])
     input_b = Input(shape=input_shapes[1][1:])
     merged = merge([input_a, input_b],
-                   mode=lambda (x, y): K.concatenate([x, y]),
-                   output_shape=lambda (s1, s2): (s1[:-1],) + (s1[-1] + s2[-1],))
+                   mode=lambda tup: K.concatenate([tup[0], tup[1]]),
+                   output_shape=lambda tup: (tup[0][:-1],) + (tup[0][-1] + tup[1][-1],))
     expected_output_shape = model.get_output_shape_for(input_shapes)
     actual_output_shape = model.predict(inputs).shape
     assert expected_output_shape == actual_output_shape
@@ -53,10 +53,12 @@ def test_merge():
     model.compile('rmsprop', 'mse')
 
     # test function with output_shape function
-    def fn_mode((x, y)):
+    def fn_mode(tup):
+        x, y = tup
         return K.concatenate([x, y])
 
-    def fn_output_shape((s1, s2)):
+    def fn_output_shape(tup):
+        s1, s2 = tup
         return (s1[:-1],) + (s1[-1] + s2[-1],)
 
     input_a = Input(shape=input_shapes[0][1:])
