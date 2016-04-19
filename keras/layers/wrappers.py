@@ -122,11 +122,11 @@ class TimeDistributed(Wrapper):
             # no batch size specified, therefore the layer will be able
             # to process batches of any size
             # we can go with reshape-based implementation for performance
-            X = K.reshape(X, (-1, ) + input_shape[2:])  # (nb_samples * timesteps, ...)
-            y = self.layer.call(X)  # (nb_samples * timesteps, ...)
             input_length = input_shape[1]
             if not input_length:
                 input_length = K.shape(X)[1]
+            X = K.reshape(X, (-1, ) + input_shape[2:])  # (nb_samples * timesteps, ...)
+            y = self.layer.call(X)  # (nb_samples * timesteps, ...)
             # (nb_samples, timesteps, ...)
             output_shape = self.get_output_shape_for(input_shape)
             y = K.reshape(y, (-1, input_length) + output_shape[2:])
