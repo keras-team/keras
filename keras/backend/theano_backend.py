@@ -565,9 +565,7 @@ def rnn(step_function, inputs, initial_states,
             mask = expand_dims(mask)
         assert mask.ndim == ndim
         mask = mask.dimshuffle(axes)
-
-
-
+        
         if unroll:
             indices = list(range(input_length))
             if go_backwards:
