@@ -576,7 +576,7 @@ def rnn(step_function, inputs, initial_states,
             successive_states = []
             states = initial_states
             for i in indices:
-                output, new_states = step_function(inputs[i], states)
+                output, new_states = step_function(inputs[i], states + constants)
 
                 if len(successive_outputs) == 0:
                     prev_output = zeros_like(output)
