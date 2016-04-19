@@ -195,7 +195,7 @@ def check_loss_and_target_compatibility(targets, losses, output_shapes):
                                 'Alternatively, you can use the loss function '
                                 '`sparse_categorical_crossentropy` instead, '
                                 'which does expect integer targets.')
-        if loss.__name__ in key_losses and y.shape[1] != shape[1]:
+        if loss.__name__ in key_losses and shape[1] is not None and y.shape[1] != shape[1]:
                 raise Exception('A target array with shape ' + str(y.shape) +
                                 ' was passed for an output of shape ' + str(shape) +
                                 ' while using as loss `' + loss.__name__ + '`. '
