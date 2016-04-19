@@ -178,24 +178,19 @@ class ImageDataGenerator(object):
 
     def _flow_index(self, N, batch_size=32, shuffle=False, seed=None):
         while 1:
+            index_array = np.arange(N)
             if self.batch_index == 0:
-                if seed is not None:
-                    np.random.seed(seed + self.total_batches_seen)
-
                 if shuffle:
+                    if seed is not None:
+                        np.random.seed(seed + self.total_batches_seen)
                     index_array = np.random.permutation(N)
-                else:
-                    index_array = np.arange(N)
 
             current_index = (self.batch_index * batch_size) % N
             if N >= current_index + batch_size:
                 current_batch_size = batch_size
-            else:
-                current_batch_size = N - current_index
-
-            if current_batch_size == batch_size:
                 self.batch_index += 1
             else:
+                current_batch_size = N - current_index
                 self.batch_index = 0
             self.total_batches_seen += 1
             yield (index_array[current_index: current_index + current_batch_size],
@@ -209,6 +204,7 @@ class ImageDataGenerator(object):
         self.save_to_dir = save_to_dir
         self.save_prefix = save_prefix
         self.save_format = save_format
+        self.reset()
         self.flow_generator = self._flow_index(X.shape[0], batch_size,
                                                shuffle, seed)
         return self
