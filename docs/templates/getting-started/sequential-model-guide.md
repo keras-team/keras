@@ -135,7 +135,7 @@ model.compile(optimizer='rmsprop',
 
 ## Training
 
-Keras models are trained on Numpy arrays of input data and labels. For training a model, you will typically use the `fit` function. [Read its documentation here](/models/sequential). 
+Keras models are trained on Numpy arrays of input data and labels. For training a model, you will typically use the `fit` function. [Read its documentation here](/models/sequential).
 
 ```python
 # for a single-input model with 2 classes (binary):
@@ -311,6 +311,52 @@ sgd = SGD(lr=0.1, decay=1e-6, momentum=0.9, nesterov=True)
 model.compile(loss='categorical_crossentropy', optimizer=sgd)
 
 model.fit(X_train, Y_train, batch_size=32, nb_epoch=1)
+```
+
+In addition to this model, it could be also possible to extract the features
+after the convolutional layers.
+
+```python
+from keras.models import Sequential
+from keras.layers import Dense, Dropout, Activation, Flatten
+from keras.layers import Convolution2D, MaxPooling2D
+from keras.optimizers import SGD
+
+model = Sequential()
+# input: 100x100 images with 3 channels -> (3, 100, 100) tensors.
+# this applies 32 convolution filters of size 3x3 each.
+model.add(Convolution2D(32, 3, 3, border_mode='valid', input_shape=(3, 100, 100)))
+model.add(Activation('relu'))
+model.add(Convolution2D(32, 3, 3))
+model.add(Activation('relu'))
+model.add(MaxPooling2D(pool_size=(2, 2)))
+model.add(Dropout(0.25))
+
+model.add(Convolution2D(64, 3, 3, border_mode='valid'))
+model.add(Activation('relu'))
+model.add(Convolution2D(64, 3, 3))
+model.add(Activation('relu'))
+model.add(MaxPooling2D(pool_size=(2, 2)))
+model.add(Dropout(0.25))
+
+model.add(Flatten())
+# Note: Keras does automatic shape inference.
+model.add(Dense(256))
+model.add(Activation('relu'))
+model.add(Dropout(0.5))
+
+model.add(Dense(10))
+model.add(Activation('softmax'))
+
+model.load_weights('VGG_model.h5')
+for _ in range(4):
+    model.pop_layer()
+
+# It don't really matters the loss and the optimizer if the purpose is to
+# extract the features
+model.compile(loss='mse', optimizer='sgd')
+
+Y = model.predict(X_test, batch_size=32)
 ```
 
 
