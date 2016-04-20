@@ -447,6 +447,8 @@ def test_sequential_count_params():
     model = Sequential()
     model.add(Dense(nb_units, input_shape=(input_dim,)))
     model.add(Dense(nb_units))
+    model.add(Dense(1234))
+    model.pop_layer()
     model.add(Dense(nb_classes))
     model.add(Activation('softmax'))
     model.build()
