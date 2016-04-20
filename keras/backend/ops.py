@@ -65,7 +65,10 @@ def _override_operator(tensor_class, operator):
     _operator = '_keras' + operator[1:-2]  # we add '_keras' so that it does not conflict with any existing functions
     setattr(tensor_class, _operator, getattr(tensor_class, operator))
     unary_operators = ['__neg__', '__pos__', '__abs__', '__invert__']
-    binary_operators = ['add', 'sub', 'mul', 'matmul', 'truediv', 'floordiv', 'mod', 'divmod', 'pow', 'lshift', 'rshift', 'and', 'xor', 'or', '__getitem__']
+    binary_operators = ['add', 'sub', 'mul', 'matmul', 'truediv', 'floordiv', 'mod', 'divmod', 'pow', 'lshift', 'rshift', 'and', 'xor', 'or']
+    binary_operators += map(lambda x: 'r' + x, binary_operators)
+    binary_operators += ['getitem']
+    binary_operators = map(lambda x: '__' + x + '__', binary_operators)
     if operator in unary_operators:
         def op(x):
             x_k = hasattr(x, '_keras_history')
@@ -114,6 +117,8 @@ def _override_operator(tensor_class, operator):
                 res = merge([x, y], mode=func, output_shape=lambda _: shape1)
             override_operators(res.__class__)  # In some cases the resultant tensor might belong to a different class than the operands.
             return res
+    else:
+        raise Exception('Invalid operator: ' + operator)
     setattr(tensor_class, operator, op)
 
 def override_operators(tensor_class):
