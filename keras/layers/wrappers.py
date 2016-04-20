@@ -6,6 +6,7 @@ class Wrapper(Layer):
 
     def __init__(self, layer, **kwargs):
         self.layer = layer
+        self.uses_learning_phase = layer.uses_learning_phase
         super(Wrapper, self).__init__(**kwargs)
 
     def build(self, input_shape=None):
@@ -97,7 +98,9 @@ class TimeDistributed(Wrapper):
                                 'an "input_shape" or "batch_input_shape" '
                                 'argument, including the time axis.')
         child_input_shape = (input_shape[0],) + input_shape[2:]
-        self.layer.build(child_input_shape)
+        if not self.layer.built:
+            self.layer.build(child_input_shape)
+            self.layer.built = True
         super(TimeDistributed, self).build()
 
     def get_output_shape_for(self, input_shape):
@@ -108,24 +111,24 @@ class TimeDistributed(Wrapper):
 
     def call(self, X, mask=None):
         input_shape = self.input_spec[0].shape
-        if input_shape[0] or mask is not None:
+        if input_shape[0]:
             # batch size matters, use rnn-based implementation
             def step(x, states):
                 output = self.layer.call(x)
                 return output, []
 
-            last_output, outputs, states = K.rnn(step, X, mask=mask,
+            last_output, outputs, states = K.rnn(step, X,
                                                  initial_states=[])
             y = outputs
         else:
             # no batch size specified, therefore the layer will be able
             # to process batches of any size
             # we can go with reshape-based implementation for performance
-            X = K.reshape(X, (-1, ) + input_shape[2:])  # (nb_samples * timesteps, ...)
-            y = self.layer.call(X)  # (nb_samples * timesteps, ...)
             input_length = input_shape[1]
             if not input_length:
                 input_length = K.shape(X)[1]
+            X = K.reshape(X, (-1, ) + input_shape[2:])  # (nb_samples * timesteps, ...)
+            y = self.layer.call(X)  # (nb_samples * timesteps, ...)
             # (nb_samples, timesteps, ...)
             output_shape = self.get_output_shape_for(input_shape)
             y = K.reshape(y, (-1, input_length) + output_shape[2:])
