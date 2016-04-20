@@ -1128,7 +1128,8 @@ class Merge(Layer):
             if mode not in {'sum', 'mul', 'concat', 'ave', 'cos', 'dot'}:
                 raise Exception('Invalid merge mode: ' + str(mode))
         if type(layers) not in {list, tuple} or len(layers) < 2:
-            raise Exception('A Merge should only be applied to a list of layers. Not a list: ' + str(layers))
+            raise Exception('A Merge should only be applied to a list of '
+                            'layers with at least 2 elements. Found: ' + str(layers))
 
         if tensor_indices is None:
             tensor_indices = [None for _ in range(len(layers))]
@@ -1241,20 +1242,30 @@ class Merge(Layer):
                             'please use ' +
                             'the "merge" function instead: ' +
                             '`merged_tensor = merge([tensor_1, tensor2])`.')
-        layers = []
-        node_indices = []
-        tensor_indices = []
+
+        all_keras_tensors = True
         for x in inputs:
-            layer, node_index, tensor_index = x._keras_history
-            layers.append(layer)
-            node_indices.append(node_index)
-            tensor_indices.append(tensor_index)
-        self._arguments_validation(layers, self.mode,
-                                   self.concat_axis, self.dot_axes,
-                                   self._output_shape,
-                                   node_indices, tensor_indices)
-        self.built = True
-        self.add_inbound_node(layers, node_indices, tensor_indices)
+            if not hasattr(x, '_keras_history'):
+                all_keras_tensors = False
+                break
+
+        if all_keras_tensors:
+            layers = []
+            node_indices = []
+            tensor_indices = []
+            for x in inputs:
+                layer, node_index, tensor_index = x._keras_history
+                layers.append(layer)
+                node_indices.append(node_index)
+                tensor_indices.append(tensor_index)
+            self._arguments_validation(layers, self.mode,
+                                       self.concat_axis, self.dot_axes,
+                                       self._output_shape,
+                                       node_indices, tensor_indices)
+            self.built = True
+            self.add_inbound_node(layers, node_indices, tensor_indices)
+        else:
+            return self.call(inputs, mask)
 
     def get_output_shape_for(self, input_shape):
         assert type(input_shape) is list  # must have mutiple input shape tuples
@@ -1405,20 +1416,35 @@ def merge(inputs, mode='sum', concat_axis=-1,
             to consider for merging
             (in case some input layer node returns multiple tensors).
     '''
-    input_layers = []
-    node_indices = []
-    tensor_indices = []
+    all_keras_tensors = True
     for x in inputs:
-        assert hasattr(x, '_keras_history'), 'Input tensor to "merge" was not a Keras tensor: ' + str(x)
-        input_layer, node_index, tensor_index = x._keras_history
-        input_layers.append(input_layer)
-        node_indices.append(node_index)
-        tensor_indices.append(tensor_index)
-    merge_layer = Merge(input_layers, mode=mode, concat_axis=concat_axis,
-                        dot_axes=dot_axes, output_shape=output_shape,
-                        node_indices=node_indices, tensor_indices=tensor_indices,
-                        name=name)
-    return merge_layer.inbound_nodes[0].output_tensors[0]
+        if not hasattr(x, '_keras_history'):
+            all_keras_tensors = False
+            break
+    if all_keras_tensors:
+        input_layers = []
+        node_indices = []
+        tensor_indices = []
+        for x in inputs:
+            input_layer, node_index, tensor_index = x._keras_history
+            input_layers.append(input_layer)
+            node_indices.append(node_index)
+            tensor_indices.append(tensor_index)
+        merge_layer = Merge(input_layers, mode=mode,
+                            concat_axis=concat_axis,
+                            dot_axes=dot_axes,
+                            output_shape=output_shape,
+                            node_indices=node_indices,
+                            tensor_indices=tensor_indices,
+                            name=name)
+        return merge_layer.inbound_nodes[0].output_tensors[0]
+    else:
+        merge_layer = Merge(mode=mode,
+                            concat_axis=concat_axis,
+                            dot_axes=dot_axes,
+                            output_shape=output_shape,
+                            name=name)
+        return merge_layer(inputs)
 
 
 class Container(Layer):
