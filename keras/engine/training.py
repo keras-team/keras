@@ -66,6 +66,12 @@ def standardize_input_data(data, names, shapes=None, check_batch_dim=True,
                             ': data should be a Numpy array, '
                             'or list/dict of Numpy arrays. '
                             'Found: ' + str(data)[:200] + '...')
+        if len(names) != 1:
+            # case: model expects multiple inputs but only received
+            # a single Numpy array
+            raise Exception('The model expects ' + str(len(names)) +
+                            ' input arrays, but only received one array. '
+                            'Found: array with shape ' + str(data.shape))
         arrays = [data]
 
     # make arrays at least 2D

@@ -98,7 +98,9 @@ class TimeDistributed(Wrapper):
                                 'an "input_shape" or "batch_input_shape" '
                                 'argument, including the time axis.')
         child_input_shape = (input_shape[0],) + input_shape[2:]
-        self.layer.build(child_input_shape)
+        if not self.layer.built:
+            self.layer.build(child_input_shape)
+            self.layer.built = True
         super(TimeDistributed, self).build()
 
     def get_output_shape_for(self, input_shape):
