@@ -83,7 +83,7 @@ def placeholder(shape=None, ndim=None, dtype=_FLOATX, name=None):
         if ndim:
             shape = tuple([None for _ in range(ndim)])
     x = tf.placeholder(dtype, shape=shape, name=name)
-    if not hasattr(x.__class__, 'operators_overridden'):
+    if not hasattr(x.__class__, '_keras_operators_supported'):
         from .ops import override_operators
         override_operators(x.__class__)
     x._keras_shape = shape
