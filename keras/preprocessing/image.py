@@ -16,7 +16,8 @@ from six.moves import range
 import threading
 
 
-def random_rotation(x, rg, fill_mode='nearest', cval=0., axes=(1,2)):
+def random_rotation(x, rg, fill_mode='nearest',
+                    cval=0., axes=(1, 2)):
     angle = np.random.uniform(-rg, rg)
     x = ndimage.interpolation.rotate(x, angle,
                                      axes=axes,
@@ -26,7 +27,8 @@ def random_rotation(x, rg, fill_mode='nearest', cval=0., axes=(1,2)):
     return x
 
 
-def random_shift(x, wrg, hrg, fill_mode='nearest', cval=0., row_index=1, col_index=2):
+def random_shift(x, wrg, hrg, fill_mode='nearest',
+                 cval=0., row_index=1, col_index=2):
     shift_x = shift_y = 0
     if wrg:
         shift_x = np.random.uniform(-wrg, wrg) * x.shape[col_index]
@@ -38,11 +40,13 @@ def random_shift(x, wrg, hrg, fill_mode='nearest', cval=0., row_index=1, col_ind
                                     cval=cval)
     return x
 
+
 def flip_axis(x, axis):
     x = np.asarray(x).swapaxes(axis, 0)
-    x = x[::-1,...]
+    x = x[::-1, ...]
     x = x.swapaxes(0, axis)
     return x
+
 
 def random_barrel_transform(x, intensity):
     # TODO
@@ -159,9 +163,9 @@ class ImageDataGenerator(object):
             (the depth) is at index 1, in 'tf' mode it is at index 3.
     '''
     def __init__(self,
-                 featurewise_center=True,
+                 featurewise_center=False,
                  samplewise_center=False,
-                 featurewise_std_normalization=True,
+                 featurewise_std_normalization=False,
                  samplewise_std_normalization=False,
                  zca_whitening=False,
                  rotation_range=0.,
@@ -196,30 +200,29 @@ class ImageDataGenerator(object):
             self.row_index = 1
             self.col_index = 2
 
+        self.batch_index = 0
+        self.total_batches_seen = 0
+
+    def reset(self):
+        self.batch_index = 0
+
     def _flow_index(self, N, batch_size=32, shuffle=False, seed=None):
-        b = 0
-        total_b = 0
         while 1:
-            if b == 0:
-                if seed is not None:
-                    np.random.seed(seed + total_b)
-
+            index_array = np.arange(N)
+            if self.batch_index == 0:
                 if shuffle:
+                    if seed is not None:
+                        np.random.seed(seed + self.total_batches_seen)
                     index_array = np.random.permutation(N)
-                else:
-                    index_array = np.arange(N)
 
-            current_index = (b * batch_size) % N
+            current_index = (self.batch_index * batch_size) % N
             if N >= current_index + batch_size:
                 current_batch_size = batch_size
+                self.batch_index += 1
             else:
                 current_batch_size = N - current_index
-
-            if current_batch_size == batch_size:
-                b += 1
-            else:
-                b = 0
-            total_b += 1
+                self.batch_index = 0
+            self.total_batches_seen += 1
             yield (index_array[current_index: current_index + current_batch_size],
                    current_index, current_batch_size)
 
@@ -233,6 +236,7 @@ class ImageDataGenerator(object):
         self.save_to_dir = save_to_dir
         self.save_prefix = save_prefix
         self.save_format = save_format
+        self.reset()
         self.flow_generator = self._flow_index(len(X), batch_size,
                                                shuffle, seed)
         return self

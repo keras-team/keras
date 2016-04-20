@@ -79,6 +79,12 @@ def ones(shape, dtype=_FLOATX, name=None):
     return variable(np.ones(shape), dtype, name)
 
 
+def eye(size, dtype=_FLOATX, name=None):
+    '''Instantiate an identity matrix.
+    '''
+    return variable(np.eye(size), dtype, name)
+
+
 def ones_like(x):
     return T.ones_like(x)
 
@@ -473,6 +479,11 @@ def set_value(x, value):
     x.set_value(np.asarray(value, dtype=x.dtype))
 
 
+def batch_set_value(tuples):
+    for x, value in tuples:
+        x.set_value(np.asarray(value, dtype=x.dtype))
+
+
 # GRAPH MANIPULATION
 
 class Function(object):
@@ -553,14 +564,14 @@ def rnn(step_function, inputs, initial_states,
     axes = [1, 0] + list(range(2, ndim))
     inputs = inputs.dimshuffle(axes)
 
+    if constants is None:
+        constants = []
+
     if mask is not None:
         if mask.ndim == ndim-1:
             mask = expand_dims(mask)
         assert mask.ndim == ndim
         mask = mask.dimshuffle(axes)
-
-        if constants is None:
-            constants = []
 
         if unroll:
             indices = list(range(input_length))
@@ -571,7 +582,7 @@ def rnn(step_function, inputs, initial_states,
             successive_states = []
             states = initial_states
             for i in indices:
-                output, new_states = step_function(inputs[i], states)
+                output, new_states = step_function(inputs[i], states + constants)
 
                 if len(successive_outputs) == 0:
                     prev_output = zeros_like(output)
@@ -630,7 +641,7 @@ def rnn(step_function, inputs, initial_states,
             successive_states = []
             states = initial_states
             for i in indices:
-                output, states = step_function(inputs[i], states)
+                output, states = step_function(inputs[i], states + constants)
                 successive_outputs.append(output)
                 successive_states.append(states)
             outputs = T.stack(*successive_outputs)

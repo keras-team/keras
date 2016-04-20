@@ -389,6 +389,9 @@ def test_recursion():
         assert K.int_shape(m_tf) == (None, 64)
         assert K.int_shape(n_tf) == (None, 5)
 
+        # test merge
+        o_tf = merge([j_tf, k_tf], mode='concat', concat_axis=1)
+
 
 def test_functional_guide():
     # MNIST

@@ -53,7 +53,7 @@ def test_graph_fit_generator():
                         validation_data=data_generator_graph(False), nb_val_samples=batch_size * 3)
     graph.fit_generator(data_generator_graph(True), 1000, nb_epoch=4,
                         validation_data=data_generator_graph(False), nb_val_samples=batch_size * 3)
-    gen_loss = graph.evaluate_generator(data_generator_graph(True), 128, verbose=0)    
+    gen_loss = graph.evaluate_generator(data_generator_graph(True), 128, verbose=0)
 
     loss = graph.evaluate({'input1': X_test_graph, 'output1': y_test_graph}, verbose=0)
 

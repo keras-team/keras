@@ -50,3 +50,27 @@ def probas_to_classes(y_pred):
 
 def categorical_probas_to_classes(p):
     return np.argmax(p, axis=1)
+
+
+def convert_kernel(kernel, dim_ordering='th'):
+    '''Converts a kernel matrix (numpy array)
+    from Theano format to TensorFlow format
+    (or reciprocally, since the transformation
+    is its own inverse).
+    '''
+    new_kernel = np.copy(kernel)
+    if dim_ordering == 'th':
+        w = kernel.shape[2]
+        h = kernel.shape[3]
+        for i in range(w):
+            for j in range(h):
+                new_kernel[:, :, i, j] = kernel[:, :, w - i - 1, h - j - 1]
+    elif dim_ordering == 'tf':
+        w = kernel.shape[0]
+        h = kernel.shape[1]
+        for i in range(w):
+            for j in range(h):
+                new_kernel[i, j, :, :] = kernel[w - i - 1, h - j - 1, :, :]
+    else:
+        raise Exception('Invalid dim_ordering: ' + str(dim_ordering))
+    return new_kernel

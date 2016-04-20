@@ -565,8 +565,7 @@ class Sequential(Model):
     def fit_generator(self, generator, samples_per_epoch, nb_epoch,
                       verbose=1, callbacks=[],
                       validation_data=None, nb_val_samples=None,
-                      class_weight=None,
-                      **kwargs):
+                      class_weight=None, max_q_size=10, **kwargs):
         '''Fits the model on data generated batch-by-batch by
         a Python generator.
         The generator is run in parallel to the model, for efficiency.
@@ -596,6 +595,7 @@ class Sequential(Model):
                 at the end of every epoch.
             class_weight: dictionary mapping class indices to a weight
                 for the class.
+            max_q_size: maximum size for the generator queue
 
         # Returns
             A `History` object.
@@ -644,10 +644,10 @@ class Sequential(Model):
                                         callbacks=callbacks,
                                         validation_data=validation_data,
                                         nb_val_samples=nb_val_samples,
-                                        class_weight=class_weight)
+                                        class_weight=class_weight,
+                                        max_q_size=max_q_size)
 
-    def evaluate_generator(self, generator, val_samples,
-                           **kwargs):
+    def evaluate_generator(self, generator, val_samples, max_q_size=10, **kwargs):
         '''Evaluates the model on a data generator. The generator should
         return the same kind of data as accepted by `test_on_batch`.
 
@@ -658,6 +658,7 @@ class Sequential(Model):
             val_samples:
                 total number of samples to generate from `generator`
                 before returning.
+            max_q_size: maximum size for the generator queue
         '''
         if self.model is None:
             raise Exception('The model needs to be compiled before being used.')
@@ -675,9 +676,10 @@ class Sequential(Model):
             raise Exception('Received unknown keyword arguments: ' +
                             str(kwargs))
         return self.model.evaluate_generator(generator,
-                                             val_samples)
+                                             val_samples,
+                                             max_q_size=max_q_size)
 
-    def predict_generator(self, generator, val_samples):
+    def predict_generator(self, generator, val_samples, max_q_size=10):
         '''Generates predictions for the input samples from a data generator.
         The generator should return the same kind of data as accepted by
         `predict_on_batch`.
@@ -686,13 +688,15 @@ class Sequential(Model):
             generator: generator yielding batches of input samples.
             val_samples: total number of samples to generate from `generator`
                 before returning.
+            max_q_size: maximum size for the generator queue
 
         # Returns
             A Numpy array of predictions.
         '''
         if self.model is None:
             raise Exception('The model needs to be compiled before being used.')
-        return self.model.predict_generator(generator, val_samples)
+        return self.model.predict_generator(generator, val_samples,
+                                            max_q_size=max_q_size)
 
     def get_config(self):
         '''Returns the model configuration

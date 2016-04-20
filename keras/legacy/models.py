@@ -533,7 +533,8 @@ class Graph(Model):
     def fit_generator(self, generator, samples_per_epoch, nb_epoch,
                       verbose=1, callbacks=[],
                       validation_data=None, nb_val_samples=None,
-                      class_weight={}, **kwargs):
+                      class_weight={},
+                      max_q_size=10, **kwargs):
         '''Fits a model on data generated batch-by-batch by a Python generator.
         The generator is run in parallel to the model, for efficiency.
         For instance, this allows you to do real-time data augmentation
@@ -641,13 +642,14 @@ class Graph(Model):
                                                    callbacks=callbacks,
                                                    validation_data=validation_data,
                                                    nb_val_samples=nb_val_samples,
-                                                   class_weight=class_weight)
+                                                   class_weight=class_weight,
+                                                   max_q_size=max_q_size)
         self.train_on_batch = self._train_on_batch
         self.evaluate = self._evaluate
         return history
 
     def evaluate_generator(self, generator, val_samples,
-                           verbose=1, **kwargs):
+                           verbose=1, max_q_size=10, **kwargs):
         '''Evaluates the model on a generator. The generator should
         return the same kind of data with every yield as accepted
         by `evaluate`.
@@ -700,7 +702,8 @@ class Graph(Model):
 
         generator = fixed_generator()
         history = super(Graph, self).evaluate_generator(generator,
-                                                        val_samples)
+                                                        val_samples,
+                                                        max_q_size=max_q_size)
         self.test_on_batch = self._test_on_batch
         return history
 

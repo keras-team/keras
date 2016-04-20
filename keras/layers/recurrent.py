@@ -549,17 +549,17 @@ class GRU(Recurrent):
         if 0 < self.dropout_U < 1:
             ones = K.ones_like(K.reshape(x[:, 0, 0], (-1, 1)))
             ones = K.concatenate([ones] * self.output_dim, 1)
-            B_U = [K.dropout(ones, self.dropout_U) for _ in range(3)]
+            B_U = [K.in_train_phase(K.dropout(ones, self.dropout_U), ones) for _ in range(3)]
             constants.append(B_U)
         else:
             constants.append([K.cast_to_floatx(1.) for _ in range(4)])
 
-        if self.consume_less == 'cpu' and 0 < self.dropout_W < 1:
+        if 0 < self.dropout_W < 1:
             input_shape = self.input_spec[0].shape
             input_dim = input_shape[-1]
             ones = K.ones_like(K.reshape(x[:, 0, 0], (-1, 1)))
             ones = K.concatenate([ones] * input_dim, 1)
-            B_W = [K.dropout(ones, self.dropout_W) for _ in range(3)]
+            B_W = [K.in_train_phase(K.dropout(ones, self.dropout_W), ones) for _ in range(3)]
             constants.append(B_W)
         else:
             constants.append([K.cast_to_floatx(1.) for _ in range(4)])
@@ -715,9 +715,9 @@ class LSTM(Recurrent):
             self.states = [K.zeros((input_shape[0], self.output_dim)),
                            K.zeros((input_shape[0], self.output_dim))]
 
-    def preprocess_input(self, x, train=False):
+    def preprocess_input(self, x):
         if self.consume_less == 'cpu':
-            if train and (0 < self.dropout_W < 1):
+            if 0 < self.dropout_W < 1:
                 dropout = self.dropout_W
             else:
                 dropout = 0
@@ -767,17 +767,17 @@ class LSTM(Recurrent):
         if 0 < self.dropout_U < 1:
             ones = K.ones_like(K.reshape(x[:, 0, 0], (-1, 1)))
             ones = K.concatenate([ones] * self.output_dim, 1)
-            B_U = [K.dropout(ones, self.dropout_U) for _ in range(4)]
+            B_U = [K.in_train_phase(K.dropout(ones, self.dropout_U), ones) for _ in range(4)]
             constants.append(B_U)
         else:
             constants.append([K.cast_to_floatx(1.) for _ in range(4)])
 
-        if self.consume_less == 'cpu' and 0 < self.dropout_W < 1:
+        if 0 < self.dropout_W < 1:
             input_shape = self.input_spec[0].shape
             input_dim = input_shape[-1]
             ones = K.ones_like(K.reshape(x[:, 0, 0], (-1, 1)))
             ones = K.concatenate([ones] * input_dim, 1)
-            B_W = [K.dropout(ones, self.dropout_W) for _ in range(4)]
+            B_W = [K.in_train_phase(K.dropout(ones, self.dropout_W), ones) for _ in range(4)]
             constants.append(B_W)
         else:
             constants.append([K.cast_to_floatx(1.) for _ in range(4)])
