@@ -4,16 +4,20 @@ from .. import backend as K
 
 
 def _slice_shape(shape, slices):
-    '''slice a shape
+    '''Infer the shape of a tensor when it is sliced / indexed using the __getitem__ operator.
+    
+    # Arguments:
+    shape: tuple. shape of the tensor
+    slices: slice, int or tuple of slice and int used to slice or index the tensor.
     '''
     output_shape = []
-    if type(slices) in [int, slice]:
+    if type(slices) not in [list, tuple]:
         slices = [slices]
     while len(shape) > len(slices):
         slices += (slice(None),)
     for i in range(len(slices)):
         s = slices[i]
-        if type(s) == int:
+        if type(s) is not slice:
             continue
         else:
             start = s.start
@@ -42,20 +46,27 @@ def _slice_shape(shape, slices):
     return tuple(output_shape)
 
 def _compatible(shape1, shape2):
-    '''check if shapes of 2 tensors are compatible for addition, multiplication etc.
+    '''check if shapes of 2 tensors are compatible for element wise operations.
     '''
     if len(shape1) != len(shape2):
         return False
     for dim1, dim2 in zip(shape1, shape2):
-        if dim1 and dim2 and dim1 != dim2:
+        if dim1 is not None and dim2 is not None and dim1 != dim2:
             return False
     return True
 
 def _override_operator(tensor_class, operator):
+    ''' Override an operator of a class
+    
+    # Arguments:
+    tensor_class: class for which the operator is to be overridden.
+    operator: the operator to be overridden.
+    '''
     _operator = '_keras' + operator[1:-2]  # we add '_keras' so that it does not conflict with any existing functions
     setattr(tensor_class, _operator, getattr(tensor_class, operator))
-    if operator in ['__neg__', '__pos__', '__abs__', '__invert__']:
-        # unary operator
+    unary_operators = ['__neg__', '__pos__', '__abs__', '__invert__']
+    binary_operators = ['add', 'sub', 'mul', 'matmul', 'truediv', 'floordiv', 'mod', 'divmod', 'pow', 'lshift', 'rshift', 'and', 'xor', 'or', '__getitem__']
+    if operator in unary_operators:
         def op(x):
             x_k = hasattr(x, '_keras_history')
             if not x_k:
@@ -67,8 +78,7 @@ def _override_operator(tensor_class, operator):
                 lambda_layer.build(None)
                 lambda_layer.supports_masking = True
                 return lambda_layer(x)
-    else:
-        # binary operator
+    elif operator in binary_operators:
         def op(x, y):
             x_k = hasattr(x, '_keras_history')
             y_k = hasattr(y, '_keras_history')
@@ -102,15 +112,20 @@ def _override_operator(tensor_class, operator):
                     y = X[1]
                     return getattr(x, _operator)(y)
                 res = merge([x, y], mode=func, output_shape=lambda _: shape1)
-            override_operators(res.__class__)
+            override_operators(res.__class__)  # In some cases the resultant tensor might belong to a different class than the operands.
             return res
     setattr(tensor_class, operator, op)
 
 def override_operators(tensor_class):
-    if hasattr(tensor_class, 'operators_overridden'):
+    '''Override operators of a class
+
+    # Arguments:
+    tensor_class: class whose operators has to be overridden.
+    '''
+    if hasattr(tensor_class, '_keras_operators_supported'):
         return
     else:
-        setattr(tensor_class, 'operators_overridden', True)
+        setattr(tensor_class, '_keras_operators_supported', True)
     operators = ['add', 'sub', 'mul', 'matmul', 'truediv', 'floordiv', 'mod', 'divmod', 'pow', 'lshift', 'rshift', 'and', 'xor', 'or']
     operators += map(lambda x: 'r' + x, operators)
     operators += ['neg', 'pos', 'abs', 'invert']
