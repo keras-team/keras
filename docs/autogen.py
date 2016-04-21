@@ -53,10 +53,16 @@ Scikit-learn API
 
 '''
 from __future__ import print_function
+from __future__ import unicode_literals
+
 import re
 import inspect
 import os
 import shutil
+import sys
+if sys.version[0] == '2':
+    reload(sys)
+    sys.setdefaultencoding('utf8')
 
 from keras.layers import convolutional
 from keras.layers import recurrent
@@ -250,8 +256,6 @@ def get_function_signature(function, method=True):
     for a, v in kwargs:
         if type(v) == str:
             v = '\'' + v + '\''
-        elif type(v) == unicode:
-            v = 'u\'' + v + '\''
         st += str(a) + '=' + str(v) + ', '
     if kwargs or args:
         return st[:-2] + ')'
