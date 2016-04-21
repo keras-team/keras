@@ -107,8 +107,9 @@ class ImageDataGenerator(object):
         self.principal_components = None
         self.lock = threading.Lock()
         if dim_ordering not in {'tf', 'th'}:
-            raise Exception('dim_ordering should be "tf" (channel after row and \
-            column) or "th" (channel before row and column). Received arg: ', dim_ordering)
+            raise Exception('dim_ordering should be "tf" (channel after row and '
+                            'column) or "th" (channel before row and column). '
+                            'Received arg: ', dim_ordering)
         self.dim_ordering = dim_ordering
         if dim_ordering == "th":
             self.channel_index = 1
@@ -121,9 +122,11 @@ class ImageDataGenerator(object):
 
         if np.isscalar(zoom_range):
             self.zoom_range = [1 - zoom_range, 1 + zoom_range]
-        else:
+        elif len(zoom_range) == 2:
             self.zoom_range = [zoom_range[0], zoom_range[1]]
-
+        else:
+            raise Exception('zoom_range should be scalar or sequence of two. '
+                            'Receive arg: ', zoom_range)
         self.batch_index = 0
         self.total_batches_seen = 0
 
@@ -221,7 +224,6 @@ class ImageDataGenerator(object):
         img_row_index = self.row_index - 1
         img_channel_index = self.channel_index - 1
 
-
         # find inverse permutation
         inverse_transpose = [0,0,0]
         inverse_transpose[img_row_index], inverse_transpose[img_col_index], inverse_transpose[img_channel_index] = 0,1,2
@@ -231,7 +233,6 @@ class ImageDataGenerator(object):
         x = x.transpose((img_row_index, img_col_index, img_channel_index)).astype('float64')
         img_min, img_max = np.min(x), np.max(x)
         x = (x - img_min)/(img_max - img_min)
-
 
         if self.rotation_range:
             theta = np.pi/180*np.random.uniform(-self.rotation_range, self.rotation_range)

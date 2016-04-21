@@ -47,6 +47,7 @@ def test_image_data_generator():
             width_shift_range=10.,
             height_shift_range=10.,
             shear_range=0.5,
+            zoom_range=0.2,
             horizontal_flip=True,
             vertical_flip=True)
         generator.fit(images, augment=True)
