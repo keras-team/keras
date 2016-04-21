@@ -6,31 +6,22 @@ from __future__ import absolute_import
 
 import numpy as np
 import re
-from scipy import ndimage
 from scipy import linalg
-from skimage import transform
+import scipy.ndimage as ndi
 from six.moves import range
 from os import listdir
 from os.path import isfile, join
-import math
 import threading
 
 def random_rotation(x, rg, fill_mode='nearest',
                     cval=0., axes=(1, 2)):
-    angle = np.random.uniform(-rg, rg)
-    x = ndimage.interpolation.rotate(x, angle, axes=axes, reshape=False,
-                                     mode=fill_mode, cval=cval)
+
+    # TODO: rewrite with ndi implementation
     return x
 
 def random_shift(x, wrg, hrg, fill_mode='nearest',
                  cval=0., row_index=1, col_index=2):
-    shift_x = shift_y = 0
-    if wrg:
-        shift_x = np.random.uniform(-wrg, wrg) * x.shape[col_index]
-    if hrg:
-        shift_y = np.random.uniform(-hrg, hrg) * x.shape[row_index]
-    x = ndimage.interpolation.shift(x, (0, shift_y, shift_x), order=0,
-                                    mode=fill_mode, cval=cval)
+    # TODO: rewrite with ndi implementation
     return x
 
 def flip_axis(x, axis):
@@ -40,14 +31,7 @@ def flip_axis(x, axis):
     return x
 
 def random_shear(x, intensity, fill_mode='nearest', cval=0.):
-    shear = np.random.uniform(-intensity, intensity)
-    shear_matrix = np.array([[1.0, -math.sin(shear), 0.0],
-                            [0.0, math.cos(shear), 0.0],
-                            [0.0, 0.0, 1.0]])
-    x = ndimage.interpolation.affine_transform(x, shear_matrix,
-                                               mode=fill_mode,
-                                               order=3,
-                                               cval=cval)
+    # TODO: rewrite with ndi implementation
     return x
 
 def random_barrel_transform(x, intensity):
@@ -253,20 +237,11 @@ class ImageDataGenerator(object):
 
     def random_transform(self, x):
         # x is a single image, so it doesn't have image number at index 0
+        img_row_index = self.row_index - 1 
         img_col_index = self.col_index - 1
-        img_row_index = self.row_index - 1
-        img_channel_index = self.channel_index - 1
+        img_channel_index = self.channel_index - 1 
 
-        # find inverse permutation
-        inverse_transpose = [0, 0, 0]
-        inverse_transpose[img_row_index], inverse_transpose[img_col_index], inverse_transpose[img_channel_index] = 0, 1, 2
-        orig_dtype = x.dtype
-
-        # for compatability with skimage
-        x = x.transpose((img_row_index, img_col_index, img_channel_index)).astype('float64')
-        img_min, img_max = np.min(x), np.max(x)
-        x = (x - img_min)/(img_max - img_min)
-
+        # Use composition of homographies to generate final transform that needs to be applied
         if self.rotation_range:
             theta = np.pi/180*np.random.uniform(-self.rotation_range, self.rotation_range)
         else:
@@ -276,12 +251,12 @@ class ImageDataGenerator(object):
                                     [0, 0, 1]])
         
         if self.height_shift_range:
-            tx = np.random.uniform(-self.height_shift_range, self.height_shift_range) * x.shape[0]
+            tx = np.random.uniform(-self.height_shift_range, self.height_shift_range) * x.shape[img_row_index]
         else:
             tx = 0
 
         if self.width_shift_range:
-            ty = np.random.uniform(-self.width_shift_range, self.width_shift_range) * x.shape[1]
+            ty = np.random.uniform(-self.width_shift_range, self.width_shift_range) * x.shape[img_col_index]
         else:
             ty = 0
         translation_matrix = np.array([[1, 0, tx],
@@ -308,18 +283,28 @@ class ImageDataGenerator(object):
         transform_matrix = np.dot(np.dot(np.dot(rotation_matrix, translation_matrix), shear_matrix), zoom_matrix)
 
         # recentering origin to the centre of image
-        o_x = float(x.shape[0])/2 + 0.5
-        o_y = float(x.shape[1])/2 + 0.5
+        o_x = float(x.shape[img_row_index])/2 + 0.5
+        o_y = float(x.shape[img_col_index])/2 + 0.5
         offset_matrix = np.array([[1, 0, o_x], [0, 1, o_y], [0, 0, 1]])
         reset_matrix = np.array([[1, 0, -o_x], [0, 1, -o_y], [0, 0, 1]])
         transform_matrix = np.dot(np.dot(offset_matrix, transform_matrix), reset_matrix)
 
-        projective_transform = transform.ProjectiveTransform(transform_matrix)
-        x = transform.warp(x, projective_transform, mode='nearest', order=0)
+        final_affine_matrix = transform_matrix[:2,:2]
+        final_offset = transform_matrix[:2,2]
 
-        # revert back to original dim ordering and scale
-        x = x.transpose(inverse_transpose)
-        x = (x*(img_max-img_min) + img_min).astype(orig_dtype, copy=False)
+
+        # roll channel axis to 0 for convinience. We'll roll it back
+        x = np.rollaxis(x, img_channel_index, 0) 
+
+        # apply affine transform channelwise as ndi doesn't handle color images.
+        channel_images = [ndi.interpolation.affine_transform(x_channel, final_affine_matrix, 
+                                final_offset, order=0, mode='nearest') for x_channel in x]
+        
+        x = np.stack(channel_images, axis=0)
+
+        # roll back to original dimensional order
+        x = np.rollaxis(x, 0, img_channel_index+1)
+
 
         if self.horizontal_flip:
             if np.random.random() < 0.5:
