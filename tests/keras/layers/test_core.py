@@ -26,7 +26,7 @@ def test_merge():
         print(mode)
         input_a = Input(shape=input_shapes[0][1:])
         input_b = Input(shape=input_shapes[1][1:])
-        merged = merge([input_a, input_b], mode='sum')
+        merged = merge([input_a, input_b], mode=mode)
         model = Model([input_a, input_b], merged)
         model.compile('rmsprop', 'mse')
 
