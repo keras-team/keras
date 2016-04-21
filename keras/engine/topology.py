@@ -1672,17 +1672,20 @@ class Container(Layer):
                 layers_by_depth[depth] = []
             layers_by_depth[depth].append(layer)
 
+        # get sorted list of node depths
+        # -- this may be a superset of layer depths
         depth_keys = list(nodes_by_depth.keys())
         depth_keys.sort(reverse=True)
 
         # set self.layers and self.layers_by_depth
         layers = []
         for depth in depth_keys:
-            layers_for_depth = layers_by_depth[depth]
-            # container.layers needs to have a deterministic order
-            layers_for_depth.sort(key=lambda x: x.name)
-            for layer in layers_for_depth:
-                layers.append(layer)
+            if depth in layers_by_depth:
+                layers_for_depth = layers_by_depth[depth]
+                # container.layers needs to have a deterministic order
+                layers_for_depth.sort(key=lambda x: x.name)
+                for layer in layers_for_depth:
+                    layers.append(layer)
         self.layers = layers
         self.layers_by_depth = layers_by_depth
 
