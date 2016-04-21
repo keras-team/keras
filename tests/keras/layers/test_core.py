@@ -21,12 +21,12 @@ def test_merge():
     input_shapes = [(3, 2), (3, 2)]
     inputs = [np.random.random(shape) for shape in input_shapes]
 
-    # test graph API
-    for mode in ['sum', 'mul', 'concat', 'ave', 'cos', 'dot']:
+    # test functional API
+    for mode in ['sum', 'mul', 'concat', 'ave']:
         print(mode)
         input_a = Input(shape=input_shapes[0][1:])
         input_b = Input(shape=input_shapes[1][1:])
-        merged = merge([input_a, input_b], mode='sum')
+        merged = merge([input_a, input_b], mode=mode)
         model = Model([input_a, input_b], merged)
         model.compile('rmsprop', 'mse')
 
