@@ -6,48 +6,22 @@ from __future__ import absolute_import
 
 import numpy as np
 import re
-from scipy import ndimage
 from scipy import linalg
 import scipy.ndimage as ndi
 from six.moves import range
 from os import listdir
 from os.path import isfile, join
-import math
 import threading
 
 def random_rotation(x, rg, fill_mode='nearest',
                     cval=0., axes=(1, 2)):
 
-
-    theta = np.pi/180*np.random.uniform(-rg, rg)
-
-    rotation_matrix = np.array([[np.cos(theta), -np.sin(theta), 0],
-                                [np.sin(theta), np.cos(theta), 0],
-                                [0, 0, 1]])
-
-    transform_matrix = np.dot(np.dot(offset_matrix, rotation_matrix), reset_matrix)
-    projective_transform = transform.ProjectiveTransform(transform_matrix)
-    
-    # recentering origin of the transform to the centre of image
-    o_x = float(x.shape[0])/2 + 0.5
-    o_y = float(x.shape[1])/2 + 0.5
-    offset_matrix = np.array([[1, 0, o_x], [0, 1, o_y], [0, 0, 1]])
-    reset_matrix = np.array([[1, 0, -o_x], [0, 1, -o_y], [0, 0, 1]])
-    transform_matrix = np.dot(np.dot(offset_matrix, transform_matrix), reset_matrix)
-
-    x = transform.warp(x, projective_transform, mode='nearest', order=0)
-
+    # TODO: rewrite with ndi implementation
     return x
 
 def random_shift(x, wrg, hrg, fill_mode='nearest',
                  cval=0., row_index=1, col_index=2):
-    shift_x = shift_y = 0
-    if wrg:
-        shift_x = np.random.uniform(-wrg, wrg) * x.shape[col_index]
-    if hrg:
-        shift_y = np.random.uniform(-hrg, hrg) * x.shape[row_index]
-    x = ndimage.interpolation.shift(x, (0, shift_y, shift_x), order=0,
-                                    mode=fill_mode, cval=cval)
+    # TODO: rewrite with ndi implementation
     return x
 
 def flip_axis(x, axis):
@@ -57,14 +31,7 @@ def flip_axis(x, axis):
     return x
 
 def random_shear(x, intensity, fill_mode='nearest', cval=0.):
-    shear = np.random.uniform(-intensity, intensity)
-    shear_matrix = np.array([[1.0, -math.sin(shear), 0.0],
-                            [0.0, math.cos(shear), 0.0],
-                            [0.0, 0.0, 1.0]])
-    x = ndimage.interpolation.affine_transform(x, shear_matrix,
-                                               mode=fill_mode,
-                                               order=3,
-                                               cval=cval)
+    # TODO: rewrite with ndi implementation
     return x
 
 def random_barrel_transform(x, intensity):
