@@ -12,6 +12,7 @@ setup(name='Keras',
       license='MIT',
       install_requires=['theano', 'pyyaml', 'six'],
       extras_require={
-          'h5py': ['h5py','scikit-image'],
+          'h5py': ['h5py'],
+          'scikit-image': ['scikit-image'],
       },
       packages=find_packages())
