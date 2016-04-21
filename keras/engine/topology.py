@@ -1672,22 +1672,24 @@ class Container(Layer):
                 layers_by_depth[depth] = []
             layers_by_depth[depth].append(layer)
 
-        # get sorted list of node depths
-        # -- this may be a superset of layer depths
-        depth_keys = list(nodes_by_depth.keys())
+        # get sorted list of layer depths
+        depth_keys = list(layers_by_depth.keys())
         depth_keys.sort(reverse=True)
 
         # set self.layers and self.layers_by_depth
         layers = []
         for depth in depth_keys:
-            if depth in layers_by_depth:
-                layers_for_depth = layers_by_depth[depth]
-                # container.layers needs to have a deterministic order
-                layers_for_depth.sort(key=lambda x: x.name)
-                for layer in layers_for_depth:
-                    layers.append(layer)
+            layers_for_depth = layers_by_depth[depth]
+            # container.layers needs to have a deterministic order
+            layers_for_depth.sort(key=lambda x: x.name)
+            for layer in layers_for_depth:
+                layers.append(layer)
         self.layers = layers
         self.layers_by_depth = layers_by_depth
+
+        # get sorted list of node depths
+        depth_keys = list(nodes_by_depth.keys())
+        depth_keys.sort(reverse=True)
 
         # check that all tensors required are computable.
         # computable_tensors: all tensors in the graph
