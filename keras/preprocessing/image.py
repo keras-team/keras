@@ -79,9 +79,9 @@ class ImageDataGenerator(object):
         width_shift_range: fraction of total width.
         height_shift_range: fraction of total height.
         shear_range: shear intensity (shear angle in radians).
-        zoom: amount of zoom. if scalar z, zoom will be randomly picked in
-                the range [1-z, 1+z]. A sequence of two can be passed instead
-                to select this range.          
+        zoom_range: amount of zoom. if scalar z, zoom will be randomly picked in
+                    the range [1-z, 1+z]. A sequence of two can be passed instead
+                    to select this range.          
         horizontal_flip: whether to randomly flip images horizontally.
         vertical_flip: whether to randomly flip images vertically.
         dim_ordering: 'th' or 'tf'. In 'th' mode, the channels dimension
@@ -97,7 +97,7 @@ class ImageDataGenerator(object):
                  width_shift_range=0.,
                  height_shift_range=0.,
                  shear_range=0.,
-                 zoom=0.,
+                 zoom_range=0.,
                  horizontal_flip=False,
                  vertical_flip=False,
                  dim_ordering='th'):
@@ -119,10 +119,10 @@ class ImageDataGenerator(object):
             self.row_index = 1
             self.col_index = 2
 
-        if np.isscalar(zoom):
-            self.zoom_range = [1 - zoom, 1 + zoom]
+        if np.isscalar(zoom_range):
+            self.zoom_range = [1 - zoom_range, 1 + zoom_range]
         else:
-            self.zoom_range = [zoom[0], zoom[1]]
+            self.zoom_range = [zoom_range[0], zoom_range[1]]
 
         self.batch_index = 0
         self.total_batches_seen = 0
