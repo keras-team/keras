@@ -5,12 +5,33 @@ new preprocessing methods, etc...
 from __future__ import absolute_import
 
 import numpy as np
+import re
 from scipy import ndimage
 from scipy import linalg
 from skimage import transform
 from six.moves import range
+from os import listdir
+from os.path import isfile, join
+import math
 import threading
 
+def random_rotation(x, rg, fill_mode='nearest',
+                    cval=0., axes=(1, 2)):
+    angle = np.random.uniform(-rg, rg)
+    x = ndimage.interpolation.rotate(x, angle, axes=axes, reshape=False,
+                                     mode=fill_mode, cval=cval)
+    return x
+
+def random_shift(x, wrg, hrg, fill_mode='nearest',
+                 cval=0., row_index=1, col_index=2):
+    shift_x = shift_y = 0
+    if wrg:
+        shift_x = np.random.uniform(-wrg, wrg) * x.shape[col_index]
+    if hrg:
+        shift_y = np.random.uniform(-hrg, hrg) * x.shape[row_index]
+    x = ndimage.interpolation.shift(x, (0, shift_y, shift_x), order=0,
+                                    mode=fill_mode, cval=cval)
+    return x
 
 def flip_axis(x, axis):
     x = np.asarray(x).swapaxes(axis, 0)
@@ -18,16 +39,24 @@ def flip_axis(x, axis):
     x = x.swapaxes(0, axis)
     return x
 
+def random_shear(x, intensity, fill_mode='nearest', cval=0.):
+    shear = np.random.uniform(-intensity, intensity)
+    shear_matrix = np.array([[1.0, -math.sin(shear), 0.0],
+                            [0.0, math.cos(shear), 0.0],
+                            [0.0, 0.0, 1.0]])
+    x = ndimage.interpolation.affine_transform(x, shear_matrix,
+                                               mode=fill_mode,
+                                               order=3,
+                                               cval=cval)
+    return x
 
 def random_barrel_transform(x, intensity):
     # TODO
     pass
 
-
 def random_channel_shift(x, rg):
     # TODO
     pass
-
 
 def array_to_img(x, scale=True):
     from PIL import Image
@@ -43,7 +72,6 @@ def array_to_img(x, scale=True):
         # grayscale
         return Image.fromarray(x[:, :, 0].astype('uint8'), 'L')
 
-
 def img_to_array(img):
     x = np.asarray(img, dtype='float32')
     if len(x.shape) == 3:
@@ -54,7 +82,6 @@ def img_to_array(img):
         x = x.reshape((1, x.shape[0], x.shape[1]))
     return x
 
-
 def load_img(path, grayscale=False):
     from PIL import Image
     img = Image.open(path)
@@ -63,6 +90,10 @@ def load_img(path, grayscale=False):
     else:  # Ensure 3 channel even when loaded image is grayscale
         img = img.convert('RGB')
     return img
+
+def list_pictures(directory, ext='jpg|jpeg|bmp|png'):
+    return [join(directory, f) for f in listdir(directory)
+            if isfile(join(directory, f)) and re.match('([\w]+\.(?:' + ext + '))', f)]
 
 
 class ImageDataGenerator(object):
@@ -201,10 +232,12 @@ class ImageDataGenerator(object):
         return self.next()
 
     def standardize(self, x):
+        # x is a single image, so it doesn't have image number at index 0
+        img_channel_index = self.channel_index - 1
         if self.samplewise_center:
-            x -= np.mean(x, axis=self.channel_index, keepdims=True)
+            x -= np.mean(x, axis=img_channel_index, keepdims=True)
         if self.samplewise_std_normalization:
-            x /= (np.std(x, axis=self.channel_index, keepdims=True) + 1e-7)
+            x /= (np.std(x, axis=img_channel_index, keepdims=True) + 1e-7)
 
         if self.featurewise_center:
             x -= self.mean
@@ -225,8 +258,8 @@ class ImageDataGenerator(object):
         img_channel_index = self.channel_index - 1
 
         # find inverse permutation
-        inverse_transpose = [0,0,0]
-        inverse_transpose[img_row_index], inverse_transpose[img_col_index], inverse_transpose[img_channel_index] = 0,1,2
+        inverse_transpose = [0, 0, 0]
+        inverse_transpose[img_row_index], inverse_transpose[img_col_index], inverse_transpose[img_channel_index] = 0, 1, 2
         orig_dtype = x.dtype
 
         # for compatability with skimage
@@ -284,7 +317,7 @@ class ImageDataGenerator(object):
         projective_transform = transform.ProjectiveTransform(transform_matrix)
         x = transform.warp(x, projective_transform, mode='nearest', order=0)
 
-        #revert back to original dim ordering and scale
+        # revert back to original dim ordering and scale
         x = x.transpose(inverse_transpose)
         x = (x*(img_max-img_min) + img_min).astype(orig_dtype, copy=False)
 
@@ -319,14 +352,13 @@ class ImageDataGenerator(object):
             aX = np.zeros(tuple([rounds * X.shape[0]] + list(X.shape)[1:]))
             for r in range(rounds):
                 for i in range(X.shape[0]):
-                    img = array_to_img(X[i])
-                    img = self.random_transform(img)
-                    aX[i + r * X.shape[0]] = img_to_array(img)
+                    aX[i + r * X.shape[0]] = self.random_transform(X[i])
             X = aX
 
         if self.featurewise_center:
             self.mean = np.mean(X, axis=0)
             X -= self.mean
+
         if self.featurewise_std_normalization:
             self.std = np.std(X, axis=0)
             X /= (self.std + 1e-7)
@@ -341,7 +373,6 @@ class ImageDataGenerator(object):
 class GraphImageDataGenerator(ImageDataGenerator):
     '''Example of how to build a generator for a Graph model
     '''
-
     def next(self):
         bX, bY = super(GraphImageDataGenerator, self).next()
         return {'input': bX, 'output': bY}
