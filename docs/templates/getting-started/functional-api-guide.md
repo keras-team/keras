@@ -70,8 +70,8 @@ processed_sequences = TimeDistributed(model)(input_sequences)
 
 Here's a good use case for the functional API: models with multiple inputs and outputs. The functional API makes it easy to manipulate a large number of intertwined datastreams.
 
-Let's consider the following model. We seek to predict how many retweets and likes a news headline will receive on Twitter. The main input to the model will be the headline itself, as a sequence of words, but to spice things up, our model will also have an auxiliary input, receiving extra data such as the time of day when the headline was posted, etc.
-The model will also be supervised via two loss functions. Using the main loss function earlier in a model is a good regularization mechanism for deep models.
+Let's consider the following model that predicts how many retweets and likes a news headline will receive on Twitter. The main input to the model is the headline itself as a sequence of words but to spice things up, our model will also have an auxiliary input, receiving extra data such as the time of day when the headline was posted, etc.
+The model will be supervised via two loss functions. Using the main loss function earlier in a model is a good regularization mechanism for deep models.
 
 Here's what our model looks like:
 
@@ -105,7 +105,7 @@ Here we insert the auxiliary loss, allowing the LSTM and Embedding layer to be t
 auxiliary_loss = Dense(1, activation='sigmoid', name='aux_output')(lstm_out)
 ```
 
-At this point, we feed into the model our auxiliary input data by concatenating it with the LSTM output:
+At this point, we feed into the model the auxiliary input tensor by merging it with our LSTM output tensor:
 
 ```python
 auxiliary_input = Input(shape=(5,), name='aux_input')
