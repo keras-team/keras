@@ -1672,7 +1672,8 @@ class Container(Layer):
                 layers_by_depth[depth] = []
             layers_by_depth[depth].append(layer)
 
-        depth_keys = list(nodes_by_depth.keys())
+        # get sorted list of layer depths
+        depth_keys = list(layers_by_depth.keys())
         depth_keys.sort(reverse=True)
 
         # set self.layers and self.layers_by_depth
@@ -1685,6 +1686,10 @@ class Container(Layer):
                 layers.append(layer)
         self.layers = layers
         self.layers_by_depth = layers_by_depth
+
+        # get sorted list of node depths
+        depth_keys = list(nodes_by_depth.keys())
+        depth_keys.sort(reverse=True)
 
         # check that all tensors required are computable.
         # computable_tensors: all tensors in the graph
