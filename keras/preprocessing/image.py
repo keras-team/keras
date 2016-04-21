@@ -231,7 +231,8 @@ class ImageDataGenerator(object):
         x = x.transpose((img_row_index, img_col_index, img_channel_index)).astype('float64')
         img_min, img_max = np.min(x), np.max(x)
         x = (x - img_min)/(img_max - img_min)
-        
+
+
         if self.rotation_range:
             theta = np.pi/180*np.random.uniform(-self.rotation_range, self.rotation_range)
         else:
@@ -274,7 +275,17 @@ class ImageDataGenerator(object):
                                 [0, zy, 0],
                                 [0, 0,  1]])
 
+
         H = np.dot(np.dot(np.dot(rotation_matrix, translation_matrix), shear_matrix), zoom_matrix)
+
+        # recentering origin to the centre of image
+        o_x = float(x.shape[0])/2 + 0.5
+        o_y = float(x.shape[1])/2 + 0.5
+        offset_matrix = np.array([[1, 0,  o_x], [0, 1,  o_y], [0, 0, 1]])
+        reset_matrix  = np.array([[1, 0, -o_x], [0, 1, -o_y], [0, 0, 1]])
+        H = np.dot(np.dot(offset_matrix, H), reset_matrix)
+        
+
         t = transform.ProjectiveTransform(H)
         x = transform.warp(x, t, mode='edge', order=0)
 
