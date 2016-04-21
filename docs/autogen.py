@@ -56,6 +56,7 @@ from __future__ import print_function
 import re
 import inspect
 import os
+import six
 import shutil
 
 from keras.layers import convolutional
@@ -250,7 +251,7 @@ def get_function_signature(function, method=True):
     for a, v in kwargs:
         if type(v) == str:
             v = '\'' + v + '\''
-        elif type(v) == unicode:
+        elif type(v) == six.text_type:
             v = 'u\'' + v + '\''
         st += str(a) + '=' + str(v) + ', '
     if kwargs or args:
