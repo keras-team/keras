@@ -13,6 +13,5 @@ setup(name='Keras',
       install_requires=['theano', 'pyyaml', 'six'],
       extras_require={
           'h5py': ['h5py'],
-          'scikit-image': ['scikit-image'],
       },
       packages=find_packages())

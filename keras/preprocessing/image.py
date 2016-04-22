@@ -13,25 +13,42 @@ from os import listdir
 from os.path import isfile, join
 import threading
 
-def random_rotation(x, rg, fill_mode='nearest',
-                    cval=0., axes=(1, 2)):
+def random_rotation(x, rg, row_index=1, col_index=2, channel_index=0,
+                    fill_mode='nearest', cval=0.):
+    theta = np.pi/180*np.random.uniform(-rg, rg)
+    rotation_matrix = np.array([[np.cos(theta), -np.sin(theta), 0],
+                                [np.sin(theta), np.cos(theta), 0],
+                                [0, 0, 1]])
 
-    # TODO: rewrite with ndi implementation
+    h, w = x.shape[row_index], x.shape[col_index]
+    transform_matrix = transform_matrix_offset_center(rotation_matrix, h, w)
+    x = apply_transform(x, transform_matrix, channel_index, fill_mode, cval)
     return x
 
-def random_shift(x, wrg, hrg, fill_mode='nearest',
-                 cval=0., row_index=1, col_index=2):
-    # TODO: rewrite with ndi implementation
+def random_shift(x, wrg, hrg, row_index=1, col_index=2, channel_index=0,
+                 fill_mode='nearest', cval=0.):
+    h, w = x.shape[row_index], x.shape[col_index]
+    tx = np.random.uniform(-hrg, hrg) * h
+    ty = np.random.uniform(-wrg, wrg) * w
+    translation_matrix = np.array([[1, 0, tx],
+                                   [0, 1, ty],
+                                   [0, 0, 1]])
+
+    transform_matrix = translation_matrix # no need to do offset
+    x = apply_transform(x, transform_matrix, channel_index, fill_mode, cval)
     return x
 
-def flip_axis(x, axis):
-    x = np.asarray(x).swapaxes(axis, 0)
-    x = x[::-1, ...]
-    x = x.swapaxes(0, axis)
-    return x
-
-def random_shear(x, intensity, fill_mode='nearest', cval=0.):
+def random_shear(x, intensity, row_index=1, col_index=2, channel_index=0,
+                 fill_mode='nearest', cval=0.):
     # TODO: rewrite with ndi implementation
+    shear = np.random.uniform(-intensity, intensity)
+    shear_matrix = np.array([[1, -np.sin(shear), 0],
+                             [0, np.cos(shear), 0],
+                             [0, 0, 1]])
+
+    h, w = x.shape[row_index], x.shape[col_index]
+    transform_matrix = transform_matrix_offset_center(shear_matrix, h, w)
+    x = apply_transform(x, transform_matrix, channel_index, fill_mode, cval)
     return x
 
 def random_barrel_transform(x, intensity):
@@ -42,6 +59,31 @@ def random_channel_shift(x, rg):
     # TODO
     pass
 
+def transform_matrix_offset_center(matrix, x, y):
+    o_x = float(x)/2 + 0.5
+    o_y = float(y)/2 + 0.5
+    offset_matrix = np.array([[1, 0, o_x], [0, 1, o_y], [0, 0, 1]])
+    reset_matrix = np.array([[1, 0, -o_x], [0, 1, -o_y], [0, 0, 1]])
+    transform_matrix = np.dot(np.dot(offset_matrix, matrix), reset_matrix)
+    return transform_matrix
+
+def apply_transform(x, transform_matrix, channel_index=0, fill_mode='nearest', cval=0.):
+    x = np.rollaxis(x, channel_index, 0)
+    final_affine_matrix = transform_matrix[:2,:2]
+    final_offset = transform_matrix[:2,2]
+    channel_images = [ndi.interpolation.affine_transform(x_channel, final_affine_matrix,
+                      final_offset, order=0, mode=fill_mode, cval=cval) for x_channel in x]
+    x = np.stack(channel_images, axis=0)
+    x = np.rollaxis(x, 0, channel_index+1)
+    return x
+
+def flip_axis(x, axis):
+    x = np.asarray(x).swapaxes(axis, 0)
+    x = x[::-1, ...]
+    x = x.swapaxes(0, axis)
+    return x
+
+# only use for unit test, assuming dim_ordering='th'
 def array_to_img(x, scale=True):
     from PIL import Image
     x = x.transpose(1, 2, 0)
@@ -52,10 +94,13 @@ def array_to_img(x, scale=True):
     if x.shape[2] == 3:
         # RGB
         return Image.fromarray(x.astype('uint8'), 'RGB')
-    else:
+    elif x.shape[2] == 1:
         # grayscale
         return Image.fromarray(x[:, :, 0].astype('uint8'), 'L')
+    else:
+        raise Exception('Unsupported channel number:', x.shape[2])
 
+# only used by tests/keras/preprocessing/test_image.py, assuming in 'th' mode
 def img_to_array(img):
     x = np.asarray(img, dtype='float32')
     if len(x.shape) == 3:
@@ -241,7 +286,7 @@ class ImageDataGenerator(object):
         img_col_index = self.col_index - 1
         img_channel_index = self.channel_index - 1 
 
-        # Use composition of homographies to generate final transform that needs to be applied
+        # use composition of homographies to generate final transform that needs to be applied
         if self.rotation_range:
             theta = np.pi/180*np.random.uniform(-self.rotation_range, self.rotation_range)
         else:
@@ -282,29 +327,9 @@ class ImageDataGenerator(object):
 
         transform_matrix = np.dot(np.dot(np.dot(rotation_matrix, translation_matrix), shear_matrix), zoom_matrix)
 
-        # recentering origin to the centre of image
-        o_x = float(x.shape[img_row_index])/2 + 0.5
-        o_y = float(x.shape[img_col_index])/2 + 0.5
-        offset_matrix = np.array([[1, 0, o_x], [0, 1, o_y], [0, 0, 1]])
-        reset_matrix = np.array([[1, 0, -o_x], [0, 1, -o_y], [0, 0, 1]])
-        transform_matrix = np.dot(np.dot(offset_matrix, transform_matrix), reset_matrix)
-
-        final_affine_matrix = transform_matrix[:2,:2]
-        final_offset = transform_matrix[:2,2]
-
-
-        # roll channel axis to 0 for convinience. We'll roll it back
-        x = np.rollaxis(x, img_channel_index, 0) 
-
-        # apply affine transform channelwise as ndi doesn't handle color images.
-        channel_images = [ndi.interpolation.affine_transform(x_channel, final_affine_matrix, 
-                                final_offset, order=0, mode='nearest') for x_channel in x]
-        
-        x = np.stack(channel_images, axis=0)
-
-        # roll back to original dimensional order
-        x = np.rollaxis(x, 0, img_channel_index+1)
-
+        h, w = x.shape[img_row_index], x.shape[img_col_index]
+        transform_matrix = transform_matrix_offset_center(transform_matrix, h, w)
+        x = apply_transform(x, transform_matrix, img_channel_index, fill_mode='nearest', cval=0.)
 
         if self.horizontal_flip:
             if np.random.random() < 0.5:
@@ -314,6 +339,7 @@ class ImageDataGenerator(object):
                 x = flip_axis(x, img_row_index)
         
         # TODO:
+        # add fill_mode in __init__
         # barrel/fisheye
         # channel shifting
         return x

@@ -32,7 +32,7 @@ install:
   # Useful for debugging any issues with conda
   - conda info -a
 
-  - conda create -q -n test-environment python=$TRAVIS_PYTHON_VERSION numpy scipy matplotlib pandas pytest h5py scikit-image
+  - conda create -q -n test-environment python=$TRAVIS_PYTHON_VERSION numpy scipy matplotlib pandas pytest h5py
   - source activate test-environment
   - pip install pytest-cov python-coveralls pytest-xdist coverage==3.7.1 #we need this version of coverage for coveralls.io to work
   - pip install pep8 pytest-pep8
