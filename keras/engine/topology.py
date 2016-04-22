@@ -1264,6 +1264,9 @@ class Merge(Layer):
                                        node_indices, tensor_indices)
             self.built = True
             self.add_inbound_node(layers, node_indices, tensor_indices)
+
+            outputs = self.inbound_nodes[-1].output_tensors
+            return outputs[0] # merge only returns a single tensor
         else:
             return self.call(inputs, mask)
 
