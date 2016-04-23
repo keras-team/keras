@@ -3,7 +3,7 @@ import json
 import numpy as np
 
 from keras.layers import Dense, Dropout
-from keras.engine import merge, Merge, Input, get_source_inputs
+from keras.engine import merge, Input, get_source_inputs
 from keras.models import Model
 from keras import backend as K
 from keras.models import model_from_json, model_from_yaml
@@ -454,57 +454,6 @@ def test_functional_guide():
     # we can then concatenate the two vectors:
     merged_vector = merge([encoded_a, encoded_b],
                           mode='concat', concat_axis=-1)
-
-    # and add a logistic regression on top
-    predictions = Dense(1, activation='sigmoid')(merged_vector)
-
-    # we define a trainable model linking the
-    # tweet inputs to the predictions
-    model = Model(input=[tweet_a, tweet_b], output=predictions)
-
-    model.compile(optimizer='rmsprop',
-                  loss='binary_crossentropy',
-                  metrics=['accuracy'])
-    data_a = np.random.random((1000, 4, 25))
-    data_b = np.random.random((1000, 4, 25))
-    labels = np.random.random((1000,))
-    model.fit([data_a, data_b], labels, nb_epoch=1)
-
-    model.summary()
-    assert model.inputs == [tweet_a, tweet_b]
-    assert model.outputs == [predictions]
-    assert model.input == [tweet_a, tweet_b]
-    assert model.output == predictions
-
-    assert model.output == predictions
-    assert model.input_shape == [(None, 4, 25), (None, 4, 25)]
-    assert model.output_shape == (None, 1)
-
-    assert shared_lstm.get_output_at(0) == encoded_a
-    assert shared_lstm.get_output_at(1) == encoded_b
-    assert shared_lstm.input_shape == (None, 4, 25)
-
-
-def test_functional_merge():
-    from keras.layers import Input, Dense, LSTM
-    from keras.models import Model
-    from keras.utils import np_utils
-
-    tweet_a = Input(shape=(4, 25))
-    tweet_b = Input(shape=(4, 25))
-    # this layer can take as input a matrix
-    # and will return a vector of size 64
-    shared_lstm = LSTM(64)
-
-    # when we reuse the same layer instance
-    # multiple times, the weights of the layer
-    # are also being reused
-    # (it is effectively *the same* layer)
-    encoded_a = shared_lstm(tweet_a)
-    encoded_b = shared_lstm(tweet_b)
-
-    # we can then concatenate the two vectors:
-    merged_vector = Merge(mode='concat', concat_axis=-1)([encoded_a, encoded_b])
 
     # and add a logistic regression on top
     predictions = Dense(1, activation='sigmoid')(merged_vector)
