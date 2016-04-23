@@ -47,7 +47,6 @@ def test_merge():
         actual_output_shape = model.predict(inputs).shape
         assert expected_output_shape == actual_output_shape
 
-
     # test lambda with output_shape lambda
     input_a = Input(shape=input_shapes[0][1:])
     input_b = Input(shape=input_shapes[1][1:])
