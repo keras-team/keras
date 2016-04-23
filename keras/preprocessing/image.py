@@ -40,7 +40,6 @@ def random_shift(x, wrg, hrg, row_index=1, col_index=2, channel_index=0,
 
 def random_shear(x, intensity, row_index=1, col_index=2, channel_index=0,
                  fill_mode='nearest', cval=0.):
-    # TODO: rewrite with ndi implementation
     shear = np.random.uniform(-intensity, intensity)
     shear_matrix = np.array([[1, -np.sin(shear), 0],
                              [0, np.cos(shear), 0],
@@ -48,6 +47,22 @@ def random_shear(x, intensity, row_index=1, col_index=2, channel_index=0,
 
     h, w = x.shape[row_index], x.shape[col_index]
     transform_matrix = transform_matrix_offset_center(shear_matrix, h, w)
+    x = apply_transform(x, transform_matrix, channel_index, fill_mode, cval)
+    return x
+
+def random_zoom(x, zoom_range, row_index=1, col_index=2, channel_index=0,
+                fill_mode='nearest', cval=0.):
+    if zoom_range != [1., 1.]:
+        zx = np.random.uniform(zoom_range[0], zoom_range[1])
+        zy = np.random.uniform(zoom_range[0], zoom_range[1])
+    else:
+        zx, zy = 1, 1
+    zoom_matrix = np.array([[zx, 0, 0],
+                            [0, zy, 0],
+                            [0, 0, 1]])
+
+    h, w = x.shape[row_index], x.shape[col_index]
+    transform_matrix = transform_matrix_offset_center(zoom_matrix, h, w)
     x = apply_transform(x, transform_matrix, channel_index, fill_mode, cval)
     return x
 
@@ -83,10 +98,10 @@ def flip_axis(x, axis):
     x = x.swapaxes(0, axis)
     return x
 
-# only use for unit test, assuming dim_ordering='th'
-def array_to_img(x, scale=True):
+def array_to_img(x, dim_ordering, scale=True):
     from PIL import Image
-    x = x.transpose(1, 2, 0)
+    if dim_ordering == 'th':
+        x = x.transpose(1, 2, 0)
     if scale:
         x += max(-np.min(x), 0)
         x /= np.max(x)
@@ -251,7 +266,7 @@ class ImageDataGenerator(object):
             bX[i] = x
         if self.save_to_dir:
             for i in range(current_batch_size):
-                img = array_to_img(bX[i], scale=True)
+                img = array_to_img(bX[i], self.dim_ordering, scale=True)
                 img.save(self.save_to_dir + '/' + self.save_prefix + '_' + str(current_index + i) + '.' + self.save_format)
         bY = self.y[index_array]
         return bX, bY
