@@ -70,9 +70,13 @@ def random_barrel_transform(x, intensity):
     # TODO
     pass
 
-def random_channel_shift(x, rg):
-    # TODO
-    pass
+def random_channel_shift(x, intensity, channel_index=0):
+    x = np.rollaxis(x, channel_index, 0)
+    channel_images = [np.clip(x_channel + np.random.uniform(-intensity, intensity), 0, 1) 
+                      for x_channel in x]
+    x = np.stack(channel_images, axis=0)
+    x = np.rollaxis(x, 0, channel_index+1)
+    return x
 
 def transform_matrix_offset_center(matrix, x, y):
     o_x = float(x)/2 + 0.5
@@ -98,7 +102,7 @@ def flip_axis(x, axis):
     x = x.swapaxes(0, axis)
     return x
 
-def array_to_img(x, dim_ordering, scale=True):
+def array_to_img(x, dim_ordering='th', scale=True):
     from PIL import Image
     if dim_ordering == 'th':
         x = x.transpose(1, 2, 0)
@@ -115,15 +119,22 @@ def array_to_img(x, dim_ordering, scale=True):
     else:
         raise Exception('Unsupported channel number:', x.shape[2])
 
-# only used by tests/keras/preprocessing/test_image.py, assuming in 'th' mode
-def img_to_array(img):
+# only used by tests/keras/preprocessing/test_image.py to convert PIL.Image to numpy array
+def img_to_array(img, dim_ordering='th'):
+    if dim_ordering not in ['th', 'tf']:
+        raise Exception('Unknown dim_ordering: ', dim_ordering)
+    # image has dim_ordering (height, width, channel)
     x = np.asarray(img, dtype='float32')
     if len(x.shape) == 3:
-        # RGB: height, width, channel -> channel, height, width
-        x = x.transpose(2, 0, 1)
+        if dim_ordering == 'th':
+            x = x.transpose(2, 0, 1)
+    elif len(x.shape) == 2:
+        if dim_ordering == 'th':
+            x = x.reshape((1, x.shape[0], x.shape[1]))
+        else:
+            x = x.reshape((x.shape[0], x.shape[1], 1))
     else:
-        # grayscale: height, width -> channel, height, width
-        x = x.reshape((1, x.shape[0], x.shape[1]))
+        raise Exception('Unsupported image shape:', x.shape)
     return x
 
 def load_img(path, grayscale=False):
@@ -154,9 +165,15 @@ class ImageDataGenerator(object):
         width_shift_range: fraction of total width.
         height_shift_range: fraction of total height.
         shear_range: shear intensity (shear angle in radians).
-        zoom_range: amount of zoom. if scalar z, zoom will be randomly picked in
-                    the range [1-z, 1+z]. A sequence of two can be passed instead
-                    to select this range.          
+        zoom_range: amount of zoom. if scalar z, zoom will be randomly picked 
+            in the range [1-z, 1+z]. A sequence of two can be passed instead 
+            to select this range.
+        channel_shift_range: shift intensity for all channels (0 to 1)
+        fill_mode: points outside the boundaries are filled according to the 
+            given mode ('constant', 'nearest', 'reflect' or 'wrap'). Default 
+            is 'nearest'.
+        cval: value used for points outside the boundaries when fill_mode is
+            'constant'. (0 to 1) Default is 0.0.
         horizontal_flip: whether to randomly flip images horizontally.
         vertical_flip: whether to randomly flip images vertically.
         dim_ordering: 'th' or 'tf'. In 'th' mode, the channels dimension
@@ -173,6 +190,9 @@ class ImageDataGenerator(object):
                  height_shift_range=0.,
                  shear_range=0.,
                  zoom_range=0.,
+                 channel_shift_range=0.,
+                 fill_mode='nearest',
+                 cval=0.,
                  horizontal_flip=False,
                  vertical_flip=False,
                  dim_ordering='th'):
@@ -181,6 +201,7 @@ class ImageDataGenerator(object):
         self.std = None
         self.principal_components = None
         self.lock = threading.Lock()
+
         if dim_ordering not in {'tf', 'th'}:
             raise Exception('dim_ordering should be "tf" (channel after row and '
                             'column) or "th" (channel before row and column). '
@@ -202,6 +223,7 @@ class ImageDataGenerator(object):
         else:
             raise Exception('zoom_range should be scalar or sequence of two. '
                             'Receive arg: ', zoom_range)
+
         self.batch_index = 0
         self.total_batches_seen = 0
 
@@ -344,19 +366,22 @@ class ImageDataGenerator(object):
 
         h, w = x.shape[img_row_index], x.shape[img_col_index]
         transform_matrix = transform_matrix_offset_center(transform_matrix, h, w)
-        x = apply_transform(x, transform_matrix, img_channel_index, fill_mode='nearest', cval=0.)
+        x = apply_transform(x, transform_matrix, img_channel_index, fill_mode=self.fill_mode, cval=self.cval)
+
+        if self.channel_shift_range > 0:
+           x = random_channel_shift(x, self.channel_shift_range, img_channel_index)
 
         if self.horizontal_flip:
             if np.random.random() < 0.5:
                 x = flip_axis(x, img_col_index)
+
         if self.vertical_flip:
             if np.random.random() < 0.5:
                 x = flip_axis(x, img_row_index)
         
         # TODO:
-        # add fill_mode in __init__
+        # channel-wise normalization
         # barrel/fisheye
-        # channel shifting
         return x
 
     def fit(self, X,
