@@ -369,7 +369,7 @@ class ImageDataGenerator(object):
         x = apply_transform(x, transform_matrix, img_channel_index, fill_mode=self.fill_mode, cval=self.cval)
 
         if self.channel_shift_range > 0:
-           x = random_channel_shift(x, self.channel_shift_range, img_channel_index)
+            x = random_channel_shift(x, self.channel_shift_range, img_channel_index)
 
         if self.horizontal_flip:
             if np.random.random() < 0.5:
