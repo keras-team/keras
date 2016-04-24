@@ -1021,10 +1021,3 @@ def random_binomial(shape, p=0.0, dtype=_FLOATX, seed=None):
         seed = np.random.randint(10e6)
     rng = RandomStreams(seed=seed)
     return rng.binomial(shape, p=p, dtype=dtype)
-
-'''
-more TODO:
-
-tensordot -> soon to be introduced in TF
-batched_tensordot -> reimplement
-'''
