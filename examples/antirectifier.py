@@ -2,7 +2,7 @@
 
 We build a custom activation layer called 'Antirectifier',
 which modifies the shape of the tensor that passes through it.
-We need to specify two methods: `output_shape` and `get_output`.
+We need to specify two methods: `get_output_shape_for` and `call`.
 
 Note that the same result can also be achieved via a Lambda layer.
 
