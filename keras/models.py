@@ -8,11 +8,15 @@ from .engine.topology import get_source_inputs, Node
 from .legacy.models import Graph
 
 
+def model_from_config(config, custom_objects={}):
+    from keras.utils.layer_utils import layer_from_config
+    return layer_from_config(config, custom_objects=custom_objects)
+
+
 def model_from_yaml(yaml_string, custom_objects={}):
     '''Parses a yaml model configuration file
     and returns a model instance.
     '''
-    # TODO: legacy support?
     import yaml
     from keras.utils.layer_utils import layer_from_config
     config = yaml.load(yaml_string)
@@ -23,7 +27,6 @@ def model_from_json(json_string, custom_objects={}):
     '''Parses a JSON model configuration file
     and returns a model instance.
     '''
-    # TODO: legacy support?
     import json
     from keras.utils.layer_utils import layer_from_config
     config = json.loads(json_string)
