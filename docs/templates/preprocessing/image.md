@@ -31,7 +31,7 @@ Generate batches of tensor image data with real-time data augmentation. The data
     - __zoom_range__: Float or [lower, upper]. Range for random zoom.
     - __channel_shift_range__: Float. Range for random channel shifts.
     - __fill_mode__: One of {"constant", "nearest", "reflect" or "wrap"}.
-    - __cval__: Float. Value used for points outside the boundaries when `fill_mode` is "constant".
+    - __cval__: Float or Int. Value used for points outside the boundaries when `fill_mode` is "constant".
     - __horizontal_flip__: Boolean. Randomly flip inputs horizontally.
     - __vertical_flip__: Boolean. Randomly flip inputs vertically.
     - __dim_ordering__: One of {"th", "tf"}.

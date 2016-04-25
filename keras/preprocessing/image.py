@@ -53,8 +53,7 @@ def random_shear(x, intensity, row_index=1, col_index=2, channel_index=0,
 def random_zoom(x, zoom_range, row_index=1, col_index=2, channel_index=0,
                 fill_mode='nearest', cval=0.):
     if zoom_range != [1., 1.]:
-        zx = np.random.uniform(zoom_range[0], zoom_range[1])
-        zy = np.random.uniform(zoom_range[0], zoom_range[1])
+        zx, zy = np.random.uniform(zoom_range[0], zoom_range[1], 2)
     else:
         zx, zy = 1, 1
     zoom_matrix = np.array([[zx, 0, 0],
@@ -169,12 +168,12 @@ class ImageDataGenerator(object):
         zoom_range: amount of zoom. if scalar z, zoom will be randomly picked 
             in the range [1-z, 1+z]. A sequence of two can be passed instead 
             to select this range.
-        channel_shift_range: shift intensity for all channels (0 to 1)
+        channel_shift_range: shift range for each channels.
         fill_mode: points outside the boundaries are filled according to the 
             given mode ('constant', 'nearest', 'reflect' or 'wrap'). Default 
             is 'nearest'.
         cval: value used for points outside the boundaries when fill_mode is
-            'constant'. (0 to 1) Default is 0.0.
+            'constant'. Default is 0.
         horizontal_flip: whether to randomly flip images horizontally.
         vertical_flip: whether to randomly flip images vertically.
         dim_ordering: 'th' or 'tf'. In 'th' mode, the channels dimension
@@ -355,8 +354,7 @@ class ImageDataGenerator(object):
                                  [0, 0, 1]])
 
         if self.zoom_range != [1., 1.]:
-            zx = np.random.uniform(self.zoom_range[0], self.zoom_range[1])
-            zy = np.random.uniform(self.zoom_range[0], self.zoom_range[1])
+            zx, zy = np.random.uniform(self.zoom_range[0], self.zoom_range[1], 2)
         else:
             zx, zy = 1, 1
         zoom_matrix = np.array([[zx, 0, 0],
@@ -369,7 +367,7 @@ class ImageDataGenerator(object):
         transform_matrix = transform_matrix_offset_center(transform_matrix, h, w)
         x = apply_transform(x, transform_matrix, img_channel_index, fill_mode=self.fill_mode, cval=self.cval)
 
-        if self.channel_shift_range > 0:
+        if self.channel_shift_range != 0:
             x = random_channel_shift(x, self.channel_shift_range, img_channel_index)
 
         if self.horizontal_flip:
