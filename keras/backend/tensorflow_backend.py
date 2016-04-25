@@ -430,7 +430,7 @@ def sin(x):
     return tf.sin(x)
 
 
-def cos(x)
+def cos(x):
     '''Computes cos of x element-wise.
     '''
     return tf.cos(x)

@@ -269,7 +269,7 @@ def sin(x):
     return T.sin(x)
 
 
-def cos(x)
+def cos(x):
     return T.cos(x)
 
 
