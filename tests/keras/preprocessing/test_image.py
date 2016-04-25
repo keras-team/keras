@@ -7,9 +7,10 @@ import shutil
 
 
 def setup_function(func):
-    os.mkdir('test_images')
-    os.mkdir('test_images/rgb')
-    os.mkdir('test_images/gsc')
+    paths = ['test_images', 'test_images/rgb', 'test_images/gsc']
+    for path in paths:
+        if not os.path.exists(path):
+            os.mkdir(path)
 
     img_w = img_h = 20
     for n in range(8):
@@ -54,6 +55,35 @@ def test_image_data_generator():
                                    shuffle=True, save_to_dir='test_images'):
             assert x.shape[1:] == images.shape[1:]
             break
+
+
+def test_img_flip():
+    x = np.array(range(4)).reshape([1, 1, 2, 2])
+    assert (flip_axis(x, 0) == x).all()
+    assert (flip_axis(x, 1) == x).all()
+    assert (flip_axis(x, 2) == [[[[2, 3], [0, 1]]]]).all()
+    assert (flip_axis(x, 3) == [[[[1, 0], [3, 2]]]]).all()
+
+    dim_ordering_and_col_index = (('tf', 2), ('th', 3))
+    for dim_ordering, col_index in dim_ordering_and_col_index:
+        image_generator_th = ImageDataGenerator(
+            featurewise_center=False,
+            samplewise_center=False,
+            featurewise_std_normalization=False,
+            samplewise_std_normalization=False,
+            zca_whitening=False,
+            rotation_range=0,
+            width_shift_range=0,
+            height_shift_range=0,
+            shear_range=0,
+            horizontal_flip=True,
+            vertical_flip=False,
+            dim_ordering=dim_ordering).flow(x, [1])
+        for i in range(10):
+            potentially_flipped_x, _ = next(image_generator_th)
+            assert ((potentially_flipped_x == x).all() or
+                    (potentially_flipped_x == flip_axis(x, col_index)).all())
+
 
 if __name__ == '__main__':
     pytest.main([__file__])

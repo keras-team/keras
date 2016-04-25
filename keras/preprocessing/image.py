@@ -16,23 +16,24 @@ from six.moves import range
 import threading
 
 
-def random_rotation(x, rg, fill_mode='nearest', cval=0.):
+def random_rotation(x, rg, fill_mode='nearest',
+                    cval=0., axes=(1, 2)):
     angle = np.random.uniform(-rg, rg)
     x = ndimage.interpolation.rotate(x, angle,
-                                     axes=(1, 2),
+                                     axes=axes,
                                      reshape=False,
                                      mode=fill_mode,
                                      cval=cval)
     return x
 
 
-def random_shift(x, wrg, hrg, fill_mode='nearest', cval=0.):
+def random_shift(x, wrg, hrg, fill_mode='nearest',
+                 cval=0., row_index=1, col_index=2):
     shift_x = shift_y = 0
-
     if wrg:
-        shift_x = np.random.uniform(-wrg, wrg) * x.shape[2]
+        shift_x = np.random.uniform(-wrg, wrg) * x.shape[col_index]
     if hrg:
-        shift_y = np.random.uniform(-hrg, hrg) * x.shape[1]
+        shift_y = np.random.uniform(-hrg, hrg) * x.shape[row_index]
     x = ndimage.interpolation.shift(x, (0, shift_y, shift_x),
                                     order=0,
                                     mode=fill_mode,
@@ -40,15 +41,10 @@ def random_shift(x, wrg, hrg, fill_mode='nearest', cval=0.):
     return x
 
 
-def horizontal_flip(x):
-    for i in range(x.shape[0]):
-        x[i] = np.fliplr(x[i])
-    return x
-
-
-def vertical_flip(x):
-    for i in range(x.shape[0]):
-        x[i] = np.flipud(x[i])
+def flip_axis(x, axis):
+    x = np.asarray(x).swapaxes(axis, 0)
+    x = x[::-1, ...]
+    x = x.swapaxes(0, axis)
     return x
 
 
@@ -140,11 +136,13 @@ class ImageDataGenerator(object):
         shear_range: shear intensity (shear angle in radians).
         horizontal_flip: whether to randomly flip images horizontally.
         vertical_flip: whether to randomly flip images vertically.
+        dim_ordering: 'th' or 'tf'. In 'th' mode, the channels dimension
+            (the depth) is at index 1, in 'tf' mode it is at index 3.
     '''
     def __init__(self,
-                 featurewise_center=True,
+                 featurewise_center=False,
                  samplewise_center=False,
-                 featurewise_std_normalization=True,
+                 featurewise_std_normalization=False,
                  samplewise_std_normalization=False,
                  zca_whitening=False,
                  rotation_range=0.,
@@ -152,37 +150,49 @@ class ImageDataGenerator(object):
                  height_shift_range=0.,
                  shear_range=0.,
                  horizontal_flip=False,
-                 vertical_flip=False):
+                 vertical_flip=False,
+                 dim_ordering='th'):
         self.__dict__.update(locals())
         self.mean = None
         self.std = None
         self.principal_components = None
         self.lock = threading.Lock()
+        if dim_ordering not in {'tf', 'th'}:
+            raise Exception('dim_ordering should be "tf" (channel after row and \
+            column) or "th" (channel before row and column). Received arg: ', dim_ordering)
+        self.dim_ordering = dim_ordering
+        if dim_ordering == "th":
+            self.channel_index = 1
+            self.row_index = 2
+            self.col_index = 3
+        if dim_ordering == "tf":
+            self.channel_index = 3
+            self.row_index = 1
+            self.col_index = 2
+
+        self.batch_index = 0
+        self.total_batches_seen = 0
+
+    def reset(self):
+        self.batch_index = 0
 
     def _flow_index(self, N, batch_size=32, shuffle=False, seed=None):
-        b = 0
-        total_b = 0
         while 1:
-            if b == 0:
-                if seed is not None:
-                    np.random.seed(seed + total_b)
-
+            index_array = np.arange(N)
+            if self.batch_index == 0:
                 if shuffle:
+                    if seed is not None:
+                        np.random.seed(seed + self.total_batches_seen)
                     index_array = np.random.permutation(N)
-                else:
-                    index_array = np.arange(N)
 
-            current_index = (b * batch_size) % N
+            current_index = (self.batch_index * batch_size) % N
             if N >= current_index + batch_size:
                 current_batch_size = batch_size
+                self.batch_index += 1
             else:
                 current_batch_size = N - current_index
-
-            if current_batch_size == batch_size:
-                b += 1
-            else:
-                b = 0
-            total_b += 1
+                self.batch_index = 0
+            self.total_batches_seen += 1
             yield (index_array[current_index: current_index + current_batch_size],
                    current_index, current_batch_size)
 
@@ -194,6 +204,7 @@ class ImageDataGenerator(object):
         self.save_to_dir = save_to_dir
         self.save_prefix = save_prefix
         self.save_format = save_format
+        self.reset()
         self.flow_generator = self._flow_index(X.shape[0], batch_size,
                                                shuffle, seed)
         return self
@@ -230,9 +241,9 @@ class ImageDataGenerator(object):
 
     def standardize(self, x):
         if self.samplewise_center:
-            x -= np.mean(x, axis=1, keepdims=True)
+            x -= np.mean(x, axis=self.channel_index, keepdims=True)
         if self.samplewise_std_normalization:
-            x /= (np.std(x, axis=1, keepdims=True) + 1e-7)
+            x /= (np.std(x, axis=self.channel_index, keepdims=True) + 1e-7)
 
         if self.featurewise_center:
             x -= self.mean
@@ -240,23 +251,29 @@ class ImageDataGenerator(object):
             x /= (self.std + 1e-7)
 
         if self.zca_whitening:
-            flatx = np.reshape(x, (x.shape[0] * x.shape[1] * x.shape[2]))
+            flatx = np.reshape(x, (x.size))
             whitex = np.dot(flatx, self.principal_components)
             x = np.reshape(whitex, (x.shape[0], x.shape[1], x.shape[2]))
 
         return x
 
     def random_transform(self, x):
+        # x is a single image, so it doesn't have image number at index 0
+        img_col_index = self.col_index - 1
+        img_row_index = self.row_index - 1
+
         if self.rotation_range:
-            x = random_rotation(x, self.rotation_range)
+            x = random_rotation(x, self.rotation_range,
+                                axes=(img_row_index, img_col_index))
         if self.width_shift_range or self.height_shift_range:
-            x = random_shift(x, self.width_shift_range, self.height_shift_range)
+            x = random_shift(x, self.width_shift_range, self.height_shift_range,
+                             row_index=img_row_index, col_index=img_col_index)
         if self.horizontal_flip:
             if np.random.random() < 0.5:
-                x = horizontal_flip(x)
+                x = flip_axis(x, img_col_index)
         if self.vertical_flip:
             if np.random.random() < 0.5:
-                x = vertical_flip(x)
+                x = flip_axis(x, img_row_index)
         if self.shear_range:
             x = random_shear(x, self.shear_range)
         # TODO:

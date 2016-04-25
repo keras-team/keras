@@ -21,6 +21,11 @@ def learning_phase():
     return _LEARNING_PHASE
 
 
+def set_learning_phase(value):
+    global _LEARNING_PHASE
+    _LEARNING_PHASE = tf.constant(value, name='keras_learning_phase')
+
+
 def get_session():
     '''Returns the TF session in use by the backend.
     '''
@@ -129,6 +134,12 @@ def ones(shape, dtype=_FLOATX, name=None):
     '''Instantiates an all-ones tensor variable.
     '''
     return variable(np.ones(shape), dtype, name)
+
+
+def eye(size, dtype=_FLOATX, name=None):
+    '''Instantiate an identity matrix.
+    '''
+    return variable(np.eye(size), dtype, name)
 
 
 def zeros_like(x, name=None):
@@ -413,6 +424,18 @@ def minimum(x, y):
     return tf.minimum(x, y)
 
 
+def sin(x):
+    '''Computes sin of x element-wise.
+    '''
+    return tf.sin(x)
+
+
+def cos(x):
+    '''Computes cos of x element-wise.
+    '''
+    return tf.cos(x)
+
+
 # SHAPE OPERATIONS
 
 def concatenate(tensors, axis=-1):
@@ -559,6 +582,17 @@ def set_value(x, value):
     '''
     tf.assign(x, np.asarray(value)).op.run(session=get_session())
 
+
+def batch_set_value(tuples):
+    '''Sets the values of many tensor variables at once.
+
+    # Arguments
+        tuples: a list of tuples `(tensor, value)`.
+            `value` should be a Numpy array.
+    '''
+    if tuples:
+        ops = [tf.assign(x, np.asarray(value)) for x, value in tuples]
+        get_session().run(ops)
 
 # GRAPH MANIPULATION
 

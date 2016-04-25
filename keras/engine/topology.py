@@ -844,13 +844,17 @@ class Layer(object):
                             '" with a  weight list of length ' + str(len(weights)) +
                             ', but the layer was expecting ' + str(len(params)) +
                             ' weights. Provided weights: ' + str(weights))
+        if not params:
+            return
+        weight_value_tuples = []
         for p, w in zip(params, weights):
             if K.get_value(p).shape != w.shape:
                 raise Exception('Layer weight shape ' +
                                 str(K.get_value(p).shape) +
                                 ' not compatible with '
                                 'provided weight shape ' + str(w.shape))
-            K.set_value(p, w)
+            weight_value_tuples.append((p, w))
+        K.batch_set_value(weight_value_tuples)
 
     def get_weights(self):
         '''Returns the current weights of the layer,
@@ -1124,7 +1128,8 @@ class Merge(Layer):
             if mode not in {'sum', 'mul', 'concat', 'ave', 'cos', 'dot'}:
                 raise Exception('Invalid merge mode: ' + str(mode))
         if type(layers) not in {list, tuple} or len(layers) < 2:
-            raise Exception('A Merge should only be applied to a list of layers. Not a list: ' + str(layers))
+            raise Exception('A Merge should only be applied to a list of '
+                            'layers with at least 2 elements. Found: ' + str(layers))
 
         if tensor_indices is None:
             tensor_indices = [None for _ in range(len(layers))]
@@ -1165,7 +1170,7 @@ class Merge(Layer):
                     raise Exception('Invalid format for dot_axes - list elements should be "int".')
                 if shape1[dot_axes[0]] != shape2[dot_axes[1]]:
                     raise Exception('Dimension incompatibility using dot mode: ' +
-                                    '%s != %s. ' % (shape1[dot_axes[0]], shape2[dot_axes[1][i]]) +
+                                    '%s != %s. ' % (shape1[dot_axes[0]], shape2[dot_axes[1]]) +
                                     'Layer shapes: %s, %s' % (shape1, shape2))
         elif mode == 'concat':
             reduced_inputs_shapes = [list(shape) for shape in input_shapes]
@@ -1237,20 +1242,33 @@ class Merge(Layer):
                             'please use ' +
                             'the "merge" function instead: ' +
                             '`merged_tensor = merge([tensor_1, tensor2])`.')
-        layers = []
-        node_indices = []
-        tensor_indices = []
+
+        all_keras_tensors = True
         for x in inputs:
-            layer, node_index, tensor_index = x._keras_history
-            layers.append(layer)
-            node_indices.append(node_index)
-            tensor_indices.append(tensor_index)
-        self._arguments_validation(layers, self.mode,
-                                   self.concat_axis, self.dot_axes,
-                                   self._output_shape,
-                                   node_indices, tensor_indices)
-        self.built = True
-        self.add_inbound_node(layers, node_indices, tensor_indices)
+            if not hasattr(x, '_keras_history'):
+                all_keras_tensors = False
+                break
+
+        if all_keras_tensors:
+            layers = []
+            node_indices = []
+            tensor_indices = []
+            for x in inputs:
+                layer, node_index, tensor_index = x._keras_history
+                layers.append(layer)
+                node_indices.append(node_index)
+                tensor_indices.append(tensor_index)
+            self._arguments_validation(layers, self.mode,
+                                       self.concat_axis, self.dot_axes,
+                                       self._output_shape,
+                                       node_indices, tensor_indices)
+            self.built = True
+            self.add_inbound_node(layers, node_indices, tensor_indices)
+
+            outputs = self.inbound_nodes[-1].output_tensors
+            return outputs[0] # merge only returns a single tensor
+        else:
+            return self.call(inputs, mask)
 
     def get_output_shape_for(self, input_shape):
         assert type(input_shape) is list  # must have mutiple input shape tuples
@@ -1259,6 +1277,8 @@ class Merge(Layer):
             if hasattr(self._output_shape, '__call__'):
                 output_shape = self._output_shape(input_shape)
                 return output_shape
+            elif self._output_shape is not None:
+                return self._output_shape
             else:
                 # TODO: consider shape auto-inference with TF
                 raise Exception('The Merge layer ' + self.name +
@@ -1399,20 +1419,35 @@ def merge(inputs, mode='sum', concat_axis=-1,
             to consider for merging
             (in case some input layer node returns multiple tensors).
     '''
-    input_layers = []
-    node_indices = []
-    tensor_indices = []
+    all_keras_tensors = True
     for x in inputs:
-        assert hasattr(x, '_keras_history'), 'Input tensor to "merge" was not a Keras tensor: ' + str(x)
-        input_layer, node_index, tensor_index = x._keras_history
-        input_layers.append(input_layer)
-        node_indices.append(node_index)
-        tensor_indices.append(tensor_index)
-    merge_layer = Merge(input_layers, mode=mode, concat_axis=concat_axis,
-                        dot_axes=dot_axes, output_shape=output_shape,
-                        node_indices=node_indices, tensor_indices=tensor_indices,
-                        name=name)
-    return merge_layer.inbound_nodes[0].output_tensors[0]
+        if not hasattr(x, '_keras_history'):
+            all_keras_tensors = False
+            break
+    if all_keras_tensors:
+        input_layers = []
+        node_indices = []
+        tensor_indices = []
+        for x in inputs:
+            input_layer, node_index, tensor_index = x._keras_history
+            input_layers.append(input_layer)
+            node_indices.append(node_index)
+            tensor_indices.append(tensor_index)
+        merge_layer = Merge(input_layers, mode=mode,
+                            concat_axis=concat_axis,
+                            dot_axes=dot_axes,
+                            output_shape=output_shape,
+                            node_indices=node_indices,
+                            tensor_indices=tensor_indices,
+                            name=name)
+        return merge_layer.inbound_nodes[0].output_tensors[0]
+    else:
+        merge_layer = Merge(mode=mode,
+                            concat_axis=concat_axis,
+                            dot_axes=dot_axes,
+                            output_shape=output_shape,
+                            name=name)
+        return merge_layer(inputs)
 
 
 class Container(Layer):
@@ -1640,7 +1675,8 @@ class Container(Layer):
                 layers_by_depth[depth] = []
             layers_by_depth[depth].append(layer)
 
-        depth_keys = list(nodes_by_depth.keys())
+        # get sorted list of layer depths
+        depth_keys = list(layers_by_depth.keys())
         depth_keys.sort(reverse=True)
 
         # set self.layers and self.layers_by_depth
@@ -1653,6 +1689,10 @@ class Container(Layer):
                 layers.append(layer)
         self.layers = layers
         self.layers_by_depth = layers_by_depth
+
+        # get sorted list of node depths
+        depth_keys = list(nodes_by_depth.keys())
+        depth_keys.sort(reverse=True)
 
         # check that all tensors required are computable.
         # computable_tensors: all tensors in the graph
@@ -2285,12 +2325,29 @@ class Container(Layer):
                                 ' layers into a model with ' +
                                 str(len(flattened_layers)) + ' layers.')
 
+            # we batch weight value assignments in a single backend call
+            # which provides a speedup in TensorFlow.
+            weight_value_tuples = []
             for k, name in enumerate(layer_names):
                 g = f[name]
                 weight_names = [n.decode('utf8') for n in g.attrs['weight_names']]
                 if len(weight_names):
-                    weights = [g[weight_name] for weight_name in weight_names]
-                    flattened_layers[k].set_weights(weights)
+                    weight_values = [g[weight_name] for weight_name in weight_names]
+                    layer = flattened_layers[k]
+                    symbolic_weights = layer.trainable_weights + layer.non_trainable_weights
+                    if len(weight_values) != len(symbolic_weights):
+                        raise Exception('Layer #' + str(k) +
+                                        ' (named "' + layer.name +
+                                        '" in the current model) was found to '
+                                        'correspond to layer ' + name +
+                                        ' in the save file. '
+                                        'However the new layer ' + layer.name +
+                                        ' expects ' + str(len(symbolic_weights)) +
+                                        ' weights, but the saved weights have ' +
+                                        str(len(weight_values)) +
+                                        ' elements.')
+                    weight_value_tuples += zip(symbolic_weights, weight_values)
+            K.batch_set_value(weight_value_tuples)
         f.close()
 
     def to_json(self, **kwargs):

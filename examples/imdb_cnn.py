@@ -1,6 +1,9 @@
 '''This example demonstrates the use of Convolution1D for text classification.
 
-Gets to 0.835 test accuracy after 2 epochs. 100s/epoch on K520 GPU.
+Gets to 0.88 test accuracy after 2 epochs. 
+90s/epoch on Intel i5 2.4Ghz CPU.
+10s/epoch on Tesla K40 GPU.
+
 '''
 
 from __future__ import print_function
@@ -9,17 +12,18 @@ np.random.seed(1337)  # for reproducibility
 
 from keras.preprocessing import sequence
 from keras.models import Sequential
-from keras.layers.core import Dense, Dropout, Activation, Flatten
+from keras.layers.core import Dense, Dropout, Activation, Lambda
 from keras.layers.embeddings import Embedding
-from keras.layers.convolutional import Convolution1D, MaxPooling1D
+from keras.layers.convolutional import Convolution1D
 from keras.datasets import imdb
+from keras import backend as K
 
 
 # set parameters:
 max_features = 5000
-maxlen = 100
+maxlen = 400
 batch_size = 32
-embedding_dims = 100
+embedding_dims = 50
 nb_filter = 250
 filter_length = 3
 hidden_dims = 250
@@ -42,8 +46,10 @@ model = Sequential()
 
 # we start off with an efficient embedding layer which maps
 # our vocab indices into embedding_dims dimensions
-model.add(Embedding(max_features, embedding_dims, input_length=maxlen))
-model.add(Dropout(0.25))
+model.add(Embedding(max_features,
+                    embedding_dims,
+                    input_length=maxlen,
+                    dropout=0.2))
 
 # we add a Convolution1D, which will learn nb_filter
 # word group filters of size filter_length:
@@ -52,16 +58,17 @@ model.add(Convolution1D(nb_filter=nb_filter,
                         border_mode='valid',
                         activation='relu',
                         subsample_length=1))
-# we use standard max pooling (halving the output of the previous layer):
-model.add(MaxPooling1D(pool_length=2))
 
-# We flatten the output of the conv layer,
-# so that we can add a vanilla dense layer:
-model.add(Flatten())
+# we use max over time pooling by defining a python function to use
+# in a Lambda layer
+def max_1d(X):
+    return K.max(X, axis=1)
+
+model.add(Lambda(max_1d, output_shape=(nb_filter,)))
 
 # We add a vanilla hidden layer:
 model.add(Dense(hidden_dims))
-model.add(Dropout(0.25))
+model.add(Dropout(0.2))
 model.add(Activation('relu'))
 
 # We project onto a single unit output layer, and squash it with a sigmoid:
@@ -69,7 +76,7 @@ model.add(Dense(1))
 model.add(Activation('sigmoid'))
 
 model.compile(loss='binary_crossentropy',
-              optimizer='rmsprop',
+              optimizer='adam',
               metrics=['accuracy'])
 model.fit(X_train, y_train,
           batch_size=batch_size,

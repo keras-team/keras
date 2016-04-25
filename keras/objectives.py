@@ -37,7 +37,9 @@ def categorical_crossentropy(y_true, y_pred):
 
 
 def sparse_categorical_crossentropy(y_true, y_pred):
-    '''expects a 1-D or 2-D array of integer classes.
+    '''expects an array of integer classes.
+    Note: labels shape must have the same number of dimensions as output shape.
+    If you get a shape error, add a length-1 dimension to labels.
     '''
     return K.sparse_categorical_crossentropy(y_pred, y_true)
 

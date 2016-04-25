@@ -57,6 +57,8 @@ install:
 script:
   # run keras backend init to initialize backend config
   - python -c "import keras.backend"
+  # create dataset directory to avoid concurrent directory creation at runtime
+  - mkdir ~/.keras/datasets
   # set up keras backend
   - sed -i -e 's/"backend":[[:space:]]*"[^"]*/"backend":\ "'$KERAS_BACKEND'/g' ~/.keras/keras.json;
   - echo -e "Running tests with the following config:\n$(cat ~/.keras/keras.json)"
