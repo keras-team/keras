@@ -2319,21 +2319,18 @@ class Container(Layer):
         else:
             # new file format
             layer_names = [n.decode('utf8') for n in f.attrs['layer_names']]
-            if len(layer_names) != len(flattened_layers):
-                raise Exception('You are trying to load a weight file '
-                                'containing ' + str(len(layer_names)) +
-                                ' layers into a model with ' +
-                                str(len(flattened_layers)) + ' layers.')
 
             # we batch weight value assignments in a single backend call
             # which provides a speedup in TensorFlow.
             weight_value_tuples = []
-            for k, name in enumerate(layer_names):
+            for layer in flattened_layers:
+                name = layer.name
+                if name not in layer_names: continue
+                
                 g = f[name]
                 weight_names = [n.decode('utf8') for n in g.attrs['weight_names']]
                 if len(weight_names):
                     weight_values = [g[weight_name] for weight_name in weight_names]
-                    layer = flattened_layers[k]
                     symbolic_weights = layer.trainable_weights + layer.non_trainable_weights
                     if len(weight_values) != len(symbolic_weights):
                         raise Exception('Layer #' + str(k) +
