@@ -835,15 +835,23 @@ def conv2d(x, kernel, strides=(1, 1), border_mode='valid', dim_ordering='th',
 
     if border_mode == 'same':
         # post-hoc accomodation for even-width filters
-        # -- this only evaluates when the full graph is actually executed,
-        #    which is important when the conv filters are the result of
-        #    symbolic operations earlier in the graph.
-        conv_out = ifelse(T.eq(kernel.shape[2] % 2, 0),
-                          conv_out[:, :, :(x.shape[2] + strides[0] - 1) // strides[0], :],
-                          conv_out)
-        conv_out = ifelse(T.eq(kernel.shape[3] % 2, 0),
-                          conv_out[:, :, :, :(x.shape[3] + strides[1] - 1) // strides[1]],
-                          conv_out)
+        try:
+            # standard use-case, where kernel points to a TensorSharedVariable,
+            # or to something else that can be evaluated without other inputs.
+            np_kernel = kernel.eval()
+            if np_kernel.shape[2] % 2 == 0:
+                conv_out = conv_out[:, :, :(x.shape[2] + strides[0] - 1) // strides[0], :]
+            if np_kernel.shape[3] % 2 == 0:
+                conv_out = conv_out[:, :, :, :(x.shape[3] + strides[1] - 1) // strides[1]]
+        except:
+            # special use-case, where evaluating the kernel requires evaluating
+            # parts of the computation graph that depend on other inputs.
+            conv_out = ifelse(T.eq(kernel.shape[2] % 2, 0),
+                              conv_out[:, :, :(x.shape[2] + strides[0] - 1) // strides[0], :],
+                              conv_out)
+            conv_out = ifelse(T.eq(kernel.shape[3] % 2, 0),
+                              conv_out[:, :, :, :(x.shape[3] + strides[1] - 1) // strides[1]],
+                              conv_out)
 
     if dim_ordering == 'tf':
         conv_out = conv_out.dimshuffle((0, 2, 3, 1))
