@@ -265,6 +265,14 @@ def minimum(x, y):
     return T.minimum(x, y)
 
 
+def sin(x):
+    return T.sin(x)
+
+
+def cos(x)
+    return T.cos(x)
+
+
 # SHAPE OPERATIONS
 
 def concatenate(tensors, axis=-1):
