@@ -808,10 +808,10 @@ class DSGU(Recurrent):
             Can be the name of an existing function (str),
             or a Theano function (see: [initializations](../initializations.md)).
         inner_init: initialization function of the inner cells.
-        l1_activation: activation function of first layer of gate.
+        l1_activation: activation function for the first layer of the gate.
             Can be the name of an existing function (str),
             or a Theano function (see: [activations](../activations.md)).
-        l12_activation: activation function. of second layer of gate
+        l2_activation: activation function of the second layer of the gate
         inner_activation: activation function for the inner cells.
         W_regularizer: instance of [WeightRegularizer](../regularizers.md)
             (eg. L1 or L2 regularization), applied to the input weights matrices.
@@ -834,15 +834,13 @@ class DSGU(Recurrent):
         self.output_dim = output_dim
         self.init = initializations.get(init)
         self.inner_init = initializations.get(inner_init)
-        self.activation = activations.get(activation)
+        self.l1_activation = activations.get(l1_activation)
+        self.l2_activation = activations.get(l2_activation)
         self.inner_activation = activations.get(inner_activation)
         self.W_regularizer = regularizers.get(W_regularizer)
         self.U_regularizer = regularizers.get(U_regularizer)
         self.b_regularizer = regularizers.get(b_regularizer)
         self.dropout_W, self.dropout_U = dropout_W, dropout_U
-
-        self.l1_activation = activations.get(l1_activation)
-        self.l2_activation = activations.get(l2_activation)
 
         if self.dropout_W or self.dropout_U:
             self.uses_learning_phase = True
@@ -937,8 +935,8 @@ class DSGU(Recurrent):
 
         z = self.inner_activation(xx + K.dot(h_tm1 * B_U[0], self.U))
 
-        z_gate = self.tanh(K.dot(x_gate * h_tm1 * B_U[1], self.U_gate))
-        z_out = self.sig(K.dot(z_gate * h_tm1 * B_U[2], self.U_gate2))
+        z_gate = self.l1_activation(K.dot(x_gate * h_tm1 * B_U[1], self.U_gate))
+        z_out = self.l2_activation(K.dot(z_gate * h_tm1 * B_U[2], self.U_gate2))
 
         h = z * z_out + (1 - z) * h_tm1
         return h, [h]
