@@ -64,6 +64,11 @@ if sys.version[0] == '2':
     reload(sys)
     sys.setdefaultencoding('utf8')
 
+# Use local keras module
+LOCAL_KERAS_DIR = None # None or /path/to/keras
+if LOCAL_KERAS_DIR:
+    print('Using local edits from {}'.format(LOCAL_KERAS_DIR))
+    sys.path.insert(0, LOCAL_KERAS_DIR) # ensures keras module at LOCAL_DIR used first.
 from keras.layers import convolutional
 from keras.layers import recurrent
 from keras.layers import core
@@ -193,8 +198,6 @@ PAGES = [
         'page': 'layers/wrappers.md',
         'all_module_classes': [wrappers],
     },
-
-
     {
         'page': 'optimizers.md',
         'all_module_classes': [optimizers],
