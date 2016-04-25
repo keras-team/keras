@@ -424,6 +424,18 @@ def minimum(x, y):
     return tf.minimum(x, y)
 
 
+def sin(x):
+    '''Computes sin of x element-wise.
+    '''
+    return tf.sin(x)
+
+
+def cos(x)
+    '''Computes cos of x element-wise.
+    '''
+    return tf.cos(x)
+
+
 # SHAPE OPERATIONS
 
 def concatenate(tensors, axis=-1):
