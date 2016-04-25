@@ -424,7 +424,7 @@ def generator_queue(generator, max_q_size=10,
 class Model(Container):
 
     def compile(self, optimizer, loss, metrics=[], loss_weights=None,
-                sample_weight_mode=None, **kwargs):
+                sample_weight_mode=None, multi_target_loss=False, **kwargs):
         '''Configures the model for training.
 
         # Arguments
@@ -446,6 +446,7 @@ class Model(Container):
                 If the model has multiple outputs, you can use a different
                 `sample_weight_mode` on each output by passing a
                 dictionary or a list of modes.
+            multi_target_loss: add each target's loss function as a metric
             kwargs: when using the Theano backend, these arguments
                 are passed into K.function. Ignored for Tensorflow backend.
         '''
@@ -571,6 +572,10 @@ class Model(Container):
             name = self.output_names[i]
             self.targets.append(K.placeholder(ndim=len(shape), name=name + '_target'))
 
+        # prepare metrics
+        self.metrics_names = ['loss']
+        self.metrics = []
+
         # compute total loss
         total_loss = None
         for i in range(len(self.outputs)):
@@ -582,17 +587,18 @@ class Model(Container):
             loss_weight = loss_weights_list[i]
             output_loss = loss_weight * weighted_loss(y_true, y_pred,
                                                       sample_weight, mask)
+            if multi_target_loss:
+                self.metrics.append(output_loss)
+                self.metrics_names.append('loss_'+self.output_names[i])
             if total_loss is None:
                 total_loss = output_loss
             else:
                 total_loss += output_loss
+
         # add regularization penalties to the loss
         for r in self.regularizers:
             total_loss = r(total_loss)
 
-        # prepare metrics
-        self.metrics_names = ['loss']
-        self.metrics = []
         # list of same size as output_names.
         # contains tuples (metrics for output, names of metrics)
         nested_metrics = collect_metrics(metrics, self.output_names)
