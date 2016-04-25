@@ -72,7 +72,8 @@ def random_barrel_transform(x, intensity):
 
 def random_channel_shift(x, intensity, channel_index=0):
     x = np.rollaxis(x, channel_index, 0)
-    channel_images = [np.clip(x_channel + np.random.uniform(-intensity, intensity), 0, 1) 
+    min_x, max_x = np.min(x), np.max(x)
+    channel_images = [np.clip(x_channel + np.random.uniform(-intensity, intensity), min_x, max_x)
                       for x_channel in x]
     x = np.stack(channel_images, axis=0)
     x = np.rollaxis(x, 0, channel_index+1)
@@ -117,7 +118,7 @@ def array_to_img(x, dim_ordering='th', scale=True):
         # grayscale
         return Image.fromarray(x[:, :, 0].astype('uint8'), 'L')
     else:
-        raise Exception('Unsupported channel number:', x.shape[2])
+        raise Exception('Unsupported channel number: ', x.shape[2])
 
 # only used by tests/keras/preprocessing/test_image.py to convert PIL.Image to numpy array
 def img_to_array(img, dim_ordering='th'):
@@ -134,7 +135,7 @@ def img_to_array(img, dim_ordering='th'):
         else:
             x = x.reshape((x.shape[0], x.shape[1], 1))
     else:
-        raise Exception('Unsupported image shape:', x.shape)
+        raise Exception('Unsupported image shape: ', x.shape)
     return x
 
 def load_img(path, grayscale=False):
@@ -319,9 +320,9 @@ class ImageDataGenerator(object):
 
     def random_transform(self, x):
         # x is a single image, so it doesn't have image number at index 0
-        img_row_index = self.row_index - 1 
+        img_row_index = self.row_index - 1
         img_col_index = self.col_index - 1
-        img_channel_index = self.channel_index - 1 
+        img_channel_index = self.channel_index - 1
 
         # use composition of homographies to generate final transform that needs to be applied
         if self.rotation_range:
