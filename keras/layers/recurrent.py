@@ -637,8 +637,7 @@ class LSTM(Recurrent):
 
     def build(self, input_shape):
         self.input_spec = [InputSpec(shape=input_shape)]
-        input_dim = input_shape[2]
-        self.input_dim = input_dim
+        self.input_dim = input_shape[2]
 
         if self.stateful:
             self.reset_states()
@@ -646,55 +645,77 @@ class LSTM(Recurrent):
             # initial states: 2 all-zero tensors of shape (output_dim)
             self.states = [None, None]
 
-        self.W_i = self.init((input_dim, self.output_dim),
-                             name='{}_W_i'.format(self.name))
-        self.U_i = self.inner_init((self.output_dim, self.output_dim),
-                                   name='{}_U_i'.format(self.name))
-        self.b_i = K.zeros((self.output_dim,), name='{}_b_i'.format(self.name))
+        if self.consume_less == 'derp':
+            self.W = self.init((self.input_dim, 4*self.output_dim),
+                               name='{}_W'.format(self.name))
+            self.U = self.inner_init((self.output_dim, 4*self.output_dim),
+                                     name='{}_U'.format(self.name))
+            self.b = K.zeros((4*self.output_dim,),
+                             name='{}_b'.format(self.name))
+            # TODO Use self.forget_bias_init
 
-        self.W_f = self.init((input_dim, self.output_dim),
-                             name='{}_W_f'.format(self.name))
-        self.U_f = self.inner_init((self.output_dim, self.output_dim),
-                                   name='{}_U_f'.format(self.name))
-        self.b_f = self.forget_bias_init((self.output_dim,),
-                                         name='{}_b_f'.format(self.name))
+            self.regularizers = []
+            if self.W_regularizer:
+                self.W_regularizer.set_param(self.W)
+                self.regularizers.append(self.W_regularizer)
+            if self.U_regularizer:
+                self.U_regularizer.set_param(self.U)
+                self.regularizers.append(self.U_regularizer)
+            if self.b_regularizer:
+                self.b_regularizer.set_param(self.b)
+                self.regularizers.append(self.b_regularizer)
+            self.trainable_weights = [self.W, self.U, self.b]
+        else:
+            self.W_i = self.init((self.input_dim, self.output_dim),
+                                 name='{}_W_i'.format(self.name))
+            self.U_i = self.inner_init((self.output_dim, self.output_dim),
+                                       name='{}_U_i'.format(self.name))
+            self.b_i = K.zeros((self.output_dim,), name='{}_b_i'.format(self.name))
 
-        self.W_c = self.init((input_dim, self.output_dim),
-                             name='{}_W_c'.format(self.name))
-        self.U_c = self.inner_init((self.output_dim, self.output_dim),
-                                   name='{}_U_c'.format(self.name))
-        self.b_c = K.zeros((self.output_dim,), name='{}_b_c'.format(self.name))
+            self.W_f = self.init((self.input_dim, self.output_dim),
+                                 name='{}_W_f'.format(self.name))
+            self.U_f = self.inner_init((self.output_dim, self.output_dim),
+                                       name='{}_U_f'.format(self.name))
+            self.b_f = self.forget_bias_init((self.output_dim,),
+                                             name='{}_b_f'.format(self.name))
 
-        self.W_o = self.init((input_dim, self.output_dim),
-                             name='{}_W_o'.format(self.name))
-        self.U_o = self.inner_init((self.output_dim, self.output_dim),
-                                   name='{}_U_o'.format(self.name))
-        self.b_o = K.zeros((self.output_dim,), name='{}_b_o'.format(self.name))
+            self.W_c = self.init((self.input_dim, self.output_dim),
+                                 name='{}_W_c'.format(self.name))
+            self.U_c = self.inner_init((self.output_dim, self.output_dim),
+                                       name='{}_U_c'.format(self.name))
+            self.b_c = K.zeros((self.output_dim,), name='{}_b_c'.format(self.name))
 
-        self.regularizers = []
-        if self.W_regularizer:
-            self.W_regularizer.set_param(K.concatenate([self.W_i,
-                                                        self.W_f,
-                                                        self.W_c,
-                                                        self.W_o]))
-            self.regularizers.append(self.W_regularizer)
-        if self.U_regularizer:
-            self.U_regularizer.set_param(K.concatenate([self.U_i,
-                                                        self.U_f,
-                                                        self.U_c,
-                                                        self.U_o]))
-            self.regularizers.append(self.U_regularizer)
-        if self.b_regularizer:
-            self.b_regularizer.set_param(K.concatenate([self.b_i,
-                                                        self.b_f,
-                                                        self.b_c,
-                                                        self.b_o]))
-            self.regularizers.append(self.b_regularizer)
+            self.W_o = self.init((self.input_dim, self.output_dim),
+                                 name='{}_W_o'.format(self.name))
+            self.U_o = self.inner_init((self.output_dim, self.output_dim),
+                                       name='{}_U_o'.format(self.name))
+            self.b_o = K.zeros((self.output_dim,), name='{}_b_o'.format(self.name))
 
-        self.trainable_weights = [self.W_i, self.U_i, self.b_i,
-                                  self.W_c, self.U_c, self.b_c,
-                                  self.W_f, self.U_f, self.b_f,
-                                  self.W_o, self.U_o, self.b_o]
+
+            self.regularizers = []
+            if self.W_regularizer:
+                self.W_regularizer.set_param(K.concatenate([self.W_i,
+                                                            self.W_f,
+                                                            self.W_c,
+                                                            self.W_o]))
+                self.regularizers.append(self.W_regularizer)
+            if self.U_regularizer:
+                self.U_regularizer.set_param(K.concatenate([self.U_i,
+                                                            self.U_f,
+                                                            self.U_c,
+                                                            self.U_o]))
+                self.regularizers.append(self.U_regularizer)
+            if self.b_regularizer:
+                self.b_regularizer.set_param(K.concatenate([self.b_i,
+                                                            self.b_f,
+                                                            self.b_c,
+                                                            self.b_o]))
+                self.regularizers.append(self.b_regularizer)
+
+            self.trainable_weights = [self.W_i, self.U_i, self.b_i,
+                                      self.W_c, self.U_c, self.b_c,
+                                      self.W_f, self.U_f, self.b_f,
+                                      self.W_o, self.U_o, self.b_o]
 
         if self.initial_weights is not None:
             self.set_weights(self.initial_weights)
@@ -734,7 +755,9 @@ class LSTM(Recurrent):
             x_o = time_distributed_dense(x, self.W_o, self.b_o, dropout,
                                          input_dim, self.output_dim, timesteps)
             return K.concatenate([x_i, x_f, x_c, x_o], axis=2)
-        else:
+        elif self.consume_less == 'mem':
+            return x
+        elif self.consume_less == 'derp':
             return x
 
     def step(self, x, states):
@@ -748,11 +771,25 @@ class LSTM(Recurrent):
             x_f = x[:, self.output_dim: 2 * self.output_dim]
             x_c = x[:, 2 * self.output_dim: 3 * self.output_dim]
             x_o = x[:, 3 * self.output_dim:]
-        else:
+        elif self.consume_less == 'mem':
             x_i = K.dot(x * B_W[0], self.W_i) + self.b_i
             x_f = K.dot(x * B_W[1], self.W_f) + self.b_f
             x_c = K.dot(x * B_W[2], self.W_c) + self.b_c
             x_o = K.dot(x * B_W[3], self.W_o) + self.b_o
+        elif self.consume_less == 'derp':
+            z = K.dot(x * B_W, self.W) + K.dot(h_tm1 * B_U, self.U) + self.b
+
+            z0 = z[:, :self.output_dim]
+            z1 = z[:, self.output_dim: 2 * self.output_dim]
+            z2 = z[:, 2 * self.output_dim: 3 * self.output_dim]
+            z3 = z[:, 3 * self.output_dim:]
+
+            i = self.inner_activation(z0)
+            f = self.inner_activation(z1)
+            c = f * c_tm1 + i * self.activation(z2)
+            o = self.inner_activation(z3)
+            h = o * self.activation(c)
+            return h, [h, c]
 
         i = self.inner_activation(x_i + K.dot(h_tm1 * B_U[0], self.U_i))
         f = self.inner_activation(x_f + K.dot(h_tm1 * B_U[1], self.U_f))
