@@ -569,7 +569,6 @@ class Dense(Layer):
         self.output_dim = output_dim
         self.input_dim = input_dim
 
-
         self.W_regularizer = regularizers.get(W_regularizer)
         self.b_regularizer = regularizers.get(b_regularizer)
         self.activity_regularizer = regularizers.get(activity_regularizer)
