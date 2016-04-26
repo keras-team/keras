@@ -691,7 +691,6 @@ class LSTM(Recurrent):
                                        name='{}_U_o'.format(self.name))
             self.b_o = K.zeros((self.output_dim,), name='{}_b_o'.format(self.name))
 
-
             self.regularizers = []
             if self.W_regularizer:
                 self.W_regularizer.set_param(K.concatenate([self.W_i,
