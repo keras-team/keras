@@ -551,8 +551,9 @@ class Dense(Layer):
         input_dim: dimensionality of the input (integer).
             This argument (or alternatively, the keyword argument `input_shape`)
             is required when using this layer as the first layer in a model.
-        disable_b: boolean 
-            If set to True, will leave the bias at its initial value (zeros unless
+        bias: boolean
+            Default True;
+            Setting it to False will leave the bias at its initial value (zeros unless
             initial weights are passed in) and take it out of the trainable parameters.
 
     # Input shape
@@ -563,13 +564,13 @@ class Dense(Layer):
     '''
     def __init__(self, output_dim, init='glorot_uniform', activation='linear', weights=None,
                  W_regularizer=None, b_regularizer=None, activity_regularizer=None,
-                 W_constraint=None, b_constraint=None, input_dim=None, disable_b=False, **kwargs):
+                 W_constraint=None, b_constraint=None, input_dim=None, bias=True, **kwargs):
         self.init = initializations.get(init)
         self.activation = activations.get(activation)
         self.output_dim = output_dim
         self.input_dim = input_dim
 
-        self.disable_b = disable_b
+        self.use_bias = bias
 
         self.W_regularizer = regularizers.get(W_regularizer)
         self.b_regularizer = regularizers.get(b_regularizer)
@@ -595,10 +596,10 @@ class Dense(Layer):
                            name='{}_W'.format(self.name))
         self.b = K.zeros((self.output_dim,),
                          name='{}_b'.format(self.name))
-        if self.disable_b:
-            self.trainable_weights = [self.W]
-        else:
+        if self.use_bias:
             self.trainable_weights = [self.W, self.b]
+        else:
+            self.trainable_weights = [self.W]
 
         self.regularizers = []
         if self.W_regularizer:
