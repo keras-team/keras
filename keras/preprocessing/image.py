@@ -9,9 +9,9 @@ import re
 from scipy import linalg
 import scipy.ndimage as ndi
 from six.moves import range
-from os import listdir
-from os.path import isfile, join
+import os
 import threading
+
 
 def random_rotation(x, rg, row_index=1, col_index=2, channel_index=0,
                     fill_mode='nearest', cval=0.):
@@ -25,6 +25,7 @@ def random_rotation(x, rg, row_index=1, col_index=2, channel_index=0,
     x = apply_transform(x, transform_matrix, channel_index, fill_mode, cval)
     return x
 
+
 def random_shift(x, wrg, hrg, row_index=1, col_index=2, channel_index=0,
                  fill_mode='nearest', cval=0.):
     h, w = x.shape[row_index], x.shape[col_index]
@@ -34,9 +35,10 @@ def random_shift(x, wrg, hrg, row_index=1, col_index=2, channel_index=0,
                                    [0, 1, ty],
                                    [0, 0, 1]])
 
-    transform_matrix = translation_matrix # no need to do offset
+    transform_matrix = translation_matrix  # no need to do offset
     x = apply_transform(x, transform_matrix, channel_index, fill_mode, cval)
     return x
+
 
 def random_shear(x, intensity, row_index=1, col_index=2, channel_index=0,
                  fill_mode='nearest', cval=0.):
@@ -49,6 +51,7 @@ def random_shear(x, intensity, row_index=1, col_index=2, channel_index=0,
     transform_matrix = transform_matrix_offset_center(shear_matrix, h, w)
     x = apply_transform(x, transform_matrix, channel_index, fill_mode, cval)
     return x
+
 
 def random_zoom(x, zoom_range, row_index=1, col_index=2, channel_index=0,
                 fill_mode='nearest', cval=0.):
@@ -69,9 +72,11 @@ def random_zoom(x, zoom_range, row_index=1, col_index=2, channel_index=0,
     x = apply_transform(x, transform_matrix, channel_index, fill_mode, cval)
     return x
 
+
 def random_barrel_transform(x, intensity):
     # TODO
     pass
+
 
 def random_channel_shift(x, intensity, channel_index=0):
     x = np.rollaxis(x, channel_index, 0)
@@ -82,6 +87,7 @@ def random_channel_shift(x, intensity, channel_index=0):
     x = np.rollaxis(x, 0, channel_index+1)
     return x
 
+
 def transform_matrix_offset_center(matrix, x, y):
     o_x = float(x) / 2 + 0.5
     o_y = float(y) / 2 + 0.5
@@ -90,21 +96,24 @@ def transform_matrix_offset_center(matrix, x, y):
     transform_matrix = np.dot(np.dot(offset_matrix, matrix), reset_matrix)
     return transform_matrix
 
+
 def apply_transform(x, transform_matrix, channel_index=0, fill_mode='nearest', cval=0.):
     x = np.rollaxis(x, channel_index, 0)
-    final_affine_matrix = transform_matrix[:2,:2]
-    final_offset = transform_matrix[:2,2]
+    final_affine_matrix = transform_matrix[:2, :2]
+    final_offset = transform_matrix[:2, 2]
     channel_images = [ndi.interpolation.affine_transform(x_channel, final_affine_matrix,
                       final_offset, order=0, mode=fill_mode, cval=cval) for x_channel in x]
     x = np.stack(channel_images, axis=0)
     x = np.rollaxis(x, 0, channel_index+1)
     return x
 
+
 def flip_axis(x, axis):
     x = np.asarray(x).swapaxes(axis, 0)
     x = x[::-1, ...]
     x = x.swapaxes(0, axis)
     return x
+
 
 def array_to_img(x, dim_ordering='th', scale=True):
     from PIL import Image
@@ -122,6 +131,7 @@ def array_to_img(x, dim_ordering='th', scale=True):
         return Image.fromarray(x[:, :, 0].astype('uint8'), 'L')
     else:
         raise Exception('Unsupported channel number: ', x.shape[2])
+
 
 # only used by tests/keras/preprocessing/test_image.py to convert PIL.Image to numpy array
 def img_to_array(img, dim_ordering='th'):
@@ -141,6 +151,7 @@ def img_to_array(img, dim_ordering='th'):
         raise Exception('Unsupported image shape: ', x.shape)
     return x
 
+
 def load_img(path, grayscale=False):
     from PIL import Image
     img = Image.open(path)
@@ -150,9 +161,10 @@ def load_img(path, grayscale=False):
         img = img.convert('RGB')
     return img
 
+
 def list_pictures(directory, ext='jpg|jpeg|bmp|png'):
-    return [join(directory, f) for f in listdir(directory)
-            if isfile(join(directory, f)) and re.match('([\w]+\.(?:' + ext + '))', f)]
+    return [os.path.join(directory, f) for f in os.listdir(directory)
+            if os.path.isfile(os.path.join(directory, f)) and re.match('([\w]+\.(?:' + ext + '))', f)]
 
 
 class ImageDataGenerator(object):
@@ -169,12 +181,12 @@ class ImageDataGenerator(object):
         width_shift_range: fraction of total width.
         height_shift_range: fraction of total height.
         shear_range: shear intensity (shear angle in radians).
-        zoom_range: amount of zoom. if scalar z, zoom will be randomly picked 
-            in the range [1-z, 1+z]. A sequence of two can be passed instead 
+        zoom_range: amount of zoom. if scalar z, zoom will be randomly picked
+            in the range [1-z, 1+z]. A sequence of two can be passed instead
             to select this range.
         channel_shift_range: shift range for each channels.
-        fill_mode: points outside the boundaries are filled according to the 
-            given mode ('constant', 'nearest', 'reflect' or 'wrap'). Default 
+        fill_mode: points outside the boundaries are filled according to the
+            given mode ('constant', 'nearest', 'reflect' or 'wrap'). Default
             is 'nearest'.
         cval: value used for points outside the boundaries when fill_mode is
             'constant'. Default is 0.
@@ -289,7 +301,7 @@ class ImageDataGenerator(object):
         if self.save_to_dir:
             for i in range(current_batch_size):
                 img = array_to_img(bX[i], self.dim_ordering, scale=True)
-                img.save(self.save_to_dir + '/' + self.save_prefix + '_' + str(current_index + i) + '.' + self.save_format)
+                img.save(os.path.join(self.save_to_dir, self.save_prefix + '_' + str(current_index + i) + '.' + self.save_format))
         bY = self.y[index_array]
         return bX, bY
 
@@ -325,13 +337,12 @@ class ImageDataGenerator(object):
 
         # use composition of homographies to generate final transform that needs to be applied
         if self.rotation_range:
-            theta = np.pi/180*np.random.uniform(-self.rotation_range, self.rotation_range)
+            theta = np.pi / 180 * np.random.uniform(-self.rotation_range, self.rotation_range)
         else:
             theta = 0
         rotation_matrix = np.array([[np.cos(theta), -np.sin(theta), 0],
                                     [np.sin(theta), np.cos(theta), 0],
                                     [0, 0, 1]])
-        
         if self.height_shift_range:
             tx = np.random.uniform(-self.height_shift_range, self.height_shift_range) * x.shape[img_row_index]
         else:
@@ -341,10 +352,10 @@ class ImageDataGenerator(object):
             ty = np.random.uniform(-self.width_shift_range, self.width_shift_range) * x.shape[img_col_index]
         else:
             ty = 0
+
         translation_matrix = np.array([[1, 0, tx],
                                        [0, 1, ty],
                                        [0, 0, 1]])
-
         if self.shear_range:
             shear = np.random.uniform(-self.shear_range, self.shear_range)
         else:
@@ -365,8 +376,8 @@ class ImageDataGenerator(object):
 
         h, w = x.shape[img_row_index], x.shape[img_col_index]
         transform_matrix = transform_matrix_offset_center(transform_matrix, h, w)
-        x = apply_transform(x, transform_matrix, img_channel_index, fill_mode=self.fill_mode, cval=self.cval)
-
+        x = apply_transform(x, transform_matrix, img_channel_index,
+                            fill_mode=self.fill_mode, cval=self.cval)
         if self.channel_shift_range != 0:
             x = random_channel_shift(x, self.channel_shift_range, img_channel_index)
 
@@ -377,7 +388,7 @@ class ImageDataGenerator(object):
         if self.vertical_flip:
             if np.random.random() < 0.5:
                 x = flip_axis(x, img_row_index)
-        
+
         # TODO:
         # channel-wise normalization
         # barrel/fisheye
