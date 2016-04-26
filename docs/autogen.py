@@ -64,6 +64,11 @@ if sys.version[0] == '2':
     reload(sys)
     sys.setdefaultencoding('utf8')
 
+# Use local keras module
+LOCAL_KERAS_DIR = None # None or /path/to/keras
+if LOCAL_KERAS_DIR:
+    print('Using local edits from {}'.format(LOCAL_KERAS_DIR))
+    sys.path.insert(0, LOCAL_KERAS_DIR) # ensures keras module at LOCAL_DIR used first.
 from keras.layers import convolutional
 from keras.layers import recurrent
 from keras.layers import core
@@ -193,8 +198,6 @@ PAGES = [
         'page': 'layers/wrappers.md',
         'all_module_classes': [wrappers],
     },
-
-
     {
         'page': 'optimizers.md',
         'all_module_classes': [optimizers],
@@ -282,12 +285,12 @@ def class_to_docs_link(cls):
     return link
 
 
-def class_to_source_link(cls):
-    module_name = cls.__module__
+def get_source_link(source):
+    module_name = source.__module__
     assert module_name[:6] == 'keras.'
     path = module_name.replace('.', '/')
     path += '.py'
-    line = inspect.getsourcelines(cls)[-1]
+    line = inspect.getsourcelines(source)[-1]
     link = 'https://github.com/fchollet/keras/blob/master/' + path + '#L' + str(line)
     return '[[source]](' + link + ')'
 
@@ -366,7 +369,7 @@ for page_data in PAGES:
     for cls in classes:
         subblocks = []
         signature = get_class_signature(cls)
-        subblocks.append('<span style="float:right;">' + class_to_source_link(cls) + '</span>')
+        subblocks.append('<span style="float:right;">' + get_source_link(cls) + '</span>')
         subblocks.append('### ' + cls.__name__ + '\n')
         subblocks.append(code_snippet(signature))
         docstring = cls.__doc__
@@ -392,6 +395,7 @@ for page_data in PAGES:
     for function in functions:
         subblocks = []
         signature = get_function_signature(function, method=False)
+        subblocks.append('<span style="float:right;">' + get_source_link(function) + '</span>')
         signature = signature.replace(function.__module__ + '.', '')
         subblocks.append('### ' + function.__name__ + '\n')
         subblocks.append(code_snippet(signature))
