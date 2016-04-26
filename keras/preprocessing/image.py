@@ -15,7 +15,7 @@ import threading
 
 def random_rotation(x, rg, row_index=1, col_index=2, channel_index=0,
                     fill_mode='nearest', cval=0.):
-    theta = np.pi/180*np.random.uniform(-rg, rg)
+    theta = np.pi / 180 * np.random.uniform(-rg, rg)
     rotation_matrix = np.array([[np.cos(theta), -np.sin(theta), 0],
                                 [np.sin(theta), np.cos(theta), 0],
                                 [0, 0, 1]])
@@ -52,10 +52,14 @@ def random_shear(x, intensity, row_index=1, col_index=2, channel_index=0,
 
 def random_zoom(x, zoom_range, row_index=1, col_index=2, channel_index=0,
                 fill_mode='nearest', cval=0.):
-    if zoom_range != [1., 1.]:
-        zx, zy = np.random.uniform(zoom_range[0], zoom_range[1], 2)
-    else:
+    if len(zoom_range) != 2:
+        raise Exception('zoom_range should be a sequence of two. '
+                        'Received arg: ', zoom_range)
+
+    if zoom_range[0] == 1 and zoom_range[1] == 1:
         zx, zy = 1, 1
+    else:
+        zx, zy = np.random.uniform(zoom_range[0], zoom_range[1], 2)
     zoom_matrix = np.array([[zx, 0, 0],
                             [0, zy, 0],
                             [0, 0, 1]])
@@ -79,8 +83,8 @@ def random_channel_shift(x, intensity, channel_index=0):
     return x
 
 def transform_matrix_offset_center(matrix, x, y):
-    o_x = float(x)/2 + 0.5
-    o_y = float(y)/2 + 0.5
+    o_x = float(x) / 2 + 0.5
+    o_y = float(y) / 2 + 0.5
     offset_matrix = np.array([[1, 0, o_x], [0, 1, o_y], [0, 0, 1]])
     reset_matrix = np.array([[1, 0, -o_x], [0, 1, -o_y], [0, 0, 1]])
     transform_matrix = np.dot(np.dot(offset_matrix, matrix), reset_matrix)
@@ -353,10 +357,10 @@ class ImageDataGenerator(object):
                                  [0, np.cos(shear), 0],
                                  [0, 0, 1]])
 
-        if self.zoom_range != [1., 1.]:
-            zx, zy = np.random.uniform(self.zoom_range[0], self.zoom_range[1], 2)
-        else:
+        if self.zoom_range[0] == 1 and self.zoom_range[1] == 1:
             zx, zy = 1, 1
+        else:
+            zx, zy = np.random.uniform(self.zoom_range[0], self.zoom_range[1], 2)
         zoom_matrix = np.array([[zx, 0, 0],
                                 [0, zy, 0],
                                 [0, 0, 1]])
