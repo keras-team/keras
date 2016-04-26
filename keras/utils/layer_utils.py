@@ -32,7 +32,12 @@ def layer_from_config(config, custom_objects={}):
     else:
         layer_class = get_from_module(class_name, globals(), 'layer',
                                       instantiate=False)
-    return layer_class.from_config(config['config'])
+    
+    if class_name in ['Sequential', 'Model', 'Container']:
+        # pass custom loss, metrics, etc.
+        return layer_class.from_config(config['config'], custom_objects)
+    else:
+        return layer_class.from_config(config['config'])
 
 
 def print_summary(layers, relevant_nodes=None):
