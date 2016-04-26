@@ -73,12 +73,20 @@ def variable(value, dtype=_FLOATX, name=None):
         Tensor variable instance.
     '''
     v = tf.Variable(np.asarray(value, dtype=dtype), name=name)
-    try:
-        get_session().run(v.initializer)
-    except:
-        warnings.warn('Could not automatically initialize variable, '
-                      'make sure you do it manually (e.g. via '
-                      '`tf.initialize_all_variables()`).')
+    if tf.get_default_graph() is get_session().graph:
+        try:
+            get_session().run(v.initializer)
+        except tf.errors.InvalidArgumentError:
+            warnings.warn('Could not automatically initialize variable, '
+                          'make sure you do it manually (e.g. via '
+                          '`tf.initialize_all_variables()`).')
+    else:
+        warnings.warn('The default TensorFlow graph is not the graph '
+                      'associated with the TensorFlow session currently '
+                      'registered with Keras, and as such Keras '
+                      'was not able to automatically initialize a variable. '
+                      'You should consider registering the proper session '
+                      'with Keras via `K.set_session(sess)`.')
     return v
 
 
