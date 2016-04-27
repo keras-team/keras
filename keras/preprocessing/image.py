@@ -56,7 +56,7 @@ def random_shear(x, intensity, row_index=1, col_index=2, channel_index=0,
 def random_zoom(x, zoom_range, row_index=1, col_index=2, channel_index=0,
                 fill_mode='nearest', cval=0.):
     if len(zoom_range) != 2:
-        raise Exception('zoom_range should be a sequence of two. '
+        raise Exception('zoom_range should be a tuple or list of two floats. '
                         'Received arg: ', zoom_range)
 
     if zoom_range[0] == 1 and zoom_range[1] == 1:
@@ -237,8 +237,9 @@ class ImageDataGenerator(object):
         elif len(zoom_range) == 2:
             self.zoom_range = [zoom_range[0], zoom_range[1]]
         else:
-            raise Exception('zoom_range should be scalar or sequence of two. '
-                            'Receive arg: ', zoom_range)
+            raise Exception('zoom_range should be a float or '
+                            'a tuple or list of two floats. '
+                            'Received arg: ', zoom_range)
 
         self.batch_index = 0
         self.total_batches_seen = 0
@@ -301,7 +302,10 @@ class ImageDataGenerator(object):
         if self.save_to_dir:
             for i in range(current_batch_size):
                 img = array_to_img(bX[i], self.dim_ordering, scale=True)
-                img.save(os.path.join(self.save_to_dir, self.save_prefix + '_' + str(current_index + i) + '.' + self.save_format))
+                fname = '{prefix}_{index}.{format}'.format(prefix=self.save_prefix,
+                                                           index=current_index + i,
+                                                           format=self.save_format)
+                img.save(os.path.join(self.save_to_dir, fname))
         bY = self.y[index_array]
         return bX, bY
 

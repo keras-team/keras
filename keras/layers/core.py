@@ -577,7 +577,7 @@ class Dense(Layer):
 
         self.W_constraint = constraints.get(W_constraint)
         self.b_constraint = constraints.get(b_constraint)
-        
+
         self.bias = bias
         self.initial_weights = weights
         self.input_spec = [InputSpec(ndim=2)]
