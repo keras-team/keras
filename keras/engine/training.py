@@ -608,8 +608,12 @@ class Model(Container):
                     if output_shape[-1] == 1:
                         # case: binary accuracy
                         self.metrics.append(metrics_module.binary_accuracy(y_true, y_pred))
+                    elif self.loss_functions[i] == objectives.sparse_categorical_crossentropy:
+                        # case: categorical accuracy with sparse targets
+                        self.metrics.append(
+                            metrics_module.sparse_categorical_accuracy(y_true, y_pred))
                     else:
-                        # case: categorical accuracy
+                        # case: categorical accuracy with dense targets
                         self.metrics.append(metrics_module.categorical_accuracy(y_true, y_pred))
                     if len(self.output_names) == 1:
                         self.metrics_names.append('acc')
