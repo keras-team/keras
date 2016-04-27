@@ -26,10 +26,8 @@ class TestImage:
 
         cls.all_test_images = [rgb_images, gray_images]
 
-
     def teardown_class(cls):
         del cls.all_test_images
-
 
     def test_image_data_generator(self):
         for test_images in self.all_test_images:
@@ -62,7 +60,6 @@ class TestImage:
                 assert x.shape[1:] == images.shape[1:]
                 break
             shutil.rmtree(tmp_folder)
-
 
     def test_img_flip(self):
         x = np.array(range(4)).reshape([1, 1, 2, 2])
