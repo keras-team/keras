@@ -832,4 +832,3 @@ class LSTM(Recurrent):
                   "dropout_U": self.dropout_U}
         base_config = super(LSTM, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
-
