@@ -652,7 +652,6 @@ class LSTM(Recurrent):
                                      name='{}_U'.format(self.name))
             self.b = K.zeros((4*self.output_dim,),
                              name='{}_b'.format(self.name))
-            # TODO Use self.forget_bias_init
 
             self.regularizers = []
             if self.W_regularizer:
@@ -690,6 +689,7 @@ class LSTM(Recurrent):
             self.U_o = self.inner_init((self.output_dim, self.output_dim),
                                        name='{}_U_o'.format(self.name))
             self.b_o = K.zeros((self.output_dim,), name='{}_b_o'.format(self.name))
+
 
             self.regularizers = []
             if self.W_regularizer:
@@ -776,7 +776,7 @@ class LSTM(Recurrent):
             x_c = K.dot(x * B_W[2], self.W_c) + self.b_c
             x_o = K.dot(x * B_W[3], self.W_o) + self.b_o
         elif self.consume_less == 'derp':
-            z = K.dot(x * B_W, self.W) + K.dot(h_tm1 * B_U, self.U) + self.b
+            z = K.dot(x * B_W[0], self.W) + K.dot(h_tm1 * B_U[0], self.U) + self.b
 
             z0 = z[:, :self.output_dim]
             z1 = z[:, self.output_dim: 2 * self.output_dim]
@@ -833,3 +833,4 @@ class LSTM(Recurrent):
                   "dropout_U": self.dropout_U}
         base_config = super(LSTM, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
+
