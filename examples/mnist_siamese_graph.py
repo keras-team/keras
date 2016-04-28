@@ -7,8 +7,6 @@ for mode details).
 [1] "Dimensionality Reduction by Learning an Invariant Mapping"
     http://yann.lecun.com/exdb/publis/pdf/hadsell-chopra-lecun-06.pdf
 
-Run on GPU: THEANO_FLAGS=mode=FAST_RUN,device=gpu,floatX=float32 python mnist_siamese_graph.py
-
 Gets to 99.5% test accuracy after 20 epochs.
 3 seconds per epoch on a Titan X GPU
 '''
@@ -19,25 +17,28 @@ np.random.seed(1337)  # for reproducibility
 
 import random
 from keras.datasets import mnist
-from keras.models import Sequential, Graph
-from keras.layers.core import Dense, Dropout, Lambda
+from keras.models import Sequential, Model
+from keras.layers import Dense, Dropout, Input, Lambda
 from keras.optimizers import SGD, RMSprop
 from keras import backend as K
 
 
-def euclidean_distance(inputs):
-    assert len(inputs) == 2, ('Euclidean distance needs '
-                              '2 inputs, %d given' % len(inputs))
-    u, v = inputs.values()
-    return K.sqrt(K.sum(K.square(u - v), axis=1, keepdims=True))
+def euclidean_distance(vects):
+    x, y = vects
+    return K.sqrt(K.sum(K.square(x - y), axis=1, keepdims=True))
 
 
-def contrastive_loss(y, d):
+def eucl_dist_output_shape(shapes):
+    shape1, shape2 = shapes
+    return shape1
+
+
+def contrastive_loss(y_true, y_pred):
     '''Contrastive loss from Hadsell-et-al.'06
     http://yann.lecun.com/exdb/publis/pdf/hadsell-chopra-lecun-06.pdf
     '''
     margin = 1
-    return K.mean(y * K.square(d) + (1 - y) * K.square(K.maximum(margin - d, 0)))
+    return K.mean(y_true * K.square(y_pred) + (1 - y_true) * K.square(K.maximum(margin - y_pred, 0)))
 
 
 def create_pairs(x, digit_indices):
@@ -98,26 +99,31 @@ te_pairs, te_y = create_pairs(X_test, digit_indices)
 # network definition
 base_network = create_base_network(input_dim)
 
-g = Graph()
-g.add_input(name='input_a', input_shape=(input_dim,))
-g.add_input(name='input_b', input_shape=(input_dim,))
-g.add_shared_node(base_network, name='shared', inputs=['input_a', 'input_b'],
-                  merge_mode='join')
-g.add_node(Lambda(euclidean_distance), name='d', input='shared')
-g.add_output(name='output', input='d')
+input_a = Input(shape=(input_dim,))
+input_b = Input(shape=(input_dim,))
+
+# because we re-use the same instance `base_network`,
+# the weights of the network
+# will be shared across the two branches
+processed_a = base_network(input_a)
+processed_b = base_network(input_b)
+
+distance = Lambda(euclidean_distance, output_shape=eucl_dist_output_shape)([processed_a, processed_b])
+
+model = Model(input=[input_a, input_b], output=distance)
 
 # train
 rms = RMSprop()
-g.compile(loss={'output': contrastive_loss}, optimizer=rms)
-g.fit({'input_a': tr_pairs[:, 0], 'input_b': tr_pairs[:, 1], 'output': tr_y},
-      validation_data={'input_a': te_pairs[:, 0], 'input_b': te_pairs[:, 1], 'output': te_y},
-      batch_size=128,
-      nb_epoch=nb_epoch)
+model.compile(loss=contrastive_loss, optimizer=rms)
+model.fit([tr_pairs[:, 0], tr_pairs[:, 1]], tr_y,
+          validation_data=([te_pairs[:, 0], te_pairs[:, 1]], te_y),
+          batch_size=128,
+          nb_epoch=nb_epoch)
 
 # compute final accuracy on training and test sets
-pred = g.predict({'input_a': tr_pairs[:, 0], 'input_b': tr_pairs[:, 1]})['output']
+pred = model.predict([tr_pairs[:, 0], tr_pairs[:, 1]])
 tr_acc = compute_accuracy(pred, tr_y)
-pred = g.predict({'input_a': te_pairs[:, 0], 'input_b': te_pairs[:, 1]})['output']
+pred = model.predict([te_pairs[:, 0], te_pairs[:, 1]])
 te_acc = compute_accuracy(pred, te_y)
 
 print('* Accuracy on training set: %0.2f%%' % (100 * tr_acc))

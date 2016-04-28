@@ -26,5 +26,6 @@ For a few examples of such functions, check out the [objectives source](https://
 - __hinge__
 - __binary_crossentropy__: Also known as logloss. 
 - __categorical_crossentropy__: Also known as multiclass logloss. __Note__: using this objective requires that your labels are binary arrays of shape `(nb_samples, nb_classes)`.
+- __sparse_categorical_crossentropy__: As above but accepts sparse labels. __Note__: this objective still requires that your labels have the same number of dimensions as your outputs; you may need to add a length-1 dimension to the shape of your labels, e.g with `np.expand_dims(y, -1)`.
 - __poisson__: mean of `(predictions - targets * log(predictions))`
 - __cosine_proximity__: the opposite (negative) of the mean cosine proximity between predictions and targets.

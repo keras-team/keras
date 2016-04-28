@@ -32,5 +32,16 @@ def test_objective_shapes_2d():
         assert K.eval(objective_output).shape == (6,)
 
 
+def test_cce_one_hot():
+    y_a = K.variable(np.random.randint(0, 7, (5, 6)))
+    y_b = K.variable(np.random.random((5, 6, 7)))
+    objective_output = objectives.sparse_categorical_crossentropy(y_a, y_b)
+    assert K.eval(objective_output).shape == (5, 6)
+
+    y_a = K.variable(np.random.randint(0, 7, (6,)))
+    y_b = K.variable(np.random.random((6, 7)))
+    assert K.eval(objectives.sparse_categorical_crossentropy(y_a, y_b)).shape == (6,)
+
+
 if __name__ == "__main__":
     pytest.main([__file__])

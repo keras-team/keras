@@ -4,7 +4,7 @@ import numpy as np
 
 from .. import backend as K
 from .. import activations, initializations, regularizers
-from ..layers.core import MaskedLayer
+from ..engine import Layer, InputSpec
 
 
 def time_distributed_dense(x, w, b=None, dropout=None,
@@ -21,12 +21,12 @@ def time_distributed_dense(x, w, b=None, dropout=None,
         # won't work with TensorFlow
         output_dim = K.shape(w)[1]
 
-    if dropout:
+    if dropout is not None and 0. < dropout < 1.:
         # apply the same dropout pattern at every timestep
         ones = K.ones_like(K.reshape(x[:, 0, :], (-1, input_dim)))
         dropout_matrix = K.dropout(ones, dropout)
         expanded_dropout_matrix = K.repeat(dropout_matrix, timesteps)
-        x *= expanded_dropout_matrix
+        x = K.in_train_phase(x * expanded_dropout_matrix, x)
 
     # collapse time dimension and batch dimension together
     x = K.reshape(x, (-1, input_dim))
@@ -39,21 +39,31 @@ def time_distributed_dense(x, w, b=None, dropout=None,
     return x
 
 
-class Recurrent(MaskedLayer):
+class Recurrent(Layer):
     '''Abstract base class for recurrent layers.
-    Do not use in a model -- it's not a functional layer!
+    Do not use in a model -- it's not a valid layer!
+    Use its children classes `LSTM`, `GRU` and `SimpleRNN` instead.
 
-    All recurrent layers (GRU, LSTM, SimpleRNN) also
+    All recurrent layers (`LSTM`, `GRU`, `SimpleRNN`) also
     follow the specifications of this class and accept
     the keyword arguments listed below.
 
-    # Input shape
-        3D tensor with shape `(nb_samples, timesteps, input_dim)`.
+    # Example
 
-    # Output shape
-        - if `return_sequences`: 3D tensor with shape
-            `(nb_samples, timesteps, output_dim)`.
-        - else, 2D tensor with shape `(nb_samples, output_dim)`.
+    ```python
+        # as the first layer in a Sequential model
+        model = Sequential()
+        model.add(LSTM(32, input_shape=(10, 64)))
+        # now model.output_shape == (None, 10, 32)
+        # note: `None` is the batch dimension.
+
+        # the following is identical:
+        model = Sequential()
+        model.add(LSTM(32, input_dim=64, input_length=10))
+
+        # for subsequent layers, not need to specify the input size:
+        model.add(LSTM(16))
+    ```
 
     # Arguments
         weights: list of numpy arrays to set as initial weights.
@@ -66,6 +76,17 @@ class Recurrent(MaskedLayer):
         stateful: Boolean (default False). If True, the last state
             for each sample at index i in a batch will be used as initial
             state for the sample of index i in the following batch.
+        unroll: Boolean (default False). If True, the network will be unrolled,
+            else a symbolic loop will be used. When using TensorFlow, the network
+            is always unrolled, so this argument does not do anything.
+            Unrolling can speed-up a RNN, although it tends to be more memory-intensive.
+            Unrolling is only suitable for short sequences.
+        consume_less: one of "cpu", "mem". If set to "cpu", the RNN will use
+            an implementation that uses fewer, larger matrix products,
+            thus running faster (at least on CPU) but consuming more memory.
+            If set to "mem", the RNN will use more matrix products,
+            but smaller ones, thus running slower (may actually be faster on GPU)
+            while consuming less memory.
         input_dim: dimensionality of the input (integer).
             This argument (or alternatively, the keyword argument `input_shape`)
             is required when using this layer as the first layer in a model.
@@ -78,6 +99,14 @@ class Recurrent(MaskedLayer):
             in your model, you would need to specify the input length
             at the level of the first layer
             (e.g. via the `input_shape` argument)
+
+    # Input shape
+        3D tensor with shape `(nb_samples, timesteps, input_dim)`.
+
+    # Output shape
+        - if `return_sequences`: 3D tensor with shape
+            `(nb_samples, timesteps, output_dim)`.
+        - else, 2D tensor with shape `(nb_samples, output_dim)`.
 
     # Masking
         This layer supports masking for input data with a variable number
@@ -115,40 +144,41 @@ class Recurrent(MaskedLayer):
         When using the TensorFlow backend, specify a fixed batch size for your model
         following the notes on statefulness RNNs.
     '''
-    input_ndim = 3
-
     def __init__(self, weights=None,
                  return_sequences=False, go_backwards=False, stateful=False,
+                 unroll=False, consume_less='cpu',
                  input_dim=None, input_length=None, **kwargs):
         self.return_sequences = return_sequences
         self.initial_weights = weights
         self.go_backwards = go_backwards
         self.stateful = stateful
+        self.unroll = unroll
+        self.consume_less = consume_less
 
+        self.supports_masking = True
+        self.input_spec = [InputSpec(ndim=3)]
         self.input_dim = input_dim
         self.input_length = input_length
         if self.input_dim:
             kwargs['input_shape'] = (self.input_length, self.input_dim)
         super(Recurrent, self).__init__(**kwargs)
 
-    def get_output_mask(self, train=False):
-        if self.return_sequences:
-            return super(Recurrent, self).get_output_mask(train)
-        else:
-            return None
-
-    @property
-    def output_shape(self):
-        input_shape = self.input_shape
+    def get_output_shape_for(self, input_shape):
         if self.return_sequences:
             return (input_shape[0], input_shape[1], self.output_dim)
         else:
             return (input_shape[0], self.output_dim)
 
+    def compute_mask(self, input, mask):
+        if self.return_sequences:
+            return mask
+        else:
+            return None
+
     def step(self, x, states):
         raise NotImplementedError
 
-    def get_constants(self, x, train=False):
+    def get_constants(self, x):
         return []
 
     def get_initial_states(self, x):
@@ -160,44 +190,41 @@ class Recurrent(MaskedLayer):
         initial_states = [initial_state for _ in range(len(self.states))]
         return initial_states
 
-    def preprocess_input(self, x, train=False):
+    def preprocess_input(self, x):
         return x
 
-    def get_output(self, train=False):
+    def call(self, x, mask=None):
         # input shape: (nb_samples, time (padded with zeros), input_dim)
-        X = self.get_input(train)
-        mask = self.get_input_mask(train)
-
-        # updates can be added inside self.step which is run by K.rnn
-        # and at the end of this method if stateful
-        # however, get_output can be called multiple time so we need to reset
-        # this before starting to accumulate the update expressions.
-        self.updates = []
-
-        assert K.ndim(X) == 3
+        # note that the .build() method of subclasses MUST define
+        # self.input_spec with a complete input shape.
+        input_shape = self.input_spec[0].shape
         if K._BACKEND == 'tensorflow':
-            if not self.input_shape[1]:
-                raise Exception('When using TensorFlow, you should define ' +
-                                'explicitly the number of timesteps of ' +
-                                'your sequences.\n' +
-                                'If your first layer is an Embedding, ' +
-                                'make sure to pass it an "input_length" ' +
-                                'argument. Otherwise, make sure ' +
-                                'the first layer has ' +
-                                'an "input_shape" or "batch_input_shape" ' +
-                                'argument, including the time axis.')
+            if not input_shape[1]:
+                raise Exception('When using TensorFlow, you should define '
+                                'explicitly the number of timesteps of '
+                                'your sequences.\n'
+                                'If your first layer is an Embedding, '
+                                'make sure to pass it an "input_length" '
+                                'argument. Otherwise, make sure '
+                                'the first layer has '
+                                'an "input_shape" or "batch_input_shape" '
+                                'argument, including the time axis. '
+                                'Found input shape at layer ' + self.name +
+                                ': ' + str(input_shape))
         if self.stateful:
             initial_states = self.states
         else:
-            initial_states = self.get_initial_states(X)
-        constants = self.get_constants(X, train)
-        preprocessed_input = self.preprocess_input(X, train)
+            initial_states = self.get_initial_states(x)
+        constants = self.get_constants(x)
+        preprocessed_input = self.preprocess_input(x)
 
         last_output, outputs, states = K.rnn(self.step, preprocessed_input,
                                              initial_states,
                                              go_backwards=self.go_backwards,
                                              mask=mask,
-                                             constants=constants)
+                                             constants=constants,
+                                             unroll=self.unroll,
+                                             input_length=input_shape[1])
         if self.stateful:
             self.updates += [(self.states[i], states[i]) for i in
                              range(len(states))]
@@ -208,12 +235,13 @@ class Recurrent(MaskedLayer):
             return last_output
 
     def get_config(self):
-        config = {"name": self.__class__.__name__,
-                  "return_sequences": self.return_sequences,
-                  "go_backwards": self.go_backwards,
-                  "stateful": self.stateful}
+        config = {'return_sequences': self.return_sequences,
+                  'go_backwards': self.go_backwards,
+                  'stateful': self.stateful,
+                  'unroll': self.unroll,
+                  'consume_less': self.consume_less}
         if self.stateful:
-            config['batch_input_shape'] = self.input_shape
+            config['batch_input_shape'] = self.input_spec[0].shape
         else:
             config['input_dim'] = self.input_dim
             config['input_length'] = self.input_length
@@ -259,10 +287,13 @@ class SimpleRNN(Recurrent):
         self.U_regularizer = regularizers.get(U_regularizer)
         self.b_regularizer = regularizers.get(b_regularizer)
         self.dropout_W, self.dropout_U = dropout_W, dropout_U
+
+        if self.dropout_W or self.dropout_U:
+            self.uses_learning_phase = True
         super(SimpleRNN, self).__init__(**kwargs)
 
-    def build(self):
-        input_shape = self.input_shape
+    def build(self, input_shape):
+        self.input_spec = [InputSpec(shape=input_shape)]
         if self.stateful:
             self.reset_states()
         else:
@@ -282,10 +313,10 @@ class SimpleRNN(Recurrent):
             self.W_regularizer.set_param(self.W)
             self.regularizers.append(self.W_regularizer)
         if self.U_regularizer:
-            self.W_regularizer.set_param(self.U)
+            self.U_regularizer.set_param(self.U)
             self.regularizers.append(self.U_regularizer)
         if self.b_regularizer:
-            self.W_regularizer.set_param(self.b)
+            self.b_regularizer.set_param(self.b)
             self.regularizers.append(self.b_regularizer)
 
         self.trainable_weights = [self.W, self.U, self.b]
@@ -296,7 +327,7 @@ class SimpleRNN(Recurrent):
 
     def reset_states(self):
         assert self.stateful, 'Layer must be stateful.'
-        input_shape = self.input_shape
+        input_shape = self.input_spec[0].shape
         if not input_shape[0]:
             raise Exception('If a RNN is stateful, a complete ' +
                             'input_shape must be provided (including batch size).')
@@ -306,33 +337,49 @@ class SimpleRNN(Recurrent):
         else:
             self.states = [K.zeros((input_shape[0], self.output_dim))]
 
-    def preprocess_input(self, x, train=False):
-        if train and (0 < self.dropout_W < 1):
-            dropout = self.dropout_W
+    def preprocess_input(self, x):
+        if self.consume_less == 'cpu':
+            input_shape = self.input_spec[0].shape
+            input_dim = input_shape[2]
+            timesteps = input_shape[1]
+            return time_distributed_dense(x, self.W, self.b, self.dropout_W,
+                                          input_dim, self.output_dim,
+                                          timesteps)
         else:
-            dropout = 0
-        input_shape = self.input_shape
-        input_dim = input_shape[2]
-        timesteps = input_shape[1]
-        return time_distributed_dense(x, self.W, self.b, dropout,
-                                      input_dim, self.output_dim, timesteps)
+            return x
 
-    def step(self, h, states):
+    def step(self, x, states):
         prev_output = states[0]
-        if len(states) == 2:
-            B_U = states[1]
+        B_U = states[1]
+        B_W = states[2]
+
+        if self.consume_less == 'cpu':
+            h = x
         else:
-            B_U = 1.
+            h = K.dot(x * B_W, self.W) + self.b
+
         output = self.activation(h + K.dot(prev_output * B_U, self.U))
         return output, [output]
 
-    def get_constants(self, x, train=False):
-        if train and (0 < self.dropout_U < 1):
+    def get_constants(self, x):
+        constants = []
+        if 0 < self.dropout_U < 1:
             ones = K.ones_like(K.reshape(x[:, 0, 0], (-1, 1)))
             ones = K.concatenate([ones] * self.output_dim, 1)
-            B_U = K.dropout(ones, self.dropout_U)
-            return [B_U]
-        return []
+            B_U = K.in_train_phase(K.dropout(ones, self.dropout_U), ones)
+            constants.append(B_U)
+        else:
+            constants.append(K.cast_to_floatx(1.))
+        if self.consume_less == 'cpu' and 0 < self.dropout_W < 1:
+            input_shape = self.input_spec[0].shape
+            input_dim = input_shape[-1]
+            ones = K.ones_like(K.reshape(x[:, 0, 0], (-1, 1)))
+            ones = K.concatenate([ones] * input_dim, 1)
+            B_W = K.in_train_phase(K.dropout(ones, self.dropout_W), ones)
+            constants.append(B_W)
+        else:
+            constants.append(K.cast_to_floatx(1.))
+        return constants
 
     def get_config(self):
         config = {"output_dim": self.output_dim,
@@ -389,10 +436,13 @@ class GRU(Recurrent):
         self.U_regularizer = regularizers.get(U_regularizer)
         self.b_regularizer = regularizers.get(b_regularizer)
         self.dropout_W, self.dropout_U = dropout_W, dropout_U
+
+        if self.dropout_W or self.dropout_U:
+            self.uses_learning_phase = True
         super(GRU, self).__init__(**kwargs)
 
-    def build(self):
-        input_shape = self.input_shape
+    def build(self, input_shape):
+        self.input_spec = [InputSpec(shape=input_shape)]
         input_dim = input_shape[2]
         self.input_dim = input_dim
 
@@ -446,7 +496,7 @@ class GRU(Recurrent):
 
     def reset_states(self):
         assert self.stateful, 'Layer must be stateful.'
-        input_shape = self.input_shape
+        input_shape = self.input_spec[0].shape
         if not input_shape[0]:
             raise Exception('If a RNN is stateful, a complete ' +
                             'input_shape must be provided (including batch size).')
@@ -456,33 +506,35 @@ class GRU(Recurrent):
         else:
             self.states = [K.zeros((input_shape[0], self.output_dim))]
 
-    def preprocess_input(self, x, train=False):
-        if train and (0 < self.dropout_W < 1):
-            dropout = self.dropout_W
-        else:
-            dropout = 0
-        input_shape = self.input_shape
-        input_dim = input_shape[2]
-        timesteps = input_shape[1]
+    def preprocess_input(self, x):
+        if self.consume_less == 'cpu':
+            input_shape = self.input_spec[0].shape
+            input_dim = input_shape[2]
+            timesteps = input_shape[1]
 
-        x_z = time_distributed_dense(x, self.W_z, self.b_z, dropout,
-                                     input_dim, self.output_dim, timesteps)
-        x_r = time_distributed_dense(x, self.W_r, self.b_r, dropout,
-                                     input_dim, self.output_dim, timesteps)
-        x_h = time_distributed_dense(x, self.W_h, self.b_h, dropout,
-                                     input_dim, self.output_dim, timesteps)
-        return K.concatenate([x_z, x_r, x_h], axis=2)
+            x_z = time_distributed_dense(x, self.W_z, self.b_z, self.dropout_W,
+                                         input_dim, self.output_dim, timesteps)
+            x_r = time_distributed_dense(x, self.W_r, self.b_r, self.dropout_W,
+                                         input_dim, self.output_dim, timesteps)
+            x_h = time_distributed_dense(x, self.W_h, self.b_h, self.dropout_W,
+                                         input_dim, self.output_dim, timesteps)
+            return K.concatenate([x_z, x_r, x_h], axis=2)
+        else:
+            return x
 
     def step(self, x, states):
         h_tm1 = states[0]  # previous memory
-        if len(states) == 2:
-            B_U = states[1]  # dropout matrices for recurrent units
-        else:
-            B_U = [1., 1., 1.]
+        B_U = states[1]  # dropout matrices for recurrent units
+        B_W = states[2]
 
-        x_z = x[:, :self.output_dim]
-        x_r = x[:, self.output_dim: 2 * self.output_dim]
-        x_h = x[:, 2 * self.output_dim:]
+        if self.consume_less == 'cpu':
+            x_z = x[:, :self.output_dim]
+            x_r = x[:, self.output_dim: 2 * self.output_dim]
+            x_h = x[:, 2 * self.output_dim:]
+        else:
+            x_z = K.dot(x * B_W[0], self.W_z) + self.b_z
+            x_r = K.dot(x * B_W[1], self.W_r) + self.b_r
+            x_h = K.dot(x * B_W[2], self.W_h) + self.b_h
 
         z = self.inner_activation(x_z + K.dot(h_tm1 * B_U[0], self.U_z))
         r = self.inner_activation(x_r + K.dot(h_tm1 * B_U[1], self.U_r))
@@ -491,13 +543,26 @@ class GRU(Recurrent):
         h = z * h_tm1 + (1 - z) * hh
         return h, [h]
 
-    def get_constants(self, x, train=False):
-        if train and (0 < self.dropout_U < 1):
+    def get_constants(self, x):
+        constants = []
+        if 0 < self.dropout_U < 1:
             ones = K.ones_like(K.reshape(x[:, 0, 0], (-1, 1)))
             ones = K.concatenate([ones] * self.output_dim, 1)
-            B_U = [K.dropout(ones, self.dropout_U) for _ in range(3)]
-            return [B_U]
-        return []
+            B_U = [K.in_train_phase(K.dropout(ones, self.dropout_U), ones) for _ in range(3)]
+            constants.append(B_U)
+        else:
+            constants.append([K.cast_to_floatx(1.) for _ in range(3)])
+
+        if 0 < self.dropout_W < 1:
+            input_shape = self.input_spec[0].shape
+            input_dim = input_shape[-1]
+            ones = K.ones_like(K.reshape(x[:, 0, 0], (-1, 1)))
+            ones = K.concatenate([ones] * input_dim, 1)
+            B_W = [K.in_train_phase(K.dropout(ones, self.dropout_W), ones) for _ in range(3)]
+            constants.append(B_W)
+        else:
+            constants.append([K.cast_to_floatx(1.) for _ in range(3)])
+        return constants
 
     def get_config(self):
         config = {"output_dim": self.output_dim,
@@ -580,10 +645,13 @@ class LSTM(Recurrent):
             self.beta_init = initializations.get('zero')
             self.momentum = 0.9
             self.epsilon = 1e-6
+            self.uses_learning_phase = True
+        if self.dropout_W or self.dropout_U:
+            self.uses_learning_phase = True
         super(LSTM, self).__init__(**kwargs)
 
-    def build(self):
-        input_shape = self.input_shape
+    def build(self, input_shape):
+        self.input_spec = [InputSpec(shape=input_shape)]
         input_dim = input_shape[2]
         self.input_dim = input_dim
 
@@ -690,7 +758,7 @@ class LSTM(Recurrent):
 
     def reset_states(self):
         assert self.stateful, 'Layer must be stateful.'
-        input_shape = self.input_shape
+        input_shape = self.input_spec[0].shape
         if not input_shape[0]:
             raise Exception('If a RNN is stateful, a complete ' +
                             'input_shape must be provided (including batch size).')
@@ -703,25 +771,27 @@ class LSTM(Recurrent):
             self.states = [K.zeros((input_shape[0], self.output_dim)),
                            K.zeros((input_shape[0], self.output_dim))]
 
-    def preprocess_input(self, x, train=False):
-        if train and (0 < self.dropout_W < 1):
-            dropout = self.dropout_W
-        else:
-            dropout = 0
-        input_shape = self.input_shape
-        input_dim = input_shape[2]
-        timesteps = input_shape[1]
+    def preprocess_input(self, x):
+        if self.consume_less == 'cpu':
+            if 0 < self.dropout_W < 1:
+                dropout = self.dropout_W
+            else:
+                dropout = 0
+            input_shape = self.input_spec[0].shape
+            input_dim = input_shape[2]
+            timesteps = input_shape[1]
 
-        # bias is added inside step (after doing BN)
-        x_i = time_distributed_dense(x, self.W_i, None, dropout,
-                                     input_dim, self.output_dim, timesteps)
-        x_f = time_distributed_dense(x, self.W_f, None, dropout,
-                                     input_dim, self.output_dim, timesteps)
-        x_c = time_distributed_dense(x, self.W_c, None, dropout,
-                                     input_dim, self.output_dim, timesteps)
-        x_o = time_distributed_dense(x, self.W_o, None, dropout,
-                                     input_dim, self.output_dim, timesteps)
-        return K.concatenate([x_i, x_f, x_c, x_o], axis=2)
+            x_i = time_distributed_dense(x, self.W_i, self.b_i, dropout,
+                                         input_dim, self.output_dim, timesteps)
+            x_f = time_distributed_dense(x, self.W_f, self.b_f, dropout,
+                                         input_dim, self.output_dim, timesteps)
+            x_c = time_distributed_dense(x, self.W_c, self.b_c, dropout,
+                                         input_dim, self.output_dim, timesteps)
+            x_o = time_distributed_dense(x, self.W_o, self.b_o, dropout,
+                                         input_dim, self.output_dim, timesteps)
+            return K.concatenate([x_i, x_f, x_c, x_o], axis=2)
+        else:
+            return x
 
     def bn(self, X, fld, slc='i'):
         if not self.batch_norm:
@@ -768,15 +838,19 @@ class LSTM(Recurrent):
     def step(self, x, states):
         h_tm1 = states[0]
         c_tm1 = states[1]
-        if len(states) == 3:
-            B_U = states[2]
-        else:
-            B_U = [1. for _ in range(4)]
+        B_U = states[2]
+        B_W = states[3]
 
-        x_i = x[:, :self.output_dim]
-        x_f = x[:, self.output_dim: 2 * self.output_dim]
-        x_c = x[:, 2 * self.output_dim: 3 * self.output_dim]
-        x_o = x[:, 3 * self.output_dim:]
+        if self.consume_less == 'cpu':
+            x_i = x[:, :self.output_dim]
+            x_f = x[:, self.output_dim: 2 * self.output_dim]
+            x_c = x[:, 2 * self.output_dim: 3 * self.output_dim]
+            x_o = x[:, 3 * self.output_dim:]
+        else:
+            x_i = K.dot(x * B_W[0], self.W_i) + self.b_i
+            x_f = K.dot(x * B_W[1], self.W_f) + self.b_f
+            x_c = K.dot(x * B_W[2], self.W_c) + self.b_c
+            x_o = K.dot(x * B_W[3], self.W_o) + self.b_o
 
         i = self.inner_activation(
             self.bn(x_i,'input','i') +
@@ -798,13 +872,26 @@ class LSTM(Recurrent):
         h = o * self.activation(self.bn(c, 'output'))
         return h, [h, c]
 
-    def get_constants(self, x, train=False):
-        if train and (0 < self.dropout_U < 1):
+    def get_constants(self, x):
+        constants = []
+        if 0 < self.dropout_U < 1:
             ones = K.ones_like(K.reshape(x[:, 0, 0], (-1, 1)))
             ones = K.concatenate([ones] * self.output_dim, 1)
-            B_U = [K.dropout(ones, self.dropout_U) for _ in range(4)]
-            return [B_U]
-        return []
+            B_U = [K.in_train_phase(K.dropout(ones, self.dropout_U), ones) for _ in range(4)]
+            constants.append(B_U)
+        else:
+            constants.append([K.cast_to_floatx(1.) for _ in range(4)])
+
+        if 0 < self.dropout_W < 1:
+            input_shape = self.input_spec[0].shape
+            input_dim = input_shape[-1]
+            ones = K.ones_like(K.reshape(x[:, 0, 0], (-1, 1)))
+            ones = K.concatenate([ones] * input_dim, 1)
+            B_W = [K.in_train_phase(K.dropout(ones, self.dropout_W), ones) for _ in range(4)]
+            constants.append(B_W)
+        else:
+            constants.append([K.cast_to_floatx(1.) for _ in range(4)])
+        return constants
 
     def get_config(self):
         config = {"output_dim": self.output_dim,

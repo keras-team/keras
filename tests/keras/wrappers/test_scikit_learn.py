@@ -46,7 +46,7 @@ def build_fn_clf(hidden_dims=50):
     model.add(Dense(nb_class))
     model.add(Activation('softmax'))
     model.compile(optimizer='sgd', loss='categorical_crossentropy',
-                  class_mode='binary')
+                  metrics=['accuracy'])
     return model
 
 
@@ -68,7 +68,8 @@ def build_fn_reg(hidden_dims=50):
     model.add(Activation('relu'))
     model.add(Dense(1))
     model.add(Activation('linear'))
-    model.compile(optimizer='sgd', loss='mean_absolute_error')
+    model.compile(optimizer='sgd', loss='mean_absolute_error',
+                  metrics=['accuracy'])
     return model
 
 
