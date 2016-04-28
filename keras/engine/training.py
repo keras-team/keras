@@ -1629,7 +1629,7 @@ class Model(Container):
 
     def get_config(self):
         layer_config = super(Model, self).get_config()
-        config['layer_config'] = layer_config
+        config = {'layer_config': layer_config}
         if hasattr(self, 'optimizer'):
             config['compile_config'] = get_compile_config(self)
         
