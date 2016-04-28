@@ -1642,6 +1642,6 @@ class Model(Container):
 
         model = super(Model, cls).from_config(config['layer_config'], custom_objects=custom_objects)
         if 'compile_config' in config:
-            from_compile_config(model, config['compile_config'], custom_ojects=custom_objects)
+            from_compile_config(model, config['compile_config'], custom_objects=custom_objects)
 
         return model
