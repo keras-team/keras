@@ -226,8 +226,10 @@ class Recurrent(Layer):
                                              unroll=self.unroll,
                                              input_length=input_shape[1])
         if self.stateful:
-            self.updates += [(self.states[i], states[i]) for i in
-                             range(len(states))]
+            if not hasattr(self, 'updates'): # keep updates from sub-class
+                self.updates = []
+            for i in range(len(states)):
+                self.updates.append((self.states[i], states[i]))
 
         if self.return_sequences:
             return outputs
@@ -580,7 +582,7 @@ class GRU(Recurrent):
 
 
 class LSTM(Recurrent):
-    """Long-Short Term Memory unit - Hochreiter 1997.
+    '''Long-Short Term Memory unit - Hochreiter 1997.
 
     For a step-by-step description of the algorithm, see
     [this tutorial](http://deeplearning.net/tutorial/lstm.html).
@@ -619,7 +621,7 @@ class LSTM(Recurrent):
         - [Supervised sequence labelling with recurrent neural networks](http://www.cs.toronto.edu/~graves/preprint.pdf)
         - [A Theoretically Grounded Application of Dropout in Recurrent Neural Networks](http://arxiv.org/abs/1512.05287)
         - [Recurrent Batch Normalization](http://arxiv.org/abs/1603.09025)
-    """
+    '''
     def __init__(self, output_dim,
                  init='glorot_uniform', inner_init='orthogonal',
                  forget_bias_init='one', activation='tanh',
@@ -781,13 +783,14 @@ class LSTM(Recurrent):
             input_dim = input_shape[2]
             timesteps = input_shape[1]
 
-            x_i = time_distributed_dense(x, self.W_i, self.b_i, dropout,
+            # bias is added inside step (after doing BN)
+            x_i = time_distributed_dense(x, self.W_i, None, dropout,
                                          input_dim, self.output_dim, timesteps)
-            x_f = time_distributed_dense(x, self.W_f, self.b_f, dropout,
+            x_f = time_distributed_dense(x, self.W_f, None, dropout,
                                          input_dim, self.output_dim, timesteps)
-            x_c = time_distributed_dense(x, self.W_c, self.b_c, dropout,
+            x_c = time_distributed_dense(x, self.W_c, None, dropout,
                                          input_dim, self.output_dim, timesteps)
-            x_o = time_distributed_dense(x, self.W_o, self.b_o, dropout,
+            x_o = time_distributed_dense(x, self.W_o, None, dropout,
                                          input_dim, self.output_dim, timesteps)
             return K.concatenate([x_i, x_f, x_c, x_o], axis=2)
         else:
@@ -806,29 +809,34 @@ class LSTM(Recurrent):
         del reduction_axes[axis]
         broadcast_shape = [1] * len(input_shape)
         broadcast_shape[axis] = input_shape[axis]
-        if self.train:
-            m = K.mean(X, axis=reduction_axes)
-            brodcast_m = K.reshape(m, broadcast_shape)
-            std = K.mean(K.square(X - brodcast_m) + self.epsilon,
-                         axis=reduction_axes)
-            std = K.sqrt(std)
-            brodcast_std = K.reshape(std, broadcast_shape)
-            mean_update = (self.momentum * self.running_mean[fld][slc] +
-                           (1 - self.momentum) * m)
-            std_update = (self.momentum * self.running_std[fld][slc] +
-                          (1 - self.momentum) * std)
-            if not hasattr(self, 'updates'):
-                self.updates = []
-            self.updates += [(self.running_mean[fld][slc], mean_update),
-                             (self.running_std[fld][slc], std_update)]
 
-            X_normed = (X - brodcast_m) / (brodcast_std + self.epsilon)
-        else:
-            brodcast_m = K.reshape(self.running_mean[fld][slc], broadcast_shape)
-            brodcast_std = K.reshape(self.running_std[fld][slc],
-                                     broadcast_shape)
-            X_normed = ((X - brodcast_m) /
-                        (brodcast_std + self.epsilon))
+        # case: train mode (uses stats of the current batch)
+        m = K.mean(X, axis=reduction_axes)
+        brodcast_m = K.reshape(m, broadcast_shape)
+        std = K.mean(K.square(X - brodcast_m) + self.epsilon,
+                     axis=reduction_axes)
+        std = K.sqrt(std)
+        brodcast_std = K.reshape(std, broadcast_shape)
+        mean_update = (self.momentum * self.running_mean[fld][slc] +
+                       (1 - self.momentum) * m)
+        std_update = (self.momentum * self.running_std[fld][slc] +
+                      (1 - self.momentum) * std)
+        if not hasattr(self, 'updates'):
+            self.updates = []
+        self.updates += [(self.running_mean[fld][slc], mean_update),
+                         (self.running_std[fld][slc], std_update)]
+
+        X_normed = (X - brodcast_m) / (brodcast_std + self.epsilon)
+
+        # case: test mode (uses running averages)
+        brodcast_running_mean = K.reshape(self.running_mean[fld][slc], broadcast_shape)
+        brodcast_running_std = K.reshape(self.running_std[fld][slc],
+                                 broadcast_shape)
+        X_normed_running = ((X - brodcast_running_mean) /
+                        (brodcast_running_std + self.epsilon))
+
+        # pick the normalized form of x corresponding to the training phase
+        X_normed = K.in_train_phase(X_normed, X_normed_running)
 
         out = K.reshape(gamma, broadcast_shape) * X_normed
         if beta is not None:
@@ -909,8 +917,3 @@ class LSTM(Recurrent):
             config["momentum"] = self.momentum
         base_config = super(LSTM, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
-
-    def get_output(self, train=False):
-        if self.batch_norm:
-            self.train = train
-        return super(LSTM,self).get_output(train=train)
