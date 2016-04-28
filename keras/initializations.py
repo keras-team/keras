@@ -2,7 +2,6 @@ from __future__ import absolute_import
 import numpy as np
 from . import backend as K
 
-
 def get_fans(shape, dim_ordering='th'):
     if len(shape) == 2:
         fan_in = shape[0]
