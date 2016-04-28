@@ -1375,9 +1375,9 @@ class Model(Container):
                     outs = self.train_on_batch(x, y,
                                                sample_weight=sample_weight,
                                                class_weight=class_weight)
-                except Exception as e:
+                except Exception:
                     _stop.set()
-                    raise e
+                    raise
 
                 if type(outs) != list:
                     outs = [outs]
