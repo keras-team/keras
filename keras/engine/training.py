@@ -314,19 +314,27 @@ def weighted_objective(fn):
             mask = K.cast(mask, K.floatx())
             # mask should have the same shape as score_array
             score_array *= mask
-            #  the loss per batch should be proportional
-            #  to the number of unmasked samples.
-            score_array /= K.mean(mask)
 
         # reduce score_array to same ndim as weight array
         ndim = K.ndim(score_array)
         weight_ndim = K.ndim(weights)
         score_array = K.mean(score_array, axis=list(range(weight_ndim, ndim)))
+        if mask is not None:
+            #  the loss per batch should be proportional
+            #  to the number of unmasked samples.
+            #
+            #  but if score_array had higher dimension than weights then
+            #  its enough to have one element masked in the higher dimensions
+            #  to say that a sample was masked.
+            #  For example, in the case of time series
+            #  a sample is masked if at least one of its steps is masked
+            mask = K.max(mask,
+                         axis=list(range(weight_ndim, ndim)))
+            score_array /= K.mean(mask)
 
         # apply sample weighting
-        if weights is not None:
-            score_array *= weights
-            score_array /= K.mean(K.cast(K.not_equal(weights, 0), K.floatx()))
+        score_array *= weights
+        score_array /= K.mean(K.cast(K.not_equal(weights, 0), K.floatx()))
         return K.mean(score_array)
     return weighted
 
