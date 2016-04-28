@@ -28,10 +28,11 @@ def get_model(input_dim, nb_hidden, output_dim):
 
 def _test_optimizer(optimizer, target=0.9):
     model = get_model(X_train.shape[1], 10, y_train.shape[1])
-    model.compile(loss='categorical_crossentropy', optimizer=optimizer)
+    model.compile(loss='categorical_crossentropy',
+                  optimizer=optimizer,
+                  metrics=['accuracy'])
     history = model.fit(X_train, y_train, nb_epoch=12, batch_size=16,
-                        validation_data=(X_test, y_test),
-                        show_accuracy=True, verbose=2)
+                        validation_data=(X_test, y_test), verbose=2)
     config = optimizer.get_config()
     assert type(config) == dict
     assert history.history['val_acc'][-1] > target

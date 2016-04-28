@@ -1,7 +1,8 @@
 import numpy as np
 import pytest
 
-from keras.models import Sequential, weighted_objective
+from keras.models import Sequential
+from keras.engine.training import weighted_objective
 from keras.layers.core import TimeDistributedDense, Masking
 from keras import objectives
 from keras import backend as K

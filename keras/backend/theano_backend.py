@@ -3,27 +3,19 @@ from theano import tensor as T
 from theano.sandbox.rng_mrg import MRG_RandomStreams as RandomStreams
 from theano.tensor.signal import pool
 from theano.tensor.nnet import conv3d2d
+import inspect
 import numpy as np
 from .common import _FLOATX, _EPSILON
 
 
 # INTERNAL UTILS
 theano.config.floatX = _FLOATX
+_LEARNING_PHASE = T.scalar(dtype='uint8', name='keras_learning_phase')  # 0 = test, 1 = train
 
 
-def _on_gpu():
-    '''Return whether the session is set to
-    run on GPU or not (i.e. on CPU).
-    '''
-    return theano.config.device[:3] == 'gpu' or theano.sandbox.cuda.cuda_enabled
-
-
-if _on_gpu():
-    '''Import cuDNN only if running on GPU:
-    not having Cuda installed should not
-    prevent from running the present code.
-    '''
-    from theano.sandbox.cuda import dnn
+def learning_phase():
+    # False = test, True = train
+    return _LEARNING_PHASE
 
 
 # VARIABLE MANIPULATION
@@ -42,9 +34,14 @@ def placeholder(shape=None, ndim=None, dtype=_FLOATX, name=None):
         raise Exception('Specify either a shape or ndim value.')
     if shape is not None:
         ndim = len(shape)
+    else:
+        shape = tuple([None for _ in range(ndim)])
 
     broadcast = (False,) * ndim
-    return T.TensorType(dtype, broadcast)(name)
+    x = T.TensorType(dtype, broadcast)(name)
+    x._keras_shape = shape
+    x._uses_learning_phase = False
+    return x
 
 
 def shape(x):
@@ -58,6 +55,10 @@ def shape(x):
 
 def ndim(x):
     return x.ndim
+
+
+def dtype(x):
+    return x.dtype
 
 
 def eval(x):
@@ -76,6 +77,12 @@ def ones(shape, dtype=_FLOATX, name=None):
     '''Instantiate an all-ones variable.
     '''
     return variable(np.ones(shape), dtype, name)
+
+
+def eye(size, dtype=_FLOATX, name=None):
+    '''Instantiate an identity matrix.
+    '''
+    return variable(np.eye(size), dtype, name)
 
 
 def ones_like(x):
@@ -108,6 +115,38 @@ Assumed overridden:
 
 def dot(x, y):
     return T.dot(x, y)
+
+
+def batch_dot(x, y, axes=None):
+    '''batchwise dot product
+    batch_dot results in a tensor with less dimensions than the input.
+    If the number of dimensions is reduced to 1, we use `expand_dims` to
+    make sure that ndim is at least 2.
+
+    # Example
+        Assume x = [[1, 2]   and y = [[5, 6]
+                    [3, 4]]           [7, 8]]
+        batch_dot(x, y, axes=1) = [[17, 53]] which is the main diagonal
+        of x.dot(y.T), although we never have to calculate the off-diagonal
+        elements.
+
+
+    # Arguments
+        x, y: tensors with ndim >= 2
+        axes: list (or single) int with target dimensions
+
+    # Returns
+        Tensor with ndim >= 2
+    '''
+    if type(axes) == int:
+        axes = (axes, axes)
+    if axes is None:
+        # behaves like tf.batch_matmul as default
+        axes = [x.ndim - 1, y.ndim - 2]
+    out = T.batched_tensordot(x, y, axes=axes)
+    if ndim(out) == 1:
+        out = expand_dims(out, 1)
+    return out
 
 
 def transpose(x):
@@ -196,6 +235,10 @@ def round(x):
     return T.round(x)
 
 
+def sign(x):
+    return T.sgn(x)
+
+
 def pow(x, a):
     return T.pow(x, a)
 
@@ -220,6 +263,14 @@ def maximum(x, y):
 
 def minimum(x, y):
     return T.minimum(x, y)
+
+
+def sin(x):
+    return T.sin(x)
+
+
+def cos(x):
+    return T.cos(x)
 
 
 # SHAPE OPERATIONS
@@ -436,13 +487,20 @@ def set_value(x, value):
     x.set_value(np.asarray(value, dtype=x.dtype))
 
 
+def batch_set_value(tuples):
+    for x, value in tuples:
+        x.set_value(np.asarray(value, dtype=x.dtype))
+
+
 # GRAPH MANIPULATION
 
 class Function(object):
 
     def __init__(self, inputs, outputs, updates=[], **kwargs):
         self.function = theano.function(inputs, outputs, updates=updates,
-                                        allow_input_downcast=True, **kwargs)
+                                        allow_input_downcast=True,
+                                        on_unused_input='warn',
+                                        **kwargs)
 
     def __call__(self, inputs):
         assert type(inputs) in {list, tuple}
@@ -450,6 +508,12 @@ class Function(object):
 
 
 def function(inputs, outputs, updates=[], **kwargs):
+    if len(kwargs) > 0:
+        function_args = inspect.getargspec(theano.function)[0]
+        for key in kwargs.keys():
+            if key not in function_args:
+                msg = "Invalid argument '%s' passed to K.function" % key
+                raise ValueError(msg)
     return Function(inputs, outputs, updates=updates, **kwargs)
 
 
@@ -460,7 +524,8 @@ def gradients(loss, variables):
 # CONTROL FLOW
 
 def rnn(step_function, inputs, initial_states,
-        go_backwards=False, mask=None, constants=None):
+        go_backwards=False, mask=None, constants=None,
+        unroll=False, input_length=None):
     '''Iterates over the time dimension of a tensor.
 
     # Arguments
@@ -484,7 +549,8 @@ def rnn(step_function, inputs, initial_states,
         mask: binary tensor with shape (samples, time),
             with a zero for every element that is masked.
         constants: a list of constant values passed at each step.
-
+        unroll: whether to unroll the RNN or to use a symbolic loop (`scan`).
+        input_length: must be specified if using `unroll`.
 
     # Returns
         A tuple (last_output, outputs, new_states).
@@ -498,8 +564,16 @@ def rnn(step_function, inputs, initial_states,
     ndim = inputs.ndim
     assert ndim >= 3, 'Input should be at least 3D.'
 
+    if unroll:
+        if input_length is None:
+            raise Exception('When specifying `unroll=True`, an `input_length` '
+                            'must be provided to `rnn`.')
+
     axes = [1, 0] + list(range(2, ndim))
     inputs = inputs.dimshuffle(axes)
+
+    if constants is None:
+        constants = []
 
     if mask is not None:
         if mask.ndim == ndim-1:
@@ -507,47 +581,101 @@ def rnn(step_function, inputs, initial_states,
         assert mask.ndim == ndim
         mask = mask.dimshuffle(axes)
 
-        if constants is None:
-            constants = []
-        # build an all-zero tensor of shape (samples, output_dim)
-        initial_output = step_function(inputs[0], initial_states + constants)[0] * 0
-        # Theano gets confused by broadcasting patterns in the scan op
-        initial_output = T.unbroadcast(initial_output, 0, 1)
+        if unroll:
+            indices = list(range(input_length))
+            if go_backwards:
+                indices = indices[::-1]
 
-        def _step(input, mask, output_tm1, *states):
-            output, new_states = step_function(input, states)
-            # output previous output if masked.
-            output = T.switch(mask, output, output_tm1)
-            return_states = []
-            for state, new_state in zip(states, new_states):
-                return_states.append(T.switch(mask, new_state, state))
-            return [output] + return_states
+            successive_outputs = []
+            successive_states = []
+            states = initial_states
+            for i in indices:
+                output, new_states = step_function(inputs[i], states + constants)
 
-        results, _ = theano.scan(
-            _step,
-            sequences=[inputs, mask],
-            outputs_info=[initial_output] + initial_states,
-            non_sequences=constants,
-            go_backwards=go_backwards)
+                if len(successive_outputs) == 0:
+                    prev_output = zeros_like(output)
+                else:
+                    prev_output = successive_outputs[-1]
+
+                output = T.switch(mask[i], output, prev_output)
+                kept_states = []
+                for state, new_state in zip(states, new_states):
+                    kept_states.append(T.switch(mask[i], new_state, state))
+                states = kept_states
+
+                successive_outputs.append(output)
+                successive_states.append(states)
+
+            outputs = T.stack(*successive_outputs)
+            states = []
+            for i in range(len(successive_states[-1])):
+                states.append(T.stack(*[states_at_step[i] for states_at_step in successive_states]))
+        else:
+            # build an all-zero tensor of shape (samples, output_dim)
+            initial_output = step_function(inputs[0], initial_states + constants)[0] * 0
+            # Theano gets confused by broadcasting patterns in the scan op
+            initial_output = T.unbroadcast(initial_output, 0, 1)
+
+            def _step(input, mask, output_tm1, *states):
+                output, new_states = step_function(input, states)
+                # output previous output if masked.
+                output = T.switch(mask, output, output_tm1)
+                return_states = []
+                for state, new_state in zip(states, new_states):
+                    return_states.append(T.switch(mask, new_state, state))
+                return [output] + return_states
+
+            results, _ = theano.scan(
+                _step,
+                sequences=[inputs, mask],
+                outputs_info=[initial_output] + initial_states,
+                non_sequences=constants,
+                go_backwards=go_backwards)
+
+            # deal with Theano API inconsistency
+            if type(results) is list:
+                outputs = results[0]
+                states = results[1:]
+            else:
+                outputs = results
+                states = []
     else:
-        def _step(input, *states):
-            output, new_states = step_function(input, states)
-            return [output] + new_states
+        if unroll:
+            indices = list(range(input_length))
+            if go_backwards:
+                indices = indices[::-1]
 
-        results, _ = theano.scan(
-            _step,
-            sequences=inputs,
-            outputs_info=[None] + initial_states,
-            non_sequences=constants,
-            go_backwards=go_backwards)
+            successive_outputs = []
+            successive_states = []
+            states = initial_states
+            for i in indices:
+                output, states = step_function(inputs[i], states + constants)
+                successive_outputs.append(output)
+                successive_states.append(states)
+            outputs = T.stack(*successive_outputs)
+            states = []
+            for i in range(len(successive_states[-1])):
+                states.append(T.stack(*[states_at_step[i] for states_at_step in successive_states]))
 
-    # deal with Theano API inconsistency
-    if type(results) is list:
-        outputs = results[0]
-        states = results[1:]
-    else:
-        outputs = results
-        states = []
+        else:
+            def _step(input, *states):
+                output, new_states = step_function(input, states)
+                return [output] + new_states
+
+            results, _ = theano.scan(
+                _step,
+                sequences=inputs,
+                outputs_info=[None] + initial_states,
+                non_sequences=constants,
+                go_backwards=go_backwards)
+
+            # deal with Theano API inconsistency
+            if type(results) is list:
+                outputs = results[0]
+                states = results[1:]
+            else:
+                outputs = results
+                states = []
 
     outputs = T.squeeze(outputs)
     last_output = outputs[-1]
@@ -562,6 +690,18 @@ def switch(condition, then_expression, else_expression):
     '''condition: scalar tensor.
     '''
     return T.switch(condition, then_expression, else_expression)
+
+
+def in_train_phase(x, alt):
+    x = T.switch(_LEARNING_PHASE, x, alt)
+    x._uses_learning_phase = True
+    return x
+
+
+def in_test_phase(x, alt):
+    x = T.switch(_LEARNING_PHASE, alt, x)
+    x._uses_learning_phase = True
+    return x
 
 
 # NN OPERATIONS
@@ -594,6 +734,13 @@ def categorical_crossentropy(output, target, from_logits=False):
     # avoid numerical instability with _EPSILON clipping
     output = T.clip(output, _EPSILON, 1.0 - _EPSILON)
     return T.nnet.categorical_crossentropy(output, target)
+
+
+def sparse_categorical_crossentropy(output, target, from_logits=False):
+    target = T.cast(T.flatten(target), 'int32')
+    target = T.extra_ops.to_one_hot(target, nb_class=output.shape[-1])
+    target = reshape(target, shape(output))
+    return categorical_crossentropy(output, target, from_logits)
 
 
 def binary_crossentropy(output, target, from_logits=False):
@@ -638,7 +785,6 @@ def l2_normalize(x, axis):
 def conv2d(x, kernel, strides=(1, 1), border_mode='valid', dim_ordering='th',
            image_shape=None, filter_shape=None):
     '''
-    Run on cuDNN if available.
     border_mode: string, "same" or "valid".
     '''
     if dim_ordering not in {'th', 'tf'}:
@@ -660,52 +806,39 @@ def conv2d(x, kernel, strides=(1, 1), border_mode='valid', dim_ordering='th',
             filter_shape = (filter_shape[3], filter_shape[2],
                             filter_shape[0], filter_shape[1])
 
-    if _on_gpu() and dnn.dnn_available():
-        if border_mode == 'same':
-            np_kernel = kernel.eval()
-            assert strides[0] <= np_kernel.shape[2], 'strides should be smaller than the convolution window.'
-            assert strides[1] <= np_kernel.shape[3], 'strides should be smaller than the convolution window.'
-            conv_out = dnn.dnn_conv(img=x,
-                                    kerns=kernel,
-                                    border_mode='full')
-            shift_x = (np_kernel.shape[2] - strides[0]) // 2
-            shift_y = (np_kernel.shape[3] - strides[1]) // 2
-            expected_width = (x.shape[2] + strides[0] - 1) // strides[0]
-            expected_height = (x.shape[3] + strides[1] - 1) // strides[1]
-
-            conv_out = conv_out[:, :,
-                                shift_x: shift_x + expected_width,
-                                shift_y: shift_y + expected_height]
-        else:
-            conv_out = dnn.dnn_conv(img=x,
-                                    kerns=kernel,
-                                    border_mode=border_mode,
-                                    subsample=strides)
+    if border_mode == 'same':
+        th_border_mode = 'half'
+        np_kernel = kernel.eval()
+    elif border_mode == 'valid':
+        th_border_mode = 'valid'
     else:
-        if border_mode == 'same':
-            th_border_mode = 'full'
-            np_kernel = kernel.eval()
-            assert strides[0] <= np_kernel.shape[2], 'strides should be smaller than the convolution window.'
-            assert strides[1] <= np_kernel.shape[3], 'strides should be smaller than the convolution window.'
-        elif border_mode == 'valid':
-            th_border_mode = 'valid'
-        else:
-            raise Exception('Border mode not supported: ' + str(border_mode))
+        raise Exception('Border mode not supported: ' + str(border_mode))
 
-        conv_out = T.nnet.conv.conv2d(x, kernel,
-                                      border_mode=th_border_mode,
-                                      subsample=strides,
-                                      image_shape=image_shape,
-                                      filter_shape=filter_shape)
-        if border_mode == 'same':
-            shift_x = (np_kernel.shape[2] - strides[0]) // 2
-            shift_y = (np_kernel.shape[3] - strides[1]) // 2
-            expected_width = (x.shape[2] + strides[0] - 1) // strides[0]
-            expected_height = (x.shape[3] + strides[1] - 1) // strides[1]
+    # Theano might not accept long type
+    def int_or_none(value):
+        try:
+            return int(value)
+        except TypeError:
+            return None
 
-            conv_out = conv_out[:, :,
-                                shift_x: shift_x + expected_width,
-                                shift_y: shift_y + expected_height]
+    if image_shape is not None:
+        image_shape = tuple(int_or_none(v) for v in image_shape)
+
+    if filter_shape is not None:
+        filter_shape = tuple(int_or_none(v) for v in filter_shape)
+
+    conv_out = T.nnet.conv2d(x, kernel,
+                             border_mode=th_border_mode,
+                             subsample=strides,
+                             input_shape=image_shape,
+                             filter_shape=filter_shape)
+
+    if border_mode == 'same':
+        if np_kernel.shape[2] % 2 == 0:
+            conv_out = conv_out[:, :, :(x.shape[2] + strides[0] - 1) // strides[0], :]
+        if np_kernel.shape[3] % 2 == 0:
+            conv_out = conv_out[:, :, :, :(x.shape[3] + strides[1] - 1) // strides[1]]
+
     if dim_ordering == 'tf':
         conv_out = conv_out.dimshuffle((0, 2, 3, 1))
     return conv_out
@@ -896,10 +1029,3 @@ def random_binomial(shape, p=0.0, dtype=_FLOATX, seed=None):
         seed = np.random.randint(10e6)
     rng = RandomStreams(seed=seed)
     return rng.binomial(shape, p=p, dtype=dtype)
-
-'''
-more TODO:
-
-tensordot -> soon to be introduced in TF
-batched_tensordot -> reimplement
-'''

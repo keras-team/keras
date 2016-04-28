@@ -52,6 +52,33 @@ class BaseWrapper(object):
     def __init__(self, build_fn=None, **sk_params):
         self.build_fn = build_fn
         self.sk_params = sk_params
+        self.check_params(sk_params)
+
+    def check_params(self, params):
+        '''Check for user typos in "params" keys to avoid
+        unwanted usage of default values
+
+        # Arguments
+            params: dictionary
+                The parameters to be checked
+        '''
+        legal_params_fns = [Sequential.fit, Sequential.predict,
+                            Sequential.predict_classes, Sequential.evaluate]
+        if self.build_fn is None:
+            legal_params_fns.append(self.__call__)
+        elif not isinstance(self.build_fn, types.FunctionType):
+            legal_params_fns.append(self.build_fn.__call__)
+        else:
+            legal_params_fns.append(self.build_fn)
+
+        legal_params = []
+        for fn in legal_params_fns:
+            legal_params += inspect.getargspec(fn)[0]
+        legal_params = set(legal_params)
+
+        for params_name in params:
+            if params_name not in legal_params:
+                assert False, '{} is not a legal parameter'.format(params_name)
 
     def get_params(self, deep=True):
         '''Get parameters for this estimator.
@@ -79,6 +106,7 @@ class BaseWrapper(object):
         # Returns
             self
         '''
+        self.check_params(params)
         self.sk_params.update(params)
         return self
 
@@ -108,7 +136,10 @@ class BaseWrapper(object):
         else:
             self.model = self.build_fn(**self.filter_sk_params(self.build_fn))
 
-        if self.model.loss.__name__ == 'categorical_crossentropy' and len(y.shape) != 2:
+        loss_name = self.model.loss
+        if hasattr(loss_name, '__name__'):
+            loss_name = loss_name.__name__
+        if loss_name == 'categorical_crossentropy' and len(y.shape) != 2:
             y = to_categorical(y)
 
         fit_args = copy.deepcopy(self.filter_sk_params(Sequential.fit))
@@ -193,9 +224,15 @@ class KerasClassifier(BaseWrapper):
                 Mean accuracy of predictions on X wrt. y.
         '''
         kwargs = self.filter_sk_params(Sequential.evaluate, kwargs)
-        kwargs.update({'show_accuracy': True})
-        loss, accuracy = self.model.evaluate(X, y, **kwargs)
-        return accuracy
+        outputs = self.model.evaluate(X, y, **kwargs)
+        if type(outputs) is not list:
+            outputs = [outputs]
+        for name, output in zip(self.model.metrics_names, outputs):
+            if name == 'acc':
+                return output
+        raise Exception('The model is not configured to compute accuracy. '
+                        'You should pass `metrics=["accuracy"]` to '
+                        'the `model.compile()` method.')
 
 
 class KerasRegressor(BaseWrapper):
@@ -219,7 +256,7 @@ class KerasRegressor(BaseWrapper):
         return self.model.predict(X, **kwargs)
 
     def score(self, X, y, **kwargs):
-        '''Returns the mean accuracy on the given test data and labels.
+        '''Returns the mean loss on the given test data and labels.
 
         # Arguments
             X: array-like, shape `(n_samples, n_features)`
@@ -235,6 +272,7 @@ class KerasRegressor(BaseWrapper):
                 Mean accuracy of predictions on X wrt. y.
         '''
         kwargs = self.filter_sk_params(Sequential.evaluate, kwargs)
-        kwargs.update({'show_accuracy': False})
         loss = self.model.evaluate(X, y, **kwargs)
+        if type(loss) is list:
+            return loss[0]
         return loss

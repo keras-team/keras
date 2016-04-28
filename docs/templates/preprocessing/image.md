@@ -12,7 +12,8 @@ keras.preprocessing.image.ImageDataGenerator(featurewise_center=True,
     height_shift_range=0.,
     shear_range=0.,
     horizontal_flip=False,
-    vertical_flip=False)
+    vertical_flip=False,
+    dim_ordering='th')
 ```
 
 Generate batches of tensor image data with real-time data augmentation. The data will be looped over (in batches) indefinitely.
@@ -27,8 +28,15 @@ Generate batches of tensor image data with real-time data augmentation. The data
     - __width_shift_range__: Float (fraction of total width). Range for random horizontal shifts.
     - __height_shift_range__: Float (fraction of total height). Range for random vertical shifts.
     - __shear_range__: Float. Shear Intensity (Shear angle in counter-clockwise direction as radians)
+    - __zoom_range__: Float or [lower, upper]. Range for random zoom. If a float, `[lower, upper] = [1-zoom_range, 1+zoom_range]`.
+    - __channel_shift_range__: Float. Range for random channel shifts.
+    - __fill_mode__: One of {"constant", "nearest", "reflect" or "wrap"}.
+    - __cval__: Float or Int. Value used for points outside the boundaries when `fill_mode` is "constant".
     - __horizontal_flip__: Boolean. Randomly flip inputs horizontally.
     - __vertical_flip__: Boolean. Randomly flip inputs vertically.
+    - __dim_ordering__: One of {"th", "tf"}.
+        "tf" mode means that the images should have shape `(samples, width, height, channels)`,
+        "th" mode means that the images should have shape `(samples, channels, width, height)`.
 
 - __Methods__:
     - __fit(X)__: Required if featurewise_center or featurewise_std_normalization or zca_whitening. Compute necessary quantities on some sample data.

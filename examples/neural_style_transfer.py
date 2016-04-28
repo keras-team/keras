@@ -111,8 +111,8 @@ input_tensor = K.concatenate([base_image,
                               combination_image], axis=0)
 
 # build the VGG16 network with our 3 images as input
-first_layer = ZeroPadding2D((1, 1), input_shape=(3, img_width, img_height))
-first_layer.input = input_tensor
+first_layer = ZeroPadding2D((1, 1))
+first_layer.set_input(input_tensor, shape=(3, 3, img_width, img_height))
 
 model = Sequential()
 model.add(first_layer)
@@ -168,7 +168,7 @@ f.close()
 print('Model loaded.')
 
 # get the symbolic outputs of each "key" layer (we gave them unique names).
-outputs_dict = dict([(layer.name, layer.get_output()) for layer in model.layers])
+outputs_dict = dict([(layer.name, layer.output) for layer in model.layers])
 
 # compute the neural style loss
 # first we need to define 4 util functions
