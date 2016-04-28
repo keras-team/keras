@@ -3,6 +3,7 @@ from theano import tensor as T
 from theano.sandbox.rng_mrg import MRG_RandomStreams as RandomStreams
 from theano.tensor.signal import pool
 from theano.tensor.nnet import conv3d2d
+from theano.ifelse import ifelse
 import inspect
 import numpy as np
 from .common import _FLOATX, _EPSILON
@@ -808,7 +809,6 @@ def conv2d(x, kernel, strides=(1, 1), border_mode='valid', dim_ordering='th',
 
     if border_mode == 'same':
         th_border_mode = 'half'
-        np_kernel = kernel.eval()
     elif border_mode == 'valid':
         th_border_mode = 'valid'
     else:
@@ -834,10 +834,24 @@ def conv2d(x, kernel, strides=(1, 1), border_mode='valid', dim_ordering='th',
                              filter_shape=filter_shape)
 
     if border_mode == 'same':
-        if np_kernel.shape[2] % 2 == 0:
-            conv_out = conv_out[:, :, :(x.shape[2] + strides[0] - 1) // strides[0], :]
-        if np_kernel.shape[3] % 2 == 0:
-            conv_out = conv_out[:, :, :, :(x.shape[3] + strides[1] - 1) // strides[1]]
+        # post-hoc accomodation for even-width filters
+        try:
+            # standard use-case, where kernel points to a TensorSharedVariable,
+            # or to something else that can be evaluated without other inputs.
+            np_kernel = kernel.eval()
+            if np_kernel.shape[2] % 2 == 0:
+                conv_out = conv_out[:, :, :(x.shape[2] + strides[0] - 1) // strides[0], :]
+            if np_kernel.shape[3] % 2 == 0:
+                conv_out = conv_out[:, :, :, :(x.shape[3] + strides[1] - 1) // strides[1]]
+        except:
+            # special use-case, where evaluating the kernel requires evaluating
+            # parts of the computation graph that depend on other inputs.
+            conv_out = ifelse(T.eq(kernel.shape[2] % 2, 0),
+                              conv_out[:, :, :(x.shape[2] + strides[0] - 1) // strides[0], :],
+                              conv_out)
+            conv_out = ifelse(T.eq(kernel.shape[3] % 2, 0),
+                              conv_out[:, :, :, :(x.shape[3] + strides[1] - 1) // strides[1]],
+                              conv_out)
 
     if dim_ordering == 'tf':
         conv_out = conv_out.dimshuffle((0, 2, 3, 1))
