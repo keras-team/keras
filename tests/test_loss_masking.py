@@ -3,9 +3,10 @@ import pytest
 
 from keras.models import Sequential
 from keras.engine.training import weighted_objective
-from keras.layers.core import TimeDistributedDense, Masking
+from keras.layers.core import Masking, Dense
 from keras import objectives
 from keras import backend as K
+from keras.layers.wrappers import TimeDistributed
 
 
 def test_masking():
@@ -15,11 +16,11 @@ def test_masking():
          [[1, 5], [5, 0], [0, 0], [0, 0]]], dtype=np.int32)
     model = Sequential()
     model.add(Masking(mask_value=0, input_shape=(4, 2)))
-    model.add(TimeDistributedDense(1, init='one'))
+    model.add(TimeDistributed(Dense(1, init='one')))
     model.compile(loss='mse', optimizer='sgd')
     y = model.predict(X)
     history = model.fit(X, 4 * y, nb_epoch=1, batch_size=2, verbose=1)
-    assert history.history['loss'][0] == 285.
+    assert history.history['loss'][0] == 213.75
 
 
 def test_loss_masking():
