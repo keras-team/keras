@@ -511,12 +511,14 @@ class Dense(Layer):
 
     ```python
         # as first layer in a sequential model:
-        model = Sequential(Dense(32, input_dim=16))
+        model = Sequential()
+        model.add(Dense(32, input_dim=16))
         # now the model will take as input arrays of shape (*, 16)
         # and output arrays of shape (*, 32)
 
         # this is equivalent to the above:
-        model = Sequential(Dense(32, input_shape=(16,)))
+        model = Sequential()
+        model.add(Dense(32, input_shape=(16,)))
 
         # after the first layer, you don't need to specify
         # the size of the input anymore:
@@ -575,7 +577,7 @@ class Dense(Layer):
 
         self.W_constraint = constraints.get(W_constraint)
         self.b_constraint = constraints.get(b_constraint)
-        
+
         self.bias = bias
         self.initial_weights = weights
         self.input_spec = [InputSpec(ndim=2)]

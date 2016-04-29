@@ -642,6 +642,8 @@ class Model(Container):
         self.predict_function = None
 
     def _make_train_function(self):
+        if not hasattr(self, 'train_function'):
+            raise Exception('You must compile your model before using it.')
         if self.train_function is None:
             if self.uses_learning_phase:
                 inputs = self.inputs + self.targets + self.sample_weights + [K.learning_phase()]
@@ -663,6 +665,8 @@ class Model(Container):
                                              **self._function_kwargs)
 
     def _make_test_function(self):
+        if not hasattr(self, 'test_function'):
+            raise Exception('You must compile your model before using it.')
         if self.test_function is None:
             if self.uses_learning_phase:
                 inputs = self.inputs + self.targets + self.sample_weights + [K.learning_phase()]
@@ -676,6 +680,8 @@ class Model(Container):
                                             **self._function_kwargs)
 
     def _make_predict_function(self):
+        if not hasattr(self, 'predict_function'):
+            raise Exception('You must compile your model before using it.')
         if self.predict_function is None:
             if self.uses_learning_phase:
                 inputs = self.inputs + [K.learning_phase()]
@@ -1371,7 +1377,7 @@ class Model(Container):
                                                class_weight=class_weight)
                 except Exception as e:
                     _stop.set()
-                    raise e
+                    raise
 
                 if type(outs) != list:
                     outs = [outs]
@@ -1473,7 +1479,7 @@ class Model(Container):
                 outs = self.test_on_batch(x, y, sample_weight=sample_weight)
             except Exception as e:
                 _stop.set()
-                raise e
+                raise
 
             if type(x) is list:
                 nb_samples = len(x[0])
@@ -1545,7 +1551,7 @@ class Model(Container):
                 outs = self.predict_on_batch(x)
             except Exception as e:
                 _stop.set()
-                raise e
+                raise
 
             if type(x) is list:
                 nb_samples = len(x[0])
