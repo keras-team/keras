@@ -734,7 +734,7 @@ class Model(Container):
     def _fit_loop(self, f, ins, out_labels=[], batch_size=32,
                   nb_epoch=100, verbose=1, callbacks=[],
                   val_f=None, val_ins=None, shuffle=True,
-                  callback_metrics=[]):
+                  callback_metrics=[], epoch_offset=0):
         '''Abstract fit function for f(ins).
         Assume that f returns a list, labeled by out_labels.
 
@@ -754,6 +754,7 @@ class Model(Container):
                 passed to the callbacks. They should be the
                 concatenation of list the display names of the outputs of
                  `f` and the list of display names of the outputs of `f_val`.
+            epoch_offset: a number to add to 'epoch' in callbacks
 
         # Returns
             `History` object.
@@ -795,7 +796,7 @@ class Model(Container):
         self.validation_data = val_ins
 
         for epoch in range(nb_epoch):
-            callbacks.on_epoch_begin(epoch)
+            callbacks.on_epoch_begin(epoch + epoch_offset)
             if shuffle == 'batch':
                 index_array = batch_shuffle(index_array, batch_size)
             elif shuffle:
@@ -839,7 +840,7 @@ class Model(Container):
                         # same labels assumed
                         for l, o in zip(out_labels, val_outs):
                             epoch_logs['val_' + l] = o
-            callbacks.on_epoch_end(epoch, epoch_logs)
+            callbacks.on_epoch_end(epoch + epoch_offset, epoch_logs)
             if callback_model.stop_training:
                 break
         callbacks.on_train_end()
@@ -981,7 +982,7 @@ class Model(Container):
 
     def fit(self, x, y, batch_size=32, nb_epoch=10, verbose=1, callbacks=[],
             validation_split=0., validation_data=None, shuffle=True,
-            class_weight=None, sample_weight=None):
+            class_weight=None, sample_weight=None, epoch_offset=0):
         '''Trains the model for a fixed number of epochs (iterations on a dataset).
 
         # Arguments
@@ -1018,6 +1019,7 @@ class Model(Container):
                 with shape (samples, sequence_length),
                 to apply a different weight to every timestep of every sample.
                 In this case you should make sure to specify sample_weight_mode="temporal" in compile().
+            epoch_offset: a number to add to 'epoch' in callbacks
 
 
         # Returns
@@ -1101,7 +1103,7 @@ class Model(Container):
                               batch_size=batch_size, nb_epoch=nb_epoch,
                               verbose=verbose, callbacks=callbacks,
                               val_f=val_f, val_ins=val_ins, shuffle=shuffle,
-                              callback_metrics=callback_metrics)
+                              callback_metrics=callback_metrics, epoch_offset=epoch_offset)
 
     def evaluate(self, x, y, batch_size=32, verbose=1, sample_weight=None):
         '''Returns the loss value and metrics values for the model
@@ -1277,7 +1279,8 @@ class Model(Container):
     def fit_generator(self, generator, samples_per_epoch, nb_epoch,
                       verbose=1, callbacks=[],
                       validation_data=None, nb_val_samples=None,
-                      class_weight={}, max_q_size=10, nb_worker=1, pickle_safe=False):
+                      class_weight={}, max_q_size=10, nb_worker=1, pickle_safe=False,
+                      epoch_offset=0):
         '''Fits the model on data generated batch-by-batch by
         a Python generator.
         The generator is run in parallel to the model, for efficiency.
@@ -1313,6 +1316,7 @@ class Model(Container):
                 this implementation relies on multiprocessing, you should not pass
                 non picklable arguments to the generator as they can't be passed
                 easily to children processes.
+            epoch_offset: a number to add to 'epoch' in callbacks
 
         # Returns
             A `History` object.
@@ -1396,7 +1400,7 @@ class Model(Container):
 
         callback_model.stop_training = False
         while epoch < nb_epoch:
-            callbacks.on_epoch_begin(epoch)
+            callbacks.on_epoch_begin(epoch + epoch_offset)
             samples_seen = 0
             batch_index = 0
             while samples_seen < samples_per_epoch:
@@ -1480,7 +1484,7 @@ class Model(Container):
                     for l, o in zip(out_labels, val_outs):
                         epoch_logs['val_' + l] = o
 
-            callbacks.on_epoch_end(epoch, epoch_logs)
+            callbacks.on_epoch_end(epoch + epoch_offset, epoch_logs)
             epoch += 1
             if callback_model.stop_training:
                 break
