@@ -22,11 +22,8 @@ batch_size = 32
 nb_epoch = 1
 
 
-def _get_test_data():
+def _get_test_data(train_samples=100, test_samples=50):
     np.random.seed(1234)
-
-    train_samples = 100
-    test_samples = 50
 
     (X_train, y_train), (X_test, y_test) = get_test_data(nb_train=train_samples,
                                                          nb_test=test_samples,
@@ -455,6 +452,31 @@ def test_sequential_count_params():
 
     model.compile('sgd', 'binary_crossentropy')
     assert(n == model.count_params())
+
+
+def test_sequential_fit_generator_finite_length():
+    (X_train, y_train), (X_test, y_test) = _get_test_data(1000,200)
+
+    def data_generator(train, nbatches):
+        if train:
+            max_batch_index = len(X_train) // batch_size
+        else:
+            max_batch_index = len(X_test) // batch_size
+        for i in range(nbatches):
+            if train:
+                yield (X_train[i * batch_size: (i + 1) * batch_size], y_train[i * batch_size: (i + 1) * batch_size])
+            else:
+                yield (X_test[i * batch_size: (i + 1) * batch_size], y_test[i * batch_size: (i + 1) * batch_size])
+
+    model = Sequential()
+    model.add(Dense(nb_hidden, input_shape=(input_dim,), activation='relu'))
+    model.add(Dense(nb_class, activation='softmax'))
+    model.compile(loss='categorical_crossentropy', optimizer='rmsprop')
+
+    nsamples = (len(X_train) // batch_size) * batch_size
+    model.fit_generator(data_generator(True, nsamples//batch_size), nsamples, nb_epoch)
+
+    loss = model.evaluate(X_train, y_train)
 
 
 if __name__ == '__main__':

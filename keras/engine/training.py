@@ -1336,13 +1336,10 @@ class Model(Container):
             samples_seen = 0
             batch_index = 0
             while samples_seen < samples_per_epoch:
-                generator_output = None
-                while not _stop.is_set():
-                    if not data_gen_queue.empty():
-                        generator_output = data_gen_queue.get()
-                        break
-                    else:
-                        time.sleep(wait_time)
+                # wait for the next element unless queue is stopped
+                while data_gen_queue.empty() and not _stop.is_set():
+                    time.sleep(wait_time)
+                generator_output = data_gen_queue.get()
 
                 if not hasattr(generator_output, '__len__'):
                     _stop.set()
@@ -1452,13 +1449,10 @@ class Model(Container):
         data_gen_queue, _stop = generator_queue(generator, max_q_size=max_q_size)
 
         while processed_samples < val_samples:
-            generator_output = None
-            while not _stop.is_set():
-                if not data_gen_queue.empty():
-                    generator_output = data_gen_queue.get()
-                    break
-                else:
-                    time.sleep(wait_time)
+            # wait for the next element unless queue is stopped
+            while data_gen_queue.empty() and not _stop.is_set():
+                time.sleep(wait_time)
+            generator_output = data_gen_queue.get()
 
             if not hasattr(generator_output, '__len__'):
                 _stop.set()
@@ -1525,13 +1519,10 @@ class Model(Container):
         data_gen_queue, _stop = generator_queue(generator, max_q_size=max_q_size)
 
         while processed_samples < val_samples:
-            generator_output = None
-            while not _stop.is_set():
-                if not data_gen_queue.empty():
-                    generator_output = data_gen_queue.get()
-                    break
-                else:
-                    time.sleep(wait_time)
+            # wait for the next element unless queue is stopped
+            while data_gen_queue.empty() and not _stop.is_set():
+                time.sleep(wait_time)
+            generator_output = data_gen_queue.get()
 
             if isinstance(generator_output, tuple):
                 if len(generator_output) == 2:
