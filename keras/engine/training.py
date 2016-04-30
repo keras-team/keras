@@ -572,10 +572,7 @@ class Model(Container):
             self.targets.append(K.placeholder(ndim=len(shape), name=name + '_target'))
 
         # prepare metrics
-        if len(self.outputs) > 1:
-            self.metrics_names = ['total_loss']
-        else:
-            self.metrics_names = ['loss']
+        self.metrics_names = ['loss']
         self.metrics = []
 
         # compute total loss
