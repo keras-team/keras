@@ -572,6 +572,7 @@ class Model(Container):
             self.targets.append(K.placeholder(ndim=len(shape), name=name + '_target'))
 
         # compute total loss
+        output_losses = []
         total_loss = None
         for i in range(len(self.outputs)):
             y_true = self.targets[i]
@@ -582,6 +583,7 @@ class Model(Container):
             loss_weight = loss_weights_list[i]
             output_loss = loss_weight * weighted_loss(y_true, y_pred,
                                                       sample_weight, mask)
+            output_losses.append(output_loss)
             if total_loss is None:
                 total_loss = output_loss
             else:
@@ -619,6 +621,11 @@ class Model(Container):
                         self.metrics_names.append('acc')
                     else:
                         self.metrics_names.append(self.output_layers[i].name + '_acc')
+                elif metric == 'loss':
+                    # custom handling of weighted loss functions as metrics
+                    if len(self.output_names) > 1:
+                        self.metrics.append(output_losses[i])
+                        self.metrics_names.append(self.output_layers[i].name + '_loss')
                 else:
                     metric_fn = metrics_module.get(metric)
                     self.metrics.append(metric_fn(y_true, y_pred))
