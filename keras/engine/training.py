@@ -424,7 +424,7 @@ def generator_queue(generator, max_q_size=10,
 class Model(Container):
 
     def compile(self, optimizer, loss, metrics=[], loss_weights=None,
-                sample_weight_mode=None, multi_target_loss=False, **kwargs):
+                sample_weight_mode=None, **kwargs):
         '''Configures the model for training.
 
         # Arguments
@@ -446,7 +446,6 @@ class Model(Container):
                 If the model has multiple outputs, you can use a different
                 `sample_weight_mode` on each output by passing a
                 dictionary or a list of modes.
-            multi_target_loss: add each target's loss function as a metric
             kwargs: when using the Theano backend, these arguments
                 are passed into K.function. Ignored for Tensorflow backend.
         '''
@@ -573,7 +572,10 @@ class Model(Container):
             self.targets.append(K.placeholder(ndim=len(shape), name=name + '_target'))
 
         # prepare metrics
-        self.metrics_names = ['loss']
+        if len(self.outputs) > 1:
+            self.metrics_names = ['total_loss']
+        else:
+            self.metrics_names = ['loss']
         self.metrics = []
 
         # compute total loss
@@ -585,15 +587,15 @@ class Model(Container):
             sample_weight = sample_weights[i]
             mask = masks[i]
             loss_weight = loss_weights_list[i]
-            output_loss = loss_weight * weighted_loss(y_true, y_pred,
-                                                      sample_weight, mask)
-            if multi_target_loss:
+            output_loss = weighted_loss(y_true, y_pred,
+                                        sample_weight, mask)
+            if len(self.outputs) > 1:
                 self.metrics.append(output_loss)
-                self.metrics_names.append('loss_'+self.output_names[i])
+                self.metrics_names.append(self.output_names[i] + '_loss')
             if total_loss is None:
-                total_loss = output_loss
+                total_loss = loss_weight * output_loss
             else:
-                total_loss += output_loss
+                total_loss += loss_weight * output_loss
 
         # add regularization penalties to the loss
         for r in self.regularizers:
