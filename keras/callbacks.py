@@ -458,7 +458,7 @@ class TensorBoard(Callback):
                                          layer.output)
         self.merged = tf.merge_all_summaries()
         self.writer = tf.train.SummaryWriter(self.log_dir,
-                                             self.sess.graph_def)
+                                             self.sess.graph)
 
     def on_epoch_end(self, epoch, logs={}):
         import tensorflow as tf
