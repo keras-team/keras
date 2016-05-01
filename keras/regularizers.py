@@ -59,9 +59,11 @@ class ActivityRegularizer(Regularizer):
             raise Exception('Need to call `set_layer` on '
                             'ActivityRegularizer instance '
                             'before calling the instance.')
-        output = self.layer.output
-        regularized_loss = loss + self.l1 * K.sum(K.mean(K.abs(output), axis=0))
-        regularized_loss += self.l2 * K.sum(K.mean(K.square(output), axis=0))
+        regularized_loss = loss
+        for i in range(len(self.layer.inbound_nodes)):
+            output = self.layer.get_output_at(i)
+            regularized_loss += self.l1 * K.sum(K.mean(K.abs(output), axis=0))
+            regularized_loss += self.l2 * K.sum(K.mean(K.square(output), axis=0))
         return K.in_train_phase(regularized_loss, loss)
 
     def get_config(self):
