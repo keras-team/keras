@@ -421,6 +421,19 @@ def generator_queue(generator, max_q_size=10,
     return q, _stop
 
 
+def get_next_queue_item(data_gen_queue, _stop, wait_time=0.01):
+    '''Blocks until either a queue item is available or the _stop event is set.
+    Returns the next queued item or raises an Exception if the queue was stopped.'''
+    generator_output = None
+    while generator_output is None:
+        try:
+            generator_output = data_gen_queue.get(True, wait_time)
+        except queue.Empty:
+            if _stop.is_set():
+                raise Exception("Generator queue ran out of elements or was stopped.")
+    return generator_output
+
+
 class Model(Container):
 
     def compile(self, optimizer, loss, metrics=[], loss_weights=None,
@@ -1232,8 +1245,9 @@ class Model(Container):
                 - a tuple (inputs, targets)
                 - a tuple (inputs, targets, sample_weights).
                 All arrays should contain the same number of samples.
-                The generator is expected to loop over its data
-                indefinitely. An epoch finishes when `samples_per_epoch`
+                The generator is expected to return at least
+                `(samples_per_epoch * nb_epoch)` elements.
+                An epoch finishes when `samples_per_epoch`
                 samples have been seen by the model.
             samples_per_epoch: integer, number of samples to process before
                 going to the next epoch.
@@ -1271,7 +1285,6 @@ class Model(Container):
                                 samples_per_epoch=10000, nb_epoch=10)
         ```
         '''
-        wait_time = 0.01  # in seconds
         epoch = 0
 
         do_validation = bool(validation_data)
@@ -1337,9 +1350,7 @@ class Model(Container):
             batch_index = 0
             while samples_seen < samples_per_epoch:
                 # wait for the next element unless queue is stopped
-                while data_gen_queue.empty() and not _stop.is_set():
-                    time.sleep(wait_time)
-                generator_output = data_gen_queue.get()
+                generator_output = get_next_queue_item(data_gen_queue, _stop)
 
                 if not hasattr(generator_output, '__len__'):
                     _stop.set()
@@ -1443,16 +1454,13 @@ class Model(Container):
         self._make_test_function()
 
         processed_samples = 0
-        wait_time = 0.01
         all_outs = []
         weights = []
         data_gen_queue, _stop = generator_queue(generator, max_q_size=max_q_size)
 
         while processed_samples < val_samples:
             # wait for the next element unless queue is stopped
-            while data_gen_queue.empty() and not _stop.is_set():
-                time.sleep(wait_time)
-            generator_output = data_gen_queue.get()
+            generator_output = get_next_queue_item(data_gen_queue, _stop)
 
             if not hasattr(generator_output, '__len__'):
                 _stop.set()
@@ -1514,15 +1522,12 @@ class Model(Container):
         self._make_predict_function()
 
         processed_samples = 0
-        wait_time = 0.01
         all_outs = []
         data_gen_queue, _stop = generator_queue(generator, max_q_size=max_q_size)
 
         while processed_samples < val_samples:
             # wait for the next element unless queue is stopped
-            while data_gen_queue.empty() and not _stop.is_set():
-                time.sleep(wait_time)
-            generator_output = data_gen_queue.get()
+            generator_output = get_next_queue_item(data_gen_queue, _stop)
 
             if isinstance(generator_output, tuple):
                 if len(generator_output) == 2:

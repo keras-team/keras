@@ -477,6 +477,32 @@ def test_sequential_fit_generator_finite_length():
     model.fit_generator(data_generator(True, nsamples//batch_size), nsamples, nb_epoch)
 
     loss = model.evaluate(X_train, y_train)
+    assert(loss < 3.0)
+
+    eval_results = model.evaluate_generator(data_generator(True, nsamples//batch_size), nsamples, nb_epoch)
+    assert(eval_results < 3.0)
+
+    predict_results = model.predict_generator(data_generator(True, nsamples//batch_size), nsamples, nb_epoch)
+    assert(predict_results.shape == (nsamples, 4))
+
+    # should fail because not enough samples
+    try:
+        model.fit_generator(data_generator(True, nsamples//batch_size), nsamples+1, nb_epoch)
+        assert(False)
+    except:
+        pass
+
+    # should fail because generator throws exception
+    def bad_generator(gen):
+        for i in range(0,20):
+            yield next(gen)
+        raise Exception("Generator raised an exception")
+
+    try:
+        model.fit_generator(bad_generator(data_generator(True, nsamples//batch_size)), nsamples+1, nb_epoch)
+        assert(False)
+    except:
+        pass
 
 
 if __name__ == '__main__':
