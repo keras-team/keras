@@ -116,8 +116,9 @@ class SGD(Optimizer):
         lr = self.lr * (1. / (1. + self.decay * self.iterations))
         self.updates = [(self.iterations, self.iterations + 1.)]
 
-        for p, g in zip(params, grads):
-            m = K.variable(np.zeros(K.get_value(p).shape))  # momentum
+        # momentum
+        self.weights = [K.variable(np.zeros(K.get_value(p).shape)) for p in params]
+        for p, g, m in zip(params, grads, self.weights):
             v = self.momentum * m - lr * g  # velocity
             self.updates.append((m, v))
 

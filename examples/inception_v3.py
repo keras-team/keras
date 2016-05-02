@@ -95,7 +95,7 @@ branch3x3dbl = conv2D_bn(branch3x3dbl, 96, 3, 3)
 branch3x3dbl = conv2D_bn(branch3x3dbl, 96, 3, 3)
 
 branch_pool = AveragePooling2D((3, 3), strides=(1, 1), border_mode='same', dim_ordering=DIM_ORDERING)(x)
-branch_pool = conv2D_bn(branch_pool, 32, 1, 1)
+branch_pool = conv2D_bn(branch_pool, 64, 1, 1)
 x = merge([branch1x1, branch5x5, branch3x3dbl, branch_pool], mode='concat', concat_axis=CONCAT_AXIS)
 
 # mixed2: 35 x 35 x 288
@@ -136,24 +136,6 @@ branch7x7dbl = conv2D_bn(x, 128, 1, 1)
 branch7x7dbl = conv2D_bn(branch7x7dbl, 128, 7, 1)
 branch7x7dbl = conv2D_bn(branch7x7dbl, 128, 1, 7)
 branch7x7dbl = conv2D_bn(branch7x7dbl, 128, 7, 1)
-branch7x7dbl = conv2D_bn(branch7x7dbl, 128, 1, 7)
-
-branch_pool = AveragePooling2D((3, 3), strides=(1, 1), border_mode='same', dim_ordering=DIM_ORDERING)(x)
-branch_pool = conv2D_bn(branch_pool, 192, 1, 1)
-x = merge([branch1x1, branch7x7, branch7x7dbl, branch_pool], mode='concat', concat_axis=CONCAT_AXIS)
-
-# mixed5: 17 x 17 x 768
-
-branch1x1 = conv2D_bn(x, 192, 1, 1)
-
-branch7x7 = conv2D_bn(x, 160, 1, 1)
-branch7x7 = conv2D_bn(branch7x7, 160, 1, 7)
-branch7x7 = conv2D_bn(branch7x7, 192, 7, 1)
-
-branch7x7dbl = conv2D_bn(x, 160, 1, 1)
-branch7x7dbl = conv2D_bn(branch7x7dbl, 160, 7, 1)
-branch7x7dbl = conv2D_bn(branch7x7dbl, 192, 1, 7)
-branch7x7dbl = conv2D_bn(branch7x7dbl, 160, 7, 1)
 branch7x7dbl = conv2D_bn(branch7x7dbl, 192, 1, 7)
 
 branch_pool = AveragePooling2D((3, 3), strides=(1, 1), border_mode='same', dim_ordering=DIM_ORDERING)(x)
@@ -170,7 +152,25 @@ branch7x7 = conv2D_bn(branch7x7, 192, 7, 1)
 
 branch7x7dbl = conv2D_bn(x, 160, 1, 1)
 branch7x7dbl = conv2D_bn(branch7x7dbl, 160, 7, 1)
+branch7x7dbl = conv2D_bn(branch7x7dbl, 160, 1, 7)
+branch7x7dbl = conv2D_bn(branch7x7dbl, 160, 7, 1)
 branch7x7dbl = conv2D_bn(branch7x7dbl, 192, 1, 7)
+
+branch_pool = AveragePooling2D((3, 3), strides=(1, 1), border_mode='same', dim_ordering=DIM_ORDERING)(x)
+branch_pool = conv2D_bn(branch_pool, 192, 1, 1)
+x = merge([branch1x1, branch7x7, branch7x7dbl, branch_pool], mode='concat', concat_axis=CONCAT_AXIS)
+
+# mixed5: 17 x 17 x 768
+
+branch1x1 = conv2D_bn(x, 192, 1, 1)
+
+branch7x7 = conv2D_bn(x, 160, 1, 1)
+branch7x7 = conv2D_bn(branch7x7, 160, 1, 7)
+branch7x7 = conv2D_bn(branch7x7, 192, 7, 1)
+
+branch7x7dbl = conv2D_bn(x, 160, 1, 1)
+branch7x7dbl = conv2D_bn(branch7x7dbl, 160, 7, 1)
+branch7x7dbl = conv2D_bn(branch7x7dbl, 160, 1, 7)
 branch7x7dbl = conv2D_bn(branch7x7dbl, 160, 7, 1)
 branch7x7dbl = conv2D_bn(branch7x7dbl, 192, 1, 7)
 
@@ -225,7 +225,7 @@ aux_preds = Dense(NB_CLASS, activation='softmax')(aux_logits)
 # mixed8: 8 x 8 x 1280
 
 branch3x3 = conv2D_bn(x, 192, 1, 1)
-branch3x3 = conv2D_bn(branch3x3, 192, 3, 3, subsample=(2, 2), border_mode='valid')
+branch3x3 = conv2D_bn(branch3x3, 320, 3, 3, subsample=(2, 2), border_mode='valid')
 
 branch7x7x3 = conv2D_bn(x, 192, 1, 1)
 branch7x7x3 = conv2D_bn(branch7x7x3, 192, 1, 7)

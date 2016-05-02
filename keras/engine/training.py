@@ -571,6 +571,10 @@ class Model(Container):
             name = self.output_names[i]
             self.targets.append(K.placeholder(ndim=len(shape), name=name + '_target'))
 
+        # prepare metrics
+        self.metrics_names = ['loss']
+        self.metrics = []
+
         # compute total loss
         total_loss = None
         for i in range(len(self.outputs)):
@@ -580,19 +584,20 @@ class Model(Container):
             sample_weight = sample_weights[i]
             mask = masks[i]
             loss_weight = loss_weights_list[i]
-            output_loss = loss_weight * weighted_loss(y_true, y_pred,
-                                                      sample_weight, mask)
+            output_loss = weighted_loss(y_true, y_pred,
+                                        sample_weight, mask)
+            if len(self.outputs) > 1:
+                self.metrics.append(output_loss)
+                self.metrics_names.append(self.output_names[i] + '_loss')
             if total_loss is None:
-                total_loss = output_loss
+                total_loss = loss_weight * output_loss
             else:
-                total_loss += output_loss
+                total_loss += loss_weight * output_loss
+
         # add regularization penalties to the loss
         for r in self.regularizers:
             total_loss = r(total_loss)
 
-        # prepare metrics
-        self.metrics_names = ['loss']
-        self.metrics = []
         # list of same size as output_names.
         # contains tuples (metrics for output, names of metrics)
         nested_metrics = collect_metrics(metrics, self.output_names)
@@ -608,8 +613,12 @@ class Model(Container):
                     if output_shape[-1] == 1:
                         # case: binary accuracy
                         self.metrics.append(metrics_module.binary_accuracy(y_true, y_pred))
+                    elif self.loss_functions[i] == objectives.sparse_categorical_crossentropy:
+                        # case: categorical accuracy with sparse targets
+                        self.metrics.append(
+                            metrics_module.sparse_categorical_accuracy(y_true, y_pred))
                     else:
-                        # case: categorical accuracy
+                        # case: categorical accuracy with dense targets
                         self.metrics.append(metrics_module.categorical_accuracy(y_true, y_pred))
                     if len(self.output_names) == 1:
                         self.metrics_names.append('acc')
@@ -638,6 +647,8 @@ class Model(Container):
         self.predict_function = None
 
     def _make_train_function(self):
+        if not hasattr(self, 'train_function'):
+            raise Exception('You must compile your model before using it.')
         if self.train_function is None:
             if self.uses_learning_phase:
                 inputs = self.inputs + self.targets + self.sample_weights + [K.learning_phase()]
@@ -659,6 +670,8 @@ class Model(Container):
                                              **self._function_kwargs)
 
     def _make_test_function(self):
+        if not hasattr(self, 'test_function'):
+            raise Exception('You must compile your model before using it.')
         if self.test_function is None:
             if self.uses_learning_phase:
                 inputs = self.inputs + self.targets + self.sample_weights + [K.learning_phase()]
@@ -672,6 +685,8 @@ class Model(Container):
                                             **self._function_kwargs)
 
     def _make_predict_function(self):
+        if not hasattr(self, 'predict_function'):
+            raise Exception('You must compile your model before using it.')
         if self.predict_function is None:
             if self.uses_learning_phase:
                 inputs = self.inputs + [K.learning_phase()]
@@ -1367,7 +1382,7 @@ class Model(Container):
                                                class_weight=class_weight)
                 except Exception as e:
                     _stop.set()
-                    raise e
+                    raise
 
                 if type(outs) != list:
                     outs = [outs]
@@ -1469,7 +1484,7 @@ class Model(Container):
                 outs = self.test_on_batch(x, y, sample_weight=sample_weight)
             except Exception as e:
                 _stop.set()
-                raise e
+                raise
 
             if type(x) is list:
                 nb_samples = len(x[0])
@@ -1541,7 +1556,7 @@ class Model(Container):
                 outs = self.predict_on_batch(x)
             except Exception as e:
                 _stop.set()
-                raise e
+                raise
 
             if type(x) is list:
                 nb_samples = len(x[0])

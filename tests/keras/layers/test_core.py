@@ -14,19 +14,19 @@ def test_masking():
 
 
 def test_merge():
-    from keras.layers import Input, merge
+    from keras.layers import Input, merge, Merge
     from keras.models import Model
 
     # test modes: 'sum', 'mul', 'concat', 'ave', 'cos', 'dot'.
     input_shapes = [(3, 2), (3, 2)]
     inputs = [np.random.random(shape) for shape in input_shapes]
 
-    # test graph API
-    for mode in ['sum', 'mul', 'concat', 'ave', 'cos', 'dot']:
+    # test functional API
+    for mode in ['sum', 'mul', 'concat', 'ave']:
         print(mode)
         input_a = Input(shape=input_shapes[0][1:])
         input_b = Input(shape=input_shapes[1][1:])
-        merged = merge([input_a, input_b], mode='sum')
+        merged = merge([input_a, input_b], mode=mode)
         model = Model([input_a, input_b], merged)
         model.compile('rmsprop', 'mse')
 
@@ -37,6 +37,15 @@ def test_merge():
         config = model.get_config()
         model = Model.from_config(config)
         model.compile('rmsprop', 'mse')
+
+        # test Merge (#2460)
+        merged = Merge(mode=mode)([input_a, input_b])
+        model = Model([input_a, input_b], merged)
+        model.compile('rmsprop', 'mse')
+
+        expected_output_shape = model.get_output_shape_for(input_shapes)
+        actual_output_shape = model.predict(inputs).shape
+        assert expected_output_shape == actual_output_shape
 
     # test lambda with output_shape lambda
     input_a = Input(shape=input_shapes[0][1:])

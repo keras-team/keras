@@ -552,7 +552,7 @@ class GRU(Recurrent):
             B_U = [K.in_train_phase(K.dropout(ones, self.dropout_U), ones) for _ in range(3)]
             constants.append(B_U)
         else:
-            constants.append([K.cast_to_floatx(1.) for _ in range(4)])
+            constants.append([K.cast_to_floatx(1.) for _ in range(3)])
 
         if 0 < self.dropout_W < 1:
             input_shape = self.input_spec[0].shape
@@ -562,7 +562,7 @@ class GRU(Recurrent):
             B_W = [K.in_train_phase(K.dropout(ones, self.dropout_W), ones) for _ in range(3)]
             constants.append(B_W)
         else:
-            constants.append([K.cast_to_floatx(1.) for _ in range(4)])
+            constants.append([K.cast_to_floatx(1.) for _ in range(3)])
         return constants
 
     def get_config(self):

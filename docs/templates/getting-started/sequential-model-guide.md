@@ -112,7 +112,7 @@ Now you know enough to be able to define *almost* any model with Keras. For comp
 Before training a model, you need to configure the learning process, which is done via the `compile` method. It receives three arguments:
 
 - an optimizer. This could be the string identifier of an existing optimizer (such as `rmsprop` or `adagrad`), or an instance of the `Optimizer` class. See: [optimizers](/optimizers).
-- a loss function. This is the objective that the model will try to minimize. If can be the string identifier of an existing loss function (such as `categorical_crossentropy` or `mse`), or it can be an objective function. See: [objectives](/objectives).
+- a loss function. This is the objective that the model will try to minimize. It can be the string identifier of an existing loss function (such as `categorical_crossentropy` or `mse`), or it can be an objective function. See: [objectives](/objectives).
 - a list of metrics. For any classification problem you will want to set this to `metrics=['accuracy']`. A metric could be the string identifier of an existing metric (only `accuracy` is supported at this point), or a custom metric function.
 
 ```python

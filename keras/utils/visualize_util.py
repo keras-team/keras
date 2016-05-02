@@ -29,14 +29,17 @@ def model_to_dot(model, show_shapes=False):
         if show_shapes:
             # Build the label that will actually contain a table with the
             # input/output
-            outputlabels = str(layer.output_shape)
+            try:
+                outputlabels = str(layer.output_shape)
+            except:
+                outputlabels = 'multiple'
             if hasattr(layer, 'input_shape'):
                 inputlabels = str(layer.input_shape)
             elif hasattr(layer, 'input_shapes'):
                 inputlabels = ', '.join(
                     [str(ishape) for ishape in layer.input_shapes])
             else:
-                inputlabels = ''
+                inputlabels = 'multiple'
             label = '%s\n|{input:|output:}|{{%s}|{%s}}' % (label, inputlabels, outputlabels)
 
         node = pydot.Node(layer_id, label=label)
