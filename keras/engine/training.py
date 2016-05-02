@@ -626,6 +626,10 @@ class Model(Container):
             name = self.output_names[i]
             self.targets.append(K.placeholder(ndim=len(shape), name=name + '_target'))
 
+        # prepare metrics
+        self.metrics_names = ['loss']
+        self.metrics = []
+
         # compute total loss
         total_loss = None
         for i in range(len(self.outputs)):
@@ -635,19 +639,20 @@ class Model(Container):
             sample_weight = sample_weights[i]
             mask = masks[i]
             loss_weight = loss_weights_list[i]
-            output_loss = loss_weight * weighted_loss(y_true, y_pred,
-                                                      sample_weight, mask)
+            output_loss = weighted_loss(y_true, y_pred,
+                                        sample_weight, mask)
+            if len(self.outputs) > 1:
+                self.metrics.append(output_loss)
+                self.metrics_names.append(self.output_names[i] + '_loss')
             if total_loss is None:
-                total_loss = output_loss
+                total_loss = loss_weight * output_loss
             else:
-                total_loss += output_loss
+                total_loss += loss_weight * output_loss
+
         # add regularization penalties to the loss
         for r in self.regularizers:
             total_loss = r(total_loss)
 
-        # prepare metrics
-        self.metrics_names = ['loss']
-        self.metrics = []
         # list of same size as output_names.
         # contains tuples (metrics for output, names of metrics)
         nested_metrics = collect_metrics(metrics, self.output_names)

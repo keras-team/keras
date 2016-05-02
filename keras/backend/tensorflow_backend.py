@@ -852,6 +852,10 @@ def softplus(x):
     return tf.nn.softplus(x)
 
 
+def softsign(x):
+    return tf.nn.softsign(x)
+
+
 def categorical_crossentropy(output, target, from_logits=False):
     '''Categorical crossentropy between an output tensor
     and a target tensor, where the target is a tensor of the same
