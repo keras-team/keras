@@ -647,8 +647,6 @@ class Model(Container):
         self.predict_function = None
 
     def _make_train_function(self):
-        if not hasattr(self, 'train_function'):
-            raise Exception('You must compile your model before using it.')
         if self.train_function is None:
             if self.uses_learning_phase:
                 inputs = self.inputs + self.targets + self.sample_weights + [K.learning_phase()]
@@ -670,8 +668,6 @@ class Model(Container):
                                              **self._function_kwargs)
 
     def _make_test_function(self):
-        if not hasattr(self, 'test_function'):
-            raise Exception('You must compile your model before using it.')
         if self.test_function is None:
             if self.uses_learning_phase:
                 inputs = self.inputs + self.targets + self.sample_weights + [K.learning_phase()]
@@ -685,8 +681,6 @@ class Model(Container):
                                             **self._function_kwargs)
 
     def _make_predict_function(self):
-        if not hasattr(self, 'predict_function'):
-            raise Exception('You must compile your model before using it.')
         if self.predict_function is None:
             if self.uses_learning_phase:
                 inputs = self.inputs + [K.learning_phase()]
@@ -1221,7 +1215,7 @@ class Model(Container):
             return outputs[0]
         return outputs
 
-    def fit_generator(self, generator, samples_per_epoch, nb_epoch,
+    def fit_generator(self, generator, samples_per_epoch=None, nb_epoch=1,
                       verbose=1, callbacks=[],
                       validation_data=None, nb_val_samples=None,
                       class_weight={}, max_q_size=10):
@@ -1239,9 +1233,10 @@ class Model(Container):
                 All arrays should contain the same number of samples.
                 The generator is expected to loop over its data
                 indefinitely. An epoch finishes when `samples_per_epoch`
-                samples have been seen by the model.
+                samples have been seen by the model, or when the generator
+                yields `None`.
             samples_per_epoch: integer, number of samples to process before
-                going to the next epoch.
+                going to the next epoch. Required for progress reporting.
             nb_epoch: integer, total number of iterations on the data.
             verbose: verbosity mode, 0, 1, or 2.
             callbacks: list of callbacks to be called during training.
@@ -1310,7 +1305,7 @@ class Model(Container):
         callbacks._set_model(callback_model)
         callbacks._set_params({
             'nb_epoch': nb_epoch,
-            'nb_sample': samples_per_epoch,
+            'nb_sample': samples_per_epoch if samples_per_epoch != None else 1,  # TODO Update nb_sample after first None has been seen so subsequent epochs get progress reporting.
             'verbose': verbose,
             'do_validation': do_validation,
             'metrics': callback_metrics,
@@ -1340,70 +1335,75 @@ class Model(Container):
             callbacks.on_epoch_begin(epoch)
             samples_seen = 0
             batch_index = 0
-            while samples_seen < samples_per_epoch:
+            while samples_per_epoch == None or samples_seen < samples_per_epoch:
                 generator_output = None
                 while not _stop.is_set():
                     if not data_gen_queue.empty():
                         generator_output = data_gen_queue.get()
+                        if generator_output == None:
+                            print('HEEEEEEEEEEEEEEEEJSAN!')
                         break
                     else:
                         time.sleep(wait_time)
 
-                if not hasattr(generator_output, '__len__'):
-                    _stop.set()
-                    raise Exception('output of generator should be a tuple '
-                                    '(x, y, sample_weight) '
-                                    'or (x, y). Found: ' + str(generator_output))
-                if len(generator_output) == 2:
-                    x, y = generator_output
-                    sample_weight = None
-                elif len(generator_output) == 3:
-                    x, y, sample_weight = generator_output
-                else:
-                    _stop.set()
-                    raise Exception('output of generator should be a tuple '
-                                    '(x, y, sample_weight) '
-                                    'or (x, y). Found: ' + str(generator_output))
-                # build batch logs
-                batch_logs = {}
-                if type(x) is list:
-                    batch_size = len(x[0])
-                elif type(x) is dict:
-                    batch_size = len(list(x.values())[0])
-                else:
-                    batch_size = len(x)
-                batch_logs['batch'] = batch_index
-                batch_logs['size'] = batch_size
-                callbacks.on_batch_begin(batch_index, batch_logs)
+                # if generator purposefully yielded None there are no more batches in the epoch
+                if generator_output != None:
+                    if not hasattr(generator_output, '__len__'):
+                        _stop.set()
+                        raise Exception('output of generator should be a tuple '
+                                        '(x, y, sample_weight) '
+                                        'or (x, y). Found: ' + str(generator_output))
+                    if len(generator_output) == 2:
+                        x, y = generator_output
+                        sample_weight = None
+                    elif len(generator_output) == 3:
+                        x, y, sample_weight = generator_output
+                    else:
+                        _stop.set()
+                        raise Exception('output of generator should be a tuple '
+                                        '(x, y, sample_weight) '
+                                        'or (x, y). Found: ' + str(generator_output))
+                    # build batch logs
+                    batch_logs = {}
+                    if type(x) is list:
+                        batch_size = len(x[0])
+                    elif type(x) is dict:
+                        batch_size = len(list(x.values())[0])
+                    else:
+                        batch_size = len(x)
+                    batch_logs['batch'] = batch_index
+                    batch_logs['size'] = batch_size
+                    callbacks.on_batch_begin(batch_index, batch_logs)
 
-                try:
-                    outs = self.train_on_batch(x, y,
-                                               sample_weight=sample_weight,
-                                               class_weight=class_weight)
-                except Exception as e:
-                    _stop.set()
-                    raise
+                    try:
+                        outs = self.train_on_batch(x, y,
+                                                   sample_weight=sample_weight,
+                                                   class_weight=class_weight)
+                    except Exception as e:
+                        _stop.set()
+                        raise e
 
-                if type(outs) != list:
-                    outs = [outs]
-                for l, o in zip(out_labels, outs):
-                    batch_logs[l] = o
+                    if type(outs) != list:
+                        outs = [outs]
+                    for l, o in zip(out_labels, outs):
+                        batch_logs[l] = o
 
-                callbacks.on_batch_end(batch_index, batch_logs)
+                    callbacks.on_batch_end(batch_index, batch_logs)
 
-                # construct epoch logs
-                epoch_logs = {}
-                batch_index += 1
-                samples_seen += batch_size
+                    # construct epoch logs
+                    epoch_logs = {}
+                    batch_index += 1
+                    samples_seen += batch_size
 
-                # epoch finished
-                if samples_seen > samples_per_epoch:
+                if samples_per_epoch != None and samples_seen > samples_per_epoch:
                     warnings.warn('Epoch comprised more than '
                                   '`samples_per_epoch` samples, '
                                   'which might affect learning results. '
                                   'Set `samples_per_epoch` correctly '
                                   'to avoid this warning.')
-                if samples_seen >= samples_per_epoch and do_validation:
+
+                # epoch finished
+                if do_validation and ((generator_output == None and samples_per_epoch == None) or (samples_per_epoch != None and samples_seen >= samples_per_epoch)):
                     if val_gen:
                         val_outs = self.evaluate_generator(validation_data,
                                                            nb_val_samples,
@@ -1419,6 +1419,9 @@ class Model(Container):
                     # same labels assumed
                     for l, o in zip(out_labels, val_outs):
                         epoch_logs['val_' + l] = o
+
+                if generator_output == None:
+                    break
 
             callbacks.on_epoch_end(epoch, epoch_logs)
             epoch += 1
@@ -1484,7 +1487,7 @@ class Model(Container):
                 outs = self.test_on_batch(x, y, sample_weight=sample_weight)
             except Exception as e:
                 _stop.set()
-                raise
+                raise e
 
             if type(x) is list:
                 nb_samples = len(x[0])
@@ -1556,7 +1559,7 @@ class Model(Container):
                 outs = self.predict_on_batch(x)
             except Exception as e:
                 _stop.set()
-                raise
+                raise e
 
             if type(x) is list:
                 nb_samples = len(x[0])
@@ -1582,3 +1585,4 @@ class Model(Container):
         if len(all_outs) == 1:
             return all_outs[0]
         return all_outs
+
