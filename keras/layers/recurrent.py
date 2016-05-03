@@ -81,12 +81,20 @@ class Recurrent(Layer):
             is always unrolled, so this argument does not do anything.
             Unrolling can speed-up a RNN, although it tends to be more memory-intensive.
             Unrolling is only suitable for short sequences.
-        consume_less: one of "cpu", "mem". If set to "cpu", the RNN will use
+        consume_less: one of "cpu", "mem", or "gpu" (LSTM only).
+            If set to "cpu", the RNN will use
             an implementation that uses fewer, larger matrix products,
-            thus running faster (at least on CPU) but consuming more memory.
+            thus running faster on CPU but consuming more memory.
+
             If set to "mem", the RNN will use more matrix products,
             but smaller ones, thus running slower (may actually be faster on GPU)
             while consuming less memory.
+
+            If set to "gpu" (LSTM only), the LSTM will combine the input gate,
+            the forget gate and the output gate into a single matrix,
+            enabling more time-efficient parallelization on the GPU. Note: RNN
+            dropout must be shared for all gates, resulting in a slightly
+            reduced regularization.
         input_dim: dimensionality of the input (integer).
             This argument (or alternatively, the keyword argument `input_shape`)
             is required when using this layer as the first layer in a model.
@@ -645,24 +653,17 @@ class LSTM(Recurrent):
             # initial states: 2 all-zero tensors of shape (output_dim)
             self.states = [None, None]
 
-        if self.consume_less == 'derp':
+        if self.consume_less == 'gpu':
             self.W = self.init((self.input_dim, 4*self.output_dim),
                                name='{}_W'.format(self.name))
             self.U = self.inner_init((self.output_dim, 4*self.output_dim),
                                      name='{}_U'.format(self.name))
-            self.b = K.zeros((4*self.output_dim,),
-                             name='{}_b'.format(self.name))
 
-            self.regularizers = []
-            if self.W_regularizer:
-                self.W_regularizer.set_param(self.W)
-                self.regularizers.append(self.W_regularizer)
-            if self.U_regularizer:
-                self.U_regularizer.set_param(self.U)
-                self.regularizers.append(self.U_regularizer)
-            if self.b_regularizer:
-                self.b_regularizer.set_param(self.b)
-                self.regularizers.append(self.b_regularizer)
+            self.b = K.variable(np.vstack((np.zeros(self.output_dim),
+                                           self.forget_bias_init(self.output_dim),
+                                           np.zeros(self.output_dim),
+                                           np.zeros(self.output_dim))),
+                                          name='{}_b'.format(self.name))
             self.trainable_weights = [self.W, self.U, self.b]
         else:
             self.W_i = self.init((self.input_dim, self.output_dim),
@@ -690,30 +691,25 @@ class LSTM(Recurrent):
                                        name='{}_U_o'.format(self.name))
             self.b_o = K.zeros((self.output_dim,), name='{}_b_o'.format(self.name))
 
-            self.regularizers = []
-            if self.W_regularizer:
-                self.W_regularizer.set_param(K.concatenate([self.W_i,
-                                                            self.W_f,
-                                                            self.W_c,
-                                                            self.W_o]))
-                self.regularizers.append(self.W_regularizer)
-            if self.U_regularizer:
-                self.U_regularizer.set_param(K.concatenate([self.U_i,
-                                                            self.U_f,
-                                                            self.U_c,
-                                                            self.U_o]))
-                self.regularizers.append(self.U_regularizer)
-            if self.b_regularizer:
-                self.b_regularizer.set_param(K.concatenate([self.b_i,
-                                                            self.b_f,
-                                                            self.b_c,
-                                                            self.b_o]))
-                self.regularizers.append(self.b_regularizer)
-
             self.trainable_weights = [self.W_i, self.U_i, self.b_i,
                                       self.W_c, self.U_c, self.b_c,
                                       self.W_f, self.U_f, self.b_f,
                                       self.W_o, self.U_o, self.b_o]
+
+            self.W = K.concatenate([self.W_i, self.W_f, self.W_c, self.W_o])
+            self.U = K.concatenate([self.U_i, self.U_f, self.U_c, self.U_o])
+            self.b = K.concatenate([self.b_i, self.b_f, self.b_c, self.b_o])
+
+        self.regularizers = []
+        if self.W_regularizer:
+            self.W_regularizer.set_param(self.W)
+            self.regularizers.append(self.W_regularizer)
+        if self.U_regularizer:
+            self.U_regularizer.set_param(self.U)
+            self.regularizers.append(self.U_regularizer)
+        if self.b_regularizer:
+            self.b_regularizer.set_param(self.b)
+            self.regularizers.append(self.b_regularizer)
 
         if self.initial_weights is not None:
             self.set_weights(self.initial_weights)
@@ -753,9 +749,7 @@ class LSTM(Recurrent):
             x_o = time_distributed_dense(x, self.W_o, self.b_o, dropout,
                                          input_dim, self.output_dim, timesteps)
             return K.concatenate([x_i, x_f, x_c, x_o], axis=2)
-        elif self.consume_less == 'mem':
-            return x
-        elif self.consume_less == 'derp':
+        else:
             return x
 
     def step(self, x, states):
@@ -764,17 +758,7 @@ class LSTM(Recurrent):
         B_U = states[2]
         B_W = states[3]
 
-        if self.consume_less == 'cpu':
-            x_i = x[:, :self.output_dim]
-            x_f = x[:, self.output_dim: 2 * self.output_dim]
-            x_c = x[:, 2 * self.output_dim: 3 * self.output_dim]
-            x_o = x[:, 3 * self.output_dim:]
-        elif self.consume_less == 'mem':
-            x_i = K.dot(x * B_W[0], self.W_i) + self.b_i
-            x_f = K.dot(x * B_W[1], self.W_f) + self.b_f
-            x_c = K.dot(x * B_W[2], self.W_c) + self.b_c
-            x_o = K.dot(x * B_W[3], self.W_o) + self.b_o
-        elif self.consume_less == 'derp':
+        if self.consume_less == 'gpu':
             z = K.dot(x * B_W[0], self.W) + K.dot(h_tm1 * B_U[0], self.U) + self.b
 
             z0 = z[:, :self.output_dim]
@@ -786,13 +770,24 @@ class LSTM(Recurrent):
             f = self.inner_activation(z1)
             c = f * c_tm1 + i * self.activation(z2)
             o = self.inner_activation(z3)
-            h = o * self.activation(c)
-            return h, [h, c]
+        else:
+            if self.consume_less == 'cpu':
+                x_i = x[:, :self.output_dim]
+                x_f = x[:, self.output_dim: 2 * self.output_dim]
+                x_c = x[:, 2 * self.output_dim: 3 * self.output_dim]
+                x_o = x[:, 3 * self.output_dim:]
+            elif self.consume_less == 'mem':
+                x_i = K.dot(x * B_W[0], self.W_i) + self.b_i
+                x_f = K.dot(x * B_W[1], self.W_f) + self.b_f
+                x_c = K.dot(x * B_W[2], self.W_c) + self.b_c
+                x_o = K.dot(x * B_W[3], self.W_o) + self.b_o
+            else:
+                raise Exception('Unknown `consume_less` mode.')
 
-        i = self.inner_activation(x_i + K.dot(h_tm1 * B_U[0], self.U_i))
-        f = self.inner_activation(x_f + K.dot(h_tm1 * B_U[1], self.U_f))
-        c = f * c_tm1 + i * self.activation(x_c + K.dot(h_tm1 * B_U[2], self.U_c))
-        o = self.inner_activation(x_o + K.dot(h_tm1 * B_U[3], self.U_o))
+            i = self.inner_activation(x_i + K.dot(h_tm1 * B_U[0], self.U_i))
+            f = self.inner_activation(x_f + K.dot(h_tm1 * B_U[1], self.U_f))
+            c = f * c_tm1 + i * self.activation(x_c + K.dot(h_tm1 * B_U[2], self.U_c))
+            o = self.inner_activation(x_o + K.dot(h_tm1 * B_U[3], self.U_o))
 
         h = o * self.activation(c)
         return h, [h, c]
@@ -832,3 +827,4 @@ class LSTM(Recurrent):
                   "dropout_U": self.dropout_U}
         base_config = super(LSTM, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
+
