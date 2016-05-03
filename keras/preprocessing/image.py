@@ -112,16 +112,16 @@ def resize(x, size, background=0, position='random', dim_ordering='th'):
     n = np.zeros((x.shape[0], size[0], size[1]) if dim_ordering == 'th' else (size[0], size[1], x.shape[2]), dtype=x.dtype)
     n = np.full_like(n, background)
     if position == 'center':
-        h = (size[0] - x.shape[1 if dim_ordering == 'th' else 0]) / 2
-        w = (size[1] - x.shape[2 if dim_ordering == 'th' else 1]) / 2
+        h = int((size[0] - x.shape[1 if dim_ordering == 'th' else 0]) / 2)
+        w = int((size[1] - x.shape[2 if dim_ordering == 'th' else 1]) / 2)
     elif position == 'top left':
         h = 0
         w = 0
     else:
         h_offset = size[0] - x.shape[1 if dim_ordering == 'th' else 0]
-        h = np.random.randint(0, h_offset) if h_offset > 0 else 0
+        h = int(np.random.randint(0, h_offset) if h_offset > 0 else 0)
         w_offset = size[1] - x.shape[2 if dim_ordering == 'th' else 1]
-        w = np.random.randint(0, w_offset) if w_offset > 0 else 0
+        w = int(np.random.randint(0, w_offset) if w_offset > 0 else 0)
     if dim_ordering == 'th':
         n[0:x.shape[0] + 1, h:h + x.shape[1], w:w + x.shape[2]] = x
     else:
