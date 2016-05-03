@@ -28,10 +28,12 @@ def test_vector_classification():
         Dense(nb_hidden, input_shape=(X_train.shape[-1],), activation='relu'),
         Dense(y_train.shape[-1], activation='softmax')
     ])
-    model.compile(loss='categorical_crossentropy', optimizer='rmsprop')
+    model.compile(loss='categorical_crossentropy',
+                  optimizer='rmsprop',
+                  metrics=['accuracy'])
     history = model.fit(X_train, y_train, nb_epoch=15, batch_size=16,
                         validation_data=(X_test, y_test),
-                        show_accuracy=True, verbose=0)
+                        verbose=0)
     assert(history.history['val_acc'][-1] > 0.8)
 
 

@@ -18,6 +18,14 @@ def get_from_module(identifier, module_params, module_name,
             return res(**kwargs)
         else:
             return res
+    elif type(identifier) is dict:
+        name = identifier.pop('name')
+        res = module_params.get(name)
+        if res:
+            return res(**identifier)
+        else:
+            raise Exception('Invalid ' + str(module_name) + ': ' +
+                            str(identifier))
     return identifier
 
 
@@ -121,3 +129,17 @@ class Progbar(object):
 
     def add(self, n, values=[]):
         self.update(self.seen_so_far + n, values)
+
+
+def display_table(rows, positions):
+
+    def display_row(objects, positions):
+        line = ''
+        for i in range(len(objects)):
+            line += str(objects[i])
+            line = line[:positions[i]]
+            line += ' ' * (positions[i] - len(line))
+        print(line)
+
+    for objects in rows:
+        display_row(objects, positions)

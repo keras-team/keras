@@ -7,7 +7,7 @@ class Constraint(object):
         return p
 
     def get_config(self):
-        return {"name": self.__class__.__name__}
+        return {'name': self.__class__.__name__}
 
 
 class MaxNorm(Constraint):
@@ -42,9 +42,9 @@ class MaxNorm(Constraint):
         return p
 
     def get_config(self):
-        return {"name": self.__class__.__name__,
-                "m": self.m,
-                "axis": self.axis}
+        return {'name': self.__class__.__name__,
+                'm': self.m,
+                'axis': self.axis}
 
 
 class NonNeg(Constraint):
@@ -79,17 +79,15 @@ class UnitNorm(Constraint):
         return p / (K.epsilon() + K.sqrt(K.sum(K.square(p), axis=self.axis, keepdims=True)))
 
     def get_config(self):
-        return {"name": self.__class__.__name__,
-                "axis": self.axis}
+        return {'name': self.__class__.__name__,
+                'axis': self.axis}
 
 
-identity = Constraint
 maxnorm = MaxNorm
 nonneg = NonNeg
 unitnorm = UnitNorm
 
 from .utils.generic_utils import get_from_module
-
-
 def get(identifier, kwargs=None):
-    return get_from_module(identifier, globals(), 'constraint', instantiate=True, kwargs=kwargs)
+    return get_from_module(identifier, globals(), 'constraint',
+                           instantiate=True, kwargs=kwargs)

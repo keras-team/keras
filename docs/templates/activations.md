@@ -30,6 +30,7 @@ model.add(Activation(tanh))
 
 - __softmax__: Softmax applied across inputs last dimension. Expects shape either `(nb_samples, nb_timesteps, nb_dims)` or `(nb_samples, nb_dims)`.
 - __softplus__
+- __softsign__
 - __relu__
 - __tanh__
 - __sigmoid__
@@ -38,4 +39,4 @@ model.add(Activation(tanh))
 
 ## On Advanced Activations
 
-Activations that are more complex than a simple Theano/TensorFlow function (eg. learnable activations, configurable activations, etc.) are available as [Advanced Activation layers](layers/advanced_activations.md), and can be found in the module `keras.layers.advanced_activations`. These include PReLU and LeakyReLU.
+Activations that are more complex than a simple Theano/TensorFlow function (eg. learnable activations, configurable activations, etc.) are available as [Advanced Activation layers](layers/advanced-activations.md), and can be found in the module `keras.layers.advanced_activations`. These include PReLU and LeakyReLU.

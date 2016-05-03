@@ -20,13 +20,7 @@ import random
 import sys
 
 path = get_file('nietzsche.txt', origin="https://s3.amazonaws.com/text-datasets/nietzsche.txt")
-
-try: 
-    text = open(path).read().lower()
-except UnicodeDecodeError:
-    import codecs
-    text = codecs.open(path, encoding='utf-8').read().lower()
-
+text = open(path).read().lower()
 print('corpus length:', len(text))
 
 chars = set(text)
@@ -35,7 +29,7 @@ char_indices = dict((c, i) for i, c in enumerate(chars))
 indices_char = dict((i, c) for i, c in enumerate(chars))
 
 # cut the text in semi-redundant sequences of maxlen characters
-maxlen = 20
+maxlen = 40
 step = 3
 sentences = []
 next_chars = []
