@@ -851,7 +851,7 @@ class Layer(object):
         for pv, p, w in zip(param_values, params, weights):
             if pv.shape != w.shape:
                 raise Exception('Layer weight shape ' +
-                                str(pv.shape.shape) +
+                                str(pv.shape) +
                                 ' not compatible with '
                                 'provided weight shape ' + str(w.shape))
             weight_value_tuples.append((p, w))
