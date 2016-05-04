@@ -659,11 +659,11 @@ class LSTM(Recurrent):
             self.U = self.inner_init((self.output_dim, 4*self.output_dim),
                                      name='{}_U'.format(self.name))
 
-            self.b = K.variable(np.vstack((np.zeros(self.output_dim),
-                                           self.forget_bias_init(self.output_dim),
+            self.b = K.variable(np.hstack((np.zeros(self.output_dim),
+                                           self.forget_bias_init(self.output_dim).get_value(),
                                            np.zeros(self.output_dim),
                                            np.zeros(self.output_dim))),
-                                          name='{}_b'.format(self.name))
+                                name='{}_b'.format(self.name))
             self.trainable_weights = [self.W, self.U, self.b]
         else:
             self.W_i = self.init((self.input_dim, self.output_dim),
@@ -827,4 +827,3 @@ class LSTM(Recurrent):
                   "dropout_U": self.dropout_U}
         base_config = super(LSTM, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
-
