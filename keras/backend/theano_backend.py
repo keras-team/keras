@@ -484,7 +484,7 @@ def get_value(x):
     return x.get_value()
 
 
-def get_values(xs):
+def batch_get_value(xs):
     '''Returns the value of more than one tensor variable,
     as a list of Numpy arrays.
     '''

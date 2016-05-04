@@ -847,10 +847,11 @@ class Layer(object):
         if not params:
             return
         weight_value_tuples = []
-        for p, w in zip(params, weights):
-            if K.get_value(p).shape != w.shape:
+        param_values = K.batch_get_value(params)
+        for pv, p, w in zip(param_values, params, weights):
+            if pv.shape != w.shape:
                 raise Exception('Layer weight shape ' +
-                                str(K.get_value(p).shape) +
+                                str(pv.shape.shape) +
                                 ' not compatible with '
                                 'provided weight shape ' + str(w.shape))
             weight_value_tuples.append((p, w))
@@ -861,7 +862,7 @@ class Layer(object):
         as a list of numpy arrays.
         '''
         params = self.trainable_weights + self.non_trainable_weights
-        return K.get_values(params)
+        return K.batch_get_value(params)
 
     def get_config(self):
         '''Returns a Python dictionary (serializable)
