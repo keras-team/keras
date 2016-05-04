@@ -861,10 +861,7 @@ class Layer(object):
         as a list of numpy arrays.
         '''
         params = self.trainable_weights + self.non_trainable_weights
-        weights = []
-        for p in params:
-            weights.append(K.get_value(p))
-        return weights
+        return K.get_values(params)
 
     def get_config(self):
         '''Returns a Python dictionary (serializable)

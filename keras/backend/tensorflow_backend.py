@@ -601,6 +601,11 @@ def get_value(x):
     '''
     return x.eval(session=get_session())
 
+def get_values(xs):
+    '''Returns the value of more than one tensor variable,
+    as a list of Numpy arrays.
+    '''
+    return get_session().run([xs])
 
 def set_value(x, value):
     '''Sets the value of a tensor variable,
