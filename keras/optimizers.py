@@ -29,6 +29,11 @@ class Optimizer(object):
             when their absolute value exceeds this value.
     '''
     def __init__(self, **kwargs):
+        allowed_kwargs = {'clipnorm', 'clipvalue'}
+        for k in kwargs:
+            if k not in allowed_kwargs:
+                raise Exception('Unexpected keyword argument '
+                                'passed to optimizer: ' + str(k))
         self.__dict__.update(kwargs)
         self.updates = []
         self.weights = []
@@ -89,7 +94,12 @@ class Optimizer(object):
         return weights
 
     def get_config(self):
-        return {"name": self.__class__.__name__}
+        config = {'name': self.__class__.__name__}
+        if hasattr(self, 'clipnorm'):
+            config['clipnorm'] = self.clipnorm
+        if hasattr(self, 'clipvalue'):
+            config['clipvalue'] = self.clipvalue
+        return config
 
 
 class SGD(Optimizer):
@@ -102,8 +112,8 @@ class SGD(Optimizer):
         decay: float >= 0. Learning rate decay over each update.
         nesterov: boolean. Whether to apply Nesterov momentum.
     '''
-    def __init__(self, lr=0.01, momentum=0., decay=0., nesterov=False,
-                 *args, **kwargs):
+    def __init__(self, lr=0.01, momentum=0., decay=0.,
+                 nesterov=False, **kwargs):
         super(SGD, self).__init__(**kwargs)
         self.__dict__.update(locals())
         self.iterations = K.variable(0.)
@@ -135,11 +145,12 @@ class SGD(Optimizer):
         return self.updates
 
     def get_config(self):
-        return {"name": self.__class__.__name__,
-                "lr": float(K.get_value(self.lr)),
-                "momentum": float(K.get_value(self.momentum)),
-                "decay": float(K.get_value(self.decay)),
-                "nesterov": self.nesterov}
+        config = {'lr': float(K.get_value(self.lr)),
+                  'momentum': float(K.get_value(self.momentum)),
+                  'decay': float(K.get_value(self.decay)),
+                  'nesterov': self.nesterov}
+        base_config = super(SGD, self).get_config()
+        return dict(list(base_config.items()) + list(config.items()))
 
 
 class RMSprop(Optimizer):
@@ -157,7 +168,7 @@ class RMSprop(Optimizer):
         rho: float >= 0.
         epsilon: float >= 0. Fuzz factor.
     '''
-    def __init__(self, lr=0.001, rho=0.9, epsilon=1e-6, *args, **kwargs):
+    def __init__(self, lr=0.001, rho=0.9, epsilon=1e-6, **kwargs):
         super(RMSprop, self).__init__(**kwargs)
         self.__dict__.update(locals())
         self.lr = K.variable(lr)
@@ -183,10 +194,11 @@ class RMSprop(Optimizer):
         return self.updates
 
     def get_config(self):
-        return {"name": self.__class__.__name__,
-                "lr": float(K.get_value(self.lr)),
-                "rho": float(K.get_value(self.rho)),
-                "epsilon": self.epsilon}
+        config = {'lr': float(K.get_value(self.lr)),
+                  'rho': float(K.get_value(self.rho)),
+                  'epsilon': self.epsilon}
+        base_config = super(RMSprop, self).get_config()
+        return dict(list(base_config.items()) + list(config.items()))
 
 
 class Adagrad(Optimizer):
@@ -199,7 +211,7 @@ class Adagrad(Optimizer):
         lr: float >= 0. Learning rate.
         epsilon: float >= 0.
     '''
-    def __init__(self, lr=0.01, epsilon=1e-6, *args, **kwargs):
+    def __init__(self, lr=0.01, epsilon=1e-6, **kwargs):
         super(Adagrad, self).__init__(**kwargs)
         self.__dict__.update(locals())
         self.lr = K.variable(lr)
@@ -222,9 +234,10 @@ class Adagrad(Optimizer):
         return self.updates
 
     def get_config(self):
-        return {"name": self.__class__.__name__,
-                "lr": float(K.get_value(self.lr)),
-                "epsilon": self.epsilon}
+        config = {'lr': float(K.get_value(self.lr)),
+                  'epsilon': self.epsilon}
+        base_config = super(Adagrad, self).get_config()
+        return dict(list(base_config.items()) + list(config.items()))
 
 
 class Adadelta(Optimizer):
@@ -242,7 +255,7 @@ class Adadelta(Optimizer):
     # References
         - [Adadelta - an adaptive learning rate method](http://arxiv.org/abs/1212.5701)
     '''
-    def __init__(self, lr=1.0, rho=0.95, epsilon=1e-6, *args, **kwargs):
+    def __init__(self, lr=1.0, rho=0.95, epsilon=1e-6, **kwargs):
         super(Adadelta, self).__init__(**kwargs)
         self.__dict__.update(locals())
         self.lr = K.variable(lr)
@@ -275,10 +288,11 @@ class Adadelta(Optimizer):
         return self.updates
 
     def get_config(self):
-        return {"name": self.__class__.__name__,
-                "lr": float(K.get_value(self.lr)),
-                "rho": self.rho,
-                "epsilon": self.epsilon}
+        config = {'lr': float(K.get_value(self.lr)),
+                  'rho': self.rho,
+                  'epsilon': self.epsilon}
+        base_config = super(Adadelta, self).get_config()
+        return dict(list(base_config.items()) + list(config.items()))
 
 
 class Adam(Optimizer):
@@ -294,8 +308,8 @@ class Adam(Optimizer):
     # References
         - [Adam - A Method for Stochastic Optimization](http://arxiv.org/abs/1412.6980v8)
     '''
-    def __init__(self, lr=0.001, beta_1=0.9, beta_2=0.999, epsilon=1e-8,
-                 *args, **kwargs):
+    def __init__(self, lr=0.001, beta_1=0.9, beta_2=0.999,
+                 epsilon=1e-8, **kwargs):
         super(Adam, self).__init__(**kwargs)
         self.__dict__.update(locals())
         self.iterations = K.variable(0)
@@ -331,11 +345,12 @@ class Adam(Optimizer):
         return self.updates
 
     def get_config(self):
-        return {"name": self.__class__.__name__,
-                "lr": float(K.get_value(self.lr)),
-                "beta_1": float(K.get_value(self.beta_1)),
-                "beta_2": float(K.get_value(self.beta_2)),
-                "epsilon": self.epsilon}
+        config = {'lr': float(K.get_value(self.lr)),
+                  'beta_1': float(K.get_value(self.beta_1)),
+                  'beta_2': float(K.get_value(self.beta_2)),
+                  'epsilon': self.epsilon}
+        base_config = super(Adam, self).get_config()
+        return dict(list(base_config.items()) + list(config.items()))
 
 
 class Adamax(Optimizer):
@@ -352,8 +367,8 @@ class Adamax(Optimizer):
     # References
         - [Adam - A Method for Stochastic Optimization](http://arxiv.org/abs/1412.6980v8)
     '''
-    def __init__(self, lr=0.002, beta_1=0.9, beta_2=0.999, epsilon=1e-8,
-                 *args, **kwargs):
+    def __init__(self, lr=0.002, beta_1=0.9, beta_2=0.999,
+                 epsilon=1e-8, **kwargs):
         super(Adamax, self).__init__(**kwargs)
         self.__dict__.update(locals())
         self.iterations = K.variable(0.)
@@ -392,11 +407,12 @@ class Adamax(Optimizer):
         return self.updates
 
     def get_config(self):
-        return {"name": self.__class__.__name__,
-                "lr": float(K.get_value(self.lr)),
-                "beta_1": float(K.get_value(self.beta_1)),
-                "beta_2": float(K.get_value(self.beta_2)),
-                "epsilon": self.epsilon}
+        config = {'lr': float(K.get_value(self.lr)),
+                  'beta_1': float(K.get_value(self.beta_1)),
+                  'beta_2': float(K.get_value(self.beta_2)),
+                  'epsilon': self.epsilon}
+        base_config = super(Adamax, self).get_config()
+        return dict(list(base_config.items()) + list(config.items()))
 
 
 # aliases
