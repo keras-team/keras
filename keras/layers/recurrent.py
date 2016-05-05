@@ -81,7 +81,7 @@ class Recurrent(Layer):
             is always unrolled, so this argument does not do anything.
             Unrolling can speed-up a RNN, although it tends to be more memory-intensive.
             Unrolling is only suitable for short sequences.
-        consume_less: one of "cpu", "mem", or "gpu" (LSTM only).
+        consume_less: one of "cpu", "mem", or "gpu" (LSTM/GRU only).
             If set to "cpu", the RNN will use
             an implementation that uses fewer, larger matrix products,
             thus running faster on CPU but consuming more memory.
@@ -90,7 +90,7 @@ class Recurrent(Layer):
             but smaller ones, thus running slower (may actually be faster on GPU)
             while consuming less memory.
 
-            If set to "gpu" (LSTM only), the LSTM will combine the input gate,
+            If set to "gpu" (LSTM/GRU only), the RNN will combine the input gate,
             the forget gate and the output gate into a single matrix,
             enabling more time-efficient parallelization on the GPU. Note: RNN
             dropout must be shared for all gates, resulting in a slightly
@@ -452,52 +452,65 @@ class GRU(Recurrent):
 
     def build(self, input_shape):
         self.input_spec = [InputSpec(shape=input_shape)]
-        input_dim = input_shape[2]
-        self.input_dim = input_dim
+        self.input_dim = input_shape[2]
 
-        self.W_z = self.init((input_dim, self.output_dim),
-                             name='{}_W_z'.format(self.name))
-        self.U_z = self.inner_init((self.output_dim, self.output_dim),
-                                   name='{}_U_z'.format(self.name))
-        self.b_z = K.zeros((self.output_dim,), name='{}_b_z'.format(self.name))
-
-        self.W_r = self.init((input_dim, self.output_dim),
-                             name='{}_W_r'.format(self.name))
-        self.U_r = self.inner_init((self.output_dim, self.output_dim),
-                                   name='{}_U_r'.format(self.name))
-        self.b_r = K.zeros((self.output_dim,), name='{}_b_r'.format(self.name))
-
-        self.W_h = self.init((input_dim, self.output_dim),
-                             name='{}_W_h'.format(self.name))
-        self.U_h = self.inner_init((self.output_dim, self.output_dim),
-                                   name='{}_U_h'.format(self.name))
-        self.b_h = K.zeros((self.output_dim,), name='{}_b_h'.format(self.name))
-
-        self.regularizers = []
-        if self.W_regularizer:
-            self.W_regularizer.set_param(K.concatenate([self.W_z,
-                                                        self.W_r,
-                                                        self.W_h]))
-            self.regularizers.append(self.W_regularizer)
-        if self.U_regularizer:
-            self.U_regularizer.set_param(K.concatenate([self.U_z,
-                                                        self.U_r,
-                                                        self.U_h]))
-            self.regularizers.append(self.U_regularizer)
-        if self.b_regularizer:
-            self.b_regularizer.set_param(K.concatenate([self.b_z,
-                                                        self.b_r,
-                                                        self.b_h]))
-            self.regularizers.append(self.b_regularizer)
-
-        self.trainable_weights = [self.W_z, self.U_z, self.b_z,
-                                  self.W_r, self.U_r, self.b_r,
-                                  self.W_h, self.U_h, self.b_h]
         if self.stateful:
             self.reset_states()
         else:
             # initial states: all-zero tensor of shape (output_dim)
             self.states = [None]
+
+        if self.consume_less == 'gpu':
+
+            self.W = self.init((self.input_dim, 3 * self.output_dim),
+                               name='{}_W'.format(self.name))
+            self.U = self.inner_init((self.output_dim, 3 * self.output_dim),
+                                     name='{}_U'.format(self.name))
+
+            self.b = K.variable(np.hstack((np.zeros(self.output_dim),
+                                           np.zeros(self.output_dim),
+                                           np.zeros(self.output_dim))),
+                                name='{}_b'.format(self.name))
+
+            self.trainable_weights = [self.W, self.U, self.b]
+        else:
+
+            self.W_z = self.init((self.input_dim, self.output_dim),
+                                 name='{}_W_z'.format(self.name))
+            self.U_z = self.inner_init((self.output_dim, self.output_dim),
+                                       name='{}_U_z'.format(self.name))
+            self.b_z = K.zeros((self.output_dim,), name='{}_b_z'.format(self.name))
+
+            self.W_r = self.init((self.input_dim, self.output_dim),
+                                 name='{}_W_r'.format(self.name))
+            self.U_r = self.inner_init((self.output_dim, self.output_dim),
+                                       name='{}_U_r'.format(self.name))
+            self.b_r = K.zeros((self.output_dim,), name='{}_b_r'.format(self.name))
+
+            self.W_h = self.init((self.input_dim, self.output_dim),
+                                 name='{}_W_h'.format(self.name))
+            self.U_h = self.inner_init((self.output_dim, self.output_dim),
+                                       name='{}_U_h'.format(self.name))
+            self.b_h = K.zeros((self.output_dim,), name='{}_b_h'.format(self.name))
+
+            self.trainable_weights = [self.W_z, self.U_z, self.b_z,
+                                      self.W_r, self.U_r, self.b_r,
+                                      self.W_h, self.U_h, self.b_h]
+
+            self.W = K.concatenate([self.W_z, self.W_r, self.W_h])
+            self.U = K.concatenate([self.U_z, self.U_r, self.U_h])
+            self.b = K.concatenate([self.b_z, self.b_r, self.b_h])
+
+        self.regularizers = []
+        if self.W_regularizer:
+            self.W_regularizer.set_param(self.W)
+            self.regularizers.append(self.W_regularizer)
+        if self.U_regularizer:
+            self.U_regularizer.set_param(self.U)
+            self.regularizers.append(self.U_regularizer)
+        if self.b_regularizer:
+            self.b_regularizer.set_param(self.b)
+            self.regularizers.append(self.b_regularizer)
 
         if self.initial_weights is not None:
             self.set_weights(self.initial_weights)
@@ -536,19 +549,37 @@ class GRU(Recurrent):
         B_U = states[1]  # dropout matrices for recurrent units
         B_W = states[2]
 
-        if self.consume_less == 'cpu':
-            x_z = x[:, :self.output_dim]
-            x_r = x[:, self.output_dim: 2 * self.output_dim]
-            x_h = x[:, 2 * self.output_dim:]
+        if self.consume_less == 'gpu':
+
+            matrix_x = K.dot(x * B_W[0], self.W) + self.b
+            matrix_inner = K.dot(h_tm1 * B_U[0], self.U[:, :2 * self.output_dim])
+
+            x_z = matrix_x[:, :self.output_dim]
+            x_r = matrix_x[:, self.output_dim: 2 * self.output_dim]
+            inner_z = matrix_inner[:, :self.output_dim]
+            inner_r = matrix_inner[:, self.output_dim: 2 * self.output_dim]
+
+            z = self.inner_activation(x_z + inner_z)
+            r = self.inner_activation(x_r + inner_r)
+
+            x_h = matrix_x[:, 2 * self.output_dim:]
+            inner_h = K.dot(r * h_tm1 * B_U[0], self.U[:, 2 * self.output_dim:])
+            hh = self.activation(x_h + inner_h)
         else:
-            x_z = K.dot(x * B_W[0], self.W_z) + self.b_z
-            x_r = K.dot(x * B_W[1], self.W_r) + self.b_r
-            x_h = K.dot(x * B_W[2], self.W_h) + self.b_h
+            if self.consume_less == 'cpu':
+                x_z = x[:, :self.output_dim]
+                x_r = x[:, self.output_dim: 2 * self.output_dim]
+                x_h = x[:, 2 * self.output_dim:]
+            elif self.consume_less == 'mem':
+                x_z = K.dot(x * B_W[0], self.W_z) + self.b_z
+                x_r = K.dot(x * B_W[1], self.W_r) + self.b_r
+                x_h = K.dot(x * B_W[2], self.W_h) + self.b_h
+            else:
+                raise Exception('Unknown `consume_less` mode.')
+            z = self.inner_activation(x_z + K.dot(h_tm1 * B_U[0], self.U_z))
+            r = self.inner_activation(x_r + K.dot(h_tm1 * B_U[1], self.U_r))
 
-        z = self.inner_activation(x_z + K.dot(h_tm1 * B_U[0], self.U_z))
-        r = self.inner_activation(x_r + K.dot(h_tm1 * B_U[1], self.U_r))
-
-        hh = self.activation(x_h + K.dot(r * h_tm1 * B_U[2], self.U_h))
+            hh = self.activation(x_h + K.dot(r * h_tm1 * B_U[2], self.U_h))
         h = z * h_tm1 + (1 - z) * hh
         return h, [h]
 
