@@ -5,6 +5,7 @@ import copy
 from . import backend as K
 from .engine.training import Model
 from .engine.topology import get_source_inputs, Node
+from .engine.training import get_compile_config, from_compile_config
 from .legacy.models import Graph
 
 
@@ -31,8 +32,8 @@ def model_from_json(json_string, custom_objects={}):
     from keras.utils.layer_utils import layer_from_config
     config = json.loads(json_string)
     return layer_from_config(config, custom_objects=custom_objects)
-
-
+    
+              
 class Sequential(Model):
     '''Linear stack of layers.
 
@@ -335,6 +336,7 @@ class Sequential(Model):
                            **kwargs)
         self.optimizer = self.model.optimizer
         self.loss = self.model.loss
+        self.extra_metrics = metrics
         self.metrics_names = self.model.metrics_names
         self.sample_weight_mode = self.model.sample_weight_mode
 
@@ -705,6 +707,7 @@ class Sequential(Model):
         '''Returns the model configuration
         as a Python dictionary.
         '''
+        # Layer config
         config = []
         if self.layers[0].__class__.__name__ == 'Merge':
             assert hasattr(self.layers[0], 'layers')
@@ -722,15 +725,23 @@ class Sequential(Model):
         for layer in self.layers[1:]:
             config.append({'class_name': layer.__class__.__name__,
                            'config': layer.get_config()})
+                           
+        config = {'layer_config': config}
+        
+        if hasattr(self, 'optimizer'):
+            config['compile_config'] = get_compile_config(self)
+        
         return copy.deepcopy(config)
 
     @classmethod
-    def from_config(cls, config):
+    def from_config(cls, config, custom_objects={}):
         '''Supports legacy formats
         '''
         from keras.utils.layer_utils import layer_from_config
         from keras.layers import Merge
-        assert type(config) is list
+        
+        layer_config = config['layer_config']
+        assert type(layer_config) is list
 
         def normalize_legacy_config(conf):
             if 'class_name' not in conf:
@@ -746,7 +757,8 @@ class Sequential(Model):
 
         model = cls()
 
-        first_layer = config[0]
+        # layers
+        first_layer = layer_config[0]
         first_layer = normalize_legacy_config(first_layer)
         if first_layer['class_name'] == 'Merge':
             merge_inputs = []
@@ -761,8 +773,14 @@ class Sequential(Model):
             layer = layer_from_config(first_layer)
             model.add(layer)
 
-        for conf in config[1:]:
+        for conf in layer_config[1:]:
             conf = normalize_legacy_config(conf)
             layer = layer_from_config(conf)
             model.add(layer)
+            
+        # compile from configuration
+        if 'compile_config' in config:
+            compile_config = config.get('compile_config')
+            from_compile_config(model, compile_config, custom_objects=custom_objects)
+            
         return model

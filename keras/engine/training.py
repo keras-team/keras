@@ -421,6 +421,60 @@ def generator_queue(generator, max_q_size=10,
     return q, _stop
 
 
+def get_compile_config(model):
+    config = {}
+    for p in ['sample_weight_mode', 'loss_weights']:
+        if hasattr(model, p):
+            config[p] = getattr(model, p)
+    if hasattr(model, 'optimizer'):
+        config['optimizer'] = model.optimizer.get_config()
+
+    def get_function_name(o):
+        import six
+        if isinstance(o, six.string_types):
+            return o
+        else:
+            return o.__name__
+        
+    def function_to_name(funcs):
+        if type(funcs) is dict:
+            return {key: get_function_name(f) for key, f in funcs.iteritems()}
+        elif type(funcs) is list:
+            return [get_function_name(f) for f in funcs]
+        else:
+            return get_function_name(funcs)
+    
+    if hasattr(model, 'loss'):
+        config['loss'] = function_to_name(model.loss)
+    if hasattr(model, 'extra_metrics'):
+        config['metrics'] = function_to_name(model.extra_metrics)
+
+    return config
+        
+        
+def from_compile_config(model, config, custom_objects={}):
+    from .. import optimizers
+    optimizer_params = dict([(k, v) for k, v in config.get('optimizer').items()])
+    optimizer_name = optimizer_params.pop('name')
+    optimizer = optimizers.get(optimizer_name, optimizer_params)
+    
+    def inject_custom_objects(names, custom_objects):
+        if type(names) is dict:
+            return {key: custom_objects.get(n, n) for key, n in names.iteritems()}
+        elif type(names) is list:
+            return [custom_objects.get(n, n) for n in names]
+        else:
+            return custom_objects.get(names, names)
+    
+    extra_metrics = inject_custom_objects(config.get('metrics'), custom_objects)
+    loss = inject_custom_objects(config.get('loss'), custom_objects)
+    sample_weight_mode = config.get('sample_weight_mode')
+    loss_weights = config.get('loss_weights')
+    
+    model.compile(optimizer=optimizer, loss=loss, metrics=extra_metrics, 
+                  sample_weight_mode=sample_weight_mode, loss_weights=loss_weights)
+
+
 class Model(Container):
 
     def compile(self, optimizer, loss, metrics=[], loss_weights=None,
@@ -451,6 +505,7 @@ class Model(Container):
         '''
         self.optimizer = optimizers.get(optimizer)
         self.sample_weight_mode = sample_weight_mode
+        self.extra_metrics = metrics
         self.loss = loss
 
         # prepare loss weights
@@ -1582,3 +1637,22 @@ class Model(Container):
         if len(all_outs) == 1:
             return all_outs[0]
         return all_outs
+
+    def get_config(self):
+        layer_config = super(Model, self).get_config()
+        config = {'layer_config': layer_config}
+        if hasattr(self, 'optimizer'):
+            config['compile_config'] = get_compile_config(self)
+        
+        return copy.deepcopy(config)
+
+    @classmethod
+    def from_config(cls, config, custom_objects={}):
+        '''Instantiates a Model from its config (output of `get_config()`).
+        '''
+
+        model = super(Model, cls).from_config(config['layer_config'], custom_objects=custom_objects)
+        if 'compile_config' in config:
+            from_compile_config(model, config['compile_config'], custom_objects=custom_objects)
+
+        return model
