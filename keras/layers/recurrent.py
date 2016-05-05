@@ -81,7 +81,9 @@ class Recurrent(Layer):
             is always unrolled, so this argument does not do anything.
             Unrolling can speed-up a RNN, although it tends to be more memory-intensive.
             Unrolling is only suitable for short sequences.
-        consume_less: one of "cpu", "mem", or "gpu" (LSTM only).
+        consume_less: one of "cpu", "mem", or "gpu".
+            Note that "gpu" mode is only available for LSTM.
+
             If set to "cpu", the RNN will use
             an implementation that uses fewer, larger matrix products,
             thus running faster on CPU but consuming more memory.
@@ -391,15 +393,15 @@ class SimpleRNN(Recurrent):
         return constants
 
     def get_config(self):
-        config = {"output_dim": self.output_dim,
-                  "init": self.init.__name__,
-                  "inner_init": self.inner_init.__name__,
-                  "activation": self.activation.__name__,
-                  "W_regularizer": self.W_regularizer.get_config() if self.W_regularizer else None,
-                  "U_regularizer": self.U_regularizer.get_config() if self.U_regularizer else None,
-                  "b_regularizer": self.b_regularizer.get_config() if self.b_regularizer else None,
-                  "dropout_W": self.dropout_W,
-                  "dropout_U": self.dropout_U}
+        config = {'output_dim': self.output_dim,
+                  'init': self.init.__name__,
+                  'inner_init': self.inner_init.__name__,
+                  'activation': self.activation.__name__,
+                  'W_regularizer': self.W_regularizer.get_config() if self.W_regularizer else None,
+                  'U_regularizer': self.U_regularizer.get_config() if self.U_regularizer else None,
+                  'b_regularizer': self.b_regularizer.get_config() if self.b_regularizer else None,
+                  'dropout_W': self.dropout_W,
+                  'dropout_U': self.dropout_U}
         base_config = super(SimpleRNN, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
@@ -574,16 +576,16 @@ class GRU(Recurrent):
         return constants
 
     def get_config(self):
-        config = {"output_dim": self.output_dim,
-                  "init": self.init.__name__,
-                  "inner_init": self.inner_init.__name__,
-                  "activation": self.activation.__name__,
-                  "inner_activation": self.inner_activation.__name__,
-                  "W_regularizer": self.W_regularizer.get_config() if self.W_regularizer else None,
-                  "U_regularizer": self.U_regularizer.get_config() if self.U_regularizer else None,
-                  "b_regularizer": self.b_regularizer.get_config() if self.b_regularizer else None,
-                  "dropout_W": self.dropout_W,
-                  "dropout_U": self.dropout_U}
+        config = {'output_dim': self.output_dim,
+                  'init': self.init.__name__,
+                  'inner_init': self.inner_init.__name__,
+                  'activation': self.activation.__name__,
+                  'inner_activation': self.inner_activation.__name__,
+                  'W_regularizer': self.W_regularizer.get_config() if self.W_regularizer else None,
+                  'U_regularizer': self.U_regularizer.get_config() if self.U_regularizer else None,
+                  'b_regularizer': self.b_regularizer.get_config() if self.b_regularizer else None,
+                  'dropout_W': self.dropout_W,
+                  'dropout_U': self.dropout_U}
         base_config = super(GRU, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
@@ -654,9 +656,9 @@ class LSTM(Recurrent):
             self.states = [None, None]
 
         if self.consume_less == 'gpu':
-            self.W = self.init((self.input_dim, 4*self.output_dim),
+            self.W = self.init((self.input_dim, 4 * self.output_dim),
                                name='{}_W'.format(self.name))
-            self.U = self.inner_init((self.output_dim, 4*self.output_dim),
+            self.U = self.inner_init((self.output_dim, 4 * self.output_dim),
                                      name='{}_U'.format(self.name))
 
             self.b = K.variable(np.hstack((np.zeros(self.output_dim),
@@ -814,16 +816,16 @@ class LSTM(Recurrent):
         return constants
 
     def get_config(self):
-        config = {"output_dim": self.output_dim,
-                  "init": self.init.__name__,
-                  "inner_init": self.inner_init.__name__,
-                  "forget_bias_init": self.forget_bias_init.__name__,
-                  "activation": self.activation.__name__,
-                  "inner_activation": self.inner_activation.__name__,
-                  "W_regularizer": self.W_regularizer.get_config() if self.W_regularizer else None,
-                  "U_regularizer": self.U_regularizer.get_config() if self.U_regularizer else None,
-                  "b_regularizer": self.b_regularizer.get_config() if self.b_regularizer else None,
-                  "dropout_W": self.dropout_W,
-                  "dropout_U": self.dropout_U}
+        config = {'output_dim': self.output_dim,
+                  'init': self.init.__name__,
+                  'inner_init': self.inner_init.__name__,
+                  'forget_bias_init': self.forget_bias_init.__name__,
+                  'activation': self.activation.__name__,
+                  'inner_activation': self.inner_activation.__name__,
+                  'W_regularizer': self.W_regularizer.get_config() if self.W_regularizer else None,
+                  'U_regularizer': self.U_regularizer.get_config() if self.U_regularizer else None,
+                  'b_regularizer': self.b_regularizer.get_config() if self.b_regularizer else None,
+                  'dropout_W': self.dropout_W,
+                  'dropout_U': self.dropout_U}
         base_config = super(LSTM, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
