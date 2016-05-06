@@ -5,7 +5,6 @@ import copy
 from . import backend as K
 from .engine.training import Model
 from .engine.topology import get_source_inputs, Node
-from .legacy.models import Graph
 
 
 def model_from_config(config, custom_objects={}):
