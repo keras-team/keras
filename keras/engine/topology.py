@@ -847,10 +847,11 @@ class Layer(object):
         if not params:
             return
         weight_value_tuples = []
-        for p, w in zip(params, weights):
-            if K.get_value(p).shape != w.shape:
+        param_values = K.batch_get_value(params)
+        for pv, p, w in zip(param_values, params, weights):
+            if pv.shape != w.shape:
                 raise Exception('Layer weight shape ' +
-                                str(K.get_value(p).shape) +
+                                str(pv.shape) +
                                 ' not compatible with '
                                 'provided weight shape ' + str(w.shape))
             weight_value_tuples.append((p, w))
@@ -861,10 +862,7 @@ class Layer(object):
         as a list of numpy arrays.
         '''
         params = self.trainable_weights + self.non_trainable_weights
-        weights = []
-        for p in params:
-            weights.append(K.get_value(p))
-        return weights
+        return K.batch_get_value(params)
 
     def get_config(self):
         '''Returns a Python dictionary (serializable)
@@ -1264,6 +1262,9 @@ class Merge(Layer):
                                        node_indices, tensor_indices)
             self.built = True
             self.add_inbound_node(layers, node_indices, tensor_indices)
+
+            outputs = self.inbound_nodes[-1].output_tensors
+            return outputs[0] # merge only returns a single tensor
         else:
             return self.call(inputs, mask)
 
@@ -2272,7 +2273,7 @@ class Container(Layer):
         for layer in flattened_layers:
             g = f.create_group(layer.name)
             symbolic_weights = layer.trainable_weights + layer.non_trainable_weights
-            weight_values = layer.get_weights()
+            weight_values = K.batch_get_value(symbolic_weights)
             weight_names = []
             for i, (w, val) in enumerate(zip(symbolic_weights, weight_values)):
                 if hasattr(w, 'name') and w.name:

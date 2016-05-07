@@ -139,10 +139,10 @@ to pass the learning phase flag to your function:
 get_3rd_layer_output = K.function([model.layers[0].input, K.learning_phase()],
                                   [model.layers[3].output])
 
-# output in train mode = 0
+# output in test mode = 0
 layer_output = get_3rd_layer_output([X, 0])[0]
 
-# output in test mode = 1
+# output in train mode = 1
 layer_output = get_3rd_layer_output([X, 1])[0]
 ```
 

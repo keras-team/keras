@@ -27,20 +27,33 @@ def set_learning_phase(value):
 
 
 def get_session():
-    '''Returns the TF session in use by the backend.
+    '''Returns the TF session to be used by the backend.
+
+    If a default TensorFlow session is available, we will return it.
+
+    Else, we will return the global Keras session.
+
+    If no global Keras session exists at this point:
+    we will create a new global session.
+
+    Note that you can manually set the global session
+    via `K.set_session(sess)`.
     '''
     global _SESSION
+    if tf.get_default_session() is not None:
+        return tf.get_default_session()
     if _SESSION is None:
         if not os.environ.get('OMP_NUM_THREADS'):
             _SESSION = tf.Session(config=tf.ConfigProto(allow_soft_placement=True))
         else:
             nb_thread = int(os.environ.get('OMP_NUM_THREADS'))
-            _SESSION = tf.Session(config=tf.ConfigProto(intra_op_parallelism_threads=nb_thread, allow_soft_placement=True))
+            _SESSION = tf.Session(config=tf.ConfigProto(intra_op_parallelism_threads=nb_thread,
+                                                        allow_soft_placement=True))
     return _SESSION
 
 
 def set_session(session):
-    '''Sets the TF session.
+    '''Sets the global TF session.
     '''
     global _SESSION
     _SESSION = session
@@ -60,7 +73,20 @@ def variable(value, dtype=_FLOATX, name=None):
         Tensor variable instance.
     '''
     v = tf.Variable(np.asarray(value, dtype=dtype), name=name)
-    get_session().run(v.initializer)
+    if tf.get_default_graph() is get_session().graph:
+        try:
+            get_session().run(v.initializer)
+        except tf.errors.InvalidArgumentError:
+            warnings.warn('Could not automatically initialize variable, '
+                          'make sure you do it manually (e.g. via '
+                          '`tf.initialize_all_variables()`).')
+    else:
+        warnings.warn('The default TensorFlow graph is not the graph '
+                      'associated with the TensorFlow session currently '
+                      'registered with Keras, and as such Keras '
+                      'was not able to automatically initialize a variable. '
+                      'You should consider registering the proper session '
+                      'with Keras via `K.set_session(sess)`.')
     return v
 
 
@@ -424,6 +450,18 @@ def minimum(x, y):
     return tf.minimum(x, y)
 
 
+def sin(x):
+    '''Computes sin of x element-wise.
+    '''
+    return tf.sin(x)
+
+
+def cos(x):
+    '''Computes cos of x element-wise.
+    '''
+    return tf.cos(x)
+
+
 # SHAPE OPERATIONS
 
 def concatenate(tensors, axis=-1):
@@ -562,6 +600,16 @@ def get_value(x):
     as a Numpy array.
     '''
     return x.eval(session=get_session())
+
+
+def batch_get_value(xs):
+    '''Returns the value of more than one tensor variable,
+    as a list of Numpy arrays.
+    '''
+    if xs:
+        return get_session().run(xs)
+    else:
+        return []
 
 
 def set_value(x, value):
@@ -812,6 +860,10 @@ def softplus(x):
     '''Softplus of a tensor.
     '''
     return tf.nn.softplus(x)
+
+
+def softsign(x):
+    return tf.nn.softsign(x)
 
 
 def categorical_crossentropy(output, target, from_logits=False):

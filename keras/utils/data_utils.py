@@ -73,7 +73,7 @@ def get_file(fname, origin, untar=False):
         except (Exception, KeyboardInterrupt) as e:
             if os.path.exists(fpath):
                 os.remove(fpath)
-            raise e
+            raise
         progbar = None
 
     if untar:
@@ -88,7 +88,7 @@ def get_file(fname, origin, untar=False):
                         os.remove(untar_fpath)
                     else:
                         shutil.rmtree(untar_fpath)
-                raise e
+                raise
             tfile.close()
         return untar_fpath
 

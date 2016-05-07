@@ -94,8 +94,8 @@ class BatchNormalization(Layer):
             std = K.mean(K.square(x - brodcast_mean) + self.epsilon, axis=reduction_axes)
             std = K.sqrt(std)
             brodcast_std = K.reshape(std, broadcast_shape)
-            mean_update = self.momentum * self.running_mean + (1-self.momentum) * mean
-            std_update = self.momentum * self.running_std + (1-self.momentum) * std
+            mean_update = self.momentum * self.running_mean + (1 - self.momentum) * mean
+            std_update = self.momentum * self.running_std + (1 - self.momentum) * std
             self.updates = [(self.running_mean, mean_update),
                             (self.running_std, std_update)]
             x_normed = (x - brodcast_mean) / (brodcast_std + self.epsilon)
