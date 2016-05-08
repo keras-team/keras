@@ -7,7 +7,7 @@ np.random.seed(1337)
 
 from keras import backend as K
 from keras.models import Model
-from keras.layers.core import Dense, Activation, Merge, Lambda
+from keras.layers import Dense, Input, merge, Lambda
 
 
 def test_ops_1():
