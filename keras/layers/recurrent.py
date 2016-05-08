@@ -107,6 +107,9 @@ class Recurrent(Layer):
             in your model, you would need to specify the input length
             at the level of the first layer
             (e.g. via the `input_shape` argument)
+        batch_norm: Boolean (default False). If True, use batch Normalization,
+            which could be slow when using cpu.
+        batch_norm_gamma: gamma initialization parameter when using batch normalization.
 
     # Input shape
         3D tensor with shape `(nb_samples, timesteps, input_dim)`.
@@ -130,7 +133,6 @@ class Recurrent(Layer):
         or to pass a complete `input_shape` argument to the first layer
         in your model otherwise.
 
-
     # Note on using statefulness in RNNs
         You can set RNN layers to be 'stateful', which means that the states
         computed for the samples in one batch will be reused as initial states
@@ -151,17 +153,32 @@ class Recurrent(Layer):
     # Note on using dropout with TensorFlow
         When using the TensorFlow backend, specify a fixed batch size for your model
         following the notes on statefulness RNNs.
+
+    # References
+        - [Recurrent Batch Normalization](https://arxiv.org/abs/1603.09025)
     '''
     def __init__(self, weights=None,
                  return_sequences=False, go_backwards=False, stateful=False,
                  unroll=False, consume_less='cpu',
-                 input_dim=None, input_length=None, **kwargs):
+                 input_dim=None, input_length=None, batch_norm=False, batch_norm_gamma=0.1, **kwargs):
         self.return_sequences = return_sequences
         self.initial_weights = weights
         self.go_backwards = go_backwards
         self.stateful = stateful
         self.unroll = unroll
         self.consume_less = consume_less
+        self.batch_norm = batch_norm
+        self.batch_norm_gamma = batch_norm_gamma
+        if self.batch_norm:
+
+            def gamma_init_func(shape, name=None):
+                return K.variable(np.ones(shape) * self.batch_norm_gamma, name=name)
+            self.gamma_init = gamma_init_func
+            self.beta_init = initializations.get('zero')
+            self.epsilon = 1e-6
+            self.uses_learning_phase = True
+            self.batch_norm_gammas = []
+            self.batch_norm_betas = []
 
         self.supports_masking = True
         self.input_spec = [InputSpec(ndim=3)]
@@ -197,6 +214,17 @@ class Recurrent(Layer):
         initial_state = K.dot(initial_state, reducer)  # (samples, output_dim)
         initial_states = [initial_state for _ in range(len(self.states))]
         return initial_states
+
+    def bn(self, x, _gamma, _beta):
+        x_shape = x.shape
+        _gamma = K.expand_dims(_gamma, dim=0)
+        _beta = K.expand_dims(_beta, dim=0)
+        x = K.reshape(x, (x.shape[0], _gamma.shape[1], -1))
+        x_var = x - K.mean(x, axis=2, keepdims=True)
+        x_std = K.sqrt(K.mean(K.square(x_var), axis=2, keepdims=True) + self.epsilon)
+        res = x_var / x_std * _gamma + _beta
+        res = K.reshape(res, x_shape)
+        return res
 
     def preprocess_input(self, x):
         return x
@@ -317,6 +345,17 @@ class SimpleRNN(Recurrent):
                                  name='{}_U'.format(self.name))
         self.b = K.zeros((self.output_dim,), name='{}_b'.format(self.name))
 
+        if self.batch_norm:
+            for field in ['input', 'recurrent']:
+                _shape = (1, self.output_dim,)
+                self.batch_norm_gammas.append(
+                    self.gamma_init(_shape, name='{}_gamma_{}'.format(self.name, field))
+                )
+                self.batch_norm_betas.append(
+                    self.beta_init(_shape, name='{}_beta_{}'.format(self.name, field))
+                )
+            self.trainable_weights += self.batch_norm_gammas + self.batch_norm_betas
+
         self.regularizers = []
         if self.W_regularizer:
             self.W_regularizer.set_param(self.W)
@@ -351,7 +390,7 @@ class SimpleRNN(Recurrent):
             input_shape = self.input_spec[0].shape
             input_dim = input_shape[2]
             timesteps = input_shape[1]
-            return time_distributed_dense(x, self.W, self.b, self.dropout_W,
+            return time_distributed_dense(x, self.W, None, self.dropout_W,
                                           input_dim, self.output_dim,
                                           timesteps)
         else:
@@ -363,11 +402,15 @@ class SimpleRNN(Recurrent):
         B_W = states[2]
 
         if self.consume_less == 'cpu':
-            h = x
+            input_to_hidden = x
         else:
-            h = K.dot(x * B_W, self.W) + self.b
+            input_to_hidden = K.dot(x * B_W, self.W) + self.b
 
-        output = self.activation(h + K.dot(prev_output * B_U, self.U))
+        hidden_to_hidden = K.dot(prev_output * B_U, self.U)
+        if self.batch_norm:
+            input_to_hidden = self.bn(input_to_hidden, self.batch_norm_gammas[0], self.batch_norm_betas[0])
+            hidden_to_hidden = self.bn(hidden_to_hidden, self.batch_norm_gammas[1], self.batch_norm_betas[1])
+        output = self.activation(input_to_hidden + hidden_to_hidden + self.b)
         return output, [output]
 
     def get_constants(self, x):
@@ -501,6 +544,17 @@ class GRU(Recurrent):
             self.U = K.concatenate([self.U_z, self.U_r, self.U_h])
             self.b = K.concatenate([self.b_z, self.b_r, self.b_h])
 
+        if self.batch_norm:
+            for field in ['input', 'recurrent']:
+                _shape = (3, self.output_dim,)
+                self.batch_norm_gammas.append(
+                    self.gamma_init(_shape, name='{}_gamma_{}'.format(self.name, field))
+                )
+                self.batch_norm_betas.append(
+                    self.beta_init(_shape, name='{}_beta_{}'.format(self.name, field))
+                )
+            self.trainable_weights += self.batch_norm_gammas + self.batch_norm_betas
+
         self.regularizers = []
         if self.W_regularizer:
             self.W_regularizer.set_param(self.W)
@@ -534,11 +588,11 @@ class GRU(Recurrent):
             input_dim = input_shape[2]
             timesteps = input_shape[1]
 
-            x_z = time_distributed_dense(x, self.W_z, self.b_z, self.dropout_W,
+            x_z = time_distributed_dense(x, self.W_z, None, self.dropout_W,
                                          input_dim, self.output_dim, timesteps)
-            x_r = time_distributed_dense(x, self.W_r, self.b_r, self.dropout_W,
+            x_r = time_distributed_dense(x, self.W_r, None, self.dropout_W,
                                          input_dim, self.output_dim, timesteps)
-            x_h = time_distributed_dense(x, self.W_h, self.b_h, self.dropout_W,
+            x_h = time_distributed_dense(x, self.W_h, None, self.dropout_W,
                                          input_dim, self.output_dim, timesteps)
             return K.concatenate([x_z, x_r, x_h], axis=2)
         else:
@@ -551,20 +605,27 @@ class GRU(Recurrent):
 
         if self.consume_less == 'gpu':
 
-            matrix_x = K.dot(x * B_W[0], self.W) + self.b
-            matrix_inner = K.dot(h_tm1 * B_U[0], self.U[:, :2 * self.output_dim])
+            input_to_hidden = K.dot(x * B_W[0], self.W)
+            hidden_to_hidden = K.dot(h_tm1 * B_U[0], self.U[:, :2 * self.output_dim])
+            if self.batch_norm:
+                input_to_hidden = self.bn(input_to_hidden, self.batch_norm_gammas[0], self.batch_norm_betas[0])
+                hidden_to_hidden = self.bn(hidden_to_hidden, self.batch_norm_gammas[1][:2], self.batch_norm_betas[1][:2])
+            input_to_hidden += self.b
 
-            x_z = matrix_x[:, :self.output_dim]
-            x_r = matrix_x[:, self.output_dim: 2 * self.output_dim]
-            inner_z = matrix_inner[:, :self.output_dim]
-            inner_r = matrix_inner[:, self.output_dim: 2 * self.output_dim]
+            x_z = input_to_hidden[:, :self.output_dim]
+            x_r = input_to_hidden[:, self.output_dim: 2 * self.output_dim]
+            inner_z = hidden_to_hidden[:, :self.output_dim]
+            inner_r = hidden_to_hidden[:, self.output_dim: 2 * self.output_dim]
 
             z = self.inner_activation(x_z + inner_z)
             r = self.inner_activation(x_r + inner_r)
 
-            x_h = matrix_x[:, 2 * self.output_dim:]
+            x_h = input_to_hidden[:, 2 * self.output_dim:]
             inner_h = K.dot(r * h_tm1 * B_U[0], self.U[:, 2 * self.output_dim:])
+            if self.batch_norm:
+                inner_h = self.bn(inner_h, self.batch_norm_gammas[1][2:], self.batch_norm_betas[1][2:])
             hh = self.activation(x_h + inner_h)
+
         else:
             if self.consume_less == 'cpu':
                 x_z = x[:, :self.output_dim]
@@ -576,10 +637,26 @@ class GRU(Recurrent):
                 x_h = K.dot(x * B_W[2], self.W_h) + self.b_h
             else:
                 raise Exception('Unknown `consume_less` mode.')
-            z = self.inner_activation(x_z + K.dot(h_tm1 * B_U[0], self.U_z))
-            r = self.inner_activation(x_r + K.dot(h_tm1 * B_U[1], self.U_r))
 
-            hh = self.activation(x_h + K.dot(r * h_tm1 * B_U[2], self.U_h))
+            h_z = K.dot(h_tm1 * B_U[0], self.U_z)
+            h_r = K.dot(h_tm1 * B_U[1], self.U_r)
+
+            if self.batch_norm:
+                x_z = self.bn(x_z, self.batch_norm_gammas[0][0:1], self.batch_norm_betas[0][0:1])
+                x_r = self.bn(x_r, self.batch_norm_gammas[0][1:2], self.batch_norm_betas[0][1:2])
+                x_h = self.bn(x_h, self.batch_norm_gammas[0][2:3], self.batch_norm_betas[0][2:3])
+
+                h_z = self.bn(h_z, self.batch_norm_gammas[1][0:1], self.batch_norm_betas[1][0:1])
+                h_r = self.bn(h_r, self.batch_norm_gammas[1][1:2], self.batch_norm_betas[1][1:2])
+
+            z = self.inner_activation(x_z + h_z + self.b_z)
+            r = self.inner_activation(x_r + h_r + self.b_r)
+            h_h = K.dot(r * h_tm1 * B_U[2], self.U_h)
+            if self.batch_norm:
+                h_h = self.bn(h_h, self.batch_norm_gammas[1][2:3], self.batch_norm_betas[1][2:3])
+
+            hh = self.activation(x_h + h_h + self.b_h)
+
         h = z * h_tm1 + (1 - z) * hh
         return h, [h]
 
@@ -653,6 +730,7 @@ class LSTM(Recurrent):
         - [Supervised sequence labelling with recurrent neural networks](http://www.cs.toronto.edu/~graves/preprint.pdf)
         - [A Theoretically Grounded Application of Dropout in Recurrent Neural Networks](http://arxiv.org/abs/1512.05287)
     '''
+
     def __init__(self, output_dim,
                  init='glorot_uniform', inner_init='orthogonal',
                  forget_bias_init='one', activation='tanh',
@@ -685,9 +763,9 @@ class LSTM(Recurrent):
             self.states = [None, None]
 
         if self.consume_less == 'gpu':
-            self.W = self.init((self.input_dim, 4*self.output_dim),
+            self.W = self.init((self.input_dim, 4 * self.output_dim),
                                name='{}_W'.format(self.name))
-            self.U = self.inner_init((self.output_dim, 4*self.output_dim),
+            self.U = self.inner_init((self.output_dim, 4 * self.output_dim),
                                      name='{}_U'.format(self.name))
 
             self.b = K.variable(np.hstack((np.zeros(self.output_dim),
@@ -696,6 +774,7 @@ class LSTM(Recurrent):
                                            np.zeros(self.output_dim))),
                                 name='{}_b'.format(self.name))
             self.trainable_weights = [self.W, self.U, self.b]
+
         else:
             self.W_i = self.init((self.input_dim, self.output_dim),
                                  name='{}_W_i'.format(self.name))
@@ -730,6 +809,17 @@ class LSTM(Recurrent):
             self.W = K.concatenate([self.W_i, self.W_f, self.W_c, self.W_o])
             self.U = K.concatenate([self.U_i, self.U_f, self.U_c, self.U_o])
             self.b = K.concatenate([self.b_i, self.b_f, self.b_c, self.b_o])
+
+        if self.batch_norm:
+            for field in ['input', 'recurrent', 'output']:
+                _shape = (1, self.output_dim,) if field == 'output' else (4, self.output_dim,)
+                self.batch_norm_gammas.append(
+                    self.gamma_init(_shape, name='{}_gamma_{}'.format(self.name, field))
+                )
+                self.batch_norm_betas.append(
+                    self.beta_init(_shape, name='{}_beta_{}'.format(self.name, field))
+                )
+            self.trainable_weights += self.batch_norm_gammas + self.batch_norm_betas
 
         self.regularizers = []
         if self.W_regularizer:
@@ -771,13 +861,13 @@ class LSTM(Recurrent):
             input_dim = input_shape[2]
             timesteps = input_shape[1]
 
-            x_i = time_distributed_dense(x, self.W_i, self.b_i, dropout,
+            x_i = time_distributed_dense(x, self.W_i, None, dropout,
                                          input_dim, self.output_dim, timesteps)
-            x_f = time_distributed_dense(x, self.W_f, self.b_f, dropout,
+            x_f = time_distributed_dense(x, self.W_f, None, dropout,
                                          input_dim, self.output_dim, timesteps)
-            x_c = time_distributed_dense(x, self.W_c, self.b_c, dropout,
+            x_c = time_distributed_dense(x, self.W_c, None, dropout,
                                          input_dim, self.output_dim, timesteps)
-            x_o = time_distributed_dense(x, self.W_o, self.b_o, dropout,
+            x_o = time_distributed_dense(x, self.W_o, None, dropout,
                                          input_dim, self.output_dim, timesteps)
             return K.concatenate([x_i, x_f, x_c, x_o], axis=2)
         else:
@@ -790,7 +880,12 @@ class LSTM(Recurrent):
         B_W = states[3]
 
         if self.consume_less == 'gpu':
-            z = K.dot(x * B_W[0], self.W) + K.dot(h_tm1 * B_U[0], self.U) + self.b
+            input_to_hidden = K.dot(x * B_W[0], self.W)
+            hidden_to_hidden = K.dot(h_tm1 * B_U[0], self.U)
+            if self.batch_norm:
+                input_to_hidden = self.bn(input_to_hidden, self.batch_norm_gammas[0], self.batch_norm_betas[0])
+                hidden_to_hidden = self.bn(hidden_to_hidden, self.batch_norm_gammas[1], self.batch_norm_betas[1])
+            z = input_to_hidden + hidden_to_hidden + self.b
 
             z0 = z[:, :self.output_dim]
             z1 = z[:, self.output_dim: 2 * self.output_dim]
@@ -800,6 +895,7 @@ class LSTM(Recurrent):
             i = self.inner_activation(z0)
             f = self.inner_activation(z1)
             c = f * c_tm1 + i * self.activation(z2)
+            c_h = self.bn(c, self.batch_norm_gammas[2], self.batch_norm_betas[2]) if self.batch_norm else c
             o = self.inner_activation(z3)
         else:
             if self.consume_less == 'cpu':
@@ -808,19 +904,35 @@ class LSTM(Recurrent):
                 x_c = x[:, 2 * self.output_dim: 3 * self.output_dim]
                 x_o = x[:, 3 * self.output_dim:]
             elif self.consume_less == 'mem':
-                x_i = K.dot(x * B_W[0], self.W_i) + self.b_i
-                x_f = K.dot(x * B_W[1], self.W_f) + self.b_f
-                x_c = K.dot(x * B_W[2], self.W_c) + self.b_c
-                x_o = K.dot(x * B_W[3], self.W_o) + self.b_o
+                x_i = K.dot(x * B_W[0], self.W_i)
+                x_f = K.dot(x * B_W[1], self.W_f)
+                x_c = K.dot(x * B_W[2], self.W_c)
+                x_o = K.dot(x * B_W[3], self.W_o)
             else:
                 raise Exception('Unknown `consume_less` mode.')
 
-            i = self.inner_activation(x_i + K.dot(h_tm1 * B_U[0], self.U_i))
-            f = self.inner_activation(x_f + K.dot(h_tm1 * B_U[1], self.U_f))
-            c = f * c_tm1 + i * self.activation(x_c + K.dot(h_tm1 * B_U[2], self.U_c))
-            o = self.inner_activation(x_o + K.dot(h_tm1 * B_U[3], self.U_o))
+            h_i = K.dot(h_tm1 * B_U[0], self.U_i)
+            h_f = K.dot(h_tm1 * B_U[1], self.U_f)
+            h_c = K.dot(h_tm1 * B_U[2], self.U_c)
+            h_o = K.dot(h_tm1 * B_U[3], self.U_o)
+            if self.batch_norm:
+                x_i = self.bn(x_i, self.batch_norm_gammas[0][0:1], self.batch_norm_betas[0][0:1])
+                x_f = self.bn(x_f, self.batch_norm_gammas[0][1:2], self.batch_norm_betas[0][1:2])
+                x_c = self.bn(x_c, self.batch_norm_gammas[0][2:3], self.batch_norm_betas[0][2:3])
+                x_o = self.bn(x_o, self.batch_norm_gammas[0][3:4], self.batch_norm_betas[0][3:4])
 
-        h = o * self.activation(c)
+                h_i = self.bn(h_i, self.batch_norm_gammas[1][0:1], self.batch_norm_betas[1][0:1])
+                h_f = self.bn(h_f, self.batch_norm_gammas[1][1:2], self.batch_norm_betas[1][1:2])
+                h_c = self.bn(h_c, self.batch_norm_gammas[1][2:3], self.batch_norm_betas[1][2:3])
+                h_o = self.bn(h_o, self.batch_norm_gammas[1][3:4], self.batch_norm_betas[1][3:4])
+
+            i = self.inner_activation(x_i + h_i + self.b_i)
+            f = self.inner_activation(x_f + h_f + self.b_f)
+            c = f * c_tm1 + i * self.activation(x_c + h_c + self.b_c)
+            c_h = self.bn(c, self.batch_norm_gammas[2], self.batch_norm_betas[2]) if self.batch_norm else c
+            o = self.inner_activation(x_o + h_o + self.b_o)
+
+        h = o * self.activation(c_h)
         return h, [h, c]
 
     def get_constants(self, x):
