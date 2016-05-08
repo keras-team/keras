@@ -35,6 +35,7 @@ def test_locallyconnected_1d():
                                'subsample_length': subsample_length},
                        input_shape=(nb_samples, nb_steps, input_dim))
 
+
 def test_locallyconnected_2d():
     nb_samples = 8
     nb_filter = 3
