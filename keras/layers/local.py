@@ -382,7 +382,7 @@ class LocallyConnected2D(Layer):
 
         if self.bias:
             if self.dim_ordering == 'th':
-                output += K.reshape(self.b, (1, nb_filter, output_col, output_row))
+                output += K.reshape(self.b, (1, nb_filter, output_row, output_col))
             elif self.dim_ordering == 'tf':
                 output += K.reshape(self.b, (1, output_row, output_col, nb_filter))
             else:
