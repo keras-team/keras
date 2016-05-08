@@ -2273,7 +2273,7 @@ class Container(Layer):
         for layer in flattened_layers:
             g = f.create_group(layer.name)
             symbolic_weights = layer.trainable_weights + layer.non_trainable_weights
-            weight_values = layer.get_weights()
+            weight_values = K.batch_get_value(symbolic_weights)
             weight_names = []
             for i, (w, val) in enumerate(zip(symbolic_weights, weight_values)):
                 if hasattr(w, 'name') and w.name:
