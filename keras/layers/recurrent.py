@@ -276,7 +276,9 @@ class Recurrent(Layer):
                   'go_backwards': self.go_backwards,
                   'stateful': self.stateful,
                   'unroll': self.unroll,
-                  'consume_less': self.consume_less}
+                  'consume_less': self.consume_less,
+                  'batch_norm': self.batch_norm,
+                  'batch_norm_gamma': self.batch_norm_gamma}
         if self.stateful:
             config['batch_input_shape'] = self.input_spec[0].shape
         else:
