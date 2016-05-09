@@ -221,7 +221,7 @@ class Recurrent(Layer):
         x_var = x - K.mean(x, axis=2, keepdims=True)
         x_std = K.sqrt(K.mean(K.square(x_var), axis=2, keepdims=True) + self.epsilon)
         res = x_var / x_std * _gamma + _beta
-        res = K.reshape(res, [-1, self.output_dim])
+        res = K.reshape(res, [-1, self.output_dim * matrix_amount])
         return res
 
     def preprocess_input(self, x):
