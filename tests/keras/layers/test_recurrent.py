@@ -33,11 +33,13 @@ def _runner(layer_class):
                input_shape=(3, 2, 3))
 
     # check implementation modes
-    for mode in ['cpu', 'mem', 'gpu']:
-        layer_test(layer_class,
-                   kwargs={'output_dim': output_dim,
-                           'consume_less': mode},
-                   input_shape=(3, 2, 3))
+    for bn in [False, True]:
+        for mode in ['cpu', 'mem', 'gpu']:
+            layer_test(layer_class,
+                       kwargs={'output_dim': output_dim,
+                               'consume_less': mode,
+                               'batch_norm': bn},
+                       input_shape=(3, 2, 3))
 
     # check statefulness
     model = Sequential()
