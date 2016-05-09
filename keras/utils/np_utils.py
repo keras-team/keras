@@ -10,7 +10,7 @@ def to_categorical(y, nb_classes=None):
     to binary class matrix, for use with categorical_crossentropy.
     '''
     if not nb_classes:
-        nb_classes = np.max(y)+1
+        nb_classes = np.max(np.array(y))+1
     Y = np.zeros((len(y), nb_classes))
     for i in range(len(y)):
         Y[i, y[i]] = 1.
