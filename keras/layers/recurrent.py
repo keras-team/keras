@@ -214,15 +214,14 @@ class Recurrent(Layer):
     def gamma_init(self, shape, name=None):
         return K.variable(np.ones(shape) * self.batch_norm_gamma, name=name)
 
-    def bn(self, x, _gamma, _beta):
-        x_shape = x.shape
+    def bn(self, x, _gamma, _beta, matrix_amount=1):
         _gamma = K.expand_dims(_gamma, dim=0)
         _beta = K.expand_dims(_beta, dim=0)
-        x = K.reshape(x, (x.shape[0], _gamma.shape[1], -1))
+        x = K.reshape(x, [-1, matrix_amount, self.output_dim])
         x_var = x - K.mean(x, axis=2, keepdims=True)
         x_std = K.sqrt(K.mean(K.square(x_var), axis=2, keepdims=True) + self.epsilon)
         res = x_var / x_std * _gamma + _beta
-        res = K.reshape(res, x_shape)
+        res = K.reshape(res, [-1, self.output_dim])
         return res
 
     def preprocess_input(self, x):
@@ -609,8 +608,8 @@ class GRU(Recurrent):
             input_to_hidden = K.dot(x * B_W[0], self.W)
             hidden_to_hidden = K.dot(h_tm1 * B_U[0], self.U[:, :2 * self.output_dim])
             if self.batch_norm:
-                input_to_hidden = self.bn(input_to_hidden, self.batch_norm_gammas[0], self.batch_norm_betas[0])
-                hidden_to_hidden = self.bn(hidden_to_hidden, self.batch_norm_gammas[1][:2], self.batch_norm_betas[1][:2])
+                input_to_hidden = self.bn(input_to_hidden, self.batch_norm_gammas[0], self.batch_norm_betas[0], matrix_amount=3)
+                hidden_to_hidden = self.bn(hidden_to_hidden, self.batch_norm_gammas[1][:2], self.batch_norm_betas[1][:2], matrix_amount=2)
             input_to_hidden += self.b
 
             x_z = input_to_hidden[:, :self.output_dim]
@@ -884,8 +883,8 @@ class LSTM(Recurrent):
             input_to_hidden = K.dot(x * B_W[0], self.W)
             hidden_to_hidden = K.dot(h_tm1 * B_U[0], self.U)
             if self.batch_norm:
-                input_to_hidden = self.bn(input_to_hidden, self.batch_norm_gammas[0], self.batch_norm_betas[0])
-                hidden_to_hidden = self.bn(hidden_to_hidden, self.batch_norm_gammas[1], self.batch_norm_betas[1])
+                input_to_hidden = self.bn(input_to_hidden, self.batch_norm_gammas[0], self.batch_norm_betas[0], matrix_amount=4)
+                hidden_to_hidden = self.bn(hidden_to_hidden, self.batch_norm_gammas[1], self.batch_norm_betas[1], matrix_amount=4)
             z = input_to_hidden + hidden_to_hidden + self.b
 
             z0 = z[:, :self.output_dim]
