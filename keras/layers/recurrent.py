@@ -170,10 +170,6 @@ class Recurrent(Layer):
         self.batch_norm = batch_norm
         self.batch_norm_gamma = batch_norm_gamma
         if self.batch_norm:
-
-            def gamma_init_func(shape, name=None):
-                return K.variable(np.ones(shape) * self.batch_norm_gamma, name=name)
-            self.gamma_init = gamma_init_func
             self.beta_init = initializations.get('zero')
             self.epsilon = 1e-6
             self.uses_learning_phase = True
@@ -214,6 +210,9 @@ class Recurrent(Layer):
         initial_state = K.dot(initial_state, reducer)  # (samples, output_dim)
         initial_states = [initial_state for _ in range(len(self.states))]
         return initial_states
+
+    def gamma_init(self, shape, name=None):
+        return K.variable(np.ones(shape) * self.batch_norm_gamma, name=name)
 
     def bn(self, x, _gamma, _beta):
         x_shape = x.shape
