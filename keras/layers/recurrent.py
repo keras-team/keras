@@ -624,7 +624,7 @@ class GRU(Recurrent):
             x_h = input_to_hidden[:, 2 * self.output_dim:]
             inner_h = K.dot(r * h_tm1 * B_U[0], self.U[:, 2 * self.output_dim:])
             if self.batch_norm:
-                inner_h = self.bn(inner_h, self.batch_norm_gammas[1][2:], self.batch_norm_betas[1][2:])
+                inner_h = self.bn(inner_h, K.gather(self.batch_norm_gammas[1], 2), K.gather(self.batch_norm_betas[1], 2))
             hh = self.activation(x_h + inner_h)
 
         else:
