@@ -32,6 +32,13 @@ def _runner(layer_class):
                        'dropout_W': 0.1},
                input_shape=(3, 2, 3))
 
+    # check implementation modes
+    for mode in ['cpu', 'mem', 'gpu']:
+        layer_test(layer_class,
+                   kwargs={'output_dim': output_dim,
+                           'consume_less': mode},
+                   input_shape=(3, 2, 3))
+
     # check statefulness
     model = Sequential()
     model.add(embeddings.Embedding(embedding_num, embedding_dim,

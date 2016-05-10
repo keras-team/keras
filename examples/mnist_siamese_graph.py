@@ -30,7 +30,7 @@ def euclidean_distance(vects):
 
 def eucl_dist_output_shape(shapes):
     shape1, shape2 = shapes
-    return shape1
+    return (shape1[0], 1)
 
 
 def contrastive_loss(y_true, y_pred):
