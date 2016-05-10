@@ -389,8 +389,12 @@ class Lambda(Layer):
         output_shape: Expected output shape from function.
             Can be a tuple or function.
             If a tuple, it only specifies the first dimension onward; 
-                 sample dimension is assumed the same as the input
-            If a function, it specifies the entire shape
+                 sample dimension is assumed either the same as the input:
+                 `output_shape = (input_shape[0], ) + output_shape`
+                 or, the input is `None` and the sample dimension is also `None`:
+                 `output_shape = (None, ) + output_shape`
+            If a function, it specifies the entire shape as a function of 
+                 the input shape: `output_shape = f(input_shape)`
         arguments: optional dictionary of keyword arguments to be passed
             to the function.
 
