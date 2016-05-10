@@ -387,7 +387,10 @@ class Lambda(Layer):
         function: The function to be evaluated.
             Takes one argument: the output of previous layer
         output_shape: Expected output shape from function.
-            Could be a tuple or a function of the shape of the input
+            Can be a tuple or function.
+            If a tuple, it only specifies the first dimension onward; 
+                 sample dimension is assumed the same as the input
+            If a function, it specifies the entire shape
         arguments: optional dictionary of keyword arguments to be passed
             to the function.
 
