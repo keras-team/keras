@@ -184,6 +184,9 @@ class Recurrent(Layer):
             kwargs['input_shape'] = (self.input_length, self.input_dim)
         super(Recurrent, self).__init__(**kwargs)
 
+    def gamma_init(self, shape, name=None):
+        return K.variable(np.ones(shape) * self.batch_norm_gamma, name=name)
+
     def get_output_shape_for(self, input_shape):
         if self.return_sequences:
             return (input_shape[0], input_shape[1], self.output_dim)
@@ -210,9 +213,6 @@ class Recurrent(Layer):
         initial_state = K.dot(initial_state, reducer)  # (samples, output_dim)
         initial_states = [initial_state for _ in range(len(self.states))]
         return initial_states
-
-    def gamma_init(self, shape, name=None):
-        return K.variable(np.ones(shape) * self.batch_norm_gamma, name=name)
 
     def bn(self, x, _gamma, _beta, matrix_amount=1):
         _gamma = K.expand_dims(_gamma, dim=0)
@@ -609,7 +609,8 @@ class GRU(Recurrent):
             hidden_to_hidden = K.dot(h_tm1 * B_U[0], self.U[:, :2 * self.output_dim])
             if self.batch_norm:
                 input_to_hidden = self.bn(input_to_hidden, self.batch_norm_gammas[0], self.batch_norm_betas[0], matrix_amount=3)
-                hidden_to_hidden = self.bn(hidden_to_hidden, self.batch_norm_gammas[1][:2], self.batch_norm_betas[1][:2], matrix_amount=2)
+                hidden_to_hidden = self.bn(hidden_to_hidden, K.gather(self.batch_norm_gammas[1], [0, 1]),
+                                           K.gather(self.batch_norm_betas[1], [0, 1]), matrix_amount=2)
             input_to_hidden += self.b
 
             x_z = input_to_hidden[:, :self.output_dim]
@@ -642,18 +643,18 @@ class GRU(Recurrent):
             h_r = K.dot(h_tm1 * B_U[1], self.U_r)
 
             if self.batch_norm:
-                x_z = self.bn(x_z, self.batch_norm_gammas[0][0:1], self.batch_norm_betas[0][0:1])
-                x_r = self.bn(x_r, self.batch_norm_gammas[0][1:2], self.batch_norm_betas[0][1:2])
-                x_h = self.bn(x_h, self.batch_norm_gammas[0][2:3], self.batch_norm_betas[0][2:3])
+                x_z = self.bn(x_z, K.gather(self.batch_norm_gammas[0], 0), K.gather(self.batch_norm_betas[0], 0))
+                x_r = self.bn(x_r, K.gather(self.batch_norm_gammas[0], 1), K.gather(self.batch_norm_betas[0], 1))
+                x_h = self.bn(x_h, K.gather(self.batch_norm_gammas[0], 2), K.gather(self.batch_norm_betas[0], 2))
 
-                h_z = self.bn(h_z, self.batch_norm_gammas[1][0:1], self.batch_norm_betas[1][0:1])
-                h_r = self.bn(h_r, self.batch_norm_gammas[1][1:2], self.batch_norm_betas[1][1:2])
+                h_z = self.bn(h_z, K.gather(self.batch_norm_gammas[1], 0), K.gather(self.batch_norm_betas[1], 0))
+                h_r = self.bn(h_r, K.gather(self.batch_norm_gammas[1], 1), K.gather(self.batch_norm_betas[1], 1))
 
             z = self.inner_activation(x_z + h_z + self.b_z)
             r = self.inner_activation(x_r + h_r + self.b_r)
             h_h = K.dot(r * h_tm1 * B_U[2], self.U_h)
             if self.batch_norm:
-                h_h = self.bn(h_h, self.batch_norm_gammas[1][2:3], self.batch_norm_betas[1][2:3])
+                h_h = self.bn(h_h, K.gather(self.batch_norm_gammas[1], 2), K.gather(self.batch_norm_betas[1], 2))
 
             hh = self.activation(x_h + h_h + self.b_h)
 
@@ -730,7 +731,6 @@ class LSTM(Recurrent):
         - [Supervised sequence labelling with recurrent neural networks](http://www.cs.toronto.edu/~graves/preprint.pdf)
         - [A Theoretically Grounded Application of Dropout in Recurrent Neural Networks](http://arxiv.org/abs/1512.05287)
     '''
-
     def __init__(self, output_dim,
                  init='glorot_uniform', inner_init='orthogonal',
                  forget_bias_init='one', activation='tanh',
@@ -916,15 +916,15 @@ class LSTM(Recurrent):
             h_c = K.dot(h_tm1 * B_U[2], self.U_c)
             h_o = K.dot(h_tm1 * B_U[3], self.U_o)
             if self.batch_norm:
-                x_i = self.bn(x_i, self.batch_norm_gammas[0][0:1], self.batch_norm_betas[0][0:1])
-                x_f = self.bn(x_f, self.batch_norm_gammas[0][1:2], self.batch_norm_betas[0][1:2])
-                x_c = self.bn(x_c, self.batch_norm_gammas[0][2:3], self.batch_norm_betas[0][2:3])
-                x_o = self.bn(x_o, self.batch_norm_gammas[0][3:4], self.batch_norm_betas[0][3:4])
+                x_i = self.bn(x_i, K.gather(self.batch_norm_gammas[0], 0), K.gather(self.batch_norm_betas[0], 0))
+                x_f = self.bn(x_f, K.gather(self.batch_norm_gammas[0], 1), K.gather(self.batch_norm_betas[0], 1))
+                x_c = self.bn(x_c, K.gather(self.batch_norm_gammas[0], 2), K.gather(self.batch_norm_betas[0], 2))
+                x_o = self.bn(x_o, K.gather(self.batch_norm_gammas[0], 3), K.gather(self.batch_norm_betas[0], 3))
 
-                h_i = self.bn(h_i, self.batch_norm_gammas[1][0:1], self.batch_norm_betas[1][0:1])
-                h_f = self.bn(h_f, self.batch_norm_gammas[1][1:2], self.batch_norm_betas[1][1:2])
-                h_c = self.bn(h_c, self.batch_norm_gammas[1][2:3], self.batch_norm_betas[1][2:3])
-                h_o = self.bn(h_o, self.batch_norm_gammas[1][3:4], self.batch_norm_betas[1][3:4])
+                h_i = self.bn(h_i, K.gather(self.batch_norm_gammas[1], 0), K.gather(self.batch_norm_betas[1], 0))
+                h_f = self.bn(h_f, K.gather(self.batch_norm_gammas[1], 1), K.gather(self.batch_norm_betas[1], 1))
+                h_c = self.bn(h_c, K.gather(self.batch_norm_gammas[1], 2), K.gather(self.batch_norm_betas[1], 2))
+                h_o = self.bn(h_o, K.gather(self.batch_norm_gammas[1], 3), K.gather(self.batch_norm_betas[1], 3))
 
             i = self.inner_activation(x_i + h_i + self.b_i)
             f = self.inner_activation(x_f + h_f + self.b_f)
