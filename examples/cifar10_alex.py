@@ -1,7 +1,7 @@
 '''Train a simple deep CNN on the CIFAR10 small images dataset.
-In this example, we use LocallyConnected2D to reproduce Alex's implement
+In this example, we use LocallyConnected2D to reproduce Alex's implement.
 There are two difference, one is input size (32x32 vs. 24x24), the other 
-is replacing LRN with BatchNormalization.
+is removing local response normalization.
 
 GPU run command:
     THEANO_FLAGS=mode=FAST_RUN,device=gpu,floatX=float32 python cifar10_cnn.py
@@ -20,12 +20,11 @@ from keras.preprocessing.image import ImageDataGenerator
 from keras.models import Sequential
 from keras.layers.core import Dense, Dropout, Activation, Flatten
 from keras.layers.convolutional import Convolution2D, MaxPooling2D, ZeroPadding2D
-from keras.layers.normalization import BatchNormalization
-from keras.optimizers import SGD
+from keras.layers.local import LocallyConnected2D
+from keras.optimizers import SGD, Adam
 from keras.utils import np_utils
-from local import LocallyConnected2D
 
-batch_size = 32
+batch_size = 128
 nb_classes = 10
 nb_epoch = 200
 data_augmentation = True
@@ -47,14 +46,12 @@ Y_test = np_utils.to_categorical(y_test, nb_classes)
 
 model = Sequential()
 
-model.add(Convolution2D(64, 5, 5, border_mode='valid',
+model.add(Convolution2D(64, 5, 5,
                         input_shape=(img_channels, img_rows, img_cols)))
-model.add(BatchNormalization(axis=1))
 model.add(Activation('relu'))
 model.add(MaxPooling2D(pool_size=(3, 3), strides=(2, 2)))
 
 model.add(Convolution2D(64, 5, 5))
-model.add(BatchNormalization(axis=1))
 model.add(Activation('relu'))
 model.add(MaxPooling2D(pool_size=(3, 3), strides=(2, 2)))
 
@@ -72,7 +69,7 @@ model.add(Dense(nb_classes))
 model.add(Activation('softmax'))
 
 # let's train the model using SGD + momentum (how original).
-sgd = SGD(lr=0.005, decay=1e-6, momentum=0.9, nesterov=True)
+sgd = SGD(lr=0.01, decay=1e-6, momentum=0.9, nesterov=True)
 model.compile(loss='categorical_crossentropy',
               optimizer=sgd,
               metrics=['accuracy'])

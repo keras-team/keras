@@ -18,7 +18,7 @@ def conv_output_length(input_length, filter_size, border_mode, stride):
 
 
 class LocallyConnected1D(Layer):
-    # TODO example, batch_dot
+    # TODO batch_dot
     '''LocallyConnected1D Layer can be used to simulate Dense layer with less
     parameter, or create a Convolution layer without sharing weights.
     When using this layer as the first layer in a model,
@@ -114,7 +114,7 @@ class LocallyConnected1D(Layer):
         input_dim = input_shape[2]
         _, output_length, nb_filter = self.get_output_shape_for(input_shape)
 
-        self.W_shape = (output_length, self.filter_length, input_dim, nb_filter)
+        self.W_shape = (output_length, self.filter_length * input_dim, nb_filter)
         self.W = self.init(self.W_shape, name='{}_W'.format(self.name))
         if self.bias:
             self.b = K.zeros((output_length, self.nb_filter), name='{}_b'.format(self.name))
@@ -152,15 +152,13 @@ class LocallyConnected1D(Layer):
 
     def call(self, x, mask=None):
         stride = self.subsample_length
-        output_length, filter_length, input_dim, nb_filter = self.W_shape
-        feature_dim = filter_length * input_dim
-        w_flatten = K.reshape(self.W, (output_length, feature_dim, nb_filter))
+        output_length, feature_dim, nb_filter = self.W_shape
 
         output = []
         for i in range(output_length):
-            slice_length = slice(i*stride, i*stride + filter_length)
+            slice_length = slice(i*stride, i*stride + self.filter_length)
             x_flatten = K.reshape(x[:, slice_length, :], (-1, feature_dim))
-            output.append(K.dot(x_flatten, w_flatten[i, :, :]))
+            output.append(K.dot(x_flatten, self.W[i, :, :]))
         output = K.reshape(K.concatenate(output), (-1, output_length, nb_filter))
 
         if self.bias:
@@ -189,7 +187,7 @@ class LocallyConnected1D(Layer):
 
 
 class LocallyConnected2D(Layer):
-    # TODO example, batch_dot
+    # TODO batch_dot
     '''LocallyConnected2D Layer can be used to create a
     Convolution layer without sharing weights.
     When using this layer as the first layer in a model,
@@ -299,7 +297,7 @@ class LocallyConnected2D(Layer):
         else:
             raise Exception('Invalid dim_ordering: ' + self.dim_ordering)
 
-        self.W_shape = (output_row, output_col, self.nb_row, self.nb_col, input_filter, nb_filter)
+        self.W_shape = (output_row, output_col, self.nb_row * self.nb_col * input_filter, nb_filter)
         self.W = self.init(self.W_shape, name='{}_W'.format(self.name))
 
         if self.bias:
@@ -354,28 +352,26 @@ class LocallyConnected2D(Layer):
     def call(self, x, mask=None):
         # TODO: border_mode
         stride_row, stride_col = self.subsample
-        output_row, output_col, nb_row, nb_col, input_filter, nb_filter = self.W_shape
-        feature_dim = nb_row * nb_col * input_filter
+        output_row, output_col, feature_dim, nb_filter = self.W_shape
 
-        w_flatten = K.reshape(self.W, (output_row, output_col, feature_dim, nb_filter))
         if self.dim_ordering == 'th':
             output = []
             for i in range(output_row):
                 for j in range(output_col):
-                    slice_row = slice(i*stride_row, i*stride_row + nb_row)
-                    slice_col = slice(i*stride_col, i*stride_col + nb_col)
+                    slice_row = slice(i*stride_row, i*stride_row + self.nb_row)
+                    slice_col = slice(i*stride_col, i*stride_col + self.nb_col)
                     x_flatten = K.reshape(x[:, :, slice_row, slice_col], (-1, feature_dim))
-                    output.append(K.dot(x_flatten, w_flatten[i, j, :, :]))
+                    output.append(K.dot(x_flatten, self.W[i, j, :, :]))
             output = K.reshape(K.concatenate(output), (-1, output_row, output_col, nb_filter))
             output = K.permute_dimensions(output, (0, 3, 1, 2))
         elif self.dim_ordering == 'tf':
             output = []
             for i in range(output_row):
                 for j in range(output_col):
-                    slice_row = slice(i*stride_row, i*stride_row + nb_row)
-                    slice_col = slice(i*stride_col, i*stride_col + nb_col)
+                    slice_row = slice(i*stride_row, i*stride_row + self.nb_row)
+                    slice_col = slice(i*stride_col, i*stride_col + self.nb_col)
                     x_flatten = K.reshape(x[:, slice_row, slice_col, :], (-1, feature_dim))
-                    output.append(K.dot(x_flatten, w_flatten[i, j, :, :]))
+                    output.append(K.dot(x_flatten, self.W[i, j, :, :]))
             output = K.reshape(K.concatenate(output), (-1, output_row, output_col, nb_filter))
         else:
             raise Exception('Invalid dim_ordering: ' + self.dim_ordering)
