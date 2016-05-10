@@ -2107,8 +2107,6 @@ class Container(Layer):
         return output_tensors, output_masks, output_shapes
 
     def get_config(self):
-        '''TODO: add keras version information
-        '''
         config = {
             'name': self.name,
         }
@@ -2348,6 +2346,41 @@ class Container(Layer):
             K.batch_set_value(weight_value_tuples)
         f.close()
 
+    def prepare_config(self):
+        '''shared between different serialization methods'''
+        from six import string_types
+        from keras import __version__ as keras_version
+
+        def prepare(obj):
+            if isinstance(obj, dict):
+                return {k: prepare(v) for k, v in obj.items()}
+            elif isinstance(obj, list):
+                return [prepare(v) for v in obj]
+            elif isinstance(obj, string_types):
+                return obj
+            elif isinstance(obj, object):
+                return obj.__class__.__name__
+            elif hasattr(obj, '__name__'):
+                return obj.__name__
+            else:
+                raise Exception('unable to get name for item ' + obj)
+
+        config = self.get_config()
+        model_config = {
+            'class_name': self.__class__.__name__,
+            'config': config,
+            'keras_version': keras_version
+        }
+
+        if hasattr(self, 'optimizer'):
+            model_config['optimizer'] = prepare(self.optimizer)
+            model_config['loss'] = prepare(self.loss)
+            model_config['sample_weight_mode'] = self.sample_weight_mode
+
+        if hasattr(self, 'loss_weights'):
+            model_config['loss_weights'] = self.loss_weights
+        return model_config
+
     def to_json(self, **kwargs):
         '''Returns a JSON string containing the network configuration.
 
@@ -2367,11 +2400,7 @@ class Container(Layer):
 
             raise TypeError('Not JSON Serializable')
 
-        config = self.get_config()
-        model_config = {
-            'class_name': self.__class__.__name__,
-            'config': config,
-        }
+        model_config = self.prepare_config()
         return json.dumps(model_config, default=get_json_type, **kwargs)
 
     def to_yaml(self, **kwargs):
@@ -2385,12 +2414,7 @@ class Container(Layer):
         functions / classes.
         '''
         import yaml
-        config = self.get_config()
-        model_config = {
-            'class_name': self.__class__.__name__,
-            'config': config,
-        }
-        return yaml.dump(model_config, **kwargs)
+        return yaml.dump(self.prepare_config(), **kwargs)
 
     def summary(self):
         from keras.utils.layer_utils import print_summary
