@@ -107,7 +107,7 @@ class Recurrent(Layer):
             in your model, you would need to specify the input length
             at the level of the first layer
             (e.g. via the `input_shape` argument)
-        batch_norm: Boolean (default False). If True, use batch Normalization,
+        batch_norm: Boolean (default False). If True, use batch normalization,
             which could be slow when using cpu.
         batch_norm_gamma: gamma initialization parameter when using batch normalization.
 
@@ -160,7 +160,8 @@ class Recurrent(Layer):
     def __init__(self, weights=None,
                  return_sequences=False, go_backwards=False, stateful=False,
                  unroll=False, consume_less='cpu',
-                 input_dim=None, input_length=None, batch_norm=False, batch_norm_gamma=0.1, **kwargs):
+                 input_dim=None, input_length=None,
+                 batch_norm=False, batch_norm_gamma=0.1, **kwargs):
         self.return_sequences = return_sequences
         self.initial_weights = weights
         self.go_backwards = go_backwards
@@ -170,11 +171,14 @@ class Recurrent(Layer):
         self.batch_norm = batch_norm
         self.batch_norm_gamma = batch_norm_gamma
         if self.batch_norm:
+            self.uses_learning_phase = True
             self.beta_init = initializations.get('zero')
             self.epsilon = 1e-6
-            self.uses_learning_phase = True
+            self.momentum = 0.9
             self.batch_norm_gammas = []
             self.batch_norm_betas = []
+            self.running_mean = []
+            self.running_std = []
 
         self.supports_masking = True
         self.input_spec = [InputSpec(ndim=3)]
@@ -214,14 +218,36 @@ class Recurrent(Layer):
         initial_states = [initial_state for _ in range(len(self.states))]
         return initial_states
 
-    def bn(self, x, _gamma, _beta, matrix_amount=1):
-        _gamma = K.expand_dims(_gamma, dim=0)
+    def bn(self, x, field, loc=[0]):
+        matrix_amount = len(loc)
+        _gamma = K.gather(self.batch_norm_gammas[field], loc)
+        _beta = K.gather(self.batch_norm_betas[field], loc)
+        _mean = K.gather(self.running_mean[field], loc)
+        _std = K.gather(self.running_std[field], loc)
+
+        import theano
+        _mean = theano.printing.Print("_mean = ")(_mean)
+
+        _gamma = K.expand_dims(_gamma, dim=0) + K.sum(_mean)
         _beta = K.expand_dims(_beta, dim=0)
         x = K.reshape(x, [-1, matrix_amount, self.output_dim])
-        x_var = x - K.mean(x, axis=2, keepdims=True)
-        x_std = K.sqrt(K.mean(K.square(x_var), axis=2, keepdims=True) + self.epsilon)
+        x_mean = K.in_train_phase(K.mean(x, axis=[0, 2], keepdims=True), K.expand_dims(_mean, dim=0))
+
+        # import theano
+        # x_mean = theano.printing.Print("x_mean = ")(x_mean)
+
+        x_var = x - x_mean
+        x_std = K.in_train_phase(K.sqrt(K.mean(K.square(x_var), axis=[0, 2], keepdims=True) + self.epsilon), K.expand_dims(_std, dim=0))
         res = x_var / x_std * _gamma + _beta
         res = K.reshape(res, [-1, self.output_dim * matrix_amount])
+        # updates
+        update_mean = self.momentum * _mean + (1.0 - self.momentum) * x_mean
+        update_std = self.momentum * _std + (1.0 - self.momentum) * x_std
+        _mean = K.in_train_phase(update_mean, _mean)
+        _std = K.in_train_phase(update_std, _std)
+        #################################################
+        # HOW TO UPDATE?
+        #################################################
         return res
 
     def preprocess_input(self, x):
@@ -354,7 +380,14 @@ class SimpleRNN(Recurrent):
                 self.batch_norm_betas.append(
                     self.beta_init(_shape, name='{}_beta_{}'.format(self.name, field))
                 )
+                self.running_mean.append(
+                    K.zeros(_shape, name='{}_running_mean_{}'.format(self.name, field))
+                )
+                self.running_std.append(
+                    K.ones(_shape, name='{}_running_std_{}'.format(self.name, field))
+                )
             self.trainable_weights += self.batch_norm_gammas + self.batch_norm_betas
+            self.trainable_weights += self.running_mean + self.running_std
 
         self.regularizers = []
         if self.W_regularizer:
@@ -408,8 +441,8 @@ class SimpleRNN(Recurrent):
 
         hidden_to_hidden = K.dot(prev_output * B_U, self.U)
         if self.batch_norm:
-            input_to_hidden = self.bn(input_to_hidden, self.batch_norm_gammas[0], self.batch_norm_betas[0])
-            hidden_to_hidden = self.bn(hidden_to_hidden, self.batch_norm_gammas[1], self.batch_norm_betas[1])
+            input_to_hidden = self.bn(input_to_hidden, field=0, loc=[0])
+            hidden_to_hidden = self.bn(hidden_to_hidden, field=1, loc=[0])
         output = self.activation(input_to_hidden + hidden_to_hidden + self.b)
         return output, [output]
 
@@ -553,6 +586,12 @@ class GRU(Recurrent):
                 self.batch_norm_betas.append(
                     self.beta_init(_shape, name='{}_beta_{}'.format(self.name, field))
                 )
+                self.running_mean.append(
+                    K.zeros(_shape, name='{}_running_mean_{}'.format(self.name, field))
+                )
+                self.running_std.append(
+                    K.ones(_shape, name='{}_running_std_{}'.format(self.name, field))
+                )
             self.trainable_weights += self.batch_norm_gammas + self.batch_norm_betas
 
         self.regularizers = []
@@ -608,9 +647,8 @@ class GRU(Recurrent):
             input_to_hidden = K.dot(x * B_W[0], self.W)
             hidden_to_hidden = K.dot(h_tm1 * B_U[0], self.U[:, :2 * self.output_dim])
             if self.batch_norm:
-                input_to_hidden = self.bn(input_to_hidden, self.batch_norm_gammas[0], self.batch_norm_betas[0], matrix_amount=3)
-                hidden_to_hidden = self.bn(hidden_to_hidden, K.gather(self.batch_norm_gammas[1], [0, 1]),
-                                           K.gather(self.batch_norm_betas[1], [0, 1]), matrix_amount=2)
+                input_to_hidden = self.bn(input_to_hidden, field=0, loc=[0, 1, 2])
+                hidden_to_hidden = self.bn(hidden_to_hidden, field=1, loc=[0, 1])
             input_to_hidden += self.b
 
             x_z = input_to_hidden[:, :self.output_dim]
@@ -643,18 +681,18 @@ class GRU(Recurrent):
             h_r = K.dot(h_tm1 * B_U[1], self.U_r)
 
             if self.batch_norm:
-                x_z = self.bn(x_z, K.gather(self.batch_norm_gammas[0], 0), K.gather(self.batch_norm_betas[0], 0))
-                x_r = self.bn(x_r, K.gather(self.batch_norm_gammas[0], 1), K.gather(self.batch_norm_betas[0], 1))
-                x_h = self.bn(x_h, K.gather(self.batch_norm_gammas[0], 2), K.gather(self.batch_norm_betas[0], 2))
+                x_z = self.bn(x_z, field=0, loc=[0])
+                x_r = self.bn(x_r, field=0, loc=[1])
+                x_h = self.bn(x_h, field=0, loc=[2])
 
-                h_z = self.bn(h_z, K.gather(self.batch_norm_gammas[1], 0), K.gather(self.batch_norm_betas[1], 0))
-                h_r = self.bn(h_r, K.gather(self.batch_norm_gammas[1], 1), K.gather(self.batch_norm_betas[1], 1))
+                h_z = self.bn(h_z, field=1, loc=[0])
+                h_r = self.bn(h_r, field=1, loc=[1])
 
             z = self.inner_activation(x_z + h_z + self.b_z)
             r = self.inner_activation(x_r + h_r + self.b_r)
             h_h = K.dot(r * h_tm1 * B_U[2], self.U_h)
             if self.batch_norm:
-                h_h = self.bn(h_h, K.gather(self.batch_norm_gammas[1], 2), K.gather(self.batch_norm_betas[1], 2))
+                h_h = self.bn(h_h, field=1, loc=[2])
 
             hh = self.activation(x_h + h_h + self.b_h)
 
@@ -819,6 +857,12 @@ class LSTM(Recurrent):
                 self.batch_norm_betas.append(
                     self.beta_init(_shape, name='{}_beta_{}'.format(self.name, field))
                 )
+                self.running_mean.append(
+                    K.zeros(_shape, name='{}_running_mean_{}'.format(self.name, field))
+                )
+                self.running_std.append(
+                    K.ones(_shape, name='{}_running_std_{}'.format(self.name, field))
+                )
             self.trainable_weights += self.batch_norm_gammas + self.batch_norm_betas
 
         self.regularizers = []
@@ -883,8 +927,8 @@ class LSTM(Recurrent):
             input_to_hidden = K.dot(x * B_W[0], self.W)
             hidden_to_hidden = K.dot(h_tm1 * B_U[0], self.U)
             if self.batch_norm:
-                input_to_hidden = self.bn(input_to_hidden, self.batch_norm_gammas[0], self.batch_norm_betas[0], matrix_amount=4)
-                hidden_to_hidden = self.bn(hidden_to_hidden, self.batch_norm_gammas[1], self.batch_norm_betas[1], matrix_amount=4)
+                input_to_hidden = self.bn(input_to_hidden, field=0, loc=[0, 1, 2, 3])
+                hidden_to_hidden = self.bn(hidden_to_hidden, field=1, loc=[0, 1, 2, 3])
             z = input_to_hidden + hidden_to_hidden + self.b
 
             z0 = z[:, :self.output_dim]
@@ -895,7 +939,7 @@ class LSTM(Recurrent):
             i = self.inner_activation(z0)
             f = self.inner_activation(z1)
             c = f * c_tm1 + i * self.activation(z2)
-            c_h = self.bn(c, self.batch_norm_gammas[2], self.batch_norm_betas[2]) if self.batch_norm else c
+            c_h = self.bn(c, field=2, loc=[0]) if self.batch_norm else c
             o = self.inner_activation(z3)
         else:
             if self.consume_less == 'cpu':
@@ -916,20 +960,20 @@ class LSTM(Recurrent):
             h_c = K.dot(h_tm1 * B_U[2], self.U_c)
             h_o = K.dot(h_tm1 * B_U[3], self.U_o)
             if self.batch_norm:
-                x_i = self.bn(x_i, K.gather(self.batch_norm_gammas[0], 0), K.gather(self.batch_norm_betas[0], 0))
-                x_f = self.bn(x_f, K.gather(self.batch_norm_gammas[0], 1), K.gather(self.batch_norm_betas[0], 1))
-                x_c = self.bn(x_c, K.gather(self.batch_norm_gammas[0], 2), K.gather(self.batch_norm_betas[0], 2))
-                x_o = self.bn(x_o, K.gather(self.batch_norm_gammas[0], 3), K.gather(self.batch_norm_betas[0], 3))
+                x_i = self.bn(x_i, field=0, loc=[0])
+                x_f = self.bn(x_f, field=0, loc=[1])
+                x_c = self.bn(x_c, field=0, loc=[2])
+                x_o = self.bn(x_o, field=0, loc=[3])
 
-                h_i = self.bn(h_i, K.gather(self.batch_norm_gammas[1], 0), K.gather(self.batch_norm_betas[1], 0))
-                h_f = self.bn(h_f, K.gather(self.batch_norm_gammas[1], 1), K.gather(self.batch_norm_betas[1], 1))
-                h_c = self.bn(h_c, K.gather(self.batch_norm_gammas[1], 2), K.gather(self.batch_norm_betas[1], 2))
-                h_o = self.bn(h_o, K.gather(self.batch_norm_gammas[1], 3), K.gather(self.batch_norm_betas[1], 3))
+                h_i = self.bn(h_i, field=1, loc=[0])
+                h_f = self.bn(h_f, field=1, loc=[1])
+                h_c = self.bn(h_c, field=1, loc=[2])
+                h_o = self.bn(h_o, field=1, loc=[3])
 
             i = self.inner_activation(x_i + h_i + self.b_i)
             f = self.inner_activation(x_f + h_f + self.b_f)
             c = f * c_tm1 + i * self.activation(x_c + h_c + self.b_c)
-            c_h = self.bn(c, self.batch_norm_gammas[2], self.batch_norm_betas[2]) if self.batch_norm else c
+            c_h = self.bn(c, field=2, loc=[0]) if self.batch_norm else c
             o = self.inner_activation(x_o + h_o + self.b_o)
 
         h = o * self.activation(c_h)
