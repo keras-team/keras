@@ -10,6 +10,10 @@ from .legacy.models import Graph
 
 def model_from_config(config, custom_objects={}):
     from keras.utils.layer_utils import layer_from_config
+    if isinstance(config, list):
+        raise Exception('model_fom_config expects a dictionary.'
+                        'To load an old-style config use the appropiate'
+                        '`load_config` method on Sequential or Graph')
     return layer_from_config(config, custom_objects=custom_objects)
 
 
@@ -699,7 +703,7 @@ class Sequential(Model):
 
     def get_config(self):
         '''Returns the model configuration
-        as a Python dictionary.
+        as a Python list.
         '''
         config = []
         if self.layers[0].__class__.__name__ == 'Merge':
