@@ -7,7 +7,8 @@ Results example: http://i.imgur.com/4nj4KjN.jpg
 Before running this script, download the weights for the VGG16 model at:
 https://drive.google.com/file/d/0Bz7KyqmuGsilT0J5dmRCM0ROVHc/view?usp=sharing
 (source: https://gist.github.com/baraldilorenzo/07d7802847aaad0a35d3)
-and make sure the variable `weights_path` in this script matches the location of the file.
+and make sure the variable `weights_path` in this script matches the location
+of the file.
 '''
 from __future__ import print_function
 from scipy.misc import imsave
@@ -30,6 +31,7 @@ weights_path = 'vgg16_weights.h5'
 # the name of the layer we want to visualize (see model definition below)
 layer_name = 'conv5_1'
 
+
 # util function to convert a tensor into a valid image
 def deprocess_image(x):
     # normalize tensor: center on 0., ensure std is 0.1
@@ -49,7 +51,9 @@ def deprocess_image(x):
 
 # build the VGG16 network
 model = Sequential()
-model.add(ZeroPadding2D((1, 1), batch_input_shape=(1, 3, img_width, img_height)))
+model.add(
+    ZeroPadding2D((1, 1), batch_input_shape=(1, 3, img_width, img_height))
+)
 first_layer = model.layers[-1]
 # this is a placeholder tensor that will contain our generated images
 input_img = first_layer.input
@@ -93,7 +97,9 @@ model.add(MaxPooling2D((2, 2), strides=(2, 2)))
 # (trained on ImageNet, won the ILSVRC competition in 2014)
 # note: when there is a complete match between your model definition
 # and your weight savefile, you can simply call model.load_weights(filename)
-assert os.path.exists(weights_path), 'Model weights not found (see "weights_path" variable in script).'
+assert os.path.exists(weights_path), \
+    'Model weights not found (see "weights_path" variable in script).'
+
 f = h5py.File(weights_path)
 for k in range(f.attrs['nb_layers']):
     if k >= len(model.layers):
@@ -139,7 +145,9 @@ for filter_index in range(0, 200):
     step = 1.
 
     # we start from a gray image with some random noise
-    input_img_data = np.random.random((1, 3, img_width, img_height)) * 20 + 128.
+    input_img_data = np.random.random(
+        (1, 3, img_width, img_height)
+    ) * 20 + 128.
 
     # we run gradient ascent for 20 steps
     for i in range(20):
@@ -177,8 +185,11 @@ stitched_filters = np.zeros((width, height, 3))
 for i in range(n):
     for j in range(n):
         img, loss = kept_filters[i * n + j]
-        stitched_filters[(img_width + margin) * i: (img_width + margin) * i + img_width,
-                         (img_height + margin) * j: (img_height + margin) * j + img_height, :] = img
+        stitched_filters[
+            (img_width + margin) * i: (img_width + margin) * i + img_width,
+            (img_height + margin) * j: (img_height + margin) * j + img_height,
+            :
+        ] = img
 
 # save the result to disk
 imsave('stitched_filters_%dx%d.png' % (n, n), stitched_filters)
