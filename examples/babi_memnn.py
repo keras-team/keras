@@ -16,8 +16,8 @@ Time per epoch: 3s on CPU (core i7).
 from __future__ import print_function
 from keras.models import Sequential
 from keras.layers.embeddings import Embedding
-from keras.layers.core import Activation, Dense, Merge, Permute, Dropout
-from keras.layers.recurrent import LSTM
+from keras.layers import Activation, Dense, Merge, Permute, Dropout
+from keras.layers import LSTM
 from keras.utils.data_utils import get_file
 from keras.preprocessing.sequence import pad_sequences
 from functools import reduce
