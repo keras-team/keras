@@ -168,7 +168,7 @@ class RMSprop(Optimizer):
         rho: float >= 0.
         epsilon: float >= 0. Fuzz factor.
     '''
-    def __init__(self, lr=0.001, rho=0.9, epsilon=1e-6, **kwargs):
+    def __init__(self, lr=0.001, rho=0.9, epsilon=1e-8, **kwargs):
         super(RMSprop, self).__init__(**kwargs)
         self.__dict__.update(locals())
         self.lr = K.variable(lr)
