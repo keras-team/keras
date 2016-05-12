@@ -19,23 +19,24 @@ def conv_output_length(input_length, filter_size, border_mode, stride):
 
 class LocallyConnected1D(Layer):
     # TODO batch_dot
-    '''LocallyConnected1D Layer can be used to simulate Dense layer with less
-    parameter, or create a Convolution layer without sharing weights.
-    When using this layer as the first layer in a model,
-    either provide the keyword argument `input_dim`
-    (int, e.g. 128 for sequences of 128-dimensional vectors),
-    or `input_shape` (tuple of integers, e.g. (10, 128) for sequences
-    of 10 vectors of 128-dimensional vectors).
+    '''LocallyConnected1D layer works almost the same as Convolution1D layer,
+    except that weights are unshared. When using this layer as the first layer
+    in a model, either provide the keyword argument `input_dim` (int, e.g. 128
+    for sequences of 128-dimensional vectors), or `input_shape` (tuple of
+    integers, e.g. (10, 128) for sequences of 10 vectors of 128-dimensional
+    vectors). Also, you will need to fix shape of the previous layer,
+    since the weights can only be defined with determined output shape.
+
     # Example
     ```python
-        # apply a convolution 1d of length 3 to a sequence with 10 timesteps,
-        # with 64 output filters
+        # apply a unshared weight convolution 1d of length 3 to a sequence with 
+        # 10 timesteps, with 64 output filters
         model = Sequential()
-        model.add(Convolution1D(64, 3, border_mode='same', input_shape=(10, 32)))
-        # now model.output_shape == (None, 10, 64)
+        model.add(LocallyConnected1D(64, 3, input_shape=(10, 32)))
+        # now model.output_shape == (None, 8, 64)
         # add a new conv1d on top
-        model.add(Convolution1D(32, 3, border_mode='same'))
-        # now model.output_shape == (None, 10, 32)
+        model.add(LocallyConnected1D(32, 3))
+        # now model.output_shape == (None, 6, 32)
     ```
     # Arguments
         nb_filter: Dimensionality of the output.
@@ -50,7 +51,7 @@ class LocallyConnected1D(Layer):
             If you don't specify anything, no activation is applied
             (ie. "linear" activation: a(x) = x).
         weights: list of numpy arrays to set as initial weights.
-        border_mode: Currently only support 'valid'. Please make good use of
+        border_mode: Only support 'valid'. Please make good use of
             ZeroPadding1D to achieve same oupout_length.
         subsample_length: factor by which to subsample output.
         W_regularizer: instance of [WeightRegularizer](../regularizers.md)
@@ -188,24 +189,25 @@ class LocallyConnected1D(Layer):
 
 class LocallyConnected2D(Layer):
     # TODO batch_dot
-    '''LocallyConnected2D Layer can be used to create a
-    Convolution layer without sharing weights.
-    When using this layer as the first layer in a model,
-    provide the keyword argument `input_shape`
-    (tuple of integers, does not include the sample axis),
-    e.g. `input_shape=(3, 128, 128)` for 128x128 RGB pictures.
+    '''LocallyConnected2D layer works almost the same as Convolution2D layer,
+    except that weights are unshared. When using this layer as the first layer
+    in a model, provide the keyword argument `input_shape` (tuple of integers,
+    does not include the sample axis), e.g. `input_shape=(3, 128, 128)` for
+    128x128 RGB pictures. Also, you will need to fix shape of the previous layer,
+    since the weights can only be defined with determined output shape.
 
     # Examples
 
     ```python
-        # apply a 3x3 convolution with 64 output filters on a 256x256 image:
+        # apply a 3x3 unshared weights convolution with 64 output filters on a 32x32 image:
         model = Sequential()
-        model.add(Convolution2D(64, 3, 3, border_mode='same', input_shape=(3, 256, 256)))
-        # now model.output_shape == (None, 64, 256, 256)
+        model.add(LocallyConnected2D(64, 3, 3, input_shape=(3, 32, 32)))
+        # now model.output_shape == (None, 64, 30, 30)
+        # notice that this layer will consume (30*30)*(3*3*3*64) + (30*30)*64 parameters
 
-        # add a 3x3 convolution on top, with 32 output filters:
-        model.add(Convolution2D(32, 3, 3, border_mode='same'))
-        # now model.output_shape == (None, 32, 256, 256)
+        # add a 3x3 unshared weights convolution on top, with 32 output filters:
+        model.add(LocallyConnected2D(32, 3, 3))
+        # now model.output_shape == (None, 32, 28, 28)
     ```
 
     # Arguments
@@ -223,8 +225,8 @@ class LocallyConnected2D(Layer):
             If you don't specify anything, no activation is applied
             (ie. "linear" activation: a(x) = x).
         weights: list of numpy arrays to set as initial weights.
-        border_mode: Currently only support 'valid'. Please make good use of
-            ZeroPadding1D to achieve same oupout shape.
+        border_mode: Only support 'valid'. Please make good use of
+            ZeroPadding2D to achieve same oupout shape.
         subsample: tuple of length 2. Factor by which to subsample output.
             Also called strides elsewhere.
         W_regularizer: instance of [WeightRegularizer](../regularizers.md)
