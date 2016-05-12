@@ -407,6 +407,8 @@ def temporal_padding(x, padding=1):
     output = T.zeros(output_shape)
     return T.set_subtensor(output[:, padding:x.shape[1] + padding, :], x)
 
+def replace_row(x,r,row=0):
+    return T.set_subtensor(x[row, :], r)
 
 def spatial_2d_padding(x, padding=(1, 1), dim_ordering='th'):
     '''Pad the 2nd and 3rd dimensions of a 4D tensor
