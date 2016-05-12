@@ -20,7 +20,7 @@ Please cite Keras in your publications if it helps your research. Here is an exa
 
 ```
 @misc{chollet2015keras,
-  author = {Chollet, François},
+  author = {Chollet, Francois},
   title = {Keras},
   year = {2015},
   publisher = {GitHub},
