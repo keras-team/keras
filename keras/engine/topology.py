@@ -1264,7 +1264,7 @@ class Merge(Layer):
             self.add_inbound_node(layers, node_indices, tensor_indices)
 
             outputs = self.inbound_nodes[-1].output_tensors
-            return outputs[0] # merge only returns a single tensor
+            return outputs[0]  # merge only returns a single tensor
         else:
             return self.call(inputs, mask)
 
@@ -1298,8 +1298,6 @@ class Merge(Layer):
                     break
                 output_shape[self.concat_axis] += shape[self.concat_axis]
             return tuple(output_shape)
-        elif self.mode == 'join':
-            return None
         elif self.mode == 'dot':
             shape1 = list(input_shapes[0])
             shape2 = list(input_shapes[1])
@@ -1400,7 +1398,7 @@ def merge(inputs, mode='sum', concat_axis=-1,
 
     # Arguments
         mode: string or lambda/function. If string, must be one
-            of: 'sum', 'mul', 'concat', 'ave', 'join', 'cos', 'dot'.
+            of: 'sum', 'mul', 'concat', 'ave', 'cos', 'dot'.
             If lambda/function, it should take as input a list of tensors
             and return a single tensor.
         concat_axis: integer, axis to use in mode `concat`.
