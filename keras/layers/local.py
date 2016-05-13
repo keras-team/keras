@@ -3,29 +3,19 @@ from __future__ import absolute_import
 
 from keras import backend as K
 from keras.layers import activations, initializations, regularizers, constraints
+from keras.layers.convolutional import conv_output_length
 from keras.engine import Layer, InputSpec
 
 
-def conv_output_length(input_length, filter_size, border_mode, stride):
-    if input_length is None:
-        return None
-    assert border_mode in {'same', 'valid'}
-    if border_mode == 'same':
-        output_length = input_length
-    elif border_mode == 'valid':
-        output_length = input_length - filter_size + 1
-    return (output_length + stride - 1) // stride
-
-
 class LocallyConnected1D(Layer):
-    # TODO batch_dot
     '''LocallyConnected1D layer works almost the same as Convolution1D layer,
-    except that weights are unshared. When using this layer as the first layer
-    in a model, either provide the keyword argument `input_dim` (int, e.g. 128
-    for sequences of 128-dimensional vectors), or `input_shape` (tuple of
-    integers, e.g. (10, 128) for sequences of 10 vectors of 128-dimensional
-    vectors). Also, you will need to fix shape of the previous layer,
-    since the weights can only be defined with determined output shape.
+    except that weights are unshared, that is, a different set of filters is
+    applied at each different patch of the input. When using this layer as the
+    first layer in a model, either provide the keyword argument `input_dim`
+    (int, e.g. 128 for sequences of 128-dimensional vectors), or `input_shape`
+    (tuple of integers, e.g. (10, 128) for sequences of 10 vectors of
+    128-dimensional vectors). Also, you will need to fix shape of the previous
+    layer, since the weights can only be defined with determined output shape.
 
     # Example
     ```python
@@ -52,7 +42,7 @@ class LocallyConnected1D(Layer):
             (ie. "linear" activation: a(x) = x).
         weights: list of numpy arrays to set as initial weights.
         border_mode: Only support 'valid'. Please make good use of
-            ZeroPadding1D to achieve same oupout_length.
+            ZeroPadding1D to achieve same output length.
         subsample_length: factor by which to subsample output.
         W_regularizer: instance of [WeightRegularizer](../regularizers.md)
             (eg. L1 or L2 regularization), applied to the main weights matrix.
@@ -157,7 +147,7 @@ class LocallyConnected1D(Layer):
 
         output = []
         for i in range(output_length):
-            slice_length = slice(i*stride, i*stride + self.filter_length)
+            slice_length = slice(i * stride, i * stride + self.filter_length)
             x_flatten = K.reshape(x[:, slice_length, :], (-1, feature_dim))
             output.append(K.dot(x_flatten, self.W[i, :, :]))
         output = K.reshape(K.concatenate(output), (-1, output_length, nb_filter))
@@ -188,16 +178,16 @@ class LocallyConnected1D(Layer):
 
 
 class LocallyConnected2D(Layer):
-    # TODO batch_dot
     '''LocallyConnected2D layer works almost the same as Convolution2D layer,
-    except that weights are unshared. When using this layer as the first layer
-    in a model, provide the keyword argument `input_shape` (tuple of integers,
-    does not include the sample axis), e.g. `input_shape=(3, 128, 128)` for
-    128x128 RGB pictures. Also, you will need to fix shape of the previous layer,
-    since the weights can only be defined with determined output shape.
+    except that weights are unshared, that is, a different set of filters is
+    applied at each different patch of the input. When using this layer as the
+    first layer in a model, provide the keyword argument `input_shape` (tuple
+    of integers, does not include the sample axis), e.g.
+    `input_shape=(3, 128, 128)` for 128x128 RGB pictures. Also, you will need
+    to fix shape of the previous layer, since the weights can only be defined
+    with determined output shape.
 
     # Examples
-
     ```python
         # apply a 3x3 unshared weights convolution with 64 output filters on a 32x32 image:
         model = Sequential()
@@ -226,7 +216,7 @@ class LocallyConnected2D(Layer):
             (ie. "linear" activation: a(x) = x).
         weights: list of numpy arrays to set as initial weights.
         border_mode: Only support 'valid'. Please make good use of
-            ZeroPadding2D to achieve same oupout shape.
+            ZeroPadding2D to achieve same output shape.
         subsample: tuple of length 2. Factor by which to subsample output.
             Also called strides elsewhere.
         W_regularizer: instance of [WeightRegularizer](../regularizers.md)
@@ -352,7 +342,6 @@ class LocallyConnected2D(Layer):
             raise Exception('Invalid dim_ordering: ' + self.dim_ordering)
 
     def call(self, x, mask=None):
-        # TODO: border_mode
         stride_row, stride_col = self.subsample
         output_row, output_col, feature_dim, nb_filter = self.W_shape
 
@@ -360,8 +349,8 @@ class LocallyConnected2D(Layer):
             output = []
             for i in range(output_row):
                 for j in range(output_col):
-                    slice_row = slice(i*stride_row, i*stride_row + self.nb_row)
-                    slice_col = slice(i*stride_col, i*stride_col + self.nb_col)
+                    slice_row = slice(i * stride_row, i * stride_row + self.nb_row)
+                    slice_col = slice(i * stride_col, i * stride_col + self.nb_col)
                     x_flatten = K.reshape(x[:, :, slice_row, slice_col], (-1, feature_dim))
                     output.append(K.dot(x_flatten, self.W[i, j, :, :]))
             output = K.reshape(K.concatenate(output), (-1, output_row, output_col, nb_filter))
@@ -370,8 +359,8 @@ class LocallyConnected2D(Layer):
             output = []
             for i in range(output_row):
                 for j in range(output_col):
-                    slice_row = slice(i*stride_row, i*stride_row + self.nb_row)
-                    slice_col = slice(i*stride_col, i*stride_col + self.nb_col)
+                    slice_row = slice(i * stride_row, i * stride_row + self.nb_row)
+                    slice_col = slice(i * stride_col, i * stride_col + self.nb_col)
                     x_flatten = K.reshape(x[:, slice_row, slice_col, :], (-1, feature_dim))
                     output.append(K.dot(x_flatten, self.W[i, j, :, :]))
             output = K.reshape(K.concatenate(output), (-1, output_row, output_col, nb_filter))
