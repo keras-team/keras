@@ -2346,24 +2346,9 @@ class Container(Layer):
             K.batch_set_value(weight_value_tuples)
         f.close()
 
-    def prepare_config(self):
+    def _updated_config(self):
         '''shared between different serialization methods'''
-        from six import string_types
         from keras import __version__ as keras_version
-
-        def prepare(obj):
-            if isinstance(obj, dict):
-                return {k: prepare(v) for k, v in obj.items()}
-            elif isinstance(obj, list):
-                return [prepare(v) for v in obj]
-            elif isinstance(obj, string_types):
-                return obj
-            elif isinstance(obj, object):
-                return obj.__class__.__name__
-            elif hasattr(obj, '__name__'):
-                return obj.__name__
-            else:
-                raise Exception('unable to get name for item ' + obj)
 
         config = self.get_config()
         model_config = {
@@ -2373,8 +2358,8 @@ class Container(Layer):
         }
 
         if hasattr(self, 'optimizer'):
-            model_config['optimizer'] = prepare(self.optimizer)
-            model_config['loss'] = prepare(self.loss)
+            model_config['optimizer'] = self.optimizer.get_config()
+            model_config['loss'] = self.loss.__class__.__name__
             model_config['sample_weight_mode'] = self.sample_weight_mode
 
         if hasattr(self, 'loss_weights'):
@@ -2400,7 +2385,7 @@ class Container(Layer):
 
             raise TypeError('Not JSON Serializable')
 
-        model_config = self.prepare_config()
+        model_config = self._updated_config()
         return json.dumps(model_config, default=get_json_type, **kwargs)
 
     def to_yaml(self, **kwargs):
@@ -2414,7 +2399,7 @@ class Container(Layer):
         functions / classes.
         '''
         import yaml
-        return yaml.dump(self.prepare_config(), **kwargs)
+        return yaml.dump(self._updated_config(), **kwargs)
 
     def summary(self):
         from keras.utils.layer_utils import print_summary
