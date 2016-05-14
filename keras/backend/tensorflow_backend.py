@@ -545,6 +545,8 @@ def repeat(x, n):
 
 
 def tile(x, n):
+    if not hasattr(n, 'shape') and not hasattr(n, '__len__'):
+        n = [n]
     return tf.tile(x, n)
 
 
