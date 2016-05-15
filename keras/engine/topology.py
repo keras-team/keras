@@ -1015,9 +1015,9 @@ def Input(shape=None, batch_shape=None,
         ```
     '''
     if not batch_shape:
-        assert shape, ('Please provide to Input either an `input_shape`' +
-                       ' or `batch_input_shape` argument. Note that ' +
-                       '`input_shape` does not include the batch '
+        assert shape, ('Please provide to Input either a `shape`' +
+                       ' or a `batch_shape` argument. Note that ' +
+                       '`shape` does not include the batch '
                        'dimension.')
         batch_shape = (None,) + tuple(shape)
     input_layer = InputLayer(batch_input_shape=batch_shape,
