@@ -1220,7 +1220,7 @@ class Merge(Layer):
             l2 = inputs[1]
             denominator = K.sqrt(K.batch_dot(l1, l1, self.dot_axes) *
                                  K.batch_dot(l2, l2, self.dot_axes))
-            denominator = K.maximum(denominator, 1e-15)
+            denominator = K.maximum(denominator, K.epsilon())
             output = K.batch_dot(l1, l2, self.dot_axes) / denominator
             output = K.expand_dims(output, 1)
             return output
