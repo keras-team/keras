@@ -91,6 +91,17 @@ class TestBackend(object):
                 assert_allclose(np_rep, th_rep, atol=1e-05)
                 assert_allclose(np_rep, tf_rep, atol=1e-05)
 
+    def test_tile(self):
+        shape = (3, 4)
+        arr = np.arange(np.prod(shape)).reshape(shape)
+        arr_th = KTH.variable(arr)
+        arr_tf = KTF.variable(arr)
+
+        n = (2, 1)
+        th_rep = KTH.eval(KTH.tile(arr_th, n))
+        tf_rep = KTF.eval(KTF.tile(arr_tf, n))
+        assert_allclose(tf_rep, th_rep, atol=1e-05)
+
     def test_value_manipulation(self):
         val = np.random.random((4, 2))
         xth = KTH.variable(val)

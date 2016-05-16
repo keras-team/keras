@@ -47,7 +47,7 @@ class BatchNormalization(Layer):
         Same shape as input.
 
     # References
-        - [Batch Normalization: Accelerating Deep Network Training by Reducing Internal Covariate Shift](http://arxiv.org/pdf/1502.03167v3.pdf)
+        - [Batch Normalization: Accelerating Deep Network Training by Reducing Internal Covariate Shift](http://jmlr.org/proceedings/papers/v37/ioffe15.html)
     '''
     def __init__(self, epsilon=1e-6, mode=0, axis=-1, momentum=0.9,
                  weights=None, beta_init='zero', gamma_init='one', **kwargs):
@@ -94,8 +94,8 @@ class BatchNormalization(Layer):
             std = K.mean(K.square(x - brodcast_mean) + self.epsilon, axis=reduction_axes)
             std = K.sqrt(std)
             brodcast_std = K.reshape(std, broadcast_shape)
-            mean_update = self.momentum * self.running_mean + (1-self.momentum) * mean
-            std_update = self.momentum * self.running_std + (1-self.momentum) * std
+            mean_update = self.momentum * self.running_mean + (1 - self.momentum) * mean
+            std_update = self.momentum * self.running_std + (1 - self.momentum) * std
             self.updates = [(self.running_mean, mean_update),
                             (self.running_std, std_update)]
             x_normed = (x - brodcast_mean) / (brodcast_std + self.epsilon)

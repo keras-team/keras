@@ -12,9 +12,9 @@ np.random.seed(1337)  # for reproducibility
 
 from keras.preprocessing import sequence
 from keras.models import Sequential
-from keras.layers.core import Dense, Dropout, Activation, Lambda
-from keras.layers.embeddings import Embedding
-from keras.layers.convolutional import Convolution1D
+from keras.layers import Dense, Dropout, Activation, Lambda
+from keras.layers import Embedding
+from keras.layers import Convolution1D
 from keras.datasets import imdb
 from keras import backend as K
 

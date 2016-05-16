@@ -3,7 +3,10 @@ from theano import tensor as T
 from theano.sandbox.rng_mrg import MRG_RandomStreams as RandomStreams
 from theano.tensor.signal import pool
 from theano.tensor.nnet import conv3d2d
-from theano.sandbox import softsign as T_softsign
+try:
+    from theano.tensor.nnet.nnet import softsign as T_softsign
+except ImportError:
+    from theano.sandbox.softsign import softsign as T_softsign
 import inspect
 import numpy as np
 from .common import _FLOATX, _EPSILON
@@ -484,6 +487,13 @@ def get_value(x):
     return x.get_value()
 
 
+def batch_get_value(xs):
+    '''Returns the value of more than one tensor variable,
+    as a list of Numpy arrays.
+    '''
+    return [get_value(x) for x in xs]
+
+
 def set_value(x, value):
     x.set_value(np.asarray(value, dtype=x.dtype))
 
@@ -727,7 +737,7 @@ def softplus(x):
 
 
 def softsign(x):
-    return T_softsign.softsign(x)
+    return T_softsign(x)
 
 
 def categorical_crossentropy(output, target, from_logits=False):

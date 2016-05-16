@@ -11,6 +11,7 @@ Here is the skeleton of a Keras layer. There are only three methods you need to 
 ```python
 from keras import backend as K
 from keras.engine.topology import Layer
+import numpy as np
 
 class MyLayer(Layer):
     def __init__(self, output_dim, **kwargs):
@@ -27,7 +28,7 @@ class MyLayer(Layer):
         return K.dot(x, self.W)
 
     def get_output_shape_for(self, input_shape):
-        return (input_shape[0] + self.output_dim)
+        return (input_shape[0], self.output_dim)
 ```
 
 The existing Keras layers provide ample examples of how to implement almost anything. Never hesitate to read the source code!

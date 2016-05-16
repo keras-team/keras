@@ -29,8 +29,7 @@ Five digits inverted:
 from __future__ import print_function
 from keras.models import Sequential
 from keras.engine.training import slice_X
-from keras.layers.core import Activation, TimeDistributedDense, RepeatVector
-from keras.layers import recurrent
+from keras.layers import Activation, TimeDistributedDense, RepeatVector, recurrent
 import numpy as np
 from six.moves import range
 

@@ -452,6 +452,7 @@ class Model(Container):
         self.optimizer = optimizers.get(optimizer)
         self.sample_weight_mode = sample_weight_mode
         self.loss = loss
+        self.loss_weights = loss_weights
 
         # prepare loss weights
         if loss_weights is None:
@@ -686,7 +687,7 @@ class Model(Container):
 
     def _make_predict_function(self):
         if not hasattr(self, 'predict_function'):
-            raise Exception('You must compile your model before using it.')
+            self.predict_function = None
         if self.predict_function is None:
             if self.uses_learning_phase:
                 inputs = self.inputs + [K.learning_phase()]
@@ -694,10 +695,11 @@ class Model(Container):
                 inputs = self.inputs
             # returns network outputs. Does not update weights.
             # Does update the network states.
+            kwargs = getattr(self, '_function_kwargs', {})
             self.predict_function = K.function(inputs,
                                                self.outputs,
                                                updates=self.state_updates,
-                                               **self._function_kwargs)
+                                               **kwargs)
 
     def _fit_loop(self, f, ins, out_labels=[], batch_size=32,
                   nb_epoch=100, verbose=1, callbacks=[],

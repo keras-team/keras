@@ -847,10 +847,11 @@ class Layer(object):
         if not params:
             return
         weight_value_tuples = []
-        for p, w in zip(params, weights):
-            if K.get_value(p).shape != w.shape:
+        param_values = K.batch_get_value(params)
+        for pv, p, w in zip(param_values, params, weights):
+            if pv.shape != w.shape:
                 raise Exception('Layer weight shape ' +
-                                str(K.get_value(p).shape) +
+                                str(pv.shape) +
                                 ' not compatible with '
                                 'provided weight shape ' + str(w.shape))
             weight_value_tuples.append((p, w))
@@ -861,10 +862,7 @@ class Layer(object):
         as a list of numpy arrays.
         '''
         params = self.trainable_weights + self.non_trainable_weights
-        weights = []
-        for p in params:
-            weights.append(K.get_value(p))
-        return weights
+        return K.batch_get_value(params)
 
     def get_config(self):
         '''Returns a Python dictionary (serializable)
@@ -1017,9 +1015,9 @@ def Input(shape=None, batch_shape=None,
         ```
     '''
     if not batch_shape:
-        assert shape, ('Please provide to Input either an `input_shape`' +
-                       ' or `batch_input_shape` argument. Note that ' +
-                       '`input_shape` does not include the batch '
+        assert shape, ('Please provide to Input either a `shape`' +
+                       ' or a `batch_shape` argument. Note that ' +
+                       '`shape` does not include the batch '
                        'dimension.')
         batch_shape = (None,) + tuple(shape)
     input_layer = InputLayer(batch_input_shape=batch_shape,
@@ -1222,6 +1220,7 @@ class Merge(Layer):
             l2 = inputs[1]
             denominator = K.sqrt(K.batch_dot(l1, l1, self.dot_axes) *
                                  K.batch_dot(l2, l2, self.dot_axes))
+            denominator = K.maximum(denominator, K.epsilon())
             output = K.batch_dot(l1, l2, self.dot_axes) / denominator
             output = K.expand_dims(output, 1)
             return output
@@ -1266,7 +1265,7 @@ class Merge(Layer):
             self.add_inbound_node(layers, node_indices, tensor_indices)
 
             outputs = self.inbound_nodes[-1].output_tensors
-            return outputs[0] # merge only returns a single tensor
+            return outputs[0]  # merge only returns a single tensor
         else:
             return self.call(inputs, mask)
 
@@ -1300,8 +1299,6 @@ class Merge(Layer):
                     break
                 output_shape[self.concat_axis] += shape[self.concat_axis]
             return tuple(output_shape)
-        elif self.mode == 'join':
-            return None
         elif self.mode == 'dot':
             shape1 = list(input_shapes[0])
             shape2 = list(input_shapes[1])
@@ -1402,7 +1399,7 @@ def merge(inputs, mode='sum', concat_axis=-1,
 
     # Arguments
         mode: string or lambda/function. If string, must be one
-            of: 'sum', 'mul', 'concat', 'ave', 'join', 'cos', 'dot'.
+            of: 'sum', 'mul', 'concat', 'ave', 'cos', 'dot'.
             If lambda/function, it should take as input a list of tensors
             and return a single tensor.
         concat_axis: integer, axis to use in mode `concat`.
@@ -2109,8 +2106,6 @@ class Container(Layer):
         return output_tensors, output_masks, output_shapes
 
     def get_config(self):
-        '''TODO: add keras version information
-        '''
         config = {
             'name': self.name,
         }
@@ -2275,7 +2270,7 @@ class Container(Layer):
         for layer in flattened_layers:
             g = f.create_group(layer.name)
             symbolic_weights = layer.trainable_weights + layer.non_trainable_weights
-            weight_values = layer.get_weights()
+            weight_values = K.batch_get_value(symbolic_weights)
             weight_names = []
             for i, (w, val) in enumerate(zip(symbolic_weights, weight_values)):
                 if hasattr(w, 'name') and w.name:
@@ -2350,6 +2345,26 @@ class Container(Layer):
             K.batch_set_value(weight_value_tuples)
         f.close()
 
+    def _updated_config(self):
+        '''shared between different serialization methods'''
+        from keras import __version__ as keras_version
+
+        config = self.get_config()
+        model_config = {
+            'class_name': self.__class__.__name__,
+            'config': config,
+            'keras_version': keras_version
+        }
+
+        if hasattr(self, 'optimizer'):
+            model_config['optimizer'] = self.optimizer.get_config()
+            model_config['loss'] = self.loss.__class__.__name__
+            model_config['sample_weight_mode'] = self.sample_weight_mode
+
+        if hasattr(self, 'loss_weights'):
+            model_config['loss_weights'] = self.loss_weights
+        return model_config
+
     def to_json(self, **kwargs):
         '''Returns a JSON string containing the network configuration.
 
@@ -2369,11 +2384,7 @@ class Container(Layer):
 
             raise TypeError('Not JSON Serializable')
 
-        config = self.get_config()
-        model_config = {
-            'class_name': self.__class__.__name__,
-            'config': config,
-        }
+        model_config = self._updated_config()
         return json.dumps(model_config, default=get_json_type, **kwargs)
 
     def to_yaml(self, **kwargs):
@@ -2387,12 +2398,7 @@ class Container(Layer):
         functions / classes.
         '''
         import yaml
-        config = self.get_config()
-        model_config = {
-            'class_name': self.__class__.__name__,
-            'config': config,
-        }
-        return yaml.dump(model_config, **kwargs)
+        return yaml.dump(self._updated_config(), **kwargs)
 
     def summary(self):
         from keras.utils.layer_utils import print_summary

@@ -20,7 +20,7 @@ Please cite Keras in your publications if it helps your research. Here is an exa
 
 ```
 @misc{chollet2015keras,
-  author = {Chollet, François},
+  author = {Chollet, Francois},
   title = {Keras},
   year = {2015},
   publisher = {GitHub},
@@ -146,7 +146,21 @@ layer_output = get_3rd_layer_output([X, 0])[0]
 layer_output = get_3rd_layer_output([X, 1])[0]
 ```
 
-Another more flexible way of getting output from intermediate layers is to use the [functional API](/getting-started/functional-api-guide).
+Another more flexible way of getting output from intermediate layers is to use the [functional API](/getting-started/functional-api-guide). For example, if you have created an autoencoder for MNIST:
+
+```python
+inputs = Input(shape=(784,))
+encoded = Dense(32, activation='relu')(inputs)
+decoded = Dense(784)(encoded)
+model = Model(input=inputs, output=decoded)
+```
+
+After compiling and training the model, you can get the output of the data from the encoder like this:
+
+```python
+encoder = Model(input=inputs, output=encoded)
+X_encoded = encoder.predict(X)
+```
 
 ---
 

@@ -2,7 +2,6 @@
 from __future__ import absolute_import
 import sys
 from six.moves import cPickle
-from six.moves import range
 
 
 def load_batch(fpath, label_key='labels'):
