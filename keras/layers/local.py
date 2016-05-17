@@ -355,6 +355,7 @@ class LocallyConnected2D(Layer):
                     xs.append(K.reshape(x[:, :, slice_row, slice_col], (1, -1, feature_dim)))
             x_aggregate = K.reshape(K.concatenate(xs, axis=0), (output_row, output_col, -1, feature_dim))
             output = K.batch_dot(x_aggregate, self.W)
+            output = K.reshape(output, (output_row, output_col, -1, feature_dim))
             output = K.permute_dimensions(output, (2, 3, 0, 1))
         elif self.dim_ordering == 'tf':
             xs = []
