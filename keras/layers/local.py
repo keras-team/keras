@@ -145,12 +145,13 @@ class LocallyConnected1D(Layer):
         stride = self.subsample_length
         output_length, feature_dim, nb_filter = self.W_shape
 
-        output = []
+        xs = []
         for i in range(output_length):
             slice_length = slice(i * stride, i * stride + self.filter_length)
-            x_flatten = K.reshape(x[:, slice_length, :], (-1, feature_dim))
-            output.append(K.dot(x_flatten, self.W[i, :, :]))
-        output = K.reshape(K.concatenate(output), (-1, output_length, nb_filter))
+            xs.append(K.reshape(x[:, slice_length, :], (1, -1, feature_dim)))
+        x_aggregate = K.concatenate(xs, axis=0)
+        output = K.batch_dot(x_aggregate, self.W) # (output_length, batch_size, nb_filter)
+        output = K.permute_dimensions(output, (1, 0, 2))
 
         if self.bias:
             output += K.reshape(self.b, (1, output_length, nb_filter))
@@ -346,24 +347,25 @@ class LocallyConnected2D(Layer):
         output_row, output_col, feature_dim, nb_filter = self.W_shape
 
         if self.dim_ordering == 'th':
-            output = []
+            xs = []
             for i in range(output_row):
                 for j in range(output_col):
                     slice_row = slice(i * stride_row, i * stride_row + self.nb_row)
                     slice_col = slice(i * stride_col, i * stride_col + self.nb_col)
-                    x_flatten = K.reshape(x[:, :, slice_row, slice_col], (-1, feature_dim))
-                    output.append(K.dot(x_flatten, self.W[i, j, :, :]))
-            output = K.reshape(K.concatenate(output), (-1, output_row, output_col, nb_filter))
-            output = K.permute_dimensions(output, (0, 3, 1, 2))
+                    xs.append(K.reshape(x[:, :, slice_row, slice_col], (1, -1, feature_dim)))
+            x_aggregate = K.reshape(K.concatenate(xs, axis=0), (output_row, output_col, -1, feature_dim))
+            output = K.batch_dot(x_aggregate, self.W)
+            output = K.permute_dimensions(output, (2, 3, 0, 1))
         elif self.dim_ordering == 'tf':
-            output = []
+            xs = []
             for i in range(output_row):
                 for j in range(output_col):
                     slice_row = slice(i * stride_row, i * stride_row + self.nb_row)
                     slice_col = slice(i * stride_col, i * stride_col + self.nb_col)
-                    x_flatten = K.reshape(x[:, slice_row, slice_col, :], (-1, feature_dim))
-                    output.append(K.dot(x_flatten, self.W[i, j, :, :]))
-            output = K.reshape(K.concatenate(output), (-1, output_row, output_col, nb_filter))
+                    xs.append(K.reshape(x[:, slice_row, slice_col, :], (1, -1, feature_dim)))
+            x_aggregate = K.reshape(K.concatenate(xs, axis=0), (output_row, output_col, -1, feature_dim))
+            output = K.batch_dot(x_aggregate, self.W)
+            output = K.permute_dimensions(output, (2, 0, 1, 3))
         else:
             raise Exception('Invalid dim_ordering: ' + self.dim_ordering)
 
