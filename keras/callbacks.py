@@ -462,8 +462,7 @@ class TensorBoard(Callback):
                                          layer.output)
         self.merged = tf.merge_all_summaries()
         if self.write_graph:
-            tf_version = tuple(int(i) for i in tf.__version__.split('.'))
-            if tf_version >= (0, 8, 0):
+            if tf.__version__ >= '0.8.0':
                 self.writer = tf.train.SummaryWriter(self.log_dir,
                                                      self.sess.graph)
             else:
