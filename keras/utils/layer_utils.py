@@ -37,7 +37,7 @@ def layer_from_config(config, custom_objects={}):
 
 def print_summary(layers, relevant_nodes=None, line_length=100, positions=[.33, .55, .67, 1.]):
     # line_length: total length of printed lines
-    # positions: absolute positions of log elements in each line
+    # positions: relative or absolute positions of log elements in each line
     if positions[-1] <= 1:
         positions = [int(line_length * p) for p in positions]
     # header names for the different log elements
