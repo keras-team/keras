@@ -443,7 +443,7 @@ class Nadam(Optimizer):
 
     def get_updates(self, params, constraints, loss):
         grads = self.get_gradients(loss, params)
-        self.updates = [ (self.iterations, self.iterations + 1) ]
+        self.updates = [(self.iterations, self.iterations + 1)]
 
         t = self.iterations + 1
 
@@ -455,8 +455,8 @@ class Nadam(Optimizer):
         m_schedule_next = self.m_schedule * momentum_cache_t * momentum_cache_t_1
         self.updates.append((self.m_schedule, m_schedule_new))
 
-        ms = [ K.variable(np.zeros(K.get_value(p).shape)) for p in params ]
-        vs = [ K.variable(np.zeros(K.get_value(p).shape)) for p in params ]
+        ms = [K.variable(np.zeros(K.get_value(p).shape)) for p in params]
+        vs = [K.variable(np.zeros(K.get_value(p).shape)) for p in params]
 
         self.weights = ms + vs
 
@@ -477,16 +477,16 @@ class Nadam(Optimizer):
 
             # apply constraints
             if p in constraints:
-                c = constraints[ p ]
+                c = constraints[p]
                 new_p = c(new_p)
             self.updates.append((p, new_p))
         return self.updates
 
     def get_config(self):
-        config = { 'lr': float(K.get_value(self.lr)),
-                   'beta_1': float(K.get_value(self.beta_1)),
-                   'beta_2': float(K.get_value(self.beta_2)),
-                   'epsilon': self.epsilon }
+        config = {'lr': float(K.get_value(self.lr)),
+                  'beta_1': float(K.get_value(self.beta_1)),
+                  'beta_2': float(K.get_value(self.beta_2)),
+                  'epsilon': self.epsilon}
         base_config = super(Nadam, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
