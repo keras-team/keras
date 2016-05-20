@@ -290,7 +290,9 @@ class LocallyConnected2D(Layer):
         else:
             raise Exception('Invalid dim_ordering: ' + self.dim_ordering)
 
-        self.W_shape = (output_row, output_col, self.nb_row * self.nb_col * input_filter, nb_filter)
+        self.output_row = output_row
+        self.output_col = output_col
+        self.W_shape = (output_row * output_col, self.nb_row * self.nb_col * input_filter, nb_filter)
         self.W = self.init(self.W_shape, name='{}_W'.format(self.name))
 
         if self.bias:
@@ -344,37 +346,48 @@ class LocallyConnected2D(Layer):
 
     def call(self, x, mask=None):
         stride_row, stride_col = self.subsample
-        output_row, output_col, feature_dim, nb_filter = self.W_shape
+        _, feature_dim, nb_filter = self.W_shape
 
         if self.dim_ordering == 'th':
-            xs = []
-            for i in range(output_row):
-                for j in range(output_col):
-                    slice_row = slice(i * stride_row, i * stride_row + self.nb_row)
-                    slice_col = slice(i * stride_col, i * stride_col + self.nb_col)
-                    xs.append(K.reshape(x[:, :, slice_row, slice_col], (1, -1, feature_dim)))
-            x_aggregate = K.reshape(K.concatenate(xs, axis=0), (output_row, output_col, -1, feature_dim))
-            output = K.batch_dot(x_aggregate, self.W)
-            output = K.reshape(output, (output_row, output_col, -1, feature_dim))
+            if K._backend == 'theano':
+                output = []
+                for i in range(self.output_row):
+                    for j in range(self.output_col):
+                        slice_row = slice(i * stride_row, i * stride_row + self.nb_row)
+                        slice_col = slice(j * stride_col, j * stride_col + self.nb_col)
+                        x_flatten = K.reshape(x[:, :, slice_row, slice_col], (1, -1, feature_dim))
+                        output.append(K.dot(x_flatten, self.W[i * self.output_col + j, :, :]))
+                output = K.concatenate(output, axis=0)
+            else:
+                xs = []
+                for i in range(self.output_row):
+                    for j in range(self.output_col):
+                        slice_row = slice(i * stride_row, i * stride_row + self.nb_row)
+                        slice_col = slice(j * stride_col, j * stride_col + self.nb_col)
+                        xs.append(K.reshape(x[:, :, slice_row, slice_col], (1, -1, feature_dim)))
+                x_aggregate = K.concatenate(xs, axis=0)
+                output = K.batch_dot(x_aggregate, self.W)
+            output = K.reshape(output, (self.output_row, self.output_col, -1, nb_filter))
             output = K.permute_dimensions(output, (2, 3, 0, 1))
         elif self.dim_ordering == 'tf':
             xs = []
-            for i in range(output_row):
-                for j in range(output_col):
+            for i in range(self.output_row):
+                for j in range(self.output_col):
                     slice_row = slice(i * stride_row, i * stride_row + self.nb_row)
-                    slice_col = slice(i * stride_col, i * stride_col + self.nb_col)
+                    slice_col = slice(j * stride_col, j * stride_col + self.nb_col)
                     xs.append(K.reshape(x[:, slice_row, slice_col, :], (1, -1, feature_dim)))
-            x_aggregate = K.reshape(K.concatenate(xs, axis=0), (output_row, output_col, -1, feature_dim))
+            x_aggregate = K.concatenate(xs, axis=0)
             output = K.batch_dot(x_aggregate, self.W)
+            output = K.reshape(output, (self.output_row, self.output_col, -1, nb_filter))
             output = K.permute_dimensions(output, (2, 0, 1, 3))
         else:
             raise Exception('Invalid dim_ordering: ' + self.dim_ordering)
 
         if self.bias:
             if self.dim_ordering == 'th':
-                output += K.reshape(self.b, (1, nb_filter, output_row, output_col))
+                output += K.reshape(self.b, (1, nb_filter, self.output_row, self.output_col))
             elif self.dim_ordering == 'tf':
-                output += K.reshape(self.b, (1, output_row, output_col, nb_filter))
+                output += K.reshape(self.b, (1, self.output_row, self.output_col, nb_filter))
             else:
                 raise Exception('Invalid dim_ordering: ' + self.dim_ordering)
 
