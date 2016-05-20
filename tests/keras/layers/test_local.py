@@ -4,7 +4,7 @@ from numpy.testing import assert_allclose
 
 from keras.utils.test_utils import layer_test
 from keras import backend as K
-import local
+from keras.layers import local
 
 
 def test_locallyconnected_1d():
@@ -37,7 +37,7 @@ def test_locallyconnected_1d():
 
 
 def test_locallyconnected_2d():
-    nb_samples = 7
+    nb_samples = 8
     nb_filter = 3
     stack_size = 4
     nb_row = 6
