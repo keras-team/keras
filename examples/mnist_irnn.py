@@ -3,7 +3,7 @@ with pixel-by-pixel sequential MNIST in
 "A Simple Way to Initialize Recurrent Networks of Rectified Linear Units"
 by Quoc V. Le, Navdeep Jaitly, Geoffrey E. Hinton
 
-arXiv:1504.00941v2 [cs.NE] 7 Apr 201
+arXiv:1504.00941v2 [cs.NE] 7 Apr 2015
 http://arxiv.org/pdf/1504.00941v2.pdf
 
 Optimizer is replaced with RMSprop which yields more stable and steady
