@@ -669,10 +669,10 @@ class ActivityRegularization(Layer):
         self.l1 = l1
         self.l2 = l2
 
+        super(ActivityRegularization, self).__init__(**kwargs)
         activity_regularizer = ActivityRegularizer(l1=l1, l2=l2)
         activity_regularizer.set_layer(self)
         self.regularizers = [activity_regularizer]
-        super(ActivityRegularization, self).__init__(**kwargs)
 
     def get_config(self):
         config = {'l1': self.l1,
