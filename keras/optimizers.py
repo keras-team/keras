@@ -421,6 +421,11 @@ class Nadam(Optimizer):
 
     Default parameters follow those provided in the paper.
 
+    Hard-coded values for warming momentum schedule calculation
+    (used in schedule_decay, momentum_cache_t, momentum_cache_t_1, lines 456-458)
+    are given in [1] with reference in [2] (p.4 eq.5) and strongly motivated
+    to keep these values hard-coded and constant.
+
     # Arguments
         lr: float >= 0. Learning rate.
         beta_1/beta_2: floats, 0 < beta < 1. Generally close to 1.
@@ -448,7 +453,7 @@ class Nadam(Optimizer):
         t = self.iterations + 1
 
         # Due to the recommendations in [2], i.e. warming momentum schedule
-        schedule_decay = 0.004 # Exactly given in [1] and [2]
+        schedule_decay = 0.004  # Exactly given in [1] and [2]
         momentum_cache_t = self.beta_1 * (1. - 0.5 * (K.pow(0.96, t * schedule_decay)))
         momentum_cache_t_1 = self.beta_1 * (1. - 0.5 * (K.pow(0.96, (t + 1) * schedule_decay)))
         m_schedule_new = self.m_schedule * momentum_cache_t
