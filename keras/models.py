@@ -11,9 +11,8 @@ from .legacy.models import Graph
 def model_from_config(config, custom_objects={}):
     from keras.utils.layer_utils import layer_from_config
     if isinstance(config, list):
-        raise Exception('model_fom_config expects a dictionary.'
-                        'To load an old-style config use the appropiate'
-                        '`load_config` method on Sequential or Graph')
+        raise Exception('`model_fom_config` expects a dictionary, not a list. '
+                        'Maybe you meant to use `Sequential.from_config(config)`?')
     return layer_from_config(config, custom_objects=custom_objects)
 
 
