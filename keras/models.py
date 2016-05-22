@@ -724,7 +724,7 @@ class Sequential(Model):
         return copy.deepcopy(config)
 
     @classmethod
-    def from_config(cls, config):
+    def from_config(cls, config, layer_cache={}):
         '''Supports legacy formats
         '''
         from keras.utils.layer_utils import layer_from_config
@@ -743,7 +743,19 @@ class Sequential(Model):
                 return new_config
             return conf
 
+        # the model we will return
         model = cls()
+
+        def get_or_create_layer(layer_data):
+            if layer_data['class_name'] == 'Sequential':
+                return Sequential.from_config(layer_data['config'],
+                                              layer_cache=layer_cache)
+            name = layer_data['config'].get('name')
+            if name in layer_cache:
+                return layer_cache[name]
+            layer = layer_from_config(layer_data)
+            layer_cache[name] = layer
+            return layer
 
         first_layer = config[0]
         first_layer = normalize_legacy_config(first_layer)
@@ -757,11 +769,11 @@ class Sequential(Model):
             merge = Merge.from_config(first_layer_config)
             model.add(merge)
         else:
-            layer = layer_from_config(first_layer)
+            layer = get_or_create_layer(first_layer)
             model.add(layer)
 
         for conf in config[1:]:
             conf = normalize_legacy_config(conf)
-            layer = layer_from_config(conf)
+            layer = get_or_create_layer(conf)
             model.add(layer)
         return model
