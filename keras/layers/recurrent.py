@@ -85,11 +85,9 @@ class Recurrent(Layer):
             If set to "cpu", the RNN will use
             an implementation that uses fewer, larger matrix products,
             thus running faster on CPU but consuming more memory.
-
             If set to "mem", the RNN will use more matrix products,
             but smaller ones, thus running slower (may actually be faster on GPU)
             while consuming less memory.
-
             If set to "gpu" (LSTM/GRU only), the RNN will combine the input gate,
             the forget gate and the output gate into a single matrix,
             enabling more time-efficient parallelization on the GPU. Note: RNN
