@@ -101,9 +101,6 @@ def generator_disturb_label(X, Y, batch_size = 32, shuffle = False, alpha = 0.1)
 
         yield (X_batch, Y_batch)
 
-
-
-
 def get_LeNet():
     '''
     Define the LeNet model.
@@ -135,8 +132,6 @@ def get_LeNet():
 
     return model
 
-
-
 if __name__ =='__main__':
     learning_rate = 0.01
     batch_size = 128
@@ -163,7 +158,7 @@ if __name__ =='__main__':
 
     if train_proportion < 1.:
         X_train, _, Y_train, _ = train_test_split(X_train, Y_train, train_size = train_proportion,
-                                random_state = 2016)
+                                                  random_state = 2016)
 
     model = get_LeNet()
     model.summary()
@@ -175,12 +170,12 @@ if __name__ =='__main__':
     best_model_file = "./lenet_mnist_weights.h5"
     best_model = ModelCheckpoint(best_model_file, monitor='val_acc', verbose = 1, save_best_only = True)
 
-    for i in range (3):
+    for i in range(3):
         if i != 0:
             # devide the learning rate by 10 for two times
             lr_old = K.get_value(optimizer.lr)
             K.set_value(optimizer.lr, 0.1 * lr_old)
-            print('Changing learning rate from %f to %f' % (lr_old, K.get_value(optimizer.lr)) )
+            print('Changing learning rate from %f to %f' % (lr_old, K.get_value(optimizer.lr)))
 
         # model training
         # model.fit(X_train, Y_train, batch_size = batch_size, nb_epoch = nb_epoch,
