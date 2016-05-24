@@ -1,4 +1,6 @@
 '''
+Pai Peng (pengpai_sh@163.com)
+
 An implementation of  "DisturbLabel" which randomly replaces a part of labels as incorrect
 values in each iteration, i.e. adding noises on the loss layer.
 
