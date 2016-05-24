@@ -36,7 +36,7 @@ from keras.preprocessing.image import ImageDataGenerator
 from keras.regularizers import l2
 from keras.optimizers import RMSprop, SGD
 from sklearn.cross_validation import train_test_split
-import tensorflow  as tf
+import tensorflow as tf
 
 
 # Allocate full of GPU resource to me
@@ -74,7 +74,8 @@ def building_residual_block(input_shape, n_feature_maps, kernel_sizes=None, n_sk
     #    E.g. the very first residual block (e.g. 1->64, 3->128, 128->256, ...)
     is_expand_channels = not (input_shape[0] == n_feature_maps)
     if is_expand_channels:
-        print ('      - Input channels: %d ---> num feature maps on out: %d' % (input_shape[0], n_feature_maps)  )
+        print ('      - Input channels: %d ---> num feature maps on out: %d' % (input_shape[0],
+               n_feature_maps))
     if is_subsample:
         print ('      - with subsample:', subsample)
     kernel_row, kernel_col = kernel_sizes
@@ -83,12 +84,12 @@ def building_residual_block(input_shape, n_feature_maps, kernel_sizes=None, n_sk
     # ***** SHORTCUT PATH *****
     if is_subsample: # subsample (+ channel expansion if needed)
         shortcut_y = Convolution2D(n_feature_maps, kernel_row, kernel_col,
-                                    subsample=subsample, W_regularizer=l2(0.0001),
-                                    border_mode='valid')(x)
+                                   subsample=subsample, W_regularizer=l2(0.0001),
+                                   border_mode='valid')(x)
     else: # channel expansion only (e.g. the very first layer of the whole networks)
         if is_expand_channels:
             shortcut_y = Convolution2D(n_feature_maps, 1, 1,
-                                    W_regularizer=l2(0.0001), border_mode='same')(x)
+                                       W_regularizer=l2(0.0001), border_mode='same')(x)
         else:
             # if no subsample and no channel expension, there's nothing to add on the shortcut.
             shortcut_y = x
@@ -99,10 +100,10 @@ def building_residual_block(input_shape, n_feature_maps, kernel_sizes=None, n_sk
         conv_y = Activation('relu')(conv_y)
         if i==0 and is_subsample: # [Subsample at layer 0 if needed]
             conv_y = Convolution2D(n_feature_maps, kernel_row, kernel_col,subsample=subsample,
-                                    W_regularizer=l2(0.0001),border_mode='valid')(conv_y)
+                                   W_regularizer=l2(0.0001),border_mode='valid')(conv_y)
         else:
             conv_y = Convolution2D(n_feature_maps, kernel_row, kernel_col,
-                                    W_regularizer=l2(0.0001), border_mode='same')(conv_y)
+                                   W_regularizer=l2(0.0001), border_mode='same')(conv_y)
     # output
     y = merge([shortcut_y, conv_y], mode='sum')
     block = Model(input=x, output=y)
@@ -122,27 +123,27 @@ def residual_model(n):
     # 1st 2n layer, 16 filters, output shape: (16, 32, 32)
     for i in range(2 * n):
         model.add(building_residual_block(input_shape = (16, 32, 32), n_feature_maps = 16,
-                kernel_sizes = (3, 3), n_skip = 2, is_subsample = False, subsample = None))
+                  kernel_sizes = (3, 3), n_skip = 2, is_subsample = False, subsample = None))
 
     # 2nd 2n layer, 32 filters, output shape: (32, 16, 16)
     for i in range(2 * n):
         # expand dimensions and half the outpu shape size
         if i == 0:
             model.add(building_residual_block(input_shape = (16, 32, 32), n_feature_maps = 32,
-                kernel_sizes = (3, 3), n_skip = 2, is_subsample = True, subsample = (2, 2)))
+                      kernel_sizes = (3, 3), n_skip = 2, is_subsample = True, subsample = (2, 2)))
         else:
             model.add(building_residual_block(input_shape = (32, 16, 16), n_feature_maps = 32,
-                kernel_sizes = (3, 3), n_skip = 2, is_subsample = False, subsample = None))
+                      kernel_sizes = (3, 3), n_skip = 2, is_subsample = False, subsample = None))
 
     # 3rd 2n layer, 64 filters, output shape: (64, 8, 8)
     for i in range(2 * n):
         # expand dimensions and half the outpu shape size
         if i == 0:
             model.add(building_residual_block(input_shape = (32, 16, 16), n_feature_maps = 64,
-                kernel_sizes = (3, 3), n_skip = 2, is_subsample = True, subsample = (2, 2)))
+                      kernel_sizes = (3, 3), n_skip = 2, is_subsample = True, subsample = (2, 2)))
         else:
             model.add(building_residual_block(input_shape = (64, 8, 8), n_feature_maps = 64,
-                kernel_sizes = (3, 3), n_skip = 2, is_subsample = False, subsample = None))
+                      kernel_sizes = (3, 3), n_skip = 2, is_subsample = False, subsample = None))
 
     # global averaging layer
     model.add(AveragePooling2D(pool_size = (7, 7)))
@@ -184,14 +185,13 @@ if __name__ =='__main__':
     # set n = 3 means get a model with 3*6+2=20 layers, set n = 9 means 9*6+2=56 layers
     model = residual_model(n = 3)
 
-    #optimizer = RMSprop(lr = learning_rate)
+    # optimizer = RMSprop(lr = learning_rate)
     optimizer = SGD(lr = learning_rate, momentum = 0.9, decay = 0.0, nesterov = True)
     model.compile(loss='categorical_crossentropy', optimizer = optimizer, metrics = ['accuracy'])
 
     # autosave best Model
     best_model_file = "./residual_cifar10_weights.h5"
     best_model = ModelCheckpoint(best_model_file, verbose = 1, save_best_only = True)
-
 
     # this will do preprocessing and realtime data augmentation
     datagen = ImageDataGenerator(
@@ -213,8 +213,7 @@ if __name__ =='__main__':
             # devide the learning rate by 10 for two times
             lr_old = K.get_value(optimizer.lr)
             K.set_value(optimizer.lr, 0.1 * lr_old)
-            print('Changing learning rate from %f to %f' % (lr_old, K.get_value(optimizer.lr)) )
-
+            print('Changing learning rate from %f to %f' % (lr_old, K.get_value(optimizer.lr)))
 
         if data_augment:
             # fit the model on the batches generated by datagen.flow()
