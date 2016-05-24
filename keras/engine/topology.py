@@ -2358,7 +2358,7 @@ class Container(Layer):
 
         if hasattr(self, 'optimizer'):
             model_config['optimizer'] = self.optimizer.get_config()
-            model_config['loss'] = self.loss.__class__.__name__
+            model_config['loss'] = getattr(self.loss, '__name__', self.loss)
             model_config['sample_weight_mode'] = self.sample_weight_mode
 
         if hasattr(self, 'loss_weights'):
