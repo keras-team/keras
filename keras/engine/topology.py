@@ -1600,7 +1600,7 @@ class Container(Layer):
         nodes_depths = {}  # map {node: depth value}
         layers_depths = {}  # map {layer: depth value}
 
-        def make_node_key(node, depth):
+        def make_node_marker(node, depth):
             return str(id(node)) + '-' + str(depth)
 
         def build_map_of_graph(tensor, seen_nodes=set(), depth=0,
@@ -1624,7 +1624,7 @@ class Container(Layer):
             node = layer.inbound_nodes[node_index]
 
             # prevent cycles
-            seen_nodes.add(make_node_key(node, depth))
+            seen_nodes.add(make_node_marker(node, depth))
 
             node_key = layer.name + '_ib-' + str(node_index)
             # update container_nodes
@@ -1636,11 +1636,12 @@ class Container(Layer):
             else:
                 nodes_depths[node] = max(depth, node_depth)
             # update layers_depths
-            layer_depth = layers_depths.get(layer)
-            if layer_depth is None:
-                layers_depths[layer] = depth
+            previously_seen_depth = layers_depths.get(layer)
+            if previously_seen_depth is None:
+                current_depth = depth
             else:
-                layers_depths[layer] = max(depth, layer_depth)
+                current_depth = max(depth, previously_seen_depth)
+            layers_depths[layer] = current_depth
 
             # propagate to all previous tensors connected to this node
             for i in range(len(node.inbound_layers)):
@@ -1649,9 +1650,10 @@ class Container(Layer):
                 node_index = node.node_indices[i]
                 tensor_index = node.tensor_indices[i]
                 next_node = layer.inbound_nodes[node_index]
-                node_key = make_node_key(next_node, depth + 1)
-                if node_key not in seen_nodes:
-                    build_map_of_graph(x, seen_nodes, depth + 1,
+                # use node_marker to prevent cycles
+                node_marker = make_node_marker(next_node, current_depth + 1)
+                if node_marker not in seen_nodes:
+                    build_map_of_graph(x, seen_nodes, current_depth + 1,
                                        layer, node_index, tensor_index)
 
         for x in self.outputs:
@@ -2186,9 +2188,9 @@ class Container(Layer):
         # the graph reconstruction process
         created_layers = {}
 
-        # iterate over saved layers, instantiate them,
-        # then call them on appropriate inputs to create graph nodes
-        for layer_data in config['layers']:
+        def process_layer(layer_data):
+            # iterate over saved layers, instantiate them,
+            # then call them on appropriate inputs to create graph nodes
             layer_name = layer_data['name']
 
             # instantiate layer
@@ -2213,6 +2215,10 @@ class Container(Layer):
                         layer(input_tensors[0])
                     else:
                         layer(input_tensors)
+
+        for layer_data in config['layers']:
+            process_layer(layer_data)
+
         name = config.get('name')
         input_tensors = []
         output_tensors = []
