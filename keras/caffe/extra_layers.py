@@ -27,8 +27,9 @@ class LRN2D(Layer):
         extra_channels = T.alloc(0., b, ch + 2*half_n, r, c)
         input_sqr = T.set_subtensor(extra_channels[:, half_n:half_n+ch, :, :],input_sqr)
         scale = self.k
+        norm_alpha = self.alpha / self.n
         for i in range(self.n):
-            scale += self.alpha / self.n * input_sqr[:, i:i+ch, :, :]
+            scale += norm_alpha * input_sqr[:, i:i+ch, :, :]
         scale = scale ** self.beta
         return X / scale
 
