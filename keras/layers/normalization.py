@@ -64,7 +64,8 @@ class BatchNormalization(Layer):
         self.axis = axis
         self.momentum = momentum
         self.initial_weights = weights
-        self.uses_learning_phase = True
+        if self.mode == 0:
+            self.uses_learning_phase = True
         super(BatchNormalization, self).__init__(**kwargs)
 
     def build(self, input_shape):
