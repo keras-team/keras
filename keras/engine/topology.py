@@ -1567,12 +1567,28 @@ class Container(Layer):
                 raise Exception('Output tensors to a ' + cls_name + ' must be '
                                 'Keras tensors. Found: ' + str(x))
         # build self.output_layers:
+        masks = []
         for x in self.outputs:
             layer, node_index, tensor_index = x._keras_history
             self.output_layers.append(layer)
             self.output_layers_node_indices.append(node_index)
             self.output_layers_tensor_indices.append(tensor_index)
-        # build self.output_layers:
+
+            # also fill in the output mask cache
+            node = layer.inbound_nodes[node_index]
+            mask = node.output_masks[tensor_index]
+            masks.append(mask)
+
+        # output mask cache
+        mask_cache_key = ','.join([str(id(x)) for x in self.inputs])
+        mask_cache_key += '_' + ','.join([str(id(x)) for x in masks])
+        if len(masks) == 1:
+            mask = masks[0]
+        else:
+            mask = masks
+        self._output_mask_cache[mask_cache_key] = mask
+
+        # build self.input_layers:
         for x in self.inputs:
             layer, node_index, tensor_index = x._keras_history
             # it's supposed to be an input layer, so only one node
