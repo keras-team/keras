@@ -29,7 +29,7 @@ Five digits inverted:
 from __future__ import print_function
 from keras.models import Sequential
 from keras.engine.training import slice_X
-from keras.layers import Activation, TimeDistributedDense, RepeatVector, recurrent
+from keras.layers import Activation, TimeDistributed, Dense, RepeatVector, recurrent
 import numpy as np
 from six.moves import range
 
@@ -139,7 +139,7 @@ for _ in range(LAYERS):
     model.add(RNN(HIDDEN_SIZE, return_sequences=True))
 
 # For each of step of the output sequence, decide which character should be chosen
-model.add(TimeDistributedDense(len(chars)))
+model.add(TimeDistributed(Dense(len(chars))))
 model.add(Activation('softmax'))
 
 model.compile(loss='categorical_crossentropy',

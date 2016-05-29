@@ -6,6 +6,7 @@ You can create a `Sequential` model by passing a list of layer instances to the 
 
 ```python
 from keras.models import Sequential
+from keras.layers import Dense, Activation
 
 model = Sequential([
     Dense(32, input_dim=784),
