@@ -1042,7 +1042,7 @@ class Model(Container):
         out_labels = self.metrics_names
 
         # rename duplicated metrics name
-        out_labels = map(lambda x: x[1] + str(out_labels[:x[0]].count(x[1]) + 1) if out_labels.count(x[1]) > 1 else x[1], enumerate(out_labels))
+        out_labels = list(map(lambda x: x[1] + str(out_labels[:x[0]].count(x[1]) + 1) if out_labels.count(x[1]) > 1 else x[1], enumerate(out_labels)))
 
         if do_validation:
             callback_metrics = copy.copy(out_labels) + ['val_' + n for n in out_labels]
