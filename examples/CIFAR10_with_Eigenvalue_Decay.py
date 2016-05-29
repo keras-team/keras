@@ -7,7 +7,7 @@ from keras.layers.convolutional import Convolution2D, MaxPooling2D
 from keras.optimizers import SGD
 from keras.utils import np_utils
 
-#Importing Eigenvalue Decay regularizer: 
+# Importing Eigenvalue Decay regularizer: 
 from keras.regularizers import EigenvalueRegularizer
 
 from keras.models import model_from_json
@@ -17,7 +17,7 @@ from keras.regularizers import l1, activity_l2
 batch_size = 32
 nb_classes = 10
 nb_epoch = 60
-data_augmentation = False#True
+data_augmentation = False
 
 # input image dimensions
 img_rows, img_cols = 32, 32
@@ -102,7 +102,7 @@ else:
                         
 model.save_weights('my_model_weights.h5')
 print('model weights trained with Eigenvalue decay saved')
-#Creating a new model, similar but without Eigenvalue Decay, to use with the weights adjusted with Eigenvalue Decay: 
+# Creating a new model, similar but without Eigenvalue Decay, to use with the weights adjusted with Eigenvalue Decay: 
 
 model = Sequential()
 
@@ -139,10 +139,10 @@ model.compile(loss='categorical_crossentropy',
               optimizer=sgd,
               metrics=['accuracy'])
 
-#Loading the weights trained with Eigenvalue Decay:
+# Loading the weights trained with Eigenvalue Decay:
 model.load_weights('my_model_weights.h5')
 
-#Showing the same results as before: 
+# Showing the same results as before: 
 score = model.evaluate(X_test, Y_test, verbose=0)
 print('Test score of saved model:', score[0])
 print('Test accuracy of saved model:', score[1])
