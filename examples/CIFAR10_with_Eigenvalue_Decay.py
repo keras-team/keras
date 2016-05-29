@@ -18,7 +18,7 @@ from keras.optimizers import SGD
 from keras.utils import np_utils
 
 #Importing Eigenvalue Decay regularizer: 
-from EigenvalueDecay import EigenvalueRegularizer
+from keras.regularizers import EigenvalueRegularizer
 
 from keras.models import model_from_json
 
