@@ -1,4 +1,6 @@
 from __future__ import absolute_import
+import theano.tensor as T
+import numpy as np
 from . import backend as K
 
 
@@ -14,6 +16,33 @@ class Regularizer(object):
 
     def get_config(self):
         return {'name': self.__class__.__name__}
+
+
+class EigenvalueRegularizer(Regularizer):
+    def __init__(self, k):
+        self.k = k
+        self.uses_learning_phase = True
+
+
+    def set_param(self, p):
+        self.p = p
+
+    def __call__(self, loss):
+        W = self.p
+        WW = T.dot(W.T,W)
+        dim1, dim2 = WW.shape.eval() #The number of neurons in the layer
+        k = self.k
+        o = np.ones(dim1) #initial values for the dominant eigenvector
+
+        #POWER METHOD FOR APPROXIMATING THE DOMINANT EIGENVECTOR (9 ITERATIONS):
+        domineigvec = T.dot(WW,T.dot(WW,T.dot(WW,T.dot(WW,T.dot(WW,T.dot(WW,T.dot(WW,T.dot(WW,T.dot(WW,o)))))))))
+
+        WWd = T.dot(WW,domineigvec)
+        domineigval = T.dot(WWd,domineigvec)/T.dot(domineigvec,domineigvec) #THE CORRESPONDING DOMINANT EIGENVALUE
+        regularized_loss = loss + (domineigval ** 0.5) * self.k #multiplied by the given regularization gain
+        return K.in_train_phase(regularized_loss, loss)
+
+
 
 
 class WeightRegularizer(Regularizer):
