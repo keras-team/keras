@@ -3,6 +3,7 @@ import theano.tensor as T
 import numpy as np
 from . import backend as K
 
+
 class Regularizer(object):
     def set_param(self, p):
         self.p = p
@@ -16,6 +17,7 @@ class Regularizer(object):
     def get_config(self):
         return {'name': self.__class__.__name__}
 
+
 class EigenvalueRegularizer(Regularizer):
     def __init__(self, k):
         self.k = k
@@ -25,19 +27,23 @@ class EigenvalueRegularizer(Regularizer):
         self.p = p
 
     def __call__(self, loss):
+        power = 9 # number of iterations of the power method
         W = self.p
-        WW = T.dot(W.T,W)
+        WW = T.dot(W.T, W)
         dim1, dim2 = WW.shape.eval() # The number of neurons in the layer
         k = self.k
         o = np.ones(dim1) # initial values for the dominant eigenvector
 
-        # POWER METHOD FOR APPROXIMATING THE DOMINANT EIGENVECTOR (9 ITERATIONS):
-        domineigvec = T.dot(WW,T.dot(WW,T.dot(WW,T.dot(WW,T.dot(WW,T.dot(WW,T.dot(WW,T.dot(WW,T.dot(WW,o)))))))))
-
-        WWd = T.dot(WW,domineigvec)
-        domineigval = T.dot(WWd,domineigvec)/T.dot(domineigvec,domineigvec) # THE CORRESPONDING DOMINANT EIGENVALUE
-        regularized_loss = loss + (domineigval ** 0.5) * self.k # multiplied by the given regularization gain
+        # power method for approximating the dominant eigenvector:
+        domin_eigenvect = T.dot(WW, o)
+        for n in range(power - 1):
+            domin_eigenvect = T.dot(WW, domin_eigenvect)    
+        
+        WWd = T.dot(WW, domin_eigenvect)
+        domin_eigenval = T.dot(WWd, domin_eigenvect) / T.dot(domin_eigenvect, domin_eigenvect) # the corresponding dominant eigenvalue
+        regularized_loss = loss + (domin_eigenval ** 0.5) * self.k # multiplied by the given regularization gain
         return K.in_train_phase(regularized_loss, loss)
+
 
 class WeightRegularizer(Regularizer):
     def __init__(self, l1=0., l2=0.):
@@ -67,6 +73,7 @@ class WeightRegularizer(Regularizer):
                 'l1': self.l1,
                 'l2': self.l2}
 
+
 class ActivityRegularizer(Regularizer):
     def __init__(self, l1=0., l2=0.):
         self.l1 = K.cast_to_floatx(l1)
@@ -93,23 +100,30 @@ class ActivityRegularizer(Regularizer):
                 'l1': self.l1,
                 'l2': self.l2}
 
+
 def l1(l=0.01):
     return WeightRegularizer(l1=l)
+
 
 def l2(l=0.01):
     return WeightRegularizer(l2=l)
 
+
 def l1l2(l1=0.01, l2=0.01):
     return WeightRegularizer(l1=l1, l2=l2)
+
 
 def activity_l1(l=0.01):
     return ActivityRegularizer(l1=l)
 
+
 def activity_l2(l=0.01):
     return ActivityRegularizer(l2=l)
 
+
 def activity_l1l2(l1=0.01, l2=0.01):
     return ActivityRegularizer(l1=l1, l2=l2)
+
 
 from .utils.generic_utils import get_from_module
 def get(identifier, kwargs=None):
