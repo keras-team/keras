@@ -56,8 +56,7 @@ def test_Eigenvalue_reg():
     reg = regularizers.EigenvalueRegularizer(0.01)
     model = create_model(weight_reg=reg)
     model.compile(loss='categorical_crossentropy', optimizer='rmsprop')
-    model.fit(X_train, Y_train, batch_size=batch_size,
-                nb_epoch=nb_epoch, verbose=0)
+    model.fit(X_train, Y_train, batch_size=batch_size, nb_epoch=nb_epoch, verbose=0)
     model.evaluate(X_test[test_ids, :], Y_test[test_ids, :], verbose=0)
     
     
