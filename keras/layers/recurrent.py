@@ -2,6 +2,10 @@
 from __future__ import absolute_import
 import numpy as np
 
+import types
+import theano
+import theano.tensor as T
+
 from .. import backend as K
 from .. import activations, initializations, regularizers
 from ..layers.core import MaskedLayer
@@ -694,3 +698,79 @@ class LSTM(Recurrent):
                   "dropout_U": self.dropout_U}
         base_config = super(LSTM, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
+
+
+
+
+
+def _get_reversed_input(self, train=False):
+    if hasattr(self, 'previous'):
+        X = self.previous.get_output(train=train)
+    else:
+        X = self.input
+    return X[::-1]
+
+class Bidirectional(Recurrent):
+    def __init__(self, forward=None, backward=None, return_sequences=False,
+                 forward_conf=None, backward_conf=None):
+        assert forward is not None or forward_conf is not None, "Must provide a forward RNN or a forward configuration"
+        assert backward is not None or backward_conf is not None, "Must provide a backward RNN or a backward configuration"
+        super(Bidirectional, self).__init__()
+        if forward is not None:
+            self.forward = forward
+        else:
+            # Must import inside the function, because in order to support loading
+            # we must import this module inside layer_utils... ugly
+            from keras.utils.layer_utils import container_from_config
+            self.forward = container_from_config(forward_conf)
+        if backward is not None:
+            self.backward = backward
+        else:
+            from keras.utils.layer_utils import container_from_config
+            self.backward = container_from_config(backward_conf)
+        self.return_sequences = return_sequences
+        self.output_dim = self.forward.output_dim + self.backward.output_dim
+
+        if not (self.return_sequences == self.forward.return_sequences == self.backward.return_sequences):
+            raise ValueError("Make sure 'return_sequences' is equal for self,"
+                             " forward and backward.")
+
+    def build(self):
+        self.input = T.tensor3()
+        self.forward.input = self.input
+        self.backward.input = self.input
+        self.forward.build()
+        self.backward.build()
+        self.trainable_weights = self.forward.trainable_weights + self.backward.trainable_weights
+
+    def set_previous(self, layer):
+        assert self.nb_input == layer.nb_output == 1, "Cannot connect layers: input count and output count should be 1."
+        if hasattr(self, 'input_ndim'):
+            assert self.input_ndim == len(layer.output_shape), "Incompatible shapes: layer expected input with ndim=" +\
+                str(self.input_ndim) + " but previous layer has output_shape " + str(layer.output_shape)
+        self.forward.set_previous(layer)
+        self.backward.set_previous(layer)
+        self.backward.get_input = types.MethodType(_get_reversed_input, self.backward)
+        self.previous = layer
+        self.build()
+
+    @property
+    def output_shape(self):
+        input_shape = self.input_shape
+        output_dim = self.output_dim
+        if self.return_sequences:
+            return (input_shape[0], input_shape[1], output_dim)
+        else:
+            return (input_shape[0], output_dim)
+
+    def get_output(self, train=False):
+        Xf = self.forward.get_output(train)
+        Xb = self.backward.get_output(train)
+        Xb = Xb[::-1]
+        return T.concatenate([Xf, Xb], axis=-1)
+
+    def get_config(self):
+        return {'name': self.__class__.__name__,
+                'forward_conf': self.forward.get_config(),
+                'backward_conf': self.backward.get_config(),
+                'return_sequences': self.return_sequences}
