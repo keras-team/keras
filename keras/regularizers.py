@@ -44,7 +44,7 @@ class EigenvalueRegularizer(Regularizer):
     def __call__(self, loss):
         power = 9  # number of iterations of the power method
         W = self.p
-        WW = K.dot(W.T, W)
+        WW = K.dot(K.transpose(W), W)
         dim1, dim2 = WW.shape.eval()  # The number of neurons in the layer
         k = self.k
         o = np.ones(dim1)  # initial values for the dominant eigenvector
