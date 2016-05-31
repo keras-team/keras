@@ -1060,10 +1060,14 @@ class Merge(Layer):
             and return a single tensor.
         concat_axis: integer, axis to use in mode `concat`.
         dot_axes: integer or tuple of integers, axes to use in mode `dot`.
-        output_shape: shape tuple (tuple of integers), or lambda/function
-            to compute output_shape (only if merge mode is a lambda/function).
-            If the latter case, it should take as input a list of shape tuples
-            (1:1 mapping to input tensors) and return a single shape tuple.
+        output_shape: either a shape tuple (tuple of integers), or a lambda/function
+            to compute `output_shape` (only if merge mode is a lambda/function).
+            If the argument is a tuple,
+            it should be expected output shape, *not* including the batch size
+            (same convention as the `input_shape` argument in layers).
+            If the argument is callable, it should take as input a list of shape tuples
+            (1:1 mapping to input tensors) and return a single shape tuple, including the
+            batch size (same convention as the `get_output_shape_for` method of layers).
         node_indices: optional list of integers containing
             the output node index for each input layer
             (in case some input layers have multiple output nodes).
@@ -1110,7 +1114,6 @@ class Merge(Layer):
                 node_indices = [0 for _ in range(len(layers))]
             self._arguments_validation(layers, mode,
                                        concat_axis, dot_axes,
-                                       output_shape,
                                        node_indices, tensor_indices)
             self.built = True
             self.add_inbound_node(layers, node_indices, tensor_indices)
@@ -1118,7 +1121,7 @@ class Merge(Layer):
             self.built = False
 
     def _arguments_validation(self, layers, mode, concat_axis, dot_axes,
-                              output_shape, node_indices, tensor_indices):
+                              node_indices, tensor_indices):
         '''Validates user-passed arguments and raises exceptions
         as appropriate.
         '''
@@ -1259,7 +1262,6 @@ class Merge(Layer):
                 tensor_indices.append(tensor_index)
             self._arguments_validation(layers, self.mode,
                                        self.concat_axis, self.dot_axes,
-                                       self._output_shape,
                                        node_indices, tensor_indices)
             self.built = True
             self.add_inbound_node(layers, node_indices, tensor_indices)
@@ -1277,7 +1279,7 @@ class Merge(Layer):
                 output_shape = self._output_shape(input_shape)
                 return output_shape
             elif self._output_shape is not None:
-                return self._output_shape
+                return (input_shape[0],) + tuple(self._output_shape)
             else:
                 # TODO: consider shape auto-inference with TF
                 raise Exception('The Merge layer ' + self.name +
@@ -1302,7 +1304,7 @@ class Merge(Layer):
         elif self.mode == 'dot':
             shape1 = list(input_shapes[0])
             shape2 = list(input_shapes[1])
-            dot_axes = [a-1 for a in self.dot_axes]
+            dot_axes = [a - 1 for a in self.dot_axes]
             tensordot_output = np.tensordot(np.zeros(tuple(shape1[1:])),
                                             np.zeros(tuple(shape2[1:])),
                                             axes=dot_axes)
@@ -1327,9 +1329,9 @@ class Merge(Layer):
 
         if isinstance(self.mode, python_types.LambdaType):
             if py3:
-                mode = marshal.dumps(self.mode.__code__)
+                mode = marshal.dumps(self.mode.__code__).decode('raw_unicode_escape')
             else:
-                mode = marshal.dumps(self.mode.func_code)
+                mode = marshal.dumps(self.mode.func_code).decode('raw_unicode_escape')
             mode_type = 'lambda'
         elif callable(self.mode):
             mode = self.mode.__name__
@@ -1365,7 +1367,7 @@ class Merge(Layer):
         if mode_type == 'function':
             mode = globals()[config['mode']]
         elif mode_type == 'lambda':
-            mode = marshal.loads(config['mode'])
+            mode = marshal.loads(config['mode'].encode('raw_unicode_escape'))
             mode = python_types.FunctionType(mode, globals())
         else:
             mode = config['mode']
@@ -1567,12 +1569,28 @@ class Container(Layer):
                 raise Exception('Output tensors to a ' + cls_name + ' must be '
                                 'Keras tensors. Found: ' + str(x))
         # build self.output_layers:
+        masks = []
         for x in self.outputs:
             layer, node_index, tensor_index = x._keras_history
             self.output_layers.append(layer)
             self.output_layers_node_indices.append(node_index)
             self.output_layers_tensor_indices.append(tensor_index)
-        # build self.output_layers:
+
+            # also fill in the output mask cache
+            node = layer.inbound_nodes[node_index]
+            mask = node.output_masks[tensor_index]
+            masks.append(mask)
+
+        # output mask cache
+        mask_cache_key = ','.join([str(id(x)) for x in self.inputs])
+        mask_cache_key += '_' + ','.join([str(id(x)) for x in masks])
+        if len(masks) == 1:
+            mask = masks[0]
+        else:
+            mask = masks
+        self._output_mask_cache[mask_cache_key] = mask
+
+        # build self.input_layers:
         for x in self.inputs:
             layer, node_index, tensor_index = x._keras_history
             # it's supposed to be an input layer, so only one node
@@ -1600,7 +1618,7 @@ class Container(Layer):
         nodes_depths = {}  # map {node: depth value}
         layers_depths = {}  # map {layer: depth value}
 
-        def make_node_key(node, depth):
+        def make_node_marker(node, depth):
             return str(id(node)) + '-' + str(depth)
 
         def build_map_of_graph(tensor, seen_nodes=set(), depth=0,
@@ -1624,7 +1642,7 @@ class Container(Layer):
             node = layer.inbound_nodes[node_index]
 
             # prevent cycles
-            seen_nodes.add(make_node_key(node, depth))
+            seen_nodes.add(make_node_marker(node, depth))
 
             node_key = layer.name + '_ib-' + str(node_index)
             # update container_nodes
@@ -1636,11 +1654,12 @@ class Container(Layer):
             else:
                 nodes_depths[node] = max(depth, node_depth)
             # update layers_depths
-            layer_depth = layers_depths.get(layer)
-            if layer_depth is None:
-                layers_depths[layer] = depth
+            previously_seen_depth = layers_depths.get(layer)
+            if previously_seen_depth is None:
+                current_depth = depth
             else:
-                layers_depths[layer] = max(depth, layer_depth)
+                current_depth = max(depth, previously_seen_depth)
+            layers_depths[layer] = current_depth
 
             # propagate to all previous tensors connected to this node
             for i in range(len(node.inbound_layers)):
@@ -1649,9 +1668,10 @@ class Container(Layer):
                 node_index = node.node_indices[i]
                 tensor_index = node.tensor_indices[i]
                 next_node = layer.inbound_nodes[node_index]
-                node_key = make_node_key(next_node, depth + 1)
-                if node_key not in seen_nodes:
-                    build_map_of_graph(x, seen_nodes, depth + 1,
+                # use node_marker to prevent cycles
+                node_marker = make_node_marker(next_node, current_depth + 1)
+                if node_marker not in seen_nodes:
+                    build_map_of_graph(x, seen_nodes, current_depth + 1,
                                        layer, node_index, tensor_index)
 
         for x in self.outputs:
@@ -2186,9 +2206,9 @@ class Container(Layer):
         # the graph reconstruction process
         created_layers = {}
 
-        # iterate over saved layers, instantiate them,
-        # then call them on appropriate inputs to create graph nodes
-        for layer_data in config['layers']:
+        def process_layer(layer_data):
+            # iterate over saved layers, instantiate them,
+            # then call them on appropriate inputs to create graph nodes
             layer_name = layer_data['name']
 
             # instantiate layer
@@ -2213,6 +2233,10 @@ class Container(Layer):
                         layer(input_tensors[0])
                     else:
                         layer(input_tensors)
+
+        for layer_data in config['layers']:
+            process_layer(layer_data)
+
         name = config.get('name')
         input_tensors = []
         output_tensors = []
@@ -2358,7 +2382,7 @@ class Container(Layer):
 
         if hasattr(self, 'optimizer'):
             model_config['optimizer'] = self.optimizer.get_config()
-            model_config['loss'] = self.loss.__class__.__name__
+            model_config['loss'] = getattr(self.loss, '__name__', self.loss)
             model_config['sample_weight_mode'] = self.sample_weight_mode
 
         if hasattr(self, 'loss_weights'):

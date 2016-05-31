@@ -24,22 +24,22 @@ def basic_batchnorm_test():
                input_shape=(3, 4, 2))
 
 
-def test_batchnorm_mode_0():
-    model = Sequential()
-    norm_m0 = normalization.BatchNormalization(mode=0, input_shape=(10,))
-    model.add(norm_m0)
-    model.compile(loss='mse', optimizer='sgd')
+def test_batchnorm_mode_0_or_2():
+    for mode in [0, 2]:
+        model = Sequential()
+        norm_m0 = normalization.BatchNormalization(mode=mode, input_shape=(10,))
+        model.add(norm_m0)
+        model.compile(loss='mse', optimizer='sgd')
 
-    # centered on 5.0, variance 10.0
-    X = np.random.normal(loc=5.0, scale=10.0, size=(1000, 10))
-    model.fit(X, X, nb_epoch=5, verbose=0)
-    out = norm_m0.call(K.variable(X))
-    out -= norm_m0.beta
-    out /= norm_m0.gamma
-    np_out = K.function([K.learning_phase()], [out])([1.])[0]
+        # centered on 5.0, variance 10.0
+        X = np.random.normal(loc=5.0, scale=10.0, size=(1000, 10))
+        model.fit(X, X, nb_epoch=5, verbose=0)
+        out = model.predict(X)
+        out -= K.eval(norm_m0.beta)
+        out /= K.eval(norm_m0.gamma)
 
-    assert_allclose(np_out.mean(), 0.0, atol=1e-1)
-    assert_allclose(np_out.std(), 1.0, atol=1e-1)
+        assert_allclose(out.mean(), 0.0, atol=1e-1)
+        assert_allclose(out.std(), 1.0, atol=1e-1)
 
 
 def test_batchnorm_mode_0_convnet():
@@ -51,13 +51,12 @@ def test_batchnorm_mode_0_convnet():
     # centered on 5.0, variance 10.0
     X = np.random.normal(loc=5.0, scale=10.0, size=(1000, 3, 4, 4))
     model.fit(X, X, nb_epoch=5, verbose=0)
-    out = norm_m0.call(K.variable(X))
-    out -= K.reshape(norm_m0.beta, (1, 3, 1, 1))
-    out /= K.reshape(norm_m0.gamma, (1, 3, 1, 1))
-    np_out = K.function([K.learning_phase()], [out])([1.])[0]
+    out = model.predict(X)
+    out -= np.reshape(K.eval(norm_m0.beta), (1, 3, 1, 1))
+    out /= np.reshape(K.eval(norm_m0.gamma), (1, 3, 1, 1))
 
-    assert_allclose(np.mean(np_out, axis=(0, 2, 3)), 0.0, atol=1e-1)
-    assert_allclose(np.std(np_out, axis=(0, 2, 3)), 1.0, atol=1e-1)
+    assert_allclose(np.mean(out, axis=(0, 2, 3)), 0.0, atol=1e-1)
+    assert_allclose(np.std(out, axis=(0, 2, 3)), 1.0, atol=1e-1)
 
 
 def test_batchnorm_mode_1():
