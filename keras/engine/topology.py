@@ -1327,9 +1327,9 @@ class Merge(Layer):
 
         if isinstance(self.mode, python_types.LambdaType):
             if py3:
-                mode = marshal.dumps(self.mode.__code__)
+                mode = marshal.dumps(self.mode.__code__).decode('raw_unicode_escape')
             else:
-                mode = marshal.dumps(self.mode.func_code)
+                mode = marshal.dumps(self.mode.func_code).decode('raw_unicode_escape')
             mode_type = 'lambda'
         elif callable(self.mode):
             mode = self.mode.__name__
@@ -1365,7 +1365,7 @@ class Merge(Layer):
         if mode_type == 'function':
             mode = globals()[config['mode']]
         elif mode_type == 'lambda':
-            mode = marshal.loads(config['mode'])
+            mode = marshal.loads(config['mode'].encode('raw_unicode_escape'))
             mode = python_types.FunctionType(mode, globals())
         else:
             mode = config['mode']
