@@ -27,12 +27,12 @@ class EigenvalueRegularizer(Regularizer):
         self.p = p
 
     def __call__(self, loss):
-        power = 9 # number of iterations of the power method
+        power = 9  # number of iterations of the power method
         W = self.p
         WW = T.dot(W.T, W)
-        dim1, dim2 = WW.shape.eval() # The number of neurons in the layer
+        dim1, dim2 = WW.shape.eval()  # The number of neurons in the layer
         k = self.k
-        o = np.ones(dim1) # initial values for the dominant eigenvector
+        o = np.ones(dim1)  # initial values for the dominant eigenvector
 
         # power method for approximating the dominant eigenvector:
         domin_eigenvect = T.dot(WW, o)
@@ -40,8 +40,8 @@ class EigenvalueRegularizer(Regularizer):
             domin_eigenvect = T.dot(WW, domin_eigenvect)    
         
         WWd = T.dot(WW, domin_eigenvect)
-        domin_eigenval = T.dot(WWd, domin_eigenvect) / T.dot(domin_eigenvect, domin_eigenvect) # the corresponding dominant eigenvalue
-        regularized_loss = loss + (domin_eigenval ** 0.5) * self.k # multiplied by the given regularization gain
+        domin_eigenval = T.dot(WWd, domin_eigenvect) / T.dot(domin_eigenvect, domin_eigenvect)  # the corresponding dominant eigenvalue
+        regularized_loss = loss + (domin_eigenval ** 0.5) * self.k  # multiplied by the given regularization gain
         return K.in_train_phase(regularized_loss, loss)
 
 
