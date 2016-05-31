@@ -1060,10 +1060,14 @@ class Merge(Layer):
             and return a single tensor.
         concat_axis: integer, axis to use in mode `concat`.
         dot_axes: integer or tuple of integers, axes to use in mode `dot`.
-        output_shape: shape tuple (tuple of integers), or lambda/function
-            to compute output_shape (only if merge mode is a lambda/function).
-            If the latter case, it should take as input a list of shape tuples
-            (1:1 mapping to input tensors) and return a single shape tuple.
+        output_shape: either a shape tuple (tuple of integers), or a lambda/function
+            to compute `output_shape` (only if merge mode is a lambda/function).
+            If the argument is a tuple,
+            it should be expected output shape, *not* including the batch size
+            (same convention as the `input_shape` argument in layers).
+            If the argument is callable, it should take as input a list of shape tuples
+            (1:1 mapping to input tensors) and return a single shape tuple, including the
+            batch size (same convention as the `get_output_shape_for` method of layers).
         node_indices: optional list of integers containing
             the output node index for each input layer
             (in case some input layers have multiple output nodes).
@@ -1110,7 +1114,6 @@ class Merge(Layer):
                 node_indices = [0 for _ in range(len(layers))]
             self._arguments_validation(layers, mode,
                                        concat_axis, dot_axes,
-                                       output_shape,
                                        node_indices, tensor_indices)
             self.built = True
             self.add_inbound_node(layers, node_indices, tensor_indices)
@@ -1118,7 +1121,7 @@ class Merge(Layer):
             self.built = False
 
     def _arguments_validation(self, layers, mode, concat_axis, dot_axes,
-                              output_shape, node_indices, tensor_indices):
+                              node_indices, tensor_indices):
         '''Validates user-passed arguments and raises exceptions
         as appropriate.
         '''
@@ -1259,7 +1262,6 @@ class Merge(Layer):
                 tensor_indices.append(tensor_index)
             self._arguments_validation(layers, self.mode,
                                        self.concat_axis, self.dot_axes,
-                                       self._output_shape,
                                        node_indices, tensor_indices)
             self.built = True
             self.add_inbound_node(layers, node_indices, tensor_indices)
@@ -1277,7 +1279,7 @@ class Merge(Layer):
                 output_shape = self._output_shape(input_shape)
                 return output_shape
             elif self._output_shape is not None:
-                return self._output_shape
+                return (input_shape[0],) + self._output_shape
             else:
                 # TODO: consider shape auto-inference with TF
                 raise Exception('The Merge layer ' + self.name +
@@ -1302,7 +1304,7 @@ class Merge(Layer):
         elif self.mode == 'dot':
             shape1 = list(input_shapes[0])
             shape2 = list(input_shapes[1])
-            dot_axes = [a-1 for a in self.dot_axes]
+            dot_axes = [a - 1 for a in self.dot_axes]
             tensordot_output = np.tensordot(np.zeros(tuple(shape1[1:])),
                                             np.zeros(tuple(shape2[1:])),
                                             axes=dot_axes)
