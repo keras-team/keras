@@ -47,7 +47,7 @@ class EigenvalueRegularizer(Regularizer):
         WW = K.dot(K.transpose(W), W)
         k = self.k
         o = K.ones_like(WW)
-        o = o[:, 0]  # initial values for the dominant eigenvector
+        o = o[0, :]  # initial values for the dominant eigenvector
 
         # power method for approximating the dominant eigenvector:
         domin_eigenvect = K.dot(WW, o)
