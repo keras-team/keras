@@ -41,8 +41,8 @@ class WeightRegularizer(Regularizer):
 
     def get_config(self):
         return {'name': self.__class__.__name__,
-                'l1': self.l1,
-                'l2': self.l2}
+                'l1': float(self.l1),
+                'l2': float(self.l2)}
 
 
 class ActivityRegularizer(Regularizer):
@@ -68,8 +68,8 @@ class ActivityRegularizer(Regularizer):
 
     def get_config(self):
         return {'name': self.__class__.__name__,
-                'l1': self.l1,
-                'l2': self.l2}
+                'l1': float(self.l1),
+                'l2': float(self.l2)}
 
 
 def l1(l=0.01):
