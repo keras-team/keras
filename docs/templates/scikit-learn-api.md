@@ -1,4 +1,4 @@
-# Wrappers for the Sciki-Learn API
+# Wrappers for the Scikit-Learn API
 
 You can use `Sequential` Keras models (single-input only) as part of your Scikit-Learn workflow via the wrappers found at `keras.wrappers.sklearn.py`.
 
