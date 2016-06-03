@@ -972,8 +972,10 @@ class TimeDistributedDense(Layer):
 
     # Input shape
         3D tensor with shape `(nb_sample, time_dimension, input_dim)`.
+
     # Output shape
         3D tensor with shape `(nb_sample, time_dimension, output_dim)`.
+
     # Arguments
         output_dim: int > 0.
         init: name of initialization function for the weights of the layer
