@@ -441,11 +441,3 @@ class ImageDataGenerator(object):
             sigma = np.dot(flatX.T, flatX) / flatX.shape[1]
             U, S, V = linalg.svd(sigma)
             self.principal_components = np.dot(np.dot(U, np.diag(1. / np.sqrt(S + 10e-7))), U.T)
-
-
-class GraphImageDataGenerator(ImageDataGenerator):
-    '''Example of how to build a generator for a Graph model
-    '''
-    def next(self):
-        bX, bY = super(GraphImageDataGenerator, self).next()
-        return {'input': bX, 'output': bY}

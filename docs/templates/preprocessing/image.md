@@ -41,6 +41,9 @@ Generate batches of tensor image data with real-time data augmentation. The data
     - __dim_ordering__: One of {"th", "tf"}.
         "tf" mode means that the images should have shape `(samples, width, height, channels)`,
         "th" mode means that the images should have shape `(samples, channels, width, height)`.
+        It defaults to the `image_dim_ordering` value found in your
+        Keras config file at `~/.keras/keras.json`.
+        If you never set it, then it will be "th".
 
 - __Methods__:
     - __fit(X)__: Required if featurewise_center or featurewise_std_normalization or zca_whitening. Compute necessary quantities on some sample data.
