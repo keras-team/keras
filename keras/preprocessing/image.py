@@ -1,4 +1,4 @@
-'''Fairly basic set of tools for realtime data augmentation on image data.
+'''Fairly basic set of tools for real-time data augmentation on image data.
 Can easily be extended to include new transformations,
 new preprocessing methods, etc...
 '''
@@ -11,6 +11,8 @@ import scipy.ndimage as ndi
 from six.moves import range
 import os
 import threading
+
+from .. import backend as K
 
 
 def random_rotation(x, rg, row_index=1, col_index=2, channel_index=0,
@@ -115,7 +117,7 @@ def flip_axis(x, axis):
     return x
 
 
-def array_to_img(x, dim_ordering='th', scale=True):
+def array_to_img(x, dim_ordering=K.image_dim_ordering(), scale=True):
     from PIL import Image
     if dim_ordering == 'th':
         x = x.transpose(1, 2, 0)
@@ -134,7 +136,7 @@ def array_to_img(x, dim_ordering='th', scale=True):
 
 
 # only used by tests/keras/preprocessing/test_image.py to convert PIL.Image to numpy array
-def img_to_array(img, dim_ordering='th'):
+def img_to_array(img, dim_ordering=K.image_dim_ordering()):
     if dim_ordering not in ['th', 'tf']:
         raise Exception('Unknown dim_ordering: ', dim_ordering)
     # image has dim_ordering (height, width, channel)
@@ -194,6 +196,9 @@ class ImageDataGenerator(object):
         vertical_flip: whether to randomly flip images vertically.
         dim_ordering: 'th' or 'tf'. In 'th' mode, the channels dimension
             (the depth) is at index 1, in 'tf' mode it is at index 3.
+            It defaults to the `image_dim_ordering` value found in your
+            Keras config file at `~/.keras/keras.json`.
+            If you never set it, then it will be "th".
     '''
     def __init__(self,
                  featurewise_center=False,
@@ -211,7 +216,7 @@ class ImageDataGenerator(object):
                  cval=0.,
                  horizontal_flip=False,
                  vertical_flip=False,
-                 dim_ordering='th'):
+                 dim_ordering=K.image_dim_ordering()):
         self.__dict__.update(locals())
         self.mean = None
         self.std = None

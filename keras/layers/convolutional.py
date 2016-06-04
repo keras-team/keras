@@ -238,6 +238,9 @@ class Convolution2D(Layer):
             applied to the bias.
         dim_ordering: 'th' or 'tf'. In 'th' mode, the channels dimension
             (the depth) is at index 1, in 'tf' mode is it at index 3.
+            It defaults to the `image_dim_ordering` value found in your
+            Keras config file at `~/.keras/keras.json`.
+            If you never set it, then it will be "th".
         bias: whether to include a bias (i.e. make the layer affine rather than linear).
 
     # Input shape
@@ -255,7 +258,7 @@ class Convolution2D(Layer):
     '''
     def __init__(self, nb_filter, nb_row, nb_col,
                  init='glorot_uniform', activation='linear', weights=None,
-                 border_mode='valid', subsample=(1, 1), dim_ordering='th',
+                 border_mode='valid', subsample=(1, 1), dim_ordering=K.image_dim_ordering(),
                  W_regularizer=None, b_regularizer=None, activity_regularizer=None,
                  W_constraint=None, b_constraint=None,
                  bias=True, **kwargs):
@@ -421,6 +424,9 @@ class Convolution3D(Layer):
             applied to the bias.
         dim_ordering: 'th' or 'tf'. In 'th' mode, the channels dimension
             (the depth) is at index 1, in 'tf' mode is it at index 4.
+            It defaults to the `image_dim_ordering` value found in your
+            Keras config file at `~/.keras/keras.json`.
+            If you never set it, then it will be "th".
         bias: whether to include a bias (i.e. make the layer affine rather than linear).
 
     # Input shape
@@ -439,7 +445,7 @@ class Convolution3D(Layer):
 
     def __init__(self, nb_filter, kernel_dim1, kernel_dim2, kernel_dim3,
                  init='glorot_uniform', activation='linear', weights=None,
-                 border_mode='valid', subsample=(1, 1, 1), dim_ordering='th',
+                 border_mode='valid', subsample=(1, 1, 1), dim_ordering=K.image_dim_ordering(),
                  W_regularizer=None, b_regularizer=None, activity_regularizer=None,
                  W_constraint=None, b_constraint=None,
                  bias=True, **kwargs):
@@ -686,7 +692,7 @@ class _Pooling2D(Layer):
     '''
 
     def __init__(self, pool_size=(2, 2), strides=None, border_mode='valid',
-                 dim_ordering='th', **kwargs):
+                 dim_ordering=K.image_dim_ordering(), **kwargs):
         super(_Pooling2D, self).__init__(**kwargs)
         self.pool_size = tuple(pool_size)
         if strides is None:
@@ -752,6 +758,9 @@ class MaxPooling2D(_Pooling2D):
             Note: 'same' will only work with TensorFlow for the time being.
         dim_ordering: 'th' or 'tf'. In 'th' mode, the channels dimension
             (the depth) is at index 1, in 'tf' mode is it at index 3.
+            It defaults to the `image_dim_ordering` value found in your
+            Keras config file at `~/.keras/keras.json`.
+            If you never set it, then it will be "th".
 
     # Input shape
         4D tensor with shape:
@@ -767,7 +776,7 @@ class MaxPooling2D(_Pooling2D):
     '''
 
     def __init__(self, pool_size=(2, 2), strides=None, border_mode='valid',
-                 dim_ordering='th', **kwargs):
+                 dim_ordering=K.image_dim_ordering(), **kwargs):
         super(MaxPooling2D, self).__init__(pool_size, strides, border_mode,
                                            dim_ordering, **kwargs)
 
@@ -790,6 +799,9 @@ class AveragePooling2D(_Pooling2D):
             Note: 'same' will only work with TensorFlow for the time being.
         dim_ordering: 'th' or 'tf'. In 'th' mode, the channels dimension
             (the depth) is at index 1, in 'tf' mode is it at index 3.
+            It defaults to the `image_dim_ordering` value found in your
+            Keras config file at `~/.keras/keras.json`.
+            If you never set it, then it will be "th".
 
     # Input shape
         4D tensor with shape:
@@ -805,7 +817,7 @@ class AveragePooling2D(_Pooling2D):
     '''
 
     def __init__(self, pool_size=(2, 2), strides=None, border_mode='valid',
-                 dim_ordering='th', **kwargs):
+                 dim_ordering=K.image_dim_ordering(), **kwargs):
         super(AveragePooling2D, self).__init__(pool_size, strides, border_mode,
                                                dim_ordering, **kwargs)
 
@@ -821,7 +833,7 @@ class _Pooling3D(Layer):
     '''
 
     def __init__(self, pool_size=(2, 2, 2), strides=None, border_mode='valid',
-                 dim_ordering='th', **kwargs):
+                 dim_ordering=K.image_dim_ordering(), **kwargs):
         super(_Pooling3D, self).__init__(**kwargs)
         self.pool_size = tuple(pool_size)
         if strides is None:
@@ -892,6 +904,9 @@ class MaxPooling3D(_Pooling3D):
         border_mode: 'valid' or 'same'.
         dim_ordering: 'th' or 'tf'. In 'th' mode, the channels dimension
             (the depth) is at index 1, in 'tf' mode is it at index 4.
+            It defaults to the `image_dim_ordering` value found in your
+            Keras config file at `~/.keras/keras.json`.
+            If you never set it, then it will be "th".
 
     # Input shape
         5D tensor with shape:
@@ -907,7 +922,7 @@ class MaxPooling3D(_Pooling3D):
     '''
 
     def __init__(self, pool_size=(2, 2, 2), strides=None, border_mode='valid',
-                 dim_ordering='th', **kwargs):
+                 dim_ordering=K.image_dim_ordering(), **kwargs):
         if K._BACKEND != 'theano':
             raise Exception(self.__class__.__name__ +
                             ' is currently only working with Theano backend.')
@@ -934,6 +949,9 @@ class AveragePooling3D(_Pooling3D):
         border_mode: 'valid' or 'same'.
         dim_ordering: 'th' or 'tf'. In 'th' mode, the channels dimension
             (the depth) is at index 1, in 'tf' mode is it at index 4.
+            It defaults to the `image_dim_ordering` value found in your
+            Keras config file at `~/.keras/keras.json`.
+            If you never set it, then it will be "th".
 
     # Input shape
         5D tensor with shape:
@@ -949,7 +967,7 @@ class AveragePooling3D(_Pooling3D):
     '''
 
     def __init__(self, pool_size=(2, 2, 2), strides=None, border_mode='valid',
-                 dim_ordering='th', **kwargs):
+                 dim_ordering=K.image_dim_ordering(), **kwargs):
         if K._BACKEND != 'theano':
             raise Exception(self.__class__.__name__ +
                             ' is currently only working with Theano backend.')
@@ -1003,6 +1021,9 @@ class UpSampling2D(Layer):
         dim_ordering: 'th' or 'tf'.
             In 'th' mode, the channels dimension (the depth)
             is at index 1, in 'tf' mode is it at index 3.
+            It defaults to the `image_dim_ordering` value found in your
+            Keras config file at `~/.keras/keras.json`.
+            If you never set it, then it will be "th".
 
     # Input shape
         4D tensor with shape:
@@ -1017,7 +1038,7 @@ class UpSampling2D(Layer):
         `(samples, upsampled_rows, upsampled_cols, channels)` if dim_ordering='tf'.
     '''
 
-    def __init__(self, size=(2, 2), dim_ordering='th', **kwargs):
+    def __init__(self, size=(2, 2), dim_ordering=K.image_dim_ordering(), **kwargs):
         self.size = tuple(size)
         assert dim_ordering in {'tf', 'th'}, 'dim_ordering must be in {tf, th}'
         self.dim_ordering = dim_ordering
@@ -1059,6 +1080,9 @@ class UpSampling3D(Layer):
         dim_ordering: 'th' or 'tf'.
             In 'th' mode, the channels dimension (the depth)
             is at index 1, in 'tf' mode is it at index 4.
+            It defaults to the `image_dim_ordering` value found in your
+            Keras config file at `~/.keras/keras.json`.
+            If you never set it, then it will be "th".
 
     # Input shape
         5D tensor with shape:
@@ -1073,7 +1097,7 @@ class UpSampling3D(Layer):
         `(samples, upsampled_dim1, upsampled_dim2, upsampled_dim3, channels)` if dim_ordering='tf'.
     '''
 
-    def __init__(self, size=(2, 2, 2), dim_ordering='th', **kwargs):
+    def __init__(self, size=(2, 2, 2), dim_ordering=K.image_dim_ordering(), **kwargs):
         if K._BACKEND != 'theano':
             raise Exception(self.__class__.__name__ +
                             ' is currently only working with Theano backend.') 
@@ -1151,6 +1175,12 @@ class ZeroPadding2D(Layer):
         padding: tuple of int (length 2)
             How many zeros to add at the beginning and end of
             the 2 padding dimensions (axis 3 and 4).
+        dim_ordering: 'th' or 'tf'.
+            In 'th' mode, the channels dimension (the depth)
+            is at index 1, in 'tf' mode is it at index 3.
+            It defaults to the `image_dim_ordering` value found in your
+            Keras config file at `~/.keras/keras.json`.
+            If you never set it, then it will be "th".
 
     # Input shape
         4D tensor with shape:
@@ -1161,7 +1191,7 @@ class ZeroPadding2D(Layer):
         (samples, depth, first_padded_axis, second_padded_axis)
     '''
 
-    def __init__(self, padding=(1, 1), dim_ordering='th', **kwargs):
+    def __init__(self, padding=(1, 1), dim_ordering=K.image_dim_ordering(), **kwargs):
         super(ZeroPadding2D, self).__init__(**kwargs)
         self.padding = tuple(padding)
         assert dim_ordering in {'tf', 'th'}, 'dim_ordering must be in {tf, th}'
@@ -1205,6 +1235,12 @@ class ZeroPadding3D(Layer):
         padding: tuple of int (length 3)
             How many zeros to add at the beginning and end of
             the 3 padding dimensions (axis 3, 4 and 5).
+        dim_ordering: 'th' or 'tf'.
+            In 'th' mode, the channels dimension (the depth)
+            is at index 1, in 'tf' mode is it at index 4.
+            It defaults to the `image_dim_ordering` value found in your
+            Keras config file at `~/.keras/keras.json`.
+            If you never set it, then it will be "th".
 
     # Input shape
         5D tensor with shape:
@@ -1215,7 +1251,7 @@ class ZeroPadding3D(Layer):
         (samples, depth, first_padded_axis, second_padded_axis, third_axis_to_pad)
     '''
 
-    def __init__(self, padding=(1, 1, 1), dim_ordering='th', **kwargs):
+    def __init__(self, padding=(1, 1, 1), dim_ordering=K.image_dim_ordering(), **kwargs):
         if K._BACKEND != 'theano':
             raise Exception(self.__class__.__name__ +
                             ' is currently only working with Theano backend.')
