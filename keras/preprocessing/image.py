@@ -196,6 +196,9 @@ class ImageDataGenerator(object):
             'constant'. Default is 0.
         horizontal_flip: whether to randomly flip images horizontally.
         vertical_flip: whether to randomly flip images vertically.
+        rescale: rescaling factor. If None or 0, no rescaling is applied,
+            otherwise we multiply the data by the value provided (before applying
+            any other transformation).
         dim_ordering: 'th' or 'tf'. In 'th' mode, the channels dimension
             (the depth) is at index 1, in 'tf' mode it is at index 3.
             It defaults to the `image_dim_ordering` value found in your
@@ -449,7 +452,7 @@ class NumpyArrayIterator(Iterator):
         self.X = X
         self.y = y
         self.image_data_generator = image_data_generator
-        self.dim_ordering
+        self.dim_ordering = dim_ordering
         self.save_to_dir = save_to_dir
         self.save_prefix = save_prefix
         self.save_format = save_format
