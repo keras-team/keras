@@ -438,6 +438,9 @@ class Iterator(object):
         # for x, y in data_gen.flow(...):
         return self
 
+    def __next__(self, *args, **kwargs):
+        return self.next(*args, **kwargs)
+
 
 class NumpyArrayIterator(Iterator):
 
