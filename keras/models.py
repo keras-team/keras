@@ -461,6 +461,8 @@ class Sequential(Model):
     def predict_on_batch(self, x):
         '''Returns predictions for a single batch of samples.
         '''
+        if self.model is None:
+            self.build()
         return self.model.predict_on_batch(x)
 
     def train_on_batch(self, x, y, class_weight=None,
@@ -481,6 +483,8 @@ class Sequential(Model):
             The attribute `model.metrics_names` will give you
             the display labels for the scalar outputs.
         '''
+        if self.model is None:
+            raise Exception('The model needs to be compiled before being used.')
         if 'accuracy' in kwargs:
             kwargs.pop('accuracy')
             warnings.warn('The "accuracy" argument is deprecated, '
@@ -511,6 +515,8 @@ class Sequential(Model):
             The attribute `model.metrics_names` will give you
             the display labels for the scalar outputs.
         '''
+        if self.model is None:
+            raise Exception('The model needs to be compiled before being used.')
         if 'accuracy' in kwargs:
             kwargs.pop('accuracy')
             warnings.warn('The "accuracy" argument is deprecated, '
@@ -696,7 +702,7 @@ class Sequential(Model):
             A Numpy array of predictions.
         '''
         if self.model is None:
-            raise Exception('The model needs to be compiled before being used.')
+            self.build()
         return self.model.predict_generator(generator, val_samples,
                                             max_q_size=max_q_size)
 
