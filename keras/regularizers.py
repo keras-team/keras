@@ -20,11 +20,6 @@ class Regularizer(object):
 class EigenvalueRegularizer(Regularizer):
     """This class implements the Eigenvalue Decay regularizer.
     
-    Syntax example:
-        from keras.regularizers import EigenvalueRegularizer
-        ...
-        model.add(Dense(100, W_regularizer=EigenvalueRegularizer(0.001)))
-    
     Args:
         The constant that controls the regularization on the current layer
         ( see Section 3 of https://arxiv.org/abs/1604.06985 )
@@ -38,26 +33,29 @@ class EigenvalueRegularizer(Regularizer):
         self.k = k
         self.uses_learning_phase = True
 
+
     def set_param(self, p):
         self.p = p
+
 
     def __call__(self, loss):
         power = 9  # number of iterations of the power method
         W = self.p
         WW = K.dot(K.transpose(W), W)
+        dim1, dim2 = K.eval(K.shape(WW))  # number of neurons in the layer
         k = self.k
-        o = K.ones_like(WW)
-        o = o[0, :]  # initial values for the dominant eigenvector
-
+        
         # power method for approximating the dominant eigenvector:
+        o = K.ones([dim1, 1])  # initial values for the dominant eigenvector
         domin_eigenvect = K.dot(WW, o)
         for n in range(power - 1):
             domin_eigenvect = K.dot(WW, domin_eigenvect)    
         
         WWd = K.dot(WW, domin_eigenvect)
-        domin_eigenval = K.dot(WWd, domin_eigenvect) / K.dot(domin_eigenvect, domin_eigenvect)  # the corresponding dominant eigenvalue
+        domin_eigenval = K.dot(K.transpose(WWd), domin_eigenvect) / K.dot(K.transpose(domin_eigenvect), domin_eigenvect)  # the corresponding dominant eigenvalue
         regularized_loss = loss + (domin_eigenval ** 0.5) * self.k  # multiplied by the given regularization gain
-        return K.in_train_phase(regularized_loss, loss)
+
+        return K.in_train_phase(regularized_loss[0, 0], loss)
 
 
 class WeightRegularizer(Regularizer):
