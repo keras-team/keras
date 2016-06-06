@@ -33,10 +33,8 @@ class EigenvalueRegularizer(Regularizer):
         self.k = k
         self.uses_learning_phase = True
 
-
     def set_param(self, p):
         self.p = p
-
 
     def __call__(self, loss):
         power = 9  # number of iterations of the power method
