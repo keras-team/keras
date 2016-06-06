@@ -360,35 +360,18 @@ class ImageDataGenerator(object):
         # barrel/fisheye
         return x
 
-    def fit(self, X,
-            augment=False,
-            rounds=1,
-            seed=None):
+    def fit(self, X):
         '''Required for featurewise_center, featurewise_std_normalization
         and zca_whitening.
 
         # Arguments
             X: Numpy array, the data to fit on.
-            augment: whether to fit on randomly augmented samples
-            rounds: if `augment`,
-                how many augmentation passes to do over the data
-            seed: random seed.
         '''
-        X = np.copy(X)
-        if augment:
-            aX = np.zeros(tuple([rounds * X.shape[0]] + list(X.shape)[1:]))
-            for r in range(rounds):
-                for i in range(X.shape[0]):
-                    aX[i + r * X.shape[0]] = self.random_transform(X[i])
-            X = aX
-
         if self.featurewise_center:
             self.mean = np.mean(X, axis=0)
-            X -= self.mean
 
         if self.featurewise_std_normalization:
             self.std = np.std(X, axis=0)
-            X /= (self.std + 1e-7)
 
         if self.zca_whitening:
             flatX = np.reshape(X, (X.shape[0], X.shape[1] * X.shape[2] * X.shape[3]))
