@@ -252,7 +252,7 @@ class ImageDataGenerator(object):
                             'a tuple or list of two floats. '
                             'Received arg: ', zoom_range)
 
-    def flow(self, X, y, batch_size=32, shuffle=True, seed=None,
+    def flow(self, X, y=None, batch_size=32, shuffle=True, seed=None,
              save_to_dir=None, save_prefix='', save_format='jpeg'):
         return NumpyArrayIterator(
             X, y, self,
@@ -448,7 +448,7 @@ class NumpyArrayIterator(Iterator):
                  batch_size=32, shuffle=False, seed=None,
                  dim_ordering=K.image_dim_ordering(),
                  save_to_dir=None, save_prefix='', save_format='jpeg'):
-        if len(X) != len(y):
+        if y is not None and len(X) != len(y):
             raise Exception('X (images tensor) and y (labels) '
                             'should have the same length. '
                             'Found: X.shape = %s, y.shape = %s' % (np.asarray(X).shape, np.asarray(y).shape))
@@ -478,10 +478,13 @@ class NumpyArrayIterator(Iterator):
         if self.save_to_dir:
             for i in range(current_batch_size):
                 img = array_to_img(batch_x[i], self.dim_ordering, scale=True)
-                fname = '{prefix}_{index}.{format}'.format(prefix=self.save_prefix,
-                                                           index=current_index + i,
-                                                           format=self.save_format)
+                fname = '{prefix}_{index}_{hash}.{format}'.format(prefix=self.save_prefix,
+                                                                  index=current_index + i,
+                                                                  hash=np.random.randint(1e4),
+                                                                  format=self.save_format)
                 img.save(os.path.join(self.save_to_dir, fname))
+        if self.y is None:
+            return batch_x
         batch_y = self.y[index_array]
         return batch_x, batch_y
 
@@ -583,8 +586,9 @@ class DirectoryIterator(Iterator):
         if self.save_to_dir:
             for i in range(current_batch_size):
                 img = array_to_img(batch_x[i], self.dim_ordering, scale=True)
-                fname = '{prefix}_{index}.{format}'.format(prefix=self.save_prefix,
+                fname = '{prefix}_{index}_{hash}.{format}'.format(prefix=self.save_prefix,
                                                            index=current_index + i,
+                                                           hash=np.random.randint(1e4),
                                                            format=self.save_format)
                 img.save(os.path.join(self.save_to_dir, fname))
         # build batch of labels
