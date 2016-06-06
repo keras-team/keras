@@ -64,7 +64,7 @@ Generate batches of tensor image data with real-time data augmentation. The data
             - __shuffle__: boolean (defaut: False).
             - __save_to_dir__: None or str (default: None). This allows you to optimally specify a directory to which to save the augmented pictures being generated (useful for visualizing what you are doing).
             - __save_prefix__: str (default: `''`). Prefix to use for filenames of saved pictures (only relevant if `save_to_dir` is set).
-            - __save_format__: one of "png", jpeg" (only relevant if `save_to_dir` is set). Default: "jpeg".
+            - __save_format__: one of "png", "jpeg" (only relevant if `save_to_dir` is set). Default: "jpeg".
         - ___yields__: Tuples of `(x, y)` where `x` is a numpy array of image data and `y` is a numpy array of corresponding labels.
             The generator loops indefinitely.
     - __flow_from_directory(directory)__: Takes the path to a directory, and generates batches of augmented/normalized data. Yields batches indefinitely, in an infinite loop.
@@ -91,7 +91,7 @@ Generate batches of tensor image data with real-time data augmentation. The data
             - __seed__: optional random seed for shuffling.
             - __save_to_dir__: None or str (default: None). This allows you to optimally specify a directory to which to save the augmented pictures being generated (useful for visualizing what you are doing).
             - __save_prefix__: str. Prefix to use for filenames of saved pictures (only relevant if `save_to_dir` is set).
-            - __save_format__: one of "png", jpeg" (only relevant if `save_to_dir` is set). Default: "jpeg".
+            - __save_format__: one of "png", "jpeg" (only relevant if `save_to_dir` is set). Default: "jpeg".
 
 
 - __Examples__:
