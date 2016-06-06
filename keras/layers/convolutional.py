@@ -394,7 +394,7 @@ class Convolution3D(Layer):
 
     # Arguments
         nb_filter: Number of convolution filters to use.
-        kernel_dim1: Length of the first dimension in the covolution kernel.
+        kernel_dim1: Length of the first dimension in the convolution kernel.
         kernel_dim2: Length of the second dimension in the convolution kernel.
         kernel_dim3: Length of the third dimension in the convolution kernel.
         init: name of initialization function for the weights of the layer
@@ -407,7 +407,7 @@ class Convolution3D(Layer):
             or alternatively, elementwise Theano function.
             If you don't specify anything, no activation is applied
             (ie. "linear" activation: a(x) = x).
-        weights: list of numpy arrays to set as initial weights.
+        weights: list of Numpy arrays to set as initial weights.
         border_mode: 'valid' or 'same'.
         subsample: tuple of length 3. Factor by which to subsample output.
             Also called strides elsewhere.
@@ -1100,7 +1100,7 @@ class UpSampling3D(Layer):
     def __init__(self, size=(2, 2, 2), dim_ordering=K.image_dim_ordering(), **kwargs):
         if K._BACKEND != 'theano':
             raise Exception(self.__class__.__name__ +
-                            ' is currently only working with Theano backend.') 
+                            ' is currently only working with Theano backend.')
         self.size = tuple(size)
         assert dim_ordering in {'tf', 'th'}, 'dim_ordering must be in {tf, th}'
         self.dim_ordering = dim_ordering

@@ -426,11 +426,11 @@ class TensorBoard(Callback):
 
     # Arguments
         log_dir: the path of the directory where to save the log
-            files to be parsed by tensorboard
+            files to be parsed by Tensorboard
         histogram_freq: frequency (in epochs) at which to compute activation
             histograms for the layers of the model. If set to 0,
             histograms won't be computed.
-        write_graph: whether to visualize the graph in tensorboard. The log file can
+        write_graph: whether to visualize the graph in Tensorboard. The log file can
             become quite large when write_graph is set to True.
     '''
 

@@ -397,7 +397,7 @@ def temporal_padding(x, padding=1):
     '''Pad the middle dimension of a 3D tensor
     with "padding" zeros left and right.
 
-    Appologies for the inane API, but Theano makes this
+    Apologies for the inane API, but Theano makes this
     really hard.
     '''
     input_shape = x.shape

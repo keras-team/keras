@@ -825,7 +825,7 @@ class Model(Container):
             verbose: verbosity mode.
 
         # Returns
-            Array of prections (if the model has a single output)
+            Array of predictions (if the model has a single output)
             or list of arrays of predictions
             (if the model has multiple outputs).
         '''
@@ -969,7 +969,7 @@ class Model(Container):
                 at the end of each epoch. The model will not be trained on this data.
                 This could be a tuple (x_val, y_val) or a tuple (val_x, val_y, val_sample_weights).
             shuffle: boolean, whether to shuffle the training data before each epoch.
-            class_weight: optional dictionary mapping classe indices (integers) to
+            class_weight: optional dictionary mapping class indices (integers) to
                 a weight (float) to apply to the model's loss for the samples
                 from this class during training.
                 This can be useful to tell the model to "pay more attention" to
@@ -1144,7 +1144,7 @@ class Model(Container):
                 with shape (samples, sequence_length),
                 to apply a different weight to every timestep of every sample.
                 In this case you should make sure to specify sample_weight_mode="temporal" in compile().
-            class_weight: optional dictionary mapping classe indices (integers) to
+            class_weight: optional dictionary mapping class indices (integers) to
                 a weight (float) to apply to the model's loss for the samples
                 from this class during training.
                 This can be useful to tell the model to "pay more attention" to
