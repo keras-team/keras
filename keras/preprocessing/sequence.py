@@ -100,7 +100,7 @@ def skipgrams(sequence, vocabulary_size,
     '''Take a sequence (list of indexes of words),
     returns couples of [word_index, other_word index] and labels (1s or 0s),
     where label = 1 if 'other_word' belongs to the context of 'word',
-    and label=0 if 'other_word' is ramdomly sampled
+    and label=0 if 'other_word' is randomly sampled
 
     # Arguments
         vocabulary_size: int. maximum possible word index + 1
@@ -113,7 +113,7 @@ def skipgrams(sequence, vocabulary_size,
             if True labels will be categorical eg. [[1,0],[0,1],[0,1] .. ]
 
     # Returns
-        couples, lables: where `couples` are int pairs and
+        couples, labels: where `couples` are int pairs and
             `labels` are either 0 or 1.
 
     # Notes

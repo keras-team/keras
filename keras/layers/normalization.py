@@ -33,7 +33,7 @@ class BatchNormalization(Layer):
             exponential average of the mean and standard deviation
             of the data, for feature-wise normalization.
         weights: Initialization weights.
-            List of 2 numpy arrays, with shapes:
+            List of 2 Numpy arrays, with shapes:
             `[(input_shape,), (input_shape,)]`
         beta_init: name of initialization function for shift parameter
             (see [initializations](../initializations.md)), or alternatively,

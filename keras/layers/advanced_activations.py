@@ -51,7 +51,7 @@ class PReLU(Layer):
 
     # Arguments
         init: initialization function for the weights.
-        weights: initial weights, as a list of a single numpy array.
+        weights: initial weights, as a list of a single Numpy array.
 
     # References
         - [Delving Deep into Rectifiers: Surpassing Human-Level Performance on ImageNet Classification](http://arxiv.org/pdf/1502.01852v1.pdf)
