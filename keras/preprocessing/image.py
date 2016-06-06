@@ -587,9 +587,9 @@ class DirectoryIterator(Iterator):
             for i in range(current_batch_size):
                 img = array_to_img(batch_x[i], self.dim_ordering, scale=True)
                 fname = '{prefix}_{index}_{hash}.{format}'.format(prefix=self.save_prefix,
-                                                           index=current_index + i,
-                                                           hash=np.random.randint(1e4),
-                                                           format=self.save_format)
+                                                                  index=current_index + i,
+                                                                  hash=np.random.randint(1e4),
+                                                                  format=self.save_format)
                 img.save(os.path.join(self.save_to_dir, fname))
         # build batch of labels
         if self.class_mode == 'sparse':
