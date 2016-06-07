@@ -5,7 +5,7 @@ For simple, stateless custom operations, you are probably better off using `laye
 Here is the skeleton of a Keras layer. There are only three methods you need to implement:
 
 - `build(input_shape)`: this is where you will define your weights. Trainable weights should be added to the list `self.trainable_weights`. Other attributes of note are: `self.non_trainable_weights` (list) and `self.updates` (list of update tuples (tensor, new_tensor)). For an example of how to use `non_trainable_weights` and `updates`, see the code for the `BatchNormalization` layer.
-- `call(x)`: this is where the layer's logic lives. Unless you want you want your layer to support masking, you only have to care about the first argument passed to `call`: the input tensor.
+- `call(x)`: this is where the layer's logic lives. Unless you want your layer to support masking, you only have to care about the first argument passed to `call`: the input tensor.
 - `get_output_shape_for(input_shape)`: in case your layer modifies the shape of its input, you should specify here the shape transformation logic. This allows Keras to do automatic shape inference.
 
 ```python
