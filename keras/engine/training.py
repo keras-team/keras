@@ -915,12 +915,16 @@ class Model(Container):
             raise Exception('You must compile a model before training/testing.'
                             ' Use `model.compile(optimizer, loss)`.')
 
+        # if using sparse cce replace last dim of output shapes with 1
+        output_shapes = self.internal_output_shapes
+        if self.loss == "sparse_categorical_crossentropy":
+            output_shapes = [s[:-1] + (1,) for s in output_shapes]
         x = standardize_input_data(x, self.input_names,
                                    self.internal_input_shapes,
                                    check_batch_dim=False,
                                    exception_prefix='model input')
         y = standardize_input_data(y, self.output_names,
-                                   self.internal_output_shapes,
+                                   output_shapes,
                                    check_batch_dim=False,
                                    exception_prefix='model target')
         sample_weights = standardize_sample_weights(sample_weight,
