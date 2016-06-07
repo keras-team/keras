@@ -50,12 +50,10 @@ Generate batches of tensor image data with real-time data augmentation. The data
         If you never set it, then it will be "th".
 
 - __Methods__:
-    - __fit(X)__: Compute the internal data stats related to the data-dependent transformations, based on an array of sample data.
+    - __fit(X)__: Compute the internal data statistics related to the data-dependent transformations, based on an array of sample data.
         Only required if featurewise_center or featurewise_std_normalization or zca_whitening.
         - __Arguments__:
-            - __X__: sample data.
-            - __augment__: Boolean (default: False). Whether to fit on randomly augmented samples.
-            - __rounds__: int (default: 1). If augment, how many augmentation passes over the data to use.
+            - __X__: Numpy array, the data to fit on.
     - __flow(X, y)__: Takes numpy data & label arrays, and generates batches of augmented/normalized data. Yields batches indefinitely, in an infinite loop.
         - __Arguments__:
             - __X__: data.
