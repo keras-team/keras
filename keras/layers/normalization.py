@@ -10,7 +10,7 @@ class BatchNormalization(Layer):
 
     # Arguments
         epsilon: small float > 0. Fuzz parameter.
-        mode: integer, 0 or 1.
+        mode: integer, 0, 1 or 2.
             - 0: feature-wise normalization.
                 Each feature map in the input will
                 be normalized separately. The axis on which
