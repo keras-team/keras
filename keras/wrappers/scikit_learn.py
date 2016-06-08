@@ -2,7 +2,7 @@ from __future__ import absolute_import
 import copy
 import inspect
 import types
-import numpy
+import numpy as np
 
 from ..utils.np_utils import to_categorical
 from ..models import Sequential
@@ -203,8 +203,10 @@ class KerasClassifier(BaseWrapper):
         # Returns
             proba: array-like, shape `(n_samples, n_outputs)`
                 Class probability estimates.
-                In the case of binary classification (i.e. 1 output of 0 or 1)
-                 will return '(n_samples, 2)'
+                In the case of binary classification,
+                tp match the scikit-learn API,
+                will return an array of shape '(n_samples, 2)'
+                (instead of `(n_sample, 1)` as in Keras).
         '''
         kwargs = self.filter_sk_params(Sequential.predict_proba, kwargs)
         probs = self.model.predict_proba(X, **kwargs)
@@ -212,7 +214,7 @@ class KerasClassifier(BaseWrapper):
         # check if binary classification
         if probs.shape[1] == 1:
             # first column is probability of class 0 and second is of class 1
-            probs = numpy.hstack([1 - probs, probs])
+            probs = np.hstack([1 - probs, probs])
         return probs
 
     def score(self, X, y, **kwargs):
