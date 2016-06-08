@@ -2,6 +2,7 @@ from __future__ import absolute_import
 import copy
 import inspect
 import types
+import numpy as np
 
 from ..utils.np_utils import to_categorical
 from ..models import Sequential
@@ -28,7 +29,7 @@ class BaseWrapper(object):
 
     `sk_params` takes both model parameters and fitting parameters. Legal model
     parameters are the arguments of `build_fn`. Note that like all other
-    estimators in scikit-learn, 'build_fn' should provide defalult values for
+    estimators in scikit-learn, 'build_fn' should provide default values for
     its arguments, so that you could create the estimator without passing any
     values to `sk_params`.
 
@@ -153,10 +154,10 @@ class BaseWrapper(object):
 
         # Arguments
             fn : arbitrary function
-            override: dictionary, values to overrid sk_params
+            override: dictionary, values to override sk_params
 
         # Returns
-            res : dictionary dictionary containing variabls
+            res : dictionary dictionary containing variables
                 in both sk_params and fn's arguments.
         '''
         res = {}
@@ -202,9 +203,19 @@ class KerasClassifier(BaseWrapper):
         # Returns
             proba: array-like, shape `(n_samples, n_outputs)`
                 Class probability estimates.
+                In the case of binary classification,
+                tp match the scikit-learn API,
+                will return an array of shape '(n_samples, 2)'
+                (instead of `(n_sample, 1)` as in Keras).
         '''
         kwargs = self.filter_sk_params(Sequential.predict_proba, kwargs)
-        return self.model.predict_proba(X, **kwargs)
+        probs = self.model.predict_proba(X, **kwargs)
+
+        # check if binary classification
+        if probs.shape[1] == 1:
+            # first column is probability of class 0 and second is of class 1
+            probs = np.hstack([1 - probs, probs])
+        return probs
 
     def score(self, X, y, **kwargs):
         '''Returns the mean accuracy on the given test data and labels.

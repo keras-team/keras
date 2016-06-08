@@ -9,7 +9,7 @@ e.g.:
 python deep_dream.py img/mypic.jpg results/dream
 ```
 
-It is preferrable to run this script on GPU, for speed.
+It is preferable to run this script on GPU, for speed.
 If running on CPU, prefer the TensorFlow backend (much faster).
 
 Example results: http://i.imgur.com/FX6ROg9.jpg
@@ -24,7 +24,7 @@ import h5py
 import os
 
 from keras.models import Sequential
-from keras.layers.convolutional import Convolution2D, ZeroPadding2D, MaxPooling2D
+from keras.layers import Convolution2D, ZeroPadding2D, MaxPooling2D
 from keras import backend as K
 
 parser = argparse.ArgumentParser(description='Deep Dreams with Keras.')

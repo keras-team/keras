@@ -168,7 +168,7 @@ class RMSprop(Optimizer):
         rho: float >= 0.
         epsilon: float >= 0. Fuzz factor.
     '''
-    def __init__(self, lr=0.001, rho=0.9, epsilon=1e-6, **kwargs):
+    def __init__(self, lr=0.001, rho=0.9, epsilon=1e-8, **kwargs):
         super(RMSprop, self).__init__(**kwargs)
         self.__dict__.update(locals())
         self.lr = K.variable(lr)
@@ -184,7 +184,7 @@ class RMSprop(Optimizer):
             # update accumulator
             new_a = self.rho * a + (1. - self.rho) * K.square(g)
             self.updates.append((a, new_a))
-            new_p = p - self.lr * g / K.sqrt(new_a + self.epsilon)
+            new_p = p - self.lr * g / (K.sqrt(new_a) + self.epsilon)
 
             # apply constraints
             if p in constraints:
@@ -211,7 +211,7 @@ class Adagrad(Optimizer):
         lr: float >= 0. Learning rate.
         epsilon: float >= 0.
     '''
-    def __init__(self, lr=0.01, epsilon=1e-6, **kwargs):
+    def __init__(self, lr=0.01, epsilon=1e-8, **kwargs):
         super(Adagrad, self).__init__(**kwargs)
         self.__dict__.update(locals())
         self.lr = K.variable(lr)
@@ -225,7 +225,7 @@ class Adagrad(Optimizer):
         for p, g, a in zip(params, grads, self.weights):
             new_a = a + K.square(g)  # update accumulator
             self.updates.append((a, new_a))
-            new_p = p - self.lr * g / K.sqrt(new_a + self.epsilon)
+            new_p = p - self.lr * g / (K.sqrt(new_a) + self.epsilon)
             # apply constraints
             if p in constraints:
                 c = constraints[p]
@@ -255,7 +255,7 @@ class Adadelta(Optimizer):
     # References
         - [Adadelta - an adaptive learning rate method](http://arxiv.org/abs/1212.5701)
     '''
-    def __init__(self, lr=1.0, rho=0.95, epsilon=1e-6, **kwargs):
+    def __init__(self, lr=1.0, rho=0.95, epsilon=1e-8, **kwargs):
         super(Adadelta, self).__init__(**kwargs)
         self.__dict__.update(locals())
         self.lr = K.variable(lr)

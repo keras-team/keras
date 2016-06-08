@@ -10,7 +10,7 @@ class BatchNormalization(Layer):
 
     # Arguments
         epsilon: small float > 0. Fuzz parameter.
-        mode: integer, 0 or 1.
+        mode: integer, 0, 1 or 2.
             - 0: feature-wise normalization.
                 Each feature map in the input will
                 be normalized separately. The axis on which
@@ -19,7 +19,13 @@ class BatchNormalization(Layer):
                 using Theano conventions (samples, channels, rows, cols)
                 then you should set `axis` to `1` to normalize along
                 the channels axis.
+                During training we use per-batch statistics to normalize
+                the data, and during testing we use running averages
+                computed during the training phase.
             - 1: sample-wise normalization. This mode assumes a 2D input.
+            - 2: feature-wise normalization, like mode 0, but
+                using per-batch statistics to normalize the data during both
+                testing and training.
         axis: integer, axis along which to normalize in mode 0. For instance,
             if your input tensor has shape (samples, channels, rows, cols),
             set axis to 1 to normalize per feature map (channels axis).
@@ -27,7 +33,7 @@ class BatchNormalization(Layer):
             exponential average of the mean and standard deviation
             of the data, for feature-wise normalization.
         weights: Initialization weights.
-            List of 2 numpy arrays, with shapes:
+            List of 2 Numpy arrays, with shapes:
             `[(input_shape,), (input_shape,)]`
         beta_init: name of initialization function for shift parameter
             (see [initializations](../initializations.md)), or alternatively,
@@ -47,7 +53,7 @@ class BatchNormalization(Layer):
         Same shape as input.
 
     # References
-        - [Batch Normalization: Accelerating Deep Network Training by Reducing Internal Covariate Shift](http://arxiv.org/pdf/1502.03167v3.pdf)
+        - [Batch Normalization: Accelerating Deep Network Training by Reducing Internal Covariate Shift](http://jmlr.org/proceedings/papers/v37/ioffe15.html)
     '''
     def __init__(self, epsilon=1e-6, mode=0, axis=-1, momentum=0.9,
                  weights=None, beta_init='zero', gamma_init='one', **kwargs):
@@ -58,7 +64,8 @@ class BatchNormalization(Layer):
         self.axis = axis
         self.momentum = momentum
         self.initial_weights = weights
-        self.uses_learning_phase = True
+        if self.mode == 0:
+            self.uses_learning_phase = True
         super(BatchNormalization, self).__init__(**kwargs)
 
     def build(self, input_shape):
@@ -78,9 +85,12 @@ class BatchNormalization(Layer):
         if self.initial_weights is not None:
             self.set_weights(self.initial_weights)
             del self.initial_weights
+        self.built = True
+        self.called_with = None
 
     def call(self, x, mask=None):
-        if self.mode == 0:
+        if self.mode == 0 or self.mode == 2:
+            assert self.built, 'Layer must be built before being called'
             input_shape = self.input_spec[0].shape
 
             reduction_axes = list(range(len(input_shape)))
@@ -96,18 +106,35 @@ class BatchNormalization(Layer):
             brodcast_std = K.reshape(std, broadcast_shape)
             mean_update = self.momentum * self.running_mean + (1 - self.momentum) * mean
             std_update = self.momentum * self.running_std + (1 - self.momentum) * std
-            self.updates = [(self.running_mean, mean_update),
-                            (self.running_std, std_update)]
-            x_normed = (x - brodcast_mean) / (brodcast_std + self.epsilon)
 
-            # case: test mode (uses running averages)
-            brodcast_running_mean = K.reshape(self.running_mean, broadcast_shape)
-            brodcast_running_std = K.reshape(self.running_std, broadcast_shape)
-            x_normed_running = ((x - brodcast_running_mean) / (brodcast_running_std + self.epsilon))
+            if self.mode == 2:
+                x_normed = (x - brodcast_mean) / (brodcast_std + self.epsilon)
+                out = K.reshape(self.gamma, broadcast_shape) * x_normed + K.reshape(self.beta, broadcast_shape)
+            else:
+                # mode 0
+                if self.called_with not in {None, x}:
+                    raise Exception('You are attempting to share a '
+                                    'same `BatchNormalization` layer across '
+                                    'different data flows. '
+                                    'This is not possible. '
+                                    'You should use `mode=2` in '
+                                    '`BatchNormalization`, which has '
+                                    'a similar behavior but is shareable '
+                                    '(see docs for a description of '
+                                    'the behavior).')
+                self.called_with = x
+                self.updates = [(self.running_mean, mean_update),
+                                (self.running_std, std_update)]
+                x_normed = (x - brodcast_mean) / (brodcast_std + self.epsilon)
 
-            # pick the normalized form of x corresponding to the training phase
-            x_normed = K.in_train_phase(x_normed, x_normed_running)
-            out = K.reshape(self.gamma, broadcast_shape) * x_normed + K.reshape(self.beta, broadcast_shape)
+                # case: test mode (uses running averages)
+                brodcast_running_mean = K.reshape(self.running_mean, broadcast_shape)
+                brodcast_running_std = K.reshape(self.running_std, broadcast_shape)
+                x_normed_running = ((x - brodcast_running_mean) / (brodcast_running_std + self.epsilon))
+
+                # pick the normalized form of x corresponding to the training phase
+                x_normed = K.in_train_phase(x_normed, x_normed_running)
+                out = K.reshape(self.gamma, broadcast_shape) * x_normed + K.reshape(self.beta, broadcast_shape)
 
         elif self.mode == 1:
             # sample-wise normalization

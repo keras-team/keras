@@ -515,8 +515,6 @@ def test_sequential_regression():
                            name='embed_1'))
     branch_1.add(LSTM(32, name='lstm_1'))
 
-    branch_1.add(BatchNormalization())
-
     branch_2 = Sequential(name='branch_2')
     branch_2.add(Dense(32, input_shape=(8,), name='dense_2'))
 
