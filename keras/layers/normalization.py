@@ -43,6 +43,11 @@ class BatchNormalization(Layer):
             [initializations](../initializations.md)), or alternatively,
             Theano/TensorFlow function to use for weights initialization.
             This parameter is only relevant if you don't pass a `weights` argument.
+        advanced_sharing: bool.
+            if True, allow this layer to be used as a shared layer in mode 0.
+            The weights will be updated with the last input batch.
+            Note that BatchNormalization sharing simply does not work with nested models
+            or with TimeDistributed.
 
     # Input shape
         Arbitrary. Use the keyword argument `input_shape`
@@ -56,11 +61,12 @@ class BatchNormalization(Layer):
         - [Batch Normalization: Accelerating Deep Network Training by Reducing Internal Covariate Shift](http://jmlr.org/proceedings/papers/v37/ioffe15.html)
     '''
     def __init__(self, epsilon=1e-6, mode=0, axis=-1, momentum=0.9,
-                 weights=None, beta_init='zero', gamma_init='one', **kwargs):
+                 weights=None, beta_init='zero', gamma_init='one', advanced_sharing=False, **kwargs):
         self.beta_init = initializations.get(beta_init)
         self.gamma_init = initializations.get(gamma_init)
         self.epsilon = epsilon
         self.mode = mode
+        self.advanced_sharing = advanced_sharing
         self.axis = axis
         self.momentum = momentum
         self.initial_weights = weights
@@ -112,12 +118,14 @@ class BatchNormalization(Layer):
                 out = K.reshape(self.gamma, broadcast_shape) * x_normed + K.reshape(self.beta, broadcast_shape)
             else:
                 # mode 0
-                if self.called_with not in {None, x}:
+                if self.called_with not in {None, x} and self.advanced_sharing is False:
                     raise Exception('You are attempting to share a '
                                     'same `BatchNormalization` layer across '
                                     'different data flows. '
                                     'This is not possible. '
-                                    'You should use `mode=2` in '
+                                    'You should use `mode=2` (if it is used with '
+                                    'nested models or TimeDistributed) or '
+                                    '`advanced_sharing=True` in '
                                     '`BatchNormalization`, which has '
                                     'a similar behavior but is shareable '
                                     '(see docs for a description of '
@@ -148,6 +156,7 @@ class BatchNormalization(Layer):
         config = {"epsilon": self.epsilon,
                   "mode": self.mode,
                   "axis": self.axis,
-                  "momentum": self.momentum}
+                  "momentum": self.momentum,
+                  "advanced_sharing": self.advanced_sharing}
         base_config = super(BatchNormalization, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
