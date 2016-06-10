@@ -13,7 +13,7 @@ plot(model, to_file='model.png')
 `plot` takes two optional arguments:
 
 - `show_shapes` (defaults to False) controls whether output shapes are shown in the graph.
-- `show_layer_names` (deafults to True) controls whether output layers are shwon in the graph.
+- `show_layer_names` (defaults to True) controls whether layer names are shown in the graph.
 
 You can also directly obtain the `pydot.Graph` object and render it yourself,
 for example to show it in an ipython notebook :
