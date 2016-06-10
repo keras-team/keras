@@ -164,9 +164,9 @@ class Convolution1D(Layer):
                           dim_ordering='th')
         if self.bias:
             output += K.reshape(self.b, (1, self.nb_filter, 1, 1))
-        output = self.activation(output)
         output = K.squeeze(output, 3)  # remove the dummy 3rd dimension
         output = K.permute_dimensions(output, (0, 2, 1))
+        output = self.activation(output)
         return output
 
     def get_config(self):
