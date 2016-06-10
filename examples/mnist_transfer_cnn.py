@@ -19,8 +19,8 @@ np.random.seed(1337)  # for reproducibility
 
 from keras.datasets import mnist
 from keras.models import Sequential
-from keras.layers.core import Dense, Dropout, Activation, Flatten
-from keras.layers.convolutional import Convolution2D, MaxPooling2D
+from keras.layers import Dense, Dropout, Activation, Flatten
+from keras.layers import Convolution2D, MaxPooling2D
 from keras.utils import np_utils
 
 
@@ -55,15 +55,17 @@ def train_model(model, train, test, nb_classes):
     Y_train = np_utils.to_categorical(train[1], nb_classes)
     Y_test = np_utils.to_categorical(test[1], nb_classes)
 
-    model.compile(loss='categorical_crossentropy', optimizer='adadelta')
+    model.compile(loss='categorical_crossentropy',
+                  optimizer='adadelta',
+                  metrics=['accuracy'])
 
     t = now()
     model.fit(X_train, Y_train,
               batch_size=batch_size, nb_epoch=nb_epoch,
-              show_accuracy=True, verbose=1,
+              verbose=1,
               validation_data=(X_test, Y_test))
     print('Training time: %s' % (now() - t))
-    score = model.evaluate(X_test, Y_test, show_accuracy=True, verbose=0)
+    score = model.evaluate(X_test, Y_test, verbose=0)
     print('Test score:', score[0])
     print('Test accuracy:', score[1])
 

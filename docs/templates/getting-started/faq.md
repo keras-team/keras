@@ -1,26 +1,17 @@
 # Keras FAQ: Frequently Asked Keras Questions
 
-[How should I cite Keras?](#how-should-i-cite-keras)
-
-[How can I run Keras on GPU?](#how-can-i-run-keras-on-gpu)
-
-[How can I save a Keras model?](#how-can-i-save-a-keras-model)
-
-[Why is the training loss much higher than the testing loss?](#why-is-the-training-loss-much-higher-than-the-testing-loss)
-
-[How can I visualize the output of an intermediate layer?](#how-can-i-visualize-the-output-of-an-intermediate-layer)
-
-[How can I use Keras with datasets that don't fit in memory?](#how-can-i-use-keras-with-datasets-that-dont-fit-in-memory)
-
-[How can I interrupt training when the validation loss isn't decreasing anymore?](#how-can-i-interrupt-training-when-the-validation-loss-isnt-decreasing-anymore)
-
-[How is the validation split computed?](#how-is-the-validation-split-computed)
-
-[Is the data shuffled during training?](#is-the-data-shuffled-during-training)
-
-[How can I record the training / validation loss / accuracy at each epoch?](#how-can-i-record-the-training-validation-loss-accuracy-at-each-epoch)
-
-[How can I use stateful RNNs?](#how-can-i-use-stateful-rnns)
+- [How should I cite Keras?](#how-should-i-cite-keras)
+- [How can I run Keras on GPU?](#how-can-i-run-keras-on-gpu)
+- [How can I save a Keras model?](#how-can-i-save-a-keras-model)
+- [Why is the training loss much higher than the testing loss?](#why-is-the-training-loss-much-higher-than-the-testing-loss)
+- [How can I visualize the output of an intermediate layer?](#how-can-i-visualize-the-output-of-an-intermediate-layer)
+- [How can I use Keras with datasets that don't fit in memory?](#how-can-i-use-keras-with-datasets-that-dont-fit-in-memory)
+- [How can I interrupt training when the validation loss isn't decreasing anymore?](#how-can-i-interrupt-training-when-the-validation-loss-isnt-decreasing-anymore)
+- [How is the validation split computed?](#how-is-the-validation-split-computed)
+- [Is the data shuffled during training?](#is-the-data-shuffled-during-training)
+- [How can I record the training / validation loss / accuracy at each epoch?](#how-can-i-record-the-training-validation-loss-accuracy-at-each-epoch)
+- [How can I "freeze" layers?](#how-can-i-freeze-keras-layers)
+- [How can I use stateful RNNs?](#how-can-i-use-stateful-rnns)
 
 ---
 
@@ -30,12 +21,11 @@ Please cite Keras in your publications if it helps your research. Here is an exa
 
 ```
 @misc{chollet2015keras,
-  author = {Chollet, François},
-  title = {Keras},
-  year = {2015},
-  publisher = {GitHub},
-  journal = {GitHub repository},
-  howpublished = {\url{https://github.com/fchollet/keras}}
+  title={Keras},
+  author={Chollet, Fran\c{c}ois},
+  year={2015},
+  publisher={GitHub},
+  howpublished={\url{https://github.com/fchollet/keras}},
 }
 ```
 
@@ -112,6 +102,11 @@ model = model_from_json(open('my_model_architecture.json').read())
 model.load_weights('my_model_weights.h5')
 ```
 
+Finally, before it can be used, the model shall be compiled.
+```python
+model.compile(optimizer='adagrad', loss='mse')
+```
+
 ---
 
 ### Why is the training loss much higher than the testing loss?
@@ -131,22 +126,47 @@ from keras import backend as K
 
 # with a Sequential model
 get_3rd_layer_output = K.function([model.layers[0].input],
-                                  [model.layers[3].get_output(train=False)])
+                                  [model.layers[3].output])
 layer_output = get_3rd_layer_output([X])[0]
-
-# with a Graph model
-get_conv_layer_output = K.function([model.inputs[i].input for i in model.input_order],
-                                   [model.nodes['conv'].get_output(train=False)])
-conv_output = get_conv_layer_output([input_data_dict[i] for i in model.input_order])[0]
 ```
 
 Similarly, you could build a Theano and TensorFlow function directly.
+
+Note that if your model has a different behavior in training and testing phase (e.g. if it uses `Dropout`, `BatchNormalization`, etc.), you will need
+to pass the learning phase flag to your function:
+
+```python
+get_3rd_layer_output = K.function([model.layers[0].input, K.learning_phase()],
+                                  [model.layers[3].output])
+
+# output in test mode = 0
+layer_output = get_3rd_layer_output([X, 0])[0]
+
+# output in train mode = 1
+layer_output = get_3rd_layer_output([X, 1])[0]
+```
+
+Another more flexible way of getting output from intermediate layers is to use the [functional API](/getting-started/functional-api-guide). For example, if you have created an autoencoder for MNIST:
+
+```python
+inputs = Input(shape=(784,))
+encoded = Dense(32, activation='relu')(inputs)
+decoded = Dense(784)(encoded)
+model = Model(input=inputs, output=decoded)
+```
+
+After compiling and training the model, you can get the output of the data from the encoder like this:
+
+```python
+encoder = Model(input=inputs, output=encoded)
+X_encoded = encoder.predict(X)
+```
 
 ---
 
 ### How can I use Keras with datasets that don't fit in memory?
 
-You can do batch training using `model.train_on_batch(X, y)` and `model.test_on_batch(X, y)`. See the [models documentation](models.md).
+You can do batch training using `model.train_on_batch(X, y)` and `model.test_on_batch(X, y)`. See the [models documentation](/models/sequential).
 
 Alternatively, you can write a generator that yields batches of training data and use the method `model.fit_generator(data_generator, samples_per_epoch, nb_epoch)`.
 
@@ -164,7 +184,7 @@ early_stopping = EarlyStopping(monitor='val_loss', patience=2)
 model.fit(X, y, validation_split=0.2, callbacks=[early_stopping])
 ```
 
-Find out more in the [callbacks documentation](callbacks.md).
+Find out more in the [callbacks documentation](/callbacks).
 
 ---
 
@@ -179,18 +199,52 @@ If you set the `validation_split` argument in `model.fit` to e.g. 0.1, then the 
 
 Yes, if the `shuffle` argument in `model.fit` is set to `True` (which is the default), the training data will be randomly shuffled at each epoch.
 
-Validation data isn't shuffled.
+Validation data is never shuffled.
 
 ---
 
 
 ### How can I record the training / validation loss / accuracy at each epoch?
 
-The `model.fit` method returns an `History` callback, which has a `history` attribute containing the lists of successive losses / accuracies.
+The `model.fit` method returns an `History` callback, which has a `history` attribute containing the lists of successive losses and other metrics.
 
 ```python
 hist = model.fit(X, y, validation_split=0.2)
 print(hist.history)
+```
+
+---
+
+### How can I "freeze" Keras layers?
+
+To "freeze" a layer means to exclude it from training, i.e. its weights will never be updated. This is useful in the context of fine-tuning a model, or using fixed embeddings for a text input.
+
+You can pass a `trainable` argument (boolean) to a layer constructor to set a layer to be non-trainable:
+
+```python
+frozen_layer = Dense(32, trainable=False)
+```
+
+Additionally, you can set the `trainable` property of a layer to `True` or `False` after instantiation. For this to take effect, you will need to call `compile()` on your model after modifying the `trainable` property. Here's an example:
+
+```python
+x = Input(shape=(32,))
+layer = Dense(32)
+layer.trainable = False
+y = layer(x)
+
+frozen_model = Model(x, y)
+# in the model below, the weights of `layer` will not be updated during training
+frozen_model.compile(optimizer='rmsprop', loss='mse')
+
+layer.trainable = True
+trainable_model = Model(x, y)
+# with this model the weights of the layer will be updated during training
+# (which will also affect the above model since it uses the same layer instance)
+trainable_model.compile(optimizer='rmsprop', loss='mse')
+
+frozen_model.fit(data, labels)  # this does NOT update the weights of `layer`
+trainable_model.fit(data, labels)  # this updates the weights of `layer`
 ```
 
 ---

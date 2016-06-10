@@ -3,7 +3,7 @@ with pixel-by-pixel sequential MNIST in
 "A Simple Way to Initialize Recurrent Networks of Rectified Linear Units"
 by Quoc V. Le, Navdeep Jaitly, Geoffrey E. Hinton
 
-arXiv:1504.00941v2 [cs.NE] 7 Apr 201
+arXiv:1504.00941v2 [cs.NE] 7 Apr 2015
 http://arxiv.org/pdf/1504.00941v2.pdf
 
 Optimizer is replaced with RMSprop which yields more stable and steady
@@ -14,17 +14,14 @@ Reaches 0.93 train/test accuracy after 900 epochs
 '''
 
 from __future__ import print_function
-import numpy as np
-np.random.seed(1337)  # for reproducibility
 
 from keras.datasets import mnist
 from keras.models import Sequential
-from keras.layers.core import Dense, Activation
+from keras.layers import Dense, Activation
+from keras.layers import SimpleRNN
 from keras.initializations import normal, identity
-from keras.layers.recurrent import SimpleRNN, LSTM
 from keras.optimizers import RMSprop
 from keras.utils import np_utils
-
 
 batch_size = 32
 nb_classes = 10
@@ -54,32 +51,20 @@ Y_test = np_utils.to_categorical(y_test, nb_classes)
 print('Evaluate IRNN...')
 model = Sequential()
 model.add(SimpleRNN(output_dim=hidden_units,
-                    init=lambda shape: normal(shape, scale=0.001),
-                    inner_init=lambda shape: identity(shape, scale=1.0),
-                    activation='relu', input_shape=X_train.shape[1:]))
+                    init=lambda shape, name: normal(shape, scale=0.001, name=name),
+                    inner_init=lambda shape, name: identity(shape, scale=1.0, name=name),
+                    activation='relu',
+                    input_shape=X_train.shape[1:]))
 model.add(Dense(nb_classes))
 model.add(Activation('softmax'))
 rmsprop = RMSprop(lr=learning_rate)
-model.compile(loss='categorical_crossentropy', optimizer=rmsprop)
+model.compile(loss='categorical_crossentropy',
+              optimizer=rmsprop,
+              metrics=['accuracy'])
 
 model.fit(X_train, Y_train, batch_size=batch_size, nb_epoch=nb_epochs,
-          show_accuracy=True, verbose=1, validation_data=(X_test, Y_test))
+          verbose=1, validation_data=(X_test, Y_test))
 
-scores = model.evaluate(X_test, Y_test, show_accuracy=True, verbose=0)
+scores = model.evaluate(X_test, Y_test, verbose=0)
 print('IRNN test score:', scores[0])
 print('IRNN test accuracy:', scores[1])
-
-print('Compare to LSTM...')
-model = Sequential()
-model.add(LSTM(hidden_units, input_shape=X_train.shape[1:]))
-model.add(Dense(nb_classes))
-model.add(Activation('softmax'))
-rmsprop = RMSprop(lr=learning_rate)
-model.compile(loss='categorical_crossentropy', optimizer=rmsprop)
-
-model.fit(X_train, Y_train, batch_size=batch_size, nb_epoch=nb_epochs,
-          show_accuracy=True, verbose=1, validation_data=(X_test, Y_test))
-
-scores = model.evaluate(X_test, Y_test, show_accuracy=True, verbose=0)
-print('LSTM test score:', scores[0])
-print('LSTM test accuracy:', scores[1])

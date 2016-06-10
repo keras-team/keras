@@ -60,8 +60,7 @@ class CallbackList(object):
             callback.on_batch_end(batch, logs)
         self._delta_ts_batch_end.append(time.time() - t_before_callbacks)
         delta_t_median = np.median(self._delta_ts_batch_end)
-        if self._delta_t_batch > 0. and delta_t_median > 0.95 * \
-           self._delta_t_batch and delta_t_median > 0.1:
+        if self._delta_t_batch > 0. and (delta_t_median > 0.95 * self._delta_t_batch and delta_t_median > 0.1):
             warnings.warn('Method on_batch_end() is slow compared '
                           'to the batch update (%f). Check your callbacks.'
                           % delta_t_median)
@@ -193,7 +192,7 @@ class ProgbarLogger(Callback):
             if k in logs:
                 self.log_values.append((k, logs[k]))
         if self.verbose:
-            self.progbar.update(self.seen, self.log_values)
+            self.progbar.update(self.seen, self.log_values, force=True)
 
 
 class History(Callback):
@@ -427,12 +426,15 @@ class TensorBoard(Callback):
 
     # Arguments
         log_dir: the path of the directory where to save the log
-            files to be parsed by tensorboard
+            files to be parsed by Tensorboard
         histogram_freq: frequency (in epochs) at which to compute activation
             histograms for the layers of the model. If set to 0,
             histograms won't be computed.
+        write_graph: whether to visualize the graph in Tensorboard. The log file can
+            become quite large when write_graph is set to True.
     '''
-    def __init__(self, log_dir='./logs', histogram_freq=0):
+
+    def __init__(self, log_dir='./logs', histogram_freq=0, write_graph=True):
         super(Callback, self).__init__()
         if K._BACKEND != 'tensorflow':
             raise Exception('TensorBoard callback only works '
@@ -440,6 +442,7 @@ class TensorBoard(Callback):
         self.log_dir = log_dir
         self.histogram_freq = histogram_freq
         self.merged = None
+        self.write_graph = write_graph
 
     def _set_model(self, model):
         import tensorflow as tf
@@ -447,41 +450,42 @@ class TensorBoard(Callback):
 
         self.model = model
         self.sess = KTF.get_session()
-        if self.histogram_freq and not self.merged:
-            mod_type = self.model.get_config()['name']
-            if mod_type == 'Sequential':
-                layers = {l.get_config()['name']: l for l in self.model.layers}
-            elif mod_type == 'Graph':
-                layers = self.model.nodes
-            else:
-                raise Exception('Unrecognized model:',
-                                self.model.get_config()['name'])
-            for l in layers:
-                cur_layer = layers[l]
-                if hasattr(cur_layer, 'W'):
-                    tf.histogram_summary('{}_W'.format(l), cur_layer.W)
-                if hasattr(cur_layer, 'b'):
-                    tf.histogram_summary('{}_b'.format(l), cur_layer.b)
-                if hasattr(cur_layer, 'get_output'):
-                    tf.histogram_summary('{}_out'.format(l),
-                                         cur_layer.get_output())
+        if self.histogram_freq and self.merged is None:
+            layers = self.model.layers
+            for layer in layers:
+                if hasattr(layer, 'W'):
+                    tf.histogram_summary('{}_W'.format(layer), layer.W)
+                if hasattr(layer, 'b'):
+                    tf.histogram_summary('{}_b'.format(layer), layer.b)
+                if hasattr(layer, 'output'):
+                    tf.histogram_summary('{}_out'.format(layer),
+                                         layer.output)
         self.merged = tf.merge_all_summaries()
-        self.writer = tf.train.SummaryWriter(self.log_dir,
-                                             self.sess.graph_def)
+        if self.write_graph:
+            if tf.__version__ >= '0.8.0':
+                self.writer = tf.train.SummaryWriter(self.log_dir,
+                                                     self.sess.graph)
+            else:
+                self.writer = tf.train.SummaryWriter(self.log_dir,
+                                                     self.sess.graph_def)
+        else:
+            self.writer = tf.train.SummaryWriter(self.log_dir)
 
     def on_epoch_end(self, epoch, logs={}):
         import tensorflow as tf
 
         if self.model.validation_data and self.histogram_freq:
             if epoch % self.histogram_freq == 0:
-                if self.params.get('show_accuracy'):
-                    test_function = self.model._test_with_acc
-                else:
-                    test_function = self.model._test
-                names = [v.name for v in test_function.inputs]
                 # TODO: implement batched calls to sess.run
                 # (current call will likely go OOM on GPU)
-                feed_dict = dict(zip(names, self.model.validation_data))
+                if self.model.uses_learning_phase:
+                    cut_v_data = len(self.model.inputs)
+                    val_data = self.model.validation_data[:cut_v_data] + [0]
+                    tensors = self.model.inputs + [K.learning_phase()]
+                else:
+                    val_data = self.model.validation_data
+                    tensors = self.model.inputs
+                feed_dict = dict(zip(tensors, val_data))
                 result = self.sess.run([self.merged], feed_dict=feed_dict)
                 summary_str = result[0]
                 self.writer.add_summary(summary_str, epoch)

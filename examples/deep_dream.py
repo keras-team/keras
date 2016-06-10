@@ -9,7 +9,7 @@ e.g.:
 python deep_dream.py img/mypic.jpg results/dream
 ```
 
-It is preferrable to run this script on GPU, for speed.
+It is preferable to run this script on GPU, for speed.
 If running on CPU, prefer the TensorFlow backend (much faster).
 
 Example results: http://i.imgur.com/FX6ROg9.jpg
@@ -24,7 +24,7 @@ import h5py
 import os
 
 from keras.models import Sequential
-from keras.layers.convolutional import Convolution2D, ZeroPadding2D, MaxPooling2D
+from keras.layers import Convolution2D, ZeroPadding2D, MaxPooling2D
 from keras import backend as K
 
 parser = argparse.ArgumentParser(description='Deep Dreams with Keras.')
@@ -74,15 +74,13 @@ def deprocess_image(x):
     x = np.clip(x, 0, 255).astype('uint8')
     return x
 
-# this will contain our generated image
-dream = K.placeholder((1, 3, img_width, img_height))
-
-# build the VGG16 network with our dream as input
-first_layer = ZeroPadding2D((1, 1), input_shape=(3, img_width, img_height))
-first_layer.input = dream
-
+# build the VGG16 network
 model = Sequential()
-model.add(first_layer)
+model.add(ZeroPadding2D((1, 1), batch_input_shape=(1, 3, img_width, img_height)))
+first_layer = model.layers[-1]
+# this is a placeholder tensor that will contain our generated images
+dream = first_layer.input
+
 model.add(Convolution2D(64, 3, 3, activation='relu', name='conv1_1'))
 model.add(ZeroPadding2D((1, 1)))
 model.add(Convolution2D(64, 3, 3, activation='relu', name='conv1_2'))
@@ -150,7 +148,7 @@ for layer_name in settings['features']:
     # add the L2 norm of the features of a layer to the loss
     assert layer_name in layer_dict.keys(), 'Layer ' + layer_name + ' not found in model.'
     coeff = settings['features'][layer_name]
-    x = layer_dict[layer_name].get_output()
+    x = layer_dict[layer_name].output
     shape = layer_dict[layer_name].output_shape
     # we avoid border artifacts by only involving non-border pixels in the loss
     loss -= coeff * K.sum(K.square(x[:, :, 2: shape[2]-2, 2: shape[3]-2])) / np.prod(shape[1:])
@@ -216,9 +214,9 @@ for i in range(5):
     print('Start of iteration', i)
     start_time = time.time()
 
-    # add a random offset jitter to the initial image. This will be reverted at decoding time
-    ox, oy = np.random.randint(-settings['jitter'], settings['jitter']+1, 2)
-    x = np.roll(np.roll(x, ox, -1), oy, -2)
+    # add a random jitter to the initial image. This will be reverted at decoding time
+    random_jitter = (settings['jitter'] * 2) * (np.random.random((3, img_width, img_height)) - 0.5)
+    x += random_jitter
 
     # run L-BFGS for 7 steps
     x, min_val, info = fmin_l_bfgs_b(evaluator.loss, x.flatten(),
@@ -226,7 +224,7 @@ for i in range(5):
     print('Current loss value:', min_val)
     # decode the dream and save it
     x = x.reshape((3, img_width, img_height))
-    x = np.roll(np.roll(x, -ox, -1), -oy, -2) # unshift image
+    x -= random_jitter
     img = deprocess_image(x)
     fname = result_prefix + '_at_iteration_%d.png' % i
     imsave(fname, img)

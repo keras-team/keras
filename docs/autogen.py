@@ -1,9 +1,68 @@
 # -*- coding: utf-8 -*-
+'''
+General documentation architecture:
+
+Home
+Index
+
+- Getting started
+    Getting started with the sequential model
+    Getting started with the functional api
+    Examples
+    FAQ
+    Installation guide
+
+- Models
+    About Keras models
+        explain when one should use Sequential or functional API
+        explain compilation step
+        explain weight saving, weight loading
+        explain serialization, deserialization
+    Sequential
+    Model (functional API)
+
+- Layers
+    About Keras layers
+        explain common layer functions: get_weights, set_weights, get_config
+        explain input_shape
+        explain usage on non-Keras tensors
+    Core layers
+    Convolutional
+    Recurrent
+    Embeddings
+    Normalization
+    Advanced activations
+    Noise
+
+- Preprocessing
+    Image preprocessing
+    Text preprocessing
+    Sequence preprocessing
+
+Objectives
+Optimizers
+Activations
+Callbacks
+Datasets
+Backend
+Initializations
+Regularizers
+Constraints
+Visualization
+Scikit-learn API
+
+'''
 from __future__ import print_function
+from __future__ import unicode_literals
+
 import re
 import inspect
 import os
 import shutil
+import sys
+if sys.version[0] == '2':
+    reload(sys)
+    sys.setdefaultencoding('utf8')
 
 from keras.layers import convolutional
 from keras.layers import recurrent
@@ -11,34 +70,147 @@ from keras.layers import core
 from keras.layers import noise
 from keras.layers import normalization
 from keras.layers import advanced_activations
-from keras.layers import containers
 from keras.layers import embeddings
+from keras.layers import wrappers
 from keras import optimizers
 from keras import callbacks
 from keras import models
+from keras.engine import topology
+from keras import objectives
+from keras import backend
+from keras import constraints
+from keras import activations
+from keras import regularizers
 
-MODULES = [(convolutional, 'keras.layers.convolutional'),
-           (recurrent, 'keras.layers.recurrent'),
-           (noise, 'keras.layers.noise'),
-           (normalization, 'keras.layers.normalization'),
-           (advanced_activations, 'keras.layers.advanced_activations'),
-           (containers, 'keras.layers.containers'),
-           (core, 'keras.layers.core'),
-           (embeddings, 'keras.layers.embeddings'),
-           (optimizers, 'keras.optimizers'),
-           (callbacks, 'keras.callbacks'),
-           (models, 'keras.models')]
 
-SKIP = ['build', 'get_params', 'MaskedLayer',
-        'SiameseHead', 'MaskedLambda',
-        'CallbackList']
-ROOT = 'http://keras.io/'
-INCLUDE_METHODS_FOR = [
-    'Layer',
-    'Graph',
-    'Sequential',
-    'Callback',
+EXCLUDE = {
+    'Optimizer',
+    'Wrapper',
+    'get_session',
+    'set_session',
+}
+
+PAGES = [
+    {
+        'page': 'models/sequential.md',
+        'functions': [
+            models.Sequential.compile,
+            models.Sequential.fit,
+            models.Sequential.evaluate,
+            models.Sequential.predict,
+            models.Sequential.predict_classes,
+            models.Sequential.predict_proba,
+            models.Sequential.train_on_batch,
+            models.Sequential.test_on_batch,
+            models.Sequential.predict_on_batch,
+            models.Sequential.fit_generator,
+            models.Sequential.evaluate_generator,
+        ],
+    },
+    {
+        'page': 'models/model.md',
+        'functions': [
+            models.Model.compile,
+            models.Model.fit,
+            models.Model.evaluate,
+            models.Model.predict,
+            models.Model.train_on_batch,
+            models.Model.test_on_batch,
+            models.Model.predict_on_batch,
+            models.Model.fit_generator,
+            models.Model.evaluate_generator,
+            models.Model.get_layer,
+        ]
+    },
+    {
+        'page': 'layers/core.md',
+        'classes': [
+            core.Dense,
+            core.Activation,
+            core.Dropout,
+            core.Flatten,
+            core.Reshape,
+            core.Permute,
+            core.RepeatVector,
+            topology.Merge,
+            core.Lambda,
+            core.ActivityRegularization,
+            core.Masking,
+            core.Highway,
+            core.MaxoutDense,
+            core.TimeDistributedDense,
+        ],
+    },
+    {
+        'page': 'layers/convolutional.md',
+        'classes': [
+            convolutional.Convolution1D,
+            convolutional.Convolution2D,
+            convolutional.Convolution3D,
+            convolutional.MaxPooling1D,
+            convolutional.MaxPooling2D,
+            convolutional.MaxPooling3D,
+            convolutional.AveragePooling1D,
+            convolutional.AveragePooling2D,
+            convolutional.AveragePooling3D,
+            convolutional.UpSampling1D,
+            convolutional.UpSampling2D,
+            convolutional.UpSampling3D,
+            convolutional.ZeroPadding1D,
+            convolutional.ZeroPadding2D,
+            convolutional.ZeroPadding3D,
+        ],
+    },
+    {
+        'page': 'layers/recurrent.md',
+        'classes': [
+            recurrent.Recurrent,
+            recurrent.SimpleRNN,
+            recurrent.GRU,
+            recurrent.LSTM,
+        ],
+    },
+    {
+        'page': 'layers/embeddings.md',
+        'classes': [
+            embeddings.Embedding,
+        ],
+    },
+    {
+        'page': 'layers/normalization.md',
+        'classes': [
+            normalization.BatchNormalization,
+        ],
+    },
+    {
+        'page': 'layers/advanced-activations.md',
+        'all_module_classes': [advanced_activations],
+    },
+    {
+        'page': 'layers/noise.md',
+        'all_module_classes': [noise],
+    },
+    {
+        'page': 'layers/wrappers.md',
+        'all_module_classes': [wrappers],
+    },
+
+
+    {
+        'page': 'optimizers.md',
+        'all_module_classes': [optimizers],
+    },
+    {
+        'page': 'callbacks.md',
+        'all_module_classes': [callbacks],
+    },
+    {
+        'page': 'backend.md',
+        'all_module_functions': [backend],
+    },
 ]
+
+ROOT = 'http://keras.io/'
 
 
 def get_earliest_class_that_defined_member(member, cls):
@@ -67,28 +239,40 @@ def get_classes_ancestors(classes):
         return filtered_ancestors
 
 
-def get_method_signature(method):
-    signature = inspect.getargspec(method)
+def get_function_signature(function, method=True):
+    signature = inspect.getargspec(function)
     defaults = signature.defaults
-    args = signature.args[1:]
+    if method:
+        args = signature.args[1:]
+    else:
+        args = signature.args
     if defaults:
         kwargs = zip(args[-len(defaults):], defaults)
         args = args[:-len(defaults)]
     else:
         kwargs = []
-    st = '%s.%s(' % (method.__module__, method.__name__)
+    st = '%s.%s(' % (function.__module__, function.__name__)
     for a in args:
         st += str(a) + ', '
     for a, v in kwargs:
         if type(v) == str:
             v = '\'' + v + '\''
-        elif type(v) == unicode:
-            v = 'u\'' + v + '\''
         st += str(a) + '=' + str(v) + ', '
     if kwargs or args:
         return st[:-2] + ')'
     else:
         return st + ')'
+
+
+def get_class_signature(cls):
+    try:
+        class_signature = get_function_signature(cls.__init__)
+        class_signature = class_signature.replace('__init__', cls.__name__)
+    except:
+        # in case the class inherits from object and does not
+        # define __init__
+        class_signature = cls.__module__ + '.' + cls.__name__ + '()'
+    return class_signature
 
 
 def class_to_docs_link(cls):
@@ -131,7 +315,10 @@ def process_class_docstring(docstring):
     return docstring
 
 
-def process_method_docstring(docstring):
+def process_function_docstring(docstring):
+    docstring = re.sub(r'\n    # (.*)\n',
+                       r'\n    __\1__\n\n',
+                       docstring)
     docstring = re.sub(r'\n        # (.*)\n',
                        r'\n        __\1__\n\n',
                        docstring)
@@ -148,6 +335,7 @@ def process_method_docstring(docstring):
 print('Cleaning up existing sources directory.')
 if os.path.exists('sources'):
     shutil.rmtree('sources')
+
 print('Populating sources directory with templates.')
 for subdir, dirs, fnames in os.walk('templates'):
     for fname in fnames:
@@ -160,101 +348,75 @@ for subdir, dirs, fnames in os.walk('templates'):
             shutil.copy(fpath, new_fpath)
 
 print('Starting autogeneration.')
-covered_so_far = set()
-for module, module_name in MODULES:
-    class_pages = []
-    for name in dir(module):
-        if name in SKIP:
-            continue
-        if name[0] == '_':
-            continue
-        module_member = getattr(module, name)
-        if module_member in covered_so_far:
-            continue
-        if inspect.isclass(module_member):
-            cls = module_member
-            if cls.__module__ == module_name:
+for page_data in PAGES:
+    blocks = []
+    classes = page_data.get('classes', [])
+    for module in page_data.get('all_module_classes', []):
+        module_classes = []
+        for name in dir(module):
+            if name[0] == '_' or name in EXCLUDE:
+                continue
+            module_member = getattr(module, name)
+            if inspect.isclass(module_member):
+                cls = module_member
+                if cls.__module__ == module.__name__:
+                    if cls not in module_classes:
+                        module_classes.append(cls)
+        module_classes.sort(key=lambda x: id(x))
+        classes += module_classes
 
-                try:
-                    class_signature = get_method_signature(cls.__init__)
-                    class_signature = class_signature.replace('__init__', cls.__name__)
-                except:
-                    # in case the class inherits from object and does not
-                    # define __init__
-                    class_signature = module_name + '.' + cls.__name__ + '()'
+    for cls in classes:
+        subblocks = []
+        signature = get_class_signature(cls)
+        subblocks.append('<span style="float:right;">' + class_to_source_link(cls) + '</span>')
+        subblocks.append('### ' + cls.__name__ + '\n')
+        subblocks.append(code_snippet(signature))
+        docstring = cls.__doc__
+        if docstring:
+            subblocks.append(process_class_docstring(docstring))
+        blocks.append('\n'.join(subblocks))
 
-                methods = []
-                methods_not_defined_here = []
-                for name in dir(cls):
-                    if name in SKIP:
-                        continue
-                    if name[0] == '_':
-                        continue
-                    cls_member = getattr(cls, name)
-                    if inspect.ismethod(cls_member):
-                        method = cls_member
-                        signature = inspect.getargspec(method)
-                        defaults = signature.defaults
-                        args = signature.args[1:]
-                        if defaults:
-                            kwargs = zip(args[-len(defaults):], defaults)
-                            args = args[:-len(defaults)]
-                        else:
-                            kwargs = []
+    functions = page_data.get('functions', [])
+    for module in page_data.get('all_module_functions', []):
+        module_functions = []
+        for name in dir(module):
+            if name[0] == '_' or name in EXCLUDE:
+                continue
+            module_member = getattr(module, name)
+            if inspect.isfunction(module_member):
+                function = module_member
+                if module.__name__ in function.__module__:
+                    if function not in module_functions:
+                        module_functions.append(function)
+        module_functions.sort(key=lambda x: id(x))
+        functions += module_functions
 
-                        defined_by = get_earliest_class_that_defined_member(method.__name__, cls)
-                        if cls == defined_by:
-                            methods.append(method)
-                        else:
-                            methods_not_defined_here.append((method, defined_by))
+    for function in functions:
+        subblocks = []
+        signature = get_function_signature(function, method=False)
+        signature = signature.replace(function.__module__ + '.', '')
+        subblocks.append('### ' + function.__name__ + '\n')
+        subblocks.append(code_snippet(signature))
+        docstring = function.__doc__
+        if docstring:
+            subblocks.append(process_function_docstring(docstring))
+            blocks.append('\n\n'.join(subblocks))
 
-                blocks = []
-                blocks.append('<span style="float:right;">' + class_to_source_link(cls) + '</span>')
-                blocks.append('# ' + cls.__name__ + '\n')
-                blocks.append(code_snippet(class_signature))
-                docstring = cls.__doc__
-                if docstring:
-                    blocks.append(process_class_docstring(docstring))
-
-                if cls.__name__ in INCLUDE_METHODS_FOR:
-                    if methods or methods_not_defined_here:
-                        blocks.append('### Methods\n')
-                        for method in methods:
-                            signature = get_method_signature(method)
-                            signature = signature.replace(module_name + '.', '')
-                            blocks.append(code_snippet(signature))
-                            docstring = method.__doc__
-                            if docstring:
-                                blocks.append(process_method_docstring(docstring))
-                        for method, defined_by in methods_not_defined_here:
-                            signature = get_method_signature(method)
-                            method_module_name = method.__module__
-                            signature = signature.replace(method_module_name + '.', '')
-                            link = '[' + defined_by.__name__ + '](' + class_to_docs_link(defined_by) + ')'
-                            blocks.append(code_snippet(signature))
-                            blocks.append('Defined by ' + link + '.\n')
-
-                mkdown = '\n'.join(blocks)
-                class_pages.append((id(cls), mkdown))
-                covered_so_far.add(module_member)
-
-    class_pages.sort(key=lambda x: x[0])
-    class_pages = [x[1] for x in class_pages]
-    module_page = '\n----\n\n'.join(class_pages)
-
+    mkdown = '\n----\n\n'.join(blocks)
     # save module page.
     # Either insert content into existing page,
     # or create page otherwise
-    path = 'sources/' + module_name.replace('.', '/')[6:] + '.md'
+    page_name = page_data['page']
+    path = os.path.join('sources', page_name)
     if os.path.exists(path):
         template = open(path).read()
         assert '{{autogenerated}}' in template, ('Template found for ' + path +
                                                  ' but missing {{autogenerated}} tag.')
-        module_page = template.replace('{{autogenerated}}', module_page)
+        mkdown = template.replace('{{autogenerated}}', mkdown)
         print('...inserting autogenerated content into template:', path)
     else:
         print('...creating new page with autogenerated content:', path)
     subdir = os.path.dirname(path)
     if not os.path.exists(subdir):
         os.makedirs(subdir)
-    open(path, 'w').write(module_page)
+    open(path, 'w').write(mkdown)

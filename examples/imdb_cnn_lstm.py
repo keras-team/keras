@@ -1,22 +1,18 @@
 '''Train a recurrent convolutional network on the IMDB sentiment
 classification task.
 
-GPU command:
-    THEANO_FLAGS=mode=FAST_RUN,device=gpu,floatX=float32 python imdb_cnn_lstm.py
-
-Get to 0.8498 test accuracy after 2 epochs. 41s/epoch on K520 GPU.
+Gets to 0.8498 test accuracy after 2 epochs. 41s/epoch on K520 GPU.
 '''
-
 from __future__ import print_function
 import numpy as np
 np.random.seed(1337)  # for reproducibility
 
 from keras.preprocessing import sequence
 from keras.models import Sequential
-from keras.layers.core import Dense, Dropout, Activation
-from keras.layers.embeddings import Embedding
-from keras.layers.recurrent import LSTM, GRU, SimpleRNN
-from keras.layers.convolutional import Convolution1D, MaxPooling1D
+from keras.layers import Dense, Dropout, Activation
+from keras.layers import Embedding
+from keras.layers import LSTM, GRU, SimpleRNN
+from keras.layers import Convolution1D, MaxPooling1D
 from keras.datasets import imdb
 
 
@@ -71,12 +67,11 @@ model.add(Activation('sigmoid'))
 
 model.compile(loss='binary_crossentropy',
               optimizer='adam',
-              class_mode='binary')
+              metrics=['accuracy'])
 
 print('Train...')
 model.fit(X_train, y_train, batch_size=batch_size, nb_epoch=nb_epoch,
-          validation_data=(X_test, y_test), show_accuracy=True)
-score, acc = model.evaluate(X_test, y_test, batch_size=batch_size,
-                            show_accuracy=True)
+          validation_data=(X_test, y_test))
+score, acc = model.evaluate(X_test, y_test, batch_size=batch_size)
 print('Test score:', score)
 print('Test accuracy:', acc)

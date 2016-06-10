@@ -12,11 +12,13 @@ def get_fans(shape, dim_ordering='th'):
         # TH kernel shape: (depth, input_depth, ...)
         # TF kernel shape: (..., input_depth, depth)
         if dim_ordering == 'th':
-            fan_in = np.prod(shape[1:])
-            fan_out = shape[0]
+            receptive_field_size = np.prod(shape[2:])
+            fan_in = shape[1] * receptive_field_size
+            fan_out = shape[0] * receptive_field_size
         elif dim_ordering == 'tf':
-            fan_in = np.prod(shape[:-1])
-            fan_out = shape[-1]
+            receptive_field_size = np.prod(shape[:2])
+            fan_in = shape[-2] * receptive_field_size
+            fan_out = shape[-1] * receptive_field_size
         else:
             raise Exception('Invalid dim_ordering: ' + dim_ordering)
     else:

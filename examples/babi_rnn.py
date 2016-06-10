@@ -66,7 +66,7 @@ np.random.seed(1337)  # for reproducibility
 
 from keras.utils.data_utils import get_file
 from keras.layers.embeddings import Embedding
-from keras.layers.core import Dense, Merge, Dropout, RepeatVector
+from keras.layers import Dense, Merge, Dropout, RepeatVector
 from keras.layers import recurrent
 from keras.models import Sequential
 from keras.preprocessing.sequence import pad_sequences
@@ -146,7 +146,13 @@ BATCH_SIZE = 32
 EPOCHS = 40
 print('RNN / Embed / Sent / Query = {}, {}, {}, {}'.format(RNN, EMBED_HIDDEN_SIZE, SENT_HIDDEN_SIZE, QUERY_HIDDEN_SIZE))
 
-path = get_file('babi-tasks-v1-2.tar.gz', origin='http://www.thespermwhale.com/jaseweston/babi/tasks_1-20_v1-2.tar.gz')
+try:
+    path = get_file('babi-tasks-v1-2.tar.gz', origin='http://www.thespermwhale.com/jaseweston/babi/tasks_1-20_v1-2.tar.gz')
+except:
+    print('Error downloading dataset, please download it manually:\n'
+          '$ wget http://www.thespermwhale.com/jaseweston/babi/tasks_1-20_v1-2.tar.gz\n'
+          '$ mv tasks_1-20_v1-2.tar.gz ~/.keras/datasets/babi-tasks-v1-2.tar.gz')
+    raise
 tar = tarfile.open(path)
 # Default QA1 with 1000 samples
 # challenge = 'tasks_1-20_v1-2/en/qa1_single-supporting-fact_{}.txt'
@@ -178,11 +184,13 @@ print('story_maxlen, query_maxlen = {}, {}'.format(story_maxlen, query_maxlen))
 print('Build model...')
 
 sentrnn = Sequential()
-sentrnn.add(Embedding(vocab_size, EMBED_HIDDEN_SIZE, input_length=story_maxlen, mask_zero=True))
+sentrnn.add(Embedding(vocab_size, EMBED_HIDDEN_SIZE,
+                      input_length=story_maxlen))
 sentrnn.add(Dropout(0.3))
 
 qrnn = Sequential()
-qrnn.add(Embedding(vocab_size, EMBED_HIDDEN_SIZE, input_length=query_maxlen))
+qrnn.add(Embedding(vocab_size, EMBED_HIDDEN_SIZE,
+                   input_length=query_maxlen))
 qrnn.add(Dropout(0.3))
 qrnn.add(RNN(EMBED_HIDDEN_SIZE, return_sequences=False))
 qrnn.add(RepeatVector(story_maxlen))
@@ -193,9 +201,11 @@ model.add(RNN(EMBED_HIDDEN_SIZE, return_sequences=False))
 model.add(Dropout(0.3))
 model.add(Dense(vocab_size, activation='softmax'))
 
-model.compile(optimizer='adam', loss='categorical_crossentropy', class_mode='categorical')
+model.compile(optimizer='adam',
+              loss='categorical_crossentropy',
+              metrics=['accuracy'])
 
 print('Training')
-model.fit([X, Xq], Y, batch_size=BATCH_SIZE, nb_epoch=EPOCHS, validation_split=0.05, show_accuracy=True)
-loss, acc = model.evaluate([tX, tXq], tY, batch_size=BATCH_SIZE, show_accuracy=True)
+model.fit([X, Xq], Y, batch_size=BATCH_SIZE, nb_epoch=EPOCHS, validation_split=0.05)
+loss, acc = model.evaluate([tX, tXq], tY, batch_size=BATCH_SIZE)
 print('Test loss / test accuracy = {:.4f} / {:.4f}'.format(loss, acc))

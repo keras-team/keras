@@ -12,14 +12,14 @@ plot(model, to_file='model.png')
 
 `plot` takes two optional arguments:
 
-- `recursive` (defaults to True) controls whether we recursively explore container layers.
-- `show_shape` (defaults to False) controls whether output shapes are shown in the graph.
+- `show_shapes` (defaults to False) controls whether output shapes are shown in the graph.
+- `show_layer_names` (defaults to True) controls whether layer names are shown in the graph.
 
 You can also directly obtain the `pydot.Graph` object and render it yourself,
 for example to show it in an ipython notebook :
 ```python
 from IPython.display import SVG
-from keras.utils.visualize_util import to_graph
+from keras.utils.visualize_util import model_to_dot
 
-SVG(to_graph(model).create(prog='dot', format='svg'))
+SVG(model_to_dot(model).create(prog='dot', format='svg'))
 ```
