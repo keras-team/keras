@@ -417,14 +417,12 @@ class Adamax(Optimizer):
 
 class Nadam(Optimizer):
     '''
-    Nesterov Adam optimizer: Adam ~ RMSProp + momentum, Nadam ~ RMSProp + NAG
+    Nesterov Adam optimizer: Much like Adam is essentially RMSprop with momentum,
+    Nadam is Adam RMSprop with Nesterov momentum.
 
     Default parameters follow those provided in the paper.
-
-    Hard-coded values for warming momentum schedule calculation
-    (used in schedule_decay, momentum_cache_t, momentum_cache_t_1, lines 456-458)
-    are given in [1] with reference in [2] (p.4 eq.5) and strongly motivated
-    to keep these values hard-coded and constant.
+    It is recommended to leave the parameters of this optimizer
+    at their default values.
 
     # Arguments
         lr: float >= 0. Learning rate.
@@ -432,12 +430,12 @@ class Nadam(Optimizer):
         epsilon: float >= 0. Fuzz factor.
 
     # References
-    [1] Nadam report - http://cs229.stanford.edu/proj2015/054_report.pdf
-    [2] On the importance of initialization and momentum in deep learning -
-        http://www.cs.toronto.edu/~fritz/absps/momentum.pdf
+        [1] Nadam report - http://cs229.stanford.edu/proj2015/054_report.pdf
+        [2] On the importance of initialization and momentum in deep learning -
+            http://www.cs.toronto.edu/~fritz/absps/momentum.pdf
     '''
     def __init__(self, lr=0.002, beta_1=0.9, beta_2=0.999,
-                 epsilon=1e-8, **kwargs):
+                 epsilon=1e-8, schedule_decay=0.004, **kwargs):
         super(Nadam, self).__init__(**kwargs)
         self.__dict__.update(locals())
         self.iterations = K.variable(0.)
@@ -445,6 +443,7 @@ class Nadam(Optimizer):
         self.lr = K.variable(lr)
         self.beta_1 = K.variable(beta_1)
         self.beta_2 = K.variable(beta_2)
+        self.schedule_decay = schedule_decay
 
     def get_updates(self, params, constraints, loss):
         grads = self.get_gradients(loss, params)
@@ -453,9 +452,8 @@ class Nadam(Optimizer):
         t = self.iterations + 1
 
         # Due to the recommendations in [2], i.e. warming momentum schedule
-        schedule_decay = 0.004  # Exactly given in [1] and [2]
-        momentum_cache_t = self.beta_1 * (1. - 0.5 * (K.pow(0.96, t * schedule_decay)))
-        momentum_cache_t_1 = self.beta_1 * (1. - 0.5 * (K.pow(0.96, (t + 1) * schedule_decay)))
+        momentum_cache_t = self.beta_1 * (1. - 0.5 * (K.pow(0.96, t * self.schedule_decay)))
+        momentum_cache_t_1 = self.beta_1 * (1. - 0.5 * (K.pow(0.96, (t + 1) * self.schedule_decay)))
         m_schedule_new = self.m_schedule * momentum_cache_t
         m_schedule_next = self.m_schedule * momentum_cache_t * momentum_cache_t_1
         self.updates.append((self.m_schedule, m_schedule_new))
@@ -491,7 +489,8 @@ class Nadam(Optimizer):
         config = {'lr': float(K.get_value(self.lr)),
                   'beta_1': float(K.get_value(self.beta_1)),
                   'beta_2': float(K.get_value(self.beta_2)),
-                  'epsilon': self.epsilon}
+                  'epsilon': self.epsilon,
+                  'schedule_decay': self.schedule_decay}
         base_config = super(Nadam, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
