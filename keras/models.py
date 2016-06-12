@@ -730,12 +730,15 @@ class Sequential(Model):
         return copy.deepcopy(config)
 
     @classmethod
-    def from_config(cls, config, layer_cache={}):
+    def from_config(cls, config, layer_cache=None):
         '''Supports legacy formats
         '''
         from keras.utils.layer_utils import layer_from_config
         from keras.layers import Merge
         assert type(config) is list
+
+        if not layer_cache:
+            layer_cache = {}
 
         def normalize_legacy_config(conf):
             if 'class_name' not in conf:
