@@ -189,7 +189,7 @@ def eval_loss_and_grads(x):
 class Evaluator(object):
     def __init__(self):
         self.loss_value = None
-        self.grads_values = None
+        self.grad_values = None
 
     def loss(self, x):
         assert self.loss_value is None
