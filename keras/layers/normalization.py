@@ -139,7 +139,7 @@ class BatchNormalization(Layer):
         elif self.mode == 1:
             # sample-wise normalization
             m = K.mean(x, axis=-1, keepdims=True)
-            std = K.std(x, axis=-1, keepdims=True)
+            std = K.sqrt(K.var(x, axis=-1, keepdims=True) + self.epsilon)
             x_normed = (x - m) / (std + self.epsilon)
             out = self.gamma * x_normed + self.beta
         return out
