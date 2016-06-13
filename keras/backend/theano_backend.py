@@ -200,6 +200,10 @@ def std(x, axis=None, keepdims=False):
     return T.std(x, axis=axis, keepdims=keepdims)
 
 
+def var(x, axis=None, keepdims=False):
+    return T.var(x, axis=axis, keepdims=keepdims)
+
+
 def any(x, axis=None, keepdims=False):
     '''Bitwise reduction (logical OR).
     '''
