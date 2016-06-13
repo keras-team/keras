@@ -315,7 +315,7 @@ def prod(x, axis=None, keepdims=False):
 
 
 def var(x, axis=None, keepdims=False):
-    '''Variance of a tensor, alongside the specificied axis.
+    '''Variance of a tensor, alongside the specified axis.
     '''
     axis = _normalize_axis(axis, ndim(x))
     if x.dtype.base_dtype == tf.bool:
@@ -328,7 +328,7 @@ def var(x, axis=None, keepdims=False):
 
 
 def std(x, axis=None, keepdims=False):
-    '''Standard deviation of a tensor, alongside the specificied axis.
+    '''Standard deviation of a tensor, alongside the specified axis.
     '''
     return tf.sqrt(var(x, axis=axis, keepdims=keepdims))
 
