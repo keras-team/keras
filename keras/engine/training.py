@@ -235,7 +235,10 @@ def collect_trainable_weights(layer):
     if not trainable:
         return []
     weights = []
-    if layer.__class__.__name__ in ['Sequential', 'Model']:
+    if layer.__class__.__name__ == 'Sequential':
+        for sublayer in layer.flattened_layers:
+            weights += collect_trainable_weights(sublayer)
+    elif layer.__class__.__name__ == 'Model':
         for sublayer in layer.layers:
             weights += collect_trainable_weights(sublayer)
     elif layer.__class__.__name__ == 'Graph':
