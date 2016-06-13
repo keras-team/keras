@@ -554,6 +554,10 @@ class Dense(Layer):
         input_dim: dimensionality of the input (integer).
             This argument (or alternatively, the keyword argument `input_shape`)
             is required when using this layer as the first layer in a model.
+        W_learning_rate_multiplier: Multiplier (between 0.0 and 1.0) applied to the 
+            learning rate of the main weights matrix.
+        b_learning_rate_multiplier: Multiplier (between 0.0 and 1.0) applied to the 
+            learning rate of the bias.
 
     # Input shape
         2D tensor with shape: `(nb_samples, input_dim)`.
@@ -564,7 +568,9 @@ class Dense(Layer):
     def __init__(self, output_dim, init='glorot_uniform', activation='linear', weights=None,
                  W_regularizer=None, b_regularizer=None, activity_regularizer=None,
                  W_constraint=None, b_constraint=None,
-                 bias=True, input_dim=None, **kwargs):
+                 bias=True, input_dim=None,
+                 W_learning_rate_multiplier=None, b_learning_rate_multiplier=None,
+                 **kwargs):
         self.init = initializations.get(init)
         self.activation = activations.get(activation)
         self.output_dim = output_dim
@@ -576,6 +582,10 @@ class Dense(Layer):
 
         self.W_constraint = constraints.get(W_constraint)
         self.b_constraint = constraints.get(b_constraint)
+
+        self.W_learning_rate_multiplier = W_learning_rate_multiplier
+        self.b_learning_rate_multiplier = b_learning_rate_multiplier
+        self.learning_rate_multipliers = [self.W_learning_rate_multiplier, self.b_learning_rate_multiplier]
 
         self.bias = bias
         self.initial_weights = weights
@@ -643,7 +653,9 @@ class Dense(Layer):
                   'W_constraint': self.W_constraint.get_config() if self.W_constraint else None,
                   'b_constraint': self.b_constraint.get_config() if self.b_constraint else None,
                   'bias': self.bias,
-                  'input_dim': self.input_dim}
+                  'input_dim': self.input_dim,
+                  'W_learning_rate_multiplier': self.W_learning_rate_multiplier,
+                  'b_learning_rate_multiplier': self.b_learning_rate_multiplier}
         base_config = super(Dense, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
