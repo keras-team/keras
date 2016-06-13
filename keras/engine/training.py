@@ -235,7 +235,7 @@ def collect_trainable_weights(layer):
     if not trainable:
         return []
     weights = []
-    if layer.__class__.__name__ in ['Sequential', 'Model']:
+    if layer.__class__.__name__ in ['Sequential', 'Model', 'Merge']:
         for sublayer in layer.layers:
             weights += collect_trainable_weights(sublayer)
     elif layer.__class__.__name__ == 'Graph':
@@ -660,6 +660,9 @@ class Model(Container):
             trainable_weights = []
             for layer in self.layers:
                 trainable_weights += collect_trainable_weights(layer)
+
+            # remove duplicate weights
+            trainable_weights = list(set(trainable_weights))
 
             training_updates = self.optimizer.get_updates(trainable_weights, self.constraints, self.total_loss)
             updates = self.updates + training_updates
