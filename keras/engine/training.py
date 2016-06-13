@@ -246,6 +246,29 @@ def collect_trainable_weights(layer):
     return weights
 
 
+def collect_learning_rate_multipliers(layer):
+    trainable = getattr(layer, 'trainable', True)
+    if not trainable:
+        return []
+    lr_mults = []
+    if layer.__class__.__name__ in ['Sequential', 'Model']:
+        for sublayer in layer.layers:
+            lr_mults += collect_learning_rate_multipliers(sublayer)
+    elif layer.__class__.__name__ == 'Graph':
+        for sublayer in layer._graph_nodes.values():
+            lr_mults += collect_learning_rate_multipliers(sublayer)
+    else:
+        if hasattr(layer, 'learning_rate_multipliers'):
+            for lmul in layer.learning_rate_multipliers:
+                if (lmul is not None):
+                    lr_mults.append(lmul)
+                else:
+                    lr_mults.append(1.0)
+        else:
+            lr_mults = [1.0 for p in collect_trainable_weights(layer)]
+    return lr_mults
+
+
 def batch_shuffle(index_array, batch_size):
     '''This shuffles an array in a batch-wise fashion.
     Useful for shuffling HDF5 arrays
@@ -661,7 +684,12 @@ class Model(Container):
             for layer in self.layers:
                 trainable_weights += collect_trainable_weights(layer)
 
-            training_updates = self.optimizer.get_updates(trainable_weights, self.constraints, self.total_loss)
+            # get learning rate multipliers
+            lr_mults = []
+            for layer in self.layers:
+                lr_mults += collect_learning_rate_multipliers(layer)
+                
+            training_updates = self.optimizer.get_updates(trainable_weights, lr_mults, self.constraints, self.total_loss)
             updates = self.updates + training_updates
 
             # returns loss and metrics. Updates weights at each call.
