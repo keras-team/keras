@@ -65,6 +65,7 @@ class Convolution1D(Layer):
             (eg. maxnorm, nonneg), applied to the main weights matrix.
         b_constraint: instance of the [constraints](../constraints.md) module,
             applied to the bias.
+        bias: whether to include a bias (i.e. make the layer affine rather than linear).
         input_dim: Number of channels/dimensions in the input.
             Either this argument or the keyword argument `input_shape`must be
             provided when using this layer as the first layer in a model.
@@ -87,6 +88,7 @@ class Convolution1D(Layer):
                  W_constraint=None, b_constraint=None,
                  W_learning_rate_multiplier=None, b_learning_rate_multiplier=None,
                  input_dim=None, input_length=None, **kwargs):
+                 bias=True, input_dim=None, input_length=None, **kwargs):
 
         if border_mode not in {'valid', 'same'}:
             raise Exception('Invalid border mode for Convolution1D:', border_mode)
@@ -112,6 +114,7 @@ class Convolution1D(Layer):
         self.learning_rate_multipliers = [self.W_learning_rate_multiplier,
                                           self.b_learning_rate_multiplier]
 
+        self.bias = bias
         self.input_spec = [InputSpec(ndim=3)]
         self.initial_weights = weights
         self.input_dim = input_dim
@@ -124,15 +127,18 @@ class Convolution1D(Layer):
         input_dim = input_shape[2]
         self.W_shape = (self.nb_filter, input_dim, self.filter_length, 1)
         self.W = self.init(self.W_shape, name='{}_W'.format(self.name))
-        self.b = K.zeros((self.nb_filter,), name='{}_b'.format(self.name))
-        self.trainable_weights = [self.W, self.b]
+        if self.bias:
+            self.b = K.zeros((self.nb_filter,), name='{}_b'.format(self.name))
+            self.trainable_weights = [self.W, self.b]
+        else:
+            self.trainable_weights = [self.W]
         self.regularizers = []
 
         if self.W_regularizer:
             self.W_regularizer.set_param(self.W)
             self.regularizers.append(self.W_regularizer)
 
-        if self.b_regularizer:
+        if self.bias and self.b_regularizer:
             self.b_regularizer.set_param(self.b)
             self.regularizers.append(self.b_regularizer)
 
@@ -143,7 +149,7 @@ class Convolution1D(Layer):
         self.constraints = {}
         if self.W_constraint:
             self.constraints[self.W] = self.W_constraint
-        if self.b_constraint:
+        if self.bias and self.b_constraint:
             self.constraints[self.b] = self.b_constraint
 
         if self.initial_weights is not None:
@@ -160,14 +166,14 @@ class Convolution1D(Layer):
     def call(self, x, mask=None):
         x = K.expand_dims(x, -1)  # add a dimension of the right
         x = K.permute_dimensions(x, (0, 2, 1, 3))
-        conv_out = K.conv2d(x, self.W, strides=self.subsample,
-                            border_mode=self.border_mode,
-                            dim_ordering='th')
-
-        output = conv_out + K.reshape(self.b, (1, self.nb_filter, 1, 1))
-        output = self.activation(output)
+        output = K.conv2d(x, self.W, strides=self.subsample,
+                          border_mode=self.border_mode,
+                          dim_ordering='th')
+        if self.bias:
+            output += K.reshape(self.b, (1, self.nb_filter, 1, 1))
         output = K.squeeze(output, 3)  # remove the dummy 3rd dimension
         output = K.permute_dimensions(output, (0, 2, 1))
+        output = self.activation(output)
         return output
 
     def get_config(self):
@@ -183,6 +189,7 @@ class Convolution1D(Layer):
                   'W_constraint': self.W_constraint.get_config() if self.W_constraint else None,
                   'b_constraint': self.b_constraint.get_config() if self.b_constraint else None,
                   'b_learning_rate_multiplier': self.b_learning_rate_multiplier,
+                  'bias': self.bias,
                   'input_dim': self.input_dim,
                   'input_length': self.input_length}
         base_config = super(Convolution1D, self).get_config()
@@ -244,6 +251,10 @@ class Convolution2D(Layer):
             applied to the bias.
         dim_ordering: 'th' or 'tf'. In 'th' mode, the channels dimension
             (the depth) is at index 1, in 'tf' mode is it at index 3.
+            It defaults to the `image_dim_ordering` value found in your
+            Keras config file at `~/.keras/keras.json`.
+            If you never set it, then it will be "th".
+        bias: whether to include a bias (i.e. make the layer affine rather than linear).
 
     # Input shape
         4D tensor with shape:
@@ -260,11 +271,11 @@ class Convolution2D(Layer):
     '''
     def __init__(self, nb_filter, nb_row, nb_col,
                  init='glorot_uniform', activation='linear', weights=None,
-                 border_mode='valid', subsample=(1, 1), dim_ordering='th',
+                 border_mode='valid', subsample=(1, 1), dim_ordering=K.image_dim_ordering(),
                  W_regularizer=None, b_regularizer=None, activity_regularizer=None,
                  W_constraint=None, b_constraint=None, 
                  W_learning_rate_multiplier=None, b_learning_rate_multiplier=None,
-                 **kwargs):
+                 bias=True, **kwargs):
 
         if border_mode not in {'valid', 'same'}:
             raise Exception('Invalid border mode for Convolution2D:', border_mode)
@@ -290,6 +301,7 @@ class Convolution2D(Layer):
         self.b_learning_rate_multiplier = b_learning_rate_multiplier
         self.learning_rate_multipliers = [self.W_learning_rate_multiplier, self.b_learning_rate_multiplier]
 
+        self.bias = bias
         self.input_spec = [InputSpec(ndim=4)]
         self.initial_weights = weights
         super(Convolution2D, self).__init__(**kwargs)
@@ -304,15 +316,18 @@ class Convolution2D(Layer):
         else:
             raise Exception('Invalid dim_ordering: ' + self.dim_ordering)
         self.W = self.init(self.W_shape, name='{}_W'.format(self.name))
-        self.b = K.zeros((self.nb_filter,), name='{}_b'.format(self.name))
-        self.trainable_weights = [self.W, self.b]
+        if self.bias:
+            self.b = K.zeros((self.nb_filter,), name='{}_b'.format(self.name))
+            self.trainable_weights = [self.W, self.b]
+        else:
+            self.trainable_weights = [self.W]
         self.regularizers = []
 
         if self.W_regularizer:
             self.W_regularizer.set_param(self.W)
             self.regularizers.append(self.W_regularizer)
 
-        if self.b_regularizer:
+        if self.bias and self.b_regularizer:
             self.b_regularizer.set_param(self.b)
             self.regularizers.append(self.b_regularizer)
 
@@ -323,7 +338,7 @@ class Convolution2D(Layer):
         self.constraints = {}
         if self.W_constraint:
             self.constraints[self.W] = self.W_constraint
-        if self.b_constraint:
+        if self.bias and self.b_constraint:
             self.constraints[self.b] = self.b_constraint
 
         if self.initial_weights is not None:
@@ -353,16 +368,17 @@ class Convolution2D(Layer):
             raise Exception('Invalid dim_ordering: ' + self.dim_ordering)
 
     def call(self, x, mask=None):
-        conv_out = K.conv2d(x, self.W, strides=self.subsample,
-                            border_mode=self.border_mode,
-                            dim_ordering=self.dim_ordering,
-                            filter_shape=self.W_shape)
-        if self.dim_ordering == 'th':
-            output = conv_out + K.reshape(self.b, (1, self.nb_filter, 1, 1))
-        elif self.dim_ordering == 'tf':
-            output = conv_out + K.reshape(self.b, (1, 1, 1, self.nb_filter))
-        else:
-            raise Exception('Invalid dim_ordering: ' + self.dim_ordering)
+        output = K.conv2d(x, self.W, strides=self.subsample,
+                          border_mode=self.border_mode,
+                          dim_ordering=self.dim_ordering,
+                          filter_shape=self.W_shape)
+        if self.bias:
+            if self.dim_ordering == 'th':
+                output += K.reshape(self.b, (1, self.nb_filter, 1, 1))
+            elif self.dim_ordering == 'tf':
+                output += K.reshape(self.b, (1, 1, 1, self.nb_filter))
+            else:
+                raise Exception('Invalid dim_ordering: ' + self.dim_ordering)
         output = self.activation(output)
         return output
 
@@ -382,6 +398,7 @@ class Convolution2D(Layer):
                   'b_constraint': self.b_constraint.get_config() if self.b_constraint else None,
                   'W_learning_rate_multiplier': self.W_learning_rate_multiplier,
                   'b_learning_rate_multiplier': self.b_learning_rate_multiplier}
+                  'bias': self.bias}
         base_config = super(Convolution2D, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
@@ -403,7 +420,7 @@ class Convolution3D(Layer):
 
     # Arguments
         nb_filter: Number of convolution filters to use.
-        kernel_dim1: Length of the first dimension in the covolution kernel.
+        kernel_dim1: Length of the first dimension in the convolution kernel.
         kernel_dim2: Length of the second dimension in the convolution kernel.
         kernel_dim3: Length of the third dimension in the convolution kernel.
         init: name of initialization function for the weights of the layer
@@ -416,7 +433,7 @@ class Convolution3D(Layer):
             or alternatively, elementwise Theano function.
             If you don't specify anything, no activation is applied
             (ie. "linear" activation: a(x) = x).
-        weights: list of numpy arrays to set as initial weights.
+        weights: list of Numpy arrays to set as initial weights.
         border_mode: 'valid' or 'same'.
         subsample: tuple of length 3. Factor by which to subsample output.
             Also called strides elsewhere.
@@ -433,6 +450,10 @@ class Convolution3D(Layer):
             applied to the bias.
         dim_ordering: 'th' or 'tf'. In 'th' mode, the channels dimension
             (the depth) is at index 1, in 'tf' mode is it at index 4.
+            It defaults to the `image_dim_ordering` value found in your
+            Keras config file at `~/.keras/keras.json`.
+            If you never set it, then it will be "th".
+        bias: whether to include a bias (i.e. make the layer affine rather than linear).
 
     # Input shape
         5D tensor with shape:
@@ -450,10 +471,11 @@ class Convolution3D(Layer):
 
     def __init__(self, nb_filter, kernel_dim1, kernel_dim2, kernel_dim3,
                  init='glorot_uniform', activation='linear', weights=None,
-                 border_mode='valid', subsample=(1, 1, 1), dim_ordering='th',
+                 border_mode='valid', subsample=(1, 1, 1), dim_ordering=K.image_dim_ordering(),
                  W_regularizer=None, b_regularizer=None, activity_regularizer=None,
                  W_constraint=None, b_constraint=None, 
-                 W_learning_rate_multiplier=None, b_learning_rate_multiplier=None, **kwargs):
+                 W_learning_rate_multiplier=None, b_learning_rate_multiplier=None,
+                 bias=True, **kwargs):
         if K._BACKEND != 'theano':
             raise Exception(self.__class__.__name__ +
                             ' is currently only working with Theano backend.')
@@ -482,6 +504,7 @@ class Convolution3D(Layer):
         self.b_learning_rate_multiplier = b_learning_rate_multiplier
         self.learning_rate_multipliers = [self.W_learning_rate_multiplier, self.b_learning_rate_multiplier]
 
+        self.bias = bias
         self.input_spec = [InputSpec(ndim=5)]
         self.initial_weights = weights
         super(Convolution3D, self).__init__(**kwargs)
@@ -502,15 +525,18 @@ class Convolution3D(Layer):
             raise Exception('Invalid dim_ordering: ' + self.dim_ordering)
 
         self.W = self.init(self.W_shape, name='{}_W'.format(self.name))
-        self.b = K.zeros((self.nb_filter,), name='{}_b'.format(self.name))
-        self.trainable_weights = [self.W, self.b]
-        self.regularizers = []
+        if self.bias:
+            self.b = K.zeros((self.nb_filter,), name='{}_b'.format(self.name))
+            self.trainable_weights = [self.W, self.b]
+        else:
+            self.trainable_weights = [self.W]
 
+        self.regularizers = []
         if self.W_regularizer:
             self.W_regularizer.set_param(self.W)
             self.regularizers.append(self.W_regularizer)
 
-        if self.b_regularizer:
+        if self.bias and self.b_regularizer:
             self.b_regularizer.set_param(self.b)
             self.regularizers.append(self.b_regularizer)
 
@@ -521,7 +547,7 @@ class Convolution3D(Layer):
         self.constraints = {}
         if self.W_constraint:
             self.constraints[self.W] = self.W_constraint
-        if self.b_constraint:
+        if self.bias and self.b_constraint:
             self.constraints[self.b] = self.b_constraint
 
         if self.initial_weights is not None:
@@ -556,18 +582,18 @@ class Convolution3D(Layer):
 
     def call(self, x, mask=None):
         input_shape = self.input_spec[0].shape
-        conv_out = K.conv3d(x, self.W, strides=self.subsample,
-                            border_mode=self.border_mode,
-                            dim_ordering=self.dim_ordering,
-                            volume_shape=input_shape,
-                            filter_shape=self.W_shape)
-
-        if self.dim_ordering == 'th':
-            output = conv_out + K.reshape(self.b, (1, self.nb_filter, 1, 1, 1))
-        elif self.dim_ordering == 'tf':
-            output = conv_out + K.reshape(self.b, (1, 1, 1, 1, self.nb_filter))
-        else:
-            raise Exception('Invalid dim_ordering: ' + self.dim_ordering)
+        output = K.conv3d(x, self.W, strides=self.subsample,
+                          border_mode=self.border_mode,
+                          dim_ordering=self.dim_ordering,
+                          volume_shape=input_shape,
+                          filter_shape=self.W_shape)
+        if self.bias:
+            if self.dim_ordering == 'th':
+                output += K.reshape(self.b, (1, self.nb_filter, 1, 1, 1))
+            elif self.dim_ordering == 'tf':
+                output += K.reshape(self.b, (1, 1, 1, 1, self.nb_filter))
+            else:
+                raise Exception('Invalid dim_ordering: ' + self.dim_ordering)
         output = self.activation(output)
         return output
 
@@ -587,7 +613,8 @@ class Convolution3D(Layer):
                   "W_constraint": self.W_constraint.get_config() if self.W_constraint else None,
                   "b_constraint": self.b_constraint.get_config() if self.b_constraint else None,
                   'W_learning_rate_multiplier': self.W_learning_rate_multiplier,
-                  'b_learning_rate_multiplier': self.b_learning_rate_multiplier}
+                  'b_learning_rate_multiplier': self.b_learning_rate_multiplier
+                  'bias': self.bias}
         base_config = super(Convolution3D, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
@@ -704,7 +731,7 @@ class _Pooling2D(Layer):
     '''
 
     def __init__(self, pool_size=(2, 2), strides=None, border_mode='valid',
-                 dim_ordering='th', **kwargs):
+                 dim_ordering=K.image_dim_ordering(), **kwargs):
         super(_Pooling2D, self).__init__(**kwargs)
         self.pool_size = tuple(pool_size)
         if strides is None:
@@ -770,6 +797,9 @@ class MaxPooling2D(_Pooling2D):
             Note: 'same' will only work with TensorFlow for the time being.
         dim_ordering: 'th' or 'tf'. In 'th' mode, the channels dimension
             (the depth) is at index 1, in 'tf' mode is it at index 3.
+            It defaults to the `image_dim_ordering` value found in your
+            Keras config file at `~/.keras/keras.json`.
+            If you never set it, then it will be "th".
 
     # Input shape
         4D tensor with shape:
@@ -785,7 +815,7 @@ class MaxPooling2D(_Pooling2D):
     '''
 
     def __init__(self, pool_size=(2, 2), strides=None, border_mode='valid',
-                 dim_ordering='th', **kwargs):
+                 dim_ordering=K.image_dim_ordering(), **kwargs):
         super(MaxPooling2D, self).__init__(pool_size, strides, border_mode,
                                            dim_ordering, **kwargs)
 
@@ -808,6 +838,9 @@ class AveragePooling2D(_Pooling2D):
             Note: 'same' will only work with TensorFlow for the time being.
         dim_ordering: 'th' or 'tf'. In 'th' mode, the channels dimension
             (the depth) is at index 1, in 'tf' mode is it at index 3.
+            It defaults to the `image_dim_ordering` value found in your
+            Keras config file at `~/.keras/keras.json`.
+            If you never set it, then it will be "th".
 
     # Input shape
         4D tensor with shape:
@@ -823,7 +856,7 @@ class AveragePooling2D(_Pooling2D):
     '''
 
     def __init__(self, pool_size=(2, 2), strides=None, border_mode='valid',
-                 dim_ordering='th', **kwargs):
+                 dim_ordering=K.image_dim_ordering(), **kwargs):
         super(AveragePooling2D, self).__init__(pool_size, strides, border_mode,
                                                dim_ordering, **kwargs)
 
@@ -839,7 +872,7 @@ class _Pooling3D(Layer):
     '''
 
     def __init__(self, pool_size=(2, 2, 2), strides=None, border_mode='valid',
-                 dim_ordering='th', **kwargs):
+                 dim_ordering=K.image_dim_ordering(), **kwargs):
         super(_Pooling3D, self).__init__(**kwargs)
         self.pool_size = tuple(pool_size)
         if strides is None:
@@ -910,6 +943,9 @@ class MaxPooling3D(_Pooling3D):
         border_mode: 'valid' or 'same'.
         dim_ordering: 'th' or 'tf'. In 'th' mode, the channels dimension
             (the depth) is at index 1, in 'tf' mode is it at index 4.
+            It defaults to the `image_dim_ordering` value found in your
+            Keras config file at `~/.keras/keras.json`.
+            If you never set it, then it will be "th".
 
     # Input shape
         5D tensor with shape:
@@ -925,7 +961,7 @@ class MaxPooling3D(_Pooling3D):
     '''
 
     def __init__(self, pool_size=(2, 2, 2), strides=None, border_mode='valid',
-                 dim_ordering='th', **kwargs):
+                 dim_ordering=K.image_dim_ordering(), **kwargs):
         if K._BACKEND != 'theano':
             raise Exception(self.__class__.__name__ +
                             ' is currently only working with Theano backend.')
@@ -952,6 +988,9 @@ class AveragePooling3D(_Pooling3D):
         border_mode: 'valid' or 'same'.
         dim_ordering: 'th' or 'tf'. In 'th' mode, the channels dimension
             (the depth) is at index 1, in 'tf' mode is it at index 4.
+            It defaults to the `image_dim_ordering` value found in your
+            Keras config file at `~/.keras/keras.json`.
+            If you never set it, then it will be "th".
 
     # Input shape
         5D tensor with shape:
@@ -967,7 +1006,7 @@ class AveragePooling3D(_Pooling3D):
     '''
 
     def __init__(self, pool_size=(2, 2, 2), strides=None, border_mode='valid',
-                 dim_ordering='th', **kwargs):
+                 dim_ordering=K.image_dim_ordering(), **kwargs):
         if K._BACKEND != 'theano':
             raise Exception(self.__class__.__name__ +
                             ' is currently only working with Theano backend.')
@@ -1021,6 +1060,9 @@ class UpSampling2D(Layer):
         dim_ordering: 'th' or 'tf'.
             In 'th' mode, the channels dimension (the depth)
             is at index 1, in 'tf' mode is it at index 3.
+            It defaults to the `image_dim_ordering` value found in your
+            Keras config file at `~/.keras/keras.json`.
+            If you never set it, then it will be "th".
 
     # Input shape
         4D tensor with shape:
@@ -1035,7 +1077,7 @@ class UpSampling2D(Layer):
         `(samples, upsampled_rows, upsampled_cols, channels)` if dim_ordering='tf'.
     '''
 
-    def __init__(self, size=(2, 2), dim_ordering='th', **kwargs):
+    def __init__(self, size=(2, 2), dim_ordering=K.image_dim_ordering(), **kwargs):
         self.size = tuple(size)
         assert dim_ordering in {'tf', 'th'}, 'dim_ordering must be in {tf, th}'
         self.dim_ordering = dim_ordering
@@ -1077,6 +1119,9 @@ class UpSampling3D(Layer):
         dim_ordering: 'th' or 'tf'.
             In 'th' mode, the channels dimension (the depth)
             is at index 1, in 'tf' mode is it at index 4.
+            It defaults to the `image_dim_ordering` value found in your
+            Keras config file at `~/.keras/keras.json`.
+            If you never set it, then it will be "th".
 
     # Input shape
         5D tensor with shape:
@@ -1091,10 +1136,10 @@ class UpSampling3D(Layer):
         `(samples, upsampled_dim1, upsampled_dim2, upsampled_dim3, channels)` if dim_ordering='tf'.
     '''
 
-    def __init__(self, size=(2, 2, 2), dim_ordering='th', **kwargs):
+    def __init__(self, size=(2, 2, 2), dim_ordering=K.image_dim_ordering(), **kwargs):
         if K._BACKEND != 'theano':
             raise Exception(self.__class__.__name__ +
-                            ' is currently only working with Theano backend.') 
+                            ' is currently only working with Theano backend.')
         self.size = tuple(size)
         assert dim_ordering in {'tf', 'th'}, 'dim_ordering must be in {tf, th}'
         self.dim_ordering = dim_ordering
@@ -1169,6 +1214,12 @@ class ZeroPadding2D(Layer):
         padding: tuple of int (length 2)
             How many zeros to add at the beginning and end of
             the 2 padding dimensions (axis 3 and 4).
+        dim_ordering: 'th' or 'tf'.
+            In 'th' mode, the channels dimension (the depth)
+            is at index 1, in 'tf' mode is it at index 3.
+            It defaults to the `image_dim_ordering` value found in your
+            Keras config file at `~/.keras/keras.json`.
+            If you never set it, then it will be "th".
 
     # Input shape
         4D tensor with shape:
@@ -1179,7 +1230,7 @@ class ZeroPadding2D(Layer):
         (samples, depth, first_padded_axis, second_padded_axis)
     '''
 
-    def __init__(self, padding=(1, 1), dim_ordering='th', **kwargs):
+    def __init__(self, padding=(1, 1), dim_ordering=K.image_dim_ordering(), **kwargs):
         super(ZeroPadding2D, self).__init__(**kwargs)
         self.padding = tuple(padding)
         assert dim_ordering in {'tf', 'th'}, 'dim_ordering must be in {tf, th}'
@@ -1223,6 +1274,12 @@ class ZeroPadding3D(Layer):
         padding: tuple of int (length 3)
             How many zeros to add at the beginning and end of
             the 3 padding dimensions (axis 3, 4 and 5).
+        dim_ordering: 'th' or 'tf'.
+            In 'th' mode, the channels dimension (the depth)
+            is at index 1, in 'tf' mode is it at index 4.
+            It defaults to the `image_dim_ordering` value found in your
+            Keras config file at `~/.keras/keras.json`.
+            If you never set it, then it will be "th".
 
     # Input shape
         5D tensor with shape:
@@ -1233,7 +1290,7 @@ class ZeroPadding3D(Layer):
         (samples, depth, first_padded_axis, second_padded_axis, third_axis_to_pad)
     '''
 
-    def __init__(self, padding=(1, 1, 1), dim_ordering='th', **kwargs):
+    def __init__(self, padding=(1, 1, 1), dim_ordering=K.image_dim_ordering(), **kwargs):
         if K._BACKEND != 'theano':
             raise Exception(self.__class__.__name__ +
                             ' is currently only working with Theano backend.')

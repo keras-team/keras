@@ -14,7 +14,7 @@ e.g.:
 python neural_style_transfer.py img/tuebingen.jpg img/starry_night.jpg results/my_result
 ```
 
-It is preferrable to run this script on GPU, for speed.
+It is preferable to run this script on GPU, for speed.
 If running on CPU, prefer the TensorFlow backend (much faster).
 
 Example result: https://twitter.com/fchollet/status/686631033085677568
@@ -34,7 +34,7 @@ the pixels of the combination image, giving it visual coherence.
 
 - The style loss is where the deep learning keeps in --that one is defined
 using a deep convolutional neural network. Precisely, it consists in a sum of
-L2 distances betwen the Gram matrices of the representations of
+L2 distances between the Gram matrices of the representations of
 the base image and the style reference image, extracted from
 different layers of a convnet (trained on ImageNet). The general idea
 is to capture color/texture information at different spatial
@@ -58,7 +58,7 @@ import argparse
 import h5py
 
 from keras.models import Sequential
-from keras.layers.convolutional import Convolution2D, ZeroPadding2D, MaxPooling2D
+from keras.layers import Convolution2D, ZeroPadding2D, MaxPooling2D
 from keras import backend as K
 
 parser = argparse.ArgumentParser(description='Neural style transfer with Keras.')

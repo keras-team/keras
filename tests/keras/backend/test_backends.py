@@ -38,6 +38,26 @@ def check_two_tensor_operation(function_name, x_input_shape,
     assert zth.shape == ztf.shape
     assert_allclose(zth, ztf, atol=1e-05)
 
+def check_composed_tensor_operations(first_function_name, first_function_args,
+                                     second_function_name, second_function_args,
+                                     input_shape):
+    ''' Creates a random tensor t0 with shape input_shape and compute
+                 t1 = first_function_name(t0, **first_function_args)
+                 t2 = second_function_name(t1, **second_function_args)
+        with both Theano and TensorFlow backends and ensures the answers match.
+    '''
+    val = np.random.random(input_shape) - 0.5
+    xth = KTH.variable(val)
+    xtf = KTF.variable(val)
+
+    yth = getattr(KTH, first_function_name)(xth, **first_function_args)
+    ytf = getattr(KTF, first_function_name)(xtf, **first_function_args)
+
+    zth = KTH.eval(getattr(KTH, second_function_name)(yth, **second_function_args))
+    ztf = KTF.eval(getattr(KTF, second_function_name)(ytf, **second_function_args))
+
+    assert zth.shape == ztf.shape
+    assert_allclose(zth, ztf, atol=1e-05)   
 
 class TestBackend(object):
 
@@ -70,6 +90,9 @@ class TestBackend(object):
         check_single_tensor_operation('expand_dims', (4, 3), dim=-1)
         check_single_tensor_operation('expand_dims', (4, 3, 2), dim=1)
         check_single_tensor_operation('squeeze', (4, 3, 1), axis=2)
+        check_composed_tensor_operations('reshape', {'shape':(4,3,1,1)}, 
+                                         'squeeze', {'axis':2}, 
+                                         (4, 3, 1, 1))
 
     def test_repeat_elements(self):
         reps = 3
@@ -90,6 +113,17 @@ class TestBackend(object):
                 assert tf_rep.shape == np_rep.shape
                 assert_allclose(np_rep, th_rep, atol=1e-05)
                 assert_allclose(np_rep, tf_rep, atol=1e-05)
+
+    def test_tile(self):
+        shape = (3, 4)
+        arr = np.arange(np.prod(shape)).reshape(shape)
+        arr_th = KTH.variable(arr)
+        arr_tf = KTF.variable(arr)
+
+        n = (2, 1)
+        th_rep = KTH.eval(KTH.tile(arr_th, n))
+        tf_rep = KTF.eval(KTF.tile(arr_tf, n))
+        assert_allclose(tf_rep, th_rep, atol=1e-05)
 
     def test_value_manipulation(self):
         val = np.random.random((4, 2))

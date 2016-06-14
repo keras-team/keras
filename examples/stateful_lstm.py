@@ -5,8 +5,7 @@ from __future__ import print_function
 import numpy as np
 import matplotlib.pyplot as plt
 from keras.models import Sequential
-from keras.layers.core import Dense
-from keras.layers.recurrent import LSTM
+from keras.layers import Dense, LSTM
 
 
 # since we are using stateful rnn tsteps can be set to 1

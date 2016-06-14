@@ -66,7 +66,7 @@ np.random.seed(1337)  # for reproducibility
 
 from keras.utils.data_utils import get_file
 from keras.layers.embeddings import Embedding
-from keras.layers.core import Dense, Merge, Dropout, RepeatVector
+from keras.layers import Dense, Merge, Dropout, RepeatVector
 from keras.layers import recurrent
 from keras.models import Sequential
 from keras.preprocessing.sequence import pad_sequences
@@ -146,7 +146,13 @@ BATCH_SIZE = 32
 EPOCHS = 40
 print('RNN / Embed / Sent / Query = {}, {}, {}, {}'.format(RNN, EMBED_HIDDEN_SIZE, SENT_HIDDEN_SIZE, QUERY_HIDDEN_SIZE))
 
-path = get_file('babi-tasks-v1-2.tar.gz', origin='http://www.thespermwhale.com/jaseweston/babi/tasks_1-20_v1-2.tar.gz')
+try:
+    path = get_file('babi-tasks-v1-2.tar.gz', origin='http://www.thespermwhale.com/jaseweston/babi/tasks_1-20_v1-2.tar.gz')
+except:
+    print('Error downloading dataset, please download it manually:\n'
+          '$ wget http://www.thespermwhale.com/jaseweston/babi/tasks_1-20_v1-2.tar.gz\n'
+          '$ mv tasks_1-20_v1-2.tar.gz ~/.keras/datasets/babi-tasks-v1-2.tar.gz')
+    raise
 tar = tarfile.open(path)
 # Default QA1 with 1000 samples
 # challenge = 'tasks_1-20_v1-2/en/qa1_single-supporting-fact_{}.txt'

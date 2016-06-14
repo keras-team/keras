@@ -384,7 +384,7 @@ class Graph(Model):
 
         # Arguments
             data: dictionary mapping input names and outputs names to
-                appropriate numpy arrays. All arrays should contain
+                appropriate Numpy arrays. All arrays should contain
                 the same number of samples.
             batch_size: int. Number of samples per gradient update.
             nb_epoch: int.
@@ -395,7 +395,7 @@ class Graph(Model):
             validation_split: float (0. < x < 1). Fraction of the data to
                 use as held-out validation data.
             validation_data: dictionary mapping input names and outputs names
-                to appropriate numpy arrays to be used as
+                to appropriate Numpy arrays to be used as
                 held-out validation data.
                 All arrays should contain the same number of samples.
                 Will override validation_split.
@@ -473,6 +473,8 @@ class Graph(Model):
         x = self._get_x(data)
         output_list = super(Graph, self).predict(x, batch_size=batch_size,
                                                  verbose=verbose)
+        if not isinstance(output_list, list):
+            output_list = [output_list]
         return dict(zip(self._graph_outputs, output_list))
 
     def train_on_batch(self, data,
@@ -528,6 +530,8 @@ class Graph(Model):
 
     def predict_on_batch(self, data):
         output_list = super(Graph, self).predict_on_batch(data)
+        if not isinstance(output_list, list):
+            output_list = [output_list]
         return dict(zip(self._graph_outputs, output_list))
 
     def fit_generator(self, generator, samples_per_epoch, nb_epoch,
@@ -556,7 +560,7 @@ class Graph(Model):
             verbose: verbosity mode, 0, 1, or 2.
             callbacks: list of callbacks to be called during training.
             validation_data: dictionary mapping input names and outputs names
-                to appropriate numpy arrays to be used as
+                to appropriate Numpy arrays to be used as
                 held-out validation data, or a generator yielding such
                 dictionaries. All arrays should contain the same number
                 of samples. If a generator, will be called until more than
@@ -578,7 +582,7 @@ class Graph(Model):
                 while 1:
                     f = open(path)
                     for line in f:
-                        # create numpy arrays of input data
+                        # create Numpy arrays of input data
                         # and labels, from each line in the file
                         x1, x2, y = process_line(line)
                         yield ({'input_1': x1, 'input_2': x2, 'output': y})

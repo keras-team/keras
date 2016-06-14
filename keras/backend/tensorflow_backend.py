@@ -314,21 +314,27 @@ def prod(x, axis=None, keepdims=False):
     return tf.reduce_prod(x, reduction_indices=axis, keep_dims=keepdims)
 
 
-def std(x, axis=None, keepdims=False):
-    '''Standard deviation of a tensor, alongside the specificied axis.
+def var(x, axis=None, keepdims=False):
+    '''Variance of a tensor, alongside the specified axis.
     '''
     axis = _normalize_axis(axis, ndim(x))
     if x.dtype.base_dtype == tf.bool:
         x = tf.cast(x, _FLOATX)
     m = tf.reduce_mean(x, reduction_indices=axis, keep_dims=True)
     devs_squared = tf.square(x - m)
-    return tf.sqrt(tf.reduce_mean(devs_squared,
-                                  reduction_indices=axis,
-                                  keep_dims=keepdims))
+    return tf.reduce_mean(devs_squared,
+                          reduction_indices=axis,
+                          keep_dims=keepdims)
+
+
+def std(x, axis=None, keepdims=False):
+    '''Standard deviation of a tensor, alongside the specified axis.
+    '''
+    return tf.sqrt(var(x, axis=axis, keepdims=keepdims))
 
 
 def mean(x, axis=None, keepdims=False):
-    '''Mean of a tensor, alongside the specificied axis.
+    '''Mean of a tensor, alongside the specified axis.
     '''
     axis = _normalize_axis(axis, ndim(x))
     if x.dtype.base_dtype == tf.bool:
@@ -499,15 +505,21 @@ def resize_images(X, height_factor, width_factor, dim_ordering):
     positive integers.
     '''
     if dim_ordering == 'th':
+        original_shape = int_shape(X)
         new_shape = tf.shape(X)[2:]
         new_shape *= tf.constant(np.array([height_factor, width_factor]).astype('int32'))
         X = permute_dimensions(X, [0, 2, 3, 1])
         X = tf.image.resize_nearest_neighbor(X, new_shape)
-        return permute_dimensions(X, [0, 3, 1, 2])
+        X = permute_dimensions(X, [0, 3, 1, 2])
+        X.set_shape((None, None, original_shape[2] * height_factor, original_shape[3] * width_factor))
+        return X
     elif dim_ordering == 'tf':
+        original_shape = int_shape(X)
         new_shape = tf.shape(X)[1:3]
         new_shape *= tf.constant(np.array([height_factor, width_factor]).astype('int32'))
-        return tf.image.resize_nearest_neighbor(X, new_shape)
+        X = tf.image.resize_nearest_neighbor(X, new_shape)
+        X.set_shape((None, original_shape[1] * height_factor, original_shape[2] * width_factor, None))
+        return X
     else:
         raise Exception('Invalid dim_ordering: ' + dim_ordering)
 
@@ -539,6 +551,8 @@ def repeat(x, n):
 
 
 def tile(x, n):
+    if not hasattr(n, 'shape') and not hasattr(n, '__len__'):
+        n = [n]
     return tf.tile(x, n)
 
 
@@ -600,6 +614,16 @@ def get_value(x):
     as a Numpy array.
     '''
     return x.eval(session=get_session())
+
+
+def batch_get_value(xs):
+    '''Returns the value of more than one tensor variable,
+    as a list of Numpy arrays.
+    '''
+    if xs:
+        return get_session().run(xs)
+    else:
+        return []
 
 
 def set_value(x, value):
@@ -852,6 +876,10 @@ def softplus(x):
     return tf.nn.softplus(x)
 
 
+def softsign(x):
+    return tf.nn.softsign(x)
+
+
 def categorical_crossentropy(output, target, from_logits=False):
     '''Categorical crossentropy between an output tensor
     and a target tensor, where the target is a tensor of the same
@@ -949,7 +977,7 @@ def dropout(x, level, seed=None):
 
 
 def l2_normalize(x, axis):
-    '''Normalizes a tensor wrt the L2 norm alonside the specified axis.
+    '''Normalizes a tensor wrt the L2 norm alongside the specified axis.
     '''
     if axis < 0:
         axis = axis % len(x.get_shape())
