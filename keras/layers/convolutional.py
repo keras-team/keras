@@ -87,7 +87,6 @@ class Convolution1D(Layer):
                  W_regularizer=None, b_regularizer=None, activity_regularizer=None,
                  W_constraint=None, b_constraint=None,
                  W_learning_rate_multiplier=None, b_learning_rate_multiplier=None,
-                 input_dim=None, input_length=None, **kwargs):
                  bias=True, input_dim=None, input_length=None, **kwargs):
 
         if border_mode not in {'valid', 'same'}:
@@ -397,7 +396,7 @@ class Convolution2D(Layer):
                   'W_constraint': self.W_constraint.get_config() if self.W_constraint else None,
                   'b_constraint': self.b_constraint.get_config() if self.b_constraint else None,
                   'W_learning_rate_multiplier': self.W_learning_rate_multiplier,
-                  'b_learning_rate_multiplier': self.b_learning_rate_multiplier}
+                  'b_learning_rate_multiplier': self.b_learning_rate_multiplier,
                   'bias': self.bias}
         base_config = super(Convolution2D, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
@@ -613,7 +612,7 @@ class Convolution3D(Layer):
                   "W_constraint": self.W_constraint.get_config() if self.W_constraint else None,
                   "b_constraint": self.b_constraint.get_config() if self.b_constraint else None,
                   'W_learning_rate_multiplier': self.W_learning_rate_multiplier,
-                  'b_learning_rate_multiplier': self.b_learning_rate_multiplier
+                  'b_learning_rate_multiplier': self.b_learning_rate_multiplier,
                   'bias': self.bias}
         base_config = super(Convolution3D, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
