@@ -20,7 +20,8 @@ from ..utils.generic_utils import Progbar
 from .. import callbacks as cbks
 
 
-def standardize_input_data(data, names, shapes=None, check_batch_dim=True,
+def standardize_input_data(data, names, shapes=None,
+                           check_batch_dim=True,
                            exception_prefix=''):
     '''Users may pass data as a list of arrays, dictionary of arrays,
     or as a single array. We normalize this to an ordered list of
@@ -84,6 +85,8 @@ def standardize_input_data(data, names, shapes=None, check_batch_dim=True,
     # check shapes compatibility
     if shapes:
         for i in range(len(names)):
+            if shapes[i] is None:
+                continue
             array = arrays[i]
             if len(array.shape) != len(shapes[i]):
                 raise Exception('Error when checking ' + exception_prefix +
@@ -918,10 +921,14 @@ class Model(Container):
             raise Exception('You must compile a model before training/testing.'
                             ' Use `model.compile(optimizer, loss)`.')
 
-        # if using sparse cce replace last dim of output shapes with 1
-        output_shapes = self.internal_output_shapes
-        if self.loss == "sparse_categorical_crossentropy":
-            output_shapes = [s[:-1] + (1,) for s in output_shapes]
+        output_shapes = []
+        for output_shape, loss_fn in zip(self.internal_output_shapes, self.loss_functions):
+            if loss_fn.__name__ == 'sparse_categorical_crossentropy':
+                output_shapes.append(output_shape[:-1] + (1,))
+            elif getattr(objectives, loss_fn.__name__, None) is None:
+                output_shapes.append(None)
+            else:
+                output_shapes.append(output_shape)
         x = standardize_input_data(x, self.input_names,
                                    self.internal_input_shapes,
                                    check_batch_dim=False,
@@ -1401,7 +1408,7 @@ class Model(Container):
                     outs = self.train_on_batch(x, y,
                                                sample_weight=sample_weight,
                                                class_weight=class_weight)
-                except Exception as e:
+                except:
                     _stop.set()
                     raise
 
@@ -1503,7 +1510,7 @@ class Model(Container):
                                 'or (x, y). Found: ' + str(generator_output))
             try:
                 outs = self.test_on_batch(x, y, sample_weight=sample_weight)
-            except Exception as e:
+            except:
                 _stop.set()
                 raise
 
@@ -1575,7 +1582,7 @@ class Model(Container):
 
             try:
                 outs = self.predict_on_batch(x)
-            except Exception as e:
+            except:
                 _stop.set()
                 raise
 
