@@ -2291,7 +2291,7 @@ class Container(Layer):
         f.flush()
         f.close()
 
-    def load_weights(self, filepath):
+    def load_weights(self, filepath, seq_to_functional=False):
         '''Load all layer weights from a HDF5 save file.
         '''
         import h5py
@@ -2302,6 +2302,10 @@ class Container(Layer):
             flattened_layers = self.flattened_layers
         else:
             flattened_layers = self.layers
+
+        if seq_to_functional:
+            # Ignore input layer if we load weights from an equivalent sequential model
+            flattened_layers = flattened_layers[1:]
 
         if 'nb_layers' in f.attrs:
             # legacy format

@@ -652,10 +652,16 @@ class Model(Container):
 
             # get trainable weights
             trainable_weights = []
+            # get LR multipliers
+            lr_multipliers = []
             for layer in self.layers:
                 trainable_weights += collect_trainable_weights(layer)
+                if('learning_rate_multipliers' in layer.__dict__.keys() and layer.__dict__['learning_rate_multipliers'] != [None, None]):
+                    lr_multipliers += layer.learning_rate_multipliers
+                else:
+                    lr_multipliers += [1.0, 1.0]
 
-            training_updates = self.optimizer.get_updates(trainable_weights, self.constraints, self.total_loss)
+            training_updates = self.optimizer.get_updates(trainable_weights, self.constraints, lr_multipliers, self.total_loss)
             updates = self.updates + training_updates
 
             # returns loss and metrics. Updates weights at each call.
