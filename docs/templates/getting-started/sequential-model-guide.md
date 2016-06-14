@@ -88,6 +88,13 @@ final_model.add(Dense(10, activation='softmax'))
 
 <img src="http://s3.amazonaws.com/keras.io/img/two_branches_sequential_model.png" alt="two branch Sequential" style="width: 400px;"/>
 
+Such a two-branch model can then be trained via e.g.:
+
+```python
+final_model.compile(optimizer='rmsprop', loss='categorical_crossentropy')
+final_model.fit([input_data_1, input_data_2], targets)  # we pass on data array per model input
+```
+
 The `Merge` layer supports a number of pre-defined modes:
 
 - `sum` (default): element-wise sum
