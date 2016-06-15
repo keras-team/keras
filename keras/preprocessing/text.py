@@ -206,8 +206,10 @@ class Tokenizer(object):
                 elif mode == 'binary':
                     X[i][j] = 1
                 elif mode == 'tfidf':
-                    tf = np.log(c / len(seq))
-                    df = (1 + np.log(1 + self.index_docs.get(j, 0) / (1 + self.document_count)))
+                    # Use weighting scheme 2 in
+                    #   https://en.wikipedia.org/wiki/Tf%E2%80%93idf
+                    tf = 1 + np.log(c)
+                    df = np.log(1 + self.index_docs.get(j, 0) / (1 + self.document_count))
                     X[i][j] = tf / df
                 else:
                     raise Exception('Unknown vectorization mode: ' + str(mode))
