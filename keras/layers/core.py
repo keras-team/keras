@@ -583,13 +583,15 @@ class Dense(Layer):
         self.W_constraint = constraints.get(W_constraint)
         self.b_constraint = constraints.get(b_constraint)
 
-        self.W_learning_rate_multiplier = W_learning_rate_multiplier
-        self.b_learning_rate_multiplier = b_learning_rate_multiplier
-        self.learning_rate_multipliers = [self.W_learning_rate_multiplier, self.b_learning_rate_multiplier]
-
         self.bias = bias
         self.initial_weights = weights
         self.input_spec = [InputSpec(ndim=2)]
+
+        if not bias:
+            if b_learning_rate_multiplier is not None:
+                raise Exception('b_learning_rate_multiplier provided with no bias.')
+        self.W_learning_rate_multiplier = W_learning_rate_multiplier
+        self.b_learning_rate_multiplier = b_learning_rate_multiplier
 
         if self.input_dim:
             kwargs['input_shape'] = (self.input_dim,)
@@ -609,6 +611,11 @@ class Dense(Layer):
             self.trainable_weights = [self.W, self.b]
         else:
             self.trainable_weights = [self.W]
+
+        if self.bias:
+            self.learning_rate_multipliers = [self.W_learning_rate_multiplier, self.b_learning_rate_multiplier]
+        else:
+            self.learning_rate_multipliers = [self.W_learning_rate_multiplier]    
 
         self.regularizers = []
         if self.W_regularizer:
