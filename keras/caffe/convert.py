@@ -193,7 +193,8 @@ def create_model(layers, phase, input_dim, debug=False):
 
         elif type_of_layer == 'innerproduct':
             output_dim = layer.inner_product_param.num_output
-            if len(model.nodes[input_layer_name].output_shape[1:]) > 1:
+            #if len(model.nodes[input_layer_name].output_shape[1:]) > 1:
+            if len(model.inbound_nodes[input_layer_name].output_shape[1:]) > 1:
                 model.add_node(Flatten(), name=name + '_flatten', input=input_layer_name)
                 input_layer_name = name + '_flatten'
             
