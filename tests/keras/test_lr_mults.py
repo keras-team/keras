@@ -11,6 +11,12 @@ seed = 42
 def test_learning_rate_multipliers_dense():
     from keras.layers.core import Dense
 
+    layer_test(Dense,
+               kwargs={'output_dim': 3,
+                       'W_learning_rate_multiplier': 0.1,
+                       'b_learning_rate_multiplier': 0.1},
+               input_shape=(3, 2))
+
     (X_train, y_train), (X_test, y_test) = get_test_data(nb_train=10,
                                                          nb_test=1,
                                                          input_shape=(4,),
@@ -53,63 +59,79 @@ def test_learning_rate_multipliers_dense():
 
 
 def test_learning_rate_multipliers_maxout_dense():
-    from keras.layers.core import Dense
+    from keras.layers.core import MaxoutDense
     
-    layer_test(core.MaxoutDense,
+    layer_test(MaxoutDense,
                kwargs={'output_dim': 3,
-                       W_learning_rate_multiplier=0.1,
-                       b_learning_rate_multiplier=0.1},
+                       'W_learning_rate_multiplier': 0.1,
+                       'b_learning_rate_multiplier': 0.1},
                input_shape=(3, 2))
 
 
-## def test_learning_rate_multipliers_conv():
-##     '''
-##     Test learning rate multipliers on Convolutional layers
-##     '''
+def test_learning_rate_multipliers_conv1d():
+    from keras.layers.convolutional import Convolution1D
 
-##     np.random.seed(seed)
-##     X_train = np.random.rand(10,3,10,10)
-##     y_train = np.random.rand(10,1,6,6)
+    layer_test(Convolution1D,
+               kwargs={'nb_filter': 4,
+                       'filter_length': 3,
+                       'W_learning_rate_multiplier': 0.1,
+                       'b_learning_rate_multiplier': 0.1},
+               input_shape=(2, 8, 5))
 
-##     np.random.seed(seed)
-##     model0 = Sequential()
-##     model0.add(keras.layers.Convolution2D(5,3,3,
-##                                           input_shape=(3,10,10), 
-##                                           border_mode='valid', 
-##                                           activation='relu'))
-##     model0.add(keras.layers.Convolution2D(1,3,3,
-##                                           border_mode='valid'))
-##     model0.compile(loss='mse', optimizer='sgd')
-##     (m0w0_ini,m0b0_ini) = model0.layers[0].get_weights()
-##     (m0w1_ini,m0b1_ini) = model0.layers[1].get_weights()
-##     model0.train_on_batch(X_train, y_train)
-##     (m0w0_end,m0b0_end) = model0.layers[0].get_weights() 
-##     (m0w1_end,m0b1_end) = model0.layers[1].get_weights()
+def test_learning_rate_multipliers_conv2d():
+    from keras.layers.convolutional import Convolution2D
 
-##     np.random.seed(seed)
-##     model1 = Sequential()
-##     model1.add(keras.layers.Convolution2D(5,3,3,
-##                                           input_shape=(3,10,10), 
-##                                           border_mode='valid', 
-##                                           W_learning_rate_multiplier=0.0, b_learning_rate_multiplier=0.0,
-##                                           activation='relu'))
-##     model1.add(keras.layers.Convolution2D(1,3,3,
-##                                           W_learning_rate_multiplier=0.5, b_learning_rate_multiplier=0.5,
-##                                           border_mode='valid'))
-##     model1.compile(loss='mse', optimizer='sgd')
-##     (m1w0_ini,m1b0_ini) = model1.layers[0].get_weights()
-##     (m1w1_ini,m1b1_ini) = model1.layers[1].get_weights()
-##     model1.train_on_batch(X_train, y_train)
-##     (m1w0_end,m1b0_end) = model1.layers[0].get_weights() 
-##     (m1w1_end,m1b1_end) = model1.layers[1].get_weights()
+    layer_test(Convolution2D,
+               kwargs={'nb_filter': 3,
+                       'nb_row': 3,
+                       'nb_col': 3,
+                       'W_learning_rate_multiplier': 0.1,
+                       'b_learning_rate_multiplier': 0.1},
+               input_shape=(8, 4, 10, 6))
 
-##     # This should be ~0.0
-##     np.testing.assert_almost_equal(np.mean((m1w0_end - m1w0_ini)), 0.0, decimal=2)
-##     np.testing.assert_almost_equal(np.mean((m1b0_end - m1b0_ini)), 0.0, decimal=2)
+    np.random.seed(seed)
+    X_train = np.random.rand(10,3,10,10)
+    y_train = np.random.rand(10,1,6,6)
 
-##     # This should be ~0.5
-##     np.testing.assert_almost_equal(np.mean((m1w1_end - m1w1_ini)/(m0w1_end - m0w1_ini)), 0.5, decimal=2)
-##     np.testing.assert_almost_equal(np.mean((m1b1_end - m1b1_ini)/(m0b1_end - m0b1_ini)), 0.5, decimal=2)
+    np.random.seed(seed)
+    model0 = Sequential()
+    model0.add(Convolution2D(5,3,3,
+                             input_shape=(3,10,10), 
+                             border_mode='valid', 
+                             activation='relu'))
+    model0.add(Convolution2D(1,3,3,
+                             border_mode='valid'))
+    model0.compile(loss='mse', optimizer='sgd')
+    (m0w0_ini,m0b0_ini) = model0.layers[0].get_weights()
+    (m0w1_ini,m0b1_ini) = model0.layers[1].get_weights()
+    model0.train_on_batch(X_train, y_train)
+    (m0w0_end,m0b0_end) = model0.layers[0].get_weights() 
+    (m0w1_end,m0b1_end) = model0.layers[1].get_weights()
+    
+    np.random.seed(seed)
+    model1 = Sequential()
+    model1.add(Convolution2D(5,3,3,
+                             input_shape=(3,10,10), 
+                             border_mode='valid', 
+                             W_learning_rate_multiplier=0.0, b_learning_rate_multiplier=0.0,
+                             activation='relu'))
+    model1.add(Convolution2D(1,3,3,
+                             W_learning_rate_multiplier=0.5, b_learning_rate_multiplier=0.5,
+                             border_mode='valid'))
+    model1.compile(loss='mse', optimizer='sgd')
+    (m1w0_ini,m1b0_ini) = model1.layers[0].get_weights()
+    (m1w1_ini,m1b1_ini) = model1.layers[1].get_weights()
+    model1.train_on_batch(X_train, y_train)
+    (m1w0_end,m1b0_end) = model1.layers[0].get_weights() 
+    (m1w1_end,m1b1_end) = model1.layers[1].get_weights()
+    
+    # This should be ~0.0
+    np.testing.assert_almost_equal(np.mean((m1w0_end - m1w0_ini)), 0.0, decimal=2)
+    np.testing.assert_almost_equal(np.mean((m1b0_end - m1b0_ini)), 0.0, decimal=2)
+    
+    # This should be ~0.5
+    np.testing.assert_almost_equal(np.mean((m1w1_end - m1w1_ini)/(m0w1_end - m0w1_ini)), 0.5, decimal=2)
+    np.testing.assert_almost_equal(np.mean((m1b1_end - m1b1_ini)/(m0b1_end - m0b1_ini)), 0.5, decimal=2)
 
 
 if __name__ == '__main__':
