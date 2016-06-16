@@ -20,7 +20,8 @@ from ..utils.generic_utils import Progbar
 from .. import callbacks as cbks
 
 
-def standardize_input_data(data, names, shapes=None, check_batch_dim=True,
+def standardize_input_data(data, names, shapes=None,
+                           check_batch_dim=True,
                            exception_prefix=''):
     '''Users may pass data as a list of arrays, dictionary of arrays,
     or as a single array. We normalize this to an ordered list of
@@ -84,6 +85,8 @@ def standardize_input_data(data, names, shapes=None, check_batch_dim=True,
     # check shapes compatibility
     if shapes:
         for i in range(len(names)):
+            if shapes[i] is None:
+                continue
             array = arrays[i]
             if len(array.shape) != len(shapes[i]):
                 raise Exception('Error when checking ' + exception_prefix +
@@ -235,7 +238,10 @@ def collect_trainable_weights(layer):
     if not trainable:
         return []
     weights = []
-    if layer.__class__.__name__ in ['Sequential', 'Model']:
+    if layer.__class__.__name__ == 'Sequential':
+        for sublayer in layer.flattened_layers:
+            weights += collect_trainable_weights(sublayer)
+    elif layer.__class__.__name__ == 'Model':
         for sublayer in layer.layers:
             weights += collect_trainable_weights(sublayer)
     elif layer.__class__.__name__ == 'Graph':
@@ -825,7 +831,7 @@ class Model(Container):
             verbose: verbosity mode.
 
         # Returns
-            Array of prections (if the model has a single output)
+            Array of predictions (if the model has a single output)
             or list of arrays of predictions
             (if the model has multiple outputs).
         '''
@@ -915,12 +921,20 @@ class Model(Container):
             raise Exception('You must compile a model before training/testing.'
                             ' Use `model.compile(optimizer, loss)`.')
 
+        output_shapes = []
+        for output_shape, loss_fn in zip(self.internal_output_shapes, self.loss_functions):
+            if loss_fn.__name__ == 'sparse_categorical_crossentropy':
+                output_shapes.append(output_shape[:-1] + (1,))
+            elif getattr(objectives, loss_fn.__name__, None) is None:
+                output_shapes.append(None)
+            else:
+                output_shapes.append(output_shape)
         x = standardize_input_data(x, self.input_names,
                                    self.internal_input_shapes,
                                    check_batch_dim=False,
                                    exception_prefix='model input')
         y = standardize_input_data(y, self.output_names,
-                                   self.internal_output_shapes,
+                                   output_shapes,
                                    check_batch_dim=False,
                                    exception_prefix='model target')
         sample_weights = standardize_sample_weights(sample_weight,
@@ -969,7 +983,7 @@ class Model(Container):
                 at the end of each epoch. The model will not be trained on this data.
                 This could be a tuple (x_val, y_val) or a tuple (val_x, val_y, val_sample_weights).
             shuffle: boolean, whether to shuffle the training data before each epoch.
-            class_weight: optional dictionary mapping classe indices (integers) to
+            class_weight: optional dictionary mapping class indices (integers) to
                 a weight (float) to apply to the model's loss for the samples
                 from this class during training.
                 This can be useful to tell the model to "pay more attention" to
@@ -1040,6 +1054,18 @@ class Model(Container):
 
         # prepare display labels
         out_labels = self.metrics_names
+
+        # rename duplicated metrics name
+        # (can happen with an output layer shared among multiple dataflows)
+        deduped_out_labels = []
+        for i, label in enumerate(out_labels):
+            new_label = label
+            if out_labels.count(label) > 1:
+                dup_idx = out_labels[:i].count(label)
+                new_label += '_' + str(dup_idx + 1)
+            deduped_out_labels.append(new_label)
+        out_labels = deduped_out_labels
+
         if do_validation:
             callback_metrics = copy.copy(out_labels) + ['val_' + n for n in out_labels]
         else:
@@ -1144,7 +1170,7 @@ class Model(Container):
                 with shape (samples, sequence_length),
                 to apply a different weight to every timestep of every sample.
                 In this case you should make sure to specify sample_weight_mode="temporal" in compile().
-            class_weight: optional dictionary mapping classe indices (integers) to
+            class_weight: optional dictionary mapping class indices (integers) to
                 a weight (float) to apply to the model's loss for the samples
                 from this class during training.
                 This can be useful to tell the model to "pay more attention" to
@@ -1382,7 +1408,7 @@ class Model(Container):
                     outs = self.train_on_batch(x, y,
                                                sample_weight=sample_weight,
                                                class_weight=class_weight)
-                except Exception as e:
+                except:
                     _stop.set()
                     raise
 
@@ -1484,7 +1510,7 @@ class Model(Container):
                                 'or (x, y). Found: ' + str(generator_output))
             try:
                 outs = self.test_on_batch(x, y, sample_weight=sample_weight)
-            except Exception as e:
+            except:
                 _stop.set()
                 raise
 
@@ -1556,7 +1582,7 @@ class Model(Container):
 
             try:
                 outs = self.predict_on_batch(x)
-            except Exception as e:
+            except:
                 _stop.set()
                 raise
 

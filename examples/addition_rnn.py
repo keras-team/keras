@@ -39,7 +39,7 @@ class CharacterTable(object):
     Given a set of characters:
     + Encode them to a one hot integer representation
     + Decode the one hot integer representation to their character output
-    + Decode a vector of probabilties to their character output
+    + Decode a vector of probabilities to their character output
     '''
     def __init__(self, chars, maxlen):
         self.chars = sorted(set(chars))

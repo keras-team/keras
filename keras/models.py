@@ -615,7 +615,7 @@ class Sequential(Model):
                 while 1:
                     f = open(path)
                     for line in f:
-                        # create numpy arrays of input data
+                        # create Numpy arrays of input data
                         # and labels, from each line in the file
                         x, y = process_line(line)
                         yield (x, y)
@@ -730,12 +730,15 @@ class Sequential(Model):
         return copy.deepcopy(config)
 
     @classmethod
-    def from_config(cls, config, layer_cache={}):
+    def from_config(cls, config, layer_cache=None):
         '''Supports legacy formats
         '''
         from keras.utils.layer_utils import layer_from_config
         from keras.layers import Merge
         assert type(config) is list
+
+        if not layer_cache:
+            layer_cache = {}
 
         def normalize_legacy_config(conf):
             if 'class_name' not in conf:

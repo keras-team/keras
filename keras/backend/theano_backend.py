@@ -200,6 +200,10 @@ def std(x, axis=None, keepdims=False):
     return T.std(x, axis=axis, keepdims=keepdims)
 
 
+def var(x, axis=None, keepdims=False):
+    return T.var(x, axis=axis, keepdims=keepdims)
+
+
 def any(x, axis=None, keepdims=False):
     '''Bitwise reduction (logical OR).
     '''
@@ -389,15 +393,18 @@ def expand_dims(x, dim=-1):
 def squeeze(x, axis):
     '''Remove a 1-dimension from the tensor at index "axis".
     '''
-    x = T.addbroadcast(x, axis)
-    return T.squeeze(x)
+    broadcastable = x.broadcastable[:axis] + x.broadcastable[axis+1:]
+    x = T.patternbroadcast(x, [i == axis for i in range(x.type.ndim)])
+    x = T.squeeze(x)
+    x = T.patternbroadcast(x, broadcastable)
+    return x
 
 
 def temporal_padding(x, padding=1):
     '''Pad the middle dimension of a 3D tensor
     with "padding" zeros left and right.
 
-    Appologies for the inane API, but Theano makes this
+    Apologies for the inane API, but Theano makes this
     really hard.
     '''
     input_shape = x.shape

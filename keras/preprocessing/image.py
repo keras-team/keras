@@ -543,7 +543,7 @@ class DirectoryIterator(Iterator):
             for fname in os.listdir(subpath):
                 is_valid = False
                 for extension in white_list_formats:
-                    if fname.endswith('.' + extension):
+                    if fname.lower().endswith('.' + extension):
                         is_valid = True
                         break
                 if is_valid:
@@ -559,7 +559,7 @@ class DirectoryIterator(Iterator):
             for fname in os.listdir(subpath):
                 is_valid = False
                 for extension in white_list_formats:
-                    if fname.endswith('.' + extension):
+                    if fname.lower().endswith('.' + extension):
                         is_valid = True
                         break
                 if is_valid:

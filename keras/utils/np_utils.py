@@ -53,7 +53,7 @@ def categorical_probas_to_classes(p):
 
 
 def convert_kernel(kernel, dim_ordering='th'):
-    '''Converts a kernel matrix (numpy array)
+    '''Converts a kernel matrix (Numpy array)
     from Theano format to TensorFlow format
     (or reciprocally, since the transformation
     is its own inverse).

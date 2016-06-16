@@ -314,21 +314,27 @@ def prod(x, axis=None, keepdims=False):
     return tf.reduce_prod(x, reduction_indices=axis, keep_dims=keepdims)
 
 
-def std(x, axis=None, keepdims=False):
-    '''Standard deviation of a tensor, alongside the specificied axis.
+def var(x, axis=None, keepdims=False):
+    '''Variance of a tensor, alongside the specified axis.
     '''
     axis = _normalize_axis(axis, ndim(x))
     if x.dtype.base_dtype == tf.bool:
         x = tf.cast(x, _FLOATX)
     m = tf.reduce_mean(x, reduction_indices=axis, keep_dims=True)
     devs_squared = tf.square(x - m)
-    return tf.sqrt(tf.reduce_mean(devs_squared,
-                                  reduction_indices=axis,
-                                  keep_dims=keepdims))
+    return tf.reduce_mean(devs_squared,
+                          reduction_indices=axis,
+                          keep_dims=keepdims)
+
+
+def std(x, axis=None, keepdims=False):
+    '''Standard deviation of a tensor, alongside the specified axis.
+    '''
+    return tf.sqrt(var(x, axis=axis, keepdims=keepdims))
 
 
 def mean(x, axis=None, keepdims=False):
-    '''Mean of a tensor, alongside the specificied axis.
+    '''Mean of a tensor, alongside the specified axis.
     '''
     axis = _normalize_axis(axis, ndim(x))
     if x.dtype.base_dtype == tf.bool:
@@ -971,7 +977,7 @@ def dropout(x, level, seed=None):
 
 
 def l2_normalize(x, axis):
-    '''Normalizes a tensor wrt the L2 norm alonside the specified axis.
+    '''Normalizes a tensor wrt the L2 norm alongside the specified axis.
     '''
     if axis < 0:
         axis = axis % len(x.get_shape())

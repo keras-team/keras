@@ -10,7 +10,7 @@ class BatchNormalization(Layer):
 
     # Arguments
         epsilon: small float > 0. Fuzz parameter.
-        mode: integer, 0 or 1.
+        mode: integer, 0, 1 or 2.
             - 0: feature-wise normalization.
                 Each feature map in the input will
                 be normalized separately. The axis on which
@@ -33,7 +33,7 @@ class BatchNormalization(Layer):
             exponential average of the mean and standard deviation
             of the data, for feature-wise normalization.
         weights: Initialization weights.
-            List of 2 numpy arrays, with shapes:
+            List of 2 Numpy arrays, with shapes:
             `[(input_shape,), (input_shape,)]`
         beta_init: name of initialization function for shift parameter
             (see [initializations](../initializations.md)), or alternatively,
@@ -139,7 +139,7 @@ class BatchNormalization(Layer):
         elif self.mode == 1:
             # sample-wise normalization
             m = K.mean(x, axis=-1, keepdims=True)
-            std = K.std(x, axis=-1, keepdims=True)
+            std = K.sqrt(K.var(x, axis=-1, keepdims=True) + self.epsilon)
             x_normed = (x - m) / (std + self.epsilon)
             out = self.gamma * x_normed + self.beta
         return out
