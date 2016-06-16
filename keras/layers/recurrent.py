@@ -66,7 +66,7 @@ class Recurrent(Layer):
     ```
 
     # Arguments
-        weights: list of Numpy arrays to set as initial weights.
+        weights: list of numpy arrays to set as initial weights.
             The list should have 3 elements, of shapes:
             `[(input_dim, output_dim), (output_dim, output_dim), (output_dim,)]`.
         return_sequences: Boolean. Whether to return the last output
@@ -153,7 +153,7 @@ class Recurrent(Layer):
     def __init__(self, weights=None,
                  return_sequences=False, go_backwards=False, stateful=False,
                  unroll=False, consume_less='cpu',
-                 input_dim=None, input_length=None, **kwargs):
+                 input_dim=None, input_length=None, initial_states=None, **kwargs):
         self.return_sequences = return_sequences
         self.initial_weights = weights
         self.go_backwards = go_backwards
@@ -165,6 +165,7 @@ class Recurrent(Layer):
         self.input_spec = [InputSpec(ndim=3)]
         self.input_dim = input_dim
         self.input_length = input_length
+        self.initial_states = initial_states
         if self.input_dim:
             kwargs['input_shape'] = (self.input_length, self.input_dim)
         super(Recurrent, self).__init__(**kwargs)
@@ -217,7 +218,15 @@ class Recurrent(Layer):
                                 'argument, including the time axis. '
                                 'Found input shape at layer ' + self.name +
                                 ': ' + str(input_shape))
-        if self.stateful:
+        if self.initial_states is not None:
+            if self.stateful:
+                raise Exception('Keras does not currently support stateful Recurrent '
+                                'layers with custom initial states.')
+            if type(self.initial_states) in (list, tuple):
+                initial_states = self.initial_states
+            else:
+                initial_states = [self.initial_states]
+        elif self.stateful:
             initial_states = self.states
         else:
             initial_states = self.get_initial_states(x)
@@ -277,6 +286,9 @@ class SimpleRNN(Recurrent):
             applied to the bias.
         dropout_W: float between 0 and 1. Fraction of the input units to drop for input gates.
         dropout_U: float between 0 and 1. Fraction of the input units to drop for recurrent connections.
+        initial_states: Initial hidden state to feed into recurrent layer with
+            shape (nb_samples, output_dim). If initial_states is specified,
+            "stateful" must be False.
 
     # References
         - [A Theoretically Grounded Application of Dropout in Recurrent Neural Networks](http://arxiv.org/abs/1512.05287)
@@ -423,6 +435,9 @@ class GRU(Recurrent):
             applied to the bias.
         dropout_W: float between 0 and 1. Fraction of the input units to drop for input gates.
         dropout_U: float between 0 and 1. Fraction of the input units to drop for recurrent connections.
+        initial_states: Initial hidden state to feed into recurrent layer with
+            shape (nb_samples, output_dim). If initial_states is specified,
+            "stateful" must be False.
 
     # References
         - [On the Properties of Neural Machine Translation: Encoder–Decoder Approaches](http://www.aclweb.org/anthology/W14-4012)
@@ -644,6 +659,9 @@ class LSTM(Recurrent):
             applied to the bias.
         dropout_W: float between 0 and 1. Fraction of the input units to drop for input gates.
         dropout_U: float between 0 and 1. Fraction of the input units to drop for recurrent connections.
+        initial_states: List of two initial hidden states to feed into recurrent layer, each
+            with shape (nb_samples, output_dim). If initial_states is specified,
+            "stateful" must be False.
 
     # References
         - [Long short-term memory](http://deeplearning.cs.cmu.edu/pdfs/Hochreiter97_lstm.pdf) (original 1997 paper)
