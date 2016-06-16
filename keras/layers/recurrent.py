@@ -66,7 +66,7 @@ class Recurrent(Layer):
     ```
 
     # Arguments
-        weights: list of numpy arrays to set as initial weights.
+        weights: list of Numpy arrays to set as initial weights.
             The list should have 3 elements, of shapes:
             `[(input_dim, output_dim), (output_dim, output_dim), (output_dim,)]`.
         return_sequences: Boolean. Whether to return the last output
