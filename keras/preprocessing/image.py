@@ -162,7 +162,12 @@ def load_img(path, grayscale=False, target_size=None):
     else:  # Ensure 3 channel even when loaded image is grayscale
         img = img.convert('RGB')
     if target_size:
-        img = img.resize(target_size)
+        targ_width=target_size[1] #The number of columns in the target corresponds to the width
+        targ_height=target_size[0] #The number of rows in the target corresponds to the height
+        # Note that Keras usestarget_size=(num_rows,num_columns),
+        # while image dimensions are (width=num_columns,height=num_rows),
+        # so we need to transpose when working with images:
+        img = img.resize((targ_width,targ_height))
     return img
 
 
@@ -577,6 +582,7 @@ class DirectoryIterator(Iterator):
         # build batch of image data
         for i, j in enumerate(index_array):
             fname = self.filenames[j]
+            
             img = load_img(os.path.join(self.directory, fname), grayscale=grayscale, target_size=self.target_size)
             x = img_to_array(img, dim_ordering=self.dim_ordering)
             x = self.image_data_generator.random_transform(x)
