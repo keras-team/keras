@@ -327,17 +327,17 @@ class EarlyStopping(Callback):
 
         if mode == 'min':
             self.monitor_op = np.less
-            self.best = np.Inf
         elif mode == 'max':
             self.monitor_op = np.greater
-            self.best = -np.Inf
         else:
             if 'acc' in self.monitor:
                 self.monitor_op = np.greater
-                self.best = -np.Inf
             else:
                 self.monitor_op = np.less
-                self.best = np.Inf
+
+    def on_train_begin(self, logs={}):
+        self.wait = 0       # Allow instances to be re-used
+        self.best = np.Inf if self.monitor_op == np.less else -np.Inf
 
     def on_epoch_end(self, epoch, logs={}):
         current = logs.get(self.monitor)
