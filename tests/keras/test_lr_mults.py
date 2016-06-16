@@ -4,17 +4,13 @@ import numpy as np
 from keras.utils.test_utils import get_test_data
 from keras.utils.np_utils import to_categorical
 from keras.models import Sequential
-import keras.layers
-import keras.optimizers
-
+from keras.utils.test_utils import layer_test
 
 seed = 42
 
-
 def test_learning_rate_multipliers_dense():
-    '''
-    Test learning rate multipliers on Dense layers
-    '''
+    from keras.layers.core import Dense
+
     (X_train, y_train), (X_test, y_test) = get_test_data(nb_train=10,
                                                          nb_test=1,
                                                          input_shape=(4,),
@@ -25,8 +21,8 @@ def test_learning_rate_multipliers_dense():
 
     np.random.seed(seed)
     model0 = Sequential()
-    model0.add(keras.layers.Dense(output_dim=5, input_dim=4, activation='relu'))
-    model0.add(keras.layers.Dense(output_dim=2, activation='softmax'))
+    model0.add(Dense(output_dim=5, input_dim=4, activation='relu'))
+    model0.add(Dense(output_dim=2, activation='softmax'))
     model0.compile(loss='categorical_crossentropy', optimizer='sgd')
     (m0w0_ini,m0b0_ini) = model0.layers[0].get_weights()
     (m0w1_ini,m0b1_ini) = model0.layers[1].get_weights()
@@ -36,10 +32,10 @@ def test_learning_rate_multipliers_dense():
     
     np.random.seed(seed)
     model1 = Sequential()
-    model1.add(keras.layers.Dense(output_dim=5, input_dim=4, activation='relu',
-                                  W_learning_rate_multiplier=0.0, b_learning_rate_multiplier=0.0))
-    model1.add(keras.layers.Dense(output_dim=2, activation='softmax',
-                                  W_learning_rate_multiplier=0.5, b_learning_rate_multiplier=0.5))
+    model1.add(Dense(output_dim=5, input_dim=4, activation='relu',
+                     W_learning_rate_multiplier=0.0, b_learning_rate_multiplier=0.0))
+    model1.add(Dense(output_dim=2, activation='softmax',
+                     W_learning_rate_multiplier=0.5, b_learning_rate_multiplier=0.5))
     model1.compile(loss='categorical_crossentropy', optimizer='sgd')
     (m1w0_ini,m1b0_ini) = model1.layers[0].get_weights()
     (m1w1_ini,m1b1_ini) = model1.layers[1].get_weights()
@@ -54,6 +50,16 @@ def test_learning_rate_multipliers_dense():
     # This should be ~0.5
     np.testing.assert_almost_equal(np.mean((m1w1_end - m1w1_ini)/(m0w1_end - m0w1_ini)), 0.5, decimal=2)
     np.testing.assert_almost_equal(np.mean((m1b1_end - m1b1_ini)/(m0b1_end - m0b1_ini)), 0.5, decimal=2)
+
+
+def test_learning_rate_multipliers_maxout_dense():
+    from keras.layers.core import Dense
+    
+    layer_test(core.MaxoutDense,
+               kwargs={'output_dim': 3,
+                       W_learning_rate_multiplier=0.1,
+                       b_learning_rate_multiplier=0.1},
+               input_shape=(3, 2))
 
 
 ## def test_learning_rate_multipliers_conv():
