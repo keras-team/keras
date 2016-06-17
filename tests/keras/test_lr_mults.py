@@ -26,7 +26,6 @@ def test_learning_rate_multipliers_dense():
                            'b_learning_rate_multiplier': 0.1},
                    input_shape=(3, 2))
 
-
     (X_train, y_train), (X_test, y_test) = get_test_data(nb_train=10,
                                                          nb_test=1,
                                                          input_shape=(4,),
