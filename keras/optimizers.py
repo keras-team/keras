@@ -445,7 +445,7 @@ class Nadam(Optimizer):
         self.beta_2 = K.variable(beta_2)
         self.schedule_decay = schedule_decay
 
-    def get_updates(self, params, constraints, loss):
+    def get_updates(self, params, constraints, learning_rate_multipliers, loss):
         grads = self.get_gradients(loss, params)
         self.updates = [(self.iterations, self.iterations + 1)]
 
@@ -463,7 +463,7 @@ class Nadam(Optimizer):
 
         self.weights = ms + vs
 
-        for p, g, m, v in zip(params, grads, ms, vs):
+        for p, g, m, v, lmul in zip(params, grads, ms, vs, learning_rate_multipliers):
             # the following equations given in [1]
             g_prime = g / (1. - m_schedule_new)
             m_t = self.beta_1 * m + (1. - self.beta_1) * g
@@ -475,7 +475,7 @@ class Nadam(Optimizer):
             self.updates.append((m, m_t))
             self.updates.append((v, v_t))
 
-            p_t = p - self.lr * m_t_bar / (K.sqrt(v_t_prime) + self.epsilon)
+            p_t = p - (self.lr*lmul) * m_t_bar / (K.sqrt(v_t_prime) + self.epsilon)
             new_p = p_t
 
             # apply constraints
