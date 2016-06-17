@@ -1093,7 +1093,7 @@ class LSTM_Cond(Recurrent):
 
     def get_initial_states(self, x):
         # build an all-zero tensor of shape (samples, output_dim)
-        initial_state = K.zeros_like(x)  # (samples, timesteps, input_dim)
+        initial_state = K.zeros_like(x[:,:, :self.input_dim])  # (samples, timesteps, input_dim)
         initial_state = K.sum(initial_state, axis=1)  # (samples, input_dim)
         reducer = K.zeros((self.input_dim, self.output_dim))
         initial_state = K.dot(initial_state, reducer)  # (samples, output_dim)
@@ -1101,8 +1101,9 @@ class LSTM_Cond(Recurrent):
         return initial_states
 
     def _step(self, x, states):
-        x_t = x[:, :self.input_dim * 4]
-        s_t = x[:, self.input_dim * 4:]
+
+        x_t = x[0, :self.input_dim]
+        s_t = x[0, T.arange(self.input_dim, x.shape[1])]
 
         h_tm1 = states[0]  # State
         c_tm1 = states[1]  # Memory
@@ -1110,7 +1111,7 @@ class LSTM_Cond(Recurrent):
         B_W = states[3]    # Dropout W
         B_V = states[4]    # Dropout V
 
-        z = K.dot(x_t * B_W[0], self.W) + K.dot(h_tm1 * B_U[0], self.U) + K.dot(s_t * B_V[0], self.V) + self.b
+        z = K.dot(s_t * B_V[0], self.V) + K.dot(x_t * B_W[0], self.W) + K.dot(h_tm1 * B_U[0], self.U) + self.b
 
         z0 = z[:, :self.output_dim]
         z1 = z[:, self.output_dim: 2 * self.output_dim]
@@ -1159,10 +1160,7 @@ class LSTM_Cond(Recurrent):
     def preprocess_input(self, x):
         if self.consume_less == 'cpu':
             raise Exception("Unsupported consume_less mode (Only 'gpu' allowed)")
-            x_t = T.inc_subtensor(x[:,:,:self.input_dim], 0)
-            x_t = theano.printing.Print("x_t:")(x_t)
             state_below = T.inc_subtensor(x[:,:,self.input_dim:], 0)
-            state_below = theano.printing.Print("state_below:")(state_below)
 
             if 0 < self.dropout_W < 1:
                 dropout_W = self.dropout_W
@@ -1226,7 +1224,6 @@ class LSTM_Cond(Recurrent):
             initial_states = self.get_initial_states(x)
         constants = self.get_constants(x)
         x = self.preprocess_input(x)
-        x = theano.printing.Print("x_before")(x)
         last_output, outputs, states = K.rnn(self._step, x,
                                              initial_states,
                                              go_backwards=self.go_backwards,
