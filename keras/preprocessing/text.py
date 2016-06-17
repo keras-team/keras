@@ -3,6 +3,7 @@
 from a fast Cython rewrite.
 '''
 from __future__ import absolute_import
+from __future__ import division
 
 import string
 import sys
