@@ -77,6 +77,13 @@ def test_learning_rate_multipliers_maxout_dense():
                        'b_learning_rate_multiplier': 0.1},
                input_shape=(3, 2))
 
+    with pytest.raises(Exception) as e_info:
+        layer_test(MaxoutDense,
+                   kwargs={'output_dim': 3,
+                           'bias': False,
+                           'W_learning_rate_multiplier': 0.1,
+                           'b_learning_rate_multiplier': 0.1},
+                   input_shape=(3, 2))
 
 def test_learning_rate_multipliers_conv1d():
     from keras.layers.convolutional import Convolution1D
@@ -88,6 +95,15 @@ def test_learning_rate_multipliers_conv1d():
                        'b_learning_rate_multiplier': 0.1},
                input_shape=(2, 8, 5))
 
+    with pytest.raises(Exception) as e_info:
+        layer_test(Convolution1D,
+                   kwargs={'nb_filter': 4,
+                           'filter_length': 3,
+                           'bias': False,
+                           'W_learning_rate_multiplier': 0.1,
+                           'b_learning_rate_multiplier': 0.1},
+                   input_shape=(2, 8, 5))
+
 def test_learning_rate_multipliers_conv2d():
     from keras.layers.convolutional import Convolution2D
 
@@ -98,6 +114,16 @@ def test_learning_rate_multipliers_conv2d():
                        'W_learning_rate_multiplier': 0.1,
                        'b_learning_rate_multiplier': 0.1},
                input_shape=(8, 4, 10, 6))
+
+    with pytest.raises(Exception) as e_info:
+        layer_test(Convolution2D,
+                   kwargs={'nb_filter': 3,
+                           'nb_row': 3,
+                           'nb_col': 3,
+                           'bias': False,
+                           'W_learning_rate_multiplier': 0.1,
+                           'b_learning_rate_multiplier': 0.1},
+                   input_shape=(8, 4, 10, 6))
 
     np.random.seed(seed)
     X_train = np.random.rand(10,3,10,10)
