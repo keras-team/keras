@@ -55,7 +55,7 @@ def standardize_input_data(data, names, shapes=None,
                     raise Exception('Error when checking ' + exception_prefix +
                                     ': you are passing a list as '
                                     'input to your model, '
-                                    'but the model expects a '
+                                    'but the model expects '
                                     'a list of ' + str(len(names)) +
                                     ' Numpy arrays instead. '
                                     'The list you passed was: ' +
