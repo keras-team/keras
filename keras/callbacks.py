@@ -210,10 +210,7 @@ class History(Callback):
     def on_epoch_end(self, epoch, logs={}):
         self.epoch.append(epoch)
         for k, v in logs.items():
-            if k not in self.history:
-                self.history[k] = []
-            self.history[k].append(v)
-
+            self.history.setdefault(k, []).append(v)
 
 class ModelCheckpoint(Callback):
     '''Save the model after every epoch.
