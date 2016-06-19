@@ -50,4 +50,3 @@ for i in range(N_test):
     print('product({:}) = {:.4f} \u2248 {:.4f}'.format(X_test[i,:],
                                                        np.prod(X_test[i,:]),
                                                        Y_test[i]))
-
