@@ -72,7 +72,7 @@ class Feedback(Layer):
         if not self.built:
             self.build()
         assert K.ndim(y) == 2
-        batch_size, input_dim = y._keras_shape
+        batch_size, input_dim = y._keras_shape  # TODO: does y always have this attribute?
         x = Reshape((1, input_dim))(y)
         if self.unroll:
             for i in range(self.output_length):
@@ -83,10 +83,9 @@ class Feedback(Layer):
             return output
         else:
             def _step(tensor):
-                tensor = Print('tensor')(tensor)
                 tensor._keras_shape = (batch_size, 1, input_dim)
                 # tensor._uses_learning_phase = x._uses_learning_phase
-                tensor._uses_learning_phase = False
+                tensor._uses_learning_phase = False  # TODO: should this be hard-coded?
                 output = self.model(tensor)
                 for layer in self.layers:
                     layer.initial_state = layer.final_states
@@ -96,7 +95,7 @@ class Feedback(Layer):
             [outputs, _], _ = theano.scan(_step,
                                         outputs_info=[None, x],
                                         n_steps=self.output_length)
-            return outputs[-1, :, :]
+            return K.permute_dimensions(K.squeeze(outputs, axis=2), [1, 0, 2])
 
 
     def get_output_shape_for(self, input_shape):
