@@ -54,7 +54,7 @@ class Recurrent(Layer):
         # as the first layer in a Sequential model
         model = Sequential()
         model.add(LSTM(32, input_shape=(10, 64)))
-        # now model.output_shape == (None, 10, 32)
+        # now model.output_shape == (None, 32)
         # note: `None` is the batch dimension.
 
         # the following is identical:
