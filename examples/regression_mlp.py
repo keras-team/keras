@@ -48,6 +48,6 @@ X_test = np.random.uniform(min_X, max_X, size=(N_test, N_inputs))
 Y_test = predict(X_test)
 for i in range(N_test):
     print('product({:}) = {:.4f} \u2248 {:.4f}'.format(X_test[i,:],
-                                                   np.prod(X_test[i,:]),
-                                                   Y_test[i]))
+                                                       np.prod(X_test[i,:]),
+                                                       Y_test[i]))
 
