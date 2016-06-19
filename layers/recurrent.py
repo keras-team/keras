@@ -5,6 +5,11 @@ import numpy as np
 from .. import backend as K
 from .. import activations, initializations, regularizers
 from ..engine import Layer, InputSpec
+from ..models import Sequential
+from ..layers import Reshape, Lambda
+import theano
+import theano.tensor as T
+from theano.printing import Print
 
 
 def time_distributed_dense(x, w, b=None, dropout=None,
@@ -38,6 +43,66 @@ def time_distributed_dense(x, w, b=None, dropout=None,
     x = K.reshape(x, (-1, timesteps, output_dim))
     return x
 
+class Feedback(Layer):
+    def __init__(self, layers, output_length, feedback_function=lambda x: x,
+                 unroll=False, name='feedback_layer', **kwargs):
+        if type(layers) not in (tuple, list):
+            layers = [layers]
+        self.layers = layers
+        assert output_length > 0, "`output_length` must be longer than 0"
+        self.output_length = output_length
+        self.feedback_function = feedback_function
+        self.unroll = unroll
+        self.input_spec = [InputSpec(ndim=2)]
+        self.name = name
+        self.built = False
+        super(Feedback, self).__init__(**kwargs)
+
+    def build(self, input_shape):
+        batch_size, output_dim = input_shape
+        self.input_spec = None #[InputSpec(shape=input_shape, ndim=2)]
+        self.layers[0].batch_input_shape = (batch_size, 1, output_dim)
+        for layer in self.layers:
+            layer.return_sequences = True
+
+        self.model = Sequential(self.layers)
+        self.built = True
+
+    def call(self, y, mask=None):
+        if not self.built:
+            self.build()
+        assert K.ndim(y) == 2
+        batch_size, input_dim = y._keras_shape
+        x = Reshape((1, input_dim))(y)
+        if self.unroll:
+            for i in range(self.output_length):
+                output = self.model(x)
+                x = self.feedback_function(output)
+                for layer in self.layers:
+                    layer.initial_state = layer.final_states
+            return output
+        else:
+            def _step(tensor):
+                tensor = Print('tensor')(tensor)
+                tensor._keras_shape = (batch_size, 1, input_dim)
+                # tensor._uses_learning_phase = x._uses_learning_phase
+                tensor._uses_learning_phase = False
+                output = self.model(tensor)
+                for layer in self.layers:
+                    layer.initial_state = layer.final_states
+                output = T.patternbroadcast(output, tensor.broadcastable)
+                return output, self.feedback_function(output)
+
+            [outputs, _], _ = theano.scan(_step,
+                                        outputs_info=[None, x],
+                                        n_steps=self.output_length)
+            return outputs[-1, :, :]
+
+
+    def get_output_shape_for(self, input_shape):
+        batch_size, input_dim = input_shape
+        _, _, output_dim = self.layers[-1].get_output_shape_for((batch_size, 1, input_dim))
+        return (batch_size, self.output_length, output_dim)
 
 class Recurrent(Layer):
     '''Abstract base class for recurrent layers.
@@ -240,11 +305,11 @@ class Recurrent(Layer):
                                              constants=constants,
                                              unroll=self.unroll,
                                              input_length=input_shape[1])
+        self.final_states = states
         if self.stateful:
             self.updates = []
             for i in range(len(states)):
                 self.updates.append((self.states[i], states[i]))
-
         if self.return_sequences:
             return outputs
         else:
@@ -265,6 +330,8 @@ class Recurrent(Layer):
         base_config = super(Recurrent, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
+    def set_input_shape(self, shape):
+        self.input_shape = shape
 
 class SimpleRNN(Recurrent):
     '''Fully-connected RNN where the output is to be fed back to input.
