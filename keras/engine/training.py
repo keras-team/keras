@@ -55,7 +55,7 @@ def standardize_input_data(data, names, shapes=None,
                     raise Exception('Error when checking ' + exception_prefix +
                                     ': you are passing a list as '
                                     'input to your model, '
-                                    'but the model expects a '
+                                    'but the model expects '
                                     'a list of ' + str(len(names)) +
                                     ' Numpy arrays instead. '
                                     'The list you passed was: ' +
@@ -806,6 +806,7 @@ class Model(Container):
                 np.random.shuffle(index_array)
 
             batches = make_batches(nb_train_sample, batch_size)
+            epoch_logs = {}
             for batch_index, (batch_start, batch_end) in enumerate(batches):
                 batch_ids = index_array[batch_start:batch_end]
                 try:
@@ -830,7 +831,6 @@ class Model(Container):
 
                 callbacks.on_batch_end(batch_index, batch_logs)
 
-                epoch_logs = {}
                 if batch_index == len(batches) - 1:  # last batch
                     # validation
                     if do_validation:

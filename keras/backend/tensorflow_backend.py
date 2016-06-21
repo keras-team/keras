@@ -123,6 +123,7 @@ def shape(x):
 def int_shape(x):
     '''Returns the shape of a tensor as a tuple of
     integers or None entries.
+    Note that this function only works with TensorFlow. 
     '''
     shape = x.get_shape()
     return tuple([i.__int__() for i in shape])

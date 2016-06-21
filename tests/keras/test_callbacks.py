@@ -105,6 +105,27 @@ def test_EarlyStopping():
                         validation_data=(X_test, y_test), callbacks=cbks, nb_epoch=20)
 
 
+def test_EarlyStopping_reuse():
+    patience = 3
+    data = np.random.random((100, 1))
+    labels = np.where(data > 0.5, 1, 0)
+    model = Sequential((
+        Dense(1, input_dim=1, activation='relu'),
+        Dense(1, activation='sigmoid'),
+    ))
+    model.compile(optimizer='sgd', loss='binary_crossentropy', metrics=['accuracy'])
+    stopper = callbacks.EarlyStopping(monitor='acc', patience=patience)
+    weights = model.get_weights()
+
+    hist = model.fit(data, labels, callbacks=[stopper])
+    assert len(hist.epoch) >= patience
+
+    # This should allow training to go for at least `patience` epochs
+    model.set_weights(weights)
+    hist = model.fit(data, labels, callbacks=[stopper])
+    assert len(hist.epoch) >= patience
+
+
 def test_LearningRateScheduler():
     (X_train, y_train), (X_test, y_test) = get_test_data(nb_train=train_samples,
                                                          nb_test=test_samples,
