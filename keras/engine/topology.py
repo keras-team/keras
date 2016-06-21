@@ -1073,6 +1073,9 @@ class Merge(Layer):
         tensor_indices: optional list of indices of output tensors
             to consider for merging
             (in case some input layer node returns multiple tensors).
+        output_mask: mask or lambda/function to compute the output mask (only
+            if merge mode is a lambda/function). If the latter case, it should
+            take as input a list of masks and return a single mask.
     '''
     def __init__(self, layers=None, mode='sum', concat_axis=-1,
                  dot_axes=-1, output_shape=None, output_mask=None,
@@ -1331,7 +1334,7 @@ class Merge(Layer):
             for m in masks[1:]:
                 mask = mask & m
             return mask
-        elif self.mode in ['concat']:
+        elif self.mode == 'concat':
             masks = [K.ones_like(inputs[i][:-1]) if m is None else m for i, m in zip(inputs, mask)]
             expanded_dims = [K.expand_dims(m) for m in masks]
             concatenated = K.concatenate(expanded_dims, axis=self.concat_axis)
