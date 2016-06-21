@@ -4,7 +4,7 @@ help:
 DATA?="${HOME}/Data"
 GPU?=0
 DOCKER_FILE=Dockerfile
-DOCKER=GPU=$(GPU) ./nvidia-docker
+DOCKER=GPU=$(GPU) nvidia-docker
 
 build:
 	docker build -t keras -f $(DOCKER_FILE) .
@@ -19,5 +19,5 @@ notebook: build
 	$(DOCKER) run -it -v `pwd`:/src -v $(DATA):/data --net=host keras
 
 test: build
-	$(DOCKER) run -it -v `pwd`:/src -v $(DATA):/data keras "py.test tests/"
+	$(DOCKER) run -it -v `pwd`:/src -v $(DATA):/data keras py.test tests/
 
