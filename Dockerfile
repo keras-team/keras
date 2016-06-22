@@ -6,7 +6,7 @@ ENV PATH $CONDA_DIR/bin:$PATH
 RUN mkdir -p $CONDA_DIR && \
     echo export PATH=$CONDA_DIR/bin:'$PATH' > /etc/profile.d/conda.sh && \
     apt-get update && \
-    apt-get install -y wget && \
+    apt-get install -y wget git && \
     wget --quiet https://repo.continuum.io/miniconda/Miniconda3-3.9.1-Linux-x86_64.sh && \
     echo "6c6b44acdd0bc4229377ee10d52c8ac6160c336d9cdd669db7371aa9344e1ac3 *Miniconda3-3.9.1-Linux-x86_64.sh" | sha256sum -c - && \
     /bin/bash /Miniconda3-3.9.1-Linux-x86_64.sh -f -b -p $CONDA_DIR && \
@@ -27,12 +27,21 @@ USER keras
 
 # Python 3.5
 #TODO: Add tensorflow
-RUN conda install -y python=3.5 numpy scikit-learn notebook pandas matplotlib nose pyyaml six h5py && \
-    pip install theano ipdb pytest pytest-cov python-coveralls pytest-xdist pep8 pytest-pep8 && \
+RUN conda install -y python=3.5 && \
+    pip install git+git://github.com/Theano/Theano.git && \
+    pip install ipdb pytest pytest-cov python-coveralls coverage==3.7.1 pytest-xdist pep8 pytest-pep8 && \
+    conda install Pillow scikit-learn notebook pandas matplotlib nose pyyaml six h5py && \
     conda clean -yt
 
-ENV THEANO_FLAGS='mode=FAST_RUN,device=gpu,nvcc.fastmath=True,floatX=float32'
-ENV PYTHONPATH='/src/keras:$PYTHONPATH'
+RUN echo '\
+[global]\n\
+floatX = float32\n\
+device = gpu\n\
+mode = FAST_RUN\n\
+optimizer = fast_compile\n\
+nvcc.fastmath = True' >> /home/keras/.theanorc
+
+ENV PYTHONPATH='/src/:$PYTHONPATH'
 
 WORKDIR /src
 
