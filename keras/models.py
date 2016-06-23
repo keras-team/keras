@@ -573,7 +573,7 @@ class Sequential(Model):
     def fit_generator(self, generator, samples_per_epoch, nb_epoch,
                       verbose=1, callbacks=[],
                       validation_data=None, nb_val_samples=None,
-                      class_weight=None, max_q_size=10, maxproc=2, **kwargs):
+                      class_weight=None, max_q_size=10, nb_worker=2, **kwargs):
         '''Fits the model on data generated batch-by-batch by
         a Python generator.
         The generator is run in parallel to the model, for efficiency.
@@ -607,7 +607,7 @@ class Sequential(Model):
             class_weight: dictionary mapping class indices to a weight
                 for the class.
             max_q_size: maximum size for the generator queue
-            maxproc: maximum number of processes to spin up
+            nb_worker: maximum number of processes to spin up
 
         # Returns
             A `History` object.
@@ -638,10 +638,6 @@ class Sequential(Model):
                           'the model at compile time:\n'
                           '`model.compile(optimizer, loss, '
                           'metrics=["accuracy"])`')
-        if 'nb_worker' in kwargs:
-            kwargs.pop('nb_worker')
-            warnings.warn('The "nb_worker" argument is deprecated, '
-                          'please remove it from your code.')
         if 'nb_val_worker' in kwargs:
             kwargs.pop('nb_val_worker')
             warnings.warn('The "nb_val_worker" argument is deprecated, '
@@ -658,9 +654,9 @@ class Sequential(Model):
                                         nb_val_samples=nb_val_samples,
                                         class_weight=class_weight,
                                         max_q_size=max_q_size,
-                                        maxproc=maxproc)
+                                        nb_worker=nb_worker)
 
-    def evaluate_generator(self, generator, val_samples, max_q_size=10, maxproc=2, **kwargs):
+    def evaluate_generator(self, generator, val_samples, max_q_size=10, nb_worker=2, **kwargs):
         '''Evaluates the model on a data generator. The generator should
         return the same kind of data as accepted by `test_on_batch`.
 
@@ -675,7 +671,7 @@ class Sequential(Model):
                 total number of samples to generate from `generator`
                 before returning.
             max_q_size: maximum size for the generator queue
-            maxproc: maximum number of processes to spin up
+            nb_worker: maximum number of processes to spin up
 
         '''
         if self.model is None:
@@ -696,9 +692,9 @@ class Sequential(Model):
         return self.model.evaluate_generator(generator,
                                              val_samples,
                                              max_q_size=max_q_size,
-                                             maxproc=maxproc)
+                                             nb_worker=nb_worker)
 
-    def predict_generator(self, generator, val_samples, max_q_size=10, maxproc=2):
+    def predict_generator(self, generator, val_samples, max_q_size=10, nb_worker=2):
         '''Generates predictions for the input samples from a data generator.
         The generator should return the same kind of data as accepted by
         `predict_on_batch`.
@@ -711,7 +707,7 @@ class Sequential(Model):
             val_samples: total number of samples to generate from `generator`
                 before returning.
             max_q_size: maximum size for the generator queue
-            maxproc: maximum number of processes to spin up
+            nb_worker: maximum number of processes to spin up
 
 
         # Returns
@@ -721,7 +717,7 @@ class Sequential(Model):
             self.build()
         return self.model.predict_generator(generator, val_samples,
                                             max_q_size=max_q_size,
-                                            maxproc=maxproc)
+                                            nb_worker=nb_worker)
 
     def get_config(self):
         '''Returns the model configuration
