@@ -1328,11 +1328,8 @@ class Merge(Layer):
         assert hasattr(mask, '__len__') and len(mask) == len(inputs)
 
         if self.mode in ['sum', 'mul', 'ave']:
-            masks = [m for m in mask if m is not None]
-            mask = masks[0]
-            for m in masks[1:]:
-                mask = mask & m
-            return mask
+            masks = [K.expand_dims(m, 0) for m in mask if m is not None]
+            return K.all(K.concatenate(masks, axis=0), axis=0, keepdims=False)
         elif self.mode == 'concat':
             masks = [K.ones_like(inputs[i][:-1]) if m is None else m for i, m in zip(inputs, mask)]
             expanded_dims = [K.expand_dims(m) for m in masks]
