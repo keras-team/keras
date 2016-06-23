@@ -1,4 +1,4 @@
-FROM nvidia/cuda:7.5-cudnn4-devel
+FROM nvidia/cuda:7.5-cudnn5-devel
 
 ENV CONDA_DIR /opt/conda
 ENV PATH $CONDA_DIR/bin:$PATH
@@ -37,10 +37,7 @@ RUN conda install -y python=3.5 && \
 RUN echo '\
 [global]\n\
 floatX = float32\n\
-device = gpu\n\
-mode = FAST_RUN\n\
-optimizer = fast_compile\n\
-nvcc.fastmath = True' >> /home/keras/.theanorc
+device = gpu' >> /home/keras/.theanorc
 
 ENV PYTHONPATH='/src/:$PYTHONPATH'
 
