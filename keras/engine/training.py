@@ -5,11 +5,7 @@ import warnings
 import copy
 import time
 import numpy as np
-import threading
-try:
-    import queue
-except ImportError:
-    import Queue as queue
+import multiprocessing
 
 from .topology import Container
 from .. import backend as K
@@ -395,36 +391,54 @@ def standardize_weights(y, sample_weight=None, class_weight=None,
 
 
 def generator_queue(generator, max_q_size=10,
-                    wait_time=0.05, nb_worker=1):
-    '''Builds a threading queue out of a data generator.
+                    wait_time=0.05, nb_worker=1, maxproc=2):
+    '''Builds a multiprocessing queue out of a data generator.
     Used in `fit_generator`, `evaluate_generator`, `predict_generator`.
+    Note that because of multiprocessing, the generator can't depend
+    on non picklable objects (such as a lazy-evaluated array) since it wont
+    be passed to the children processes
     '''
-    q = queue.Queue()
-    _stop = threading.Event()
 
-    def data_generator_task():
-        while not _stop.is_set():
-            try:
-                if q.qsize() < max_q_size:
-                    try:
-                        generator_output = next(generator)
-                    except ValueError:
-                        continue
-                    q.put(generator_output)
-                else:
-                    time.sleep(wait_time)
-            except Exception:
-                _stop.set()
-                raise
+    processes = []
+    q = multiprocessing.Queue(maxsize=max_q_size)
+    _stop = multiprocessing.Event()
 
-    generator_threads = [threading.Thread(target=data_generator_task)
-                         for _ in range(nb_worker)]
+    try:
 
-    for thread in generator_threads:
-        thread.daemon = True
-        thread.start()
+        def data_generator_task():
+            while not _stop.is_set():
+                try:
+                    if q.qsize() < max_q_size:
+                        try:
+                            generator_output = next(generator)
+                        except ValueError:
+                            continue
+                        q.put(generator_output)
+                    else:
+                        time.sleep(wait_time)
+                except Exception:
+                    _stop.set()
+                    raise
 
-    return q, _stop
+        for i in range(maxproc):
+            # Reset random seed
+            np.random.seed()
+
+            proc = multiprocessing.Process(target=data_generator_task)
+            processes.append(proc)
+            proc.daemon = True
+            proc.start()
+
+    except:
+        # Terminate all daemon processes
+        _stop.set()
+        for p in processes:
+            if p.is_alive():
+                p.terminate()
+        q.close()
+        raise
+
+    return q, _stop, processes
 
 
 class Model(Container):
@@ -1252,7 +1266,7 @@ class Model(Container):
     def fit_generator(self, generator, samples_per_epoch, nb_epoch,
                       verbose=1, callbacks=[],
                       validation_data=None, nb_val_samples=None,
-                      class_weight={}, max_q_size=10):
+                      class_weight={}, max_q_size=10, maxproc=2):
         '''Fits the model on data generated batch-by-batch by
         a Python generator.
         The generator is run in parallel to the model, for efficiency.
@@ -1268,6 +1282,9 @@ class Model(Container):
                 The generator is expected to loop over its data
                 indefinitely. An epoch finishes when `samples_per_epoch`
                 samples have been seen by the model.
+                Note that because of multiprocessing, the generator can't depend
+                on non picklable objects (such as a lazy-evaluated array) since it wont
+                be passed to the children processes
             samples_per_epoch: integer, number of samples to process before
                 going to the next epoch.
             nb_epoch: integer, total number of iterations on the data.
@@ -1283,6 +1300,7 @@ class Model(Container):
             class_weight: dictionary mapping class indices to a weight
                 for the class.
             max_q_size: maximum size for the generator queue
+            maxproc: maximum number of processes to spin up
 
         # Returns
             A `History` object.
@@ -1361,7 +1379,7 @@ class Model(Container):
             self.validation_data = None
 
         # start generator thread storing batches into a queue
-        data_gen_queue, _stop = generator_queue(generator, max_q_size=max_q_size)
+        data_gen_queue, _stop, processes = generator_queue(generator, max_q_size=max_q_size, maxproc=maxproc)
 
         callback_model.stop_training = False
         while epoch < nb_epoch:
@@ -1454,10 +1472,13 @@ class Model(Container):
                 break
 
         _stop.set()
+        for p in processes:
+            p.terminate()
+        data_gen_queue.close()
         callbacks.on_train_end()
         return self.history
 
-    def evaluate_generator(self, generator, val_samples, max_q_size=10):
+    def evaluate_generator(self, generator, val_samples, max_q_size=10, maxproc=2):
         '''Evaluates the model on a data generator. The generator should
         return the same kind of data as accepted by `test_on_batch`.
 
@@ -1465,10 +1486,14 @@ class Model(Container):
             generator:
                 generator yielding tuples (inputs, targets)
                 or (inputs, targets, sample_weights)
+                Note that because of multiprocessing, the generator can't depend
+                on non picklable objects (such as a lazy-evaluated array) since it wont
+                be passed to the children processes
             val_samples:
                 total number of samples to generate from `generator`
                 before returning.
             max_q_size: maximum size for the generator queue
+            maxproc: maximum number of processes to spin up
 
         # Returns
             Scalar test loss (if the model has a single output and no metrics)
@@ -1482,7 +1507,7 @@ class Model(Container):
         wait_time = 0.01
         all_outs = []
         weights = []
-        data_gen_queue, _stop = generator_queue(generator, max_q_size=max_q_size)
+        data_gen_queue, _stop, processes = generator_queue(generator, max_q_size=max_q_size, maxproc=maxproc)
 
         while processed_samples < val_samples:
             generator_output = None
@@ -1526,6 +1551,9 @@ class Model(Container):
             weights.append(nb_samples)
 
         _stop.set()
+        for p in processes:
+            p.terminate()
+        data_gen_queue.close()
         if type(outs) is not list:
             return np.average(np.asarray(all_outs),
                               weights=weights)
@@ -1536,16 +1564,21 @@ class Model(Container):
                                 weights=weights))
             return averages
 
-    def predict_generator(self, generator, val_samples, max_q_size=10):
+    def predict_generator(self, generator, val_samples, max_q_size=10, maxproc=2):
         '''Generates predictions for the input samples from a data generator.
         The generator should return the same kind of data as accepted by
         `predict_on_batch`.
 
         # Arguments
             generator: generator yielding batches of input samples.
+                Note that because of multiprocessing, the generator can't depend
+                on non picklable objects (such as a lazy-evaluated array) since it wont
+                be passed to the children processes
             val_samples: total number of samples to generate from `generator`
                 before returning.
             max_q_size: maximum size for the generator queue
+            maxproc: maximum number of processes to spin up
+
 
         # Returns
             Numpy array(s) of predictions.
@@ -1555,7 +1588,7 @@ class Model(Container):
         processed_samples = 0
         wait_time = 0.01
         all_outs = []
-        data_gen_queue, _stop = generator_queue(generator, max_q_size=max_q_size)
+        data_gen_queue, _stop, processes = generator_queue(generator, max_q_size=max_q_size, maxproc=maxproc)
 
         while processed_samples < val_samples:
             generator_output = None
@@ -1607,6 +1640,9 @@ class Model(Container):
             processed_samples += nb_samples
 
         _stop.set()
+        for p in processes:
+            p.terminate()
+        data_gen_queue.close()
         if len(all_outs) == 1:
             return all_outs[0]
         return all_outs
