@@ -1328,8 +1328,7 @@ class Merge(Layer):
         assert hasattr(mask, '__len__') and len(mask) == len(inputs)
 
         if self.mode in ['sum', 'mul', 'ave']:
-            bool_type = 'bool' if K._BACKEND == 'tensorflow' else 'int32'
-            masks = [K.cast(m, bool_type) for m in mask if m is not None]
+            masks = [m for m in mask if m is not None]
             mask = masks[0]
             for m in masks[1:]:
                 mask = mask & m
