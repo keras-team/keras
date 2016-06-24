@@ -589,9 +589,39 @@ class Sequential(Model):
                 The generator is expected to loop over its data
                 indefinitely. An epoch finishes when `samples_per_epoch`
                 samples have been seen by the model.
-                Note that because of multiprocessing, the generator can't depend
-                on non picklable objects (such as a lazy-evaluated array) since it wont
-                be passed to the children processes
+                Note that multiprocessing can't easily pass non picklable objects to
+                children processes. This notably means you can't pass the same lazy evaluated data array
+                to several children processes.
+
+                examples :
+                arr_X = np.ones((2, 2))
+                arr_y = np.ones(2)
+                np.savez("data.npz", **{"X": arr_X, "y": arr_y})
+                arr = np.load("data.npz") # lazy evaluated array
+
+                def myGenerator():
+
+                    while True:          # arr is defined outside the children process and can't be pickled
+                        X = arr["X"]     # it won't be passed to all the children processes correctly
+                        y = arr["y"]     # this generator will fail
+                        yield (X, y)
+
+                def myGenerator():
+
+                    while True:          # arr_X and arr_y are stored in the main process' memory
+                        X = arr_X        # they are picklable objects which can be passed to children processes
+                        y = arr_y        # this generator will work
+                        yield (X, y)`
+
+
+                def myGenerator():
+
+                    arr = np.load("data.npz")
+
+                    while True:          # arr is defined in each children process
+                        X = arr_X        # the pickling problem is bypassed
+                        y = arr_y        # this generator will work
+                        yield (X, y)
             samples_per_epoch: integer, number of samples to process before
                 going to the next epoch.
             nb_epoch: integer, total number of iterations on the data.
@@ -664,9 +694,39 @@ class Sequential(Model):
             generator:
                 generator yielding tuples (inputs, targets)
                 or (inputs, targets, sample_weights)
-                Note that because of multiprocessing, the generator can't depend
-                on non picklable objects (such as a lazy-evaluated array) since it wont
-                be passed to the children processes
+                Note that multiprocessing can't easily pass non picklable objects to
+                children processes. This notably means you can't pass the same lazy evaluated data array
+                to several children processes.
+
+                examples :
+                arr_X = np.ones((2, 2))
+                arr_y = np.ones(2)
+                np.savez("data.npz", **{"X": arr_X, "y": arr_y})
+                arr = np.load("data.npz") # lazy evaluated array
+
+                def myGenerator():
+
+                    while True:          # arr is defined outside the children process and can't be pickled
+                        X = arr["X"]     # it won't be passed to all the children processes correctly
+                        y = arr["y"]     # this generator will fail
+                        yield (X, y)
+
+                def myGenerator():
+
+                    while True:          # arr_X and arr_y are stored in the main process' memory
+                        X = arr_X        # they are picklable objects which can be passed to children processes
+                        y = arr_y        # this generator will work
+                        yield (X, y)`
+
+
+                def myGenerator():
+
+                    arr = np.load("data.npz")
+
+                    while True:          # arr is defined in each children process
+                        X = arr_X        # the pickling problem is bypassed
+                        y = arr_y        # this generator will work
+                        yield (X, y)
             val_samples:
                 total number of samples to generate from `generator`
                 before returning.
@@ -701,9 +761,39 @@ class Sequential(Model):
 
         # Arguments
             generator: generator yielding batches of input samples.
-                Note that because of multiprocessing, the generator can't depend
-                on non picklable objects (such as a lazy-evaluated array) since it wont
-                be passed to the children processes
+                Note that multiprocessing can't easily pass non picklable objects to
+                children processes. This notably means you can't pass the same lazy evaluated data array
+                to several children processes.
+
+                examples :
+                arr_X = np.ones((2, 2))
+                arr_y = np.ones(2)
+                np.savez("data.npz", **{"X": arr_X, "y": arr_y})
+                arr = np.load("data.npz") # lazy evaluated array
+
+                def myGenerator():
+
+                    while True:          # arr is defined outside the children process and can't be pickled
+                        X = arr["X"]     # it won't be passed to all the children processes correctly
+                        y = arr["y"]     # this generator will fail
+                        yield (X, y)
+
+                def myGenerator():
+
+                    while True:          # arr_X and arr_y are stored in the main process' memory
+                        X = arr_X        # they are picklable objects which can be passed to children processes
+                        y = arr_y        # this generator will work
+                        yield (X, y)`
+
+
+                def myGenerator():
+
+                    arr = np.load("data.npz")
+
+                    while True:          # arr is defined in each children process
+                        X = arr_X        # the pickling problem is bypassed
+                        y = arr_y        # this generator will work
+                        yield (X, y)
             val_samples: total number of samples to generate from `generator`
                 before returning.
             max_q_size: maximum size for the generator queue
