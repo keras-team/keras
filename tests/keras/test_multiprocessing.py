@@ -38,7 +38,7 @@ def test_multiprocessing_training():
                         nb_epoch=1,
                         verbose=1,
                         max_q_size=10,
-                        maxproc=2)
+                        nb_worker=2)
     reached_end = True
 
     assert reached_end
@@ -80,7 +80,7 @@ def test_multiprocessing_training_fromfile():
                         nb_epoch=1,
                         verbose=1,
                         max_q_size=10,
-                        maxproc=2)
+                        nb_worker=2)
     reached_end = True
 
     assert reached_end
@@ -114,7 +114,7 @@ def test_multiprocessing_predicting():
     model.predict_generator(myGenerator(),
                             val_samples=320,
                             max_q_size=10,
-                            maxproc=2)
+                            nb_worker=2)
     reached_end = True
 
     assert reached_end
@@ -151,7 +151,7 @@ def test_multiprocessing_evaluating():
     model.evaluate_generator(myGenerator(),
                              val_samples=320,
                              max_q_size=10,
-                             maxproc=2)
+                             nb_worker=2)
     reached_end = True
 
     assert reached_end
