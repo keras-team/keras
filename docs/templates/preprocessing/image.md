@@ -59,7 +59,7 @@ Generate batches of tensor image data with real-time data augmentation. The data
     - __flow(X, y)__: Takes numpy data & label arrays, and generates batches of augmented/normalized data. Yields batches indefinitely, in an infinite loop.
         - __Arguments__:
             - __X__: data.
-            - __y__: labels.
+            - __y__: labels (Optional). Can be None in case of fitting in unlabelled data. 
             - __batch_size__: int (default: 32).
             - __shuffle__: boolean (defaut: False).
             - __save_to_dir__: None or str (default: None). This allows you to optimally specify a directory to which to save the augmented pictures being generated (useful for visualizing what you are doing).
