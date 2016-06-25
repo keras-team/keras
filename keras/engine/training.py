@@ -1080,7 +1080,7 @@ class Model(Container):
 
     def evaluate(self, x, y, batch_size=32, verbose=1, sample_weight=None):
         '''Returns the loss value and metrics values for the model
-        in test mode. Computation in done in batches.
+        in test mode. Computation is done in batches.
 
         # Arguments
             x: Numpy array of test data,
