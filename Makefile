@@ -9,7 +9,7 @@ BACKEND=tensorflow
 TEST=tests/
 
 build:
-	docker build -t keras -f $(DOCKER_FILE) .
+	docker build -t keras --build-arg python_version=3.5 -f $(DOCKER_FILE) .
 
 bash: build
 	$(DOCKER) run -it -v `pwd`:/src -v $(DATA):/data --env KERAS_BACKEND=$(BACKEND) keras bash

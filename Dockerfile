@@ -6,7 +6,7 @@ ENV PATH $CONDA_DIR/bin:$PATH
 RUN mkdir -p $CONDA_DIR && \
     echo export PATH=$CONDA_DIR/bin:'$PATH' > /etc/profile.d/conda.sh && \
     apt-get update && \
-    apt-get install -y wget git && \
+    apt-get install -y wget git libhdf5-dev g++ && \
     wget --quiet https://repo.continuum.io/miniconda/Miniconda3-3.9.1-Linux-x86_64.sh && \
     echo "6c6b44acdd0bc4229377ee10d52c8ac6160c336d9cdd669db7371aa9344e1ac3 *Miniconda3-3.9.1-Linux-x86_64.sh" | sha256sum -c - && \
     /bin/bash /Miniconda3-3.9.1-Linux-x86_64.sh -f -b -p $CONDA_DIR && \
@@ -21,13 +21,11 @@ RUN useradd -m -s /bin/bash -N -u $NB_UID $NB_USER && \
     mkdir -p /src && \
     chown keras /src
 
-RUN apt-get install -y g++  # Required for theano to execute optimized C-implementations (for both CPU and GPU)
-
 USER keras
 
-# Python 3.5
-#TODO: Add tensorflow
-RUN conda install -y python=3.5 && \
+# Python
+ARG python_version=3.5.1
+RUN conda install -y python=${python_version} && \
     pip install https://storage.googleapis.com/tensorflow/linux/gpu/tensorflow-0.9.0rc0-cp35-cp35m-linux_x86_64.whl && \
     pip install git+git://github.com/Theano/Theano.git && \
     pip install ipdb pytest pytest-cov python-coveralls coverage==3.7.1 pytest-xdist pep8 pytest-pep8 && \
@@ -37,6 +35,7 @@ RUN conda install -y python=3.5 && \
 RUN echo '\
 [global]\n\
 floatX = float32\n\
+optimizer=None\n\
 device = gpu' >> /home/keras/.theanorc
 
 ENV PYTHONPATH='/src/:$PYTHONPATH'
