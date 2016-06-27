@@ -234,6 +234,9 @@ def collect_metrics(metrics, output_names):
 
 
 def collect_trainable_weights(layer):
+    '''Collects all `trainable_weights` attributes,
+    excluding any sublayers where `trainable` is set the `False`.
+    '''
     trainable = getattr(layer, 'trainable', True)
     if not trainable:
         return []
@@ -249,6 +252,9 @@ def collect_trainable_weights(layer):
             weights += collect_trainable_weights(sublayer)
     else:
         weights += layer.trainable_weights
+    # dedupe weights
+    weights = list(set(weights))
+    weights.sort(key=lambda x: x.name)
     return weights
 
 
@@ -663,10 +669,7 @@ class Model(Container):
                 inputs = self.inputs + self.targets + self.sample_weights
 
             # get trainable weights
-            trainable_weights = []
-            for layer in self.layers:
-                trainable_weights += collect_trainable_weights(layer)
-
+            trainable_weights = collect_trainable_weights(self)
             training_updates = self.optimizer.get_updates(trainable_weights, self.constraints, self.total_loss)
             updates = self.updates + training_updates
 
