@@ -396,6 +396,7 @@ def generator_queue(generator, max_q_size=10,
     '''Builds a threading queue out of a data generator.
     Used in `fit_generator`, `evaluate_generator`, `predict_generator`.
     '''
+
     q = queue.Queue()
     _stop = threading.Event()
 
@@ -1360,7 +1361,7 @@ class Model(Container):
             self.validation_data = None
 
         # start generator thread storing batches into a queue
-        data_gen_queue, _stop = generator_queue(generator, max_q_size=max_q_size)
+        data_gen_queue, _stop = generator_queue(generator, max_q_size=max_q_size, nb_worker=max_q_size)
 
         callback_model.stop_training = False
         while epoch < nb_epoch:
@@ -1481,7 +1482,7 @@ class Model(Container):
         wait_time = 0.01
         all_outs = []
         weights = []
-        data_gen_queue, _stop = generator_queue(generator, max_q_size=max_q_size)
+        data_gen_queue, _stop = generator_queue(generator, max_q_size=max_q_size, nb_worker=max_q_size)
 
         while processed_samples < val_samples:
             generator_output = None
@@ -1554,7 +1555,7 @@ class Model(Container):
         processed_samples = 0
         wait_time = 0.01
         all_outs = []
-        data_gen_queue, _stop = generator_queue(generator, max_q_size=max_q_size)
+        data_gen_queue, _stop = generator_queue(generator, max_q_size=max_q_size, nb_worker=max_q_size)
 
         while processed_samples < val_samples:
             generator_output = None

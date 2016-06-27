@@ -352,6 +352,46 @@ class RepeatVector(Layer):
         return dict(list(base_config.items()) + list(config.items()))
 
 
+class RepeatMatrix(Layer):
+    '''Repeats the input n times.
+       Applies the same procedure as RepeatVector() but for inputs of any dimenions.
+       The new dimension will be introduced in the position defined by the user.
+
+    # Arguments
+        n: integer, repetition factor.
+        dim: integer, dimension along which the input will be repeated (default = 1)
+
+    # Input shape
+        R-dimensional tensor of shape `(nb_samples, dim1, dim2, ..., dimR-1)`.
+
+    # Output shape
+        R+1-dimensional tensor of shape `(nb_samples, n, dim2, dim3, ..., dimR)` if dim==1.
+    '''
+    def __init__(self, n, dim=1, **kwargs):
+        self.supports_masking = True
+        self.n = n
+        self.dim = dim
+        #self.input_spec = [InputSpec(ndim=2)]
+        super(RepeatMatrix, self).__init__(**kwargs)
+
+    def get_output_shape_for(self, input_shape):
+        output_shape = list(input_shape[:self.dim]) + [self.n] + list(input_shape[self.dim:])
+        return tuple(output_shape)
+
+    def compute_mask(self, input, input_mask=None):
+        #return K.repeatRdim(input_mask, self.n, axis=self.dim)
+        return input_mask
+
+    def call(self, x, mask=None):
+        return K.repeatRdim(x, self.n, axis=self.dim)
+
+    def get_config(self):
+        config = {'n': self.n,
+                  'dim': self.dim}
+        base_config = super(RepeatMatrix, self).get_config()
+        return dict(list(base_config.items()) + list(config.items()))
+
+
 class Lambda(Layer):
     '''Used for evaluating an arbitrary Theano / TensorFlow expression
     on the output of the previous layer.

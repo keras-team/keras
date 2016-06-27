@@ -359,6 +359,17 @@ def repeat(x, n):
     return T.extra_ops.repeat(x, n, axis=1)
 
 
+def repeatRdim(x, n, axis=1):
+    '''Repeat a RD tensor.
+
+    If x has shape (samples, dim1, dim2) and n=2 and axis=1,
+    the output will have shape (samples, 2, dim1, dim2).
+    '''
+    new_dim = range(axis) + ['x'] + range(axis,x.ndim)
+    x = x.dimshuffle(tuple(new_dim))
+    return T.extra_ops.repeat(x, n, axis=axis)
+
+
 def tile(x, n):
     return T.tile(x, n)
 
@@ -582,10 +593,15 @@ def rnn(step_function, inputs, initial_states,
         constants = []
 
     if mask is not None:
-        if mask.ndim == ndim-1:
+        #if mask.ndim == ndim-1:
+        #    mask = expand_dims(mask)
+        #assert mask.ndim == ndim
+        #mask = mask.dimshuffle(axes)
+
+        if mask.ndim < ndim:
             mask = expand_dims(mask)
-        assert mask.ndim == ndim
-        mask = mask.dimshuffle(axes)
+        ###mask = mask.dimshuffle([1,0,2])
+        mask = mask.dimshuffle([1,0]+list(range(2,mask.ndim)))
 
         if unroll:
             indices = list(range(input_length))
