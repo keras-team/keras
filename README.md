@@ -6,6 +6,7 @@ This fork of Keras offers the following contributions:
 
 - Caffe to Keras conversion module
 - Layer-specific learning rates
+- New layers for multimodal data
 
 Contact email: marc.bolanos@ub.edu
 
@@ -16,7 +17,7 @@ MarcBS/keras is compatible with: __Python 2.7__.
 ## Caffe to Keras conversion module
 
 This module allows to convert Caffe models to Keras for their later training or test use.
-See keras/caffe/README.md for further information.
+See [this README](keras/caffe/README.md) for further information.
 
 ## Layer-specific learning rates
 
@@ -26,6 +27,11 @@ be multiplied by the global learning rate for modifying the weight of the error 
 ```
 model.add_node(Dense(100, W_learning_rate_multiplier=10.0, b_learning_rate_multiplier=10.0))
 ```
+
+## New layers for multimodal data
+
+- [AttLSTM](https://github.com/MarcBS/keras/blob/ba642f5d345983c3ebeffede41c57e03a5c1f7ee/keras/layers/recurrent.py#L1261): LSTM with Attention mechanism.
+- [LSTM_Cond](https://github.com/MarcBS/keras/blob/ba642f5d345983c3ebeffede41c57e03a5c1f7ee/keras/layers/recurrent.py#L940): LSTM with an additional input consisting in the previously generated word.
 
 ## Installation
 
