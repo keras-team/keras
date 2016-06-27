@@ -1463,11 +1463,6 @@ class AttLSTM(LSTM):
 
 
     def preprocess_input(self, x):
-        """
-            Inserts fake dimension in x acting as the output timesteps
-        """
-        #x = K.repeatRdim(x, self.output_timesteps, axis=1)
-
         return x
 
 
