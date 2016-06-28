@@ -371,7 +371,6 @@ class RepeatMatrix(Layer):
         self.supports_masking = True
         self.n = n
         self.dim = dim
-        #self.input_spec = [InputSpec(ndim=2)]
         super(RepeatMatrix, self).__init__(**kwargs)
 
     def get_output_shape_for(self, input_shape):
@@ -379,7 +378,7 @@ class RepeatMatrix(Layer):
         return tuple(output_shape)
 
     def compute_mask(self, input, input_mask=None):
-        #return K.repeatRdim(input_mask, self.n, axis=self.dim)
+        # return K.repeatRdim(input_mask, self.n, axis=self.dim)
         return input_mask
 
     def call(self, x, mask=None):

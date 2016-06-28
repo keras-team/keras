@@ -593,14 +593,13 @@ def rnn(step_function, inputs, initial_states,
         constants = []
 
     if mask is not None:
-        #if mask.ndim == ndim-1:
+        # if mask.ndim == ndim-1:
         #    mask = expand_dims(mask)
-        #assert mask.ndim == ndim
-        #mask = mask.dimshuffle(axes)
+        # assert mask.ndim == ndim
+        # mask = mask.dimshuffle(axes)
 
         if mask.ndim < ndim:
             mask = expand_dims(mask)
-        ###mask = mask.dimshuffle([1,0,2])
         mask = mask.dimshuffle([1,0]+list(range(2,mask.ndim)))
 
         if unroll:

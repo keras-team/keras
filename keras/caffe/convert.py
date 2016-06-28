@@ -125,14 +125,14 @@ def create_model(layers, phase, input_dim, debug=False):
     inputs_to = reverse(network)
 
 
-    #create all net nodes without link
+    # create all net nodes without link
     net_node = [None]*(max(network)+1)
     for layer_nb in network:
         layer = layers[layer_nb]
         name = layer.name
         type_of_layer = layer_type(layer)
         
-        #case of inputs
+        # case of inputs
         if layer_nb in inputs:
             if in_deploy_mode:
                 dim = input_dim
@@ -140,13 +140,13 @@ def create_model(layers, phase, input_dim, debug=False):
                 dim = get_data_dim(layers[network_input])
             net_node[layer_nb] = Input(shape=dim, name=name)
         
-        #other  cases
+        # other cases
         else:  
             input_layers = [None]*(len(inputs_to[layer_nb]))
             for l in range(0, len(inputs_to[layer_nb])):
                 input_layers[l] = net_node[inputs_to[layer_nb][l]]
             
-            #input_layers = net_node[inputs_to[layer_nb]]
+            # input_layers = net_node[inputs_to[layer_nb]]
             input_layer_names = []
             for input_layer in inputs_to[layer_nb]:
                 input_layer_names.append(layers[input_layer].name)
@@ -154,7 +154,7 @@ def create_model(layers, phase, input_dim, debug=False):
 
             if type_of_layer == 'concat':
                 axis = layer.concat_param.axis
-                net_node[layer_nb] =  merge(input_layers, mode='concat', concat_axis=1, name=name)
+                net_node[layer_nb] = merge(input_layers, mode='concat', concat_axis=1, name=name)
                 
             elif type_of_layer == 'convolution':
                 nb_filter = layer.convolution_param.num_output
@@ -182,7 +182,7 @@ def create_model(layers, phase, input_dim, debug=False):
                 net_node[layer_nb] = Dropout(prob, name=name)(input_layers)
 
             elif type_of_layer == 'flatten':
-                net_node[layer_nb] =  Flatten(name=name)(input_layers)
+                net_node[layer_nb] = Flatten(name=name)(input_layers)
 
             elif type_of_layer == 'innerproduct':
                 output_dim = layer.inner_product_param.num_output
@@ -222,8 +222,6 @@ def create_model(layers, phase, input_dim, debug=False):
                     print(pad_h)
                     print(pad_w)
                                     
-                #input_layers = np.array(input_layers)
-
                 if pad_h + pad_w > 0:
                     input_layers = ZeroPadding2D(padding=(pad_h, pad_w), name=name + '_zeropadding')(input_layers)
                     input_layer_name = name + '_zeropadding'
@@ -256,14 +254,13 @@ def create_model(layers, phase, input_dim, debug=False):
             else:
                 raise RuntimeError('layer type', type_of_layer, 'used in this model is not currently supported')
 
-    
     input_l = [None]*(len(inputs))
     output_l = [None]*(len(network_outputs))
     
     for i in range(0, len(inputs)):
-      input_l[i] = net_node[inputs[i]]
+        input_l[i] = net_node[inputs[i]]
     for i in range(0, len(network_outputs)):
-      output_l[i] = net_node[network_outputs[i]]
+        output_l[i] = net_node[network_outputs[i]]
     
     model = Model(input=input_l, output=output_l)
     return model

@@ -1515,11 +1515,11 @@ class AttLSTM(LSTM):
 
     def step(self, x, states):
         # After applying a RepeatMatrix before this AttLSTM the following way:
-		#	x = RepeatMatrix(out_timesteps, dim=1)(x)
-		# x will have the following size:
-		# 	[batch_size, out_timesteps, in_timesteps, dim_encoder]
-		# which means that in step() our x will be:
-		#	[batch_size, in_timesteps, dim_encoder]
+        #    x = RepeatMatrix(out_timesteps, dim=1)(x)
+        #    x will have the following size:
+        #        [batch_size, out_timesteps, in_timesteps, dim_encoder]
+        #    which means that in step() our x will be:
+        #        [batch_size, in_timesteps, dim_encoder]
         h_tm1 = states[0]
         c_tm1 = states[1]
         B_U = states[2]
@@ -1529,12 +1529,12 @@ class AttLSTM(LSTM):
         context = states[5] # pre-calculated Wa*x term (common for all output timesteps)
         B_Ua = states[6]
 
-        ###### AttModel (see Formulation in class header)
-        e = K.dot( K.tanh(context + K.dot(h_tm1[:, None, :] * B_Ua, self.Ua) + self.ba ) * B_wa, self.wa )
+        # AttModel (see Formulation in class header)
+        e = K.dot(K.tanh(context + K.dot(h_tm1[:, None, :] * B_Ua, self.Ua) + self.ba) * B_wa, self.wa)
         alpha = K.softmax(e)
         x_ = (x * alpha[:,:,None]).sum(axis=1) # sum over the in_timesteps dimension resulting in [batch_size, input_dim]
 
-        ###### LSTM
+        # LSTM
         if self.consume_less == 'gpu':
             z = K.dot(x_ * B_W[0], self.W) + K.dot(h_tm1 * B_U[0], self.U) + self.b
 
