@@ -234,6 +234,9 @@ def collect_metrics(metrics, output_names):
 
 
 def collect_trainable_weights(layer):
+    '''Collects all `trainable_weights` attributes,
+    excluding any sublayers where `trainable` is set the `False`.
+    '''
     trainable = getattr(layer, 'trainable', True)
     if not trainable:
         return []
@@ -249,6 +252,9 @@ def collect_trainable_weights(layer):
             weights += collect_trainable_weights(sublayer)
     else:
         weights += layer.trainable_weights
+    # dedupe weights
+    weights = list(set(weights))
+    weights.sort(key=lambda x: x.name)
     return weights
 
 
@@ -617,7 +623,7 @@ class Model(Container):
                 if metric == 'accuracy' or metric == 'acc':
                     # custom handling of accuracy (because of class mode duality)
                     output_shape = self.internal_output_shapes[i]
-                    if output_shape[-1] == 1:
+                    if output_shape[-1] == 1 or self.loss_functions[i] == objectives.binary_crossentropy:
                         # case: binary accuracy
                         self.metrics.append(metrics_module.binary_accuracy(y_true, y_pred))
                     elif self.loss_functions[i] == objectives.sparse_categorical_crossentropy:
@@ -663,10 +669,7 @@ class Model(Container):
                 inputs = self.inputs + self.targets + self.sample_weights
 
             # get trainable weights
-            trainable_weights = []
-            for layer in self.layers:
-                trainable_weights += collect_trainable_weights(layer)
-
+            trainable_weights = collect_trainable_weights(self)
             training_updates = self.optimizer.get_updates(trainable_weights, self.constraints, self.total_loss)
             updates = self.updates + training_updates
 
@@ -778,6 +781,7 @@ class Model(Container):
                 np.random.shuffle(index_array)
 
             batches = make_batches(nb_train_sample, batch_size)
+            epoch_logs = {}
             for batch_index, (batch_start, batch_end) in enumerate(batches):
                 batch_ids = index_array[batch_start:batch_end]
                 try:
@@ -802,7 +806,6 @@ class Model(Container):
 
                 callbacks.on_batch_end(batch_index, batch_logs)
 
-                epoch_logs = {}
                 if batch_index == len(batches) - 1:  # last batch
                     # validation
                     if do_validation:
@@ -1080,7 +1083,7 @@ class Model(Container):
 
     def evaluate(self, x, y, batch_size=32, verbose=1, sample_weight=None):
         '''Returns the loss value and metrics values for the model
-        in test mode. Computation in done in batches.
+        in test mode. Computation is done in batches.
 
         # Arguments
             x: Numpy array of test data,

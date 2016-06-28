@@ -210,6 +210,12 @@ def any(x, axis=None, keepdims=False):
     return T.any(x, axis=axis, keepdims=keepdims)
 
 
+def all(x, axis=None, keepdims=False):
+    '''Bitwise reduction (logical AND).
+    '''
+    return T.all(x, axis=axis, keepdims=keepdims)
+
+
 def argmax(x, axis=-1):
     return T.argmax(x, axis=axis, keepdims=False)
 

@@ -1075,9 +1075,12 @@ class Merge(Layer):
         tensor_indices: optional list of indices of output tensors
             to consider for merging
             (in case some input layer node returns multiple tensors).
+        output_mask: mask or lambda/function to compute the output mask (only
+            if merge mode is a lambda/function). If the latter case, it should
+            take as input a list of masks and return a single mask.
     '''
     def __init__(self, layers=None, mode='sum', concat_axis=-1,
-                 dot_axes=-1, output_shape=None,
+                 dot_axes=-1, output_shape=None, output_mask=None,
                  node_indices=None, tensor_indices=None, name=None):
         self.layers = layers
         self.mode = mode
@@ -1087,6 +1090,7 @@ class Merge(Layer):
             self.dot_axes = [self.dot_axes, ] * 2
         self._output_shape = output_shape
         self.node_indices = node_indices
+        self._output_mask = output_mask
 
         # layer parameters
         self.inbound_nodes = []
@@ -1095,7 +1099,7 @@ class Merge(Layer):
         self.regularizers = []
         self.trainable_weights = []
         self.non_trainable_weights = []
-        self.supports_masking = False
+        self.supports_masking = True
         self.uses_learning_phase = False
         self.input_spec = None  # compatible with whatever
         if not name:
@@ -1316,13 +1320,30 @@ class Merge(Layer):
         elif self.mode == 'cos':
             return (input_shapes[0][0], 1)
 
-    def compute_mask(self, input, mask=None):
-        '''TODO: add mask merging support
-        '''
-        if mask is not None and any(mask):
-            raise Exception('Merge does not support masking, ' +
-                            'but was passed an input mask: ' + str(mask))
-        return None
+    def compute_mask(self, inputs, mask=None):
+        if mask is None or not any([m is not None for m in mask]):
+            return None
+
+        assert hasattr(mask, '__len__') and len(mask) == len(inputs)
+
+        if self.mode in ['sum', 'mul', 'ave']:
+            masks = [K.expand_dims(m, 0) for m in mask if m is not None]
+            return K.all(K.concatenate(masks, axis=0), axis=0, keepdims=False)
+        elif self.mode == 'concat':
+            masks = [K.ones_like(inputs[i][:-1]) if m is None else m for i, m in zip(inputs, mask)]
+            expanded_dims = [K.expand_dims(m) for m in masks]
+            concatenated = K.concatenate(expanded_dims, axis=self.concat_axis)
+            return K.all(concatenated, axis=-1, keepdims=False)
+        elif self.mode in ['cos', 'dot']:
+            return None
+        elif hasattr(self.mode, '__call__'):
+            if hasattr(self._output_mask, '__call__'):
+                return self._output_mask(mask)
+            else:
+                return self._output_mask
+        else:
+            # this should have been caught earlier
+            raise Exception('Invalid merge mode: {}'.format(self.mode))
 
     def get_config(self):
         py3 = sys.version_info[0] == 3
@@ -1387,7 +1408,7 @@ class Merge(Layer):
 
 
 def merge(inputs, mode='sum', concat_axis=-1,
-          dot_axes=-1, output_shape=None, name=None):
+          dot_axes=-1, output_shape=None, output_mask=None, name=None):
     '''Functional merge, to apply to Keras tensors (NOT layers).
     Returns a Keras tensor.
 
@@ -1437,6 +1458,7 @@ def merge(inputs, mode='sum', concat_axis=-1,
                             concat_axis=concat_axis,
                             dot_axes=dot_axes,
                             output_shape=output_shape,
+                            output_mask=output_mask,
                             node_indices=node_indices,
                             tensor_indices=tensor_indices,
                             name=name)
@@ -1446,6 +1468,7 @@ def merge(inputs, mode='sum', concat_axis=-1,
                             concat_axis=concat_axis,
                             dot_axes=dot_axes,
                             output_shape=output_shape,
+                            output_mask=output_mask,
                             name=name)
         return merge_layer(inputs)
 

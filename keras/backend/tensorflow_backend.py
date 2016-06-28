@@ -123,6 +123,7 @@ def shape(x):
 def int_shape(x):
     '''Returns the shape of a tensor as a tuple of
     integers or None entries.
+    Note that this function only works with TensorFlow.
     '''
     shape = x.get_shape()
     return tuple([i.__int__() for i in shape])
@@ -350,6 +351,17 @@ def any(x, axis=None, keepdims=False):
     axis = _normalize_axis(axis, ndim(x))
     x = tf.cast(x, tf.bool)
     x = tf.reduce_any(x, reduction_indices=axis, keep_dims=keepdims)
+    return tf.cast(x, tf.uint8)
+
+
+def all(x, axis=None, keepdims=False):
+    '''Bitwise reduction (logical AND).
+
+    Returns an uint8 tensor
+    '''
+    axis = _normalize_axis(axis, ndim(x))
+    x = tf.cast(x, tf.bool)
+    x = tf.reduce_all(x, reduction_indices=axis, keep_dims=keepdims)
     return tf.cast(x, tf.uint8)
 
 

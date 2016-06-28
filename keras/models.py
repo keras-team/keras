@@ -82,6 +82,7 @@ class Sequential(Model):
         self.inbound_nodes = []
         self.outbound_nodes = []
         self.built = False
+        self._flattened_layers = None
 
         if not name:
             prefix = 'sequential_'
@@ -155,6 +156,7 @@ class Sequential(Model):
 
         self.layers.append(layer)
         self.built = False
+        self._flattened_layers = None
 
     def call(self, x, mask=None):
         if not self.built:
@@ -197,6 +199,8 @@ class Sequential(Model):
 
     @property
     def flattened_layers(self):
+        if self._flattened_layers is not None:
+            return self._flattened_layers
         layers = []
         if self.layers[0].__class__.__name__ == 'Merge':
             merge = self.layers[0]
@@ -218,6 +222,7 @@ class Sequential(Model):
         for layer in self.layers[1:]:
             if layer not in layers:
                 layers.append(layer)
+        self._flattened_layers = layers
         return layers
 
     def _gather_list_attr(self, attr):
