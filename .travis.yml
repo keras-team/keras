@@ -9,8 +9,8 @@ matrix:
 #          env: KERAS_BACKEND=tensorflow
         - python: 2.7
           env: KERAS_BACKEND=theano
-        - python: 2.7
-          env: KERAS_BACKEND=tensorflow
+#        - python: 2.7
+#          env: KERAS_BACKEND=tensorflow
         - python: 2.7
           env: KERAS_BACKEND=theano TEST_MODE=INTEGRATION_TESTS
         - python: 2.7

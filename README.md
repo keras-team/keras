@@ -12,7 +12,7 @@ Contact email: marc.bolanos@ub.edu
 
 GitHub page: https://github.com/MarcBS
 
-MarcBS/keras is compatible with: __Python 2.7__.
+MarcBS/keras is compatible with: __Python 2.7__ and __Theano__ only.
 
 ## Caffe to Keras conversion module
 
