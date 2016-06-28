@@ -74,7 +74,7 @@ for i in range(epochs):
 print('Predicting')
 predicted_output = model.predict(cos, batch_size=batch_size)
 
-print('Ploting Results')
+print('Plotting Results')
 plt.subplot(2, 1, 1)
 plt.plot(expected_output)
 plt.title('Expected')

@@ -3,6 +3,7 @@
 from a fast Cython rewrite.
 '''
 from __future__ import absolute_import
+from __future__ import division
 
 import string
 import sys
@@ -206,9 +207,11 @@ class Tokenizer(object):
                 elif mode == 'binary':
                     X[i][j] = 1
                 elif mode == 'tfidf':
-                    tf = np.log(c / len(seq))
-                    df = (1 + np.log(1 + self.index_docs.get(j, 0) / (1 + self.document_count)))
-                    X[i][j] = tf / df
+                    # Use weighting scheme 2 in
+                    #   https://en.wikipedia.org/wiki/Tf%E2%80%93idf
+                    tf = 1 + np.log(c)
+                    idf = np.log(1 + self.document_count / (1 + self.index_docs.get(j, 0)))
+                    X[i][j] = tf * idf
                 else:
                     raise Exception('Unknown vectorization mode: ' + str(mode))
         return X

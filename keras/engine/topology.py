@@ -1073,6 +1073,9 @@ class Merge(Layer):
         tensor_indices: optional list of indices of output tensors
             to consider for merging
             (in case some input layer node returns multiple tensors).
+        output_mask: mask or lambda/function to compute the output mask (only
+            if merge mode is a lambda/function). If the latter case, it should
+            take as input a list of masks and return a single mask.
     '''
     def __init__(self, layers=None, mode='sum', concat_axis=-1,
                  dot_axes=-1, output_shape=None, output_mask=None,
@@ -1325,13 +1328,9 @@ class Merge(Layer):
         assert hasattr(mask, '__len__') and len(mask) == len(inputs)
 
         if self.mode in ['sum', 'mul', 'ave']:
-            bool_type = 'bool' if K._BACKEND == 'tensorflow' else 'int32'
-            masks = [K.cast(m, bool_type) for m in mask if m is not None]
-            mask = masks[0]
-            for m in masks[1:]:
-                mask = mask & m
-            return mask
-        elif self.mode in ['concat']:
+            masks = [K.expand_dims(m, 0) for m in mask if m is not None]
+            return K.all(K.concatenate(masks, axis=0), axis=0, keepdims=False)
+        elif self.mode == 'concat':
             masks = [K.ones_like(inputs[i][:-1]) if m is None else m for i, m in zip(inputs, mask)]
             expanded_dims = [K.expand_dims(m) for m in masks]
             concatenated = K.concatenate(expanded_dims, axis=self.concat_axis)
@@ -1365,9 +1364,9 @@ class Merge(Layer):
 
         if isinstance(self._output_shape, python_types.LambdaType):
             if py3:
-                output_shape = marshal.dumps(self._output_shape.__code__)
+                output_shape = marshal.dumps(self._output_shape.__code__).decode('raw_unicode_escape')
             else:
-                output_shape = marshal.dumps(self._output_shape.func_code)
+                output_shape = marshal.dumps(self._output_shape.func_code).decode('raw_unicode_escape')
             output_shape_type = 'lambda'
         elif callable(self._output_shape):
             output_shape = self._output_shape.__name__
@@ -1399,7 +1398,7 @@ class Merge(Layer):
         if output_shape_type == 'function':
             output_shape = globals()[config['output_shape']]
         elif output_shape_type == 'lambda':
-            output_shape = marshal.loads(config['output_shape'])
+            output_shape = marshal.loads(config['output_shape'].encode('raw_unicode_escape'))
             output_shape = python_types.FunctionType(output_shape, globals())
         else:
             output_shape = config['output_shape']

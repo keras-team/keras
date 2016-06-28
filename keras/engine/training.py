@@ -20,7 +20,8 @@ from ..utils.generic_utils import Progbar
 from .. import callbacks as cbks
 
 
-def standardize_input_data(data, names, shapes=None, check_batch_dim=True,
+def standardize_input_data(data, names, shapes=None,
+                           check_batch_dim=True,
                            exception_prefix=''):
     '''Users may pass data as a list of arrays, dictionary of arrays,
     or as a single array. We normalize this to an ordered list of
@@ -54,7 +55,7 @@ def standardize_input_data(data, names, shapes=None, check_batch_dim=True,
                     raise Exception('Error when checking ' + exception_prefix +
                                     ': you are passing a list as '
                                     'input to your model, '
-                                    'but the model expects a '
+                                    'but the model expects '
                                     'a list of ' + str(len(names)) +
                                     ' Numpy arrays instead. '
                                     'The list you passed was: ' +
@@ -84,6 +85,8 @@ def standardize_input_data(data, names, shapes=None, check_batch_dim=True,
     # check shapes compatibility
     if shapes:
         for i in range(len(names)):
+            if shapes[i] is None:
+                continue
             array = arrays[i]
             if len(array.shape) != len(shapes[i]):
                 raise Exception('Error when checking ' + exception_prefix +
@@ -231,6 +234,9 @@ def collect_metrics(metrics, output_names):
 
 
 def collect_trainable_weights(layer):
+    '''Collects all `trainable_weights` attributes,
+    excluding any sublayers where `trainable` is set the `False`.
+    '''
     trainable = getattr(layer, 'trainable', True)
     if not trainable:
         return []
@@ -246,6 +252,9 @@ def collect_trainable_weights(layer):
             weights += collect_trainable_weights(sublayer)
     else:
         weights += layer.trainable_weights
+    # dedupe weights
+    weights = list(set(weights))
+    weights.sort(key=lambda x: x.name)
     return weights
 
 
@@ -660,17 +669,15 @@ class Model(Container):
             else:
                 inputs = self.inputs + self.targets + self.sample_weights
 
-            # get trainable weights
-            trainable_weights = []
-            # get LR multipliers
+            # get trainable weights and LR multipliers
             lr_multipliers = []
             for layer in self.layers:
-                trainable_weights += collect_trainable_weights(layer)
                 if('learning_rate_multipliers' in layer.__dict__.keys() and layer.__dict__['learning_rate_multipliers'] != [None, None]):
                     lr_multipliers += layer.learning_rate_multipliers
                 else:
                     lr_multipliers += [1.0, 1.0]
 
+            trainable_weights = collect_trainable_weights(self)
             training_updates = self.optimizer.get_updates(trainable_weights, self.constraints, lr_multipliers, self.total_loss)
             updates = self.updates + training_updates
 
@@ -782,6 +789,7 @@ class Model(Container):
                 np.random.shuffle(index_array)
 
             batches = make_batches(nb_train_sample, batch_size)
+            epoch_logs = {}
             for batch_index, (batch_start, batch_end) in enumerate(batches):
                 batch_ids = index_array[batch_start:batch_end]
                 try:
@@ -806,7 +814,6 @@ class Model(Container):
 
                 callbacks.on_batch_end(batch_index, batch_logs)
 
-                epoch_logs = {}
                 if batch_index == len(batches) - 1:  # last batch
                     # validation
                     if do_validation:
@@ -925,10 +932,14 @@ class Model(Container):
             raise Exception('You must compile a model before training/testing.'
                             ' Use `model.compile(optimizer, loss)`.')
 
-        # if using sparse cce replace last dim of output shapes with 1
-        output_shapes = self.internal_output_shapes
-        if self.loss == "sparse_categorical_crossentropy":
-            output_shapes = [s[:-1] + (1,) for s in output_shapes]
+        output_shapes = []
+        for output_shape, loss_fn in zip(self.internal_output_shapes, self.loss_functions):
+            if loss_fn.__name__ == 'sparse_categorical_crossentropy':
+                output_shapes.append(output_shape[:-1] + (1,))
+            elif getattr(objectives, loss_fn.__name__, None) is None:
+                output_shapes.append(None)
+            else:
+                output_shapes.append(output_shape)
         x = standardize_input_data(x, self.input_names,
                                    self.internal_input_shapes,
                                    check_batch_dim=False,
@@ -1080,7 +1091,7 @@ class Model(Container):
 
     def evaluate(self, x, y, batch_size=32, verbose=1, sample_weight=None):
         '''Returns the loss value and metrics values for the model
-        in test mode. Computation in done in batches.
+        in test mode. Computation is done in batches.
 
         # Arguments
             x: Numpy array of test data,
@@ -1408,7 +1419,7 @@ class Model(Container):
                     outs = self.train_on_batch(x, y,
                                                sample_weight=sample_weight,
                                                class_weight=class_weight)
-                except Exception as e:
+                except:
                     _stop.set()
                     raise
 
@@ -1510,7 +1521,7 @@ class Model(Container):
                                 'or (x, y). Found: ' + str(generator_output))
             try:
                 outs = self.test_on_batch(x, y, sample_weight=sample_weight)
-            except Exception as e:
+            except:
                 _stop.set()
                 raise
 
@@ -1582,7 +1593,7 @@ class Model(Container):
 
             try:
                 outs = self.predict_on_batch(x)
-            except Exception as e:
+            except:
                 _stop.set()
                 raise
 

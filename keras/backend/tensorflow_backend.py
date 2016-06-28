@@ -115,6 +115,7 @@ def shape(x):
 def int_shape(x):
     '''Returns the shape of a tensor as a tuple of
     integers or None entries.
+    Note that this function only works with TensorFlow.
     '''
     shape = x.get_shape()
     return tuple([i.__int__() for i in shape])
@@ -342,7 +343,7 @@ def any(x, axis=None, keepdims=False):
 def all(x, axis=None, keepdims=False):
     '''Bitwise reduction (logical AND).
 
-    Returns an uint8 tensor (
+    Returns an uint8 tensor
     '''
     axis = _normalize_axis(axis, ndim(x))
     x = tf.cast(x, tf.bool)

@@ -210,10 +210,7 @@ class History(Callback):
     def on_epoch_end(self, epoch, logs={}):
         self.epoch.append(epoch)
         for k, v in logs.items():
-            if k not in self.history:
-                self.history[k] = []
-            self.history[k].append(v)
-
+            self.history.setdefault(k, []).append(v)
 
 class ModelCheckpoint(Callback):
     '''Save the model after every epoch.
@@ -246,7 +243,7 @@ class ModelCheckpoint(Callback):
     def __init__(self, filepath, monitor='val_loss', verbose=0,
                  save_best_only=False, mode='auto'):
 
-        super(Callback, self).__init__()
+        super(ModelCheckpoint, self).__init__()
         self.monitor = monitor
         self.verbose = verbose
         self.filepath = filepath
@@ -313,7 +310,7 @@ class EarlyStopping(Callback):
             monitored has stopped increasing.
     '''
     def __init__(self, monitor='val_loss', patience=0, verbose=0, mode='auto'):
-        super(Callback, self).__init__()
+        super(EarlyStopping, self).__init__()
 
         self.monitor = monitor
         self.patience = patience
@@ -327,17 +324,17 @@ class EarlyStopping(Callback):
 
         if mode == 'min':
             self.monitor_op = np.less
-            self.best = np.Inf
         elif mode == 'max':
             self.monitor_op = np.greater
-            self.best = -np.Inf
         else:
             if 'acc' in self.monitor:
                 self.monitor_op = np.greater
-                self.best = -np.Inf
             else:
                 self.monitor_op = np.less
-                self.best = np.Inf
+
+    def on_train_begin(self, logs={}):
+        self.wait = 0       # Allow instances to be re-used
+        self.best = np.Inf if self.monitor_op == np.less else -np.Inf
 
     def on_epoch_end(self, epoch, logs={}):
         current = logs.get(self.monitor)
@@ -369,6 +366,7 @@ class RemoteMonitor(Callback):
             of event data.
     '''
     def __init__(self, root='http://localhost:9000'):
+        super(RemoteMonitor, self).__init__()
         self.root = root
 
     def on_epoch_end(self, epoch, logs={}):
@@ -435,7 +433,7 @@ class TensorBoard(Callback):
     '''
 
     def __init__(self, log_dir='./logs', histogram_freq=0, write_graph=True):
-        super(Callback, self).__init__()
+        super(TensorBoard, self).__init__()
         if K._BACKEND != 'tensorflow':
             raise Exception('TensorBoard callback only works '
                             'with the TensorFlow backend.')
