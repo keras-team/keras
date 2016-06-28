@@ -85,17 +85,23 @@ class TimeDistributed(Wrapper):
 
     def build(self, input_shape):
         assert len(input_shape) >= 3
+        self.input_spec = [InputSpec(shape=input_shape)]
+        if K._BACKEND == 'tensorflow':
+            if not input_shape[1]:
+                raise Exception('When using TensorFlow, you should define '
+                                'explicitly the number of timesteps of '
+                                'your sequences.\n'
+                                'If your first layer is an Embedding, '
+                                'make sure to pass it an "input_length" '
+                                'argument. Otherwise, make sure '
+                                'the first layer has '
+                                'an "input_shape" or "batch_input_shape" '
+                                'argument, including the time axis.')
         child_input_shape = (input_shape[0],) + input_shape[2:]
-        self.layer.set_input_shape(child_input_shape)
-        self.layer.build()
-
-        trainable_weights, regularizers, constraints, self.learning_rate_multipliers, updates = self.layer.get_params()
-        self.trainable_weights = trainable_weights
-        self.non_trainable_weights = self.layer.non_trainable_weights
-        self.regularizers = regularizers
-        self.constraints = constraints
-        self.learning_rate_multipliers = self.learning_rate_multipliers
-        self.updates = updates
+        if not self.layer.built:
+            self.layer.build(child_input_shape)
+            self.layer.built = True
+        super(TimeDistributed, self).build()
 
     @property
     def output_shape(self):

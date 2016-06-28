@@ -10,7 +10,7 @@ def test_convertGoogleNet():
 
     # Convert model from caffe to keras
     model = convert.caffe_to_keras(load_path+'/'+prototxt, load_path+'/'+caffemodel, debug=False)
-    assert(model.__class__.__name__ == 'Graph')
+    assert(model.__class__.__name__ == 'Model')
 
     # Save converted model structure
     json_string = model.to_json()

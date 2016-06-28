@@ -3,6 +3,10 @@ from theano import tensor as T
 from theano.sandbox.rng_mrg import MRG_RandomStreams as RandomStreams
 from theano.tensor.signal import pool
 from theano.tensor.nnet import conv3d2d
+try:
+    from theano.tensor.nnet.nnet import softsign as T_softsign
+except ImportError:
+    from theano.sandbox.softsign import softsign as T_softsign
 import inspect
 import numpy as np
 from .common import _FLOATX, _EPSILON
@@ -195,6 +199,8 @@ def mean(x, axis=None, keepdims=False):
 def std(x, axis=None, keepdims=False):
     return T.std(x, axis=axis, keepdims=keepdims)
 
+def var(x, axis=None, keepdims=False):
+    return T.var(x, axis=axis, keepdims=keepdims)
 
 def any(x, axis=None, keepdims=False):
     '''Bitwise reduction (logical OR).
