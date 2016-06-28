@@ -3,6 +3,22 @@ from .. import initializations
 from .. import backend as K
 
 
+def L1_norm(x):
+    '''Computes the L1 norm of the input
+    '''
+    return K.l1_normalize(x)
+
+def L2_norm(x):
+    '''Computes the L2 norm of the input
+    '''
+    return K.l2_normalize(x, axis=1)
+
+def signed_sqrt(x):
+    '''Signed square root of the input
+    '''
+    return K.switch(x >= 0, K.sqrt(x), -K.sqrt(-x))
+
+
 class BatchNormalization(Layer):
     '''Normalize the activations of the previous layer at each batch,
     i.e. applies a transformation that maintains the mean activation
