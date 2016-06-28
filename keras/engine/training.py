@@ -623,7 +623,7 @@ class Model(Container):
                 if metric == 'accuracy' or metric == 'acc':
                     # custom handling of accuracy (because of class mode duality)
                     output_shape = self.internal_output_shapes[i]
-                    if output_shape[-1] == 1:
+                    if output_shape[-1] == 1 or self.loss_functions[i] == objectives.binary_crossentropy:
                         # case: binary accuracy
                         self.metrics.append(metrics_module.binary_accuracy(y_true, y_pred))
                     elif self.loss_functions[i] == objectives.sparse_categorical_crossentropy:
