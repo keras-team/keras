@@ -7,6 +7,8 @@ import copy
 
 if __name__ == "__main__":
 
+    out_layer_names = ["loss1/loss", "loss2/loss", "loss3/loss3"]
+
     print "Preparing test image."
     # Read image
     im = misc.imread('models/cat.jpg')
@@ -42,7 +44,7 @@ if __name__ == "__main__":
     print "Compiling model."
     sgd = SGD(lr=0.1, decay=1e-6, momentum=0.9, nesterov=True)
     loss = dict()
-    for out in model.output_order:
+    for out in out_layer_names:
         loss[out] = 'categorical_crossentropy'
         last_out = out
     model.compile(optimizer=sgd, loss=loss)
@@ -50,7 +52,7 @@ if __name__ == "__main__":
     # Predict image output
     print "Applying prediction."
     in_data = dict()
-    for input in model.input_order:
+    for input in ['data']:
         in_data[input] = im
     out = model.predict(in_data)
 
@@ -60,4 +62,5 @@ if __name__ == "__main__":
         for line in list_:
             classes.append(line.rstrip('\n'))
 
-    print classes[np.argmax(out[last_out])]
+    for i, o in enumerate(out_layer_names):
+        print 'Prediction on output layer "'+o+'": '+str(classes[np.argmax(out[i])])
