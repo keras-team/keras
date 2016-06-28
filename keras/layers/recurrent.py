@@ -1332,9 +1332,9 @@ class AttLSTM(LSTM):
                  forget_bias_init='one', activation='tanh',
                  inner_activation='hard_sigmoid',
                  W_regularizer=None, U_regularizer=None, b_regularizer=None,
-                 dropout_W=0., dropout_U=0.,
+                 dropout_W=0., dropout_U=0., dropout_wa=0., dropout_Wa=0., dropout_Ua=0.,
                  wa_regularizer=None, Wa_regularizer=None, Ua_regularizer=None, ba_regularizer=None,
-                 dropout_wa=0., dropout_Wa=0., dropout_Ua=0.,**kwargs):
+                 **kwargs):
         self.output_dim = output_dim
         self.init = initializations.get(init)
         self.inner_init = initializations.get(inner_init)
@@ -1392,7 +1392,6 @@ class AttLSTM(LSTM):
                                            np.zeros(self.output_dim),
                                            np.zeros(self.output_dim))),
                                 name='{}_b'.format(self.name))
-
 
             self.trainable_weights = [self.wa, self.Wa, self.Ua, self.ba, # AttModel parameters
                                       self.W, self.U, self.b]
@@ -1599,28 +1598,33 @@ class AttLSTM(LSTM):
 
         # AttModel
         if 0 < self.dropout_wa < 1:
-            ones = K.ones_like(K.reshape(x[:, :, 0, 0], (-1, -1, 1)))
-            ones = K.concatenate([ones] * input_dim, 1)
+            input_shape = self.input_spec[0].shape
+            input_dim = input_shape[-1]
+            ones = K.ones_like(K.reshape(x[:, :, 0, 0], (-1, input_shape[1], 1)))
+            ones = K.concatenate([ones] * input_dim, 2)
             B_wa = K.in_train_phase(K.dropout(ones, self.dropout_wa), ones)
             constants.append(B_wa)
         else:
             constants.append(K.cast_to_floatx(1.))
 
         if 0 < self.dropout_Wa < 1:
-            ones = K.ones_like(K.reshape(x[:, :, 0, 0], (-1, -1, 1)))
-            ones = K.concatenate([ones] * input_dim, 1)
+            input_shape = self.input_spec[0].shape
+            input_dim = input_shape[-1]
+            ones = K.ones_like(K.reshape(x[:, :, 0, 0], (-1, input_shape[1], 1)))
+            ones = K.concatenate([ones] * input_dim, 2)
             B_Wa = K.in_train_phase(K.dropout(ones, self.dropout_Wa), ones)
             constants.append(K.dot(x[:, 0, :, :] * B_Wa, self.Wa))
         else:
             constants.append(K.dot(x[:, 0, :, :], self.Wa))
 
         if 0 < self.dropout_Ua < 1:
-            ones = K.ones_like(K.reshape(x[:, :, 0, 0], (-1, -1, 1)))
-            ones = K.concatenate([ones] * self.output_dim, 1)
+            input_shape = self.input_spec[0].shape
+            ones = K.ones_like(K.reshape(x[:, :, 0, 0], (-1, input_shape[1], 1)))
+            ones = K.concatenate([ones] * self.output_dim, 2)
             B_Ua = K.in_train_phase(K.dropout(ones, self.dropout_Ua), ones)
             constants.append(B_Ua)
         else:
-            constants.append(K.cast_to_floatx(1.))
+            constants.append([K.cast_to_floatx(1.)])
 
         return constants
 
