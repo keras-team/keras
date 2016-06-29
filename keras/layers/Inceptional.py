@@ -98,6 +98,16 @@ def Conv_batch(input_layer, nb_filter, nb_row, nb_col, subsample, BatchNorm, bor
     
 class Inception(Layer):
     '''
+     # References to build the modules
+      >1  Rethinking the Inception Architecture for Computer Vision
+          http://arxiv.org/abs/1512.00567
+      >2  Inception-v4, Inception-ResNet and the Impact of Residual Connections on Learning
+          http://arxiv.org/abs/1602.07261
+      >3  Going Deeper with Convolutions
+          http://www.cs.unc.edu/~wliu/papers/GoogLeNet.pdf
+      >4  Scene Classification with Inception-7
+          http://lsun.cs.princeton.edu/slides/Christian.pdf
+          
      # Input shape
         4D tensor with shape:
         `(samples, channels, rows, cols)` if dim_ordering='th'
