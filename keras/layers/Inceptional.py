@@ -4,7 +4,7 @@ from __future__ import absolute_import
 from keras import backend as K
 from keras.engine.topology import Layer
 import numpy as np
-from keras.layers.convolutional import Convolution2D
+from ..convolutional import Convolution2D
 from keras.layers import merge,BatchNormalization,ZeroPadding2D,MaxPooling2D,AveragePooling2D
 
 class FireModule(Layer):
