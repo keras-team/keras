@@ -36,14 +36,14 @@ class FireModule(Layer):
 
     def get_output_shape_for(self, input_shape):
         
-         if self.dim_ordering == 'th':
+        if self.dim_ordering == 'th':
             rows = input_shape[2]
             cols = input_shape[3]
-            input_dim=input_shape[1]
+
         elif self.dim_ordering == 'tf':
             rows = input_shape[1]
             cols = input_shape[2]
-            input_dim=input_shape[3]
+
         else:
             raise Exception('Invalid dim_ordering: ' + self.dim_ordering)
 
@@ -60,11 +60,11 @@ class FireModule(Layer):
     def call(self, x, mask=None):
 
         #squeeze by 1x1 filter
-        squeeze  = Convolution2D(self.s1x1, 1, 1, border_mode='same', activation='relu')(x)
+        squeeze_1x1  = Convolution2D(self.nb_s1x1, 1, 1, border_mode='same', activation='relu')(x)
         #expand by 1x1 filter
-        expand_1x1 = Convolution2D(self.e1x1, 1, 1, border_mode='same', activation='relu')(squeeze)
+        expand_1x1 = Convolution2D(self.nb_e1x1, 1, 1, border_mode='same', activation='relu')(squeeze_1x1)
         #expand by 3x3 filter
-        expend_3x3 = Convolution2D(self.e3x3, 3, 3, border_mode='same', activation='relu')(squeeze)
+        expend_3x3 = Convolution2D(self.nb_e3x3, 3, 3, border_mode='same', activation='relu')(squeeze_1x1)
 
         output_layer = merge([expand_1x1,expend_3x3], mode='concat', concat_axis=1)
         return output_layer
@@ -128,6 +128,7 @@ class Inception(Layer):
         assert self.dim_ordering in {'tf', 'th'}, 'dim_ordering must be in {tf, th}'
         
         super(Inception, self).__init__()
+
 
     def get_output_shape_for(self, input_shape):
 
@@ -324,4 +325,13 @@ class Inception(Layer):
         else:
             raise Exception("Invalid Inception module",self)
             
-            
+    def get_config(self):
+        config = {"verion": self.ver,
+                  "PoolingMethod": self.PoolMethod,
+                  "Batch Normalization": self.BatchNorm,
+                  "dim_ordering": self.dim_ordering,
+                  "Subsample": self.subsample,
+                  "kernel_set": self.kernel_set,
+                  }
+        base_config = super(Inception, self).get_config()
+        return dict(list(base_config.items()) + list(config.items()))     
