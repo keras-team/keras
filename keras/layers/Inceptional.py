@@ -4,7 +4,7 @@ from __future__ import absolute_import
 from .. import backend as K
 from ..engine import Layer
 
-from ..layers import Convolution2D
+from ..layers.convolutional import Convolution2D
 from ..layers import merge,BatchNormalization,ZeroPadding2D,MaxPooling2D,AveragePooling2D
 
 import numpy as np
@@ -35,11 +35,27 @@ class FireModule(Layer):
         super(FireModule, self).__init__()
 
     def get_output_shape_for(self, input_shape):
-        shape = list(input_shape)
-        assert len(shape) == 4 ,"only valid for 4D tensors (samples, channels, width, height)"
-        # output_dims
-        shape[1] = self.e1x1 + self.e3x3 
-        return tuple(shape)
+        
+         if self.dim_ordering == 'th':
+            rows = input_shape[2]
+            cols = input_shape[3]
+            input_dim=input_shape[1]
+        elif self.dim_ordering == 'tf':
+            rows = input_shape[1]
+            cols = input_shape[2]
+            input_dim=input_shape[3]
+        else:
+            raise Exception('Invalid dim_ordering: ' + self.dim_ordering)
+
+        #determine output_dims
+        output_dims=(self.nb_e1x1+self.nb_e3x3)
+        
+        if self.dim_ordering == 'th':
+            return (input_shape[0], output_dims, rows, cols)
+        elif self.dim_ordering == 'tf':
+            return (input_shape[0], rows, cols, output_dims)
+        else:
+            raise Exception('Invalid dim_ordering: ' + self.dim_ordering)
 
     def call(self, x, mask=None):
 
