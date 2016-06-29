@@ -1,11 +1,13 @@
 # -*- coding: utf-8 -*-
-
 from __future__ import absolute_import
-from keras import backend as K
-from keras.engine.topology import Layer
+
+from .. import backend as K
+from ..engine import Layer
+
+from ..layers import Convolution2D
+from ..layers import merge,BatchNormalization,ZeroPadding2D,MaxPooling2D,AveragePooling2D
+
 import numpy as np
-from ..convolutional import Convolution2D
-from keras.layers import merge,BatchNormalization,ZeroPadding2D,MaxPooling2D,AveragePooling2D
 
 class FireModule(Layer):
     '''
@@ -50,7 +52,15 @@ class FireModule(Layer):
 
         output_layer = merge([expand_1x1,expend_3x3], mode='concat', concat_axis=1)
         return output_layer
-
+        
+    def get_config(self):
+        config = {"nb_s1x1": self.nb_e1x1,
+                  "nb_e1x1": self.nb_e1x1,
+                  "nb_e3x3": self.nb_e3x3,
+                  "dim_ordering": self.dim_ordering}
+        base_config = super(FireModule, self).get_config()
+        return dict(list(base_config.items()) + list(config.items()))
+        
 def Conv_pool(input_layer,PoolMethod,subsample):
     if subsample==(1,1):
         border_mode="same"
