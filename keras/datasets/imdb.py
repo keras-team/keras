@@ -1,7 +1,7 @@
 from __future__ import absolute_import
 from six.moves import cPickle
 import gzip
-from .data_utils import get_file
+from ..utils.data_utils import get_file
 from six.moves import zip
 import numpy as np
 
@@ -60,10 +60,10 @@ def load_data(path="imdb.pkl", nb_words=None, skip_top=0,
             nX.append(nx)
         X = nX
 
-    X_train = X[:int(len(X) * (1 - test_split))]
-    y_train = labels[:int(len(X) * (1 - test_split))]
+    X_train = np.array(X[:int(len(X) * (1 - test_split))])
+    y_train = np.array(labels[:int(len(X) * (1 - test_split))])
 
-    X_test = X[int(len(X) * (1 - test_split)):]
-    y_test = labels[int(len(X) * (1 - test_split)):]
+    X_test = np.array(X[int(len(X) * (1 - test_split)):])
+    y_test = np.array(labels[int(len(X) * (1 - test_split)):])
 
     return (X_train, y_train), (X_test, y_test)

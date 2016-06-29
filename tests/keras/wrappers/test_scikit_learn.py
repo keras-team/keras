@@ -37,33 +37,86 @@ y_test = np_utils.to_categorical(y_test, nb_classes=nb_class)
                                                                      output_shape=(1,))
 
 
-@pytest.mark.skipif(K._BACKEND=='tensorflow', reason="currently not working with TensorFlow")
-def test_keras_classifier():
+def build_fn_clf(hidden_dims=50):
     model = Sequential()
     model.add(Dense(input_dim, input_shape=(input_dim,)))
+    model.add(Activation('relu'))
+    model.add(Dense(hidden_dims))
     model.add(Activation('relu'))
     model.add(Dense(nb_class))
     model.add(Activation('softmax'))
-
-    sklearn_clf = KerasClassifier(model, optimizer=optim, loss=loss,
-                                  train_batch_size=batch_size,
-                                  test_batch_size=batch_size,
-                                  nb_epoch=nb_epoch)
-    sklearn_clf.fit(X_train, y_train)
-    sklearn_clf.score(X_test, y_test)
+    model.compile(optimizer='sgd', loss='categorical_crossentropy',
+                  metrics=['accuracy'])
+    return model
 
 
-@pytest.mark.skipif(K._BACKEND=='tensorflow', reason="currently not working with TensorFlow")
-def test_keras_regressor():
+class Class_build_fn_clf(object):
+    def __call__(self, hidden_dims):
+        return build_fn_clf(hidden_dims)
+
+
+class Inherit_class_build_fn_clf(KerasClassifier):
+    def __call__(self, hidden_dims):
+        return build_fn_clf(hidden_dims)
+
+
+def build_fn_reg(hidden_dims=50):
     model = Sequential()
     model.add(Dense(input_dim, input_shape=(input_dim,)))
     model.add(Activation('relu'))
+    model.add(Dense(hidden_dims))
+    model.add(Activation('relu'))
     model.add(Dense(1))
-    model.add(Activation('softmax'))
+    model.add(Activation('linear'))
+    model.compile(optimizer='sgd', loss='mean_absolute_error',
+                  metrics=['accuracy'])
+    return model
 
-    sklearn_regressor = KerasRegressor(model, optimizer=optim, loss=loss,
-                                       train_batch_size=batch_size,
-                                       test_batch_size=batch_size,
-                                       nb_epoch=nb_epoch)
-    sklearn_regressor.fit(X_train_reg, y_train_reg)
-    sklearn_regressor.score(X_test_reg, y_test_reg)
+
+class Class_build_fn_reg(object):
+    def __call__(self, hidden_dims):
+        return build_fn_reg(hidden_dims)
+
+
+class Inherit_class_build_fn_reg(KerasRegressor):
+    def __call__(self, hidden_dims):
+        return build_fn_reg(hidden_dims)
+
+for fn in [build_fn_clf, Class_build_fn_clf(), Inherit_class_build_fn_clf]:
+    if fn is Inherit_class_build_fn_clf:
+        classifier = Inherit_class_build_fn_clf(
+            build_fn=None, hidden_dims=50, batch_size=batch_size, nb_epoch=nb_epoch)
+    else:
+        classifier = KerasClassifier(
+            build_fn=fn, hidden_dims=50, batch_size=batch_size, nb_epoch=nb_epoch)
+
+    classifier.fit(X_train, y_train, batch_size=batch_size, nb_epoch=nb_epoch)
+    score = classifier.score(X_train, y_train, batch_size=batch_size)
+    preds = classifier.predict(X_test, batch_size=batch_size)
+    proba = classifier.predict_proba(X_test, batch_size=batch_size)
+
+
+for fn in [build_fn_reg, Class_build_fn_reg(), Inherit_class_build_fn_reg]:
+    if fn is Inherit_class_build_fn_reg:
+        regressor = Inherit_class_build_fn_reg(
+            build_fn=None, hidden_dims=50, batch_size=batch_size, nb_epoch=nb_epoch)
+    else:
+        regressor = KerasRegressor(
+            build_fn=fn, hidden_dims=50, batch_size=batch_size, nb_epoch=nb_epoch)
+
+    regressor.fit(X_train_reg, y_train_reg,
+                  batch_size=batch_size, nb_epoch=nb_epoch)
+    score = regressor.score(X_train_reg, y_train_reg, batch_size=batch_size)
+    preds = regressor.predict(X_test, batch_size=batch_size)
+
+
+# Usage of sklearn's grid_search
+# from sklearn import grid_search
+# parameters = dict(hidden_dims = [20, 30], batch_size=[64, 128], nb_epoch=[2], verbose=[0])
+# classifier = Inherit_class_build_fn_clf()
+# clf = grid_search.GridSearchCV(classifier, parameters)
+# clf.fit(X_train, y_train)
+# parameters = dict(hidden_dims = [20, 30], batch_size=[64, 128], nb_epoch=[2], verbose=[0])
+# regressor = Inherit_class_build_fn_reg()
+# reg = grid_search.GridSearchCV(regressor, parameters, scoring='mean_squared_error', n_jobs=1, cv=2, verbose=2)
+# reg.fit(X_train_reg, y_train_reg)

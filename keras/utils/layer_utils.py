@@ -1,158 +1,99 @@
 from __future__ import print_function
-import inspect
-import numpy as np
-import copy
 
-from ..layers.advanced_activations import *
-from ..layers.core import *
-from ..layers.convolutional import *
-from ..layers.embeddings import *
-from ..layers.noise import *
-from ..layers.normalization import *
-from ..layers.recurrent import *
-from ..layers import containers
-from .. import regularizers
-from .. import constraints
+from .generic_utils import get_from_module
+from ..layers import *
+from ..models import Model, Sequential, Graph
+from .. import backend as K
 
 
-def container_from_config(original_layer_dict, custom_objects={}):
-    layer_dict = copy.deepcopy(original_layer_dict)
-    name = layer_dict.get('name')
+def layer_from_config(config, custom_objects={}):
+    '''
+    # Arguments
+        config: dict of the form {'class_name': str, 'config': dict}
+        custom_objects: dict mapping class names (or function names)
+            of custom (non-Keras) objects to class/functions
 
+    # Returns
+        Layer instance (may be Model, Sequential, Graph, Layer...)
+    '''
     # Insert custom layers into globals so they can
     # be accessed by `get_from_module`.
     for cls_key in custom_objects:
         globals()[cls_key] = custom_objects[cls_key]
 
-    if name == 'Merge':
-        mode = layer_dict.get('mode')
-        concat_axis = layer_dict.get('concat_axis')
-        dot_axes = layer_dict.get('dot_axes')
-        layers = layer_dict.get('layers')
-        layer_list = []
-        for layer in layers:
-            init_layer = container_from_config(layer)
-            layer_list.append(init_layer)
-        merge_layer = Merge(layer_list, mode, concat_axis, dot_axes)
-        return merge_layer
+    class_name = config['class_name']
 
-    elif name == 'Sequential':
-        layers = layer_dict.get('layers')
-        layer_list = []
-        for layer in layers:
-            init_layer = container_from_config(layer)
-            layer_list.append(init_layer)
-        seq_layer = containers.Sequential(layer_list)
-        return seq_layer
-
-    elif name == 'Graph':
-        graph_layer = containers.Graph()
-        inputs = layer_dict.get('input_config')
-
-        for input in inputs:
-            graph_layer.add_input(**input)
-
-        nodes = layer_dict.get('node_config')
-        for node in nodes:
-            layer = container_from_config(layer_dict['nodes'].get(node['name']))
-            node['layer'] = layer
-            graph_layer.add_node(**node)
-
-        outputs = layer_dict.get('output_config')
-        for output in outputs:
-            graph_layer.add_output(**output)
-        return graph_layer
-
-    elif name == 'AutoEncoder':
-        kwargs = {'encoder': container_from_config(layer_dict.get('encoder_config')),
-                  'decoder': container_from_config(layer_dict.get('decoder_config'))}
-        for kwarg in ['output_reconstruction', 'weights']:
-            if kwarg in layer_dict:
-                kwargs[kwarg] = layer_dict[kwarg]
-        return AutoEncoder(**kwargs)
-
-    else:  # this is a non-topological layer (e.g. Dense, etc.)
-        layer_dict.pop('name')
-
-        for k, v in layer_dict.items():
-            # a dictionary argument may be a regularizer or constraint
-            if isinstance(v, dict):
-                vname = v.pop('name')
-                if vname in [x for x, y in inspect.getmembers(constraints, predicate=inspect.isclass)]:
-                    layer_dict[k] = constraints.get(vname, v)
-                elif vname in [x for x, y in inspect.getmembers(regularizers, predicate=inspect.isclass)]:
-                    layer_dict[k] = regularizers.get(vname, v)
-                else:
-                    # not a regularizer of constraint, don't touch it
-                    v['name'] = vname
-
-        # the "name" keyword argument of layers is saved as "custom_name"
-        if 'custom_name' in layer_dict:
-            layer_dict['name'] = layer_dict.pop('custom_name')
-        base_layer = get_layer(name, layer_dict)
-        return base_layer
+    if class_name == 'Sequential':
+        layer_class = Sequential
+    elif class_name == 'Graph':
+        layer_class = Graph
+    elif class_name in ['Model', 'Container']:
+        layer_class = Model
+    else:
+        layer_class = get_from_module(class_name, globals(), 'layer',
+                                      instantiate=False)
+    return layer_class.from_config(config['config'])
 
 
-def model_summary(model):
-    param_count = 0  # param count in the model
+def print_summary(layers, relevant_nodes=None, line_length=100, positions=[.33, .55, .67, 1.]):
+    # line_length: total length of printed lines
+    # positions: relative or absolute positions of log elements in each line
+    if positions[-1] <= 1:
+        positions = [int(line_length * p) for p in positions]
+    # header names for the different log elements
+    to_display = ['Layer (type)', 'Output Shape', 'Param #', 'Connected to']
 
-    def display(objects, positions):
+    def print_row(fields, positions):
         line = ''
-        for i in range(len(objects)):
-            line += str(objects[i])
+        for i in range(len(fields)):
+            line += str(fields[i])
             line = line[:positions[i]]
             line += ' ' * (positions[i] - len(line))
         print(line)
 
-    def display_layer_info(layer, name, positions):
-        layer_type = layer.__class__.__name__
-        output_shape = layer.output_shape
-        params = layer.count_params()
-        to_display = ['%s (%s)' % (layer_type, name), output_shape, params]
-        display(to_display, positions)
+    print('_' * line_length)
+    print_row(to_display, positions)
+    print('=' * line_length)
 
-    line_length = 80  # total length of printed lines
-    positions = [30, 60, 80]  # absolute positions of log elements in each line
-    # header names for the different log elements
-    to_display = ['Layer (name)', 'Output Shape', 'Param #']
+    def print_layer_summary(layer):
+        try:
+            output_shape = layer.output_shape
+        except:
+            output_shape = 'multiple'
+        connections = []
+        for node_index, node in enumerate(layer.inbound_nodes):
+            if relevant_nodes:
+                node_key = layer.name + '_ib-' + str(node_index)
+                if node_key not in relevant_nodes:
+                    # node is node part of the current network
+                    continue
+            for i in range(len(node.inbound_layers)):
+                inbound_layer = node.inbound_layers[i].name
+                inbound_node_index = node.node_indices[i]
+                inbound_tensor_index = node.tensor_indices[i]
+                connections.append(inbound_layer + '[' + str(inbound_node_index) + '][' + str(inbound_tensor_index) + ']')
 
-    # for sequential models, we start by printing
-    # the expect input shape
-    if model.__class__.__name__ == 'Sequential':
-        print('-' * line_length)
-        print('Initial input shape: ' + str(model.input_shape))
+        name = layer.name
+        cls_name = layer.__class__.__name__
+        if not connections:
+            first_connection = ''
+        else:
+            first_connection = connections[0]
+        fields = [name + ' (' + cls_name + ')', output_shape, layer.count_params(), first_connection]
+        print_row(fields, positions)
+        if len(connections) > 1:
+            for i in range(1, len(connections)):
+                fields = ['', '', '', connections[i]]
+                print_row(fields, positions)
 
-    # print header
-    print('-' * line_length)
-    display(to_display, positions)
-    print('-' * line_length)
+    total_params = 0
+    for i in range(len(layers)):
+        print_layer_summary(layers[i])
+        if i == len(layers) - 1:
+            print('=' * line_length)
+        else:
+            print('_' * line_length)
+        total_params += layers[i].count_params()
 
-    if model.__class__.__name__ == 'Sequential':
-        for layer in model.layers:
-            name = getattr(layer, 'name', 'Unnamed')
-            display_layer_info(layer, name, positions)
-            param_count += layer.count_params()
-
-    elif model.__class__.__name__ == 'Graph':
-        for name in model.input_order:
-            layer = model.inputs[name]
-            display_layer_info(layer, name, positions)
-
-        for name in model.nodes:
-            layer = model.nodes[name]
-            display_layer_info(layer, name, positions)
-            param_count += layer.count_params()
-
-        for name in model.output_order:
-            layer = model.outputs[name]
-            display_layer_info(layer, name, positions)
-
-    print('-' * line_length)
-    print('Total params: %s' % param_count)
-    print('-' * line_length)
-
-
-from .generic_utils import get_from_module
-def get_layer(identifier, kwargs=None):
-    return get_from_module(identifier, globals(), 'layer',
-                           instantiate=True, kwargs=kwargs)
+    print('Total params: %s' % total_params)
+    print('_' * line_length)

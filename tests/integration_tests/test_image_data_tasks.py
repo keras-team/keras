@@ -35,10 +35,12 @@ def test_image_classification():
         Activation('relu'),
         Dense(y_test.shape[-1], activation='softmax')
     ])
-    model.compile(loss='categorical_crossentropy', optimizer='sgd')
+    model.compile(loss='categorical_crossentropy',
+                  optimizer='rmsprop',
+                  metrics=['accuracy'])
     history = model.fit(X_train, y_train, nb_epoch=10, batch_size=16,
                         validation_data=(X_test, y_test),
-                        show_accuracy=True, verbose=0)
+                        verbose=0)
     assert(history.history['val_acc'][-1] > 0.85)
 
 

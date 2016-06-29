@@ -12,9 +12,9 @@ has at least ~100k characters. ~1M is better.
 
 from __future__ import print_function
 from keras.models import Sequential
-from keras.layers.core import Dense, Activation, Dropout
-from keras.layers.recurrent import LSTM
-from keras.datasets.data_utils import get_file
+from keras.layers import Dense, Activation, Dropout
+from keras.layers import LSTM
+from keras.utils.data_utils import get_file
 import numpy as np
 import random
 import sys
@@ -23,13 +23,13 @@ path = get_file('nietzsche.txt', origin="https://s3.amazonaws.com/text-datasets/
 text = open(path).read().lower()
 print('corpus length:', len(text))
 
-chars = set(text)
+chars = sorted(list(set(text)))
 print('total chars:', len(chars))
 char_indices = dict((c, i) for i, c in enumerate(chars))
 indices_char = dict((i, c) for i, c in enumerate(chars))
 
 # cut the text in semi-redundant sequences of maxlen characters
-maxlen = 20
+maxlen = 40
 step = 3
 sentences = []
 next_chars = []
@@ -51,7 +51,6 @@ for i, sentence in enumerate(sentences):
 print('Build model...')
 model = Sequential()
 model.add(LSTM(512, return_sequences=True, input_shape=(maxlen, len(chars))))
-model.add(Dropout(0.2))
 model.add(LSTM(512, return_sequences=False))
 model.add(Dropout(0.2))
 model.add(Dense(len(chars)))

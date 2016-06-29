@@ -2,9 +2,13 @@ import pytest
 import numpy as np
 from numpy.testing import assert_allclose
 
+from keras.utils.test_utils import layer_test
 from keras.layers import recurrent, embeddings
-from keras import backend as K
 from keras.models import Sequential
+from keras.layers.core import Masking
+from keras import regularizers
+
+from keras import backend as K
 
 nb_samples, timesteps, embedding_dim, output_dim = 3, 5, 10, 5
 embedding_num = 12
@@ -15,21 +19,25 @@ def _runner(layer_class):
     All the recurrent layers share the same interface,
     so we can run through them with a single function.
     """
-    for ret_seq in [True, False]:
-        layer = layer_class(output_dim, return_sequences=ret_seq,
-                            weights=None, input_shape=(timesteps, embedding_dim))
-        layer.input = K.variable(np.ones((nb_samples, timesteps, embedding_dim)))
-        layer.get_config()
+    # check return_sequences
+    layer_test(layer_class,
+               kwargs={'output_dim': output_dim,
+                       'return_sequences': True},
+               input_shape=(3, 2, 3))
 
-        for train in [True, False]:
-            out = K.eval(layer.get_output(train))
-            # Make sure the output has the desired shape
-            if ret_seq:
-                assert(out.shape == (nb_samples, timesteps, output_dim))
-            else:
-                assert(out.shape == (nb_samples, output_dim))
+    # check dropout
+    layer_test(layer_class,
+               kwargs={'output_dim': output_dim,
+                       'dropout_U': 0.1,
+                       'dropout_W': 0.1},
+               input_shape=(3, 2, 3))
 
-            mask = layer.get_output_mask(train)
+    # check implementation modes
+    for mode in ['cpu', 'mem', 'gpu']:
+        layer_test(layer_class,
+                   kwargs={'output_dim': output_dim,
+                           'consume_less': mode},
+                   input_shape=(3, 2, 3))
 
     # check statefulness
     model = Sequential()
@@ -87,6 +95,17 @@ def _runner(layer_class):
 
     assert_allclose(out7, out6, atol=1e-5)
 
+    # check regularizers
+    layer = layer_class(output_dim, return_sequences=False, weights=None,
+                        batch_input_shape=(nb_samples, timesteps, embedding_dim),
+                        W_regularizer=regularizers.WeightRegularizer(l1=0.01),
+                        U_regularizer=regularizers.WeightRegularizer(l1=0.01),
+                        b_regularizer='l2')
+    shape = (nb_samples, timesteps, embedding_dim)
+    layer.set_input(K.variable(np.ones(shape)),
+                    shape=shape)
+    K.eval(layer.output)
+
 
 def test_SimpleRNN():
     _runner(recurrent.SimpleRNN)
@@ -98,6 +117,21 @@ def test_GRU():
 
 def test_LSTM():
     _runner(recurrent.LSTM)
+
+
+def test_masking_layer():
+    ''' This test based on a previously failing issue here:
+    https://github.com/fchollet/keras/issues/1567
+
+    '''
+    model = Sequential()
+    model.add(Masking(input_shape=(3, 4)))
+    model.add(recurrent.LSTM(output_dim=5, return_sequences=True))
+    model.compile(loss='categorical_crossentropy', optimizer='adam')
+    I = np.random.random((6, 3, 4))
+    V = np.abs(np.random.random((6, 3, 5)))
+    V /= V.sum(axis=-1, keepdims=True)
+    model.fit(I, V, nb_epoch=1, batch_size=100, verbose=1)
 
 
 if __name__ == '__main__':

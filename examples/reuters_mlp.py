@@ -1,8 +1,5 @@
-'''Train and evaluate a simple MLP on the Reuters newswire topic classification task.
-GPU run command:
-    THEANO_FLAGS=mode=FAST_RUN,device=gpu,floatX=float32 python examples/reuters_mlp.py
-CPU run command:
-    python examples/reuters_mlp.py
+'''Trains and evaluate a simple MLP
+on the Reuters newswire topic classification task.
 '''
 
 from __future__ import print_function
@@ -11,8 +8,7 @@ np.random.seed(1337)  # for reproducibility
 
 from keras.datasets import reuters
 from keras.models import Sequential
-from keras.layers.core import Dense, Dropout, Activation
-from keras.layers.normalization import BatchNormalization
+from keras.layers import Dense, Dropout, Activation
 from keras.utils import np_utils
 from keras.preprocessing.text import Tokenizer
 
@@ -49,9 +45,14 @@ model.add(Dropout(0.5))
 model.add(Dense(nb_classes))
 model.add(Activation('softmax'))
 
-model.compile(loss='categorical_crossentropy', optimizer='adam')
+model.compile(loss='categorical_crossentropy',
+              optimizer='adam',
+              metrics=['accuracy'])
 
-history = model.fit(X_train, Y_train, nb_epoch=nb_epoch, batch_size=batch_size, verbose=1, show_accuracy=True, validation_split=0.1)
-score = model.evaluate(X_test, Y_test, batch_size=batch_size, verbose=1, show_accuracy=True)
+history = model.fit(X_train, Y_train,
+                    nb_epoch=nb_epoch, batch_size=batch_size,
+                    verbose=1, validation_split=0.1)
+score = model.evaluate(X_test, Y_test,
+                       batch_size=batch_size, verbose=1)
 print('Test score:', score[0])
 print('Test accuracy:', score[1])

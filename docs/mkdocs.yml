@@ -3,8 +3,8 @@ theme: readthedocs
 docs_dir: sources
 repo_url: http://github.com/fchollet/keras
 site_url: http://keras.io/
-#theme_dir: theme
-site_description: Documentation for fast and lightweight Keras Deep Learning library.
+# theme_dir: theme
+site_description: 'Documentation for Keras, the Python Deep Learning library.'
 
 dev_addr: '0.0.0.0:8000'
 google_analytics: ['UA-61785484-1', 'keras.io']
@@ -12,31 +12,41 @@ google_analytics: ['UA-61785484-1', 'keras.io']
 
 pages:
 - Home: index.md
-- Index: documentation.md
-- Examples: examples.md
-- FAQ: faq.md
-- Backends: backend.md
-- Optimizers: optimizers.md
-- Objectives: objectives.md
-- Models: models.md
-- Activations: activations.md
-- Initializations: initializations.md
-- Regularizers: regularizers.md
-- Constraints: constraints.md
-- Callbacks: callbacks.md
-- Datasets: datasets.md
-- Visualization: visualization.md
+- Getting started:
+  - Guide to the Sequential model: getting-started/sequential-model-guide.md
+  - Guide to the Functional API: getting-started/functional-api-guide.md
+  - FAQ: getting-started/faq.md
+- Models:
+  - About Keras models: models/about-keras-models.md
+  - Sequential: models/sequential.md
+  - Model (functional API): models/model.md
 - Layers:
+  - About Keras layers: layers/about-keras-layers.md
   - Core Layers: layers/core.md
   - Convolutional Layers: layers/convolutional.md
   - Recurrent Layers: layers/recurrent.md
-  - Advanced Activations Layers: layers/advanced_activations.md
-  - Normalization Layers: layers/normalization.md
   - Embedding Layers: layers/embeddings.md
+  - Advanced Activations Layers: layers/advanced-activations.md
+  - Normalization Layers: layers/normalization.md
   - Noise layers: layers/noise.md
-  - Containers: layers/containers.md
+  - Layer wrappers: layers/wrappers.md
+  - Writing your own Keras layers: layers/writing-your-own-keras-layers.md
 - Preprocessing:
   - Sequence Preprocessing: preprocessing/sequence.md
   - Text Preprocessing: preprocessing/text.md
   - Image Preprocessing: preprocessing/image.md
+- Objectives: objectives.md
+- Optimizers: optimizers.md
+- Activations: activations.md
+- Callbacks: callbacks.md
+- Datasets: datasets.md
+- Backend: backend.md
+- Initializations: initializations.md
+- Regularizers: regularizers.md
+- Constraints: constraints.md
+- Visualization: visualization.md
+- Scikit-learn API: scikit-learn-api.md
+
+
+
 

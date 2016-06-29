@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import
-from .data_utils import get_file
+from ..utils.data_utils import get_file
 from six.moves import cPickle
 from six.moves import zip
 import numpy as np
+import sys
 
 
 def load_data(path="reuters.pkl", nb_words=None, skip_top=0,
@@ -64,4 +65,11 @@ def load_data(path="reuters.pkl", nb_words=None, skip_top=0,
 def get_word_index(path="reuters_word_index.pkl"):
     path = get_file(path, origin="https://s3.amazonaws.com/text-datasets/reuters_word_index.pkl")
     f = open(path, 'rb')
-    return cPickle.load(f)
+
+    if sys.version_info < (3,):
+        data = cPickle.load(f)
+    else:
+        data = cPickle.load(f, encoding="latin1")
+
+    f.close()
+    return data

@@ -4,19 +4,20 @@ import numpy as np
 import random
 from six.moves import range
 
-def pad_sequences(sequences, maxlen=None, dtype='int32', padding='pre', truncating='pre', value=0.):
-    """
-        Pad each sequence to the same length:
-        the length of the longest sequence.
 
-        If maxlen is provided, any sequence longer
-        than maxlen is truncated to maxlen. Truncation happens off either the beginning (default) or
-        the end of the sequence.
+def pad_sequences(sequences, maxlen=None, dtype='int32',
+                  padding='pre', truncating='pre', value=0.):
+    '''Pads each sequence to the same length:
+    the length of the longest sequence.
 
-        Supports post-padding and pre-padding (default).
+    If maxlen is provided, any sequence longer
+    than maxlen is truncated to maxlen.
+    Truncation happens off either the beginning (default) or
+    the end of the sequence.
 
-        Parameters:
-        -----------
+    Supports post-padding and pre-padding (default).
+
+    # Arguments
         sequences: list of lists where each element is a sequence
         maxlen: int, maximum length
         dtype: type to cast the resulting sequence.
@@ -25,53 +26,64 @@ def pad_sequences(sequences, maxlen=None, dtype='int32', padding='pre', truncati
             maxlen either in the beginning or in the end of the sequence
         value: float, value to pad the sequences to the desired value.
 
-        Returns:
+    # Returns
         x: numpy array with dimensions (number_of_sequences, maxlen)
-
-    """
+    '''
     lengths = [len(s) for s in sequences]
 
     nb_samples = len(sequences)
     if maxlen is None:
         maxlen = np.max(lengths)
 
-    x = (np.ones((nb_samples, maxlen)) * value).astype(dtype)
+    # take the sample shape from the first non empty sequence
+    # checking for consistency in the main loop below.
+    sample_shape = tuple()
+    for s in sequences:
+        if len(s) > 0:
+            sample_shape = np.asarray(s).shape[1:]
+            break
+
+    x = (np.ones((nb_samples, maxlen) + sample_shape) * value).astype(dtype)
     for idx, s in enumerate(sequences):
         if len(s) == 0:
-            continue # empty list was found
+            continue  # empty list was found
         if truncating == 'pre':
             trunc = s[-maxlen:]
         elif truncating == 'post':
             trunc = s[:maxlen]
         else:
-            raise ValueError("Truncating type '%s' not understood" % padding)
+            raise ValueError('Truncating type "%s" not understood' % truncating)
+
+        # check `trunc` has expected shape
+        trunc = np.asarray(trunc, dtype=dtype)
+        if trunc.shape[1:] != sample_shape:
+            raise ValueError('Shape of sample %s of sequence at position %s is different from expected shape %s' %
+                             (trunc.shape[1:], idx, sample_shape))
 
         if padding == 'post':
             x[idx, :len(trunc)] = trunc
         elif padding == 'pre':
             x[idx, -len(trunc):] = trunc
         else:
-            raise ValueError("Padding type '%s' not understood" % padding)
+            raise ValueError('Padding type "%s" not understood' % padding)
     return x
 
 
 def make_sampling_table(size, sampling_factor=1e-5):
-    '''
-        This generates an array where the ith element
-        is the probability that a word of rank i would be sampled,
-        according to the sampling distribution used in word2vec.
+    '''This generates an array where the ith element
+    is the probability that a word of rank i would be sampled,
+    according to the sampling distribution used in word2vec.
 
-        The word2vec formula is:
-            p(word) = min(1, sqrt(word.frequency/sampling_factor) / (word.frequency/sampling_factor))
+    The word2vec formula is:
+        p(word) = min(1, sqrt(word.frequency/sampling_factor) / (word.frequency/sampling_factor))
 
-        We assume that the word frequencies follow Zipf's law (s=1) to derive
-        a numerical approximation of frequency(rank):
-           frequency(rank) ~ 1/(rank * (log(rank) + gamma) + 1/2 - 1/(12*rank))
+    We assume that the word frequencies follow Zipf's law (s=1) to derive
+    a numerical approximation of frequency(rank):
+       frequency(rank) ~ 1/(rank * (log(rank) + gamma) + 1/2 - 1/(12*rank))
         where gamma is the Euler-Mascheroni constant.
 
-        Parameters:
-        -----------
-        size: int, number of possible words to sample. 
+    # Arguments
+        size: int, number of possible words to sample.
     '''
     gamma = 0.577
     rank = np.array(list(range(size)))
@@ -85,28 +97,28 @@ def make_sampling_table(size, sampling_factor=1e-5):
 def skipgrams(sequence, vocabulary_size,
               window_size=4, negative_samples=1., shuffle=True,
               categorical=False, sampling_table=None):
-    '''
-        Take a sequence (list of indexes of words),
-        returns couples of [word_index, other_word index] and labels (1s or 0s),
-        where label = 1 if 'other_word' belongs to the context of 'word',
-        and label=0 if 'other_word' is ramdomly sampled
+    '''Take a sequence (list of indexes of words),
+    returns couples of [word_index, other_word index] and labels (1s or 0s),
+    where label = 1 if 'other_word' belongs to the context of 'word',
+    and label=0 if 'other_word' is randomly sampled
 
-        Paramaters:
-        -----------
+    # Arguments
         vocabulary_size: int. maximum possible word index + 1
-        window_size: int. actually half-window. The window of a word wi will be [i-window_size, i+window_size+1]
-        negative_samples: float >= 0. 0 for no negative (=random) samples. 1 for same number as positive samples. etc.
-        categorical: bool. if False, labels will be integers (eg. [0, 1, 1 .. ]),
+        window_size: int. actually half-window.
+            The window of a word wi will be [i-window_size, i+window_size+1]
+        negative_samples: float >= 0. 0 for no negative (=random) samples.
+            1 for same number as positive samples. etc.
+        categorical: bool. if False, labels will be
+            integers (eg. [0, 1, 1 .. ]),
             if True labels will be categorical eg. [[1,0],[0,1],[0,1] .. ]
 
-        Returns:
-        --------
-        couples, lables: where `couples` are int pairs and
+    # Returns
+        couples, labels: where `couples` are int pairs and
             `labels` are either 0 or 1.
 
-        Notes:
-        ------
-        By convention, index 0 in the vocabulary is a non-word and will be skipped.
+    # Notes
+        By convention, index 0 in the vocabulary is
+        a non-word and will be skipped.
     '''
     couples = []
     labels = []

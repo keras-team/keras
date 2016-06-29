@@ -1,8 +1,5 @@
 '''Train a Bidirectional LSTM on the IMDB sentiment classification task.
 
-GPU command:
-    THEANO_FLAGS=mode=FAST_RUN,device=gpu,floatX=float32 python imdb_bidirectional_lstm.py
-
 Output after 4 epochs on CPU: ~0.8146
 Time per epoch on CPU (Core i7): ~150s.
 '''
@@ -12,11 +9,8 @@ import numpy as np
 np.random.seed(1337)  # for reproducibility
 
 from keras.preprocessing import sequence
-from keras.utils.np_utils import accuracy
-from keras.models import Graph
-from keras.layers.core import Dense, Dropout
-from keras.layers.embeddings import Embedding
-from keras.layers.recurrent import LSTM
+from keras.models import Model
+from keras.layers import Dense, Dropout, Embedding, LSTM, Input, merge
 from keras.datasets import imdb
 
 
@@ -38,25 +32,30 @@ print('X_test shape:', X_test.shape)
 y_train = np.array(y_train)
 y_test = np.array(y_test)
 
-print('Build model...')
-model = Graph()
-model.add_input(name='input', input_shape=(maxlen,), dtype=int)
-model.add_node(Embedding(max_features, 128, input_length=maxlen),
-               name='embedding', input='input')
-model.add_node(LSTM(64), name='forward', input='embedding')
-model.add_node(LSTM(64, go_backwards=True), name='backward', input='embedding')
-model.add_node(Dropout(0.5), name='dropout', inputs=['forward', 'backward'])
-model.add_node(Dense(1, activation='sigmoid'), name='sigmoid', input='dropout')
-model.add_output(name='output', input='sigmoid')
+
+# this is the placeholder tensor for the input sequences
+sequence = Input(shape=(maxlen,), dtype='int32')
+# this embedding layer will transform the sequences of integers
+# into vectors of size 128
+embedded = Embedding(max_features, 128, input_length=maxlen)(sequence)
+
+# apply forwards LSTM
+forwards = LSTM(64)(embedded)
+# apply backwards LSTM
+backwards = LSTM(64, go_backwards=True)(embedded)
+
+# concatenate the outputs of the 2 LSTMs
+merged = merge([forwards, backwards], mode='concat', concat_axis=-1)
+after_dp = Dropout(0.5)(merged)
+output = Dense(1, activation='sigmoid')(after_dp)
+
+model = Model(input=sequence, output=output)
 
 # try using different optimizers and different optimizer configs
-model.compile('adam', {'output': 'binary_crossentropy'})
+model.compile('adam', 'binary_crossentropy', metrics=['accuracy'])
 
 print('Train...')
-model.fit({'input': X_train, 'output': y_train},
+model.fit(X_train, y_train,
           batch_size=batch_size,
-          nb_epoch=4)
-acc = accuracy(y_test,
-               np.round(np.array(model.predict({'input': X_test},
-                                               batch_size=batch_size)['output'])))
-print('Test accuracy:', acc)
+          nb_epoch=4,
+          validation_data=[X_test, y_test])

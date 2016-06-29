@@ -4,20 +4,26 @@ import pytest
 import string
 
 from keras.utils.test_utils import get_test_data
-from keras.models import Sequential
-from keras.layers.core import TimeDistributedDense, Dropout, Dense
-from keras.layers.recurrent import GRU, LSTM
 from keras.utils.np_utils import to_categorical
+from keras.models import Sequential
+from keras.layers import TimeDistributedDense
+from keras.layers import Dense
+from keras.layers import Activation
+from keras.layers import GRU
+from keras.layers import LSTM
+from keras.layers import Embedding
 
 
 def test_temporal_classification():
     '''
-    Classify temporal sequences of float numbers of length 3 into 2 classes using
-    single layer of GRU units and softmax applied to the last activations of the units
+    Classify temporal sequences of float numbers
+    of length 3 into 2 classes using
+    single layer of GRU units and softmax applied
+    to the last activations of the units
     '''
     np.random.seed(1337)
     (X_train, y_train), (X_test, y_test) = get_test_data(nb_train=500,
-                                                         nb_test=200,
+                                                         nb_test=500,
                                                          input_shape=(3, 5),
                                                          classification=True,
                                                          nb_class=2)
@@ -28,17 +34,19 @@ def test_temporal_classification():
     model.add(GRU(y_train.shape[-1],
                   input_shape=(X_train.shape[1], X_train.shape[2]),
                   activation='softmax'))
-    model.compile(loss='categorical_crossentropy', optimizer='adadelta')
-    history = model.fit(X_train, y_train, nb_epoch=5, batch_size=16,
+    model.compile(loss='categorical_crossentropy',
+                  optimizer='adagrad',
+                  metrics=['accuracy'])
+    history = model.fit(X_train, y_train, nb_epoch=20, batch_size=32,
                         validation_data=(X_test, y_test),
-                        show_accuracy=True, verbose=0)
-    assert(history.history['val_acc'][-1] > 0.9)
+                        verbose=0)
+    assert(history.history['val_acc'][-1] >= 0.85)
 
 
 def test_temporal_regression():
     '''
-    Predict float numbers (regression) based on sequences of float numbers of length 3 using
-    single layer of GRU units
+    Predict float numbers (regression) based on sequences
+    of float numbers of length 3 using a single layer of GRU units
     '''
     np.random.seed(1337)
     (X_train, y_train), (X_test, y_test) = get_test_data(nb_train=500,
@@ -127,5 +135,52 @@ def test_stacked_lstm_char_prediction():
     assert(generated == alphabet)
 
 
+def test_masked_temporal():
+    '''
+    Confirm that even with masking on both inputs and outputs, cross-entropies are
+    of the expected scale.
+
+    In this task, there are variable length inputs of integers from 1-9, and a random
+    subset of unmasked outputs. Each of these outputs has a 50% probability of being
+    the input number unchanged, and a 50% probability of being 2*input%10.
+
+    The ground-truth best cross-entropy loss should, then be -log(0.5) = 0.69
+
+    '''
+    np.random.seed(55318)
+    model = Sequential()
+    model.add(Embedding(10, 20, mask_zero=True, input_length=20))
+    model.add(TimeDistributedDense(10))
+    model.add(Activation('softmax'))
+    model.compile(loss='categorical_crossentropy',
+                  optimizer='adam',
+                  sample_weight_mode='temporal')
+
+    X = np.random.random_integers(1, 9, (50000, 20))
+    for rowi in range(X.shape[0]):
+        padding = np.random.random_integers(X.shape[1] / 2)
+        X[rowi, :padding] = 0
+
+    # 50% of the time the correct output is the input.
+    # The other 50% of the time it's 2 * input % 10
+    y = (X * np.random.random_integers(1, 2, X.shape)) % 10
+    Y = np.zeros((y.size, 10), dtype='int32')
+    for i, target in enumerate(y.flat):
+        Y[i, target] = 1
+    Y = Y.reshape(y.shape + (10,))
+
+    # Mask 50% of the outputs via sample weights
+    sample_weight = np.random.random_integers(0, 1, y.shape)
+    print('X shape:', X.shape)
+    print('Y shape:', Y.shape)
+    print('sample_weight shape:', Y.shape)
+
+    history = model.fit(X, Y, validation_split=0.05,
+                        sample_weight=None,
+                        verbose=1, nb_epoch=2)
+    ground_truth = -np.log(0.5)
+    assert(np.abs(history.history['val_loss'][-1] - ground_truth) < 0.06)
+
 if __name__ == '__main__':
-    pytest.main([__file__])
+    # pytest.main([__file__])
+    test_temporal_classification()

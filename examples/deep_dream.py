@@ -9,7 +9,7 @@ e.g.:
 python deep_dream.py img/mypic.jpg results/dream
 ```
 
-It is preferrable to run this script on GPU, for speed.
+It is preferable to run this script on GPU, for speed.
 If running on CPU, prefer the TensorFlow backend (much faster).
 
 Example results: http://i.imgur.com/FX6ROg9.jpg
@@ -21,9 +21,10 @@ from scipy.optimize import fmin_l_bfgs_b
 import time
 import argparse
 import h5py
+import os
 
 from keras.models import Sequential
-from keras.layers.convolutional import Convolution2D, ZeroPadding2D, MaxPooling2D
+from keras.layers import Convolution2D, ZeroPadding2D, MaxPooling2D
 from keras import backend as K
 
 parser = argparse.ArgumentParser(description='Deep Dreams with Keras.')
@@ -73,15 +74,13 @@ def deprocess_image(x):
     x = np.clip(x, 0, 255).astype('uint8')
     return x
 
-# this will contain our generated image
-dream = K.placeholder((1, 3, img_width, img_height))
-
-# build the VGG16 network with our dream as input
-first_layer = ZeroPadding2D((1, 1), input_shape=(3, img_width, img_height))
-first_layer.input = dream
-
+# build the VGG16 network
 model = Sequential()
-model.add(first_layer)
+model.add(ZeroPadding2D((1, 1), batch_input_shape=(1, 3, img_width, img_height)))
+first_layer = model.layers[-1]
+# this is a placeholder tensor that will contain our generated images
+dream = first_layer.input
+
 model.add(Convolution2D(64, 3, 3, activation='relu', name='conv1_1'))
 model.add(ZeroPadding2D((1, 1)))
 model.add(Convolution2D(64, 3, 3, activation='relu', name='conv1_2'))
@@ -121,6 +120,7 @@ model.add(MaxPooling2D((2, 2), strides=(2, 2)))
 # (trained on ImageNet, won the ILSVRC competition in 2014)
 # note: when there is a complete match between your model definition
 # and your weight savefile, you can simply call model.load_weights(filename)
+assert os.path.exists(weights_path), 'Model weights not found (see "weights_path" variable in script).'
 f = h5py.File(weights_path)
 for k in range(f.attrs['nb_layers']):
     if k >= len(model.layers):
@@ -148,7 +148,7 @@ for layer_name in settings['features']:
     # add the L2 norm of the features of a layer to the loss
     assert layer_name in layer_dict.keys(), 'Layer ' + layer_name + ' not found in model.'
     coeff = settings['features'][layer_name]
-    x = layer_dict[layer_name].get_output()
+    x = layer_dict[layer_name].output
     shape = layer_dict[layer_name].output_shape
     # we avoid border artifacts by only involving non-border pixels in the loss
     loss -= coeff * K.sum(K.square(x[:, :, 2: shape[2]-2, 2: shape[3]-2])) / np.prod(shape[1:])
@@ -189,7 +189,7 @@ def eval_loss_and_grads(x):
 class Evaluator(object):
     def __init__(self):
         self.loss_value = None
-        self.grads_values = None
+        self.grad_values = None
 
     def loss(self, x):
         assert self.loss_value is None

@@ -1,4 +1,4 @@
-'''Train a memory network on the bAbI dataset.
+'''Trains a memory network on the bAbI dataset.
 
 References:
 - Jason Weston, Antoine Bordes, Sumit Chopra, Tomas Mikolov, Alexander M. Rush,
@@ -16,9 +16,9 @@ Time per epoch: 3s on CPU (core i7).
 from __future__ import print_function
 from keras.models import Sequential
 from keras.layers.embeddings import Embedding
-from keras.layers.core import Activation, Dense, Merge, Permute, Dropout
-from keras.layers.recurrent import LSTM
-from keras.datasets.data_utils import get_file
+from keras.layers import Activation, Dense, Merge, Permute, Dropout
+from keras.layers import LSTM
+from keras.utils.data_utils import get_file
 from keras.preprocessing.sequence import pad_sequences
 from functools import reduce
 import tarfile
@@ -94,8 +94,13 @@ def vectorize_stories(data, word_idx, story_maxlen, query_maxlen):
             pad_sequences(Xq, maxlen=query_maxlen), np.array(Y))
 
 
-path = get_file('babi-tasks-v1-2.tar.gz',
-                origin='http://www.thespermwhale.com/jaseweston/babi/tasks_1-20_v1-2.tar.gz')
+try:
+    path = get_file('babi-tasks-v1-2.tar.gz', origin='http://www.thespermwhale.com/jaseweston/babi/tasks_1-20_v1-2.tar.gz')
+except:
+    print('Error downloading dataset, please download it manually:\n'
+          '$ wget http://www.thespermwhale.com/jaseweston/babi/tasks_1-20_v1-2.tar.gz\n'
+          '$ mv tasks_1-20_v1-2.tar.gz ~/.keras/datasets/babi-tasks-v1-2.tar.gz')
+    raise
 tar = tarfile.open(path)
 
 challenges = {
@@ -167,7 +172,7 @@ question_encoder.add(Dropout(0.3))
 match = Sequential()
 match.add(Merge([input_encoder_m, question_encoder],
                 mode='dot',
-                dot_axes=[(2,), (2,)]))
+                dot_axes=[2, 2]))
 # output: (samples, story_maxlen, query_maxlen)
 # embed the input into a single vector with size = story_maxlen:
 input_encoder_c = Sequential()
@@ -195,10 +200,10 @@ answer.add(Dense(vocab_size))
 # we output a probability distribution over the vocabulary
 answer.add(Activation('softmax'))
 
-answer.compile(optimizer='rmsprop', loss='categorical_crossentropy')
+answer.compile(optimizer='rmsprop', loss='categorical_crossentropy',
+               metrics=['accuracy'])
 # Note: you could use a Graph model to avoid repeat the input twice
 answer.fit([inputs_train, queries_train, inputs_train], answers_train,
            batch_size=32,
            nb_epoch=120,
-           show_accuracy=True,
            validation_data=([inputs_test, queries_test, inputs_test], answers_test))

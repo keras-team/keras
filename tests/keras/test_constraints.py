@@ -34,27 +34,10 @@ def test_nonneg():
     assert(np.all(np.min(K.eval(normed), axis=1) == 0.))
 
 
-def test_identity():
-    identity_instance = constraints.identity()
-    normed = identity_instance(example_array)
-    assert(np.all(normed == example_array))
-
-
-def test_identity_oddballs():
-    """
-    test the identity constraint on some more exotic input.
-    this does not need to pass for the desired real life behaviour,
-    but it should in the current implementation.
-    """
-    identity_instance = constraints.identity()
-    oddball_examples = ["Hello", [1], -1, None]
-    assert(oddball_examples == identity_instance(oddball_examples))
-
-
 def test_unitnorm():
     unitnorm_instance = constraints.unitnorm()
     normalized = unitnorm_instance(K.variable(example_array))
-    norm_of_normalized = np.sqrt(np.sum(K.eval(normalized)**2, axis=1))
+    norm_of_normalized = np.sqrt(np.sum(K.eval(normalized)**2, axis=0))
     # in the unit norm constraint, it should be equal to 1.
     difference = norm_of_normalized - 1.
     largest_difference = np.max(np.abs(difference))

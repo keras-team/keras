@@ -7,14 +7,14 @@ and make sure the variable `weights_path` in this script matches the location of
 
 Run the script with:
 ```
-python neural_style.py path_to_your_base_image.jpg path_to_your_reference.jpg prefix_for_results
+python neural_style_transfer.py path_to_your_base_image.jpg path_to_your_reference.jpg prefix_for_results
 ```
 e.g.:
 ```
-python neural_style.py img/tuebingen.jpg img/starry_night.jpg results/my_result
+python neural_style_transfer.py img/tuebingen.jpg img/starry_night.jpg results/my_result
 ```
 
-It is preferrable to run this script on GPU, for speed.
+It is preferable to run this script on GPU, for speed.
 If running on CPU, prefer the TensorFlow backend (much faster).
 
 Example result: https://twitter.com/fchollet/status/686631033085677568
@@ -34,7 +34,7 @@ the pixels of the combination image, giving it visual coherence.
 
 - The style loss is where the deep learning keeps in --that one is defined
 using a deep convolutional neural network. Precisely, it consists in a sum of
-L2 distances betwen the Gram matrices of the representations of
+L2 distances between the Gram matrices of the representations of
 the base image and the style reference image, extracted from
 different layers of a convnet (trained on ImageNet). The general idea
 is to capture color/texture information at different spatial
@@ -58,7 +58,7 @@ import argparse
 import h5py
 
 from keras.models import Sequential
-from keras.layers.convolutional import Convolution2D, ZeroPadding2D, MaxPooling2D
+from keras.layers import Convolution2D, ZeroPadding2D, MaxPooling2D
 from keras import backend as K
 
 parser = argparse.ArgumentParser(description='Neural style transfer with Keras.')
@@ -89,17 +89,11 @@ assert img_height == img_width, 'Due to the use of the Gram matrix, width and he
 def preprocess_image(image_path):
     img = imresize(imread(image_path), (img_width, img_height))
     img = img.transpose((2, 0, 1)).astype('float64')
-    img[:, :, 0] -= 103.939
-    img[:, :, 1] -= 116.779
-    img[:, :, 2] -= 123.68
     img = np.expand_dims(img, axis=0)
     return img
 
 # util function to convert a tensor into a valid image
 def deprocess_image(x):
-    x[:, :, 0] += 103.939
-    x[:, :, 1] += 116.779
-    x[:, :, 2] += 123.68
     x = x.transpose((1, 2, 0))
     x = np.clip(x, 0, 255).astype('uint8')
     return x
@@ -117,8 +111,8 @@ input_tensor = K.concatenate([base_image,
                               combination_image], axis=0)
 
 # build the VGG16 network with our 3 images as input
-first_layer = ZeroPadding2D((1, 1), input_shape=(3, img_width, img_height))
-first_layer.input = input_tensor
+first_layer = ZeroPadding2D((1, 1))
+first_layer.set_input(input_tensor, shape=(3, 3, img_width, img_height))
 
 model = Sequential()
 model.add(first_layer)
@@ -174,7 +168,7 @@ f.close()
 print('Model loaded.')
 
 # get the symbolic outputs of each "key" layer (we gave them unique names).
-outputs_dict = dict([(layer.name, layer.get_output()) for layer in model.layers])
+outputs_dict = dict([(layer.name, layer.output) for layer in model.layers])
 
 # compute the neural style loss
 # first we need to define 4 util functions
