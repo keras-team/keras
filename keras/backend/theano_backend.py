@@ -975,6 +975,10 @@ def l2_normalize(x, axis):
     return x / norm
 
 
+def l1_normalize(x, axis):
+    norm = T.max(T.sum(abs(x), axis=axis, keepdims=True))
+    return x / norm
+
 # CONVOLUTIONS
 
 def conv2d(x, kernel, strides=(1, 1), border_mode='valid', dim_ordering='th',
