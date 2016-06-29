@@ -7,6 +7,8 @@ try:
     from theano.tensor.nnet.nnet import softsign as T_softsign
 except ImportError:
     from theano.sandbox.softsign import softsign as T_softsign
+
+import theano.sandbox.fourier as fourier
 import inspect
 import numpy as np
 from .common import _FLOATX, _EPSILON
@@ -165,6 +167,18 @@ def gather(reference, indices):
     '''
     return reference[indices]
 
+
+def fft(x, n, axis=0):
+    '''Fast fourier transform:
+       Compute an n-point fft of frames along given axis.
+    '''
+    return fourier.fft(x, n, axis)
+
+
+def ifft(x, n, axis=0):
+    '''Inverse fast fourier transform
+    '''
+    return fourier.ifft(x, n, axis)
 
 # ELEMENT-WISE OPERATIONS
 
@@ -1206,6 +1220,7 @@ def pool3d(x, pool_size, strides=(1, 1, 1), border_mode='valid',
     return pool_out
 
 
+
 # RANDOMNESS
 
 
@@ -1228,3 +1243,13 @@ def random_binomial(shape, p=0.0, dtype=_FLOATX, seed=None):
         seed = np.random.randint(10e6)
     rng = RandomStreams(seed=seed)
     return rng.binomial(shape, p=p, dtype=dtype)
+
+def random_multinomial(shape, p=0.0, dtype=_FLOATX, seed=None):
+    if seed is None:
+        seed = np.random.randint(10e6)
+    rng = RandomStreams(seed=seed)
+    return rng.multinomial(shape, pvals=p, dtype=dtype)
+
+
+
+
