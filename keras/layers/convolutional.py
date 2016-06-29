@@ -17,6 +17,63 @@ def conv_output_length(input_length, filter_size, border_mode, stride):
     return (output_length + stride - 1) // stride
 
 
+class ClassActivationMapping(Layer):
+    '''Class Activation Mapping computation used in GAP networks.
+
+    # Arguments
+        weights: Set of weights (numpy.array) already learned that connect a
+            GAP (global average pooling) layer with a Dense layer.
+
+    # References
+        [1]Zhou B, Khosla A, Lapedriza A, Oliva A, Torralba A. 
+            Learning Deep Features for Discriminative Localization. 
+            arXiv preprint arXiv:1512.04150. 2015 Dec 14.
+    '''
+    def __init__(self, weights_shape, weights=None, **kwargs):
+        self.weights_shape = weights_shape
+        self.initial_weights = [weights]
+        self.init = initializations.get('uniform', dim_ordering='th')
+        self.input_spec = [InputSpec(ndim=4)]
+        super(ClassActivationMapping, self).__init__(**kwargs)
+
+
+    def build(self, input_shape):
+        self.W = self.init(self.weights_shape,
+                           name='{}_W'.format(self.name))
+        self.trainable_weights = [self.W]
+
+        # initialize weights
+        if(self.initial_weights[0] is not None):
+            self.set_weights(self.initial_weights)
+
+        
+    def call(self, x, mask=None):
+        '''
+        # Formulation
+            The original CAM formulation from [1] is as follows:         
+
+                CAM(x,y,c) = ∑_k w_k(c) * f_k(x,y),
+
+            where CAM(x,y,c) is the class activation map of class 'c' 
+            at pixel (x,y), w_k is the weight (self.W) of the k-th kernel 
+            learned on the Dense layer after GAP, and f_k is the feature 
+            activation at pixel (x,y) produced by the deep convolution layers
+            applied before the GAP layer.
+        '''
+        x = K.permute_dimensions(x, (0,2,3,1))
+        x = K.dot(x, self.W)
+        x = K.permute_dimensions(x, (0,3,1,2)) # (batch_size, n_classes, x, y)
+        return x
+
+    def get_output_shape_for(self, input_shape):
+        return tuple([input_shape[0]] + [self.weights_shape[1]] + list(input_shape[2:]))
+
+    def get_config(self):
+        config = {'weights_shape': self.weights_shape}
+        base_config = super(ClassActivationMapping, self).get_config()
+        return dict(list(base_config.items()) + list(config.items()))
+
+
 class Convolution1D(Layer):
     '''Convolution operator for filtering neighborhoods of one-dimensional inputs.
     When using this layer as the first layer in a model,
