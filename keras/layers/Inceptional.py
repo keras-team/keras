@@ -78,9 +78,8 @@ class FireModule(Layer):
         return dict(list(base_config.items()) + list(config.items()))
         
 def Conv_pool(input_layer,PoolMethod,subsample):
-    if subsample==(1,1):
-        border_mode="same"
-    else:
+    border_mode="same"
+    if subsample!=(1,1):
         border_mode="valid"
         
     if PoolMethod =="max":
