@@ -4,7 +4,7 @@ from __future__ import absolute_import
 from .. import backend as K
 from ..engine import Layer
 
-from ..layers.convolutional import Convolution2D
+from .convolutional import Convolution2D
 from ..layers import merge,BatchNormalization,ZeroPadding2D,MaxPooling2D,AveragePooling2D
 
 import numpy as np
