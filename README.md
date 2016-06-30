@@ -25,7 +25,7 @@ This functionality allows to add learning rates multipliers to each of the learn
 be multiplied by the global learning rate for modifying the weight of the error on each layer independently. Here is a simple example of usage:
 
 ```
-model.add_node(Dense(100, W_learning_rate_multiplier=10.0, b_learning_rate_multiplier=10.0))
+x = Dense(100, W_learning_rate_multiplier=10.0, b_learning_rate_multiplier=10.0)  (x)
 ```
 
 ## New layers for multimodal data
