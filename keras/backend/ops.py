@@ -65,7 +65,7 @@ def _override_operator(tensor_class, operator):
     _operator = '_keras' + operator[1:-2]  # we add '_keras' so that it does not conflict with any existing functions
     setattr(tensor_class, _operator, getattr(tensor_class, operator))
     unary_operators = ['__neg__', '__pos__', '__abs__', '__invert__']
-    binary_operators = ['add', 'sub', 'mul', 'matmul', 'truediv', 'floordiv', 'mod', 'divmod', 'pow', 'lshift', 'rshift', 'and', 'xor', 'or']
+    binary_operators = ['add', 'sub', 'mul', 'matmul', 'div', 'truediv', 'floordiv', 'mod', 'divmod', 'pow', 'lshift', 'rshift', 'and', 'xor', 'or']
     binary_operators += map(lambda x: 'r' + x, binary_operators)
     binary_operators += ['getitem']
     binary_operators = map(lambda x: '__' + x + '__', binary_operators)
@@ -131,7 +131,7 @@ def override_operators(tensor_class):
         return
     else:
         setattr(tensor_class, '_keras_operators_supported', True)
-    operators = ['add', 'sub', 'mul', 'matmul', 'truediv', 'floordiv', 'mod', 'divmod', 'pow', 'lshift', 'rshift', 'and', 'xor', 'or']
+    operators = ['add', 'sub', 'mul', 'matmul', 'div', 'truediv', 'floordiv', 'mod', 'divmod', 'pow', 'lshift', 'rshift', 'and', 'xor', 'or']
     operators += map(lambda x: 'r' + x, operators)
     operators += ['neg', 'pos', 'abs', 'invert']
     operators += ['getitem']
