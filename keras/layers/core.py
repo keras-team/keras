@@ -17,6 +17,7 @@ from ..engine import InputSpec, Layer, Merge
 from ..regularizers import ActivityRegularizer
 
 
+
 class Masking(Layer):
     '''Masks an input sequence by using a mask value to
     identify timesteps to be skipped.
@@ -1130,3 +1131,6 @@ class TimeDistributedDense(Layer):
                   'input_length': self.input_length}
         base_config = super(TimeDistributedDense, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
+
+
+

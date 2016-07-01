@@ -28,6 +28,7 @@ def standardize_input_data(data, names, shapes=None,
     arrays (same order as `names`), while checking that the provided
     arrays have shapes that match the network's expectations.
     '''
+
     if type(data) is dict:
         arrays = []
         for name in names:
