@@ -63,6 +63,7 @@ def ndim(x):
     return x.ndim
 
 
+
 def dtype(x):
     return x.dtype
 
@@ -110,6 +111,8 @@ def count_params(x):
 def cast(x, dtype):
     return T.cast(x, dtype)
 
+def ceil(x):
+    return T.ceil(x)
 
 # LINEAR ALGEBRA
 
@@ -389,6 +392,8 @@ def repeatRdim(x, n, axis=1):
     x = x.dimshuffle(tuple(new_dim))
     return T.extra_ops.repeat(x, n, axis=axis)
 
+def set_subtensor(x, v):
+     return T.set_subtensor(x, v)
 
 def tile(x, n):
     return T.tile(x, n)

@@ -1093,24 +1093,23 @@ class LSTM_Cond(Recurrent):
 
     def get_initial_states(self, x):
         # build an all-zero tensor of shape (samples, output_dim)
-        initial_state = K.zeros_like(x[:,:, :self.input_dim])  # (samples, timesteps, input_dim)
+        initial_state = K.zeros_like(x[:, :, :self.input_dim])  # (samples, timesteps, input_dim)
         initial_state = K.sum(initial_state, axis=1)  # (samples, input_dim)
         reducer = K.zeros((self.input_dim, self.output_dim))
         initial_state = K.dot(initial_state, reducer)  # (samples, output_dim)
         initial_states = [initial_state for _ in range(len(self.states))]
         return initial_states
 
-    def _step(self, x, states):
+    def step(self, x, states):
 
-        x_t = x[0, :self.input_dim]
-        s_t = x[0, T.arange(self.input_dim, x.shape[1])]
+        x_t = x[:, :self.input_dim]
+        s_t = x[:, self.input_dim:]
 
         h_tm1 = states[0]  # State
         c_tm1 = states[1]  # Memory
         B_U = states[2]    # Dropout U
         B_W = states[3]    # Dropout W
         B_V = states[4]    # Dropout V
-
         z = K.dot(s_t * B_V[0], self.V) + K.dot(x_t * B_W[0], self.W) + K.dot(h_tm1 * B_U[0], self.U) + self.b
 
         z0 = z[:, :self.output_dim]
@@ -1159,6 +1158,7 @@ class LSTM_Cond(Recurrent):
 
     def preprocess_input(self, x):
         if self.consume_less == 'cpu':
+
             raise Exception("Unsupported consume_less mode (Only 'gpu' allowed)")
             state_below = T.inc_subtensor(x[:,:,self.input_dim:], 0)
 
@@ -1224,7 +1224,7 @@ class LSTM_Cond(Recurrent):
             initial_states = self.get_initial_states(x)
         constants = self.get_constants(x)
         x = self.preprocess_input(x)
-        last_output, outputs, states = K.rnn(self._step, x,
+        last_output, outputs, states = K.rnn(self.step, x,
                                              initial_states,
                                              go_backwards=self.go_backwards,
                                              mask=mask,
@@ -1243,6 +1243,7 @@ class LSTM_Cond(Recurrent):
 
     def get_config(self):
         config = {"output_dim": self.output_dim,
+                  "embedding_size": self.embedding_size,
                   "init": self.init.__name__,
                   "inner_init": self.inner_init.__name__,
                   "forget_bias_init": self.forget_bias_init.__name__,
