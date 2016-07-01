@@ -10,15 +10,16 @@ from keras import backend as K
 
 def test_masking():
     np.random.seed(1337)
-    X = np.array(
-        [[[1, 1], [2, 1], [3, 1], [5, 5]],
-         [[1, 5], [5, 0], [0, 0], [0, 0]]], dtype=np.int32)
+    X = np.array([[[1], [1]],
+                  [[0], [0]]])
     model = Sequential()
-    model.add(Masking(mask_value=0, input_shape=(4, 2)))
+    model.add(Masking(mask_value=0, input_shape=(2, 1)))
     model.add(TimeDistributedDense(1, init='one'))
     model.compile(loss='mse', optimizer='sgd')
-    y = model.predict(X)
-    history = model.fit(X, 4 * y, nb_epoch=1, batch_size=2, verbose=1)
+    y = np.array([[[1], [1]],
+                  [[1], [1]]])
+    loss = model.train_on_batch(X, y)
+    assert loss == 0
 
 
 def test_loss_masking():
@@ -39,4 +40,5 @@ def test_loss_masking():
 
 
 if __name__ == '__main__':
-    pytest.main([__file__])
+    # pytest.main([__file__])
+    test_masking()

@@ -1608,6 +1608,12 @@ class Container(Layer):
             masks.append(mask)
         mask_cache_key = ','.join([str(id(x)) for x in self.inputs])
         mask_cache_key += '_' + ','.join([str(id(x)) for x in masks])
+        masks = []
+        for x in self.outputs:
+            layer, node_index, tensor_index = x._keras_history
+            node = layer.inbound_nodes[node_index]
+            mask = node.output_masks[tensor_index]
+            masks.append(mask)
         if len(masks) == 1:
             mask = masks[0]
         else:
