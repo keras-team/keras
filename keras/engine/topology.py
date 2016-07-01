@@ -1593,19 +1593,19 @@ class Container(Layer):
                 raise Exception('Output tensors to a ' + cls_name + ' must be '
                                 'Keras tensors. Found: ' + str(x))
         # build self.output_layers:
-        masks = []
         for x in self.outputs:
             layer, node_index, tensor_index = x._keras_history
             self.output_layers.append(layer)
             self.output_layers_node_indices.append(node_index)
             self.output_layers_tensor_indices.append(tensor_index)
 
-            # also fill in the output mask cache
+        # fill in the output mask cache
+        masks = []
+        for x in self.inputs:
+            layer, node_index, tensor_index = x._keras_history
             node = layer.inbound_nodes[node_index]
             mask = node.output_masks[tensor_index]
             masks.append(mask)
-
-        # output mask cache
         mask_cache_key = ','.join([str(id(x)) for x in self.inputs])
         mask_cache_key += '_' + ','.join([str(id(x)) for x in masks])
         if len(masks) == 1:
@@ -2105,6 +2105,8 @@ class Container(Layer):
                         for x, s in zip(output_tensors, shapes):
                             x._keras_shape = s
                             x._uses_learning_phase = uses_learning_phase
+
+                    # update tensor_map
                     for x, y, mask in zip(reference_output_tensors, output_tensors, output_masks):
                         tensor_map[str(id(x))] = (y, mask)
 
