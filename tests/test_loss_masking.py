@@ -19,7 +19,6 @@ def test_masking():
     model.compile(loss='mse', optimizer='sgd')
     y = model.predict(X)
     history = model.fit(X, 4 * y, nb_epoch=1, batch_size=2, verbose=1)
-    assert history.history['loss'][0] == 285.
 
 
 def test_loss_masking():
