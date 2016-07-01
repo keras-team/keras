@@ -361,13 +361,14 @@ class RemoteMonitor(Callback):
     # Arguments
         root: root url to which the events will be sent (at the end
             of every epoch). Events are sent to
-            `root + '/publish/epoch/end/'`. Calls are HTTP POST,
-            with a `data` argument which is a JSON-encoded dictionary
-            of event data.
+            `root + '/publish/epoch/end/'` by default. Calls are 
+            HTTP POST, with a `data` argument which is a 
+            JSON-encoded dictionary of event data.
     '''
-    def __init__(self, root='http://localhost:9000'):
+    def __init__(self, root='http://localhost:9000', path='/publish/epoch/end/'):
         super(RemoteMonitor, self).__init__()
         self.root = root
+        self.path = path
 
     def on_epoch_end(self, epoch, logs={}):
         import requests
@@ -377,7 +378,7 @@ class RemoteMonitor(Callback):
             send[k] = v
 
         try:
-            requests.post(self.root + '/publish/epoch/end/',
+            requests.post(self.root + self.path,
                           {'data': json.dumps(send)})
         except:
             print('Warning: could not reach RemoteMonitor '
