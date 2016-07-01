@@ -1161,22 +1161,21 @@ class Merge(Layer):
             shape2 = input_shapes[1]
             n1 = len(shape1)
             n2 = len(shape2)
-            if mode == 'dot':
-                if type(dot_axes) == int:
-                    if dot_axes < 0:
-                        dot_axes = [dot_axes % n1, dot_axes % n2]
-                    else:
-                        dot_axes = [n1 - dot_axes, n2-dot_axes]
-                if type(dot_axes) not in [list, tuple]:
-                    raise Exception('Invalid type for dot_axes - should be a list.')
-                if len(dot_axes) != 2:
-                    raise Exception('Invalid format for dot_axes - should contain two elements.')
-                if type(dot_axes[0]) is not int or type(dot_axes[1]) is not int:
-                    raise Exception('Invalid format for dot_axes - list elements should be "int".')
-                if shape1[dot_axes[0]] != shape2[dot_axes[1]]:
-                    raise Exception('Dimension incompatibility using dot mode: ' +
-                                    '%s != %s. ' % (shape1[dot_axes[0]], shape2[dot_axes[1]]) +
-                                    'Layer shapes: %s, %s' % (shape1, shape2))
+            if type(dot_axes) == int:
+                if dot_axes < 0:
+                    dot_axes = [dot_axes % n1, dot_axes % n2]
+                else:
+                    dot_axes = [n1 - dot_axes, n2-dot_axes]
+            if type(dot_axes) not in [list, tuple]:
+                raise Exception('Invalid type for dot_axes - should be a list.')
+            if len(dot_axes) != 2:
+                raise Exception('Invalid format for dot_axes - should contain two elements.')
+            if type(dot_axes[0]) is not int or type(dot_axes[1]) is not int:
+                raise Exception('Invalid format for dot_axes - list elements should be "int".')
+            if shape1[dot_axes[0]] != shape2[dot_axes[1]]:
+                raise Exception('Dimension incompatibility using dot mode: ' +
+                                '%s != %s. ' % (shape1[dot_axes[0]], shape2[dot_axes[1]]) +
+                                'Layer shapes: %s, %s' % (shape1, shape2))
         elif mode == 'concat':
             reduced_inputs_shapes = [list(shape) for shape in input_shapes]
             shape_set = set()
