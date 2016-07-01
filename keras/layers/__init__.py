@@ -8,3 +8,4 @@ from .embeddings import *
 from .noise import *
 from .advanced_activations import *
 from .wrappers import *
+from .Inceptional import *
