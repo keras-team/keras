@@ -251,6 +251,11 @@ def create_model(layers, phase, input_dim, debug=False):
             elif type_of_layer == 'tanh':
                 net_node[layer_nb] = Activation('tanh', name=name)(input_layers)
 
+            elif type_of_layer == 'batchnorm':
+                epsilon = layer.batch_norm_param.eps
+                moving_average = layer.batch_norm_param.moving_average_fraction # unused
+                net_node[layer_nb] = BatchNormalization(epsilon=epsilon, name=name)(input_layers)
+
             else:
                 raise RuntimeError('layer type', type_of_layer, 'used in this model is not currently supported')
 
