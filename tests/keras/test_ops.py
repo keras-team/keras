@@ -42,7 +42,6 @@ def test_ops_1():
 	X2 = np.random.uniform(1, 2, (7, 10))
 
 	for func in functions:
-		print(func)
 		a = Input((10,))
 		assert a.__class__._keras_operators_supported
 		b = Dense(10)(a)
