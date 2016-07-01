@@ -1304,7 +1304,7 @@ class Merge(Layer):
                     break
                 output_shape[self.concat_axis] += shape[self.concat_axis]
             return tuple(output_shape)
-        elif self.mode == 'dot':
+        elif self.mode in ['dot', 'cos']:
             shape1 = list(input_shapes[0])
             shape2 = list(input_shapes[1])
             dot_axes = [a - 1 for a in self.dot_axes]
@@ -1316,8 +1316,7 @@ class Merge(Layer):
             else:
                 shape = tensordot_output.shape
             return (shape1[0],) + shape
-        elif self.mode == 'cos':
-            return (input_shapes[0][0], 1)
+
 
     def compute_mask(self, inputs, mask=None):
         if mask is None or not any([m is not None for m in mask]):
