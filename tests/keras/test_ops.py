@@ -12,8 +12,6 @@ from keras.layers import Dense, Input, merge, Lambda
 
 def test_ops_1():
 
-	epsilon = 1e-6  # Error tolerance
-
 	def add(x, y=3.14):
 		return x + y
 
@@ -25,9 +23,6 @@ def test_ops_1():
 
 	def div(x, y=3.14):
 		return x / y
-
-	def pow(x, y=3.14):
-		return x ** y
 
 	def radd(x, y=3.14):
 		return y + x
@@ -41,16 +36,15 @@ def test_ops_1():
 	def rdiv(x, y=3.14):
 		return y / x
 
-	def rpow(x, y=3.14):
-		return y ** x
-
-	functions = [add, sub, mul, div, pow, radd, rsub, rmul, rdiv, rpow]
+	functions = [add, sub, mul, div, radd, rsub, rmul, rdiv]
 
 	X1 = np.random.uniform(1, 2, (7, 10))
 	X2 = np.random.uniform(1, 2, (7, 10))
 
 	for func in functions:
+		print(func)
 		a = Input((10,))
+		assert a.__class__._keras_operators_supported
 		b = Dense(10)(a)
 		c = Lambda(func)(b)
 		d = Dense(10)(c)
@@ -65,7 +59,7 @@ def test_ops_1():
 		model2.set_weights(model1.get_weights())
 		Y1 = model1.predict(X1)
 		Y2 = model2.predict(X1)
-		assert np.all(np.abs(Y1 - Y2) < epsilon)
+		assert np.all(Y1 == Y2)
 		a1 = Input((10,))
 		b1 = Dense(10)(a1)
 		a2 = Input((10,))
@@ -85,7 +79,8 @@ def test_ops_1():
 		model2.set_weights(model1.get_weights())
 		Y1 = model1.predict([X1, X2])
 		Y2 = model2.predict([X1, X2])
-		assert np.all(np.abs(Y1 - Y2) < epsilon)
+		assert np.all(Y1 == Y2)
+
 
 if __name__ == '__main__':
     pytest.main([__file__])
