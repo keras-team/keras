@@ -393,7 +393,7 @@ def repeatRdim(x, n, axis=1):
     return T.extra_ops.repeat(x, n, axis=axis)
 
 def set_subtensor(x, v):
-     return T.set_subtensor(x, v)
+    return T.set_subtensor(x, v)
 
 def tile(x, n):
     return T.tile(x, n)
