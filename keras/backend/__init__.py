@@ -35,6 +35,7 @@ if os.path.exists(_config_path):
 
     set_floatx(_floatx)
     set_epsilon(_epsilon)
+    set_image_dim_ordering(_image_dim_ordering)
     _BACKEND = _backend
 
 # save config file
