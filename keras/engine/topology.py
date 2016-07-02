@@ -1318,7 +1318,7 @@ class Merge(Layer):
             return (shape1[0],) + shape
 
     def compute_mask(self, inputs, mask=None):
-        if mask is None or not any([m is not None for m in mask]):
+        if mask is None or all([m is None for m in mask]):
             return None
 
         assert hasattr(mask, '__len__') and len(mask) == len(inputs)

@@ -402,7 +402,7 @@ class Lambda(Layer):
     def __init__(self, function, output_shape=None, arguments={}, **kwargs):
         self.function = function
         self.arguments = arguments
-        self.supports_masking = True
+        self.supports_masking = False
 
         if output_shape is None:
             self._output_shape = None
