@@ -3,7 +3,7 @@ import numpy as np
 import os
 import copy
 import warnings
-from .common import _FLOATX, _EPSILON
+from .common import _FLOATX, _EPSILON, _IMAGE_DIM_ORDERING
 
 # INTERNAL UTILS
 
@@ -999,8 +999,10 @@ def l2_normalize(x, axis):
 # CONVOLUTIONS
 
 
-def conv2d(x, kernel, strides=(1, 1), border_mode='valid', dim_ordering='th',
-           image_shape=None, filter_shape=None):
+def conv2d(x, kernel, strides=(1, 1), border_mode='valid',
+           dim_ordering=_IMAGE_DIM_ORDERING,
+           image_shape=None, filter_shape=None, output_shape=None,
+           transpose=False, atrous=False, atrous_rate=1):
     '''2D convolution.
 
     # Arguments
@@ -1010,6 +1012,7 @@ def conv2d(x, kernel, strides=(1, 1), border_mode='valid', dim_ordering='th',
         dim_ordering: "tf" or "th". Whether to use Theano or TensorFlow dimension ordering
         in inputs/kernels/ouputs.
     '''
+    assert dim_ordering in {'tf', 'th'}
     if border_mode == 'same':
         padding = 'SAME'
     elif border_mode == 'valid':
@@ -1033,12 +1036,16 @@ def conv2d(x, kernel, strides=(1, 1), border_mode='valid', dim_ordering='th',
         # TF kernel shape: (rows, cols, input_depth, depth)
         x = tf.transpose(x, (0, 2, 3, 1))
         kernel = tf.transpose(kernel, (2, 3, 1, 0))
-        x = tf.nn.conv2d(x, kernel, strides, padding=padding)
-        x = tf.transpose(x, (0, 3, 1, 2))
-    elif dim_ordering == 'tf':
-        x = tf.nn.conv2d(x, kernel, strides, padding=padding)
+
+    if transpose:
+        raise NotImplementedError
+    elif atrous:
+        raise NotImplementedError
     else:
-        raise Exception('Unknown dim_ordering: ' + str(dim_ordering))
+        x = tf.nn.conv2d(x, kernel, strides, padding=padding)
+
+    if dim_ordering == 'th':
+        x = tf.transpose(x, (0, 3, 1, 2))
 
     if _FLOATX == 'float64':
         x = tf.cast(x, 'float64')

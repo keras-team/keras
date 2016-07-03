@@ -9,7 +9,7 @@ except ImportError:
     from theano.sandbox.softsign import softsign as T_softsign
 import inspect
 import numpy as np
-from .common import _FLOATX, _EPSILON
+from .common import _FLOATX, _EPSILON, _IMAGE_DIM_ORDERING
 
 
 # INTERNAL UTILS
@@ -810,8 +810,10 @@ def l2_normalize(x, axis):
 
 # CONVOLUTIONS
 
-def conv2d(x, kernel, strides=(1, 1), border_mode='valid', dim_ordering='th',
-           image_shape=None, filter_shape=None):
+def conv2d(x, kernel, strides=(1, 1), border_mode='valid',
+           dim_ordering=_IMAGE_DIM_ORDERING,
+           image_shape=None, filter_shape=None, output_shape=None,
+           transpose=False, atrous=False, atrous_rate=1):
     '''
     border_mode: string, "same" or "valid".
     '''
@@ -855,11 +857,16 @@ def conv2d(x, kernel, strides=(1, 1), border_mode='valid', dim_ordering='th',
     if filter_shape is not None:
         filter_shape = tuple(int_or_none(v) for v in filter_shape)
 
-    conv_out = T.nnet.conv2d(x, kernel,
-                             border_mode=th_border_mode,
-                             subsample=strides,
-                             input_shape=image_shape,
-                             filter_shape=filter_shape)
+    if transpose:
+        raise NotImplementedError
+    elif atrous:
+        raise NotImplementedError
+    else:
+        conv_out = T.nnet.conv2d(x, kernel,
+                                 border_mode=th_border_mode,
+                                 subsample=strides,
+                                 input_shape=image_shape,
+                                 filter_shape=filter_shape)
 
     if border_mode == 'same':
         if np_kernel.shape[2] % 2 == 0:
