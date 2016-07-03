@@ -1045,6 +1045,55 @@ def conv2d(x, kernel, strides=(1, 1), border_mode='valid', dim_ordering='th',
     return x
 
 
+def deconv2d(x, kernel, strides=(1, 1), border_mode='valid', dim_ordering='th',
+             image_shape=None, filter_shape=None, output_shape=None):
+    '''2D deconvolution, a.k.a transpose convolution, inverse convolution,
+    convolution gradient, etc.
+
+    # Arguments
+        kernel: kernel tensor.
+        strides: strides tuple (this will upsample the output).
+        border_mode: string, "same" or "valid".
+        dim_ordering: "tf" or "th". Whether to use Theano or TensorFlow dimension ordering
+        in inputs/kernels/ouputs.
+    '''
+    if border_mode == 'same':
+        padding = 'SAME'
+    elif border_mode == 'valid':
+        padding = 'VALID'
+    else:
+        raise Exception('Invalid border mode: ' + str(border_mode))
+
+    strides = (1,) + strides + (1,)
+
+    if _FLOATX == 'float64':
+        # tf conv2d only supports float32
+        x = tf.cast(x, 'float32')
+        kernel = tf.cast(kernel, 'float32')
+
+    if dim_ordering == 'th':
+        # TF uses the last dimension as channel dimension,
+        # instead of the 2nd one. For deconvolutions the kernel channel values
+        # are swapped.
+        # TH input shape: (samples, input_depth, rows, cols)
+        # TF input shape: (samples, rows, cols, input_depth)
+        # TH kernel shape: (depth, input_depth, rows, cols)
+        # TF kernel shape: (rows, cols, depth, input_depth)
+        x = tf.transpose(x, (0, 2, 3, 1))
+        kernel = tf.transpose(kernel, (2, 3, 0, 1))
+        x = tf.nn.conv2d_transpose(x, kernel, output_shape=output_shape, strides=strides, padding=padding)
+        x = tf.transpose(x, (0, 3, 1, 2))
+    elif dim_ordering == 'tf':
+        kernel = tf.transpose(kernel, (0, 1, 3, 2))
+        x = tf.nn.conv2d_transpose(x, kernel, output_shape=output_shape, strides=strides, padding=padding)
+    else:
+        raise Exception('Unknown dim_ordering: ' + str(dim_ordering))
+
+    if _FLOATX == 'float64':
+        x = tf.cast(x, 'float64')
+    return x
+
+
 def pool2d(x, pool_size, strides=(1, 1),
            border_mode='valid', dim_ordering='th', pool_mode='max'):
     '''2D Pooling.

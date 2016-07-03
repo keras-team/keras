@@ -872,6 +872,71 @@ def conv2d(x, kernel, strides=(1, 1), border_mode='valid', dim_ordering='th',
     return conv_out
 
 
+def deconv2d(x, kernel, strides=(1, 1), border_mode='valid', dim_ordering='th',
+             image_shape=None, filter_shape=None, output_shape=None):
+    '''
+    border_mode: string, "same" or "valid".
+    '''
+    if dim_ordering not in {'th', 'tf'}:
+        raise Exception('Unknown dim_ordering ' + str(dim_ordering))
+
+    if dim_ordering == 'tf':
+        # TF uses the last dimension as channel dimension,
+        # instead of the 2nd one.
+        # TH input shape: (samples, input_depth, rows, cols)
+        # TF input shape: (samples, rows, cols, input_depth)
+        # TH kernel shape: (depth, input_depth, rows, cols)
+        # TF kernel shape: (rows, cols, input_depth, depth)
+        x = x.dimshuffle((0, 3, 1, 2))
+        kernel = kernel.dimshuffle((3, 2, 0, 1))
+        if image_shape:
+            image_shape = (image_shape[0], image_shape[3],
+                           image_shape[1], image_shape[2])
+        if filter_shape:
+            filter_shape = (filter_shape[3], filter_shape[2],
+                            filter_shape[0], filter_shape[1])
+
+    if border_mode == 'same':
+        th_border_mode = 'half'
+        np_kernel = kernel.eval()
+    elif border_mode == 'valid':
+        th_border_mode = 'valid'
+    else:
+        raise Exception('Border mode not supported: ' + str(border_mode))
+
+    # Theano might not accept long type
+    def int_or_none(value):
+        try:
+            return int(value)
+        except TypeError:
+            return None
+
+    if image_shape is not None:
+        image_shape = tuple(int_or_none(v) for v in image_shape)
+
+    if filter_shape is not None:
+        filter_shape = tuple(int_or_none(v) for v in filter_shape)
+
+    op = T.nnet.abstract_conv.AbstractConv2d_gradInputs(
+        imshp=output_shape,
+        kshp=filter_shape,
+        subsample=strides, border_mode=th_border_mode,
+        filter_flip=True)
+    output_size = output_shape[2:]
+    conv_out = op(kernel, input, output_size)
+
+    if border_mode == 'same':
+        if np_kernel.shape[2] % 2 == 0:
+            conv_out = conv_out[:, :, :(x.shape[2] + strides[0] - 1) // strides[0], :]
+        if np_kernel.shape[3] % 2 == 0:
+            conv_out = conv_out[:, :, :, :(x.shape[3] + strides[1] - 1) // strides[1]]
+
+    if dim_ordering == 'tf':
+        conv_out = conv_out.dimshuffle((0, 2, 3, 1))
+    return conv_out
+
+
+
 def conv3d(x, kernel, strides=(1, 1, 1),
            border_mode='valid', dim_ordering='th',
            volume_shape=None, filter_shape=None):

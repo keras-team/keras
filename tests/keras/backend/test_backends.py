@@ -57,7 +57,7 @@ def check_composed_tensor_operations(first_function_name, first_function_args,
     ztf = KTF.eval(getattr(KTF, second_function_name)(ytf, **second_function_args))
 
     assert zth.shape == ztf.shape
-    assert_allclose(zth, ztf, atol=1e-05)   
+    assert_allclose(zth, ztf, atol=1e-05)
 
 class TestBackend(object):
 
@@ -90,8 +90,8 @@ class TestBackend(object):
         check_single_tensor_operation('expand_dims', (4, 3), dim=-1)
         check_single_tensor_operation('expand_dims', (4, 3, 2), dim=1)
         check_single_tensor_operation('squeeze', (4, 3, 1), axis=2)
-        check_composed_tensor_operations('reshape', {'shape':(4,3,1,1)}, 
-                                         'squeeze', {'axis':2}, 
+        check_composed_tensor_operations('reshape', {'shape':(4,3,1,1)},
+                                         'squeeze', {'axis':2},
                                          (4, 3, 1, 1))
 
     def test_repeat_elements(self):
@@ -449,6 +449,48 @@ class TestBackend(object):
 
         assert zth.shape == ztf.shape
         assert_allclose(zth, ztf, atol=1e-05)
+
+    def test_deconv2d(self):
+        # TH kernel shape: (depth, input_depth, rows, cols)
+        # TF kernel shape: (rows, cols, input_depth, depth)
+
+        for input_shape in [(2, 3, 4, 5), (2, 3, 5, 6)]:
+            for kernel_shape in [(4, 3, 2, 2), (4, 3, 3, 4)]:
+                xval = np.random.random(input_shape)
+
+                xth = KTH.variable(xval)
+                xtf = KTF.variable(xval)
+
+                kernel_val = np.random.random(kernel_shape) - 0.5
+
+                kernel_th = KTH.variable(convert_kernel(kernel_val))
+                kernel_tf = KTF.variable(kernel_val)
+
+                zth = KTH.eval(KTH.deconv2d(xth, kernel_th, output_shape=input_shape))
+                ztf = KTF.eval(KTF.deconv2d(xtf, kernel_tf, output_shape=input_shape))
+
+                assert zth.shape == ztf.shape
+                assert_allclose(zth, ztf, atol=1e-05)
+
+        input_shape = (1, 6, 5, 3)
+        kernel_shape = (3, 3, 3, 2)
+
+        xval = np.random.random(input_shape)
+
+        xth = KTH.variable(xval)
+        xtf = KTF.variable(xval)
+
+        kernel_val = np.random.random(kernel_shape) - 0.5
+
+        kernel_th = KTH.variable(convert_kernel(kernel_val, dim_ordering='tf'))
+        kernel_tf = KTF.variable(kernel_val)
+
+        zth = KTH.eval(KTH.deconv2d(xth, kernel_th, dim_ordering='tf', output_shape=input_shape))
+        ztf = KTF.eval(KTF.deconv2d(xtf, kernel_tf, dim_ordering='tf', output_shape=input_shape))
+
+        assert zth.shape == ztf.shape
+        assert_allclose(zth, ztf, atol=1e-05)
+
 
     def test_pool2d(self):
         check_single_tensor_operation('pool2d', (5, 3, 10, 12), pool_size=(2, 2),
