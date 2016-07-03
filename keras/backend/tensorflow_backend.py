@@ -1099,6 +1099,21 @@ def atrous_conv2d(x, kernel, rate=1,
     return _postprocess_conv_output(x, dim_ordering)
 
 
+def separable_conv2d(x, depthwise_kernel, pointwise_kernel, strides=(1, 1),
+                     border_mode='valid', dim_ordering=_IMAGE_DIM_ORDERING):
+    assert dim_ordering in {'tf', 'th'}
+
+    x = _preprocess_conv_input(x, dim_ordering)
+    depthwise_kernel = _preprocess_conv_kernel(depthwise_kernel, dim_ordering)
+    pointwise_kernel = _preprocess_conv_kernel(pointwise_kernel, dim_ordering)
+    padding = _preprocess_border_mode(border_mode)
+    strides = (1,) + strides + (1,)
+
+    tf.nn.separable_conv2d(x, depthwise_kernel, pointwise_kernel,
+                           strides, padding)
+    return _postprocess_conv_output(x, dim_ordering)
+
+
 def conv3d(x, kernel, strides=(1, 1, 1),
            border_mode='valid', dim_ordering='th',
            volume_shape=None, filter_shape=None):

@@ -880,9 +880,10 @@ def conv2d(x, kernel, strides=(1, 1), border_mode='valid',
     return conv_out
 
 
-def deconv2d(x, kernel, strides=(1, 1), border_mode='valid',
+def deconv2d(x, kernel, output_shape, strides=(1, 1),
+             border_mode='valid',
              dim_ordering=_IMAGE_DIM_ORDERING,
-             image_shape=None, filter_shape=None, output_shape=None):
+             image_shape=None, filter_shape=None):
     raise NotImplementedError
 
 
@@ -890,6 +891,11 @@ def atrous_conv2d(x, kernel, rate=1,
                   border_mode='valid',
                   dim_ordering=_IMAGE_DIM_ORDERING,
                   image_shape=None, filter_shape=None):
+    raise NotImplementedError
+
+
+def separable_conv2d(x, depthwise_kernel, pointwise_kernel, strides=(1, 1),
+                     border_mode='valid', dim_ordering=_IMAGE_DIM_ORDERING):
     raise NotImplementedError
 
 
