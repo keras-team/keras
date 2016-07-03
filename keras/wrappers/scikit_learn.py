@@ -1,266 +1,288 @@
 from __future__ import absolute_import
-import abc
 import copy
+import inspect
+import types
 import numpy as np
 
 from ..utils.np_utils import to_categorical
+from ..models import Sequential
 
 
 class BaseWrapper(object):
-    """
-    Base class for the Keras scikit-learn wrapper.
+    '''Base class for the Keras scikit-learn wrapper.
 
-    Warning: This class should not be used directly. Use derived classes instead.
+    Warning: This class should not be used directly.
+    Use descendant classes instead.
 
-    Parameters
-    ----------
-    train_batch_size : int, optional
-        Number of training samples evaluated at a time.
-    test_batch_size : int, optional
-        Number of test samples evaluated at a time.
-    nb_epochs : int, optional
-        Number of training epochs.
-    shuffle : boolean, optional
-        Whether to shuffle the samples at each epoch.
-    show_accuracy : boolean, optional
-        Whether to display class accuracy in the logs at each epoch.
-    validation_split : float [0, 1], optional
-        Fraction of the data to use as held-out validation data.
-    validation_data : tuple (X, y), optional
-        Data to be used as held-out validation data. Will override validation_split.
-    callbacks : list, optional
-        List of callbacks to apply during training.
-    verbose : int, optional
-        Verbosity level.
-    """
-    __metaclass__ = abc.ABCMeta
+    # Arguments
+        build_fn: callable function or class instance
+        sk_params: model parameters & fitting parameters
 
-    @abc.abstractmethod
-    def __init__(self, model, optimizer, loss,
-                 train_batch_size=128, test_batch_size=128,
-                 nb_epoch=100, shuffle=True, show_accuracy=False,
-                 validation_split=0, validation_data=None, callbacks=None,
-                 verbose=0,):
-        self.model = model
-        self.optimizer = optimizer
-        self.loss = loss
-        self.compiled_model_ = None
-        self.classes_ = []
-        self.config_ = []
-        self.weights_ = []
+    The build_fn should construct, compile and return a Keras model, which
+    will then be used to fit/predict. One of the following
+    three values could be passed to build_fn:
+    1. A function
+    2. An instance of a class that implements the __call__ method
+    3. None. This means you implement a class that inherits from either
+    `KerasClassifier` or `KerasRegressor`. The __call__ method of the
+    present class will then be treated as the default build_fn.
 
-        self.train_batch_size = train_batch_size
-        self.test_batch_size = test_batch_size
-        self.nb_epoch = nb_epoch
-        self.shuffle = shuffle
-        self.show_accuracy = show_accuracy
-        self.validation_split = validation_split
-        self.validation_data = validation_data
-        self.callbacks = [] if callbacks is None else callbacks
+    `sk_params` takes both model parameters and fitting parameters. Legal model
+    parameters are the arguments of `build_fn`. Note that like all other
+    estimators in scikit-learn, 'build_fn' should provide default values for
+    its arguments, so that you could create the estimator without passing any
+    values to `sk_params`.
 
-        self.verbose = verbose
+    `sk_params` could also accept parameters for calling `fit`, `predict`,
+    `predict_proba`, and `score` methods (e.g., `nb_epoch`, `batch_size`).
+    fitting (predicting) parameters are selected in the following order:
+
+    1. Values passed to the dictionary arguments of
+    `fit`, `predict`, `predict_proba`, and `score` methods
+    2. Values passed to `sk_params`
+    3. The default values of the `keras.models.Sequential`
+    `fit`, `predict`, `predict_proba` and `score` methods
+
+    When using scikit-learn's `grid_search` API, legal tunable parameters are
+    those you could pass to `sk_params`, including fitting parameters.
+    In other words, you could use `grid_search` to search for the best
+    `batch_size` or `nb_epoch` as well as the model parameters.
+    '''
+
+    def __init__(self, build_fn=None, **sk_params):
+        self.build_fn = build_fn
+        self.sk_params = sk_params
+        self.check_params(sk_params)
+
+    def check_params(self, params):
+        '''Check for user typos in "params" keys to avoid
+        unwanted usage of default values
+
+        # Arguments
+            params: dictionary
+                The parameters to be checked
+        '''
+        legal_params_fns = [Sequential.fit, Sequential.predict,
+                            Sequential.predict_classes, Sequential.evaluate]
+        if self.build_fn is None:
+            legal_params_fns.append(self.__call__)
+        elif not isinstance(self.build_fn, types.FunctionType):
+            legal_params_fns.append(self.build_fn.__call__)
+        else:
+            legal_params_fns.append(self.build_fn)
+
+        legal_params = []
+        for fn in legal_params_fns:
+            legal_params += inspect.getargspec(fn)[0]
+        legal_params = set(legal_params)
+
+        for params_name in params:
+            if params_name not in legal_params:
+                assert False, '{} is not a legal parameter'.format(params_name)
 
     def get_params(self, deep=True):
-        """
-        Get parameters for this estimator.
+        '''Get parameters for this estimator.
 
-        Parameters
-        ----------
-        deep: boolean, optional
-            If True, will return the parameters for this estimator and
-            contained subobjects that are estimators.
+        # Arguments
+            deep: boolean, optional
+                If True, will return the parameters for this estimator and
+                contained sub-objects that are estimators.
 
-        Returns
-        -------
-        params : dict
-            Dictionary of parameter names mapped to their values.
-        """
-        return {'model': self.model, 'optimizer': self.optimizer, 'loss': self.loss}
+        # Returns
+            params : dict
+                Dictionary of parameter names mapped to their values.
+        '''
+        res = copy.deepcopy(self.sk_params)
+        res.update({'build_fn': self.build_fn})
+        return res
 
     def set_params(self, **params):
-        """
-        Set the parameters of this estimator.
+        '''Set the parameters of this estimator.
 
-        Parameters
-        ----------
+        # Arguments
         params: dict
             Dictionary of parameter names mapped to their values.
 
-        Returns
-        -------
-        self
-        """
-        for parameter, value in params.items():
-            setattr(self, parameter, value)
+        # Returns
+            self
+        '''
+        self.check_params(params)
+        self.sk_params.update(params)
         return self
 
-    def fit(self, X, y):
-        """
-        Fit the model according to the given training data.
+    def fit(self, X, y, **kwargs):
+        '''Construct a new model with build_fn and fit the model according
+        to the given training data.
 
-        Makes a copy of the un-compiled model definition to use for
-        compilation and fitting, leaving the original definition
-        intact.
+        # Arguments
+            X : array-like, shape `(n_samples, n_features)`
+                Training samples where n_samples in the number of samples
+                and n_features is the number of features.
+            y : array-like, shape `(n_samples,)` or `(n_samples, n_outputs)`
+                True labels for X.
+            kwargs: dictionary arguments
+                Legal arguments are the arguments of `Sequential.fit`
 
-        Parameters
-        ----------
-        X : array-like, shape = (n_samples, n_features)
-            Training samples where n_samples in the number of samples
-            and n_features is the number of features.
-        y : array-like, shape = (n_samples) or (n_samples, n_outputs)
-            True labels for X.
+        # Returns
+            history : object
+                details about the training history at each epoch.
+        '''
 
-        Returns
-        -------
-        history : object
-            Returns details about the training history at each epoch.
-        """
-        if len(y.shape) == 1:
-            self.classes_ = list(np.unique(y))
-            if self.loss == 'categorical_crossentropy':
-                y = to_categorical(y)
+        if self.build_fn is None:
+            self.model = self.__call__(**self.filter_sk_params(self.__call__))
+        elif not isinstance(self.build_fn, types.FunctionType):
+            self.model = self.build_fn(
+                **self.filter_sk_params(self.build_fn.__call__))
         else:
-            self.classes_ = np.arange(0, y.shape[1])
+            self.model = self.build_fn(**self.filter_sk_params(self.build_fn))
 
-        self.compiled_model_ = copy.deepcopy(self.model)
-        self.compiled_model_.compile(optimizer=self.optimizer, loss=self.loss)
-        history = self.compiled_model_.fit(
-            X, y, batch_size=self.train_batch_size, nb_epoch=self.nb_epoch, verbose=self.verbose,
-            shuffle=self.shuffle, show_accuracy=self.show_accuracy,
-            validation_split=self.validation_split, validation_data=self.validation_data,
-            callbacks=self.callbacks)
+        loss_name = self.model.loss
+        if hasattr(loss_name, '__name__'):
+            loss_name = loss_name.__name__
+        if loss_name == 'categorical_crossentropy' and len(y.shape) != 2:
+            y = to_categorical(y)
 
-        self.config_ = self.model.get_config()
-        self.weights_ = self.model.get_weights()
+        fit_args = copy.deepcopy(self.filter_sk_params(Sequential.fit))
+        fit_args.update(kwargs)
+
+        history = self.model.fit(X, y, **fit_args)
 
         return history
 
+    def filter_sk_params(self, fn, override={}):
+        '''Filter sk_params and return those in fn's arguments
+
+        # Arguments
+            fn : arbitrary function
+            override: dictionary, values to override sk_params
+
+        # Returns
+            res : dictionary dictionary containing variables
+                in both sk_params and fn's arguments.
+        '''
+        res = {}
+        fn_args = inspect.getargspec(fn)[0]
+        for name, value in self.sk_params.items():
+            if name in fn_args:
+                res.update({name: value})
+        res.update(override)
+        return res
+
 
 class KerasClassifier(BaseWrapper):
-    """
-    Implementation of the scikit-learn classifier API for Keras.
+    '''Implementation of the scikit-learn classifier API for Keras.
+    '''
 
-    Parameters
-    ----------
-    model : object
-        An un-compiled Keras model object is required to use the scikit-learn wrapper.
-    optimizer : string
-        Optimization method used by the model during compilation/training.
-    loss : string
-        Loss function used by the model during compilation/training.
-    """
-    def __init__(self, model, optimizer='adam', loss='categorical_crossentropy', **kwargs):
-        super(KerasClassifier, self).__init__(model, optimizer, loss, **kwargs)
+    def predict(self, X, **kwargs):
+        '''Returns the class predictions for the given test data.
 
-    def predict(self, X):
-        """
-        Returns the class predictions for the given test data.
+        # Arguments
+            X: array-like, shape `(n_samples, n_features)`
+                Test samples where n_samples in the number of samples
+                and n_features is the number of features.
+            kwargs: dictionary arguments
+                Legal arguments are the arguments of `Sequential.predict_classes`.
 
-        Parameters
-        ----------
-        X : array-like, shape = (n_samples, n_features)
-            Test samples where n_samples in the number of samples
-            and n_features is the number of features.
+        # Returns
+            preds: array-like, shape `(n_samples,)`
+                Class predictions.
+        '''
+        kwargs = self.filter_sk_params(Sequential.predict_classes, kwargs)
+        return self.model.predict_classes(X, **kwargs)
 
-        Returns
-        -------
-        preds : array-like, shape = (n_samples)
-            Class predictions.
-        """
-        return self.compiled_model_.predict_classes(
-            X, batch_size=self.test_batch_size, verbose=self.verbose)
+    def predict_proba(self, X, **kwargs):
+        '''Returns class probability estimates for the given test data.
 
-    def predict_proba(self, X):
-        """
-        Returns class probability estimates for the given test data.
+        # Arguments
+            X: array-like, shape `(n_samples, n_features)`
+                Test samples where n_samples in the number of samples
+                and n_features is the number of features.
+            kwargs: dictionary arguments
+                Legal arguments are the arguments of `Sequential.predict_classes`.
 
-        Parameters
-        ----------
-        X : array-like, shape = (n_samples, n_features)
-            Test samples where n_samples in the number of samples
-            and n_features is the number of features.
+        # Returns
+            proba: array-like, shape `(n_samples, n_outputs)`
+                Class probability estimates.
+                In the case of binary classification,
+                tp match the scikit-learn API,
+                will return an array of shape '(n_samples, 2)'
+                (instead of `(n_sample, 1)` as in Keras).
+        '''
+        kwargs = self.filter_sk_params(Sequential.predict_proba, kwargs)
+        probs = self.model.predict_proba(X, **kwargs)
 
-        Returns
-        -------
-        proba : array-like, shape = (n_samples, n_outputs)
-            Class probability estimates.
-        """
-        return self.compiled_model_.predict_proba(
-            X, batch_size=self.test_batch_size, verbose=self.verbose)
+        # check if binary classification
+        if probs.shape[1] == 1:
+            # first column is probability of class 0 and second is of class 1
+            probs = np.hstack([1 - probs, probs])
+        return probs
 
-    def score(self, X, y):
-        """
-        Returns the mean accuracy on the given test data and labels.
+    def score(self, X, y, **kwargs):
+        '''Returns the mean accuracy on the given test data and labels.
 
-        Parameters
-        ----------
-        X : array-like, shape = (n_samples, n_features)
-            Test samples where n_samples in the number of samples
-            and n_features is the number of features.
-        y : array-like, shape = (n_samples) or (n_samples, n_outputs)
-            True labels for X.
+        # Arguments
+            X: array-like, shape `(n_samples, n_features)`
+                Test samples where n_samples in the number of samples
+                and n_features is the number of features.
+            y: array-like, shape `(n_samples,)` or `(n_samples, n_outputs)`
+                True labels for X.
+            kwargs: dictionary arguments
+                Legal arguments are the arguments of `Sequential.evaluate`.
 
-        Returns
-        -------
-        score : float
-            Mean accuracy of predictions on X wrt. y.
-        """
-        loss, accuracy = self.compiled_model_.evaluate(
-            X, y, batch_size=self.test_batch_size, show_accuracy=True, verbose=self.verbose)
-        return accuracy
+        # Returns
+            score: float
+                Mean accuracy of predictions on X wrt. y.
+        '''
+        kwargs = self.filter_sk_params(Sequential.evaluate, kwargs)
+        outputs = self.model.evaluate(X, y, **kwargs)
+        if type(outputs) is not list:
+            outputs = [outputs]
+        for name, output in zip(self.model.metrics_names, outputs):
+            if name == 'acc':
+                return output
+        raise Exception('The model is not configured to compute accuracy. '
+                        'You should pass `metrics=["accuracy"]` to '
+                        'the `model.compile()` method.')
 
 
 class KerasRegressor(BaseWrapper):
-    """
-    Implementation of the scikit-learn regressor API for Keras.
+    '''Implementation of the scikit-learn regressor API for Keras.
+    '''
 
-    Parameters
-    ----------
-    model : object
-        An un-compiled Keras model object is required to use the scikit-learn wrapper.
-    optimizer : string
-        Optimization method used by the model during compilation/training.
-    loss : string
-        Loss function used by the model during compilation/training.
-    """
-    def __init__(self, model, optimizer='adam', loss='mean_squared_error', **kwargs):
-        super(KerasRegressor, self).__init__(model, optimizer, loss, **kwargs)
+    def predict(self, X, **kwargs):
+        '''Returns predictions for the given test data.
 
-    def predict(self, X):
-        """
-        Returns predictions for the given test data.
+        # Arguments
+            X: array-like, shape `(n_samples, n_features)`
+                Test samples where n_samples in the number of samples
+                and n_features is the number of features.
+            kwargs: dictionary arguments
+                Legal arguments are the arguments of `Sequential.predict`.
+        # Returns
+            preds: array-like, shape `(n_samples,)`
+                Predictions.
+        '''
+        kwargs = self.filter_sk_params(Sequential.predict, kwargs)
+        return self.model.predict(X, **kwargs)
 
-        Parameters
-        ----------
-        X : array-like, shape = (n_samples, n_features)
-            Test samples where n_samples in the number of samples
-            and n_features is the number of features.
+    def score(self, X, y, **kwargs):
+        '''Returns the mean loss on the given test data and labels.
 
-        Returns
-        -------
-        preds : array-like, shape = (n_samples)
-            Predictions.
-        """
-        return self.compiled_model_.predict(
-            X, batch_size=self.test_batch_size, verbose=self.verbose).ravel()
+        # Arguments
+            X: array-like, shape `(n_samples, n_features)`
+                Test samples where n_samples in the number of samples
+                and n_features is the number of features.
+            y: array-like, shape `(n_samples,)`
+                True labels for X.
+            kwargs: dictionary arguments
+                Legal arguments are the arguments of `Sequential.evaluate`.
 
-    def score(self, X, y):
-        """
-        Returns the mean accuracy on the given test data and labels.
-
-        Parameters
-        ----------
-        X : array-like, shape = (n_samples, n_features)
-            Test samples where n_samples in the number of samples
-            and n_features is the number of features.
-        y : array-like, shape = (n_samples)
-            True labels for X.
-
-        Returns
-        -------
-        score : float
-            Loss from predictions on X wrt. y.
-        """
-        loss = self.compiled_model_.evaluate(
-            X, y, batch_size=self.test_batch_size, show_accuracy=False, verbose=self.verbose)
+        # Returns
+            score: float
+                Mean accuracy of predictions on X wrt. y.
+        '''
+        kwargs = self.filter_sk_params(Sequential.evaluate, kwargs)
+        loss = self.model.evaluate(X, y, **kwargs)
+        if type(loss) is list:
+            return loss[0]
         return loss

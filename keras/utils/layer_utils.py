@@ -1,131 +1,99 @@
 from __future__ import print_function
-import inspect
-import numpy as np
-import theano
-import copy
-
-from ..layers.advanced_activations import LeakyReLU, PReLU
-from ..layers.core import Dense, Merge, Dropout, Activation, Reshape, Flatten, RepeatVector, Layer, AutoEncoder, Masking
-from ..layers.core import ActivityRegularization, TimeDistributedDense, AutoEncoder, MaxoutDense
-from ..layers.convolutional import Convolution1D, Convolution2D, MaxPooling1D, MaxPooling2D, ZeroPadding2D
-from ..layers.embeddings import Embedding, WordContextProduct
-from ..layers.noise import GaussianNoise, GaussianDropout
-from ..layers.normalization import BatchNormalization
-from ..layers.recurrent import SimpleRNN, SimpleDeepRNN, GRU, LSTM, JZS1, JZS2, JZS3
-from ..layers import containers
-from .. import regularizers
-from .. import constraints
-
-
-def container_from_config(original_layer_dict, custom_layers={}):
-    layer_dict = copy.deepcopy(original_layer_dict)
-    name = layer_dict.get('name')
-
-    if name == 'Merge':
-        mode = layer_dict.get('mode')
-        layers = layer_dict.get('layers')
-        layer_list = []
-        for layer in layers:
-            init_layer = container_from_config(layer, custom_layers=custom_layers)
-            layer_list.append(init_layer)
-        merge_layer = Merge(layer_list, mode)
-        return merge_layer
-
-    elif name == 'Sequential':
-        layers = layer_dict.get('layers')
-        layer_list = []
-        for layer in layers:
-            init_layer = container_from_config(layer, custom_layers=custom_layers)
-            layer_list.append(init_layer)
-        seq_layer = containers.Sequential(layer_list)
-        return seq_layer
-
-    elif name == 'Graph':
-        graph_layer = containers.Graph()
-        inputs = layer_dict.get('input_config')
-
-        for input in inputs:
-            graph_layer.add_input(**input)
-
-        nodes = layer_dict.get('node_config')
-        for node in nodes:
-            layer = container_from_config(layer_dict['nodes'].get(node['name']),
-                                          custom_layers=custom_layers)
-            node['layer'] = layer
-            graph_layer.add_node(**node)
-
-        outputs = layer_dict.get('output_config')
-        for output in outputs:
-            graph_layer.add_output(**output)
-        return graph_layer
-
-    elif name == 'AutoEncoder':
-        kwargs = {'encoder': container_from_config(layer_dict.get('encoder_config'),
-                                                   custom_layers=custom_layers),
-                  'decoder': container_from_config(layer_dict.get('decoder_config'),
-                                                   custom_layers=custom_layers)}
-        for kwarg in ['output_reconstruction', 'weights']:
-            if kwarg in layer_dict:
-                kwargs[kwarg] = layer_dict[kwarg]
-        return AutoEncoder(**kwargs)
-
-    else:
-        layer_dict.pop('name')
-
-        for k, v in layer_dict.items():
-            # For now, this can only happen for regularizers and constraints
-            if isinstance(v, dict):
-                vname = v.get('name')
-                v.pop('name')
-                if vname in [x for x, y in inspect.getmembers(constraints, predicate=inspect.isclass)]:
-                    layer_dict[k] = constraints.get(vname, v)
-                if vname in [x for x, y in inspect.getmembers(regularizers, predicate=inspect.isclass)]:
-                    layer_dict[k] = regularizers.get(vname, v)
-
-        base_layer = get_layer(name, layer_dict, custom_layers=custom_layers)
-        return base_layer
-
-
-def print_layer_shapes(model, input_shapes):
-    """
-    Utility function to print the shape of the output at each layer of a Model
-
-    Arguments:
-        model: instance of Model / Merge
-        input_shapes: dict (Graph), list of tuples (Merge) or tuple (Sequential)
-    """
-    if model.__class__.__name__ in ['Sequential', 'Merge']:
-        # in this case input_shapes is a tuple, or a list [shape1, shape2]
-        if not isinstance(input_shapes[0], tuple):
-            input_shapes = [input_shapes]
-
-        inputs = model.get_input(train=False)
-        if not isinstance(inputs, list):
-            inputs = [inputs]
-        input_dummy = [np.zeros(shape, dtype=np.float32)
-                       for shape in input_shapes]
-        layers = model.layers
-
-    elif model.__class__.__name__ == 'Graph':
-        # in this case input_shapes is a dictionary
-        inputs = [model.inputs[name].input
-                  for name in model.input_order]
-        input_dummy = [np.zeros(input_shapes[name], dtype=np.float32)
-                       for name in model.input_order]
-        layers = [model.nodes[c['name']] for c in model.node_config]
-
-    print("input shapes : ", input_shapes)
-    for l in layers:
-        shape_f = theano.function(inputs, l.get_output(train=False).shape,
-                                  on_unused_input='ignore')
-        out_shape = tuple(shape_f(*input_dummy))
-        config = l.get_config()
-        print('shape after %s: %s' % (config['name'], out_shape))
-
 
 from .generic_utils import get_from_module
-def get_layer(identifier, kwargs=None, custom_layers={}):
-    # Insert custom layers into globals so they can be accessed by `get_from_module`.
-    for cls_key in custom_layers:
-        globals()[cls_key] = custom_layers[cls_key]
-    return get_from_module(identifier, globals(), 'layer', instantiate=True, kwargs=kwargs)
+from ..layers import *
+from ..models import Model, Sequential, Graph
+from .. import backend as K
+
+
+def layer_from_config(config, custom_objects={}):
+    '''
+    # Arguments
+        config: dict of the form {'class_name': str, 'config': dict}
+        custom_objects: dict mapping class names (or function names)
+            of custom (non-Keras) objects to class/functions
+
+    # Returns
+        Layer instance (may be Model, Sequential, Graph, Layer...)
+    '''
+    # Insert custom layers into globals so they can
+    # be accessed by `get_from_module`.
+    for cls_key in custom_objects:
+        globals()[cls_key] = custom_objects[cls_key]
+
+    class_name = config['class_name']
+
+    if class_name == 'Sequential':
+        layer_class = Sequential
+    elif class_name == 'Graph':
+        layer_class = Graph
+    elif class_name in ['Model', 'Container']:
+        layer_class = Model
+    else:
+        layer_class = get_from_module(class_name, globals(), 'layer',
+                                      instantiate=False)
+    return layer_class.from_config(config['config'])
+
+
+def print_summary(layers, relevant_nodes=None, line_length=100, positions=[.33, .55, .67, 1.]):
+    # line_length: total length of printed lines
+    # positions: relative or absolute positions of log elements in each line
+    if positions[-1] <= 1:
+        positions = [int(line_length * p) for p in positions]
+    # header names for the different log elements
+    to_display = ['Layer (type)', 'Output Shape', 'Param #', 'Connected to']
+
+    def print_row(fields, positions):
+        line = ''
+        for i in range(len(fields)):
+            line += str(fields[i])
+            line = line[:positions[i]]
+            line += ' ' * (positions[i] - len(line))
+        print(line)
+
+    print('_' * line_length)
+    print_row(to_display, positions)
+    print('=' * line_length)
+
+    def print_layer_summary(layer):
+        try:
+            output_shape = layer.output_shape
+        except:
+            output_shape = 'multiple'
+        connections = []
+        for node_index, node in enumerate(layer.inbound_nodes):
+            if relevant_nodes:
+                node_key = layer.name + '_ib-' + str(node_index)
+                if node_key not in relevant_nodes:
+                    # node is node part of the current network
+                    continue
+            for i in range(len(node.inbound_layers)):
+                inbound_layer = node.inbound_layers[i].name
+                inbound_node_index = node.node_indices[i]
+                inbound_tensor_index = node.tensor_indices[i]
+                connections.append(inbound_layer + '[' + str(inbound_node_index) + '][' + str(inbound_tensor_index) + ']')
+
+        name = layer.name
+        cls_name = layer.__class__.__name__
+        if not connections:
+            first_connection = ''
+        else:
+            first_connection = connections[0]
+        fields = [name + ' (' + cls_name + ')', output_shape, layer.count_params(), first_connection]
+        print_row(fields, positions)
+        if len(connections) > 1:
+            for i in range(1, len(connections)):
+                fields = ['', '', '', connections[i]]
+                print_row(fields, positions)
+
+    total_params = 0
+    for i in range(len(layers)):
+        print_layer_summary(layers[i])
+        if i == len(layers) - 1:
+            print('=' * line_length)
+        else:
+            print('_' * line_length)
+        total_params += layers[i].count_params()
+
+    print('Total params: %s' % total_params)
+    print('_' * line_length)

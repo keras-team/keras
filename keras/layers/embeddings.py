@@ -1,47 +1,104 @@
 from __future__ import absolute_import
-import theano
-import theano.tensor as T
 
-from .. import activations, initializations, regularizers, constraints
-from ..layers.core import Layer, MaskedLayer
-from ..utils.theano_utils import sharedX
-
-from ..constraints import unitnorm
+from .. import backend as K
+from .. import initializations, regularizers, constraints
+from ..engine import Layer
 
 
 class Embedding(Layer):
-    '''
-        Turn positive integers (indexes) into denses vectors of fixed size.
-        eg. [[4], [20]] -> [[0.25, 0.1], [0.6, -0.2]]
+    '''Turn positive integers (indexes) into dense vectors of fixed size.
+    eg. [[4], [20]] -> [[0.25, 0.1], [0.6, -0.2]]
 
-        @input_dim: size of vocabulary (highest input integer + 1)
-        @out_dim: size of dense representation
+    This layer can only be used as the first layer in a model.
+
+    # Example
+
+    ```python
+      model = Sequential()
+      model.add(Embedding(1000, 64, input_length=10))
+      # the model will take as input an integer matrix of size (batch, input_length).
+      # the largest integer (i.e. word index) in the input should be no larger than 999 (vocabulary size).
+      # now model.output_shape == (None, 10, 64), where None is the batch dimension.
+
+      input_array = np.random.randint(1000, size=(32, 10))
+
+      model.compile('rmsprop', 'mse')
+      output_array = model.predict(input_array)
+      assert output_array.shape == (32, 10, 64)
+    ```
+
+    # Arguments
+      input_dim: int > 0. Size of the vocabulary, ie.
+          1 + maximum integer index occurring in the input data.
+      output_dim: int >= 0. Dimension of the dense embedding.
+      init: name of initialization function for the weights
+          of the layer (see: [initializations](../initializations.md)),
+          or alternatively, Theano function to use for weights initialization.
+          This parameter is only relevant if you don't pass a `weights` argument.
+      weights: list of Numpy arrays to set as initial weights.
+          The list should have 1 element, of shape `(input_dim, output_dim)`.
+      W_regularizer: instance of the [regularizers](../regularizers.md) module
+        (eg. L1 or L2 regularization), applied to the embedding matrix.
+      W_constraint: instance of the [constraints](../constraints.md) module
+          (eg. maxnorm, nonneg), applied to the embedding matrix.
+      mask_zero: Whether or not the input value 0 is a special "padding"
+          value that should be masked out.
+          This is useful for [recurrent layers](recurrent.md) which may take
+          variable length input. If this is `True` then all subsequent layers
+          in the model need to support masking or an exception will be raised.
+          If mask_zero is set to True, as a consequence, index 0 cannot be
+          used in the vocabulary (input_dim should equal |vocabulary| + 2).
+      input_length: Length of input sequences, when it is constant.
+          This argument is required if you are going to connect
+          `Flatten` then `Dense` layers upstream
+          (without it, the shape of the dense outputs cannot be computed).
+      dropout: float between 0 and 1. Fraction of the embeddings to drop.
+
+    # Input shape
+        2D tensor with shape: `(nb_samples, sequence_length)`.
+
+    # Output shape
+        3D tensor with shape: `(nb_samples, sequence_length, output_dim)`.
+
+    # References
+        - [A Theoretically Grounded Application of Dropout in Recurrent Neural Networks](http://arxiv.org/abs/1512.05287)
     '''
     input_ndim = 2
 
-    def __init__(self, input_dim, output_dim, init='uniform', input_length=None,
-                 W_regularizer=None, activity_regularizer=None, W_constraint=None,
-                 mask_zero=False, weights=None, **kwargs):
+    def __init__(self, input_dim, output_dim,
+                 init='uniform', input_length=None,
+                 W_regularizer=None, activity_regularizer=None,
+                 W_constraint=None,
+                 mask_zero=False,
+                 weights=None, dropout=0., **kwargs):
         self.input_dim = input_dim
         self.output_dim = output_dim
         self.init = initializations.get(init)
         self.input_length = input_length
         self.mask_zero = mask_zero
+        self.dropout = dropout
 
         self.W_constraint = constraints.get(W_constraint)
-        self.constraints = [self.W_constraint]
 
         self.W_regularizer = regularizers.get(W_regularizer)
         self.activity_regularizer = regularizers.get(activity_regularizer)
 
+        if 0. < self.dropout < 1.:
+            self.uses_learning_phase = True
         self.initial_weights = weights
-        kwargs['input_shape'] = (self.input_dim,)
+        kwargs['input_shape'] = (self.input_length,)
+        kwargs['input_dtype'] = 'int32'
         super(Embedding, self).__init__(**kwargs)
 
-    def build(self):
-        self.input = T.imatrix()
-        self.W = self.init((self.input_dim, self.output_dim))
-        self.params = [self.W]
+    def build(self, input_shape):
+        self.W = self.init((self.input_dim, self.output_dim),
+                           name='{}_W'.format(self.name))
+        self.trainable_weights = [self.W]
+
+        self.constraints = {}
+        if self.W_constraint:
+            self.constraints[self.W] = self.W_constraint
+
         self.regularizers = []
         if self.W_regularizer:
             self.W_regularizer.set_param(self.W)
@@ -54,100 +111,39 @@ class Embedding(Layer):
         if self.initial_weights is not None:
             self.set_weights(self.initial_weights)
 
-    def get_output_mask(self, train=None):
-        X = self.get_input(train)
+    def compute_mask(self, x, mask=None):
         if not self.mask_zero:
             return None
         else:
-            return T.ones_like(X) * (1 - T.eq(X, 0))
+            return K.not_equal(x, 0)
 
-    @property
-    def output_shape(self):
-        return (self.input_shape[0], self.input_length, self.output_dim)
+    def get_output_shape_for(self, input_shape):
+        if not self.input_length:
+            input_length = input_shape[1]
+        else:
+            input_length = self.input_length
+        return (input_shape[0], input_length, self.output_dim)
 
-    def get_output(self, train=False):
-        X = self.get_input(train)
-        out = self.W[X]
+    def call(self, x, mask=None):
+        if 0. < self.dropout < 1.:
+            retain_p = 1. - self.dropout
+            B = K.random_binomial((self.input_dim,), p=retain_p) * (1. / retain_p)
+            B = K.expand_dims(B)
+            W = K.in_train_phase(self.W * B, self.W)
+        else:
+            W = self.W
+        out = K.gather(W, x)
         return out
 
     def get_config(self):
-        config = {"name": self.__class__.__name__,
-                  "input_dim": self.input_dim,
-                  "output_dim": self.output_dim,
-                  "init": self.init.__name__,
-                  "max_lenght": self.max_lenght,
-                  "mask_zero": self.mask_zero,
-                  "activity_regularizer": self.activity_regularizer.get_config() if self.activity_regularizer else None,
-                  "W_regularizer": self.W_regularizer.get_config() if self.W_regularizer else None,
-                  "W_constraint": self.W_constraint.get_config() if self.W_constraint else None}
+        config = {'input_dim': self.input_dim,
+                  'output_dim': self.output_dim,
+                  'init': self.init.__name__,
+                  'input_length': self.input_length,
+                  'mask_zero': self.mask_zero,
+                  'activity_regularizer': self.activity_regularizer.get_config() if self.activity_regularizer else None,
+                  'W_regularizer': self.W_regularizer.get_config() if self.W_regularizer else None,
+                  'W_constraint': self.W_constraint.get_config() if self.W_constraint else None,
+                  'dropout': self.dropout}
         base_config = super(Embedding, self).get_config()
-        return dict(list(base_config.items()) + list(config.items()))
-
-
-class WordContextProduct(Layer):
-    '''
-        This layer turns a pair of words (a pivot word + a context word,
-        ie. a word from the same context, or a random, out-of-context word),
-        indentified by their index in a vocabulary, into two dense reprensentations
-        (word representation and context representation).
-
-        Then it returns activation(dot(pivot_embedding, context_embedding)),
-        which can be trained to encode the probability
-        of finding the context word in the context of the pivot word
-        (or reciprocally depending on your training procedure).
-
-        The layer ingests integer tensors of shape:
-        (nb_samples, 2)
-        and outputs a float tensor of shape
-        (nb_samples, 1)
-
-        The 2nd dimension encodes (pivot, context).
-        input_dim is the size of the vocabulary.
-
-        For more context, see Mikolov et al.:
-            Efficient Estimation of Word reprensentations in Vector Space
-            http://arxiv.org/pdf/1301.3781v3.pdf
-    '''
-    input_ndim = 2
-
-    def __init__(self, input_dim, proj_dim=128,
-                 init='uniform', activation='sigmoid', weights=None, **kwargs):
-
-        super(WordContextProduct, self).__init__(**kwargs)
-        self.input_dim = input_dim
-        self.proj_dim = proj_dim
-        self.init = initializations.get(init)
-        self.activation = activations.get(activation)
-
-        self.input = T.imatrix()
-        # two different embeddings for pivot word and its context
-        # because p(w|c) != p(c|w)
-        self.W_w = self.init((input_dim, proj_dim))
-        self.W_c = self.init((input_dim, proj_dim))
-
-        self.params = [self.W_w, self.W_c]
-
-        if weights is not None:
-            self.set_weights(weights)
-
-    @property
-    def output_shape(self):
-        return (self.input_shape[0], 1)
-
-    def get_output(self, train=False):
-        X = self.get_input(train)
-        w = self.W_w[X[:, 0]]  # nb_samples, proj_dim
-        c = self.W_c[X[:, 1]]  # nb_samples, proj_dim
-
-        dot = T.sum(w * c, axis=1)
-        dot = theano.tensor.reshape(dot, (X.shape[0], 1))
-        return self.activation(dot)
-
-    def get_config(self):
-        config = {"name": self.__class__.__name__,
-                  "input_dim": self.input_dim,
-                  "proj_dim": self.proj_dim,
-                  "init": self.init.__name__,
-                  "activation": self.activation.__name__}
-        base_config = super(WordContextProduct, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
