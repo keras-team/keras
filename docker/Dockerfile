@@ -32,11 +32,7 @@ RUN conda install -y python=${python_version} && \
     conda install Pillow scikit-learn notebook pandas matplotlib nose pyyaml six h5py && \
     conda clean -yt
 
-RUN echo '\
-[global]\n\
-floatX = float32\n\
-optimizer=None\n\
-device = gpu' >> /home/keras/.theanorc
+ADD theanorc /home/keras/.theanorc
 
 ENV PYTHONPATH='/src/:$PYTHONPATH'
 
