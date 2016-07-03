@@ -573,7 +573,7 @@ class Sequential(Model):
     def fit_generator(self, generator, samples_per_epoch, nb_epoch,
                       verbose=1, callbacks=[],
                       validation_data=None, nb_val_samples=None,
-                      class_weight=None, max_q_size=10, nb_worker=2, **kwargs):
+                      class_weight=None, max_q_size=10, nb_worker=1, pickle_safe=False, **kwargs):
         '''Fits the model on data generated batch-by-batch by
         a Python generator.
         The generator is run in parallel to the model, for efficiency.
@@ -589,9 +589,6 @@ class Sequential(Model):
                 The generator is expected to loop over its data
                 indefinitely. An epoch finishes when `samples_per_epoch`
                 samples have been seen by the model.
-                Note that because this implementation relies on multiprocessing,
-                the generator should not depend on non picklable arguments
-                which can't be passed easily to subprocesses.
             samples_per_epoch: integer, number of samples to process before
                 going to the next epoch.
             nb_epoch: integer, total number of iterations on the data.
@@ -608,6 +605,10 @@ class Sequential(Model):
                 for the class.
             max_q_size: maximum size for the generator queue
             nb_worker: maximum number of processes to spin up
+            pickle_safe: if True, use process based threading. Note that because
+                this implementation relies on multiprocessing, you should not pass non
+                non picklable arguments to the generator as they can't be passed
+                easily to children processes.
 
         # Returns
             A `History` object.
@@ -631,6 +632,9 @@ class Sequential(Model):
         '''
         if self.model is None:
             raise Exception('The model needs to be compiled before being used.')
+        if nb_worker > 1 and not pickle_safe:
+            warnings.warn('The "nb_worker" argument is deprecated when pickle_safe is False')
+            nb_worker = 1  # For backward compatibility
         if 'show_accuracy' in kwargs:
             kwargs.pop('show_accuracy')
             warnings.warn('The "show_accuracy" argument is deprecated, '
@@ -654,9 +658,10 @@ class Sequential(Model):
                                         nb_val_samples=nb_val_samples,
                                         class_weight=class_weight,
                                         max_q_size=max_q_size,
-                                        nb_worker=nb_worker)
+                                        nb_worker=nb_worker,
+                                        pickle_safe=pickle_safe)
 
-    def evaluate_generator(self, generator, val_samples, max_q_size=10, nb_worker=2, **kwargs):
+    def evaluate_generator(self, generator, val_samples, max_q_size=10, nb_worker=1, pickle_safe=False, **kwargs):
         '''Evaluates the model on a data generator. The generator should
         return the same kind of data as accepted by `test_on_batch`.
 
@@ -664,18 +669,21 @@ class Sequential(Model):
             generator:
                 generator yielding tuples (inputs, targets)
                 or (inputs, targets, sample_weights)
-                Note that because this implementation relies on multiprocessing,
-                the generator should not depend on non picklable arguments
-                which can't be passed easily to subprocesses.
             val_samples:
                 total number of samples to generate from `generator`
                 before returning.
             max_q_size: maximum size for the generator queue
             nb_worker: maximum number of processes to spin up
-
+            pickle_safe: if True, use process based threading. Note that because
+                this implementation relies on multiprocessing, you should not pass non
+                non picklable arguments to the generator as they can't be passed
+                easily to children processes.
         '''
         if self.model is None:
             raise Exception('The model needs to be compiled before being used.')
+        if nb_worker > 1 and not pickle_safe:
+            warnings.warn('The "nb_worker" argument is deprecated when pickle_safe is False')
+            nb_worker = 1  # For backward compatibility
         if 'show_accuracy' in kwargs:
             kwargs.pop('show_accuracy')
             warnings.warn('The "show_accuracy" argument is deprecated, '
@@ -692,32 +700,37 @@ class Sequential(Model):
         return self.model.evaluate_generator(generator,
                                              val_samples,
                                              max_q_size=max_q_size,
-                                             nb_worker=nb_worker)
+                                             nb_worker=nb_worker,
+                                             pickle_safe=pickle_safe)
 
-    def predict_generator(self, generator, val_samples, max_q_size=10, nb_worker=2):
+    def predict_generator(self, generator, val_samples, max_q_size=10, nb_worker=1, pickle_safe=False):
         '''Generates predictions for the input samples from a data generator.
         The generator should return the same kind of data as accepted by
         `predict_on_batch`.
 
         # Arguments
             generator: generator yielding batches of input samples.
-                Note that because this implementation relies on multiprocessing,
-                the generator should not depend on non picklable arguments
-                which can't be passed easily to subprocesses.
             val_samples: total number of samples to generate from `generator`
                 before returning.
             max_q_size: maximum size for the generator queue
             nb_worker: maximum number of processes to spin up
-
+            pickle_safe: if True, use process based threading. Note that because
+                this implementation relies on multiprocessing, you should not pass non
+                non picklable arguments to the generator as they can't be passed
+                easily to children processes.
 
         # Returns
             A Numpy array of predictions.
         '''
         if self.model is None:
             self.build()
+        if nb_worker > 1 and not pickle_safe:
+            warnings.warn('The "nb_worker" argument is deprecated when pickle_safe is False')
+            nb_worker = 1  # For backward compatibility
         return self.model.predict_generator(generator, val_samples,
                                             max_q_size=max_q_size,
-                                            nb_worker=nb_worker)
+                                            nb_worker=nb_worker,
+                                            pickle_safe=pickle_safe)
 
     def get_config(self):
         '''Returns the model configuration

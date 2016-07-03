@@ -38,7 +38,16 @@ def test_multiprocessing_training():
                         nb_epoch=1,
                         verbose=1,
                         max_q_size=10,
-                        nb_worker=2)
+                        nb_worker=4,
+                        pickle_safe=True)
+
+    model.fit_generator(myGenerator(),
+                        samples_per_epoch=320,
+                        nb_epoch=1,
+                        verbose=1,
+                        max_q_size=10,
+                        pickle_safe=False)
+
     reached_end = True
 
     assert reached_end
@@ -80,7 +89,15 @@ def test_multiprocessing_training_fromfile():
                         nb_epoch=1,
                         verbose=1,
                         max_q_size=10,
-                        nb_worker=2)
+                        nb_worker=2,
+                        pickle_safe=True)
+
+    model.fit_generator(myGenerator(),
+                        samples_per_epoch=320,
+                        nb_epoch=1,
+                        verbose=1,
+                        max_q_size=10,
+                        pickle_safe=False)
     reached_end = True
 
     assert reached_end
@@ -114,7 +131,12 @@ def test_multiprocessing_predicting():
     model.predict_generator(myGenerator(),
                             val_samples=320,
                             max_q_size=10,
-                            nb_worker=2)
+                            nb_worker=2,
+                            pickle_safe=True)
+    model.predict_generator(myGenerator(),
+                            val_samples=320,
+                            max_q_size=10,
+                            pickle_safe=False)
     reached_end = True
 
     assert reached_end
@@ -151,7 +173,12 @@ def test_multiprocessing_evaluating():
     model.evaluate_generator(myGenerator(),
                              val_samples=320,
                              max_q_size=10,
-                             nb_worker=2)
+                             nb_worker=2,
+                             pickle_safe=True)
+    model.evaluate_generator(myGenerator(),
+                             val_samples=320,
+                             max_q_size=10,
+                             pickle_safe=False)
     reached_end = True
 
     assert reached_end
