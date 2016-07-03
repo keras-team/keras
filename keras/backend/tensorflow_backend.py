@@ -998,58 +998,108 @@ def l2_normalize(x, axis):
 
 # CONVOLUTIONS
 
+def _preprocess_conv_input(x, dim_ordering):
+    if _FLOATX == 'float64':
+        x = tf.cast(x, 'float32')
+    if dim_ordering == 'th':
+        # TF uses the last dimension as channel dimension,
+        # instead of the 2nd one.
+        # TH input shape: (samples, input_depth, rows, cols)
+        # TF input shape: (samples, rows, cols, input_depth)
+        x = tf.transpose(x, (0, 2, 3, 1))
+    return x
 
-def conv2d(x, kernel, strides=(1, 1), border_mode='valid',
-           dim_ordering=_IMAGE_DIM_ORDERING,
-           image_shape=None, filter_shape=None, output_shape=None,
-           transpose=False, atrous=False, atrous_rate=1):
-    '''2D convolution.
 
-    # Arguments
-        kernel: kernel tensor.
-        strides: strides tuple.
-        border_mode: string, "same" or "valid".
-        dim_ordering: "tf" or "th". Whether to use Theano or TensorFlow dimension ordering
-        in inputs/kernels/ouputs.
-    '''
-    assert dim_ordering in {'tf', 'th'}
+def _preprocess_conv_kernel(kernel, dim_ordering):
+    if _FLOATX == 'float64':
+        kernel = tf.cast(kernel, 'float32')
+    if dim_ordering == 'th':
+        # TF uses the last dimension as channel dimension,
+        # instead of the 2nd one.
+        # TH kernel shape: (depth, input_depth, rows, cols)
+        # TF kernel shape: (rows, cols, input_depth, depth)
+        kernel = tf.transpose(kernel, (2, 3, 1, 0))
+    return kernel
+
+
+def _preprocess_border_mode(border_mode):
     if border_mode == 'same':
         padding = 'SAME'
     elif border_mode == 'valid':
         padding = 'VALID'
     else:
         raise Exception('Invalid border mode: ' + str(border_mode))
+    return padding
 
-    strides = (1,) + strides + (1,)
 
-    if _FLOATX == 'float64':
-        # tf conv2d only supports float32
-        x = tf.cast(x, 'float32')
-        kernel = tf.cast(kernel, 'float32')
-
-    if dim_ordering == 'th':
-        # TF uses the last dimension as channel dimension,
-        # instead of the 2nd one.
-        # TH input shape: (samples, input_depth, rows, cols)
-        # TF input shape: (samples, rows, cols, input_depth)
-        # TH kernel shape: (depth, input_depth, rows, cols)
-        # TF kernel shape: (rows, cols, input_depth, depth)
-        x = tf.transpose(x, (0, 2, 3, 1))
-        kernel = tf.transpose(kernel, (2, 3, 1, 0))
-
-    if transpose:
-        raise NotImplementedError
-    elif atrous:
-        raise NotImplementedError
-    else:
-        x = tf.nn.conv2d(x, kernel, strides, padding=padding)
-
+def _postprocess_conv_output(x, dim_ordering):
     if dim_ordering == 'th':
         x = tf.transpose(x, (0, 3, 1, 2))
 
     if _FLOATX == 'float64':
         x = tf.cast(x, 'float64')
     return x
+
+
+def conv2d(x, kernel, strides=(1, 1), border_mode='valid',
+           dim_ordering=_IMAGE_DIM_ORDERING,
+           image_shape=None, filter_shape=None):
+    '''2D convolution.
+
+    # Arguments
+        kernel: kernel tensor.
+        strides: strides tuple.
+        border_mode: string, "same" or "valid".
+        dim_ordering: "tf" or "th".
+            Whether to use Theano or TensorFlow dimension ordering
+        in inputs/kernels/ouputs.
+    '''
+    assert dim_ordering in {'tf', 'th'}
+
+    x = _preprocess_conv_input(x, dim_ordering)
+    kernel = _preprocess_conv_kernel(kernel, dim_ordering)
+    padding = _preprocess_border_mode(border_mode)
+    strides = (1,) + strides + (1,)
+
+    x = tf.nn.conv2d(x, kernel, strides, padding=padding)
+    return _postprocess_conv_output(x, dim_ordering)
+
+
+def deconv2d(x, kernel, strides=(1, 1), border_mode='valid',
+             dim_ordering=_IMAGE_DIM_ORDERING,
+             image_shape=None, filter_shape=None, output_shape=None):
+    assert dim_ordering in {'tf', 'th'}
+
+    x = _preprocess_conv_input(x, dim_ordering)
+    kernel = _preprocess_conv_kernel(kernel, dim_ordering)
+    padding = _preprocess_border_mode(border_mode)
+    strides = (1,) + strides + (1,)
+
+    x = tf.nn.conv2d(x, kernel, strides, padding=padding)
+    return _postprocess_conv_output(x, dim_ordering)
+
+
+def atrous_conv2d(x, kernel, rate=1,
+                  border_mode='valid',
+                  dim_ordering=_IMAGE_DIM_ORDERING,
+                  image_shape=None, filter_shape=None):
+    assert dim_ordering in {'tf', 'th'}
+    if rate == 1:
+        return conv2d(x, kernel, strides=(1, 1), border_mode=border_mode,
+                      dim_ordering=dim_ordering)
+
+    x = _preprocess_conv_input(x, dim_ordering)
+    kernel = _preprocess_conv_kernel(kernel, dim_ordering)
+    padding = _preprocess_border_mode(border_mode)
+
+    x = tf.nn.atrous_conv2d(x, kernel, rate, padding)
+    return _postprocess_conv_output(x, dim_ordering)
+
+
+def conv3d(x, kernel, strides=(1, 1, 1),
+           border_mode='valid', dim_ordering='th',
+           volume_shape=None, filter_shape=None):
+    raise NotImplementedError
 
 
 def pool2d(x, pool_size, strides=(1, 1),
@@ -1063,43 +1113,22 @@ def pool2d(x, pool_size, strides=(1, 1),
         dim_ordering: one of "th", "tf".
         pool_mode: one of "max", "avg".
     '''
-    if border_mode == 'same':
-        padding = 'SAME'
-    elif border_mode == 'valid':
-        padding = 'VALID'
-    else:
-        raise Exception('Invalid border mode: ' + str(border_mode))
+    assert dim_ordering in {'tf', 'th'}
 
+    padding = _preprocess_border_mode(border_mode)
     strides = (1,) + strides + (1,)
     pool_size = (1,) + pool_size + (1,)
 
-    if _FLOATX == 'float64':
-        # tf max_pool only supports float32
-        x = tf.cast(x, 'float32')
+    x = _preprocess_conv_input(x, dim_ordering)
 
-    if dim_ordering in {'tf', 'th'}:
-        if dim_ordering == 'th':
-            # TF uses the last dimension as channel dimension,
-            # instead of the 2nd one.
-            # TH input shape: (samples, input_depth, rows, cols)
-            # TF input shape: (samples, rows, cols, input_depth)
-            # TH kernel shape: (depth, input_depth, rows, cols)
-            # TF kernel shape: (rows, cols, input_depth, depth)
-            x = tf.transpose(x, (0, 2, 3, 1))
-        if pool_mode == 'max':
-            x = tf.nn.max_pool(x, pool_size, strides, padding=padding)
-        elif pool_mode == 'avg':
-            x = tf.nn.avg_pool(x, pool_size, strides, padding=padding)
-        else:
-            raise Exception('Invalid pooling mode: ' + str(pool_mode))
-        if dim_ordering == 'th':
-            x = tf.transpose(x, (0, 3, 1, 2))
+    if pool_mode == 'max':
+        x = tf.nn.max_pool(x, pool_size, strides, padding=padding)
+    elif pool_mode == 'avg':
+        x = tf.nn.avg_pool(x, pool_size, strides, padding=padding)
     else:
-        raise Exception('Unknown dim_ordering: ' + str(dim_ordering))
+        raise Exception('Invalid pooling mode: ' + str(pool_mode))
 
-    if _FLOATX == 'float64':
-        x = tf.cast(x, 'float64')
-    return x
+    return _postprocess_conv_output(x, dim_ordering)
 
 
 # RANDOMNESS

@@ -812,10 +812,16 @@ def l2_normalize(x, axis):
 
 def conv2d(x, kernel, strides=(1, 1), border_mode='valid',
            dim_ordering=_IMAGE_DIM_ORDERING,
-           image_shape=None, filter_shape=None, output_shape=None,
-           transpose=False, atrous=False, atrous_rate=1):
-    '''
-    border_mode: string, "same" or "valid".
+           image_shape=None, filter_shape=None):
+    '''2D convolution.
+
+    # Arguments
+        kernel: kernel tensor.
+        strides: strides tuple.
+        border_mode: string, "same" or "valid".
+        dim_ordering: "tf" or "th".
+            Whether to use Theano or TensorFlow dimension ordering
+        in inputs/kernels/ouputs.
     '''
     if dim_ordering not in {'th', 'tf'}:
         raise Exception('Unknown dim_ordering ' + str(dim_ordering))
@@ -857,16 +863,11 @@ def conv2d(x, kernel, strides=(1, 1), border_mode='valid',
     if filter_shape is not None:
         filter_shape = tuple(int_or_none(v) for v in filter_shape)
 
-    if transpose:
-        raise NotImplementedError
-    elif atrous:
-        raise NotImplementedError
-    else:
-        conv_out = T.nnet.conv2d(x, kernel,
-                                 border_mode=th_border_mode,
-                                 subsample=strides,
-                                 input_shape=image_shape,
-                                 filter_shape=filter_shape)
+    conv_out = T.nnet.conv2d(x, kernel,
+                             border_mode=th_border_mode,
+                             subsample=strides,
+                             input_shape=image_shape,
+                             filter_shape=filter_shape)
 
     if border_mode == 'same':
         if np_kernel.shape[2] % 2 == 0:
@@ -877,6 +878,19 @@ def conv2d(x, kernel, strides=(1, 1), border_mode='valid',
     if dim_ordering == 'tf':
         conv_out = conv_out.dimshuffle((0, 2, 3, 1))
     return conv_out
+
+
+def deconv2d(x, kernel, strides=(1, 1), border_mode='valid',
+             dim_ordering=_IMAGE_DIM_ORDERING,
+             image_shape=None, filter_shape=None, output_shape=None):
+    raise NotImplementedError
+
+
+def atrous_conv2d(x, kernel, rate=1,
+                  border_mode='valid',
+                  dim_ordering=_IMAGE_DIM_ORDERING,
+                  image_shape=None, filter_shape=None):
+    raise NotImplementedError
 
 
 def conv3d(x, kernel, strides=(1, 1, 1),
