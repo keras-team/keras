@@ -1065,9 +1065,10 @@ def conv2d(x, kernel, strides=(1, 1), border_mode='valid',
     return _postprocess_conv_output(x, dim_ordering)
 
 
-def deconv2d(x, kernel, strides=(1, 1), border_mode='valid',
+def deconv2d(x, kernel, output_shape, strides=(1, 1),
+             border_mode='valid',
              dim_ordering=_IMAGE_DIM_ORDERING,
-             image_shape=None, filter_shape=None, output_shape=None):
+             image_shape=None, filter_shape=None):
     assert dim_ordering in {'tf', 'th'}
 
     x = _preprocess_conv_input(x, dim_ordering)
@@ -1075,7 +1076,9 @@ def deconv2d(x, kernel, strides=(1, 1), border_mode='valid',
     padding = _preprocess_border_mode(border_mode)
     strides = (1,) + strides + (1,)
 
-    x = tf.nn.conv2d(x, kernel, strides, padding=padding)
+    # TODO: pre-process output-shape if dim_ordering == th
+    x = tf.nn.conv2d_transpose(x, kernel, output_shape, strides,
+                               padding=padding)
     return _postprocess_conv_output(x, dim_ordering)
 
 
