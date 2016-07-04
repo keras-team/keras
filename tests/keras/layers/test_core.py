@@ -21,7 +21,7 @@ def test_merge():
     inputs = [np.random.random(shape) for shape in input_shapes]
 
     # test functional API
-    for mode in ['sum', 'mul', 'concat', 'ave']:
+    for mode in ['sum', 'mul', 'concat', 'ave', 'max']:
         print(mode)
         input_a = Input(shape=input_shapes[0][1:])
         input_b = Input(shape=input_shapes[1][1:])
