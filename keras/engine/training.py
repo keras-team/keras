@@ -5,6 +5,7 @@ import warnings
 import copy
 import time
 import numpy as np
+import multiprocessing
 import threading
 try:
     import queue
@@ -205,12 +206,12 @@ def check_loss_and_target_compatibility(targets, losses, output_shapes):
                                 '`sparse_categorical_crossentropy` instead, '
                                 'which does expect integer targets.')
         if loss.__name__ in key_losses and shape[1] is not None and y.shape[1] != shape[1]:
-                raise Exception('A target array with shape ' + str(y.shape) +
-                                ' was passed for an output of shape ' + str(shape) +
-                                ' while using as loss `' + loss.__name__ + '`. '
-                                'This loss expects '
-                                'targets to have the same shape '
-                                'as the output.')
+            raise Exception('A target array with shape ' + str(y.shape) +
+                            ' was passed for an output of shape ' + str(shape) +
+                            ' while using as loss `' + loss.__name__ + '`. '
+                            'This loss expects '
+                            'targets to have the same shape '
+                            'as the output.')
 
 
 def collect_metrics(metrics, output_names):
@@ -401,34 +402,58 @@ def standardize_weights(y, sample_weight=None, class_weight=None,
 
 
 def generator_queue(generator, max_q_size=10,
-                    wait_time=0.05, nb_worker=1):
-    '''Builds a threading queue out of a data generator.
+                    wait_time=0.05, nb_worker=1, pickle_safe=False):
+    '''Builds a queue out of a data generator.
+    If pickle_safe, use a multiprocessing approach. Else, use threading.
     Used in `fit_generator`, `evaluate_generator`, `predict_generator`.
+
     '''
-    q = queue.Queue()
-    _stop = threading.Event()
 
-    def data_generator_task():
-        while not _stop.is_set():
-            try:
-                if q.qsize() < max_q_size:
-                    try:
-                        generator_output = next(generator)
-                    except ValueError:
-                        continue
-                    q.put(generator_output)
-                else:
-                    time.sleep(wait_time)
-            except Exception:
-                _stop.set()
-                raise
+    generator_threads = []
+    if pickle_safe:
+        q = multiprocessing.Queue(maxsize=max_q_size)
+        _stop = multiprocessing.Event()
+    else:
+        q = queue.Queue()
+        _stop = threading.Event()
 
-    generator_threads = [threading.Thread(target=data_generator_task)
-                         for _ in range(nb_worker)]
+    try:
 
-    for thread in generator_threads:
-        thread.daemon = True
-        thread.start()
+        def data_generator_task():
+            while not _stop.is_set():
+                try:
+                    if q.qsize() < max_q_size:
+                        try:
+                            generator_output = next(generator)
+                        except ValueError:
+                            continue
+                        q.put(generator_output)
+                    else:
+                        time.sleep(wait_time)
+                except Exception:
+                    _stop.set()
+                    raise
+
+        for i in range(nb_worker):
+            if pickle_safe:
+                # Reset random seed else all children processes share the same seed
+                np.random.seed()
+                thread = multiprocessing.Process(target=data_generator_task)
+            else:
+                thread = threading.Thread(target=data_generator_task)
+            generator_threads.append(thread)
+            thread.daemon = True
+            thread.start()
+
+    except:
+        _stop.set()
+        if pickle_safe:
+            # Terminate all daemon processes
+            for p in generator_threads:
+                if p.is_alive():
+                    p.terminate()
+            q.close()
+        raise
 
     return q, _stop
 
@@ -1035,7 +1060,8 @@ class Model(Container):
             split_at = int(len(x[0]) * (1. - validation_split))
             x, val_x = (slice_X(x, 0, split_at), slice_X(x, split_at))
             y, val_y = (slice_X(y, 0, split_at), slice_X(y, split_at))
-            sample_weights, val_sample_weights = (slice_X(sample_weights, 0, split_at), slice_X(sample_weights, split_at))
+            sample_weights, val_sample_weights = (
+                slice_X(sample_weights, 0, split_at), slice_X(sample_weights, split_at))
             self._make_test_function()
             val_f = self.test_function
             if self.uses_learning_phase:
@@ -1255,7 +1281,7 @@ class Model(Container):
     def fit_generator(self, generator, samples_per_epoch, nb_epoch,
                       verbose=1, callbacks=[],
                       validation_data=None, nb_val_samples=None,
-                      class_weight={}, max_q_size=10):
+                      class_weight={}, max_q_size=10, nb_worker=1, pickle_safe=False):
         '''Fits the model on data generated batch-by-batch by
         a Python generator.
         The generator is run in parallel to the model, for efficiency.
@@ -1286,6 +1312,11 @@ class Model(Container):
             class_weight: dictionary mapping class indices to a weight
                 for the class.
             max_q_size: maximum size for the generator queue
+            nb_worker: maximum number of processes to spin up when using process based threading
+            pickle_safe: if True, use process based threading. Note that because
+                this implementation relies on multiprocessing, you should not pass non
+                non picklable arguments to the generator as they can't be passed
+                easily to children processes.
 
         # Returns
             A `History` object.
@@ -1364,7 +1395,8 @@ class Model(Container):
             self.validation_data = None
 
         # start generator thread storing batches into a queue
-        data_gen_queue, _stop = generator_queue(generator, max_q_size=max_q_size)
+        data_gen_queue, _stop = generator_queue(generator, max_q_size=max_q_size, nb_worker=nb_worker,
+                                                pickle_safe=pickle_safe)
 
         callback_model.stop_training = False
         while epoch < nb_epoch:
@@ -1457,10 +1489,12 @@ class Model(Container):
                 break
 
         _stop.set()
+        if pickle_safe:
+            data_gen_queue.close()
         callbacks.on_train_end()
         return self.history
 
-    def evaluate_generator(self, generator, val_samples, max_q_size=10):
+    def evaluate_generator(self, generator, val_samples, max_q_size=10, nb_worker=1, pickle_safe=False):
         '''Evaluates the model on a data generator. The generator should
         return the same kind of data as accepted by `test_on_batch`.
 
@@ -1472,6 +1506,11 @@ class Model(Container):
                 total number of samples to generate from `generator`
                 before returning.
             max_q_size: maximum size for the generator queue
+            nb_worker: maximum number of processes to spin up when using process based threading
+            pickle_safe: if True, use process based threading. Note that because
+                this implementation relies on multiprocessing, you should not pass non
+                non picklable arguments to the generator as they can't be passed
+                easily to children processes.
 
         # Returns
             Scalar test loss (if the model has a single output and no metrics)
@@ -1485,7 +1524,8 @@ class Model(Container):
         wait_time = 0.01
         all_outs = []
         weights = []
-        data_gen_queue, _stop = generator_queue(generator, max_q_size=max_q_size)
+        data_gen_queue, _stop = generator_queue(generator, max_q_size=max_q_size, nb_worker=nb_worker,
+                                                pickle_safe=pickle_safe)
 
         while processed_samples < val_samples:
             generator_output = None
@@ -1529,6 +1569,8 @@ class Model(Container):
             weights.append(nb_samples)
 
         _stop.set()
+        if pickle_safe:
+            data_gen_queue.close()
         if type(outs) is not list:
             return np.average(np.asarray(all_outs),
                               weights=weights)
@@ -1536,10 +1578,10 @@ class Model(Container):
             averages = []
             for i in range(len(outs)):
                 averages.append(np.average([out[i] for out in all_outs],
-                                weights=weights))
+                                           weights=weights))
             return averages
 
-    def predict_generator(self, generator, val_samples, max_q_size=10):
+    def predict_generator(self, generator, val_samples, max_q_size=10, nb_worker=1, pickle_safe=False):
         '''Generates predictions for the input samples from a data generator.
         The generator should return the same kind of data as accepted by
         `predict_on_batch`.
@@ -1549,6 +1591,11 @@ class Model(Container):
             val_samples: total number of samples to generate from `generator`
                 before returning.
             max_q_size: maximum size for the generator queue
+            nb_worker: maximum number of processes to spin up when using process based threading
+            pickle_safe: if True, use process based threading. Note that because
+                this implementation relies on multiprocessing, you should not pass non
+                non picklable arguments to the generator as they can't be passed
+                easily to children processes.
 
         # Returns
             Numpy array(s) of predictions.
@@ -1558,7 +1605,8 @@ class Model(Container):
         processed_samples = 0
         wait_time = 0.01
         all_outs = []
-        data_gen_queue, _stop = generator_queue(generator, max_q_size=max_q_size)
+        data_gen_queue, _stop = generator_queue(generator, max_q_size=max_q_size, nb_worker=nb_worker,
+                                                pickle_safe=pickle_safe)
 
         while processed_samples < val_samples:
             generator_output = None
@@ -1610,6 +1658,8 @@ class Model(Container):
             processed_samples += nb_samples
 
         _stop.set()
+        if pickle_safe:
+            data_gen_queue.close()
         if len(all_outs) == 1:
             return all_outs[0]
         return all_outs
