@@ -1,9 +1,6 @@
 import pytest
-import numpy as np
-from numpy.testing import assert_allclose
 
 from keras.utils.test_utils import layer_test
-from keras import backend as K
 from keras.layers import local
 
 
@@ -74,6 +71,4 @@ def test_locallyconnected_2d():
 
 
 if __name__ == '__main__':
-    # pytest.main([__file__])
-    test_locallyconnected_1d()
-    test_locallyconnected_2d()
+    pytest.main([__file__])
