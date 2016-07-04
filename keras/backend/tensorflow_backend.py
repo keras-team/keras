@@ -1087,7 +1087,8 @@ def conv2d(x, kernel, strides=(1, 1), border_mode='valid',
             Whether to use Theano or TensorFlow dimension ordering
         in inputs/kernels/ouputs.
     '''
-    assert dim_ordering in {'tf', 'th'}
+    if dim_ordering not in {'th', 'tf'}:
+        raise Exception('Unknown dim_ordering ' + str(dim_ordering))
 
     x = _preprocess_conv2d_input(x, dim_ordering)
     kernel = _preprocess_conv2d_kernel(kernel, dim_ordering)
@@ -1102,14 +1103,15 @@ def deconv2d(x, kernel, output_shape, strides=(1, 1),
              border_mode='valid',
              dim_ordering=_IMAGE_DIM_ORDERING,
              image_shape=None, filter_shape=None):
-    assert dim_ordering in {'tf', 'th'}
+    if dim_ordering not in {'th', 'tf'}:
+        raise Exception('Unknown dim_ordering ' + str(dim_ordering))
 
     x = _preprocess_conv2d_input(x, dim_ordering)
     kernel = _preprocess_conv2d_kernel(kernel, dim_ordering)
     padding = _preprocess_border_mode(border_mode)
     strides = (1,) + strides + (1,)
 
-    # TODO: pre-process output-shape if dim_ordering == th
+    # TODO: pre-process output_shape if dim_ordering == th
     x = tf.nn.conv2d_transpose(x, kernel, output_shape, strides,
                                padding=padding)
     return _postprocess_conv2d_output(x, dim_ordering)
@@ -1119,7 +1121,8 @@ def atrous_conv2d(x, kernel, rate=1,
                   border_mode='valid',
                   dim_ordering=_IMAGE_DIM_ORDERING,
                   image_shape=None, filter_shape=None):
-    assert dim_ordering in {'tf', 'th'}
+    if dim_ordering not in {'th', 'tf'}:
+        raise Exception('Unknown dim_ordering ' + str(dim_ordering))
     if rate == 1:
         return conv2d(x, kernel, strides=(1, 1), border_mode=border_mode,
                       dim_ordering=dim_ordering)
@@ -1134,7 +1137,8 @@ def atrous_conv2d(x, kernel, rate=1,
 
 def separable_conv2d(x, depthwise_kernel, pointwise_kernel, strides=(1, 1),
                      border_mode='valid', dim_ordering=_IMAGE_DIM_ORDERING):
-    assert dim_ordering in {'tf', 'th'}
+    if dim_ordering not in {'th', 'tf'}:
+        raise Exception('Unknown dim_ordering ' + str(dim_ordering))
 
     x = _preprocess_conv2d_input(x, dim_ordering)
     depthwise_kernel = _preprocess_conv2d_kernel(depthwise_kernel, dim_ordering)
@@ -1148,9 +1152,10 @@ def separable_conv2d(x, depthwise_kernel, pointwise_kernel, strides=(1, 1),
 
 
 def conv3d(x, kernel, strides=(1, 1, 1),
-           border_mode='valid', dim_ordering='th',
+           border_mode='valid', dim_ordering=_IMAGE_DIM_ORDERING,
            volume_shape=None, filter_shape=None):
-    assert dim_ordering in {'tf', 'th'}
+    if dim_ordering not in {'th', 'tf'}:
+        raise Exception('Unknown dim_ordering ' + str(dim_ordering))
 
     x = _preprocess_conv3d_input(x, dim_ordering)
     kernel = _preprocess_conv3d_kernel(kernel, dim_ordering)
@@ -1162,7 +1167,8 @@ def conv3d(x, kernel, strides=(1, 1, 1),
 
 
 def pool2d(x, pool_size, strides=(1, 1),
-           border_mode='valid', dim_ordering='th', pool_mode='max'):
+           border_mode='valid', dim_ordering=_IMAGE_DIM_ORDERING,
+           pool_mode='max'):
     '''2D Pooling.
 
     # Arguments
@@ -1172,7 +1178,8 @@ def pool2d(x, pool_size, strides=(1, 1),
         dim_ordering: one of "th", "tf".
         pool_mode: one of "max", "avg".
     '''
-    assert dim_ordering in {'tf', 'th'}
+    if dim_ordering not in {'th', 'tf'}:
+        raise Exception('Unknown dim_ordering ' + str(dim_ordering))
 
     padding = _preprocess_border_mode(border_mode)
     strides = (1,) + strides + (1,)
@@ -1191,7 +1198,7 @@ def pool2d(x, pool_size, strides=(1, 1),
 
 
 def pool3d(x, pool_size, strides=(1, 1, 1), border_mode='valid',
-           dim_ordering='th', pool_mode='max'):
+           dim_ordering=_IMAGE_DIM_ORDERING, pool_mode='max'):
     '''3D Pooling.
 
     # Arguments
@@ -1201,7 +1208,8 @@ def pool3d(x, pool_size, strides=(1, 1, 1), border_mode='valid',
         dim_ordering: one of "th", "tf".
         pool_mode: one of "max", "avg".
     '''
-    assert dim_ordering in {'tf', 'th'}
+    if dim_ordering not in {'th', 'tf'}:
+        raise Exception('Unknown dim_ordering ' + str(dim_ordering))
 
     padding = _preprocess_border_mode(border_mode)
     strides = (1,) + strides + (1,)

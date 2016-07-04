@@ -108,7 +108,6 @@ def test_averagepooling_2d():
                            input_shape=(3, 4, 11, 12))
 
 
-@pytest.mark.skipif(K._BACKEND != 'theano', reason="Requires Theano backend")
 def test_convolution_3d():
     nb_samples = 2
     nb_filter = 5
@@ -150,7 +149,6 @@ def test_convolution_3d():
                                     input_len_dim1, input_len_dim2, input_len_dim3))
 
 
-@pytest.mark.skipif(K._BACKEND != 'theano', reason="Requires Theano backend")
 def test_maxpooling_3d():
     pool_size = (3, 3, 3)
 
@@ -162,7 +160,6 @@ def test_maxpooling_3d():
                    input_shape=(3, 4, 11, 12, 10))
 
 
-@pytest.mark.skipif(K._BACKEND != 'theano', reason="Requires Theano backend")
 def test_averagepooling_3d():
     pool_size = (3, 3, 3)
 
