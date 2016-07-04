@@ -451,10 +451,13 @@ class TestBackend(object):
         assert_allclose(zth, ztf, atol=1e-05)
 
     def test_conv3d(self):
-        # TH kernel shape: (depth, input_depth, rows, cols)
-        # TF kernel shape: (rows, cols, input_depth, depth)
+        # TH input shape: (samples, input_depth, conv_dim1, conv_dim2, conv_dim3)
+        # TF input shape: (samples, conv_dim1, conv_dim2, conv_dim3, input_depth)
+        # TH kernel shape: (depth, input_depth, x, y, z)
+        # TF kernel shape: (x, y, z, input_depth, depth)
 
-        for input_shape in [(2, 3, 4, 3, 4), (2, 3, 5, 3, 6)]:
+        # test in dim_ordering = th
+        for input_shape in [(2, 3, 4, 5, 4), (2, 3, 5, 4, 6)]:
             for kernel_shape in [(4, 3, 2, 2, 2), (4, 3, 3, 2, 4)]:
                 xval = np.random.random(input_shape)
 
@@ -472,8 +475,9 @@ class TestBackend(object):
                 assert zth.shape == ztf.shape
                 assert_allclose(zth, ztf, atol=1e-05)
 
-        input_shape = (1, 6, 5, 3, 3)
-        kernel_shape = (3, 3, 3, 2, 2)
+        # test in dim_ordering = tf
+        input_shape = (1, 2, 2, 2, 1)
+        kernel_shape = (2, 2, 2, 1, 1)
 
         xval = np.random.random(input_shape)
 

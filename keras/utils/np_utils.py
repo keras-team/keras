@@ -99,10 +99,10 @@ def convert_kernel(kernel, dim_ordering='th'):
             for i in range(w):
                 for j in range(h):
                     for k in range(z):
-                        new_kernel[i, j, :, :] = kernel[w - i - 1,
-                                                        h - j - 1,
-                                                        z - k - 1,
-                                                        :, :]
+                        new_kernel[i, j, k, :, :] = kernel[w - i - 1,
+                                                           h - j - 1,
+                                                           z - k - 1,
+                                                           :, :]
         else:
             raise Exception('Invalid dim_ordering: ' + str(dim_ordering))
     else:
