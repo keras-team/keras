@@ -1055,7 +1055,7 @@ class Merge(Layer):
             a list of layer instances. Must be more
             than one layer/tensor.
         mode: string or lambda/function. If string, must be one
-            of: 'sum', 'mul', 'concat', 'ave', 'cos', 'dot'.
+            of: 'sum', 'mul', 'concat', 'ave', 'cos', 'dot', 'max'.
             If lambda/function, it should take as input a list of tensors
             and return a single tensor.
         concat_axis: integer, axis to use in mode `concat`.
@@ -1130,7 +1130,7 @@ class Merge(Layer):
         as appropriate.
         '''
         if not hasattr(mode, '__call__'):
-            if mode not in {'sum', 'mul', 'concat', 'ave', 'cos', 'dot'}:
+            if mode not in {'sum', 'mul', 'concat', 'ave', 'cos', 'dot', 'max'}:
                 raise Exception('Invalid merge mode: ' + str(mode))
         if type(layers) not in {list, tuple} or len(layers) < 2:
             raise Exception('A Merge should only be applied to a list of '
@@ -1148,7 +1148,7 @@ class Merge(Layer):
                 layer_output_shape = layer_output_shape[tensor_indices[i]]
             input_shapes.append(layer_output_shape)
 
-        if mode in {'sum', 'mul', 'ave', 'cos'}:
+        if mode in {'sum', 'mul', 'ave', 'cos', 'max'}:
             input_shapes_set = set(input_shapes)
             if len(input_shapes_set) > 1:
                 raise Exception('Only layers of same output shape can '
@@ -1214,7 +1214,11 @@ class Merge(Layer):
             for i in range(1, len(inputs)):
                 s *= inputs[i]
             return s
-
+        elif self.mode == 'max':
+            s = inputs[0]
+            for i in range(1, len(inputs)):
+                s = K.maximum(s, inputs[i])
+            return s
         elif self.mode == 'dot':
             l1 = inputs[0]
             l2 = inputs[1]
@@ -1293,7 +1297,7 @@ class Merge(Layer):
                                 '`output_shape` to Merge.')
         # pre-defined merge modes
         input_shapes = input_shape
-        if self.mode in ['sum', 'mul', 'ave']:
+        if self.mode in ['sum', 'mul', 'ave', 'max']:
             # all tuples in input_shapes should be the same
             return input_shapes[0]
         elif self.mode == 'concat':
