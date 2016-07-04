@@ -9,7 +9,7 @@ except ImportError:
     from theano.sandbox.softsign import softsign as T_softsign
 import inspect
 import numpy as np
-from .common import _FLOATX, _EPSILON
+from .common import _FLOATX, _EPSILON, _IMAGE_DIM_ORDERING
 
 
 # INTERNAL UTILS
@@ -208,6 +208,12 @@ def any(x, axis=None, keepdims=False):
     '''Bitwise reduction (logical OR).
     '''
     return T.any(x, axis=axis, keepdims=keepdims)
+
+
+def all(x, axis=None, keepdims=False):
+    '''Bitwise reduction (logical AND).
+    '''
+    return T.all(x, axis=axis, keepdims=keepdims)
 
 
 def argmax(x, axis=-1):
@@ -804,10 +810,18 @@ def l2_normalize(x, axis):
 
 # CONVOLUTIONS
 
-def conv2d(x, kernel, strides=(1, 1), border_mode='valid', dim_ordering='th',
+def conv2d(x, kernel, strides=(1, 1), border_mode='valid',
+           dim_ordering=_IMAGE_DIM_ORDERING,
            image_shape=None, filter_shape=None):
-    '''
-    border_mode: string, "same" or "valid".
+    '''2D convolution.
+
+    # Arguments
+        kernel: kernel tensor.
+        strides: strides tuple.
+        border_mode: string, "same" or "valid".
+        dim_ordering: "tf" or "th".
+            Whether to use Theano or TensorFlow dimension ordering
+        in inputs/kernels/ouputs.
     '''
     if dim_ordering not in {'th', 'tf'}:
         raise Exception('Unknown dim_ordering ' + str(dim_ordering))
@@ -864,6 +878,25 @@ def conv2d(x, kernel, strides=(1, 1), border_mode='valid', dim_ordering='th',
     if dim_ordering == 'tf':
         conv_out = conv_out.dimshuffle((0, 2, 3, 1))
     return conv_out
+
+
+def deconv2d(x, kernel, output_shape, strides=(1, 1),
+             border_mode='valid',
+             dim_ordering=_IMAGE_DIM_ORDERING,
+             image_shape=None, filter_shape=None):
+    raise NotImplementedError
+
+
+def atrous_conv2d(x, kernel, rate=1,
+                  border_mode='valid',
+                  dim_ordering=_IMAGE_DIM_ORDERING,
+                  image_shape=None, filter_shape=None):
+    raise NotImplementedError
+
+
+def separable_conv2d(x, depthwise_kernel, pointwise_kernel, strides=(1, 1),
+                     border_mode='valid', dim_ordering=_IMAGE_DIM_ORDERING):
+    raise NotImplementedError
 
 
 def conv3d(x, kernel, strides=(1, 1, 1),

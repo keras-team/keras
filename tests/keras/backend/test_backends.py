@@ -173,6 +173,9 @@ class TestBackend(object):
         # does not work yet, wait for bool <-> int casting in TF (coming soon)
         # check_single_tensor_operation('any', (4, 2))
         # check_single_tensor_operation('any', (4, 2), axis=1, keepdims=True)
+        #
+        # check_single_tensor_operation('any', (4, 2))
+        # check_single_tensor_operation('any', (4, 2), axis=1, keepdims=True)
 
         check_single_tensor_operation('argmax', (4, 2))
         check_single_tensor_operation('argmax', (4, 2), axis=1)
@@ -447,6 +450,51 @@ class TestBackend(object):
         assert zth.shape == ztf.shape
         assert_allclose(zth, ztf, atol=1e-05)
 
+    def test_conv3d(self):
+        # TH input shape: (samples, input_depth, conv_dim1, conv_dim2, conv_dim3)
+        # TF input shape: (samples, conv_dim1, conv_dim2, conv_dim3, input_depth)
+        # TH kernel shape: (depth, input_depth, x, y, z)
+        # TF kernel shape: (x, y, z, input_depth, depth)
+
+        # test in dim_ordering = th
+        for input_shape in [(2, 3, 4, 5, 4), (2, 3, 5, 4, 6)]:
+            for kernel_shape in [(4, 3, 2, 2, 2), (4, 3, 3, 2, 4)]:
+                xval = np.random.random(input_shape)
+
+                xth = KTH.variable(xval)
+                xtf = KTF.variable(xval)
+
+                kernel_val = np.random.random(kernel_shape) - 0.5
+
+                kernel_th = KTH.variable(convert_kernel(kernel_val))
+                kernel_tf = KTF.variable(kernel_val)
+
+                zth = KTH.eval(KTH.conv3d(xth, kernel_th))
+                ztf = KTF.eval(KTF.conv3d(xtf, kernel_tf))
+
+                assert zth.shape == ztf.shape
+                assert_allclose(zth, ztf, atol=1e-05)
+
+        # test in dim_ordering = tf
+        input_shape = (1, 2, 2, 2, 1)
+        kernel_shape = (2, 2, 2, 1, 1)
+
+        xval = np.random.random(input_shape)
+
+        xth = KTH.variable(xval)
+        xtf = KTF.variable(xval)
+
+        kernel_val = np.random.random(kernel_shape) - 0.5
+
+        kernel_th = KTH.variable(convert_kernel(kernel_val, dim_ordering='tf'))
+        kernel_tf = KTF.variable(kernel_val)
+
+        zth = KTH.eval(KTH.conv3d(xth, kernel_th, dim_ordering='tf'))
+        ztf = KTF.eval(KTF.conv3d(xtf, kernel_tf, dim_ordering='tf'))
+
+        assert zth.shape == ztf.shape
+        assert_allclose(zth, ztf, atol=1e-05)
+
     def test_pool2d(self):
         check_single_tensor_operation('pool2d', (5, 3, 10, 12), pool_size=(2, 2),
                                       strides=(1, 1), border_mode='valid')
@@ -456,6 +504,16 @@ class TestBackend(object):
 
         check_single_tensor_operation('pool2d', (5, 3, 9, 11), pool_size=(2, 3),
                                       strides=(1, 1), border_mode='valid')
+
+    def test_pool3d(self):
+        check_single_tensor_operation('pool3d', (5, 3, 10, 12, 5), pool_size=(2, 2, 2),
+                                      strides=(1, 1, 1), border_mode='valid')
+
+        check_single_tensor_operation('pool3d', (5, 3, 9, 11, 5), pool_size=(2, 2, 2),
+                                      strides=(1, 1, 1), border_mode='valid')
+
+        check_single_tensor_operation('pool3d', (5, 3, 9, 11, 5), pool_size=(2, 3, 2),
+                                      strides=(1, 1, 1), border_mode='valid')
 
     def test_random_normal(self):
         mean = 0.

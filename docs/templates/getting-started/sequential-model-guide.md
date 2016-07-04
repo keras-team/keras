@@ -92,7 +92,7 @@ Such a two-branch model can then be trained via e.g.:
 
 ```python
 final_model.compile(optimizer='rmsprop', loss='categorical_crossentropy')
-final_model.fit([input_data_1, input_data_2], targets)  # we pass on data array per model input
+final_model.fit([input_data_1, input_data_2], targets)  # we pass one data array per model input
 ```
 
 The `Merge` layer supports a number of pre-defined modes:
@@ -381,7 +381,7 @@ image_model.load_weights('weight_file.h5')
 language_model = Sequential()
 language_model.add(Embedding(vocab_size, 256, input_length=max_caption_len))
 language_model.add(GRU(output_dim=128, return_sequences=True))
-language_model.add(TimeDistributedDense(128))
+language_model.add(TimeDistributed(Dense(128)))
 
 # let's repeat the image vector to turn it into a sequence.
 image_model.add(RepeatVector(max_caption_len))

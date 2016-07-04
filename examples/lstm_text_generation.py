@@ -23,7 +23,7 @@ path = get_file('nietzsche.txt', origin="https://s3.amazonaws.com/text-datasets/
 text = open(path).read().lower()
 print('corpus length:', len(text))
 
-chars = set(text)
+chars = sorted(list(set(text)))
 print('total chars:', len(chars))
 char_indices = dict((c, i) for i, c in enumerate(chars))
 indices_char = dict((i, c) for i, c in enumerate(chars))
@@ -51,7 +51,6 @@ for i, sentence in enumerate(sentences):
 print('Build model...')
 model = Sequential()
 model.add(LSTM(512, return_sequences=True, input_shape=(maxlen, len(chars))))
-model.add(Dropout(0.2))
 model.add(LSTM(512, return_sequences=False))
 model.add(Dropout(0.2))
 model.add(Dense(len(chars)))

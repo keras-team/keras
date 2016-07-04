@@ -1075,9 +1075,12 @@ class Merge(Layer):
         tensor_indices: optional list of indices of output tensors
             to consider for merging
             (in case some input layer node returns multiple tensors).
+        output_mask: mask or lambda/function to compute the output mask (only
+            if merge mode is a lambda/function). If the latter case, it should
+            take as input a list of masks and return a single mask.
     '''
     def __init__(self, layers=None, mode='sum', concat_axis=-1,
-                 dot_axes=-1, output_shape=None,
+                 dot_axes=-1, output_shape=None, output_mask=None,
                  node_indices=None, tensor_indices=None, name=None):
         self.layers = layers
         self.mode = mode
@@ -1087,6 +1090,7 @@ class Merge(Layer):
             self.dot_axes = [self.dot_axes, ] * 2
         self._output_shape = output_shape
         self.node_indices = node_indices
+        self._output_mask = output_mask
 
         # layer parameters
         self.inbound_nodes = []
@@ -1095,7 +1099,7 @@ class Merge(Layer):
         self.regularizers = []
         self.trainable_weights = []
         self.non_trainable_weights = []
-        self.supports_masking = False
+        self.supports_masking = True
         self.uses_learning_phase = False
         self.input_spec = None  # compatible with whatever
         if not name:
@@ -1157,22 +1161,21 @@ class Merge(Layer):
             shape2 = input_shapes[1]
             n1 = len(shape1)
             n2 = len(shape2)
-            if mode == 'dot':
-                if type(dot_axes) == int:
-                    if dot_axes < 0:
-                        dot_axes = [dot_axes % n1, dot_axes % n2]
-                    else:
-                        dot_axes = [n1 - dot_axes, n2-dot_axes]
-                if type(dot_axes) not in [list, tuple]:
-                    raise Exception('Invalid type for dot_axes - should be a list.')
-                if len(dot_axes) != 2:
-                    raise Exception('Invalid format for dot_axes - should contain two elements.')
-                if type(dot_axes[0]) is not int or type(dot_axes[1]) is not int:
-                    raise Exception('Invalid format for dot_axes - list elements should be "int".')
-                if shape1[dot_axes[0]] != shape2[dot_axes[1]]:
-                    raise Exception('Dimension incompatibility using dot mode: ' +
-                                    '%s != %s. ' % (shape1[dot_axes[0]], shape2[dot_axes[1]]) +
-                                    'Layer shapes: %s, %s' % (shape1, shape2))
+            if type(dot_axes) == int:
+                if dot_axes < 0:
+                    dot_axes = [dot_axes % n1, dot_axes % n2]
+                else:
+                    dot_axes = [n1 - dot_axes, n2-dot_axes]
+            if type(dot_axes) not in [list, tuple]:
+                raise Exception('Invalid type for dot_axes - should be a list.')
+            if len(dot_axes) != 2:
+                raise Exception('Invalid format for dot_axes - should contain two elements.')
+            if type(dot_axes[0]) is not int or type(dot_axes[1]) is not int:
+                raise Exception('Invalid format for dot_axes - list elements should be "int".')
+            if shape1[dot_axes[0]] != shape2[dot_axes[1]]:
+                raise Exception('Dimension incompatibility using dot mode: ' +
+                                '%s != %s. ' % (shape1[dot_axes[0]], shape2[dot_axes[1]]) +
+                                'Layer shapes: %s, %s' % (shape1, shape2))
         elif mode == 'concat':
             reduced_inputs_shapes = [list(shape) for shape in input_shapes]
             shape_set = set()
@@ -1305,7 +1308,7 @@ class Merge(Layer):
                     break
                 output_shape[self.concat_axis] += shape[self.concat_axis]
             return tuple(output_shape)
-        elif self.mode == 'dot':
+        elif self.mode in ['dot', 'cos']:
             shape1 = list(input_shapes[0])
             shape2 = list(input_shapes[1])
             dot_axes = [a - 1 for a in self.dot_axes]
@@ -1317,16 +1320,31 @@ class Merge(Layer):
             else:
                 shape = tensordot_output.shape
             return (shape1[0],) + shape
-        elif self.mode == 'cos':
-            return (input_shapes[0][0], 1)
 
-    def compute_mask(self, input, mask=None):
-        '''TODO: add mask merging support
-        '''
-        if mask is not None and any(mask):
-            raise Exception('Merge does not support masking, ' +
-                            'but was passed an input mask: ' + str(mask))
-        return None
+    def compute_mask(self, inputs, mask=None):
+        if mask is None or all([m is None for m in mask]):
+            return None
+
+        assert hasattr(mask, '__len__') and len(mask) == len(inputs)
+
+        if self.mode in ['sum', 'mul', 'ave']:
+            masks = [K.expand_dims(m, 0) for m in mask if m is not None]
+            return K.all(K.concatenate(masks, axis=0), axis=0, keepdims=False)
+        elif self.mode == 'concat':
+            masks = [K.ones_like(inputs[i][:-1]) if m is None else m for i, m in zip(inputs, mask)]
+            expanded_dims = [K.expand_dims(m) for m in masks]
+            concatenated = K.concatenate(expanded_dims, axis=self.concat_axis)
+            return K.all(concatenated, axis=-1, keepdims=False)
+        elif self.mode in ['cos', 'dot']:
+            return None
+        elif hasattr(self.mode, '__call__'):
+            if hasattr(self._output_mask, '__call__'):
+                return self._output_mask(mask)
+            else:
+                return self._output_mask
+        else:
+            # this should have been caught earlier
+            raise Exception('Invalid merge mode: {}'.format(self.mode))
 
     def get_config(self):
         py3 = sys.version_info[0] == 3
@@ -1346,9 +1364,9 @@ class Merge(Layer):
 
         if isinstance(self._output_shape, python_types.LambdaType):
             if py3:
-                output_shape = marshal.dumps(self._output_shape.__code__)
+                output_shape = marshal.dumps(self._output_shape.__code__).decode('raw_unicode_escape')
             else:
-                output_shape = marshal.dumps(self._output_shape.func_code)
+                output_shape = marshal.dumps(self._output_shape.func_code).decode('raw_unicode_escape')
             output_shape_type = 'lambda'
         elif callable(self._output_shape):
             output_shape = self._output_shape.__name__
@@ -1380,7 +1398,7 @@ class Merge(Layer):
         if output_shape_type == 'function':
             output_shape = globals()[config['output_shape']]
         elif output_shape_type == 'lambda':
-            output_shape = marshal.loads(config['output_shape'])
+            output_shape = marshal.loads(config['output_shape'].encode('raw_unicode_escape'))
             output_shape = python_types.FunctionType(output_shape, globals())
         else:
             output_shape = config['output_shape']
@@ -1391,7 +1409,7 @@ class Merge(Layer):
 
 
 def merge(inputs, mode='sum', concat_axis=-1,
-          dot_axes=-1, output_shape=None, name=None):
+          dot_axes=-1, output_shape=None, output_mask=None, name=None):
     '''Functional merge, to apply to Keras tensors (NOT layers).
     Returns a Keras tensor.
 
@@ -1441,6 +1459,7 @@ def merge(inputs, mode='sum', concat_axis=-1,
                             concat_axis=concat_axis,
                             dot_axes=dot_axes,
                             output_shape=output_shape,
+                            output_mask=output_mask,
                             node_indices=node_indices,
                             tensor_indices=tensor_indices,
                             name=name)
@@ -1450,6 +1469,7 @@ def merge(inputs, mode='sum', concat_axis=-1,
                             concat_axis=concat_axis,
                             dot_axes=dot_axes,
                             output_shape=output_shape,
+                            output_mask=output_mask,
                             name=name)
         return merge_layer(inputs)
 
@@ -1574,21 +1594,27 @@ class Container(Layer):
                 raise Exception('Output tensors to a ' + cls_name + ' must be '
                                 'Keras tensors. Found: ' + str(x))
         # build self.output_layers:
-        masks = []
         for x in self.outputs:
             layer, node_index, tensor_index = x._keras_history
             self.output_layers.append(layer)
             self.output_layers_node_indices.append(node_index)
             self.output_layers_tensor_indices.append(tensor_index)
 
-            # also fill in the output mask cache
+        # fill in the output mask cache
+        masks = []
+        for x in self.inputs:
+            layer, node_index, tensor_index = x._keras_history
             node = layer.inbound_nodes[node_index]
             mask = node.output_masks[tensor_index]
             masks.append(mask)
-
-        # output mask cache
         mask_cache_key = ','.join([str(id(x)) for x in self.inputs])
         mask_cache_key += '_' + ','.join([str(id(x)) for x in masks])
+        masks = []
+        for x in self.outputs:
+            layer, node_index, tensor_index = x._keras_history
+            node = layer.inbound_nodes[node_index]
+            mask = node.output_masks[tensor_index]
+            masks.append(mask)
         if len(masks) == 1:
             mask = masks[0]
         else:
@@ -2086,6 +2112,8 @@ class Container(Layer):
                         for x, s in zip(output_tensors, shapes):
                             x._keras_shape = s
                             x._uses_learning_phase = uses_learning_phase
+
+                    # update tensor_map
                     for x, y, mask in zip(reference_output_tensors, output_tensors, output_masks):
                         tensor_map[str(id(x))] = (y, mask)
 
