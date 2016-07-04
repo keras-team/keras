@@ -35,8 +35,7 @@ def caffe_to_keras(prototext, caffemodel, phase='train', debug=False):
         else:
             raise Exception('could not load any layers from prototext')
 
-        if(debug):
-            print("CREATING MODEL")
+        print("CREATING MODEL")
         model = create_model(layers,
                                   0 if phase == 'train' else 1,
                                   tuple(config.input_dim[1:]),
@@ -57,9 +56,8 @@ def caffe_to_keras(prototext, caffemodel, phase='train', debug=False):
         print "Printing the converted model:"
         model.summary()
 
-        if(debug):
-            print('')
-            print("LOADING WEIGHTS")
+        print('')
+        print("LOADING WEIGHTS")
         weights = convert_weights(param_layers, v, debug)
 
         load_weights(model, weights)
@@ -157,6 +155,7 @@ def create_model(layers, phase, input_dim, debug=False):
                 net_node[layer_nb] = merge(input_layers, mode='concat', concat_axis=1, name=name)
                 
             elif type_of_layer == 'convolution':
+                has_bias = layer.convolution_param.bias_term
                 nb_filter = layer.convolution_param.num_output
                 nb_col = (layer.convolution_param.kernel_size or [layer.convolution_param.kernel_h])[0]
                 nb_row = (layer.convolution_param.kernel_size or [layer.convolution_param.kernel_w])[0]
@@ -175,7 +174,7 @@ def create_model(layers, phase, input_dim, debug=False):
 
                 if pad_h + pad_w > 0:
                     input_layers = ZeroPadding2D(padding=(pad_h, pad_w), name=name + '_zeropadding')(input_layers)
-                net_node[layer_nb] = Convolution2D(nb_filter, nb_row, nb_col, subsample=(stride_h, stride_w), name=name)(input_layers)
+                net_node[layer_nb] = Convolution2D(nb_filter, nb_row, nb_col, bias=has_bias, subsample=(stride_h, stride_w), name=name)(input_layers)
                 
             elif type_of_layer == 'dropout':
                 prob = layer.dropout_param.dropout_ratio
@@ -252,9 +251,27 @@ def create_model(layers, phase, input_dim, debug=False):
                 net_node[layer_nb] = Activation('tanh', name=name)(input_layers)
 
             elif type_of_layer == 'batchnorm':
+                axis = layer.scale_param.axis
                 epsilon = layer.batch_norm_param.eps
                 moving_average = layer.batch_norm_param.moving_average_fraction # unused
-                net_node[layer_nb] = BatchNormalization(epsilon=epsilon, name=name)(input_layers)
+                net_node[layer_nb] = BatchNormalization(epsilon=epsilon, axis=axis, name=name)(input_layers)
+
+            elif type_of_layer == 'scale':
+                axis = layer.scale_param.axis
+                net_node[layer_nb] = Scale(axis=axis,  name=name)(input_layers)
+
+            elif type_of_layer == 'eltwise':
+                axis = layer.scale_param.axis
+                op = layer.eltwise_param.operation # PROD=0, SUM=1, MAX=2
+                if op == 0:
+                    merge_mode = 'mul'
+                elif op == 1:
+                    merge_mode = 'sum'
+                elif op == 2:
+                    merge_mode = 'max'
+                else:
+                    raise NotImplementedError('Operation with id = "'+str(op)+'" of layer with type "'+type_of_layer+'" is not implemented.')
+                net_node[layer_nb] = merge(input_layers, mode=merge_mode, concat_axis=axis, name=name)
 
             else:
                 raise RuntimeError('layer type', type_of_layer, 'used in this model is not currently supported')
@@ -312,6 +329,32 @@ def convert_weights(param_layers, v='V1', debug=False):
             
             weights[layer.name] = layer_weights
 
+        elif typ == 'batchnorm':
+            blobs = layer.blobs
+            if(v == 'V2'):
+                nb_kernels = int(blobs[0].shape.dim[0])
+            else:
+                raise NotImplementedError('Conversion on layer type "'+typ+'"not implemented forcaffemodel version "'+v+'"')
+
+            weights_mean = np.array(blobs[0].data)
+            weights_std_dev = np.array(blobs[1].data)
+            
+            weights[layer.name] = [np.ones(nb_kernels), np.zeros(nb_kernels), weights_mean.astype(dtype=np.float32), weights_std_dev.astype(dtype=np.float32)]
+
+        elif typ == 'scale':
+            blobs = layer.blobs
+            if(v == 'V2'):
+                nb_gamma = int(blobs[0].shape.dim[0])
+                nb_beta = int(blobs[1].shape.dim[0])
+                assert nb_gamma == nb_beta
+            else:
+                raise NotImplementedError('Conversion on layer type "'+typ+'"not implemented forcaffemodel version "'+v+'"')
+
+            weights_gamma = np.array(blobs[0].data)
+            weights_beta = np.array(blobs[1].data)
+
+            weights[layer.name] = [weights_gamma.astype(dtype=np.float32), weights_beta.astype(dtype=np.float32)]
+
         elif typ == 'convolution':
             blobs = layer.blobs
 
@@ -340,7 +383,11 @@ def convert_weights(param_layers, v='V1', debug=False):
             stack_size = temp_stack_size * group
 
             weights_p = np.zeros((nb_filter, stack_size, nb_col, nb_row))
-            weights_b = np.array(blobs[1].data)
+
+            if layer.convolution_param.bias_term:
+                weights_b = np.array(blobs[1].data)
+            else:
+                weights_b = None
 
             group_data_size = len(blobs[0].data) // group
             stacks_size_per_group = stack_size // group
@@ -363,7 +410,11 @@ def convert_weights(param_layers, v='V1', debug=False):
 
             # caffe, unlike theano, does correlation not convolution. We need to flip the weights 180 deg
             weights_p = rot90(weights_p)
-            layer_weights = [weights_p.astype(dtype=np.float32), weights_b.astype(dtype=np.float32)]
+
+            if weights_b is not None:
+                layer_weights = [weights_p.astype(dtype=np.float32), weights_b.astype(dtype=np.float32)]
+            else:
+                layer_weights = [weights_p.astype(dtype=np.float32)]
 
             weights[layer.name] = layer_weights
 
