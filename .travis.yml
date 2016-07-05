@@ -13,8 +13,8 @@ matrix:
 #          env: KERAS_BACKEND=tensorflow
         - python: 2.7
           env: KERAS_BACKEND=theano TEST_MODE=INTEGRATION_TESTS
-        - python: 2.7
-          env: KERAS_BACKEND=theano TEST_MODE=PEP8
+#        - python: 2.7
+#          env: KERAS_BACKEND=theano TEST_MODE=PEP8
 install:
   # code below is taken from http://conda.pydata.org/docs/travis.html
   # We do this conditionally because it saves us some downloading if the
