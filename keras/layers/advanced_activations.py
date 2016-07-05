@@ -293,7 +293,7 @@ class HierarchicalSoftmax(Layer):
         if per_top is None:
             per_top = int(np.ceil(np.sqrt(total_class)))
         self.per_top = per_top
-        self.total_cass = total_class
+        self.total_class = total_class
 
         self.n_top_level = int(np.ceil(self.total_class * 1. / self.per_top))
         self.n_second_level = self.n_top_level * self.per_top
@@ -389,7 +389,7 @@ class HierarchicalSoftmax(Layer):
         return (input_shape[0][0],1)
 
     def get_config(self):
-        config = {'total_class' = self.total_class
-                  'per_top' = self.per_top}
+        config = {'total_class': self.total_class,
+                  'per_top': self.per_top}
         base_config = super(HierarchicalSoftmax, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
