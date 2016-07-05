@@ -3,12 +3,12 @@ from theano import tensor as T
 from theano.sandbox.rng_mrg import MRG_RandomStreams as RandomStreams
 from theano.tensor.signal import pool
 from theano.tensor.nnet import conv3d2d
+from theano.tensor.fft import rfft, irfft
 try:
     from theano.tensor.nnet.nnet import softsign as T_softsign
 except ImportError:
     from theano.sandbox.softsign import softsign as T_softsign
 
-import theano.sandbox.fourier as fourier
 import inspect
 import numpy as np
 from .common import _FLOATX, _EPSILON
@@ -171,17 +171,22 @@ def gather(reference, indices):
     return reference[indices]
 
 
-def fft(x, n, axis=0):
+def fft(x, norm=None):
     '''Fast fourier transform:
        Compute an n-point fft of frames along given axis.
     '''
-    return fourier.fft(x, n, axis)
+    return rfft(x, norm=norm)
 
 
-def ifft(x, n, axis=0):
+def ifft(x, norm=None, is_odd=False):
     '''Inverse fast fourier transform
     '''
-    return fourier.ifft(x, n, axis)
+    return irfft(x, norm=norm, is_odd=is_odd)
+
+def real(x):
+    '''Grabs the real part of a complex tensor
+    '''
+    return T.real(x)
 
 # ELEMENT-WISE OPERATIONS
 
