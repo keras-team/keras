@@ -365,10 +365,15 @@ class RemoteMonitor(Callback):
             HTTP POST, with a `data` argument which is a 
             JSON-encoded dictionary of event data.
     '''
-    def __init__(self, root='http://localhost:9000', path='/publish/epoch/end/'):
+
+    def __init__(self,
+                 root='http://localhost:9000',
+                 path='/publish/epoch/end/',
+                 field='data'):
         super(RemoteMonitor, self).__init__()
         self.root = root
         self.path = path
+        self.field = field
 
     def on_epoch_end(self, epoch, logs={}):
         import requests
@@ -376,10 +381,9 @@ class RemoteMonitor(Callback):
         send['epoch'] = epoch
         for k, v in logs.items():
             send[k] = v
-
         try:
             requests.post(self.root + self.path,
-                          {'data': json.dumps(send)})
+                          {self.field: json.dumps(send)})
         except:
             print('Warning: could not reach RemoteMonitor '
                   'root server at ' + str(self.root))
