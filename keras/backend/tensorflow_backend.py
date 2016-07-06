@@ -224,8 +224,7 @@ def batch_dot(x, y, axes=None):
     make sure that ndim is at least 2.
 
     # Example
-        Assume x = [[1, 2]   and y = [[5, 6]
-                    [3, 4]]           [7, 8]]
+        Assume x = [[1, 2], [3, 4]]   and y = [[5, 6], [7, 8]]
         batch_dot(x, y, axes=1) = [[17, 53]] which is the main diagonal
         of x.dot(y.T), although we never have to calculate the off-diagonal
         elements.
@@ -1085,7 +1084,7 @@ def conv2d(x, kernel, strides=(1, 1), border_mode='valid',
         border_mode: string, "same" or "valid".
         dim_ordering: "tf" or "th".
             Whether to use Theano or TensorFlow dimension ordering
-        in inputs/kernels/ouputs.
+            for inputs/kernels/ouputs.
     '''
     if dim_ordering not in {'th', 'tf'}:
         raise Exception('Unknown dim_ordering ' + str(dim_ordering))
@@ -1103,6 +1102,18 @@ def deconv2d(x, kernel, output_shape, strides=(1, 1),
              border_mode='valid',
              dim_ordering=_IMAGE_DIM_ORDERING,
              image_shape=None, filter_shape=None):
+    '''2D deconvolution (i.e. transposed convolution).
+
+    # Arguments
+        x: input tensor.
+        kernel: kernel tensor.
+        output_shape: 1D int tensor for the output shape.
+        strides: strides tuple.
+        border_mode: string, "same" or "valid".
+        dim_ordering: "tf" or "th".
+            Whether to use Theano or TensorFlow dimension ordering
+            for inputs/kernels/ouputs.
+    '''
     if dim_ordering not in {'th', 'tf'}:
         raise Exception('Unknown dim_ordering ' + str(dim_ordering))
 
@@ -1141,8 +1152,10 @@ def separable_conv2d(x, depthwise_kernel, pointwise_kernel, strides=(1, 1),
         raise Exception('Unknown dim_ordering ' + str(dim_ordering))
 
     x = _preprocess_conv2d_input(x, dim_ordering)
-    depthwise_kernel = _preprocess_conv2d_kernel(depthwise_kernel, dim_ordering)
-    pointwise_kernel = _preprocess_conv2d_kernel(pointwise_kernel, dim_ordering)
+    depthwise_kernel = _preprocess_conv2d_kernel(depthwise_kernel,
+                                                 dim_ordering)
+    pointwise_kernel = _preprocess_conv2d_kernel(pointwise_kernel,
+                                                 dim_ordering)
     padding = _preprocess_border_mode(border_mode)
     strides = (1,) + strides + (1,)
 
@@ -1154,6 +1167,16 @@ def separable_conv2d(x, depthwise_kernel, pointwise_kernel, strides=(1, 1),
 def conv3d(x, kernel, strides=(1, 1, 1),
            border_mode='valid', dim_ordering=_IMAGE_DIM_ORDERING,
            volume_shape=None, filter_shape=None):
+    '''3D convolution.
+
+    # Arguments
+        kernel: kernel tensor.
+        strides: strides tuple.
+        border_mode: string, "same" or "valid".
+        dim_ordering: "tf" or "th".
+            Whether to use Theano or TensorFlow dimension ordering
+            for inputs/kernels/ouputs.
+    '''
     if dim_ordering not in {'th', 'tf'}:
         raise Exception('Unknown dim_ordering ' + str(dim_ordering))
 
