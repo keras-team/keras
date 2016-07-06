@@ -4,7 +4,16 @@ This is intended to serve as a conversion module for Caffe models to Keras Funct
 
 ### Conversion
 
-In order to convert a model you just need the .caffemodel weights and the .prototxt deploy or train file. In any case you will need to include the input image dimensions as a header to the .prototxt network structure as if it was a deploy model (see an example [here](models)).
+In order to convert a model you just need the .caffemodel weights and the .prototxt deploy or train file. In any case you will need to include the input image dimensions as a header to the .prototxt network structure as if it was a deploy model (see an example [here](models)) and also include an initial data layer:
+
+```
+layer {
+  name: "data"
+  type: "Data"
+  top: "data"
+  top: "label"
+}
+```
 
 The file caffe2keras.py can be used as a command line interface for converting any model the following way:
 
