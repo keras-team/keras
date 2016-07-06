@@ -31,7 +31,7 @@ x = Dense(100, W_learning_rate_multiplier=10.0, b_learning_rate_multiplier=10.0)
 ## New layers for multimodal data
 
 - [AttLSTM](https://github.com/MarcBS/keras/blob/ba642f5d345983c3ebeffede41c57e03a5c1f7ee/keras/layers/recurrent.py#L1261): LSTM with Attention mechanism.
-- [LSTM_Cond](https://github.com/MarcBS/keras/blob/ba642f5d345983c3ebeffede41c57e03a5c1f7ee/keras/layers/recurrent.py#L940): LSTM with an additional input consisting in the previously generated word.
+- [LSTMCond](https://github.com/MarcBS/keras/blob/ba642f5d345983c3ebeffede41c57e03a5c1f7ee/keras/layers/recurrent.py#L940): LSTM with an additional input consisting in the previously generated word.
 
 ## Installation
 
