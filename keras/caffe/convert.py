@@ -29,6 +29,7 @@ def caffe_to_keras(prototext, caffemodel, phase='train', debug=False):
         google.protobuf.text_format.Merge(prototext, config)
 
         if len(config.layers) != 0:
+            raise Exception("Prototxt files V1 are not supported.")
             layers = config.layers[:]   # prototext V1
         elif len(config.layer) != 0:
             layers = config.layer[:]    # prototext V2
@@ -71,13 +72,21 @@ def preprocessPrototxt(prototxt, debug=False):
     for i, line in enumerate(p):
         l = line.strip().replace(" ", "").split('#')[0]
         # Change "layers {" to "layer {"
-        if len(l) > 5 and l[:6] == 'layers{':
-            p[i] = 'layer {'
+        #if len(l) > 6 and l[:7] == 'layers{':
+        #    p[i] = 'layer {'
         # Write all layer types as strings
-        elif len(l) > 6 and l[:5] == 'type:' and l[5] != "\'" and l[5] != '\"':
+        if len(l) > 6 and l[:5] == 'type:' and l[5] != "\'" and l[5] != '\"':
             type_ = l[5:]
             p[i] = '  type: "' + type_ + '"'
-       
+        # blobs_lr
+        #elif len(l) > 9 and l[:9] == 'blobs_lr:':
+        #    print("The prototxt parameter 'blobs_lr' found in line "+str(i+1)+" is outdated and will be removed. Consider using param { lr_mult: X } instead.")
+        #    p[i] = ''
+        # 
+        #elif len(l) > 13 and l[:13] == 'weight_decay:':
+        #    print("The prototxt parameter 'weight_decay' found in line "+str(i+1)+" is outdated and will be removed. Consider using param { decay_mult: X } instead.")
+        #    p[i] = ''
+
     p = '\n'.join(p)
     if(debug):
         print 'Writing preprocessed prototxt to debug.prototxt'
