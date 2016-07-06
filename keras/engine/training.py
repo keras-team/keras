@@ -775,7 +775,7 @@ class Model(Container):
         self.history = cbks.History()
         callbacks = [cbks.BaseLogger()] + callbacks + [self.history]
         if verbose:
-            callbacks += [cbks.ProgbarLogger()]
+            callbacks = [cbks.ProgbarLogger()] + callbacks
         callbacks = cbks.CallbackList(callbacks)
 
         # it's possible to callback a different model than self
