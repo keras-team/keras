@@ -1,10 +1,11 @@
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import
 
+from theano.tensor.shared_randomstreams import RandomStreams
+
 from .. import backend as K
 from .. import activations, initializations, regularizers, constraints
 from ..engine import Layer, InputSpec
-
 
 def conv_output_length(input_length, filter_size, border_mode, stride):
     if input_length is None:
@@ -1386,3 +1387,77 @@ class ZeroPadding3D(Layer):
         config = {'padding': self.padding}
         base_config = super(ZeroPadding3D, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
+
+
+
+class CompactBilinearPooling(Layer):
+    '''Compact Bilinear Pooling
+    # Arguments:
+        d: dimension of the compact bilinear feature
+
+    # References:
+        - [Multimodal Compact Bilinear Pooling for Visual Question Answering and Visual Grounding](http://arxiv.org/pdf/1606.01847v2.pdf)
+    '''
+
+    def __init__(self, d, **kwargs):
+        self.h = [None, None]
+        self.s = [None, None]
+        self.d = d
+
+        # layer parameters
+        self.inbound_nodes = []
+        self.outbound_nodes = []
+        self.constraints = {}
+        self.regularizers = []
+        self.trainable_weights = []
+        self.non_trainable_weights = []
+        self.supports_masking = True
+        self.trainable = False
+        self.uses_learning_phase = False
+        self.input_spec = None  # compatible with whatever
+        super(CompactBilinearPooling, self).__init__(**kwargs)
+
+    def build(self, input_shapes):
+        self.trainable_weights = []
+        self.nmodes = len(input_shapes)
+        for i in range(self.nmodes):
+            if self.h[i] is None:
+                self.h[i] = K.ceil(K.random_uniform((input_shapes[i][1],),
+                                                    low=0., high=self.d - 1, dtype='float32')).astype('int64')
+            if self.s[i] is None:
+                self.s[i] = K.switch(K.random_binomial((input_shapes[i][1],),
+                                                       p=0.5, dtype='float32') < 0.5, -1, 1).astype('int64')
+        self.built = True
+
+    def compute_mask(self, input, input_mask=None):
+        if input_mask is None or not any([m is not None for m in input_mask]):
+            return None
+        else:
+            return input_mask[0]
+
+    def count_sketch(self, v, h, s):
+        y = K.zeros_like(v[:, :self.d])
+        for j in range(self.d):
+            y = K.set_subtensor(y[:, h[j]], y[:, h[j]] + K.dot(s[j], v[:, j]))
+        return y
+
+    def multimodal_compact_bilinear(self, x):
+        v = [[]] * self.nmodes
+        for i in range(self.nmodes):
+            v[i] = self.count_sketch(x[i], self.h[i], self.s[i])
+        return K.cast(K.ifft(K.fft(v[0]) * K.fft(v[1])), dtype='float32')
+
+    def call(self, x, mask=None):
+        if type(x) is not list or len(x) <= 1:
+            raise Exception('CompactBilinearPooling must be called on a list of tensors '
+                            '(at least 2). Got: ' + str(x))
+        return self.multimodal_compact_bilinear(x)
+
+    def get_config(self):
+        config = {'d': self.d}
+        base_config = super(CompactBilinearPooling, self).get_config()
+        return dict(list(base_config.items()) + list(config.items()))
+
+    def get_output_shape_for(self, input_shape):
+        assert type(input_shape) is list  # must have mutiple input shape tuples
+        return input_shape[0][0], self.d
