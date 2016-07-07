@@ -15,6 +15,8 @@ layer {
 }
 ```
 
+Given the differences between Caffe and Keras when applying the MAX pooling opperation, in some occasions the MAX pooling layers must include a `pad: 1` value even if they did not include them in their original .prototxt.
+
 The file caffe2keras.py can be used as a command line interface for converting any model the following way:
 
 ```
