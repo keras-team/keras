@@ -5,7 +5,7 @@ from .. import backend as K
 
 def _slice_shape(shape, slices):
     '''Infer the shape of a tensor when it is sliced / indexed using the __getitem__ operator.
-    
+
     # Arguments:
     shape: tuple. shape of the tensor
     slices: slice, int or tuple of slice and int used to slice or index the tensor.
@@ -45,6 +45,7 @@ def _slice_shape(shape, slices):
             output_shape[i] = 0
     return tuple(output_shape)
 
+
 def _compatible(shape1, shape2):
     '''check if shapes of 2 tensors are compatible for element wise operations.
     '''
@@ -55,9 +56,10 @@ def _compatible(shape1, shape2):
             return False
     return True
 
+
 def _override_operator(tensor_class, operator):
     ''' Override an operator of a class
-    
+
     # Arguments:
     tensor_class: class for which the operator is to be overridden.
     operator: the operator to be overridden.
@@ -81,6 +83,7 @@ def _override_operator(tensor_class, operator):
                     x = previous_layer.input
                     if previous_layer.__class__ == Merge:
                         _merge = True
+
                     def func(x):
                         x = previous_layer.call(x)
                         return getattr(x, _operator)()
@@ -104,7 +107,7 @@ def _override_operator(tensor_class, operator):
             if not x_k and not y_k:
                 res = getattr(x, _operator)(y)
                 override_operators(res.__class__)
-                return res 
+                return res
             elif x_k and not y_k:
                 _merge = False
                 _op_tensor = False
@@ -113,10 +116,12 @@ def _override_operator(tensor_class, operator):
                     _op_tensor = True
                     if previous_layer.__class__ == Merge:
                         _merge = True
+
                     def func(x):
                         x = previous_layer.call(x)
                         return getattr(x, _operator)(y)
                 else:
+
                         def func(x):
                             return getattr(x, _operator)(y)
                 if operator == '__getitem__':
@@ -143,10 +148,12 @@ def _override_operator(tensor_class, operator):
                     _op_tensor = True
                     if previous_layer.__class__ == Merge:
                         _merge = True
+
                     def func(y):
                         y = previous_layer.call(y)
                         return getattr(x, _operator)(y)
                 else:
+
                         def func(y):
                             return getattr(x, _operator)(y)
                 if _op_tensor:
@@ -178,6 +185,7 @@ def _override_operator(tensor_class, operator):
                         _right_merge = True
                 else:
                     y_func = lambda x: x
+
                 def func(X):
                     if _left_merge:
                         x = X[:2]
@@ -198,7 +206,7 @@ def _override_operator(tensor_class, operator):
                 if _right_merge:
                     inputs += y._keras_history[0].input
                 else:
-                    inputs += [y]  
+                    inputs += [y]
                 res = merge(inputs, mode=func, output_shape=lambda _: shape1)
             setattr(res._keras_history[0], '_op_layer', True)
             override_operators(res.__class__)  # In some cases the resultant tensor might belong to a different class than the operands.
@@ -206,6 +214,7 @@ def _override_operator(tensor_class, operator):
     else:
         raise Exception('Invalid operator: ' + operator)
     setattr(tensor_class, operator, op)
+
 
 def override_operators(tensor_class):
     '''Override operators of a class
