@@ -75,12 +75,28 @@ def _override_operator(tensor_class, operator):
             if not x_k:
                 return getattr(x, _operator)()
             else:
-                def func(x):
-                    return getattr(x, _operator)()
-                lambda_layer = Lambda(func, output_shape=lambda x: x)
-                lambda_layer.build(None)
-                lambda_layer.supports_masking = True
-                return lambda_layer(x)
+                _merge = False
+                previous_layer = x._keras_history[0]
+                if hasattr(previous_layer, '_op_layer'):
+                    x = previous_layer.input
+                    if previous_layer.__class__ == Merge:
+                        _merge = True
+                    def func(x):
+                        x = previous_layer.call(x)
+                        return getattr(x, _operator)()
+                else:
+                    def func(x):
+                        return getattr(x, _operator)()
+                if _merge:
+                    res = merge(x, mode=func, output_shape=lambda _: previous_layer.output_shape)
+                else:
+                    lambda_layer = Lambda(func, output_shape=lambda x: x)
+                    lambda_layer.build(None)
+                    lambda_layer.supports_masking = True
+                    res = lambda_layer(x)
+                setattr(res._keras_history[0], '_op_layer', True)
+                override_operators(res.__class__)
+                return res
     elif operator in binary_operators:
         def op(x, y):
             x_k = hasattr(x, '_keras_history')
