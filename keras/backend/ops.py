@@ -87,12 +87,14 @@ def _override_operator(tensor_class, operator):
             y_k = hasattr(y, '_keras_history')
             if not x_k and not y_k:
                 res = getattr(x, _operator)(y)
+                override_operators(res.__class__)
+                return res 
             elif x_k and not y_k:
                 _merge = False
                 _op_tensor = False
-                if hasattr(x, '_keras_op_tensor'):
+                previous_layer = x._keras_history[0]
+                if hasattr(previous_layer, '_op_layer'):
                     _op_tensor = True
-                    previous_layer = x._keras_history[0]
                     if previous_layer.__class__ == Merge:
                         _merge = True
                     def func(x):
@@ -119,20 +121,19 @@ def _override_operator(tensor_class, operator):
                     res = lambda_layer(x)
             elif not x_k and y_k:
                 _merge = False
-                _keras_op = False
-                if hasattr(y, '_keras_op_tensor'):
-                    _keras_op = True
-                    previous_layer = y._keras_history[0]
+                _op_tensor = False
+                previous_layer = y._keras_history[0]
+                if hasattr(previous_layer, '_op_layer'):
+                    _op_tensor = True
                     if previous_layer.__class__ == Merge:
                         _merge = True
                     def func(y):
                         y = previous_layer.call(y)
                         return getattr(x, _operator)(y)
-
                 else:
                         def func(y):
                             return getattr(x, _operator)(y)
-                if _keras_op:
+                if _op_tensor:
                     y = previous_layer.input
                 if _merge:
                     res = merge(y, mode=func, output_shape=lambda s: previous_layer.output_shape)
@@ -147,15 +148,15 @@ def _override_operator(tensor_class, operator):
                 assert _compatible(shape1, shape2), 'Incompatible shapes : ' + str(shape1) + ' and ' + str(shape2) + '.'
                 _left_merge = False
                 _right_merge = False
-                if hasattr(x, '_keras_op_tensor'):
-                    previous_layer = x._keras_history[0]
+                previous_layer = x._keras_history[0]
+                if hasattr(previous_layer, '_op_layer'):
                     x_func = previous_layer.call
                     if previous_layer.__class__ == Merge:
                         _left_merge = True
                 else:
                     x_func = lambda x: x
-                if hasattr(y, '_keras_op_tensor'):
-                    previous_layer = y._keras_history[0]
+                previous_layer = y._keras_history[0]
+                if hasattr(previous_layer, '_op_layer'):
                     y_func = previous_layer.call
                     if previous_layer.__class__ == Merge:
                         _right_merge = True
@@ -181,9 +182,9 @@ def _override_operator(tensor_class, operator):
                 if _right_merge:
                     inputs += y._keras_history[0].input
                 else:
-                    inputs += [y]                
+                    inputs += [y]  
                 res = merge(inputs, mode=func, output_shape=lambda _: shape1)
-            setattr(res, '_keras_op_tensor', True)
+            setattr(res._keras_history[0], '_op_layer', True)
             override_operators(res.__class__)  # In some cases the resultant tensor might belong to a different class than the operands.
             return res
     else:
