@@ -1,5 +1,5 @@
 from ..layers import Lambda
-from ..engine.topology import merge
+from ..engine.topology import merge, Merge
 from .. import backend as K
 
 
@@ -88,33 +88,102 @@ def _override_operator(tensor_class, operator):
             if not x_k and not y_k:
                 res = getattr(x, _operator)(y)
             elif x_k and not y_k:
-                def func(x):
-                    return getattr(x, _operator)(y)
+                _merge = False
+                _op_tensor = False
+                if hasattr(x, '_keras_op_tensor'):
+                    _op_tensor = True
+                    previous_layer = x._keras_history[0]
+                    if previous_layer.__class__ == Merge:
+                        _merge = True
+                    def func(x):
+                        x = previous_layer.call(x)
+                        return getattr(x, _operator)(y)
+                else:
+                        def func(x):
+                            return getattr(x, _operator)(y)
                 if operator == '__getitem__':
                     output_shape = lambda _: _slice_shape(x._keras_shape, y)
                 else:
-                    output_shape = lambda x: x
-                lambda_layer = Lambda(func, output_shape=output_shape)
-                lambda_layer.build(None)
-                lambda_layer.supports_masking = True
-                res = lambda_layer(x)
+                    if _merge:
+                        output_shape = lambda x: x[0]
+                    else:
+                        output_shape = lambda x: x
+                if _op_tensor:
+                    x = previous_layer.input
+                if _merge:
+                    res = merge(x, mode=func, output_shape=output_shape)
+                else:
+                    lambda_layer = Lambda(func, output_shape=output_shape)
+                    lambda_layer.build(None)
+                    lambda_layer.supports_masking = True
+                    res = lambda_layer(x)
             elif not x_k and y_k:
-                def func(y):
-                    return getattr(x, _operator)(y)
-                lambda_layer = Lambda(func, output_shape=lambda x: x)
-                lambda_layer.build(None)
-                lambda_layer.supports_masking = True
-                res = lambda_layer(y)
+                _merge = False
+                _keras_op = False
+                if hasattr(y, '_keras_op_tensor'):
+                    _keras_op = True
+                    previous_layer = y._keras_history[0]
+                    if previous_layer.__class__ == Merge:
+                        _merge = True
+                    def func(y):
+                        y = previous_layer.call(y)
+                        return getattr(x, _operator)(y)
+
+                else:
+                        def func(y):
+                            return getattr(x, _operator)(y)
+                if _keras_op:
+                    y = previous_layer.input
+                if _merge:
+                    res = merge(y, mode=func, output_shape=lambda s: previous_layer.output_shape)
+                else:
+                    lambda_layer = Lambda(func, output_shape=lambda x: x)
+                    lambda_layer.build(None)
+                    lambda_layer.supports_masking = True
+                    res = lambda_layer(y)
             else:
                 shape1 = x._keras_shape
                 shape2 = y._keras_shape
                 assert _compatible(shape1, shape2), 'Incompatible shapes : ' + str(shape1) + ' and ' + str(shape2) + '.'
-
+                _left_merge = False
+                _right_merge = False
+                if hasattr(x, '_keras_op_tensor'):
+                    previous_layer = x._keras_history[0]
+                    x_func = previous_layer.call
+                    if previous_layer.__class__ == Merge:
+                        _left_merge = True
+                else:
+                    x_func = lambda x: x
+                if hasattr(y, '_keras_op_tensor'):
+                    previous_layer = y._keras_history[0]
+                    y_func = previous_layer.call
+                    if previous_layer.__class__ == Merge:
+                        _right_merge = True
+                else:
+                    y_func = lambda x: x
                 def func(X):
-                    x = X[0]
-                    y = X[1]
+                    if _left_merge:
+                        x = X[:2]
+                    else:
+                        x = X[0]
+                    if _right_merge:
+                        y = X[:-2]
+                    else:
+                        y = X[1]
+                    x = x_func(x)
+                    y = y_func(y)
                     return getattr(x, _operator)(y)
-                res = merge([x, y], mode=func, output_shape=lambda _: shape1)
+                inputs = []
+                if _left_merge:
+                    inputs += x._keras_history[0].input
+                else:
+                    inputs += [x]
+                if _right_merge:
+                    inputs += y._keras_history[0].input
+                else:
+                    inputs += [y]                
+                res = merge(inputs, mode=func, output_shape=lambda _: shape1)
+            setattr(res, '_keras_op_tensor', True)
             override_operators(res.__class__)  # In some cases the resultant tensor might belong to a different class than the operands.
             return res
     else:
@@ -131,7 +200,7 @@ def override_operators(tensor_class):
         return
     else:
         setattr(tensor_class, '_keras_operators_supported', True)
-    operators = ['add', 'sub', 'mul', 'matmul', 'div', 'truediv', 'floordiv', 'mod', 'divmod', 'pow', 'lshift', 'rshift', 'and', 'xor', 'or']
+    operators = ['add', 'sub', 'mul', 'div', 'matmul', 'truediv', 'floordiv', 'mod', 'divmod', 'pow', 'lshift', 'rshift', 'and', 'xor', 'or']
     operators += map(lambda x: 'r' + x, operators)
     operators += ['neg', 'pos', 'abs', 'invert']
     operators += ['getitem']
