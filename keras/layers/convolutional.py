@@ -351,6 +351,7 @@ class Convolution2D(AbstractConvolution):
     def get_config(self, **child_class_config):
         return super(Convolution2D, self).get_config(nb_row=self.nb_row,
                                                      nb_col=self.nb_col,
+                                                     subsample=self.subsample,
                                                      **child_class_config)
 
 
@@ -490,6 +491,7 @@ class Convolution3D(AbstractConvolution):
         return super(Convolution3D, self).get_config(kernel_dim1=self.kernel_dim1,
                                                      kernel_dim2=self.kernel_dim2,
                                                      kernel_dim3=self.kernel_dim3,
+                                                     subsample=self.subsample,
                                                      **child_class_config)
 
 
