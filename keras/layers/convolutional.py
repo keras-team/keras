@@ -182,7 +182,7 @@ class Convolution1D(AbstractConvolution):
     def build(self, input_shape):
         input_dim = input_shape[2]
         self.W_shape = (self.nb_filter, input_dim, self.filter_length, 1)
-        super(Convolution1D, self).build()
+        super(Convolution1D, self).build(input_shape)
 
     def get_output_shape_for(self, input_shape):
         length = conv_output_length(input_shape[1],
@@ -305,7 +305,7 @@ class Convolution2D(AbstractConvolution):
             self.W_shape = self.dimensions + (stack_size, self.nb_filter)
         else:
             raise Exception('Invalid dim_ordering: ' + self.dim_ordering)
-        super(Convolution2D, self).build()
+        super(Convolution2D, self).build(input_shape)
 
     def get_output_shape_for(self, input_shape):
         if self.dim_ordering == 'th':
@@ -429,7 +429,6 @@ class Convolution3D(AbstractConvolution):
         self.kernel_dim3 = kernel_dim3
 
     def build(self, input_shape):
-
         if self.dim_ordering == 'th':
             stack_size = input_shape[1]
             self.W_shape = (self.nb_filter, stack_size) + self.dimensions
@@ -438,7 +437,7 @@ class Convolution3D(AbstractConvolution):
             self.W_shape = self.dimensions + (stack_size, self.nb_filter)
         else:
             raise Exception('Invalid dim_ordering: ' + self.dim_ordering)
-        super(Convolution3D, self).build()
+        super(Convolution3D, self).build(input_shape)
 
     def get_output_shape_for(self, input_shape):
         if self.dim_ordering == 'th':
