@@ -483,7 +483,7 @@ class Convolution3D(AbstractConvolution):
         return output
 
     def get_config(self, **child_class_config):
-        return super(Convolution2D, self).get_config(kernel_dim1=self.kernel_dim1,
+        return super(Convolution3D, self).get_config(kernel_dim1=self.kernel_dim1,
                                                      kernel_dim2=self.kernel_dim2,
                                                      kernel_dim3=self.kernel_dim3,
                                                      **child_class_config)
