@@ -164,7 +164,11 @@ class Convolution1D(AbstractConvolution):
                  W_regularizer=None, b_regularizer=None, activity_regularizer=None,
                  W_constraint=None, b_constraint=None,
                  bias=True, input_dim=None, input_length=None, **kwargs):
+
+        self.filter_length = filter_length
+        self.subsample_length = subsample_length
         self.input_dim = input_dim
+        self.input_length = input_length
         if self.input_dim:
             kwargs['input_shape'] = (self.input_length, self.input_dim)
         super(Convolution1D, self).__init__(nb_filter, dimensions=(filter_length,), init=init,
@@ -172,12 +176,10 @@ class Convolution1D(AbstractConvolution):
                                             border_mode=border_mode, subsample=(subsample_length, 1),
                                             dim_ordering='th',
                                             W_regularizer=W_regularizer, b_regularizer=b_regularizer,
-                                            activity_regularizer=activity_regularizer, W_constraint=W_constraint,
+                                            activity_regularizer=activity_regularizer,
+                                            W_constraint=W_constraint,
                                             b_constraint=b_constraint, bias=bias,
                                             **kwargs)
-        self.filter_length = filter_length
-        self.subsample_length = subsample_length
-        self.input_length = input_length
 
     def build(self, input_shape):
         input_dim = input_shape[2]
