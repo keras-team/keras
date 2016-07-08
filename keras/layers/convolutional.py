@@ -173,7 +173,7 @@ class Convolution1D(AbstractConvolution):
                                             dim_ordering='th',
                                             W_regularizer=W_regularizer, b_regularizer=b_regularizer,
                                             activity_regularizer=activity_regularizer, W_constraint=W_constraint,
-                                            b_constraint=b_constraint,  bias=bias, input_dim=input_dim,
+                                            b_constraint=b_constraint, bias=bias,
                                             **kwargs)
         self.filter_length = filter_length
         self.subsample_length = subsample_length
