@@ -396,9 +396,9 @@ def standardize_weights(y, sample_weight=None, class_weight=None,
         return weights
     else:
         if sample_weight_mode is None:
-            return np.ones((y.shape[0],))
+            return np.ones((y.shape[0],), dtype=K.floatx())
         else:
-            return np.ones((y.shape[0], y.shape[1]))
+            return np.ones((y.shape[0], y.shape[1]), dtype=K.floatx())
 
 
 def generator_queue(generator, max_q_size=10,
@@ -883,7 +883,7 @@ class Model(Container):
             if batch_index == 0:
                 for batch_out in batch_outs:
                     shape = (nb_sample,) + batch_out.shape[1:]
-                    outs.append(np.zeros(shape))
+                    outs.append(np.zeros(shape, dtype=K.floatx()))
 
             for i, batch_out in enumerate(batch_outs):
                 outs[i][batch_start:batch_end] = batch_out
@@ -1650,7 +1650,7 @@ class Model(Container):
             if len(all_outs) == 0:
                 for out in outs:
                     shape = (val_samples,) + out.shape[1:]
-                    all_outs.append(np.zeros(shape))
+                    all_outs.append(np.zeros(shape, dtype=K.floatx()))
 
             for i, out in enumerate(outs):
                 all_outs[i][processed_samples:(processed_samples + nb_samples)] = out
