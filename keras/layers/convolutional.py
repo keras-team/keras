@@ -81,19 +81,17 @@ class AbstractConvolution(Layer):
         def get_config_if_not_none(x):
             return x.get_config() if x else None
 
-        return super(AbstractConvolution, self).get_config(
-            nb_filter=self.nb_filter,
-            init=self.init.__name__,
-            activation=self.activation.__name__,
-            border_mode=self.border_mode,
-            W_regularizer=get_config_if_not_none(self.W_regularizer),
-            b_regularizer=get_config_if_not_none(self.b_regularizer),
-            activity_regularizer=get_config_if_not_none(self.activity_regularizer),
-            W_constraint=get_config_if_not_none(self.W_constraint),
-            b_constraint=get_config_if_not_none(self.b_constraint),
-            bias=self.bias,
-            **child_class_config
-        )
+        return super(AbstractConvolution, self).get_config(nb_filter=self.nb_filter,
+                                                           init=self.init.__name__,
+                                                           activation=self.activation.__name__,
+                                                           border_mode=self.border_mode,
+                                                           W_regularizer=get_config_if_not_none(self.W_regularizer),
+                                                           b_regularizer=get_config_if_not_none(self.b_regularizer),
+                                                           activity_regularizer=get_config_if_not_none(self.activity_regularizer),
+                                                           W_constraint=get_config_if_not_none(self.W_constraint),
+                                                           b_constraint=get_config_if_not_none(self.b_constraint),
+                                                           bias=self.bias,
+                                                           **child_class_config)
 
 
 class Convolution1D(AbstractConvolution):
