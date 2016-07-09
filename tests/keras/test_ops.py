@@ -23,19 +23,7 @@ def test_ops_1():
     def div(x, y=3.14):
         return x / y
 
-    def radd(x, y=3.14):
-        return y + x
-
-    def rsub(x, y=3.14):
-        return y - x
-
-    def rmul(x, y=3.14):
-        return y * x
-
-    def rdiv(x, y=3.14):
-        return y / x
-
-    functions = [add, sub, mul, div, radd, rsub, rmul, rdiv]
+    functions = [add, sub, mul, div]
 
     X1 = np.random.uniform(1, 2, (7, 10))
     X2 = np.random.uniform(1, 2, (7, 10))
