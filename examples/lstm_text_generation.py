@@ -15,6 +15,7 @@ from keras.models import Sequential
 from keras.layers.core import Dense, Activation, Dropout
 from keras.layers.recurrent import LSTM
 from keras.utils.data_utils import get_file
+from keras.generators import time_delay_generator
 import numpy as np
 import random
 import sys
@@ -28,24 +29,23 @@ print('total chars:', len(chars))
 char_indices = dict((c, i) for i, c in enumerate(chars))
 indices_char = dict((i, c) for i, c in enumerate(chars))
 
-# cut the text in semi-redundant sequences of maxlen characters
-maxlen = 40
-step = 3
-sentences = []
-next_chars = []
-for i in range(0, len(text) - maxlen, step):
-    sentences.append(text[i: i + maxlen])
-    next_chars.append(text[i + maxlen])
-print('nb sequences:', len(sentences))
 
 print('Vectorization...')
-X = np.zeros((len(sentences), maxlen, len(chars)), dtype=np.bool)
-y = np.zeros((len(sentences), len(chars)), dtype=np.bool)
-for i, sentence in enumerate(sentences):
-    for t, char in enumerate(sentence):
-        X[i, t, char_indices[char]] = 1
-    y[i, char_indices[next_chars[i]]] = 1
+X = np.zeros((len(text)-1, len(chars)), dtype=np.bool)
+y = np.zeros((len(text)-1, len(chars)), dtype=np.bool)
 
+# convert text to 1-hot
+for t, char in enumerate(text[:-1]):
+        X[t, char_indices[char]] = 1
+
+for t, char in enumerate(text[1:]):
+        y[t, char_indices[char]] = 1
+
+batch_size = 128
+maxlen = 40
+
+# use generator to create data sequences of length maxlen
+train_gen = time_delay_generator(X, y, maxlen, batch_size=batch_size)
 
 # build the model: 2 stacked LSTM
 print('Build model...')
@@ -71,7 +71,7 @@ for iteration in range(1, 60):
     print()
     print('-' * 50)
     print('Iteration', iteration)
-    model.fit(X, y, batch_size=128, nb_epoch=1)
+    model.fit_generator(train_gen, samples_per_epoch=X.shape[0], nb_epoch=1)
 
     start_index = random.randint(0, len(text) - maxlen - 1)
 
