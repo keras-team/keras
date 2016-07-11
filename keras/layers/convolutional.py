@@ -1436,7 +1436,7 @@ class CompactBilinearPooling(Layer):
             return input_mask[0]
 
     def count_sketch(self, v, h, s):
-        y = K.zeros_like(v[:, :self.d])
+        y = K.zeros_symbolic([v.shape[0], self.d], dtype='float32')
         for j in range(self.d):
             y = K.set_subtensor(y[:, h[j]], y[:, h[j]] + K.dot(s[j], v[:, j]))
         return y

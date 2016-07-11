@@ -80,6 +80,13 @@ def zeros(shape, dtype=_FLOATX, name=None):
     return variable(np.zeros(shape), dtype, name)
 
 
+def zeros_symbolic(shape, dtype=_FLOATX):
+    '''Instantiate an all-zeros symbolic variable.
+    '''
+    return T.zeros(shape, dtype=dtype)
+
+
+
 def ones(shape, dtype=_FLOATX, name=None):
     '''Instantiate an all-ones variable.
     '''
