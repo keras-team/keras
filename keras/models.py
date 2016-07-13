@@ -1,10 +1,11 @@
 from __future__ import print_function
-import warnings
+
 import copy
+import warnings
 
 from . import backend as K
+from .engine.topology import Node, get_source_inputs
 from .engine.training import Model
-from .engine.topology import get_source_inputs, Node
 from .legacy.models import Graph
 
 
@@ -163,6 +164,22 @@ class Sequential(Model):
         '''
         if not self.layers:
             raise Exception('There are no layers in the model.')
+
+        self.layers.pop()
+        if not self.layers:
+            self.outputs = []
+            self.inbound_nodes = []
+            self.outbound_nodes = []
+        else:
+            self.layers[-1].outbound_nodes = []
+            self.outputs = [self.layers[-1].output]
+        self.built = False
+
+    def pop_layer(self):
+        '''Removes a layer instance on top of the layer stack.
+        '''
+        if not self.outputs:
+            raise Exception('Sequential model cannot be popped: model is empty.')
 
         self.layers.pop()
         if not self.layers:
