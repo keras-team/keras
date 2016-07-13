@@ -158,6 +158,8 @@ def create_model(layers, phase, input_dim, debug=False):
             for input_layer in inputs_to[layer_nb]:
                 input_layer_names.append(layers[input_layer].name)
                     
+            if debug:
+                print 'input shape: '+str(input_layers[0]._keras_shape)
 
             if type_of_layer == 'concat':
                 axis = layer.concat_param.axis
@@ -234,7 +236,9 @@ def create_model(layers, phase, input_dim, debug=False):
                     input_layers = ZeroPadding2D(padding=(pad_h, pad_w), name=name + '_zeropadding')(input_layers)
                     input_layer_name = name + '_zeropadding'
                 if(layer.pooling_param.pool == 0): # MAX pooling
-                    net_node[layer_nb] = MaxPooling2D(pool_size=(kernel_h, kernel_w), strides=(stride_h, stride_w), name=name)(input_layers)
+                    #border_mode = 'same'
+                    border_mode = 'valid'
+                    net_node[layer_nb] = MaxPooling2D(border_mode=border_mode, pool_size=(kernel_h, kernel_w), strides=(stride_h, stride_w), name=name)(input_layers)
                     if(debug):
                         print("MAX pooling")
                 elif(layer.pooling_param.pool == 1): # AVE pooling
@@ -263,10 +267,24 @@ def create_model(layers, phase, input_dim, debug=False):
                 axis = layer.scale_param.axis
                 epsilon = layer.batch_norm_param.eps
                 moving_average = layer.batch_norm_param.moving_average_fraction # unused
+
+                if debug:
+                    print '-- BatchNormalization'
+                    print name
+                    print 'axis'
+                    print axis
+
                 net_node[layer_nb] = BatchNormalization(epsilon=epsilon, axis=axis, name=name)(input_layers)
 
             elif type_of_layer == 'scale':
                 axis = layer.scale_param.axis
+                
+                if debug:
+                    print '-- BatchNormalization'
+                    print name
+                    print 'axis'
+                    print axis
+
                 net_node[layer_nb] = Scale(axis=axis,  name=name)(input_layers)
 
             elif type_of_layer == 'eltwise':
