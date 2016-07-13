@@ -904,7 +904,7 @@ class LSTMCond(Recurrent):
         - [A Theoretically Grounded Application of Dropout in Recurrent Neural Networks](http://arxiv.org/abs/1512.05287)
     '''
     def __init__(self, output_dim, embedding_size,
-                 init='glorot_uniform', inner_init='orthogonal',
+                 init='glorot_uniform', inner_init='orthogonal', init_state=None,
                  forget_bias_init='one', activation='tanh',
                  inner_activation='hard_sigmoid', consume_less='gpu',
                  W_regularizer=None, V_regularizer=None, U_regularizer=None, b_regularizer=None,
@@ -913,6 +913,7 @@ class LSTMCond(Recurrent):
         self.embedding_size = embedding_size
         self.init = initializations.get(init)
         self.inner_init = initializations.get(inner_init)
+        self.init_state = init_state
         self.forget_bias_init = initializations.get(forget_bias_init)
         self.activation = activations.get(activation)
         self.inner_activation = activations.get(inner_activation)
@@ -1030,9 +1031,12 @@ class LSTMCond(Recurrent):
 
     def get_initial_states(self, x):
         # build an all-zero tensor of shape (samples, output_dim)
-        initial_state = K.zeros_like(x[:, :, :self.input_dim])  # (samples, timesteps, input_dim)
-        initial_state = K.sum(initial_state, axis=1)  # (samples, input_dim)
-        reducer = K.zeros((self.input_dim, self.output_dim))
+        if self.init_state is None:
+            initial_state = K.zeros_like(x[:, :, :self.input_dim])  # (samples, timesteps, input_dim)
+            initial_state = K.sum(initial_state, axis=1)  # (samples, input_dim)
+        else:
+            initial_state = self.init_state
+        reducer = K.ones((self.input_dim, self.output_dim))
         initial_state = K.dot(initial_state, reducer)  # (samples, output_dim)
         initial_states = [initial_state for _ in range(len(self.states))]
         return initial_states
@@ -1834,10 +1838,10 @@ class AttLSTMCond(LSTM):
         x_t = x[:, :, :self.input_dim]
         s_t = x[:, 0, self.input_dim:]
         h_tm1 = states[0]  # State
-        c_tm1 = states[1] # Memory
-        B_U = states[2]   # Dropout U
-        B_W = states[3]   # Dropout W
-        B_V = states[4]   # Dropout V
+        c_tm1 = states[1]  # Memory
+        B_U = states[2]    # Dropout U
+        B_W = states[3]    # Dropout W
+        B_V = states[4]    # Dropout V
         # Att model dropouts
         B_wa = states[5]
         context = states[6]  # pre-calculated Wa*x term (common for all output timesteps)
@@ -1850,7 +1854,7 @@ class AttLSTMCond(LSTM):
 
         # LSTM
         if self.consume_less == 'gpu':
-            z =  K.dot(s_t * B_V[0], self.V) + K.dot(x_ * B_W[0], self.W) + K.dot(h_tm1 * B_U[0], self.U) + self.b
+            z = K.dot(s_t * B_V[0], self.V) + K.dot(x_ * B_W[0], self.W) + K.dot(h_tm1 * B_U[0], self.U) + self.b
 
             z0 = z[:, :self.output_dim]
             z1 = z[:, self.output_dim: 2 * self.output_dim]
