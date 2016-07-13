@@ -12,6 +12,7 @@
 - [How can I record the training / validation loss / accuracy at each epoch?](#how-can-i-record-the-training-validation-loss-accuracy-at-each-epoch)
 - [How can I "freeze" layers?](#how-can-i-freeze-keras-layers)
 - [How can I use stateful RNNs?](#how-can-i-use-stateful-rnns)
+- [How can I remove a layer from a Sequential model?](#how-can-i-remove-a-layer-from-a-sequential-model)
 
 ---
 
@@ -296,3 +297,18 @@ model.layers[0].reset_states()
 
 Notes that the methods `predict`, `fit`, `train_on_batch`, `predict_classes`, etc. will *all* update the states of the stateful layers in a model. This allows you to do not only stateful training, but also stateful prediction.
 
+
+### How can I remove a layer from a Sequential model?
+
+You can remove the last added layer in a Sequential model by calling `.pop()`:
+
+```python
+model = Sequential()
+model.add(Dense(32, activation='relu', input_dim=784))
+model.add(Dense(32, activation='relu'))
+
+print(len(model.layers))  # "2"
+
+model.pop()
+print(len(model.layers))  # "1"
+```

@@ -158,6 +158,22 @@ class Sequential(Model):
         self.built = False
         self._flattened_layers = None
 
+    def pop(self):
+        '''Removes the last layer in the model.
+        '''
+        if not self.layers:
+            raise Exception('There are no layers in the model.')
+
+        self.layers.pop()
+        if not self.layers:
+            self.outputs = []
+            self.inbound_nodes = []
+            self.outbound_nodes = []
+        else:
+            self.layers[-1].outbound_nodes = []
+            self.outputs = [self.layers[-1].output]
+        self.built = False
+
     def call(self, x, mask=None):
         if not self.built:
             self.build()
