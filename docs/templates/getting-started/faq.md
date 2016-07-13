@@ -319,14 +319,14 @@ print(len(model.layers))  # "1"
 
 Code and pre-trained weights are available for the following image classification models:
 
-[VGG-16](https://gist.github.com/baraldilorenzo/07d7802847aaad0a35d3)
-[VGG-19](https://gist.github.com/baraldilorenzo/8d096f48a1be4a2d660d)
-[AlexNet](https://github.com/heuritech/convnets-keras)
+- [VGG-16](https://gist.github.com/baraldilorenzo/07d7802847aaad0a35d3)
+- [VGG-19](https://gist.github.com/baraldilorenzo/8d096f48a1be4a2d660d)
+- [AlexNet](https://github.com/heuritech/convnets-keras)
 
 For an example of how to use such a pre-trained model for feature extraction or for fine-tuning, see [this blog post](http://blog.keras.io/building-powerful-image-classification-models-using-very-little-data.html).
 
 The VGG-16 model is also the basis for several Keras example scripts:
 
-- [style transfer](https://github.com/fchollet/keras/blob/master/examples/neural_style_transfer.py)
-- [feature visualization](https://github.com/fchollet/keras/blob/master/examples/conv_filter_visualization.py)
-- [deep dream](https://github.com/fchollet/keras/blob/master/examples/deep_dream.py)
+- [Style transfer](https://github.com/fchollet/keras/blob/master/examples/neural_style_transfer.py)
+- [Feature visualization](https://github.com/fchollet/keras/blob/master/examples/conv_filter_visualization.py)
+- [Deep dream](https://github.com/fchollet/keras/blob/master/examples/deep_dream.py)
