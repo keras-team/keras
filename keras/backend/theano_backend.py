@@ -810,8 +810,8 @@ def l2_normalize(x, axis):
 # CONVOLUTIONS
 
 def conv2d(x, kernel, strides=(1, 1), border_mode='valid',
-           dim_ordering=_IMAGE_DIM_ORDERING,
-           image_shape=None, filter_shape=None):
+           dim_ordering=_IMAGE_DIM_ORDERING, image_shape=None,
+           filter_shape=None, filter_dilation=(1, 1)):
     '''2D convolution.
 
     # Arguments
@@ -862,11 +862,20 @@ def conv2d(x, kernel, strides=(1, 1), border_mode='valid',
     if filter_shape is not None:
         filter_shape = tuple(int_or_none(v) for v in filter_shape)
 
-    conv_out = T.nnet.conv2d(x, kernel,
-                             border_mode=th_border_mode,
-                             subsample=strides,
-                             input_shape=image_shape,
-                             filter_shape=filter_shape)
+    # TODO: remove the if statement when theano with no filter dilation is deprecated.
+    if filter_dilation == (1, 1):
+        conv_out = T.nnet.conv2d(x, kernel,
+                                 border_mode=th_border_mode,
+                                 subsample=strides,
+                                 input_shape=image_shape,
+                                 filter_shape=filter_shape)
+    else:
+        conv_out = T.nnet.conv2d(x, kernel,
+                                 border_mode=th_border_mode,
+                                 subsample=strides,
+                                 input_shape=image_shape,
+                                 filter_shape=filter_shape,
+                                 filter_dilation=filter_dilation)
 
     if border_mode == 'same':
         if np_kernel.shape[2] % 2 == 0:

@@ -84,6 +84,43 @@ def test_convolution_2d():
                        input_shape=(nb_samples, stack_size, nb_row, nb_col))
 
 
+def test_atrous_conv_2d():
+    nb_samples = 8
+    nb_filter = 3
+    stack_size = 4
+    nb_row = 10
+    nb_col = 6
+
+    for border_mode in ['valid', 'same']:
+        for subsample in [(1, 1), (2, 2)]:
+            for atrous_rate in [(1, 1), (2, 2)]:
+                if border_mode == 'same' and subsample != (1, 1):
+                    continue
+                if subsample != (1, 1) and atrous_rate != (1, 1):
+                    continue
+
+                layer_test(convolutional.AtrousConv2D,
+                           kwargs={'nb_filter': nb_filter,
+                                   'nb_row': 3,
+                                   'nb_col': 3,
+                                   'border_mode': border_mode,
+                                   'subsample': subsample,
+                                   'atrous_rate': atrous_rate},
+                           input_shape=(nb_samples, stack_size, nb_row, nb_col))
+
+                layer_test(convolutional.AtrousConv2D,
+                           kwargs={'nb_filter': nb_filter,
+                                   'nb_row': 3,
+                                   'nb_col': 3,
+                                   'border_mode': border_mode,
+                                   'W_regularizer': 'l2',
+                                   'b_regularizer': 'l2',
+                                   'activity_regularizer': 'activity_l2',
+                                   'subsample': subsample,
+                                   'atrous_rate': atrous_rate},
+                           input_shape=(nb_samples, stack_size, nb_row, nb_col))
+
+
 def test_maxpooling_2d():
     pool_size = (3, 3)
 
@@ -317,5 +354,4 @@ def test_upsampling_3d():
 
 
 if __name__ == '__main__':
-    # pytest.main([__file__])
-    test_convolution_3d()
+    pytest.main([__file__])
