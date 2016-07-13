@@ -864,7 +864,7 @@ class Layer(object):
         params = self.trainable_weights + self.non_trainable_weights
         return K.batch_get_value(params)
 
-    def get_config(self):
+    def get_config(self, **child_class_config):
         '''Returns a Python dictionary (serializable)
         containing the configuration of a layer.
         The same layer can be reinstantiated later
@@ -874,8 +874,11 @@ class Layer(object):
         information, nor the layer class name. These are handled
         by Container (one layer of abstraction above).
         '''
-        config = {'name': self.name,
-                  'trainable': self.trainable}
+        config = dict(
+            name=self.name,
+            trainable=self.trainable,
+            **child_class_config
+        )
         if hasattr(self, 'batch_input_shape'):
             config['batch_input_shape'] = self.batch_input_shape
         if hasattr(self, 'input_dtype'):

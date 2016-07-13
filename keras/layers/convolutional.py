@@ -11,7 +11,90 @@ from .pooling import AveragePooling1D, AveragePooling2D, AveragePooling3D
 from .pooling import MaxPooling1D, MaxPooling2D, MaxPooling3D
 
 
-class Convolution1D(Layer):
+class AbstractConvolution(Layer):
+    def __init__(self, nb_filter, dimensions,
+                 init, activation='linear', weights=None,
+                 border_mode='valid', subsample=None, dim_ordering=K.image_dim_ordering(),
+                 W_regularizer=None, b_regularizer=None,
+                 activity_regularizer=None, W_constraint=None, b_constraint=None,
+                 bias=True, **kwargs):
+        self.dimensions = dimensions
+        if border_mode not in {'valid', 'same'}:
+            raise Exception('Invalid border mode for {}:'.format(self.__class__.__name__), border_mode)
+        self.nb_filter = nb_filter
+        self.init = initializations.get(init, dim_ordering=dim_ordering)
+        self.subsample = tuple(subsample)
+
+        self.activation = activations.get(activation)
+        assert border_mode in {'valid', 'same'}, 'border_mode must be in {valid, same}'
+        self.border_mode = border_mode
+
+        self.W_regularizer = regularizers.get(W_regularizer)
+        self.b_regularizer = regularizers.get(b_regularizer)
+        self.activity_regularizer = regularizers.get(activity_regularizer)
+
+        self.W_constraint = constraints.get(W_constraint)
+        self.b_constraint = constraints.get(b_constraint)
+
+        self.bias = bias
+        self.input_spec = [InputSpec(ndim=2 + len(dimensions))]
+        assert dim_ordering in {'tf', 'th'}, 'dim_ordering must be in {tf, th}'
+        self.dim_ordering = dim_ordering
+        self.initial_weights = weights
+        super(AbstractConvolution, self).__init__(**kwargs)
+
+    def build(self, input_shape):
+        assert len(input_shape) == 2 + len(self.dimensions)
+        self.input_spec = [InputSpec(shape=input_shape)]
+
+        self.W = self.init(self.W_shape, name='{}_W'.format(self.name))
+        if self.bias:
+            self.b = K.zeros((self.nb_filter,), name='{}_b'.format(self.name))
+            self.trainable_weights = [self.W, self.b]
+        else:
+            self.trainable_weights = [self.W]
+        self.regularizers = []
+
+        if self.W_regularizer:
+            self.W_regularizer.set_param(self.W)
+            self.regularizers.append(self.W_regularizer)
+
+        if self.bias and self.b_regularizer:
+            self.b_regularizer.set_param(self.b)
+            self.regularizers.append(self.b_regularizer)
+
+        if self.activity_regularizer:
+            self.activity_regularizer.set_layer(self)
+            self.regularizers.append(self.activity_regularizer)
+
+        self.constraints = {}
+        if self.W_constraint:
+            self.constraints[self.W] = self.W_constraint
+        if self.bias and self.b_constraint:
+            self.constraints[self.b] = self.b_constraint
+
+        if self.initial_weights is not None:
+            self.set_weights(self.initial_weights)
+            del self.initial_weights
+
+    def get_config(self, **child_class_config):
+        def get_config_if_not_none(x):
+            return x.get_config() if x else None
+
+        return super(AbstractConvolution, self).get_config(nb_filter=self.nb_filter,
+                                                           init=self.init.__name__,
+                                                           activation=self.activation.__name__,
+                                                           border_mode=self.border_mode,
+                                                           W_regularizer=get_config_if_not_none(self.W_regularizer),
+                                                           b_regularizer=get_config_if_not_none(self.b_regularizer),
+                                                           activity_regularizer=get_config_if_not_none(self.activity_regularizer),
+                                                           W_constraint=get_config_if_not_none(self.W_constraint),
+                                                           b_constraint=get_config_if_not_none(self.b_constraint),
+                                                           bias=self.bias,
+                                                           **child_class_config)
+
+
+class Convolution1D(AbstractConvolution):
     '''Convolution operator for filtering neighborhoods of one-dimensional inputs.
     When using this layer as the first layer in a model,
     either provide the keyword argument `input_dim`
@@ -82,66 +165,26 @@ class Convolution1D(Layer):
                  W_constraint=None, b_constraint=None,
                  bias=True, input_dim=None, input_length=None, **kwargs):
 
-        if border_mode not in {'valid', 'same'}:
-            raise Exception('Invalid border mode for Convolution1D:', border_mode)
-        self.nb_filter = nb_filter
         self.filter_length = filter_length
-        self.init = initializations.get(init, dim_ordering='th')
-        self.activation = activations.get(activation)
-        assert border_mode in {'valid', 'same'}, 'border_mode must be in {valid, same}'
-        self.border_mode = border_mode
         self.subsample_length = subsample_length
-
-        self.subsample = (subsample_length, 1)
-
-        self.W_regularizer = regularizers.get(W_regularizer)
-        self.b_regularizer = regularizers.get(b_regularizer)
-        self.activity_regularizer = regularizers.get(activity_regularizer)
-
-        self.W_constraint = constraints.get(W_constraint)
-        self.b_constraint = constraints.get(b_constraint)
-
-        self.bias = bias
-        self.input_spec = [InputSpec(ndim=3)]
-        self.initial_weights = weights
         self.input_dim = input_dim
         self.input_length = input_length
         if self.input_dim:
             kwargs['input_shape'] = (self.input_length, self.input_dim)
-        super(Convolution1D, self).__init__(**kwargs)
+        super(Convolution1D, self).__init__(nb_filter, dimensions=(filter_length,), init=init,
+                                            activation=activation, weights=weights,
+                                            border_mode=border_mode, subsample=(subsample_length, 1),
+                                            dim_ordering='th',
+                                            W_regularizer=W_regularizer, b_regularizer=b_regularizer,
+                                            activity_regularizer=activity_regularizer,
+                                            W_constraint=W_constraint,
+                                            b_constraint=b_constraint, bias=bias,
+                                            **kwargs)
 
     def build(self, input_shape):
         input_dim = input_shape[2]
         self.W_shape = (self.nb_filter, input_dim, self.filter_length, 1)
-        self.W = self.init(self.W_shape, name='{}_W'.format(self.name))
-        if self.bias:
-            self.b = K.zeros((self.nb_filter,), name='{}_b'.format(self.name))
-            self.trainable_weights = [self.W, self.b]
-        else:
-            self.trainable_weights = [self.W]
-        self.regularizers = []
-
-        if self.W_regularizer:
-            self.W_regularizer.set_param(self.W)
-            self.regularizers.append(self.W_regularizer)
-
-        if self.bias and self.b_regularizer:
-            self.b_regularizer.set_param(self.b)
-            self.regularizers.append(self.b_regularizer)
-
-        if self.activity_regularizer:
-            self.activity_regularizer.set_layer(self)
-            self.regularizers.append(self.activity_regularizer)
-
-        self.constraints = {}
-        if self.W_constraint:
-            self.constraints[self.W] = self.W_constraint
-        if self.bias and self.b_constraint:
-            self.constraints[self.b] = self.b_constraint
-
-        if self.initial_weights is not None:
-            self.set_weights(self.initial_weights)
-            del self.initial_weights
+        super(Convolution1D, self).build(input_shape)
 
     def get_output_shape_for(self, input_shape):
         length = conv_output_length(input_shape[1],
@@ -163,26 +206,15 @@ class Convolution1D(Layer):
         output = self.activation(output)
         return output
 
-    def get_config(self):
-        config = {'nb_filter': self.nb_filter,
-                  'filter_length': self.filter_length,
-                  'init': self.init.__name__,
-                  'activation': self.activation.__name__,
-                  'border_mode': self.border_mode,
-                  'subsample_length': self.subsample_length,
-                  'W_regularizer': self.W_regularizer.get_config() if self.W_regularizer else None,
-                  'b_regularizer': self.b_regularizer.get_config() if self.b_regularizer else None,
-                  'activity_regularizer': self.activity_regularizer.get_config() if self.activity_regularizer else None,
-                  'W_constraint': self.W_constraint.get_config() if self.W_constraint else None,
-                  'b_constraint': self.b_constraint.get_config() if self.b_constraint else None,
-                  'bias': self.bias,
-                  'input_dim': self.input_dim,
-                  'input_length': self.input_length}
-        base_config = super(Convolution1D, self).get_config()
-        return dict(list(base_config.items()) + list(config.items()))
+    def get_config(self, **child_class_config):
+        return super(Convolution1D, self).get_config(filter_length=self.filter_length,
+                                                     subsample_length=self.subsample_length,
+                                                     input_dim=self.input_dim,
+                                                     input_length=self.input_length,
+                                                     **child_class_config)
 
 
-class Convolution2D(Layer):
+class Convolution2D(AbstractConvolution):
     '''Convolution operator for filtering windows of two-dimensional inputs.
     When using this layer as the first layer in a model,
     provide the keyword argument `input_shape`
@@ -256,70 +288,26 @@ class Convolution2D(Layer):
                  W_regularizer=None, b_regularizer=None, activity_regularizer=None,
                  W_constraint=None, b_constraint=None,
                  bias=True, **kwargs):
-
-        if border_mode not in {'valid', 'same'}:
-            raise Exception('Invalid border mode for Convolution2D:', border_mode)
-        self.nb_filter = nb_filter
+        super(Convolution2D, self).__init__(nb_filter, dimensions=(nb_row, nb_col), init=init,
+                                            activation=activation, weights=weights,
+                                            border_mode=border_mode, subsample=subsample,
+                                            W_regularizer=W_regularizer, b_regularizer=b_regularizer,
+                                            activity_regularizer=activity_regularizer, W_constraint=W_constraint,
+                                            b_constraint=b_constraint, bias=bias,
+                                            **kwargs)
         self.nb_row = nb_row
         self.nb_col = nb_col
-        self.init = initializations.get(init, dim_ordering=dim_ordering)
-        self.activation = activations.get(activation)
-        assert border_mode in {'valid', 'same'}, 'border_mode must be in {valid, same}'
-        self.border_mode = border_mode
-        self.subsample = tuple(subsample)
-        assert dim_ordering in {'tf', 'th'}, 'dim_ordering must be in {tf, th}'
-        self.dim_ordering = dim_ordering
-
-        self.W_regularizer = regularizers.get(W_regularizer)
-        self.b_regularizer = regularizers.get(b_regularizer)
-        self.activity_regularizer = regularizers.get(activity_regularizer)
-
-        self.W_constraint = constraints.get(W_constraint)
-        self.b_constraint = constraints.get(b_constraint)
-
-        self.bias = bias
-        self.input_spec = [InputSpec(ndim=4)]
-        self.initial_weights = weights
-        super(Convolution2D, self).__init__(**kwargs)
 
     def build(self, input_shape):
         if self.dim_ordering == 'th':
             stack_size = input_shape[1]
-            self.W_shape = (self.nb_filter, stack_size, self.nb_row, self.nb_col)
+            self.W_shape = (self.nb_filter, stack_size) + self.dimensions
         elif self.dim_ordering == 'tf':
             stack_size = input_shape[3]
-            self.W_shape = (self.nb_row, self.nb_col, stack_size, self.nb_filter)
+            self.W_shape = self.dimensions + (stack_size, self.nb_filter)
         else:
             raise Exception('Invalid dim_ordering: ' + self.dim_ordering)
-        self.W = self.init(self.W_shape, name='{}_W'.format(self.name))
-        if self.bias:
-            self.b = K.zeros((self.nb_filter,), name='{}_b'.format(self.name))
-            self.trainable_weights = [self.W, self.b]
-        else:
-            self.trainable_weights = [self.W]
-        self.regularizers = []
-
-        if self.W_regularizer:
-            self.W_regularizer.set_param(self.W)
-            self.regularizers.append(self.W_regularizer)
-
-        if self.bias and self.b_regularizer:
-            self.b_regularizer.set_param(self.b)
-            self.regularizers.append(self.b_regularizer)
-
-        if self.activity_regularizer:
-            self.activity_regularizer.set_layer(self)
-            self.regularizers.append(self.activity_regularizer)
-
-        self.constraints = {}
-        if self.W_constraint:
-            self.constraints[self.W] = self.W_constraint
-        if self.bias and self.b_constraint:
-            self.constraints[self.b] = self.b_constraint
-
-        if self.initial_weights is not None:
-            self.set_weights(self.initial_weights)
-            del self.initial_weights
+        super(Convolution2D, self).build(input_shape)
 
     def get_output_shape_for(self, input_shape):
         if self.dim_ordering == 'th':
@@ -358,26 +346,15 @@ class Convolution2D(Layer):
         output = self.activation(output)
         return output
 
-    def get_config(self):
-        config = {'nb_filter': self.nb_filter,
-                  'nb_row': self.nb_row,
-                  'nb_col': self.nb_col,
-                  'init': self.init.__name__,
-                  'activation': self.activation.__name__,
-                  'border_mode': self.border_mode,
-                  'subsample': self.subsample,
-                  'dim_ordering': self.dim_ordering,
-                  'W_regularizer': self.W_regularizer.get_config() if self.W_regularizer else None,
-                  'b_regularizer': self.b_regularizer.get_config() if self.b_regularizer else None,
-                  'activity_regularizer': self.activity_regularizer.get_config() if self.activity_regularizer else None,
-                  'W_constraint': self.W_constraint.get_config() if self.W_constraint else None,
-                  'b_constraint': self.b_constraint.get_config() if self.b_constraint else None,
-                  'bias': self.bias}
-        base_config = super(Convolution2D, self).get_config()
-        return dict(list(base_config.items()) + list(config.items()))
+    def get_config(self, **child_class_config):
+        return super(Convolution2D, self).get_config(nb_row=self.nb_row,
+                                                     nb_col=self.nb_col,
+                                                     subsample=self.subsample,
+                                                     dim_ordering=self.dim_ordering,
+                                                     **child_class_config)
 
 
-class Convolution3D(Layer):
+class Convolution3D(AbstractConvolution):
     '''Convolution operator for filtering windows of three-dimensional inputs.
     When using this layer as the first layer in a model,
     provide the keyword argument `input_shape`
@@ -434,83 +411,37 @@ class Convolution3D(Layer):
         `(samples, new_conv_dim1, new_conv_dim2, new_conv_dim3, nb_filter)` if dim_ordering='tf'.
         `new_conv_dim1`, `new_conv_dim2` and `new_conv_dim3` values might have changed due to padding.
     '''
-
     def __init__(self, nb_filter, kernel_dim1, kernel_dim2, kernel_dim3,
                  init='glorot_uniform', activation='linear', weights=None,
                  border_mode='valid', subsample=(1, 1, 1), dim_ordering=K.image_dim_ordering(),
                  W_regularizer=None, b_regularizer=None, activity_regularizer=None,
                  W_constraint=None, b_constraint=None,
                  bias=True, **kwargs):
-        if border_mode not in {'valid', 'same'}:
-            raise Exception('Invalid border mode for Convolution3D:', border_mode)
-        self.nb_filter = nb_filter
+        super(Convolution3D, self).__init__(nb_filter,
+                                            dimensions=(kernel_dim1, kernel_dim2, kernel_dim3),
+                                            init=init,
+                                            activation=activation, weights=weights,
+                                            border_mode=border_mode, subsample=subsample,
+                                            dim_ordering=dim_ordering,
+                                            W_regularizer=W_regularizer, b_regularizer=b_regularizer,
+                                            activity_regularizer=activity_regularizer,
+                                            W_constraint=W_constraint,
+                                            b_constraint=b_constraint, bias=bias,
+                                            **kwargs)
         self.kernel_dim1 = kernel_dim1
         self.kernel_dim2 = kernel_dim2
         self.kernel_dim3 = kernel_dim3
-        self.init = initializations.get(init, dim_ordering=dim_ordering)
-        self.activation = activations.get(activation)
-        assert border_mode in {'valid', 'same'}, 'border_mode must be in {valid, same}'
-        self.border_mode = border_mode
-        self.subsample = tuple(subsample)
-        assert dim_ordering in {'tf', 'th'}, 'dim_ordering must be in {tf, th}'
-        self.dim_ordering = dim_ordering
-
-        self.W_regularizer = regularizers.get(W_regularizer)
-        self.b_regularizer = regularizers.get(b_regularizer)
-        self.activity_regularizer = regularizers.get(activity_regularizer)
-
-        self.W_constraint = constraints.get(W_constraint)
-        self.b_constraint = constraints.get(b_constraint)
-
-        self.bias = bias
-        self.input_spec = [InputSpec(ndim=5)]
-        self.initial_weights = weights
-        super(Convolution3D, self).__init__(**kwargs)
 
     def build(self, input_shape):
-        assert len(input_shape) == 5
-        self.input_spec = [InputSpec(shape=input_shape)]
-
         if self.dim_ordering == 'th':
             stack_size = input_shape[1]
-            self.W_shape = (self.nb_filter, stack_size,
-                            self.kernel_dim1, self.kernel_dim2, self.kernel_dim3)
+            self.W_shape = (self.nb_filter, stack_size) + self.dimensions
         elif self.dim_ordering == 'tf':
             stack_size = input_shape[4]
-            self.W_shape = (self.kernel_dim1, self.kernel_dim2, self.kernel_dim3,
-                            stack_size, self.nb_filter)
+            self.W_shape = self.dimensions + (stack_size, self.nb_filter)
         else:
             raise Exception('Invalid dim_ordering: ' + self.dim_ordering)
-
-        self.W = self.init(self.W_shape, name='{}_W'.format(self.name))
-        if self.bias:
-            self.b = K.zeros((self.nb_filter,), name='{}_b'.format(self.name))
-            self.trainable_weights = [self.W, self.b]
-        else:
-            self.trainable_weights = [self.W]
-
-        self.regularizers = []
-        if self.W_regularizer:
-            self.W_regularizer.set_param(self.W)
-            self.regularizers.append(self.W_regularizer)
-
-        if self.bias and self.b_regularizer:
-            self.b_regularizer.set_param(self.b)
-            self.regularizers.append(self.b_regularizer)
-
-        if self.activity_regularizer:
-            self.activity_regularizer.set_layer(self)
-            self.regularizers.append(self.activity_regularizer)
-
-        self.constraints = {}
-        if self.W_constraint:
-            self.constraints[self.W] = self.W_constraint
-        if self.bias and self.b_constraint:
-            self.constraints[self.b] = self.b_constraint
-
-        if self.initial_weights is not None:
-            self.set_weights(self.initial_weights)
-            del self.initial_weights
+        super(Convolution3D, self).build(input_shape)
 
     def get_output_shape_for(self, input_shape):
         if self.dim_ordering == 'th':
@@ -555,24 +486,13 @@ class Convolution3D(Layer):
         output = self.activation(output)
         return output
 
-    def get_config(self):
-        config = {'nb_filter': self.nb_filter,
-                  'kernel_dim1': self.kernel_dim1,
-                  'kernel_dim2': self.kernel_dim2,
-                  'kernel_dim3': self.kernel_dim3,
-                  'dim_ordering': self.dim_ordering,
-                  'init': self.init.__name__,
-                  'activation': self.activation.__name__,
-                  'border_mode': self.border_mode,
-                  'subsample': self.subsample,
-                  'W_regularizer': self.W_regularizer.get_config() if self.W_regularizer else None,
-                  'b_regularizer': self.b_regularizer.get_config() if self.b_regularizer else None,
-                  'activity_regularizer': self.activity_regularizer.get_config() if self.activity_regularizer else None,
-                  'W_constraint': self.W_constraint.get_config() if self.W_constraint else None,
-                  'b_constraint': self.b_constraint.get_config() if self.b_constraint else None,
-                  'bias': self.bias}
-        base_config = super(Convolution3D, self).get_config()
-        return dict(list(base_config.items()) + list(config.items()))
+    def get_config(self, **child_class_config):
+        return super(Convolution3D, self).get_config(kernel_dim1=self.kernel_dim1,
+                                                     kernel_dim2=self.kernel_dim2,
+                                                     kernel_dim3=self.kernel_dim3,
+                                                     subsample=self.subsample,
+                                                     dim_ordering=self.dim_ordering,
+                                                     **child_class_config)
 
 
 class UpSampling1D(Layer):
