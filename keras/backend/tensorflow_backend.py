@@ -655,6 +655,7 @@ def batch_set_value(tuples):
         ops = [tf.assign(x, np.asarray(value)) for x, value in tuples]
         get_session().run(ops)
 
+
 # GRAPH MANIPULATION
 
 class Function(object):
@@ -1075,7 +1076,7 @@ def _postprocess_conv3d_output(x, dim_ordering):
 
 def conv2d(x, kernel, strides=(1, 1), border_mode='valid',
            dim_ordering=_IMAGE_DIM_ORDERING,
-           image_shape=None, filter_shape=None):
+           image_shape=None, filter_shape=None, filter_dilation=(1, 1)):
     '''2D convolution.
 
     # Arguments
@@ -1092,9 +1093,13 @@ def conv2d(x, kernel, strides=(1, 1), border_mode='valid',
     x = _preprocess_conv2d_input(x, dim_ordering)
     kernel = _preprocess_conv2d_kernel(kernel, dim_ordering)
     padding = _preprocess_border_mode(border_mode)
-    strides = (1,) + strides + (1,)
-
-    x = tf.nn.conv2d(x, kernel, strides, padding=padding)
+    if filter_dilation == (1, 1):
+        strides = (1,) + strides + (1,)
+        x = tf.nn.conv2d(x, kernel, strides, padding=padding)
+    else:
+        assert filter_dilation[0] == filter_dilation[1]
+        assert strides == (1, 1), 'Invalid strides for dilated convolution'
+        x = tf.nn.atrous_conv2d(x, kernel, filter_dilation[0], padding=padding)
     return _postprocess_conv2d_output(x, dim_ordering)
 
 
