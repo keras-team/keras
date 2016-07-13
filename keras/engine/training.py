@@ -510,7 +510,7 @@ class Model(Container):
                                 'it should have one entry per model outputs. '
                                 'The model has ' + str(len(self.outputs)) +
                                 ' outputs, but you passed loss_weights=' +
-                                str(loss))
+                                str(loss_weights))
             loss_weights_list = loss_weights
         else:
             raise Exception('Could not interpret loss_weights argument: ' +
