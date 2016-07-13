@@ -97,9 +97,10 @@ def test_merge_mask_2d():
     masked_a = Masking(mask_value=0)(input_a)
     masked_b = Masking(mask_value=0)(input_b)
 
-    # two different types of merging
+    # three different types of merging
     merged_sum = merge([masked_a, masked_b], mode='sum')
     merged_concat = merge([masked_a, masked_b], mode='concat', concat_axis=1)
+    merged_concat_mixed = merge([masked_a, input_b], mode='concat', concat_axis=1)
 
     # test sum
     model_sum = Model([input_a, input_b], [merged_sum])
@@ -111,6 +112,10 @@ def test_merge_mask_2d():
     model_concat.compile(loss='mse', optimizer='sgd')
     model_concat.fit([rand(2,3), rand(2,3)], [rand(2,6)], nb_epoch=1)
 
+    # test concatenation with masked and non-masked inputs
+    model_concat = Model([input_a, input_b], [merged_concat_mixed])
+    model_concat.compile(loss='mse', optimizer='sgd')
+    model_concat.fit([rand(2,3), rand(2,3)], [rand(2,6)], nb_epoch=1)
 
 def test_merge_mask_3d():
     from keras.layers import Input, merge, Embedding, SimpleRNN
