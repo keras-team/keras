@@ -398,6 +398,8 @@ def expand_dims(x, dim=-1):
 def squeeze(x, axis):
     '''Remove a 1-dimension from the tensor at index "axis".
     '''
+    if axis < 0
+        axis = x.ndim + axis
     broadcastable = x.broadcastable[:axis] + x.broadcastable[axis+1:]
     x = T.patternbroadcast(x, [i == axis for i in range(x.type.ndim)])
     x = T.squeeze(x)
