@@ -479,30 +479,39 @@ def cos(x):
     return tf.cos(x)
 
 
-def normalize_batch_in_training(x, gamma, beta, reduction_axes, epsilon=0.0001):
+def normalize_batch_in_training(x, gamma, beta,
+                                reduction_axes, epsilon=0.0001):
+    '''Compute mean and std for batch then apply batch_normalization on batch.
     '''
-    '''
-    mean, std = tf.nn.moments(x, reduction_axes, shift=None, name=None, keep_dims=False)
-    target_shape = []
-    for axis in range(ndim(x)):
-        if axis in reduction_axes:
-            target_shape.append(1)
-        else:
-            target_shape.append(tf.shape(x)[axis])
-    print('target_shape:', target_shape)
-    target_shape = tf.pack(target_shape)
+    mean, std = tf.nn.moments(x, reduction_axes,
+                              shift=None, name=None, keep_dims=False)
+    if sorted(reduction_axes) == range(ndim(x))[:-1]:
+        normed = tf.nn.batch_normalization(x, mean, std,
+                                           beta, gamma,
+                                           epsilon)
+    else:
+        # need broadcasting
+        target_shape = []
+        for axis in range(ndim(x)):
+            if axis in reduction_axes:
+                target_shape.append(1)
+            else:
+                target_shape.append(tf.shape(x)[axis])
+        target_shape = tf.pack(target_shape)
 
-    broadcast_mean = tf.reshape(mean, target_shape)
-    broadcast_std = tf.reshape(std, target_shape)
-    broadcast_gamma = tf.reshape(gamma, target_shape)
-    broadcast_beta = tf.reshape(beta, target_shape)
-    normed = tf.nn.batch_normalization(x, broadcast_mean, broadcast_std,
-                                       broadcast_beta, broadcast_gamma,
-                                       epsilon)
+        broadcast_mean = tf.reshape(mean, target_shape)
+        broadcast_std = tf.reshape(std, target_shape)
+        broadcast_gamma = tf.reshape(gamma, target_shape)
+        broadcast_beta = tf.reshape(beta, target_shape)
+        normed = tf.nn.batch_normalization(x, broadcast_mean, broadcast_std,
+                                           broadcast_beta, broadcast_gamma,
+                                           epsilon)
     return normed, mean, std
 
 
 def batch_normalization(x, mean, std, beta, gamma, epsilon=0.0001):
+    '''Apply batch normalization on x given mean, std, beta and gamma.
+    '''
     return tf.nn.batch_normalization(x, mean, std, beta, gamma, epsilon)
 
 
