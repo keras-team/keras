@@ -1164,8 +1164,8 @@ def separable_conv2d(x, depthwise_kernel, pointwise_kernel, strides=(1, 1),
     padding = _preprocess_border_mode(border_mode)
     strides = (1,) + strides + (1,)
 
-    tf.nn.separable_conv2d(x, depthwise_kernel, pointwise_kernel,
-                           strides, padding)
+    x = tf.nn.separable_conv2d(x, depthwise_kernel, pointwise_kernel,
+                               strides, padding)
     return _postprocess_conv2d_output(x, dim_ordering)
 
 

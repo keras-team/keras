@@ -53,7 +53,7 @@ def test_averagepooling_1d():
 
 
 def test_convolution_2d():
-    nb_samples = 8
+    nb_samples = 2
     nb_filter = 3
     stack_size = 4
     nb_row = 10
@@ -85,7 +85,7 @@ def test_convolution_2d():
 
 
 def test_atrous_conv_2d():
-    nb_samples = 8
+    nb_samples = 2
     nb_filter = 3
     stack_size = 4
     nb_row = 10
@@ -118,6 +118,45 @@ def test_atrous_conv_2d():
                                    'activity_regularizer': 'activity_l2',
                                    'subsample': subsample,
                                    'atrous_rate': atrous_rate},
+                           input_shape=(nb_samples, stack_size, nb_row, nb_col))
+
+
+@pytest.mark.skipif(K._BACKEND != 'tensorflow', reason="Requires TF backend")
+def test_separable_conv_2d():
+    nb_samples = 2
+    nb_filter = 8
+    stack_size = 4
+    nb_row = 10
+    nb_col = 6
+
+    for border_mode in ['valid', 'same']:
+        for subsample in [(1, 1), (2, 2)]:
+            for multiplier in [1, 2]:
+                if border_mode == 'same' and subsample != (1, 1):
+                    continue
+
+                layer_test(convolutional.SeparableConv2D,
+                           kwargs={'nb_filter': nb_filter,
+                                   'nb_row': 3,
+                                   'nb_col': 3,
+                                   'border_mode': border_mode,
+                                   'subsample': subsample,
+                                   'depth_multiplier': multiplier},
+                           input_shape=(nb_samples, stack_size, nb_row, nb_col))
+
+                layer_test(convolutional.SeparableConv2D,
+                           kwargs={'nb_filter': nb_filter,
+                                   'nb_row': 3,
+                                   'nb_col': 3,
+                                   'border_mode': border_mode,
+                                   'depthwise_regularizer': 'l2',
+                                   'pointwise_regularizer': 'l2',
+                                   'b_regularizer': 'l2',
+                                   'activity_regularizer': 'activity_l2',
+                                   'pointwise_constraint': 'unitnorm',
+                                   'depthwise_constraint': 'unitnorm',
+                                   'subsample': subsample,
+                                   'depth_multiplier': multiplier},
                            input_shape=(nb_samples, stack_size, nb_row, nb_col))
 
 
@@ -209,7 +248,7 @@ def test_averagepooling_3d():
 
 
 def test_zero_padding_2d():
-    nb_samples = 9
+    nb_samples = 2
     stack_size = 7
     input_nb_row = 11
     input_nb_col = 12
@@ -235,7 +274,7 @@ def test_zero_padding_2d():
 
 @pytest.mark.skipif(K._BACKEND != 'theano', reason="Requires Theano backend")
 def test_zero_padding_3d():
-    nb_samples = 9
+    nb_samples = 2
     stack_size = 7
     input_len_dim1 = 10
     input_len_dim2 = 11
@@ -268,7 +307,7 @@ def test_upsampling_1d():
 
 
 def test_upsampling_2d():
-    nb_samples = 9
+    nb_samples = 2
     stack_size = 7
     input_nb_row = 11
     input_nb_col = 12
@@ -309,7 +348,7 @@ def test_upsampling_2d():
 
 @pytest.mark.skipif(K._BACKEND != 'theano', reason="Requires Theano backend")
 def test_upsampling_3d():
-    nb_samples = 9
+    nb_samples = 2
     stack_size = 7
     input_len_dim1 = 10
     input_len_dim2 = 11
