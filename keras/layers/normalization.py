@@ -98,18 +98,17 @@ class BatchNormalization(Layer):
             broadcast_shape = [1] * len(input_shape)
             broadcast_shape[self.axis] = input_shape[self.axis]
 
-            # case: train mode (uses stats of the current batch)
-            mean = K.mean(x, axis=reduction_axes)
-            brodcast_mean = K.reshape(mean, broadcast_shape)
-            std = K.mean(K.square(x - brodcast_mean) + self.epsilon, axis=reduction_axes)
-            std = K.sqrt(std)
-            brodcast_std = K.reshape(std, broadcast_shape)
-            mean_update = self.momentum * self.running_mean + (1 - self.momentum) * mean
-            std_update = self.momentum * self.running_std + (1 - self.momentum) * std
+            # # case: train mode (uses stats of the current batch)
+            # mean = K.mean(x, axis=reduction_axes)
+            # brodcast_mean = K.reshape(mean, broadcast_shape)
+            # std = K.mean(K.square(x - brodcast_mean) + self.epsilon, axis=reduction_axes)
+            # std = K.sqrt(std)
+            # brodcast_std = K.reshape(std, broadcast_shape)
 
             if self.mode == 2:
-                x_normed = (x - brodcast_mean) / (brodcast_std + self.epsilon)
-                out = K.reshape(self.gamma, broadcast_shape) * x_normed + K.reshape(self.beta, broadcast_shape)
+                x_normed, mean, std = K.normalize_batch_in_training(x, self.gamma, self.beta, reduction_axes, epsilon=self.epsilon)
+                mean_update = self.momentum * self.running_mean + (1 - self.momentum) * mean
+                std_update = self.momentum * self.running_std + (1 - self.momentum) * std
             else:
                 # mode 0
                 if self.called_with not in {None, x}:
@@ -123,26 +122,27 @@ class BatchNormalization(Layer):
                                     '(see docs for a description of '
                                     'the behavior).')
                 self.called_with = x
+                x_normed, mean, std = K.normalize_batch_in_training(x, self.gamma, self.beta, reduction_axes, epsilon=self.epsilon)
+                mean_update = self.momentum * self.running_mean + (1 - self.momentum) * mean
+                std_update = self.momentum * self.running_std + (1 - self.momentum) * std
                 self.updates = [(self.running_mean, mean_update),
                                 (self.running_std, std_update)]
-                x_normed = (x - brodcast_mean) / (brodcast_std + self.epsilon)
 
                 # case: test mode (uses running averages)
                 brodcast_running_mean = K.reshape(self.running_mean, broadcast_shape)
                 brodcast_running_std = K.reshape(self.running_std, broadcast_shape)
-                x_normed_running = ((x - brodcast_running_mean) / (brodcast_running_std + self.epsilon))
+                x_normed_running = K.batch_normalization(x, brodcast_running_mean, brodcast_running_std, self.beta, self.gamma, epsilon=self.epsilon)
 
                 # pick the normalized form of x corresponding to the training phase
                 x_normed = K.in_train_phase(x_normed, x_normed_running)
-                out = K.reshape(self.gamma, broadcast_shape) * x_normed + K.reshape(self.beta, broadcast_shape)
 
         elif self.mode == 1:
             # sample-wise normalization
             m = K.mean(x, axis=-1, keepdims=True)
             std = K.sqrt(K.var(x, axis=-1, keepdims=True) + self.epsilon)
             x_normed = (x - m) / (std + self.epsilon)
-            out = self.gamma * x_normed + self.beta
-        return out
+            x_normed = self.gamma * x_normed + self.beta
+        return x_normed
 
     def get_config(self):
         config = {"epsilon": self.epsilon,
