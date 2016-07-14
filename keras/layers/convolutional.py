@@ -390,7 +390,7 @@ class AtrousConvolution2D(Convolution2D):
     ```python
         # apply a 3x3 convolution with atrous rate 2x2 and 64 output filters on a 256x256 image:
         model = Sequential()
-        model.add(AtrousConv2D(64, 3, 3, atrous_rate=(2,2), border_mode='valid', input_shape=(3, 256, 256)))
+        model.add(AtrousConvolution2D(64, 3, 3, atrous_rate=(2,2), border_mode='valid', input_shape=(3, 256, 256)))
         # now the actual kernel size is dilated from 3x3 to 5x5 (3+(3-1)*(2-1)=5)
         # thus model.output_shape == (None, 64, 252, 252)
     ```
@@ -460,7 +460,7 @@ class AtrousConvolution2D(Convolution2D):
 
         self.atrous_rate = tuple(atrous_rate)
 
-        super(AtrousConv2D, self).__init__(nb_filter, nb_row, nb_col,
+        super(AtrousConvolution2D, self).__init__(nb_filter, nb_row, nb_col,
                                            init=init, activation=activation,
                                            weights=weights, border_mode=border_mode,
                                            subsample=subsample, dim_ordering=dim_ordering,
@@ -509,7 +509,7 @@ class AtrousConvolution2D(Convolution2D):
 
     def get_config(self):
         config = {'atrous_rate': self.atrous_rate}
-        base_config = super(AtrousConv2D, self).get_config()
+        base_config = super(AtrousConvolution2D, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
 
