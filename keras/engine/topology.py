@@ -1331,9 +1331,18 @@ class Merge(Layer):
             masks = [K.expand_dims(m, 0) for m in mask if m is not None]
             return K.all(K.concatenate(masks, axis=0), axis=0, keepdims=False)
         elif self.mode == 'concat':
-            # Make sure mask has the same number of dimensions as the input
-            expand_if_needed = lambda input, mask: K.expand_dims(mask) if K.ndim(mask) < K.ndim(input) else mask
-            masks = [K.ones_like(i) if m is None else expand_if_needed(i, m) for i, m in zip(inputs, mask)]
+            # Make a list of masks while making sure the dimensionality of each mask 
+            # is the same as the corresponding input.
+            masks = []
+            for input_i, mask_i in zip(inputs, mask):
+                if mask_i is None:
+                    # Input is unmasked. Append all 1s to masks
+                    masks.append(K.ones_like(input_i))
+                elif K.ndim(mask_i) < K.ndim(input_i):
+                    # Mask is smaller than the input, expand it
+                    masks.append(K.expand_dims(mask_i))
+                else:
+                    masks.append(mask)
             concatenated = K.concatenate(masks, axis=self.concat_axis)
             return K.all(concatenated, axis=-1, keepdims=False)
         elif self.mode in ['cos', 'dot']:
