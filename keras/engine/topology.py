@@ -914,7 +914,7 @@ class InputLayer(Layer):
     '''TODO: dosctring
     '''
     def __init__(self, input_shape=None, batch_input_shape=None,
-                 input_dtype=None, name=None):
+                 input_dtype=None, input_tensor=None, name=None):
         self.input_spec = None
         self.supports_masking = False
         self.uses_learning_phase = False
@@ -934,25 +934,48 @@ class InputLayer(Layer):
             name = prefix + '_' + str(K.get_uid(prefix))
         self.name = name
 
+        if input_shape and batch_input_shape:
+            raise ValueError('Only provide the input_shape OR '
+                             'batch_input_shape argument to '
+                             'InputLayer, not both at the same time.')
+        if input_tensor is not None:
+            if not input_shape and not batch_input_shape:
+                # attempt automatic input shape inference
+                try:
+                    batch_input_shape = K.int_shape(input_tensor)
+                except:
+                    raise ValueError('InputLayer was provided an input_tensor argument, '
+                                     'but its input shape cannot be automatically inferred. '
+                                     'You should pass an input_shape or batch_input_shape '
+                                     'argument.')
         if not batch_input_shape:
-            assert input_shape, 'An Input layer should be passed either a `batch_input_shape` or an `input_shape`.'
-            batch_input_shape = (None,) + tuple(input_shape)
+            if not input_shape:
+                raise ValueError('An Input layer should be passed either '
+                                 'a `batch_input_shape` or an `input_shape`.')
+            else:
+                batch_input_shape = (None,) + tuple(input_shape)
         else:
             batch_input_shape = tuple(batch_input_shape)
+
         if not input_dtype:
-            input_dtype = K.floatx()
+            if input_tensor is None:
+                input_dtype = K.floatx()
+            else:
+                input_dtype = K.dtype(input_tensor)
 
         self.batch_input_shape = batch_input_shape
         self.input_dtype = input_dtype
 
-        input_tensor = K.placeholder(shape=batch_input_shape,
-                                     dtype=input_dtype,
-                                     name=self.name)
+        if input_tensor is None:
+            input_tensor = K.placeholder(shape=batch_input_shape,
+                                         dtype=input_dtype,
+                                         name=self.name)
+        else:
+            input_tensor._keras_shape = batch_input_shape
         # create an input node to add to self.outbound_node
         # and set output_tensors' _keras_history
         input_tensor._uses_learning_phase = False
         input_tensor._keras_history = (self, 0, 0)
-        shape = input_tensor._keras_shape
         Node(self,
              inbound_layers=[],
              node_indices=[],
@@ -961,8 +984,8 @@ class InputLayer(Layer):
              output_tensors=[input_tensor],
              input_masks=[None],
              output_masks=[None],
-             input_shapes=[shape],
-             output_shapes=[shape])
+             input_shapes=[batch_input_shape],
+             output_shapes=[batch_input_shape])
 
     def get_config(self):
         config = {'batch_input_shape': self.batch_input_shape,
@@ -972,7 +995,8 @@ class InputLayer(Layer):
 
 
 def Input(shape=None, batch_shape=None,
-          name=None, dtype=K.floatx()):
+          name=None, dtype=K.floatx(),
+          tensor=None):
     '''`Input()` is used to instantiate a Keras tensor.
     A Keras tensor is a tensor object from the underlying backend
     (Theano or TensorFlow), which we augment with certain
@@ -1014,14 +1038,15 @@ def Input(shape=None, batch_shape=None,
         model = Model(input=a, output=b)
         ```
     '''
-    if not batch_shape:
+    if not batch_shape and tensor is None:
         assert shape, ('Please provide to Input either a `shape`' +
                        ' or a `batch_shape` argument. Note that ' +
                        '`shape` does not include the batch '
                        'dimension.')
         batch_shape = (None,) + tuple(shape)
     input_layer = InputLayer(batch_input_shape=batch_shape,
-                             name=name, input_dtype=dtype)
+                             name=name, input_dtype=dtype,
+                             input_tensor=tensor)
     # return tensor including _keras_shape and _keras_history
     # note that in this case train_output and test_output are the same pointer.
     outputs = input_layer.inbound_nodes[0].output_tensors
