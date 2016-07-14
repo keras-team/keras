@@ -24,6 +24,7 @@ pages:
   - About Keras layers: layers/about-keras-layers.md
   - Core Layers: layers/core.md
   - Convolutional Layers: layers/convolutional.md
+  - Pooling Layers: layers/pooling.md
   - Recurrent Layers: layers/recurrent.md
   - Embedding Layers: layers/embeddings.md
   - Advanced Activations Layers: layers/advanced-activations.md
