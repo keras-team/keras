@@ -298,6 +298,7 @@ model.layers[0].reset_states()
 
 Notes that the methods `predict`, `fit`, `train_on_batch`, `predict_classes`, etc. will *all* update the states of the stateful layers in a model. This allows you to do not only stateful training, but also stateful prediction.
 
+---
 
 ### How can I remove a layer from a Sequential model?
 
@@ -314,6 +315,7 @@ model.pop()
 print(len(model.layers))  # "1"
 ```
 
+---
 
 ### How can I use pre-trained models in Keras?
 
