@@ -208,13 +208,13 @@ class TestBackend(object):
         exptf = xtf * KTF.exp(xtf)
         lossth = KTH.sum(expth)
         losstf = KTF.sum(exptf)
-        zero_lossth = KTH.stop_gradient(expth)
-        zero_losstf = KTF.stop_gradient(exptf)
+        zero_lossth = KTH.stop_gradient(lossth)
+        zero_losstf = KTF.stop_gradient(losstf)
 
         gradth = KTH.gradients(lossth, [expth])
         gradtf = KTF.gradients(losstf, [exptf])
-        zero_gradth = KTH.gradients(zero_lossth, [expth])
-        zero_gradtf = KTF.gradients(zero_losstf, [exptf])
+        zero_gradth = KTH.gradients(lossth + zero_lossth, [expth])
+        zero_gradtf = KTF.gradients(losstf + zero_losstf, [exptf])
 
         zth = KTH.eval(gradth[0])
         ztf = KTF.eval(gradtf[0])
@@ -224,6 +224,8 @@ class TestBackend(object):
         assert zero_zth.shape == zero_ztf.shape
         assert_allclose(zth, ztf, atol=1e-05)
         assert_allclose(zero_zth, zero_ztf, atol=1e-05)
+        assert_allclose(zero_zth, zth, atol=1e-05)
+        assert_allclose(zero_ztf, ztf, atol=1e-05)
 
     def test_function(self):
         val = np.random.random((4, 2))

@@ -110,7 +110,7 @@ def convert_kernel(kernel, dim_ordering='th'):
     return new_kernel
 
 
-def conv_output_length(input_length, filter_size, border_mode, stride, dilation=1):
+def conv_output_length(input_length, filter_size, border_mode, stride, dilation=1, transpose=False):
     if input_length is None:
         return None
     assert border_mode in {'same', 'valid'}
@@ -119,4 +119,7 @@ def conv_output_length(input_length, filter_size, border_mode, stride, dilation=
         output_length = input_length
     elif border_mode == 'valid':
         output_length = input_length - dilated_filter_size + 1
-    return (output_length + stride - 1) // stride
+    if transpose:
+      return (output_length + stride - 1) * stride
+    else:
+      return (output_length + stride - 1) // stride
