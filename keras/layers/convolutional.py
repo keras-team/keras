@@ -461,13 +461,13 @@ class AtrousConvolution2D(Convolution2D):
         self.atrous_rate = tuple(atrous_rate)
 
         super(AtrousConvolution2D, self).__init__(nb_filter, nb_row, nb_col,
-                                           init=init, activation=activation,
-                                           weights=weights, border_mode=border_mode,
-                                           subsample=subsample, dim_ordering=dim_ordering,
-                                           W_regularizer=W_regularizer, b_regularizer=b_regularizer,
-                                           activity_regularizer=activity_regularizer,
-                                           W_constraint=W_constraint, b_constraint=b_constraint,
-                                           bias=bias, **kwargs)
+                                                  init=init, activation=activation,
+                                                  weights=weights, border_mode=border_mode,
+                                                  subsample=subsample, dim_ordering=dim_ordering,
+                                                  W_regularizer=W_regularizer, b_regularizer=b_regularizer,
+                                                  activity_regularizer=activity_regularizer,
+                                                  W_constraint=W_constraint, b_constraint=b_constraint,
+                                                  bias=bias, **kwargs)
 
     def get_output_shape_for(self, input_shape):
         if self.dim_ordering == 'th':
