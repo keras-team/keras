@@ -57,7 +57,7 @@ def check_composed_tensor_operations(first_function_name, first_function_args,
     ztf = KTF.eval(getattr(KTF, second_function_name)(ytf, **second_function_args))
 
     assert zth.shape == ztf.shape
-    assert_allclose(zth, ztf, atol=1e-05)   
+    assert_allclose(zth, ztf, atol=1e-05)
 
 class TestBackend(object):
 
@@ -90,8 +90,8 @@ class TestBackend(object):
         check_single_tensor_operation('expand_dims', (4, 3), dim=-1)
         check_single_tensor_operation('expand_dims', (4, 3, 2), dim=1)
         check_single_tensor_operation('squeeze', (4, 3, 1), axis=2)
-        check_composed_tensor_operations('reshape', {'shape':(4,3,1,1)}, 
-                                         'squeeze', {'axis':2}, 
+        check_composed_tensor_operations('reshape', {'shape':(4,3,1,1)},
+                                         'squeeze', {'axis':2},
                                          (4, 3, 1, 1))
 
     def test_repeat_elements(self):
@@ -208,14 +208,24 @@ class TestBackend(object):
         exptf = xtf * KTF.exp(xtf)
         lossth = KTH.sum(expth)
         losstf = KTF.sum(exptf)
+        zero_lossth = KTH.stop_gradient(lossth)
+        zero_losstf = KTF.stop_gradient(losstf)
 
         gradth = KTH.gradients(lossth, [expth])
         gradtf = KTF.gradients(losstf, [exptf])
+        zero_gradth = KTH.gradients(lossth + zero_lossth, [expth])
+        zero_gradtf = KTF.gradients(losstf + zero_losstf, [exptf])
 
         zth = KTH.eval(gradth[0])
         ztf = KTF.eval(gradtf[0])
+        zero_zth = KTH.eval(zero_gradth[0])
+        zero_ztf = KTF.eval(zero_gradtf[0])
         assert zth.shape == ztf.shape
+        assert zero_zth.shape == zero_ztf.shape
         assert_allclose(zth, ztf, atol=1e-05)
+        assert_allclose(zero_zth, zero_ztf, atol=1e-05)
+        assert_allclose(zero_zth, zth, atol=1e-05)
+        assert_allclose(zero_ztf, ztf, atol=1e-05)
 
     def test_function(self):
         val = np.random.random((4, 2))
