@@ -377,7 +377,7 @@ class Convolution2D(Layer):
         return dict(list(base_config.items()) + list(config.items()))
 
 
-class AtrousConv2D(Convolution2D):
+class AtrousConvolution2D(Convolution2D):
     '''Atrous Convolution operator for filtering windows of two-dimensional inputs.
     A.k.a dilated convolution or convolution with holes.
     When using this layer as the first layer in a model,
@@ -1021,3 +1021,11 @@ class ZeroPadding3D(Layer):
         config = {'padding': self.padding}
         base_config = super(ZeroPadding3D, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
+
+
+# Aliases
+
+Conv1D = Convolution1D
+Conv2D = Convolution2D
+Conv3D = Convolution3D
+AtrousConv2D = AtrousConvolution2D
