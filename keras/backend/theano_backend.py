@@ -544,6 +544,13 @@ def gradients(loss, variables):
     return T.grad(loss, variables)
 
 
+def stop_gradient(variables):
+    '''Returns `variables` but with zero gradient with respect to every other
+    variables.
+    '''
+    return theano.gradient.disconnected_grad(variables)
+
+
 # CONTROL FLOW
 
 def rnn(step_function, inputs, initial_states,
