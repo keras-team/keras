@@ -906,9 +906,9 @@ def conv2d(x, kernel, strides=(1, 1), border_mode='valid',
 
     x = _preprocess_conv2d_input(x, dim_ordering)
     kernel = _preprocess_conv2d_kernel(kernel, dim_ordering)
-    th_border_mode, np_kernel = _preprocess_border_mode(border_mode)
+    th_border_mode, np_kernel = _preprocess_border_mode(border_mode, kernel)
     image_shape = _preprocess_image_shape(dim_ordering, image_shape)
-    filter_shape = _preprocess_filter_shape(dim_ordering, filter_shape):
+    filter_shape = _preprocess_filter_shape(dim_ordering, filter_shape)
 
     # TODO: remove the if statement when theano with no filter dilation is deprecated.
     if filter_dilation == (1, 1):
@@ -933,8 +933,7 @@ def conv2d(x, kernel, strides=(1, 1), border_mode='valid',
 def deconv2d(x, kernel, output_shape, strides=(1, 1),
              border_mode='valid',
              dim_ordering=_IMAGE_DIM_ORDERING,
-             image_shape=None, filter_shape=None,
-             flip_filters=False):
+             image_shape=None, filter_shape=None):
     '''2D deconvolution (transposed convolution).
 
     # Arguments
@@ -945,16 +944,16 @@ def deconv2d(x, kernel, output_shape, strides=(1, 1),
         dim_ordering: "tf" or "th".
             Whether to use Theano or TensorFlow dimension ordering
         in inputs/kernels/ouputs.
-        flip_filters: whether to flip filters or not.
     '''
+    flip_filters = False
     if dim_ordering not in {'th', 'tf'}:
         raise Exception('Unknown dim_ordering ' + str(dim_ordering))
 
     x = _preprocess_conv2d_input(x, dim_ordering)
     kernel = _preprocess_conv2d_kernel(kernel, dim_ordering)
-    th_border_mode, np_kernel = _preprocess_border_mode(border_mode)
-    # image_shape = _preprocess_image_shape(dim_ordering, image_shape)
-    filter_shape = _preprocess_filter_shape(dim_ordering, filter_shape):
+    kernel = kernel.dimshuffle((1, 0, 2, 3))
+    th_border_mode, np_kernel = _preprocess_border_mode(border_mode, kernel)
+    filter_shape = _preprocess_filter_shape(dim_ordering, filter_shape)
 
 
     op = T.nnet.abstract_conv.AbstractConv2d_gradInputs(imshp=output_shape,
