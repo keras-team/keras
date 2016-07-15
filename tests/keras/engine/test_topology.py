@@ -2,7 +2,7 @@ import pytest
 import json
 import numpy as np
 
-from keras.layers import Dense, Dropout
+from keras.layers import Dense, Dropout, InputLayer
 from keras.engine import merge, Input, get_source_inputs
 from keras.models import Model
 from keras import backend as K
@@ -391,6 +391,13 @@ def test_recursion():
 
         # test merge
         o_tf = merge([j_tf, k_tf], mode='concat', concat_axis=1)
+
+        # test tensor input
+        x = tf.placeholder(shape=(None, 2), dtype=K.floatx())
+        input_layer = InputLayer(input_tensor=x)
+
+        x = Input(tensor=x)
+        y = Dense(2)(x)
 
 
 def test_functional_guide():
