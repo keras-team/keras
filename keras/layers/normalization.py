@@ -57,6 +57,7 @@ class BatchNormalization(Layer):
     '''
     def __init__(self, epsilon=1e-6, mode=0, axis=-1, momentum=0.9,
                  weights=None, beta_init='zero', gamma_init='one', **kwargs):
+        self.supports_masking = True
         self.beta_init = initializations.get(beta_init)
         self.gamma_init = initializations.get(gamma_init)
         self.epsilon = epsilon
