@@ -516,7 +516,7 @@ class AtrousConvolution2D(Convolution2D):
         return dict(list(base_config.items()) + list(config.items()))
 
 
-class SeparableConv2D(Layer):
+class SeparableConvolution2D(Layer):
     '''Separable convolution operator for 2D inputs.
 
     Separable convolutions consist in first performing
@@ -607,10 +607,10 @@ class SeparableConv2D(Layer):
                             'with TensorFlow for the time being.')
 
         if border_mode not in {'valid', 'same'}:
-            raise Exception('Invalid border mode for AtrousConv2D:', border_mode)
+            raise Exception('Invalid border mode for SeparableConv2D:', border_mode)
 
         if border_mode not in {'valid', 'same'}:
-            raise Exception('Invalid border mode for Convolution2D:', border_mode)
+            raise Exception('Invalid border mode for SeparableConv2D:', border_mode)
         self.nb_filter = nb_filter
         self.nb_row = nb_row
         self.nb_col = nb_col
@@ -635,7 +635,7 @@ class SeparableConv2D(Layer):
         self.bias = bias
         self.input_spec = [InputSpec(ndim=4)]
         self.initial_weights = weights
-        super(SeparableConv2D, self).__init__(**kwargs)
+        super(SeparableConvolution2D, self).__init__(**kwargs)
 
     def build(self, input_shape):
         if self.dim_ordering == 'th':
@@ -742,7 +742,7 @@ class SeparableConv2D(Layer):
                   'pointwise_constraint': self.pointwise_constraint.get_config() if self.pointwise_constraint else None,
                   'b_constraint': self.b_constraint.get_config() if self.b_constraint else None,
                   'bias': self.bias}
-        base_config = super(SeparableConv2D, self).get_config()
+        base_config = super(SeparableConvolution2D, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
 
@@ -1262,3 +1262,4 @@ Conv1D = Convolution1D
 Conv2D = Convolution2D
 Conv3D = Convolution3D
 AtrousConv2D = AtrousConvolution2D
+SeparableConv2D = SeparableConvolution2D
