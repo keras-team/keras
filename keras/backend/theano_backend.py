@@ -142,7 +142,7 @@ def batch_dot(x, y, axes=None):
         elements.
        
         Shape inference:
-        Let x's shape be (100, 20) and y's shape be (100, 30, 20). If dot_axes is (1, 2), to find the output shape of resultant tenssor, loop through each dimension in x's shape and y's shape:
+        Let x's shape be (100, 20) and y's shape be (100, 30, 20). If dot_axes is (1, 2), to find the output shape of resultant tensor, loop through each dimension in x's shape and y's shape:
         x.shape[0] : 100 : append to output shape
         x.shape[1] : 20 : do not append to output shape, dimension 1 of x has been summed over. (dot_axes[0] = 1)
         y.shape[0] : 100 : do not append to output shape, always ignore first dimension of y
