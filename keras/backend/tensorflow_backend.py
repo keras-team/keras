@@ -249,6 +249,15 @@ def batch_dot(x, y, axes=None):
 
     # Returns
         A tensor with shape equal to the concatenation of x's shape (less the dimension that was summed over) and y's shape (less the batch dimension and the dimension that was summed over). If the final rank is 1, we reshape it to (batch_size, 1).
+
+    # Example
+        Let x's shape be (100, 20) and y's shape be (100, 30, 20). If dot_axes is (1, 2), to find the output shape of resultant tenssor, loop through each dimension in x's shape and y's shape:
+        x.shape[0] : 100 : append to output shape
+        x.shape[1] : 20 : do not append to output shape, dimension 1 of x has been summed over. (dot_axes[0] = 1)
+        y.shape[0] : 100 : do not append to output shape, always ignore first dimension of y
+        y.shape[1] : 30 : append to output shape
+        y.shape[2] : 20 : do not append to output shape, dimension 2 of y has been summed over. (dot_axes[1] = 2)
+        output_shape = (100, 30)
     '''
     if type(axes) == int:
         axes = (axes, axes)
