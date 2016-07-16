@@ -77,7 +77,7 @@ def test_ops_1():
         model2.set_weights(model1.get_weights())
         Y1 = model1.predict([X1, X2])
         Y2 = model2.predict([X1, X2])
-        assert np.all(Y1 == Y2)
+        assert np.all(Y1 == Y2), func
 
 
 if __name__ == '__main__':
