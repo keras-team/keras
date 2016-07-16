@@ -1190,7 +1190,7 @@ class Merge(Layer):
                 if dot_axes < 0:
                     dot_axes = [dot_axes % n1, dot_axes % n2]
                 else:
-                    dot_axes = [n1 - dot_axes, n2-dot_axes]
+                    dot_axes = [n1 - dot_axes, n2 - dot_axes]
             if type(dot_axes) not in [list, tuple]:
                 raise Exception('Invalid type for dot_axes - should be a list.')
             if len(dot_axes) != 2:
@@ -1336,15 +1336,13 @@ class Merge(Layer):
         elif self.mode in ['dot', 'cos']:
             shape1 = list(input_shapes[0])
             shape2 = list(input_shapes[1])
-            dot_axes = [a - 1 for a in self.dot_axes]
-            tensordot_output = np.tensordot(np.zeros(tuple(shape1[1:])),
-                                            np.zeros(tuple(shape2[1:])),
-                                            axes=dot_axes)
-            if len(tensordot_output.shape) == 0:
-                shape = (1,)
-            else:
-                shape = tensordot_output.shape
-            return (shape1[0],) + shape
+            shape1.pop(self.dot_axes[0])
+            shape2.pop(self.dot_axes[1])
+            shape2.pop(0)
+            output_shape = shape1 + shape2
+            if len(output_shape) == 1:
+                output_shape += [1]
+            return tuple(output_shape)
 
     def compute_mask(self, inputs, mask=None):
         if mask is None or all([m is None for m in mask]):
