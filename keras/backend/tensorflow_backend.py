@@ -751,6 +751,13 @@ def gradients(loss, variables):
     return tf.gradients(loss, variables)
 
 
+def stop_gradient(variables):
+    '''Returns `variables` but with zero gradient with respect to every other
+    variables.
+    '''
+    return tf.stop_gradient(variables)
+
+
 # CONTROL FLOW
 
 def rnn(step_function, inputs, initial_states,

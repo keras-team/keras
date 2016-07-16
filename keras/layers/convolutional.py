@@ -379,7 +379,7 @@ class Convolution2D(Layer):
         return dict(list(base_config.items()) + list(config.items()))
 
 
-class AtrousConv2D(Convolution2D):
+class AtrousConvolution2D(Convolution2D):
     '''Atrous Convolution operator for filtering windows of two-dimensional inputs.
     A.k.a dilated convolution or convolution with holes.
     When using this layer as the first layer in a model,
@@ -392,7 +392,7 @@ class AtrousConv2D(Convolution2D):
     ```python
         # apply a 3x3 convolution with atrous rate 2x2 and 64 output filters on a 256x256 image:
         model = Sequential()
-        model.add(AtrousConv2D(64, 3, 3, atrous_rate=(2,2), border_mode='valid', input_shape=(3, 256, 256)))
+        model.add(AtrousConvolution2D(64, 3, 3, atrous_rate=(2,2), border_mode='valid', input_shape=(3, 256, 256)))
         # now the actual kernel size is dilated from 3x3 to 5x5 (3+(3-1)*(2-1)=5)
         # thus model.output_shape == (None, 64, 252, 252)
     ```
@@ -463,14 +463,14 @@ class AtrousConv2D(Convolution2D):
 
         self.atrous_rate = tuple(atrous_rate)
 
-        super(AtrousConv2D, self).__init__(nb_filter, nb_row, nb_col,
-                                           init=init, activation=activation,
-                                           weights=weights, border_mode=border_mode,
-                                           subsample=subsample, dim_ordering=dim_ordering,
-                                           W_regularizer=W_regularizer, b_regularizer=b_regularizer,
-                                           activity_regularizer=activity_regularizer,
-                                           W_constraint=W_constraint, b_constraint=b_constraint,
-                                           bias=bias, **kwargs)
+        super(AtrousConvolution2D, self).__init__(nb_filter, nb_row, nb_col,
+                                                  init=init, activation=activation,
+                                                  weights=weights, border_mode=border_mode,
+                                                  subsample=subsample, dim_ordering=dim_ordering,
+                                                  W_regularizer=W_regularizer, b_regularizer=b_regularizer,
+                                                  activity_regularizer=activity_regularizer,
+                                                  W_constraint=W_constraint, b_constraint=b_constraint,
+                                                  bias=bias, **kwargs)
 
     def get_output_shape_for(self, input_shape):
         if self.dim_ordering == 'th':
@@ -512,11 +512,11 @@ class AtrousConv2D(Convolution2D):
 
     def get_config(self):
         config = {'atrous_rate': self.atrous_rate}
-        base_config = super(AtrousConv2D, self).get_config()
+        base_config = super(AtrousConvolution2D, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
 
-class SeparableConv2D(Layer):
+class SeparableConvolution2D(Layer):
     '''Separable convolution operator for 2D inputs.
 
     Separable convolutions consist in first performing
@@ -607,10 +607,10 @@ class SeparableConv2D(Layer):
                             'with TensorFlow for the time being.')
 
         if border_mode not in {'valid', 'same'}:
-            raise Exception('Invalid border mode for AtrousConv2D:', border_mode)
+            raise Exception('Invalid border mode for SeparableConv2D:', border_mode)
 
         if border_mode not in {'valid', 'same'}:
-            raise Exception('Invalid border mode for Convolution2D:', border_mode)
+            raise Exception('Invalid border mode for SeparableConv2D:', border_mode)
         self.nb_filter = nb_filter
         self.nb_row = nb_row
         self.nb_col = nb_col
@@ -635,7 +635,7 @@ class SeparableConv2D(Layer):
         self.bias = bias
         self.input_spec = [InputSpec(ndim=4)]
         self.initial_weights = weights
-        super(SeparableConv2D, self).__init__(**kwargs)
+        super(SeparableConvolution2D, self).__init__(**kwargs)
 
     def build(self, input_shape):
         if self.dim_ordering == 'th':
@@ -742,7 +742,7 @@ class SeparableConv2D(Layer):
                   'pointwise_constraint': self.pointwise_constraint.get_config() if self.pointwise_constraint else None,
                   'b_constraint': self.b_constraint.get_config() if self.b_constraint else None,
                   'bias': self.bias}
-        base_config = super(SeparableConv2D, self).get_config()
+        base_config = super(SeparableConvolution2D, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
 
@@ -1254,3 +1254,12 @@ class ZeroPadding3D(Layer):
         config = {'padding': self.padding}
         base_config = super(ZeroPadding3D, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
+
+
+# Aliases
+
+Conv1D = Convolution1D
+Conv2D = Convolution2D
+Conv3D = Convolution3D
+AtrousConv2D = AtrousConvolution2D
+SeparableConv2D = SeparableConvolution2D
