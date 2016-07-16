@@ -914,7 +914,7 @@ class InputLayer(Layer):
     '''TODO: dosctring
     '''
     def __init__(self, input_shape=None, batch_input_shape=None,
-                 input_dtype=None, name=None):
+                 input_dtype=None, input_tensor=None, name=None):
         self.input_spec = None
         self.supports_masking = False
         self.uses_learning_phase = False
@@ -934,25 +934,48 @@ class InputLayer(Layer):
             name = prefix + '_' + str(K.get_uid(prefix))
         self.name = name
 
+        if input_shape and batch_input_shape:
+            raise ValueError('Only provide the input_shape OR '
+                             'batch_input_shape argument to '
+                             'InputLayer, not both at the same time.')
+        if input_tensor is not None:
+            if not input_shape and not batch_input_shape:
+                # attempt automatic input shape inference
+                try:
+                    batch_input_shape = K.int_shape(input_tensor)
+                except:
+                    raise ValueError('InputLayer was provided an input_tensor argument, '
+                                     'but its input shape cannot be automatically inferred. '
+                                     'You should pass an input_shape or batch_input_shape '
+                                     'argument.')
         if not batch_input_shape:
-            assert input_shape, 'An Input layer should be passed either a `batch_input_shape` or an `input_shape`.'
-            batch_input_shape = (None,) + tuple(input_shape)
+            if not input_shape:
+                raise ValueError('An Input layer should be passed either '
+                                 'a `batch_input_shape` or an `input_shape`.')
+            else:
+                batch_input_shape = (None,) + tuple(input_shape)
         else:
             batch_input_shape = tuple(batch_input_shape)
+
         if not input_dtype:
-            input_dtype = K.floatx()
+            if input_tensor is None:
+                input_dtype = K.floatx()
+            else:
+                input_dtype = K.dtype(input_tensor)
 
         self.batch_input_shape = batch_input_shape
         self.input_dtype = input_dtype
 
-        input_tensor = K.placeholder(shape=batch_input_shape,
-                                     dtype=input_dtype,
-                                     name=self.name)
+        if input_tensor is None:
+            input_tensor = K.placeholder(shape=batch_input_shape,
+                                         dtype=input_dtype,
+                                         name=self.name)
+        else:
+            input_tensor._keras_shape = batch_input_shape
         # create an input node to add to self.outbound_node
         # and set output_tensors' _keras_history
         input_tensor._uses_learning_phase = False
         input_tensor._keras_history = (self, 0, 0)
-        shape = input_tensor._keras_shape
         Node(self,
              inbound_layers=[],
              node_indices=[],
@@ -961,8 +984,8 @@ class InputLayer(Layer):
              output_tensors=[input_tensor],
              input_masks=[None],
              output_masks=[None],
-             input_shapes=[shape],
-             output_shapes=[shape])
+             input_shapes=[batch_input_shape],
+             output_shapes=[batch_input_shape])
 
     def get_config(self):
         config = {'batch_input_shape': self.batch_input_shape,
@@ -972,7 +995,8 @@ class InputLayer(Layer):
 
 
 def Input(shape=None, batch_shape=None,
-          name=None, dtype=K.floatx()):
+          name=None, dtype=K.floatx(),
+          tensor=None):
     '''`Input()` is used to instantiate a Keras tensor.
     A Keras tensor is a tensor object from the underlying backend
     (Theano or TensorFlow), which we augment with certain
@@ -1014,14 +1038,15 @@ def Input(shape=None, batch_shape=None,
         model = Model(input=a, output=b)
         ```
     '''
-    if not batch_shape:
+    if not batch_shape and tensor is None:
         assert shape, ('Please provide to Input either a `shape`' +
                        ' or a `batch_shape` argument. Note that ' +
                        '`shape` does not include the batch '
                        'dimension.')
         batch_shape = (None,) + tuple(shape)
     input_layer = InputLayer(batch_input_shape=batch_shape,
-                             name=name, input_dtype=dtype)
+                             name=name, input_dtype=dtype,
+                             input_tensor=tensor)
     # return tensor including _keras_shape and _keras_history
     # note that in this case train_output and test_output are the same pointer.
     outputs = input_layer.inbound_nodes[0].output_tensors
@@ -1055,7 +1080,7 @@ class Merge(Layer):
             a list of layer instances. Must be more
             than one layer/tensor.
         mode: string or lambda/function. If string, must be one
-            of: 'sum', 'mul', 'concat', 'ave', 'cos', 'dot'.
+            of: 'sum', 'mul', 'concat', 'ave', 'cos', 'dot', 'max'.
             If lambda/function, it should take as input a list of tensors
             and return a single tensor.
         concat_axis: integer, axis to use in mode `concat`.
@@ -1075,9 +1100,12 @@ class Merge(Layer):
         tensor_indices: optional list of indices of output tensors
             to consider for merging
             (in case some input layer node returns multiple tensors).
+        output_mask: mask or lambda/function to compute the output mask (only
+            if merge mode is a lambda/function). If the latter case, it should
+            take as input a list of masks and return a single mask.
     '''
     def __init__(self, layers=None, mode='sum', concat_axis=-1,
-                 dot_axes=-1, output_shape=None,
+                 dot_axes=-1, output_shape=None, output_mask=None,
                  node_indices=None, tensor_indices=None, name=None):
         self.layers = layers
         self.mode = mode
@@ -1087,6 +1115,7 @@ class Merge(Layer):
             self.dot_axes = [self.dot_axes, ] * 2
         self._output_shape = output_shape
         self.node_indices = node_indices
+        self._output_mask = output_mask
 
         # layer parameters
         self.inbound_nodes = []
@@ -1095,7 +1124,7 @@ class Merge(Layer):
         self.regularizers = []
         self.trainable_weights = []
         self.non_trainable_weights = []
-        self.supports_masking = False
+        self.supports_masking = True
         self.uses_learning_phase = False
         self.input_spec = None  # compatible with whatever
         if not name:
@@ -1126,7 +1155,7 @@ class Merge(Layer):
         as appropriate.
         '''
         if not hasattr(mode, '__call__'):
-            if mode not in {'sum', 'mul', 'concat', 'ave', 'cos', 'dot'}:
+            if mode not in {'sum', 'mul', 'concat', 'ave', 'cos', 'dot', 'max'}:
                 raise Exception('Invalid merge mode: ' + str(mode))
         if type(layers) not in {list, tuple} or len(layers) < 2:
             raise Exception('A Merge should only be applied to a list of '
@@ -1144,7 +1173,7 @@ class Merge(Layer):
                 layer_output_shape = layer_output_shape[tensor_indices[i]]
             input_shapes.append(layer_output_shape)
 
-        if mode in {'sum', 'mul', 'ave', 'cos'}:
+        if mode in {'sum', 'mul', 'ave', 'cos', 'max'}:
             input_shapes_set = set(input_shapes)
             if len(input_shapes_set) > 1:
                 raise Exception('Only layers of same output shape can '
@@ -1157,22 +1186,21 @@ class Merge(Layer):
             shape2 = input_shapes[1]
             n1 = len(shape1)
             n2 = len(shape2)
-            if mode == 'dot':
-                if type(dot_axes) == int:
-                    if dot_axes < 0:
-                        dot_axes = [dot_axes % n1, dot_axes % n2]
-                    else:
-                        dot_axes = [n1 - dot_axes, n2-dot_axes]
-                if type(dot_axes) not in [list, tuple]:
-                    raise Exception('Invalid type for dot_axes - should be a list.')
-                if len(dot_axes) != 2:
-                    raise Exception('Invalid format for dot_axes - should contain two elements.')
-                if type(dot_axes[0]) is not int or type(dot_axes[1]) is not int:
-                    raise Exception('Invalid format for dot_axes - list elements should be "int".')
-                if shape1[dot_axes[0]] != shape2[dot_axes[1]]:
-                    raise Exception('Dimension incompatibility using dot mode: ' +
-                                    '%s != %s. ' % (shape1[dot_axes[0]], shape2[dot_axes[1]]) +
-                                    'Layer shapes: %s, %s' % (shape1, shape2))
+            if type(dot_axes) == int:
+                if dot_axes < 0:
+                    dot_axes = [dot_axes % n1, dot_axes % n2]
+                else:
+                    dot_axes = [n1 - dot_axes, n2-dot_axes]
+            if type(dot_axes) not in [list, tuple]:
+                raise Exception('Invalid type for dot_axes - should be a list.')
+            if len(dot_axes) != 2:
+                raise Exception('Invalid format for dot_axes - should contain two elements.')
+            if type(dot_axes[0]) is not int or type(dot_axes[1]) is not int:
+                raise Exception('Invalid format for dot_axes - list elements should be "int".')
+            if shape1[dot_axes[0]] != shape2[dot_axes[1]]:
+                raise Exception('Dimension incompatibility using dot mode: ' +
+                                '%s != %s. ' % (shape1[dot_axes[0]], shape2[dot_axes[1]]) +
+                                'Layer shapes: %s, %s' % (shape1, shape2))
         elif mode == 'concat':
             reduced_inputs_shapes = [list(shape) for shape in input_shapes]
             shape_set = set()
@@ -1211,7 +1239,11 @@ class Merge(Layer):
             for i in range(1, len(inputs)):
                 s *= inputs[i]
             return s
-
+        elif self.mode == 'max':
+            s = inputs[0]
+            for i in range(1, len(inputs)):
+                s = K.maximum(s, inputs[i])
+            return s
         elif self.mode == 'dot':
             l1 = inputs[0]
             l2 = inputs[1]
@@ -1279,7 +1311,7 @@ class Merge(Layer):
                 output_shape = self._output_shape(input_shape)
                 return output_shape
             elif self._output_shape is not None:
-                return (input_shape[0],) + tuple(self._output_shape)
+                return (input_shape[0][0],) + tuple(self._output_shape)
             else:
                 # TODO: consider shape auto-inference with TF
                 raise Exception('The Merge layer ' + self.name +
@@ -1290,7 +1322,7 @@ class Merge(Layer):
                                 '`output_shape` to Merge.')
         # pre-defined merge modes
         input_shapes = input_shape
-        if self.mode in ['sum', 'mul', 'ave']:
+        if self.mode in ['sum', 'mul', 'ave', 'max']:
             # all tuples in input_shapes should be the same
             return input_shapes[0]
         elif self.mode == 'concat':
@@ -1301,7 +1333,7 @@ class Merge(Layer):
                     break
                 output_shape[self.concat_axis] += shape[self.concat_axis]
             return tuple(output_shape)
-        elif self.mode == 'dot':
+        elif self.mode in ['dot', 'cos']:
             shape1 = list(input_shapes[0])
             shape2 = list(input_shapes[1])
             dot_axes = [a - 1 for a in self.dot_axes]
@@ -1313,16 +1345,31 @@ class Merge(Layer):
             else:
                 shape = tensordot_output.shape
             return (shape1[0],) + shape
-        elif self.mode == 'cos':
-            return (input_shapes[0][0], 1)
 
-    def compute_mask(self, input, mask=None):
-        '''TODO: add mask merging support
-        '''
-        if mask is not None and any(mask):
-            raise Exception('Merge does not support masking, ' +
-                            'but was passed an input mask: ' + str(mask))
-        return None
+    def compute_mask(self, inputs, mask=None):
+        if mask is None or all([m is None for m in mask]):
+            return None
+
+        assert hasattr(mask, '__len__') and len(mask) == len(inputs)
+
+        if self.mode in ['sum', 'mul', 'ave']:
+            masks = [K.expand_dims(m, 0) for m in mask if m is not None]
+            return K.all(K.concatenate(masks, axis=0), axis=0, keepdims=False)
+        elif self.mode == 'concat':
+            masks = [K.ones_like(inputs[i][:-1]) if m is None else m for i, m in zip(inputs, mask)]
+            expanded_dims = [K.expand_dims(m) for m in masks]
+            concatenated = K.concatenate(expanded_dims, axis=self.concat_axis)
+            return K.all(concatenated, axis=-1, keepdims=False)
+        elif self.mode in ['cos', 'dot']:
+            return None
+        elif hasattr(self.mode, '__call__'):
+            if hasattr(self._output_mask, '__call__'):
+                return self._output_mask(mask)
+            else:
+                return self._output_mask
+        else:
+            # this should have been caught earlier
+            raise Exception('Invalid merge mode: {}'.format(self.mode))
 
     def get_config(self):
         py3 = sys.version_info[0] == 3
@@ -1387,7 +1434,7 @@ class Merge(Layer):
 
 
 def merge(inputs, mode='sum', concat_axis=-1,
-          dot_axes=-1, output_shape=None, name=None):
+          dot_axes=-1, output_shape=None, output_mask=None, name=None):
     '''Functional merge, to apply to Keras tensors (NOT layers).
     Returns a Keras tensor.
 
@@ -1437,6 +1484,7 @@ def merge(inputs, mode='sum', concat_axis=-1,
                             concat_axis=concat_axis,
                             dot_axes=dot_axes,
                             output_shape=output_shape,
+                            output_mask=output_mask,
                             node_indices=node_indices,
                             tensor_indices=tensor_indices,
                             name=name)
@@ -1446,6 +1494,7 @@ def merge(inputs, mode='sum', concat_axis=-1,
                             concat_axis=concat_axis,
                             dot_axes=dot_axes,
                             output_shape=output_shape,
+                            output_mask=output_mask,
                             name=name)
         return merge_layer(inputs)
 
@@ -1570,21 +1619,27 @@ class Container(Layer):
                 raise Exception('Output tensors to a ' + cls_name + ' must be '
                                 'Keras tensors. Found: ' + str(x))
         # build self.output_layers:
-        masks = []
         for x in self.outputs:
             layer, node_index, tensor_index = x._keras_history
             self.output_layers.append(layer)
             self.output_layers_node_indices.append(node_index)
             self.output_layers_tensor_indices.append(tensor_index)
 
-            # also fill in the output mask cache
+        # fill in the output mask cache
+        masks = []
+        for x in self.inputs:
+            layer, node_index, tensor_index = x._keras_history
             node = layer.inbound_nodes[node_index]
             mask = node.output_masks[tensor_index]
             masks.append(mask)
-
-        # output mask cache
         mask_cache_key = ','.join([str(id(x)) for x in self.inputs])
         mask_cache_key += '_' + ','.join([str(id(x)) for x in masks])
+        masks = []
+        for x in self.outputs:
+            layer, node_index, tensor_index = x._keras_history
+            node = layer.inbound_nodes[node_index]
+            mask = node.output_masks[tensor_index]
+            masks.append(mask)
         if len(masks) == 1:
             mask = masks[0]
         else:
@@ -2082,6 +2137,8 @@ class Container(Layer):
                         for x, s in zip(output_tensors, shapes):
                             x._keras_shape = s
                             x._uses_learning_phase = uses_learning_phase
+
+                    # update tensor_map
                     for x, y, mask in zip(reference_output_tensors, output_tensors, output_masks):
                         tensor_map[str(id(x))] = (y, mask)
 

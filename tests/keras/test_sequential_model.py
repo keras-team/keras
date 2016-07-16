@@ -59,6 +59,8 @@ def test_sequential_fit_generator():
     model.add(Dense(nb_hidden, input_shape=(input_dim,)))
     model.add(Activation('relu'))
     model.add(Dense(nb_class))
+    model.pop()
+    model.add(Dense(nb_class))
     model.add(Activation('softmax'))
     model.compile(loss='categorical_crossentropy', optimizer='rmsprop')
 

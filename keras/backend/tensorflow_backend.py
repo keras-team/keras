@@ -3,12 +3,23 @@ import numpy as np
 import os
 import copy
 import warnings
-from .common import _FLOATX, _EPSILON
+from .common import _FLOATX, _EPSILON, _IMAGE_DIM_ORDERING
 
 # INTERNAL UTILS
 
 _SESSION = None
 _LEARNING_PHASE = tf.placeholder(dtype='uint8', name='keras_learning_phase')  # 0 = test, 1 = train
+_MANUAL_VAR_INIT = False
+
+
+def manual_variable_initialization(value):
+    '''Whether variables should be initialized
+    as they are instantiated (default), or if
+    the user should handle the initialization
+    (e.g. via tf.initialize_all_variables()).
+    '''
+    global _MANUAL_VAR_INIT
+    _MANUAL_VAR_INIT = value
 
 
 def learning_phase():
@@ -73,6 +84,8 @@ def variable(value, dtype=_FLOATX, name=None):
         Tensor variable instance.
     '''
     v = tf.Variable(np.asarray(value, dtype=dtype), name=name)
+    if _MANUAL_VAR_INIT:
+        return v
     if tf.get_default_graph() is get_session().graph:
         try:
             get_session().run(v.initializer)
@@ -123,7 +136,7 @@ def shape(x):
 def int_shape(x):
     '''Returns the shape of a tensor as a tuple of
     integers or None entries.
-    Note that this function only works with TensorFlow. 
+    Note that this function only works with TensorFlow.
     '''
     shape = x.get_shape()
     return tuple([i.__int__() for i in shape])
@@ -224,8 +237,7 @@ def batch_dot(x, y, axes=None):
     make sure that ndim is at least 2.
 
     # Example
-        Assume x = [[1, 2]   and y = [[5, 6]
-                    [3, 4]]           [7, 8]]
+        Assume x = [[1, 2], [3, 4]]   and y = [[5, 6], [7, 8]]
         batch_dot(x, y, axes=1) = [[17, 53]] which is the main diagonal
         of x.dot(y.T), although we never have to calculate the off-diagonal
         elements.
@@ -354,6 +366,17 @@ def any(x, axis=None, keepdims=False):
     return tf.cast(x, tf.uint8)
 
 
+def all(x, axis=None, keepdims=False):
+    '''Bitwise reduction (logical AND).
+
+    Returns an uint8 tensor
+    '''
+    axis = _normalize_axis(axis, ndim(x))
+    x = tf.cast(x, tf.bool)
+    x = tf.reduce_all(x, reduction_indices=axis, keep_dims=keepdims)
+    return tf.cast(x, tf.uint8)
+
+
 def argmax(x, axis=-1):
     '''Returns the index of the maximum value
     along a tensor axis.
@@ -467,6 +490,42 @@ def cos(x):
     '''Computes cos of x element-wise.
     '''
     return tf.cos(x)
+
+
+def normalize_batch_in_training(x, gamma, beta,
+                                reduction_axes, epsilon=0.0001):
+    '''Compute mean and std for batch then apply batch_normalization on batch.
+    '''
+    mean, std = tf.nn.moments(x, reduction_axes,
+                              shift=None, name=None, keep_dims=False)
+    if sorted(reduction_axes) == range(ndim(x))[:-1]:
+        normed = tf.nn.batch_normalization(x, mean, std,
+                                           beta, gamma,
+                                           epsilon)
+    else:
+        # need broadcasting
+        target_shape = []
+        for axis in range(ndim(x)):
+            if axis in reduction_axes:
+                target_shape.append(1)
+            else:
+                target_shape.append(tf.shape(x)[axis])
+        target_shape = tf.pack(target_shape)
+
+        broadcast_mean = tf.reshape(mean, target_shape)
+        broadcast_std = tf.reshape(std, target_shape)
+        broadcast_gamma = tf.reshape(gamma, target_shape)
+        broadcast_beta = tf.reshape(beta, target_shape)
+        normed = tf.nn.batch_normalization(x, broadcast_mean, broadcast_std,
+                                           broadcast_beta, broadcast_gamma,
+                                           epsilon)
+    return normed, mean, std
+
+
+def batch_normalization(x, mean, std, beta, gamma, epsilon=0.0001):
+    '''Apply batch normalization on x given mean, std, beta and gamma.
+    '''
+    return tf.nn.batch_normalization(x, mean, std, beta, gamma, epsilon)
 
 
 # SHAPE OPERATIONS
@@ -645,6 +704,7 @@ def batch_set_value(tuples):
         ops = [tf.assign(x, np.asarray(value)) for x, value in tuples]
         get_session().run(ops)
 
+
 # GRAPH MANIPULATION
 
 class Function(object):
@@ -689,6 +749,13 @@ def gradients(loss, variables):
     with regard to `loss`.
     '''
     return tf.gradients(loss, variables)
+
+
+def stop_gradient(variables):
+    '''Returns `variables` but with zero gradient with respect to every other
+    variables.
+    '''
+    return tf.stop_gradient(variables)
 
 
 # CONTROL FLOW
@@ -987,55 +1054,205 @@ def l2_normalize(x, axis):
 
 # CONVOLUTIONS
 
+def _preprocess_conv2d_input(x, dim_ordering):
+    if _FLOATX == 'float64':
+        x = tf.cast(x, 'float32')
+    if dim_ordering == 'th':
+        # TF uses the last dimension as channel dimension,
+        # instead of the 2nd one.
+        # TH input shape: (samples, input_depth, rows, cols)
+        # TF input shape: (samples, rows, cols, input_depth)
+        x = tf.transpose(x, (0, 2, 3, 1))
+    return x
 
-def conv2d(x, kernel, strides=(1, 1), border_mode='valid', dim_ordering='th',
-           image_shape=None, filter_shape=None):
-    '''2D convolution.
 
-    # Arguments
-        kernel: kernel tensor.
-        strides: strides tuple.
-        border_mode: string, "same" or "valid".
-        dim_ordering: "tf" or "th". Whether to use Theano or TensorFlow dimension ordering
-        in inputs/kernels/ouputs.
-    '''
+def _preprocess_conv3d_input(x, dim_ordering):
+    if _FLOATX == 'float64':
+        x = tf.cast(x, 'float32')
+    if dim_ordering == 'th':
+        # TF uses the last dimension as channel dimension,
+        # instead of the 2nd one.
+        # TH input shape: (samples, input_depth, conv_dim1, conv_dim2, conv_dim3)
+        # TF input shape: (samples, conv_dim1, conv_dim2, conv_dim3, input_depth)
+        x = tf.transpose(x, (0, 2, 3, 4, 1))
+    return x
+
+
+def _preprocess_conv2d_kernel(kernel, dim_ordering):
+    if _FLOATX == 'float64':
+        kernel = tf.cast(kernel, 'float32')
+    if dim_ordering == 'th':
+        # TF uses the last dimension as channel dimension,
+        # instead of the 2nd one.
+        # TH kernel shape: (depth, input_depth, rows, cols)
+        # TF kernel shape: (rows, cols, input_depth, depth)
+        kernel = tf.transpose(kernel, (2, 3, 1, 0))
+    return kernel
+
+
+def _preprocess_conv3d_kernel(kernel, dim_ordering):
+    if _FLOATX == 'float64':
+        kernel = tf.cast(kernel, 'float32')
+    if dim_ordering == 'th':
+        # TF uses the last dimension as channel dimension,
+        # instead of the 2nd one.
+        # TH kernel shape: (out_depth, input_depth, kernel_dim1, kernel_dim2, kernel_dim3)
+        # TF kernel shape: (kernel_dim1, kernel_dim2, kernel_dim3, input_depth, out_depth)
+        kernel = tf.transpose(kernel, (2, 3, 4, 1, 0))
+    return kernel
+
+
+def _preprocess_border_mode(border_mode):
     if border_mode == 'same':
         padding = 'SAME'
     elif border_mode == 'valid':
         padding = 'VALID'
     else:
         raise Exception('Invalid border mode: ' + str(border_mode))
+    return padding
 
-    strides = (1,) + strides + (1,)
 
-    if _FLOATX == 'float64':
-        # tf conv2d only supports float32
-        x = tf.cast(x, 'float32')
-        kernel = tf.cast(kernel, 'float32')
-
+def _postprocess_conv2d_output(x, dim_ordering):
     if dim_ordering == 'th':
-        # TF uses the last dimension as channel dimension,
-        # instead of the 2nd one.
-        # TH input shape: (samples, input_depth, rows, cols)
-        # TF input shape: (samples, rows, cols, input_depth)
-        # TH kernel shape: (depth, input_depth, rows, cols)
-        # TF kernel shape: (rows, cols, input_depth, depth)
-        x = tf.transpose(x, (0, 2, 3, 1))
-        kernel = tf.transpose(kernel, (2, 3, 1, 0))
-        x = tf.nn.conv2d(x, kernel, strides, padding=padding)
         x = tf.transpose(x, (0, 3, 1, 2))
-    elif dim_ordering == 'tf':
-        x = tf.nn.conv2d(x, kernel, strides, padding=padding)
-    else:
-        raise Exception('Unknown dim_ordering: ' + str(dim_ordering))
 
     if _FLOATX == 'float64':
         x = tf.cast(x, 'float64')
     return x
 
 
+def _postprocess_conv3d_output(x, dim_ordering):
+    if dim_ordering == 'th':
+        x = tf.transpose(x, (0, 4, 1, 2, 3))
+
+    if _FLOATX == 'float64':
+        x = tf.cast(x, 'float64')
+    return x
+
+
+def conv2d(x, kernel, strides=(1, 1), border_mode='valid',
+           dim_ordering=_IMAGE_DIM_ORDERING,
+           image_shape=None, filter_shape=None, filter_dilation=(1, 1)):
+    '''2D convolution.
+
+    # Arguments
+        kernel: kernel tensor.
+        strides: strides tuple.
+        border_mode: string, "same" or "valid".
+        dim_ordering: "tf" or "th".
+            Whether to use Theano or TensorFlow dimension ordering
+            for inputs/kernels/ouputs.
+    '''
+    if dim_ordering not in {'th', 'tf'}:
+        raise Exception('Unknown dim_ordering ' + str(dim_ordering))
+
+    x = _preprocess_conv2d_input(x, dim_ordering)
+    kernel = _preprocess_conv2d_kernel(kernel, dim_ordering)
+    padding = _preprocess_border_mode(border_mode)
+    if filter_dilation == (1, 1):
+        strides = (1,) + strides + (1,)
+        x = tf.nn.conv2d(x, kernel, strides, padding=padding)
+    else:
+        assert filter_dilation[0] == filter_dilation[1]
+        assert strides == (1, 1), 'Invalid strides for dilated convolution'
+        x = tf.nn.atrous_conv2d(x, kernel, filter_dilation[0], padding=padding)
+    return _postprocess_conv2d_output(x, dim_ordering)
+
+
+def deconv2d(x, kernel, output_shape, strides=(1, 1),
+             border_mode='valid',
+             dim_ordering=_IMAGE_DIM_ORDERING,
+             image_shape=None, filter_shape=None):
+    '''2D deconvolution (i.e. transposed convolution).
+
+    # Arguments
+        x: input tensor.
+        kernel: kernel tensor.
+        output_shape: 1D int tensor for the output shape.
+        strides: strides tuple.
+        border_mode: string, "same" or "valid".
+        dim_ordering: "tf" or "th".
+            Whether to use Theano or TensorFlow dimension ordering
+            for inputs/kernels/ouputs.
+    '''
+    if dim_ordering not in {'th', 'tf'}:
+        raise Exception('Unknown dim_ordering ' + str(dim_ordering))
+
+    x = _preprocess_conv2d_input(x, dim_ordering)
+    kernel = _preprocess_conv2d_kernel(kernel, dim_ordering)
+    padding = _preprocess_border_mode(border_mode)
+    strides = (1,) + strides + (1,)
+
+    # TODO: pre-process output_shape if dim_ordering == th
+    x = tf.nn.conv2d_transpose(x, kernel, output_shape, strides,
+                               padding=padding)
+    return _postprocess_conv2d_output(x, dim_ordering)
+
+
+def atrous_conv2d(x, kernel, rate=1,
+                  border_mode='valid',
+                  dim_ordering=_IMAGE_DIM_ORDERING,
+                  image_shape=None, filter_shape=None):
+    if dim_ordering not in {'th', 'tf'}:
+        raise Exception('Unknown dim_ordering ' + str(dim_ordering))
+    if rate == 1:
+        return conv2d(x, kernel, strides=(1, 1), border_mode=border_mode,
+                      dim_ordering=dim_ordering)
+
+    x = _preprocess_conv2d_input(x, dim_ordering)
+    kernel = _preprocess_conv2d_kernel(kernel, dim_ordering)
+    padding = _preprocess_border_mode(border_mode)
+
+    x = tf.nn.atrous_conv2d(x, kernel, rate, padding)
+    return _postprocess_conv2d_output(x, dim_ordering)
+
+
+def separable_conv2d(x, depthwise_kernel, pointwise_kernel, strides=(1, 1),
+                     border_mode='valid', dim_ordering=_IMAGE_DIM_ORDERING):
+    if dim_ordering not in {'th', 'tf'}:
+        raise Exception('Unknown dim_ordering ' + str(dim_ordering))
+
+    x = _preprocess_conv2d_input(x, dim_ordering)
+    depthwise_kernel = _preprocess_conv2d_kernel(depthwise_kernel,
+                                                 dim_ordering)
+    pointwise_kernel = _preprocess_conv2d_kernel(pointwise_kernel,
+                                                 dim_ordering)
+    padding = _preprocess_border_mode(border_mode)
+    strides = (1,) + strides + (1,)
+
+    x = tf.nn.separable_conv2d(x, depthwise_kernel, pointwise_kernel,
+                               strides, padding)
+    return _postprocess_conv2d_output(x, dim_ordering)
+
+
+def conv3d(x, kernel, strides=(1, 1, 1),
+           border_mode='valid', dim_ordering=_IMAGE_DIM_ORDERING,
+           volume_shape=None, filter_shape=None):
+    '''3D convolution.
+
+    # Arguments
+        kernel: kernel tensor.
+        strides: strides tuple.
+        border_mode: string, "same" or "valid".
+        dim_ordering: "tf" or "th".
+            Whether to use Theano or TensorFlow dimension ordering
+            for inputs/kernels/ouputs.
+    '''
+    if dim_ordering not in {'th', 'tf'}:
+        raise Exception('Unknown dim_ordering ' + str(dim_ordering))
+
+    x = _preprocess_conv3d_input(x, dim_ordering)
+    kernel = _preprocess_conv3d_kernel(kernel, dim_ordering)
+    padding = _preprocess_border_mode(border_mode)
+    strides = (1,) + strides + (1,)
+
+    x = tf.nn.conv3d(x, kernel, strides, padding)
+    return _postprocess_conv3d_output(x, dim_ordering)
+
+
 def pool2d(x, pool_size, strides=(1, 1),
-           border_mode='valid', dim_ordering='th', pool_mode='max'):
+           border_mode='valid', dim_ordering=_IMAGE_DIM_ORDERING,
+           pool_mode='max'):
     '''2D Pooling.
 
     # Arguments
@@ -1045,43 +1262,53 @@ def pool2d(x, pool_size, strides=(1, 1),
         dim_ordering: one of "th", "tf".
         pool_mode: one of "max", "avg".
     '''
-    if border_mode == 'same':
-        padding = 'SAME'
-    elif border_mode == 'valid':
-        padding = 'VALID'
-    else:
-        raise Exception('Invalid border mode: ' + str(border_mode))
+    if dim_ordering not in {'th', 'tf'}:
+        raise Exception('Unknown dim_ordering ' + str(dim_ordering))
 
+    padding = _preprocess_border_mode(border_mode)
     strides = (1,) + strides + (1,)
     pool_size = (1,) + pool_size + (1,)
 
-    if _FLOATX == 'float64':
-        # tf max_pool only supports float32
-        x = tf.cast(x, 'float32')
+    x = _preprocess_conv2d_input(x, dim_ordering)
 
-    if dim_ordering in {'tf', 'th'}:
-        if dim_ordering == 'th':
-            # TF uses the last dimension as channel dimension,
-            # instead of the 2nd one.
-            # TH input shape: (samples, input_depth, rows, cols)
-            # TF input shape: (samples, rows, cols, input_depth)
-            # TH kernel shape: (depth, input_depth, rows, cols)
-            # TF kernel shape: (rows, cols, input_depth, depth)
-            x = tf.transpose(x, (0, 2, 3, 1))
-        if pool_mode == 'max':
-            x = tf.nn.max_pool(x, pool_size, strides, padding=padding)
-        elif pool_mode == 'avg':
-            x = tf.nn.avg_pool(x, pool_size, strides, padding=padding)
-        else:
-            raise Exception('Invalid pooling mode: ' + str(pool_mode))
-        if dim_ordering == 'th':
-            x = tf.transpose(x, (0, 3, 1, 2))
+    if pool_mode == 'max':
+        x = tf.nn.max_pool(x, pool_size, strides, padding=padding)
+    elif pool_mode == 'avg':
+        x = tf.nn.avg_pool(x, pool_size, strides, padding=padding)
     else:
-        raise Exception('Unknown dim_ordering: ' + str(dim_ordering))
+        raise Exception('Invalid pooling mode: ' + str(pool_mode))
 
-    if _FLOATX == 'float64':
-        x = tf.cast(x, 'float64')
-    return x
+    return _postprocess_conv2d_output(x, dim_ordering)
+
+
+def pool3d(x, pool_size, strides=(1, 1, 1), border_mode='valid',
+           dim_ordering=_IMAGE_DIM_ORDERING, pool_mode='max'):
+    '''3D Pooling.
+
+    # Arguments
+        pool_size: tuple of 3 integers.
+        strides: tuple of 3 integers.
+        border_mode: one of "valid", "same".
+        dim_ordering: one of "th", "tf".
+        pool_mode: one of "max", "avg".
+    '''
+    if dim_ordering not in {'th', 'tf'}:
+        raise Exception('Unknown dim_ordering ' + str(dim_ordering))
+
+    padding = _preprocess_border_mode(border_mode)
+    strides = (1,) + strides + (1,)
+    pool_size = (1,) + pool_size + (1,)
+
+    x = _preprocess_conv3d_input(x, dim_ordering)
+
+    if pool_mode == 'max':
+        x = tf.nn.max_pool3d(x, pool_size, strides, padding=padding)
+    elif pool_mode == 'avg':
+        x = tf.nn.avg_pool3d(x, pool_size, strides, padding=padding)
+    else:
+        raise Exception('Invalid pooling mode: ' + str(pool_mode))
+
+    return _postprocess_conv3d_output(x, dim_ordering)
 
 
 # RANDOMNESS
@@ -1104,4 +1331,5 @@ def random_binomial(shape, p=0.0, dtype=_FLOATX, seed=None):
     if seed is None:
         seed = np.random.randint(10e6)
     return tf.select(tf.random_uniform(shape, dtype=dtype, seed=seed) <= p,
-                     tf.ones(shape), tf.zeros(shape))
+                     tf.ones(shape, dtype=dtype),
+                     tf.zeros(shape, dtype=dtype))

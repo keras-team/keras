@@ -93,7 +93,7 @@ def test_1o_1i():
     assert(len(out) == 1)
     loss = graph.test_on_batch({'input1': X_test_graph, 'output1': y_test_graph})
     loss = graph.train_on_batch({'input1': X_test_graph, 'output1': y_test_graph})
-    loss = graph.evaluate({'input1': X_test_graph, 'output1': y_test_graph}, verbose=0) 
+    loss = graph.evaluate({'input1': X_test_graph, 'output1': y_test_graph}, verbose=0)
 
     # test accuracy:
     graph.compile('rmsprop', {'output1': 'mse'}, metrics=['accuracy'])
@@ -209,7 +209,7 @@ def test_siamese_1():
     loss = graph.test_on_batch({'input1': X_test_graph, 'input2': X2_test_graph, 'output1': y_test_graph})
     loss = graph.train_on_batch({'input1': X_test_graph, 'input2': X2_test_graph, 'output1': y_test_graph})
     loss = graph.evaluate({'input1': X_test_graph, 'input2': X2_test_graph, 'output1': y_test_graph})
-    assert(loss < 3.0)
+    assert(loss < 5.0)
 
     # test serialization
     config = graph.get_config()

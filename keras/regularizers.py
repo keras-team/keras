@@ -1,5 +1,4 @@
 from __future__ import absolute_import
-import numpy as np
 from . import backend as K
 
 
@@ -18,11 +17,11 @@ class Regularizer(object):
 
 
 class EigenvalueRegularizer(Regularizer):
-    '''This takes a constant that controls the 
-    regularization by Eigenvalue Decay on the 
-    current layer and outputs the regularized 
-    loss (evaluated on the training data) and 
-    the original loss (evaluated on the 
+    '''This takes a constant that controls
+    the regularization by Eigenvalue Decay on the
+    current layer and outputs the regularized
+    loss (evaluated on the training data) and
+    the original loss (evaluated on the
     validation data).
     '''
     def __init__(self, k):
@@ -41,16 +40,15 @@ class EigenvalueRegularizer(Regularizer):
                             'and embedding layers.')
         WW = K.dot(K.transpose(W), W)
         dim1, dim2 = K.eval(K.shape(WW))  # number of neurons in the layer
-        k = self.k
-        
+
         # power method for approximating the dominant eigenvector:
         o = K.ones([dim1, 1])  # initial values for the dominant eigenvector
         domin_eigenvect = K.dot(WW, o)
         for n in range(power - 1):
-            domin_eigenvect = K.dot(WW, domin_eigenvect)    
-        
+            domin_eigenvect = K.dot(WW, domin_eigenvect)
+
         WWd = K.dot(WW, domin_eigenvect)
-        
+
         # the corresponding dominant eigenvalue:
         domin_eigenval = K.dot(K.transpose(WWd), domin_eigenvect) / K.dot(K.transpose(domin_eigenvect), domin_eigenvect)
         regularized_loss = loss + (domin_eigenval ** 0.5) * self.k  # multiplied by the given regularization gain
