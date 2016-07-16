@@ -141,6 +141,7 @@ def batch_dot(x, y, axes=None):
         y.shape[0] : 100 : do not append to output shape, always ignore first dimension of y
         y.shape[1] : 30 : append to output shape
         y.shape[2] : 20 : do not append to output shape, dimension 2 of y has been summed over. (dot_axes[1] = 2)
+
         output_shape = (100, 30)
     '''
     if type(axes) == int:
