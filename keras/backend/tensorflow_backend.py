@@ -9,6 +9,17 @@ from .common import _FLOATX, _EPSILON, _IMAGE_DIM_ORDERING
 
 _SESSION = None
 _LEARNING_PHASE = tf.placeholder(dtype='uint8', name='keras_learning_phase')  # 0 = test, 1 = train
+_MANUAL_VAR_INIT = False
+
+
+def manual_variable_initialization(value):
+    '''Whether variables should be initialized
+    as they are instantiated (default), or if
+    the user should handle the initialization
+    (e.g. via tf.initialize_all_variables()).
+    '''
+    global _MANUAL_VAR_INIT
+    _MANUAL_VAR_INIT = value
 
 
 def learning_phase():
@@ -73,6 +84,8 @@ def variable(value, dtype=_FLOATX, name=None):
         Tensor variable instance.
     '''
     v = tf.Variable(np.asarray(value, dtype=dtype), name=name)
+    if _MANUAL_VAR_INIT:
+        return v
     if tf.get_default_graph() is get_session().graph:
         try:
             get_session().run(v.initializer)
