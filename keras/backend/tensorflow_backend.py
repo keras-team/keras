@@ -230,7 +230,7 @@ def dot(x, y):
 
 
 def batch_dot(x, y, axes=None):
-    '''Batchwise dot product
+    '''Batchwise dot product.
     batch_dot results in a tensor with less dimensions than the input.
     If the number of dimensions is reduced to 1, we use `expand_dims` to
     make sure that ndim is at least 2.
