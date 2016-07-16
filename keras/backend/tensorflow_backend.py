@@ -230,18 +230,10 @@ def dot(x, y):
 
 
 def batch_dot(x, y, axes=None):
-    '''Batchwise dot product.
-
+    '''batchwise dot product
     batch_dot results in a tensor with less dimensions than the input.
     If the number of dimensions is reduced to 1, we use `expand_dims` to
     make sure that ndim is at least 2.
-
-    # Example
-        Assume x = [[1, 2], [3, 4]]   and y = [[5, 6], [7, 8]]
-        batch_dot(x, y, axes=1) = [[17, 53]] which is the main diagonal
-        of x.dot(y.T), although we never have to calculate the off-diagonal
-        elements.
-
 
     # Arguments
         x, y: tensors with ndim >= 2
@@ -257,6 +249,7 @@ def batch_dot(x, y, axes=None):
         y.shape[0] : 100 : do not append to output shape, always ignore first dimension of y
         y.shape[1] : 30 : append to output shape
         y.shape[2] : 20 : do not append to output shape, dimension 2 of y has been summed over. (dot_axes[1] = 2)
+
         output_shape = (100, 30)
     '''
     if type(axes) == int:
