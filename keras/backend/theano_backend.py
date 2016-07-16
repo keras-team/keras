@@ -139,7 +139,7 @@ def batch_dot(x, y, axes=None):
         axes: list (or single) int with target dimensions
 
     # Returns
-        A tensor with shape equal to the concatenation of x’s shape (less the dimension that was summed over) and y’s shape (less the batch dimension and the dimension that was summed over). If the final rank is 1, we reshape it to (batch_size, 1).
+        A tensor with shape equal to the concatenation of x's shape (less the dimension that was summed over) and y's shape (less the batch dimension and the dimension that was summed over). If the final rank is 1, we reshape it to (batch_size, 1).
     '''
     if type(axes) == int:
         axes = (axes, axes)
