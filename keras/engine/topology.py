@@ -1336,8 +1336,8 @@ class Merge(Layer):
         elif self.mode in ['dot', 'cos']:
             shape1 = list(input_shapes[0])
             shape2 = list(input_shapes[1])
-            shape1.pop(dot_axes[0])
-            shape2.pop(dot_axes[1])
+            shape1.pop(self.dot_axes[0])
+            shape2.pop(self.dot_axes[1])
             shape2.pop(0)
             output_shape = shape1 + shape2
             if len(output_shape) == 1:
