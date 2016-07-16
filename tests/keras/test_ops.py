@@ -35,7 +35,7 @@ def test_ops_1():
     def rdiv(x, y=3.14):
         return y / x
 
-    functions = [add, sub, mul, div, radd, rsub, rmul, rdiv]
+    functions = [add, sub, mul, div, rsub, rmul, rdiv]
 
     X1 = np.random.uniform(1, 2, (7, 10))
     X2 = np.random.uniform(1, 2, (7, 10))
