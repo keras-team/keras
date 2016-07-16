@@ -1339,7 +1339,10 @@ class Merge(Layer):
             shape1.pop(dot_axes[0])
             shape2.pop(dot_axes[1])
             shape2.pop(0)
-            return tuple(shape1 + shape2)
+            output_shape = shape1 + shape2
+            if len(output_shape) == 1:
+                output_shape += [1]
+            return tuple(output_shape)
 
     def compute_mask(self, inputs, mask=None):
         if mask is None or all([m is None for m in mask]):
