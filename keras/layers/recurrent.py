@@ -689,7 +689,7 @@ class LSTM(Recurrent):
                                      name='{}_U'.format(self.name))
 
             self.b = K.variable(np.hstack((np.zeros(self.output_dim),
-                                           K.get_value(self.forget_bias_init(self.output_dim)),
+                                           K.get_value(self.forget_bias_init((self.output_dim,))),
                                            np.zeros(self.output_dim),
                                            np.zeros(self.output_dim))),
                                 name='{}_b'.format(self.name))

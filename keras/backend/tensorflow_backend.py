@@ -72,6 +72,23 @@ def set_session(session):
 
 # VARIABLE MANIPULATION
 
+def _convert_string_dtype(dtype):
+    if dtype == 'float16':
+        return tf.float16
+    if dtype == 'float32':
+        return tf.float32
+    elif dtype == 'float64':
+        return tf.float64
+    elif dtype == 'int32':
+        return tf.int32
+    elif dtype == 'int64':
+        return tf.int64
+    elif dtype == 'uint8':
+        return tf.int8
+    else:
+        raise ValueError('Unsupported dtype:', dtype)
+
+
 def variable(value, dtype=_FLOATX, name=None):
     '''Instantiates a tensor.
 
@@ -83,7 +100,7 @@ def variable(value, dtype=_FLOATX, name=None):
     # Returns
         Tensor variable instance.
     '''
-    v = tf.Variable(np.asarray(value, dtype=dtype), name=name)
+    v = tf.Variable(value, dtype=_convert_string_dtype(dtype), name=name)
     if _MANUAL_VAR_INIT:
         return v
     if tf.get_default_graph() is get_session().graph:
@@ -167,13 +184,15 @@ def eval(x):
 def zeros(shape, dtype=_FLOATX, name=None):
     '''Instantiates an all-zeros tensor variable.
     '''
-    return variable(np.zeros(shape), dtype, name)
+    return variable(lambda: tf.cast(tf.constant_initializer(0.)(shape), dtype),
+                    dtype, name)
 
 
 def ones(shape, dtype=_FLOATX, name=None):
     '''Instantiates an all-ones tensor variable.
     '''
-    return variable(np.ones(shape), dtype, name)
+    return variable(lambda: tf.cast(tf.constant_initializer(1.)(shape), dtype),
+                    dtype, name)
 
 
 def eye(size, dtype=_FLOATX, name=None):
