@@ -62,7 +62,8 @@ class MaxPooling1D(_Pooling1D):
 
     # Arguments
         pool_length: factor by which to downscale. 2 will halve the input.
-        stride: integer or None. Stride value.
+        stride: integer, or None. Stride value.
+            If None, it will default to `pool_length`.
         border_mode: 'valid' or 'same'.
             Note: 'same' will only work with TensorFlow for the time being.
     '''
@@ -84,7 +85,8 @@ class AveragePooling1D(_Pooling1D):
 
     # Arguments
         pool_length: factor by which to downscale. 2 will halve the input.
-        stride: integer or None. Stride value.
+        stride: integer, or None. Stride value.
+            If None, it will default to `pool_length`.
         border_mode: 'valid' or 'same'.
             Note: 'same' will only work with TensorFlow for the time being.
 
@@ -174,6 +176,7 @@ class MaxPooling2D(_Pooling2D):
             factors by which to downscale (vertical, horizontal).
             (2, 2) will halve the image in each dimension.
         strides: tuple of 2 integers, or None. Strides values.
+            If None, it will default to `pool_size`.
         border_mode: 'valid' or 'same'.
             Note: 'same' will only work with TensorFlow for the time being.
         dim_ordering: 'th' or 'tf'. In 'th' mode, the channels dimension
@@ -215,6 +218,7 @@ class AveragePooling2D(_Pooling2D):
             factors by which to downscale (vertical, horizontal).
             (2, 2) will halve the image in each dimension.
         strides: tuple of 2 integers, or None. Strides values.
+            If None, it will default to `pool_size`.
         border_mode: 'valid' or 'same'.
             Note: 'same' will only work with TensorFlow for the time being.
         dim_ordering: 'th' or 'tf'. In 'th' mode, the channels dimension
