@@ -13,7 +13,6 @@ from keras.utils.test_utils import get_test_data
 from keras.models import model_from_json, model_from_yaml
 from keras import objectives
 from keras.engine.training import make_batches
-import numpy as np
 
 
 input_dim = 16
