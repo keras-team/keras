@@ -55,7 +55,7 @@ class BatchNormalization(Layer):
     # References
         - [Batch Normalization: Accelerating Deep Network Training by Reducing Internal Covariate Shift](http://jmlr.org/proceedings/papers/v37/ioffe15.html)
     '''
-    def __init__(self, epsilon=1e-6, mode=0, axis=-1, momentum=0.9,
+    def __init__(self, epsilon=1e-6, mode=0, axis=-1, momentum=0.99,
                  weights=None, beta_init='zero', gamma_init='one', **kwargs):
         self.supports_masking = True
         self.beta_init = initializations.get(beta_init)
@@ -99,17 +99,10 @@ class BatchNormalization(Layer):
             broadcast_shape = [1] * len(input_shape)
             broadcast_shape[self.axis] = input_shape[self.axis]
 
-            # # case: train mode (uses stats of the current batch)
-            # mean = K.mean(x, axis=reduction_axes)
-            # brodcast_mean = K.reshape(mean, broadcast_shape)
-            # std = K.mean(K.square(x - brodcast_mean) + self.epsilon, axis=reduction_axes)
-            # std = K.sqrt(std)
-            # brodcast_std = K.reshape(std, broadcast_shape)
-
             if self.mode == 2:
-                x_normed, mean, std = K.normalize_batch_in_training(x, self.gamma, self.beta, reduction_axes, epsilon=self.epsilon)
-                mean_update = self.momentum * self.running_mean + (1 - self.momentum) * mean
-                std_update = self.momentum * self.running_std + (1 - self.momentum) * std
+                x_normed, mean, std = K.normalize_batch_in_training(
+                    x, self.gamma, self.beta, reduction_axes,
+                    epsilon=self.epsilon)
             else:
                 # mode 0
                 if self.called_with not in {None, x}:
@@ -123,29 +116,28 @@ class BatchNormalization(Layer):
                                     '(see docs for a description of '
                                     'the behavior).')
                 self.called_with = x
-                x_normed, mean, std = K.normalize_batch_in_training(x, self.gamma, self.beta, reduction_axes, epsilon=self.epsilon)
-                mean_update = self.momentum * self.running_mean + (1 - self.momentum) * mean
-                std_update = self.momentum * self.running_std + (1 - self.momentum) * std
-                self.updates = [(self.running_mean, mean_update),
-                                (self.running_std, std_update)]
+                x_normed, mean, std = K.normalize_batch_in_training(
+                    x, self.gamma, self.beta, reduction_axes,
+                    epsilon=self.epsilon)
+
+                self.updates = [K.moving_average_update(self.running_mean, mean, self.momentum),
+                                K.moving_average_update(self.running_std, std, self.momentum)]
 
                 if sorted(reduction_axes) == range(K.ndim(x))[:-1]:
-                    x_normed_running = K.batch_normalization(x, self.running_mean,
-                                                             self.running_std,
-                                                             self.beta,
-                                                             self.gamma,
-                                                             epsilon=self.epsilon)
+                    x_normed_running = K.batch_normalization(
+                        x, self.running_mean, self.running_std,
+                        self.beta, self.gamma,
+                        epsilon=self.epsilon)
                 else:
                     # need broadcasting
                     broadcast_running_mean = K.reshape(self.running_mean, broadcast_shape)
                     broadcast_running_std = K.reshape(self.running_std, broadcast_shape)
                     broadcast_beta = K.reshape(self.beta, broadcast_shape)
                     broadcast_gamma = K.reshape(self.gamma, broadcast_shape)
-                    x_normed_running = K.batch_normalization(x, broadcast_running_mean,
-                                                             broadcast_running_std,
-                                                             broadcast_beta,
-                                                             broadcast_gamma,
-                                                             epsilon=self.epsilon)
+                    x_normed_running = K.batch_normalization(
+                        x, broadcast_running_mean, broadcast_running_std,
+                        broadcast_beta, broadcast_gamma,
+                        epsilon=self.epsilon)
 
                 # pick the normalized form of x corresponding to the training phase
                 x_normed = K.in_train_phase(x_normed, x_normed_running)

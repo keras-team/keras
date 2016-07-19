@@ -97,6 +97,16 @@ def zeros_like(x):
     return T.zeros_like(x)
 
 
+def random_uniform_variable(shape, low, high, dtype=_FLOATX, name=None):
+    return variable(np.random.uniform(low=low, high=high, size=shape),
+                    dtype=dtype, name=name)
+
+
+def random_normal_variable(shape, mean, scale, dtype=_FLOATX, name=None):
+    return variable(np.random.normal(loc=0.0, scale=scale, size=shape),
+                    dtype=dtype, name=name)
+
+
 def count_params(x):
     '''Return number of scalars in a tensor.
 
@@ -107,6 +117,25 @@ def count_params(x):
 
 def cast(x, dtype):
     return T.cast(x, dtype)
+
+
+# UPDATES OPS
+
+
+def update(x, new_x):
+    return (x, new_x)
+
+
+def update_add(x, increment):
+    return (x, x + increment)
+
+
+def update_sub(x, decrement):
+    return (x, x - decrement)
+
+
+def moving_average_update(variable, value, momentum):
+    return (variable, variable * momentum + value * (1. - momentum))
 
 
 # LINEAR ALGEBRA
@@ -133,21 +162,29 @@ def batch_dot(x, y, axes=None):
         axes: list (or single) int with target dimensions
 
     # Returns
-        A tensor with shape equal to the concatenation of x's shape (less the dimension that was summed over) and y's shape (less the batch dimension and the dimension that was summed over). If the final rank is 1, we reshape it to (batch_size, 1).
+        A tensor with shape equal to the concatenation of x's shape
+        (less the dimension that was summed over) and y's shape
+        (less the batch dimension and the dimension that was summed over).
+        If the final rank is 1, we reshape it to (batch_size, 1).
 
     # Examples
         Assume x = [[1, 2], [3, 4]]   and y = [[5, 6], [7, 8]]
         batch_dot(x, y, axes=1) = [[17, 53]] which is the main diagonal
         of x.dot(y.T), although we never have to calculate the off-diagonal
         elements.
-       
+
         Shape inference:
-        Let x's shape be (100, 20) and y's shape be (100, 30, 20). If dot_axes is (1, 2), to find the output shape of resultant tensor, loop through each dimension in x's shape and y's shape:
+        Let x's shape be (100, 20) and y's shape be (100, 30, 20).
+        If dot_axes is (1, 2), to find the output shape of resultant tensor,
+            loop through each dimension in x's shape and y's shape:
         x.shape[0] : 100 : append to output shape
-        x.shape[1] : 20 : do not append to output shape, dimension 1 of x has been summed over. (dot_axes[0] = 1)
-        y.shape[0] : 100 : do not append to output shape, always ignore first dimension of y
+        x.shape[1] : 20 : do not append to output shape,
+            dimension 1 of x has been summed over. (dot_axes[0] = 1)
+        y.shape[0] : 100 : do not append to output shape,
+            always ignore first dimension of y
         y.shape[1] : 30 : append to output shape
-        y.shape[2] : 20 : do not append to output shape, dimension 2 of y has been summed over. (dot_axes[1] = 2)
+        y.shape[2] : 20 : do not append to output shape,
+            dimension 2 of y has been summed over. (dot_axes[1] = 2)
 
         output_shape = (100, 30)
     '''

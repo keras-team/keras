@@ -29,13 +29,11 @@ def get_fans(shape, dim_ordering='th'):
 
 
 def uniform(shape, scale=0.05, name=None):
-    return K.variable(np.random.uniform(low=-scale, high=scale, size=shape),
-                      name=name)
+    return K.random_uniform_variable(shape, -scale, scale, name=name)
 
 
 def normal(shape, scale=0.05, name=None):
-    return K.variable(np.random.normal(loc=0.0, scale=scale, size=shape),
-                      name=name)
+    return K.random_normal_variable(shape, 0.0, scale, name=name)
 
 
 def lecun_uniform(shape, name=None, dim_ordering='th'):

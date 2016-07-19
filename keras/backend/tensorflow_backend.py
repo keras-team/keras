@@ -201,15 +201,15 @@ def eval(x):
 def zeros(shape, dtype=_FLOATX, name=None):
     '''Instantiates an all-zeros tensor variable.
     '''
-    return variable(lambda: tf.cast(tf.constant_initializer(0.)(shape), dtype),
-                    dtype, name)
+    tf_dtype = _convert_string_dtype(dtype)
+    return variable(tf.constant_initializer(0., dtype=tf_dtype)(shape), dtype, name)
 
 
 def ones(shape, dtype=_FLOATX, name=None):
     '''Instantiates an all-ones tensor variable.
     '''
-    return variable(lambda: tf.cast(tf.constant_initializer(1.)(shape), dtype),
-                    dtype, name)
+    tf_dtype = _convert_string_dtype(dtype)
+    return variable(tf.constant_initializer(1., dtype=tf_dtype)(shape), dtype, name)
 
 
 def eye(size, dtype=_FLOATX, name=None):
@@ -232,6 +232,18 @@ def ones_like(x, name=None):
     return tf.ones_like(x, name=name)
 
 
+def random_uniform_variable(shape, low, high, dtype=_FLOATX, name=None):
+    tf_dtype = _convert_string_dtype(dtype)
+    value = tf.random_uniform_initializer(low, high, dtype=tf_dtype)(shape)
+    return variable(value, dtype=dtype, name=name)
+
+
+def random_normal_variable(shape, mean, scale, dtype=_FLOATX, name=None):
+    tf_dtype = _convert_string_dtype(dtype)
+    value = tf.random_normal_initializer(mean, scale, dtype=tf_dtype)(shape)
+    return variable(value, dtype=dtype, name=name)
+
+
 def count_params(x):
     '''Returns the number of scalars in a tensor.
     '''
@@ -243,6 +255,26 @@ def cast(x, dtype):
     '''Casts a tensor to a different dtype.
     '''
     return tf.cast(x, dtype)
+
+
+# UPDATES OPS
+
+
+def update(x, new_x):
+    return tf.assign(x, new_x)
+
+
+def update_add(x, increment):
+    return tf.assign_add(x, increment)
+
+
+def update_sub(x, decrement):
+    return tf.assign_sub(x, decrement)
+
+
+def moving_average_update(variable, value, momentum):
+    return tf.python.training.moving_averages.assign_moving_average(
+        variable, value, momentum)
 
 
 # LINEAR ALGEBRA
@@ -277,21 +309,29 @@ def batch_dot(x, y, axes=None):
         axes: list (or single) int with target dimensions
 
     # Returns
-        A tensor with shape equal to the concatenation of x's shape (less the dimension that was summed over) and y's shape (less the batch dimension and the dimension that was summed over). If the final rank is 1, we reshape it to (batch_size, 1).
+        A tensor with shape equal to the concatenation of x's shape
+        (less the dimension that was summed over) and y's shape
+        (less the batch dimension and the dimension that was summed over).
+        If the final rank is 1, we reshape it to (batch_size, 1).
 
     # Examples
         Assume x = [[1, 2], [3, 4]]   and y = [[5, 6], [7, 8]]
         batch_dot(x, y, axes=1) = [[17, 53]] which is the main diagonal
         of x.dot(y.T), although we never have to calculate the off-diagonal
         elements.
-       
+
         Shape inference:
-        Let x's shape be (100, 20) and y's shape be (100, 30, 20). If dot_axes is (1, 2), to find the output shape of resultant tensor, loop through each dimension in x's shape and y's shape:
+        Let x's shape be (100, 20) and y's shape be (100, 30, 20).
+        If dot_axes is (1, 2), to find the output shape of resultant tensor,
+            loop through each dimension in x's shape and y's shape:
         x.shape[0] : 100 : append to output shape
-        x.shape[1] : 20 : do not append to output shape, dimension 1 of x has been summed over. (dot_axes[0] = 1)
-        y.shape[0] : 100 : do not append to output shape, always ignore first dimension of y
+        x.shape[1] : 20 : do not append to output shape,
+            dimension 1 of x has been summed over. (dot_axes[0] = 1)
+        y.shape[0] : 100 : do not append to output shape,
+            always ignore first dimension of y
         y.shape[1] : 30 : append to output shape
-        y.shape[2] : 20 : do not append to output shape, dimension 2 of y has been summed over. (dot_axes[1] = 2)
+        y.shape[2] : 20 : do not append to output shape,
+            dimension 2 of y has been summed over. (dot_axes[1] = 2)
 
         output_shape = (100, 30)
     '''
