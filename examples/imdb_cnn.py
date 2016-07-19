@@ -59,7 +59,7 @@ model.add(Convolution1D(nb_filter=nb_filter,
                         activation='relu',
                         subsample_length=1))
 # we use max pooling:
-model.add(MaxPooling1D(pool_length=model.layers[-1].output_shape[1]))
+model.add(MaxPooling1D(pool_length=model.output_shape[1]))
 
 # We flatten the output of the conv layer,
 # so that we can add a vanilla dense layer:
