@@ -2,13 +2,14 @@ from __future__ import print_function
 import numpy as np
 import pytest
 
-from keras.utils.test_utils import get_test_data
+from keras.utils.test_utils import get_test_data, keras_test
 from keras.models import Sequential
 from keras.layers.core import Dense, Flatten, Activation
 from keras.layers.convolutional import Convolution2D, MaxPooling2D
 from keras.utils.np_utils import to_categorical
 
 
+@keras_test
 def test_image_classification():
     '''
     Classify random 16x16 color images into several classes using logistic regression

@@ -11,9 +11,9 @@ from keras.layers import convolutional
 def test_convolution_1d():
     nb_samples = 2
     nb_steps = 8
-    input_dim = 5
+    input_dim = 2
     filter_length = 3
-    nb_filter = 4
+    nb_filter = 3
 
     for border_mode in ['valid', 'same']:
         for subsample_length in [1]:
@@ -58,8 +58,8 @@ def test_averagepooling_1d():
 @keras_test
 def test_convolution_2d():
     nb_samples = 2
-    nb_filter = 3
-    stack_size = 4
+    nb_filter = 2
+    stack_size = 3
     nb_row = 10
     nb_col = 6
 
@@ -91,8 +91,8 @@ def test_convolution_2d():
 @keras_test
 def test_atrous_conv_2d():
     nb_samples = 2
-    nb_filter = 3
-    stack_size = 4
+    nb_filter = 2
+    stack_size = 3
     nb_row = 10
     nb_col = 6
 
@@ -130,8 +130,8 @@ def test_atrous_conv_2d():
 @keras_test
 def test_separable_conv_2d():
     nb_samples = 2
-    nb_filter = 8
-    stack_size = 4
+    nb_filter = 6
+    stack_size = 3
     nb_row = 10
     nb_col = 6
 
@@ -195,8 +195,8 @@ def test_averagepooling_2d():
 @keras_test
 def test_convolution_3d():
     nb_samples = 2
-    nb_filter = 5
-    stack_size = 4
+    nb_filter = 2
+    stack_size = 3
     kernel_dim1 = 2
     kernel_dim2 = 3
     kernel_dim3 = 1
@@ -261,7 +261,7 @@ def test_averagepooling_3d():
 @keras_test
 def test_zero_padding_2d():
     nb_samples = 2
-    stack_size = 7
+    stack_size = 2
     input_nb_row = 11
     input_nb_col = 12
 
@@ -287,7 +287,7 @@ def test_zero_padding_2d():
 @pytest.mark.skipif(K._BACKEND != 'theano', reason="Requires Theano backend")
 def test_zero_padding_3d():
     nb_samples = 2
-    stack_size = 7
+    stack_size = 2
     input_len_dim1 = 10
     input_len_dim2 = 11
     input_len_dim3 = 12
@@ -322,7 +322,7 @@ def test_upsampling_1d():
 @keras_test
 def test_upsampling_2d():
     nb_samples = 2
-    stack_size = 7
+    stack_size = 2
     input_nb_row = 11
     input_nb_col = 12
 
@@ -363,7 +363,7 @@ def test_upsampling_2d():
 @pytest.mark.skipif(K._BACKEND != 'theano', reason="Requires Theano backend")
 def test_upsampling_3d():
     nb_samples = 2
-    stack_size = 7
+    stack_size = 2
     input_len_dim1 = 10
     input_len_dim2 = 11
     input_len_dim3 = 12
