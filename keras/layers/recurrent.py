@@ -1408,8 +1408,8 @@ class AttLSTM(LSTM):
         else:
             return last_output
 
-    def compute_mask(self, input, mask):
-        return None
+    #def compute_mask(self, input, mask):
+    #    return None
 
     def step(self, x, states):
         # After applying a RepeatMatrix before this AttLSTM the following way:
