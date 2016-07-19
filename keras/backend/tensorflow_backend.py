@@ -1,5 +1,4 @@
 import tensorflow as tf
-from tensorflow.python.framework.ops import reset_default_graph
 import numpy as np
 import os
 import copy
@@ -16,7 +15,7 @@ _MANUAL_VAR_INIT = False
 def clear_session():
     global _SESSION
     global _LEARNING_PHASE
-    reset_default_graph()
+    tf.reset_default_graph()
     reset_uids()
     _SESSION = None
     _LEARNING_PHASE = tf.placeholder(dtype='uint8', name='keras_learning_phase')
