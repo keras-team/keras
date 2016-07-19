@@ -329,7 +329,7 @@ def batch_normalization(x, mean, std, beta, gamma, epsilon=0.0001):
         normed = dnn_batch_normalization_test(x, gamma, beta, mean, std ** 2, epsilon)
     else:
         normed = T.nnet.bn.batch_normalization(x, gamma, beta, mean, std + epsilon,
-                                           mode='high_mem')
+                                               mode='high_mem')
     return normed
 
 
