@@ -99,7 +99,7 @@ def _convert_string_dtype(dtype):
 
 
 def _to_tensor(x, dtype):
-    x = tf.python.framework.ops.convert_to_tensor(x)
+    x = tf.convert_to_tensor(x)
     if x.dtype != dtype:
         x = tf.cast(x, dtype)
     return x
