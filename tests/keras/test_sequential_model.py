@@ -22,6 +22,22 @@ batch_size = 32
 nb_epoch = 1
 
 
+def test_sequential_pop():
+    model = Sequential()
+    model.add(Dense(nb_hidden, input_dim=input_dim))
+    model.add(Dense(nb_class))
+    model.compile(loss='mse', optimizer='sgd')
+    x = np.random.random((batch_size, input_dim))
+    y = np.random.random((batch_size, nb_class))
+    model.fit(x, y)
+    model.pop()
+    assert len(model.layers) == 1
+    assert model.output_shape == (None, nb_hidden)
+    model.compile(loss='mse', optimizer='sgd')
+    y = np.random.random((batch_size, nb_hidden))
+    model.fit(x, y)
+
+
 def _get_test_data():
     np.random.seed(1234)
 
