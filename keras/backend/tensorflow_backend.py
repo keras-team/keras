@@ -97,6 +97,13 @@ def _convert_string_dtype(dtype):
         raise ValueError('Unsupported dtype:', dtype)
 
 
+def _to_tensor(x, dtype):
+    x = tf.python.framework.ops.convert_to_tensor(x)
+    if x.dtype != dtype:
+        x = tf.cast(x, dtype)
+    return x
+
+
 def variable(value, dtype=_FLOATX, name=None):
     '''Instantiates a tensor.
 
@@ -446,8 +453,9 @@ def abs(x):
 def sqrt(x):
     '''Element-wise square root.
     '''
-    x = tf.clip_by_value(x, tf.cast(0., dtype=_FLOATX),
-                         tf.cast(np.inf, dtype=_FLOATX))
+    zero = _to_tensor(0., x.dtype.base_dtype)
+    inf = _to_tensor(np.inf, x.dtype.base_dtype)
+    x = tf.clip_by_value(x, zero, inf)
     return tf.sqrt(x)
 
 
@@ -486,8 +494,9 @@ def clip(x, min_value, max_value):
     '''
     if max_value < min_value:
         max_value = min_value
-    return tf.clip_by_value(x, tf.cast(min_value, dtype=_FLOATX),
-                            tf.cast(max_value, dtype=_FLOATX))
+    min_value = _to_tensor(min_value, x.dtype.base_dtype)
+    max_value = _to_tensor(max_value, x.dtype.base_dtype)
+    return tf.clip_by_value(x, min_value, max_value)
 
 
 def equal(x, y):
@@ -752,8 +761,15 @@ class Function(object):
         self.inputs = list(inputs)
         self.outputs = list(outputs)
         with tf.control_dependencies(self.outputs):
-            updates = [tf.assign(p, new_p) for (p, new_p) in updates]
-            self.updates_op = tf.group(*updates)
+            updates_ops = []
+            for update in updates:
+                if type(update) is tuple:
+                    p, new_p = update
+                    updates_ops.append(tf.assign(p, new_p))
+                else:
+                    # assumed already an op
+                    updates_ops.append(update)
+            self.updates_op = tf.group(*updates_ops)
 
     def __call__(self, inputs):
         assert type(inputs) in {list, tuple}
@@ -958,14 +974,16 @@ def relu(x, alpha=0., max_value=None):
         alpha: slope of negative section.
         max_value: saturation threshold.
     '''
-    negative_part = tf.nn.relu(-x)
+    if alpha != 0.:
+        negative_part = tf.nn.relu(-x)
     x = tf.nn.relu(x)
     if max_value is not None:
-        x = tf.clip_by_value(x, tf.cast(0., dtype=_FLOATX),
-                             tf.cast(max_value, dtype=_FLOATX))
-    if isinstance(alpha, (tuple, list, np.ndarray)) or np.isscalar(alpha):
-        alpha = tf.constant(alpha, dtype=_FLOATX)
-    x -= alpha * negative_part
+        max_value = _to_tensor(max_value, x.dtype.base_dtype)
+        zero = _to_tensor(0., x.dtype.base_dtype)
+        x = tf.clip_by_value(x, zero, max_value)
+    if alpha != 0.:
+        alpha = _to_tensor(alpha, x.dtype.base_dtype)
+        x -= alpha * negative_part
     return x
 
 
@@ -998,8 +1016,8 @@ def categorical_crossentropy(output, target, from_logits=False):
                                 reduction_indices=len(output.get_shape()) - 1,
                                 keep_dims=True)
         # manual computation of crossentropy
-        output = tf.clip_by_value(output, tf.cast(_EPSILON, dtype=_FLOATX),
-                                  tf.cast(1. - _EPSILON, dtype=_FLOATX))
+        epsilon = _to_tensor(_EPSILON, output.dtype.base_dtype)
+        output = tf.clip_by_value(output, epsilon, 1. - epsilon)
         return - tf.reduce_sum(target * tf.log(output),
                                reduction_indices=len(output.get_shape()) - 1)
     else:
@@ -1013,8 +1031,8 @@ def sparse_categorical_crossentropy(output, target, from_logits=False):
     # Note: tf.nn.softmax_cross_entropy_with_logits
     # expects logits, Keras expects probabilities.
     if not from_logits:
-        output = tf.clip_by_value(output, tf.cast(_EPSILON, dtype=_FLOATX),
-                                  tf.cast(1.-_EPSILON, dtype=_FLOATX))
+        epsilon = _to_tensor(_EPSILON, output.dtype.base_dtype)
+        output = tf.clip_by_value(output, epsilon, 1 - epsilon)
         output = tf.log(output)
 
     output_shape = output.get_shape()
@@ -1035,8 +1053,8 @@ def binary_crossentropy(output, target, from_logits=False):
     # expects logits, Keras expects probabilities.
     if not from_logits:
         # transform back to logits
-        output = tf.clip_by_value(output, tf.cast(_EPSILON, dtype=_FLOATX),
-                                  tf.cast(1.-_EPSILON, dtype=_FLOATX))
+        epsilon = _to_tensor(_EPSILON, output.dtype.base_dtype)
+        output = tf.clip_by_value(output, epsilon, 1 - epsilon)
         output = tf.log(output / (1 - output))
     return tf.nn.sigmoid_cross_entropy_with_logits(output, target)
 
@@ -1052,8 +1070,9 @@ def hard_sigmoid(x):
     Faster than sigmoid.
     '''
     x = (0.2 * x) + 0.5
-    x = tf.clip_by_value(x, tf.cast(0., dtype=_FLOATX),
-                         tf.cast(1., dtype=_FLOATX))
+    zero = _to_tensor(0., x.dtype.base_dtype)
+    one = _to_tensor(1., x.dtype.base_dtype)
+    x = tf.clip_by_value(x, zero, one)
     return x
 
 

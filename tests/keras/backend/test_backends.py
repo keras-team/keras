@@ -38,6 +38,7 @@ def check_two_tensor_operation(function_name, x_input_shape,
     assert zth.shape == ztf.shape
     assert_allclose(zth, ztf, atol=1e-05)
 
+
 def check_composed_tensor_operations(first_function_name, first_function_args,
                                      second_function_name, second_function_args,
                                      input_shape):
@@ -58,6 +59,7 @@ def check_composed_tensor_operations(first_function_name, first_function_args,
 
     assert zth.shape == ztf.shape
     assert_allclose(zth, ztf, atol=1e-05)
+
 
 class TestBackend(object):
 
