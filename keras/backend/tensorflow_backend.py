@@ -201,6 +201,7 @@ def eval(x):
 def zeros(shape, dtype=_FLOATX, name=None):
     '''Instantiates an all-zeros tensor variable.
     '''
+    shape = map(int, shape)
     tf_dtype = _convert_string_dtype(dtype)
     return variable(tf.constant_initializer(0., dtype=tf_dtype)(shape), dtype, name)
 
@@ -208,6 +209,7 @@ def zeros(shape, dtype=_FLOATX, name=None):
 def ones(shape, dtype=_FLOATX, name=None):
     '''Instantiates an all-ones tensor variable.
     '''
+    shape = map(int, shape)
     tf_dtype = _convert_string_dtype(dtype)
     return variable(tf.constant_initializer(1., dtype=tf_dtype)(shape), dtype, name)
 
@@ -233,12 +235,14 @@ def ones_like(x, name=None):
 
 
 def random_uniform_variable(shape, low, high, dtype=_FLOATX, name=None):
+    shape = map(int, shape)
     tf_dtype = _convert_string_dtype(dtype)
     value = tf.random_uniform_initializer(low, high, dtype=tf_dtype)(shape)
     return variable(value, dtype=dtype, name=name)
 
 
 def random_normal_variable(shape, mean, scale, dtype=_FLOATX, name=None):
+    shape = map(int, shape)
     tf_dtype = _convert_string_dtype(dtype)
     value = tf.random_normal_initializer(mean, scale, dtype=tf_dtype)(shape)
     return variable(value, dtype=dtype, name=name)
