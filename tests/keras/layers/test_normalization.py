@@ -3,11 +3,10 @@ import numpy as np
 from numpy.testing import assert_allclose
 
 from keras.layers.core import Dense, Activation
-from keras.utils.test_utils import layer_test
+from keras.utils.test_utils import layer_test, keras_test
 from keras.layers import normalization
 from keras.models import Sequential, Graph
 from keras import backend as K
-
 
 input_1 = np.arange(10)
 input_2 = np.zeros(10)
@@ -15,6 +14,7 @@ input_3 = np.ones((10))
 input_shapes = [np.ones((10, 10)), np.ones((10, 10, 10))]
 
 
+@keras_test
 def basic_batchnorm_test():
     layer_test(normalization.BatchNormalization,
                kwargs={'mode': 1},
@@ -24,6 +24,7 @@ def basic_batchnorm_test():
                input_shape=(3, 4, 2))
 
 
+@keras_test
 def test_batchnorm_mode_0_or_2():
     for mode in [0, 2]:
         model = Sequential()
@@ -42,6 +43,7 @@ def test_batchnorm_mode_0_or_2():
         assert_allclose(out.std(), 1.0, atol=1e-1)
 
 
+@keras_test
 def test_batchnorm_mode_0_convnet():
     model = Sequential()
     norm_m0 = normalization.BatchNormalization(mode=0, axis=1, input_shape=(3, 4, 4))
@@ -59,6 +61,7 @@ def test_batchnorm_mode_0_convnet():
     assert_allclose(np.std(out, axis=(0, 2, 3)), 1.0, atol=1e-1)
 
 
+@keras_test
 def test_batchnorm_mode_1():
     norm_m1 = normalization.BatchNormalization(input_shape=(10,), mode=1)
     norm_m1.build(input_shape=(None, 10))

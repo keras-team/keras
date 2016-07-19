@@ -10,6 +10,7 @@ from keras.models import Graph, Sequential
 from keras.layers.core import Dense, Activation, Merge, Lambda
 from keras.utils.test_utils import get_test_data
 from keras.models import model_from_json, model_from_yaml
+from keras.utils.test_utils import keras_test
 
 
 batch_size = 32
@@ -26,6 +27,7 @@ batch_size = 32
                                                                                  output_shape=(1,))
 
 
+@keras_test
 def test_graph_fit_generator():
     def data_generator_graph(train):
         while 1:
@@ -69,6 +71,7 @@ def test_graph_fit_generator():
     gen_loss = graph.evaluate_generator(data_generator_graph(True), 128, verbose=0)
 
 
+@keras_test
 def test_1o_1i():
     # test a non-sequential graph with 1 input and 1 output
     np.random.seed(1337)
@@ -112,6 +115,7 @@ def test_1o_1i():
               nb_epoch=1)
 
 
+@keras_test
 def test_1o_1i_2():
     # test a more complex non-sequential graph with 1 input and 1 output
     graph = Graph()
@@ -151,6 +155,7 @@ def test_1o_1i_2():
     new_graph = model_from_yaml(yaml_str)
 
 
+@keras_test
 def test_1o_2i():
     # test a non-sequential graph with 2 inputs and 1 output
     graph = Graph()
@@ -187,6 +192,7 @@ def test_1o_2i():
     new_graph = model_from_yaml(yaml_str)
 
 
+@keras_test
 def test_siamese_1():
     graph = Graph()
     graph.add_input(name='input1', input_shape=(32,))
@@ -274,6 +280,7 @@ since the Graph model is deprecated.
 #     new_graph = model_from_yaml(yaml_str)
 
 
+@keras_test
 def test_2o_1i_save_weights():
     # test a non-sequential graph with 1 input and 2 outputs
     graph = Graph()
@@ -321,6 +328,7 @@ def test_2o_1i_save_weights():
               nb_epoch=1)
 
 
+@keras_test
 def test_2o_1i_sample_weights():
     # test a non-sequential graph with 1 input and 2 outputs with sample weights
     graph = Graph()
@@ -354,6 +362,7 @@ def test_2o_1i_sample_weights():
                           sample_weight={'output1': weights1, 'output2': weights2})
 
 
+@keras_test
 def test_recursive():
     # test layer-like API
     graph = Graph()
@@ -386,6 +395,7 @@ def test_recursive():
     new_graph = model_from_yaml(yaml_str)
 
 
+@keras_test
 def test_create_output():
     # test create_output argument
     graph = Graph()
@@ -416,6 +426,7 @@ def test_create_output():
     out = graph.predict({'input1': X_test_graph})
 
 
+@keras_test
 def test_count_params():
     # test count params
     nb_units = 100

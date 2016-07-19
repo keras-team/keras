@@ -418,7 +418,6 @@ def generator_queue(generator, max_q_size=10,
         _stop = threading.Event()
 
     try:
-
         def data_generator_task():
             while not _stop.is_set():
                 try:
@@ -444,7 +443,6 @@ def generator_queue(generator, max_q_size=10,
             generator_threads.append(thread)
             thread.daemon = True
             thread.start()
-
     except:
         _stop.set()
         if pickle_safe:

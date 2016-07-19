@@ -15,9 +15,11 @@ _MANUAL_VAR_INIT = False
 
 def clear_session():
     global _SESSION
+    global _LEARNING_PHASE
     reset_default_graph()
     reset_uids()
     _SESSION = None
+    _LEARNING_PHASE = tf.placeholder(dtype='uint8', name='keras_learning_phase')
 
 
 def manual_variable_initialization(value):

@@ -1,9 +1,10 @@
 import pytest
 
-from keras.utils.test_utils import layer_test
+from keras.utils.test_utils import layer_test, keras_test
 from keras.layers import local
 
 
+@keras_test
 def test_locallyconnected_1d():
     nb_samples = 2
     nb_steps = 8
@@ -33,6 +34,7 @@ def test_locallyconnected_1d():
                        input_shape=(nb_samples, nb_steps, input_dim))
 
 
+@keras_test
 def test_locallyconnected_2d():
     nb_samples = 8
     nb_filter = 3

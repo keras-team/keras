@@ -7,6 +7,7 @@ from keras.layers import recurrent, embeddings
 from keras.models import Sequential
 from keras.layers.core import Masking
 from keras import regularizers
+from keras.utils.test_utils import keras_test
 
 from keras import backend as K
 
@@ -107,18 +108,22 @@ def _runner(layer_class):
     K.eval(layer.output)
 
 
+@keras_test
 def test_SimpleRNN():
     _runner(recurrent.SimpleRNN)
 
 
+@keras_test
 def test_GRU():
     _runner(recurrent.GRU)
 
 
+@keras_test
 def test_LSTM():
     _runner(recurrent.LSTM)
 
 
+@keras_test
 def test_masking_layer():
     ''' This test based on a previously failing issue here:
     https://github.com/fchollet/keras/issues/1567
