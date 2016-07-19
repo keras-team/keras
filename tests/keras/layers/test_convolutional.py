@@ -126,8 +126,8 @@ def test_atrous_conv_2d():
                            input_shape=(nb_samples, stack_size, nb_row, nb_col))
 
 
-@keras_test
 @pytest.mark.skipif(K._BACKEND != 'tensorflow', reason="Requires TF backend")
+@keras_test
 def test_separable_conv_2d():
     nb_samples = 2
     nb_filter = 8

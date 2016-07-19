@@ -3,13 +3,13 @@ import pytest
 import numpy as np
 from keras.models import Sequential
 from keras.layers.core import Dense, Activation
-from keras.utils.test_utils import keras_test
 
 
-@keras_test
 def test_multiprocessing_training():
+
     reached_end = False
-    arr_data = np.random.randint(0, 256, (500, 2))
+
+    arr_data = np.random.randint(0,256, (500, 200))
     arr_labels = np.random.randint(0, 2, 500)
 
     def myGenerator():
@@ -27,7 +27,10 @@ def test_multiprocessing_training():
 
     # Build a NN
     model = Sequential()
-    model.add(Dense(10, input_shape=(2, )))
+    model.add(Dense(10, input_shape=(200, )))
+    model.add(Activation('relu'))
+    model.add(Dense(1))
+    model.add(Activation('linear'))
     model.compile(loss='mse', optimizer='adadelta')
 
     model.fit_generator(myGenerator(),
@@ -50,12 +53,11 @@ def test_multiprocessing_training():
     assert reached_end
 
 
-@keras_test
 def test_multiprocessing_training_fromfile():
 
     reached_end = False
 
-    arr_data = np.random.randint(0, 256, (500, 2))
+    arr_data = np.random.randint(0,256, (500, 200))
     arr_labels = np.random.randint(0, 2, 500)
     np.savez("data.npz", **{"data": arr_data, "labels": arr_labels})
 
@@ -76,7 +78,10 @@ def test_multiprocessing_training_fromfile():
 
     # Build a NN
     model = Sequential()
-    model.add(Dense(10, input_shape=(2, )))
+    model.add(Dense(10, input_shape=(200, )))
+    model.add(Activation('relu'))
+    model.add(Dense(1))
+    model.add(Activation('linear'))
     model.compile(loss='mse', optimizer='adadelta')
 
     model.fit_generator(myGenerator(),
@@ -98,10 +103,11 @@ def test_multiprocessing_training_fromfile():
     assert reached_end
 
 
-@keras_test
 def test_multiprocessing_predicting():
+
     reached_end = False
-    arr_data = np.random.randint(0, 256, (500, 2))
+
+    arr_data = np.random.randint(0,256, (500, 200))
 
     def myGenerator():
 
@@ -117,7 +123,10 @@ def test_multiprocessing_predicting():
 
     # Build a NN
     model = Sequential()
-    model.add(Dense(10, input_shape=(2, )))
+    model.add(Dense(10, input_shape=(200, )))
+    model.add(Activation('relu'))
+    model.add(Dense(1))
+    model.add(Activation('linear'))
     model.compile(loss='mse', optimizer='adadelta')
     model.predict_generator(myGenerator(),
                             val_samples=320,
@@ -133,10 +142,11 @@ def test_multiprocessing_predicting():
     assert reached_end
 
 
-@keras_test
 def test_multiprocessing_evaluating():
+
     reached_end = False
-    arr_data = np.random.randint(0, 256, (500, 2))
+
+    arr_data = np.random.randint(0,256, (500, 200))
     arr_labels = np.random.randint(0, 2, 500)
 
     def myGenerator():
@@ -154,7 +164,10 @@ def test_multiprocessing_evaluating():
 
     # Build a NN
     model = Sequential()
-    model.add(Dense(10, input_shape=(2, )))
+    model.add(Dense(10, input_shape=(200, )))
+    model.add(Activation('relu'))
+    model.add(Dense(1))
+    model.add(Activation('linear'))
     model.compile(loss='mse', optimizer='adadelta')
 
     model.evaluate_generator(myGenerator(),
@@ -172,4 +185,5 @@ def test_multiprocessing_evaluating():
 
 
 if __name__ == '__main__':
+
     pytest.main([__file__])
