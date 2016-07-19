@@ -35,7 +35,7 @@ class BatchNormalization(Layer):
         weights: Initialization weights.
             List of 2 Numpy arrays, with shapes:
             `[(input_shape,), (input_shape,)]`
-			Note that the order of this list is [gamma, beta, mean, std]
+            Note that the order of this list is [gamma, beta, mean, std]
         beta_init: name of initialization function for shift parameter
             (see [initializations](../initializations.md)), or alternatively,
             Theano/TensorFlow function to use for weights initialization.
