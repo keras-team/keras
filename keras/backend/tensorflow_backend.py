@@ -1,15 +1,23 @@
 import tensorflow as tf
+from tensorflow.python.framework.ops import reset_default_graph
 import numpy as np
 import os
 import copy
 import warnings
-from .common import _FLOATX, _EPSILON, _IMAGE_DIM_ORDERING
+from .common import _FLOATX, _EPSILON, _IMAGE_DIM_ORDERING, reset_uids
 
 # INTERNAL UTILS
 
 _SESSION = None
 _LEARNING_PHASE = tf.placeholder(dtype='uint8', name='keras_learning_phase')  # 0 = test, 1 = train
 _MANUAL_VAR_INIT = False
+
+
+def clear_session():
+    global _SESSION
+    reset_default_graph()
+    reset_uids()
+    _SESSION = None
 
 
 def manual_variable_initialization(value):
@@ -744,14 +752,15 @@ class Function(object):
         self.inputs = list(inputs)
         self.outputs = list(outputs)
         with tf.control_dependencies(self.outputs):
-            self.updates = [tf.assign(p, new_p) for (p, new_p) in updates]
+            updates = [tf.assign(p, new_p) for (p, new_p) in updates]
+            self.updates_op = tf.group(*updates)
 
     def __call__(self, inputs):
         assert type(inputs) in {list, tuple}
         names = [v.name for v in self.inputs]
         feed_dict = dict(zip(names, inputs))
         session = get_session()
-        updated = session.run(self.outputs + self.updates, feed_dict=feed_dict)
+        updated = session.run(self.outputs + [self.updates_op], feed_dict=feed_dict)
         return updated[:len(self.outputs)]
 
 
