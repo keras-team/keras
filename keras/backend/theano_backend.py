@@ -1,6 +1,7 @@
 import theano
 from theano import tensor as T
 from theano.sandbox.rng_mrg import MRG_RandomStreams as RandomStreams
+from theano.sandbox.cuda.dnn import dnn_batch_normalization_test
 from theano.tensor.signal import pool
 from theano.tensor.nnet import conv3d2d
 try:
@@ -140,7 +141,7 @@ def batch_dot(x, y, axes=None):
         batch_dot(x, y, axes=1) = [[17, 53]] which is the main diagonal
         of x.dot(y.T), although we never have to calculate the off-diagonal
         elements.
-       
+
         Shape inference:
         Let x's shape be (100, 20) and y's shape be (100, 30, 20). If dot_axes is (1, 2), to find the output shape of resultant tensor, loop through each dimension in x's shape and y's shape:
         x.shape[0] : 100 : append to output shape
@@ -324,7 +325,10 @@ def normalize_batch_in_training(x, gamma, beta,
 def batch_normalization(x, mean, std, beta, gamma, epsilon=0.0001):
     '''Apply batch normalization on x given mean, std, beta and gamma.
     '''
-    normed = T.nnet.bn.batch_normalization(x, gamma, beta, mean, std + epsilon,
+    if theano.config.device.startswith('gpu'):
+        normed = dnn_batch_normalization_test(x, gamma, beta, mean, std ** 2, epsilon)
+    else:
+        normed = T.nnet.bn.batch_normalization(x, gamma, beta, mean, std + epsilon,
                                            mode='high_mem')
     return normed
 
