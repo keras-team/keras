@@ -1,4 +1,5 @@
 import tensorflow as tf
+from tensorflow.python.training import moving_averages
 import numpy as np
 import os
 import copy
@@ -276,7 +277,7 @@ def update_sub(x, decrement):
 
 
 def moving_average_update(variable, value, momentum):
-    return tf.python.training.moving_averages.assign_moving_average(
+    return moving_averages.assign_moving_average(
         variable, value, momentum)
 
 
