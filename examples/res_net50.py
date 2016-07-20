@@ -139,4 +139,3 @@ def get_resnet_50():
     model = Model(inp, out)
 
     return model
-    
