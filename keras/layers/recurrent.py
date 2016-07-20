@@ -904,7 +904,7 @@ class LSTMCond(Recurrent):
         - [A Theoretically Grounded Application of Dropout in Recurrent Neural Networks](http://arxiv.org/abs/1512.05287)
     '''
     def __init__(self, output_dim, embedding_size,
-                 init='glorot_uniform', inner_init='orthogonal', init_state=None,
+                 init='glorot_uniform', inner_init='orthogonal', init_state=None, init_memory=None,
                  forget_bias_init='one', activation='tanh',
                  inner_activation='hard_sigmoid', consume_less='gpu',
                  W_regularizer=None, V_regularizer=None, U_regularizer=None, b_regularizer=None,
@@ -914,6 +914,7 @@ class LSTMCond(Recurrent):
         self.init = initializations.get(init)
         self.inner_init = initializations.get(inner_init)
         self.init_state = init_state
+        self.init_memory = init_memory
         self.forget_bias_init = initializations.get(forget_bias_init)
         self.activation = activations.get(activation)
         self.inner_activation = activations.get(inner_activation)
@@ -1034,12 +1035,22 @@ class LSTMCond(Recurrent):
         if self.init_state is None:
             initial_state = K.zeros_like(x[:, :, :self.input_dim])  # (samples, timesteps, input_dim)
             initial_state = K.sum(initial_state, axis=1)  # (samples, input_dim)
+            reducer = K.ones((self.input_dim, self.output_dim))
+            initial_state = K.dot(initial_state, reducer)  # (samples, output_dim)
+            initial_states = [initial_state for _ in range(len(self.states))]
+            return initial_states
         else:
             initial_state = self.init_state
-        reducer = K.ones((self.input_dim, self.output_dim))
-        initial_state = K.dot(initial_state, reducer)  # (samples, output_dim)
-        initial_states = [initial_state for _ in range(len(self.states))]
-        return initial_states
+            reducer = K.ones((self.output_dim, self.output_dim))
+            initial_state = K.dot(initial_state, reducer)  # (samples, output_dim)
+            if len(self.states) == 2 and self.init_memory is not None: # We have state and memory
+                initial_memory = self.init_memory
+                reducer = K.ones((self.output_dim, self.output_dim))
+                initial_memory = K.dot(initial_memory, reducer)  # (samples, output_dim)
+                initial_states = [initial_state, initial_memory]
+            else:
+                initial_states = [initial_state for _ in range(len(self.states))]
+            return initial_states
 
     def step(self, x, states):
 
