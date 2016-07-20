@@ -706,6 +706,27 @@ def resize_images(X, height_factor, width_factor, dim_ordering):
         raise Exception('Invalid dim_ordering: ' + dim_ordering)
 
 
+def resize_volumes(X, depth_factor, height_factor, width_factor, dim_ordering):
+    '''Resize the volume contained in a 5D tensor of shape
+    - [batch, channels, depth, height, width] (for 'th' dim_ordering)
+    - [batch, depth, height, width, channels] (for 'tf' dim_ordering)
+    by a factor of (depth_factor, height_factor, width_factor).
+    All three factors should be positive integers.
+    '''
+    if dim_ordering == 'th':
+        output = repeat_elements(X, depth_factor, axis=2)
+        output = repeat_elements(output, height_factor, axis=3)
+        output = repeat_elements(output, width_factor, axis=4)
+        return output
+    elif dim_ordering == 'tf':
+        output = repeat_elements(X, depth_factor, axis=1)
+        output = repeat_elements(output, height_factor, axis=2)
+        output = repeat_elements(output, width_factor, axis=3)
+        return output
+    else:
+        raise Exception('Invalid dim_ordering: ' + dim_ordering)
+
+
 def repeat_elements(x, rep, axis):
     '''Repeats the elements of a tensor along an axis, like np.repeat
 
@@ -781,6 +802,32 @@ def spatial_2d_padding(x, padding=(1, 1), dim_ordering='th'):
         pattern = [[0, 0],
                    [padding[0], padding[0]], [padding[1], padding[1]],
                    [0, 0]]
+    return tf.pad(x, pattern)
+
+
+def spatial_3d_padding(x, padding=(1, 1, 1), dim_ordering='th'):
+    '''Pads 5D tensor with zeros for the depth, height, width dimension with
+    "padding[0]", "padding[1]" and "padding[2]" (resp.) zeros left and right
+
+    For 'tf' dim_ordering, the 2nd, 3rd and 4th dimension will be padded.
+    For 'th' dim_ordering, the 3rd, 4th and 5th dimension will be padded.
+    '''
+    if dim_ordering == 'th':
+        pattern = [
+            [0, 0],
+            [0, 0],
+            [padding[0], padding[0]],
+            [padding[1], padding[1]],
+            [padding[2], padding[2]]
+        ]
+    else:
+        pattern = [
+            [0, 0],
+            [padding[0], padding[0]],
+            [padding[1], padding[1]],
+            [padding[2], padding[2]],
+            [0, 0]
+        ]
     return tf.pad(x, pattern)
 
 

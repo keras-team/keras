@@ -284,7 +284,6 @@ def test_zero_padding_2d():
     layer.get_config()
 
 
-@pytest.mark.skipif(K._BACKEND != 'theano', reason="Requires Theano backend")
 def test_zero_padding_3d():
     nb_samples = 2
     stack_size = 2
@@ -360,7 +359,6 @@ def test_upsampling_2d():
                 assert_allclose(out, expected_out)
 
 
-@pytest.mark.skipif(K._BACKEND != 'theano', reason="Requires Theano backend")
 def test_upsampling_3d():
     nb_samples = 2
     stack_size = 2
