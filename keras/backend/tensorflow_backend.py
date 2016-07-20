@@ -44,7 +44,10 @@ def learning_phase():
 
 def set_learning_phase(value):
     global _LEARNING_PHASE
-    _LEARNING_PHASE = tf.constant(value, name='keras_learning_phase')
+    if value not in {0, 1}:
+        raise ValueError('Expected learning phase to be '
+                         '0 or 1.')
+    _LEARNING_PHASE = value
 
 
 def get_session():
@@ -819,7 +822,7 @@ class Function(object):
 
     def __call__(self, inputs):
         assert type(inputs) in {list, tuple}
-        names = [v.name for v in self.inputs]
+        names = [getattr(v, 'name', None) for v in self.inputs]
         feed_dict = dict(zip(names, inputs))
         session = get_session()
         updated = session.run(self.outputs + [self.updates_op], feed_dict=feed_dict)
@@ -989,6 +992,11 @@ def in_train_phase(x, alt):
     '''Selects `x` in train phase, and `alt` otherwise.
     Note that `alt` should have the *same shape* as `x`.
     '''
+    if _LEARNING_PHASE is 1:
+        return x
+    elif _LEARNING_PHASE is 0:
+        return alt
+    # else: assume learning phase is a placeholder.
     x_shape = copy.copy(x.get_shape())
     x = tf.python.control_flow_ops.cond(tf.cast(_LEARNING_PHASE, 'bool'),
                                         lambda: x,
@@ -1002,6 +1010,10 @@ def in_test_phase(x, alt):
     '''Selects `x` in test phase, and `alt` otherwise.
     Note that `alt` should have the *same shape* as `x`.
     '''
+    if _LEARNING_PHASE is 1:
+        return alt
+    elif _LEARNING_PHASE is 0:
+        return x
     x_shape = copy.copy(x.get_shape())
     x = tf.python.control_flow_ops.cond(tf.cast(_LEARNING_PHASE, 'bool'),
                                         lambda: alt,

@@ -22,6 +22,14 @@ def learning_phase():
     return _LEARNING_PHASE
 
 
+def set_learning_phase(value):
+    global _LEARNING_PHASE
+    if value not in {0, 1}:
+        raise ValueError('Expected learning phase to be '
+                         '0 or 1.')
+    _LEARNING_PHASE = value
+
+
 # VARIABLE MANIPULATION
 
 def variable(value, dtype=_FLOATX, name=None):
@@ -602,7 +610,7 @@ class Function(object):
     def __init__(self, inputs, outputs, updates=[], **kwargs):
         self.function = theano.function(inputs, outputs, updates=updates,
                                         allow_input_downcast=True,
-                                        on_unused_input='warn',
+                                        on_unused_input='ignore',
                                         **kwargs)
 
     def __call__(self, inputs):
@@ -803,12 +811,20 @@ def switch(condition, then_expression, else_expression):
 
 
 def in_train_phase(x, alt):
+    if _LEARNING_PHASE is 1:
+        return x
+    elif _LEARNING_PHASE is 0:
+        return alt
     x = T.switch(_LEARNING_PHASE, x, alt)
     x._uses_learning_phase = True
     return x
 
 
 def in_test_phase(x, alt):
+    if _LEARNING_PHASE is 1:
+        return alt
+    elif _LEARNING_PHASE is 0:
+        return x
     x = T.switch(_LEARNING_PHASE, alt, x)
     x._uses_learning_phase = True
     return x
