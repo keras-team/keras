@@ -34,67 +34,67 @@ from keras.layers import Input
 # branch: '1' for shortcut and '2' for main path
 # layer: 'a','b','c'... for different layers in a block
 
-def identity_block(x, nb_filter, stage, block, kernel_size=3):
+def identity_block(input_tensor, nb_filter, stage, block, kernel_size=3):
     """
     the identity_block indicate the block that has no conv layer at shortcut
     params:
-        x: input tensor
+        input_tensor: input tensor
         nb_filter: list of integers, the nb_filters of 3 conv layer at main path
         stage: integet, current stage number
         block: str like 'a','b'.., curretn block
         kernel_size: defualt 3, the kernel size of middle conv layer at main path
     """
-    k1, k2, k3 = nb_filter
+    nb_filter1, nb_filter2, nb_filter3 = nb_filter
 
-    out = Convolution2D(k1, 1, 1, name='res'+str(stage)+block+'_branch2a')(x)
+    out = Convolution2D(nb_filter1, 1, 1, name='res'+str(stage)+block+'_branch2a')(input_tensor)
     out = BatchNormalization(axis=1, name='bn'+str(stage)+block+'_branch2a')(out)
     out = Activation('relu')(out)
 
-    out = out = Convolution2D(k2, kernel_size, kernel_size, border_mode='same',
+    out = out = Convolution2D(nb_filter2, kernel_size, kernel_size, border_mode='same',
                               name='res'+str(stage)+block+'_branch2b')(out)
     out = BatchNormalization(axis=1, name='bn'+str(stage)+block+'_branch2b')(out)
     out = Activation('relu')(out)
 
-    out = Convolution2D(k3, 1, 1, name='res'+str(stage)+block+'_branch2c')(out)
+    out = Convolution2D(nb_filter3, 1, 1, name='res'+str(stage)+block+'_branch2c')(out)
     out = BatchNormalization(axis=1, name='bn'+str(stage)+block+'_branch2c')(out)
 
-    out = merge([out, x], mode='sum')
+    out = merge([out, input_tensor], mode='sum')
     out = Activation('relu')(out)
     return out
 
-def conv_block(x, nb_filter, stage, block, kernel_size=3):
+def conv_block(input_tensor, nb_filter, stage, block, kernel_size=3):
     """
     conv_block indicate the block that has a conv layer at shortcut
     params:
-        x: input tensor
+        input_tensor: input tensor
         nb_filter: list of integers, the nb_filters of 3 conv layer at main path
         stage: integet, current stage number
         block: str like 'a','b'.., curretn block
         kernel_size: defualt 3, the kernel size of middle conv layer at main path
     """
-    k1, k2, k3 = nb_filter
+    nb_filter1, nb_filter2, nb_filter3 = nb_filter
 
-    out = Convolution2D(k1, 1, 1, name='res'+str(stage)+block+'_branch2a')(x)
+    out = Convolution2D(nb_filter1, 1, 1, name='res'+str(stage)+block+'_branch2a')(input_tensor)
     out = BatchNormalization(axis=1, name='bn'+str(stage)+block+'_branch2a')(out)
     out = Activation('relu')(out)
 
-    out = out = Convolution2D(k2, kernel_size, kernel_size, border_mode='same',
+    out = out = Convolution2D(nb_filter2, kernel_size, kernel_size, border_mode='same',
                               name='res'+str(stage)+block+'_branch2b')(out)
     out = BatchNormalization(axis=1, name='bn'+str(stage)+block+'_branch2b')(out)
     out = Activation('relu')(out)
 
-    out = Convolution2D(k3, 1, 1, name='res'+str(stage)+block+'_branch2c')(out)
+    out = Convolution2D(nb_filter3, 1, 1, name='res'+str(stage)+block+'_branch2c')(out)
     out = BatchNormalization(axis=1, name='bn'+str(stage)+block+'_branch2c')(out)
 
-    x = Convolution2D(k3, 1, 1, name='res'+str(stage)+block+'_branch1')(x)
-    x = BatchNormalization(axis=1, name='bn'+str(stage)+block+'_branch1')(x)
+    shortcut = Convolution2D(nb_filter3, 1, 1, name='res'+str(stage)+block+'_branch1')(input_tensor)
+    shortcut = BatchNormalization(axis=1, name='bn'+str(stage)+block+'_branch1')(shortcut)
 
-    out = merge([out, x], mode='sum')
+    out = merge([out, shortcut], mode='sum')
     out = Activation('relu')(out)
     return out
 
 # we build resnet 50 with the blocks defined above
-def get_resnet50():
+def get_resnet_50():
     """
     returns the resnet50 model
     Note that if you want to load weights from caffemodel,
@@ -139,9 +139,4 @@ def get_resnet50():
     model = Model(inp, out)
 
     return model
-
-
-if __name__ == '__main__':
-    resnet50 = get_resnet50()
-
     
