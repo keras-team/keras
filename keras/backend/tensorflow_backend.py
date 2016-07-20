@@ -562,6 +562,34 @@ def not_equal(x, y):
     return tf.not_equal(x, y)
 
 
+def greater(x, y):
+    '''Element-wise truth value of (x > y).
+    Returns a bool tensor.
+    '''
+    return tf.greater(x, y)
+
+
+def greater_equal(x, y):
+    '''Element-wise truth value of (x >= y).
+    Returns a bool tensor.
+    '''
+    return tf.greater_equal(x, y)
+
+
+def lesser(x, y):
+    '''Element-wise truth value of (x < y).
+    Returns a bool tensor.
+    '''
+    return tf.lesser(x, y)
+
+
+def lesser_equal(x, y):
+    '''Element-wise truth value of (x <= y).
+    Returns a bool tensor.
+    '''
+    return tf.lesser_equal(x, y)
+
+
 def maximum(x, y):
     '''Element-wise maximum of two tensors.
     '''
