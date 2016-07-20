@@ -172,6 +172,9 @@ class Sequential(Model):
         else:
             self.layers[-1].outbound_nodes = []
             self.outputs = [self.layers[-1].output]
+            # update self.inbound_nodes
+            self.inbound_nodes[0].output_tensors = self.outputs
+            self.inbound_nodes[0].output_shapes = [self.outputs[0]._keras_shape]
         self.built = False
 
     def call(self, x, mask=None):
