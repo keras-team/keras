@@ -40,7 +40,6 @@ import numpy as np
 import h5py
 
 
-
 # The names of layers in resnet50 are generated with the following format
 # [type][stage][block]_branch[branch][layer]
 # type: 'res' for conv layer, 'bn' and 'scale' for BN layer
@@ -168,7 +167,7 @@ def read_img(img_path):
 
     io.imshow(img.astype('uint8'))
     io.show()
-    #decenterize
+    # decenterize
     img[:, :, 0] -= mean[0]
     img[:, :, 1] -= mean[1]
     img[:, :, 2] -= mean[2]
@@ -176,7 +175,7 @@ def read_img(img_path):
     # 'RGB'->'BGR'
     img = img[:, :, ::-1]
 
-    #'tf'->'th'
+    # 'tf'->'th'
     img = np.transpose(img, (2, 0, 1))
     # expand dim for test
     img = np.expand_dims(img, axis=0)
