@@ -579,7 +579,7 @@ def gradients(loss, variables):
 
 def rnn(step_function, inputs, initial_states,
         go_backwards=False, mask=None, constants=None,
-        unroll=False, input_length=None):
+        unroll=False, input_length=None, pos_extra_outputs_states=None):
     '''Iterates over the time dimension of a tensor.
 
     # Arguments
@@ -740,7 +740,10 @@ def rnn(step_function, inputs, initial_states,
 
     axes = [1, 0] + list(range(2, outputs.ndim))
     outputs = outputs.dimshuffle(axes)
-    states = [T.squeeze(state[-1]) for state in states]
+    if(pos_extra_outputs_states is None):
+        states = [T.squeeze(state[-1]) for state in states]
+    else:
+        states = [state if i_s in pos_extra_outputs_states else T.squeeze(state[-1]) for i_s,state in enumerate(states)]
     return last_output, outputs, states
 
 
@@ -787,6 +790,7 @@ def _rnn(step_function, inputs, initial_states,
     assert ndim >= 3, 'Input should be at least 3D.'
 
     if unroll:
+        raise NotImplementedError()
         if input_length is None:
             raise Exception('When specifying `unroll=True`, an `input_length` '
                             'must be provided to `rnn`.')

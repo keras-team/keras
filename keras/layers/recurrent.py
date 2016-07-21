@@ -1223,6 +1223,7 @@ class LSTMCond(Recurrent):
         base_config = super(LSTMCond, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
+
 class AttLSTM(LSTM):
     '''Long-Short Term Memory unit with Attention.
 
@@ -1641,11 +1642,17 @@ class AttLSTM(LSTM):
         base_config = super(AttLSTM, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
+
 class AttLSTMCond(LSTM):
     '''Long-Short Term Memory unit with Attention + the previously generated word is fed to the current timestep.
 
     # Arguments
         output_dim: dimension of the internal projections and the final output.
+        embedding_size: dimension of the word embedding module used for the enconding of the generated words.
+        return_extra_variables: indicates if we only need the LSTM hidden state (False) or we want 
+            additional internal variables as outputs (True). The additional variables provided are:
+            - x_att (None, out_timesteps, dim_encoder): feature vector computed after the Att.Model at each timestep
+            TO BE INCLUDED: - alpha (None, out_timesteps, in_timesteps): weights computed by the Att.Model at each timestep
         output_timesteps: number of output timesteps (# of output vectors generated)
         init: weight initialization function.
             Can be the name of an existing function (str),
@@ -1711,6 +1718,7 @@ class AttLSTMCond(LSTM):
             InProceedings of the IEEE International Conference on Computer Vision 2015 (pp. 4507-4515).
     '''
     def __init__(self, output_dim, embedding_size,
+                 return_extra_variables=False,
                  init='glorot_uniform', inner_init='orthogonal', init_state=None, init_memory=None,
                  forget_bias_init='one', activation='tanh',
                  inner_activation='hard_sigmoid',
@@ -1720,6 +1728,7 @@ class AttLSTMCond(LSTM):
                  **kwargs):
         self.output_dim = output_dim
         self.embedding_size = embedding_size
+        self.return_extra_variables = return_extra_variables
         self.init = initializations.get(init)
         self.inner_init = initializations.get(inner_init)
         self.init_state = init_state
@@ -1753,8 +1762,9 @@ class AttLSTMCond(LSTM):
         if self.stateful:
             self.reset_states()
         else:
-            # initial states: 2 all-zero tensors of shape (output_dim)
-            self.states = [None, None]
+            # initial states: all-zero tensors of shape (output_dim)
+            #self.states = [None, None, None, None] # [h, c, x_att, alpha_att]
+            self.states = [None, None, None] # [h, c, x_att]
 
         # Initialize Att model params (following the same format for any option of self.consume_less)
         self.wa = self.init((self.input_dim,),
@@ -1865,12 +1875,32 @@ class AttLSTMCond(LSTM):
                         np.zeros((input_shape[0], self.output_dim)))
             K.set_value(self.states[1],
                         np.zeros((input_shape[0], self.output_dim)))
+            K.set_value(self.states[2],
+                        np.zeros((input_shape[0], input_shape[3])))
+            #K.set_value(self.states[3],
+            #            np.zeros((input_shape[0], input_shape[2])))
         else:
             self.states = [K.zeros((input_shape[0], self.output_dim)),
-                           K.zeros((input_shape[0], self.output_dim))]
+                           K.zeros((input_shape[0], self.output_dim)),
+                           K.zeros((input_shape[0], input_shape[3]))]#,
+                           #K.zeros((input_shape[0], input_shape[2]))]
 
     def preprocess_input(self, x):
         return x
+
+    def get_output_shape_for(self, input_shape):
+        if self.return_sequences:
+            main_out = (input_shape[0], input_shape[1], self.output_dim)
+        else:
+            main_out = (input_shape[0], self.output_dim)
+
+        if self.return_extra_variables:
+            dim_x_att = (input_shape[0], input_shape[1], input_shape[3])
+            dim_alpha_att = (input_shape[0], input_shape[1], input_shape[2])
+            #return [main_out, dim_x_att, dim_alpha_att]
+            return [main_out, dim_x_att]
+        else:
+            return main_out
 
     def call(self, x, mask=None):
         # input shape: (nb_samples, time (padded with zeros), input_dim)
@@ -1894,7 +1924,9 @@ class AttLSTMCond(LSTM):
             initial_states = self.states
         else:
             initial_states = self.get_initial_states(x)
+        print len(initial_states)
         constants = self.get_constants(x)
+        print len(constants)
         preprocessed_input = self.preprocess_input(x)
 
         last_output, outputs, states = K.rnn(self.step, preprocessed_input,
@@ -1903,18 +1935,28 @@ class AttLSTMCond(LSTM):
                                              mask=None,
                                              constants=constants,
                                              unroll=self.unroll,
-                                             input_length=input_shape[1])
+                                             input_length=input_shape[1],
+                                             pos_extra_outputs_states=[2])
         if self.stateful:
             self.updates = []
             for i in range(len(states)):
                 self.updates.append((self.states[i], states[i]))
 
         if self.return_sequences:
-            return outputs
+            ret = outputs
         else:
-            return last_output
+            ret = last_output
+
+        if self.return_extra_variables:
+            #return [ret, states[-2], states[-1]]
+            return [ret, states[2]]
+        else:
+            return ret
 
     def compute_mask(self, input, mask):
+        if self.return_extra_variables:
+            #return [None, None, None]
+            return [None, None]
         return None
 
     def step(self, x, states):
@@ -1928,13 +1970,14 @@ class AttLSTMCond(LSTM):
         s_t = x[:, 0, self.input_dim:]
         h_tm1 = states[0]  # State
         c_tm1 = states[1]  # Memory
-        B_U = states[2]    # Dropout U
-        B_W = states[3]    # Dropout W
-        B_V = states[4]    # Dropout V
+        non_used_x_att = states[2]
+        B_U = states[3]    # Dropout U
+        B_W = states[4]    # Dropout W
+        B_V = states[5]    # Dropout V
         # Att model dropouts
-        B_wa = states[5]
-        context = states[6]  # pre-calculated Wa*x term (common for all output timesteps)
-        B_Ua = states[7]
+        B_wa = states[6]
+        context = states[7]  # pre-calculated Wa*x term (common for all output timesteps)
+        B_Ua = states[8]
 
         # AttModel (see Formulation in class header)
         e = K.dot(K.tanh(context + K.dot(h_tm1[:, None, :] * B_Ua, self.Ua) + self.ba) * B_wa, self.wa)
@@ -1975,7 +2018,8 @@ class AttLSTMCond(LSTM):
             o = self.inner_activation(x_o + K.dot(h_tm1 * B_U[3], self.U_o))
 
         h = o * self.activation(c)
-        return h, [h, c]
+        #return h, [h, c, x_, alpha]
+        return h, [h, c, x_]
 
 
     def get_constants(self, x):
@@ -2048,34 +2092,40 @@ class AttLSTMCond(LSTM):
             reducer = K.ones((self.input_dim, self.output_dim))
             initial_state = K.dot(initial_state, reducer)  # (samples, output_dim)
             if self.init_memory is None:
-                initial_states = [initial_state for _ in range(len(self.states))]
-                return initial_states
+                initial_states = [initial_state for _ in range(2)]
+                extra_states = [None for _ in range(2, len(self.states))]
+                return initial_states + extra_states
             else:
-                if len(self.states) == 2: # We have state and memory
-                    initial_memory = self.init_memory
-                    reducer = K.ones((self.output_dim, self.output_dim))
-                    initial_memory = K.dot(initial_memory, reducer)  # (samples, output_dim)
-                    initial_states = [initial_state, initial_memory]
-                    return initial_states
-                else: # We have more states (Why?)
-                    initial_states = [initial_state for _ in range(len(self.states))]
-                    return initial_states
+                #if len(self.states) == 2: # We have state and memory
+                initial_memory = self.init_memory
+                reducer = K.ones((self.output_dim, self.output_dim))
+                initial_memory = K.dot(initial_memory, reducer)  # (samples, output_dim)
+                initial_states = [initial_state, initial_memory]
+                #    return initial_states
+                #else: # We have more states (Why?)
+                #    initial_states = [initial_state for _ in range(len(self.states))]
+                extra_states = [None for _ in range(2, len(self.states))]
+                return initial_states + extra_states
         else:
             initial_state = self.init_state
             reducer = K.ones((self.output_dim, self.output_dim))
             initial_state = K.dot(initial_state, reducer)  # (samples, output_dim)
-            if len(self.states) == 2 and self.init_memory is not None: # We have state and memory
+            #if len(self.states) == 2 and self.init_memory is not None: # We have state and memory
+            if self.init_memory is not None: # We have state and memory
                 initial_memory = self.init_memory
                 reducer = K.ones((self.output_dim, self.output_dim))
                 initial_memory = K.dot(initial_memory, reducer)  # (samples, output_dim)
                 initial_states = [initial_state, initial_memory]
             else:
-                initial_states = [initial_state for _ in range(len(self.states))]
-            return initial_states
+                initial_states = [initial_state for _ in range(2)]
+            extra_states = [None for _ in range(2, len(self.states))]
+            return initial_states + extra_states
 
 
     def get_config(self):
         config = {'output_dim': self.output_dim,
+                  'embedding_size': self.embedding_size,
+                  'return_extra_variables': self.return_extra_variables,
                   'init': self.init.__name__,
                   'inner_init': self.inner_init.__name__,
                   'forget_bias_init': self.forget_bias_init.__name__,
