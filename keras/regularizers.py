@@ -77,9 +77,9 @@ class WeightRegularizer(Regularizer):
                             'of activity_regularizer="activity_l2".')
         regularized_loss = loss
         if self.l1:
-            regularized_loss += K.mean(K.abs(self.p)) * self.l1
+            regularized_loss += K.sum(self.l1 * K.abs(self.p))
         if self.l2:
-            regularized_loss += K.mean(K.square(self.p)) * self.l2
+            regularized_loss += K.sum(self.l2 * K.square(self.p))
         return K.in_train_phase(regularized_loss, loss)
 
     def get_config(self):
@@ -106,9 +106,9 @@ class ActivityRegularizer(Regularizer):
         for i in range(len(self.layer.inbound_nodes)):
             output = self.layer.get_output_at(i)
             if self.l1:
-                regularized_loss += self.l1 * K.mean(K.abs(output))
+                regularized_loss += K.sum(self.l1 * K.abs(output))
             if self.l2:
-                regularized_loss += self.l2 * K.mean(K.square(output))
+                regularized_loss += K.sum(self.l2 * K.square(output))
         return K.in_train_phase(regularized_loss, loss)
 
     def get_config(self):
