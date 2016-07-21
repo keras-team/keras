@@ -72,26 +72,22 @@ class Optimizer(object):
                 output of `get_weights`).
         '''
         params = self.weights
-        if len(params) != len(weights):
-            raise Exception('Provided weight array does not match  weights (' +
-                            str(len(params)) + ' optimizer params vs. ' +
-                            str(len(weights)) + ' provided weights)')
-        for p, w in zip(params, weights):
-            if K.get_value(p).shape != w.shape:
+        weight_value_tuples = []
+        param_values = K.batch_get_value(params)
+        for pv, p, w in zip(param_values, params, weights):
+            if pv.shape != w.shape:
                 raise Exception('Optimizer weight shape ' +
-                                str(K.get_value(p).shape) +
+                                str(pv.shape) +
                                 ' not compatible with '
                                 'provided weight shape ' + str(w.shape))
-            K.set_value(p, w)
+            weight_value_tuples.append((p, w))
+        K.batch_set_value(weight_value_tuples)
 
     def get_weights(self):
         '''Returns the current weights of the optimizer,
         as a list of numpy arrays.
         '''
-        weights = []
-        for p in self.weights:
-            weights.append(K.get_value(p))
-        return weights
+        return K.batch_get_value(self.weights)
 
     def get_config(self):
         config = {'name': self.__class__.__name__}
@@ -127,8 +123,10 @@ class SGD(Optimizer):
         self.updates = [K.update_add(self.iterations, 1)]
 
         # momentum
-        self.weights = [K.variable(np.zeros(K.get_value(p).shape)) for p in params]
-        for p, g, m in zip(params, grads, self.weights):
+        shapes = [x.shape for x in K.batch_get_value(params)]
+        moments = [K.zeros(shape) for shape in shapes]
+        self.weights = [self.iterations] + moments
+        for p, g, m in zip(params, grads, moments):
             v = self.momentum * m - lr * g  # velocity
             self.updates.append(K.update(m, v))
 
@@ -177,11 +175,12 @@ class RMSprop(Optimizer):
 
     def get_updates(self, params, constraints, loss):
         grads = self.get_gradients(loss, params)
-        # accumulators
-        self.weights = [K.variable(np.zeros(K.get_value(p).shape)) for p in params]
+        shapes = [x.shape for x in K.batch_get_value(params)]
+        accumulators = [K.zeros(shape) for shape in shapes]
+        self.weights = accumulators
         self.updates = []
 
-        for p, g, a in zip(params, grads, self.weights):
+        for p, g, a in zip(params, grads, accumulators):
             # update accumulator
             new_a = self.rho * a + (1. - self.rho) * K.square(g)
             self.updates.append(K.update(a, new_a))
@@ -219,11 +218,12 @@ class Adagrad(Optimizer):
 
     def get_updates(self, params, constraints, loss):
         grads = self.get_gradients(loss, params)
-        # accumulators
-        self.weights = [K.variable(np.zeros(K.get_value(p).shape)) for p in params]
+        shapes = [x.shape for x in K.batch_get_value(params)]
+        accumulators = [K.zeros(shape) for shape in shapes]
+        self.weights = accumulators
         self.updates = []
 
-        for p, g, a in zip(params, grads, self.weights):
+        for p, g, a in zip(params, grads, accumulators):
             new_a = a + K.square(g)  # update accumulator
             self.updates.append(K.update(a, new_a))
             new_p = p - self.lr * g / (K.sqrt(new_a) + self.epsilon)
@@ -263,8 +263,9 @@ class Adadelta(Optimizer):
 
     def get_updates(self, params, constraints, loss):
         grads = self.get_gradients(loss, params)
-        accumulators = [K.variable(np.zeros(K.get_value(p).shape)) for p in params]
-        delta_accumulators = [K.variable(np.zeros(K.get_value(p).shape)) for p in params]
+        shapes = [x.shape for x in K.batch_get_value(params)]
+        accumulators = [K.zeros(shape) for shape in shapes]
+        delta_accumulators = [K.zeros(shape) for shape in shapes]
         self.weights = accumulators + delta_accumulators
         self.updates = []
 
@@ -325,9 +326,10 @@ class Adam(Optimizer):
         t = self.iterations + 1
         lr_t = self.lr * K.sqrt(1. - K.pow(self.beta_2, t)) / (1. - K.pow(self.beta_1, t))
 
-        ms = [K.variable(np.zeros(K.get_value(p).shape)) for p in params]
-        vs = [K.variable(np.zeros(K.get_value(p).shape)) for p in params]
-        self.weights = ms + vs
+        shapes = [x.shape for x in K.batch_get_value(params)]
+        ms = [K.zeros(shape) for shape in shapes]
+        vs = [K.zeros(shape) for shape in shapes]
+        self.weights = [self.iterations] + ms + vs
 
         for p, g, m, v in zip(params, grads, ms, vs):
             m_t = (self.beta_1 * m) + (1. - self.beta_1) * g
@@ -384,11 +386,12 @@ class Adamax(Optimizer):
         t = self.iterations + 1
         lr_t = self.lr / (1. - K.pow(self.beta_1, t))
 
+        shapes = [x.shape for x in K.batch_get_value(params)]
         # zero init of 1st moment
-        ms = [K.variable(np.zeros(K.get_value(p).shape)) for p in params]
+        ms = [K.zeros(shape) for shape in shapes]
         # zero init of exponentially weighted infinity norm
-        us = [K.variable(np.zeros(K.get_value(p).shape)) for p in params]
-        self.weights = ms + us
+        us = [K.zeros(shape) for shape in shapes]
+        self.weights = [self.iterations] + ms + us
 
         for p, g, m, u in zip(params, grads, ms, us):
 
@@ -459,10 +462,11 @@ class Nadam(Optimizer):
         m_schedule_next = self.m_schedule * momentum_cache_t * momentum_cache_t_1
         self.updates.append((self.m_schedule, m_schedule_new))
 
-        ms = [K.variable(np.zeros(K.get_value(p).shape)) for p in params]
-        vs = [K.variable(np.zeros(K.get_value(p).shape)) for p in params]
+        shapes = [x.shape for x in K.batch_get_value(params)]
+        ms = [K.zeros(shape) for shape in shapes]
+        vs = [K.zeros(shape) for shape in shapes]
 
-        self.weights = ms + vs
+        self.weights = [self.iterations] + ms + vs
 
         for p, g, m, v in zip(params, grads, ms, vs):
             # the following equations given in [1]
