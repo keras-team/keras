@@ -3,6 +3,7 @@ import numpy as np
 from numpy.testing import assert_allclose
 
 from keras.utils.test_utils import layer_test, keras_test
+from keras.utils.np_utils import conv_input_length
 from keras import backend as K
 from keras.layers import convolutional
 
@@ -101,20 +102,22 @@ def test_deconvolution_2d():
             if border_mode == 'same' and subsample != (1, 1):
                 continue
 
-            layer_test(convolutional.deconvolution2D,
+            rows = conv_input_length(nb_row, 3, border_mode, subsample[0])
+            cols = conv_input_length(nb_col, 3, border_mode, subsample[1])
+            layer_test(convolutional.Deconvolution2D,
                        kwargs={'nb_filter': nb_filter,
                                'nb_row': 3,
                                'nb_col': 3,
-                               'output_shape': (nb_samples, nb_filter, nb_row, nb_col),
+                               'output_shape': (nb_samples, nb_filter, rows, cols),
                                'border_mode': border_mode,
                                'subsample': subsample},
                        input_shape=(nb_samples, stack_size, nb_row, nb_col))
 
-            layer_test(convolutional.deconvolution2D,
+            layer_test(convolutional.Deconvolution2D,
                        kwargs={'nb_filter': nb_filter,
                                'nb_row': 3,
                                'nb_col': 3,
-                               'output_shape': (nb_samples, nb_filter, nb_row, nb_col),
+                               'output_shape': (nb_samples, nb_filter, rows, cols),
                                'border_mode': border_mode,
                                'W_regularizer': 'l2',
                                'b_regularizer': 'l2',

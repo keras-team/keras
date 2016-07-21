@@ -453,6 +453,7 @@ class Deconvolution2D(Convolution2D):
         config = {'nb_filter': self.nb_filter,
                   'nb_row': self.nb_row,
                   'nb_col': self.nb_col,
+                  'output_shape': self.output_shape,
                   'init': self.init.__name__,
                   'activation': self.activation.__name__,
                   'border_mode': self.border_mode,
