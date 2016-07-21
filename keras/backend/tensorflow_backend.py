@@ -1168,6 +1168,12 @@ def l2_normalize(x, axis):
 
 # CONVOLUTIONS
 
+def _preprocess_deconv_output_shape(sh, dim_ordering):
+    if dim_ordering == "th":
+        sh = (sh[0], sh[2], sh[3], sh[1])
+    return sh
+
+
 def _preprocess_conv2d_input(x, dim_ordering):
     if _FLOATX == 'float64':
         x = tf.cast(x, 'float32')
@@ -1293,11 +1299,12 @@ def deconv2d(x, kernel, output_shape, strides=(1, 1),
         raise Exception('Unknown dim_ordering ' + str(dim_ordering))
 
     x = _preprocess_conv2d_input(x, dim_ordering)
+    output_shape = _preprocess_deconv_output_shape(output_shape, dim_ordering)
     kernel = _preprocess_conv2d_kernel(kernel, dim_ordering)
+    kernel = tf.transpose(kernel, (0, 1, 3, 2))  # tranpose kernel chanels
     padding = _preprocess_border_mode(border_mode)
     strides = (1,) + strides + (1,)
 
-    # TODO: pre-process output_shape if dim_ordering == th
     x = tf.nn.conv2d_transpose(x, kernel, output_shape, strides,
                                padding=padding)
     return _postprocess_conv2d_output(x, dim_ordering)

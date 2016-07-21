@@ -379,7 +379,7 @@ class Convolution2D(Layer):
         return dict(list(base_config.items()) + list(config.items()))
 
 
-class TransposedConvolution2D(Convolution2D):
+class Deconvolution2D(Convolution2D):
     '''Transposed convolution operator for filtering windows of two-dimensional inputs.
     When using this layer as the first layer in a model,
     provide the keyword argument `input_shape`
@@ -399,14 +399,14 @@ class TransposedConvolution2D(Convolution2D):
 
         self.output_shape_ = output_shape
 
-        super(TransposedConvolution2D, self).__init__(nb_filter, nb_row, nb_col,
-                                                      init=init, activation=activation,
-                                                      weights=weights, border_mode=border_mode,
-                                                      subsample=subsample, dim_ordering=dim_ordering,
-                                                      W_regularizer=W_regularizer, b_regularizer=b_regularizer,
-                                                      activity_regularizer=activity_regularizer,
-                                                      W_constraint=W_constraint, b_constraint=b_constraint,
-                                                      bias=bias, **kwargs)
+        super(Deconvolution2D, self).__init__(nb_filter, nb_row, nb_col,
+                                              init=init, activation=activation,
+                                              weights=weights, border_mode=border_mode,
+                                              subsample=subsample, dim_ordering=dim_ordering,
+                                              W_regularizer=W_regularizer, b_regularizer=b_regularizer,
+                                              activity_regularizer=activity_regularizer,
+                                              W_constraint=W_constraint, b_constraint=b_constraint,
+                                              bias=bias, **kwargs)
 
     def get_output_shape_for(self, input_shape):
         # nb_filter = self.output_shape_[1]
@@ -420,9 +420,9 @@ class TransposedConvolution2D(Convolution2D):
             raise Exception('Invalid dim_ordering: ' + self.dim_ordering)
 
         rows = conv_input_length(rows, self.nb_row,
-                                  self.border_mode, self.subsample[0])
+                                 self.border_mode, self.subsample[0])
         cols = conv_input_length(cols, self.nb_col,
-                                  self.border_mode, self.subsample[1])
+                                 self.border_mode, self.subsample[1])
 
         if self.dim_ordering == 'th':
             return (input_shape[0], self.nb_filter, rows, cols)
@@ -464,7 +464,7 @@ class TransposedConvolution2D(Convolution2D):
                   'W_constraint': self.W_constraint.get_config() if self.W_constraint else None,
                   'b_constraint': self.b_constraint.get_config() if self.b_constraint else None,
                   'bias': self.bias}
-        base_config = super(TransposedConvolution2D, self).get_config()
+        base_config = super(Deconvolution2D, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
 
@@ -1350,5 +1350,7 @@ class ZeroPadding3D(Layer):
 Conv1D = Convolution1D
 Conv2D = Convolution2D
 Conv3D = Convolution3D
+Deconv2D = Deconvolution2D
+TransposedConvolution2D = Deconvolution2D
 AtrousConv2D = AtrousConvolution2D
 SeparableConv2D = SeparableConvolution2D

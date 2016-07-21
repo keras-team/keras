@@ -1058,7 +1058,6 @@ def deconv2d(x, kernel, output_shape, strides=(1, 1),
     th_border_mode, np_kernel = _preprocess_border_mode(border_mode, kernel)
     filter_shape = _preprocess_filter_shape(dim_ordering, filter_shape)
 
-
     op = T.nnet.abstract_conv.AbstractConv2d_gradInputs(imshp=output_shape,
                                                         kshp=filter_shape,
                                                         subsample=strides,

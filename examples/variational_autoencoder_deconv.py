@@ -6,11 +6,10 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from keras.layers import Input, Dense, Lambda, Flatten, Reshape
-from keras.layers import Convolution2D, TransposedConvolution2D, MaxPooling2D
+from keras.layers import Convolution2D, Deconvolution2D, MaxPooling2D
 from keras.models import Model
 from keras import backend as K
 from keras import objectives
-from keras.optimizers import Adam, RMSprop
 from keras.datasets import mnist
 
 # input image dimensions
@@ -29,7 +28,7 @@ nb_epoch = 5
 
 
 def pp(l, x):
-    print(l.eval({x:np.random.randn(batch_size, img_chns, img_rows, img_cols).astype('float32')}))
+    print(l.eval({x: np.random.randn(batch_size, img_chns, img_rows, img_cols).astype('float32')}))
 
 
 x = Input(batch_shape=(batch_size,) + original_dim)
@@ -64,8 +63,8 @@ decoder_f = Dense(nb_filters*img_rows*img_cols, activation='relu')
 pp(decoder_f(decoder_h(z)).shape, x)
 decoder_c = Reshape((nb_filters, img_rows, img_cols))
 pp(decoder_c(decoder_f(decoder_h(z))).shape, x)
-decoder_mean = TransposedConvolution2D(img_chns, nb_conv, nb_conv, 
-                                       (batch_size, img_chns, img_rows, img_cols), border_mode='same')
+decoder_mean = Deconvolution2D(img_chns, nb_conv, nb_conv,
+                               (batch_size, img_chns, img_rows, img_cols), border_mode='same')
 pp(decoder_mean(decoder_c(decoder_f(decoder_h(z)))).shape, x)
 
 h_decoded = decoder_h(z)
@@ -76,21 +75,20 @@ x_decoded_mean = decoder_mean(c_decoded)
 
 def vae_loss(x, x_decoded_mean):
     # NOTE: binary_crossentropy expects a batch_size by dim for x and x_decoded_mean, so we MUST flatten these!!!!!
-    x = Flatten()(x)
-    x_decoded_mean = Flatten()(x_decoded_mean)
+    x = K.flatten(x)
+    x_decoded_mean = K.flatten(x_decoded_mean)
     xent_loss = objectives.binary_crossentropy(x, x_decoded_mean)
     kl_loss = - 0.5 * K.mean(1 + z_log_std - K.square(z_mean) - K.exp(z_log_std), axis=-1)
     return xent_loss + kl_loss
 
 vae = Model(x, x_decoded_mean)
-opt = RMSprop()
-vae.compile(optimizer=opt, loss=vae_loss)
+vae.compile(optimizer='rmsprop', loss=vae_loss)
 
 # train the VAE on MNIST digits
 (x_train, y_train), (x_test, y_test) = mnist.load_data()
 
-x_train = x_train.astype('float32')[:,None,:,:] / 255.
-x_test = x_test.astype('float32')[:,None,:,:] / 255.
+x_train = x_train.astype('float32')[:, None, :, :] / 255.
+x_test = x_test.astype('float32')[:, None, :, :] / 255.
 
 vae.fit(x_train, x_train,
         shuffle=True,
