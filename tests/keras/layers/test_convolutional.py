@@ -105,7 +105,7 @@ def test_deconvolution_2d():
                        kwargs={'nb_filter': nb_filter,
                                'nb_row': 3,
                                'nb_col': 3,
-                               'output_shape': (nb_samples, nb_filter, nb_row, nb_col)
+                               'output_shape': (nb_samples, nb_filter, nb_row, nb_col),
                                'border_mode': border_mode,
                                'subsample': subsample},
                        input_shape=(nb_samples, stack_size, nb_row, nb_col))
@@ -114,7 +114,7 @@ def test_deconvolution_2d():
                        kwargs={'nb_filter': nb_filter,
                                'nb_row': 3,
                                'nb_col': 3,
-                               'output_shape': (nb_samples, nb_filter, nb_row, nb_col)
+                               'output_shape': (nb_samples, nb_filter, nb_row, nb_col),
                                'border_mode': border_mode,
                                'W_regularizer': 'l2',
                                'b_regularizer': 'l2',
