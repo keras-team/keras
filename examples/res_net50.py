@@ -224,7 +224,6 @@ def get_resnet50():
     model = Model(inp, out)
 
     return model
-<<<<<<< HEAD
 
 
 if __name__ == '__main__':
@@ -240,5 +239,3 @@ if __name__ == '__main__':
     print "result for test 2 is"
     print lines[np.argmax(resnet_model.predict(test_img2)[0])]
     class_table.close()
-=======
->>>>>>> 86bb920fc15567fa16b3720795cad4c6dacd6b9e
