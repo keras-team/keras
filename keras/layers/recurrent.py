@@ -655,7 +655,7 @@ class LSTM(Recurrent):
         - [A Theoretically Grounded Application of Dropout in Recurrent Neural Networks](http://arxiv.org/abs/1512.05287)
     '''
     def __init__(self, output_dim,
-                 init='glorot_uniform', inner_init='orthogonal',
+                 init='glorot_uniform', inner_init='orthogonal',  init_state=None, init_memory=None,
                  forget_bias_init='one', activation='tanh',
                  inner_activation='hard_sigmoid',
                  W_regularizer=None, U_regularizer=None, b_regularizer=None,
@@ -663,6 +663,8 @@ class LSTM(Recurrent):
         self.output_dim = output_dim
         self.init = initializations.get(init)
         self.inner_init = initializations.get(inner_init)
+        self.init_state = init_state
+        self.init_memory = init_memory
         self.forget_bias_init = initializations.get(forget_bias_init)
         self.activation = activations.get(activation)
         self.inner_activation = activations.get(inner_activation)
@@ -747,6 +749,9 @@ class LSTM(Recurrent):
             self.set_weights(self.initial_weights)
             del self.initial_weights
 
+
+
+
     def reset_states(self):
         assert self.stateful, 'Layer must be stateful.'
         input_shape = self.input_spec[0].shape
@@ -783,6 +788,40 @@ class LSTM(Recurrent):
             return K.concatenate([x_i, x_f, x_c, x_o], axis=2)
         else:
             return x
+
+    def get_initial_states(self, x):
+        # build an all-zero tensor of shape (samples, output_dim)
+        if self.init_state is None:
+            initial_state = K.zeros_like(x)  # (samples, timesteps, input_dim)
+            initial_state = K.sum(initial_state, axis=1)  # (samples, input_dim)
+            reducer = K.ones((self.input_dim, self.output_dim))
+            initial_state = K.dot(initial_state, reducer)  # (samples, output_dim)
+            if self.init_memory is None:
+                initial_states = [initial_state for _ in range(len(self.states))]
+                return initial_states
+            else:
+                if len(self.states) == 2: # We have state and memory
+                    initial_memory = self.init_memory
+                    reducer = K.ones((self.output_dim, self.output_dim))
+                    initial_memory = K.dot(initial_memory, reducer)  # (samples, output_dim)
+                    initial_states = [initial_state, initial_memory]
+                    return initial_states
+                else: # We have more states (Why?)
+                    initial_states = [initial_state for _ in range(len(self.states))]
+                    return initial_states
+        else:
+            initial_state = self.init_state
+            reducer = K.ones((self.output_dim, self.output_dim))
+            initial_state = K.dot(initial_state, reducer)  # (samples, output_dim)
+            if len(self.states) == 2 and self.init_memory is not None: # We have state and memory
+                initial_memory = self.init_memory
+                reducer = K.ones((self.output_dim, self.output_dim))
+                initial_memory = K.dot(initial_memory, reducer)  # (samples, output_dim)
+                initial_states = [initial_state, initial_memory]
+            else:
+                initial_states = [initial_state for _ in range(len(self.states))]
+            return initial_states
+
 
     def step(self, x, states):
         h_tm1 = states[0]
@@ -1037,8 +1076,19 @@ class LSTMCond(Recurrent):
             initial_state = K.sum(initial_state, axis=1)  # (samples, input_dim)
             reducer = K.ones((self.input_dim, self.output_dim))
             initial_state = K.dot(initial_state, reducer)  # (samples, output_dim)
-            initial_states = [initial_state for _ in range(len(self.states))]
-            return initial_states
+            if self.init_memory is None:
+                initial_states = [initial_state for _ in range(len(self.states))]
+                return initial_states
+            else:
+                if len(self.states) == 2: # We have state and memory
+                    initial_memory = self.init_memory
+                    reducer = K.ones((self.output_dim, self.output_dim))
+                    initial_memory = K.dot(initial_memory, reducer)  # (samples, output_dim)
+                    initial_states = [initial_state, initial_memory]
+                    return initial_states
+                else: # We have more states (Why?)
+                    initial_states = [initial_state for _ in range(len(self.states))]
+                    return initial_states
         else:
             initial_state = self.init_state
             reducer = K.ones((self.output_dim, self.output_dim))
@@ -1419,9 +1469,6 @@ class AttLSTM(LSTM):
         else:
             return last_output
 
-    #def compute_mask(self, input, mask):
-    #    return None
-
     def step(self, x, states):
         # After applying a RepeatMatrix before this AttLSTM the following way:
         #    x = RepeatMatrix(out_timesteps, dim=1)(x)
@@ -1532,15 +1579,42 @@ class AttLSTM(LSTM):
 
         return constants
 
+
+
     def get_initial_states(self, x):
         # build an all-zero tensor of shape (samples, output_dim)
-        initial_state = K.zeros_like(x)  # (samples, timesteps_trg, timesteps, input_dim)
-        initial_state = K.sum(initial_state, axis=1)  # (samples, timesteps_trg, input_dim)
-        initial_state = K.sum(initial_state, axis=1)  # (samples, input_dim)
-        reducer = K.zeros((self.input_dim, self.output_dim))
-        initial_state = K.dot(initial_state, reducer)  # (samples, output_dim)
-        initial_states = [initial_state for _ in range(len(self.states))]
-        return initial_states
+        if self.init_state is None:
+            initial_state = K.zeros_like(x)  # (samples, timesteps_trg, timesteps, input_dim)
+            initial_state = K.sum(initial_state, axis=1)  # (samples, timesteps_trg, input_dim)
+            initial_state = K.sum(initial_state, axis=1)  # (samples, input_dim)
+            reducer = K.ones((self.input_dim, self.output_dim))
+            initial_state = K.dot(initial_state, reducer)  # (samples, output_dim)
+            if self.init_memory is None:
+                initial_states = [initial_state for _ in range(len(self.states))]
+                return initial_states
+            else:
+                if len(self.states) == 2: # We have state and memory
+                    initial_memory = self.init_memory
+                    reducer = K.ones((self.output_dim, self.output_dim))
+                    initial_memory = K.dot(initial_memory, reducer)  # (samples, output_dim)
+                    initial_states = [initial_state, initial_memory]
+                    return initial_states
+                else: # We have more states (Why?)
+                    initial_states = [initial_state for _ in range(len(self.states))]
+                    return initial_states
+        else:
+            initial_state = self.init_state
+            reducer = K.ones((self.output_dim, self.output_dim))
+            initial_state = K.dot(initial_state, reducer)  # (samples, output_dim)
+            if len(self.states) == 2 and self.init_memory is not None: # We have state and memory
+                initial_memory = self.init_memory
+                reducer = K.ones((self.output_dim, self.output_dim))
+                initial_memory = K.dot(initial_memory, reducer)  # (samples, output_dim)
+                initial_states = [initial_state, initial_memory]
+            else:
+                initial_states = [initial_state for _ in range(len(self.states))]
+            return initial_states
+
 
 
     def get_config(self):
@@ -1963,13 +2037,37 @@ class AttLSTMCond(LSTM):
 
     def get_initial_states(self, x):
         # build an all-zero tensor of shape (samples, output_dim)
-        initial_state = K.zeros_like(x[:, :, :, :self.input_dim])  # (samples, timesteps_trg, timesteps, input_dim)
-        initial_state = K.sum(initial_state, axis=1)  # (samples, timesteps_trg, input_dim)
-        initial_state = K.sum(initial_state, axis=1)  # (samples, input_dim)
-        reducer = K.zeros((self.input_dim, self.output_dim))
-        initial_state = K.dot(initial_state, reducer)  # (samples, output_dim)
-        initial_states = [initial_state for _ in range(len(self.states))]
-        return initial_states
+        if self.init_state is None:
+            initial_state = K.zeros_like(x[:, :, :, :self.input_dim])  # (samples, timesteps_trg, timesteps, input_dim)
+            initial_state = K.sum(initial_state, axis=1)  # (samples, timesteps_trg, input_dim)
+            initial_state = K.sum(initial_state, axis=1)  # (samples, input_dim)
+            reducer = K.ones((self.input_dim, self.output_dim))
+            initial_state = K.dot(initial_state, reducer)  # (samples, output_dim)
+            if self.init_memory is None:
+                initial_states = [initial_state for _ in range(len(self.states))]
+                return initial_states
+            else:
+                if len(self.states) == 2: # We have state and memory
+                    initial_memory = self.init_memory
+                    reducer = K.ones((self.output_dim, self.output_dim))
+                    initial_memory = K.dot(initial_memory, reducer)  # (samples, output_dim)
+                    initial_states = [initial_state, initial_memory]
+                    return initial_states
+                else: # We have more states (Why?)
+                    initial_states = [initial_state for _ in range(len(self.states))]
+                    return initial_states
+        else:
+            initial_state = self.init_state
+            reducer = K.ones((self.output_dim, self.output_dim))
+            initial_state = K.dot(initial_state, reducer)  # (samples, output_dim)
+            if len(self.states) == 2 and self.init_memory is not None: # We have state and memory
+                initial_memory = self.init_memory
+                reducer = K.ones((self.output_dim, self.output_dim))
+                initial_memory = K.dot(initial_memory, reducer)  # (samples, output_dim)
+                initial_states = [initial_state, initial_memory]
+            else:
+                initial_states = [initial_state for _ in range(len(self.states))]
+            return initial_states
 
 
     def get_config(self):
