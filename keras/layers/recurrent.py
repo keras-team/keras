@@ -1293,7 +1293,7 @@ class AttLSTM(LSTM):
             InProceedings of the IEEE International Conference on Computer Vision 2015 (pp. 4507-4515).
     '''
     def __init__(self, output_dim,
-                 init='glorot_uniform', inner_init='orthogonal',
+                 init='glorot_uniform', inner_init='orthogonal', init_state=None, init_memory=None,
                  forget_bias_init='one', activation='tanh',
                  inner_activation='hard_sigmoid',
                  W_regularizer=None, U_regularizer=None, b_regularizer=None,
@@ -1303,6 +1303,8 @@ class AttLSTM(LSTM):
         self.output_dim = output_dim
         self.init = initializations.get(init)
         self.inner_init = initializations.get(inner_init)
+        self.init_state = init_state
+        self.init_memory = init_memory
         self.forget_bias_init = initializations.get(forget_bias_init)
         self.activation = activations.get(activation)
         self.inner_activation = activations.get(inner_activation)
@@ -1709,7 +1711,7 @@ class AttLSTMCond(LSTM):
             InProceedings of the IEEE International Conference on Computer Vision 2015 (pp. 4507-4515).
     '''
     def __init__(self, output_dim, embedding_size,
-                 init='glorot_uniform', inner_init='orthogonal',
+                 init='glorot_uniform', inner_init='orthogonal', init_state=None, init_memory=None,
                  forget_bias_init='one', activation='tanh',
                  inner_activation='hard_sigmoid',
                  W_regularizer=None, U_regularizer=None, V_regularizer=None, b_regularizer=None,
@@ -1720,6 +1722,8 @@ class AttLSTMCond(LSTM):
         self.embedding_size = embedding_size
         self.init = initializations.get(init)
         self.inner_init = initializations.get(inner_init)
+        self.init_state = init_state
+        self.init_memory = init_memory
         self.forget_bias_init = initializations.get(forget_bias_init)
         self.activation = activations.get(activation)
         self.inner_activation = activations.get(inner_activation)
