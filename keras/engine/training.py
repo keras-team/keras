@@ -418,7 +418,6 @@ def generator_queue(generator, max_q_size=10,
         _stop = threading.Event()
 
     try:
-
         def data_generator_task():
             while not _stop.is_set():
                 try:
@@ -444,7 +443,6 @@ def generator_queue(generator, max_q_size=10,
             generator_threads.append(thread)
             thread.daemon = True
             thread.start()
-
     except:
         _stop.set()
         if pickle_safe:
@@ -688,7 +686,7 @@ class Model(Container):
         if not hasattr(self, 'train_function'):
             raise Exception('You must compile your model before using it.')
         if self.train_function is None:
-            if self.uses_learning_phase:
+            if self.uses_learning_phase and type(K.learning_phase()) is not int:
                 inputs = self.inputs + self.targets + self.sample_weights + [K.learning_phase()]
             else:
                 inputs = self.inputs + self.targets + self.sample_weights
@@ -708,7 +706,7 @@ class Model(Container):
         if not hasattr(self, 'test_function'):
             raise Exception('You must compile your model before using it.')
         if self.test_function is None:
-            if self.uses_learning_phase:
+            if self.uses_learning_phase and type(K.learning_phase()) is not int:
                 inputs = self.inputs + self.targets + self.sample_weights + [K.learning_phase()]
             else:
                 inputs = self.inputs + self.targets + self.sample_weights
@@ -723,7 +721,7 @@ class Model(Container):
         if not hasattr(self, 'predict_function'):
             self.predict_function = None
         if self.predict_function is None:
-            if self.uses_learning_phase:
+            if self.uses_learning_phase and type(K.learning_phase()) is not int:
                 inputs = self.inputs + [K.learning_phase()]
             else:
                 inputs = self.inputs
@@ -1050,7 +1048,7 @@ class Model(Container):
                                                                            batch_size=batch_size)
             self._make_test_function()
             val_f = self.test_function
-            if self.uses_learning_phase:
+            if self.uses_learning_phase and type(K.learning_phase()) is not int:
                 val_ins = val_x + val_y + val_sample_weights + [0.]
             else:
                 val_ins = val_x + val_y + val_sample_weights
@@ -1064,7 +1062,7 @@ class Model(Container):
                 slice_X(sample_weights, 0, split_at), slice_X(sample_weights, split_at))
             self._make_test_function()
             val_f = self.test_function
-            if self.uses_learning_phase:
+            if self.uses_learning_phase and type(K.learning_phase()) is not int:
                 val_ins = val_x + val_y + val_sample_weights + [0.]
             else:
                 val_ins = val_x + val_y + val_sample_weights
@@ -1074,7 +1072,7 @@ class Model(Container):
             val_ins = None
 
         # prepare input arrays and training function
-        if self.uses_learning_phase:
+        if self.uses_learning_phase and type(K.learning_phase()) is not int:
             ins = x + y + sample_weights + [1.]
         else:
             ins = x + y + sample_weights
@@ -1134,7 +1132,7 @@ class Model(Container):
                                                            check_batch_dim=False,
                                                            batch_size=batch_size)
         # prepare inputs, delegate logic to _test_loop
-        if self.uses_learning_phase:
+        if self.uses_learning_phase and type(K.learning_phase()) is not int:
             ins = x + y + sample_weights + [0.]
         else:
             ins = x + y + sample_weights
@@ -1171,7 +1169,7 @@ class Model(Container):
                                 'Batch size: ' + str(batch_size) + '.')
 
         # prepare inputs, delegate logic to _predict_loop
-        if self.uses_learning_phase:
+        if self.uses_learning_phase and type(K.learning_phase()) is not int:
             ins = x + [0.]
         else:
             ins = x
@@ -1215,7 +1213,7 @@ class Model(Container):
                                                            sample_weight=sample_weight,
                                                            class_weight=class_weight,
                                                            check_batch_dim=True)
-        if self.uses_learning_phase:
+        if self.uses_learning_phase and type(K.learning_phase()) is not int:
             ins = x + y + sample_weights + [1.]
         else:
             ins = x + y + sample_weights
@@ -1253,7 +1251,7 @@ class Model(Container):
         x, y, sample_weights = self._standardize_user_data(x, y,
                                                            sample_weight=sample_weight,
                                                            check_batch_dim=True)
-        if self.uses_learning_phase:
+        if self.uses_learning_phase and type(K.learning_phase()) is not int:
             ins = x + y + sample_weights + [0.]
         else:
             ins = x + y + sample_weights
@@ -1268,7 +1266,7 @@ class Model(Container):
         '''
         x = standardize_input_data(x, self.input_names,
                                    self.internal_input_shapes)
-        if self.uses_learning_phase:
+        if self.uses_learning_phase and type(K.learning_phase()) is not int:
             ins = x + [0.]
         else:
             ins = x

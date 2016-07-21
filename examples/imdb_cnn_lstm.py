@@ -22,9 +22,9 @@ maxlen = 100
 embedding_size = 128
 
 # Convolution
-filter_length = 3
+filter_length = 5
 nb_filter = 64
-pool_length = 2
+pool_length = 4
 
 # LSTM
 lstm_output_size = 70

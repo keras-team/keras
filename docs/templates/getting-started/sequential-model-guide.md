@@ -149,7 +149,7 @@ Keras models are trained on Numpy arrays of input data and labels. For training 
 # for a single-input model with 2 classes (binary):
 
 model = Sequential()
-model.add(Dense(1, input_dim=784, activation='softmax'))
+model.add(Dense(1, input_dim=784, activation='sigmoid'))
 model.compile(optimizer='rmsprop',
               loss='binary_crossentropy',
               metrics=['accuracy'])

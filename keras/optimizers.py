@@ -124,13 +124,13 @@ class SGD(Optimizer):
     def get_updates(self, params, constraints, loss):
         grads = self.get_gradients(loss, params)
         lr = self.lr * (1. / (1. + self.decay * self.iterations))
-        self.updates = [(self.iterations, self.iterations + 1.)]
+        self.updates = [K.update_add(self.iterations, 1)]
 
         # momentum
         self.weights = [K.variable(np.zeros(K.get_value(p).shape)) for p in params]
         for p, g, m in zip(params, grads, self.weights):
             v = self.momentum * m - lr * g  # velocity
-            self.updates.append((m, v))
+            self.updates.append(K.update(m, v))
 
             if self.nesterov:
                 new_p = p + self.momentum * v - lr * g
@@ -141,7 +141,8 @@ class SGD(Optimizer):
             if p in constraints:
                 c = constraints[p]
                 new_p = c(new_p)
-            self.updates.append((p, new_p))
+
+            self.updates.append(K.update(p, new_p))
         return self.updates
 
     def get_config(self):
@@ -183,14 +184,14 @@ class RMSprop(Optimizer):
         for p, g, a in zip(params, grads, self.weights):
             # update accumulator
             new_a = self.rho * a + (1. - self.rho) * K.square(g)
-            self.updates.append((a, new_a))
+            self.updates.append(K.update(a, new_a))
             new_p = p - self.lr * g / (K.sqrt(new_a) + self.epsilon)
 
             # apply constraints
             if p in constraints:
                 c = constraints[p]
                 new_p = c(new_p)
-            self.updates.append((p, new_p))
+            self.updates.append(K.update(p, new_p))
         return self.updates
 
     def get_config(self):
@@ -224,13 +225,13 @@ class Adagrad(Optimizer):
 
         for p, g, a in zip(params, grads, self.weights):
             new_a = a + K.square(g)  # update accumulator
-            self.updates.append((a, new_a))
+            self.updates.append(K.update(a, new_a))
             new_p = p - self.lr * g / (K.sqrt(new_a) + self.epsilon)
             # apply constraints
             if p in constraints:
                 c = constraints[p]
                 new_p = c(new_p)
-            self.updates.append((p, new_p))
+            self.updates.append(K.update(p, new_p))
         return self.updates
 
     def get_config(self):
@@ -270,7 +271,7 @@ class Adadelta(Optimizer):
         for p, g, a, d_a in zip(params, grads, accumulators, delta_accumulators):
             # update accumulator
             new_a = self.rho * a + (1. - self.rho) * K.square(g)
-            self.updates.append((a, new_a))
+            self.updates.append(K.update(a, new_a))
 
             # use the new accumulator and the *old* delta_accumulator
             update = g * K.sqrt(d_a + self.epsilon) / K.sqrt(new_a + self.epsilon)
@@ -280,11 +281,11 @@ class Adadelta(Optimizer):
             if p in constraints:
                 c = constraints[p]
                 new_p = c(new_p)
-            self.updates.append((p, new_p))
+            self.updates.append(K.update(p, new_p))
 
             # update delta_accumulator
             new_d_a = self.rho * d_a + (1 - self.rho) * K.square(update)
-            self.updates.append((d_a, new_d_a))
+            self.updates.append(K.update(d_a, new_d_a))
         return self.updates
 
     def get_config(self):
@@ -319,7 +320,7 @@ class Adam(Optimizer):
 
     def get_updates(self, params, constraints, loss):
         grads = self.get_gradients(loss, params)
-        self.updates = [(self.iterations, self.iterations + 1)]
+        self.updates = [K.update_add(self.iterations, 1)]
 
         t = self.iterations + 1
         lr_t = self.lr * K.sqrt(1. - K.pow(self.beta_2, t)) / (1. - K.pow(self.beta_1, t))
@@ -333,15 +334,15 @@ class Adam(Optimizer):
             v_t = (self.beta_2 * v) + (1. - self.beta_2) * K.square(g)
             p_t = p - lr_t * m_t / (K.sqrt(v_t) + self.epsilon)
 
-            self.updates.append((m, m_t))
-            self.updates.append((v, v_t))
+            self.updates.append(K.update(m, m_t))
+            self.updates.append(K.update(v, v_t))
 
             new_p = p_t
             # apply constraints
             if p in constraints:
                 c = constraints[p]
                 new_p = c(new_p)
-            self.updates.append((p, new_p))
+            self.updates.append(K.update(p, new_p))
         return self.updates
 
     def get_config(self):
@@ -378,7 +379,7 @@ class Adamax(Optimizer):
 
     def get_updates(self, params, constraints, loss):
         grads = self.get_gradients(loss, params)
-        self.updates = [(self.iterations, self.iterations + 1)]
+        self.updates = [K.update_add(self.iterations, 1)]
 
         t = self.iterations + 1
         lr_t = self.lr / (1. - K.pow(self.beta_1, t))
@@ -395,15 +396,15 @@ class Adamax(Optimizer):
             u_t = K.maximum(self.beta_2 * u, K.abs(g))
             p_t = p - lr_t * m_t / (u_t + self.epsilon)
 
-            self.updates.append((m, m_t))
-            self.updates.append((u, u_t))
+            self.updates.append(K.update(m, m_t))
+            self.updates.append(K.update(u, u_t))
 
             new_p = p_t
             # apply constraints
             if p in constraints:
                 c = constraints[p]
                 new_p = c(new_p)
-            self.updates.append((p, new_p))
+            self.updates.append(K.update(p, new_p))
         return self.updates
 
     def get_config(self):
@@ -447,7 +448,7 @@ class Nadam(Optimizer):
 
     def get_updates(self, params, constraints, loss):
         grads = self.get_gradients(loss, params)
-        self.updates = [(self.iterations, self.iterations + 1)]
+        self.updates = [K.update_add(self.iterations, 1)]
 
         t = self.iterations + 1
 
@@ -472,8 +473,8 @@ class Nadam(Optimizer):
             v_t_prime = v_t / (1. - K.pow(self.beta_2, t))
             m_t_bar = (1. - momentum_cache_t) * g_prime + momentum_cache_t_1 * m_t_prime
 
-            self.updates.append((m, m_t))
-            self.updates.append((v, v_t))
+            self.updates.append(K.update(m, m_t))
+            self.updates.append(K.update(v, v_t))
 
             p_t = p - self.lr * m_t_bar / (K.sqrt(v_t_prime) + self.epsilon)
             new_p = p_t
@@ -482,7 +483,7 @@ class Nadam(Optimizer):
             if p in constraints:
                 c = constraints[p]
                 new_p = c(new_p)
-            self.updates.append((p, new_p))
+            self.updates.append(K.update(p, new_p))
         return self.updates
 
     def get_config(self):

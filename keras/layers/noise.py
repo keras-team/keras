@@ -1,6 +1,7 @@
 from __future__ import absolute_import
 from ..engine import Layer
 from .. import backend as K
+import numpy as np
 
 
 class GaussianNoise(Layer):
@@ -71,7 +72,7 @@ class GaussianDropout(Layer):
     def call(self, x, mask=None):
         if 0 < self.p < 1:
             noise_x = x * K.random_normal(shape=K.shape(x), mean=1.0,
-                                          std=K.sqrt(self.p / (1.0 - self.p)))
+                                          std=np.sqrt(self.p / (1.0 - self.p)))
             return K.in_train_phase(noise_x, x)
         return x
 
