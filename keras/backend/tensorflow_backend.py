@@ -874,6 +874,13 @@ def batch_set_value(tuples):
         get_session().run(ops)
 
 
+def print_tensor(x, message=''):
+    '''Print the message and the tensor when evaluated and return the same
+    tensor.
+    '''
+    return tf.Print(x, [x], message)
+
+
 # GRAPH MANIPULATION
 
 class Function(object):
