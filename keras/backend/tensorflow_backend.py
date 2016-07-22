@@ -4,7 +4,6 @@ import numpy as np
 import os
 import copy
 import warnings
-from operator import mul
 from .common import _FLOATX, _EPSILON, _IMAGE_DIM_ORDERING, reset_uids
 
 # INTERNAL UTILS
@@ -458,13 +457,13 @@ def tensordot_core(a, b, axes=[1, 1], batched=False):
     unc_a_shape = [_size for _idx, _size in enumerate(a_shape_lst) if _idx in unc_a]
     unc_b_shape = [_size for _idx, _size in enumerate(b_shape_lst) if _idx in unc_b]
     if batched:
-        a_t = tf.reshape(a_t, [reduce(mul, batch_shape, 1), reduce(mul, unc_a_shape, 1), reduce(mul, axes_a_shape, 1)])
-        b_t = tf.reshape(b_t, [reduce(mul, batch_shape, 1), reduce(mul, axes_b_shape, 1), reduce(mul, unc_b_shape, 1)])
+        a_t = tf.reshape(a_t, [np.product(batch_shape), np.product(unc_a_shape), np.product(axes_a_shape)])
+        b_t = tf.reshape(b_t, [np.product(batch_shape), np.product(axes_b_shape), np.product(unc_b_shape)])
         # mul
         res = tf.batch_matmul(a_t, b_t)
     else:
-        a_t = tf.reshape(a_t, [reduce(mul, unc_a_shape, 1), reduce(mul, axes_a_shape, 1)])
-        b_t = tf.reshape(b_t, [reduce(mul, axes_b_shape, 1), reduce(mul, unc_b_shape, 1)])
+        a_t = tf.reshape(a_t, [np.product(unc_a_shape), np.product(axes_a_shape)])
+        b_t = tf.reshape(b_t, [np.product(axes_b_shape), np.product(unc_b_shape)])
         # mul
         res = tf.matmul(a_t, b_t)
     # restore shape
