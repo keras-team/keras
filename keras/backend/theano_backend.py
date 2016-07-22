@@ -333,11 +333,11 @@ def greater_equal(x, y):
     return T.ge(x, y)
 
 
-def less(x, y):
+def lesser(x, y):
     return T.lt(x, y)
 
 
-def less_equal(x, y):
+def lesser_equal(x, y):
     return T.le(x, y)
 
 
