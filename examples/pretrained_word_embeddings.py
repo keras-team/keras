@@ -97,8 +97,8 @@ y_val = labels[-nb_validation_samples:]
 print('Preparing embedding matrix.')
 
 # prepare embedding matrix
-NB_WORDS = min(MAX_NB_WORDS, len(word_index))
-embedding_matrix = np.zeros((NB_WORDS + 1, EMBEDDING_DIM))
+nb_words = min(MAX_NB_WORDS, len(word_index))
+embedding_matrix = np.zeros((nb_words + 1, EMBEDDING_DIM))
 for word, i in word_index.items():
     if i > MAX_NB_WORDS:
         continue
@@ -109,7 +109,7 @@ for word, i in word_index.items():
 
 # load pre-trained word embeddings into an Embedding layer
 # note that we set trainable = False so as to keep the embeddings fixed
-embedding_layer = Embedding(NB_WORDS + 1,
+embedding_layer = Embedding(nb_words + 1,
                             EMBEDDING_DIM,
                             weights=[embedding_matrix],
                             input_length=MAX_SEQUENCE_LENGTH,
