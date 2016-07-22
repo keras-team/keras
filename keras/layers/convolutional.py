@@ -1036,8 +1036,6 @@ class UpSampling3D(Layer):
     '''Repeat the first, second and third dimension of the data
     by size[0], size[1] and size[2] respectively.
 
-    Note: this layer will only work with Theano for the time being.
-
     # Arguments
         size: tuple of 3 integers. The upsampling factors for dim1, dim2 and dim3.
         dim_ordering: 'th' or 'tf'.
@@ -1061,9 +1059,6 @@ class UpSampling3D(Layer):
     '''
 
     def __init__(self, size=(2, 2, 2), dim_ordering=K.image_dim_ordering(), **kwargs):
-        if K._BACKEND != 'theano':
-            raise Exception(self.__class__.__name__ +
-                            ' is currently only working with Theano backend.')
         self.size = tuple(size)
         assert dim_ordering in {'tf', 'th'}, 'dim_ordering must be in {tf, th}'
         self.dim_ordering = dim_ordering
@@ -1192,8 +1187,6 @@ class ZeroPadding2D(Layer):
 class ZeroPadding3D(Layer):
     '''Zero-padding layer for 3D data (spatial or spatio-temporal).
 
-    Note: this layer will only work with Theano for the time being.
-
     # Arguments
         padding: tuple of int (length 3)
             How many zeros to add at the beginning and end of
@@ -1215,9 +1208,6 @@ class ZeroPadding3D(Layer):
     '''
 
     def __init__(self, padding=(1, 1, 1), dim_ordering=K.image_dim_ordering(), **kwargs):
-        if K._BACKEND != 'theano':
-            raise Exception(self.__class__.__name__ +
-                            ' is currently only working with Theano backend.')
         super(ZeroPadding3D, self).__init__(**kwargs)
         self.padding = tuple(padding)
         assert dim_ordering in {'tf', 'th'}, 'dim_ordering must be in {tf, th}'
