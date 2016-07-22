@@ -379,7 +379,7 @@ def tensordot_core(a, b, axes=-1, batched=False):
     def ndim(a):
         if a is None:
             raise ValueError('Input is None...')
-        return tf.Tensor.get_shape(a).ndims
+        return a.get_shape().ndims
 
     def _pack(x):
         # Convert x to a list if it is an iterable, otherwise wrap it in a list.
@@ -390,8 +390,8 @@ def tensordot_core(a, b, axes=-1, batched=False):
 
     if a is None or b is None:
         raise ValueError('Input is/are None...')
-    a_shape_lst = tf.Tensor.get_shape(a).as_list()
-    b_shape_lst = tf.Tensor.get_shape(b).as_list()
+    a_shape_lst = a.get_shape().as_list()
+    b_shape_lst = b.get_shape().as_list()
     if len(a_shape_lst) < 2 or len(b_shape_lst) < 2:
         raise ValueError(
             'inputs should have at least 2 dimensions, but got '
@@ -472,11 +472,11 @@ def tensordot_core(a, b, axes=-1, batched=False):
     return res
 
 
-def tensordot(x, y, axes=-1):
+def tensordot(x, y, axes=[-1, -1]):
     return tensordot_core(x, y, axes=axes)
 
 
-def batch_tensordot(x, y, axes=-1):
+def batch_tensordot(x, y, axes=[-1, -1]):
     return tensordot_core(x, y, axes=axes, batched=True)
 
 
