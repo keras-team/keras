@@ -363,7 +363,7 @@ def transpose(x):
     return tf.transpose(x)
 
 
-def tensordot_core(a, b, axes=-1, batched=False):
+def tensordot_core(a, b, axes=[1, 1], batched=False):
     '''
     This functions mimics tensordot/batched_tensordot in Theano
 
