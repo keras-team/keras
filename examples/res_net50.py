@@ -16,8 +16,8 @@ We provide pretrained weights for your research, this weights were converted fro
 provided by Kaiming He directly.
 
 For now we provide pretrained weights for tensorflow backend, pls donwload pretrained file at:
-http://pan.baidu.com/s/1c1OxKWC
-(Don't be afraid of Chinese, just click the bottom at top right with '(98.2M)')
+http://pan.baidu.com/s/1i4Qp6CH (For China)
+https://drive.google.com/open?id=0B4ChsjFJvew3NVQ2U041Q0xHRHM (For Other contries)
 
 If you are using theano backend,
 you can transfer tf weights to th weights by hand under the instruction at:
@@ -118,28 +118,6 @@ def conv_block(input_tensor, nb_filter, stage, block, kernel_size=3):
     return out
 
 
-def load_weights(model, weights_path):
-    """
-    This function load the pretrained weights to the model
-    """
-    f = h5py.File(weights_path, 'r')
-    for layer in model.layers:
-        if layer.name[:3] == 'res':
-            layer.set_weights([f[layer.name]['weights'][:], f[layer.name]['bias'][:]])
-        elif layer.name[:2] == 'bn':
-            scale_name = 'scale'+layer.name[2:]
-            weights = []
-            weights.append(f[scale_name]['weights'][:])
-            weights.append(f[scale_name]['bias'][:])
-            weights.append(f[layer.name]['weights'][:])
-            weights.append(f[layer.name]['bias'][:])
-
-            layer.set_weights(weights)
-    model.get_layer('conv1').set_weights([f['conv1']['weights'][:], f['conv1']['bias'][:]])
-    model.get_layer('fc1000').set_weights([f['fc1000']['weights'][:].T, f['fc1000']['bias'][:]])
-    return model
-
-
 def read_img(img_path):
     """
     this function returns preprocessed image
@@ -167,7 +145,7 @@ def read_img(img_path):
 
     io.imshow(img.astype('uint8'))
     io.show()
-    # decenterize
+    #decenterize
     img[:, :, 0] -= mean[0]
     img[:, :, 1] -= mean[1]
     img[:, :, 2] -= mean[2]
@@ -175,7 +153,7 @@ def read_img(img_path):
     # 'RGB'->'BGR'
     img = img[:, :, ::-1]
 
-    # 'tf'->'th'
+    #'tf'->'th'
     img = np.transpose(img, (2, 0, 1))
     # expand dim for test
     img = np.expand_dims(img, axis=0)
@@ -227,7 +205,7 @@ def get_resnet50():
 
 if __name__ == '__main__':
     resnet_model = get_resnet50()
-    resnet_model = load_weights(resnet_model, 'resnet50.h5')
+    resnet_model.load_weights('th_resnet50.h5')
     test_img1 = read_img('cat.jpg')
     test_img2 = read_img('airplane.jpg')
     # you may download synset_words from address given at the begining of this file
