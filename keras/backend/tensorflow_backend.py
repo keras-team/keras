@@ -472,11 +472,11 @@ def tensordot_core(a, b, axes=-1, batched=False):
     return res
 
 
-def tensordot(x, y, axes=[-1, -1]):
+def tensordot(x, y, axes=[1, 1]):
     return tensordot_core(x, y, axes=axes)
 
 
-def batch_tensordot(x, y, axes=[-1, -1]):
+def batch_tensordot(x, y, axes=[1, 1]):
     return tensordot_core(x, y, axes=axes, batched=True)
 
 
