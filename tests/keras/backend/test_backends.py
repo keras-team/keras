@@ -78,7 +78,6 @@ class TestBackend(object):
         check_two_tensor_operation('batch_tensordot', (4, 2, 5, 3), (4, 3, 3, 5),
                                    axes=[[2, 3], [3, 2]])
 
-
     def test_shape_operations(self):
         # concatenate
         xval = np.random.random((4, 3))
