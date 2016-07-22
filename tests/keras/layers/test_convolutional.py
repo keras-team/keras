@@ -75,7 +75,8 @@ def test_convolution_2d():
                                'nb_col': 3,
                                'border_mode': border_mode,
                                'subsample': subsample},
-                       input_shape=(nb_samples, stack_size, nb_row, nb_col))
+                       input_shape=(nb_samples, stack_size, nb_row, nb_col),
+                       with_None=False)
 
             layer_test(convolutional.Convolution2D,
                        kwargs={'nb_filter': nb_filter,
@@ -86,7 +87,8 @@ def test_convolution_2d():
                                'b_regularizer': 'l2',
                                'activity_regularizer': 'activity_l2',
                                'subsample': subsample},
-                       input_shape=(nb_samples, stack_size, nb_row, nb_col))
+                       input_shape=(nb_samples, stack_size, nb_row, nb_col),
+                       with_None=False)
 
 
 @keras_test
