@@ -405,35 +405,37 @@ def tensordot_core(a, b, axes=-1, batched=False):
                          % str(axes))
     elif np.isscalar(axes):
         axes = int(axes)
-        for operand_name, operand in (("a", a), ("b", b)):
-            if axes > ndim(operand):
+        # deal with negative axes
+        axes_a = [len(a_shape_lst) + axes] if axes < 0 else [axes]
+        axes_b = [len(b_shape_lst) + axes] if axes < 0 else [axes]
+        for operand_name, operand, _axes in (("a", a, axes_a[0]), ("b", b, axes_b[0])):
+            if _axes > ndim(operand):
                 raise ValueError(
                     'axes can not be larger than the dimension of %s '
                     '(%s.ndim=%i, axes=%i)'
-                    % (operand_name, operand_name, ndim(operand), axes))
-        axes_a = [axes]
-        axes_b = [axes]
+                    % (operand_name, operand_name, ndim(operand), _axes))
     else:
         axes = [_pack(axes_) for axes_ in axes]
         if len(axes[0]) != len(axes[1]):
             raise ValueError('Axes elements must have the same length.')
 
-        for i, (operand_name, operand) in enumerate((("a", a),
-                                                     ("b", b))):
-            if len(axes[i]) > ndim(operand):
+        axes_a = [len(a_shape_lst) + _axes if _axes < 0 else _axes for _axes in axes[0]]
+        axes_b = [len(b_shape_lst) + _axes if _axes < 0 else _axes for _axes in axes[1]]
+
+        for i, (operand_name, operand, _axes) in enumerate((("a", a, axes_a),
+                                                            ("b", b, axes_b))):
+            if len(_axes) > ndim(operand):
                 raise ValueError(
                     'axes[%i] should be array_like with length less than '
                     'the dimensions of %s (%s.ndim=%i, len(axes[0])=%i).' %
                     (i, operand_name, operand_name, ndim(operand),
-                     len(axes[i])))
-            if len(axes[i]) > 0 and np.max(axes[i]) >= ndim(operand):
+                     len(_axes)))
+            if len(_axes) > 0 and np.max(_axes) >= ndim(operand):
                 raise ValueError(
                     'axes[%i] contains dimensions greater than or equal '
                     'to %s.ndim (%s.ndim=%i, max(axes[0])=%i).' %
                     (i, operand_name, operand_name, ndim(operand),
-                     np.max(np.array(axes[i]))))
-        axes_a = axes[0]
-        axes_b = axes[1]
+                     np.max(np.array(_axes))))
     # get batch dim
     batch_dim = [0] if batched else []
     if batched and a_shape_lst[0] != b_shape_lst[0]:
