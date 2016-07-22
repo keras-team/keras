@@ -1,9 +1,11 @@
 import numpy as np
 
+from collections import defaultdict
+
 # the type of float to use throughout the session.
 _FLOATX = 'float32'
 _EPSILON = 10e-8
-_UID_PREFIXES = {}
+_UID_PREFIXES = defaultdict(int)
 _IMAGE_DIM_ORDERING = 'th'
 
 
@@ -60,9 +62,10 @@ def set_image_dim_ordering(dim_ordering):
 
 
 def get_uid(prefix=''):
-    if prefix not in _UID_PREFIXES:
-        _UID_PREFIXES[prefix] = 1
-        return 1
-    else:
-        _UID_PREFIXES[prefix] += 1
-        return _UID_PREFIXES[prefix]
+    _UID_PREFIXES[prefix] += 1
+    return _UID_PREFIXES[prefix]
+
+
+def reset_uids():
+    global _UID_PREFIXES
+    _UID_PREFIXES = defaultdict(int)

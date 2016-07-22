@@ -82,6 +82,7 @@ class Sequential(Model):
         self.inbound_nodes = []
         self.outbound_nodes = []
         self.built = False
+        self._flattened_layers = None
 
         if not name:
             prefix = 'sequential_'
@@ -155,6 +156,26 @@ class Sequential(Model):
 
         self.layers.append(layer)
         self.built = False
+        self._flattened_layers = None
+
+    def pop(self):
+        '''Removes the last layer in the model.
+        '''
+        if not self.layers:
+            raise Exception('There are no layers in the model.')
+
+        self.layers.pop()
+        if not self.layers:
+            self.outputs = []
+            self.inbound_nodes = []
+            self.outbound_nodes = []
+        else:
+            self.layers[-1].outbound_nodes = []
+            self.outputs = [self.layers[-1].output]
+            # update self.inbound_nodes
+            self.inbound_nodes[0].output_tensors = self.outputs
+            self.inbound_nodes[0].output_shapes = [self.outputs[0]._keras_shape]
+        self.built = False
 
     def call(self, x, mask=None):
         if not self.built:
@@ -197,6 +218,8 @@ class Sequential(Model):
 
     @property
     def flattened_layers(self):
+        if self._flattened_layers is not None:
+            return self._flattened_layers
         layers = []
         if self.layers[0].__class__.__name__ == 'Merge':
             merge = self.layers[0]
@@ -218,6 +241,7 @@ class Sequential(Model):
         for layer in self.layers[1:]:
             if layer not in layers:
                 layers.append(layer)
+        self._flattened_layers = layers
         return layers
 
     def _gather_list_attr(self, attr):
@@ -573,7 +597,7 @@ class Sequential(Model):
     def fit_generator(self, generator, samples_per_epoch, nb_epoch,
                       verbose=1, callbacks=[],
                       validation_data=None, nb_val_samples=None,
-                      class_weight=None, max_q_size=10, **kwargs):
+                      class_weight=None, max_q_size=10, nb_worker=1, pickle_safe=False, **kwargs):
         '''Fits the model on data generated batch-by-batch by
         a Python generator.
         The generator is run in parallel to the model, for efficiency.
@@ -604,6 +628,11 @@ class Sequential(Model):
             class_weight: dictionary mapping class indices to a weight
                 for the class.
             max_q_size: maximum size for the generator queue
+            nb_worker: maximum number of processes to spin up
+            pickle_safe: if True, use process based threading. Note that because
+                this implementation relies on multiprocessing, you should not pass non
+                non picklable arguments to the generator as they can't be passed
+                easily to children processes.
 
         # Returns
             A `History` object.
@@ -627,6 +656,9 @@ class Sequential(Model):
         '''
         if self.model is None:
             raise Exception('The model needs to be compiled before being used.')
+        if nb_worker > 1 and not pickle_safe:
+            warnings.warn('The "nb_worker" argument is deprecated when pickle_safe is False')
+            nb_worker = 1  # For backward compatibility
         if 'show_accuracy' in kwargs:
             kwargs.pop('show_accuracy')
             warnings.warn('The "show_accuracy" argument is deprecated, '
@@ -634,10 +666,6 @@ class Sequential(Model):
                           'the model at compile time:\n'
                           '`model.compile(optimizer, loss, '
                           'metrics=["accuracy"])`')
-        if 'nb_worker' in kwargs:
-            kwargs.pop('nb_worker')
-            warnings.warn('The "nb_worker" argument is deprecated, '
-                          'please remove it from your code.')
         if 'nb_val_worker' in kwargs:
             kwargs.pop('nb_val_worker')
             warnings.warn('The "nb_val_worker" argument is deprecated, '
@@ -653,9 +681,11 @@ class Sequential(Model):
                                         validation_data=validation_data,
                                         nb_val_samples=nb_val_samples,
                                         class_weight=class_weight,
-                                        max_q_size=max_q_size)
+                                        max_q_size=max_q_size,
+                                        nb_worker=nb_worker,
+                                        pickle_safe=pickle_safe)
 
-    def evaluate_generator(self, generator, val_samples, max_q_size=10, **kwargs):
+    def evaluate_generator(self, generator, val_samples, max_q_size=10, nb_worker=1, pickle_safe=False, **kwargs):
         '''Evaluates the model on a data generator. The generator should
         return the same kind of data as accepted by `test_on_batch`.
 
@@ -667,9 +697,17 @@ class Sequential(Model):
                 total number of samples to generate from `generator`
                 before returning.
             max_q_size: maximum size for the generator queue
+            nb_worker: maximum number of processes to spin up
+            pickle_safe: if True, use process based threading. Note that because
+                this implementation relies on multiprocessing, you should not pass non
+                non picklable arguments to the generator as they can't be passed
+                easily to children processes.
         '''
         if self.model is None:
             raise Exception('The model needs to be compiled before being used.')
+        if nb_worker > 1 and not pickle_safe:
+            warnings.warn('The "nb_worker" argument is deprecated when pickle_safe is False')
+            nb_worker = 1  # For backward compatibility
         if 'show_accuracy' in kwargs:
             kwargs.pop('show_accuracy')
             warnings.warn('The "show_accuracy" argument is deprecated, '
@@ -685,9 +723,11 @@ class Sequential(Model):
                             str(kwargs))
         return self.model.evaluate_generator(generator,
                                              val_samples,
-                                             max_q_size=max_q_size)
+                                             max_q_size=max_q_size,
+                                             nb_worker=nb_worker,
+                                             pickle_safe=pickle_safe)
 
-    def predict_generator(self, generator, val_samples, max_q_size=10):
+    def predict_generator(self, generator, val_samples, max_q_size=10, nb_worker=1, pickle_safe=False):
         '''Generates predictions for the input samples from a data generator.
         The generator should return the same kind of data as accepted by
         `predict_on_batch`.
@@ -697,14 +737,24 @@ class Sequential(Model):
             val_samples: total number of samples to generate from `generator`
                 before returning.
             max_q_size: maximum size for the generator queue
+            nb_worker: maximum number of processes to spin up
+            pickle_safe: if True, use process based threading. Note that because
+                this implementation relies on multiprocessing, you should not pass non
+                non picklable arguments to the generator as they can't be passed
+                easily to children processes.
 
         # Returns
             A Numpy array of predictions.
         '''
         if self.model is None:
             self.build()
+        if nb_worker > 1 and not pickle_safe:
+            warnings.warn('The "nb_worker" argument is deprecated when pickle_safe is False')
+            nb_worker = 1  # For backward compatibility
         return self.model.predict_generator(generator, val_samples,
-                                            max_q_size=max_q_size)
+                                            max_q_size=max_q_size,
+                                            nb_worker=nb_worker,
+                                            pickle_safe=pickle_safe)
 
     def get_config(self):
         '''Returns the model configuration
@@ -730,12 +780,15 @@ class Sequential(Model):
         return copy.deepcopy(config)
 
     @classmethod
-    def from_config(cls, config, layer_cache={}):
+    def from_config(cls, config, layer_cache=None):
         '''Supports legacy formats
         '''
         from keras.utils.layer_utils import layer_from_config
         from keras.layers import Merge
         assert type(config) is list
+
+        if not layer_cache:
+            layer_cache = {}
 
         def normalize_legacy_config(conf):
             if 'class_name' not in conf:

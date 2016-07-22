@@ -12,6 +12,8 @@
 - [How can I record the training / validation loss / accuracy at each epoch?](#how-can-i-record-the-training-validation-loss-accuracy-at-each-epoch)
 - [How can I "freeze" layers?](#how-can-i-freeze-keras-layers)
 - [How can I use stateful RNNs?](#how-can-i-use-stateful-rnns)
+- [How can I remove a layer from a Sequential model?](#how-can-i-remove-a-layer-from-a-sequential-model)
+- [How can I use pre-trained models in Keras?](#how-can-i-use-pre-trained-models-in-keras)
 
 ---
 
@@ -296,3 +298,37 @@ model.layers[0].reset_states()
 
 Notes that the methods `predict`, `fit`, `train_on_batch`, `predict_classes`, etc. will *all* update the states of the stateful layers in a model. This allows you to do not only stateful training, but also stateful prediction.
 
+---
+
+### How can I remove a layer from a Sequential model?
+
+You can remove the last added layer in a Sequential model by calling `.pop()`:
+
+```python
+model = Sequential()
+model.add(Dense(32, activation='relu', input_dim=784))
+model.add(Dense(32, activation='relu'))
+
+print(len(model.layers))  # "2"
+
+model.pop()
+print(len(model.layers))  # "1"
+```
+
+---
+
+### How can I use pre-trained models in Keras?
+
+Code and pre-trained weights are available for the following image classification models:
+
+- [VGG-16](https://gist.github.com/baraldilorenzo/07d7802847aaad0a35d3)
+- [VGG-19](https://gist.github.com/baraldilorenzo/8d096f48a1be4a2d660d)
+- [AlexNet](https://github.com/heuritech/convnets-keras)
+
+For an example of how to use such a pre-trained model for feature extraction or for fine-tuning, see [this blog post](http://blog.keras.io/building-powerful-image-classification-models-using-very-little-data.html).
+
+The VGG-16 model is also the basis for several Keras example scripts:
+
+- [Style transfer](https://github.com/fchollet/keras/blob/master/examples/neural_style_transfer.py)
+- [Feature visualization](https://github.com/fchollet/keras/blob/master/examples/conv_filter_visualization.py)
+- [Deep dream](https://github.com/fchollet/keras/blob/master/examples/deep_dream.py)

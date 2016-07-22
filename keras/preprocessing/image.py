@@ -162,7 +162,7 @@ def load_img(path, grayscale=False, target_size=None):
     else:  # Ensure 3 channel even when loaded image is grayscale
         img = img.convert('RGB')
     if target_size:
-        img = img.resize(target_size)
+        img = img.resize((target_size[1], target_size[0]))
     return img
 
 
@@ -532,7 +532,7 @@ class DirectoryIterator(Iterator):
 
         if not classes:
             classes = []
-            for subdir in os.listdir(directory):
+            for subdir in sorted(os.listdir(directory)):
                 if os.path.isdir(os.path.join(directory, subdir)):
                     classes.append(subdir)
         self.nb_class = len(classes)

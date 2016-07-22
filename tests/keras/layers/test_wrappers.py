@@ -1,12 +1,13 @@
 import pytest
 import numpy as np
 from numpy.testing import assert_allclose
-
+from keras.utils.test_utils import keras_test
 from keras.layers import wrappers, Input
 from keras.layers import core, convolutional
 from keras.models import Sequential, Model, model_from_json
 
 
+@keras_test
 def test_TimeDistributed():
     # first, test with Dense layer
     model = Sequential()

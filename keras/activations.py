@@ -48,4 +48,6 @@ def linear(x):
 
 from .utils.generic_utils import get_from_module
 def get(identifier):
+    if identifier is None:
+        return linear
     return get_from_module(identifier, globals(), 'activation function')

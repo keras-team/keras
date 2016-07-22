@@ -2,13 +2,15 @@ import pytest
 import json
 import numpy as np
 
-from keras.layers import Dense, Dropout
+from keras.layers import Dense, Dropout, InputLayer
 from keras.engine import merge, Input, get_source_inputs
 from keras.models import Model
 from keras import backend as K
 from keras.models import model_from_json, model_from_yaml
+from keras.utils.test_utils import keras_test
 
 
+@keras_test
 def test_learning_phase():
     a = Input(shape=(32,), name='input_a')
     b = Input(shape=(32,), name='input_b')
@@ -50,6 +52,7 @@ def test_learning_phase():
     assert fn_outputs_no_dp[1].sum() != fn_outputs_dp[1].sum()
 
 
+@keras_test
 def test_node_construction():
     ####################################################
     # test basics
@@ -128,6 +131,7 @@ def test_node_construction():
     assert dense.get_output_mask_at(1) is None
 
 
+@keras_test
 def test_multi_input_layer():
     ####################################################
     # test multi-input layer
@@ -209,6 +213,7 @@ def test_multi_input_layer():
     assert [x.shape for x in fn_outputs] == [(10, 64), (10, 5)]
 
 
+@keras_test
 def test_recursion():
     ####################################################
     # test recursion
@@ -392,7 +397,15 @@ def test_recursion():
         # test merge
         o_tf = merge([j_tf, k_tf], mode='concat', concat_axis=1)
 
+        # test tensor input
+        x = tf.placeholder(shape=(None, 2), dtype=K.floatx())
+        input_layer = InputLayer(input_tensor=x)
 
+        x = Input(tensor=x)
+        y = Dense(2)(x)
+
+
+@keras_test
 def test_functional_guide():
     # MNIST
     from keras.layers import Input, Dense, LSTM
@@ -485,6 +498,7 @@ def test_functional_guide():
     assert shared_lstm.input_shape == (None, 4, 25)
 
 
+@keras_test
 def test_sequential_regression():
     from keras.models import Sequential, Model
     from keras.layers import Merge, Embedding, BatchNormalization, LSTM, InputLayer, Input

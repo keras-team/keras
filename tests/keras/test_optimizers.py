@@ -2,7 +2,7 @@ from __future__ import print_function
 import pytest
 
 from keras.utils.test_utils import get_test_data
-from keras.optimizers import SGD, RMSprop, Adagrad, Adadelta, Adam, Adamax
+from keras.optimizers import SGD, RMSprop, Adagrad, Adadelta, Adam, Adamax, Nadam
 from keras.models import Sequential
 from keras.layers.core import Dense, Activation
 from keras.utils.np_utils import to_categorical
@@ -26,7 +26,7 @@ def get_model(input_dim, nb_hidden, output_dim):
     return model
 
 
-def _test_optimizer(optimizer, target=0.9):
+def _test_optimizer(optimizer, target=0.89):
     model = get_model(X_train.shape[1], 10, y_train.shape[1])
     model.compile(loss='categorical_crossentropy',
                   optimizer=optimizer,
@@ -35,7 +35,7 @@ def _test_optimizer(optimizer, target=0.9):
                         validation_data=(X_test, y_test), verbose=2)
     config = optimizer.get_config()
     assert type(config) == dict
-    assert history.history['val_acc'][-1] > target
+    assert history.history['val_acc'][-1] >= target
 
 
 def test_sgd():
@@ -61,6 +61,10 @@ def test_adam():
 
 def test_adamax():
     _test_optimizer(Adamax())
+
+
+def test_nadam():
+    _test_optimizer(Nadam())
 
 
 if __name__ == '__main__':

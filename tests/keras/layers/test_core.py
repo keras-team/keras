@@ -1,18 +1,19 @@
 import pytest
 import numpy as np
-from numpy.testing import assert_allclose
 
 from keras import backend as K
 from keras.layers import core
-from keras.utils.test_utils import layer_test
+from keras.utils.test_utils import layer_test, keras_test
 
 
+@keras_test
 def test_masking():
     layer_test(core.Masking,
                kwargs={},
                input_shape=(3, 2, 3))
 
 
+@keras_test
 def test_merge():
     from keras.layers import Input, merge, Merge
     from keras.models import Model
@@ -22,7 +23,7 @@ def test_merge():
     inputs = [np.random.random(shape) for shape in input_shapes]
 
     # test functional API
-    for mode in ['sum', 'mul', 'concat', 'ave']:
+    for mode in ['sum', 'mul', 'concat', 'ave', 'max']:
         print(mode)
         input_a = Input(shape=input_shapes[0][1:])
         input_b = Input(shape=input_shapes[1][1:])
@@ -84,12 +85,70 @@ def test_merge():
     model.compile('rmsprop', 'mse')
 
 
+@keras_test
+def test_merge_mask_2d():
+    from keras.layers import Input, merge, Masking
+    from keras.models import Model
+
+    rand = lambda *shape: np.asarray(np.random.random(shape) > 0.5, dtype='int32')
+
+    # inputs
+    input_a = Input(shape=(3,))
+    input_b = Input(shape=(3,))
+
+    # masks
+    masked_a = Masking(mask_value=0)(input_a)
+    masked_b = Masking(mask_value=0)(input_b)
+
+    # two different types of merging
+    merged_sum = merge([masked_a, masked_b], mode='sum')
+    merged_concat = merge([masked_a, masked_b], mode='concat', concat_axis=1)
+
+    # test sum
+    model_sum = Model([input_a, input_b], [merged_sum])
+    model_sum.compile(loss='mse', optimizer='sgd')
+    model_sum.fit([rand(2, 3), rand(2, 3)], [rand(2, 3)], nb_epoch=1)
+
+    # test concatenation
+    model_concat = Model([input_a, input_b], [merged_concat])
+    model_concat.compile(loss='mse', optimizer='sgd')
+    model_concat.fit([rand(2, 3), rand(2, 3)], [rand(2, 6)], nb_epoch=1)
+
+
+@keras_test
+def test_merge_mask_3d():
+    from keras.layers import Input, merge, Embedding, SimpleRNN
+    from keras.models import Model
+
+    rand = lambda *shape: np.asarray(np.random.random(shape) > 0.5, dtype='int32')
+
+    # embeddings
+    input_a = Input(shape=(3,), dtype='int32')
+    input_b = Input(shape=(3,), dtype='int32')
+    embedding = Embedding(3, 4, mask_zero=True)
+    embedding_a = embedding(input_a)
+    embedding_b = embedding(input_b)
+
+    # rnn
+    rnn = SimpleRNN(3, return_sequences=True)
+    rnn_a = rnn(embedding_a)
+    rnn_b = rnn(embedding_b)
+
+    # concatenation
+    merged_concat = merge([rnn_a, rnn_b], mode='concat', concat_axis=-1)
+    model = Model([input_a, input_b], [merged_concat])
+    model.compile(loss='mse', optimizer='sgd')
+    model.fit([rand(2, 3), rand(2, 3)], [rand(2, 3, 6)])
+
+
+@keras_test
 def test_dropout():
     layer_test(core.Dropout,
                kwargs={'p': 0.5},
                input_shape=(3, 2))
 
 
+@keras_test
 def test_activation():
     # with string argument
     layer_test(core.Activation,
@@ -102,30 +161,35 @@ def test_activation():
                input_shape=(3, 2))
 
 
+@keras_test
 def test_reshape():
     layer_test(core.Reshape,
                kwargs={'target_shape': (8, 1)},
                input_shape=(3, 2, 4))
 
 
+@keras_test
 def test_permute():
     layer_test(core.Permute,
                kwargs={'dims': (2, 1)},
                input_shape=(3, 2, 4))
 
 
+@keras_test
 def test_flatten():
     layer_test(core.Flatten,
                kwargs={},
                input_shape=(3, 2, 4))
 
 
+@keras_test
 def test_repeat_vector():
     layer_test(core.RepeatVector,
                kwargs={'n': 3},
                input_shape=(3, 2))
 
 
+@keras_test
 def test_lambda():
     from keras.utils.layer_utils import layer_from_config
     Lambda = core.Lambda
@@ -159,6 +223,7 @@ def test_lambda():
     ld = layer_from_config({'class_name': 'Lambda', 'config': config})
 
 
+@keras_test
 def test_dense():
     from keras import regularizers
     from keras import constraints
@@ -177,6 +242,7 @@ def test_dense():
                input_shape=(3, 2))
 
 
+@keras_test
 def test_activity_regularization():
     from keras.engine import Input, Model
 
@@ -197,6 +263,7 @@ def test_activity_regularization():
     model.compile('rmsprop', 'mse')
 
 
+@keras_test
 def test_maxout_dense():
     from keras import regularizers
     from keras import constraints
@@ -215,6 +282,7 @@ def test_maxout_dense():
                input_shape=(3, 2))
 
 
+@keras_test
 def test_highway():
     from keras import regularizers
     from keras import constraints
@@ -232,6 +300,7 @@ def test_highway():
                input_shape=(3, 2))
 
 
+@keras_test
 def test_timedistributeddense():
     from keras import regularizers
     from keras import constraints
