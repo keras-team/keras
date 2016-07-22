@@ -726,7 +726,6 @@ def rnn(step_function, inputs, initial_states,
                 outputs_info=[None] + initial_states,
                 non_sequences=constants,
                 go_backwards=go_backwards)
-
             # deal with Theano API inconsistency
             if type(results) is list:
                 outputs = results[0]
@@ -740,10 +739,12 @@ def rnn(step_function, inputs, initial_states,
 
     axes = [1, 0] + list(range(2, outputs.ndim))
     outputs = outputs.dimshuffle(axes)
+
     if(pos_extra_outputs_states is None):
         states = [T.squeeze(state[-1]) for state in states]
     else:
-        states = [state if i_s in pos_extra_outputs_states else T.squeeze(state[-1]) for i_s,state in enumerate(states)]
+        states = [state if i_s in pos_extra_outputs_states
+                  else T.squeeze(state[-1]) for i_s, state in enumerate(states)]
     return last_output, outputs, states
 
 

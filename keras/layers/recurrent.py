@@ -899,10 +899,6 @@ class LSTM(Recurrent):
         base_config = super(LSTM, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
-
-
-
-
 def _get_reversed_input(self, train=False):
     if hasattr(self, 'previous'):
         X = self.previous.get_output(train=train)
@@ -1895,7 +1891,7 @@ class AttLSTMCond(LSTM):
             main_out = (input_shape[0], self.output_dim)
 
         if self.return_extra_variables:
-            dim_x_att = (input_shape[0], input_shape[1], input_shape[3])
+            dim_x_att = (input_shape[0], input_shape[1], self.input_dim)
             dim_alpha_att = (input_shape[0], input_shape[1], input_shape[2])
             #return [main_out, dim_x_att, dim_alpha_att]
             return [main_out, dim_x_att]
@@ -1924,9 +1920,7 @@ class AttLSTMCond(LSTM):
             initial_states = self.states
         else:
             initial_states = self.get_initial_states(x)
-        print len(initial_states)
         constants = self.get_constants(x)
-        print len(constants)
         preprocessed_input = self.preprocess_input(x)
 
         last_output, outputs, states = K.rnn(self.step, preprocessed_input,
@@ -1948,7 +1942,6 @@ class AttLSTMCond(LSTM):
             ret = last_output
 
         if self.return_extra_variables:
-            #return [ret, states[-2], states[-1]]
             return [ret, states[2]]
         else:
             return ret
@@ -1967,7 +1960,7 @@ class AttLSTMCond(LSTM):
         #    which means that in step() our x will be:
         #        [batch_size, in_timesteps, dim_encoder]
         x_t = x[:, :, :self.input_dim]
-        s_t = x[:, 0, self.input_dim:]
+        s_t = x[:, 0, self.input_dim:]  # Dirty trick... find out a more elegant way for doing this
         h_tm1 = states[0]  # State
         c_tm1 = states[1]  # Memory
         non_used_x_att = states[2]
@@ -1982,6 +1975,7 @@ class AttLSTMCond(LSTM):
         # AttModel (see Formulation in class header)
         e = K.dot(K.tanh(context + K.dot(h_tm1[:, None, :] * B_Ua, self.Ua) + self.ba) * B_wa, self.wa)
         alpha = K.softmax(e)
+
         x_ = (x_t * alpha[:, :, None]).sum(axis=1) # sum over the in_timesteps dimension resulting in [batch_size, input_dim]
 
         # LSTM
@@ -2024,6 +2018,8 @@ class AttLSTMCond(LSTM):
 
     def get_constants(self, x):
         constants = []
+
+        # States[3]
         if 0 < self.dropout_U < 1:
             ones = K.ones_like(K.reshape(x[:, 0, 0, 0], (-1, 1)))
             ones = K.concatenate([ones] * self.output_dim, 1)
@@ -2032,6 +2028,7 @@ class AttLSTMCond(LSTM):
         else:
             constants.append([K.cast_to_floatx(1.) for _ in range(4)])
 
+        # States[4]
         if 0 < self.dropout_W < 1:
             input_shape = self.input_spec[0].shape
             input_dim = input_shape[-1]
@@ -2041,7 +2038,7 @@ class AttLSTMCond(LSTM):
             constants.append(B_W)
         else:
             constants.append([K.cast_to_floatx(1.) for _ in range(4)])
-
+        # States[5]
         if 0 < self.dropout_V < 1:
             input_dim = self.embedding_size
             ones = K.ones_like(K.reshape(x[:, 0, 0, 0], (-1, 1)))
@@ -2052,6 +2049,7 @@ class AttLSTMCond(LSTM):
             constants.append([K.cast_to_floatx(1.) for _ in range(4)])
 
         # AttModel
+        # States[6]
         if 0 < self.dropout_wa < 1:
             input_shape = self.input_spec[0].shape
             input_dim = input_shape[-1]
@@ -2062,6 +2060,7 @@ class AttLSTMCond(LSTM):
         else:
             constants.append(K.cast_to_floatx(1.))
 
+        # States[7]
         if 0 < self.dropout_Wa < 1:
             input_shape = self.input_spec[0].shape
             input_dim = input_shape[-1]
@@ -2072,6 +2071,7 @@ class AttLSTMCond(LSTM):
         else:
             constants.append(K.dot(x[:, 0, :, :self.input_dim], self.Wa))
 
+        # States[8]
         if 0 < self.dropout_Ua < 1:
             input_shape = self.input_spec[0].shape
             ones = K.ones_like(K.reshape(x[:, :, 0, 0], (-1, input_shape[1], 1)))
@@ -2093,24 +2093,15 @@ class AttLSTMCond(LSTM):
             initial_state = K.dot(initial_state, reducer)  # (samples, output_dim)
             if self.init_memory is None:
                 initial_states = [initial_state for _ in range(2)]
-                extra_states = [None for _ in range(2, len(self.states))]
-                return initial_states + extra_states
             else:
-                #if len(self.states) == 2: # We have state and memory
                 initial_memory = self.init_memory
                 reducer = K.ones((self.output_dim, self.output_dim))
                 initial_memory = K.dot(initial_memory, reducer)  # (samples, output_dim)
                 initial_states = [initial_state, initial_memory]
-                #    return initial_states
-                #else: # We have more states (Why?)
-                #    initial_states = [initial_state for _ in range(len(self.states))]
-                extra_states = [None for _ in range(2, len(self.states))]
-                return initial_states + extra_states
         else:
             initial_state = self.init_state
             reducer = K.ones((self.output_dim, self.output_dim))
             initial_state = K.dot(initial_state, reducer)  # (samples, output_dim)
-            #if len(self.states) == 2 and self.init_memory is not None: # We have state and memory
             if self.init_memory is not None: # We have state and memory
                 initial_memory = self.init_memory
                 reducer = K.ones((self.output_dim, self.output_dim))
@@ -2118,8 +2109,16 @@ class AttLSTMCond(LSTM):
                 initial_states = [initial_state, initial_memory]
             else:
                 initial_states = [initial_state for _ in range(2)]
-            extra_states = [None for _ in range(2, len(self.states))]
-            return initial_states + extra_states
+
+
+        initial_state = K.zeros_like(x[:, :, :, :self.input_dim])  # (samples, timesteps_trg, timesteps, input_dim)
+        initial_state = K.sum(initial_state, axis=1)  # (samples, timesteps_trg, input_dim)
+        initial_state = K.sum(initial_state, axis=1)  # (samples, input_dim)
+        reducer = K.ones((self.input_dim, self.input_dim))
+        extra_states = [K.dot(initial_state, reducer)] # (samples, output_dim)
+
+
+        return initial_states + extra_states
 
 
     def get_config(self):
