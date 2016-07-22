@@ -27,23 +27,13 @@ epsilon_std = 0.01
 nb_epoch = 5
 
 
-def pp(l, x):
-    print(l.eval({x: np.random.randn(batch_size, img_chns, img_rows, img_cols).astype('float32')}))
-
-
 x = Input(batch_shape=(batch_size,) + original_dim)
-pp(x.shape, x)
 c = Convolution2D(nb_filters, nb_conv, nb_conv, border_mode='same', activation='relu')(x)
-pp(c.shape, x)
 f = Flatten()(c)
-pp(f.shape, x)
 h = Dense(intermediate_dim, activation='relu')(f)
-pp(h.shape, x)
 
 z_mean = Dense(latent_dim)(h)
-pp(z_mean.shape, x)
 z_log_std = Dense(latent_dim)(h)
-pp(z_log_std.shape, x)
 
 def sampling(args):
     z_mean, z_log_std = args
@@ -54,18 +44,13 @@ def sampling(args):
 # note that "output_shape" isn't necessary with the TensorFlow backend
 # so you could write `Lambda(sampling)([z_mean, z_log_std])`
 z = Lambda(sampling, output_shape=(latent_dim,))([z_mean, z_log_std])
-pp(z.shape, x)
 
 # we instantiate these layers separately so as to reuse them later
 decoder_h = Dense(intermediate_dim, activation='relu')
-pp(decoder_h(z).shape, x)
 decoder_f = Dense(nb_filters*img_rows*img_cols, activation='relu')
-pp(decoder_f(decoder_h(z)).shape, x)
 decoder_c = Reshape((nb_filters, img_rows, img_cols))
-pp(decoder_c(decoder_f(decoder_h(z))).shape, x)
 decoder_mean = Deconvolution2D(img_chns, nb_conv, nb_conv,
                                (batch_size, img_chns, img_rows, img_cols), border_mode='same')
-pp(decoder_mean(decoder_c(decoder_f(decoder_h(z)))).shape, x)
 
 h_decoded = decoder_h(z)
 f_decoded = decoder_f(h_decoded)
@@ -83,6 +68,7 @@ def vae_loss(x, x_decoded_mean):
 
 vae = Model(x, x_decoded_mean)
 vae.compile(optimizer='rmsprop', loss=vae_loss)
+vae.summary()
 
 # train the VAE on MNIST digits
 (x_train, y_train), (x_test, y_test) = mnist.load_data()

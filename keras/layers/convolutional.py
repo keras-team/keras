@@ -1352,6 +1352,5 @@ Conv1D = Convolution1D
 Conv2D = Convolution2D
 Conv3D = Convolution3D
 Deconv2D = Deconvolution2D
-TransposedConvolution2D = Deconvolution2D
 AtrousConv2D = AtrousConvolution2D
 SeparableConv2D = SeparableConvolution2D
