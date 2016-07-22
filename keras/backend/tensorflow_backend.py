@@ -576,14 +576,14 @@ def greater_equal(x, y):
     return tf.greater_equal(x, y)
 
 
-def less(x, y):
+def lesser(x, y):
     '''Element-wise truth value of (x < y).
     Returns a bool tensor.
     '''
     return tf.less(x, y)
 
 
-def less_equal(x, y):
+def lesser_equal(x, y):
     '''Element-wise truth value of (x <= y).
     Returns a bool tensor.
     '''
