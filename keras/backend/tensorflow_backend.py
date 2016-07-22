@@ -4,6 +4,7 @@ import numpy as np
 import os
 import copy
 import warnings
+from operator import mul
 from .common import _FLOATX, _EPSILON, _IMAGE_DIM_ORDERING, reset_uids
 
 # INTERNAL UTILS
@@ -360,6 +361,121 @@ def transpose(x):
     '''Transposes a matrix.
     '''
     return tf.transpose(x)
+
+
+def tensordot_core(a, b, axes=-1, batched=False):
+    '''
+    This functions mimics tensordot/batched_tensordot in Theano
+
+    # Arguments
+        a, b: tensors with ndim >= 2
+        axes: list (or single) int with target dimensions
+        bathced: batched_tensordot or tensordot
+
+    # Returns
+        tensor with ndim >= 2
+    '''
+
+    def ndim(a):
+        if a is None:
+            raise ValueError('Input is None...')
+        return tf.Tensor.get_shape(a).ndims
+
+    def _pack(x):
+        # Convert x to a list if it is an iterable, otherwise wrap it in a list.
+        try:
+            return list(x)
+        except TypeError:
+            return [x]
+
+    if a is None or b is None:
+        raise ValueError('Input is/are None...')
+    a_shape_lst = tf.Tensor.get_shape(a).as_list()
+    b_shape_lst = tf.Tensor.get_shape(b).as_list()
+    if len(a_shape_lst) < 2 or len(b_shape_lst) < 2:
+        raise ValueError(
+            'inputs should have at least 2 dimensions, but got '
+            '%i, %i.' %
+            (len(a_shape_lst),
+             len(b_shape_lst)))
+
+    if not np.isscalar(axes) and len(axes) != 2:
+        raise ValueError('Axes should be an integer or a '
+                         'list/tuple of len 2 (%s was provided)'
+                         % str(axes))
+    elif np.isscalar(axes):
+        axes = int(axes)
+        for operand_name, operand in (("a", a), ("b", b)):
+            if axes > ndim(operand):
+                raise ValueError(
+                    'axes can not be larger than the dimension of %s '
+                    '(%s.ndim=%i, axes=%i)'
+                    % (operand_name, operand_name, ndim(operand), axes))
+        axes_a = [axes]
+        axes_b = [axes]
+    else:
+        axes = [_pack(axes_) for axes_ in axes]
+        if len(axes[0]) != len(axes[1]):
+            raise ValueError('Axes elements must have the same length.')
+
+        for i, (operand_name, operand) in enumerate((("a", a),
+                                                     ("b", b))):
+            if len(axes[i]) > ndim(operand):
+                raise ValueError(
+                    'axes[%i] should be array_like with length less than '
+                    'the dimensions of %s (%s.ndim=%i, len(axes[0])=%i).' %
+                    (i, operand_name, operand_name, ndim(operand),
+                     len(axes[i])))
+            if len(axes[i]) > 0 and np.max(axes[i]) >= ndim(operand):
+                raise ValueError(
+                    'axes[%i] contains dimensions greater than or equal '
+                    'to %s.ndim (%s.ndim=%i, max(axes[0])=%i).' %
+                    (i, operand_name, operand_name, ndim(operand),
+                     np.max(np.array(axes[i]))))
+        axes_a = axes[0]
+        axes_b = axes[1]
+    # get batch dim
+    batch_dim = [0] if batched else []
+    if batched and a_shape_lst[0] != b_shape_lst[0]:
+        raise ValueError(
+            'batch dimension size should be the same, but got '
+            '%i, %i.' %
+            (a_shape_lst[0],
+             b_shape_lst[0]))
+
+    # find out axes to be stay unchanged
+    unc_a = [temp for temp in range(ndim(a)) if temp not in axes_a and temp not in batch_dim]
+    unc_b = [temp for temp in range(ndim(b)) if temp not in axes_b and temp not in batch_dim]
+    # transpose a and b such that the axes to be summed of a are last and the axes to be summed of b are first.
+    a_t = tf.transpose(a, perm=batch_dim + unc_a + axes_a)
+    b_t = tf.transpose(b, perm=batch_dim + axes_b + unc_b)
+    # sum the axes, make both a and be to be 2-dim matrices
+    batch_shape = [_size for _idx, _size in enumerate(a_shape_lst) if _idx in batch_dim]
+    axes_a_shape = [_size for _idx, _size in enumerate(a_shape_lst) if _idx in axes_a]
+    axes_b_shape = [_size for _idx, _size in enumerate(b_shape_lst) if _idx in axes_b]
+    unc_a_shape = [_size for _idx, _size in enumerate(a_shape_lst) if _idx in unc_a]
+    unc_b_shape = [_size for _idx, _size in enumerate(b_shape_lst) if _idx in unc_b]
+    if batched:
+        a_t = tf.reshape(a_t, [reduce(mul, batch_shape, 1), reduce(mul, unc_a_shape, 1), reduce(mul, axes_a_shape, 1)])
+        b_t = tf.reshape(b_t, [reduce(mul, batch_shape, 1), reduce(mul, axes_b_shape, 1), reduce(mul, unc_b_shape, 1)])
+        # mul
+        res = tf.batch_matmul(a_t, b_t)
+    else:
+        a_t = tf.reshape(a_t, [reduce(mul, unc_a_shape, 1), reduce(mul, axes_a_shape, 1)])
+        b_t = tf.reshape(b_t, [reduce(mul, axes_b_shape, 1), reduce(mul, unc_b_shape, 1)])
+        # mul
+        res = tf.matmul(a_t, b_t)
+    # restore shape
+    res = tf.reshape(res, batch_shape + unc_a_shape + unc_b_shape)
+    return res
+
+
+def tensordot(x, y, axes=-1):
+    return tensordot_core(x, y, axes=axes)
+
+
+def batch_tensordot(x, y, axes=-1):
+    return tensordot_core(x, y, axes=axes, batched=True)
 
 
 def gather(reference, indices):
