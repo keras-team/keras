@@ -3,6 +3,7 @@ from theano import tensor as T
 from theano.sandbox.rng_mrg import MRG_RandomStreams as RandomStreams
 from theano.tensor.signal import pool
 from theano.tensor.nnet import conv3d2d
+from theano.printing import Print
 try:
     from theano.tensor.nnet.nnet import softsign as T_softsign
 except ImportError:
@@ -617,6 +618,14 @@ def set_value(x, value):
 def batch_set_value(tuples):
     for x, value in tuples:
         x.set_value(np.asarray(value, dtype=x.dtype))
+
+
+def print_tensor(x, message=''):
+    '''Print the message and the tensor when evaluated and return the same
+    tensor.
+    '''
+    p_op = Print(message)
+    return p_op(x)
 
 
 # GRAPH MANIPULATION
