@@ -112,7 +112,7 @@ def test_deconvolution_2d():
                                'border_mode': border_mode,
                                'subsample': subsample},
                        input_shape=(nb_samples, stack_size, nb_row, nb_col),
-                       with_None=False)
+                       fixed_batch_size=True)
 
             layer_test(convolutional.Deconvolution2D,
                        kwargs={'nb_filter': nb_filter,
@@ -125,7 +125,7 @@ def test_deconvolution_2d():
                                'activity_regularizer': 'activity_l2',
                                'subsample': subsample},
                        input_shape=(nb_samples, stack_size, nb_row, nb_col),
-                       with_None=False)
+                       fixed_batch_size=True)
 
 
 @keras_test
