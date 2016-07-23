@@ -34,10 +34,10 @@ from keras.layers.core import Dense, Activation, Flatten
 from keras.layers.normalization import BatchNormalization
 from keras.models import Model
 from keras.layers import Input
-from skimage import io
-from skimage.transform import resize
+from keras.preprocessing.image import load_img, img_to_array
 import numpy as np
-import h5py
+
+
 
 
 # The names of layers in resnet50 are generated with the following format
@@ -123,38 +123,18 @@ def read_img(img_path):
     this function returns preprocessed image
     """
     mean = (103.939, 116.779, 123.68)
-    img = io.imread(img_path)
+    img = load_img(img_path, target_size=(224, 224))
+    # img has been transfered to (3,224,224) by img_to_array
+    img = img_to_array(img)
 
-    # we only deal with color image for now
-    assert img.shape[2] == 3
-
-    # resize so that the shorter side=256
-    width, height, _ = img.shape
-    resize_ratio = 256./min(width, height)
-    if width < height:
-        height = int(height * resize_ratio)
-        resized_shape = (256, height)
-    else:
-        width = int(width * resize_ratio)
-        resized_shape = (width, 256)
-    # resize accroding to shorter side
-    img = resize(img, resized_shape)
-    img = img*255
-    # crop the center 224*224 part
-    img = img[16:240, 16:240, :]
-
-    io.imshow(img.astype('uint8'))
-    io.show()
     # decenterize
-    img[:, :, 0] -= mean[0]
-    img[:, :, 1] -= mean[1]
-    img[:, :, 2] -= mean[2]
+    img[0, :, :] -= mean[0]
+    img[1, :, :] -= mean[1]
+    img[2, :, :] -= mean[2]
 
     # 'RGB'->'BGR'
-    img = img[:, :, ::-1]
+    img = img[::-1, :, :]
 
-    # 'tf'->'th'
-    img = np.transpose(img, (2, 0, 1))
     # expand dim for test
     img = np.expand_dims(img, axis=0)
     return img
