@@ -59,7 +59,7 @@ x_decoded_mean = decoder_mean(c_decoded)
 
 
 def vae_loss(x, x_decoded_mean):
-    # NOTE: binary_crossentropy expects a batch_size by dim for x and x_decoded_mean, so we MUST flatten these!!!!!
+    # NOTE: binary_crossentropy expects a batch_size by dim for x and x_decoded_mean, so we MUST flatten these!
     x = K.flatten(x)
     x_decoded_mean = K.flatten(x_decoded_mean)
     xent_loss = objectives.binary_crossentropy(x, x_decoded_mean)
