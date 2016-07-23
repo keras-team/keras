@@ -38,8 +38,6 @@ from keras.preprocessing.image import load_img, img_to_array
 import numpy as np
 
 
-
-
 # The names of layers in resnet50 are generated with the following format
 # [type][stage][block]_branch[branch][layer]
 # type: 'res' for conv layer, 'bn' and 'scale' for BN layer
