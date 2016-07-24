@@ -8,10 +8,9 @@ import matplotlib.pyplot as plt
 from keras.layers import Input, Dense, Lambda
 from keras.models import Model
 from keras import backend as K
-from keras import objectives
 from keras.datasets import mnist
 
-batch_size = 16
+batch_size = 100
 original_dim = 784
 latent_dim = 2
 intermediate_dim = 128
@@ -40,8 +39,11 @@ h_decoded = decoder_h(z)
 x_decoded_mean = decoder_mean(h_decoded)
 
 def vae_loss(x, x_decoded_mean):
-    xent_loss = objectives.binary_crossentropy(x, x_decoded_mean)
-    kl_loss = - 0.5 * K.mean(1 + z_log_std - K.square(z_mean) - K.exp(z_log_std), axis=-1)
+    xent_loss = K.sum(K.binary_crossentropy(x_decoded_mean, x), axis=-1)
+    kl_loss = -0.5 * K.sum((
+        1 + 2 * (z_log_std + np.log(epsilon_std)) - K.square(z_mean) -
+        (epsilon_std ** 2) * K.exp(2 * z_log_std)
+    ), axis=-1)
     return xent_loss + kl_loss
 
 vae = Model(x, x_decoded_mean)
@@ -81,13 +83,13 @@ generator = Model(decoder_input, _x_decoded_mean)
 n = 15  # figure with 15x15 digits
 digit_size = 28
 figure = np.zeros((digit_size * n, digit_size * n))
-# we will sample n points within [-15, 15] standard deviations
-grid_x = np.linspace(-15, 15, n)
-grid_y = np.linspace(-15, 15, n)
+# we will sample n points within [-2, 2] standard deviations
+grid_x = np.linspace(-2, 2, n) * np.std(x_test_encoded[:, 0])
+grid_y = np.linspace(-2, 2, n) * np.std(x_test_encoded[:, 1])
 
 for i, yi in enumerate(grid_x):
     for j, xi in enumerate(grid_y):
-        z_sample = np.array([[xi, yi]]) * epsilon_std
+        z_sample = np.array([[xi, yi]])
         x_decoded = generator.predict(z_sample)
         digit = x_decoded[0].reshape(digit_size, digit_size)
         figure[i * digit_size: (i + 1) * digit_size,
