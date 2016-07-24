@@ -932,16 +932,14 @@ def _preprocess_conv2d_kernel(kernel, dim_ordering):
     return kernel
 
 
-def _preprocess_border_mode(border_mode, kernel):
+def _preprocess_border_mode(border_mode):
     if border_mode == 'same':
         th_border_mode = 'half'
-        np_kernel = kernel.eval()
     elif border_mode == 'valid':
         th_border_mode = 'valid'
-        np_kernel = None
     else:
         raise Exception('Border mode not supported: ' + str(border_mode))
-    return th_border_mode, np_kernel
+    return th_border_mode
 
 
 def _preprocess_image_shape(dim_ordering, image_shape):
@@ -976,16 +974,12 @@ def _preprocess_filter_shape(dim_ordering, filter_shape):
     return filter_shape
 
 
-def _postprocess_border_mode(conv_out, x, border_mode, np_kernel, strides):
+def _postprocess_conv2d_output(conv_out, x, border_mode, np_kernel, strides, dim_ordering):
     if border_mode == 'same':
         if np_kernel.shape[2] % 2 == 0:
             conv_out = conv_out[:, :, :(x.shape[2] + strides[0] - 1) // strides[0], :]
         if np_kernel.shape[3] % 2 == 0:
             conv_out = conv_out[:, :, :, :(x.shape[3] + strides[1] - 1) // strides[1]]
-    return conv_out
-
-
-def _postprocess_conv2d_output(conv_out, dim_ordering):
     if dim_ordering == 'tf':
         conv_out = conv_out.dimshuffle((0, 2, 3, 1))
     return conv_out
@@ -1009,7 +1003,8 @@ def conv2d(x, kernel, strides=(1, 1), border_mode='valid',
 
     x = _preprocess_conv2d_input(x, dim_ordering)
     kernel = _preprocess_conv2d_kernel(kernel, dim_ordering)
-    th_border_mode, np_kernel = _preprocess_border_mode(border_mode, kernel)
+    th_border_mode = _preprocess_border_mode(border_mode)
+    np_kernel = kernel.eval()
     image_shape = _preprocess_image_shape(dim_ordering, image_shape)
     filter_shape = _preprocess_filter_shape(dim_ordering, filter_shape)
 
@@ -1028,8 +1023,8 @@ def conv2d(x, kernel, strides=(1, 1), border_mode='valid',
                                  filter_shape=filter_shape,
                                  filter_dilation=filter_dilation)
 
-    conv_out = _postprocess_border_mode(conv_out, x, border_mode, np_kernel, strides)
-    conv_out = _postprocess_conv2d_output(conv_out, dim_ordering)
+    conv_out = _postprocess_conv2d_output(conv_out, x, border_mode, np_kernel,
+                                          strides, dim_ordering)
     return conv_out
 
 
@@ -1055,7 +1050,8 @@ def deconv2d(x, kernel, output_shape, strides=(1, 1),
     x = _preprocess_conv2d_input(x, dim_ordering)
     kernel = _preprocess_conv2d_kernel(kernel, dim_ordering)
     kernel = kernel.dimshuffle((1, 0, 2, 3))
-    th_border_mode, np_kernel = _preprocess_border_mode(border_mode, kernel)
+    th_border_mode = _preprocess_border_mode(border_mode)
+    np_kernel = kernel.eval()
     filter_shape = _preprocess_filter_shape(dim_ordering, filter_shape)
 
     op = T.nnet.abstract_conv.AbstractConv2d_gradInputs(imshp=output_shape,
@@ -1065,8 +1061,8 @@ def deconv2d(x, kernel, output_shape, strides=(1, 1),
                                                         filter_flip=not flip_filters)
     conv_out = op(kernel, x, output_shape[2:])
 
-    conv_out = _postprocess_border_mode(conv_out, x, border_mode, np_kernel, strides)
-    conv_out = _postprocess_conv2d_output(conv_out, dim_ordering)
+    conv_out = _postprocess_conv2d_output(conv_out, x, border_mode, np_kernel,
+                                          strides, dim_ordering)
     return conv_out
 
 

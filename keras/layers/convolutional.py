@@ -409,7 +409,6 @@ class Deconvolution2D(Convolution2D):
                                               bias=bias, **kwargs)
 
     def get_output_shape_for(self, input_shape):
-        # nb_filter = self.output_shape_[1]
         if self.dim_ordering == 'th':
             rows = input_shape[2]
             cols = input_shape[3]
@@ -430,10 +429,8 @@ class Deconvolution2D(Convolution2D):
             return (input_shape[0], rows, cols, self.nb_filter)
         else:
             raise Exception('Invalid dim_ordering: ' + self.dim_ordering)
-        # return self.output_shape_
 
     def call(self, x, mask=None):
-        # output_shape = self.get_output_shape_for(x.shape)
         output = K.deconv2d(x, self.W, self.output_shape_, 
                             strides=self.subsample,
                             border_mode=self.border_mode,
@@ -450,21 +447,7 @@ class Deconvolution2D(Convolution2D):
         return output
 
     def get_config(self):
-        config = {'nb_filter': self.nb_filter,
-                  'nb_row': self.nb_row,
-                  'nb_col': self.nb_col,
-                  'output_shape': self.output_shape,
-                  'init': self.init.__name__,
-                  'activation': self.activation.__name__,
-                  'border_mode': self.border_mode,
-                  'subsample': self.subsample,
-                  'dim_ordering': self.dim_ordering,
-                  'W_regularizer': self.W_regularizer.get_config() if self.W_regularizer else None,
-                  'b_regularizer': self.b_regularizer.get_config() if self.b_regularizer else None,
-                  'activity_regularizer': self.activity_regularizer.get_config() if self.activity_regularizer else None,
-                  'W_constraint': self.W_constraint.get_config() if self.W_constraint else None,
-                  'b_constraint': self.b_constraint.get_config() if self.b_constraint else None,
-                  'bias': self.bias}
+        config = {'output_shape': self.output_shape}
         base_config = super(Deconvolution2D, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
