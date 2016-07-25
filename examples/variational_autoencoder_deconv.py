@@ -33,24 +33,26 @@ f = Flatten()(c)
 h = Dense(intermediate_dim, activation='relu')(f)
 
 z_mean = Dense(latent_dim)(h)
-z_log_std = Dense(latent_dim)(h)
+z_log_var = Dense(latent_dim)(h)
+
 
 def sampling(args):
-    z_mean, z_log_std = args
+    z_mean, z_log_var = args
     epsilon = K.random_normal(shape=(batch_size, latent_dim),
                               mean=0., std=epsilon_std)
-    return z_mean + K.exp(z_log_std) * epsilon
+    return z_mean + K.exp(z_log_var) * epsilon
 
 # note that "output_shape" isn't necessary with the TensorFlow backend
-# so you could write `Lambda(sampling)([z_mean, z_log_std])`
-z = Lambda(sampling, output_shape=(latent_dim,))([z_mean, z_log_std])
+# so you could write `Lambda(sampling)([z_mean, z_log_var])`
+z = Lambda(sampling, output_shape=(latent_dim,))([z_mean, z_log_var])
 
 # we instantiate these layers separately so as to reuse them later
 decoder_h = Dense(intermediate_dim, activation='relu')
 decoder_f = Dense(nb_filters*img_rows*img_cols, activation='relu')
 decoder_c = Reshape((nb_filters, img_rows, img_cols))
 decoder_mean = Deconvolution2D(img_chns, nb_conv, nb_conv,
-                               (batch_size, img_chns, img_rows, img_cols), border_mode='same')
+                               (batch_size, img_chns, img_rows, img_cols),
+                               border_mode='same')
 
 h_decoded = decoder_h(z)
 f_decoded = decoder_f(h_decoded)
@@ -63,7 +65,7 @@ def vae_loss(x, x_decoded_mean):
     x = K.flatten(x)
     x_decoded_mean = K.flatten(x_decoded_mean)
     xent_loss = objectives.binary_crossentropy(x, x_decoded_mean)
-    kl_loss = - 0.5 * K.mean(1 + z_log_std - K.square(z_mean) - K.exp(z_log_std), axis=-1)
+    kl_loss = - 0.5 * K.mean(1 + z_log_var - K.square(z_mean) - K.exp(z_log_var), axis=-1)
     return xent_loss + kl_loss
 
 vae = Model(x, x_decoded_mean)
@@ -111,7 +113,7 @@ grid_y = np.linspace(-15, 15, n)
 
 for i, yi in enumerate(grid_x):
     for j, xi in enumerate(grid_y):
-        z_sample = np.array([[xi, yi]]) * epsilon_std
+        z_sample = np.array([[xi, yi]])
         x_decoded = generator.predict(z_sample)
         digit = x_decoded[0].reshape(digit_size, digit_size)
         figure[i * digit_size: (i + 1) * digit_size,

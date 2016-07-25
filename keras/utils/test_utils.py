@@ -36,7 +36,8 @@ def get_test_data(nb_train=1000, nb_test=500, input_shape=(10,),
 
 
 def layer_test(layer_cls, kwargs={}, input_shape=None, input_dtype=None,
-               input_data=None, expected_output=None, expected_output_dtype=None, fixed_batch_size=False):
+               input_data=None, expected_output=None,
+               expected_output_dtype=None, fixed_batch_size=False):
     '''Test routine for a layer with a single input tensor
     and single output tensor.
     '''

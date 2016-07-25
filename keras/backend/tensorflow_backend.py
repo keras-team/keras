@@ -1250,10 +1250,10 @@ def l2_normalize(x, axis):
 
 # CONVOLUTIONS
 
-def _preprocess_deconv_output_shape(sh, dim_ordering):
-    if dim_ordering == "th":
-        sh = (sh[0], sh[2], sh[3], sh[1])
-    return sh
+def _preprocess_deconv_output_shape(shape, dim_ordering):
+    if dim_ordering == 'th':
+        shape = (shape[0], shape[2], shape[3], shape[1])
+    return shape
 
 
 def _preprocess_conv2d_input(x, dim_ordering):
@@ -1383,7 +1383,7 @@ def deconv2d(x, kernel, output_shape, strides=(1, 1),
     x = _preprocess_conv2d_input(x, dim_ordering)
     output_shape = _preprocess_deconv_output_shape(output_shape, dim_ordering)
     kernel = _preprocess_conv2d_kernel(kernel, dim_ordering)
-    kernel = tf.transpose(kernel, (0, 1, 3, 2))  # tranpose kernel chanels
+    kernel = tf.transpose(kernel, (0, 1, 3, 2))
     padding = _preprocess_border_mode(border_mode)
     strides = (1,) + strides + (1,)
 
