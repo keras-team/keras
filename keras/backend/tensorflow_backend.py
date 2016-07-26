@@ -859,7 +859,8 @@ def set_value(x, value):
     '''Sets the value of a tensor variable,
     from a Numpy array.
     '''
-    tf_dtype = _convert_string_dtype(dtype(value))
+    value = np.asarray(value)
+    tf_dtype = _convert_string_dtype((x*1.).dtype)
     assign_placeholder = tf.placeholder(tf_dtype, shape=value.shape)
     assign_op = x.assign(assign_placeholder)
     get_session().run(assign_op, feed_dict={assign_placeholder: value})
