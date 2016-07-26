@@ -44,7 +44,10 @@ def learning_phase():
 
 def set_learning_phase(value):
     global _LEARNING_PHASE
-    _LEARNING_PHASE = tf.constant(value, name='keras_learning_phase')
+    if value not in {0, 1}:
+        raise ValueError('Expected learning phase to be '
+                         '0 or 1.')
+    _LEARNING_PHASE = value
 
 
 def get_session():
@@ -559,6 +562,34 @@ def not_equal(x, y):
     return tf.not_equal(x, y)
 
 
+def greater(x, y):
+    '''Element-wise truth value of (x > y).
+    Returns a bool tensor.
+    '''
+    return tf.greater(x, y)
+
+
+def greater_equal(x, y):
+    '''Element-wise truth value of (x >= y).
+    Returns a bool tensor.
+    '''
+    return tf.greater_equal(x, y)
+
+
+def lesser(x, y):
+    '''Element-wise truth value of (x < y).
+    Returns a bool tensor.
+    '''
+    return tf.less(x, y)
+
+
+def lesser_equal(x, y):
+    '''Element-wise truth value of (x <= y).
+    Returns a bool tensor.
+    '''
+    return tf.less_equal(x, y)
+
+
 def maximum(x, y):
     '''Element-wise maximum of two tensors.
     '''
@@ -675,6 +706,27 @@ def resize_images(X, height_factor, width_factor, dim_ordering):
         raise Exception('Invalid dim_ordering: ' + dim_ordering)
 
 
+def resize_volumes(X, depth_factor, height_factor, width_factor, dim_ordering):
+    '''Resize the volume contained in a 5D tensor of shape
+    - [batch, channels, depth, height, width] (for 'th' dim_ordering)
+    - [batch, depth, height, width, channels] (for 'tf' dim_ordering)
+    by a factor of (depth_factor, height_factor, width_factor).
+    All three factors should be positive integers.
+    '''
+    if dim_ordering == 'th':
+        output = repeat_elements(X, depth_factor, axis=2)
+        output = repeat_elements(output, height_factor, axis=3)
+        output = repeat_elements(output, width_factor, axis=4)
+        return output
+    elif dim_ordering == 'tf':
+        output = repeat_elements(X, depth_factor, axis=1)
+        output = repeat_elements(output, height_factor, axis=2)
+        output = repeat_elements(output, width_factor, axis=3)
+        return output
+    else:
+        raise Exception('Invalid dim_ordering: ' + dim_ordering)
+
+
 def repeat_elements(x, rep, axis):
     '''Repeats the elements of a tensor along an axis, like np.repeat
 
@@ -753,6 +805,32 @@ def spatial_2d_padding(x, padding=(1, 1), dim_ordering='th'):
     return tf.pad(x, pattern)
 
 
+def spatial_3d_padding(x, padding=(1, 1, 1), dim_ordering='th'):
+    '''Pads 5D tensor with zeros for the depth, height, width dimension with
+    "padding[0]", "padding[1]" and "padding[2]" (resp.) zeros left and right
+
+    For 'tf' dim_ordering, the 2nd, 3rd and 4th dimension will be padded.
+    For 'th' dim_ordering, the 3rd, 4th and 5th dimension will be padded.
+    '''
+    if dim_ordering == 'th':
+        pattern = [
+            [0, 0],
+            [0, 0],
+            [padding[0], padding[0]],
+            [padding[1], padding[1]],
+            [padding[2], padding[2]]
+        ]
+    else:
+        pattern = [
+            [0, 0],
+            [padding[0], padding[0]],
+            [padding[1], padding[1]],
+            [padding[2], padding[2]],
+            [0, 0]
+        ]
+    return tf.pad(x, pattern)
+
+
 def pack(x):
     return tf.pack(x)
 
@@ -796,6 +874,13 @@ def batch_set_value(tuples):
         get_session().run(ops)
 
 
+def print_tensor(x, message=''):
+    '''Print the message and the tensor when evaluated and return the same
+    tensor.
+    '''
+    return tf.Print(x, [x], message)
+
+
 # GRAPH MANIPULATION
 
 class Function(object):
@@ -819,7 +904,7 @@ class Function(object):
 
     def __call__(self, inputs):
         assert type(inputs) in {list, tuple}
-        names = [v.name for v in self.inputs]
+        names = [getattr(v, 'name', None) for v in self.inputs]
         feed_dict = dict(zip(names, inputs))
         session = get_session()
         updated = session.run(self.outputs + [self.updates_op], feed_dict=feed_dict)
@@ -989,6 +1074,11 @@ def in_train_phase(x, alt):
     '''Selects `x` in train phase, and `alt` otherwise.
     Note that `alt` should have the *same shape* as `x`.
     '''
+    if _LEARNING_PHASE is 1:
+        return x
+    elif _LEARNING_PHASE is 0:
+        return alt
+    # else: assume learning phase is a placeholder.
     x_shape = copy.copy(x.get_shape())
     x = tf.python.control_flow_ops.cond(tf.cast(_LEARNING_PHASE, 'bool'),
                                         lambda: x,
@@ -1002,6 +1092,10 @@ def in_test_phase(x, alt):
     '''Selects `x` in test phase, and `alt` otherwise.
     Note that `alt` should have the *same shape* as `x`.
     '''
+    if _LEARNING_PHASE is 1:
+        return alt
+    elif _LEARNING_PHASE is 0:
+        return x
     x_shape = copy.copy(x.get_shape())
     x = tf.python.control_flow_ops.cond(tf.cast(_LEARNING_PHASE, 'bool'),
                                         lambda: alt,
@@ -1156,6 +1250,12 @@ def l2_normalize(x, axis):
 
 # CONVOLUTIONS
 
+def _preprocess_deconv_output_shape(shape, dim_ordering):
+    if dim_ordering == 'th':
+        shape = (shape[0], shape[2], shape[3], shape[1])
+    return shape
+
+
 def _preprocess_conv2d_input(x, dim_ordering):
     if _FLOATX == 'float64':
         x = tf.cast(x, 'float32')
@@ -1281,11 +1381,12 @@ def deconv2d(x, kernel, output_shape, strides=(1, 1),
         raise Exception('Unknown dim_ordering ' + str(dim_ordering))
 
     x = _preprocess_conv2d_input(x, dim_ordering)
+    output_shape = _preprocess_deconv_output_shape(output_shape, dim_ordering)
     kernel = _preprocess_conv2d_kernel(kernel, dim_ordering)
+    kernel = tf.transpose(kernel, (0, 1, 3, 2))
     padding = _preprocess_border_mode(border_mode)
     strides = (1,) + strides + (1,)
 
-    # TODO: pre-process output_shape if dim_ordering == th
     x = tf.nn.conv2d_transpose(x, kernel, output_shape, strides,
                                padding=padding)
     return _postprocess_conv2d_output(x, dim_ordering)

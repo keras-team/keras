@@ -3,6 +3,7 @@ import numpy as np
 from numpy.testing import assert_allclose
 
 from keras.utils.test_utils import layer_test, keras_test
+from keras.utils.np_utils import conv_input_length
 from keras import backend as K
 from keras.layers import convolutional
 
@@ -86,6 +87,45 @@ def test_convolution_2d():
                                'activity_regularizer': 'activity_l2',
                                'subsample': subsample},
                        input_shape=(nb_samples, stack_size, nb_row, nb_col))
+
+
+@keras_test
+def test_deconvolution_2d():
+    nb_samples = 2
+    nb_filter = 2
+    stack_size = 3
+    nb_row = 10
+    nb_col = 6
+
+    for border_mode in ['valid', 'same']:
+        for subsample in [(1, 1), (2, 2)]:
+            if border_mode == 'same' and subsample != (1, 1):
+                continue
+
+            rows = conv_input_length(nb_row, 3, border_mode, subsample[0])
+            cols = conv_input_length(nb_col, 3, border_mode, subsample[1])
+            layer_test(convolutional.Deconvolution2D,
+                       kwargs={'nb_filter': nb_filter,
+                               'nb_row': 3,
+                               'nb_col': 3,
+                               'output_shape': (nb_samples, nb_filter, rows, cols),
+                               'border_mode': border_mode,
+                               'subsample': subsample},
+                       input_shape=(nb_samples, stack_size, nb_row, nb_col),
+                       fixed_batch_size=True)
+
+            layer_test(convolutional.Deconvolution2D,
+                       kwargs={'nb_filter': nb_filter,
+                               'nb_row': 3,
+                               'nb_col': 3,
+                               'output_shape': (nb_samples, nb_filter, rows, cols),
+                               'border_mode': border_mode,
+                               'W_regularizer': 'l2',
+                               'b_regularizer': 'l2',
+                               'activity_regularizer': 'activity_l2',
+                               'subsample': subsample},
+                       input_shape=(nb_samples, stack_size, nb_row, nb_col),
+                       fixed_batch_size=True)
 
 
 @keras_test
@@ -284,7 +324,6 @@ def test_zero_padding_2d():
     layer.get_config()
 
 
-@pytest.mark.skipif(K._BACKEND != 'theano', reason="Requires Theano backend")
 def test_zero_padding_3d():
     nb_samples = 2
     stack_size = 2
@@ -360,7 +399,6 @@ def test_upsampling_2d():
                 assert_allclose(out, expected_out)
 
 
-@pytest.mark.skipif(K._BACKEND != 'theano', reason="Requires Theano backend")
 def test_upsampling_3d():
     nb_samples = 2
     stack_size = 2

@@ -29,7 +29,7 @@ You can also define the environment variable ``KERAS_BACKEND`` and this will
 override what is defined in your config file :
 
 ```bash
-KERAS_BACKEND=tensorflow python -c "from keras import backend; print backend._BACKEND"
+KERAS_BACKEND=tensorflow python -c "from keras import backend; print(backend._BACKEND)"
 Using TensorFlow backend.
 tensorflow
 ```

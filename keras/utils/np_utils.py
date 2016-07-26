@@ -120,3 +120,13 @@ def conv_output_length(input_length, filter_size, border_mode, stride, dilation=
     elif border_mode == 'valid':
         output_length = input_length - dilated_filter_size + 1
     return (output_length + stride - 1) // stride
+
+def conv_input_length(output_length, filter_size, border_mode, stride):
+    if output_length is None:
+        return None
+    assert border_mode in {'same', 'valid'}
+    if border_mode == 'same':
+        pad = filter_size // 2
+    elif border_mode == 'valid':
+        pad = 0
+    return (output_length - 1) * stride - 2 * pad + filter_size

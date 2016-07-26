@@ -3,6 +3,7 @@ from theano import tensor as T
 from theano.sandbox.rng_mrg import MRG_RandomStreams as RandomStreams
 from theano.tensor.signal import pool
 from theano.tensor.nnet import conv3d2d
+from theano.printing import Print
 try:
     from theano.tensor.nnet.nnet import softsign as T_softsign
 except ImportError:
@@ -20,6 +21,14 @@ _LEARNING_PHASE = T.scalar(dtype='uint8', name='keras_learning_phase')  # 0 = te
 def learning_phase():
     # False = test, True = train
     return _LEARNING_PHASE
+
+
+def set_learning_phase(value):
+    global _LEARNING_PHASE
+    if value not in {0, 1}:
+        raise ValueError('Expected learning phase to be '
+                         '0 or 1.')
+    _LEARNING_PHASE = value
 
 
 # VARIABLE MANIPULATION
@@ -317,6 +326,22 @@ def not_equal(x, y):
     return T.neq(x, y)
 
 
+def greater(x, y):
+    return T.gt(x, y)
+
+
+def greater_equal(x, y):
+    return T.ge(x, y)
+
+
+def lesser(x, y):
+    return T.lt(x, y)
+
+
+def lesser_equal(x, y):
+    return T.le(x, y)
+
+
 def maximum(x, y):
     return T.maximum(x, y)
 
@@ -595,6 +620,14 @@ def batch_set_value(tuples):
         x.set_value(np.asarray(value, dtype=x.dtype))
 
 
+def print_tensor(x, message=''):
+    '''Print the message and the tensor when evaluated and return the same
+    tensor.
+    '''
+    p_op = Print(message)
+    return p_op(x)
+
+
 # GRAPH MANIPULATION
 
 class Function(object):
@@ -602,7 +635,7 @@ class Function(object):
     def __init__(self, inputs, outputs, updates=[], **kwargs):
         self.function = theano.function(inputs, outputs, updates=updates,
                                         allow_input_downcast=True,
-                                        on_unused_input='warn',
+                                        on_unused_input='ignore',
                                         **kwargs)
 
     def __call__(self, inputs):
@@ -803,12 +836,20 @@ def switch(condition, then_expression, else_expression):
 
 
 def in_train_phase(x, alt):
+    if _LEARNING_PHASE is 1:
+        return x
+    elif _LEARNING_PHASE is 0:
+        return alt
     x = T.switch(_LEARNING_PHASE, x, alt)
     x._uses_learning_phase = True
     return x
 
 
 def in_test_phase(x, alt):
+    if _LEARNING_PHASE is 1:
+        return alt
+    elif _LEARNING_PHASE is 0:
+        return x
     x = T.switch(_LEARNING_PHASE, alt, x)
     x._uses_learning_phase = True
     return x
@@ -896,6 +937,79 @@ def l2_normalize(x, axis):
 
 # CONVOLUTIONS
 
+def _preprocess_conv2d_input(x, dim_ordering):
+    if dim_ordering == 'tf':
+        # TF uses the last dimension as channel dimension,
+        # instead of the 2nd one.
+        # TH input shape: (samples, input_depth, rows, cols)
+        # TF input shape: (samples, rows, cols, input_depth)
+        x = x.dimshuffle((0, 3, 1, 2))
+    return x
+
+
+def _preprocess_conv2d_kernel(kernel, dim_ordering):
+    if dim_ordering == 'tf':
+        # TF uses the last dimension as channel dimension,
+        # instead of the 2nd one.
+        # TH kernel shape: (depth, input_depth, rows, cols)
+        # TF kernel shape: (rows, cols, input_depth, depth)
+        kernel = kernel.dimshuffle((3, 2, 0, 1))
+    return kernel
+
+
+def _preprocess_border_mode(border_mode):
+    if border_mode == 'same':
+        th_border_mode = 'half'
+    elif border_mode == 'valid':
+        th_border_mode = 'valid'
+    else:
+        raise Exception('Border mode not supported: ' + str(border_mode))
+    return th_border_mode
+
+
+def _preprocess_image_shape(dim_ordering, image_shape):
+    # Theano might not accept long type
+    def int_or_none(value):
+        try:
+            return int(value)
+        except TypeError:
+            return None
+    if dim_ordering == 'tf':
+        if image_shape:
+            image_shape = (image_shape[0], image_shape[3],
+                           image_shape[1], image_shape[2])
+    if image_shape is not None:
+        image_shape = tuple(int_or_none(v) for v in image_shape)
+    return image_shape
+
+
+def _preprocess_filter_shape(dim_ordering, filter_shape):
+    # Theano might not accept long type
+    def int_or_none(value):
+        try:
+            return int(value)
+        except TypeError:
+            return None
+    if dim_ordering == 'tf':
+        if filter_shape:
+            filter_shape = (filter_shape[3], filter_shape[2],
+                            filter_shape[0], filter_shape[1])
+    if filter_shape is not None:
+        filter_shape = tuple(int_or_none(v) for v in filter_shape)
+    return filter_shape
+
+
+def _postprocess_conv2d_output(conv_out, x, border_mode, np_kernel, strides, dim_ordering):
+    if border_mode == 'same':
+        if np_kernel.shape[2] % 2 == 0:
+            conv_out = conv_out[:, :, :(x.shape[2] + strides[0] - 1) // strides[0], :]
+        if np_kernel.shape[3] % 2 == 0:
+            conv_out = conv_out[:, :, :, :(x.shape[3] + strides[1] - 1) // strides[1]]
+    if dim_ordering == 'tf':
+        conv_out = conv_out.dimshuffle((0, 2, 3, 1))
+    return conv_out
+
+
 def conv2d(x, kernel, strides=(1, 1), border_mode='valid',
            dim_ordering=_IMAGE_DIM_ORDERING, image_shape=None,
            filter_shape=None, filter_dilation=(1, 1)):
@@ -912,42 +1026,12 @@ def conv2d(x, kernel, strides=(1, 1), border_mode='valid',
     if dim_ordering not in {'th', 'tf'}:
         raise Exception('Unknown dim_ordering ' + str(dim_ordering))
 
-    if dim_ordering == 'tf':
-        # TF uses the last dimension as channel dimension,
-        # instead of the 2nd one.
-        # TH input shape: (samples, input_depth, rows, cols)
-        # TF input shape: (samples, rows, cols, input_depth)
-        # TH kernel shape: (depth, input_depth, rows, cols)
-        # TF kernel shape: (rows, cols, input_depth, depth)
-        x = x.dimshuffle((0, 3, 1, 2))
-        kernel = kernel.dimshuffle((3, 2, 0, 1))
-        if image_shape:
-            image_shape = (image_shape[0], image_shape[3],
-                           image_shape[1], image_shape[2])
-        if filter_shape:
-            filter_shape = (filter_shape[3], filter_shape[2],
-                            filter_shape[0], filter_shape[1])
-
-    if border_mode == 'same':
-        th_border_mode = 'half'
-        np_kernel = kernel.eval()
-    elif border_mode == 'valid':
-        th_border_mode = 'valid'
-    else:
-        raise Exception('Border mode not supported: ' + str(border_mode))
-
-    # Theano might not accept long type
-    def int_or_none(value):
-        try:
-            return int(value)
-        except TypeError:
-            return None
-
-    if image_shape is not None:
-        image_shape = tuple(int_or_none(v) for v in image_shape)
-
-    if filter_shape is not None:
-        filter_shape = tuple(int_or_none(v) for v in filter_shape)
+    x = _preprocess_conv2d_input(x, dim_ordering)
+    kernel = _preprocess_conv2d_kernel(kernel, dim_ordering)
+    th_border_mode = _preprocess_border_mode(border_mode)
+    np_kernel = kernel.eval()
+    image_shape = _preprocess_image_shape(dim_ordering, image_shape)
+    filter_shape = _preprocess_filter_shape(dim_ordering, filter_shape)
 
     # TODO: remove the if statement when theano with no filter dilation is deprecated.
     if filter_dilation == (1, 1):
@@ -964,14 +1048,8 @@ def conv2d(x, kernel, strides=(1, 1), border_mode='valid',
                                  filter_shape=filter_shape,
                                  filter_dilation=filter_dilation)
 
-    if border_mode == 'same':
-        if np_kernel.shape[2] % 2 == 0:
-            conv_out = conv_out[:, :, :(x.shape[2] + strides[0] - 1) // strides[0], :]
-        if np_kernel.shape[3] % 2 == 0:
-            conv_out = conv_out[:, :, :, :(x.shape[3] + strides[1] - 1) // strides[1]]
-
-    if dim_ordering == 'tf':
-        conv_out = conv_out.dimshuffle((0, 2, 3, 1))
+    conv_out = _postprocess_conv2d_output(conv_out, x, border_mode, np_kernel,
+                                          strides, dim_ordering)
     return conv_out
 
 
@@ -979,7 +1057,38 @@ def deconv2d(x, kernel, output_shape, strides=(1, 1),
              border_mode='valid',
              dim_ordering=_IMAGE_DIM_ORDERING,
              image_shape=None, filter_shape=None):
-    raise NotImplementedError
+    '''2D deconvolution (transposed convolution).
+
+    # Arguments
+        kernel: kernel tensor.
+        output_shape: desired dimensions of output.
+        strides: strides tuple.
+        border_mode: string, "same" or "valid".
+        dim_ordering: "tf" or "th".
+            Whether to use Theano or TensorFlow dimension ordering
+        in inputs/kernels/ouputs.
+    '''
+    flip_filters = False
+    if dim_ordering not in {'th', 'tf'}:
+        raise Exception('Unknown dim_ordering ' + str(dim_ordering))
+
+    x = _preprocess_conv2d_input(x, dim_ordering)
+    kernel = _preprocess_conv2d_kernel(kernel, dim_ordering)
+    kernel = kernel.dimshuffle((1, 0, 2, 3))
+    th_border_mode = _preprocess_border_mode(border_mode)
+    np_kernel = kernel.eval()
+    filter_shape = _preprocess_filter_shape(dim_ordering, filter_shape)
+
+    op = T.nnet.abstract_conv.AbstractConv2d_gradInputs(imshp=output_shape,
+                                                        kshp=filter_shape,
+                                                        subsample=strides,
+                                                        border_mode=th_border_mode,
+                                                        filter_flip=not flip_filters)
+    conv_out = op(kernel, x, output_shape[2:])
+
+    conv_out = _postprocess_conv2d_output(conv_out, x, border_mode, np_kernel,
+                                          strides, dim_ordering)
+    return conv_out
 
 
 def atrous_conv2d(x, kernel, rate=1,

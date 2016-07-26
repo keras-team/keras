@@ -43,15 +43,15 @@ class EigenvalueRegularizer(Regularizer):
 
         # power method for approximating the dominant eigenvector:
         o = K.ones([dim1, 1])  # initial values for the dominant eigenvector
-        domin_eigenvect = K.dot(WW, o)
+        main_eigenvect = K.dot(WW, o)
         for n in range(power - 1):
-            domin_eigenvect = K.dot(WW, domin_eigenvect)
+            main_eigenvect = K.dot(WW, main_eigenvect)
 
-        WWd = K.dot(WW, domin_eigenvect)
+        WWd = K.dot(WW, main_eigenvect)
 
         # the corresponding dominant eigenvalue:
-        domin_eigenval = K.dot(K.transpose(WWd), domin_eigenvect) / K.dot(K.transpose(domin_eigenvect), domin_eigenvect)
-        regularized_loss = loss + (domin_eigenval ** 0.5) * self.k  # multiplied by the given regularization gain
+        main_eigenval = K.dot(K.transpose(WWd), main_eigenvect) / K.dot(K.transpose(main_eigenvect), main_eigenvect)
+        regularized_loss = loss + (main_eigenval ** 0.5) * self.k  # multiplied by the given regularization gain
 
         return K.in_train_phase(regularized_loss[0, 0], loss)
 
@@ -75,8 +75,11 @@ class WeightRegularizer(Regularizer):
                             'ActivityRegularizer '
                             '(i.e. activity_regularizer="l2" instead '
                             'of activity_regularizer="activity_l2".')
-        regularized_loss = loss + K.sum(K.abs(self.p)) * self.l1
-        regularized_loss += K.sum(K.square(self.p)) * self.l2
+        regularized_loss = loss
+        if self.l1:
+            regularized_loss += K.sum(self.l1 * K.abs(self.p))
+        if self.l2:
+            regularized_loss += K.sum(self.l2 * K.square(self.p))
         return K.in_train_phase(regularized_loss, loss)
 
     def get_config(self):
@@ -102,8 +105,10 @@ class ActivityRegularizer(Regularizer):
         regularized_loss = loss
         for i in range(len(self.layer.inbound_nodes)):
             output = self.layer.get_output_at(i)
-            regularized_loss += self.l1 * K.sum(K.mean(K.abs(output), axis=0))
-            regularized_loss += self.l2 * K.sum(K.mean(K.square(output), axis=0))
+            if self.l1:
+                regularized_loss += K.sum(self.l1 * K.abs(output))
+            if self.l2:
+                regularized_loss += K.sum(self.l2 * K.square(output))
         return K.in_train_phase(regularized_loss, loss)
 
     def get_config(self):

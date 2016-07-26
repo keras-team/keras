@@ -4,7 +4,7 @@ from __future__ import absolute_import
 from .. import backend as K
 from .. import activations, initializations, regularizers, constraints
 from ..engine import Layer, InputSpec
-from ..utils.np_utils import conv_output_length
+from ..utils.np_utils import conv_output_length, conv_input_length
 
 # imports for backwards namespace compatibility
 from .pooling import AveragePooling1D, AveragePooling2D, AveragePooling3D
@@ -376,6 +376,79 @@ class Convolution2D(Layer):
                   'b_constraint': self.b_constraint.get_config() if self.b_constraint else None,
                   'bias': self.bias}
         base_config = super(Convolution2D, self).get_config()
+        return dict(list(base_config.items()) + list(config.items()))
+
+
+class Deconvolution2D(Convolution2D):
+    '''Transposed convolution operator for filtering windows of two-dimensional inputs.
+    When using this layer as the first layer in a model,
+    provide the keyword argument `input_shape`
+    (tuple of integers, does not include the sample axis),
+    e.g. `input_shape=(3, 128, 128)` for 128x128 RGB pictures.
+    '''
+    def __init__(self, nb_filter, nb_row, nb_col, output_shape,
+                 init='glorot_uniform', activation='linear', weights=None,
+                 border_mode='valid', subsample=(1, 1),
+                 dim_ordering=K.image_dim_ordering(),
+                 W_regularizer=None, b_regularizer=None, activity_regularizer=None,
+                 W_constraint=None, b_constraint=None,
+                 bias=True, **kwargs):
+
+        if border_mode not in {'valid', 'same'}:
+            raise Exception('Invalid border mode for AtrousConv2D:', border_mode)
+
+        self.output_shape_ = output_shape
+
+        super(Deconvolution2D, self).__init__(nb_filter, nb_row, nb_col,
+                                              init=init, activation=activation,
+                                              weights=weights, border_mode=border_mode,
+                                              subsample=subsample, dim_ordering=dim_ordering,
+                                              W_regularizer=W_regularizer, b_regularizer=b_regularizer,
+                                              activity_regularizer=activity_regularizer,
+                                              W_constraint=W_constraint, b_constraint=b_constraint,
+                                              bias=bias, **kwargs)
+
+    def get_output_shape_for(self, input_shape):
+        if self.dim_ordering == 'th':
+            rows = input_shape[2]
+            cols = input_shape[3]
+        elif self.dim_ordering == 'tf':
+            rows = input_shape[1]
+            cols = input_shape[2]
+        else:
+            raise Exception('Invalid dim_ordering: ' + self.dim_ordering)
+
+        rows = conv_input_length(rows, self.nb_row,
+                                 self.border_mode, self.subsample[0])
+        cols = conv_input_length(cols, self.nb_col,
+                                 self.border_mode, self.subsample[1])
+
+        if self.dim_ordering == 'th':
+            return (input_shape[0], self.nb_filter, rows, cols)
+        elif self.dim_ordering == 'tf':
+            return (input_shape[0], rows, cols, self.nb_filter)
+        else:
+            raise Exception('Invalid dim_ordering: ' + self.dim_ordering)
+
+    def call(self, x, mask=None):
+        output = K.deconv2d(x, self.W, self.output_shape_, 
+                            strides=self.subsample,
+                            border_mode=self.border_mode,
+                            dim_ordering=self.dim_ordering,
+                            filter_shape=self.W_shape)
+        if self.bias:
+            if self.dim_ordering == 'th':
+                output += K.reshape(self.b, (1, self.nb_filter, 1, 1))
+            elif self.dim_ordering == 'tf':
+                output += K.reshape(self.b, (1, 1, 1, self.nb_filter))
+            else:
+                raise Exception('Invalid dim_ordering: ' + self.dim_ordering)
+        output = self.activation(output)
+        return output
+
+    def get_config(self):
+        config = {'output_shape': self.output_shape}
+        base_config = super(Deconvolution2D, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
 
@@ -1036,8 +1109,6 @@ class UpSampling3D(Layer):
     '''Repeat the first, second and third dimension of the data
     by size[0], size[1] and size[2] respectively.
 
-    Note: this layer will only work with Theano for the time being.
-
     # Arguments
         size: tuple of 3 integers. The upsampling factors for dim1, dim2 and dim3.
         dim_ordering: 'th' or 'tf'.
@@ -1061,9 +1132,6 @@ class UpSampling3D(Layer):
     '''
 
     def __init__(self, size=(2, 2, 2), dim_ordering=K.image_dim_ordering(), **kwargs):
-        if K._BACKEND != 'theano':
-            raise Exception(self.__class__.__name__ +
-                            ' is currently only working with Theano backend.')
         self.size = tuple(size)
         assert dim_ordering in {'tf', 'th'}, 'dim_ordering must be in {tf, th}'
         self.dim_ordering = dim_ordering
@@ -1192,8 +1260,6 @@ class ZeroPadding2D(Layer):
 class ZeroPadding3D(Layer):
     '''Zero-padding layer for 3D data (spatial or spatio-temporal).
 
-    Note: this layer will only work with Theano for the time being.
-
     # Arguments
         padding: tuple of int (length 3)
             How many zeros to add at the beginning and end of
@@ -1215,9 +1281,6 @@ class ZeroPadding3D(Layer):
     '''
 
     def __init__(self, padding=(1, 1, 1), dim_ordering=K.image_dim_ordering(), **kwargs):
-        if K._BACKEND != 'theano':
-            raise Exception(self.__class__.__name__ +
-                            ' is currently only working with Theano backend.')
         super(ZeroPadding3D, self).__init__(**kwargs)
         self.padding = tuple(padding)
         assert dim_ordering in {'tf', 'th'}, 'dim_ordering must be in {tf, th}'
@@ -1261,5 +1324,6 @@ class ZeroPadding3D(Layer):
 Conv1D = Convolution1D
 Conv2D = Convolution2D
 Conv3D = Convolution3D
+Deconv2D = Deconvolution2D
 AtrousConv2D = AtrousConvolution2D
 SeparableConv2D = SeparableConvolution2D

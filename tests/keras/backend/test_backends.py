@@ -151,6 +151,12 @@ class TestBackend(object):
         # count_params
         assert KTH.count_params(xth) == KTF.count_params(xtf)
 
+        # print_tensor
+        check_single_tensor_operation('print_tensor', ())
+        check_single_tensor_operation('print_tensor', (2,))
+        check_single_tensor_operation('print_tensor', (4, 3))
+        check_single_tensor_operation('print_tensor', (1, 2, 3))
+
     def test_elementwise_operations(self):
         check_single_tensor_operation('max', (4, 2))
         check_single_tensor_operation('max', (4, 2), axis=1, keepdims=True)
@@ -198,6 +204,11 @@ class TestBackend(object):
 
         # two-tensor ops
         check_two_tensor_operation('equal', (4, 2), (4, 2))
+        check_two_tensor_operation('not_equal', (4, 2), (4, 2))
+        check_two_tensor_operation('greater', (4, 2), (4, 2))
+        check_two_tensor_operation('greater_equal', (4, 2), (4, 2))
+        check_two_tensor_operation('lesser', (4, 2), (4, 2))
+        check_two_tensor_operation('lesser_equal', (4, 2), (4, 2))
         check_two_tensor_operation('maximum', (4, 2), (4, 2))
         check_two_tensor_operation('minimum', (4, 2), (4, 2))
 
