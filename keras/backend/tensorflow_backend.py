@@ -859,7 +859,10 @@ def set_value(x, value):
     '''Sets the value of a tensor variable,
     from a Numpy array.
     '''
-    tf.assign(x, np.asarray(value)).op.run(session=get_session())
+    tf_dtype = _convert_string_dtype(dtype(value))
+    assign_placeholder = tf.placeholder(tf_dtype, shape=value.shape)
+    assign_op = x.assign(assign_placeholder)
+    get_session().run(assign_op, feed_dict={assign_placeholder: value})
 
 
 def batch_set_value(tuples):
@@ -870,8 +873,7 @@ def batch_set_value(tuples):
             `value` should be a Numpy array.
     '''
     if tuples:
-        ops = [tf.assign(x, np.asarray(value)) for x, value in tuples]
-        get_session().run(ops)
+        [set_value(x,np.asarray(value)) for x, value in tuples]
 
 
 def print_tensor(x, message=''):
