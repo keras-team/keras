@@ -1,30 +1,22 @@
-'''This script demonstrates how to build the resnet50 architecture
+'''This script demonstrates how to build the deep residual network
 using the Keras functional API.
 
-get_resne50 returns the resnet50 model, the names of the model follows the model given by Kaiming He
+get_resne50 returns the deep residual network model (50 layers)
 
-You may want to visit Kaiming He' github homepage:
+Pleas visit Kaiming He' github homepage:
 https://github.com/KaimingHe
-for more information and the visualizable model
+for more information.
 
-The ralated paper is
+The related paper is
 "Deep Residual Learning for Image Recognition"
 Kaiming He, Xiangyu Zhang, Shaoqing Ren, Jian Sun
 http://arxiv.org/abs/1512.03385
 
-We provide pretrained weights for your research, this weights were converted from caffemodel
-provided by Kaiming He directly.
+Pretrained weights were converted from Kaiming He's caffemodel directly.
 
-For now we provide pretrained weights for tensorflow backend, pls donwload pretrained file at:
+For now we provide weights for tensorflow backend only, please donwload them at:
 http://pan.baidu.com/s/1i4Qp6CH (For China)
-https://drive.google.com/open?id=0B4ChsjFJvew3NVQ2U041Q0xHRHM (For Other contries)
-
-If you are using theano backend,
-you can transfer tf weights to th weights by hand under the instruction at:
-https://github.com/fchollet/keras/wiki/Converting-convolution-kernels-from-Theano-to-TensorFlow-and-vice-versa
-
-You can also download test images and synest_words file at my github:
-https://github.com/MoyanZitto/keras-scripts
+https://drive.google.com/open?id=0B4ChsjFJvew3NVQ2U041Q0xHRHM (For Other countries)
 
 @author: BigMoyan, University of Electronic Science and Techonlogy of China
 '''
@@ -35,6 +27,7 @@ from keras.layers.normalization import BatchNormalization
 from keras.models import Model
 from keras.layers import Input
 from keras.preprocessing.image import load_img, img_to_array
+import keras.backend as K
 import numpy as np
 
 
@@ -48,11 +41,11 @@ import numpy as np
 
 def identity_block(input_tensor, nb_filter, stage, block, kernel_size=3):
     """
-    the identity_block indicate the block that has no conv layer at shortcut
+    the identity_block is the block that has no conv layer at shortcut
     params:
         input_tensor: input tensor
         nb_filter: list of integers, the nb_filters of 3 conv layer at main path
-        stage: integet, current stage number
+        stage: integer, current stage number
         block: str like 'a','b'.., curretn block
         kernel_size: defualt 3, the kernel size of middle conv layer at main path
     """
@@ -77,16 +70,16 @@ def identity_block(input_tensor, nb_filter, stage, block, kernel_size=3):
 
 def conv_block(input_tensor, nb_filter, stage, block, kernel_size=3):
     """
-    conv_block indicate the block that has a conv layer at shortcut
+    conv_block is the block that has a conv layer at shortcut
     params:
         input_tensor: input tensor
         nb_filter: list of integers, the nb_filters of 3 conv layer at main path
-        stage: integet, current stage number
-        block: str like 'a','b'.., curretn block
+        stage: integer, current stage number
+        block: str like 'a','b'.., current block
         kernel_size: defualt 3, the kernel size of middle conv layer at main path
 
     Note that from stage 3, the first conv layer at main path is with subsample=(2,2)
-    And the shortcut should have subsample=(2,2) as well
+    And the shortcut should has subsample=(2,2) as well
     """
     nb_filter1, nb_filter2, nb_filter3 = nb_filter
     if stage == 2:
@@ -122,8 +115,7 @@ def read_img(img_path):
     """
     mean = (103.939, 116.779, 123.68)
     img = load_img(img_path, target_size=(224, 224))
-    # img has been transfered to (3,224,224) by img_to_array
-    img = img_to_array(img)
+    img = img_to_array(img, dim_ordering='tf')
 
     # decenterize
     img[0, :, :] -= mean[0]
@@ -140,11 +132,12 @@ def read_img(img_path):
 
 def get_resnet50():
     """
-    this function return the resnet50 model
-    you should load pretrained weights if you want to use this model directly
-    Note that since the pretrained weights were converted from caffemodel
-    so the order of channels for input image should be 'BGR' (the channel order of caffe)
+    this function returns the 50-layer residual network model
+    you should load pretrained weights if you want to use it directly.
+    Note that since the pretrained weights is converted from caffemodel
+    the order of channels for input image should be 'BGR' (the channel order of caffe)
     """
+    K.set_image_dim_ordering('tf')
     inp = Input(shape=(3, 224, 224))
     out = ZeroPadding2D((3, 3))(inp)
     out = Convolution2D(64, 7, 7, subsample=(2, 2), name='conv1')(out)
