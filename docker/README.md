@@ -46,11 +46,11 @@ Prints all make tasks
 
     $ make help
 
-You can change theano paramters by editing `/docker/theanorc`.
+You can change Theano parameters by editing `/docker/theanorc`.
 
 
 Note: If you would have a problem running nvidia-docker you may try the old way
-we have used. But it is not recomended. If you find a bug in nvidia-docker report
+we have used. But it is not recommended. If you find a bug in the nvidia-docker report
 it there please and try using the nvidia-docker as described above.
 
     $ export CUDA_SO=$(\ls /usr/lib/x86_64-linux-gnu/libcuda.* | xargs -I{} echo '-v {}:{}')
