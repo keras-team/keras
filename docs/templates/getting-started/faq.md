@@ -58,7 +58,31 @@ theano.config.floatX = 'float32'
 
 *It is not recommended to use pickle or cPickle to save a Keras model.*
 
-If you only need to save the architecture of a model, and not its weights, you can do:
+You can use `model.save(filepath)` to save a Keras model into a single HDF5 file which will contain:
+
+- the architecture of the model, allowing to re-create the model
+- the weights of the model
+- the training configuration (loss, optimizer)
+- the state of the optimizer, allowing to resume training exactly where you left off.
+
+You can then use `keras.models.load_model(filepath)` to reinstantiate your model.
+`load_model` will also take care of compiling the model using the saved training configuration
+(unless the model was never compiled in the first place).
+
+Example:
+
+```python
+from keras.models import load_model
+
+model.save('my_model.h5')  # creates a HDF5 file 'my_model.h5'
+del model  # deletes the existing model
+
+# returns a compiled model
+# identical to the previous one
+model = load_model('my_model.h5')
+```
+
+If you only need to save the **architecture of a model**, and not its weights or its training configuration, you can do:
 
 ```python
 # save as JSON
@@ -67,6 +91,8 @@ json_string = model.to_json()
 # save as YAML
 yaml_string = model.to_yaml()
 ```
+
+The generated JSON / YAML files are human-readable and can be manually edited if needed.
 
 You can then build a fresh model from this data:
 
@@ -79,7 +105,7 @@ model = model_from_json(json_string)
 model = model_from_yaml(yaml_string)
 ```
 
-If you need to save the weights of a model, you can do so in HDF5 with the code below.
+If you need to save the **weights of a model**, you can do so in HDF5 with the code below.
 
 Note that you will first need to install HDF5 and the Python library h5py, which do not come bundled with Keras.
 
@@ -91,22 +117,6 @@ Assuming you have code for instantiating your model, you can then load the weigh
 
 ```python
 model.load_weights('my_model_weights.h5')
-```
-
-This leads us to a way to save and reconstruct models from only serialized data:
-```python
-json_string = model.to_json()
-open('my_model_architecture.json', 'w').write(json_string)
-model.save_weights('my_model_weights.h5')
-
-# elsewhere...
-model = model_from_json(open('my_model_architecture.json').read())
-model.load_weights('my_model_weights.h5')
-```
-
-Finally, before it can be used, the model shall be compiled.
-```python
-model.compile(optimizer='adagrad', loss='mse')
 ```
 
 ---
