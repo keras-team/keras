@@ -3,7 +3,6 @@ import warnings
 import copy
 import json
 import os
-import types
 import numpy as np
 
 from . import backend as K

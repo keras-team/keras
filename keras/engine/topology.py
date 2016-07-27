@@ -2312,6 +2312,37 @@ class Container(Layer):
             output_tensors.append(layer_output_tensors[tensor_index])
         return cls(input=input_tensors, output=output_tensors, name=name)
 
+    def save(self, filepath, overwrite=True):
+        '''Save into a single HDF5 file:
+            - the model architecture, allowing to re-instantiate the model
+            - the model weights
+            - the state of the optimizer, allowing to resume training
+                exactly where you left off.
+
+        This allows you to save the entirety of the state of a model
+        in a single file.
+
+        Saved models can be reinstantiated via `keras.models.load_model`.
+        The model returned by `load_model`
+        is a compiled model ready to be used (unless the saved model
+        was never compiled in the first place).
+
+        # Example usage
+
+        ```python
+        from keras.models import load_model
+
+        model.save('my_model.h5')  # creates a HDF5 file 'my_model.h5'
+        del model  # deletes the existing model
+
+        # returns a compiled model
+        # identical to the previous one
+        model = load_model('my_model.h5')
+        ```
+        '''
+        from ..models import save_model
+        save_model(self, filepath, overwrite)
+
     def save_weights(self, filepath, overwrite=True):
         '''Dumps all layer weights to a HDF5 file.
 
