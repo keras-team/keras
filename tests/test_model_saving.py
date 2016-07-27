@@ -46,7 +46,6 @@ def test_sequential_model_saving_2():
     # test with funkier config
     model = Sequential()
     model.add(Dense(2, input_dim=3))
-    model.add(Dropout(0.2))
     model.add(RepeatVector(3))
     model.add(TimeDistributed(Dense(3)))
     model.compile(loss=objectives.MSE,

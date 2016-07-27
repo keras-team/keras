@@ -119,7 +119,7 @@ def load_model(filepath, custom_objects={}):
     f = h5py.File(filepath, mode='r')
 
     # instantiate model
-    model_config = json.loads(f.attrs.get('model_config'))
+    model_config = json.loads(str(f.attrs.get('model_config')))
     if model_config is None:
         raise ValueError('No model found in config file.')
     model = model_from_config(model_config, custom_objects=custom_objects)
@@ -128,7 +128,7 @@ def load_model(filepath, custom_objects={}):
     model.load_weights_from_hdf5_group(f['model_weights'])
 
     # instantiate optimizer
-    training_config = json.loads(f.attrs.get('training_config'))
+    training_config = json.loads(str(f.attrs.get('training_config')))
     if training_config is None:
         warnings.warn('No training configuration found in save file: '
                       'the model was *not* compiled. Compile it manually.')
