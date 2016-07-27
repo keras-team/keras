@@ -51,7 +51,7 @@ def test_sequential_model_saving_2():
     model.compile(loss=objectives.MSE,
                   optimizer=optimizers.RMSprop(lr=0.0001),
                   metrics=[metrics.categorical_accuracy],
-                  sample_weights_mode='temporal')
+                  sample_weight_mode='temporal')
     x = np.random.random((1, 3))
     y = np.random.random((1, 3, 3))
     model.train_on_batch(x, y)
@@ -108,8 +108,7 @@ def test_fuctional_model_saving():
     model = Model(input, output)
     model.compile(loss=objectives.MSE,
                   optimizer=optimizers.RMSprop(lr=0.0001),
-                  metrics=[metrics.categorical_accuracy],
-                  sample_weights_mode='temporal')
+                  metrics=[metrics.categorical_accuracy])
     x = np.random.random((1, 3))
     y = np.random.random((1, 3))
     model.train_on_batch(x, y)
