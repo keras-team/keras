@@ -29,7 +29,7 @@ def test_sequential_model_saving():
 
     new_model = load_model(fname)
     out2 = new_model.predict(x)
-    assert_allclose(out, out2)
+    assert_allclose(out, out2, atol=1e-05)
 
     # test that new updates are the same with both models
     x = np.random.random((1, 3))
@@ -38,7 +38,7 @@ def test_sequential_model_saving():
     new_model.train_on_batch(x, y)
     out = model.predict(x)
     out2 = new_model.predict(x)
-    assert_allclose(out, out2)
+    assert_allclose(out, out2, atol=1e-05)
 
 
 @keras_test
@@ -62,7 +62,7 @@ def test_sequential_model_saving_2():
 
     new_model = load_model(fname)
     out2 = new_model.predict(x)
-    assert_allclose(out, out2)
+    assert_allclose(out, out2, atol=1e-05)
 
     # test that new updates are the same with both models
     x = np.random.random((1, 3))
@@ -71,7 +71,7 @@ def test_sequential_model_saving_2():
     new_model.train_on_batch(x, y)
     out = model.predict(x)
     out2 = new_model.predict(x)
-    assert_allclose(out, out2)
+    assert_allclose(out, out2, atol=1e-05)
 
 
 @keras_test
@@ -96,7 +96,7 @@ def test_sequential_model_saving_3():
                        custom_objects={'custom_opt': custom_opt,
                                        'custom_loss': custom_loss})
     out2 = model.predict(x)
-    assert_allclose(out, out2)
+    assert_allclose(out, out2, atol=1e-05)
 
 
 @keras_test
@@ -119,7 +119,7 @@ def test_fuctional_model_saving():
 
     model = load_model(fname)
     out2 = model.predict(x)
-    assert_allclose(out, out2)
+    assert_allclose(out, out2, atol=1e-05)
 
 
 @keras_test
