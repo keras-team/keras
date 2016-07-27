@@ -10,9 +10,11 @@ import marshal
 import types as python_types
 import warnings
 import copy
+import os
 from six.moves import zip
 
-from keras import backend as K
+from .. import backend as K
+from ..utils.io_utils import ask_to_proceed_with_overwrite
 
 
 def to_list(x):
@@ -2310,7 +2312,38 @@ class Container(Layer):
             output_tensors.append(layer_output_tensors[tensor_index])
         return cls(input=input_tensors, output=output_tensors, name=name)
 
-    def save_weights(self, filepath, overwrite=False):
+    def save(self, filepath, overwrite=True):
+        '''Save into a single HDF5 file:
+            - the model architecture, allowing to re-instantiate the model
+            - the model weights
+            - the state of the optimizer, allowing to resume training
+                exactly where you left off.
+
+        This allows you to save the entirety of the state of a model
+        in a single file.
+
+        Saved models can be reinstantiated via `keras.models.load_model`.
+        The model returned by `load_model`
+        is a compiled model ready to be used (unless the saved model
+        was never compiled in the first place).
+
+        # Example usage
+
+        ```python
+        from keras.models import load_model
+
+        model.save('my_model.h5')  # creates a HDF5 file 'my_model.h5'
+        del model  # deletes the existing model
+
+        # returns a compiled model
+        # identical to the previous one
+        model = load_model('my_model.h5')
+        ```
+        '''
+        from ..models import save_model
+        save_model(self, filepath, overwrite)
+
+    def save_weights(self, filepath, overwrite=True):
         '''Dumps all layer weights to a HDF5 file.
 
         The weight file has:
@@ -2323,28 +2356,23 @@ class Container(Layer):
                     storing the weight value, named after the weight tensor
         '''
         import h5py
-        import os.path
         # if file exists and should not be overwritten
         if not overwrite and os.path.isfile(filepath):
-            import sys
-            get_input = input
-            if sys.version_info[:2] <= (2, 7):
-                get_input = raw_input
-            overwrite = get_input('[WARNING] %s already exists - overwrite? '
-                                  '[y/n]' % (filepath))
-            while overwrite not in ['y', 'n']:
-                overwrite = get_input('Enter "y" (overwrite) or "n" (cancel).')
-            if overwrite == 'n':
+            proceed = ask_to_proceed_with_overwrite(filepath)
+            if not proceed:
                 return
-            print('[TIP] Next time specify overwrite=True in save_weights!')
+        f = h5py.File(filepath, 'w')
+        self.save_weights_to_hdf5_group(f)
+        f.flush()
+        f.close()
 
+    def save_weights_to_hdf5_group(self, f):
         if hasattr(self, 'flattened_layers'):
             # support for legacy Sequential/Merge behavior
             flattened_layers = self.flattened_layers
         else:
             flattened_layers = self.layers
 
-        f = h5py.File(filepath, 'w')
         f.attrs['layer_names'] = [layer.name.encode('utf8') for layer in flattened_layers]
 
         for layer in flattened_layers:
@@ -2362,21 +2390,38 @@ class Container(Layer):
             for name, val in zip(weight_names, weight_values):
                 param_dset = g.create_dataset(name, val.shape,
                                               dtype=val.dtype)
-                param_dset[:] = val
-        f.flush()
-        f.close()
+                if not val.shape:
+                    # scalar
+                    param_dset[()] = val
+                else:
+                    param_dset[:] = val
 
     def load_weights(self, filepath):
         '''Load all layer weights from a HDF5 save file.
         '''
         import h5py
         f = h5py.File(filepath, mode='r')
+        self.load_weights_from_hdf5_group(f)
+        f.close()
 
+    def load_weights_from_hdf5_group(self, f):
+        '''Weight loading is based on layer order in a list
+        (matching model.flattened_layers for Sequential models,
+        and model.layers for Model class instances), not
+        on layer names.
+        Layers that have no weights are skipped.
+        '''
         if hasattr(self, 'flattened_layers'):
             # support for legacy Sequential/Merge behavior
             flattened_layers = self.flattened_layers
         else:
             flattened_layers = self.layers
+        filtered_layers = []
+        for layer in flattened_layers:
+            weights = layer.trainable_weights + layer.non_trainable_weights
+            if weights:
+                filtered_layers.append(layer)
+        flattened_layers = filtered_layers
 
         if 'nb_layers' in f.attrs:
             # legacy format
@@ -2394,6 +2439,13 @@ class Container(Layer):
         else:
             # new file format
             layer_names = [n.decode('utf8') for n in f.attrs['layer_names']]
+            filtered_layer_names = []
+            for name in layer_names:
+                g = f[name]
+                weight_names = [n.decode('utf8') for n in g.attrs['weight_names']]
+                if len(weight_names):
+                    filtered_layer_names.append(name)
+            layer_names = filtered_layer_names
             if len(layer_names) != len(flattened_layers):
                 raise Exception('You are trying to load a weight file '
                                 'containing ' + str(len(layer_names)) +
@@ -2406,24 +2458,22 @@ class Container(Layer):
             for k, name in enumerate(layer_names):
                 g = f[name]
                 weight_names = [n.decode('utf8') for n in g.attrs['weight_names']]
-                if len(weight_names):
-                    weight_values = [g[weight_name] for weight_name in weight_names]
-                    layer = flattened_layers[k]
-                    symbolic_weights = layer.trainable_weights + layer.non_trainable_weights
-                    if len(weight_values) != len(symbolic_weights):
-                        raise Exception('Layer #' + str(k) +
-                                        ' (named "' + layer.name +
-                                        '" in the current model) was found to '
-                                        'correspond to layer ' + name +
-                                        ' in the save file. '
-                                        'However the new layer ' + layer.name +
-                                        ' expects ' + str(len(symbolic_weights)) +
-                                        ' weights, but the saved weights have ' +
-                                        str(len(weight_values)) +
-                                        ' elements.')
-                    weight_value_tuples += zip(symbolic_weights, weight_values)
+                weight_values = [g[weight_name] for weight_name in weight_names]
+                layer = flattened_layers[k]
+                symbolic_weights = layer.trainable_weights + layer.non_trainable_weights
+                if len(weight_values) != len(symbolic_weights):
+                    raise Exception('Layer #' + str(k) +
+                                    ' (named "' + layer.name +
+                                    '" in the current model) was found to '
+                                    'correspond to layer ' + name +
+                                    ' in the save file. '
+                                    'However the new layer ' + layer.name +
+                                    ' expects ' + str(len(symbolic_weights)) +
+                                    ' weights, but the saved weights have ' +
+                                    str(len(weight_values)) +
+                                    ' elements.')
+                weight_value_tuples += zip(symbolic_weights, weight_values)
             K.batch_set_value(weight_value_tuples)
-        f.close()
 
     def _updated_config(self):
         '''shared between different serialization methods'''
@@ -2435,14 +2485,6 @@ class Container(Layer):
             'config': config,
             'keras_version': keras_version
         }
-
-        if hasattr(self, 'optimizer'):
-            model_config['optimizer'] = self.optimizer.get_config()
-            model_config['loss'] = getattr(self.loss, '__name__', self.loss)
-            model_config['sample_weight_mode'] = self.sample_weight_mode
-
-        if hasattr(self, 'loss_weights'):
-            model_config['loss_weights'] = self.loss_weights
         return model_config
 
     def to_json(self, **kwargs):
@@ -2462,7 +2504,7 @@ class Container(Layer):
             if type(obj).__name__ == type.__name__:
                 return obj.__name__
 
-            raise TypeError('Not JSON Serializable')
+            raise TypeError('Not JSON Serializable:', obj)
 
         model_config = self._updated_config()
         return json.dumps(model_config, default=get_json_type, **kwargs)
