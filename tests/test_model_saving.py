@@ -1,4 +1,5 @@
 import pytest
+import os
 import numpy as np
 from numpy.testing import assert_allclose
 
@@ -17,7 +18,7 @@ def test_sequential_model_saving():
     model = Sequential()
     model.add(Dense(2, input_dim=3))
     model.add(Dense(3))
-    model.compile(loss='mse', optimizer='sgd', metrics=['acc'])
+    model.compile(loss='mse', optimizer='rmsprop', metrics=['acc'])
 
     x = np.random.random((1, 3))
     y = np.random.random((1, 3))
@@ -28,6 +29,8 @@ def test_sequential_model_saving():
     save_model(model, fname)
 
     new_model = load_model(fname)
+    os.remove(fname)
+
     out2 = new_model.predict(x)
     assert_allclose(out, out2, atol=1e-05)
 
@@ -61,6 +64,8 @@ def test_sequential_model_saving_2():
     save_model(model, fname)
 
     new_model = load_model(fname)
+    os.remove(fname)
+
     out2 = new_model.predict(x)
     assert_allclose(out, out2, atol=1e-05)
 
@@ -95,6 +100,8 @@ def test_sequential_model_saving_3():
     model = load_model(fname,
                        custom_objects={'custom_opt': custom_opt,
                                        'custom_loss': custom_loss})
+    os.remove(fname)
+
     out2 = model.predict(x)
     assert_allclose(out, out2, atol=1e-05)
 
@@ -118,6 +125,8 @@ def test_fuctional_model_saving():
     save_model(model, fname)
 
     model = load_model(fname)
+    os.remove(fname)
+
     out2 = model.predict(x)
     assert_allclose(out, out2, atol=1e-05)
 
@@ -132,6 +141,7 @@ def test_saving_without_compilation():
     fname = 'tmp_' + str(np.random.randint(10000)) + '.h5'
     save_model(model, fname)
     model = load_model(fname)
+    os.remove(fname)
 
 
 @keras_test
@@ -145,6 +155,7 @@ def test_saving_right_after_compilation():
     fname = 'tmp_' + str(np.random.randint(10000)) + '.h5'
     save_model(model, fname)
     model = load_model(fname)
+    os.remove(fname)
 
 
 if __name__ == '__main__':
