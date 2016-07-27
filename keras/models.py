@@ -37,6 +37,8 @@ def save_model(model, filepath, overwrite=True):
         raise TypeError('Not JSON Serializable:', obj)
 
     import h5py
+    from keras import __version__ as keras_version
+
     # if file exists and should not be overwritten
     if not overwrite and os.path.isfile(filepath):
         proceed = ask_to_proceed_with_overwrite(filepath)
@@ -44,7 +46,7 @@ def save_model(model, filepath, overwrite=True):
             return
 
     f = h5py.File(filepath, 'w')
-
+    f.attrs['keras_version'] = str(keras_version).encode('utf8')
     f.attrs['model_config'] = json.dumps({
         'class_name': model.__class__.__name__,
         'config': model.get_config()
