@@ -1336,13 +1336,13 @@ class Merge(Layer):
             masks = []
             for input_i, mask_i in zip(inputs, mask):
                 if mask_i is None:
-                    # Input is unmasked. Append all 1s to masks
-                    masks.append(K.ones_like(input_i))
+                    # Input is unmasked. Append all 1s to masks, but cast it to uint8 first
+                    masks.append(K.cast(K.ones_like(input_i), 'uint8'))
                 elif K.ndim(mask_i) < K.ndim(input_i):
                     # Mask is smaller than the input, expand it
                     masks.append(K.expand_dims(mask_i))
                 else:
-                    masks.append(mask)
+                    masks.append(mask_i)
             concatenated = K.concatenate(masks, axis=self.concat_axis)
             return K.all(concatenated, axis=-1, keepdims=False)
         elif self.mode in ['cos', 'dot']:
