@@ -874,7 +874,15 @@ def batch_set_value(tuples):
             `value` should be a Numpy array.
     '''
     if tuples:
-        [set_value(x,np.asarray(value)) for x, value in tuples]
+        assign_ops = []
+        feed_dict = {}
+        for x, value in tuples:
+            value = np.asarray(value)
+            tf_dtype = _convert_string_dtype(x.dtype.name.split('_')[0])
+            assign_placeholder = tf.placeholder(tf_dtype, shape=value.shape)
+            assign_ops.append(x.assign(assign_placeholder))
+            feed_dict[assign_placeholder] = value
+        get_session().run(assign_ops, feed_dict=feed_dict)
 
 
 def print_tensor(x, message=''):
