@@ -1,6 +1,5 @@
 from __future__ import absolute_import
 from . import backend as K
-import numpy as np
 from .utils.generic_utils import get_from_module
 from six.moves import zip
 
@@ -11,8 +10,24 @@ def clip_norm(g, c, n):
     return g
 
 
-def kl_divergence(p, p_hat):
-    return p_hat - p + p * K.log(p / p_hat)
+def optimizer_from_config(config, custom_objects={}):
+    all_classes = {
+        'sgd': SGD,
+        'rmsprop': RMSprop,
+        'adagrad': Adagrad,
+        'adadelta': Adadelta,
+        'adam': Adam,
+        'adamax': Adamax,
+        'nadam': Nadam,
+    }
+    class_name = config['class_name']
+    if class_name in custom_objects:
+        cls = custom_objects[class_name]
+    else:
+        if class_name.lower() not in all_classes:
+            raise ValueError('Optimizer class not found:', class_name)
+        cls = all_classes[class_name.lower()]
+    return cls.from_config(config['config'])
 
 
 class Optimizer(object):
@@ -90,12 +105,16 @@ class Optimizer(object):
         return K.batch_get_value(self.weights)
 
     def get_config(self):
-        config = {'name': self.__class__.__name__}
+        config = {}
         if hasattr(self, 'clipnorm'):
             config['clipnorm'] = self.clipnorm
         if hasattr(self, 'clipvalue'):
             config['clipvalue'] = self.clipvalue
         return config
+
+    @classmethod
+    def from_config(cls, config):
+        return cls(**config)
 
 
 class SGD(Optimizer):

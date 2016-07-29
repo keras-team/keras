@@ -30,8 +30,7 @@ hidden_dims = 250
 nb_epoch = 2
 
 print('Loading data...')
-(X_train, y_train), (X_test, y_test) = imdb.load_data(nb_words=max_features,
-                                                      test_split=0.2)
+(X_train, y_train), (X_test, y_test) = imdb.load_data(nb_words=max_features)
 print(len(X_train), 'train sequences')
 print(len(X_test), 'test sequences')
 
