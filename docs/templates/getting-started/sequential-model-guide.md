@@ -149,7 +149,7 @@ Keras models are trained on Numpy arrays of input data and labels. For training 
 # for a single-input model with 2 classes (binary):
 
 model = Sequential()
-model.add(Dense(1, input_dim=784, activation='softmax'))
+model.add(Dense(1, input_dim=784, activation='sigmoid'))
 model.compile(optimizer='rmsprop',
               loss='binary_crossentropy',
               metrics=['accuracy'])
@@ -381,7 +381,7 @@ image_model.load_weights('weight_file.h5')
 language_model = Sequential()
 language_model.add(Embedding(vocab_size, 256, input_length=max_caption_len))
 language_model.add(GRU(output_dim=128, return_sequences=True))
-language_model.add(TimeDistributedDense(128))
+language_model.add(TimeDistributed(Dense(128)))
 
 # let's repeat the image vector to turn it into a sequence.
 image_model.add(RepeatVector(max_caption_len))

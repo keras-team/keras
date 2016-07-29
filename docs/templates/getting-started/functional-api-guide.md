@@ -310,7 +310,7 @@ from keras.layers import merge, Convolution2D, Input
 # input tensor for a 3-channel 256x256 image
 x = Input(shape=(3, 256, 256))
 # 3x3 conv with 3 output channels (same as input channels)
-y = Convolution2D(3, 3, 3, border_mode='same')
+y = Convolution2D(3, 3, 3, border_mode='same')(x)
 # this returns x + y.
 z = merge([x, y], mode='sum')
 ```

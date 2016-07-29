@@ -7,11 +7,11 @@ import numpy as np
 import sys
 
 
-def load_data(path="reuters.pkl", nb_words=None, skip_top=0,
+def load_data(path='reuters.pkl', nb_words=None, skip_top=0,
               maxlen=None, test_split=0.2, seed=113,
               start_char=1, oov_char=2, index_from=3):
 
-    path = get_file(path, origin="https://s3.amazonaws.com/text-datasets/reuters.pkl")
+    path = get_file(path, origin='https://s3.amazonaws.com/text-datasets/reuters.pkl')
     f = open(path, 'rb')
     X, labels = cPickle.load(f)
     f.close()
@@ -62,14 +62,14 @@ def load_data(path="reuters.pkl", nb_words=None, skip_top=0,
     return (X_train, y_train), (X_test, y_test)
 
 
-def get_word_index(path="reuters_word_index.pkl"):
-    path = get_file(path, origin="https://s3.amazonaws.com/text-datasets/reuters_word_index.pkl")
+def get_word_index(path='reuters_word_index.pkl'):
+    path = get_file(path, origin='https://s3.amazonaws.com/text-datasets/reuters_word_index.pkl')
     f = open(path, 'rb')
 
     if sys.version_info < (3,):
         data = cPickle.load(f)
     else:
-        data = cPickle.load(f, encoding="latin1")
+        data = cPickle.load(f, encoding='latin1')
 
     f.close()
     return data

@@ -387,7 +387,14 @@ class Lambda(Layer):
         function: The function to be evaluated.
             Takes one argument: the output of previous layer
         output_shape: Expected output shape from function.
-            Could be a tuple or a function of the shape of the input
+            Can be a tuple or function.
+            If a tuple, it only specifies the first dimension onward; 
+                 sample dimension is assumed either the same as the input:
+                 `output_shape = (input_shape[0], ) + output_shape`
+                 or, the input is `None` and the sample dimension is also `None`:
+                 `output_shape = (None, ) + output_shape`
+            If a function, it specifies the entire shape as a function of 
+                 the input shape: `output_shape = f(input_shape)`
         arguments: optional dictionary of keyword arguments to be passed
             to the function.
 
@@ -402,6 +409,8 @@ class Lambda(Layer):
     def __init__(self, function, output_shape=None, arguments={}, **kwargs):
         self.function = function
         self.arguments = arguments
+        self.supports_masking = False
+
         if output_shape is None:
             self._output_shape = None
         elif type(output_shape) in {tuple, list}:
@@ -612,11 +621,6 @@ class Dense(Layer):
         else:
             self.trainable_weights = [self.W]
 
-        if self.bias:
-            self.learning_rate_multipliers = [self.W_learning_rate_multiplier, self.b_learning_rate_multiplier]
-        else:
-            self.learning_rate_multipliers = [self.W_learning_rate_multiplier]    
-
         self.regularizers = []
         if self.W_regularizer:
             self.W_regularizer.set_param(self.W)
@@ -636,6 +640,12 @@ class Dense(Layer):
         if self.bias and self.b_constraint:
             self.constraints[self.b] = self.b_constraint
 
+        self.multipliers = {}
+        if self.W_learning_rate_multiplier:
+            self.multipliers[self.W] = self.W_learning_rate_multiplier
+        if self.bias and self.b_learning_rate_multiplier:
+            self.multipliers[self.b] = self.b_learning_rate_multiplier
+        
         if self.initial_weights is not None:
             self.set_weights(self.initial_weights)
             del self.initial_weights
@@ -661,8 +671,8 @@ class Dense(Layer):
                   'b_constraint': self.b_constraint.get_config() if self.b_constraint else None,
                   'bias': self.bias,
                   'input_dim': self.input_dim,
-                  'W_learning_rate_multiplier': self.W_learning_rate_multiplier,
-                  'b_learning_rate_multiplier': self.b_learning_rate_multiplier}
+                  'W_learning_rate_multiplier': self.W_learning_rate_multiplier if self.W_learning_rate_multiplier else None,
+                  'b_learning_rate_multiplier': self.b_learning_rate_multiplier if self.b_learning_rate_multiplier else None}
         base_config = super(Dense, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
@@ -799,11 +809,6 @@ class MaxoutDense(Layer):
         else:
             self.trainable_weights = [self.W]
 
-        if self.bias:
-            self.learning_rate_multipliers = [self.W_learning_rate_multiplier, self.b_learning_rate_multiplier]
-        else:
-            self.learning_rate_multipliers = [self.W_learning_rate_multiplier]    
-
         self.regularizers = []
         if self.W_regularizer:
             self.W_regularizer.set_param(self.W)
@@ -823,6 +828,12 @@ class MaxoutDense(Layer):
         if self.bias and self.b_constraint:
             self.constraints[self.b] = self.b_constraint
 
+        self.multipliers = {}
+        if self.W_learning_rate_multiplier:
+            self.multipliers[self.W] = self.W_learning_rate_multiplier
+        if self.bias and self.b_learning_rate_multiplier:
+            self.multipliers[self.b] = self.b_learning_rate_multiplier
+            
         if self.initial_weights is not None:
             self.set_weights(self.initial_weights)
             del self.initial_weights
@@ -850,8 +861,8 @@ class MaxoutDense(Layer):
                   'b_constraint': self.b_constraint.get_config() if self.b_constraint else None,
                   'bias': self.bias,
                   'input_dim': self.input_dim,
-                  'W_learning_rate_multiplier': self.W_learning_rate_multiplier,
-                  'b_learning_rate_multiplier': self.b_learning_rate_multiplier}
+                  'W_learning_rate_multiplier': self.W_learning_rate_multiplier if self.W_learning_rate_multiplier else None,
+                  'b_learning_rate_multiplier': self.b_learning_rate_multiplier if self.b_learning_rate_multiplier else None}
         base_config = super(MaxoutDense, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
