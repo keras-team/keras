@@ -932,6 +932,7 @@ class InputLayer(Layer):
         self.non_trainable_weights = []
         self.regularizers = []
         self.constraints = {}
+        self.multipliers = {}
 
         if not name:
             prefix = 'input'
@@ -1125,6 +1126,7 @@ class Merge(Layer):
         self.inbound_nodes = []
         self.outbound_nodes = []
         self.constraints = {}
+        self.multipliers = {}
         self.regularizers = []
         self.trainable_weights = []
         self.non_trainable_weights = []
