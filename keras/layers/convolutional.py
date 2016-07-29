@@ -451,7 +451,8 @@ class Deconvolution2D(Convolution2D):
                                               activity_regularizer=activity_regularizer,
                                               W_constraint=W_constraint, b_constraint=b_constraint,
                                               bias=bias,
-                                              W_learning_rate_multiplier, b_learning_rate_multiplier,
+                                              W_learning_rate_multiplier=W_learning_rate_multiplier,
+                                              b_learning_rate_multiplier=b_learning_rate_multiplier,
                                               **kwargs)
 
     def get_output_shape_for(self, input_shape):
@@ -595,7 +596,8 @@ class AtrousConvolution2D(Convolution2D):
                                                   W_regularizer=W_regularizer, b_regularizer=b_regularizer,
                                                   activity_regularizer=activity_regularizer,
                                                   W_constraint=W_constraint, b_constraint=b_constraint,
-                                                  bias=bias, W_learning_rate_multiplier, b_learning_rate_multiplier,
+                                                  bias=bias, W_learning_rate_multiplier=W_learning_rate_multiplier,
+                                                  b_learning_rate_multiplier=b_learning_rate_multiplier,
                                                   **kwargs)
 
     def get_output_shape_for(self, input_shape):
