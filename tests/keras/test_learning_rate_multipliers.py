@@ -47,7 +47,6 @@ def test_learning_rate_multipliers_conv1d():
 
 @pytest.mark.skipif((K._BACKEND != 'theano'),
                     reason="Requires theano backend or be able to set random seed in tensorflow")
-
 def test_learning_rate_multipliers_dense():
     from keras.layers.core import Dense
     from keras.optimizers import SGD
@@ -78,7 +77,7 @@ def test_learning_rate_multipliers_dense():
 
     np.random.seed(seed)
     model0 = Sequential()
-    model0.add(Dense(output_dim=5, input_dim=4, activation='relu'))
+    model0.add(Dense(output_dim=2, input_dim=5))
     sgd = SGD(lr=0.4, momentum=0.,decay=0.)
     model0.compile(loss='mse', optimizer=sgd)
     (m0w0_ini,m0b0_ini) = model0.layers[0].get_weights()
@@ -87,7 +86,7 @@ def test_learning_rate_multipliers_dense():
     
     np.random.seed(seed)
     model1 = Sequential()
-    model1.add(Dense(output_dim=5, input_dim=4, activation='relu',
+    model1.add(Dense(output_dim=2, input_dim=5,
                      W_learning_rate_multiplier=0.5, b_learning_rate_multiplier=0.5))
     sgd = SGD(lr=0.4, momentum=0.,decay=0.)
     model1.compile(loss='mse', optimizer=sgd)
@@ -128,42 +127,26 @@ def test_learning_rate_multipliers_conv2d():
     model0 = Sequential()
     model0.add(Convolution2D(5,3,3,
                              input_shape=(3,10,10), 
-                             border_mode='valid', 
-                             activation='relu'))
-    model0.add(Convolution2D(1,3,3,
                              border_mode='valid'))
     model0.compile(loss='mse', optimizer='sgd')
     (m0w0_ini,m0b0_ini) = model0.layers[0].get_weights()
-    (m0w1_ini,m0b1_ini) = model0.layers[1].get_weights()
     model0.train_on_batch(X_train, y_train)
     (m0w0_end,m0b0_end) = model0.layers[0].get_weights() 
-    (m0w1_end,m0b1_end) = model0.layers[1].get_weights()
     
     np.random.seed(seed)
     model1 = Sequential()
     model1.add(Convolution2D(5,3,3,
                              input_shape=(3,10,10), 
                              border_mode='valid', 
-                             W_learning_rate_multiplier=0.0, b_learning_rate_multiplier=0.0,
-                             activation='relu'))
-    model1.add(Convolution2D(1,3,3,
-                             W_learning_rate_multiplier=0.5, b_learning_rate_multiplier=0.5,
-                             border_mode='valid'))
+                             W_learning_rate_multiplier=0.5, b_learning_rate_multiplier=0.5))
     model1.compile(loss='mse', optimizer='sgd')
     (m1w0_ini,m1b0_ini) = model1.layers[0].get_weights()
-    (m1w1_ini,m1b1_ini) = model1.layers[1].get_weights()
     model1.train_on_batch(X_train, y_train)
     (m1w0_end,m1b0_end) = model1.layers[0].get_weights() 
-    (m1w1_end,m1b1_end) = model1.layers[1].get_weights()
-    
-    # This should be ~0.0
-    np.testing.assert_almost_equal(np.mean((m1w0_end - m1w0_ini)), 0.0, decimal=2)
-    np.testing.assert_almost_equal(np.mean((m1b0_end - m1b0_ini)), 0.0, decimal=2)
-    
+        
     # This should be ~0.5
-    np.testing.assert_almost_equal(np.mean((m1w1_end - m1w1_ini)/(m0w1_end - m0w1_ini)), 0.5, decimal=2)
-    np.testing.assert_almost_equal(np.mean((m1b1_end - m1b1_ini)/(m0b1_end - m0b1_ini)), 0.5, decimal=2)
-
+    np.testing.assert_almost_equal(np.mean((m1w0_end - m1w0_ini)/(m0w0_end - m0w0_ini)), 0.5, decimal=2)
+    np.testing.assert_almost_equal(np.mean((m1b0_end - m1b0_ini)/(m0b0_end - m0b0_ini)), 0.5, decimal=2)
 
 if __name__ == '__main__':
     pytest.main([__file__])
