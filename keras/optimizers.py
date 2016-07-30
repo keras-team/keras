@@ -148,9 +148,9 @@ class SGD(Optimizer):
         for p, g, m in zip(params, grads, moments):
             # Apply learning rate multipliers if needed
             if p in multipliers:
-                lrm = multipliers[p]
+                lrm = K.variable(multipliers[p])
             else:
-                lrm = 1.0
+                lrm = K.variable(1.0)
             v = self.momentum * m - (lr*lrm) * g  # velocity
             self.updates.append(K.update(m, v))
 
@@ -207,9 +207,9 @@ class RMSprop(Optimizer):
         for p, g, a in zip(params, grads, accumulators):
             # Apply learning rate multipliers if needed
             if p in multipliers:
-                lrm = multipliers[p]
+                lrm = K.variable(multipliers[p])
             else:
-                lrm = 1.0
+                lrm = K.variable(1.0)
             # update accumulator
             new_a = self.rho * a + (1. - self.rho) * K.square(g)
             self.updates.append(K.update(a, new_a))
@@ -255,9 +255,9 @@ class Adagrad(Optimizer):
         for p, g, a in zip(params, grads, accumulators):
             # Apply learning rate multipliers if needed
             if p in multipliers:
-                lrm = multipliers[p]
+                lrm = K.variable(multipliers[p])
             else:
-                lrm = 1.0
+                lrm = K.variable(1.0)
             new_a = a + K.square(g)  # update accumulator
             self.updates.append(K.update(a, new_a))
             new_p = p - (self.lr*lrm) * g / (K.sqrt(new_a) + self.epsilon)
@@ -313,9 +313,9 @@ class Adadelta(Optimizer):
 
             # Apply learning rate multipliers if needed
             if p in multipliers:
-                lrm = multipliers[p]
+                lrm = K.variable(multipliers[p])
             else:
-                lrm = 1.0
+                lrm = K.variable(1.0)
             new_p = p - (self.lr*lrm) * update
             # apply constraints
             if p in constraints:
@@ -373,9 +373,9 @@ class Adam(Optimizer):
         for p, g, m, v in zip(params, grads, ms, vs):
             # Apply learning rate multipliers if needed
             if p in multipliers:
-                lrm = multipliers[p]
+                lrm = K.variable(multipliers[p])
             else:
-                lrm = 1.0
+                lrm = K.variable(1.0)
             m_t = (self.beta_1 * m) + (1. - self.beta_1) * g
             v_t = (self.beta_2 * v) + (1. - self.beta_2) * K.square(g)
             p_t = p - (lr_t*lrm) * m_t / (K.sqrt(v_t) + self.epsilon)
@@ -440,9 +440,9 @@ class Adamax(Optimizer):
         for p, g, m, u in zip(params, grads, ms, us):
             # Apply learning rate multipliers if needed
             if p in multipliers:
-                lrm = multipliers[p]
+                lrm = K.variable(multipliers[p])
             else:
-                lrm = 1.0
+                lrm = K.variable(1.0)
             m_t = (self.beta_1 * m) + (1. - self.beta_1) * g
             u_t = K.maximum(self.beta_2 * u, K.abs(g))
             p_t = p - (lr_t*lrm) * m_t / (u_t + self.epsilon)
@@ -530,9 +530,9 @@ class Nadam(Optimizer):
 
             # Apply learning rate multipliers if needed
             if p in multipliers:
-                lrm = multipliers[p]
+                lrm = K.variable(multipliers[p])
             else:
-                lrm = 1.0
+                lrm = K.variable(1.0)
             p_t = p - (self.lr*lrm) * m_t_bar / (K.sqrt(v_t_prime) + self.epsilon)
             new_p = p_t
 

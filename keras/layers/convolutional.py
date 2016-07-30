@@ -154,9 +154,9 @@ class Convolution1D(Layer):
             self.constraints[self.b] = self.b_constraint
 
         self.multipliers = {}
-        if self.W_learning_rate_multiplier:
+        if self.W_learning_rate_multiplier is not None:
             self.multipliers[self.W] = self.W_learning_rate_multiplier
-        if self.bias and self.b_learning_rate_multiplier:
+        if (self.bias is not None) and (self.b_learning_rate_multiplier is not None):
             self.multipliers[self.b] = self.b_learning_rate_multiplier
         
         if self.initial_weights is not None:
@@ -354,9 +354,9 @@ class Convolution2D(Layer):
             self.constraints[self.b] = self.b_constraint
 
         self.multipliers = {}
-        if self.W_learning_rate_multiplier:
+        if self.W_learning_rate_multiplier is not None:
             self.multipliers[self.W] = self.W_learning_rate_multiplier
-        if self.bias and self.b_learning_rate_multiplier:
+        if (self.bias is not None) and (self.b_learning_rate_multiplier is not None):
             self.multipliers[self.b] = self.b_learning_rate_multiplier
 
         if self.initial_weights is not None:
@@ -827,11 +827,11 @@ class SeparableConvolution2D(Layer):
             self.constraints[self.b] = self.b_constraint
 
         self.multipliers = {}
-        if self.depthwise_learning_rate_multiplier:
+        if self.depthwise_learning_rate_multiplier is not None:
             self.multipliers[self.depthwise_kernel] = self.depthwise_learning_rate_multiplier
-        if self.pointwise_learning_rate_multiplier:
+        if self.pointwise_learning_rate_multiplier is not None:
             self.multipliers[self.pointwise_kernel] = self.pointwise_learning_rate_multiplier
-        if self.bias and self.b_learning_rate_multiplier:
+        if (self.bias is not None) and (self.b_learning_rate_multiplier is not None):
             self.multipliers[self.b] = self.b_learning_rate_multiplier
             
         if self.initial_weights is not None:
@@ -1046,9 +1046,9 @@ class Convolution3D(Layer):
             self.constraints[self.b] = self.b_constraint
 
         self.multipliers = {}
-        if self.W_learning_rate_multiplier:
+        if self.W_learning_rate_multiplier is not None:
             self.multipliers[self.W] = self.W_learning_rate_multiplier
-        if self.bias and self.b_learning_rate_multiplier:
+        if (self.bias is not None) and (self.b_learning_rate_multiplier is not None):
             self.multipliers[self.b] = self.b_learning_rate_multiplier
             
         if self.initial_weights is not None:
