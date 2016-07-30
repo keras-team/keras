@@ -121,7 +121,7 @@ def test_learning_rate_multipliers_conv2d():
 
     np.random.seed(seed)
     X_train = np.random.rand(10,3,10,10)
-    y_train = np.random.rand(10,1,6,6)
+    y_train = np.random.rand(10,1,8,8)
 
     np.random.seed(seed)
     model0 = Sequential()
