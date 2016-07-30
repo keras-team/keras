@@ -8,61 +8,6 @@ from keras.utils.test_utils import layer_test
 
 seed = 1224
 
-@pytest.mark.skipif((K._BACKEND != 'theano'),
-                    reason="Requires theano backend until I find a way to set random seed in tensorflow")
-
-def test_learning_rate_multipliers_dense():
-    from keras.layers.core import Dense
-    from keras.optimizers import SGD
-    
-    layer_test(Dense,
-               kwargs={'output_dim': 3,
-                       'W_learning_rate_multiplier': 0.1,
-                       'b_learning_rate_multiplier': 0.1},
-               input_shape=(3, 2))
-
-    # This should raise an error
-    with pytest.raises(Exception) as e_info:
-        layer_test(Dense,
-                   kwargs={'output_dim': 3,
-                           'bias': False,
-                           'W_learning_rate_multiplier': 0.1,
-                           'b_learning_rate_multiplier': 0.1},
-                   input_shape=(3, 2))
-
-    np.random.seed(seed)
-    (X_train, y_train), (X_test, y_test) = get_test_data(nb_train=10,
-                                                         nb_test=1,
-                                                         input_shape=(5,),
-                                                         classification=True,
-                                                         nb_class=2)
-    y_train = to_categorical(y_train)
-    y_test = to_categorical(y_test)
-
-    np.random.seed(seed)
-    model0 = Sequential()
-    model0.add(Dense(output_dim=5, input_dim=4, activation='relu'))
-    sgd = SGD(lr=0.4, momentum=0.,decay=0.)
-    model0.compile(loss='categorical_crossentropy', optimizer=sgd)
-    (m0w0_ini,m0b0_ini) = model0.layers[0].get_weights()
-    model0.train_on_batch(X_train, y_train)
-    (m0w0_end,m0b0_end) = model0.layers[0].get_weights() 
-    
-    np.random.seed(seed)
-    model1 = Sequential()
-    model1.add(Dense(output_dim=5, input_dim=4, activation='relu',
-                     W_learning_rate_multiplier=0.5, b_learning_rate_multiplier=0.5))
-    sgd = SGD(lr=0.4, momentum=0.,decay=0.)
-    model1.compile(loss='categorical_crossentropy', optimizer=sgd)
-    (m1w0_ini,m1b0_ini) = model1.layers[0].get_weights()
-    model1.train_on_batch(X_train, y_train)
-    (m1w0_end,m1b0_end) = model1.layers[0].get_weights() 
-
-    # This should be ~0.5
-    np.testing.assert_almost_equal(np.mean((m1w0_end - m1w0_ini)/(m0w0_end - m0w0_ini)), 0.5, decimal=2)
-    np.testing.assert_almost_equal(np.mean((m1b0_end - m1b0_ini)/(m0b0_end - m0b0_ini)), 0.5, decimal=2)
-
-
 def test_learning_rate_multipliers_maxout_dense():
     from keras.layers.core import MaxoutDense
     
@@ -98,6 +43,60 @@ def test_learning_rate_multipliers_conv1d():
                            'W_learning_rate_multiplier': 0.1,
                            'b_learning_rate_multiplier': 0.1},
                    input_shape=(2, 8, 5))
+
+@pytest.mark.skipif((K._BACKEND != 'theano'),
+                    reason="Requires theano backend or be able to set random seed in tensorflow")
+
+def test_learning_rate_multipliers_dense():
+    from keras.layers.core import Dense
+    from keras.optimizers import SGD
+    
+    layer_test(Dense,
+               kwargs={'output_dim': 3,
+                       'W_learning_rate_multiplier': 0.1,
+                       'b_learning_rate_multiplier': 0.1},
+               input_shape=(3, 2))
+
+    # This should raise an error
+    with pytest.raises(Exception) as e_info:
+        layer_test(Dense,
+                   kwargs={'output_dim': 3,
+                           'bias': False,
+                           'W_learning_rate_multiplier': 0.1,
+                           'b_learning_rate_multiplier': 0.1},
+                   input_shape=(3, 2))
+
+    np.random.seed(seed)
+    (X_train, y_train), (X_test, y_test) = get_test_data(nb_train=10,
+                                                         nb_test=1,
+                                                         input_shape=(5,),
+                                                         classification=True,
+                                                         nb_class=2)
+    y_train = to_categorical(y_train)
+    y_test = to_categorical(y_test)
+
+    np.random.seed(seed)
+    model0 = Sequential()
+    model0.add(Dense(output_dim=5, input_dim=4, activation='relu'))
+    sgd = SGD(lr=0.4, momentum=0.,decay=0.)
+    model0.compile(loss='mse', optimizer=sgd)
+    (m0w0_ini,m0b0_ini) = model0.layers[0].get_weights()
+    model0.train_on_batch(X_train, y_train)
+    (m0w0_end,m0b0_end) = model0.layers[0].get_weights() 
+    
+    np.random.seed(seed)
+    model1 = Sequential()
+    model1.add(Dense(output_dim=5, input_dim=4, activation='relu',
+                     W_learning_rate_multiplier=0.5, b_learning_rate_multiplier=0.5))
+    sgd = SGD(lr=0.4, momentum=0.,decay=0.)
+    model1.compile(loss='mse', optimizer=sgd)
+    (m1w0_ini,m1b0_ini) = model1.layers[0].get_weights()
+    model1.train_on_batch(X_train, y_train)
+    (m1w0_end,m1b0_end) = model1.layers[0].get_weights() 
+
+    # This should be ~0.5
+    np.testing.assert_almost_equal(np.mean((m1w0_end - m1w0_ini)/(m0w0_end - m0w0_ini)), 0.5, decimal=2)
+    np.testing.assert_almost_equal(np.mean((m1b0_end - m1b0_ini)/(m0b0_end - m0b0_ini)), 0.5, decimal=2)
 
 def test_learning_rate_multipliers_conv2d():
     from keras.layers.convolutional import Convolution2D
