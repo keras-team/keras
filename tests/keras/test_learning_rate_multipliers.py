@@ -98,6 +98,8 @@ def test_learning_rate_multipliers_dense():
     np.testing.assert_almost_equal(np.mean((m1w0_end - m1w0_ini)/(m0w0_end - m0w0_ini)), 0.5, decimal=2)
     np.testing.assert_almost_equal(np.mean((m1b0_end - m1b0_ini)/(m0b0_end - m0b0_ini)), 0.5, decimal=2)
 
+@pytest.mark.skipif((K._BACKEND != 'theano'),
+                    reason="Requires theano backend or be able to set random seed in tensorflow")
 def test_learning_rate_multipliers_conv2d():
     from keras.layers.convolutional import Convolution2D
 
@@ -121,11 +123,11 @@ def test_learning_rate_multipliers_conv2d():
 
     np.random.seed(seed)
     X_train = np.random.rand(10,3,10,10)
-    y_train = np.random.rand(10,1,8,8)
+    y_train = np.random.rand(10,2,8,8)
 
     np.random.seed(seed)
     model0 = Sequential()
-    model0.add(Convolution2D(5,3,3,
+    model0.add(Convolution2D(2,3,3,
                              input_shape=(3,10,10), 
                              border_mode='valid'))
     model0.compile(loss='mse', optimizer='sgd')
@@ -135,7 +137,7 @@ def test_learning_rate_multipliers_conv2d():
     
     np.random.seed(seed)
     model1 = Sequential()
-    model1.add(Convolution2D(5,3,3,
+    model1.add(Convolution2D(2,3,3,
                              input_shape=(3,10,10), 
                              border_mode='valid', 
                              W_learning_rate_multiplier=0.5, b_learning_rate_multiplier=0.5))
