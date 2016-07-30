@@ -5,6 +5,7 @@ from keras.utils.test_utils import get_test_data
 from keras.utils.np_utils import to_categorical
 from keras.models import Sequential
 from keras.utils.test_utils import layer_test
+from keras import backend as K
 
 seed = 1224
 
