@@ -600,7 +600,7 @@ def one_hot(indices, nb_classes):
     Input: Integer tensor of shape (batch_size, input_length)
     Output: One hot representation of the input with shape (batch_size, input_length, nb_classes)
     '''
-    return T.eye(nb_classes, nb_classes)[indices]  
+    return T.extra_ops.to_one_hot(indices, nb_classes)
 
 
 # VALUE MANIPULATION
