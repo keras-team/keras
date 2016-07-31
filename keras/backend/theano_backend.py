@@ -594,6 +594,15 @@ def spatial_3d_padding(x, padding=(1, 1, 1), dim_ordering='th'):
 def pack(x):
     return T.stack(*x)
 
+
+def one_hot(indices, nb_classes):
+    '''
+    Input: Integer tensor of shape (batch_size, input_length)
+    Output: One hot representation of the input with shape (batch_size, input_length, nb_classes)
+    '''
+    return T.eq(T.reshape(indices, (-1, 1)), T.arange(nb_classes))  
+
+
 # VALUE MANIPULATION
 
 
