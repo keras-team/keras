@@ -15,7 +15,6 @@ from six.moves import zip
 
 from .. import backend as K
 from ..utils.io_utils import ask_to_proceed_with_overwrite
-from ..utils.np_utils import convert_kernel
 
 
 def to_list(x):
@@ -830,6 +829,9 @@ class Layer(object):
                             'the notion of "output shape" is ' +
                             'ill-defined for the layer. ' +
                             'Use `get_output_shape_at(node_index)` instead.')
+
+    def convert_weights(self, weights, from_backend):
+        return weights
 
     def set_weights(self, weights):
         '''Sets the weights of the layer, from Numpy arrays.
@@ -2467,11 +2469,14 @@ class Container(Layer):
             # we batch weight value assignments in a single backend call
             # which provides a speedup in TensorFlow.
             weight_value_tuples = []
+            backend = f.attrs.get('keras_backend')
             for k, name in enumerate(layer_names):
                 g = f[name]
                 weight_names = [n.decode('utf8') for n in g.attrs['weight_names']]
                 weight_values = [g[weight_name] for weight_name in weight_names]
                 layer = flattened_layers[k]
+                if backend and backend != K._BACKEND:
+                    weight_values = layer.convert_weights(weight_values, backend)
                 symbolic_weights = layer.trainable_weights + layer.non_trainable_weights
                 if len(weight_values) != len(symbolic_weights):
                     raise Exception('Layer #' + str(k) +
@@ -2485,20 +2490,6 @@ class Container(Layer):
                                     str(len(weight_values)) +
                                     ' elements.')
                 weight_value_tuples += zip(symbolic_weights, weight_values)
-            K.batch_set_value(weight_value_tuples)
-
-        backend = f.attrs.get('keras_backend')
-        if backend and backend != K._BACKEND:
-            # Weights were originally serialized using a different backend. TensorFlow and Theano
-            # use different implementations for convolutions, which need to be converted.
-            weight_value_tuples = []
-            for layer in flattened_layers:
-                from keras.layers import Convolution1D, Convolution2D, Convolution3D
-                if not isinstance(layer, (Convolution1D, Convolution2D, Convolution3D)):
-                    continue
-                original_w = K.get_value(layer.W)
-                converted_w = convert_kernel(original_w)
-                weight_value_tuples += [(layer.W, converted_w)]
             K.batch_set_value(weight_value_tuples)
 
     def _updated_config(self):
