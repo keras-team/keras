@@ -92,12 +92,16 @@ def _convert_string_dtype(dtype):
         return tf.float32
     elif dtype == 'float64':
         return tf.float64
+    elif dtype == 'int16':
+        return tf.int16
     elif dtype == 'int32':
         return tf.int32
     elif dtype == 'int64':
         return tf.int64
     elif dtype == 'uint8':
         return tf.int8
+    elif dtype == 'uint16':
+        return tf.uint16
     else:
         raise ValueError('Unsupported dtype:', dtype)
 

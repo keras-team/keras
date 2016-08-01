@@ -75,7 +75,7 @@ The model will also be supervised via two loss functions. Using the main loss fu
 
 Here's what our model looks like:
 
-<img src="http://s3.amazonaws.com/keras.io/img/multi-input-multi-output-graph.png" alt="multi-input-multi-output-graph" style="width: 400px;"/>
+<img src="https://s3.amazonaws.com/keras.io/img/multi-input-multi-output-graph.png" alt="multi-input-multi-output-graph" style="width: 400px;"/>
 
 Let's implement it with the functional API.
 
