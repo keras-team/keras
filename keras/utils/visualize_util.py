@@ -9,7 +9,15 @@ if not pydot.find_graphviz():
                        ' and graphviz for `pydotprint` to work.')
 
 
-def model_to_dot(model, show_shapes=False, show_layer_names=True):
+def model_to_dot(model, show_shapes=False, show_layer_names=True,
+                 verbose=False):
+    """
+    # Parameters
+    verbose: boolean, optional (default False)
+        If true, then more layer parameters will be reported in the
+        generated plot.
+    ...
+    """
     dot = pydot.Dot()
     dot.set('rankdir', 'TB')
     dot.set('concentrate', True)
@@ -43,7 +51,43 @@ def model_to_dot(model, show_shapes=False, show_layer_names=True):
                     [str(ishape) for ishape in layer.input_shapes])
             else:
                 inputlabels = 'multiple'
-            label = '%s\n|{input:|output:}|{{%s}|{%s}}' % (label, inputlabels, outputlabels)
+
+            def _get_val(stuff):
+                if hasattr(stuff, "__name__"):
+                    return stuff.__name__
+                else:
+                    return str(stuff)
+
+            # Show more more layer parameters ?
+            additional_params = ""
+            additional_vals = ""
+            if verbose:
+                # List of things which could be interesting to the user. This
+                # is likeliy to change.
+                param_names = ["activation",
+                               "strides",
+                               "pool_size",
+                               "nb_filter",
+                               "subsample",
+                               "nb_row",
+                               "nb_col",
+                               "kernel_dim1",
+                               "kernel_dim2",
+                               "kernel_dim3",
+                               "inner_activation"]
+                if hasattr(layer, "activation"):
+                    if _get_val(layer.activation) == "linear":
+                        param_names.remove("activation")
+                additional_params = "".join(["|%s:" % param
+                                             for param in param_names
+                                             if hasattr(layer, param)])
+                additional_vals = "".join(["|{%s}" % _get_val(getattr(layer,
+                                                                      param))
+                                           for param in param_names
+                                           if hasattr(layer, param)])
+            label = '%s\n|{input:|output:%s}|{{%s}|{%s}%s}' % (
+                label, additional_params, inputlabels, outputlabels,
+                additional_vals)
 
         node = pydot.Node(layer_id, label=label)
         dot.add_node(node)
@@ -62,6 +106,15 @@ def model_to_dot(model, show_shapes=False, show_layer_names=True):
     return dot
 
 
-def plot(model, to_file='model.png', show_shapes=False, show_layer_names=True):
-    dot = model_to_dot(model, show_shapes, show_layer_names)
+def plot(model, to_file='model.png', show_shapes=False, show_layer_names=True,
+         verbose=False):
+    """
+    # Parameters
+    verbose: boolean, optional (default False)
+        If true, then more layer parameters will be reported in the
+        generated plot.
+    ...
+    """
+    dot = model_to_dot(model, show_shapes=show_shapes,
+                       show_layer_names=show_layer_names, verbose=verbose)
     dot.write_png(to_file)
