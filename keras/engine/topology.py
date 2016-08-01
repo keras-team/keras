@@ -2429,12 +2429,6 @@ class Container(Layer):
             flattened_layers = self.flattened_layers
         else:
             flattened_layers = self.layers
-        filtered_layers = []
-        for layer in flattened_layers:
-            weights = layer.trainable_weights + layer.non_trainable_weights
-            if weights:
-                filtered_layers.append(layer)
-        flattened_layers = filtered_layers
 
         if 'nb_layers' in f.attrs:
             # legacy format
@@ -2443,7 +2437,7 @@ class Container(Layer):
                 raise Exception('You are trying to load a weight file '
                                 'containing ' + str(nb_layers) +
                                 ' layers into a model with ' +
-                                str(len(flattened_layers)) + '.')
+                                str(len(flattened_layers)) + ' layers.')
 
             for k in range(nb_layers):
                 g = f['layer_{}'.format(k)]
@@ -2451,6 +2445,13 @@ class Container(Layer):
                 flattened_layers[k].set_weights(weights)
         else:
             # new file format
+            filtered_layers = []
+            for layer in flattened_layers:
+                weights = layer.trainable_weights + layer.non_trainable_weights
+                if weights:
+                    filtered_layers.append(layer)
+            flattened_layers = filtered_layers
+
             layer_names = [n.decode('utf8') for n in f.attrs['layer_names']]
             filtered_layer_names = []
             for name in layer_names:
