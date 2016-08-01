@@ -587,7 +587,7 @@ class TestBackend(object):
         indices = np.random.randint(0, nb_classes, size=(batch_size, input_length))
         oh = np.eye(nb_classes)[indices]
         for K in [KTH, KTF]:
-            koh = K.eval(K.one_hot(K.variable(indices, dtype='int32')))
+            koh = K.eval(K.one_hot(K.variable(indices, dtype='int32'), nb_clases))
             assert np.all(koh == oh)
 
 
