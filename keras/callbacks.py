@@ -9,6 +9,7 @@ import warnings
 from collections import deque
 from .utils.generic_utils import Progbar
 from keras import backend as K
+from pkg_resources import parse_version
 
 
 class CallbackList(object):
@@ -478,7 +479,7 @@ class TensorBoard(Callback):
                                          layer.output)
         self.merged = tf.merge_all_summaries()
         if self.write_graph:
-            if tf.__version__ >= '0.8.0':
+            if parse_version(tf.__version__) >= parse_version('0.8.0'):
                 self.writer = tf.train.SummaryWriter(self.log_dir,
                                                      self.sess.graph)
             else:
