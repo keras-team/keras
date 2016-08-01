@@ -29,7 +29,6 @@ def test_sequential_model_saving():
     save_model(model, fname)
 
     new_model = load_model(fname)
-    os.remove(fname)
 
     out2 = new_model.predict(x)
     assert_allclose(out, out2, atol=1e-05)
@@ -42,6 +41,10 @@ def test_sequential_model_saving():
     out = model.predict(x)
     out2 = new_model.predict(x)
     assert_allclose(out, out2, atol=1e-05)
+
+    # test load_weights on model file
+    model.load_weights(fname)
+    os.remove(fname)
 
 
 @keras_test

@@ -2411,8 +2411,11 @@ class Container(Layer):
         '''
         import h5py
         f = h5py.File(filepath, mode='r')
+        if 'layer_names' not in f.attrs and 'model_weights' in f:
+            f = f['model_weights']
         self.load_weights_from_hdf5_group(f)
-        f.close()
+        if hasattr(f, 'close'):
+            f.close()
 
     def load_weights_from_hdf5_group(self, f):
         '''Weight loading is based on layer order in a list
