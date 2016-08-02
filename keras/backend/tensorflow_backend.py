@@ -836,8 +836,8 @@ def pack(x):
 
 def one_hot(indices, nb_classes):
     '''
-    Input: Integer tensor of shape (batch_size, input_length)
-    Output: One hot representation of the input with shape (batch_size, input_length, nb_classes)
+    Input: nD integer tensor of shape (batch_size, dim1, dim2, ... dim(n-1))
+    Output: (n + 1)D one hot representation of the input with shape (batch_size, dim1, dim2, ... dim(n-1), nb_classes)
     '''
     return tf.one_hot(indices, depth=nb_classes, axis=-1)
 
