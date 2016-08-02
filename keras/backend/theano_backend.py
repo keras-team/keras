@@ -603,7 +603,7 @@ def one_hot(indices, nb_classes):
     input_shape = (indices.shape[i] for i in range(indices.ndim))
     indices = T.flatten(indices)
     oh = T.extra_ops.to_one_hot(indices, nb_classes)
-    oh = T.reshape(oh, input_shape + (nb_classes,))
+    oh = T.reshape(oh, tuple(input_shape) + (nb_classes,))
     return oh
 
 
