@@ -88,7 +88,7 @@ Generate batches of tensor image data with real-time data augmentation. The data
 Example of using `.flow(X, y)`:
 
 ```python
-(X_train, y_train), (X_test, y_test) = cifar10.load_data(test_split=0.1)
+(X_train, y_train), (X_test, y_test) = cifar10.load_data()
 Y_train = np_utils.to_categorical(y_train, nb_classes)
 Y_test = np_utils.to_categorical(y_test, nb_classes)
 
