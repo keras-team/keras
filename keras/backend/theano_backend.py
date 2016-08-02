@@ -597,13 +597,13 @@ def pack(x):
 
 def one_hot(indices, nb_classes):
     '''
-    Input: Integer tensor of shape (batch_size, input_length)
-    Output: One hot representation of the input with shape (batch_size, input_length, nb_classes)
+    Input: nD integer tensor of shape (batch_size, dim1, dim2, ... dim(n-1))
+    Output: (n + 1)D one hot representation of the input with shape (batch_size, dim1, dim2, ... dim(n-1), nb_classes)
     '''
-    input_length = indices.shape[1]
+    input_shape = (indices.shape[i] for i in range(indices.ndim))
     indices = T.flatten(indices)
     oh = T.extra_ops.to_one_hot(indices, nb_classes)
-    oh = T.reshape(oh, (-1, input_length, nb_classes))
+    oh = T.reshape(oh, input_shape + (nb_classes,))
     return oh
 
 
