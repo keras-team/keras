@@ -28,6 +28,7 @@ https://drive.google.com/open?id=0B4ChsjFJvew3NWN5THdxcTdSWmc ('tf' dim ordering
 
 @author: BigMoyan, University of Electronic Science and Technology of China
 '''
+from __future__ import print_function
 from keras.layers import merge
 from keras.layers.convolutional import Convolution2D, MaxPooling2D, ZeroPadding2D, AveragePooling2D
 from keras.layers.core import Dense, Activation, Flatten
@@ -70,8 +71,8 @@ def identity_block(input_tensor, kernel_size, filters, stage, block):
     out = BatchNormalization(axis=bn_axis, name=bn_name_base + '2a')(out)
     out = Activation('relu')(out)
 
-    out = out = Convolution2D(nb_filter2, kernel_size, kernel_size, border_mode='same',
-                              dim_ordering=dim_ordering, name=conv_name_base + '2b')(out)
+    out = Convolution2D(nb_filter2, kernel_size, kernel_size, border_mode='same',
+                        dim_ordering=dim_ordering, name=conv_name_base + '2b')(out)
     out = BatchNormalization(axis=bn_axis, name=bn_name_base + '2b')(out)
     out = Activation('relu')(out)
 
@@ -210,10 +211,10 @@ if __name__ == '__main__':
     lines = class_table.readlines()
 
     test_img1 = read_img('cat.jpg')
-    print 'result for test 1 is'
-    print lines[np.argmax(resnet_model.predict(test_img1)[0])]
+    print('Result for test 1 is:')
+    print(lines[np.argmax(resnet_model.predict(test_img1)[0])])
 
     test_img2 = read_img('elephant.jpg')
-    print 'result for test 2 is'
-    print lines[np.argmax(resnet_model.predict(test_img2)[0])]
+    print('Result for test 2 is:')
+    print(lines[np.argmax(resnet_model.predict(test_img2)[0])])
     class_table.close()
