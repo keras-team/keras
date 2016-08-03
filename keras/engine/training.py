@@ -608,8 +608,9 @@ class Model(Container):
             self.targets.append(K.placeholder(ndim=len(shape), name=name + '_target'))
 
         # prepare metrics
+        self.metrics = metrics
         self.metrics_names = ['loss']
-        self.metrics = []
+        self.metrics_tensors = []
 
         # compute total loss
         total_loss = None
@@ -623,7 +624,7 @@ class Model(Container):
             output_loss = weighted_loss(y_true, y_pred,
                                         sample_weight, mask)
             if len(self.outputs) > 1:
-                self.metrics.append(output_loss)
+                self.metrics_tensors.append(output_loss)
                 self.metrics_names.append(self.output_names[i] + '_loss')
             if total_loss is None:
                 total_loss = loss_weight * output_loss
@@ -648,21 +649,21 @@ class Model(Container):
                     output_shape = self.internal_output_shapes[i]
                     if output_shape[-1] == 1 or self.loss_functions[i] == objectives.binary_crossentropy:
                         # case: binary accuracy
-                        self.metrics.append(metrics_module.binary_accuracy(y_true, y_pred))
+                        self.metrics_tensors.append(metrics_module.binary_accuracy(y_true, y_pred))
                     elif self.loss_functions[i] == objectives.sparse_categorical_crossentropy:
                         # case: categorical accuracy with sparse targets
-                        self.metrics.append(
+                        self.metrics_tensors.append(
                             metrics_module.sparse_categorical_accuracy(y_true, y_pred))
                     else:
                         # case: categorical accuracy with dense targets
-                        self.metrics.append(metrics_module.categorical_accuracy(y_true, y_pred))
+                        self.metrics_tensors.append(metrics_module.categorical_accuracy(y_true, y_pred))
                     if len(self.output_names) == 1:
                         self.metrics_names.append('acc')
                     else:
                         self.metrics_names.append(self.output_layers[i].name + '_acc')
                 else:
                     metric_fn = metrics_module.get(metric)
-                    self.metrics.append(metric_fn(y_true, y_pred))
+                    self.metrics_tensors.append(metric_fn(y_true, y_pred))
                     if len(self.output_names) == 1:
                         self.metrics_names.append(metric_fn.__name__)
                     else:
@@ -698,7 +699,7 @@ class Model(Container):
 
             # returns loss and metrics. Updates weights at each call.
             self.train_function = K.function(inputs,
-                                             [self.total_loss] + self.metrics,
+                                             [self.total_loss] + self.metrics_tensors,
                                              updates=updates,
                                              **self._function_kwargs)
 
@@ -713,7 +714,7 @@ class Model(Container):
             # return loss and metrics, no gradient updates.
             # Does update the network states.
             self.test_function = K.function(inputs,
-                                            [self.total_loss] + self.metrics,
+                                            [self.total_loss] + self.metrics_tensors,
                                             updates=self.state_updates,
                                             **self._function_kwargs)
 

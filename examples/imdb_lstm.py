@@ -1,7 +1,7 @@
 '''Trains a LSTM on the IMDB sentiment classification task.
 
 The dataset is actually too small for LSTM to be of any advantage
-compared to simpler, much faster methods such as TF-IDF+LogReg.
+compared to simpler, much faster methods such as TF-IDF + LogReg.
 
 Notes:
 
@@ -28,8 +28,7 @@ maxlen = 80  # cut texts after this number of words (among top max_features most
 batch_size = 32
 
 print('Loading data...')
-(X_train, y_train), (X_test, y_test) = imdb.load_data(nb_words=max_features,
-                                                      test_split=0.2)
+(X_train, y_train), (X_test, y_test) = imdb.load_data(nb_words=max_features)
 print(len(X_train), 'train sequences')
 print(len(X_test), 'test sequences')
 

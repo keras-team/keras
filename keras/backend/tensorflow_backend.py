@@ -92,12 +92,16 @@ def _convert_string_dtype(dtype):
         return tf.float32
     elif dtype == 'float64':
         return tf.float64
+    elif dtype == 'int16':
+        return tf.int16
     elif dtype == 'int32':
         return tf.int32
     elif dtype == 'int64':
         return tf.int64
     elif dtype == 'uint8':
         return tf.int8
+    elif dtype == 'uint16':
+        return tf.uint16
     else:
         raise ValueError('Unsupported dtype:', dtype)
 
@@ -859,7 +863,11 @@ def set_value(x, value):
     '''Sets the value of a tensor variable,
     from a Numpy array.
     '''
-    tf.assign(x, np.asarray(value)).op.run(session=get_session())
+    value = np.asarray(value)
+    tf_dtype = _convert_string_dtype(x.dtype.name.split('_')[0])
+    assign_placeholder = tf.placeholder(tf_dtype, shape=value.shape)
+    assign_op = x.assign(assign_placeholder)
+    get_session().run(assign_op, feed_dict={assign_placeholder: value})
 
 
 def batch_set_value(tuples):
@@ -870,8 +878,15 @@ def batch_set_value(tuples):
             `value` should be a Numpy array.
     '''
     if tuples:
-        ops = [tf.assign(x, np.asarray(value)) for x, value in tuples]
-        get_session().run(ops)
+        assign_ops = []
+        feed_dict = {}
+        for x, value in tuples:
+            value = np.asarray(value)
+            tf_dtype = _convert_string_dtype(x.dtype.name.split('_')[0])
+            assign_placeholder = tf.placeholder(tf_dtype, shape=value.shape)
+            assign_ops.append(x.assign(assign_placeholder))
+            feed_dict[assign_placeholder] = value
+        get_session().run(assign_ops, feed_dict=feed_dict)
 
 
 def print_tensor(x, message=''):
