@@ -88,6 +88,7 @@ EXCLUDE = {
     'Wrapper',
     'get_session',
     'set_session',
+    'CallbackList',
 }
 
 PAGES = [

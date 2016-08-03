@@ -36,7 +36,8 @@ def get_test_data(nb_train=1000, nb_test=500, input_shape=(10,),
 
 
 def layer_test(layer_cls, kwargs={}, input_shape=None, input_dtype=None,
-               input_data=None, expected_output=None, expected_output_dtype=None):
+               input_data=None, expected_output=None,
+               expected_output_dtype=None, fixed_batch_size=False):
     '''Test routine for a layer with a single input tensor
     and single output tensor.
     '''
@@ -64,7 +65,10 @@ def layer_test(layer_cls, kwargs={}, input_shape=None, input_dtype=None,
         layer = layer_cls(**kwargs)
 
     # test in functional API
-    x = Input(shape=input_shape[1:], dtype=input_dtype)
+    if fixed_batch_size:
+        x = Input(batch_shape=input_shape, dtype=input_dtype)
+    else:
+        x = Input(shape=input_shape[1:], dtype=input_dtype)
     y = layer(x)
     assert K.dtype(y) == expected_output_dtype
 
