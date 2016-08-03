@@ -162,7 +162,7 @@ def get_resnet50():
     else:
         inp = Input(shape=(3, 224, 224))
         axis = 1
-    print "dim_ordering is %s"%K.image_dim_ordering()
+
     dim_ordering = K.image_dim_ordering()
     out = ZeroPadding2D((3, 3), dim_ordering=dim_ordering)(inp)
     out = Convolution2D(64, 7, 7, subsample=(2, 2), dim_ordering=dim_ordering, name='conv1')(out)
