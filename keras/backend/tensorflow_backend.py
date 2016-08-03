@@ -622,10 +622,10 @@ def normalize_batch_in_training(x, gamma, beta,
                                 reduction_axes, epsilon=0.0001):
     '''Compute mean and std for batch then apply batch_normalization on batch.
     '''
-    mean, std = tf.nn.moments(x, reduction_axes,
+    mean, var = tf.nn.moments(x, reduction_axes,
                               shift=None, name=None, keep_dims=False)
     if sorted(reduction_axes) == range(ndim(x))[:-1]:
-        normed = tf.nn.batch_normalization(x, mean, std,
+        normed = tf.nn.batch_normalization(x, mean, var,
                                            beta, gamma,
                                            epsilon)
     else:
@@ -639,21 +639,21 @@ def normalize_batch_in_training(x, gamma, beta,
         target_shape = tf.pack(target_shape)
 
         broadcast_mean = tf.reshape(mean, target_shape)
-        broadcast_std = tf.reshape(std, target_shape)
+        broadcast_var = tf.reshape(var, target_shape)
         broadcast_gamma = tf.reshape(gamma, target_shape)
         broadcast_beta = tf.reshape(beta, target_shape)
-        normed = tf.nn.batch_normalization(x, broadcast_mean, broadcast_std,
+        normed = tf.nn.batch_normalization(x, broadcast_mean, broadcast_var,
                                            broadcast_beta, broadcast_gamma,
                                            epsilon)
-    return normed, mean, std
+    return normed, mean, var
 
 
-def batch_normalization(x, mean, std, beta, gamma, epsilon=0.0001):
-    '''Apply batch normalization on x given mean, std, beta and gamma:
+def batch_normalization(x, mean, var, beta, gamma, epsilon=0.0001):
+    '''Apply batch normalization on x given mean, var, beta and gamma:
 
-    output = (x - mean) / (sqrt(std) + epsilon) * gamma + beta
+    output = (x - mean) / (sqrt(var) + epsilon) * gamma + beta
     '''
-    return tf.nn.batch_normalization(x, mean, std, beta, gamma, epsilon)
+    return tf.nn.batch_normalization(x, mean, var, beta, gamma, epsilon)
 
 
 # SHAPE OPERATIONS

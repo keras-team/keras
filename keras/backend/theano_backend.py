@@ -362,7 +362,7 @@ def normalize_batch_in_training(x, gamma, beta,
                                 reduction_axes, epsilon=0.0001):
     '''Compute mean and std for batch then apply batch_normalization on batch.
     '''
-    std = T.sqrt(x.var(reduction_axes) + epsilon)
+    var = x.var(reduction_axes)
     mean = x.mean(reduction_axes)
 
     target_shape = []
@@ -374,20 +374,20 @@ def normalize_batch_in_training(x, gamma, beta,
     target_shape = T.stack(*target_shape)
 
     broadcast_mean = T.reshape(mean, target_shape)
-    broadcast_std = T.reshape(std, target_shape)
+    broadcast_var = T.reshape(var, target_shape)
     broadcast_beta = T.reshape(beta, target_shape)
     broadcast_gamma = T.reshape(gamma, target_shape)
-    normed = batch_normalization(x, broadcast_mean, broadcast_std,
+    normed = batch_normalization(x, broadcast_mean, broadcast_var,
                                  broadcast_beta, broadcast_gamma,
                                  epsilon)
-    return normed, mean, std
+    return normed, mean, var
 
 
-def batch_normalization(x, mean, std, beta, gamma, epsilon=0.0001):
-    '''Apply batch normalization on x given mean, std, beta and gamma.
+def batch_normalization(x, mean, var, beta, gamma, epsilon=0.0001):
+    '''Apply batch normalization on x given mean, var, beta and gamma.
     '''
     normed = T.nnet.bn.batch_normalization(x, gamma, beta, mean,
-                                           sqrt(std) + epsilon,
+                                           sqrt(var) + epsilon,
                                            mode='high_mem')
     return normed
 
