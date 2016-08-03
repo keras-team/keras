@@ -337,6 +337,7 @@ class Sequential(Model):
             self.inbound_nodes[0].output_tensors = self.outputs
             self.inbound_nodes[0].output_shapes = [self.outputs[0]._keras_shape]
         self.built = False
+        self._flattened_layers = None
 
     def call(self, x, mask=None):
         if not self.built:
@@ -467,7 +468,7 @@ class Sequential(Model):
         '''
         # support for legacy behavior
         for layer in self.flattened_layers:
-            nb_param = len(layer.get_weights())
+            nb_param = len(layer.weights)
             layer.set_weights(weights[:nb_param])
             weights = weights[nb_param:]
 

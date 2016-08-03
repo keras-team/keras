@@ -11,6 +11,7 @@ from .common import get_uid
 from .common import cast_to_floatx
 from .common import image_dim_ordering
 from .common import set_image_dim_ordering
+from .common import is_keras_tensor
 
 _keras_base_dir = os.path.expanduser('~')
 if not os.access(_keras_base_dir, os.W_OK):
@@ -60,3 +61,10 @@ elif _BACKEND == 'tensorflow':
     from .tensorflow_backend import *
 else:
     raise Exception('Unknown backend: ' + str(_BACKEND))
+
+
+def backend():
+    '''Publicly accessible method
+    for determining the current backend.
+    '''
+    return _BACKEND

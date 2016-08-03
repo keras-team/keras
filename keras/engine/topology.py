@@ -696,15 +696,15 @@ class Layer(object):
                           ' outbound layers. '
                           'This will cause part of your model '
                           'to be disconnected.')
-        if not shape:
-            if hasattr(K, 'int_shape'):
-                shape = K.int_shape(input_tensor)
-            else:
-                raise Exception('`set_input` needs to know the shape '
-                                'of the `input_tensor` it receives, but '
-                                'Keras was not able to infer it automatically.'
-                                ' Specify it via: '
-                                '`model.set_input(input_tensor, shape)`')
+        if hasattr(K, 'int_shape'):
+            # auto-infered shape takes priority
+            shape = K.int_shape(input_tensor)
+        elif not shape:
+            raise Exception('`set_input` needs to know the shape '
+                            'of the `input_tensor` it receives, but '
+                            'Keras was not able to infer it automatically.'
+                            ' Specify it via: '
+                            '`model.set_input(input_tensor, shape)`')
         # reset layer connections
         self.inbound_nodes = []
         self.outbound_nodes = []
@@ -830,6 +830,10 @@ class Layer(object):
                             'ill-defined for the layer. ' +
                             'Use `get_output_shape_at(node_index)` instead.')
 
+    @property
+    def weights(self):
+        return self.trainable_weights + self.non_trainable_weights
+
     def set_weights(self, weights):
         '''Sets the weights of the layer, from Numpy arrays.
 
@@ -845,7 +849,7 @@ class Layer(object):
             raise Exception('You called `set_weights(weights)` on layer "' + self.name +
                             '" with a  weight list of length ' + str(len(weights)) +
                             ', but the layer was expecting ' + str(len(params)) +
-                            ' weights. Provided weights: ' + str(weights))
+                            ' weights. Provided weights: ' + str(weights)[:50] + '...')
         if not params:
             return
         weight_value_tuples = []

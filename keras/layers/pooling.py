@@ -114,8 +114,10 @@ class _Pooling2D(Layer):
     '''
 
     def __init__(self, pool_size=(2, 2), strides=None, border_mode='valid',
-                 dim_ordering=K.image_dim_ordering(), **kwargs):
+                 dim_ordering='default', **kwargs):
         super(_Pooling2D, self).__init__(**kwargs)
+        if dim_ordering == 'default':
+            dim_ordering = K.image_dim_ordering()
         self.pool_size = tuple(pool_size)
         if strides is None:
             strides = self.pool_size
@@ -199,7 +201,7 @@ class MaxPooling2D(_Pooling2D):
     '''
 
     def __init__(self, pool_size=(2, 2), strides=None, border_mode='valid',
-                 dim_ordering=K.image_dim_ordering(), **kwargs):
+                 dim_ordering='default', **kwargs):
         super(MaxPooling2D, self).__init__(pool_size, strides, border_mode,
                                            dim_ordering, **kwargs)
 
@@ -241,7 +243,7 @@ class AveragePooling2D(_Pooling2D):
     '''
 
     def __init__(self, pool_size=(2, 2), strides=None, border_mode='valid',
-                 dim_ordering=K.image_dim_ordering(), **kwargs):
+                 dim_ordering='default', **kwargs):
         super(AveragePooling2D, self).__init__(pool_size, strides, border_mode,
                                                dim_ordering, **kwargs)
 
@@ -257,8 +259,10 @@ class _Pooling3D(Layer):
     '''
 
     def __init__(self, pool_size=(2, 2, 2), strides=None, border_mode='valid',
-                 dim_ordering=K.image_dim_ordering(), **kwargs):
+                 dim_ordering='default', **kwargs):
         super(_Pooling3D, self).__init__(**kwargs)
+        if dim_ordering == 'default':
+            dim_ordering = K.image_dim_ordering()
         self.pool_size = tuple(pool_size)
         if strides is None:
             strides = self.pool_size
@@ -344,7 +348,7 @@ class MaxPooling3D(_Pooling3D):
     '''
 
     def __init__(self, pool_size=(2, 2, 2), strides=None, border_mode='valid',
-                 dim_ordering=K.image_dim_ordering(), **kwargs):
+                 dim_ordering='default', **kwargs):
         super(MaxPooling3D, self).__init__(pool_size, strides, border_mode,
                                            dim_ordering, **kwargs)
 
@@ -384,7 +388,7 @@ class AveragePooling3D(_Pooling3D):
     '''
 
     def __init__(self, pool_size=(2, 2, 2), strides=None, border_mode='valid',
-                 dim_ordering=K.image_dim_ordering(), **kwargs):
+                 dim_ordering='default', **kwargs):
         super(AveragePooling3D, self).__init__(pool_size, strides, border_mode,
                                                dim_ordering, **kwargs)
 

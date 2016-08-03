@@ -118,8 +118,10 @@ def flip_axis(x, axis):
     return x
 
 
-def array_to_img(x, dim_ordering=K.image_dim_ordering(), scale=True):
+def array_to_img(x, dim_ordering='default', scale=True):
     from PIL import Image
+    if dim_ordering == 'default':
+        dim_ordering = K.image_dim_ordering()
     if dim_ordering == 'th':
         x = x.transpose(1, 2, 0)
     if scale:
@@ -136,7 +138,9 @@ def array_to_img(x, dim_ordering=K.image_dim_ordering(), scale=True):
         raise Exception('Unsupported channel number: ', x.shape[2])
 
 
-def img_to_array(img, dim_ordering=K.image_dim_ordering()):
+def img_to_array(img, dim_ordering='default'):
+    if dim_ordering == 'default':
+        dim_ordering = K.image_dim_ordering()
     if dim_ordering not in ['th', 'tf']:
         raise Exception('Unknown dim_ordering: ', dim_ordering)
     # image has dim_ordering (height, width, channel)
@@ -222,7 +226,9 @@ class ImageDataGenerator(object):
                  horizontal_flip=False,
                  vertical_flip=False,
                  rescale=None,
-                 dim_ordering=K.image_dim_ordering()):
+                 dim_ordering='default'):
+        if dim_ordering == 'default':
+            dim_ordering = K.image_dim_ordering()
         self.__dict__.update(locals())
         self.mean = None
         self.std = None
@@ -446,12 +452,14 @@ class NumpyArrayIterator(Iterator):
 
     def __init__(self, X, y, image_data_generator,
                  batch_size=32, shuffle=False, seed=None,
-                 dim_ordering=K.image_dim_ordering(),
+                 dim_ordering='default',
                  save_to_dir=None, save_prefix='', save_format='jpeg'):
         if y is not None and len(X) != len(y):
             raise Exception('X (images tensor) and y (labels) '
                             'should have the same length. '
                             'Found: X.shape = %s, y.shape = %s' % (np.asarray(X).shape, np.asarray(y).shape))
+        if dim_ordering == 'default':
+            dim_ordering = K.image_dim_ordering()
         self.X = X
         self.y = y
         self.image_data_generator = image_data_generator
@@ -493,10 +501,12 @@ class DirectoryIterator(Iterator):
 
     def __init__(self, directory, image_data_generator,
                  target_size=(256, 256), color_mode='rgb',
-                 dim_ordering=K.image_dim_ordering,
+                 dim_ordering='default',
                  classes=None, class_mode='categorical',
                  batch_size=32, shuffle=True, seed=None,
                  save_to_dir=None, save_prefix='', save_format='jpeg'):
+        if dim_ordering == 'default':
+            dim_ordering = K.image_dim_ordering()
         self.directory = directory
         self.image_data_generator = image_data_generator
         self.target_size = tuple(target_size)

@@ -69,3 +69,10 @@ def get_uid(prefix=''):
 def reset_uids():
     global _UID_PREFIXES
     _UID_PREFIXES = defaultdict(int)
+
+
+def is_keras_tensor(x):
+    if hasattr(x, '_keras_shape'):
+        return True
+    else:
+        return False
