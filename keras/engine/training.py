@@ -694,7 +694,7 @@ class Model(Container):
 
             # get trainable weights
             trainable_weights = collect_trainable_weights(self)
-            training_updates = self.optimizer.get_updates(trainable_weights, self.constraints, self.total_loss)
+            training_updates = self.optimizer.get_updates(trainable_weights, self.multipliers, self.constraints, self.total_loss)
             updates = self.updates + training_updates
 
             # returns loss and metrics. Updates weights at each call.

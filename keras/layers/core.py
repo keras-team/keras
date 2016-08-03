@@ -563,6 +563,10 @@ class Dense(Layer):
         input_dim: dimensionality of the input (integer).
             This argument (or alternatively, the keyword argument `input_shape`)
             is required when using this layer as the first layer in a model.
+        W_learning_rate_multiplier: Multiplier (between 0.0 and 1.0) applied to the 
+            learning rate of the main weights matrix.
+        b_learning_rate_multiplier: Multiplier (between 0.0 and 1.0) applied to the 
+            learning rate of the bias.
 
     # Input shape
         2D tensor with shape: `(nb_samples, input_dim)`.
@@ -573,7 +577,9 @@ class Dense(Layer):
     def __init__(self, output_dim, init='glorot_uniform', activation='linear', weights=None,
                  W_regularizer=None, b_regularizer=None, activity_regularizer=None,
                  W_constraint=None, b_constraint=None,
-                 bias=True, input_dim=None, **kwargs):
+                 bias=True, input_dim=None,
+                 W_learning_rate_multiplier=None, b_learning_rate_multiplier=None,
+                 **kwargs):
         self.init = initializations.get(init)
         self.activation = activations.get(activation)
         self.output_dim = output_dim
@@ -589,6 +595,12 @@ class Dense(Layer):
         self.bias = bias
         self.initial_weights = weights
         self.input_spec = [InputSpec(ndim=2)]
+
+        if not bias:
+            if b_learning_rate_multiplier is not None:
+                raise Exception('b_learning_rate_multiplier provided with no bias.')
+        self.W_learning_rate_multiplier = W_learning_rate_multiplier
+        self.b_learning_rate_multiplier = b_learning_rate_multiplier
 
         if self.input_dim:
             kwargs['input_shape'] = (self.input_dim,)
@@ -628,6 +640,12 @@ class Dense(Layer):
         if self.bias and self.b_constraint:
             self.constraints[self.b] = self.b_constraint
 
+        self.multipliers = {}
+        if self.W_learning_rate_multiplier is not None:
+            self.multipliers[self.W] = self.W_learning_rate_multiplier
+        if (self.bias is not None) and (self.b_learning_rate_multiplier is not None):
+            self.multipliers[self.b] = self.b_learning_rate_multiplier
+        
         if self.initial_weights is not None:
             self.set_weights(self.initial_weights)
             del self.initial_weights
@@ -652,7 +670,9 @@ class Dense(Layer):
                   'W_constraint': self.W_constraint.get_config() if self.W_constraint else None,
                   'b_constraint': self.b_constraint.get_config() if self.b_constraint else None,
                   'bias': self.bias,
-                  'input_dim': self.input_dim}
+                  'input_dim': self.input_dim,
+                  'W_learning_rate_multiplier': self.W_learning_rate_multiplier if self.W_learning_rate_multiplier else None,
+                  'b_learning_rate_multiplier': self.b_learning_rate_multiplier if self.b_learning_rate_multiplier else None}
         base_config = super(Dense, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
@@ -728,6 +748,10 @@ class MaxoutDense(Layer):
         input_dim: dimensionality of the input (integer).
             This argument (or alternatively, the keyword argument `input_shape`)
             is required when using this layer as the first layer in a model.
+        W_learning_rate_multiplier: Multiplier (between 0.0 and 1.0) applied to the 
+            learning rate of the main weights matrix.
+        b_learning_rate_multiplier: Multiplier (between 0.0 and 1.0) applied to the 
+            learning rate of the bias.
 
     # Input shape
         2D tensor with shape: `(nb_samples, input_dim)`.
@@ -742,7 +766,9 @@ class MaxoutDense(Layer):
                  init='glorot_uniform', weights=None,
                  W_regularizer=None, b_regularizer=None, activity_regularizer=None,
                  W_constraint=None, b_constraint=None,
-                 bias=True, input_dim=None, **kwargs):
+                 bias=True, input_dim=None, 
+                 W_learning_rate_multiplier=None, b_learning_rate_multiplier=None,
+                 **kwargs):
         self.output_dim = output_dim
         self.nb_feature = nb_feature
         self.init = initializations.get(init)
@@ -757,6 +783,12 @@ class MaxoutDense(Layer):
         self.bias = bias
         self.initial_weights = weights
         self.input_spec = [InputSpec(ndim=2)]
+
+        if not bias:
+            if b_learning_rate_multiplier is not None:
+                raise Exception('b_learning_rate_multiplier provided with no bias.')
+        self.W_learning_rate_multiplier = W_learning_rate_multiplier
+        self.b_learning_rate_multiplier = b_learning_rate_multiplier
 
         self.input_dim = input_dim
         if self.input_dim:
@@ -796,6 +828,12 @@ class MaxoutDense(Layer):
         if self.bias and self.b_constraint:
             self.constraints[self.b] = self.b_constraint
 
+        self.multipliers = {}
+        if self.W_learning_rate_multiplier is not None:
+            self.multipliers[self.W] = self.W_learning_rate_multiplier
+        if (self.bias is not None) and (self.b_learning_rate_multiplier is not None):
+            self.multipliers[self.b] = self.b_learning_rate_multiplier
+            
         if self.initial_weights is not None:
             self.set_weights(self.initial_weights)
             del self.initial_weights
@@ -822,7 +860,9 @@ class MaxoutDense(Layer):
                   'W_constraint': self.W_constraint.get_config() if self.W_constraint else None,
                   'b_constraint': self.b_constraint.get_config() if self.b_constraint else None,
                   'bias': self.bias,
-                  'input_dim': self.input_dim}
+                  'input_dim': self.input_dim,
+                  'W_learning_rate_multiplier': self.W_learning_rate_multiplier if self.W_learning_rate_multiplier else None,
+                  'b_learning_rate_multiplier': self.b_learning_rate_multiplier if self.b_learning_rate_multiplier else None}
         base_config = super(MaxoutDense, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 

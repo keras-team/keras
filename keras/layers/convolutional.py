@@ -68,6 +68,10 @@ class Convolution1D(Layer):
             This argument is required if you are going to connect
             `Flatten` then `Dense` layers upstream
             (without it, the shape of the dense outputs cannot be computed).
+        W_learning_rate_multiplier: Multiplier (between 0.0 and 1.0) applied to the 
+            learning rate of the main weights matrix.
+        b_learning_rate_multiplier: Multiplier (between 0.0 and 1.0) applied to the 
+            learning rate of the bias.
 
     # Input shape
         3D tensor with shape: `(samples, steps, input_dim)`.
@@ -81,7 +85,9 @@ class Convolution1D(Layer):
                  border_mode='valid', subsample_length=1,
                  W_regularizer=None, b_regularizer=None, activity_regularizer=None,
                  W_constraint=None, b_constraint=None,
-                 bias=True, input_dim=None, input_length=None, **kwargs):
+                 bias=True, input_dim=None, input_length=None, 
+                 W_learning_rate_multiplier=None, b_learning_rate_multiplier=None,
+                 **kwargs):
 
         if border_mode not in {'valid', 'same'}:
             raise Exception('Invalid border mode for Convolution1D:', border_mode)
@@ -107,6 +113,13 @@ class Convolution1D(Layer):
         self.initial_weights = weights
         self.input_dim = input_dim
         self.input_length = input_length
+
+        if not bias:
+            if b_learning_rate_multiplier is not None:
+                raise Exception('b_learning_rate_multiplier provided with no bias.')
+        self.W_learning_rate_multiplier = W_learning_rate_multiplier
+        self.b_learning_rate_multiplier = b_learning_rate_multiplier
+
         if self.input_dim:
             kwargs['input_shape'] = (self.input_length, self.input_dim)
         super(Convolution1D, self).__init__(**kwargs)
@@ -140,6 +153,12 @@ class Convolution1D(Layer):
         if self.bias and self.b_constraint:
             self.constraints[self.b] = self.b_constraint
 
+        self.multipliers = {}
+        if self.W_learning_rate_multiplier is not None:
+            self.multipliers[self.W] = self.W_learning_rate_multiplier
+        if (self.bias is not None) and (self.b_learning_rate_multiplier is not None):
+            self.multipliers[self.b] = self.b_learning_rate_multiplier
+        
         if self.initial_weights is not None:
             self.set_weights(self.initial_weights)
             del self.initial_weights
@@ -178,7 +197,9 @@ class Convolution1D(Layer):
                   'b_constraint': self.b_constraint.get_config() if self.b_constraint else None,
                   'bias': self.bias,
                   'input_dim': self.input_dim,
-                  'input_length': self.input_length}
+                  'input_length': self.input_length,
+                  'W_learning_rate_multiplier': self.W_learning_rate_multiplier if self.W_learning_rate_multiplier else None,
+                  'b_learning_rate_multiplier': self.b_learning_rate_multiplier if self.b_learning_rate_multiplier else None}
         base_config = super(Convolution1D, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
@@ -238,6 +259,10 @@ class Convolution2D(Layer):
             If you never set it, then it will be "th".
         bias: whether to include a bias
             (i.e. make the layer affine rather than linear).
+        W_learning_rate_multiplier: Multiplier (between 0.0 and 1.0) applied to the 
+            learning rate of the main weights matrix.
+        b_learning_rate_multiplier: Multiplier (between 0.0 and 1.0) applied to the 
+            learning rate of the bias.
 
     # Input shape
         4D tensor with shape:
@@ -257,7 +282,9 @@ class Convolution2D(Layer):
                  border_mode='valid', subsample=(1, 1), dim_ordering=K.image_dim_ordering(),
                  W_regularizer=None, b_regularizer=None, activity_regularizer=None,
                  W_constraint=None, b_constraint=None,
-                 bias=True, **kwargs):
+                 bias=True,
+                 W_learning_rate_multiplier=None, b_learning_rate_multiplier=None,
+                 **kwargs):
 
         if border_mode not in {'valid', 'same'}:
             raise Exception('Invalid border mode for Convolution2D:', border_mode)
@@ -282,6 +309,13 @@ class Convolution2D(Layer):
         self.bias = bias
         self.input_spec = [InputSpec(ndim=4)]
         self.initial_weights = weights
+
+        if not bias:
+            if b_learning_rate_multiplier is not None:
+                raise Exception('b_learning_rate_multiplier provided with no bias.')
+        self.W_learning_rate_multiplier = W_learning_rate_multiplier
+        self.b_learning_rate_multiplier = b_learning_rate_multiplier
+
         super(Convolution2D, self).__init__(**kwargs)
 
     def build(self, input_shape):
@@ -318,6 +352,12 @@ class Convolution2D(Layer):
             self.constraints[self.W] = self.W_constraint
         if self.bias and self.b_constraint:
             self.constraints[self.b] = self.b_constraint
+
+        self.multipliers = {}
+        if self.W_learning_rate_multiplier is not None:
+            self.multipliers[self.W] = self.W_learning_rate_multiplier
+        if (self.bias is not None) and (self.b_learning_rate_multiplier is not None):
+            self.multipliers[self.b] = self.b_learning_rate_multiplier
 
         if self.initial_weights is not None:
             self.set_weights(self.initial_weights)
@@ -374,7 +414,9 @@ class Convolution2D(Layer):
                   'activity_regularizer': self.activity_regularizer.get_config() if self.activity_regularizer else None,
                   'W_constraint': self.W_constraint.get_config() if self.W_constraint else None,
                   'b_constraint': self.b_constraint.get_config() if self.b_constraint else None,
-                  'bias': self.bias}
+                  'bias': self.bias,
+                  'W_learning_rate_multiplier': self.W_learning_rate_multiplier if self.W_learning_rate_multiplier else None,
+                  'b_learning_rate_multiplier': self.b_learning_rate_multiplier if self.b_learning_rate_multiplier else None}                  
         base_config = super(Convolution2D, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
@@ -392,7 +434,9 @@ class Deconvolution2D(Convolution2D):
                  dim_ordering=K.image_dim_ordering(),
                  W_regularizer=None, b_regularizer=None, activity_regularizer=None,
                  W_constraint=None, b_constraint=None,
-                 bias=True, **kwargs):
+                 bias=True,
+                 W_learning_rate_multiplier=None, b_learning_rate_multiplier=None,
+                 **kwargs):
 
         if border_mode not in {'valid', 'same'}:
             raise Exception('Invalid border mode for AtrousConv2D:', border_mode)
@@ -406,7 +450,10 @@ class Deconvolution2D(Convolution2D):
                                               W_regularizer=W_regularizer, b_regularizer=b_regularizer,
                                               activity_regularizer=activity_regularizer,
                                               W_constraint=W_constraint, b_constraint=b_constraint,
-                                              bias=bias, **kwargs)
+                                              bias=bias,
+                                              W_learning_rate_multiplier=W_learning_rate_multiplier,
+                                              b_learning_rate_multiplier=b_learning_rate_multiplier,
+                                              **kwargs)
 
     def get_output_shape_for(self, input_shape):
         if self.dim_ordering == 'th':
@@ -506,6 +553,10 @@ class AtrousConvolution2D(Convolution2D):
             Keras config file at `~/.keras/keras.json`.
             If you never set it, then it will be "th".
         bias: whether to include a bias (i.e. make the layer affine rather than linear).
+        W_learning_rate_multiplier: Multiplier (between 0.0 and 1.0) applied to the 
+            learning rate of the main weights matrix.
+        b_learning_rate_multiplier: Multiplier (between 0.0 and 1.0) applied to the 
+            learning rate of the bias.
 
     # Input shape
         4D tensor with shape:
@@ -529,7 +580,9 @@ class AtrousConvolution2D(Convolution2D):
                  atrous_rate=(1, 1), dim_ordering=K.image_dim_ordering(),
                  W_regularizer=None, b_regularizer=None, activity_regularizer=None,
                  W_constraint=None, b_constraint=None,
-                 bias=True, **kwargs):
+                 bias=True,
+                 W_learning_rate_multiplier=None, b_learning_rate_multiplier=None,
+                 **kwargs):
 
         if border_mode not in {'valid', 'same'}:
             raise Exception('Invalid border mode for AtrousConv2D:', border_mode)
@@ -543,7 +596,9 @@ class AtrousConvolution2D(Convolution2D):
                                                   W_regularizer=W_regularizer, b_regularizer=b_regularizer,
                                                   activity_regularizer=activity_regularizer,
                                                   W_constraint=W_constraint, b_constraint=b_constraint,
-                                                  bias=bias, **kwargs)
+                                                  bias=bias, W_learning_rate_multiplier=W_learning_rate_multiplier,
+                                                  b_learning_rate_multiplier=b_learning_rate_multiplier,
+                                                  **kwargs)
 
     def get_output_shape_for(self, input_shape):
         if self.dim_ordering == 'th':
@@ -651,6 +706,12 @@ class SeparableConvolution2D(Layer):
             If you never set it, then it will be "th".
         bias: whether to include a bias
             (i.e. make the layer affine rather than linear).
+        depthwise_learning_rate_multiplier: Multiplier (between 0.0 and 1.0) applied to the 
+            learning rate of the depthwise weights matrix.
+        pointwise_learning_rate_multiplier: Multiplier (between 0.0 and 1.0) applied to the 
+            learning rate of the pointwise weights matrix.
+        b_learning_rate_multiplier: Multiplier (between 0.0 and 1.0) applied to the 
+            learning rate of the bias.
 
     # Input shape
         4D tensor with shape:
@@ -673,7 +734,9 @@ class SeparableConvolution2D(Layer):
                  b_regularizer=None, activity_regularizer=None,
                  depthwise_constraint=None, pointwise_constraint=None,
                  b_constraint=None,
-                 bias=True, **kwargs):
+                 bias=True,
+                 depthwise_learning_rate_multiplier=None, pointwise_learning_rate_multiplier=None,b_learning_rate_multiplier=None,
+                 **kwargs):
 
         if K._BACKEND != 'tensorflow':
             raise Exception('SeparableConv2D is only available '
@@ -706,6 +769,14 @@ class SeparableConvolution2D(Layer):
         self.b_constraint = constraints.get(b_constraint)
 
         self.bias = bias
+
+        if not bias:
+            if b_learning_rate_multiplier is not None:
+                raise Exception('b_learning_rate_multiplier provided with no bias.')
+        self.depthwise_learning_rate_multiplier = depthwise_learning_rate_multiplier
+        self.pointwise_learning_rate_multiplier = pointwise_learning_rate_multiplier
+        self.b_learning_rate_multiplier = b_learning_rate_multiplier
+
         self.input_spec = [InputSpec(ndim=4)]
         self.initial_weights = weights
         super(SeparableConvolution2D, self).__init__(**kwargs)
@@ -755,6 +826,14 @@ class SeparableConvolution2D(Layer):
         if self.bias and self.b_constraint:
             self.constraints[self.b] = self.b_constraint
 
+        self.multipliers = {}
+        if self.depthwise_learning_rate_multiplier is not None:
+            self.multipliers[self.depthwise_kernel] = self.depthwise_learning_rate_multiplier
+        if self.pointwise_learning_rate_multiplier is not None:
+            self.multipliers[self.pointwise_kernel] = self.pointwise_learning_rate_multiplier
+        if (self.bias is not None) and (self.b_learning_rate_multiplier is not None):
+            self.multipliers[self.b] = self.b_learning_rate_multiplier
+            
         if self.initial_weights is not None:
             self.set_weights(self.initial_weights)
             del self.initial_weights
@@ -814,7 +893,10 @@ class SeparableConvolution2D(Layer):
                   'depthwise_constraint': self.depthwise_constraint.get_config() if self.depthwise_constraint else None,
                   'pointwise_constraint': self.pointwise_constraint.get_config() if self.pointwise_constraint else None,
                   'b_constraint': self.b_constraint.get_config() if self.b_constraint else None,
-                  'bias': self.bias}
+                  'bias': self.bias,
+                  'depthwise_learning_rate_multiplier': self.depthwise_learning_rate_multiplier if self.depthwise_learning_rate_multiplier else None,
+                  'pointwise_learning_rate_multiplier': self.pointwise_learning_rate_multiplier if self.pointwise_learning_rate_multiplier else None,
+                  'b_learning_rate_multiplier': self.b_learning_rate_multiplier if self.b_learning_rate_multiplier else None}
         base_config = super(SeparableConvolution2D, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
@@ -862,6 +944,10 @@ class Convolution3D(Layer):
             Keras config file at `~/.keras/keras.json`.
             If you never set it, then it will be "th".
         bias: whether to include a bias (i.e. make the layer affine rather than linear).
+        W_learning_rate_multiplier: Multiplier (between 0.0 and 1.0) applied to the 
+            learning rate of the main weights matrix.
+        b_learning_rate_multiplier: Multiplier (between 0.0 and 1.0) applied to the 
+            learning rate of the bias.
 
     # Input shape
         5D tensor with shape:
@@ -882,7 +968,9 @@ class Convolution3D(Layer):
                  border_mode='valid', subsample=(1, 1, 1), dim_ordering=K.image_dim_ordering(),
                  W_regularizer=None, b_regularizer=None, activity_regularizer=None,
                  W_constraint=None, b_constraint=None,
-                 bias=True, **kwargs):
+                 bias=True,
+                 W_learning_rate_multiplier=None, b_learning_rate_multiplier=None,
+                 **kwargs):
         if border_mode not in {'valid', 'same'}:
             raise Exception('Invalid border mode for Convolution3D:', border_mode)
         self.nb_filter = nb_filter
@@ -905,6 +993,13 @@ class Convolution3D(Layer):
         self.b_constraint = constraints.get(b_constraint)
 
         self.bias = bias
+
+        if not bias:
+            if b_learning_rate_multiplier is not None:
+                raise Exception('b_learning_rate_multiplier provided with no bias.')
+        self.W_learning_rate_multiplier = W_learning_rate_multiplier
+        self.b_learning_rate_multiplier = b_learning_rate_multiplier
+
         self.input_spec = [InputSpec(ndim=5)]
         self.initial_weights = weights
         super(Convolution3D, self).__init__(**kwargs)
@@ -950,6 +1045,12 @@ class Convolution3D(Layer):
         if self.bias and self.b_constraint:
             self.constraints[self.b] = self.b_constraint
 
+        self.multipliers = {}
+        if self.W_learning_rate_multiplier is not None:
+            self.multipliers[self.W] = self.W_learning_rate_multiplier
+        if (self.bias is not None) and (self.b_learning_rate_multiplier is not None):
+            self.multipliers[self.b] = self.b_learning_rate_multiplier
+            
         if self.initial_weights is not None:
             self.set_weights(self.initial_weights)
             del self.initial_weights
@@ -1012,7 +1113,9 @@ class Convolution3D(Layer):
                   'activity_regularizer': self.activity_regularizer.get_config() if self.activity_regularizer else None,
                   'W_constraint': self.W_constraint.get_config() if self.W_constraint else None,
                   'b_constraint': self.b_constraint.get_config() if self.b_constraint else None,
-                  'bias': self.bias}
+                  'bias': self.bias,
+                  'W_learning_rate_multiplier': self.W_learning_rate_multiplier if self.W_learning_rate_multiplier else None,
+                  'b_learning_rate_multiplier': self.b_learning_rate_multiplier if self.b_learning_rate_multiplier else None}
         base_config = super(Convolution3D, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
