@@ -1,6 +1,7 @@
 import theano
 from theano import tensor as T
 from theano.sandbox.rng_mrg import MRG_RandomStreams as RandomStreams
+from theano.sandbox.cuda.dnn import dnn_batch_normalization_test
 from theano.tensor.signal import pool
 from theano.tensor.nnet import conv3d2d
 from theano.printing import Print
@@ -386,8 +387,11 @@ def normalize_batch_in_training(x, gamma, beta,
 def batch_normalization(x, mean, std, beta, gamma, epsilon=0.0001):
     '''Apply batch normalization on x given mean, std, beta and gamma.
     '''
-    normed = T.nnet.bn.batch_normalization(x, gamma, beta, mean, std + epsilon,
-                                           mode='high_mem')
+    if theano.config.device.startswith('gpu'):
+        normed = dnn_batch_normalization_test(x, gamma, beta, mean, std ** 2, epsilon)
+    else:
+        normed = T.nnet.bn.batch_normalization(x, gamma, beta, mean, std + epsilon,
+                                               mode='high_mem')
     return normed
 
 
