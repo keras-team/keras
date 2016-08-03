@@ -53,21 +53,8 @@ model.compile(loss='categorical_crossentropy',
               metrics=['accuracy'])
 
 history = model.fit(X_train, Y_train,
-                    batch_size=batch_size, nb_epoch=3,
+                    batch_size=batch_size, nb_epoch=nb_epoch,
                     verbose=1, validation_data=(X_test, Y_test))
 score = model.evaluate(X_test, Y_test, verbose=0)
 print('Test score:', score[0])
 print('Test accuracy:', score[1])
-
-model.save('tmp.h5')
-
-from keras.models import load_model
-model = load_model('tmp.h5')
-
-score = model.evaluate(X_test, Y_test, verbose=0)
-print('Test score:', score[0])
-print('Test accuracy:', score[1])
-
-model.fit(X_train, Y_train,
-            batch_size=batch_size, nb_epoch=3,
-            verbose=1, validation_data=(X_test, Y_test))
