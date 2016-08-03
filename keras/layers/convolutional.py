@@ -4,7 +4,7 @@ from __future__ import absolute_import
 from .. import backend as K
 from .. import activations, initializations, regularizers, constraints
 from ..engine import Layer, InputSpec
-from ..utils.np_utils import conv_output_length, conv_input_length
+from ..utils.np_utils import conv_output_length, conv_input_length, convert_kernel
 
 # imports for backwards namespace compatibility
 from .pooling import AveragePooling1D, AveragePooling2D, AveragePooling3D
@@ -163,6 +163,10 @@ class Convolution1D(Layer):
         output = K.permute_dimensions(output, (0, 2, 1))
         output = self.activation(output)
         return output
+
+    def convert_weights(self, weights, from_backend):
+        weights[0] = convert_kernel(weights[0])
+        return weights
 
     def get_config(self):
         config = {'nb_filter': self.nb_filter,
@@ -359,6 +363,10 @@ class Convolution2D(Layer):
                 raise Exception('Invalid dim_ordering: ' + self.dim_ordering)
         output = self.activation(output)
         return output
+
+    def convert_weights(self, weights, from_backend):
+        weights[0] = convert_kernel(weights[0])
+        return weights
 
     def get_config(self):
         config = {'nb_filter': self.nb_filter,
@@ -996,6 +1004,10 @@ class Convolution3D(Layer):
                 raise Exception('Invalid dim_ordering: ' + self.dim_ordering)
         output = self.activation(output)
         return output
+
+    def convert_weights(self, weights, from_backend):
+        weights[0] = convert_kernel(weights[0])
+        return weights
 
     def get_config(self):
         config = {'nb_filter': self.nb_filter,

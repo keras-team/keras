@@ -830,6 +830,9 @@ class Layer(object):
                             'ill-defined for the layer. ' +
                             'Use `get_output_shape_at(node_index)` instead.')
 
+    def convert_weights(self, weights, from_backend):
+        return weights
+
     def set_weights(self, weights):
         '''Sets the weights of the layer, from Numpy arrays.
 
@@ -2384,6 +2387,7 @@ class Container(Layer):
             flattened_layers = self.layers
 
         f.attrs['layer_names'] = [layer.name.encode('utf8') for layer in flattened_layers]
+        f.attrs['keras_backend'] = K._BACKEND
 
         for layer in flattened_layers:
             g = f.create_group(layer.name)
@@ -2469,11 +2473,14 @@ class Container(Layer):
             # we batch weight value assignments in a single backend call
             # which provides a speedup in TensorFlow.
             weight_value_tuples = []
+            backend = f.attrs.get('keras_backend')
             for k, name in enumerate(layer_names):
                 g = f[name]
                 weight_names = [n.decode('utf8') for n in g.attrs['weight_names']]
                 weight_values = [g[weight_name] for weight_name in weight_names]
                 layer = flattened_layers[k]
+                if backend and backend != K._BACKEND:
+                    weight_values = layer.convert_weights(weight_values, backend)
                 symbolic_weights = layer.trainable_weights + layer.non_trainable_weights
                 if len(weight_values) != len(symbolic_weights):
                     raise Exception('Layer #' + str(k) +
