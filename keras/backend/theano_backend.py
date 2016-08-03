@@ -386,7 +386,8 @@ def normalize_batch_in_training(x, gamma, beta,
 def batch_normalization(x, mean, std, beta, gamma, epsilon=0.0001):
     '''Apply batch normalization on x given mean, std, beta and gamma.
     '''
-    normed = T.nnet.bn.batch_normalization(x, gamma, beta, mean, std + epsilon,
+    normed = T.nnet.bn.batch_normalization(x, gamma, beta, mean,
+                                           sqrt(std) + epsilon,
                                            mode='high_mem')
     return normed
 
