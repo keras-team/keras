@@ -840,6 +840,13 @@ def spatial_3d_padding(x, padding=(1, 1, 1), dim_ordering='th'):
 def pack(x):
     return tf.pack(x)
 
+def one_hot(indices, nb_classes):
+    '''
+    Input: nD integer tensor of shape (batch_size, dim1, dim2, ... dim(n-1))
+    Output: (n + 1)D one hot representation of the input with shape (batch_size, dim1, dim2, ... dim(n-1), nb_classes)
+    '''
+    return tf.one_hot(indices, depth=nb_classes, axis=-1)
+
 
 # VALUE MANIPULATION
 
