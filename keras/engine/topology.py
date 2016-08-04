@@ -1116,7 +1116,7 @@ class Merge(Layer):
             If lambda/function, it should take as input a list of tensors
             and return a single tensor.
         concat_axis: integer, axis to use in mode `concat`.
-        dot_axes: integer or tuple of integers, axes to use in mode `dot`.
+        dot_axes: integer or tuple of integers, axes to use in mode `dot` or `cos`.
         output_shape: either a shape tuple (tuple of integers), or a lambda/function
             to compute `output_shape` (only if merge mode is a lambda/function).
             If the argument is a tuple,
@@ -1492,7 +1492,7 @@ def merge(inputs, mode='sum', concat_axis=-1,
             If lambda/function, it should take as input a list of tensors
             and return a single tensor.
         concat_axis: integer, axis to use in mode `concat`.
-        dot_axes: integer or tuple of integers, axes to use in mode `dot`.
+        dot_axes: integer or tuple of integers, axes to use in mode `dot` or `cos`.
         output_shape: shape tuple (tuple of integers), or lambda/function
             to compute output_shape (only if merge mode is a lambda/function).
             If the latter case, it should take as input a list of shape tuples
