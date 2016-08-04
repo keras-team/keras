@@ -323,6 +323,30 @@ class Layer(object):
             if 'create_input_layer' in kwargs:
                 self.create_input_layer(batch_input_shape, input_dtype)
 
+    @property
+    def trainable_weights(self):
+        trainable = getattr(self, 'trainable', True)
+        if trainable:
+            return self._trainable_weights
+        else:
+            return []
+
+    @trainable_weights.setter
+    def trainable_weights(self, weights):
+        self._trainable_weights = weights
+
+    @property
+    def non_trainable_weights(self):
+        trainable = getattr(self, 'trainable', True)
+        if not trainable:
+            return self._trainable_weights + self._non_trainable_weights
+        else:
+            return self._non_trainable_weights
+
+    @non_trainable_weights.setter
+    def non_trainable_weights(self, weights):
+        self._non_trainable_weights = weights
+
     def create_input_layer(self, batch_input_shape,
                            input_dtype=None, name=None):
         if not name:
@@ -844,7 +868,7 @@ class Layer(object):
                 of the layer (i.e. it should match the
                 output of `get_weights`).
         '''
-        params = self.trainable_weights + self.non_trainable_weights
+        params = self.weights
         if len(params) != len(weights):
             raise Exception('You called `set_weights(weights)` on layer "' + self.name +
                             '" with a  weight list of length ' + str(len(weights)) +
@@ -867,7 +891,7 @@ class Layer(object):
         '''Returns the current weights of the layer,
         as a list of numpy arrays.
         '''
-        params = self.trainable_weights + self.non_trainable_weights
+        params = self.weights
         return K.batch_get_value(params)
 
     def get_config(self):
@@ -926,6 +950,8 @@ class InputLayer(Layer):
         self.uses_learning_phase = False
         self.trainable = False
         self.built = True
+        self.trainable_weights = []
+        self.non_trainable_weights = []
 
         self.inbound_nodes = []
         self.outbound_nodes = []
@@ -2391,7 +2417,7 @@ class Container(Layer):
 
         for layer in flattened_layers:
             g = f.create_group(layer.name)
-            symbolic_weights = layer.trainable_weights + layer.non_trainable_weights
+            symbolic_weights = layer.weights
             weight_values = K.batch_get_value(symbolic_weights)
             weight_names = []
             for i, (w, val) in enumerate(zip(symbolic_weights, weight_values)):
@@ -2451,7 +2477,7 @@ class Container(Layer):
             # new file format
             filtered_layers = []
             for layer in flattened_layers:
-                weights = layer.trainable_weights + layer.non_trainable_weights
+                weights = layer.weights
                 if weights:
                     filtered_layers.append(layer)
             flattened_layers = filtered_layers
@@ -2478,7 +2504,7 @@ class Container(Layer):
                 weight_names = [n.decode('utf8') for n in g.attrs['weight_names']]
                 weight_values = [g[weight_name] for weight_name in weight_names]
                 layer = flattened_layers[k]
-                symbolic_weights = layer.trainable_weights + layer.non_trainable_weights
+                symbolic_weights = layer.weights
                 if len(weight_values) != len(symbolic_weights):
                     raise Exception('Layer #' + str(k) +
                                     ' (named "' + layer.name +
