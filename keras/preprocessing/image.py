@@ -126,7 +126,9 @@ def array_to_img(x, dim_ordering='default', scale=True):
         x = x.transpose(1, 2, 0)
     if scale:
         x += max(-np.min(x), 0)
-        x /= np.max(x)
+        x_max = np.max(x)
+        if x_max != 0:
+            x /= x_max
         x *= 255
     if x.shape[2] == 3:
         # RGB
