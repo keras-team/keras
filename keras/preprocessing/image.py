@@ -162,6 +162,12 @@ def img_to_array(img, dim_ordering='default'):
 
 def load_img(path, grayscale=False, target_size=None):
     from PIL import Image
+
+    if path[:4] == 'http': # Allow loading from http URL
+        import urllib
+        import cStringIO
+        path = cStringIO.StringIO(urllib.urlopen(path).read())
+
     img = Image.open(path)
     if grayscale:
         img = img.convert('L')
