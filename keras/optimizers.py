@@ -453,9 +453,8 @@ class Nadam(Optimizer):
         epsilon: float >= 0. Fuzz factor.
 
     # References
-        [1] Nadam report - http://cs229.stanford.edu/proj2015/054_report.pdf
-        [2] On the importance of initialization and momentum in deep learning -
-            http://www.cs.toronto.edu/~fritz/absps/momentum.pdf
+        - [Nadam report](http://cs229.stanford.edu/proj2015/054_report.pdf)
+        - [On the importance of initialization and momentum in deep learning](http://www.cs.toronto.edu/~fritz/absps/momentum.pdf)
     '''
     def __init__(self, lr=0.002, beta_1=0.9, beta_2=0.999,
                  epsilon=1e-8, schedule_decay=0.004, **kwargs):
