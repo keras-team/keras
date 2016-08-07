@@ -61,7 +61,7 @@ for name in sorted(os.listdir(TEXT_DATA_DIR)):
         for fname in sorted(os.listdir(path)):
             if fname.isdigit():
                 fpath = os.path.join(path, fname)
-                f = open(fpath)
+                f = open(fpath, encoding="latin-1")
                 texts.append(f.read())
                 f.close()
                 labels.append(label_id)
