@@ -885,8 +885,14 @@ def set_value(x, value):
     '''
     value = np.asarray(value)
     tf_dtype = _convert_string_dtype(x.dtype.name.split('_')[0])
-    assign_placeholder = tf.placeholder(tf_dtype, shape=value.shape)
-    assign_op = x.assign(assign_placeholder)
+    if hasattr(x, '_assign_placeholder'):
+        assign_placeholder = x._assign_placeholder
+        assign_op = x._assign_op
+    else:
+        assign_placeholder = tf.placeholder(tf_dtype, shape=value.shape)
+        assign_op = x.assign(assign_placeholder)
+        x._assign_placeholder = assign_placeholder
+        x._assign_op = assign_op
     get_session().run(assign_op, feed_dict={assign_placeholder: value})
 
 
@@ -903,8 +909,15 @@ def batch_set_value(tuples):
         for x, value in tuples:
             value = np.asarray(value)
             tf_dtype = _convert_string_dtype(x.dtype.name.split('_')[0])
-            assign_placeholder = tf.placeholder(tf_dtype, shape=value.shape)
-            assign_ops.append(x.assign(assign_placeholder))
+            if hasattr(x, '_assign_placeholder'):
+                assign_placeholder = x._assign_placeholder
+                assign_op = x._assign_op
+            else:
+                assign_placeholder = tf.placeholder(tf_dtype, shape=value.shape)
+                assign_op = x.assign(assign_placeholder)
+                x._assign_placeholder = assign_placeholder
+                x._assign_op = assign_op
+            assign_ops.append(assign_op)
             feed_dict[assign_placeholder] = value
         get_session().run(assign_ops, feed_dict=feed_dict)
 
