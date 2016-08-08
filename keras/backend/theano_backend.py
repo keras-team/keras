@@ -597,9 +597,9 @@ def pack(x):
 
 
 def one_hot(indices, nb_classes):
-    '''
-    Input: nD integer tensor of shape (batch_size, dim1, dim2, ... dim(n-1))
-    Output: (n + 1)D one hot representation of the input with shape (batch_size, dim1, dim2, ... dim(n-1), nb_classes)
+    '''Input: nD integer tensor of shape (batch_size, dim1, dim2, ... dim(n-1))
+    Output: (n + 1)D one hot representation of the input
+    with shape (batch_size, dim1, dim2, ... dim(n-1), nb_classes)
     '''
     input_shape = tuple((indices.shape[i] for i in range(indices.ndim)))
     indices = T.flatten(indices)

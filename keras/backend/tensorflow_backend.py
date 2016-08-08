@@ -241,17 +241,27 @@ def ones_like(x, name=None):
     return tf.ones_like(x, name=name)
 
 
-def random_uniform_variable(shape, low, high, dtype=_FLOATX, name=None):
+def random_uniform_variable(shape, low, high, dtype=_FLOATX,
+                            name=None, seed=None):
     shape = tuple(map(int, shape))
     tf_dtype = _convert_string_dtype(dtype)
-    value = tf.random_uniform_initializer(low, high, dtype=tf_dtype)(shape)
+    if seed is None:
+        # ensure that randomness is conditioned by the Numpy RNG
+        seed = np.random.randint(10e8)
+    value = tf.random_uniform_initializer(
+        low, high, dtype=tf_dtype, seed=seed)(shape)
     return variable(value, dtype=dtype, name=name)
 
 
-def random_normal_variable(shape, mean, scale, dtype=_FLOATX, name=None):
+def random_normal_variable(shape, mean, scale, dtype=_FLOATX,
+                           name=None, seed=None):
     shape = tuple(map(int, shape))
     tf_dtype = _convert_string_dtype(dtype)
-    value = tf.random_normal_initializer(mean, scale, dtype=tf_dtype)(shape)
+    if seed is None:
+        # ensure that randomness is conditioned by the Numpy RNG
+        seed = np.random.randint(10e8)
+    value = tf.random_normal_initializer(
+        mean, scale, dtype=tf_dtype, seed=seed)(shape)
     return variable(value, dtype=dtype, name=name)
 
 
@@ -840,10 +850,11 @@ def spatial_3d_padding(x, padding=(1, 1, 1), dim_ordering='th'):
 def pack(x):
     return tf.pack(x)
 
+
 def one_hot(indices, nb_classes):
-    '''
-    Input: nD integer tensor of shape (batch_size, dim1, dim2, ... dim(n-1))
-    Output: (n + 1)D one hot representation of the input with shape (batch_size, dim1, dim2, ... dim(n-1), nb_classes)
+    '''Input: nD integer tensor of shape (batch_size, dim1, dim2, ... dim(n-1))
+    Output: (n + 1)D one hot representation of the input
+    with shape (batch_size, dim1, dim2, ... dim(n-1), nb_classes)
     '''
     return tf.one_hot(indices, depth=nb_classes, axis=-1)
 
