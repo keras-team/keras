@@ -61,7 +61,7 @@ def test_temporal_regression():
     model.compile(loss='hinge', optimizer='adam')
     history = model.fit(X_train, y_train, nb_epoch=5, batch_size=16,
                         validation_data=(X_test, y_test), verbose=0)
-    assert(history.history['val_loss'][-1] < 0.8)
+    assert(history.history['val_loss'][-1] < 1.)
 
 
 @keras_test
