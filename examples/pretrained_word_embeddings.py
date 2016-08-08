@@ -20,7 +20,7 @@ from keras.preprocessing.text import Tokenizer
 from keras.preprocessing.sequence import pad_sequences
 from keras.utils.np_utils import to_categorical
 from keras.layers import Dense, Input, Flatten
-from keras.layers import Convolution1D, MaxPooling1D, Embedding
+from keras.layers import Conv1D, MaxPooling1D, Embedding
 from keras.models import Model
 import sys
 
@@ -124,11 +124,11 @@ print('Training model.')
 # train a 1D convnet with global maxpooling
 sequence_input = Input(shape=(MAX_SEQUENCE_LENGTH,), dtype='int32')
 embedded_sequences = embedding_layer(sequence_input)
-x = Convolution1D(128, 5, activation='relu')(embedded_sequences)
+x = Conv1D(128, 5, activation='relu')(embedded_sequences)
 x = MaxPooling1D(5)(x)
-x = Convolution1D(128, 5, activation='relu')(x)
+x = Conv1D(128, 5, activation='relu')(x)
 x = MaxPooling1D(5)(x)
-x = Convolution1D(128, 5, activation='relu')(x)
+x = Conv1D(128, 5, activation='relu')(x)
 x = MaxPooling1D(35)(x)
 x = Flatten()(x)
 x = Dense(128, activation='relu')(x)
