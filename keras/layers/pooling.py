@@ -61,8 +61,9 @@ class MaxPooling1D(_Pooling1D):
         3D tensor with shape: `(samples, downsampled_steps, features)`.
 
     # Arguments
-        pool_length: factor by which to downscale. 2 will halve the input.
-        stride: integer, or None. Stride value.
+        pool_length: size of the region to which max pooling is applied
+        stride: integer, or None. factor by which to downscale.
+            2 will halve the input.
             If None, it will default to `pool_length`.
         border_mode: 'valid' or 'same'.
             Note: 'same' will only work with TensorFlow for the time being.
