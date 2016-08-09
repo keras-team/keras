@@ -781,6 +781,7 @@ def rnn(step_function, inputs, initial_states,
                 initial_output = step_function([x[0] for x in inputs], initial_states + constants)[0] * 0
                 # Theano gets confused by broadcasting patterns in the scan op
                 initial_output = T.unbroadcast(initial_output, 0, 1)
+
                 def _step(*args):
                     input = args[:len(inputs)]
                     mask = args[len(inputs)]
@@ -805,6 +806,7 @@ def rnn(step_function, inputs, initial_states,
                 initial_output = step_function(inputs[0], initial_states + constants)[0] * 0
                 # Theano gets confused by broadcasting patterns in the scan op
                 initial_output = T.unbroadcast(initial_output, 0, 1)
+
                 def _step(input, mask, output_tm1, *states):
                     output, new_states = step_function(input, states)
                     # output previous output if masked.
@@ -850,12 +852,14 @@ def rnn(step_function, inputs, initial_states,
 
         else:
             if type(inputs) == list:
+
                 def _step(*args):
                     inputs = args[:len(inputs)]
                     states = args[len(inputs):]
                     output, new_states = step_function(inputs, states)
                     return [output] + new_states
             else:
+
                 def _step(input, *states):
                     output, new_states = step_function(input, states)
                     return [output] + new_states
@@ -881,7 +885,6 @@ def rnn(step_function, inputs, initial_states,
     outputs = outputs.dimshuffle(axes)
     states = [T.squeeze(state[-1]) for state in states]
     return last_output, outputs, states
-
 
 def switch(condition, then_expression, else_expression):
     '''condition: scalar tensor.
