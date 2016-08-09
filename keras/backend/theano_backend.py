@@ -849,12 +849,16 @@ def rnn(step_function, inputs, initial_states,
                 states.append(T.stack(*[states_at_step[i] for states_at_step in successive_states]))
 
         else:
-            def _step(*args):
-                input = args[:len(inputs)]
-                states = args[len(inputs):]
-                output, new_states = step_function(input, states)
-                return [output] + new_states
-
+            if type(inputs) == list:
+                def _step(*args):
+                    inputs = args[:len(inputs)]
+                    states = args[len(inputs):]
+                    output, new_states = step_function(inputs, states)
+                    return [output] + new_states
+            else:
+                def _step(input, states):
+                    output, new_states = step_function(input, states)
+                    return [output] + new_states
             results, _ = theano.scan(
                 _step,
                 sequences=inputs,
