@@ -1965,6 +1965,30 @@ class Container(Layer):
             weights += layer.non_trainable_weights
         return weights
 
+    def get_weights(self):
+        '''Returns the weights of the model,
+        as a flat list of Numpy arrays.
+        '''
+        weights = []
+        for layer in self.layers:
+            weights += layer.weights
+        return K.batch_get_value(weights)
+
+    def set_weights(self, weights):
+        '''Sets the weights of the model.
+        The `weights` argument should be a list
+        of Numpy arrays with shapes and types matching
+        the output of `model.get_weights()`.
+        '''
+        tuples = []
+        for layer in self.layers:
+            nb_param = len(layer.weights)
+            layer_weights = weights[:nb_param]
+            for sw, w in zip(layer.weights, layer_weights):
+                tuples.append((sw, w))
+            weights = weights[nb_param:]
+        K.batch_set_value(tuples)
+
     @property
     def input_spec(self):
         specs = []
