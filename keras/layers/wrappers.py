@@ -137,6 +137,7 @@ class TimeDistributed(Wrapper):
                 break
         if batch_size:
             # batch size matters, use rnn-based implementation
+
             def step(x, states):
                 output = self.layer.call(x)
                 return output, []
@@ -156,8 +157,11 @@ class TimeDistributed(Wrapper):
             X = [K.reshape(X[i], (-1, ) + input_shapes[i][2:]) for i in range(len(X))] # (nb_samples * timesteps, ...)
             if len(X) == 1:
                 X = X[0]
+                input_shape = input_shapes[0]
+            else:
+                input_shape = input_shapes
             y = self.layer.call(X)  # (nb_samples * timesteps, ...)
             # (nb_samples, timesteps, ...)
-            output_shape = self.get_output_shape_for(input_shapes)
+            output_shape = self.get_output_shape_for(input_shape)
             y = K.reshape(y, (-1, input_length) + output_shape[2:])
         return y
