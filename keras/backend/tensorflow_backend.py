@@ -1042,7 +1042,7 @@ def rnn(step_function, inputs, initial_states,
             x = tf.transpose(x, (axes))
             input_list += [tf.unpack(x)]
         assert len(set(map(len, input_list))) == 1, "All input sequences should be of equal length."
-        input_list = [ map(lambda x: x[t], input_list) for t in range(len(input_list[0]))]
+        input_list = [map(lambda x: x[t], input_list) for t in range(len(input_list[0]))]
     else:
         ndim = len(inputs.get_shape())
         assert ndim >= 3, "Input should be at least 3D."
