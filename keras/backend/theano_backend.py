@@ -856,7 +856,7 @@ def rnn(step_function, inputs, initial_states,
                     output, new_states = step_function(inputs, states)
                     return [output] + new_states
             else:
-                def _step(input, states):
+                def _step(input, *states):
                     output, new_states = step_function(input, states)
                     return [output] + new_states
             results, _ = theano.scan(
