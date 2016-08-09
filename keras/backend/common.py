@@ -7,6 +7,7 @@ _FLOATX = 'float32'
 _EPSILON = 10e-8
 _UID_PREFIXES = defaultdict(int)
 _IMAGE_DIM_ORDERING = 'th'
+_LEGACY_WEIGHT_ORDERING = False
 
 
 def epsilon():
@@ -76,3 +77,13 @@ def is_keras_tensor(x):
         return True
     else:
         return False
+
+
+def set_legacy_weight_ordering(value):
+    global _LEGACY_WEIGHT_ORDERING
+    assert value in {True, False}
+    _LEGACY_WEIGHT_ORDERING = value
+
+
+def legacy_weight_ordering():
+    return _LEGACY_WEIGHT_ORDERING

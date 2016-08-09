@@ -1713,6 +1713,7 @@ class Container(Layer):
         container_nodes = set()  # ids of all nodes relevant to the Container
         nodes_depths = {}  # map {node: depth value}
         layers_depths = {}  # map {layer: depth value}
+        layer_indices = {}  # map {layer: index in traversal}
 
         def make_node_marker(node, depth):
             return str(id(node)) + '-' + str(depth)
@@ -1756,6 +1757,8 @@ class Container(Layer):
             else:
                 current_depth = max(depth, previously_seen_depth)
             layers_depths[layer] = current_depth
+            if layer not in layer_indices:
+                layer_indices[layer] = len(layer_indices)
 
             # propagate to all previous tensors connected to this node
             for i in range(len(node.inbound_layers)):
@@ -1796,8 +1799,12 @@ class Container(Layer):
         layers = []
         for depth in depth_keys:
             layers_for_depth = layers_by_depth[depth]
-            # container.layers needs to have a deterministic order
-            layers_for_depth.sort(key=lambda x: x.name)
+            # container.layers needs to have a deterministic order:
+            # here we order them by traversal order
+            if K.legacy_weight_ordering():
+                layers_for_depth.sort(key=lambda x: x.name)
+            else:
+                layers_for_depth.sort(key=lambda x: layer_indices[x])
             for layer in layers_for_depth:
                 layers.append(layer)
         self.layers = layers
