@@ -686,7 +686,7 @@ def rnn(step_function, inputs, initial_states,
     '''Iterates over the time dimension of a tensor.
 
     # Arguments
-        inputs: tensor of temporal data of shape (samples, time, ...)
+        inputs: a tensor or a list of tensors of temporal data of shape (samples, time, ...)
             (at least 3D).
         step_function:
             Parameters:
@@ -718,16 +718,22 @@ def rnn(step_function, inputs, initial_states,
             new_states: list of tensors, latest states returned by
                 the step function, of shape (samples, ...).
     '''
-    ndim = inputs.ndim
-    assert ndim >= 3, 'Input should be at least 3D.'
 
     if unroll:
         if input_length is None:
             raise Exception('When specifying `unroll=True`, an `input_length` '
                             'must be provided to `rnn`.')
-
-    axes = [1, 0] + list(range(2, ndim))
-    inputs = inputs.dimshuffle(axes)
+    if type(inputs) == list:
+        for x in inputs:
+            ndim = x.ndim
+            assert ndim >= 3, 'Input should be at least 3D.'
+            axes = [1, 0] + list(range(2, ndim))
+            x = x.dimshuffle(axes)
+    else:
+        ndim = inputs.ndim
+        assert ndim >= 3, 'Input should be at least 3D.'
+        axes = [1, 0] + list(range(2, ndim))
+        inputs = inputs.dimshuffle(axes)
 
     if constants is None:
         constants = []
@@ -739,9 +745,11 @@ def rnn(step_function, inputs, initial_states,
         mask = mask.dimshuffle(axes)
 
         if unroll:
+            if type(inputs) == list:
+                inputs = [map(lambda x: x[t], inputs) for t in range(input_length)]
             indices = list(range(input_length))
             if go_backwards:
-                indices = indices[::-1]
+                indices.reverse()
 
             successive_outputs = []
             successive_states = []
@@ -768,26 +776,50 @@ def rnn(step_function, inputs, initial_states,
             for i in range(len(successive_states[-1])):
                 states.append(T.stack(*[states_at_step[i] for states_at_step in successive_states]))
         else:
-            # build an all-zero tensor of shape (samples, output_dim)
-            initial_output = step_function(inputs[0], initial_states + constants)[0] * 0
-            # Theano gets confused by broadcasting patterns in the scan op
-            initial_output = T.unbroadcast(initial_output, 0, 1)
+            if type(inputs) == list:
+                # build an all-zero tensor of shape (samples, output_dim)
+                initial_output = step_function([x[0] for x in inputs], initial_states + constants)[0] * 0
+                # Theano gets confused by broadcasting patterns in the scan op
+                initial_output = T.unbroadcast(initial_output, 0, 1)
+                def _step(*args):
+                    input = args[:len(inputs)]
+                    mask = args[len(inputs)]
+                    output_tm1 = args[len(inputs + 1)]
+                    states = args[len(inputs) + 1:]
+                    output, new_states = step_function(input, states)
+                    # output previous output if masked.
+                    output = T.switch(mask, output, output_tm1)
+                    return_states = []
+                    for state, new_state in zip(states, new_states):
+                        return_states.append(T.switch(mask, new_state, state))
+                    return [output] + return_states
 
-            def _step(input, mask, output_tm1, *states):
-                output, new_states = step_function(input, states)
-                # output previous output if masked.
-                output = T.switch(mask, output, output_tm1)
-                return_states = []
-                for state, new_state in zip(states, new_states):
-                    return_states.append(T.switch(mask, new_state, state))
-                return [output] + return_states
+                results, _ = theano.scan(
+                    _step,
+                    sequences=inputs + [mask],
+                    outputs_info=[initial_output] + initial_states,
+                    non_sequences=constants,
+                    go_backwards=go_backwards)
+            else:
+                # build an all-zero tensor of shape (samples, output_dim)
+                initial_output = step_function(inputs[0], initial_states + constants)[0] * 0
+                # Theano gets confused by broadcasting patterns in the scan op
+                initial_output = T.unbroadcast(initial_output, 0, 1)
+                def _step(input, mask, output_tm1, *states):
+                    output, new_states = step_function(input, states)
+                    # output previous output if masked.
+                    output = T.switch(mask, output, output_tm1)
+                    return_states = []
+                    for state, new_state in zip(states, new_states):
+                        return_states.append(T.switch(mask, new_state, state))
+                    return [output] + return_states
 
-            results, _ = theano.scan(
-                _step,
-                sequences=[inputs, mask],
-                outputs_info=[initial_output] + initial_states,
-                non_sequences=constants,
-                go_backwards=go_backwards)
+                results, _ = theano.scan(
+                    _step,
+                    sequences=[inputs, mask],
+                    outputs_info=[initial_output] + initial_states,
+                    non_sequences=constants,
+                    go_backwards=go_backwards)
 
             # deal with Theano API inconsistency
             if type(results) is list:
@@ -798,6 +830,8 @@ def rnn(step_function, inputs, initial_states,
                 states = []
     else:
         if unroll:
+            if type(inputs) == list:
+                inputs = [map(lambda x: x[t], inputs) for t in range(input_length)]
             indices = list(range(input_length))
             if go_backwards:
                 indices = indices[::-1]
@@ -815,7 +849,9 @@ def rnn(step_function, inputs, initial_states,
                 states.append(T.stack(*[states_at_step[i] for states_at_step in successive_states]))
 
         else:
-            def _step(input, *states):
+            def _step(*args):
+                input = args[:len(inputs)]
+                states = args[len(inputs):]
                 output, new_states = step_function(input, states)
                 return [output] + new_states
 
