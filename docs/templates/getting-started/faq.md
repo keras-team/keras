@@ -331,13 +331,16 @@ print(len(model.layers))  # "1"
 
 Code and pre-trained weights are available for the following image classification models:
 
-- [VGG-16](https://gist.github.com/baraldilorenzo/07d7802847aaad0a35d3)
-- [VGG-19](https://gist.github.com/baraldilorenzo/8d096f48a1be4a2d660d)
-- [AlexNet](https://github.com/heuritech/convnets-keras)
+- VGG16
+- VGG19
+- ResNet50
+- Inception v3
+
+Find the code and weights in [this repository](https://github.com/fchollet/deep-learning-models).
 
 For an example of how to use such a pre-trained model for feature extraction or for fine-tuning, see [this blog post](http://blog.keras.io/building-powerful-image-classification-models-using-very-little-data.html).
 
-The VGG-16 model is also the basis for several Keras example scripts:
+The VGG16 model is also the basis for several Keras example scripts:
 
 - [Style transfer](https://github.com/fchollet/keras/blob/master/examples/neural_style_transfer.py)
 - [Feature visualization](https://github.com/fchollet/keras/blob/master/examples/conv_filter_visualization.py)
