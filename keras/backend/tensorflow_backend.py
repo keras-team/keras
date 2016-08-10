@@ -92,12 +92,16 @@ def _convert_string_dtype(dtype):
         return tf.float32
     elif dtype == 'float64':
         return tf.float64
+    elif dtype == 'int16':
+        return tf.int16
     elif dtype == 'int32':
         return tf.int32
     elif dtype == 'int64':
         return tf.int64
     elif dtype == 'uint8':
         return tf.int8
+    elif dtype == 'uint16':
+        return tf.uint16
     else:
         raise ValueError('Unsupported dtype:', dtype)
 
@@ -237,17 +241,27 @@ def ones_like(x, name=None):
     return tf.ones_like(x, name=name)
 
 
-def random_uniform_variable(shape, low, high, dtype=_FLOATX, name=None):
+def random_uniform_variable(shape, low, high, dtype=_FLOATX,
+                            name=None, seed=None):
     shape = tuple(map(int, shape))
     tf_dtype = _convert_string_dtype(dtype)
-    value = tf.random_uniform_initializer(low, high, dtype=tf_dtype)(shape)
+    if seed is None:
+        # ensure that randomness is conditioned by the Numpy RNG
+        seed = np.random.randint(10e8)
+    value = tf.random_uniform_initializer(
+        low, high, dtype=tf_dtype, seed=seed)(shape)
     return variable(value, dtype=dtype, name=name)
 
 
-def random_normal_variable(shape, mean, scale, dtype=_FLOATX, name=None):
+def random_normal_variable(shape, mean, scale, dtype=_FLOATX,
+                           name=None, seed=None):
     shape = tuple(map(int, shape))
     tf_dtype = _convert_string_dtype(dtype)
-    value = tf.random_normal_initializer(mean, scale, dtype=tf_dtype)(shape)
+    if seed is None:
+        # ensure that randomness is conditioned by the Numpy RNG
+        seed = np.random.randint(10e8)
+    value = tf.random_normal_initializer(
+        mean, scale, dtype=tf_dtype, seed=seed)(shape)
     return variable(value, dtype=dtype, name=name)
 
 
@@ -618,10 +632,10 @@ def normalize_batch_in_training(x, gamma, beta,
                                 reduction_axes, epsilon=0.0001):
     '''Compute mean and std for batch then apply batch_normalization on batch.
     '''
-    mean, std = tf.nn.moments(x, reduction_axes,
+    mean, var = tf.nn.moments(x, reduction_axes,
                               shift=None, name=None, keep_dims=False)
     if sorted(reduction_axes) == range(ndim(x))[:-1]:
-        normed = tf.nn.batch_normalization(x, mean, std,
+        normed = tf.nn.batch_normalization(x, mean, var,
                                            beta, gamma,
                                            epsilon)
     else:
@@ -635,19 +649,21 @@ def normalize_batch_in_training(x, gamma, beta,
         target_shape = tf.pack(target_shape)
 
         broadcast_mean = tf.reshape(mean, target_shape)
-        broadcast_std = tf.reshape(std, target_shape)
+        broadcast_var = tf.reshape(var, target_shape)
         broadcast_gamma = tf.reshape(gamma, target_shape)
         broadcast_beta = tf.reshape(beta, target_shape)
-        normed = tf.nn.batch_normalization(x, broadcast_mean, broadcast_std,
+        normed = tf.nn.batch_normalization(x, broadcast_mean, broadcast_var,
                                            broadcast_beta, broadcast_gamma,
                                            epsilon)
-    return normed, mean, std
+    return normed, mean, var
 
 
-def batch_normalization(x, mean, std, beta, gamma, epsilon=0.0001):
-    '''Apply batch normalization on x given mean, std, beta and gamma.
+def batch_normalization(x, mean, var, beta, gamma, epsilon=0.0001):
+    '''Apply batch normalization on x given mean, var, beta and gamma:
+
+    output = (x - mean) / (sqrt(var) + epsilon) * gamma + beta
     '''
-    return tf.nn.batch_normalization(x, mean, std, beta, gamma, epsilon)
+    return tf.nn.batch_normalization(x, mean, var, beta, gamma, epsilon)
 
 
 # SHAPE OPERATIONS
@@ -835,6 +851,14 @@ def pack(x):
     return tf.pack(x)
 
 
+def one_hot(indices, nb_classes):
+    '''Input: nD integer tensor of shape (batch_size, dim1, dim2, ... dim(n-1))
+    Output: (n + 1)D one hot representation of the input
+    with shape (batch_size, dim1, dim2, ... dim(n-1), nb_classes)
+    '''
+    return tf.one_hot(indices, depth=nb_classes, axis=-1)
+
+
 # VALUE MANIPULATION
 
 
@@ -859,7 +883,17 @@ def set_value(x, value):
     '''Sets the value of a tensor variable,
     from a Numpy array.
     '''
-    tf.assign(x, np.asarray(value)).op.run(session=get_session())
+    value = np.asarray(value)
+    tf_dtype = _convert_string_dtype(x.dtype.name.split('_')[0])
+    if hasattr(x, '_assign_placeholder'):
+        assign_placeholder = x._assign_placeholder
+        assign_op = x._assign_op
+    else:
+        assign_placeholder = tf.placeholder(tf_dtype, shape=value.shape)
+        assign_op = x.assign(assign_placeholder)
+        x._assign_placeholder = assign_placeholder
+        x._assign_op = assign_op
+    get_session().run(assign_op, feed_dict={assign_placeholder: value})
 
 
 def batch_set_value(tuples):
@@ -870,8 +904,22 @@ def batch_set_value(tuples):
             `value` should be a Numpy array.
     '''
     if tuples:
-        ops = [tf.assign(x, np.asarray(value)) for x, value in tuples]
-        get_session().run(ops)
+        assign_ops = []
+        feed_dict = {}
+        for x, value in tuples:
+            value = np.asarray(value)
+            tf_dtype = _convert_string_dtype(x.dtype.name.split('_')[0])
+            if hasattr(x, '_assign_placeholder'):
+                assign_placeholder = x._assign_placeholder
+                assign_op = x._assign_op
+            else:
+                assign_placeholder = tf.placeholder(tf_dtype, shape=value.shape)
+                assign_op = x.assign(assign_placeholder)
+                x._assign_placeholder = assign_placeholder
+                x._assign_op = assign_op
+            assign_ops.append(assign_op)
+            feed_dict[assign_placeholder] = value
+        get_session().run(assign_ops, feed_dict=feed_dict)
 
 
 def print_tensor(x, message=''):

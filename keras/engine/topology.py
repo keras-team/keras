@@ -10,9 +10,11 @@ import marshal
 import types as python_types
 import warnings
 import copy
+import os
 from six.moves import zip
 
-from keras import backend as K
+from .. import backend as K
+from ..utils.io_utils import ask_to_proceed_with_overwrite
 
 
 def to_list(x):
@@ -320,6 +322,30 @@ class Layer(object):
             self.input_dtype = input_dtype
             if 'create_input_layer' in kwargs:
                 self.create_input_layer(batch_input_shape, input_dtype)
+
+    @property
+    def trainable_weights(self):
+        trainable = getattr(self, 'trainable', True)
+        if trainable:
+            return self._trainable_weights
+        else:
+            return []
+
+    @trainable_weights.setter
+    def trainable_weights(self, weights):
+        self._trainable_weights = weights
+
+    @property
+    def non_trainable_weights(self):
+        trainable = getattr(self, 'trainable', True)
+        if not trainable:
+            return self._trainable_weights + self._non_trainable_weights
+        else:
+            return self._non_trainable_weights
+
+    @non_trainable_weights.setter
+    def non_trainable_weights(self, weights):
+        self._non_trainable_weights = weights
 
     def create_input_layer(self, batch_input_shape,
                            input_dtype=None, name=None):
@@ -694,15 +720,15 @@ class Layer(object):
                           ' outbound layers. '
                           'This will cause part of your model '
                           'to be disconnected.')
-        if not shape:
-            if hasattr(K, 'int_shape'):
-                shape = K.int_shape(input_tensor)
-            else:
-                raise Exception('`set_input` needs to know the shape '
-                                'of the `input_tensor` it receives, but '
-                                'Keras was not able to infer it automatically.'
-                                ' Specify it via: '
-                                '`model.set_input(input_tensor, shape)`')
+        if hasattr(K, 'int_shape'):
+            # auto-infered shape takes priority
+            shape = K.int_shape(input_tensor)
+        elif not shape:
+            raise Exception('`set_input` needs to know the shape '
+                            'of the `input_tensor` it receives, but '
+                            'Keras was not able to infer it automatically.'
+                            ' Specify it via: '
+                            '`model.set_input(input_tensor, shape)`')
         # reset layer connections
         self.inbound_nodes = []
         self.outbound_nodes = []
@@ -828,6 +854,10 @@ class Layer(object):
                             'ill-defined for the layer. ' +
                             'Use `get_output_shape_at(node_index)` instead.')
 
+    @property
+    def weights(self):
+        return self.trainable_weights + self.non_trainable_weights
+
     def set_weights(self, weights):
         '''Sets the weights of the layer, from Numpy arrays.
 
@@ -838,12 +868,12 @@ class Layer(object):
                 of the layer (i.e. it should match the
                 output of `get_weights`).
         '''
-        params = self.trainable_weights + self.non_trainable_weights
+        params = self.weights
         if len(params) != len(weights):
             raise Exception('You called `set_weights(weights)` on layer "' + self.name +
                             '" with a  weight list of length ' + str(len(weights)) +
                             ', but the layer was expecting ' + str(len(params)) +
-                            ' weights. Provided weights: ' + str(weights))
+                            ' weights. Provided weights: ' + str(weights)[:50] + '...')
         if not params:
             return
         weight_value_tuples = []
@@ -861,7 +891,7 @@ class Layer(object):
         '''Returns the current weights of the layer,
         as a list of numpy arrays.
         '''
-        params = self.trainable_weights + self.non_trainable_weights
+        params = self.weights
         return K.batch_get_value(params)
 
     def get_config(self):
@@ -920,6 +950,8 @@ class InputLayer(Layer):
         self.uses_learning_phase = False
         self.trainable = False
         self.built = True
+        self.trainable_weights = []
+        self.non_trainable_weights = []
 
         self.inbound_nodes = []
         self.outbound_nodes = []
@@ -1084,7 +1116,7 @@ class Merge(Layer):
             If lambda/function, it should take as input a list of tensors
             and return a single tensor.
         concat_axis: integer, axis to use in mode `concat`.
-        dot_axes: integer or tuple of integers, axes to use in mode `dot`.
+        dot_axes: integer or tuple of integers, axes to use in mode `dot` or `cos`.
         output_shape: either a shape tuple (tuple of integers), or a lambda/function
             to compute `output_shape` (only if merge mode is a lambda/function).
             If the argument is a tuple,
@@ -1354,9 +1386,19 @@ class Merge(Layer):
             masks = [K.expand_dims(m, 0) for m in mask if m is not None]
             return K.all(K.concatenate(masks, axis=0), axis=0, keepdims=False)
         elif self.mode == 'concat':
-            masks = [K.ones_like(inputs[i][:-1]) if m is None else m for i, m in zip(inputs, mask)]
-            expanded_dims = [K.expand_dims(m) for m in masks]
-            concatenated = K.concatenate(expanded_dims, axis=self.concat_axis)
+            # Make a list of masks while making sure the dimensionality of each mask 
+            # is the same as the corresponding input.
+            masks = []
+            for input_i, mask_i in zip(inputs, mask):
+                if mask_i is None:
+                    # Input is unmasked. Append all 1s to masks, but cast it to uint8 first
+                    masks.append(K.cast(K.ones_like(input_i), 'uint8'))
+                elif K.ndim(mask_i) < K.ndim(input_i):
+                    # Mask is smaller than the input, expand it
+                    masks.append(K.expand_dims(mask_i))
+                else:
+                    masks.append(mask_i)
+            concatenated = K.concatenate(masks, axis=self.concat_axis)
             return K.all(concatenated, axis=-1, keepdims=False)
         elif self.mode in ['cos', 'dot']:
             return None
@@ -1450,7 +1492,7 @@ def merge(inputs, mode='sum', concat_axis=-1,
             If lambda/function, it should take as input a list of tensors
             and return a single tensor.
         concat_axis: integer, axis to use in mode `concat`.
-        dot_axes: integer or tuple of integers, axes to use in mode `dot`.
+        dot_axes: integer or tuple of integers, axes to use in mode `dot` or `cos`.
         output_shape: shape tuple (tuple of integers), or lambda/function
             to compute output_shape (only if merge mode is a lambda/function).
             If the latter case, it should take as input a list of shape tuples
@@ -1671,6 +1713,7 @@ class Container(Layer):
         container_nodes = set()  # ids of all nodes relevant to the Container
         nodes_depths = {}  # map {node: depth value}
         layers_depths = {}  # map {layer: depth value}
+        layer_indices = {}  # map {layer: index in traversal}
 
         def make_node_marker(node, depth):
             return str(id(node)) + '-' + str(depth)
@@ -1714,6 +1757,8 @@ class Container(Layer):
             else:
                 current_depth = max(depth, previously_seen_depth)
             layers_depths[layer] = current_depth
+            if layer not in layer_indices:
+                layer_indices[layer] = len(layer_indices)
 
             # propagate to all previous tensors connected to this node
             for i in range(len(node.inbound_layers)):
@@ -1754,8 +1799,12 @@ class Container(Layer):
         layers = []
         for depth in depth_keys:
             layers_for_depth = layers_by_depth[depth]
-            # container.layers needs to have a deterministic order
-            layers_for_depth.sort(key=lambda x: x.name)
+            # container.layers needs to have a deterministic order:
+            # here we order them by traversal order
+            if K.legacy_weight_ordering():
+                layers_for_depth.sort(key=lambda x: x.name)
+            else:
+                layers_for_depth.sort(key=lambda x: layer_indices[x])
             for layer in layers_for_depth:
                 layers.append(layer)
         self.layers = layers
@@ -1922,6 +1971,30 @@ class Container(Layer):
         for layer in self.layers:
             weights += layer.non_trainable_weights
         return weights
+
+    def get_weights(self):
+        '''Returns the weights of the model,
+        as a flat list of Numpy arrays.
+        '''
+        weights = []
+        for layer in self.layers:
+            weights += layer.weights
+        return K.batch_get_value(weights)
+
+    def set_weights(self, weights):
+        '''Sets the weights of the model.
+        The `weights` argument should be a list
+        of Numpy arrays with shapes and types matching
+        the output of `model.get_weights()`.
+        '''
+        tuples = []
+        for layer in self.layers:
+            nb_param = len(layer.weights)
+            layer_weights = weights[:nb_param]
+            for sw, w in zip(layer.weights, layer_weights):
+                tuples.append((sw, w))
+            weights = weights[nb_param:]
+        K.batch_set_value(tuples)
 
     @property
     def input_spec(self):
@@ -2310,7 +2383,38 @@ class Container(Layer):
             output_tensors.append(layer_output_tensors[tensor_index])
         return cls(input=input_tensors, output=output_tensors, name=name)
 
-    def save_weights(self, filepath, overwrite=False):
+    def save(self, filepath, overwrite=True):
+        '''Save into a single HDF5 file:
+            - the model architecture, allowing to re-instantiate the model
+            - the model weights
+            - the state of the optimizer, allowing to resume training
+                exactly where you left off.
+
+        This allows you to save the entirety of the state of a model
+        in a single file.
+
+        Saved models can be reinstantiated via `keras.models.load_model`.
+        The model returned by `load_model`
+        is a compiled model ready to be used (unless the saved model
+        was never compiled in the first place).
+
+        # Example usage
+
+        ```python
+        from keras.models import load_model
+
+        model.save('my_model.h5')  # creates a HDF5 file 'my_model.h5'
+        del model  # deletes the existing model
+
+        # returns a compiled model
+        # identical to the previous one
+        model = load_model('my_model.h5')
+        ```
+        '''
+        from ..models import save_model
+        save_model(self, filepath, overwrite)
+
+    def save_weights(self, filepath, overwrite=True):
         '''Dumps all layer weights to a HDF5 file.
 
         The weight file has:
@@ -2323,33 +2427,28 @@ class Container(Layer):
                     storing the weight value, named after the weight tensor
         '''
         import h5py
-        import os.path
         # if file exists and should not be overwritten
         if not overwrite and os.path.isfile(filepath):
-            import sys
-            get_input = input
-            if sys.version_info[:2] <= (2, 7):
-                get_input = raw_input
-            overwrite = get_input('[WARNING] %s already exists - overwrite? '
-                                  '[y/n]' % (filepath))
-            while overwrite not in ['y', 'n']:
-                overwrite = get_input('Enter "y" (overwrite) or "n" (cancel).')
-            if overwrite == 'n':
+            proceed = ask_to_proceed_with_overwrite(filepath)
+            if not proceed:
                 return
-            print('[TIP] Next time specify overwrite=True in save_weights!')
+        f = h5py.File(filepath, 'w')
+        self.save_weights_to_hdf5_group(f)
+        f.flush()
+        f.close()
 
+    def save_weights_to_hdf5_group(self, f):
         if hasattr(self, 'flattened_layers'):
             # support for legacy Sequential/Merge behavior
             flattened_layers = self.flattened_layers
         else:
             flattened_layers = self.layers
 
-        f = h5py.File(filepath, 'w')
         f.attrs['layer_names'] = [layer.name.encode('utf8') for layer in flattened_layers]
 
         for layer in flattened_layers:
             g = f.create_group(layer.name)
-            symbolic_weights = layer.trainable_weights + layer.non_trainable_weights
+            symbolic_weights = layer.weights
             weight_values = K.batch_get_value(symbolic_weights)
             weight_names = []
             for i, (w, val) in enumerate(zip(symbolic_weights, weight_values)):
@@ -2362,16 +2461,30 @@ class Container(Layer):
             for name, val in zip(weight_names, weight_values):
                 param_dset = g.create_dataset(name, val.shape,
                                               dtype=val.dtype)
-                param_dset[:] = val
-        f.flush()
-        f.close()
+                if not val.shape:
+                    # scalar
+                    param_dset[()] = val
+                else:
+                    param_dset[:] = val
 
     def load_weights(self, filepath):
         '''Load all layer weights from a HDF5 save file.
         '''
         import h5py
         f = h5py.File(filepath, mode='r')
+        if 'layer_names' not in f.attrs and 'model_weights' in f:
+            f = f['model_weights']
+        self.load_weights_from_hdf5_group(f)
+        if hasattr(f, 'close'):
+            f.close()
 
+    def load_weights_from_hdf5_group(self, f):
+        '''Weight loading is based on layer order in a list
+        (matching model.flattened_layers for Sequential models,
+        and model.layers for Model class instances), not
+        on layer names.
+        Layers that have no weights are skipped.
+        '''
         if hasattr(self, 'flattened_layers'):
             # support for legacy Sequential/Merge behavior
             flattened_layers = self.flattened_layers
@@ -2385,7 +2498,7 @@ class Container(Layer):
                 raise Exception('You are trying to load a weight file '
                                 'containing ' + str(nb_layers) +
                                 ' layers into a model with ' +
-                                str(len(flattened_layers)) + '.')
+                                str(len(flattened_layers)) + ' layers.')
 
             for k in range(nb_layers):
                 g = f['layer_{}'.format(k)]
@@ -2393,7 +2506,21 @@ class Container(Layer):
                 flattened_layers[k].set_weights(weights)
         else:
             # new file format
+            filtered_layers = []
+            for layer in flattened_layers:
+                weights = layer.weights
+                if weights:
+                    filtered_layers.append(layer)
+            flattened_layers = filtered_layers
+
             layer_names = [n.decode('utf8') for n in f.attrs['layer_names']]
+            filtered_layer_names = []
+            for name in layer_names:
+                g = f[name]
+                weight_names = [n.decode('utf8') for n in g.attrs['weight_names']]
+                if len(weight_names):
+                    filtered_layer_names.append(name)
+            layer_names = filtered_layer_names
             if len(layer_names) != len(flattened_layers):
                 raise Exception('You are trying to load a weight file '
                                 'containing ' + str(len(layer_names)) +
@@ -2406,24 +2533,22 @@ class Container(Layer):
             for k, name in enumerate(layer_names):
                 g = f[name]
                 weight_names = [n.decode('utf8') for n in g.attrs['weight_names']]
-                if len(weight_names):
-                    weight_values = [g[weight_name] for weight_name in weight_names]
-                    layer = flattened_layers[k]
-                    symbolic_weights = layer.trainable_weights + layer.non_trainable_weights
-                    if len(weight_values) != len(symbolic_weights):
-                        raise Exception('Layer #' + str(k) +
-                                        ' (named "' + layer.name +
-                                        '" in the current model) was found to '
-                                        'correspond to layer ' + name +
-                                        ' in the save file. '
-                                        'However the new layer ' + layer.name +
-                                        ' expects ' + str(len(symbolic_weights)) +
-                                        ' weights, but the saved weights have ' +
-                                        str(len(weight_values)) +
-                                        ' elements.')
-                    weight_value_tuples += zip(symbolic_weights, weight_values)
+                weight_values = [g[weight_name] for weight_name in weight_names]
+                layer = flattened_layers[k]
+                symbolic_weights = layer.weights
+                if len(weight_values) != len(symbolic_weights):
+                    raise Exception('Layer #' + str(k) +
+                                    ' (named "' + layer.name +
+                                    '" in the current model) was found to '
+                                    'correspond to layer ' + name +
+                                    ' in the save file. '
+                                    'However the new layer ' + layer.name +
+                                    ' expects ' + str(len(symbolic_weights)) +
+                                    ' weights, but the saved weights have ' +
+                                    str(len(weight_values)) +
+                                    ' elements.')
+                weight_value_tuples += zip(symbolic_weights, weight_values)
             K.batch_set_value(weight_value_tuples)
-        f.close()
 
     def _updated_config(self):
         '''shared between different serialization methods'''
@@ -2435,14 +2560,6 @@ class Container(Layer):
             'config': config,
             'keras_version': keras_version
         }
-
-        if hasattr(self, 'optimizer'):
-            model_config['optimizer'] = self.optimizer.get_config()
-            model_config['loss'] = getattr(self.loss, '__name__', self.loss)
-            model_config['sample_weight_mode'] = self.sample_weight_mode
-
-        if hasattr(self, 'loss_weights'):
-            model_config['loss_weights'] = self.loss_weights
         return model_config
 
     def to_json(self, **kwargs):
@@ -2462,7 +2579,7 @@ class Container(Layer):
             if type(obj).__name__ == type.__name__:
                 return obj.__name__
 
-            raise TypeError('Not JSON Serializable')
+            raise TypeError('Not JSON Serializable:', obj)
 
         model_config = self._updated_config()
         return json.dumps(model_config, default=get_json_type, **kwargs)

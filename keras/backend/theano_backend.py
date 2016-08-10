@@ -362,7 +362,7 @@ def normalize_batch_in_training(x, gamma, beta,
                                 reduction_axes, epsilon=0.0001):
     '''Compute mean and std for batch then apply batch_normalization on batch.
     '''
-    std = T.sqrt(x.var(reduction_axes) + epsilon)
+    var = x.var(reduction_axes)
     mean = x.mean(reduction_axes)
 
     target_shape = []
@@ -374,19 +374,20 @@ def normalize_batch_in_training(x, gamma, beta,
     target_shape = T.stack(*target_shape)
 
     broadcast_mean = T.reshape(mean, target_shape)
-    broadcast_std = T.reshape(std, target_shape)
+    broadcast_var = T.reshape(var, target_shape)
     broadcast_beta = T.reshape(beta, target_shape)
     broadcast_gamma = T.reshape(gamma, target_shape)
-    normed = batch_normalization(x, broadcast_mean, broadcast_std,
+    normed = batch_normalization(x, broadcast_mean, broadcast_var,
                                  broadcast_beta, broadcast_gamma,
                                  epsilon)
-    return normed, mean, std
+    return normed, mean, var
 
 
-def batch_normalization(x, mean, std, beta, gamma, epsilon=0.0001):
-    '''Apply batch normalization on x given mean, std, beta and gamma.
+def batch_normalization(x, mean, var, beta, gamma, epsilon=0.0001):
+    '''Apply batch normalization on x given mean, var, beta and gamma.
     '''
-    normed = T.nnet.bn.batch_normalization(x, gamma, beta, mean, std + epsilon,
+    normed = T.nnet.bn.batch_normalization(x, gamma, beta, mean,
+                                           sqrt(var) + epsilon,
                                            mode='high_mem')
     return normed
 
@@ -503,11 +504,9 @@ def expand_dims(x, dim=-1):
 def squeeze(x, axis):
     '''Remove a 1-dimension from the tensor at index "axis".
     '''
-    broadcastable = x.broadcastable[:axis] + x.broadcastable[axis+1:]
-    x = T.patternbroadcast(x, [i == axis for i in range(x.type.ndim)])
-    x = T.squeeze(x)
-    x = T.patternbroadcast(x, broadcastable)
-    return x
+    shape = list(x.shape)
+    shape.pop(axis)
+    return T.reshape(x, tuple(shape))
 
 
 def temporal_padding(x, padding=1):
@@ -593,6 +592,19 @@ def spatial_3d_padding(x, padding=(1, 1, 1), dim_ordering='th'):
 
 def pack(x):
     return T.stack(*x)
+
+
+def one_hot(indices, nb_classes):
+    '''Input: nD integer tensor of shape (batch_size, dim1, dim2, ... dim(n-1))
+    Output: (n + 1)D one hot representation of the input
+    with shape (batch_size, dim1, dim2, ... dim(n-1), nb_classes)
+    '''
+    input_shape = tuple((indices.shape[i] for i in range(indices.ndim)))
+    indices = T.flatten(indices)
+    oh = T.extra_ops.to_one_hot(indices, nb_classes)
+    oh = T.reshape(oh, input_shape + (nb_classes,))
+    return oh
+
 
 # VALUE MANIPULATION
 

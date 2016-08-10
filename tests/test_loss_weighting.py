@@ -8,6 +8,7 @@ from keras.utils.test_utils import get_test_data
 from keras.models import Sequential, Graph
 from keras.layers import Dense, Activation, RepeatVector, TimeDistributedDense, GRU
 from keras.utils import np_utils
+from keras.utils.test_utils import keras_test
 
 nb_classes = 10
 batch_size = 128
@@ -69,6 +70,7 @@ def create_temporal_sequential_model():
     return model
 
 
+@keras_test
 def _test_weights_sequential(model, class_weight=None, sample_weight=None,
                              X_train=X_train, Y_train=Y_train,
                              X_test=X_test, Y_test=Y_test):
@@ -108,6 +110,7 @@ model.compile(loss=loss, optimizer='rmsprop')
 standard_score_sequential = _test_weights_sequential(model)
 
 
+@keras_test
 def test_sequential_class_weights():
     model = create_sequential_model()
     model.compile(loss=loss, optimizer='rmsprop')
@@ -115,6 +118,7 @@ def test_sequential_class_weights():
     assert(score < standard_score_sequential)
 
 
+@keras_test
 def test_sequential_sample_weights():
     model = create_sequential_model()
     model.compile(loss=loss, optimizer='rmsprop')
@@ -122,6 +126,7 @@ def test_sequential_sample_weights():
     assert(score < standard_score_sequential)
 
 
+@keras_test
 def test_sequential_temporal_sample_weights():
     model = create_temporal_sequential_model()
     model.compile(loss=loss, optimizer='rmsprop',

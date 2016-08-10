@@ -1,6 +1,8 @@
 from __future__ import absolute_import
+from __future__ import print_function
 import h5py
 import numpy as np
+import sys
 from collections import defaultdict
 
 
@@ -69,3 +71,17 @@ def load_array(name):
     a[:] = array[:]
     f.close()
     return a
+
+
+def ask_to_proceed_with_overwrite(filepath):
+    get_input = input
+    if sys.version_info[:2] <= (2, 7):
+        get_input = raw_input
+    overwrite = get_input('[WARNING] %s already exists - overwrite? '
+                          '[y/n]' % (filepath))
+    while overwrite not in ['y', 'n']:
+        overwrite = get_input('Enter "y" (overwrite) or "n" (cancel).')
+    if overwrite == 'n':
+        return False
+    print('[TIP] Next time specify overwrite=True!')
+    return True

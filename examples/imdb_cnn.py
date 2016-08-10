@@ -1,6 +1,6 @@
 '''This example demonstrates the use of Convolution1D for text classification.
 
-Gets to 0.88 test accuracy after 2 epochs. 
+Gets to 0.89 test accuracy after 2 epochs.
 90s/epoch on Intel i5 2.4Ghz CPU.
 10s/epoch on Tesla K40 GPU.
 
@@ -30,8 +30,7 @@ hidden_dims = 250
 nb_epoch = 2
 
 print('Loading data...')
-(X_train, y_train), (X_test, y_test) = imdb.load_data(nb_words=max_features,
-                                                      test_split=0.2)
+(X_train, y_train), (X_test, y_test) = imdb.load_data(nb_words=max_features)
 print(len(X_train), 'train sequences')
 print(len(X_test), 'test sequences')
 

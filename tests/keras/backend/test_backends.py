@@ -622,5 +622,15 @@ class TestBackend(object):
         res = KTH.eval(KTH.ctc_batch_cost(labels_th, inputs_th, input_lens_th, label_lens_th))
         assert_allclose(res[0,:], loss_log_probs_th, atol=1e-05)
 
+    def test_one_hot(self):
+        input_length = 10
+        nb_classes = 20
+        batch_size = 30
+        indices = np.random.randint(0, nb_classes, size=(batch_size, input_length))
+        oh = np.eye(nb_classes)[indices]
+        for K in [KTH, KTF]:
+            koh = K.eval(K.one_hot(K.variable(indices, dtype='int32'), nb_classes))
+            assert np.all(koh == oh)
+
 if __name__ == '__main__':
     pytest.main([__file__])

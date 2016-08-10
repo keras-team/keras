@@ -254,11 +254,12 @@ class Convolution2D(Layer):
     '''
     def __init__(self, nb_filter, nb_row, nb_col,
                  init='glorot_uniform', activation='linear', weights=None,
-                 border_mode='valid', subsample=(1, 1), dim_ordering=K.image_dim_ordering(),
+                 border_mode='valid', subsample=(1, 1), dim_ordering='default',
                  W_regularizer=None, b_regularizer=None, activity_regularizer=None,
                  W_constraint=None, b_constraint=None,
                  bias=True, **kwargs):
-
+        if dim_ordering == 'default':
+            dim_ordering = K.image_dim_ordering()
         if border_mode not in {'valid', 'same'}:
             raise Exception('Invalid border mode for Convolution2D:', border_mode)
         self.nb_filter = nb_filter
@@ -526,10 +527,12 @@ class AtrousConvolution2D(Convolution2D):
     def __init__(self, nb_filter, nb_row, nb_col,
                  init='glorot_uniform', activation='linear', weights=None,
                  border_mode='valid', subsample=(1, 1),
-                 atrous_rate=(1, 1), dim_ordering=K.image_dim_ordering(),
+                 atrous_rate=(1, 1), dim_ordering='default',
                  W_regularizer=None, b_regularizer=None, activity_regularizer=None,
                  W_constraint=None, b_constraint=None,
                  bias=True, **kwargs):
+        if dim_ordering == 'default':
+            dim_ordering = K.image_dim_ordering()
 
         if border_mode not in {'valid', 'same'}:
             raise Exception('Invalid border mode for AtrousConv2D:', border_mode)
@@ -668,7 +671,7 @@ class SeparableConvolution2D(Layer):
     def __init__(self, nb_filter, nb_row, nb_col,
                  init='glorot_uniform', activation='linear', weights=None,
                  border_mode='valid', subsample=(1, 1),
-                 depth_multiplier=1, dim_ordering=K.image_dim_ordering(),
+                 depth_multiplier=1, dim_ordering='default',
                  depthwise_regularizer=None, pointwise_regularizer=None,
                  b_regularizer=None, activity_regularizer=None,
                  depthwise_constraint=None, pointwise_constraint=None,
@@ -678,6 +681,9 @@ class SeparableConvolution2D(Layer):
         if K._BACKEND != 'tensorflow':
             raise Exception('SeparableConv2D is only available '
                             'with TensorFlow for the time being.')
+
+        if dim_ordering == 'default':
+            dim_ordering = K.image_dim_ordering()
 
         if border_mode not in {'valid', 'same'}:
             raise Exception('Invalid border mode for SeparableConv2D:', border_mode)
@@ -879,10 +885,13 @@ class Convolution3D(Layer):
 
     def __init__(self, nb_filter, kernel_dim1, kernel_dim2, kernel_dim3,
                  init='glorot_uniform', activation='linear', weights=None,
-                 border_mode='valid', subsample=(1, 1, 1), dim_ordering=K.image_dim_ordering(),
+                 border_mode='valid', subsample=(1, 1, 1), dim_ordering='default',
                  W_regularizer=None, b_regularizer=None, activity_regularizer=None,
                  W_constraint=None, b_constraint=None,
                  bias=True, **kwargs):
+        if dim_ordering == 'default':
+            dim_ordering = K.image_dim_ordering()
+
         if border_mode not in {'valid', 'same'}:
             raise Exception('Invalid border mode for Convolution3D:', border_mode)
         self.nb_filter = nb_filter
@@ -1036,7 +1045,8 @@ class UpSampling1D(Layer):
         super(UpSampling1D, self).__init__(**kwargs)
 
     def get_output_shape_for(self, input_shape):
-        return (input_shape[0], self.length * input_shape[1], input_shape[2])
+        length = self.length * input_shape[1] if input_shape[1] is not None else None
+        return (input_shape[0], length, input_shape[2])
 
     def call(self, x, mask=None):
         output = K.repeat_elements(x, self.length, axis=1)
@@ -1074,7 +1084,9 @@ class UpSampling2D(Layer):
         `(samples, upsampled_rows, upsampled_cols, channels)` if dim_ordering='tf'.
     '''
 
-    def __init__(self, size=(2, 2), dim_ordering=K.image_dim_ordering(), **kwargs):
+    def __init__(self, size=(2, 2), dim_ordering='default', **kwargs):
+        if dim_ordering == 'default':
+            dim_ordering = K.image_dim_ordering()
         self.size = tuple(size)
         assert dim_ordering in {'tf', 'th'}, 'dim_ordering must be in {tf, th}'
         self.dim_ordering = dim_ordering
@@ -1083,14 +1095,18 @@ class UpSampling2D(Layer):
 
     def get_output_shape_for(self, input_shape):
         if self.dim_ordering == 'th':
+            width = self.size[0] * input_shape[2] if input_shape[2] is not None else None
+            height = self.size[1] * input_shape[3] if input_shape[3] is not None else None
             return (input_shape[0],
                     input_shape[1],
-                    self.size[0] * input_shape[2],
-                    self.size[1] * input_shape[3])
+                    width,
+                    height)
         elif self.dim_ordering == 'tf':
+            width = self.size[0] * input_shape[1] if input_shape[1] is not None else None
+            height = self.size[1] * input_shape[2] if input_shape[2] is not None else None
             return (input_shape[0],
-                    self.size[0] * input_shape[1],
-                    self.size[1] * input_shape[2],
+                    width,
+                    height,
                     input_shape[3])
         else:
             raise Exception('Invalid dim_ordering: ' + self.dim_ordering)
@@ -1131,7 +1147,9 @@ class UpSampling3D(Layer):
         `(samples, upsampled_dim1, upsampled_dim2, upsampled_dim3, channels)` if dim_ordering='tf'.
     '''
 
-    def __init__(self, size=(2, 2, 2), dim_ordering=K.image_dim_ordering(), **kwargs):
+    def __init__(self, size=(2, 2, 2), dim_ordering='default', **kwargs):
+        if dim_ordering == 'default':
+            dim_ordering = K.image_dim_ordering()
         self.size = tuple(size)
         assert dim_ordering in {'tf', 'th'}, 'dim_ordering must be in {tf, th}'
         self.dim_ordering = dim_ordering
@@ -1140,16 +1158,22 @@ class UpSampling3D(Layer):
 
     def get_output_shape_for(self, input_shape):
         if self.dim_ordering == 'th':
+            dim1 = self.size[0] * input_shape[2] if input_shape[2] is not None else None
+            dim2 = self.size[1] * input_shape[3] if input_shape[3] is not None else None
+            dim3 = self.size[2] * input_shape[4] if input_shape[4] is not None else None
             return (input_shape[0],
                     input_shape[1],
-                    self.size[0] * input_shape[2],
-                    self.size[1] * input_shape[3],
-                    self.size[2] * input_shape[4])
+                    dim1,
+                    dim2,
+                    dim3)
         elif self.dim_ordering == 'tf':
+            dim1 = self.size[0] * input_shape[1] if input_shape[1] is not None else None
+            dim2 = self.size[1] * input_shape[2] if input_shape[2] is not None else None
+            dim3 = self.size[2] * input_shape[3] if input_shape[3] is not None else None
             return (input_shape[0],
-                    self.size[0] * input_shape[1],
-                    self.size[1] * input_shape[2],
-                    self.size[2] * input_shape[3],
+                    dim1,
+                    dim2,
+                    dim3,
                     input_shape[4])
         else:
             raise Exception('Invalid dim_ordering: ' + self.dim_ordering)
@@ -1222,8 +1246,10 @@ class ZeroPadding2D(Layer):
         (samples, depth, first_padded_axis, second_padded_axis)
     '''
 
-    def __init__(self, padding=(1, 1), dim_ordering=K.image_dim_ordering(), **kwargs):
+    def __init__(self, padding=(1, 1), dim_ordering='default', **kwargs):
         super(ZeroPadding2D, self).__init__(**kwargs)
+        if dim_ordering == 'default':
+            dim_ordering = K.image_dim_ordering()
         self.padding = tuple(padding)
         assert dim_ordering in {'tf', 'th'}, 'dim_ordering must be in {tf, th}'
         self.dim_ordering = dim_ordering
@@ -1280,8 +1306,10 @@ class ZeroPadding3D(Layer):
         (samples, depth, first_padded_axis, second_padded_axis, third_axis_to_pad)
     '''
 
-    def __init__(self, padding=(1, 1, 1), dim_ordering=K.image_dim_ordering(), **kwargs):
+    def __init__(self, padding=(1, 1, 1), dim_ordering='default', **kwargs):
         super(ZeroPadding3D, self).__init__(**kwargs)
+        if dim_ordering == 'default':
+            dim_ordering = K.image_dim_ordering()
         self.padding = tuple(padding)
         assert dim_ordering in {'tf', 'th'}, 'dim_ordering must be in {tf, th}'
         self.dim_ordering = dim_ordering
