@@ -43,7 +43,6 @@ maxlen = 100  # cut texts after this number of words (among top max_features mos
 batch_size = 32
 N = 128  # base dimensionality of layers
 rnn_levels = 2
-skiplayer_connections = True
 
 
 def reverse_time(x):
