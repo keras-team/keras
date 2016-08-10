@@ -4,11 +4,11 @@ Output after 1 epoch on CPU: ~0.8535
 Time per epoch on CPU (Core i7): ~600s.
 
 Exercise ideas:
+    * Evaluate on a larger dataset (or with larger training fraction on imdb)
     * That Lambda() in aggregation functions sure look scary, would you
       get the same results if you set return_sequences=False in the last
       GRU level?
     * Try to disable the skip-layer connections
-    * What about two-level, unidirectional GRU?
     * GRU is a popular alternative to LSTM as it is conceptually simpler,
       easier to train and has the same performance on many NLP tasks; what
       about on this task?
@@ -18,10 +18,10 @@ Exercise ideas:
       dimensionality everywhere); a more usual approach in the literature
       is to concatenate them.  Does it matter?
     * Preinitialize all the GRUs to by default just copy the embeddings
-      (init='identity')
+      (init='identity'), i.e. start with essentially a bag-of-words model
     * Try different aggregation functions
-    * The current model clearly overfits; would it be better to apply
-      (perhaps smaller) dropout at each level?
+    * The current model clearly overfits with more epochs; would it be
+      better to apply (perhaps smaller) dropout at each level?
     * How much does the final accuracy vary when you disable the fixed
       random seed and simply re-run the script 4 or 8 times?  Compute
       confidence intervals using Student's t-distribution.  What are the
