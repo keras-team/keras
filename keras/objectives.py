@@ -79,9 +79,7 @@ def get_weighted_binary_crossentropy(w0_weights, w1_weights):
     w1_weights=np.array(w1_weights);
     def weighted_binary_crossentropy(y_true,y_pred): 
         weightsPerTaskRep = y_true*w1_weights[None,:] + (1-y_true)*w0_weights[None,:]
-        nonAmbig = (y_true > -0.5)
-        nonAmbigTimesWeightsPerTask = nonAmbig * weightsPerTaskRep
-        return K.mean(K.binary_crossentropy(y_pred, y_true)*nonAmbigTimesWeightsPerTask, axis=-1);
+        return K.mean(K.binary_crossentropy(y_pred, y_true)*weightsPerTask, axis=-1);
     return weighted_binary_crossentropy; 
 
 
