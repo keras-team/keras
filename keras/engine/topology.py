@@ -2321,7 +2321,7 @@ class Container(Layer):
             tensor_index = self.output_layers_tensor_indices[i]
             model_outputs.append([layer.name, new_node_index, tensor_index])
         config['output_layers'] = model_outputs
-        return {'class_name': self.__class__.__name__, 'config': copy.deepcopy(config)}
+        return copy.deepcopy(config)
 
     @classmethod
     def from_config(cls, config, custom_objects={}):
