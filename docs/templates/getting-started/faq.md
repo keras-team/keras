@@ -58,7 +58,7 @@ theano.config.floatX = 'float32'
 
 *It is not recommended to use pickle or cPickle to save a Keras model.*
 
-You can use `model.save(filepath)` to save a Keras model into a single HDF5 file which will contain:
+You can use `keras.models.save_model(model, filepath)` to save a Keras model into a single HDF5 file which will contain:
 
 - the architecture of the model, allowing to re-create the model
 - the weights of the model
@@ -72,9 +72,9 @@ You can then use `keras.models.load_model(filepath)` to reinstantiate your model
 Example:
 
 ```python
-from keras.models import load_model
+from keras.models import save_model, load_model
 
-model.save('my_model.h5')  # creates a HDF5 file 'my_model.h5'
+save_model(model, 'my_model.h5')  # creates a HDF5 file 'my_model.h5'
 del model  # deletes the existing model
 
 # returns a compiled model
