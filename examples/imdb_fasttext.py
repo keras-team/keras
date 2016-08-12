@@ -53,8 +53,7 @@ model.add(Embedding(max_features,
 # of all words in the document
 model.add(AveragePooling1D(pool_length=model.output_shape[1]))
 
-# We flatten the output of the conv layer,
-# so that we can add a dense layer:
+# We flatten the output of the conv layer
 model.add(Flatten())
 
 # We project onto a single unit output layer, and squash it with a sigmoid:
