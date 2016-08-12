@@ -1034,15 +1034,12 @@ def rnn(step_function, inputs, initial_states,
             the step function, of shape (samples, ...).
     '''
     if type(inputs) == list:
-        input_list = []
+        input_list = [[]] * input_length    
         for x in inputs:
             ndim = len(x.get_shape())
             assert ndim >= 3, "Input should be at least 3D."
-            axes = [1, 0] + list(range(2, ndim))
-            x = tf.transpose(x, (axes))
-            input_list += [tf.unpack(x)]
-        assert len(set(map(len, input_list))) == 1, "All input sequences should be of equal length."
-        input_list = [map(lambda x: x[t], input_list) for t in range(len(input_list[0]))]
+            for t in range(input_length):
+                    input_list[t] += [x[(slice(None), t) + (slice(None),) * (ndim - 2)]]
     else:
         ndim = len(inputs.get_shape())
         assert ndim >= 3, "Input should be at least 3D."
