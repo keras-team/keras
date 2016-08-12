@@ -15,9 +15,9 @@ np.random.seed(1337)  # for reproducibility
 
 from keras.preprocessing import sequence
 from keras.models import Sequential
-from keras.layers import Dense, Dropout, Activation, Flatten
+from keras.layers import Dense, Activation, Flatten
 from keras.layers import Embedding
-from keras.layers import Convolution1D, MaxPooling1D, AveragePooling1D
+from keras.layers import AveragePooling1D
 from keras.datasets import imdb
 from keras import backend as K
 
@@ -49,7 +49,8 @@ model.add(Embedding(max_features,
                     embedding_dims,
                     input_length=maxlen))
 
-# we add a AveragePooling1D, which
+# we add a AveragePooling1D, which will average the embeddings
+# of all words in the document
 model.add(AveragePooling1D(pool_length=model.output_shape[1]))
 
 # We flatten the output of the conv layer,
@@ -57,9 +58,7 @@ model.add(AveragePooling1D(pool_length=model.output_shape[1]))
 model.add(Flatten())
 
 # We project onto a single unit output layer, and squash it with a sigmoid:
-model.add(Dense(1))
-model.add(Dropout(0.2))
-model.add(Activation('sigmoid'))
+model.add(Dense(1, activation = 'sigmoid'))
 
 model.compile(loss='binary_crossentropy',
               optimizer='adam',
