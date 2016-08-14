@@ -1222,7 +1222,7 @@ class Merge(Layer):
                 if dot_axes < 0:
                     dot_axes = [dot_axes % n1, dot_axes % n2]
                 else:
-                    dot_axes = [n1 - dot_axes, n2 - dot_axes]
+                    dot_axes = [dot_axes, ] * 2
             if type(dot_axes) not in [list, tuple]:
                 raise Exception('Invalid type for dot_axes - should be a list.')
             if len(dot_axes) != 2:
