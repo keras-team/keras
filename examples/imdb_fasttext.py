@@ -15,11 +15,10 @@ np.random.seed(1337)  # for reproducibility
 
 from keras.preprocessing import sequence
 from keras.models import Sequential
-from keras.layers import Dense, Activation, Flatten
+from keras.layers import Dense, Flatten
 from keras.layers import Embedding
 from keras.layers import AveragePooling1D
 from keras.datasets import imdb
-from keras import backend as K
 
 
 # set parameters:
@@ -57,7 +56,7 @@ model.add(AveragePooling1D(pool_length=model.output_shape[1]))
 model.add(Flatten())
 
 # We project onto a single unit output layer, and squash it with a sigmoid:
-model.add(Dense(1, activation = 'sigmoid'))
+model.add(Dense(1, activation='sigmoid'))
 
 model.compile(loss='binary_crossentropy',
               optimizer='adam',
