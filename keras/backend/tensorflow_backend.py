@@ -1133,7 +1133,6 @@ def rnn(step_function, inputs, initial_states,
             inputs = tf.concat(2, [tf.cast(mask, inputs.dtype), inputs])
 
             def _step(input, state):
-                print('input shape:', input.get_shape())
                 if nb_states > 1:
                     states = []
                     for i in range(nb_states):
@@ -1181,7 +1180,13 @@ def rnn(step_function, inputs, initial_states,
             parallel_iterations=32,
             swap_memory=True,
             sequence_length=None)
-        new_states = [final_state]
+
+        if nb_states > 1:
+            new_states = []
+            for i in range(nb_states):
+                new_states.append(final_state[:, i * state_size: (i + 1) * state_size])
+        else:
+            new_states = [final_state]
 
         # all this circus is to recover the last vector in the sequence.
         # TF is such a pleasure to work with, beautifully designed
