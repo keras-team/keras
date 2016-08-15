@@ -583,8 +583,8 @@ class TestBackend(object):
     def test_ctc(self):
         # simplified version of TensorFlow's test
 
-        label_lens = np.expand_dims(np.asarray([5,4]), 1)
-        input_lens = np.expand_dims(np.asarray([5,5]), 1)  # number of timesteps
+        label_lens = np.expand_dims(np.asarray([5, 4]), 1)
+        input_lens = np.expand_dims(np.asarray([5, 5]), 1)  # number of timesteps
 
         # the Theano and Tensorflow CTC code use different methods to ensure
         # numerical stability.  The Theano code subtracts out the max
@@ -594,7 +594,7 @@ class TestBackend(object):
         loss_log_probs_th = [1.73308, 3.81351]
 
         # dimensions are batch x time x categories
-        labels = np.asarray([[0, 1, 2, 1, 0],  [0, 1, 1, 0, -1]])
+        labels = np.asarray([[0, 1, 2, 1, 0], [0, 1, 1, 0, -1]])
         inputs = np.asarray(
             [[[0.633766, 0.221185, 0.0917319, 0.0129757, 0.0142857, 0.0260553],
               [0.111121, 0.588392, 0.278779, 0.0055756, 0.00569609, 0.010436],
@@ -613,14 +613,14 @@ class TestBackend(object):
         input_lens_tf = KTF.variable(input_lens, dtype="int32")
         label_lens_tf = KTF.variable(label_lens, dtype="int32")
         res = KTF.eval(KTF.ctc_batch_cost(labels_tf, inputs_tf, input_lens_tf, label_lens_tf))
-        assert_allclose(res[:,0], loss_log_probs_tf, atol=1e-05)
+        assert_allclose(res[:, 0], loss_log_probs_tf, atol=1e-05)
 
         labels_th = KTH.variable(labels, dtype="int32")
         inputs_th = KTH.variable(inputs, dtype="float32")
         input_lens_th = KTH.variable(input_lens, dtype="int32")
         label_lens_th = KTH.variable(label_lens, dtype="int32")
         res = KTH.eval(KTH.ctc_batch_cost(labels_th, inputs_th, input_lens_th, label_lens_th))
-        assert_allclose(res[0,:], loss_log_probs_th, atol=1e-05)
+        assert_allclose(res[0, :], loss_log_probs_th, atol=1e-05)
 
     def test_one_hot(self):
         input_length = 10

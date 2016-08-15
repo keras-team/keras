@@ -1588,11 +1588,11 @@ def random_binomial(shape, p=0.0, dtype=_FLOATX, seed=None):
 # CTC
 # tensorflow has a native implemenation, but it uses sparse tensors
 # and therefore requires a wrapper for Keras. The functions below convert
-# dense to sparse tensors and also wraps up the beam search code that is 
+# dense to sparse tensors and also wraps up the beam search code that is
 # in tensorflow's CTC implementation
 
 def ctc_label_dense_to_sparse(labels, label_lengths):
-    # undocumented feature soon to be made public    
+    # undocumented feature soon to be made public
     from tensorflow.python.ops import functional_ops
     label_shape = tf.shape(labels)
     num_batches_tns = tf.pack([label_shape[0]])
@@ -1602,7 +1602,7 @@ def ctc_label_dense_to_sparse(labels, label_lengths):
         return tf.expand_dims(tf.range(label_shape[1]), 0) < current_input
 
     init = tf.cast(tf.fill(max_num_labels_tns, 0), tf.bool)
-    dense_mask = functional_ops.scan(range_less_than, label_lengths, 
+    dense_mask = functional_ops.scan(range_less_than, label_lengths,
                                      initializer=init, parallel_iterations=1)
     dense_mask = dense_mask[:, 0, :]
 
@@ -1610,8 +1610,8 @@ def ctc_label_dense_to_sparse(labels, label_lengths):
                              label_shape)
     label_ind = tf.boolean_mask(label_array, dense_mask)
 
-    batch_array = tf.transpose(tf.reshape(tf.tile(tf.range(0,  label_shape[0]), 
-                                                  max_num_labels_tns), tf.reverse(label_shape,[True])))
+    batch_array = tf.transpose(tf.reshape(tf.tile(tf.range(0, label_shape[0]), 
+                                                  max_num_labels_tns), tf.reverse(label_shape, [True])))
     batch_ind = tf.boolean_mask(batch_array, dense_mask)
     indices = tf.transpose(tf.reshape(tf.concat(0, [batch_ind, label_ind]), [2,-1]))
 
@@ -1628,13 +1628,13 @@ def ctc_batch_cost(y_true, y_pred, input_length, label_length):
         y_true: tensor (samples, max_string_length) containing the truth labels
         y_pred: tensor (samples, time_steps, num_categories) containing the prediction,
                 or output of the softmax
-        input_length: tensor (samples,1) containing the sequence length for 
+        input_length: tensor (samples,1) containing the sequence length for
                 each batch item in y_pred
-        label_length: tensor (samples,1) containing the sequence length for 
+        label_length: tensor (samples,1) containing the sequence length for
                 each batch item in y_true
 
     # Returns
-        Tensor with shape (samples,1) containing the 
+        Tensor with shape (samples,1) containing the
             CTC loss of each element
     '''
     label_length = tf.to_int32(tf.squeeze(label_length))
@@ -1647,26 +1647,26 @@ def ctc_batch_cost(y_true, y_pred, input_length, label_length):
                                                   labels = sparse_labels,
                                                   sequence_length = input_length), 1)
 
-def ctc_decode(y_pred, input_length, greedy = True, beam_width = None, 
+def ctc_decode(y_pred, input_length, greedy = True, beam_width = None,
                dict_seq_lens = None, dict_values = None):
-    '''Decodes the output of a softmax using either 
+    '''Decodes the output of a softmax using either
        greedy (also known as best path) or a constrained dictionary
        search.  
 
     # Arguments
         y_pred: tensor (samples, time_steps, num_categories) containing the prediction,
                 or output of the softmax
-        input_length: tensor (samples,1) containing the sequence length for 
+        input_length: tensor (samples,1) containing the sequence length for
                 each batch item in y_pred
         greedy:  perform much faster best-path search if true.  This does
                 not use a dictionary
-        beam_width:  if greedy is false and this value is not none, then 
+        beam_width:  if greedy is false and this value is not none, then
                 the constrained dictionary search uses a beam of this width
         dict_seq_lens: the length of each element in the dict_values list
         dict_values:  list of lists representing the dictionary.
 
     # Returns
-        Tensor with shape (samples,time_steps,num_categories) containing the 
+        Tensor with shape (samples,time_steps,num_categories) containing the
             path probabilities (in softmax output format).  Note that a function that
             pulls out the argmax and collapses blank labels is still needed.
     '''
@@ -1690,6 +1690,6 @@ def ctc_decode(y_pred, input_length, greedy = True, beam_width = None,
                 dict_seq_lens = dict_seq_lens, dict_values = dict_values)
 
     decoded_dense = [tf.sparse_to_dense(st.indices, st.shape, st.values, default_value = -1)
-                     for st in decoded] 
+                     for st in decoded]
 
     return (decoded_dense, log_prob)
