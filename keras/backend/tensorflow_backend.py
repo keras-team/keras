@@ -1007,10 +1007,11 @@ def rnn(step_function, inputs, initial_states,
                     time step.
                 states: list of tensors.
             Returns:
-                output: tensor with shape (samples, ...) (no time dimension),
+                output: tensor with shape (samples, output_dim) (no time dimension),
                 new_states: list of tensors, same length and shapes
-                    as 'states'.
-        initial_states: tensor with shape (samples, ...) (no time dimension),
+                    as 'states'. The first state in the list must be the
+                    output tensor at the previous timestep.
+        initial_states: tensor with shape (samples, output_dim) (no time dimension),
             containing the initial values for the states used in
             the step function.
         go_backwards: boolean. If True, do the iteration over
@@ -1037,63 +1038,157 @@ def rnn(step_function, inputs, initial_states,
     assert ndim >= 3, "Input should be at least 3D."
     axes = [1, 0] + list(range(2, ndim))
     inputs = tf.transpose(inputs, (axes))
-    input_list = tf.unpack(inputs)
+
     if constants is None:
         constants = []
 
-    states = initial_states
-    successive_states = []
-    successive_outputs = []
     if go_backwards:
-        input_list.reverse()
+        unroll = True
+        warnings.warn('There is currently no support for `go_backwards` '
+                      'with dynamic-length RNNs '
+                      'in TensorFlow; falling back to unrolling.')
 
-    if mask is not None:
-        # Transpose not supported by bool tensor types, hence round-trip to uint8.
-        mask = tf.cast(mask, tf.uint8)
-        if len(mask.get_shape()) == ndim-1:
-            mask = expand_dims(mask)
-        mask = tf.cast(tf.transpose(mask, axes), tf.bool)
-        mask_list = tf.unpack(mask)
+    if unroll:
+        if not inputs.get_shape()[0]:
+            raise Exception('Unrolling requires a fixed number of timesteps.')
 
+        states = initial_states
+        successive_states = []
+        successive_outputs = []
+
+        input_list = tf.unpack(inputs)
         if go_backwards:
-            mask_list.reverse()
+            input_list.reverse()
 
-        for input, mask_t in zip(input_list, mask_list):
-            output, new_states = step_function(input, states + constants)
+        if mask is not None:
+            # Transpose not supported by bool tensor types, hence round-trip to uint8.
+            mask = tf.cast(mask, tf.uint8)
+            if len(mask.get_shape()) == ndim - 1:
+                mask = expand_dims(mask)
+            mask = tf.cast(tf.transpose(mask, axes), tf.bool)
+            mask_list = tf.unpack(mask)
 
-            # tf.select needs its condition tensor to be the same shape as its two
-            # result tensors, but in our case the condition (mask) tensor is
-            # (nsamples, 1), and A and B are (nsamples, ndimensions). So we need to
-            # broadcast the mask to match the shape of A and B. That's what the
-            # tile call does, is just repeat the mask along its second dimension
-            # ndimensions times.
-            tiled_mask_t = tf.tile(mask_t, tf.pack([1, tf.shape(output)[1]]))
+            if go_backwards:
+                mask_list.reverse()
 
-            if len(successive_outputs) == 0:
-                prev_output = zeros_like(output)
-            else:
-                prev_output = successive_outputs[-1]
+            for input, mask_t in zip(input_list, mask_list):
+                output, new_states = step_function(input, states + constants)
 
-            output = tf.select(tiled_mask_t, output, prev_output)
+                # tf.select needs its condition tensor to be the same shape as its two
+                # result tensors, but in our case the condition (mask) tensor is
+                # (nsamples, 1), and A and B are (nsamples, ndimensions). So we need to
+                # broadcast the mask to match the shape of A and B. That's what the
+                # tile call does, is just repeat the mask along its second dimension
+                # ndimensions times.
+                tiled_mask_t = tf.tile(mask_t, tf.pack([1, tf.shape(output)[1]]))
 
-            return_states = []
-            for state, new_state in zip(states, new_states):
-                # (see earlier comment for tile explanation)
-                tiled_mask_t = tf.tile(mask_t, tf.pack([1, tf.shape(new_state)[1]]))
-                return_states.append(tf.select(tiled_mask_t, new_state, state))
+                if len(successive_outputs) == 0:
+                    prev_output = zeros_like(output)
+                else:
+                    prev_output = successive_outputs[-1]
 
-            states = return_states
-            successive_outputs.append(output)
-            successive_states.append(states)
+                output = tf.select(tiled_mask_t, output, prev_output)
+
+                return_states = []
+                for state, new_state in zip(states, new_states):
+                    # (see earlier comment for tile explanation)
+                    tiled_mask_t = tf.tile(mask_t, tf.pack([1, tf.shape(new_state)[1]]))
+                    return_states.append(tf.select(tiled_mask_t, new_state, state))
+
+                states = return_states
+                successive_outputs.append(output)
+                successive_states.append(states)
+                last_output = successive_outputs[-1]
+                new_states = successive_states[-1]
+                outputs = tf.pack(successive_outputs)
+        else:
+            for input in input_list:
+                output, states = step_function(input, states + constants)
+                successive_outputs.append(output)
+                successive_states.append(states)
+            last_output = successive_outputs[-1]
+            new_states = successive_states[-1]
+            outputs = tf.pack(successive_outputs)
+
     else:
-        for input in input_list:
-            output, states = step_function(input, states + constants)
-            successive_outputs.append(output)
-            successive_states.append(states)
+        from tensorflow.python.ops.rnn import _dynamic_rnn_loop
 
-    last_output = successive_outputs[-1]
-    outputs = tf.pack(successive_outputs)
-    new_states = successive_states[-1]
+        states = initial_states
+        nb_states = len(states)
+        if nb_states == 0:
+            raise Exception('No initial states provided.')
+        elif nb_states == 1:
+            state = states[0]
+        else:
+            state = tf.concat(1, states)
+
+        state_size = int(states[0].get_shape()[-1])
+
+        if mask is not None:
+            # Transpose not supported by bool tensor types, hence round-trip to uint8.
+            mask = tf.cast(mask, tf.uint8)
+            if len(mask.get_shape()) == ndim - 1:
+                mask = expand_dims(mask)
+            mask = tf.transpose(mask, axes)
+            inputs = tf.concat(2, [tf.cast(mask, inputs.dtype), inputs])
+
+            def _step(input, state):
+                print('input shape:', input.get_shape())
+                if nb_states > 1:
+                    states = []
+                    for i in range(nb_states):
+                        states.append(state[:, i * state_size: (i + 1) * state_size])
+                else:
+                    states = [state]
+                mask_t = tf.cast(input[:, 0], tf.bool)
+                input = input[:, 1:]
+                output, new_states = step_function(input, states + constants)
+
+                output = tf.select(mask_t, output, states[0])
+                new_states = [tf.select(mask_t, new_states[i], states[i]) for i in range(len(states))]
+
+                if len(new_states) == 1:
+                    new_state = new_states[0]
+                else:
+                    new_state = tf.concat(1, new_states)
+
+                return output, new_state
+        else:
+            def _step(input, state):
+                if nb_states > 1:
+                    states = []
+                    for i in range(nb_states):
+                        states.append(state[:, i * state_size: (i + 1) * state_size])
+                else:
+                    states = [state]
+                output, new_states = step_function(input, states + constants)
+
+                if len(new_states) == 1:
+                    new_state = new_states[0]
+                else:
+                    new_state = tf.concat(1, new_states)
+                return output, new_state
+
+        # state size is assumed to be the same as output size
+        # (always the case)
+        _step.state_size = state_size * nb_states
+        _step.output_size = state_size
+
+        (outputs, final_state) = _dynamic_rnn_loop(
+            _step,
+            inputs,
+            state,
+            parallel_iterations=32,
+            swap_memory=True,
+            sequence_length=None)
+        new_states = [final_state]
+
+        # all this circus is to recover the last vector in the sequence.
+        # TF is such a pleasure to work with, beautifully designed
+        begin = tf.pack([tf.shape(outputs)[0] - 1, 0, 0])
+        size = tf.pack([1, -1, -1])
+        last_output = tf.slice(outputs, begin, size)
+        last_output = tf.squeeze(last_output, [0])
 
     axes = [1, 0] + list(range(2, len(outputs.get_shape())))
     outputs = tf.transpose(outputs, axes)
