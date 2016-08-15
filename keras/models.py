@@ -339,6 +339,22 @@ class Sequential(Model):
         self.built = False
         self._flattened_layers = None
 
+    def get_layer(self, name=None, index=None):
+        '''Returns a layer based on either its name (unique)
+        or its index in the graph. Indices are based on
+        order of horizontal graph traversal (bottom-up).
+
+        # Arguments
+            name: string, name of layer.
+            index: integer, index of layer.
+
+        # Returns
+            A layer instance.
+        '''
+        if not self.built:
+            self.build()
+        return self.model.get_layer(name, index)
+
     def call(self, x, mask=None):
         if not self.built:
             self.build()
