@@ -1042,12 +1042,6 @@ def rnn(step_function, inputs, initial_states,
     if constants is None:
         constants = []
 
-    if go_backwards:
-        unroll = True
-        warnings.warn('There is currently no support for `go_backwards` '
-                      'with dynamic-length RNNs '
-                      'in TensorFlow; falling back to unrolling.')
-
     if unroll:
         if not inputs.get_shape()[0]:
             raise Exception('Unrolling requires a fixed number of timesteps.')
@@ -1113,6 +1107,9 @@ def rnn(step_function, inputs, initial_states,
     else:
         from tensorflow.python.ops.rnn import _dynamic_rnn_loop
 
+        if go_backwards:
+            inputs = tf.reverse_sequence(inputs, tf.shape(inputs)[1], 1)
+
         states = initial_states
         nb_states = len(states)
         if nb_states == 0:
@@ -1125,6 +1122,9 @@ def rnn(step_function, inputs, initial_states,
         state_size = int(states[0].get_shape()[-1])
 
         if mask is not None:
+            if go_backwards:
+                mask = tf.reverse_sequence(mask, tf.shape(mask)[1], 1)
+
             # Transpose not supported by bool tensor types, hence round-trip to uint8.
             mask = tf.cast(mask, tf.uint8)
             if len(mask.get_shape()) == ndim - 1:
