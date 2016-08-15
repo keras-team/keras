@@ -1,4 +1,3 @@
-
 from ..engine import Layer, InputSpec
 from .. import backend as K
 
