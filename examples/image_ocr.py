@@ -59,6 +59,8 @@ from keras.utils.data_utils import get_file
 from keras.preprocessing import image
 import keras.callbacks
 
+OUTPUT_DIR = "image_ocr"
+
 np.random.seed(55)
 
 # this creates larger "blotches" of noise which look
@@ -176,9 +178,9 @@ class TextImageGenerator(keras.callbacks.Callback):
     # num_words can be independent of the epoch size due to the use of generators
     # as max_string_len grows, num_words can grow
     def build_word_list(self, num_words, max_string_len=None, mono_fraction=0.5):
-        assert(max_string_len <= self.absolute_max_string_len)
-        assert(num_words % self.minibatch_size == 0)
-        assert((self.val_split * num_words) % self.minibatch_size == 0)
+        assert max_string_len <= self.absolute_max_string_len
+        assert num_words % self.minibatch_size == 0
+        assert (self.val_split * num_words) % self.minibatch_size == 0
         self.num_words = num_words
         self.string_list = []
         self.max_string_len = max_string_len
@@ -319,10 +321,11 @@ class VizCallback(keras.callbacks.Callback):
 
     def __init__(self, test_func, text_img_gen, num_display_words = 6):
         self.test_func = test_func
-        self.output_dir = datetime.datetime.now().strftime('image_ocr %A, %d. %B %Y %I.%M%p')
+        self.output_dir = os.path.join(
+            OUTPUT_DIR, datetime.datetime.now().strftime('%A, %d. %B %Y %I.%M%p'))
         self.text_img_gen = text_img_gen
         self.num_display_words = num_display_words
-        os.mkdir(self.output_dir)
+        os.makedirs(self.output_dir)
 
     def show_edit_distance(self, num):
         num_left = num
@@ -339,8 +342,8 @@ class VizCallback(keras.callbacks.Callback):
             num_left -= num_proc
         mean_norm_ed = mean_norm_ed / num
         mean_ed = mean_ed / num
-        print '\nOut of %d samples:  Mean edit distance: %.3f Mean normalized edit distance: %0.3f' \
-            % (num, mean_ed, mean_norm_ed)
+        print('\nOut of %d samples:  Mean edit distance: %.3f Mean normalized edit distance: %0.3f'
+              % (num, mean_ed, mean_norm_ed))
 
     def on_epoch_end(self, epoch, logs={}):
         self.model.save_weights(os.path.join(self.output_dir, 'weights%02d.h5' % epoch))
@@ -376,7 +379,7 @@ rnn_size = 512
 time_steps = img_w / (pool_size_1 * pool_size_2)
 
 fdir = os.path.dirname(get_file('wordlists.tgz',
-                       origin='http://www.isosemi.com/datasets/wordlists.tgz', untar=True))
+                                origin='http://www.isosemi.com/datasets/wordlists.tgz', untar=True))
 
 img_gen = TextImageGenerator(monogram_file=os.path.join(fdir, 'wordlist_mono_clean.txt'),
                              bigram_file=os.path.join(fdir, 'wordlist_bi_clean.txt'),
