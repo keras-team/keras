@@ -421,7 +421,7 @@ def generator_queue(generator, max_q_size=10,
         def data_generator_task():
             while not _stop.is_set():
                 try:
-                    if q.qsize() < max_q_size:
+                    if pickle_safe or q.qsize() < max_q_size:
                         try:
                             generator_output = next(generator)
                         except ValueError:
