@@ -155,8 +155,6 @@ class Bidirectional(Wrapper):
     def __init__(self, layer, merge_mode='concat', weights=None, **kwargs):
         self.forward = layer
         self.reverse = layer.__class__.from_config(layer.get_config())
-        self.forward.name = 'forward_' + self.forward.name
-        self.reverse.name = 'reverse_' + self.reverse.name
         self.merge_mode = merge_mode
         if weights:
             nw = len(weights)
