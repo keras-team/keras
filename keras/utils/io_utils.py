@@ -1,6 +1,5 @@
 from __future__ import absolute_import
 from __future__ import print_function
-import h5py
 import numpy as np
 import sys
 from collections import defaultdict
@@ -10,6 +9,8 @@ class HDF5Matrix():
     refs = defaultdict(int)
 
     def __init__(self, datapath, dataset, start, end, normalizer=None):
+        import h5py
+
         if datapath not in list(self.refs.keys()):
             f = h5py.File(datapath)
             self.refs[datapath] = f
@@ -31,7 +32,7 @@ class HDF5Matrix():
                 raise IndexError
         elif isinstance(key, int):
             if key + self.start < self.end:
-                idx = key+self.start
+                idx = key + self.start
             else:
                 raise IndexError
         elif isinstance(key, np.ndarray):
