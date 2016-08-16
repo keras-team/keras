@@ -606,6 +606,21 @@ def one_hot(indices, nb_classes):
     return oh
 
 
+def reverse(x, axis):
+    '''Reverse a tensor along the the specified axis
+    '''
+    if axis == 0:
+        return x[::-1]
+    else:
+        axes1 = list(range(x.ndim))
+        axes1.pop(axis)
+        axes1 = [axis] + axes1
+        axes2 = [axes1[i] for i in axes1]
+        x = x.dimshuffle(axes1)
+        x = x[::-1]
+        return x.dimshuffle(axes2)
+
+
 # VALUE MANIPULATION
 
 
