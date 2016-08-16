@@ -5,7 +5,7 @@ from .np_utils import convert_kernel
 from ..layers import *
 from ..models import Model, Sequential, Graph
 from .. import backend as K
-
+import sys
 
 def layer_from_config(config, custom_objects={}):
     '''
@@ -36,7 +36,7 @@ def layer_from_config(config, custom_objects={}):
     return layer_class.from_config(config['config'])
 
 
-def print_summary(layers, relevant_nodes=None, line_length=100, positions=[.33, .55, .67, 1.]):
+def print_summary(layers, relevant_nodes=None, line_length=100, positions=[.33, .55, .67, 1.], file = sys.stdout):
     # line_length: total length of printed lines
     # positions: relative or absolute positions of log elements in each line
     if positions[-1] <= 1:
@@ -44,19 +44,19 @@ def print_summary(layers, relevant_nodes=None, line_length=100, positions=[.33, 
     # header names for the different log elements
     to_display = ['Layer (type)', 'Output Shape', 'Param #', 'Connected to']
 
-    def print_row(fields, positions):
+    def print_row(fields, positions, file):
         line = ''
         for i in range(len(fields)):
             line += str(fields[i])
             line = line[:positions[i]]
             line += ' ' * (positions[i] - len(line))
-        print(line)
+        print(line, file = file)
 
-    print('_' * line_length)
-    print_row(to_display, positions)
-    print('=' * line_length)
+    print('_' * line_length, file = file)
+    print_row(to_display, positions, file)
+    print('=' * line_length, file = file)
 
-    def print_layer_summary(layer):
+    def print_layer_summary(layer, file):
         try:
             output_shape = layer.output_shape
         except:
@@ -81,23 +81,23 @@ def print_summary(layers, relevant_nodes=None, line_length=100, positions=[.33, 
         else:
             first_connection = connections[0]
         fields = [name + ' (' + cls_name + ')', output_shape, layer.count_params(), first_connection]
-        print_row(fields, positions)
+        print_row(fields, positions, file)
         if len(connections) > 1:
             for i in range(1, len(connections)):
                 fields = ['', '', '', connections[i]]
-                print_row(fields, positions)
+                print_row(fields, positions, file)
 
     total_params = 0
     for i in range(len(layers)):
-        print_layer_summary(layers[i])
+        print_layer_summary(layers[i], file)
         if i == len(layers) - 1:
-            print('=' * line_length)
+            print('=' * line_length, file = file)
         else:
-            print('_' * line_length)
+            print('_' * line_length, file = file)
         total_params += layers[i].count_params()
 
-    print('Total params: %s' % total_params)
-    print('_' * line_length)
+    print('Total params: %s' % total_params, file = file)
+    print('_' * line_length, file = file)
 
 
 def convert_all_kernels_in_model(model):
