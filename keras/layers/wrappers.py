@@ -133,3 +133,99 @@ class TimeDistributed(Wrapper):
             output_shape = self.get_output_shape_for(input_shape)
             y = K.reshape(y, (-1, input_length) + output_shape[2:])
         return y
+
+
+class Bidirectional(Wrapper):
+    ''' Bidirectional wrapper for RNNs
+
+    # Arguments:
+        layer: `Recurrent` instance.
+        merge_mode: Mode by which outputs of the forward and reverse RNNs will be combined. One of {sum, mul, concat, ave}
+
+    # Examples:
+    ```python
+    model = Sequential()
+    model.add(Bidirectional(LSTM(10), input_shape=(5, 10)))
+    model.add(Activation('softmax'))
+    model.compile(loss='categorical_crossentropy', optimizer='rmsprop')
+    ```
+    '''
+    def __init__(self, layer, merge_mode='concat', weights=None, **kwargs):
+        self.forward = layer
+        self.reverse = layer.__class__.from_config(layer.get_config())
+        self.forward.name = 'forward_' + self.forward.name
+        self.reverse.name = 'reverse_' + self.reverse.name
+        self.merge_mode = merge_mode
+        if weights:
+            nw = len(weights)
+            self.forward.initial_weights = weights[:nw//2]
+            self.reverse.initial_weights = weights[nw//2:]
+        self.stateful = layer.stateful
+        self.return_sequences = layer.return_sequences
+        self.supports_masking = True
+        super(Bidirectional, self).__init__(layer, **kwargs)
+
+    def get_weights(self):
+        return self.forward.get_weights() + self.reverse.get_weights()
+
+    def set_weights(self, weights):
+        nw = len(weights)
+        self.forward.set_weights(weights[:nw//2])
+        self.reverse.set_weights(weights[nw//2:])
+
+    def get_output_shape_for(self, input_shape):
+        if self.merge_mode in ['sum', 'ave', 'mul']:
+            return self.forward.get_output_shape_for(input_shape)
+        elif self.merge_mode == 'concat':
+            shape = list(self.forward.get_output_shape_for(input_shape))
+            shape[-1] *= 2
+            return tuple(shape)
+
+    def call(self, X, mask=None):
+
+        def reverse(x):
+            rev = K.permute_dimensions(x, (1, 0, 2))[::-1]                
+            return K.permute_dimensions(rev, (1, 0, 2))
+
+        Y = self.forward.call(X, mask)
+        X_rev = reverse(X)
+        mask_rev = reverse(mask) if mask else None
+        Y_rev = self.reverse.call(X_rev, mask_rev)
+
+        if self.return_sequences:
+            Y_rev = reverse(Y_rev)
+
+        if self.merge_mode == 'concat':
+            return K.concatenate([Y, Y_rev])
+        elif self.merge_mode == 'sum':
+            return Y + Y_rev
+        elif self.merge_mode == 'ave':
+            return (Y + Y_rev) / 2
+        elif self.merge_mode == 'mul':
+            return Y * Y_rev
+
+    def reset_states(self):
+        self.forward.reset_states()
+        self.reverse.reset_states()
+
+    def build(self, input_shape):
+        self.forward.build(input_shape)
+        self.reverse.build(input_shape)
+        params = ['trainable_weights', 'non_trainable_weights', 'updates', 'regularizers']
+        for p in params:
+            setattr(self, p, getattr(self.forward, p, []) + getattr(self.reverse, p, []))
+        self.constraints = {}
+        if hasattr(self.forward, 'constraints'):
+            self.constraints.update(self.forward.constraints)
+            self.constraints.update(self.reverse.constraints)
+
+    def compute_mask(self, input, mask):
+        if self.return_sequences:
+            return mask
+        else:
+            return None
+
+    def get_config(self):
+        config = {"merge_mode": self.merge_mode}
+        base_config = super(Bidirectional, self).get_config()
+        return dict(list(base_config.items()) + list(config.items()))
