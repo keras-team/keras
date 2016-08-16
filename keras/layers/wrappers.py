@@ -187,7 +187,7 @@ class Bidirectional(Wrapper):
         Y = self.forward.call(X, mask)
         Y_rev = self.reverse.call(X, mask)
         if self.return_sequences:
-            Y_rev = K.reverse(Y_rev)
+            Y_rev = K.reverse(Y_rev, 1)
         if self.merge_mode == 'concat':
             return K.concatenate([Y, Y_rev])
         elif self.merge_mode == 'sum':
