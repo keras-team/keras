@@ -1039,7 +1039,7 @@ def rnn(step_function, inputs, initial_states,
             ndim = len(x.get_shape())
             assert ndim >= 3, "Input should be at least 3D."
             for t in range(input_length):
-                    input_list[t] += [x[(slice(None), t) + (slice(None),) * (ndim - 2)]]
+                input_list[t] += [x[(slice(None), t) + (slice(None),) * (ndim - 2)]]
     else:
         ndim = len(inputs.get_shape())
         assert ndim >= 3, "Input should be at least 3D."
