@@ -290,6 +290,7 @@ class TestBackend(object):
                 return output, [output]
             return step_function
 
+        # test default setup
         th_rnn_step_fn = rnn_step_fn(input_dim, output_dim, KTH)
         th_inputs = KTH.variable(input_val)
         th_initial_states = [KTH.variable(init_state_val)]
@@ -308,6 +309,35 @@ class TestBackend(object):
         last_output, outputs, new_states = KTF.rnn(tf_rnn_step_fn, tf_inputs,
                                                    tf_initial_states,
                                                    go_backwards=False,
+                                                   mask=None)
+        tf_last_output = KTF.eval(last_output)
+        tf_outputs = KTF.eval(outputs)
+        assert len(new_states) == 1
+        tf_state = KTF.eval(new_states[0])
+
+        assert_allclose(tf_last_output, th_last_output, atol=1e-04)
+        assert_allclose(tf_outputs, th_outputs, atol=1e-04)
+        assert_allclose(tf_state, th_state, atol=1e-04)
+
+        # test go_backwards
+        th_rnn_step_fn = rnn_step_fn(input_dim, output_dim, KTH)
+        th_inputs = KTH.variable(input_val)
+        th_initial_states = [KTH.variable(init_state_val)]
+        last_output, outputs, new_states = KTH.rnn(th_rnn_step_fn, th_inputs,
+                                                   th_initial_states,
+                                                   go_backwards=True,
+                                                   mask=None)
+        th_last_output = KTH.eval(last_output)
+        th_outputs = KTH.eval(outputs)
+        assert len(new_states) == 1
+        th_state = KTH.eval(new_states[0])
+
+        tf_rnn_step_fn = rnn_step_fn(input_dim, output_dim, KTF)
+        tf_inputs = KTF.variable(input_val)
+        tf_initial_states = [KTF.variable(init_state_val)]
+        last_output, outputs, new_states = KTF.rnn(tf_rnn_step_fn, tf_inputs,
+                                                   tf_initial_states,
+                                                   go_backwards=True,
                                                    mask=None)
         tf_last_output = KTF.eval(last_output)
         tf_outputs = KTF.eval(outputs)

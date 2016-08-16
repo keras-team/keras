@@ -204,6 +204,7 @@ class Recurrent(Layer):
         else:
             initial_states = self.get_initial_states(x)
         constants = self.get_constants(x)
+        print('x.shape', x.get_shape())
         preprocessed_input = self.preprocess_input(x)
 
         last_output, outputs, states = K.rnn(self.step, preprocessed_input,

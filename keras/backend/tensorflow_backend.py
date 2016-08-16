@@ -1034,8 +1034,10 @@ def rnn(step_function, inputs, initial_states,
         new_states: list of tensors, latest states returned by
             the step function, of shape (samples, ...).
     '''
+    print('initial inputs:', inputs.get_shape())
+
     ndim = len(inputs.get_shape())
-    assert ndim >= 3, "Input should be at least 3D."
+    assert ndim >= 3, 'Input should be at least 3D.'
     axes = [1, 0] + list(range(2, ndim))
     inputs = tf.transpose(inputs, (axes))
 
@@ -1108,7 +1110,14 @@ def rnn(step_function, inputs, initial_states,
         from tensorflow.python.ops.rnn import _dynamic_rnn_loop
 
         if go_backwards:
-            inputs = tf.reverse_sequence(inputs, tf.shape(inputs)[1], 1)
+            timesteps = tf.cast(tf.shape(inputs)[1:2], 'int64')
+            print('timesteps:', timesteps.get_shape())
+            sequence_lengths = tf.tile(timesteps, tf.shape(inputs)[0:1])
+            print('sequence_lengths:', sequence_lengths.get_shape())
+            inputs = tf.reverse_sequence(
+                inputs,
+                sequence_lengths,
+                1)
 
         states = initial_states
         nb_states = len(states)
@@ -1123,7 +1132,10 @@ def rnn(step_function, inputs, initial_states,
 
         if mask is not None:
             if go_backwards:
-                mask = tf.reverse_sequence(mask, tf.shape(mask)[1], 1)
+                mask = tf.reverse_sequence(
+                    mask,
+                    sequence_lengths,
+                    1)
 
             # Transpose not supported by bool tensor types, hence round-trip to uint8.
             mask = tf.cast(mask, tf.uint8)
@@ -1173,6 +1185,7 @@ def rnn(step_function, inputs, initial_states,
         _step.state_size = state_size * nb_states
         _step.output_size = state_size
 
+        print('inputs:', inputs.get_shape())
         (outputs, final_state) = _dynamic_rnn_loop(
             _step,
             inputs,
@@ -1187,6 +1200,10 @@ def rnn(step_function, inputs, initial_states,
                 new_states.append(final_state[:, i * state_size: (i + 1) * state_size])
         else:
             new_states = [final_state]
+
+        timesteps = inputs.get_shape()[0]
+        print('timesteps:', timesteps)
+        print('timesteps is None:', timesteps is None)
 
         # all this circus is to recover the last vector in the sequence.
         # TF is such a pleasure to work with, beautifully designed
