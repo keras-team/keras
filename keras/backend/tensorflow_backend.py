@@ -1270,14 +1270,16 @@ def tanh(x):
     return tf.nn.tanh(x)
 
 
-def dropout(x, level, seed=None):
+def dropout(x, level, noise_shape=None, seed=None):
     '''Sets entries in `x` to zero at random,
     while scaling the entire tensor.
 
     # Arguments
         x: tensor
         level: fraction of the entries in the tensor
-            that will be set to 0
+            that will be set to 0.
+        noise_shape: shape for randomly generated keep/drop flags,
+            must be broadcastable to the shape of `x`
         seed: random seed to ensure determinism.
     '''
     retain_prob = 1. - level
@@ -1285,7 +1287,7 @@ def dropout(x, level, seed=None):
         seed = np.random.randint(10e6)
     # the dummy 1. works around a TF bug
     # (float32_ref vs. float32 incomptability)
-    return tf.nn.dropout(x * 1., retain_prob, seed=seed)
+    return tf.nn.dropout(x * 1., retain_prob, noise_shape, seed=seed)
 
 
 def l2_normalize(x, axis):
