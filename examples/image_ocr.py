@@ -36,8 +36,6 @@ Created by Mike Henry
 https://github.com/mbhenry/
 '''
 
-import sys
-import random
 import os
 import itertools
 import re
@@ -48,11 +46,11 @@ import numpy as np
 from scipy import ndimage
 import pylab
 from keras import backend as K
-from keras.layers.convolutional import Convolution2D, MaxPooling2D, ZeroPadding2D, UpSampling2D
-from keras.layers import Input, Layer, Dense, Dropout, Activation, Flatten
+from keras.layers.convolutional import Convolution2D, MaxPooling2D
+from keras.layers import Input, Layer, Dense, Activation, Flatten
 from keras.layers import Reshape, Lambda, merge, Permute, TimeDistributed
 from keras.models import Model
-from keras.layers.recurrent import LSTM, GRU
+from keras.layers.recurrent import GRU
 from keras.optimizers import SGD
 from keras.utils import np_utils
 from keras.utils.data_utils import get_file
@@ -188,6 +186,7 @@ class TextImageGenerator(keras.callbacks.Callback):
         self.X_text = []
         self.Y_len = [0] * self.num_words
 
+        #monogram file is sorted by frequency in english speech
         with open(self.monogram_file, 'rt') as f:
             for line in f:
                 if len(self.string_list) == int(self.num_words * mono_fraction):
@@ -195,8 +194,8 @@ class TextImageGenerator(keras.callbacks.Callback):
                 word = line.rstrip()
                 if max_string_len == -1 or max_string_len is None or len(word) <= max_string_len:
                     self.string_list.append(word)
-        # bigram file doesn't contain nonsensical words,
-        # so read the entire thing and pull some random lines out
+
+        #bigram file contains common word pairings in english speech
         with open(self.bigram_file, 'rt') as f:
             lines = f.readlines()
             for line in lines:
@@ -209,7 +208,7 @@ class TextImageGenerator(keras.callbacks.Callback):
                     self.string_list.append(word)
         if len(self.string_list) != self.num_words:
             raise IOError('Could not pull enough words from supplied monogram and bigram files. ')
-        np.random.shuffle(self.string_list)
+        #np.random.shuffle(self.string_list)
 
         for i, word in enumerate(self.string_list):
             self.Y_len[i] = len(word)
@@ -301,7 +300,6 @@ def ctc_lambda_func(args):
 # and language model.  For this example, best path is sufficient.
 
 def decode_batch(test_func, word_batch):
-    import itertools
     out = test_func([word_batch])[0]
     ret = []
     for j in range(out.shape[0]):
