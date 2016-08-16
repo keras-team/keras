@@ -208,7 +208,6 @@ class TextImageGenerator(keras.callbacks.Callback):
                     self.string_list.append(word)
         if len(self.string_list) != self.num_words:
             raise IOError('Could not pull enough words from supplied monogram and bigram files. ')
-        #np.random.shuffle(self.string_list)
 
         for i, word in enumerate(self.string_list):
             self.Y_len[i] = len(word)
