@@ -154,7 +154,9 @@ class Bidirectional(Wrapper):
     '''
     def __init__(self, layer, merge_mode='concat', weights=None, **kwargs):
         self.forward = layer
-        self.reverse = layer.__class__.from_config(layer.get_config())
+        config = layer.get_config()
+        config['go_backwards'] = not config['go_backwards']
+        self.reverse = layer.__class__.from_config(config)
         self.merge_mode = merge_mode
         if weights:
             nw = len(weights)
@@ -182,19 +184,10 @@ class Bidirectional(Wrapper):
             return tuple(shape)
 
     def call(self, X, mask=None):
-
-        def reverse(x):
-            rev = K.permute_dimensions(x, (1, 0, 2))[::-1]                
-            return K.permute_dimensions(rev, (1, 0, 2))
-
         Y = self.forward.call(X, mask)
-        X_rev = reverse(X)
-        mask_rev = reverse(mask) if mask else None
-        Y_rev = self.reverse.call(X_rev, mask_rev)
-
+        Y_rev = self.reverse.call(X, mask)
         if self.return_sequences:
-            Y_rev = reverse(Y_rev)
-
+            Y_rev = K.reverse(Y_rev)
         if self.merge_mode == 'concat':
             return K.concatenate([Y, Y_rev])
         elif self.merge_mode == 'sum':
