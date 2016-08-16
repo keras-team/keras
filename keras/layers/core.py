@@ -141,8 +141,8 @@ class SpatialDropout2D(Dropout):
             noise_shape = (input_shape[0], 1, 1, input_shape[3])
         else:
             raise Exception('Invalid dim_ordering: ' + self.dim_ordering)
-
         return noise_shape
+
 
 class SpatialDropout3D(Dropout):
     '''This version performs the same function as Dropout, however it drops
@@ -189,7 +189,6 @@ class SpatialDropout3D(Dropout):
             noise_shape = (input_shape[0], 1, 1, 1, input_shape[4])
         else:
             raise Exception('Invalid dim_ordering: ' + self.dim_ordering)
-
         return noise_shape
 
 
