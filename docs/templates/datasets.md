@@ -53,10 +53,14 @@ As a convention, "0" does not stand for a specific word, but instead is used to 
 ```python
 from keras.datasets import imdb
 
-(X_train, y_train), (X_test, y_test) = imdb.load_data(path="imdb.pkl",
+(X_train, y_train), (X_test, y_test) = imdb.load_data(path="imdb_full.pkl",
                                                       nb_words=None,
                                                       skip_top=0,
-                                                      maxlen=None)
+                                                      maxlen=None,
+                                                      seed=113,
+                                                      start_char=1,
+                                                      oov_char=2,
+                                                      index_from=3)
 ```
 - __Return:__
     - 2 tuples:
@@ -91,7 +95,11 @@ from keras.datasets import reuters
                                                          nb_words=None,
                                                          skip_top=0,
                                                          maxlen=None,
-                                                         test_split=0.1)
+                                                         test_split=0.2,
+                                                         seed=113,
+                                                         start_char=1,
+                                                         oov_char=2,
+                                                         index_from=3)
 ```
 
 The specifications are the same as that of the IMDB dataset, with the addition of:
