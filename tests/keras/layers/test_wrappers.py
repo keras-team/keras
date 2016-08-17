@@ -1,264 +1,111 @@
-from ..engine import Layer, InputSpec
-from .. import backend as K
+import pytest
+import numpy as np
+from numpy.testing import assert_allclose
+from keras.utils.test_utils import keras_test
+from keras.layers import wrappers, Input
+from keras.layers import core, convolutional, recurrent
+from keras.models import Sequential, Model, model_from_json
 
 
-class Wrapper(Layer):
-
-    def __init__(self, layer, **kwargs):
-        self.layer = layer
-        self.uses_learning_phase = layer.uses_learning_phase
-        super(Wrapper, self).__init__(**kwargs)
-
-    def build(self, input_shape=None):
-        '''Assumes that self.layer is already set.
-        Should be called at the end of .build() in the
-        children classes.
-        '''
-        self.trainable_weights = getattr(self.layer, 'trainable_weights', [])
-        self.non_trainable_weights = getattr(self.layer, 'non_trainable_weights', [])
-        self.updates = getattr(self.layer, 'updates', [])
-        self.regularizers = getattr(self.layer, 'regularizers', [])
-        self.constraints = getattr(self.layer, 'constraints', {})
-
-    def get_weights(self):
-        weights = self.layer.get_weights()
-        return weights
-
-    def set_weights(self, weights):
-        self.layer.set_weights(weights)
-
-    def get_config(self):
-        config = {'layer': {'class_name': self.layer.__class__.__name__,
-                            'config': self.layer.get_config()}}
-        base_config = super(Wrapper, self).get_config()
-        return dict(list(base_config.items()) + list(config.items()))
-
-    @classmethod
-    def from_config(cls, config):
-        from keras.utils.layer_utils import layer_from_config
-        layer = layer_from_config(config.pop('layer'))
-        return cls(layer, **config)
-
-
-class TimeDistributed(Wrapper):
-    """This wrapper allows to apply a layer to every
-    temporal slice of an input.
-
-    The input should be at least 3D,
-    and the dimension of index one will be considered to be
-    the temporal dimension.
-
-    Consider a batch of 32 samples, where each sample is a sequence of 10
-    vectors of 16 dimensions. The batch input shape of the layer is then `(32, 10, 16)`
-    (and the `input_shape`, not including the samples dimension, is `(10, 16)`).
-
-    You can then use `TimeDistributed` to apply a `Dense` layer to each of the 10 timesteps, independently:
-    ```python
-        # as the first layer in a model
-        model = Sequential()
-        model.add(TimeDistributed(Dense(8), input_shape=(10, 16)))
-        # now model.output_shape == (None, 10, 8)
-
-        # subsequent layers: no need for input_shape
-        model.add(TimeDistributed(Dense(32)))
-        # now model.output_shape == (None, 10, 32)
-    ```
-
-    The output will then have shape `(32, 10, 8)`.
-
-    Note this is strictly equivalent to using `layers.core.TimeDistributedDense`.
-    However what is different about `TimeDistributed`
-    is that it can be used with arbitrary layers, not just `Dense`,
-    for instance with a `Convolution2D` layer:
-
-    ```python
-        model = Sequential()
-        model.add(TimeDistributed(Convolution2D(64, 3, 3), input_shape=(10, 3, 299, 299)))
-    ```
-
-    # Arguments
-        layer: a layer instance.
-    """
-    def __init__(self, layer, **kwargs):
-        self.supports_masking = True
-        super(TimeDistributed, self).__init__(layer, **kwargs)
-
-    def build(self, input_shape):
-        assert len(input_shape) >= 3
-        self.input_spec = [InputSpec(shape=input_shape)]
-        if K._BACKEND == 'tensorflow':
-            if not input_shape[1]:
-                raise Exception('When using TensorFlow, you should define '
-                                'explicitly the number of timesteps of '
-                                'your sequences.\n'
-                                'If your first layer is an Embedding, '
-                                'make sure to pass it an "input_length" '
-                                'argument. Otherwise, make sure '
-                                'the first layer has '
-                                'an "input_shape" or "batch_input_shape" '
-                                'argument, including the time axis.')
-        child_input_shape = (input_shape[0],) + input_shape[2:]
-        if not self.layer.built:
-            self.layer.build(child_input_shape)
-            self.layer.built = True
-        super(TimeDistributed, self).build()
-
-    def get_output_shape_for(self, input_shape):
-        child_input_shape = (input_shape[0],) + input_shape[2:]
-        child_output_shape = self.layer.get_output_shape_for(child_input_shape)
-        timesteps = input_shape[1]
-        return (child_output_shape[0], timesteps) + child_output_shape[1:]
-
-    def call(self, X, mask=None):
-        input_shape = self.input_spec[0].shape
-        if input_shape[0]:
-            # batch size matters, use rnn-based implementation
-            def step(x, states):
-                output = self.layer.call(x)
-                return output, []
-
-            last_output, outputs, states = K.rnn(step, X,
-                                                 initial_states=[])
-            y = outputs
-        else:
-            # no batch size specified, therefore the layer will be able
-            # to process batches of any size
-            # we can go with reshape-based implementation for performance
-            input_length = input_shape[1]
-            if not input_length:
-                input_length = K.shape(X)[1]
-            X = K.reshape(X, (-1, ) + input_shape[2:])  # (nb_samples * timesteps, ...)
-            y = self.layer.call(X)  # (nb_samples * timesteps, ...)
-            # (nb_samples, timesteps, ...)
-            output_shape = self.get_output_shape_for(input_shape)
-            y = K.reshape(y, (-1, input_length) + output_shape[2:])
-        return y
-
-
-class Bidirectional(Wrapper):
-    ''' Bidirectional wrapper for RNNs
-
-    # Arguments:
-        layer: `Recurrent` instance.
-        merge_mode: Mode by which outputs of the forward and backward RNNs will be combined. One of {'sum', 'mul', 'concat', 'ave', None}. If None, the outputs will not be combined, they will be returned as a list.
-
-    # Examples:
-    ```python
+@keras_test
+def test_TimeDistributed():
+    # first, test with Dense layer
     model = Sequential()
-    model.add(Bidirectional(LSTM(10, return_sequences=True), input_shape=(5, 10)))
-    model.add(Bidirectional(LSTM(10)))
-    model.add(Dense(5))
-    model.add(Activation('softmax'))
-    model.compile(loss='categorical_crossentropy', optimizer='rmsprop')
-    ```
-    '''
-    def __init__(self, layer, merge_mode='concat', weights=None, **kwargs):
-        assert merge_mode in ['sum', 'mul', 'ave', 'concat', None], "Invalid merge mode. Merge mode should be one of {'sum', 'mul', 'ave', 'concat', None}"
-        self.forward_layer = layer
-        config = layer.get_config()
-        config['go_backwards'] = not config['go_backwards']
-        self.backward_layer = layer.__class__.from_config(config)
-        self.merge_mode = merge_mode
-        if weights:
-            nw = len(weights)
-            self.forward_layer.initial_weights = weights[:nw//2]
-            self.backward_layer.initial_weights = weights[nw//2:]
-        self.stateful = layer.stateful
-        self.return_sequences = layer.return_sequences
-        self.supports_masking = True
-        super(Bidirectional, self).__init__(layer, **kwargs)
+    model.add(wrappers.TimeDistributed(core.Dense(2), input_shape=(3, 4)))
+    model.add(core.Activation('relu'))
+    model.compile(optimizer='rmsprop', loss='mse')
+    model.fit(np.random.random((10, 3, 4)), np.random.random((10, 3, 2)), nb_epoch=1, batch_size=10)
 
-    def get_weights(self):
-        return self.forward_layer.get_weights() + self.backward_layer.get_weights()
+    # test config
+    model.get_config()
 
-    def set_weights(self, weights):
-        nw = len(weights)
-        self.forward_layer.set_weights(weights[:nw//2])
-        self.backward_layer.set_weights(weights[nw//2:])
+    # compare to TimeDistributedDense
+    test_input = np.random.random((1, 3, 4))
+    test_output = model.predict(test_input)
+    weights = model.layers[0].get_weights()
 
-    def get_output_shape_for(self, input_shape):
-        if self.merge_mode in ['sum', 'ave', 'mul']:
-            return self.forward_layer.get_output_shape_for(input_shape)
-        elif self.merge_mode == 'concat':
-            shape = list(self.forward_layer.get_output_shape_for(input_shape))
-            shape[-1] *= 2
-            return tuple(shape)
-        elif self.merge_mode == None:
-            return [self.forward_layer.get_output_shape_for(input_shape)] * 2         
+    reference = Sequential()
+    reference.add(core.TimeDistributedDense(2, input_shape=(3, 4), weights=weights))
+    reference.add(core.Activation('relu'))
+    reference.compile(optimizer='rmsprop', loss='mse')
 
-    def call(self, X, mask=None):
-        Y = self.forward_layer.call(X, mask)
-        Y_rev = self.backward_layer.call(X, mask)
-        if self.return_sequences:
-            Y_rev = K.reverse(Y_rev, 1)
-        if self.merge_mode == 'concat':
-            return K.concatenate([Y, Y_rev])
-        elif self.merge_mode == 'sum':
-            return Y + Y_rev
-        elif self.merge_mode == 'ave':
-            return (Y + Y_rev) / 2
-        elif self.merge_mode == 'mul':
-            return Y * Y_rev
-        elif self.merge_mode == None:
-            return [Y, Y_rev]
+    reference_output = reference.predict(test_input)
+    assert_allclose(test_output, reference_output, atol=1e-05)
 
-    def reset_states(self):
-        self.forward_layer.reset_states()
-        self.backward_layer.reset_states()
+    # test when specifying a batch_input_shape
+    reference = Sequential()
+    reference.add(core.TimeDistributedDense(2, batch_input_shape=(1, 3, 4), weights=weights))
+    reference.add(core.Activation('relu'))
+    reference.compile(optimizer='rmsprop', loss='mse')
 
-    def build(self, input_shape):
-        self.forward_layer.build(input_shape)
-        self.backward_layer.build(input_shape)
-        params = ['trainable_weights', 'non_trainable_weights', 'updates', 'regularizers']
-        for p in params:
-            setattr(self, p, getattr(self.forward_layer, p, []) + getattr(self.backward_layer, p, []))
-        self.constraints = {}
-        if hasattr(self.forward_layer, 'constraints'):
-            self.constraints.update(self.forward_layer.constraints)
-            self.constraints.update(self.backward_layer.constraints)
+    reference_output = reference.predict(test_input)
+    assert_allclose(test_output, reference_output, atol=1e-05)
 
-    def compute_mask(self, input, mask):
-        if self.return_sequences:
-            if not self.merge_mode:
-                return [mask, mask]
-            else:
-                return mask
-        else:
-            return None
+    # test with Convolution2D
+    model = Sequential()
+    model.add(wrappers.TimeDistributed(convolutional.Convolution2D(5, 2, 2, border_mode='same'), input_shape=(2, 3, 4, 4)))
+    model.add(core.Activation('relu'))
+    model.compile(optimizer='rmsprop', loss='mse')
+    model.train_on_batch(np.random.random((1, 2, 3, 4, 4)), np.random.random((1, 2, 5, 4, 4)))
 
-    @property
-    def trainable_weights(self):
-        if hasattr(self.forward_layer, 'trainable_weights'):
-            return self.forward_layer.trainable_weights + self.backward_layer.trainable_weights
-        return []
+    model = model_from_json(model.to_json())
+    model.summary()
 
-    @property
-    def non_trainable_weights(self):
-        if hasattr(self.forward_layer, 'non_trainable_weights'):
-            return self.forward_layer.non_trainable_weights + self.backward_layer.non_trainable_weights
-        return []
+    # test stacked layers
+    model = Sequential()
+    model.add(wrappers.TimeDistributed(core.Dense(2), input_shape=(3, 4)))
+    model.add(wrappers.TimeDistributed(core.Dense(3)))
+    model.add(core.Activation('relu'))
+    model.compile(optimizer='rmsprop', loss='mse')
 
-    @property
-    def updates(self):
-        if hasattr(self.forward_layer, 'updates'):
-            return self.forward_layer.updates + self.backward_layer.updates
-        return []
+    model.fit(np.random.random((10, 3, 4)), np.random.random((10, 3, 3)), nb_epoch=1, batch_size=10)
 
-    @property
-    def regularizers(self):
-        if hasattr(self.forward_layer, 'regularizers'):
-            return self.forward_layer.regularizers + self.backward_layer.regularizers
-        return []
+    # test wrapping Sequential model
+    model = Sequential()
+    model.add(core.Dense(3, input_dim=2))
+    outer_model = Sequential()
+    outer_model.add(wrappers.TimeDistributed(model, input_shape=(3, 2)))
+    outer_model.compile(optimizer='rmsprop', loss='mse')
+    outer_model.fit(np.random.random((10, 3, 2)), np.random.random((10, 3, 3)), nb_epoch=1, batch_size=10)
 
-    @property
-    def constraints(self):
-        _constraints = {}
-        if hasattr(self.forward_layer, 'constraints'):
-            _constraints.update(self.forward_layer.constraints)
-            _constraints.update(self.backward_layer.constraints)
-        return _constraints
+    # test with functional API
+    x = Input(shape=(3, 2))
+    y = wrappers.TimeDistributed(model)(x)
+    outer_model = Model(x, y)
+    outer_model.compile(optimizer='rmsprop', loss='mse')
+    outer_model.fit(np.random.random((10, 3, 2)), np.random.random((10, 3, 3)), nb_epoch=1, batch_size=10)
 
-    def get_config(self):
-        config = {"merge_mode": self.merge_mode}
-        base_config = super(Bidirectional, self).get_config()
-        return dict(list(base_config.items()) + list(config.items()))
+
+@keras_test
+def test_Bidirectional():
+    for rnn in [recurrent.SimpleRNN, recurrent.LSTM]:
+        for mode in ['sum', 'concat']:
+            x = np.random.random((5, 3, 2))
+            output_dim = 6 if mode == 'concat' else 3
+            y = np.random.random((5, output_dim))
+
+            # test with Sequential model
+            model = Sequential()
+            model.add(wrappers.Bidirectional(rnn(3), merge_mode=mode, input_shape=(3, 2)))
+            model.add(core.Activation('sigmoid'))
+            model.compile(loss='mse', optimizer='sgd')
+            model.fit(x, y, nb_epoch=1, batch_size=5)
+
+            # test stacked bidirectional layers
+            model = Sequential()
+            model.add(wrappers.Bidirectional(rnn(2, return_sequences=True), merge_mode=mode, input_shape=(3, 2)))
+            model.add(wrappers.Bidirectional(rnn(3), merge_mode=mode))
+            model.add(core.Activation('sigmoid'))
+            model.compile(loss='mse', optimizer='sgd')
+            model.fit(x, y, nb_epoch=1, batch_size=5)
+
+            # test with functional API
+            input = Input((3, 2))
+            output = wrappers.Bidirectional(rnn(3), merge_mode=mode)(input)
+            model = Model(input, output)
+            model.compile(loss='mse', optimizer='sgd')
+            model.fit(x, y, nb_epoch=1, batch_size=5)
+
+
+if __name__ == '__main__':
+    pytest.main([__file__])
