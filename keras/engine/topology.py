@@ -285,13 +285,13 @@ class Layer(object):
         # these properties will be set upon call of self.build(),
         # which itself will be called upon self.add_inbound_node if necessary.
         if not hasattr(self, 'trainable_weights'):
-                self.trainable_weights = []
+            self.trainable_weights = []
         if not hasattr(self, 'non_trainable_weights'):
-                self.non_trainable_weights = []
+            self.non_trainable_weights = []
         if not hasattr(self, 'regularizers'):
-                self.regularizers = []
+            self.regularizers = []
         if not hasattr(self, 'constraints'):
-                self.constraints = {}  # dict {tensor: constraint instance}
+            self.constraints = {}  # dict {tensor: constraint instance}
         self.built = False
 
         # these properties should be set by the user via keyword arguments.
