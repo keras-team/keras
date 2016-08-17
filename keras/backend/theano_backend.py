@@ -615,7 +615,7 @@ def reverse(x, axis):
         axes1 = list(range(x.ndim))
         axes1.pop(axis)
         axes1 = [axis] + axes1
-        axes2 = [axes1[i] for i in axes1]
+        axes2 = list(range(1, axis + 1)) + [0] + list(range(axis + 1, x.ndim))
         x = x.dimshuffle(axes1)
         x = x[::-1]
         return x.dimshuffle(axes2)
