@@ -74,10 +74,13 @@ nb_class = 10  # number of class
 (train_x, train_y), (validation_x, validation_y) = mnist.load_data()
 
 
-def preprocess_input(x): return x.reshape((-1, ) + input_shape) / 255.
+def preprocess_input(x):
+    return x.reshape((-1, ) + input_shape) / 255.
 
 
-def preprocess_output(y): return np_utils.to_categorical(y)
+def preprocess_output(y):
+    return np_utils.to_categorical(y)
+
 train_x, validation_x = map(preprocess_input, [train_x, validation_x])
 train_y, validation_y = map(preprocess_output, [train_y, validation_y])
 print("Loading MNIST data...")
