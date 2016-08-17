@@ -101,7 +101,7 @@ def test_Bidirectional():
 
             # test with functional API
             input = Input((3, 2))
-            output = wrappers.Bidirectional(rnn(3), merge_mode=mode)(x)
+            output = wrappers.Bidirectional(rnn(3), merge_mode=mode)(input)
             model = Model(input, output)
             model.compile(loss='mse', optimizer='sgd')
             model.fit(x, y, nb_epoch=1, batch_size=10)
