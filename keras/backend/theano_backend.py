@@ -611,7 +611,7 @@ def reverse(x, axes):
     '''
     if type(axes) == int:
         axes = [axes]
-    slices = [slice(None, None, -1) if i in axes else slice(None, None, None) for i in range(len(x.ndim))]
+    slices = [slice(None, None, -1) if i in axes else slice(None, None, None) for i in range(x.ndim)]
     return x[slices]
 
 
