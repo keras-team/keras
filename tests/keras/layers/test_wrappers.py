@@ -78,33 +78,33 @@ def test_TimeDistributed():
 
 @keras_test
 def test_Bidirectional():
-    for rnn in [recurrent.SimpleRNN, recurrent.LSTM, recurrent.GRU]:
-        for mode in ['sum', 'mul', 'ave', 'concat']:
-            x = np.random.random((10, 3, 2))
+    for rnn in [recurrent.SimpleRNN, recurrent.LSTM]:
+        for mode in ['sum', 'concat']:
+            x = np.random.random((5, 3, 2))
             output_dim = 6 if mode == 'concat' else 3
-            y = np.random.random((10, output_dim))
+            y = np.random.random((5, output_dim))
 
             # test with Sequential model
             model = Sequential()
             model.add(wrappers.Bidirectional(rnn(3), merge_mode=mode, input_shape=(3, 2)))
             model.add(core.Activation('sigmoid'))
             model.compile(loss='mse', optimizer='sgd')
-            model.fit(x, y, nb_epoch=1, batch_size=10)
+            model.fit(x, y, nb_epoch=1, batch_size=5)
 
             # test stacked bidirectional layers
             model = Sequential()
-            model.add(wrappers.Bidirectional(rnn(4, return_sequences=True), merge_mode=mode, input_shape=(3, 2)))
+            model.add(wrappers.Bidirectional(rnn(2, return_sequences=True), merge_mode=mode, input_shape=(3, 2)))
             model.add(wrappers.Bidirectional(rnn(3), merge_mode=mode))
             model.add(core.Activation('sigmoid'))
             model.compile(loss='mse', optimizer='sgd')
-            model.fit(x, y, nb_epoch=1, batch_size=10)
+            model.fit(x, y, nb_epoch=1, batch_size=5)
 
             # test with functional API
             input = Input((3, 2))
             output = wrappers.Bidirectional(rnn(3), merge_mode=mode)(input)
             model = Model(input, output)
             model.compile(loss='mse', optimizer='sgd')
-            model.fit(x, y, nb_epoch=1, batch_size=10)
+            model.fit(x, y, nb_epoch=1, batch_size=5)
 
 
 if __name__ == '__main__':
