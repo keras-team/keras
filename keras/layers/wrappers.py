@@ -158,6 +158,8 @@ class Bidirectional(Wrapper):
         config = layer.get_config()
         config['go_backwards'] = not config['go_backwards']
         self.backward_layer = layer.__class__.from_config(config)
+        self.forward_layer.name = 'forward_' + self.forward_layer.name
+        self.backward_layer.name = 'backward_' + self.backward_layer.name
         self.merge_mode = merge_mode
         if weights:
             nw = len(weights)
@@ -183,8 +185,8 @@ class Bidirectional(Wrapper):
             shape = list(self.forward_layer.get_output_shape_for(input_shape))
             shape[-1] *= 2
             return tuple(shape)
-        elif self.merge_mode == None:
-            return [self.forward_layer.get_output_shape_for(input_shape)] * 2         
+        elif self.merge_mode is None:
+            return [self.forward_layer.get_output_shape_for(input_shape)] * 2
 
     def call(self, X, mask=None):
         Y = self.forward_layer.call(X, mask)
@@ -199,7 +201,7 @@ class Bidirectional(Wrapper):
             return (Y + Y_rev) / 2
         elif self.merge_mode == 'mul':
             return Y * Y_rev
-        elif self.merge_mode == None:
+        elif self.merge_mode is None:
             return [Y, Y_rev]
 
     def reset_states(self):
@@ -209,7 +211,6 @@ class Bidirectional(Wrapper):
     def build(self, input_shape):
         self.forward_layer.build(input_shape)
         self.backward_layer.build(input_shape)
-        self.built = True
 
     def compute_mask(self, input, mask):
         if self.return_sequences:
