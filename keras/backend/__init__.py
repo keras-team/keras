@@ -42,12 +42,13 @@ if os.path.exists(_config_path):
     _BACKEND = _backend
 
 # save config file
-_config = {'floatx': floatx(),
-           'epsilon': epsilon(),
-           'backend': _BACKEND,
-           'image_dim_ordering': image_dim_ordering()}
-with open(_config_path, 'w') as f:
-    f.write(json.dumps(_config, indent=4))
+if not os.path.exists(_config_path):
+    _config = {'floatx': floatx(),
+               'epsilon': epsilon(),
+               'backend': _BACKEND,
+               'image_dim_ordering': image_dim_ordering()}
+    with open(_config_path, 'w') as f:
+        f.write(json.dumps(_config, indent=4))
 
 if 'KERAS_BACKEND' in os.environ:
     _backend = os.environ['KERAS_BACKEND']
