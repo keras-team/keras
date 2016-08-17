@@ -153,7 +153,10 @@ class Bidirectional(Wrapper):
     ```
     '''
     def __init__(self, layer, merge_mode='concat', weights=None, **kwargs):
-        assert merge_mode in ['sum', 'mul', 'ave', 'concat', None], "Invalid merge mode. Merge mode should be one of {'sum', 'mul', 'ave', 'concat', None}"
+        if merge_mode not in ['sum', 'mul', 'ave', 'concat', None]:
+            raise ValueError('Invalid merge mode. '
+                             'Merge mode should be one of '
+                             '{"sum", "mul", "ave", "concat", None}')
         self.forward_layer = layer
         config = layer.get_config()
         config['go_backwards'] = not config['go_backwards']
@@ -163,8 +166,8 @@ class Bidirectional(Wrapper):
         self.merge_mode = merge_mode
         if weights:
             nw = len(weights)
-            self.forward_layer.initial_weights = weights[:nw//2]
-            self.backward_layer.initial_weights = weights[nw//2:]
+            self.forward_layer.initial_weights = weights[:nw // 2]
+            self.backward_layer.initial_weights = weights[nw // 2:]
         self.stateful = layer.stateful
         self.return_sequences = layer.return_sequences
         self.supports_masking = True
@@ -175,8 +178,8 @@ class Bidirectional(Wrapper):
 
     def set_weights(self, weights):
         nw = len(weights)
-        self.forward_layer.set_weights(weights[:nw//2])
-        self.backward_layer.set_weights(weights[nw//2:])
+        self.forward_layer.set_weights(weights[:nw // 2])
+        self.backward_layer.set_weights(weights[nw // 2:])
 
     def get_output_shape_for(self, input_shape):
         if self.merge_mode in ['sum', 'ave', 'mul']:
