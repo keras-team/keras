@@ -9,8 +9,8 @@ import numpy as np
 np.random.seed(1337)  # for reproducibility
 
 from keras.preprocessing import sequence
-from keras.models import Model
-from keras.layers import Dense, Dropout, Embedding, LSTM, Input, merge, Bidirectional
+from keras.models import Sequential
+from keras.layers import Dense, Dropout, Embedding, LSTM, Input, Bidirectional
 from keras.datasets import imdb
 
 
