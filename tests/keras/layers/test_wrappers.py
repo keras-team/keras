@@ -100,9 +100,9 @@ def test_Bidirectional():
             model.fit(x, y, nb_epoch=1, batch_size=10)
 
             # test with functional API
-            x = Input((3, 2))
-            y = wrappers.Bidirectional(rnn(3), merge_mode=mode)(x)
-            model = Model(x, y)
+            input = Input((3, 2))
+            output = wrappers.Bidirectional(rnn(3), merge_mode=mode)(x)
+            model = Model(input, output)
             model.compile(loss='mse', optimizer='sgd')
             model.fit(x, y, nb_epoch=1, batch_size=10)
 
