@@ -1313,7 +1313,7 @@ class Model(Container):
             max_q_size: maximum size for the generator queue
             nb_worker: maximum number of processes to spin up when using process based threading
             pickle_safe: if True, use process based threading. Note that because
-                this implementation relies on multiprocessing, you should not pass non
+                this implementation relies on multiprocessing, you should not pass
                 non picklable arguments to the generator as they can't be passed
                 easily to children processes.
 
@@ -1507,7 +1507,7 @@ class Model(Container):
             max_q_size: maximum size for the generator queue
             nb_worker: maximum number of processes to spin up when using process based threading
             pickle_safe: if True, use process based threading. Note that because
-                this implementation relies on multiprocessing, you should not pass non
+                this implementation relies on multiprocessing, you should not pass
                 non picklable arguments to the generator as they can't be passed
                 easily to children processes.
 
@@ -1592,7 +1592,7 @@ class Model(Container):
             max_q_size: maximum size for the generator queue
             nb_worker: maximum number of processes to spin up when using process based threading
             pickle_safe: if True, use process based threading. Note that because
-                this implementation relies on multiprocessing, you should not pass non
+                this implementation relies on multiprocessing, you should not pass
                 non picklable arguments to the generator as they can't be passed
                 easily to children processes.
 
