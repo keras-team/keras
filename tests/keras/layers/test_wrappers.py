@@ -94,7 +94,7 @@ def test_Bidirectional():
             # test stacked bidirectional layers
             model = Sequential()
             model.add(wrappers.Bidirectional(rnn(4, return_sequences=True), merge_mode=mode, input_shape=(3, 2)))
-            model.add(wrappers.Bidirectional(rnn(3)))
+            model.add(wrappers.Bidirectional(rnn(3), merge_mode=mode))
             model.add(core.Activation('sigmoid'))
             model.compile(loss='mse', optimizer='sgd')
             model.fit(x, y, nb_epoch=1, batch_size=10)
