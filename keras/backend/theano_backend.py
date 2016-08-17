@@ -606,6 +606,15 @@ def one_hot(indices, nb_classes):
     return oh
 
 
+def reverse(x, axes):
+    '''Reverse a tensor along the the specified axes
+    '''
+    if type(axes) == int:
+        axes = [axes]
+    slices = [slice(None, None, -1) if i in axes else slice(None, None, None) for i in range(x.ndim)]
+    return x[slices]
+
+
 # VALUE MANIPULATION
 
 

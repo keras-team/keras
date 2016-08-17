@@ -70,6 +70,8 @@ class TestBackend(object):
         check_two_tensor_operation('batch_dot', (4, 2, 3), (4, 5, 3),
                                    axes=(2, 2))
         check_single_tensor_operation('transpose', (4, 2))
+        check_single_tensor_operation('reverse', (4, 3, 2), axes=1)
+        check_single_tensor_operation('reverse', (4, 3, 2), axes=(1, 2))
 
     def test_shape_operations(self):
         # concatenate
@@ -632,6 +634,7 @@ class TestBackend(object):
         for K in [KTH, KTF]:
             koh = K.eval(K.one_hot(K.variable(indices, dtype='int32'), nb_classes))
             assert np.all(koh == oh)
+
 
 if __name__ == '__main__':
     pytest.main([__file__])
