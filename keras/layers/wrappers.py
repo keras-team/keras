@@ -140,7 +140,7 @@ class Bidirectional(Wrapper):
 
     # Arguments:
         layer: `Recurrent` instance.
-        merge_mode: Mode by which outputs of the forward and reverse RNNs will be combined. One of {sum, mul, concat, ave}
+        merge_mode: Mode by which outputs of the forward and reverse RNNs will be combined. One of {'sum', 'mul', 'concat', 'ave', None}. If None, the outputs will not be combined, they will be returned as a list.
 
     # Examples:
     ```python
@@ -153,6 +153,7 @@ class Bidirectional(Wrapper):
     ```
     '''
     def __init__(self, layer, merge_mode='concat', weights=None, **kwargs):
+        assert merge_mode in ['sum', 'mul', 'ave', 'concat', None], "Invalid merge mode. Merge mode should be one of {'sum', 'mul', 'ave', 'concat', None}"
         self.forward = layer
         config = layer.get_config()
         config['go_backwards'] = not config['go_backwards']
@@ -182,6 +183,8 @@ class Bidirectional(Wrapper):
             shape = list(self.forward.get_output_shape_for(input_shape))
             shape[-1] *= 2
             return tuple(shape)
+        elif self.merge_mode == None:
+            return [self.forward.get_output_shape_for(input_shape)] * 2         
 
     def call(self, X, mask=None):
         Y = self.forward.call(X, mask)
@@ -196,6 +199,8 @@ class Bidirectional(Wrapper):
             return (Y + Y_rev) / 2
         elif self.merge_mode == 'mul':
             return Y * Y_rev
+        elif self.merge_mode == None:
+            return [Y, Y_rev]
 
     def reset_states(self):
         self.forward.reset_states()
@@ -214,7 +219,10 @@ class Bidirectional(Wrapper):
 
     def compute_mask(self, input, mask):
         if self.return_sequences:
-            return mask
+            if not self.merge_mode:
+                return [mask, mask]
+            else:
+                return mask
         else:
             return None
 
