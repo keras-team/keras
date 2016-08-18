@@ -1621,10 +1621,10 @@ def ctc_label_dense_to_sparse(labels, label_lengths):
                              label_shape)
     label_ind = tf.boolean_mask(label_array, dense_mask)
 
-    batch_array = tf.transpose(tf.reshape(tf.tile(tf.range(0, label_shape[0]), 
+    batch_array = tf.transpose(tf.reshape(tf.tile(tf.range(0, label_shape[0]),
                                                   max_num_labels_tns), tf.reverse(label_shape, [True])))
     batch_ind = tf.boolean_mask(batch_array, dense_mask)
-    indices = tf.transpose(tf.reshape(tf.concat(0, [batch_ind, label_ind]), [2,-1]))
+    indices = tf.transpose(tf.reshape(tf.concat(0, [batch_ind, label_ind]), [2, -1]))
 
     vals_sparse = tf.gather_nd(labels, indices)
 
@@ -1654,15 +1654,16 @@ def ctc_batch_cost(y_true, y_pred, input_length, label_length):
 
     y_pred = tf.log(tf.transpose(y_pred, perm=[1, 0, 2]) + 1e-8)
 
-    return tf.expand_dims(tf.contrib.ctc.ctc_loss(inputs = y_pred,
-                                                  labels = sparse_labels,
-                                                  sequence_length = input_length), 1)
+    return tf.expand_dims(tf.contrib.ctc.ctc_loss(inputs=y_pred,
+                                                  labels=sparse_labels,
+                                                  sequence_length=input_length), 1)
 
-def ctc_decode(y_pred, input_length, greedy = True, beam_width = None,
-               dict_seq_lens = None, dict_values = None):
+
+def ctc_decode(y_pred, input_length, greedy=True, beam_width=None,
+               dict_seq_lens=None, dict_values=None):
     '''Decodes the output of a softmax using either
        greedy (also known as best path) or a constrained dictionary
-       search.  
+       search.
 
     # Arguments
         y_pred: tensor (samples, time_steps, num_categories) containing the prediction,
@@ -1686,21 +1687,21 @@ def ctc_decode(y_pred, input_length, greedy = True, beam_width = None,
 
     if greedy:
         (decoded, log_prob) = tf.contrib.ctc.ctc_greedy_decoder(
-            inputs = y_pred,
-            sequence_length = input_length)
+            inputs=y_pred,
+            sequence_length=input_length)
     else:
         if beam_width is not None:
             (decoded, log_prob) = tf.contrib.ctc.ctc_beam_search_decoder(
-                inputs = y_pred,
-                sequence_length = input_length,
-                dict_seq_lens = dict_seq_lens, dict_values = dict_values)
+                inputs=y_pred,
+                sequence_length=input_length,
+                dict_seq_lens=dict_seq_lens, dict_values=dict_values)
         else:
             (decoded, log_prob) = tf.contrib.ctc.ctc_beam_search_decoder(
-                inputs = y_pred,
-                sequence_length = input_length, beam_width = beam_width,
-                dict_seq_lens = dict_seq_lens, dict_values = dict_values)
+                inputs=y_pred,
+                sequence_length=input_length, beam_width=beam_width,
+                dict_seq_lens=dict_seq_lens, dict_values=dict_values)
 
-    decoded_dense = [tf.sparse_to_dense(st.indices, st.shape, st.values, default_value = -1)
+    decoded_dense = [tf.sparse_to_dense(st.indices, st.shape, st.values, default_value=-1)
                      for st in decoded]
 
     return (decoded_dense, log_prob)
