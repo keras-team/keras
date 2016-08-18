@@ -334,7 +334,7 @@ def make_deeper_student_model(teacher_model, train_data,
 # experiments setup
 def net2wider_experiment():
     '''Benchmark performances of
-    (1) a teach model,
+    (1) a teacher model,
     (2) a wider student model with `random_pad` initializer
     (3) a wider student model with `Net2WiderNet` initializer
     '''
@@ -358,7 +358,7 @@ def net2wider_experiment():
 
 def net2deeper_experiment():
     '''Benchmark performances of
-    (1) a teach model,
+    (1) a teacher model,
     (2) a deeper student model with `random_init` initializer
     (3) a deeper student model with `Net2DeeperNet` initializer
     '''
