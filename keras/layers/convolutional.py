@@ -1407,6 +1407,20 @@ class Cropping2D(Layer):
     # Output shape
         4D tensor with shape:
         (samples, depth, first_cropped_axis, second_cropped_axis)
+
+    # Examples
+
+    ```python
+        # crop the input image and feature meps
+        model = Sequential()
+        model.add(Cropping2D(cropping=((2, 2), (4, 4)), input_shape=(3, 28, 28)))
+        # now model.output_shape == (None, 3, 24, 20)
+        model.add(Convolution2D(64, 3, 3, border_mode='same))
+        model.add(Cropping2D(cropping=((2, 2), (2, 2))))
+        # now model.output_shape == (None, 64, 20, 16)
+
+    ```
+
     '''
 
     def __init__(self, cropping=((0, 0), (0, 0)), dim_ordering='default', **kwargs):
