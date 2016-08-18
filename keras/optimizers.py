@@ -229,6 +229,9 @@ class Adagrad(Optimizer):
     # Arguments
         lr: float >= 0. Learning rate.
         epsilon: float >= 0.
+    
+    # References
+        - [Adaptive Subgradient Methods for Online Learning and Stochastic Optimization](http://www.jmlr.org/papers/volume12/duchi11a/duchi11a.pdf)
     '''
     def __init__(self, lr=0.01, epsilon=1e-8, **kwargs):
         super(Adagrad, self).__init__(**kwargs)

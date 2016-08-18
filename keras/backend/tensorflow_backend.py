@@ -859,6 +859,15 @@ def one_hot(indices, nb_classes):
     return tf.one_hot(indices, depth=nb_classes, axis=-1)
 
 
+def reverse(x, axes):
+    '''Reverse a tensor along the the specified axes
+    '''
+    if type(axes) == int:
+        axes = [axes]
+    dims = [True if i in axes else False for i in range(len(x.get_shape()._dims))]
+    return tf.reverse(x, dims)
+
+
 # VALUE MANIPULATION
 
 

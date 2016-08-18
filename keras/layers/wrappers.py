@@ -133,3 +133,130 @@ class TimeDistributed(Wrapper):
             output_shape = self.get_output_shape_for(input_shape)
             y = K.reshape(y, (-1, input_length) + output_shape[2:])
         return y
+
+
+class Bidirectional(Wrapper):
+    ''' Bidirectional wrapper for RNNs
+
+    # Arguments:
+        layer: `Recurrent` instance.
+        merge_mode: Mode by which outputs of the forward and backward RNNs will be combined. One of {'sum', 'mul', 'concat', 'ave', None}. If None, the outputs will not be combined, they will be returned as a list.
+
+    # Examples:
+    ```python
+    model = Sequential()
+    model.add(Bidirectional(LSTM(10, return_sequences=True), input_shape=(5, 10)))
+    model.add(Bidirectional(LSTM(10)))
+    model.add(Dense(5))
+    model.add(Activation('softmax'))
+    model.compile(loss='categorical_crossentropy', optimizer='rmsprop')
+    ```
+    '''
+    def __init__(self, layer, merge_mode='concat', weights=None, **kwargs):
+        if merge_mode not in ['sum', 'mul', 'ave', 'concat', None]:
+            raise ValueError('Invalid merge mode. '
+                             'Merge mode should be one of '
+                             '{"sum", "mul", "ave", "concat", None}')
+        self.forward_layer = layer
+        config = layer.get_config()
+        config['go_backwards'] = not config['go_backwards']
+        self.backward_layer = layer.__class__.from_config(config)
+        self.forward_layer.name = 'forward_' + self.forward_layer.name
+        self.backward_layer.name = 'backward_' + self.backward_layer.name
+        self.merge_mode = merge_mode
+        if weights:
+            nw = len(weights)
+            self.forward_layer.initial_weights = weights[:nw // 2]
+            self.backward_layer.initial_weights = weights[nw // 2:]
+        self.stateful = layer.stateful
+        self.return_sequences = layer.return_sequences
+        self.supports_masking = True
+        super(Bidirectional, self).__init__(layer, **kwargs)
+
+    def get_weights(self):
+        return self.forward_layer.get_weights() + self.backward_layer.get_weights()
+
+    def set_weights(self, weights):
+        nw = len(weights)
+        self.forward_layer.set_weights(weights[:nw // 2])
+        self.backward_layer.set_weights(weights[nw // 2:])
+
+    def get_output_shape_for(self, input_shape):
+        if self.merge_mode in ['sum', 'ave', 'mul']:
+            return self.forward_layer.get_output_shape_for(input_shape)
+        elif self.merge_mode == 'concat':
+            shape = list(self.forward_layer.get_output_shape_for(input_shape))
+            shape[-1] *= 2
+            return tuple(shape)
+        elif self.merge_mode is None:
+            return [self.forward_layer.get_output_shape_for(input_shape)] * 2
+
+    def call(self, X, mask=None):
+        Y = self.forward_layer.call(X, mask)
+        Y_rev = self.backward_layer.call(X, mask)
+        if self.return_sequences:
+            Y_rev = K.reverse(Y_rev, 1)
+        if self.merge_mode == 'concat':
+            return K.concatenate([Y, Y_rev])
+        elif self.merge_mode == 'sum':
+            return Y + Y_rev
+        elif self.merge_mode == 'ave':
+            return (Y + Y_rev) / 2
+        elif self.merge_mode == 'mul':
+            return Y * Y_rev
+        elif self.merge_mode is None:
+            return [Y, Y_rev]
+
+    def reset_states(self):
+        self.forward_layer.reset_states()
+        self.backward_layer.reset_states()
+
+    def build(self, input_shape):
+        self.forward_layer.build(input_shape)
+        self.backward_layer.build(input_shape)
+
+    def compute_mask(self, input, mask):
+        if self.return_sequences:
+            if not self.merge_mode:
+                return [mask, mask]
+            else:
+                return mask
+        else:
+            return None
+
+    @property
+    def trainable_weights(self):
+        if hasattr(self.forward_layer, 'trainable_weights'):
+            return self.forward_layer.trainable_weights + self.backward_layer.trainable_weights
+        return []
+
+    @property
+    def non_trainable_weights(self):
+        if hasattr(self.forward_layer, 'non_trainable_weights'):
+            return self.forward_layer.non_trainable_weights + self.backward_layer.non_trainable_weights
+        return []
+
+    @property
+    def updates(self):
+        if hasattr(self.forward_layer, 'updates'):
+            return self.forward_layer.updates + self.backward_layer.updates
+        return []
+
+    @property
+    def regularizers(self):
+        if hasattr(self.forward_layer, 'regularizers'):
+            return self.forward_layer.regularizers + self.backward_layer.regularizers
+        return []
+
+    @property
+    def constraints(self):
+        _constraints = {}
+        if hasattr(self.forward_layer, 'constraints'):
+            _constraints.update(self.forward_layer.constraints)
+            _constraints.update(self.backward_layer.constraints)
+        return _constraints
+
+    def get_config(self):
+        config = {"merge_mode": self.merge_mode}
+        base_config = super(Bidirectional, self).get_config()
+        return dict(list(base_config.items()) + list(config.items()))
