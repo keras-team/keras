@@ -113,10 +113,37 @@ Note that you will first need to install HDF5 and the Python library h5py, which
 model.save_weights('my_model_weights.h5')
 ```
 
-Assuming you have code for instantiating your model, you can then load the weights you saved into a model with the same architecture:
+Assuming you have code for instantiating your model, you can then load the weights you saved into a model with the *same* architecture:
 
 ```python
 model.load_weights('my_model_weights.h5')
+```
+
+If you need to load weights into a *different* archiecture (with some layers in common), for instance if fine-tuning or transfer-learning, you can load weights by *layer name*:
+
+```python
+model.load_weights('my_model_weights.h5', by_name=True)
+```
+
+For example:
+
+```python
+"""
+Assume original model looks like this:
+    model = Sequential()
+    model.add(Dense(2, input_dim=3, name="dense_1"))
+    model.add(Dense(3, name="dense_2"))
+    ...
+    model.save_weights(fname)
+"""
+
+# new model
+model = Sequential()
+model.add(Dense(2, input_dim=3, name="dense_1"))  # will be loaded
+model.add(Dense(10, name="my_new_embedding"))  # will not be loaded
+
+# load weights from first model
+model.load_weights(fname, by_name=True)
 ```
 
 ---
