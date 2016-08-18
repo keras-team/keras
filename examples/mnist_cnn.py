@@ -26,7 +26,7 @@ nb_filters = 32
 # size of pooling area for max pooling
 nb_pool = 2
 # convolution kernel size
-nb_conv = 3
+kernel_size = (3, 3)
 
 # the data, shuffled and split between train and test sets
 (X_train, y_train), (X_test, y_test) = mnist.load_data()
@@ -47,11 +47,11 @@ Y_test = np_utils.to_categorical(y_test, nb_classes)
 
 model = Sequential()
 
-model.add(Convolution2D(nb_filters, nb_conv, nb_conv,
+model.add(Convolution2D(nb_filters, kernel_size[0], kernel_size[1],
                         border_mode='valid',
                         input_shape=(1, img_rows, img_cols)))
 model.add(Activation('relu'))
-model.add(Convolution2D(nb_filters, nb_conv, nb_conv))
+model.add(Convolution2D(nb_filters, kernel_size[0], kernel_size[1]))
 model.add(Activation('relu'))
 model.add(MaxPooling2D(pool_size=(nb_pool, nb_pool)))
 model.add(Dropout(0.25))
