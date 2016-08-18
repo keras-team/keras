@@ -396,7 +396,7 @@ class Deconvolution2D(Convolution2D):
                  bias=True, **kwargs):
 
         if border_mode not in {'valid', 'same'}:
-            raise Exception('Invalid border mode for AtrousConv2D:', border_mode)
+            raise Exception('Invalid border mode for Deconvolution2D:', border_mode)
 
         self.output_shape_ = output_shape
 
