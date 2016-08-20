@@ -392,7 +392,7 @@ def batch_normalization(x, mean, var, beta, gamma, epsilon=0.0001):
                                                                         'spatial', epsilon)
         except AttributeError:
             pass
-    return T.nnet.bn.batch_normalization(x, gamma, beta, mean, sqrt(var) + epsilon,
+    return T.nnet.bn.batch_normalization(x, gamma, beta, mean, sqrt(var + epsilon),
                                          mode='high_mem')
 
 
