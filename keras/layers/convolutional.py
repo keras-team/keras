@@ -1359,11 +1359,11 @@ class Cropping1D(Layer):
         3D tensor with shape (samples, axis_to_crop, features)
 
     # Output shape
-       3D tensor with shape (samples, cropped_axis, features)
+        3D tensor with shape (samples, cropped_axis, features)
     '''
 
     def __init__(self, cropping=(1, 1), **kwargs):
-        super(Cropping2D, self).__init__(**kwargs)
+        super(Cropping1D, self).__init__(**kwargs)
         self.cropping = cropping
         self.input_spec = [InputSpec(ndim=3)] # redundant due to build()?       
 
@@ -1371,18 +1371,18 @@ class Cropping1D(Layer):
         self.input_spec = [InputSpec(shape=input_shape)]
 
     def get_output_shape_for(self, input_shape):
-        length = input_shape[1] - self.cropping[0][0] - self.cropping[0][1] if input_shape[1] is not None else None
+        length = input_shape[1] - self.cropping[0] - self.cropping[1] if input_shape[1] is not None else None
         return (input_shape[0],
                 length,
                 input_shape[2])
 
     def call(self, x, mask=None):
         input_shape = self.input_spec[0].shape
-        return x[:, self.cropping[0][0]:input_shape[1]-self.cropping[0][1], :]
+        return x[:, self.cropping[0]:input_shape[1]-self.cropping[1], :]
 
     def get_config(self):
         config = {'cropping': self.cropping}
-        base_config = super(Cropping2D, self).get_config()
+        base_config = super(Cropping1D, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
 class Cropping2D(Layer):
@@ -1451,7 +1451,10 @@ class Cropping2D(Layer):
 
     def call(self, x, mask=None):
         input_shape = self.input_spec[0].shape
-        return x[:, :, self.cropping[0][0]:input_shape[2]-self.cropping[0][1], self.cropping[1][0]:input_shape[3]-self.cropping[1][1]]
+        if self.dim_ordering == 'th':
+            return x[:, :, self.cropping[0][0]:input_shape[2]-self.cropping[0][1], self.cropping[1][0]:input_shape[3]-self.cropping[1][1]]
+        elif self.dim_ordering == 'tf':
+            return x[:, self.cropping[0][0]:input_shape[1]-self.cropping[0][1], self.cropping[1][0]:input_shape[2]-self.cropping[1][1], :]
 
     def get_config(self):
         config = {'cropping': self.cropping}
@@ -1483,7 +1486,7 @@ class Cropping3D(Layer):
     '''
 
     def __init__(self, cropping=((1, 1), (1, 1), (1, 1)), dim_ordering='default', **kwargs):
-        super(Cropping2D, self).__init__(**kwargs)
+        super(Cropping3D, self).__init__(**kwargs)
         if dim_ordering == 'default':
             dim_ordering = K.image_dim_ordering()
         self.cropping = tuple(cropping)
@@ -1525,7 +1528,7 @@ class Cropping3D(Layer):
 
     def get_config(self):
         config = {'cropping': self.cropping}
-        base_config = super(Cropping2D, self).get_config()
+        base_config = super(Cropping3D, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
 
