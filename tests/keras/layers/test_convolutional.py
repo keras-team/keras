@@ -459,7 +459,7 @@ def test_cropping_2d():
     nb_samples = 2
     stack_size = 2
     input_len_dim1 = 10
-    input_len_dim2 = 10
+    input_len_dim2 = 20
     cropping = ((2, 2), (3, 3))
     for dim_ordering in ['th', 'tf']:
         if dim_ordering == 'th':
@@ -468,8 +468,9 @@ def test_cropping_2d():
             input = np.random.rand(nb_samples, input_len_dim1, input_len_dim2, stack_size)
         # basic test        
         layer_test(convolutional.Cropping2D,
-                       kwargs={'cropping': cropping},
-                       input_shape=input.shape)
+                   kwargs={'cropping': cropping,
+                           'dim_ordering': dim_ordering},
+                   input_shape=input.shape)
         # correctness test
         layer = convolutional.Cropping2D(
                             cropping=cropping,
@@ -479,9 +480,15 @@ def test_cropping_2d():
         out = K.eval(layer.output)
         # compare with numpy
         if dim_ordering == 'th':
-            expected_out = input[:, :, cropping[0][0]:-cropping[0][1], cropping[1][0]:-cropping[1][1]]
+            expected_out = input[:, 
+                                 :, 
+                                 cropping[0][0] : -cropping[0][1], 
+                                 cropping[1][0] : -cropping[1][1]]
         else:
-            expected_out = input[:, cropping[0][0]:-cropping[0][1], cropping[1][0]:-cropping[1][1], :]
+            expected_out = input[:, 
+                                 cropping[0][0] : -cropping[0][1], 
+                                 cropping[1][0] : -cropping[1][1], 
+                                 :]
 
         assert_allclose(out, expected_out)
 
@@ -490,8 +497,8 @@ def test_cropping_3d():
     nb_samples = 2
     stack_size = 2
     input_len_dim1 = 10
-    input_len_dim2 = 10
-    input_len_dim3 = 10
+    input_len_dim2 = 20
+    input_len_dim3 = 30
     cropping = ((2, 2), (3, 3), (2, 3))
     for dim_ordering in ['th', 'tf']:
         if dim_ordering == 'th':
@@ -500,7 +507,8 @@ def test_cropping_3d():
             input = np.random.rand(nb_samples, input_len_dim1, input_len_dim2, input_len_dim3, stack_size)
         # basic test        
         layer_test(convolutional.Cropping3D,
-                   kwargs={'cropping': cropping},
+                   kwargs={'cropping': cropping,
+                           'dim_ordering': dim_ordering},
                    input_shape=input.shape)
         # correctness test
         layer = convolutional.Cropping3D(
@@ -511,9 +519,17 @@ def test_cropping_3d():
         out = K.eval(layer.output)
         # compare with numpy
         if dim_ordering == 'th':
-            expected_out = input[:, :, cropping[0][0]:-cropping[0][1], cropping[1][0]:-cropping[1][1], cropping[2][0]:-cropping[2][1]]
+            expected_out = input[:, 
+                                 :, 
+                                 cropping[0][0] : -cropping[0][1], 
+                                 cropping[1][0] : -cropping[1][1], 
+                                 cropping[2][0] : -cropping[2][1]]
         else:
-            expected_out = input[:, cropping[0][0]:-cropping[0][1], cropping[1][0]:-cropping[1][1], cropping[2][0]:-cropping[2][1], :]
+            expected_out = input[:, 
+                                 cropping[0][0] : -cropping[0][1], 
+                                 cropping[1][0] : -cropping[1][1], 
+                                 cropping[2][0] : -cropping[2][1], 
+                                 :]
 
         assert_allclose(out, expected_out)
 
