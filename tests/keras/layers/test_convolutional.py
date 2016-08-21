@@ -473,9 +473,7 @@ def test_cropping_2d():
                        'dim_ordering': dim_ordering},
                input_shape=input.shape)
     # correctness test
-    layer = convolutional.Cropping2D(
-      cropping=cropping,
-      dim_ordering=dim_ordering)
+    layer = convolutional.Cropping2D(cropping=cropping, dim_ordering=dim_ordering)
     layer.set_input(K.variable(input), shape=input.shape)
 
     out = K.eval(layer.output)
@@ -513,9 +511,7 @@ def test_cropping_3d():
                        'dim_ordering': dim_ordering},
                input_shape=input.shape)
     # correctness test
-    layer = convolutional.Cropping3D(
-      cropping=cropping,
-      dim_ordering=dim_ordering)
+    layer = convolutional.Cropping3D(cropping=cropping, dim_ordering=dim_ordering)
     layer.set_input(K.variable(input), shape=input.shape)
 
     out = K.eval(layer.output)
