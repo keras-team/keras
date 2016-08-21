@@ -1454,12 +1454,12 @@ class Cropping2D(Layer):
         if self.dim_ordering == 'th':
             return x[:, 
                      :, 
-                     self.cropping[0][0] : input_shape[2]-self.cropping[0][1],
-                     self.cropping[1][0] : input_shape[3]-self.cropping[1][1]]
+                     self.cropping[0][0]:input_shape[2]-self.cropping[0][1],
+                     self.cropping[1][0]:input_shape[3]-self.cropping[1][1]]
         elif self.dim_ordering == 'tf':
             return x[:, 
-                     self.cropping[0][0] : input_shape[1]-self.cropping[0][1], 
-                     self.cropping[1][0] : input_shape[2]-self.cropping[1][1],
+                     self.cropping[0][0]:input_shape[1]-self.cropping[0][1], 
+                     self.cropping[1][0]:input_shape[2]-self.cropping[1][1],
                      :]
 
     def get_config(self):
@@ -1530,14 +1530,14 @@ class Cropping3D(Layer):
         if self.dim_ordering == 'th':
             return x[:, 
                      :, 
-                     self.cropping[0][0] : input_shape[2]-self.cropping[0][1], 
-                     self.cropping[1][0] : input_shape[3]-self.cropping[1][1], 
-                     self.cropping[2][0] : input_shape[4]-self.cropping[2][1]]
+                     self.cropping[0][0]:input_shape[2]-self.cropping[0][1], 
+                     self.cropping[1][0]:input_shape[3]-self.cropping[1][1], 
+                     self.cropping[2][0]:input_shape[4]-self.cropping[2][1]]
         elif self.dim_ordering == 'tf':
             return x[:, 
-                     self.cropping[0][0] : input_shape[1]-self.cropping[0][1], 
-                     self.cropping[1][0] : input_shape[2]-self.cropping[1][1], 
-                     self.cropping[2][0] : input_shape[3]-self.cropping[2][1], 
+                     self.cropping[0][0]:input_shape[1]-self.cropping[0][1], 
+                     self.cropping[1][0]:input_shape[2]-self.cropping[1][1], 
+                     self.cropping[2][0]:input_shape[3]-self.cropping[2][1], 
                      :]
 
     def get_config(self):
