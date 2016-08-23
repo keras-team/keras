@@ -238,6 +238,7 @@ class Sequential(Model):
         self.model = None  # internal Model instance
         self.inputs = []  # tensors
         self.outputs = []  # tensors (length 1)
+        self.trainable = True
 
         # model attributes
         self.inbound_nodes = []
@@ -438,13 +439,19 @@ class Sequential(Model):
 
     @property
     def trainable_weights(self):
+        if not self.trainable:
+            return []
         # support for legacy behavior
         return self._gather_list_attr('trainable_weights')
 
     @property
     def non_trainable_weights(self):
         # support for legacy behavior
-        return self._gather_list_attr('non_trainable_weights')
+        weights = self._gather_list_attr('non_trainable_weights')
+        if not self.trainable:
+            trainable_weights = self._gather_list_attr('trainable_weights')
+            return trainable_weights + weights
+        return weights
 
     @property
     def updates(self):
