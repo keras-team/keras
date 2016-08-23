@@ -389,7 +389,7 @@ img_gen = TextImageGenerator(monogram_file=os.path.join(fdir, 'wordlist_mono_cle
 act = 'relu'
 input_data = Input(name='the_input', shape=(1, img_h, img_w), dtype='float32')
 inner = Convolution2D(conv_num_filters, filter_size, filter_size, border_mode='same',
-                      activation=act, input_shape=(1, img_h, img_w), name='conv1')(input_data)
+                      activation=act, name='conv1')(input_data)
 inner = MaxPooling2D(pool_size=(pool_size_1, pool_size_1), name='max1')(inner)
 inner = Convolution2D(conv_num_filters, filter_size, filter_size, border_mode='same',
                       activation=act, name='conv2')(inner)
