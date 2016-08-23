@@ -382,10 +382,94 @@ class Convolution2D(Layer):
 
 class Deconvolution2D(Convolution2D):
     '''Transposed convolution operator for filtering windows of two-dimensional inputs.
+    The need for transposed convolutions generally arises from the desire
+    to use a transformation going in the opposite direction of a normal convolution,
+    i.e., from something that has the shape of the output of some convolution
+    to something that has the shape of its input
+    while maintaining a connectivity pattern that is compatible with said convolution. [1]
+
     When using this layer as the first layer in a model,
     provide the keyword argument `input_shape`
     (tuple of integers, does not include the sample axis),
     e.g. `input_shape=(3, 128, 128)` for 128x128 RGB pictures.
+
+    # Examples
+
+    ```python
+    # apply a 3x3 transposed convolution with stride 1x1 and 3 output filters on a 12x12 image:
+    model = Sequential()
+    model.add(Deconvolution2D(3, 3, 3, output_shape=(None, 3, 14, 14), border_mode='valid', input_shape=(3, 12, 12)))
+    # output_shape will be (None, 3, 14, 14)
+
+    # apply a 3x3 transposed convolution with stride 2x2 and 3 output filters on a 12x12 image:
+    model = Sequential()
+    model.add(Deconvolution2D(3, 3, 3, output_shape=(None, 3, 25, 25), subsample=(2, 2), border_mode='valid', input_shape=(3, 12, 12)))
+    model.summary()
+    # output_shape will be (None, 3, 25, 25)
+    ```
+
+    # Arguments
+        nb_filter: Number of transposed convolution filters to use.
+        nb_row: Number of rows in the transposed convolution kernel.
+        nb_col: Number of columns in the transposed convolution kernel.
+        output_shape: Output shape of the transposed convolution operation.
+            tuple of integers (nb_samples, nb_filter, nb_output_rows, nb_output_cols)
+            Formula for calculation of the output shape [1], [2]:
+                o = s (i - 1) + a + k - 2p, \quad a \in \{0, \ldots, s - 1\}
+                where:
+                    i - input size (rows or cols),
+                    k - kernel size (nb_filter),
+                    s - stride (subsample for rows or cols respectively),
+                    p - padding size,
+                    a - user-specified quantity used to distinguish between
+                        the s different possible output sizes.
+        init: name of initialization function for the weights of the layer
+            (see [initializations](../initializations.md)), or alternatively,
+            Theano function to use for weights initialization.
+            This parameter is only relevant if you don't pass
+            a `weights` argument.
+        activation: name of activation function to use
+            (see [activations](../activations.md)),
+            or alternatively, elementwise Theano function.
+            If you don't specify anything, no activation is applied
+            (ie. "linear" activation: a(x) = x).
+        weights: list of numpy arrays to set as initial weights.
+        border_mode: 'valid' or 'same'.
+        subsample: tuple of length 2. Factor by which to oversample output.
+            Also called strides elsewhere.
+        W_regularizer: instance of [WeightRegularizer](../regularizers.md)
+            (eg. L1 or L2 regularization), applied to the main weights matrix.
+        b_regularizer: instance of [WeightRegularizer](../regularizers.md),
+            applied to the bias.
+        activity_regularizer: instance of [ActivityRegularizer](../regularizers.md),
+            applied to the network output.
+        W_constraint: instance of the [constraints](../constraints.md) module
+            (eg. maxnorm, nonneg), applied to the main weights matrix.
+        b_constraint: instance of the [constraints](../constraints.md) module,
+            applied to the bias.
+        dim_ordering: 'th' or 'tf'. In 'th' mode, the channels dimension
+            (the depth) is at index 1, in 'tf' mode is it at index 3.
+            It defaults to the `image_dim_ordering` value found in your
+            Keras config file at `~/.keras/keras.json`.
+            If you never set it, then it will be "th".
+        bias: whether to include a bias (i.e. make the layer affine rather than linear).
+    # Input shape
+        4D tensor with shape:
+        `(samples, channels, rows, cols)` if dim_ordering='th'
+        or 4D tensor with shape:
+        `(samples, rows, cols, channels)` if dim_ordering='tf'.
+    # Output shape
+        4D tensor with shape:
+        `(samples, nb_filter, new_rows, new_cols)` if dim_ordering='th'
+        or 4D tensor with shape:
+        `(samples, new_rows, new_cols, nb_filter)` if dim_ordering='tf'.
+        `rows` and `cols` values might have changed due to padding.
+
+    # References
+        [1] [A guide to convolution arithmetic for deep learning] arXiv:1603.07285v1 [stat.ML]
+        [2] [Transposed convolution arithmetic]
+            (http://deeplearning.net/software/theano_versions/dev/tutorial/conv_arithmetic.html#transposed-convolution-arithmetic)
+        [3] [Deconvolutional Networks](http://www.matthewzeiler.com/pubs/cvpr2010/cvpr2010.pdf)
     '''
     def __init__(self, nb_filter, nb_row, nb_col, output_shape,
                  init='glorot_uniform', activation='linear', weights=None,
