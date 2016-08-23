@@ -14,7 +14,7 @@ e.g.:
 python neural_style_transfer.py img/tuebingen.jpg img/starry_night.jpg results/my_result
 ```
 
-It is preferrable to run this script on GPU, for speed.
+It is preferable to run this script on GPU, for speed.
 If running on CPU, prefer the TensorFlow backend (much faster).
 
 Example result: https://twitter.com/fchollet/status/686631033085677568
@@ -34,7 +34,7 @@ the pixels of the combination image, giving it visual coherence.
 
 - The style loss is where the deep learning keeps in --that one is defined
 using a deep convolutional neural network. Precisely, it consists in a sum of
-L2 distances betwen the Gram matrices of the representations of
+L2 distances between the Gram matrices of the representations of
 the base image and the style reference image, extracted from
 different layers of a convnet (trained on ImageNet). The general idea
 is to capture color/texture information at different spatial
@@ -58,7 +58,7 @@ import argparse
 import h5py
 
 from keras.models import Sequential
-from keras.layers.convolutional import Convolution2D, ZeroPadding2D, MaxPooling2D
+from keras.layers import Convolution2D, ZeroPadding2D, MaxPooling2D
 from keras import backend as K
 
 parser = argparse.ArgumentParser(description='Neural style transfer with Keras.')
@@ -80,6 +80,7 @@ total_variation_weight = 1.
 style_weight = 1.
 content_weight = 0.025
 
+
 # dimensions of the generated picture.
 img_width = 400
 img_height = 400
@@ -88,13 +89,21 @@ assert img_height == img_width, 'Due to the use of the Gram matrix, width and he
 # util function to open, resize and format pictures into appropriate tensors
 def preprocess_image(image_path):
     img = imresize(imread(image_path), (img_width, img_height))
-    img = img.transpose((2, 0, 1)).astype('float64')
+    img = img[:, :, ::-1].astype('float64')
+    img[:, :, 0] -= 103.939
+    img[:, :, 1] -= 116.779
+    img[:, :, 2] -= 123.68
+    img = img.transpose((2, 0, 1))
     img = np.expand_dims(img, axis=0)
     return img
 
 # util function to convert a tensor into a valid image
 def deprocess_image(x):
     x = x.transpose((1, 2, 0))
+    x[:, :, 0] += 103.939
+    x[:, :, 1] += 116.779
+    x[:, :, 2] += 123.68
+    x = x[:, :, ::-1]
     x = np.clip(x, 0, 255).astype('uint8')
     return x
 
@@ -275,6 +284,9 @@ evaluator = Evaluator()
 # run scipy-based optimization (L-BFGS) over the pixels of the generated image
 # so as to minimize the neural style loss
 x = np.random.uniform(0, 255, (1, 3, img_width, img_height))
+x[0, 0, :, :] -= 103.939
+x[0, 1, :, :] -= 116.779
+x[0, 2, :, :] -= 123.68
 for i in range(10):
     print('Start of iteration', i)
     start_time = time.time()
@@ -282,7 +294,7 @@ for i in range(10):
                                      fprime=evaluator.grads, maxfun=20)
     print('Current loss value:', min_val)
     # save current generated image
-    img = deprocess_image(x.reshape((3, img_width, img_height)))
+    img = deprocess_image(x.copy().reshape((3, img_width, img_height)))
     fname = result_prefix + '_at_iteration_%d.png' % i
     imsave(fname, img)
     end_time = time.time()

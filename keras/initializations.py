@@ -12,11 +12,13 @@ def get_fans(shape, dim_ordering='th'):
         # TH kernel shape: (depth, input_depth, ...)
         # TF kernel shape: (..., input_depth, depth)
         if dim_ordering == 'th':
-            fan_in = np.prod(shape[1:])
-            fan_out = shape[0]
+            receptive_field_size = np.prod(shape[2:])
+            fan_in = shape[1] * receptive_field_size
+            fan_out = shape[0] * receptive_field_size
         elif dim_ordering == 'tf':
-            fan_in = np.prod(shape[:-1])
-            fan_out = shape[-1]
+            receptive_field_size = np.prod(shape[:2])
+            fan_in = shape[-2] * receptive_field_size
+            fan_out = shape[-1] * receptive_field_size
         else:
             raise Exception('Invalid dim_ordering: ' + dim_ordering)
     else:
@@ -27,13 +29,11 @@ def get_fans(shape, dim_ordering='th'):
 
 
 def uniform(shape, scale=0.05, name=None):
-    return K.variable(np.random.uniform(low=-scale, high=scale, size=shape),
-                      name=name)
+    return K.random_uniform_variable(shape, -scale, scale, name=name)
 
 
 def normal(shape, scale=0.05, name=None):
-    return K.variable(np.random.normal(loc=0.0, scale=scale, size=shape),
-                      name=name)
+    return K.random_normal_variable(shape, 0.0, scale, name=name)
 
 
 def lecun_uniform(shape, name=None, dim_ordering='th'):

@@ -6,6 +6,7 @@ You can create a `Sequential` model by passing a list of layer instances to the 
 
 ```python
 from keras.models import Sequential
+from keras.layers import Dense, Activation
 
 model = Sequential([
     Dense(32, input_dim=784),
@@ -85,7 +86,14 @@ final_model.add(merged)
 final_model.add(Dense(10, activation='softmax'))
 ```
 
-<img src="http://s3.amazonaws.com/keras.io/img/two_branches_sequential_model.png" alt="two branch Sequential" style="width: 400px;"/>
+<img src="https://s3.amazonaws.com/keras.io/img/two_branches_sequential_model.png" alt="two branch Sequential" style="width: 400px;"/>
+
+Such a two-branch model can then be trained via e.g.:
+
+```python
+final_model.compile(optimizer='rmsprop', loss='categorical_crossentropy')
+final_model.fit([input_data_1, input_data_2], targets)  # we pass one data array per model input
+```
 
 The `Merge` layer supports a number of pre-defined modes:
 
@@ -141,7 +149,7 @@ Keras models are trained on Numpy arrays of input data and labels. For training 
 # for a single-input model with 2 classes (binary):
 
 model = Sequential()
-model.add(Dense(1, input_dim=784, activation='softmax'))
+model.add(Dense(1, input_dim=784, activation='sigmoid'))
 model.compile(optimizer='rmsprop',
               loss='binary_crossentropy',
               metrics=['accuracy'])
@@ -373,7 +381,7 @@ image_model.load_weights('weight_file.h5')
 language_model = Sequential()
 language_model.add(Embedding(vocab_size, 256, input_length=max_caption_len))
 language_model.add(GRU(output_dim=128, return_sequences=True))
-language_model.add(TimeDistributedDense(128))
+language_model.add(TimeDistributed(Dense(128)))
 
 # let's repeat the image vector to turn it into a sequence.
 image_model.add(RepeatVector(max_caption_len))
@@ -410,7 +418,7 @@ The first two LSTMs return their full output sequences, but the last one only re
 the last step in its output sequence, thus dropping the temporal dimension
 (i.e. converting the input sequence into a single vector).
 
-<img src="http://keras.io/img/regular_stacked_lstm.png" alt="stacked LSTM" style="width: 300px;"/>
+<img src="https://keras.io/img/regular_stacked_lstm.png" alt="stacked LSTM" style="width: 300px;"/>
 
 ```python
 from keras.models import Sequential
@@ -499,7 +507,7 @@ In this model, two input sequences are encoded into vectors by two separate LSTM
 
 These two vectors are then concatenated, and a fully connected network is trained on top of the concatenated representations.
 
-<img src="http://keras.io/img/dual_lstm.png" alt="Dual LSTM" style="width: 600px;"/>
+<img src="https://keras.io/img/dual_lstm.png" alt="Dual LSTM" style="width: 600px;"/>
 
 ```python
 from keras.models import Sequential

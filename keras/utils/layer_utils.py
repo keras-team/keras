@@ -1,6 +1,7 @@
 from __future__ import print_function
 
 from .generic_utils import get_from_module
+from .np_utils import convert_kernel
 from ..layers import *
 from ..models import Model, Sequential, Graph
 from .. import backend as K
@@ -35,9 +36,11 @@ def layer_from_config(config, custom_objects={}):
     return layer_class.from_config(config['config'])
 
 
-def print_summary(layers, relevant_nodes=None):
-    line_length = 100  # total length of printed lines
-    positions = [35, 55, 67, 100]  # absolute positions of log elements in each line
+def print_summary(layers, relevant_nodes=None, line_length=100, positions=[.33, .55, .67, 1.]):
+    # line_length: total length of printed lines
+    # positions: relative or absolute positions of log elements in each line
+    if positions[-1] <= 1:
+        positions = [int(line_length * p) for p in positions]
     # header names for the different log elements
     to_display = ['Layer (type)', 'Output Shape', 'Param #', 'Connected to']
 
@@ -95,3 +98,22 @@ def print_summary(layers, relevant_nodes=None):
 
     print('Total params: %s' % total_params)
     print('_' * line_length)
+
+
+def convert_all_kernels_in_model(model):
+    # Note: SeparableConvolution not included
+    # since only supported by TF.
+    conv_classes = {
+        'Convolution1D',
+        'Convolution2D',
+        'Convolution3D',
+        'AtrousConvolution2D',
+        'Deconvolution2D',
+    }
+    to_assign = []
+    for layer in model.layers:
+        if layer.__class__.__name__ in conv_classes:
+            original_w = K.get_value(layer.W)
+            converted_w = convert_kernel(original_w)
+            to_assign.append((layer.W, converted_w))
+    K.batch_set_value(to_assign)

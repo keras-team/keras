@@ -34,24 +34,28 @@ def make_tuple(*args):
 
 
 class Progbar(object):
-    def __init__(self, target, width=30, verbose=1):
+    def __init__(self, target, width=30, verbose=1, interval=0.01):
         '''
             @param target: total number of steps expected
+            @param interval: minimum visual progress update interval (in seconds)
         '''
         self.width = width
         self.target = target
         self.sum_values = {}
         self.unique_values = []
         self.start = time.time()
+        self.last_update = 0
+        self.interval = interval
         self.total_width = 0
         self.seen_so_far = 0
         self.verbose = verbose
 
-    def update(self, current, values=[]):
+    def update(self, current, values=[], force=False):
         '''
             @param current: index of current step
             @param values: list of tuples (name, value_for_last_step).
             The progress bar will display averages for these values.
+            @param force: force visual progress update
         '''
         for k, v in values:
             if k not in self.sum_values:
@@ -64,6 +68,9 @@ class Progbar(object):
 
         now = time.time()
         if self.verbose == 1:
+            if not force and (now - self.last_update) < self.interval:
+                return
+
             prev_total_width = self.total_width
             sys.stdout.write("\b" * prev_total_width)
             sys.stdout.write("\r")
@@ -126,6 +133,8 @@ class Progbar(object):
                     else:
                         info += ' %.4e' % avg
                 sys.stdout.write(info + "\n")
+
+        self.last_update = now
 
     def add(self, n, values=[]):
         self.update(self.seen_so_far + n, values)

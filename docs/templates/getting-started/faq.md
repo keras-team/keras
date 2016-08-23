@@ -10,7 +10,10 @@
 - [How is the validation split computed?](#how-is-the-validation-split-computed)
 - [Is the data shuffled during training?](#is-the-data-shuffled-during-training)
 - [How can I record the training / validation loss / accuracy at each epoch?](#how-can-i-record-the-training-validation-loss-accuracy-at-each-epoch)
+- [How can I "freeze" layers?](#how-can-i-freeze-keras-layers)
 - [How can I use stateful RNNs?](#how-can-i-use-stateful-rnns)
+- [How can I remove a layer from a Sequential model?](#how-can-i-remove-a-layer-from-a-sequential-model)
+- [How can I use pre-trained models in Keras?](#how-can-i-use-pre-trained-models-in-keras)
 
 ---
 
@@ -20,12 +23,11 @@ Please cite Keras in your publications if it helps your research. Here is an exa
 
 ```
 @misc{chollet2015keras,
-  author = {Chollet, François},
-  title = {Keras},
-  year = {2015},
-  publisher = {GitHub},
-  journal = {GitHub repository},
-  howpublished = {\url{https://github.com/fchollet/keras}}
+  title={Keras},
+  author={Chollet, Fran\c{c}ois},
+  year={2015},
+  publisher={GitHub},
+  howpublished={\url{https://github.com/fchollet/keras}},
 }
 ```
 
@@ -56,7 +58,31 @@ theano.config.floatX = 'float32'
 
 *It is not recommended to use pickle or cPickle to save a Keras model.*
 
-If you only need to save the architecture of a model, and not its weights, you can do:
+You can use `model.save(filepath)` to save a Keras model into a single HDF5 file which will contain:
+
+- the architecture of the model, allowing to re-create the model
+- the weights of the model
+- the training configuration (loss, optimizer)
+- the state of the optimizer, allowing to resume training exactly where you left off.
+
+You can then use `keras.models.load_model(filepath)` to reinstantiate your model.
+`load_model` will also take care of compiling the model using the saved training configuration
+(unless the model was never compiled in the first place).
+
+Example:
+
+```python
+from keras.models import load_model
+
+model.save('my_model.h5')  # creates a HDF5 file 'my_model.h5'
+del model  # deletes the existing model
+
+# returns a compiled model
+# identical to the previous one
+model = load_model('my_model.h5')
+```
+
+If you only need to save the **architecture of a model**, and not its weights or its training configuration, you can do:
 
 ```python
 # save as JSON
@@ -65,6 +91,8 @@ json_string = model.to_json()
 # save as YAML
 yaml_string = model.to_yaml()
 ```
+
+The generated JSON / YAML files are human-readable and can be manually edited if needed.
 
 You can then build a fresh model from this data:
 
@@ -77,7 +105,7 @@ model = model_from_json(json_string)
 model = model_from_yaml(yaml_string)
 ```
 
-If you need to save the weights of a model, you can do so in HDF5 with the code below.
+If you need to save the **weights of a model**, you can do so in HDF5 with the code below.
 
 Note that you will first need to install HDF5 and the Python library h5py, which do not come bundled with Keras.
 
@@ -89,22 +117,6 @@ Assuming you have code for instantiating your model, you can then load the weigh
 
 ```python
 model.load_weights('my_model_weights.h5')
-```
-
-This leads us to a way to save and reconstruct models from only serialized data:
-```python
-json_string = model.to_json()
-open('my_model_architecture.json', 'w').write(json_string)
-model.save_weights('my_model_weights.h5')
-
-# elsewhere...
-model = model_from_json(open('my_model_architecture.json').read())
-model.load_weights('my_model_weights.h5')
-```
-
-Finally, before it can be used, the model shall be compiled.
-```python
-model.compile(optimizer='adagrad', loss='mse')
 ```
 
 ---
@@ -146,7 +158,21 @@ layer_output = get_3rd_layer_output([X, 0])[0]
 layer_output = get_3rd_layer_output([X, 1])[0]
 ```
 
-Another more flexible way of getting output from intermediate layers is to use the [functional API](/getting-started/functional-api-guide).
+Another more flexible way of getting output from intermediate layers is to use the [functional API](/getting-started/functional-api-guide). For example, if you have created an autoencoder for MNIST:
+
+```python
+inputs = Input(shape=(784,))
+encoded = Dense(32, activation='relu')(inputs)
+decoded = Dense(784)(encoded)
+model = Model(input=inputs, output=decoded)
+```
+
+After compiling and training the model, you can get the output of the data from the encoder like this:
+
+```python
+encoder = Model(input=inputs, output=encoded)
+X_encoded = encoder.predict(X)
+```
 
 ---
 
@@ -201,6 +227,40 @@ print(hist.history)
 
 ---
 
+### How can I "freeze" Keras layers?
+
+To "freeze" a layer means to exclude it from training, i.e. its weights will never be updated. This is useful in the context of fine-tuning a model, or using fixed embeddings for a text input.
+
+You can pass a `trainable` argument (boolean) to a layer constructor to set a layer to be non-trainable:
+
+```python
+frozen_layer = Dense(32, trainable=False)
+```
+
+Additionally, you can set the `trainable` property of a layer to `True` or `False` after instantiation. For this to take effect, you will need to call `compile()` on your model after modifying the `trainable` property. Here's an example:
+
+```python
+x = Input(shape=(32,))
+layer = Dense(32)
+layer.trainable = False
+y = layer(x)
+
+frozen_model = Model(x, y)
+# in the model below, the weights of `layer` will not be updated during training
+frozen_model.compile(optimizer='rmsprop', loss='mse')
+
+layer.trainable = True
+trainable_model = Model(x, y)
+# with this model the weights of the layer will be updated during training
+# (which will also affect the above model since it uses the same layer instance)
+trainable_model.compile(optimizer='rmsprop', loss='mse')
+
+frozen_model.fit(data, labels)  # this does NOT update the weights of `layer`
+trainable_model.fit(data, labels)  # this updates the weights of `layer`
+```
+
+---
+
 ### How can I use stateful RNNs?
 
 Making a RNN stateful means that the states for the samples of each batch will be reused as initial states for the samples in the next batch.
@@ -248,3 +308,40 @@ model.layers[0].reset_states()
 
 Notes that the methods `predict`, `fit`, `train_on_batch`, `predict_classes`, etc. will *all* update the states of the stateful layers in a model. This allows you to do not only stateful training, but also stateful prediction.
 
+---
+
+### How can I remove a layer from a Sequential model?
+
+You can remove the last added layer in a Sequential model by calling `.pop()`:
+
+```python
+model = Sequential()
+model.add(Dense(32, activation='relu', input_dim=784))
+model.add(Dense(32, activation='relu'))
+
+print(len(model.layers))  # "2"
+
+model.pop()
+print(len(model.layers))  # "1"
+```
+
+---
+
+### How can I use pre-trained models in Keras?
+
+Code and pre-trained weights are available for the following image classification models:
+
+- VGG16
+- VGG19
+- ResNet50
+- Inception v3
+
+Find the code and weights in [this repository](https://github.com/fchollet/deep-learning-models).
+
+For an example of how to use such a pre-trained model for feature extraction or for fine-tuning, see [this blog post](http://blog.keras.io/building-powerful-image-classification-models-using-very-little-data.html).
+
+The VGG16 model is also the basis for several Keras example scripts:
+
+- [Style transfer](https://github.com/fchollet/keras/blob/master/examples/neural_style_transfer.py)
+- [Feature visualization](https://github.com/fchollet/keras/blob/master/examples/conv_filter_visualization.py)
+- [Deep dream](https://github.com/fchollet/keras/blob/master/examples/deep_dream.py)

@@ -54,7 +54,7 @@ class Recurrent(Layer):
         # as the first layer in a Sequential model
         model = Sequential()
         model.add(LSTM(32, input_shape=(10, 64)))
-        # now model.output_shape == (None, 10, 32)
+        # now model.output_shape == (None, 32)
         # note: `None` is the batch dimension.
 
         # the following is identical:
@@ -66,7 +66,7 @@ class Recurrent(Layer):
     ```
 
     # Arguments
-        weights: list of numpy arrays to set as initial weights.
+        weights: list of Numpy arrays to set as initial weights.
             The list should have 3 elements, of shapes:
             `[(input_dim, output_dim), (output_dim, output_dim), (output_dim,)]`.
         return_sequences: Boolean. Whether to return the last output
@@ -81,16 +81,14 @@ class Recurrent(Layer):
             is always unrolled, so this argument does not do anything.
             Unrolling can speed-up a RNN, although it tends to be more memory-intensive.
             Unrolling is only suitable for short sequences.
-        consume_less: one of "cpu", "mem", or "gpu" (LSTM only).
+        consume_less: one of "cpu", "mem", or "gpu" (LSTM/GRU only).
             If set to "cpu", the RNN will use
             an implementation that uses fewer, larger matrix products,
             thus running faster on CPU but consuming more memory.
-
             If set to "mem", the RNN will use more matrix products,
             but smaller ones, thus running slower (may actually be faster on GPU)
             while consuming less memory.
-
-            If set to "gpu" (LSTM only), the LSTM will combine the input gate,
+            If set to "gpu" (LSTM/GRU only), the RNN will combine the input gate,
             the forget gate and the output gate into a single matrix,
             enabling more time-efficient parallelization on the GPU. Note: RNN
             dropout must be shared for all gates, resulting in a slightly
@@ -141,7 +139,10 @@ class Recurrent(Layer):
         To enable statefulness:
             - specify `stateful=True` in the layer constructor.
             - specify a fixed batch size for your model, by passing
-                a `batch_input_shape=(...)` to the first layer in your model.
+                if sequential model:
+                  a `batch_input_shape=(...)` to the first layer in your model.
+                else for functional model with 1 or more Input layers:
+                  a `batch_shape=(...)` to all the first layers in your model.
                 This is the expected shape of your inputs *including the batch size*.
                 It should be a tuple of integers, e.g. `(32, 10, 100)`.
 
@@ -192,9 +193,9 @@ class Recurrent(Layer):
     def get_initial_states(self, x):
         # build an all-zero tensor of shape (samples, output_dim)
         initial_state = K.zeros_like(x)  # (samples, timesteps, input_dim)
-        initial_state = K.sum(initial_state, axis=1)  # (samples, input_dim)
-        reducer = K.zeros((self.input_dim, self.output_dim))
-        initial_state = K.dot(initial_state, reducer)  # (samples, output_dim)
+        initial_state = K.sum(initial_state, axis=(1, 2))  # (samples,)
+        initial_state = K.expand_dims(initial_state)  # (samples, 1)
+        initial_state = K.tile(initial_state, [1, self.output_dim])  # (samples, output_dim)
         initial_states = [initial_state for _ in range(len(self.states))]
         return initial_states
 
@@ -391,15 +392,15 @@ class SimpleRNN(Recurrent):
         return constants
 
     def get_config(self):
-        config = {"output_dim": self.output_dim,
-                  "init": self.init.__name__,
-                  "inner_init": self.inner_init.__name__,
-                  "activation": self.activation.__name__,
-                  "W_regularizer": self.W_regularizer.get_config() if self.W_regularizer else None,
-                  "U_regularizer": self.U_regularizer.get_config() if self.U_regularizer else None,
-                  "b_regularizer": self.b_regularizer.get_config() if self.b_regularizer else None,
-                  "dropout_W": self.dropout_W,
-                  "dropout_U": self.dropout_U}
+        config = {'output_dim': self.output_dim,
+                  'init': self.init.__name__,
+                  'inner_init': self.inner_init.__name__,
+                  'activation': self.activation.__name__,
+                  'W_regularizer': self.W_regularizer.get_config() if self.W_regularizer else None,
+                  'U_regularizer': self.U_regularizer.get_config() if self.U_regularizer else None,
+                  'b_regularizer': self.b_regularizer.get_config() if self.b_regularizer else None,
+                  'dropout_W': self.dropout_W,
+                  'dropout_U': self.dropout_U}
         base_config = super(SimpleRNN, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
@@ -452,52 +453,65 @@ class GRU(Recurrent):
 
     def build(self, input_shape):
         self.input_spec = [InputSpec(shape=input_shape)]
-        input_dim = input_shape[2]
-        self.input_dim = input_dim
+        self.input_dim = input_shape[2]
 
-        self.W_z = self.init((input_dim, self.output_dim),
-                             name='{}_W_z'.format(self.name))
-        self.U_z = self.inner_init((self.output_dim, self.output_dim),
-                                   name='{}_U_z'.format(self.name))
-        self.b_z = K.zeros((self.output_dim,), name='{}_b_z'.format(self.name))
-
-        self.W_r = self.init((input_dim, self.output_dim),
-                             name='{}_W_r'.format(self.name))
-        self.U_r = self.inner_init((self.output_dim, self.output_dim),
-                                   name='{}_U_r'.format(self.name))
-        self.b_r = K.zeros((self.output_dim,), name='{}_b_r'.format(self.name))
-
-        self.W_h = self.init((input_dim, self.output_dim),
-                             name='{}_W_h'.format(self.name))
-        self.U_h = self.inner_init((self.output_dim, self.output_dim),
-                                   name='{}_U_h'.format(self.name))
-        self.b_h = K.zeros((self.output_dim,), name='{}_b_h'.format(self.name))
-
-        self.regularizers = []
-        if self.W_regularizer:
-            self.W_regularizer.set_param(K.concatenate([self.W_z,
-                                                        self.W_r,
-                                                        self.W_h]))
-            self.regularizers.append(self.W_regularizer)
-        if self.U_regularizer:
-            self.U_regularizer.set_param(K.concatenate([self.U_z,
-                                                        self.U_r,
-                                                        self.U_h]))
-            self.regularizers.append(self.U_regularizer)
-        if self.b_regularizer:
-            self.b_regularizer.set_param(K.concatenate([self.b_z,
-                                                        self.b_r,
-                                                        self.b_h]))
-            self.regularizers.append(self.b_regularizer)
-
-        self.trainable_weights = [self.W_z, self.U_z, self.b_z,
-                                  self.W_r, self.U_r, self.b_r,
-                                  self.W_h, self.U_h, self.b_h]
         if self.stateful:
             self.reset_states()
         else:
             # initial states: all-zero tensor of shape (output_dim)
             self.states = [None]
+
+        if self.consume_less == 'gpu':
+
+            self.W = self.init((self.input_dim, 3 * self.output_dim),
+                               name='{}_W'.format(self.name))
+            self.U = self.inner_init((self.output_dim, 3 * self.output_dim),
+                                     name='{}_U'.format(self.name))
+
+            self.b = K.variable(np.hstack((np.zeros(self.output_dim),
+                                           np.zeros(self.output_dim),
+                                           np.zeros(self.output_dim))),
+                                name='{}_b'.format(self.name))
+
+            self.trainable_weights = [self.W, self.U, self.b]
+        else:
+
+            self.W_z = self.init((self.input_dim, self.output_dim),
+                                 name='{}_W_z'.format(self.name))
+            self.U_z = self.inner_init((self.output_dim, self.output_dim),
+                                       name='{}_U_z'.format(self.name))
+            self.b_z = K.zeros((self.output_dim,), name='{}_b_z'.format(self.name))
+
+            self.W_r = self.init((self.input_dim, self.output_dim),
+                                 name='{}_W_r'.format(self.name))
+            self.U_r = self.inner_init((self.output_dim, self.output_dim),
+                                       name='{}_U_r'.format(self.name))
+            self.b_r = K.zeros((self.output_dim,), name='{}_b_r'.format(self.name))
+
+            self.W_h = self.init((self.input_dim, self.output_dim),
+                                 name='{}_W_h'.format(self.name))
+            self.U_h = self.inner_init((self.output_dim, self.output_dim),
+                                       name='{}_U_h'.format(self.name))
+            self.b_h = K.zeros((self.output_dim,), name='{}_b_h'.format(self.name))
+
+            self.trainable_weights = [self.W_z, self.U_z, self.b_z,
+                                      self.W_r, self.U_r, self.b_r,
+                                      self.W_h, self.U_h, self.b_h]
+
+            self.W = K.concatenate([self.W_z, self.W_r, self.W_h])
+            self.U = K.concatenate([self.U_z, self.U_r, self.U_h])
+            self.b = K.concatenate([self.b_z, self.b_r, self.b_h])
+
+        self.regularizers = []
+        if self.W_regularizer:
+            self.W_regularizer.set_param(self.W)
+            self.regularizers.append(self.W_regularizer)
+        if self.U_regularizer:
+            self.U_regularizer.set_param(self.U)
+            self.regularizers.append(self.U_regularizer)
+        if self.b_regularizer:
+            self.b_regularizer.set_param(self.b)
+            self.regularizers.append(self.b_regularizer)
 
         if self.initial_weights is not None:
             self.set_weights(self.initial_weights)
@@ -536,19 +550,37 @@ class GRU(Recurrent):
         B_U = states[1]  # dropout matrices for recurrent units
         B_W = states[2]
 
-        if self.consume_less == 'cpu':
-            x_z = x[:, :self.output_dim]
-            x_r = x[:, self.output_dim: 2 * self.output_dim]
-            x_h = x[:, 2 * self.output_dim:]
+        if self.consume_less == 'gpu':
+
+            matrix_x = K.dot(x * B_W[0], self.W) + self.b
+            matrix_inner = K.dot(h_tm1 * B_U[0], self.U[:, :2 * self.output_dim])
+
+            x_z = matrix_x[:, :self.output_dim]
+            x_r = matrix_x[:, self.output_dim: 2 * self.output_dim]
+            inner_z = matrix_inner[:, :self.output_dim]
+            inner_r = matrix_inner[:, self.output_dim: 2 * self.output_dim]
+
+            z = self.inner_activation(x_z + inner_z)
+            r = self.inner_activation(x_r + inner_r)
+
+            x_h = matrix_x[:, 2 * self.output_dim:]
+            inner_h = K.dot(r * h_tm1 * B_U[0], self.U[:, 2 * self.output_dim:])
+            hh = self.activation(x_h + inner_h)
         else:
-            x_z = K.dot(x * B_W[0], self.W_z) + self.b_z
-            x_r = K.dot(x * B_W[1], self.W_r) + self.b_r
-            x_h = K.dot(x * B_W[2], self.W_h) + self.b_h
+            if self.consume_less == 'cpu':
+                x_z = x[:, :self.output_dim]
+                x_r = x[:, self.output_dim: 2 * self.output_dim]
+                x_h = x[:, 2 * self.output_dim:]
+            elif self.consume_less == 'mem':
+                x_z = K.dot(x * B_W[0], self.W_z) + self.b_z
+                x_r = K.dot(x * B_W[1], self.W_r) + self.b_r
+                x_h = K.dot(x * B_W[2], self.W_h) + self.b_h
+            else:
+                raise Exception('Unknown `consume_less` mode.')
+            z = self.inner_activation(x_z + K.dot(h_tm1 * B_U[0], self.U_z))
+            r = self.inner_activation(x_r + K.dot(h_tm1 * B_U[1], self.U_r))
 
-        z = self.inner_activation(x_z + K.dot(h_tm1 * B_U[0], self.U_z))
-        r = self.inner_activation(x_r + K.dot(h_tm1 * B_U[1], self.U_r))
-
-        hh = self.activation(x_h + K.dot(r * h_tm1 * B_U[2], self.U_h))
+            hh = self.activation(x_h + K.dot(r * h_tm1 * B_U[2], self.U_h))
         h = z * h_tm1 + (1 - z) * hh
         return h, [h]
 
@@ -574,16 +606,16 @@ class GRU(Recurrent):
         return constants
 
     def get_config(self):
-        config = {"output_dim": self.output_dim,
-                  "init": self.init.__name__,
-                  "inner_init": self.inner_init.__name__,
-                  "activation": self.activation.__name__,
-                  "inner_activation": self.inner_activation.__name__,
-                  "W_regularizer": self.W_regularizer.get_config() if self.W_regularizer else None,
-                  "U_regularizer": self.U_regularizer.get_config() if self.U_regularizer else None,
-                  "b_regularizer": self.b_regularizer.get_config() if self.b_regularizer else None,
-                  "dropout_W": self.dropout_W,
-                  "dropout_U": self.dropout_U}
+        config = {'output_dim': self.output_dim,
+                  'init': self.init.__name__,
+                  'inner_init': self.inner_init.__name__,
+                  'activation': self.activation.__name__,
+                  'inner_activation': self.inner_activation.__name__,
+                  'W_regularizer': self.W_regularizer.get_config() if self.W_regularizer else None,
+                  'U_regularizer': self.U_regularizer.get_config() if self.U_regularizer else None,
+                  'b_regularizer': self.b_regularizer.get_config() if self.b_regularizer else None,
+                  'dropout_W': self.dropout_W,
+                  'dropout_U': self.dropout_U}
         base_config = super(GRU, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
@@ -654,13 +686,13 @@ class LSTM(Recurrent):
             self.states = [None, None]
 
         if self.consume_less == 'gpu':
-            self.W = self.init((self.input_dim, 4*self.output_dim),
+            self.W = self.init((self.input_dim, 4 * self.output_dim),
                                name='{}_W'.format(self.name))
-            self.U = self.inner_init((self.output_dim, 4*self.output_dim),
+            self.U = self.inner_init((self.output_dim, 4 * self.output_dim),
                                      name='{}_U'.format(self.name))
 
             self.b = K.variable(np.hstack((np.zeros(self.output_dim),
-                                           K.get_value(self.forget_bias_init(self.output_dim)),
+                                           K.get_value(self.forget_bias_init((self.output_dim,))),
                                            np.zeros(self.output_dim),
                                            np.zeros(self.output_dim))),
                                 name='{}_b'.format(self.name))
@@ -814,16 +846,16 @@ class LSTM(Recurrent):
         return constants
 
     def get_config(self):
-        config = {"output_dim": self.output_dim,
-                  "init": self.init.__name__,
-                  "inner_init": self.inner_init.__name__,
-                  "forget_bias_init": self.forget_bias_init.__name__,
-                  "activation": self.activation.__name__,
-                  "inner_activation": self.inner_activation.__name__,
-                  "W_regularizer": self.W_regularizer.get_config() if self.W_regularizer else None,
-                  "U_regularizer": self.U_regularizer.get_config() if self.U_regularizer else None,
-                  "b_regularizer": self.b_regularizer.get_config() if self.b_regularizer else None,
-                  "dropout_W": self.dropout_W,
-                  "dropout_U": self.dropout_U}
+        config = {'output_dim': self.output_dim,
+                  'init': self.init.__name__,
+                  'inner_init': self.inner_init.__name__,
+                  'forget_bias_init': self.forget_bias_init.__name__,
+                  'activation': self.activation.__name__,
+                  'inner_activation': self.inner_activation.__name__,
+                  'W_regularizer': self.W_regularizer.get_config() if self.W_regularizer else None,
+                  'U_regularizer': self.U_regularizer.get_config() if self.U_regularizer else None,
+                  'b_regularizer': self.b_regularizer.get_config() if self.b_regularizer else None,
+                  'dropout_W': self.dropout_W,
+                  'dropout_U': self.dropout_U}
         base_config = super(LSTM, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))

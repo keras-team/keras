@@ -82,15 +82,114 @@ class Dropout(Layer):
         self.supports_masking = True
         super(Dropout, self).__init__(**kwargs)
 
+    def _get_noise_shape(self, x):
+        return None
+
     def call(self, x, mask=None):
         if 0. < self.p < 1.:
-            x = K.in_train_phase(K.dropout(x, level=self.p), x)
+            noise_shape = self._get_noise_shape(x)
+            x = K.in_train_phase(K.dropout(x, self.p, noise_shape), x)
         return x
 
     def get_config(self):
         config = {'p': self.p}
         base_config = super(Dropout, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
+
+
+class SpatialDropout2D(Dropout):
+    '''This version performs the same function as Dropout, however it drops
+    entire 2D feature maps instead of individual elements. If adjacent pixels
+    within feature maps are strongly correlated (as is normally the case in
+    early convolution layers) then regular dropout will not regularize the
+    activations and will otherwise just result in an effective learning rate
+    decrease. In this case, SpatialDropout2D will help promote independence
+    between feature maps and should be used instead.
+
+    # Arguments
+        p: float between 0 and 1. Fraction of the input units to drop.
+        dim_ordering: 'th' or 'tf'. In 'th' mode, the channels dimension
+            (the depth) is at index 1, in 'tf' mode is it at index 3.
+            It defaults to the `image_dim_ordering` value found in your
+            Keras config file at `~/.keras/keras.json`.
+            If you never set it, then it will be "th".
+
+    # Input shape
+        4D tensor with shape:
+        `(samples, channels, rows, cols)` if dim_ordering='th'
+        or 4D tensor with shape:
+        `(samples, rows, cols, channels)` if dim_ordering='tf'.
+
+    # Output shape
+        Same as input
+
+    # References
+        - [Efficient Object Localization Using Convolutional Networks](https://arxiv.org/pdf/1411.4280.pdf)
+    '''
+    def __init__(self, p, dim_ordering='default', **kwargs):
+        if dim_ordering == 'default':
+            dim_ordering = K.image_dim_ordering()
+        assert dim_ordering in {'tf', 'th'}, 'dim_ordering must be in {tf, th}'
+        self.dim_ordering = dim_ordering
+        super(SpatialDropout2D, self).__init__(p, **kwargs)
+
+    def _get_noise_shape(self, x):
+        input_shape = K.shape(x)
+        if self.dim_ordering == 'th':
+            noise_shape = (input_shape[0], input_shape[1], 1, 1)
+        elif self.dim_ordering == 'tf':
+            noise_shape = (input_shape[0], 1, 1, input_shape[3])
+        else:
+            raise Exception('Invalid dim_ordering: ' + self.dim_ordering)
+        return noise_shape
+
+
+class SpatialDropout3D(Dropout):
+    '''This version performs the same function as Dropout, however it drops
+    entire 3D feature maps instead of individual elements. If adjacent voxels
+    within feature maps are strongly correlated (as is normally the case in
+    early convolution layers) then regular dropout will not regularize the
+    activations and will otherwise just result in an effective learning rate
+    decrease. In this case, SpatialDropout3D will help promote independence
+    between feature maps and should be used instead.
+
+    # Arguments
+        p: float between 0 and 1. Fraction of the input units to drop.
+        dim_ordering: 'th' or 'tf'.
+            In 'th' mode, the channels dimension (the depth)
+            is at index 1, in 'tf' mode is it at index 4.
+            It defaults to the `image_dim_ordering` value found in your
+            Keras config file at `~/.keras/keras.json`.
+            If you never set it, then it will be "th".
+
+    # Input shape
+        5D tensor with shape:
+        `(samples, channels, dim1, dim2, dim3)` if dim_ordering='th'
+        or 5D tensor with shape:
+        `(samples, dim1, dim2, dim3, channels)` if dim_ordering='tf'.
+
+    # Output shape
+        Same as input
+
+    # References
+        - [Efficient Object Localization Using Convolutional Networks](https://arxiv.org/pdf/1411.4280.pdf)
+    '''
+    def __init__(self, p, dim_ordering='default', **kwargs):
+        if dim_ordering == 'default':
+            dim_ordering = K.image_dim_ordering()
+        assert dim_ordering in {'tf', 'th'}, 'dim_ordering must be in {tf, th}'
+        self.dim_ordering = dim_ordering
+        super(SpatialDropout3D, self).__init__(p, **kwargs)
+
+    def _get_noise_shape(self, x):
+        input_shape = K.shape(x)
+        if self.dim_ordering == 'th':
+            noise_shape = (input_shape[0], input_shape[1], 1, 1, 1)
+        elif self.dim_ordering == 'tf':
+            noise_shape = (input_shape[0], 1, 1, 1, input_shape[4])
+        else:
+            raise Exception('Invalid dim_ordering: ' + self.dim_ordering)
+        return noise_shape
 
 
 class Activation(Layer):
@@ -161,7 +260,7 @@ class Reshape(Layer):
         '''Find and replace a single missing dimension in an output shape
         given an input shape.
 
-        A near direct port of the internal numpy function _fix_unknown_dimension
+        A near direct port of the internal Numpy function _fix_unknown_dimension
         in numpy/core/src/multiarray/shape.c
 
         # Arguments
@@ -387,7 +486,14 @@ class Lambda(Layer):
         function: The function to be evaluated.
             Takes one argument: the output of previous layer
         output_shape: Expected output shape from function.
-            Could be a tuple or a function of the shape of the input
+            Can be a tuple or function.
+            If a tuple, it only specifies the first dimension onward; 
+                 sample dimension is assumed either the same as the input:
+                 `output_shape = (input_shape[0], ) + output_shape`
+                 or, the input is `None` and the sample dimension is also `None`:
+                 `output_shape = (None, ) + output_shape`
+            If a function, it specifies the entire shape as a function of 
+                 the input shape: `output_shape = f(input_shape)`
         arguments: optional dictionary of keyword arguments to be passed
             to the function.
 
@@ -402,6 +508,8 @@ class Lambda(Layer):
     def __init__(self, function, output_shape=None, arguments={}, **kwargs):
         self.function = function
         self.arguments = arguments
+        self.supports_masking = False
+
         if output_shape is None:
             self._output_shape = None
         elif type(output_shape) in {tuple, list}:
@@ -460,9 +568,9 @@ class Lambda(Layer):
 
         if isinstance(self._output_shape, python_types.LambdaType):
             if py3:
-                output_shape = marshal.dumps(self._output_shape.__code__)
+                output_shape = marshal.dumps(self._output_shape.__code__).decode('raw_unicode_escape')
             else:
-                output_shape = marshal.dumps(self._output_shape.func_code)
+                output_shape = marshal.dumps(self._output_shape.func_code).decode('raw_unicode_escape')
             output_shape_type = 'lambda'
         elif callable(self._output_shape):
             output_shape = self._output_shape.__name__
@@ -494,7 +602,7 @@ class Lambda(Layer):
         if output_shape_type == 'function':
             output_shape = globals()[config['output_shape']]
         elif output_shape_type == 'lambda':
-            output_shape = marshal.loads(config['output_shape'])
+            output_shape = marshal.loads(config['output_shape'].encode('raw_unicode_escape'))
             output_shape = python_types.FunctionType(output_shape, globals())
         else:
             output_shape = config['output_shape']
@@ -537,7 +645,7 @@ class Dense(Layer):
             or alternatively, elementwise Theano function.
             If you don't specify anything, no activation is applied
             (ie. "linear" activation: a(x) = x).
-        weights: list of numpy arrays to set as initial weights.
+        weights: list of Numpy arrays to set as initial weights.
             The list should have 2 elements, of shape `(input_dim, output_dim)`
             and (output_dim,) for weights and biases respectively.
         W_regularizer: instance of [WeightRegularizer](../regularizers.md)
@@ -669,10 +777,10 @@ class ActivityRegularization(Layer):
         self.l1 = l1
         self.l2 = l2
 
+        super(ActivityRegularization, self).__init__(**kwargs)
         activity_regularizer = ActivityRegularizer(l1=l1, l2=l2)
         activity_regularizer.set_layer(self)
         self.regularizers = [activity_regularizer]
-        super(ActivityRegularization, self).__init__(**kwargs)
 
     def get_config(self):
         config = {'l1': self.l1,
@@ -702,12 +810,7 @@ class MaxoutDense(Layer):
             or alternatively, Theano function to use for weights
             initialization. This parameter is only relevant
             if you don't pass a `weights` argument.
-        activation: name of activation function to use
-            (see [activations](../activations.md)),
-            or alternatively, elementwise Theano function.
-            If you don't specify anything, no activation is applied
-            (ie. "linear" activation: a(x) = x).
-        weights: list of numpy arrays to set as initial weights.
+        weights: list of Numpy arrays to set as initial weights.
             The list should have 2 elements, of shape `(input_dim, output_dim)`
             and (output_dim,) for weights and biases respectively.
         W_regularizer: instance of [WeightRegularizer](../regularizers.md)
@@ -839,7 +942,7 @@ class Highway(Layer):
             or alternatively, elementwise Theano function.
             If you don't specify anything, no activation is applied
             (ie. "linear" activation: a(x) = x).
-        weights: list of numpy arrays to set as initial weights.
+        weights: list of Numpy arrays to set as initial weights.
             The list should have 2 elements, of shape `(input_dim, output_dim)`
             and (output_dim,) for weights and biases respectively.
         W_regularizer: instance of [WeightRegularizer](../regularizers.md)
@@ -972,8 +1075,10 @@ class TimeDistributedDense(Layer):
 
     # Input shape
         3D tensor with shape `(nb_sample, time_dimension, input_dim)`.
+
     # Output shape
         3D tensor with shape `(nb_sample, time_dimension, output_dim)`.
+
     # Arguments
         output_dim: int > 0.
         init: name of initialization function for the weights of the layer
@@ -986,7 +1091,7 @@ class TimeDistributedDense(Layer):
             or alternatively, elementwise Theano function.
             If you don't specify anything, no activation is applied
             (ie. "linear" activation: a(x) = x).
-        weights: list of numpy arrays to set as initial weights.
+        weights: list of Numpy arrays to set as initial weights.
             The list should have 2 elements, of shape `(input_dim, output_dim)`
             and (output_dim,) for weights and biases respectively.
         W_regularizer: instance of [WeightRegularizer](../regularizers.md)

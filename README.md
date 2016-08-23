@@ -2,6 +2,7 @@
 
 [![Build Status](https://travis-ci.org/fchollet/keras.svg?branch=master)](https://travis-ci.org/fchollet/keras)
 [![PyPI version](https://badge.fury.io/py/keras.svg)](https://badge.fury.io/py/keras)
+[![license](https://img.shields.io/github/license/mashape/apistatus.svg?maxAge=2592000)](https://github.com/fchollet/keras/blob/master/LICENSE)
 
 ## You have just found Keras.
 
@@ -51,7 +52,7 @@ model = Sequential()
 Stacking layers is as easy as `.add()`:
 
 ```python
-from keras.layers.core import Dense, Activation
+from keras.layers import Dense, Activation
 
 model.add(Dense(output_dim=64, input_dim=100))
 model.add(Activation("relu"))
@@ -124,12 +125,12 @@ Keras uses the following dependencies:
     - [See installation instructions](https://github.com/tensorflow/tensorflow#download-and-setup).
 
 To install Keras, `cd` to the Keras folder and run the install command:
-```
+```sh
 sudo python setup.py install
 ```
 
 You can also install Keras from PyPI:
-```
+```sh
 sudo pip install keras
 ```
 

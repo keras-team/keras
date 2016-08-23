@@ -16,6 +16,46 @@ class Regularizer(object):
         return {'name': self.__class__.__name__}
 
 
+class EigenvalueRegularizer(Regularizer):
+    '''This takes a constant that controls
+    the regularization by Eigenvalue Decay on the
+    current layer and outputs the regularized
+    loss (evaluated on the training data) and
+    the original loss (evaluated on the
+    validation data).
+    '''
+    def __init__(self, k):
+        self.k = k
+        self.uses_learning_phase = True
+
+    def set_param(self, p):
+        self.p = p
+
+    def __call__(self, loss):
+        power = 9  # number of iterations of the power method
+        W = self.p
+        if K.ndim(W) > 2:
+            raise Exception('Eigenvalue Decay regularizer '
+                            'is only available for dense '
+                            'and embedding layers.')
+        WW = K.dot(K.transpose(W), W)
+        dim1, dim2 = K.eval(K.shape(WW))  # number of neurons in the layer
+
+        # power method for approximating the dominant eigenvector:
+        o = K.ones([dim1, 1])  # initial values for the dominant eigenvector
+        main_eigenvect = K.dot(WW, o)
+        for n in range(power - 1):
+            main_eigenvect = K.dot(WW, main_eigenvect)
+
+        WWd = K.dot(WW, main_eigenvect)
+
+        # the corresponding dominant eigenvalue:
+        main_eigenval = K.dot(K.transpose(WWd), main_eigenvect) / K.dot(K.transpose(main_eigenvect), main_eigenvect)
+        regularized_loss = loss + (main_eigenval ** 0.5) * self.k  # multiplied by the given regularization gain
+
+        return K.in_train_phase(regularized_loss[0, 0], loss)
+
+
 class WeightRegularizer(Regularizer):
     def __init__(self, l1=0., l2=0.):
         self.l1 = K.cast_to_floatx(l1)
@@ -35,14 +75,17 @@ class WeightRegularizer(Regularizer):
                             'ActivityRegularizer '
                             '(i.e. activity_regularizer="l2" instead '
                             'of activity_regularizer="activity_l2".')
-        regularized_loss = loss + K.sum(K.abs(self.p)) * self.l1
-        regularized_loss += K.sum(K.square(self.p)) * self.l2
+        regularized_loss = loss
+        if self.l1:
+            regularized_loss += K.sum(self.l1 * K.abs(self.p))
+        if self.l2:
+            regularized_loss += K.sum(self.l2 * K.square(self.p))
         return K.in_train_phase(regularized_loss, loss)
 
     def get_config(self):
         return {'name': self.__class__.__name__,
-                'l1': self.l1,
-                'l2': self.l2}
+                'l1': float(self.l1),
+                'l2': float(self.l2)}
 
 
 class ActivityRegularizer(Regularizer):
@@ -62,14 +105,16 @@ class ActivityRegularizer(Regularizer):
         regularized_loss = loss
         for i in range(len(self.layer.inbound_nodes)):
             output = self.layer.get_output_at(i)
-            regularized_loss += self.l1 * K.sum(K.mean(K.abs(output), axis=0))
-            regularized_loss += self.l2 * K.sum(K.mean(K.square(output), axis=0))
+            if self.l1:
+                regularized_loss += K.sum(self.l1 * K.abs(output))
+            if self.l2:
+                regularized_loss += K.sum(self.l2 * K.square(output))
         return K.in_train_phase(regularized_loss, loss)
 
     def get_config(self):
         return {'name': self.__class__.__name__,
-                'l1': self.l1,
-                'l2': self.l2}
+                'l1': float(self.l1),
+                'l2': float(self.l2)}
 
 
 def l1(l=0.01):

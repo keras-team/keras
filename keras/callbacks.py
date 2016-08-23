@@ -9,6 +9,7 @@ import warnings
 from collections import deque
 from .utils.generic_utils import Progbar
 from keras import backend as K
+from pkg_resources import parse_version
 
 
 class CallbackList(object):
@@ -192,7 +193,7 @@ class ProgbarLogger(Callback):
             if k in logs:
                 self.log_values.append((k, logs[k]))
         if self.verbose:
-            self.progbar.update(self.seen, self.log_values)
+            self.progbar.update(self.seen, self.log_values, force=True)
 
 
 class History(Callback):
@@ -210,9 +211,7 @@ class History(Callback):
     def on_epoch_end(self, epoch, logs={}):
         self.epoch.append(epoch)
         for k, v in logs.items():
-            if k not in self.history:
-                self.history[k] = []
-            self.history[k].append(v)
+            self.history.setdefault(k, []).append(v)
 
 
 class ModelCheckpoint(Callback):
@@ -232,25 +231,29 @@ class ModelCheckpoint(Callback):
         verbose: verbosity mode, 0 or 1.
         save_best_only: if `save_best_only=True`,
             the latest best model according to
-            the validation loss will not be overwritten.
+            the quantity monitored will not be overwritten.
         mode: one of {auto, min, max}.
             If `save_best_only=True`, the decision
             to overwrite the current save file is made
             based on either the maximization or the
-            minization of the monitored. For `val_acc`,
+            minimization of the monitored quantity. For `val_acc`,
             this should be `max`, for `val_loss` this should
             be `min`, etc. In `auto` mode, the direction is
             automatically inferred from the name of the monitored quantity.
+        save_weights_only: if True, then only the model's weights will be
+            saved (`model.save_weights(filepath)`), else the full model
+            is saved (`model.save(filepath)`).
 
     '''
     def __init__(self, filepath, monitor='val_loss', verbose=0,
-                 save_best_only=False, mode='auto'):
-
-        super(Callback, self).__init__()
+                 save_best_only=False, save_weights_only=False,
+                 mode='auto'):
+        super(ModelCheckpoint, self).__init__()
         self.monitor = monitor
         self.verbose = verbose
         self.filepath = filepath
         self.save_best_only = save_best_only
+        self.save_weights_only = save_weights_only
 
         if mode not in ['auto', 'min', 'max']:
             warnings.warn('ModelCheckpoint mode %s is unknown, '
@@ -287,7 +290,10 @@ class ModelCheckpoint(Callback):
                               % (epoch, self.monitor, self.best,
                                  current, filepath))
                     self.best = current
-                    self.model.save_weights(filepath, overwrite=True)
+                    if self.save_weights_only:
+                        self.model.save_weights(filepath, overwrite=True)
+                    else:
+                        self.model.save(filepath, overwrite=True)
                 else:
                     if self.verbose > 0:
                         print('Epoch %05d: %s did not improve' %
@@ -295,7 +301,10 @@ class ModelCheckpoint(Callback):
         else:
             if self.verbose > 0:
                 print('Epoch %05d: saving model to %s' % (epoch, filepath))
-            self.model.save_weights(filepath, overwrite=True)
+            if self.save_weights_only:
+                self.model.save_weights(filepath, overwrite=True)
+            else:
+                self.model.save(filepath, overwrite=True)
 
 
 class EarlyStopping(Callback):
@@ -313,7 +322,7 @@ class EarlyStopping(Callback):
             monitored has stopped increasing.
     '''
     def __init__(self, monitor='val_loss', patience=0, verbose=0, mode='auto'):
-        super(Callback, self).__init__()
+        super(EarlyStopping, self).__init__()
 
         self.monitor = monitor
         self.patience = patience
@@ -322,22 +331,23 @@ class EarlyStopping(Callback):
 
         if mode not in ['auto', 'min', 'max']:
             warnings.warn('EarlyStopping mode %s is unknown, '
-                          'fallback to auto mode.' % (self.mode), RuntimeWarning)
+                          'fallback to auto mode.' % (self.mode),
+                          RuntimeWarning)
             mode = 'auto'
 
         if mode == 'min':
             self.monitor_op = np.less
-            self.best = np.Inf
         elif mode == 'max':
             self.monitor_op = np.greater
-            self.best = -np.Inf
         else:
             if 'acc' in self.monitor:
                 self.monitor_op = np.greater
-                self.best = -np.Inf
             else:
                 self.monitor_op = np.less
-                self.best = np.Inf
+
+    def on_train_begin(self, logs={}):
+        self.wait = 0       # Allow instances to be re-used
+        self.best = np.Inf if self.monitor_op == np.less else -np.Inf
 
     def on_epoch_end(self, epoch, logs={}):
         current = logs.get(self.monitor)
@@ -364,12 +374,19 @@ class RemoteMonitor(Callback):
     # Arguments
         root: root url to which the events will be sent (at the end
             of every epoch). Events are sent to
-            `root + '/publish/epoch/end/'`. Calls are HTTP POST,
-            with a `data` argument which is a JSON-encoded dictionary
-            of event data.
+            `root + '/publish/epoch/end/'` by default. Calls are
+            HTTP POST, with a `data` argument which is a
+            JSON-encoded dictionary of event data.
     '''
-    def __init__(self, root='http://localhost:9000'):
+
+    def __init__(self,
+                 root='http://localhost:9000',
+                 path='/publish/epoch/end/',
+                 field='data'):
+        super(RemoteMonitor, self).__init__()
         self.root = root
+        self.path = path
+        self.field = field
 
     def on_epoch_end(self, epoch, logs={}):
         import requests
@@ -377,10 +394,9 @@ class RemoteMonitor(Callback):
         send['epoch'] = epoch
         for k, v in logs.items():
             send[k] = v
-
         try:
-            requests.post(self.root + '/publish/epoch/end/',
-                          {'data': json.dumps(send)})
+            requests.post(self.root + self.path,
+                          {self.field: json.dumps(send)})
         except:
             print('Warning: could not reach RemoteMonitor '
                   'root server at ' + str(self.root))
@@ -426,16 +442,17 @@ class TensorBoard(Callback):
 
     # Arguments
         log_dir: the path of the directory where to save the log
-            files to be parsed by tensorboard
+            files to be parsed by Tensorboard
         histogram_freq: frequency (in epochs) at which to compute activation
             histograms for the layers of the model. If set to 0,
             histograms won't be computed.
-        write_graph: whether to visualize the graph in tensorboard. The log file can
-            become quite large when write_graph is set to True.
+        write_graph: whether to visualize the graph in Tensorboard.
+            The log file can become quite large when
+            write_graph is set to True.
     '''
 
     def __init__(self, log_dir='./logs', histogram_freq=0, write_graph=True):
-        super(Callback, self).__init__()
+        super(TensorBoard, self).__init__()
         if K._BACKEND != 'tensorflow':
             raise Exception('TensorBoard callback only works '
                             'with the TensorFlow backend.')
@@ -462,8 +479,7 @@ class TensorBoard(Callback):
                                          layer.output)
         self.merged = tf.merge_all_summaries()
         if self.write_graph:
-            tf_version = tuple(int(i) for i in tf.__version__.split('.'))
-            if tf_version >= (0, 8, 0):
+            if parse_version(tf.__version__) >= parse_version('0.8.0'):
                 self.writer = tf.train.SummaryWriter(self.log_dir,
                                                      self.sess.graph)
             else:

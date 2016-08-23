@@ -9,7 +9,7 @@ from keras import backend as K
 from keras.models import Graph, Sequential
 from keras.layers.core import Dense, Activation, Merge, Lambda
 from keras.utils import np_utils
-from keras.utils.test_utils import get_test_data
+from keras.utils.test_utils import get_test_data, keras_test
 from keras.models import model_from_json, model_from_yaml
 from keras import objectives
 from keras.engine.training import make_batches
@@ -20,6 +20,23 @@ nb_hidden = 8
 nb_class = 4
 batch_size = 32
 nb_epoch = 1
+
+
+@keras_test
+def test_sequential_pop():
+    model = Sequential()
+    model.add(Dense(nb_hidden, input_dim=input_dim))
+    model.add(Dense(nb_class))
+    model.compile(loss='mse', optimizer='sgd')
+    x = np.random.random((batch_size, input_dim))
+    y = np.random.random((batch_size, nb_class))
+    model.fit(x, y, nb_epoch=1)
+    model.pop()
+    assert len(model.layers) == 1
+    assert model.output_shape == (None, nb_hidden)
+    model.compile(loss='mse', optimizer='sgd')
+    y = np.random.random((batch_size, nb_hidden))
+    model.fit(x, y, nb_epoch=1)
 
 
 def _get_test_data():
@@ -38,6 +55,7 @@ def _get_test_data():
     return (X_train, y_train), (X_test, y_test)
 
 
+@keras_test
 def test_sequential_fit_generator():
     (X_train, y_train), (X_test, y_test) = _get_test_data()
 
@@ -59,6 +77,8 @@ def test_sequential_fit_generator():
     model.add(Dense(nb_hidden, input_shape=(input_dim,)))
     model.add(Activation('relu'))
     model.add(Dense(nb_class))
+    model.pop()
+    model.add(Dense(nb_class))
     model.add(Activation('softmax'))
     model.compile(loss='categorical_crossentropy', optimizer='rmsprop')
 
@@ -67,10 +87,10 @@ def test_sequential_fit_generator():
     model.fit_generator(data_generator(True), len(X_train), nb_epoch,
                         validation_data=data_generator(False), nb_val_samples=batch_size * 3)
     model.fit_generator(data_generator(True), len(X_train), nb_epoch, max_q_size=2)
+    model.evaluate(X_train, y_train)
 
-    loss = model.evaluate(X_train, y_train)
 
-
+@keras_test
 def test_sequential():
     (X_train, y_train), (X_test, y_test) = _get_test_data()
 
@@ -128,16 +148,17 @@ def test_sequential():
 
     # test serialization
     config = model.get_config()
-    new_model = Sequential.from_config(config)
+    Sequential.from_config(config)
 
     model.summary()
     json_str = model.to_json()
-    new_model = model_from_json(json_str)
+    model_from_json(json_str)
 
     yaml_str = model.to_yaml()
-    new_model = model_from_yaml(yaml_str)
+    model_from_yaml(yaml_str)
 
 
+@keras_test
 def test_nested_sequential():
     (X_train, y_train), (X_test, y_test) = _get_test_data()
 
@@ -190,16 +211,17 @@ def test_nested_sequential():
 
     # test serialization
     config = model.get_config()
-    new_model = Sequential.from_config(config)
+    Sequential.from_config(config)
 
     model.summary()
     json_str = model.to_json()
-    new_model = model_from_json(json_str)
+    model_from_json(json_str)
 
     yaml_str = model.to_yaml()
-    new_model = model_from_yaml(yaml_str)
+    model_from_yaml(yaml_str)
 
 
+@keras_test
 def test_merge_sum():
     (X_train, y_train), (X_test, y_test) = _get_test_data()
     left = Sequential()
@@ -249,16 +271,17 @@ def test_merge_sum():
 
     # test serialization
     config = model.get_config()
-    new_model = Sequential.from_config(config)
+    Sequential.from_config(config)
 
     model.summary()
     json_str = model.to_json()
-    new_model = model_from_json(json_str)
+    model_from_json(json_str)
 
     yaml_str = model.to_yaml()
-    new_model = model_from_yaml(yaml_str)
+    model_from_yaml(yaml_str)
 
 
+@keras_test
 def test_merge_dot():
     (X_train, y_train), (X_test, y_test) = _get_test_data()
 
@@ -293,6 +316,7 @@ def test_merge_dot():
     model.compile(loss='categorical_crossentropy', optimizer='rmsprop')
 
 
+@keras_test
 def test_merge_concat():
     (X_train, y_train), (X_test, y_test) = _get_test_data()
 
@@ -332,6 +356,7 @@ def test_merge_concat():
     assert(loss == nloss)
 
 
+@keras_test
 def test_merge_recursivity():
     (X_train, y_train), (X_test, y_test) = _get_test_data()
     left = Sequential()
@@ -378,16 +403,17 @@ def test_merge_recursivity():
 
     # test serialization
     config = model.get_config()
-    new_model = Sequential.from_config(config)
+    Sequential.from_config(config)
 
     model.summary()
     json_str = model.to_json()
-    new_model = model_from_json(json_str)
+    model_from_json(json_str)
 
     yaml_str = model.to_yaml()
-    new_model = model_from_yaml(yaml_str)
+    model_from_yaml(yaml_str)
 
 
+@keras_test
 def test_merge_overlap():
     (X_train, y_train), (X_test, y_test) = _get_test_data()
     left = Sequential()
@@ -425,16 +451,17 @@ def test_merge_overlap():
 
     # test serialization
     config = model.get_config()
-    new_model = Sequential.from_config(config)
+    Sequential.from_config(config)
 
     model.summary()
     json_str = model.to_json()
-    new_model = model_from_json(json_str)
+    model_from_json(json_str)
 
     yaml_str = model.to_yaml()
-    new_model = model_from_yaml(yaml_str)
+    model_from_yaml(yaml_str)
 
 
+@keras_test
 def test_sequential_count_params():
     input_dim = 20
     nb_units = 10

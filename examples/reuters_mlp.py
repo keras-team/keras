@@ -8,8 +8,7 @@ np.random.seed(1337)  # for reproducibility
 
 from keras.datasets import reuters
 from keras.models import Sequential
-from keras.layers.core import Dense, Dropout, Activation
-from keras.layers.normalization import BatchNormalization
+from keras.layers import Dense, Dropout, Activation
 from keras.utils import np_utils
 from keras.preprocessing.text import Tokenizer
 
