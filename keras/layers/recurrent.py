@@ -12,13 +12,10 @@ def time_distributed_dense(x, w, b=None, dropout=None,
     '''Apply y.w + b for every temporal slice y of x.
     '''
     if not input_dim:
-        # won't work with TensorFlow
         input_dim = K.shape(x)[2]
     if not timesteps:
-        # won't work with TensorFlow
         timesteps = K.shape(x)[1]
     if not output_dim:
-        # won't work with TensorFlow
         output_dim = K.shape(w)[1]
 
     if dropout is not None and 0. < dropout < 1.:
@@ -30,12 +27,13 @@ def time_distributed_dense(x, w, b=None, dropout=None,
 
     # collapse time dimension and batch dimension together
     x = K.reshape(x, (-1, input_dim))
-
     x = K.dot(x, w)
     if b:
         x = x + b
     # reshape to 3D tensor
-    x = K.reshape(x, (-1, timesteps, output_dim))
+    x = K.reshape(x, K.pack([-1, timesteps, output_dim]))
+    if K.backend() == 'tensorflow':
+        x.set_shape([None, None, output_dim])
     return x
 
 
@@ -204,7 +202,6 @@ class Recurrent(Layer):
         else:
             initial_states = self.get_initial_states(x)
         constants = self.get_constants(x)
-        print('x.shape', x.get_shape())
         preprocessed_input = self.preprocess_input(x)
 
         last_output, outputs, states = K.rnn(self.step, preprocessed_input,

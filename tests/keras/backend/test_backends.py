@@ -321,6 +321,23 @@ class TestBackend(object):
         assert_allclose(tf_outputs, th_outputs, atol=1e-04)
         assert_allclose(tf_state, th_state, atol=1e-04)
 
+        # test unroll
+        unrolled_last_output, unrolled_outputs, unrolled_new_states = KTH.rnn(
+            th_rnn_step_fn, th_inputs,
+            th_initial_states,
+            go_backwards=False,
+            mask=None,
+            unroll=True,
+            input_length=timesteps)
+
+        unrolled_th_last_output = KTH.eval(unrolled_last_output)
+        unrolled_th_outputs = KTH.eval(unrolled_outputs)
+        assert len(unrolled_new_states) == 1
+        unrolled_th_state = KTH.eval(unrolled_new_states[0])
+        assert_allclose(th_last_output, unrolled_th_last_output, atol=1e-04)
+        assert_allclose(th_outputs, unrolled_th_outputs, atol=1e-04)
+        assert_allclose(th_state, unrolled_th_state, atol=1e-04)
+
         # test go_backwards
         th_rnn_step_fn = rnn_step_fn(input_dim, output_dim, KTH)
         th_inputs = KTH.variable(input_val)
@@ -349,23 +366,6 @@ class TestBackend(object):
         assert_allclose(tf_last_output, th_last_output, atol=1e-04)
         assert_allclose(tf_outputs, th_outputs, atol=1e-04)
         assert_allclose(tf_state, th_state, atol=1e-04)
-
-        # test unroll
-        unrolled_last_output, unrolled_outputs, unrolled_new_states = KTH.rnn(
-            th_rnn_step_fn, th_inputs,
-            th_initial_states,
-            go_backwards=False,
-            mask=None,
-            unroll=True,
-            input_length=timesteps)
-
-        unrolled_th_last_output = KTH.eval(unrolled_last_output)
-        unrolled_th_outputs = KTH.eval(unrolled_outputs)
-        assert len(unrolled_new_states) == 1
-        unrolled_th_state = KTH.eval(unrolled_new_states[0])
-        assert_allclose(th_last_output, unrolled_th_last_output, atol=1e-04)
-        assert_allclose(th_outputs, unrolled_th_outputs, atol=1e-04)
-        assert_allclose(th_state, unrolled_th_state, atol=1e-04)
 
         # test unroll with backwards = True
         bwd_last_output, bwd_outputs, bwd_new_states = KTH.rnn(
