@@ -430,7 +430,7 @@ class Deconvolution2D(Convolution2D):
             a `weights` argument.
         activation: name of activation function to use
             (see [activations](../activations.md)),
-            or alternatively, elementwise Theano function.
+            or alternatively, elementwise Theano/TensorFlow function.
             If you don't specify anything, no activation is applied
             (ie. "linear" activation: a(x) = x).
         weights: list of numpy arrays to set as initial weights.
@@ -453,11 +453,13 @@ class Deconvolution2D(Convolution2D):
             Keras config file at `~/.keras/keras.json`.
             If you never set it, then it will be "th".
         bias: whether to include a bias (i.e. make the layer affine rather than linear).
+        
     # Input shape
         4D tensor with shape:
         `(samples, channels, rows, cols)` if dim_ordering='th'
         or 4D tensor with shape:
         `(samples, rows, cols, channels)` if dim_ordering='tf'.
+        
     # Output shape
         4D tensor with shape:
         `(samples, nb_filter, new_rows, new_cols)` if dim_ordering='th'
@@ -466,9 +468,8 @@ class Deconvolution2D(Convolution2D):
         `rows` and `cols` values might have changed due to padding.
 
     # References
-        [1] [A guide to convolution arithmetic for deep learning] arXiv:1603.07285v1 [stat.ML]
-        [2] [Transposed convolution arithmetic]
-            (http://deeplearning.net/software/theano_versions/dev/tutorial/conv_arithmetic.html#transposed-convolution-arithmetic)
+        [1] [A guide to convolution arithmetic for deep learning](https://arxiv.org/abs/1603.07285 "arXiv:1603.07285v1 [stat.ML]")
+        [2] [Transposed convolution arithmetic](http://deeplearning.net/software/theano_versions/dev/tutorial/conv_arithmetic.html#transposed-convolution-arithmetic)
         [3] [Deconvolutional Networks](http://www.matthewzeiler.com/pubs/cvpr2010/cvpr2010.pdf)
     '''
     def __init__(self, nb_filter, nb_row, nb_col, output_shape,
