@@ -26,7 +26,7 @@ def test_sequential_model_saving():
     model.train_on_batch(x, y)
 
     out = model.predict(x)
-    fname = 'tmp_' + str(np.random.randint(10000)) + '.h5'
+    _, fname = tempfile.mkstemp('.h5')
     save_model(model, fname)
 
     new_model = load_model(fname)
@@ -64,7 +64,7 @@ def test_sequential_model_saving_2():
     model.train_on_batch(x, y)
 
     out = model.predict(x)
-    fname = 'tmp_' + str(np.random.randint(10000)) + '.h5'
+    _, fname = tempfile.mkstemp('.h5')
     save_model(model, fname)
 
     new_model = load_model(fname)
@@ -98,7 +98,7 @@ def test_sequential_model_saving_3():
     model.train_on_batch(x, y)
 
     out = model.predict(x)
-    fname = 'tmp_' + str(np.random.randint(10000)) + '.h5'
+    _, fname = tempfile.mkstemp('.h5')
     save_model(model, fname)
 
     model = load_model(fname,
@@ -125,7 +125,7 @@ def test_fuctional_model_saving():
     model.train_on_batch(x, y)
 
     out = model.predict(x)
-    fname = 'tmp_' + str(np.random.randint(10000)) + '.h5'
+    _, fname = tempfile.mkstemp('.h5')
     save_model(model, fname)
 
     model = load_model(fname)
@@ -142,7 +142,7 @@ def test_saving_without_compilation():
     model.add(Dense(3))
     model.compile(loss='mse', optimizer='sgd', metrics=['acc'])
 
-    fname = 'tmp_' + str(np.random.randint(10000)) + '.h5'
+    _, fname = tempfile.mkstemp('.h5')
     save_model(model, fname)
     model = load_model(fname)
     os.remove(fname)
@@ -156,7 +156,7 @@ def test_saving_right_after_compilation():
     model.compile(loss='mse', optimizer='sgd', metrics=['acc'])
     model.model._make_train_function()
 
-    fname = 'tmp_' + str(np.random.randint(10000)) + '.h5'
+    _, fname = tempfile.mkstemp('.h5')
     save_model(model, fname)
     model = load_model(fname)
     os.remove(fname)
