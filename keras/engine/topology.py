@@ -284,10 +284,14 @@ class Layer(object):
 
         # these properties will be set upon call of self.build(),
         # which itself will be called upon self.add_inbound_node if necessary.
-        self.trainable_weights = []
-        self.non_trainable_weights = []
-        self.regularizers = []
-        self.constraints = {}  # dict {tensor: constraint instance}
+        if not hasattr(self, 'trainable_weights'):
+            self.trainable_weights = []
+        if not hasattr(self, 'non_trainable_weights'):
+            self.non_trainable_weights = []
+        if not hasattr(self, 'regularizers'):
+            self.regularizers = []
+        if not hasattr(self, 'constraints'):
+            self.constraints = {}  # dict {tensor: constraint instance}
         self.built = False
 
         # these properties should be set by the user via keyword arguments.
@@ -1143,8 +1147,6 @@ class Merge(Layer):
         self.mode = mode
         self.concat_axis = concat_axis
         self.dot_axes = dot_axes
-        if type(self.dot_axes) == int:
-            self.dot_axes = [self.dot_axes, ] * 2
         self._output_shape = output_shape
         self.node_indices = node_indices
         self._output_mask = output_mask
@@ -1220,16 +1222,16 @@ class Merge(Layer):
             n2 = len(shape2)
             if type(dot_axes) == int:
                 if dot_axes < 0:
-                    dot_axes = [dot_axes % n1, dot_axes % n2]
+                    self.dot_axes = [dot_axes % n1, dot_axes % n2]
                 else:
-                    dot_axes = [n1 - dot_axes, n2 - dot_axes]
-            if type(dot_axes) not in [list, tuple]:
+                    self.dot_axes = [dot_axes, ] * 2
+            if type(self.dot_axes) not in [list, tuple]:
                 raise Exception('Invalid type for dot_axes - should be a list.')
-            if len(dot_axes) != 2:
+            if len(self.dot_axes) != 2:
                 raise Exception('Invalid format for dot_axes - should contain two elements.')
-            if type(dot_axes[0]) is not int or type(dot_axes[1]) is not int:
+            if type(self.dot_axes[0]) is not int or type(self.dot_axes[1]) is not int:
                 raise Exception('Invalid format for dot_axes - list elements should be "int".')
-            if shape1[dot_axes[0]] != shape2[dot_axes[1]]:
+            if shape1[self.dot_axes[0]] != shape2[self.dot_axes[1]]:
                 raise Exception('Dimension incompatibility using dot mode: ' +
                                 '%s != %s. ' % (shape1[dot_axes[0]], shape2[dot_axes[1]]) +
                                 'Layer shapes: %s, %s' % (shape1, shape2))
@@ -1583,6 +1585,9 @@ class Container(Layer):
             prefix = self.__class__.__name__.lower()
             name = prefix + '_' + str(K.get_uid(prefix))
         self.name = name
+
+        # whether container weights are trainable
+        self.trainable = True
 
         # Container-specific properties
         if type(input) in {list, tuple}:
@@ -1960,6 +1965,8 @@ class Container(Layer):
 
     @property
     def trainable_weights(self):
+        if not self.trainable:
+            return []
         weights = []
         for layer in self.layers:
             weights += layer.trainable_weights
@@ -1970,6 +1977,11 @@ class Container(Layer):
         weights = []
         for layer in self.layers:
             weights += layer.non_trainable_weights
+        if not self.trainable:
+            trainable_weights = []
+            for layer in self.layers:
+                trainable_weights += layer.trainable_weights
+            return trainable_weights + weights
         return weights
 
     def get_weights(self):

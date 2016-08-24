@@ -22,9 +22,10 @@ if sys.version_info[0] == 2:
             count = 0
             while 1:
                 chunk = response.read(chunk_size)
-                if not chunk:
-                    break
                 count += 1
+                if not chunk:
+                    reporthook(count, total_size, total_size)
+                    break
                 if reporthook:
                     reporthook(count, chunk_size, total_size)
                 yield chunk
@@ -73,7 +74,7 @@ def get_file(fname, origin, untar=False,
             if progbar is None:
                 progbar = Progbar(total_size)
             else:
-                progbar.update(count*block_size)
+                progbar.update(count * block_size)
 
         error_msg = 'URL fetch failure on {}: {} -- {}'
         try:

@@ -125,12 +125,12 @@ Keras uses the following dependencies:
     - [See installation instructions](https://github.com/tensorflow/tensorflow#download-and-setup).
 
 To install Keras, `cd` to the Keras folder and run the install command:
-```
+```sh
 sudo python setup.py install
 ```
 
 You can also install Keras from PyPI:
-```
+```sh
 sudo pip install keras
 ```
 

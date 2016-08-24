@@ -783,7 +783,7 @@ def batch_flatten(x):
     '''Turn a n-D tensor into a 2D tensor where
     the first dimension is conserved.
     '''
-    x = tf.reshape(x, [-1, prod(shape(x)[1:])])
+    x = tf.reshape(x, tf.pack([-1, prod(shape(x)[1:])]))
     return x
 
 
@@ -857,6 +857,15 @@ def one_hot(indices, nb_classes):
     with shape (batch_size, dim1, dim2, ... dim(n-1), nb_classes)
     '''
     return tf.one_hot(indices, depth=nb_classes, axis=-1)
+
+
+def reverse(x, axes):
+    '''Reverse a tensor along the the specified axes
+    '''
+    if type(axes) == int:
+        axes = [axes]
+    dims = [True if i in axes else False for i in range(len(x.get_shape()._dims))]
+    return tf.reverse(x, dims)
 
 
 # VALUE MANIPULATION
@@ -1387,14 +1396,16 @@ def tanh(x):
     return tf.nn.tanh(x)
 
 
-def dropout(x, level, seed=None):
+def dropout(x, level, noise_shape=None, seed=None):
     '''Sets entries in `x` to zero at random,
     while scaling the entire tensor.
 
     # Arguments
         x: tensor
         level: fraction of the entries in the tensor
-            that will be set to 0
+            that will be set to 0.
+        noise_shape: shape for randomly generated keep/drop flags,
+            must be broadcastable to the shape of `x`
         seed: random seed to ensure determinism.
     '''
     retain_prob = 1. - level
@@ -1402,7 +1413,7 @@ def dropout(x, level, seed=None):
         seed = np.random.randint(10e6)
     # the dummy 1. works around a TF bug
     # (float32_ref vs. float32 incomptability)
-    return tf.nn.dropout(x * 1., retain_prob, seed=seed)
+    return tf.nn.dropout(x * 1., retain_prob, noise_shape, seed=seed)
 
 
 def l2_normalize(x, axis):
@@ -1701,3 +1712,113 @@ def random_binomial(shape, p=0.0, dtype=_FLOATX, seed=None):
     return tf.select(tf.random_uniform(shape, dtype=dtype, seed=seed) <= p,
                      tf.ones(shape, dtype=dtype),
                      tf.zeros(shape, dtype=dtype))
+
+# CTC
+# tensorflow has a native implemenation, but it uses sparse tensors
+# and therefore requires a wrapper for Keras. The functions below convert
+# dense to sparse tensors and also wraps up the beam search code that is
+# in tensorflow's CTC implementation
+
+def ctc_label_dense_to_sparse(labels, label_lengths):
+    # undocumented feature soon to be made public
+    from tensorflow.python.ops import functional_ops
+    label_shape = tf.shape(labels)
+    num_batches_tns = tf.pack([label_shape[0]])
+    max_num_labels_tns = tf.pack([label_shape[1]])
+
+    def range_less_than(previous_state, current_input):
+        return tf.expand_dims(tf.range(label_shape[1]), 0) < current_input
+
+    init = tf.cast(tf.fill(max_num_labels_tns, 0), tf.bool)
+    dense_mask = functional_ops.scan(range_less_than, label_lengths,
+                                     initializer=init, parallel_iterations=1)
+    dense_mask = dense_mask[:, 0, :]
+
+    label_array = tf.reshape(tf.tile(tf.range(0, label_shape[1]), num_batches_tns),
+                             label_shape)
+    label_ind = tf.boolean_mask(label_array, dense_mask)
+
+    batch_array = tf.transpose(tf.reshape(tf.tile(tf.range(0, label_shape[0]),
+                                                  max_num_labels_tns), tf.reverse(label_shape, [True])))
+    batch_ind = tf.boolean_mask(batch_array, dense_mask)
+    indices = tf.transpose(tf.reshape(tf.concat(0, [batch_ind, label_ind]), [2, -1]))
+
+    vals_sparse = tf.gather_nd(labels, indices)
+
+    return tf.SparseTensor(tf.to_int64(indices), vals_sparse, tf.to_int64(label_shape))
+
+
+def ctc_batch_cost(y_true, y_pred, input_length, label_length):
+
+    '''Runs CTC loss algorithm on each batch element.
+
+    # Arguments
+        y_true: tensor (samples, max_string_length) containing the truth labels
+        y_pred: tensor (samples, time_steps, num_categories) containing the prediction,
+                or output of the softmax
+        input_length: tensor (samples,1) containing the sequence length for
+                each batch item in y_pred
+        label_length: tensor (samples,1) containing the sequence length for
+                each batch item in y_true
+
+    # Returns
+        Tensor with shape (samples,1) containing the
+            CTC loss of each element
+    '''
+    label_length = tf.to_int32(tf.squeeze(label_length))
+    input_length = tf.to_int32(tf.squeeze(input_length))
+    sparse_labels = tf.to_int32(ctc_label_dense_to_sparse(y_true, label_length))
+
+    y_pred = tf.log(tf.transpose(y_pred, perm=[1, 0, 2]) + 1e-8)
+
+    return tf.expand_dims(tf.contrib.ctc.ctc_loss(inputs=y_pred,
+                                                  labels=sparse_labels,
+                                                  sequence_length=input_length), 1)
+
+
+def ctc_decode(y_pred, input_length, greedy=True, beam_width=None,
+               dict_seq_lens=None, dict_values=None):
+    '''Decodes the output of a softmax using either
+       greedy (also known as best path) or a constrained dictionary
+       search.
+
+    # Arguments
+        y_pred: tensor (samples, time_steps, num_categories) containing the prediction,
+                or output of the softmax
+        input_length: tensor (samples,1) containing the sequence length for
+                each batch item in y_pred
+        greedy:  perform much faster best-path search if true.  This does
+                not use a dictionary
+        beam_width:  if greedy is false and this value is not none, then
+                the constrained dictionary search uses a beam of this width
+        dict_seq_lens: the length of each element in the dict_values list
+        dict_values:  list of lists representing the dictionary.
+
+    # Returns
+        Tensor with shape (samples,time_steps,num_categories) containing the
+            path probabilities (in softmax output format).  Note that a function that
+            pulls out the argmax and collapses blank labels is still needed.
+    '''
+    y_pred = tf.log(tf.transpose(y_pred, perm=[1, 0, 2]) + 1e-8)
+    input_length = tf.to_int32(tf.squeeze(input_length))
+
+    if greedy:
+        (decoded, log_prob) = tf.contrib.ctc.ctc_greedy_decoder(
+            inputs=y_pred,
+            sequence_length=input_length)
+    else:
+        if beam_width is not None:
+            (decoded, log_prob) = tf.contrib.ctc.ctc_beam_search_decoder(
+                inputs=y_pred,
+                sequence_length=input_length,
+                dict_seq_lens=dict_seq_lens, dict_values=dict_values)
+        else:
+            (decoded, log_prob) = tf.contrib.ctc.ctc_beam_search_decoder(
+                inputs=y_pred,
+                sequence_length=input_length, beam_width=beam_width,
+                dict_seq_lens=dict_seq_lens, dict_values=dict_values)
+
+    decoded_dense = [tf.sparse_to_dense(st.indices, st.shape, st.values, default_value=-1)
+                     for st in decoded]
+
+    return (decoded_dense, log_prob)

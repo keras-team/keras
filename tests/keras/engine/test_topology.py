@@ -4,10 +4,53 @@ import numpy as np
 
 from keras.layers import Dense, Dropout, InputLayer
 from keras.engine import merge, Input, get_source_inputs
-from keras.models import Model
+from keras.models import Model, Sequential
 from keras import backend as K
 from keras.models import model_from_json, model_from_yaml
 from keras.utils.test_utils import keras_test
+
+
+@keras_test
+def test_trainable_weights():
+    a = Input(shape=(2,))
+    b = Dense(1)(a)
+    model = Model(a, b)
+
+    weights = model.weights
+    assert model.trainable_weights == weights
+    assert model.non_trainable_weights == []
+
+    model.trainable = False
+    assert model.trainable_weights == []
+    assert model.non_trainable_weights == weights
+
+    model.trainable = True
+    assert model.trainable_weights == weights
+    assert model.non_trainable_weights == []
+
+    model.layers[1].trainable = False
+    assert model.trainable_weights == []
+    assert model.non_trainable_weights == weights
+
+    # sequential model
+    model = Sequential()
+    model.add(Dense(1, input_dim=2))
+    weights = model.weights
+
+    assert model.trainable_weights == weights
+    assert model.non_trainable_weights == []
+
+    model.trainable = False
+    assert model.trainable_weights == []
+    assert model.non_trainable_weights == weights
+
+    model.trainable = True
+    assert model.trainable_weights == weights
+    assert model.non_trainable_weights == []
+
+    model.layers[0].trainable = False
+    assert model.trainable_weights == []
+    assert model.non_trainable_weights == weights
 
 
 @keras_test
