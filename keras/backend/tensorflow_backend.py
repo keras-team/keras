@@ -1198,7 +1198,6 @@ def rnn(step_function, inputs, initial_states,
             new_states = [final_state]
 
         # all this circus is to recover the last vector in the sequence.
-        # TF is such a pleasure to work with, beautifully designed
         begin = tf.pack([tf.shape(outputs)[0] - 1, 0, 0])
         size = tf.pack([1, -1, -1])
         last_output = tf.slice(outputs, begin, size)
