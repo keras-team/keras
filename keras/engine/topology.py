@@ -2473,7 +2473,7 @@ class Container(Layer):
         '''Load all layer weights from a HDF5 save file.
 
         If `by_name` is False (default) weights are loaded
-        in flattened array order, meaning the architecture
+        based on the network's topology, meaning the architecture
         should be the same as when the weights were saved.
 
         If `by_name` is True, weights are loaded into layers
@@ -2566,8 +2566,8 @@ class Container(Layer):
             K.batch_set_value(weight_value_tuples)
 
     def load_weights_from_hdf5_group_by_name(self, f):
-        '''Weight loading is based on layer names
-        (not by sequential order).
+        ''' Name-based weight loading
+        (instead of topological weight loading).
         Layers that have no matching name are skipped.
         '''
         if hasattr(self, 'flattened_layers'):
@@ -2577,9 +2577,9 @@ class Container(Layer):
             flattened_layers = self.layers
 
         if 'nb_layers' in f.attrs:
-                raise Exception('You are trying to load a weight file ' +
-                                'by name with an unsupported legacy' +
-                                'format.')
+                raise Exception('The weight file you are trying to load is' +
+                                ' in a legacy format that does not support' +
+                                ' name-based weight loading.')
         else:
             # new file format
             layer_names = [n.decode('utf8') for n in f.attrs['layer_names']]
@@ -2603,7 +2603,7 @@ class Container(Layer):
                     if len(weight_values) != len(symbolic_weights):
                         raise Exception('Layer #' + str(k) +
                                         ' (named "' + layer.name +
-                                        '" in the current model) expects ' +
+                                        '") expects ' +
                                         str(len(symbolic_weights)) +
                                         ' weight(s), but the saved weights' +
                                         ' have ' + str(len(weight_values)) +
