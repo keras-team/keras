@@ -645,6 +645,10 @@ def batch_set_value(tuples):
         x.set_value(np.asarray(value, dtype=x.dtype))
 
 
+def get_variable_shape(x):
+    return x.get_value().shape
+
+
 def print_tensor(x, message=''):
     '''Print the message and the tensor when evaluated and return the same
     tensor.

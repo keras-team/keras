@@ -931,6 +931,10 @@ def batch_set_value(tuples):
         get_session().run(assign_ops, feed_dict=feed_dict)
 
 
+def get_variable_shape(x):
+    return int_shape(x)
+
+
 def print_tensor(x, message=''):
     '''Print the message and the tensor when evaluated and return the same
     tensor.

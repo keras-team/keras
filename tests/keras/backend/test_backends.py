@@ -160,6 +160,11 @@ class TestBackend(object):
         check_single_tensor_operation('print_tensor', (4, 3))
         check_single_tensor_operation('print_tensor', (1, 2, 3))
 
+        val = np.random.random((3, 2))
+        xth = KTH.variable(val)
+        xtf = KTF.variable(val)
+        assert KTH.get_variable_shape(xth) == KTF.get_variable_shape(xtf)
+
     def test_elementwise_operations(self):
         check_single_tensor_operation('max', (4, 2))
         check_single_tensor_operation('max', (4, 2), axis=1, keepdims=True)
