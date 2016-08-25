@@ -1314,7 +1314,6 @@ class Merge(Layer):
                 return self.__call__(inputs[:-1], inputs[-1])
             return K.run_on_device(_call, inputs + [mask])
 
-
         if type(inputs) is not list:
             raise Exception('Merge can only be called on a list of tensors, '
                             'not a single tensor. Received: ' + str(inputs))
