@@ -495,8 +495,8 @@ class NumpyArrayIterator(Iterator):
                 img.save(os.path.join(self.save_to_dir, fname))
         if self.y is None:
             return batch_x
-        if type(self.y) is list:
-            batch_y = [y_[index_array] for y_ in self.y]
+        if type(self.y) is list and isinstance(self.y[0], np.ndarray):
+            batch_y = [y_[index_array] for y_ in self.y if ]
         else:
             batch_y = self.y[index_array]
         return batch_x, batch_y
