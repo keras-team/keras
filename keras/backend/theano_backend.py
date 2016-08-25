@@ -16,6 +16,7 @@ from .common import _FLOATX, _EPSILON, _IMAGE_DIM_ORDERING
 # INTERNAL UTILS
 theano.config.floatX = _FLOATX
 _LEARNING_PHASE = T.scalar(dtype='uint8', name='keras_learning_phase')  # 0 = test, 1 = train
+_DEVICE = theano.config.device
 
 
 def learning_phase():
@@ -1438,3 +1439,39 @@ def ctc_batch_cost(y_true, y_pred, input_length, label_length):
 
     ret = ret.dimshuffle('x', 0)
     return ret
+
+
+# MULTI GPU
+
+def set_device(dev):
+    global _DEVICE
+    if dev is None:
+        _DEVICE = theano.config.device
+    else:
+        _DEVICE = dev
+
+
+def get_device():
+    return _DEVICE
+
+
+class device:
+
+    def __init__(self, name):
+        self.name = name
+
+    def __enter__(self):
+        set_device(self.name)
+
+    def __exit__(self, type, value, traceback):
+        set_device(None)
+
+
+def run_on_device(function, inputs):
+    if _DEVICE == theano.config.device:
+        return function(*inputs)
+    else:
+        for i in range(len(inputs)):
+            if hasattr(inputs[i], 'transfer'):
+                inputs[i] = inputs[i].transfer(_DEVICE)
+        return function(*inputs)
