@@ -1011,7 +1011,7 @@ def rnn(step_function, inputs, initial_states,
     '''Iterates over the time dimension of a tensor.
 
     # Arguments
-        inputs: tensor of temporal data of shape (samples, time, ...)
+        inputs: a tensor or a list of tensors of temporal data of shape (samples, time, ...)
             (at least 3D).
         step_function:
             Parameters:
@@ -1046,11 +1046,20 @@ def rnn(step_function, inputs, initial_states,
         new_states: list of tensors, latest states returned by
             the step function, of shape (samples, ...).
     '''
-    ndim = len(inputs.get_shape())
-    assert ndim >= 3, "Input should be at least 3D."
-    axes = [1, 0] + list(range(2, ndim))
-    inputs = tf.transpose(inputs, (axes))
-    input_list = tf.unpack(inputs)
+    if type(inputs) == list:
+        input_list = [[] for _ in range(input_length)]
+        for x in inputs:
+            ndim = len(x.get_shape())
+            assert ndim >= 3, "Input should be at least 3D."
+            for t in range(input_length):
+                input_list[t] += [x[(slice(None), t) + (slice(None),) * (ndim - 2)]]
+    else:
+        ndim = len(inputs.get_shape())
+        assert ndim >= 3, "Input should be at least 3D."
+        axes = [1, 0] + list(range(2, ndim))
+        inputs = tf.transpose(inputs, (axes))
+        input_list = tf.unpack(inputs)
+
     if constants is None:
         constants = []
 
