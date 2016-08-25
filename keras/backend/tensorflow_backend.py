@@ -1841,6 +1841,9 @@ class device:
 
 
 def run_on_device(function, inputs):
-    with tf.device(_get_tf_device_name(_DEVICE)):
+    if _DEVICE is None:
         y = function(*inputs)
+    else:
+        with tf.device(_get_tf_device_name(_DEVICE)):
+            y = function(*inputs)
     return y
