@@ -1312,7 +1312,7 @@ class Merge(Layer):
 
             def _call(inputs):
                 return self.__call__(inputs[:-1], inputs[-1])
-            return run_on_device(_call, inputs + [mask])
+            return K.run_on_device(_call, inputs + [mask])
 
 
         if type(inputs) is not list:
