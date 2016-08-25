@@ -1202,10 +1202,16 @@ def rnn(step_function, inputs, initial_states,
             new_states = [final_state]
 
         # all this circus is to recover the last vector in the sequence.
-        begin = tf.pack([tf.shape(outputs)[0] - 1, 0, 0])
-        size = tf.pack([1, -1, -1])
-        last_output = tf.slice(outputs, begin, size)
-        last_output = tf.squeeze(last_output, [0])
+        ndim = len(outputs.get_shape()._dims)
+        slices = [slice(None)] * ndim
+        length = inputs.get_shape()[0]
+        if length:
+            slices[0] = length - 1
+            _outputs = outputs
+        else:
+            slices[0] = 0
+            _outputs = tf.reverse(_outputs, [True] + [False] * ndim)
+        last_output = _outputs[slices]
 
     axes = [1, 0] + list(range(2, len(outputs.get_shape())))
     outputs = tf.transpose(outputs, axes)
