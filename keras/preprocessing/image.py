@@ -496,7 +496,7 @@ class NumpyArrayIterator(Iterator):
         if self.y is None:
             return batch_x
         if type(self.y) is list and isinstance(self.y[0], np.ndarray):
-            batch_y = [y_[index_array] for y_ in self.y if ]
+            batch_y = [y_[index_array] for y_ in self.y]
         else:
             batch_y = self.y[index_array]
         return batch_x, batch_y
