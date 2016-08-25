@@ -119,9 +119,9 @@ class Recurrent(Layer):
         set to `True`.
 
     # Note on performance
-        You will see much better performance with RNNs in Theano compared to
-        TensorFlow. Additionally, when using TensorFlow, it is preferable
-        to set `unroll=True` for better performance.
+        You are likely to see better performance with RNNs in Theano compared
+        to TensorFlow. Additionally, when using TensorFlow, it is often
+        preferable to set `unroll=True` for better performance.
 
     # Note on using statefulness in RNNs
         You can set RNN layers to be 'stateful', which means that the states
