@@ -1451,7 +1451,7 @@ class Cropping1D(Layer):
         super(Cropping1D, self).__init__(**kwargs)
         self.cropping = tuple(cropping)
         assert len(self.cropping) == 2, 'cropping must be a tuple length of 2'
-        self.input_spec = [InputSpec(ndim=3)] # redundant due to build()?       
+        self.input_spec = [InputSpec(ndim=3)]
 
     def build(self, input_shape):
         self.input_spec = [InputSpec(shape=input_shape)]
@@ -1519,7 +1519,7 @@ class Cropping2D(Layer):
         assert len(self.cropping[1]) == 2, 'cropping[1] must be a tuple length of 2'
         assert dim_ordering in {'tf', 'th'}, 'dim_ordering must be in {tf, th}'
         self.dim_ordering = dim_ordering
-        self.input_spec = [InputSpec(ndim=4)]        
+        self.input_spec = [InputSpec(ndim=4)]
 
     def build(self, input_shape):
         self.input_spec = [InputSpec(shape=input_shape)]
@@ -1577,7 +1577,7 @@ class Cropping3D(Layer):
     # Output shape
         5D tensor with shape:
         (samples, depth, first_cropped_axis, second_cropped_axis, third_cropped_axis)
-    
+
     '''
 
     def __init__(self, cropping=((1, 1), (1, 1), (1, 1)), dim_ordering='default', **kwargs):
@@ -1591,7 +1591,7 @@ class Cropping3D(Layer):
         assert len(self.cropping[2]) == 2, 'cropping[2] must be a tuple length of 2'
         assert dim_ordering in {'tf', 'th'}, 'dim_ordering must be in {tf, th}'
         self.dim_ordering = dim_ordering
-        self.input_spec = [InputSpec(ndim=4)]        
+        self.input_spec = [InputSpec(ndim=5)]
 
     def build(self, input_shape):
         self.input_spec = [InputSpec(shape=input_shape)]
