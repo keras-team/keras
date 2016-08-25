@@ -12,13 +12,10 @@ def time_distributed_dense(x, w, b=None, dropout=None,
     '''Apply y.w + b for every temporal slice y of x.
     '''
     if not input_dim:
-        # won't work with TensorFlow
         input_dim = K.shape(x)[2]
     if not timesteps:
-        # won't work with TensorFlow
         timesteps = K.shape(x)[1]
     if not output_dim:
-        # won't work with TensorFlow
         output_dim = K.shape(w)[1]
 
     if dropout is not None and 0. < dropout < 1.:
@@ -30,12 +27,13 @@ def time_distributed_dense(x, w, b=None, dropout=None,
 
     # collapse time dimension and batch dimension together
     x = K.reshape(x, (-1, input_dim))
-
     x = K.dot(x, w)
     if b:
         x = x + b
     # reshape to 3D tensor
-    x = K.reshape(x, (-1, timesteps, output_dim))
+    x = K.reshape(x, K.pack([-1, timesteps, output_dim]))
+    if K.backend() == 'tensorflow':
+        x.set_shape([None, None, output_dim])
     return x
 
 
@@ -120,14 +118,10 @@ class Recurrent(Layer):
         use an [Embedding](embeddings.md) layer with the `mask_zero` parameter
         set to `True`.
 
-    # TensorFlow warning
-        For the time being, when using the TensorFlow backend,
-        the number of timesteps used must be specified in your model.
-        Make sure to pass an `input_length` int argument to your
-        recurrent layer (if it comes first in your model),
-        or to pass a complete `input_shape` argument to the first layer
-        in your model otherwise.
-
+    # Note on performance
+        You will see much better performance with RNNs in Theano compared to
+        TensorFlow. Additionally, when using TensorFlow, it is preferable
+        to set `unroll=True` for better performance.
 
     # Note on using statefulness in RNNs
         You can set RNN layers to be 'stateful', which means that the states
@@ -148,10 +142,6 @@ class Recurrent(Layer):
 
         To reset the states of your model, call `.reset_states()` on either
         a specific layer, or on your entire model.
-
-    # Note on using dropout with TensorFlow
-        When using the TensorFlow backend, specify a fixed batch size for your model
-        following the notes on statefulness RNNs.
     '''
     def __init__(self, weights=None,
                  return_sequences=False, go_backwards=False, stateful=False,
@@ -207,19 +197,6 @@ class Recurrent(Layer):
         # note that the .build() method of subclasses MUST define
         # self.input_spec with a complete input shape.
         input_shape = self.input_spec[0].shape
-        if K._BACKEND == 'tensorflow':
-            if not input_shape[1]:
-                raise Exception('When using TensorFlow, you should define '
-                                'explicitly the number of timesteps of '
-                                'your sequences.\n'
-                                'If your first layer is an Embedding, '
-                                'make sure to pass it an "input_length" '
-                                'argument. Otherwise, make sure '
-                                'the first layer has '
-                                'an "input_shape" or "batch_input_shape" '
-                                'argument, including the time axis. '
-                                'Found input shape at layer ' + self.name +
-                                ': ' + str(input_shape))
         if self.stateful:
             initial_states = self.states
         else:
