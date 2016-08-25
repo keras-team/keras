@@ -469,7 +469,7 @@ class Layer(object):
         if type(x) == list and not hasattr(x[0], '_keras_on_device'):
             x[0]._keras_on_device = True
 
-            def _call(inputs):
+            def _call(*inputs):
                 return self.__call__(inputs[:-1], inputs[-1])
             return K.run_on_device(_call, x + [mask])
         elif not hasattr(x, '_keras_on_device'):
@@ -1316,7 +1316,7 @@ class Merge(Layer):
         if not hasattr(inputs[0], '_keras_on_device'):
             inputs[0]._keras_on_device = True
 
-            def _call(inputs):
+            def _call(*inputs):
                 return self.__call__(inputs[:-1], inputs[-1])
             return K.run_on_device(_call, inputs + [mask])
 
