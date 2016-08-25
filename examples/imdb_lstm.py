@@ -1,8 +1,6 @@
 '''Trains a LSTM on the IMDB sentiment classification task.
-
 The dataset is actually too small for LSTM to be of any advantage
 compared to simpler, much faster methods such as TF-IDF + LogReg.
-
 Notes:
 
 - RNNs are tricky. Choice of batch size is important,
