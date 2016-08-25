@@ -903,6 +903,7 @@ class MaxoutDense(Layer):
         assert input_shape and len(input_shape) == 2
         return (input_shape[0], self.output_dim)
 
+
     def call(self, x, mask=None):
         # no activation, this layer is only linear.
         output = K.dot(x, self.W)
@@ -910,6 +911,7 @@ class MaxoutDense(Layer):
             output += self.b
         output = K.max(output, axis=1)
         return output
+
 
     def get_config(self):
         config = {'output_dim': self.output_dim,
@@ -1183,6 +1185,8 @@ class TimeDistributedDense(Layer):
         input_shape = self.input_spec[0].shape
         # x has shape (samples, timesteps, input_dim)
         input_length = input_shape[1]
+        if not input_length or K._BACKEND == "theano":
+            input_length = K.shape(x)[1]
         # Note: input_length should always be provided when using tensorflow backend.
         if not input_length:
             if hasattr(K, 'int_shape'):
