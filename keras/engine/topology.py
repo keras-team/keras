@@ -466,13 +466,14 @@ class Layer(object):
             mask: tensor or list/tuple of tensors.
         '''
         # place the op on the right device:
-        if type(x) == list and not hasattr(x[0], '_keras_on_device'):
+        if type(x) in [list, tuple] and not hasattr(x[0], '_keras_on_device'):
             x[0]._keras_on_device = True
 
             def _call(*inputs):
-                return self.__call__(inputs[:-1], inputs[-1])
-            return K.run_on_device(_call, x + [mask])
-        elif not hasattr(x, '_keras_on_device'):
+                assert hasattr(inputs[0], '_keras_on_device')
+                return self.__call__(list(inputs[:-1]), inputs[-1])
+            return K.run_on_device(_call, list(x) + [mask])
+        elif type(x) not in [list, tuple] and not hasattr(x, '_keras_on_device'):
             x._keras_on_device = True
             return K.run_on_device(self.__call__, [x, mask])
         if not self.built:
@@ -1317,7 +1318,7 @@ class Merge(Layer):
             inputs[0]._keras_on_device = True
 
             def _call(*inputs):
-                return self.__call__(inputs[:-1], inputs[-1])
+                return self.__call__(list(inputs[:-1]), inputs[-1])
             return K.run_on_device(_call, inputs + [mask])
 
         if type(inputs) is not list:
