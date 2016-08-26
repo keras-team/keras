@@ -61,7 +61,7 @@ Generate batches of tensor image data with real-time data augmentation. The data
             - __X__: data.
             - __y__: labels.
             - __batch_size__: int (default: 32).
-            - __shuffle__: boolean (defaut: False).
+            - __shuffle__: boolean (defaut: True).
             - __save_to_dir__: None or str (default: None). This allows you to optimally specify a directory to which to save the augmented pictures being generated (useful for visualizing what you are doing).
             - __save_prefix__: str (default: `''`). Prefix to use for filenames of saved pictures (only relevant if `save_to_dir` is set).
             - __save_format__: one of "png", "jpeg" (only relevant if `save_to_dir` is set). Default: "jpeg".
