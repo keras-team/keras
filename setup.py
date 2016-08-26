@@ -13,5 +13,6 @@ setup(name='Keras',
       install_requires=['theano', 'pyyaml', 'six'],
       extras_require={
           'h5py': ['h5py'],
+          'visualize': ['pydot-ng'],
       },
       packages=find_packages())
