@@ -396,16 +396,16 @@ class Deconvolution2D(Convolution2D):
     # Examples
 
     ```python
-    # apply a 3x3 transposed convolution with stride 1x1 and 3 output filters on a 12x12 image:
-    model = Sequential()
-    model.add(Deconvolution2D(3, 3, 3, output_shape=(None, 3, 14, 14), border_mode='valid', input_shape=(3, 12, 12)))
-    # output_shape will be (None, 3, 14, 14)
+        # apply a 3x3 transposed convolution with stride 1x1 and 3 output filters on a 12x12 image:
+        model = Sequential()
+        model.add(Deconvolution2D(3, 3, 3, output_shape=(None, 3, 14, 14), border_mode='valid', input_shape=(3, 12, 12)))
+        # output_shape will be (None, 3, 14, 14)
 
-    # apply a 3x3 transposed convolution with stride 2x2 and 3 output filters on a 12x12 image:
-    model = Sequential()
-    model.add(Deconvolution2D(3, 3, 3, output_shape=(None, 3, 25, 25), subsample=(2, 2), border_mode='valid', input_shape=(3, 12, 12)))
-    model.summary()
-    # output_shape will be (None, 3, 25, 25)
+        # apply a 3x3 transposed convolution with stride 2x2 and 3 output filters on a 12x12 image:
+        model = Sequential()
+        model.add(Deconvolution2D(3, 3, 3, output_shape=(None, 3, 25, 25), subsample=(2, 2), border_mode='valid', input_shape=(3, 12, 12)))
+        model.summary()
+        # output_shape will be (None, 3, 25, 25)
     ```
 
     # Arguments
@@ -453,13 +453,13 @@ class Deconvolution2D(Convolution2D):
             Keras config file at `~/.keras/keras.json`.
             If you never set it, then it will be "th".
         bias: whether to include a bias (i.e. make the layer affine rather than linear).
-        
+
     # Input shape
         4D tensor with shape:
         `(samples, channels, rows, cols)` if dim_ordering='th'
         or 4D tensor with shape:
         `(samples, rows, cols, channels)` if dim_ordering='tf'.
-        
+
     # Output shape
         4D tensor with shape:
         `(samples, nb_filter, new_rows, new_cols)` if dim_ordering='th'
@@ -695,6 +695,11 @@ class SeparableConvolution2D(Layer):
     provide the keyword argument `input_shape`
     (tuple of integers, does not include the sample axis),
     e.g. `input_shape=(3, 128, 128)` for 128x128 RGB pictures.
+
+    # Theano warning
+
+    This layer is only available with the
+    TensorFlow backend for the time being.
 
     # Arguments
         nb_filter: Number of convolution filters to use.
