@@ -484,7 +484,7 @@ class Lambda(Layer):
 
     # Arguments
         function: The function to be evaluated.
-            Takes one argument: the output of previous layer
+            Takes input tensor as first argument.
         output_shape: Expected output shape from function.
             Can be a tuple or function.
             If a tuple, it only specifies the first dimension onward; 
