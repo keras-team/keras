@@ -1455,7 +1455,7 @@ def get_device():
     return _DEVICE
 
 
-class device:
+class device(object):
 
     def __init__(self, name):
         self.name = name

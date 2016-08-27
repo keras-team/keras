@@ -1829,7 +1829,7 @@ def _get_tf_device_name(device):
     return '/' + device[:3] + ':' + device[3:]
 
 
-class device:
+class device(object):
 
     def __init__(self, name):
         self.name = name
