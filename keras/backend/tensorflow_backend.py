@@ -1817,6 +1817,7 @@ def ctc_decode(y_pred, input_length, greedy=True, beam_width=None,
 # MULTI GPU
 
 def set_device(dev):
+    global _DEVICE
     _DEVICE = dev
 
 
