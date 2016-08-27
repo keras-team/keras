@@ -1121,7 +1121,7 @@ def rnn(step_function, inputs, initial_states,
         from tensorflow.python.ops.rnn import _dynamic_rnn_loop
 
         if go_backwards:
-            inputs = tf.reverse(inputs, [True, False, False])
+            inputs = tf.reverse(inputs, [True] + [False] * (ndim - 1))
 
         states = initial_states
         nb_states = len(states)
@@ -1136,7 +1136,7 @@ def rnn(step_function, inputs, initial_states,
 
         if mask is not None:
             if go_backwards:
-                mask = tf.reverse(mask, [True, False, False])
+                mask = tf.reverse(mask, [True] + [False] * (ndim - 1))
 
             # Transpose not supported by bool tensor types, hence round-trip to uint8.
             mask = tf.cast(mask, tf.uint8)
@@ -1202,8 +1202,8 @@ def rnn(step_function, inputs, initial_states,
             new_states = [final_state]
 
         # all this circus is to recover the last vector in the sequence.
-        begin = tf.pack([tf.shape(outputs)[0] - 1, 0, 0])
-        size = tf.pack([1, -1, -1])
+        begin = tf.pack([tf.shape(outputs)[0] - 1] + [0] * (ndim - 1))
+        size = tf.pack([1] + [-1] * (ndim - 1))
         last_output = tf.slice(outputs, begin, size)
         last_output = tf.squeeze(last_output, [0])
 
