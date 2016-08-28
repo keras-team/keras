@@ -214,7 +214,6 @@ PAGES = [
         'all_module_classes': [wrappers],
     },
 
-
     {
         'page': 'optimizers.md',
         'all_module_classes': [optimizers],
