@@ -5,7 +5,7 @@ from numpy.testing import assert_allclose
 from keras.utils.test_utils import layer_test, keras_test
 from keras.utils.np_utils import conv_input_length
 from keras import backend as K
-from keras.layers import convolutional
+from keras.layers import convolutional, pooling
 
 
 @keras_test
@@ -204,6 +204,30 @@ def test_separable_conv_2d():
                                    'subsample': subsample,
                                    'depth_multiplier': multiplier},
                            input_shape=(nb_samples, stack_size, nb_row, nb_col))
+
+
+@keras_test
+def test_globalpooling_1d():
+    layer_test(pooling.GlobalMaxPooling1D,
+               input_shape=(3, 4, 5))
+    layer_test(pooling.GlobalAveragePooling1D,
+               input_shape=(3, 4, 5))
+
+
+@keras_test
+def test_globalpooling_2d():
+    layer_test(pooling.GlobalMaxPooling2D,
+               kwargs={'dim_ordering': 'th'},
+               input_shape=(3, 4, 5, 6))
+    layer_test(pooling.GlobalMaxPooling2D,
+               kwargs={'dim_ordering': 'tf'},
+               input_shape=(3, 5, 6, 4))
+    layer_test(pooling.GlobalAveragePooling2D,
+               kwargs={'dim_ordering': 'th'},
+               input_shape=(3, 4, 5, 6))
+    layer_test(pooling.GlobalAveragePooling2D,
+               kwargs={'dim_ordering': 'tf'},
+               input_shape=(3, 5, 6, 4))
 
 
 @keras_test
@@ -455,19 +479,20 @@ def test_cropping_1d():
                kwargs={'cropping': (2, 2)},
                input_shape=input.shape)
 
+
 def test_cropping_2d():
     nb_samples = 2
     stack_size = 2
-    input_len_dim1 = 10
-    input_len_dim2 = 20
+    input_len_dim1 = 8
+    input_len_dim2 = 8
     cropping = ((2, 2), (3, 3))
     dim_ordering = K.image_dim_ordering()
-    
+
     if dim_ordering == 'th':
         input = np.random.rand(nb_samples, stack_size, input_len_dim1, input_len_dim2)
     else:
         input = np.random.rand(nb_samples, input_len_dim1, input_len_dim2, stack_size)
-    # basic test        
+    # basic test
     layer_test(convolutional.Cropping2D,
                kwargs={'cropping': cropping,
                        'dim_ordering': dim_ordering},
@@ -479,14 +504,14 @@ def test_cropping_2d():
     out = K.eval(layer.output)
     # compare with numpy
     if dim_ordering == 'th':
-        expected_out = input[:, 
-                             :, 
-                             cropping[0][0]:-cropping[0][1], 
+        expected_out = input[:,
+                             :,
+                             cropping[0][0]:-cropping[0][1],
                              cropping[1][0]:-cropping[1][1]]
     else:
-        expected_out = input[:, 
-                             cropping[0][0]:-cropping[0][1], 
-                             cropping[1][0]:-cropping[1][1], 
+        expected_out = input[:,
+                             cropping[0][0]:-cropping[0][1],
+                             cropping[1][0]:-cropping[1][1],
                              :]
 
     assert_allclose(out, expected_out)
@@ -495,17 +520,17 @@ def test_cropping_2d():
 def test_cropping_3d():
     nb_samples = 2
     stack_size = 2
-    input_len_dim1 = 10
-    input_len_dim2 = 20
-    input_len_dim3 = 30
+    input_len_dim1 = 8
+    input_len_dim2 = 8
+    input_len_dim3 = 8
     cropping = ((2, 2), (3, 3), (2, 3))
     dim_ordering = K.image_dim_ordering()
-    
+
     if dim_ordering == 'th':
         input = np.random.rand(nb_samples, stack_size, input_len_dim1, input_len_dim2, input_len_dim3)
     else:
         input = np.random.rand(nb_samples, input_len_dim1, input_len_dim2, input_len_dim3, stack_size)
-    # basic test        
+    # basic test
     layer_test(convolutional.Cropping3D,
                kwargs={'cropping': cropping,
                        'dim_ordering': dim_ordering},
@@ -517,22 +542,19 @@ def test_cropping_3d():
     out = K.eval(layer.output)
     # compare with numpy
     if dim_ordering == 'th':
-        expected_out = input[:, 
-                             :, 
-                             cropping[0][0]:-cropping[0][1], 
-                             cropping[1][0]:-cropping[1][1], 
+        expected_out = input[:,
+                             :,
+                             cropping[0][0]:-cropping[0][1],
+                             cropping[1][0]:-cropping[1][1],
                              cropping[2][0]:-cropping[2][1]]
     else:
-        expected_out = input[:, 
-                             cropping[0][0]:-cropping[0][1], 
-                             cropping[1][0]:-cropping[1][1], 
-                             cropping[2][0]:-cropping[2][1], 
+        expected_out = input[:,
+                             cropping[0][0]:-cropping[0][1],
+                             cropping[1][0]:-cropping[1][1],
+                             cropping[2][0]:-cropping[2][1],
                              :]
 
     assert_allclose(out, expected_out)
 
-
-def test_cropping_3d():
-    pass
 if __name__ == '__main__':
     pytest.main([__file__])

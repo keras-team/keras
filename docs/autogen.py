@@ -65,6 +65,7 @@ if sys.version[0] == '2':
     sys.setdefaultencoding('utf8')
 
 from keras.layers import convolutional
+from keras.layers import pooling
 from keras.layers import local
 from keras.layers import recurrent
 from keras.layers import core
@@ -165,12 +166,16 @@ PAGES = [
     {
         'page': 'layers/pooling.md',
         'classes': [
-            convolutional.MaxPooling1D,
-            convolutional.MaxPooling2D,
-            convolutional.MaxPooling3D,
-            convolutional.AveragePooling1D,
-            convolutional.AveragePooling2D,
-            convolutional.AveragePooling3D,
+            pooling.MaxPooling1D,
+            pooling.MaxPooling2D,
+            pooling.MaxPooling3D,
+            pooling.AveragePooling1D,
+            pooling.AveragePooling2D,
+            pooling.AveragePooling3D,
+            pooling.GlobalMaxPooling1D,
+            pooling.GlobalAveragePooling1D,
+            pooling.GlobalMaxPooling2D,
+            pooling.GlobalAveragePooling2D,
         ],
     },
     {
