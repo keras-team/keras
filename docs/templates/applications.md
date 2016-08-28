@@ -89,12 +89,19 @@ from keras import backend as K
 
 # create the base pre-trained model
 base_model = InceptionV3(weights='imagenet', include_top=False)
-# add some Dense layers on top
-x = base_model.output
+
 # add a global spatial average pooling layer
+x = base_model.output
 x = Lambda(lambda x: K.mean(x, axis=[1, 2]))(x)  # assuming 'tf' dim ordering
+# note that if you are using Theano instead of TensorFlow as your backend,
+# you will need to pass an output_shape argument to your Lambda layer, e.g.:
+# x = Lambda(lambda x: K.mean(x, axis=[1, 2]), output_shape=lambda x: (x[0], x[-1]))(x)
+# this is because Theano doesn't do offline shape inference like TensorFlow does.
+
+# let's add a fully-connected layer
 x = Dense(1024, activation='relu')(x)
-predictions = Dense(200, activation='softmax')(x)  # let's say we have 200 classes
+# and a logistic layer -- let's say we have 200 classes
+predictions = Dense(200, activation='softmax')(x)
 
 # this is the model we will train
 model = Model(input=base_model.input, output=predictions)
