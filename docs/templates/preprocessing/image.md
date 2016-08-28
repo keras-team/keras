@@ -69,7 +69,7 @@ Generate batches of tensor image data with real-time data augmentation. The data
             The generator loops indefinitely.
     - __flow_from_directory(directory)__: Takes the path to a directory, and generates batches of augmented/normalized data. Yields batches indefinitely, in an infinite loop.
         - __Arguments__:
-            - __directory: path to the target directory. It should contain one subdirectory per class,
+            - __directory__: path to the target directory. It should contain one subdirectory per class,
                 and the subdirectories should contain PNG or JPG images. See [this script](https://gist.github.com/fchollet/0830affa1f7f19fd47b06d4cf89ed44d) for more details.
             - __target_size__: tuple of integers, default: `(256, 256)`. The dimensions to which all images found will be resized.
             - __color_mode__: one of "grayscale", "rbg". Default: "rgb". Whether the images will be converted to have 1 or 3 color channels.
