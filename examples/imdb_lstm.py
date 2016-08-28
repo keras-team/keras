@@ -38,7 +38,7 @@ print('X_test shape:', X_test.shape)
 
 print('Build model...')
 model = Sequential()
-model.add(Embedding(max_features, 128, input_length=maxlen, dropout=0.2))
+model.add(Embedding(max_features, 128, dropout=0.2))
 model.add(LSTM(128, dropout_W=0.2, dropout_U=0.2))  # try using a GRU instead, for fun
 model.add(Dense(1))
 model.add(Activation('sigmoid'))
