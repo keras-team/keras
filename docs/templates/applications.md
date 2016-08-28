@@ -84,12 +84,15 @@ block4_pool_features = model.predict(x)
 from keras.applications.inception_v3 import InceptionV3
 from keras.preprocessing import image
 from keras.models import Model
-from keras.layers import Dense
+from keras.layers import Dense, Lambda
+from keras import backend as K
 
 # create the base pre-trained model
 base_model = InceptionV3(weights='imagenet', include_top=False)
 # add some Dense layers on top
 x = base_model.output
+# add a global spatial average pooling layer
+x = Lambda(lambda x: K.mean(x, axis=[1, 2]))(x)  # assuming 'tf' dim ordering
 x = Dense(1024, activation='relu')(x)
 predictions = Dense(200, activation='softmax')(x)  # let's say we have 200 classes
 
