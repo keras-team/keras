@@ -877,7 +877,7 @@ class Sequential(Model):
         '''Evaluates the model on a data generator. The generator should
         return the same kind of data as accepted by `test_on_batch`.
 
-        Arguments:
+        # Arguments
             generator:
                 generator yielding tuples (inputs, targets)
                 or (inputs, targets, sample_weights)
