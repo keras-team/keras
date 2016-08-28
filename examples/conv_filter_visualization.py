@@ -3,32 +3,21 @@
 This script can run on CPU in a few minutes (with the TensorFlow backend).
 
 Results example: http://i.imgur.com/4nj4KjN.jpg
-
-Before running this script, download the weights for the VGG16 model at:
-https://drive.google.com/file/d/0Bz7KyqmuGsilT0J5dmRCM0ROVHc/view?usp=sharing
-(source: https://gist.github.com/baraldilorenzo/07d7802847aaad0a35d3)
-and make sure the variable `weights_path` in this script matches the location of the file.
 '''
 from __future__ import print_function
 from scipy.misc import imsave
 import numpy as np
 import time
-import os
-import h5py
-
-from keras.models import Sequential
-from keras.layers import Convolution2D, ZeroPadding2D, MaxPooling2D
+from keras.applications import vgg16
 from keras import backend as K
 
 # dimensions of the generated pictures for each filter.
 img_width = 128
 img_height = 128
 
-# path to the model weights file.
-weights_path = 'vgg16_weights.h5'
-
-# the name of the layer we want to visualize (see model definition below)
-layer_name = 'conv5_1'
+# the name of the layer we want to visualize
+# (see model definition at keras/applications/vgg16.py)
+layer_name = 'block5_conv1'
 
 # util function to convert a tensor into a valid image
 def deprocess_image(x):
@@ -43,70 +32,22 @@ def deprocess_image(x):
 
     # convert to RGB array
     x *= 255
-    x = x.transpose((1, 2, 0))
+    if K.image_dim_ordering() == 'th':
+        x = x.transpose((1, 2, 0))
     x = np.clip(x, 0, 255).astype('uint8')
     return x
 
-# build the VGG16 network
-model = Sequential()
-model.add(ZeroPadding2D((1, 1), batch_input_shape=(1, 3, img_width, img_height)))
-first_layer = model.layers[-1]
-# this is a placeholder tensor that will contain our generated images
-input_img = first_layer.input
-
-model.add(Convolution2D(64, 3, 3, activation='relu', name='conv1_1'))
-model.add(ZeroPadding2D((1, 1)))
-model.add(Convolution2D(64, 3, 3, activation='relu', name='conv1_2'))
-model.add(MaxPooling2D((2, 2), strides=(2, 2)))
-
-model.add(ZeroPadding2D((1, 1)))
-model.add(Convolution2D(128, 3, 3, activation='relu', name='conv2_1'))
-model.add(ZeroPadding2D((1, 1)))
-model.add(Convolution2D(128, 3, 3, activation='relu', name='conv2_2'))
-model.add(MaxPooling2D((2, 2), strides=(2, 2)))
-
-model.add(ZeroPadding2D((1, 1)))
-model.add(Convolution2D(256, 3, 3, activation='relu', name='conv3_1'))
-model.add(ZeroPadding2D((1, 1)))
-model.add(Convolution2D(256, 3, 3, activation='relu', name='conv3_2'))
-model.add(ZeroPadding2D((1, 1)))
-model.add(Convolution2D(256, 3, 3, activation='relu', name='conv3_3'))
-model.add(MaxPooling2D((2, 2), strides=(2, 2)))
-
-model.add(ZeroPadding2D((1, 1)))
-model.add(Convolution2D(512, 3, 3, activation='relu', name='conv4_1'))
-model.add(ZeroPadding2D((1, 1)))
-model.add(Convolution2D(512, 3, 3, activation='relu', name='conv4_2'))
-model.add(ZeroPadding2D((1, 1)))
-model.add(Convolution2D(512, 3, 3, activation='relu', name='conv4_3'))
-model.add(MaxPooling2D((2, 2), strides=(2, 2)))
-
-model.add(ZeroPadding2D((1, 1)))
-model.add(Convolution2D(512, 3, 3, activation='relu', name='conv5_1'))
-model.add(ZeroPadding2D((1, 1)))
-model.add(Convolution2D(512, 3, 3, activation='relu', name='conv5_2'))
-model.add(ZeroPadding2D((1, 1)))
-model.add(Convolution2D(512, 3, 3, activation='relu', name='conv5_3'))
-model.add(MaxPooling2D((2, 2), strides=(2, 2)))
-
-# load the weights of the VGG16 networks
-# (trained on ImageNet, won the ILSVRC competition in 2014)
-# note: when there is a complete match between your model definition
-# and your weight savefile, you can simply call model.load_weights(filename)
-assert os.path.exists(weights_path), 'Model weights not found (see "weights_path" variable in script).'
-f = h5py.File(weights_path)
-for k in range(f.attrs['nb_layers']):
-    if k >= len(model.layers):
-        # we don't look at the last (fully-connected) layers in the savefile
-        break
-    g = f['layer_{}'.format(k)]
-    weights = [g['param_{}'.format(p)] for p in range(g.attrs['nb_params'])]
-    model.layers[k].set_weights(weights)
-f.close()
+# build the VGG16 network with ImageNet weights
+model = vgg16.VGG16(weights='imagenet', include_top=False)
 print('Model loaded.')
 
+model.summary()
+
+# this is the placeholder for the input images
+input_img = model.input
+
 # get the symbolic outputs of each "key" layer (we gave them unique names).
-layer_dict = dict([(layer.name, layer) for layer in model.layers])
+layer_dict = dict([(layer.name, layer) for layer in model.layers[1:]])
 
 
 def normalize(x):
@@ -124,7 +65,10 @@ for filter_index in range(0, 200):
     # we build a loss function that maximizes the activation
     # of the nth filter of the layer considered
     layer_output = layer_dict[layer_name].output
-    loss = K.mean(layer_output[:, filter_index, :, :])
+    if K.image_dim_ordering() == 'th':
+        loss = K.mean(layer_output[:, filter_index, :, :])
+    else:
+        loss = K.mean(layer_output[:, :, :, filter_index])
 
     # we compute the gradient of the input picture wrt this loss
     grads = K.gradients(loss, input_img)[0]
@@ -139,7 +83,11 @@ for filter_index in range(0, 200):
     step = 1.
 
     # we start from a gray image with some random noise
-    input_img_data = np.random.random((1, 3, img_width, img_height)) * 20 + 128.
+    if K.image_dim_ordering() == 'th':
+        input_img_data = np.random.random((1, 3, img_width, img_height))
+    else:
+        input_img_data = np.random.random((1, img_width, img_height, 3))
+    input_img_data = (input_img_data - 0.5) * 20 + 128
 
     # we run gradient ascent for 20 steps
     for i in range(20):
