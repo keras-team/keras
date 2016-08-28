@@ -84,7 +84,7 @@ block4_pool_features = model.predict(x)
 from keras.applications.inception_v3 import InceptionV3
 from keras.preprocessing import image
 from keras.models import Model
-from keras.layers import Dense, Lambda
+from keras.layers import Dense, GlobalAveragePooling2D
 from keras import backend as K
 
 # create the base pre-trained model
@@ -92,12 +92,7 @@ base_model = InceptionV3(weights='imagenet', include_top=False)
 
 # add a global spatial average pooling layer
 x = base_model.output
-x = Lambda(lambda x: K.mean(x, axis=[1, 2]))(x)  # assuming 'tf' dim ordering
-# note that if you are using Theano instead of TensorFlow as your backend,
-# you will need to pass an output_shape argument to your Lambda layer, e.g.:
-# x = Lambda(lambda x: K.mean(x, axis=[1, 2]), output_shape=lambda x: (x[0], x[-1]))(x)
-# this is because Theano doesn't do offline shape inference like TensorFlow does.
-
+x = GlobalAveragePooling2D()(x)
 # let's add a fully-connected layer
 x = Dense(1024, activation='relu')(x)
 # and a logistic layer -- let's say we have 200 classes
