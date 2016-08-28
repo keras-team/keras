@@ -31,6 +31,7 @@ class LocallyConnected1D(Layer):
         model.add(LocallyConnected1D(32, 3))
         # now model.output_shape == (None, 6, 32)
     ```
+
     # Arguments
         nb_filter: Dimensionality of the output.
         filter_length: The extension (spatial or temporal) of each filter.
@@ -65,8 +66,10 @@ class LocallyConnected1D(Layer):
             This argument is required if you are going to connect
             `Flatten` then `Dense` layers upstream
             (without it, the shape of the dense outputs cannot be computed).
+
     # Input shape
         3D tensor with shape: `(samples, steps, input_dim)`.
+
     # Output shape
         3D tensor with shape: `(samples, new_steps, nb_filter)`.
         `steps` value might have changed due to padding.
