@@ -721,8 +721,6 @@ class SeparableConvolution2D(Layer):
             Also called strides elsewhere.
         depth_multiplier: how many output channel to use per input channel
             for the depthwise convolution step.
-        atrous_rate: tuple of length 2. Factor for kernel dilation.
-            Also called filter_dilation elsewhere.
         depthwise_regularizer: instance of [WeightRegularizer](../regularizers.md)
             (eg. L1 or L2 regularization), applied to the depthwise weights matrix.
         pointwise_regularizer: instance of [WeightRegularizer](../regularizers.md)
