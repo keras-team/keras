@@ -65,7 +65,7 @@ def get_file(fname, origin, untar=False,
         download = True
 
     if download:
-        print('Downloading data from',  origin)
+        print('Downloading data from', origin)
         global progbar
         progbar = None
 
