@@ -517,7 +517,7 @@ class Deconvolution2D(Convolution2D):
             raise Exception('Invalid dim_ordering: ' + self.dim_ordering)
 
     def call(self, x, mask=None):
-        output = K.deconv2d(x, self.W, self.output_shape_, 
+        output = K.deconv2d(x, self.W, self.output_shape_,
                             strides=self.subsample,
                             border_mode=self.border_mode,
                             dim_ordering=self.dim_ordering,
@@ -1544,13 +1544,13 @@ class Cropping2D(Layer):
     def call(self, x, mask=None):
         input_shape = self.input_spec[0].shape
         if self.dim_ordering == 'th':
-            return x[:, 
-                     :, 
+            return x[:,
+                     :,
                      self.cropping[0][0]:input_shape[2]-self.cropping[0][1],
                      self.cropping[1][0]:input_shape[3]-self.cropping[1][1]]
         elif self.dim_ordering == 'tf':
-            return x[:, 
-                     self.cropping[0][0]:input_shape[1]-self.cropping[0][1], 
+            return x[:,
+                     self.cropping[0][0]:input_shape[1]-self.cropping[0][1],
                      self.cropping[1][0]:input_shape[2]-self.cropping[1][1],
                      :]
 
@@ -1624,16 +1624,16 @@ class Cropping3D(Layer):
     def call(self, x, mask=None):
         input_shape = self.input_spec[0].shape
         if self.dim_ordering == 'th':
-            return x[:, 
-                     :, 
-                     self.cropping[0][0]:input_shape[2]-self.cropping[0][1], 
-                     self.cropping[1][0]:input_shape[3]-self.cropping[1][1], 
+            return x[:,
+                     :,
+                     self.cropping[0][0]:input_shape[2]-self.cropping[0][1],
+                     self.cropping[1][0]:input_shape[3]-self.cropping[1][1],
                      self.cropping[2][0]:input_shape[4]-self.cropping[2][1]]
         elif self.dim_ordering == 'tf':
-            return x[:, 
-                     self.cropping[0][0]:input_shape[1]-self.cropping[0][1], 
-                     self.cropping[1][0]:input_shape[2]-self.cropping[1][1], 
-                     self.cropping[2][0]:input_shape[3]-self.cropping[2][1], 
+            return x[:,
+                     self.cropping[0][0]:input_shape[1]-self.cropping[0][1],
+                     self.cropping[1][0]:input_shape[2]-self.cropping[1][1],
+                     self.cropping[2][0]:input_shape[3]-self.cropping[2][1],
                      :]
 
     def get_config(self):
