@@ -363,9 +363,20 @@ Code and pre-trained weights are available for the following image classificatio
 - ResNet50
 - Inception v3
 
-Find the code and weights in [this repository](https://github.com/fchollet/deep-learning-models).
+They can be imported from the module `keras.applications`:
 
-For an example of how to use such a pre-trained model for feature extraction or for fine-tuning, see [this blog post](http://blog.keras.io/building-powerful-image-classification-models-using-very-little-data.html).
+```python
+from keras.applications.vgg16 impoprt VGG16
+from keras.applications.vgg19 impoprt VGG19
+from keras.applications.resnet50 impoprt ResNet50
+from keras.applications.inception_v3 impoprt InceptionV3
+
+model = VGG16(weights='imagenet', include_top=True)
+```
+
+For a few simple usage examples, see [the documentation for the Applications module](/applications).
+
+For a detailed example of how to use such a pre-trained model for feature extraction or for fine-tuning, see [this blog post](http://blog.keras.io/building-powerful-image-classification-models-using-very-little-data.html).
 
 The VGG16 model is also the basis for several Keras example scripts:
 

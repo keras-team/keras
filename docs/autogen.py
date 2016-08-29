@@ -65,6 +65,8 @@ if sys.version[0] == '2':
     sys.setdefaultencoding('utf8')
 
 from keras.layers import convolutional
+from keras.layers import pooling
+from keras.layers import local
 from keras.layers import recurrent
 from keras.layers import core
 from keras.layers import noise
@@ -106,6 +108,7 @@ PAGES = [
             models.Sequential.predict_on_batch,
             models.Sequential.fit_generator,
             models.Sequential.evaluate_generator,
+            models.Sequential.predict_generator,
         ],
     },
     {
@@ -120,6 +123,7 @@ PAGES = [
             models.Model.predict_on_batch,
             models.Model.fit_generator,
             models.Model.evaluate_generator,
+            models.Model.predict_generator,
             models.Model.get_layer,
         ]
     },
@@ -147,7 +151,9 @@ PAGES = [
         'classes': [
             convolutional.Convolution1D,
             convolutional.Convolution2D,
-            convolutional.AtrousConv2D,
+            convolutional.AtrousConvolution2D,
+            convolutional.SeparableConvolution2D,
+            convolutional.Deconvolution2D,
             convolutional.Convolution3D,
             convolutional.UpSampling1D,
             convolutional.UpSampling2D,
@@ -160,12 +166,23 @@ PAGES = [
     {
         'page': 'layers/pooling.md',
         'classes': [
-            convolutional.MaxPooling1D,
-            convolutional.MaxPooling2D,
-            convolutional.MaxPooling3D,
-            convolutional.AveragePooling1D,
-            convolutional.AveragePooling2D,
-            convolutional.AveragePooling3D,
+            pooling.MaxPooling1D,
+            pooling.MaxPooling2D,
+            pooling.MaxPooling3D,
+            pooling.AveragePooling1D,
+            pooling.AveragePooling2D,
+            pooling.AveragePooling3D,
+            pooling.GlobalMaxPooling1D,
+            pooling.GlobalAveragePooling1D,
+            pooling.GlobalMaxPooling2D,
+            pooling.GlobalAveragePooling2D,
+        ],
+    },
+    {
+        'page': 'layers/local.md',
+        'classes': [
+            local.LocallyConnected1D,
+            local.LocallyConnected2D,
         ],
     },
     {
@@ -201,7 +218,6 @@ PAGES = [
         'page': 'layers/wrappers.md',
         'all_module_classes': [wrappers],
     },
-
 
     {
         'page': 'optimizers.md',

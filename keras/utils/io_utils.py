@@ -52,7 +52,7 @@ class HDF5Matrix():
 
     @property
     def shape(self):
-        return tuple([self.end - self.start, self.data.shape[1]])
+        return (self.end - self.start,) + self.data.shape[1:]
 
 
 def save_array(array, name):

@@ -8,14 +8,17 @@ from ..utils.np_utils import conv_output_length
 
 
 class LocallyConnected1D(Layer):
-    '''LocallyConnected1D layer works almost the same as Convolution1D layer,
-    except that weights are unshared, that is, a different set of filters is
-    applied at each different patch of the input. When using this layer as the
-    first layer in a model, either provide the keyword argument `input_dim`
+    '''The `LocallyConnected1D` layer works similarly to
+    the `Convolution1D` layer, except that weights are unshared,
+    that is, a different set of filters is applied at each different patch
+    of the input.
+    When using this layer as the first layer in a model,
+    either provide the keyword argument `input_dim`
     (int, e.g. 128 for sequences of 128-dimensional vectors), or `input_shape`
-    (tuple of integers, e.g. (10, 128) for sequences of 10 vectors of
-    128-dimensional vectors). Also, you will need to fix shape of the previous
-    layer, since the weights can only be defined with determined output shape.
+    (tuple of integers, e.g. `input_shape=(10, 128)`
+    for sequences of 10 vectors of 128-dimensional vectors).
+    Also, note that this layer can only be used with
+    a fully-specified input shape (`None` dimensions not allowed).
 
     # Example
     ```python
@@ -28,6 +31,7 @@ class LocallyConnected1D(Layer):
         model.add(LocallyConnected1D(32, 3))
         # now model.output_shape == (None, 6, 32)
     ```
+
     # Arguments
         nb_filter: Dimensionality of the output.
         filter_length: The extension (spatial or temporal) of each filter.
@@ -62,8 +66,10 @@ class LocallyConnected1D(Layer):
             This argument is required if you are going to connect
             `Flatten` then `Dense` layers upstream
             (without it, the shape of the dense outputs cannot be computed).
+
     # Input shape
         3D tensor with shape: `(samples, steps, input_dim)`.
+
     # Output shape
         3D tensor with shape: `(samples, new_steps, nb_filter)`.
         `steps` value might have changed due to padding.
@@ -180,14 +186,16 @@ class LocallyConnected1D(Layer):
 
 
 class LocallyConnected2D(Layer):
-    '''LocallyConnected2D layer works almost the same as Convolution2D layer,
-    except that weights are unshared, that is, a different set of filters is
-    applied at each different patch of the input. When using this layer as the
+    '''The `LocallyConnected2D` layer works similarly
+    to the `Convolution2D` layer, except that weights are unshared,
+    that is, a different set of filters is applied at each
+    different patch of the input.
+    When using this layer as the
     first layer in a model, provide the keyword argument `input_shape` (tuple
     of integers, does not include the sample axis), e.g.
-    `input_shape=(3, 128, 128)` for 128x128 RGB pictures. Also, you will need
-    to fix shape of the previous layer, since the weights can only be defined
-    with determined output shape.
+    `input_shape=(3, 128, 128)` for 128x128 RGB pictures.
+    Also, note that this layer can only be used with
+    a fully-specified input shape (`None` dimensions not allowed).
 
     # Examples
     ```python

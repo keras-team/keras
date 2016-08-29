@@ -25,6 +25,7 @@ pages:
   - Core Layers: layers/core.md
   - Convolutional Layers: layers/convolutional.md
   - Pooling Layers: layers/pooling.md
+  - Locally-connected Layers: layers/local.md
   - Recurrent Layers: layers/recurrent.md
   - Embedding Layers: layers/embeddings.md
   - Advanced Activations Layers: layers/advanced-activations.md
@@ -41,6 +42,7 @@ pages:
 - Activations: activations.md
 - Callbacks: callbacks.md
 - Datasets: datasets.md
+- Applications: applications.md
 - Backend: backend.md
 - Initializations: initializations.md
 - Regularizers: regularizers.md

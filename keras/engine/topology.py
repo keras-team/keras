@@ -1586,6 +1586,9 @@ class Container(Layer):
             name = prefix + '_' + str(K.get_uid(prefix))
         self.name = name
 
+        # whether container weights are trainable
+        self.trainable = True
+
         # Container-specific properties
         if type(input) in {list, tuple}:
             self.inputs = list(input)  # tensor or list of tensors
@@ -1962,6 +1965,8 @@ class Container(Layer):
 
     @property
     def trainable_weights(self):
+        if not self.trainable:
+            return []
         weights = []
         for layer in self.layers:
             weights += layer.trainable_weights
@@ -1972,6 +1977,11 @@ class Container(Layer):
         weights = []
         for layer in self.layers:
             weights += layer.non_trainable_weights
+        if not self.trainable:
+            trainable_weights = []
+            for layer in self.layers:
+                trainable_weights += layer.trainable_weights
+            return trainable_weights + weights
         return weights
 
     def get_weights(self):

@@ -18,41 +18,6 @@ from keras.models import save_model, load_model
 def test_sequential_model_saving():
     model = Sequential()
     model.add(Dense(2, input_dim=3))
-    model.add(Dense(3))
-    model.compile(loss='mse', optimizer='rmsprop', metrics=['acc'])
-
-    x = np.random.random((1, 3))
-    y = np.random.random((1, 3))
-    model.train_on_batch(x, y)
-
-    out = model.predict(x)
-    _, fname = tempfile.mkstemp('.h5')
-    save_model(model, fname)
-
-    new_model = load_model(fname)
-
-    out2 = new_model.predict(x)
-    assert_allclose(out, out2, atol=1e-05)
-
-    # test that new updates are the same with both models
-    x = np.random.random((1, 3))
-    y = np.random.random((1, 3))
-    model.train_on_batch(x, y)
-    new_model.train_on_batch(x, y)
-    out = model.predict(x)
-    out2 = new_model.predict(x)
-    assert_allclose(out, out2, atol=1e-05)
-
-    # test load_weights on model file
-    model.load_weights(fname)
-    os.remove(fname)
-
-
-@keras_test
-def test_sequential_model_saving_2():
-    # test with funkier config
-    model = Sequential()
-    model.add(Dense(2, input_dim=3))
     model.add(RepeatVector(3))
     model.add(TimeDistributed(Dense(3)))
     model.compile(loss=objectives.MSE,
@@ -84,7 +49,7 @@ def test_sequential_model_saving_2():
 
 
 @keras_test
-def test_sequential_model_saving_3():
+def test_sequential_model_saving_2():
     # test with custom optimizer, loss
     custom_opt = optimizers.rmsprop
     custom_loss = objectives.mse

@@ -386,10 +386,14 @@ def normalize_batch_in_training(x, gamma, beta,
 def batch_normalization(x, mean, var, beta, gamma, epsilon=0.0001):
     '''Apply batch normalization on x given mean, var, beta and gamma.
     '''
-    normed = T.nnet.bn.batch_normalization(x, gamma, beta, mean,
-                                           sqrt(var) + epsilon,
-                                           mode='high_mem')
-    return normed
+    if theano.config.device.startswith('cuda') or theano.config.device.startswith('gpu'):
+        try:
+            return theano.sandbox.cuda.dnn.dnn_batch_normalization_test(x, gamma, beta, mean, var,
+                                                                        'spatial', epsilon)
+        except AttributeError:
+            pass
+    return T.nnet.bn.batch_normalization(x, gamma, beta, mean, sqrt(var + epsilon),
+                                         mode='high_mem')
 
 
 # SHAPE OPERATIONS
@@ -639,6 +643,10 @@ def set_value(x, value):
 def batch_set_value(tuples):
     for x, value in tuples:
         x.set_value(np.asarray(value, dtype=x.dtype))
+
+
+def get_variable_shape(x):
+    return x.get_value().shape
 
 
 def print_tensor(x, message=''):

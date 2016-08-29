@@ -413,20 +413,16 @@ def generator_queue(generator, max_q_size=10,
     if pickle_safe:
         q = multiprocessing.Queue(maxsize=max_q_size)
         _stop = multiprocessing.Event()
-        lock = multiprocessing.Lock()
     else:
         q = queue.Queue()
         _stop = threading.Event()
-        lock = threading.Lock()
 
     try:
         def data_generator_task():
             while not _stop.is_set():
                 try:
                     if pickle_safe or q.qsize() < max_q_size:
-                        lock.acquire()
                         generator_output = next(generator)
-                        lock.release()
                         q.put(generator_output)
                     else:
                         time.sleep(wait_time)
@@ -1475,6 +1471,7 @@ class Model(Container):
                         # no need for try/except because
                         # data has already been validated
                         val_outs = self.evaluate(val_x, val_y,
+                                                 batch_size=batch_size,
                                                  sample_weight=val_sample_weights,
                                                  verbose=0)
                     if type(val_outs) is not list:
