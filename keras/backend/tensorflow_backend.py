@@ -993,7 +993,7 @@ def gradients(loss, variables):
     '''Returns the gradients of `variables` (list of tensor variables)
     with regard to `loss`.
     '''
-    return tf.gradients(loss, variables)
+    return tf.gradients(loss, variables, colocate_gradients_with_ops=True)
 
 
 def stop_gradient(variables):
