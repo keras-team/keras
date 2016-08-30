@@ -471,11 +471,11 @@ class TensorBoard(Callback):
             layers = self.model.layers
             for layer in layers:
                 if hasattr(layer, 'W'):
-                    tf.histogram_summary('{}_W'.format(layer), layer.W)
+                    tf.histogram_summary('{}_W'.format(layer.name), layer.W)
                 if hasattr(layer, 'b'):
-                    tf.histogram_summary('{}_b'.format(layer), layer.b)
+                    tf.histogram_summary('{}_b'.format(layer.name), layer.b)
                 if hasattr(layer, 'output'):
-                    tf.histogram_summary('{}_out'.format(layer),
+                    tf.histogram_summary('{}_out'.format(layer.name),
                                          layer.output)
         self.merged = tf.merge_all_summaries()
         if self.write_graph:
