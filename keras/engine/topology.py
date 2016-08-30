@@ -1950,7 +1950,7 @@ class Container(Layer):
         cons = {}
         for layer in self.layers:
             for key, value in layer.constraints.items():
-                if key in cons:
+                if key in cons and cons[key] != value:
                     raise Exception('Received multiple constraints '
                                     'for one weight tensor: ' + str(key))
                 cons[key] = value
