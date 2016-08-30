@@ -38,8 +38,8 @@ def decode_predictions(preds, top_preds=1):
         CLASS_INDEX = json.load(open(fpath))
     
     top = top_preds
-    indices = np.argpartition(preds,-top)[-top:]
-    tpreds = indices[0,-top:]
+    indices = np.argpartition(preds, -top)[-top:]
+    tpreds = indices[0, -top:]
     
     results = []
     for i in tpreds:
