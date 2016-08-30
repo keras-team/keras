@@ -107,7 +107,7 @@ The `Merge` layer supports a number of pre-defined modes:
 You can also pass a function as the `mode` argument, allowing for arbitrary transformations:
 
 ```python
-merged = Merge([left_branch, right_branch], mode=lambda x, y: x - y)
+merged = Merge([left_branch, right_branch], mode=lambda x: x[0] - x[1])
 ```
 
 Now you know enough to be able to define *almost* any model with Keras. For complex models that cannot be expressed via `Sequential` and `Merge`, you can use [the functional API](/getting-started/functional-api-guide).
