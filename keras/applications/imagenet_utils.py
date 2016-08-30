@@ -28,7 +28,7 @@ def preprocess_input(x, dim_ordering='default'):
     return x
 
 
-def decode_predictions(preds, top_preds=1):
+def decode_predictions(preds, top=1):
     global CLASS_INDEX
     assert len(preds.shape) == 2 and preds.shape[1] == 1000
     if CLASS_INDEX is None:
@@ -37,11 +37,10 @@ def decode_predictions(preds, top_preds=1):
                          cache_subdir='models')
         CLASS_INDEX = json.load(open(fpath))
     
-    top = top_preds
     indices = np.argpartition(preds, -top)[-top:]
-    tpreds = indices[0, -top:]
+    top_preds = indices[0, -top:]
     
     results = []
-    for i in tpreds:
+    for i in top_preds:
         results.append(CLASS_INDEX[str(i)])
     return results
