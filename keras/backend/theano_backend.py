@@ -646,7 +646,7 @@ def batch_set_value(tuples):
 
 
 def get_variable_shape(x):
-    return x.get_value().shape
+    return x.get_value(borrow=True, return_internal_type=True).shape
 
 
 def print_tensor(x, message=''):
