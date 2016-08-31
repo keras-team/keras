@@ -5,8 +5,6 @@ from __future__ import division
 
 import numpy as np
 
-import sys
-import marshal
 import types as python_types
 import warnings
 import copy
@@ -15,6 +13,7 @@ from six.moves import zip
 
 from .. import backend as K
 from ..utils.io_utils import ask_to_proceed_with_overwrite
+from ..utils.generic_utils import func_dump, func_load
 
 
 def to_list(x):
@@ -1415,7 +1414,7 @@ class Merge(Layer):
 
     def get_config(self):
         if isinstance(self.mode, python_types.LambdaType):
-            mode = marshal.dumps(self.mode.__code__).decode('raw_unicode_escape')
+            mode = func_dump(self.mode)
             mode_type = 'lambda'
         elif callable(self.mode):
             mode = self.mode.__name__
@@ -1425,7 +1424,7 @@ class Merge(Layer):
             mode_type = 'raw'
 
         if isinstance(self._output_shape, python_types.LambdaType):
-            output_shape = marshal.dumps(self._output_shape.__code__).decode('raw_unicode_escape')
+            output_shape = func_dump(self._output_shape)
             output_shape_type = 'lambda'
         elif callable(self._output_shape):
             output_shape = self._output_shape.__name__
@@ -1448,8 +1447,7 @@ class Merge(Layer):
         if mode_type == 'function':
             mode = globals()[config['mode']]
         elif mode_type == 'lambda':
-            mode = marshal.loads(config['mode'].encode('raw_unicode_escape'))
-            mode = python_types.FunctionType(mode, globals())
+            mode = func_load(config['mode'], globs=globals())
         else:
             mode = config['mode']
 
@@ -1457,8 +1455,7 @@ class Merge(Layer):
         if output_shape_type == 'function':
             output_shape = globals()[config['output_shape']]
         elif output_shape_type == 'lambda':
-            output_shape = marshal.loads(config['output_shape'].encode('raw_unicode_escape'))
-            output_shape = python_types.FunctionType(output_shape, globals())
+            output_shape = func_load(config['output_shape'], globs=globals())
         else:
             output_shape = config['output_shape']
 
