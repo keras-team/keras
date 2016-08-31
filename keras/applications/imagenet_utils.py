@@ -37,8 +37,11 @@ def decode_predictions(preds, top=1):
                          cache_subdir='models')
         CLASS_INDEX = json.load(open(fpath))
     
-    indices = np.argpartition(preds, -top)[-top:]
-    top_preds = indices[0, -top:]
+    if top > 1:
+        indices = (-preds).argsort()[:top]
+        top_preds = indices[0, :top]
+    else:
+        top_preds = np.argmax(preds)
     
     results = []
     for i in top_preds:
