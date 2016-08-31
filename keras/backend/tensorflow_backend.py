@@ -1,9 +1,9 @@
 import tensorflow as tf
 from tensorflow.python.training import moving_averages
 try:
-    from tensorflow.contrib.ctc import ctc_loss
+    import tensorflow.contrib.ctc as ctc
 except ImportError:
-    from tensorflow.python.ops.ctc_ops import ctc_loss
+    from tensorflow.python.ops import ctc_ops as ctc
 import numpy as np
 import os
 import copy
@@ -1761,13 +1761,13 @@ def ctc_batch_cost(y_true, y_pred, input_length, label_length):
 
     y_pred = tf.log(tf.transpose(y_pred, perm=[1, 0, 2]) + 1e-8)
 
-    return tf.expand_dims(ctc_loss(inputs=y_pred,
-                                   labels=sparse_labels,
-                                   sequence_length=input_length), 1)
+    return tf.expand_dims(ctc.ctc_loss(inputs=y_pred,
+                                       labels=sparse_labels,
+                                       sequence_length=input_length), 1)
 
 
-def ctc_decode(y_pred, input_length, greedy=True, beam_width=None,
-               dict_seq_lens=None, dict_values=None):
+def ctc_decode(y_pred, input_length, greedy=True, beam_width=100,
+               top_paths=1):
     '''Decodes the output of a softmax using either
        greedy (also known as best path) or a constrained dictionary
        search.
@@ -1775,38 +1775,33 @@ def ctc_decode(y_pred, input_length, greedy=True, beam_width=None,
     # Arguments
         y_pred: tensor (samples, time_steps, num_categories) containing the prediction,
                 or output of the softmax
-        input_length: tensor (samples,1) containing the sequence length for
+        input_length: tensor (samples,) containing the sequence length for
                 each batch item in y_pred
-        greedy:  perform much faster best-path search if true.  This does
+        greedy: perform much faster best-path search if true.  This does
                 not use a dictionary
-        beam_width:  if greedy is false and this value is not none, then
-                the constrained dictionary search uses a beam of this width
-        dict_seq_lens: the length of each element in the dict_values list
-        dict_values:  list of lists representing the dictionary.
+        beam_width: if greedy is false: a beam search decoder will be used
+                with a beam of this width
+        top_paths: if greedy is false: how many of the most probable paths will be returned
 
     # Returns
-        Tensor with shape (samples,time_steps,num_categories) containing the
-            path probabilities (in softmax output format).  Note that a function that
-            pulls out the argmax and collapses blank labels is still needed.
+        Tuple:
+            List: if greedy is true, returns a list of one element that contains
+                the decoded sequence. If false, returns the `top_paths` most probable
+                decoded sequences. Important: blank labels are returned as -1
+            Tensor (top_paths,) that contains the log probability of each decoded sequence
     '''
     y_pred = tf.log(tf.transpose(y_pred, perm=[1, 0, 2]) + 1e-8)
-    input_length = tf.to_int32(tf.squeeze(input_length))
+    input_length = tf.to_int32(input_length)
 
     if greedy:
-        (decoded, log_prob) = tf.contrib.ctc.ctc_greedy_decoder(
+        (decoded, log_prob) = ctc.ctc_greedy_decoder(
             inputs=y_pred,
             sequence_length=input_length)
     else:
-        if beam_width is not None:
-            (decoded, log_prob) = tf.contrib.ctc.ctc_beam_search_decoder(
-                inputs=y_pred,
-                sequence_length=input_length,
-                dict_seq_lens=dict_seq_lens, dict_values=dict_values)
-        else:
-            (decoded, log_prob) = tf.contrib.ctc.ctc_beam_search_decoder(
-                inputs=y_pred,
-                sequence_length=input_length, beam_width=beam_width,
-                dict_seq_lens=dict_seq_lens, dict_values=dict_values)
+        (decoded, log_prob) = ctc.ctc_beam_search_decoder(
+            inputs=y_pred,
+            sequence_length=input_length, beam_width=beam_width,
+            top_paths=top_paths)
 
     decoded_dense = [tf.sparse_to_dense(st.indices, st.shape, st.values, default_value=-1)
                      for st in decoded]
