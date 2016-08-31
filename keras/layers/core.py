@@ -7,14 +7,13 @@ import numpy as np
 import copy
 import inspect
 import types as python_types
-import marshal
-import sys
 import warnings
 
 from .. import backend as K
 from .. import activations, initializations, regularizers, constraints
 from ..engine import InputSpec, Layer, Merge
 from ..regularizers import ActivityRegularizer
+from ..utils.generic_utils import func_dump, func_load
 
 
 class Masking(Layer):
@@ -554,23 +553,15 @@ class Lambda(Layer):
         return self.function(x, **arguments)
 
     def get_config(self):
-        py3 = sys.version_info[0] == 3
-
         if isinstance(self.function, python_types.LambdaType):
-            if py3:
-                function = marshal.dumps(self.function.__code__).decode('raw_unicode_escape')
-            else:
-                function = marshal.dumps(self.function.func_code).decode('raw_unicode_escape')
+            function = func_dump(self.function)
             function_type = 'lambda'
         else:
             function = self.function.__name__
             function_type = 'function'
 
         if isinstance(self._output_shape, python_types.LambdaType):
-            if py3:
-                output_shape = marshal.dumps(self._output_shape.__code__).decode('raw_unicode_escape')
-            else:
-                output_shape = marshal.dumps(self._output_shape.func_code).decode('raw_unicode_escape')
+            output_shape = func_dump(self._output_shape)
             output_shape_type = 'lambda'
         elif callable(self._output_shape):
             output_shape = self._output_shape.__name__
@@ -593,8 +584,7 @@ class Lambda(Layer):
         if function_type == 'function':
             function = globals()[config['function']]
         elif function_type == 'lambda':
-            function = marshal.loads(config['function'].encode('raw_unicode_escape'))
-            function = python_types.FunctionType(function, globals())
+            function = func_load(config['function'], globs=globals())
         else:
             raise Exception('Unknown function type: ' + function_type)
 
@@ -602,8 +592,7 @@ class Lambda(Layer):
         if output_shape_type == 'function':
             output_shape = globals()[config['output_shape']]
         elif output_shape_type == 'lambda':
-            output_shape = marshal.loads(config['output_shape'].encode('raw_unicode_escape'))
-            output_shape = python_types.FunctionType(output_shape, globals())
+            output_shape = func_load(config['output_shape'], globs=globals())
         else:
             output_shape = config['output_shape']
 
