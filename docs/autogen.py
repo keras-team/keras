@@ -133,6 +133,8 @@ PAGES = [
             core.Dense,
             core.Activation,
             core.Dropout,
+            core.SpatialDropout2D,
+            core.SpatialDropout3D,
             core.Flatten,
             core.Reshape,
             core.Permute,
