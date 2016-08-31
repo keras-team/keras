@@ -1473,5 +1473,10 @@ def run_on_device(function, inputs):
     else:
         for i in range(len(inputs)):
             if hasattr(inputs[i], 'transfer'):
-                inputs[i] = inputs[i].transfer(_DEVICE)
+                new_input = inputs[i].transfer(_DEVICE)
+                # If keras tensor, copy keras topology and shape information.
+                if hasattr(inputs[i], '_keras_shape'):
+                    new_input._keras_shape = inputs[i]._keras_shape
+                    new_input._keras_history = inputs[i]._keras_history
+                inputs[i] = new_input
         return function(*inputs)
