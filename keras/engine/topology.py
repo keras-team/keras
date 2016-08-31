@@ -1414,13 +1414,8 @@ class Merge(Layer):
             raise Exception('Invalid merge mode: {}'.format(self.mode))
 
     def get_config(self):
-        py3 = sys.version_info[0] == 3
-
         if isinstance(self.mode, python_types.LambdaType):
-            if py3:
-                mode = marshal.dumps(self.mode.__code__).decode('raw_unicode_escape')
-            else:
-                mode = marshal.dumps(self.mode.func_code).decode('raw_unicode_escape')
+            mode = marshal.dumps(self.mode.__code__).decode('raw_unicode_escape')
             mode_type = 'lambda'
         elif callable(self.mode):
             mode = self.mode.__name__
@@ -1430,10 +1425,7 @@ class Merge(Layer):
             mode_type = 'raw'
 
         if isinstance(self._output_shape, python_types.LambdaType):
-            if py3:
-                output_shape = marshal.dumps(self._output_shape.__code__).decode('raw_unicode_escape')
-            else:
-                output_shape = marshal.dumps(self._output_shape.func_code).decode('raw_unicode_escape')
+            output_shape = marshal.dumps(self._output_shape.__code__).decode('raw_unicode_escape')
             output_shape_type = 'lambda'
         elif callable(self._output_shape):
             output_shape = self._output_shape.__name__

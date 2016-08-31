@@ -554,23 +554,15 @@ class Lambda(Layer):
         return self.function(x, **arguments)
 
     def get_config(self):
-        py3 = sys.version_info[0] == 3
-
         if isinstance(self.function, python_types.LambdaType):
-            if py3:
-                function = marshal.dumps(self.function.__code__).decode('raw_unicode_escape')
-            else:
-                function = marshal.dumps(self.function.func_code).decode('raw_unicode_escape')
+            function = marshal.dumps(self.function.__code__).decode('raw_unicode_escape')
             function_type = 'lambda'
         else:
             function = self.function.__name__
             function_type = 'function'
 
         if isinstance(self._output_shape, python_types.LambdaType):
-            if py3:
-                output_shape = marshal.dumps(self._output_shape.__code__).decode('raw_unicode_escape')
-            else:
-                output_shape = marshal.dumps(self._output_shape.func_code).decode('raw_unicode_escape')
+            output_shape = marshal.dumps(self._output_shape.__code__).decode('raw_unicode_escape')
             output_shape_type = 'lambda'
         elif callable(self._output_shape):
             output_shape = self._output_shape.__name__
