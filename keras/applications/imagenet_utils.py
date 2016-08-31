@@ -41,7 +41,7 @@ def decode_predictions(preds, top=1):
         indices = (-preds).argsort()[:top]
         top_preds = indices[0, :top]
     else:
-        top_preds = np.argmax(preds)
+        top_preds = np.argmax(preds, axis=-1)
     
     results = []
     for i in top_preds:
