@@ -1,5 +1,9 @@
 import tensorflow as tf
 from tensorflow.python.training import moving_averages
+try:
+    from tensorflow.contrib.ctc import ctc_loss
+except ImportError:
+    from tensorflow.python.ops.ctc_ops import ctc_loss
 import numpy as np
 import os
 import copy
@@ -1757,9 +1761,9 @@ def ctc_batch_cost(y_true, y_pred, input_length, label_length):
 
     y_pred = tf.log(tf.transpose(y_pred, perm=[1, 0, 2]) + 1e-8)
 
-    return tf.expand_dims(tf.contrib.ctc.ctc_loss(inputs=y_pred,
-                                                  labels=sparse_labels,
-                                                  sequence_length=input_length), 1)
+    return tf.expand_dims(ctc_loss(inputs=y_pred,
+                                   labels=sparse_labels,
+                                   sequence_length=input_length), 1)
 
 
 def ctc_decode(y_pred, input_length, greedy=True, beam_width=None,
