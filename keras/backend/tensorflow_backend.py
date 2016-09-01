@@ -1136,7 +1136,7 @@ def rnn(step_function, inputs, initial_states,
 
         if mask is not None:
             if go_backwards:
-                mask = tf.reverse(mask, [True] + [False] * (ndim - 1))
+                mask = tf.reverse(mask, [True] + [False] * (ndim - 2))
 
             # Transpose not supported by bool tensor types, hence round-trip to uint8.
             mask = tf.cast(mask, tf.uint8)
