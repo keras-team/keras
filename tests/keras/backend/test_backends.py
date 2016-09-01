@@ -707,7 +707,9 @@ class TestBackend(object):
         # keras output, unlike tensorflow, is a dense (not sparse) tensor
         decode_truth = np.array([[0, 1, -1], [1, 1, 0]])
 
-        decode_pred_tf, log_prob_pred_tf = KTF.ctc_decode(inputs, input_length, greedy=True)
+        decode_pred_tf, log_prob_pred_tf = KTF.ctc_decode(inputs,
+                                                          input_length,
+                                                          greedy=True)
 
         assert len(decode_pred_tf) == 1
 
@@ -753,7 +755,11 @@ class TestBackend(object):
         beam_width = 2
         top_paths = 2
 
-        decode_pred_tf, log_prob_pred_tf = KTF.ctc_decode(inputs, input_length, greedy=False, beam_width=beam_width, top_paths=top_paths)
+        decode_pred_tf, log_prob_pred_tf = KTF.ctc_decode(inputs,
+                                                          input_length,
+                                                          greedy=False,
+                                                          beam_width=beam_width,
+                                                          top_paths=top_paths)
 
         assert len(decode_pred_tf) == top_paths
 
