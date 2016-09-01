@@ -451,7 +451,7 @@ class TensorBoard(Callback):
             write_graph is set to True.
     '''
 
-    def __init__(self, log_dir='./logs', histogram_freq=0, write_graph=True):
+    def __init__(self, log_dir='./logs', histogram_freq=0, write_graph=True, write_images=False):
         super(TensorBoard, self).__init__()
         if K._BACKEND != 'tensorflow':
             raise Exception('TensorBoard callback only works '
@@ -460,6 +460,7 @@ class TensorBoard(Callback):
         self.histogram_freq = histogram_freq
         self.merged = None
         self.write_graph = write_graph
+        self.write_images = write_images
 
     def _set_model(self, model):
         import tensorflow as tf
@@ -468,12 +469,55 @@ class TensorBoard(Callback):
         self.model = model
         self.sess = KTF.get_session()
         if self.histogram_freq and self.merged is None:
-            layers = self.model.layers
-            for layer in layers:
+            for layer in self.model.layers:
+
+                W = None
                 if hasattr(layer, 'W'):
-                    tf.histogram_summary('{}_W'.format(layer.name), layer.W)
+                    W = layer.W
+
+                b = None
                 if hasattr(layer, 'b'):
-                    tf.histogram_summary('{}_b'.format(layer.name), layer.b)
+                    b = layer.b
+
+                weights = []
+                if hasattr(layer, 'trainable_weights'):
+                    weights.extend(layer.trainable_weights)
+                if hasattr(layer, 'non_trainable_weights'):
+                    weights.extend(layer.non_trainable_weights)
+
+                for weight in weights:
+                    #Try and figure out a sensible name
+                    if weight == W:
+                        name = layer.name + '_W'
+                    elif weight == b:
+                        name = layer.name + '_b'
+                    else:
+                        if weight.name.startswith(layer.name):
+                            (_, _, suffix) = weight.name.partition(layer.name)
+                            name = layer.name + '_' + suffix
+                        else: 
+                            name = layer.name + '_' + weight.name
+
+                    #Add histogram summary
+                    tf.histogram_summary(name, weight)
+
+                    if self.write_images:
+                        w_img = tf.squeeze(weight)
+
+                        #Using the shape feels unsafe, but is probably ok for weights
+                        shape = w_img.get_shape()
+                        if len(shape) > 1 and shape[0] > shape[1]:
+                            w_img = tf.transpose(w_img)
+
+                        #Expand the tensor to a single row if we squeezed too hard...
+                        if len(shape) == 1:
+                            w_img = tf.expand_dims(w_img, 0)
+
+                        #Expand the tensor to 4d for plotting
+                        w_img = tf.expand_dims(tf.expand_dims(w_img, 0), -1)
+
+                        tf.image_summary(name, w_img)
+
                 if hasattr(layer, 'output'):
                     tf.histogram_summary('{}_out'.format(layer.name),
                                          layer.output)
