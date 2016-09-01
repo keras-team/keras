@@ -123,7 +123,7 @@ else:
 # Shape of input to train on (note that model is fully convolutional however)
 input_shape = X_train.shape[1:]
 # The final list of the size of axis=1 for all layers, including input
-nfeats_all = [input_shape[0]]+nfeats
+nfeats_all = [input_shape[0]] + nfeats
 
 # First build the encoder, all the while keeping track of the "where" masks
 img_input = Input(shape=input_shape)
@@ -132,17 +132,17 @@ img_input = Input(shape=input_shape)
 wheres = [None]*nlayers
 y = img_input
 for i in range(nlayers):
-    y_prepool = convresblock(y, nfeats=nfeats_all[i+1], ksize=ksize)
+    y_prepool = convresblock(y, nfeats=nfeats_all[i + 1], ksize=ksize)
     y = MaxPooling2D(pool_size=(pool_sizes[i], pool_sizes[i]))(y_prepool)
     wheres[i] = merge([y_prepool, y], mode=getwhere,
                       output_shape=lambda x: x[0])
 
 # Now build the decoder, and use the stored "where" masks to place the features
 for i in range(nlayers):
-    y = UpSampling2D(size=(pool_sizes[nlayers-1-i],
-                           pool_sizes[nlayers-1-i]))(y)
-    y = merge([y, wheres[nlayers-1-i]], mode='mul')
-    y = convresblock(y, nfeats=nfeats_all[nlayers-1-i], ksize=ksize)
+    y = UpSampling2D(size=(pool_sizes[nlayers - 1 - i],
+                           pool_sizes[nlayers - 1 - i]))(y)
+    y = merge([y, wheres[nlayers - 1 - i]], mode='mul')
+    y = convresblock(y, nfeats=nfeats_all[nlayers - 1 - i], ksize=ksize)
 
 # Use hard_simgoid to clip range of reconstruction
 y = Activation('hard_sigmoid')(y)
