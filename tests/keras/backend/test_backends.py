@@ -764,7 +764,6 @@ class TestBackend(object):
 
         assert np.allclose(log_prob_truth, log_prob_pred)
 
-
     def test_one_hot(self):
         input_length = 10
         nb_classes = 20
