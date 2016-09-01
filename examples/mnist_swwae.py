@@ -139,10 +139,11 @@ for i in range(nlayers):
 
 # Now build the decoder, and use the stored "where" masks to place the features
 for i in range(nlayers):
-    y = UpSampling2D(size=(pool_sizes[nlayers - 1 - i],
-                           pool_sizes[nlayers - 1 - i]))(y)
-    y = merge([y, wheres[nlayers - 1 - i]], mode='mul')
-    y = convresblock(y, nfeats=nfeats_all[nlayers - 1 - i], ksize=ksize)
+    ind = nlayers - 1 - i
+    y = UpSampling2D(size=(pool_sizes[ind],
+                           pool_sizes[ind]))(y)
+    y = merge([y, wheres[ind]], mode='mul')
+    y = convresblock(y, nfeats=nfeats_all[ind], ksize=ksize)
 
 # Use hard_simgoid to clip range of reconstruction
 y = Activation('hard_sigmoid')(y)
