@@ -106,7 +106,7 @@ def InceptionV3(include_top=True, weights='imagenet',
         img_input = Input(shape=input_shape)
     else:
         if not K.is_keras_tensor(input_tensor):
-            img_input = Input(tensor=input_tensor)
+            img_input = Input(tensor=input_tensor, shape=input_shape)
         else:
             img_input = input_tensor
 

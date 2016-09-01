@@ -974,11 +974,11 @@ class InputLayer(Layer):
                              'batch_input_shape argument to '
                              'InputLayer, not both at the same time.')
         if input_tensor is not None:
-            if not input_shape and not batch_input_shape:
-                # attempt automatic input shape inference
-                try:
-                    batch_input_shape = K.int_shape(input_tensor)
-                except:
+            # attempt automatic input shape inference
+            try:
+                batch_input_shape = K.int_shape(input_tensor)
+            except:
+                if not input_shape and not batch_input_shape:
                     raise ValueError('InputLayer was provided an input_tensor argument, '
                                      'but its input shape cannot be automatically inferred. '
                                      'You should pass an input_shape or batch_input_shape '
@@ -1078,6 +1078,7 @@ def Input(shape=None, batch_shape=None,
                        ' or a `batch_shape` argument. Note that ' +
                        '`shape` does not include the batch '
                        'dimension.')
+    if shape and not batch_shape:
         batch_shape = (None,) + tuple(shape)
     input_layer = InputLayer(batch_input_shape=batch_shape,
                              name=name, input_dtype=dtype,
