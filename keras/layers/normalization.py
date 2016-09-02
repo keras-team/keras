@@ -61,7 +61,7 @@ class BatchNormalization(Layer):
         - [Batch Normalization: Accelerating Deep Network Training by Reducing Internal Covariate Shift](http://jmlr.org/proceedings/papers/v37/ioffe15.html)
     '''
     def __init__(self, epsilon=1e-5, mode=0, axis=-1, momentum=0.99,
-                 weights=None, beta_init='zero', gamma_init='one', 
+                 weights=None, beta_init='zero', gamma_init='one',
                  gamma_regularizer=None, beta_regularizer=None, **kwargs):
         self.supports_masking = True
         self.beta_init = initializations.get(beta_init)
