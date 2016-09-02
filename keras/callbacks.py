@@ -478,7 +478,7 @@ class TensorBoard(Callback):
                     weights.extend(layer.non_trainable_weights)
 
                 for weight in weights:
-                    tf.histogram_summary(name, weight)
+                    tf.histogram_summary(weight.name, weight)
 
                     if self.write_images:
                         w_img = tf.squeeze(weight)
@@ -492,7 +492,7 @@ class TensorBoard(Callback):
 
                         w_img = tf.expand_dims(tf.expand_dims(w_img, 0), -1)
 
-                        tf.image_summary(name, w_img)
+                        tf.image_summary(weight.name, w_img)
 
                 if hasattr(layer, 'output'):
                     tf.histogram_summary('{}_out'.format(layer.name),
