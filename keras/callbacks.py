@@ -471,11 +471,11 @@ class TensorBoard(Callback):
             layers = self.model.layers
             for layer in layers:
                 if hasattr(layer, 'W'):
-                    tf.histogram_summary('{}_W'.format(layer.name), layer.W)
+                    tf.histogram_summary('{}_W'.format(layer), layer.W)
                 if hasattr(layer, 'b'):
-                    tf.histogram_summary('{}_b'.format(layer.name), layer.b)
+                    tf.histogram_summary('{}_b'.format(layer), layer.b)
                 if hasattr(layer, 'output'):
-                    tf.histogram_summary('{}_out'.format(layer.name),
+                    tf.histogram_summary('{}_out'.format(layer),
                                          layer.output)
         self.merged = tf.merge_all_summaries()
         if self.write_graph:
@@ -516,3 +516,78 @@ class TensorBoard(Callback):
             summary_value.tag = name
             self.writer.add_summary(summary, epoch)
         self.writer.flush()
+
+
+
+class AdvancedLearnignRateScheduler(Callback):
+    '''
+   # Arguments
+       monitor: quantity to be monitored.
+       patience: number of epochs with no improvement
+           after which training will be stopped.
+       verbose: verbosity mode.
+       mode: one of {auto, min, max}. In 'min' mode,
+           training will stop when the quantity
+           monitored has stopped decreasing; in 'max'
+           mode it will stop when the quantity
+           monitored has stopped increasing.
+   '''
+    def __init__(self, filepath, monitor='val_loss', patience=0,
+                 verbose=0, mode='auto', decayRatio=0.5):
+        super(Callback, self).__init__()
+ 
+        self.monitor = monitor
+        self.patience = patience
+        self.verbose = verbose
+        self.wait = 0
+        self.decayRatio = decayRatio
+        self.filepath = filepath
+ 
+        if mode not in ['auto', 'min', 'max']:
+            warnings.warn('Mode %s is unknown, '
+                          'fallback to auto mode.'
+                          % (self.mode), RuntimeWarning)
+            mode = 'auto'
+ 
+        if mode == 'min':
+            self.monitor_op = np.less
+            self.best = np.Inf
+        elif mode == 'max':
+            self.monitor_op = np.greater
+            self.best = -np.Inf
+        else:
+            if 'acc' in self.monitor:
+                self.monitor_op = np.greater
+                self.best = -np.Inf
+            else:
+                self.monitor_op = np.less
+                self.best = np.Inf
+ 
+    def on_epoch_end(self, epoch, logs={}):
+        filepath = self.filepath.format(epoch=epoch, **logs)
+        current = logs.get(self.monitor)
+ 
+        current_lr = K.get_value(self.model.optimizer.lr)
+        print("\nLearning rate:", current_lr)
+        if current is None:
+            warnings.warn('AdvancedLearnignRateScheduler'
+                          ' requires %s available!' %
+                          (self.monitor), RuntimeWarning)
+ 
+        if self.monitor_op(current, self.best):
+            self.best = current
+            self.wait = 0
+        else:
+            if self.wait >= self.patience:
+                if self.verbose > 0:
+                    print('\nEpoch %05d: reducing learning rate' % (epoch))
+                    assert hasattr(self.model.optimizer, 'lr'), \
+                        'Optimizer must have a "lr" attribute.'
+                    current_lr = K.get_value(self.model.optimizer.lr)
+                    new_lr = current_lr * self.decayRatio
+                    K.set_value(self.model.optimizer.lr, new_lr)
+                    self.model.load_weights(filepath)
+                    print('Weights loaded')
+                    self.wait = 0
+ 
+            self.wait += 1
