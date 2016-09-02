@@ -405,12 +405,19 @@ class _GlobalPooling1D(Layer):
     def __init__(self, **kwargs):
         super(_GlobalPooling1D, self).__init__(**kwargs)
         self.input_spec = [InputSpec(ndim=3)]
+        self.supports_masking = True
 
     def get_output_shape_for(self, input_shape):
         return (input_shape[0], input_shape[2])
 
     def call(self, x, mask=None):
         raise NotImplementedError
+
+    def compute_mask(self, input, input_mask=None):
+        if type(input_mask) is list:
+            return [None]*len(input_mask)
+        else:
+            return None
 
 
 class GlobalAveragePooling1D(_GlobalPooling1D):
@@ -424,7 +431,20 @@ class GlobalAveragePooling1D(_GlobalPooling1D):
     '''
 
     def call(self, x, mask=None):
-        return K.mean(x, axis=1)
+        if mask == None:
+            return K.mean(x, axis=1)
+        else:
+            mask = K.cast(mask, K.floatx())
+            #Expand count so we can do a broadcast division
+            count = K.sum(mask, axis=1)
+            count = K.expand_dims(count, dim=1)
+            if K.backend() == 'tensorflow':#tensorflow shape command dosn't work
+                mask = K.repeat_elements(K.expand_dims(mask), K.int_shape(x)[2], 2)
+            else:#theano
+                mask = K.repeat_elements(K.expand_dims(mask), K.shape(x)[2], 2)
+            x = x*mask#zero out everything in the mask
+            avg = K.sum(x, axis=1)  / (count+1e-5)
+            return K.cast(avg, x.dtype)
 
 
 class GlobalMaxPooling1D(_GlobalPooling1D):
@@ -438,7 +458,16 @@ class GlobalMaxPooling1D(_GlobalPooling1D):
     '''
 
     def call(self, x, mask=None):
-        return K.max(x, axis=1)
+        if mask == None:
+            return K.max(x, axis=1)
+        else:
+            mask = K.cast(mask, K.floatx())
+            if K.backend() == 'tensorflow':#tensorflow shape command dosn't work
+                mask = K.repeat_elements(K.expand_dims(mask), K.int_shape(x)[2], 2)
+            else:#theano
+                mask = K.repeat_elements(K.expand_dims(mask), K.shape(x)[2], 2)
+            x = x-mask*(K.max(x)-K.min(x))*1.1 #make everying in the mask smaller than non-masked. 
+            return K.max(x, axis=1)
 
 
 class _GlobalPooling2D(Layer):
