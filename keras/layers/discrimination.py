@@ -117,7 +117,7 @@ class MinibatchDiscrimination(Layer):
         return input_shape[0], input_shape[1]+self.nb_kernels
 
     def get_config(self):
-        config = {'num_kernels': self.nb_kernels,
+        config = {'nb_kernels': self.nb_kernels,
                   'kernel_dim': self.kernel_dim,
                   'init': self.init.__name__,
                   'W_regularizer': self.W_regularizer.get_config() if self.W_regularizer else None,
