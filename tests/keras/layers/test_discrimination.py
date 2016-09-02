@@ -6,18 +6,18 @@ from keras.layers import discrimination
 
 @keras_test
 def test_minibatchdiscrimination():
-    num_kernels = 2
+    nb_kernels = 2
     kernel_dim = 2
     nb_samples = 4
     input_dim = 5
 
     layer_test(discrimination.MinibatchDiscrimination,
-               kwargs={'num_kernels': num_kernels,
+               kwargs={'nb_kernels': nb_kernels,
                        'kernel_dim': kernel_dim},
                input_shape=(nb_samples, input_dim))
 
     layer_test(discrimination.MinibatchDiscrimination,
-               kwargs={'num_kernels': num_kernels,
+               kwargs={'nb_kernels': nb_kernels,
                        'kernel_dim': kernel_dim,
                        'W_regularizer': 'l2',
                        'activity_regularizer': 'activity_l2',
