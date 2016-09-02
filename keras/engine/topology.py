@@ -2475,10 +2475,13 @@ class Container(Layer):
         If `by_name` is False (default) weights are loaded
         based on the network's topology, meaning the architecture
         should be the same as when the weights were saved.
+        Note that layers that don't have weights are not taken
+        into account in the topological ordering, so adding or
+        removing layers is fine as long as they don't have weights.
 
         If `by_name` is True, weights are loaded into layers
         only if they share the same name. This is useful
-        when fine-tuning or transfer-learning models where
+        for fine-tuning or transfer-learning models where
         some of the layers have changed.
         '''
         import h5py
