@@ -6,7 +6,7 @@ import keras.backend as K
 
 def test_embedding():
     layer_test(Embedding,
-               kwargs={'output_dim': 4., 'input_dim': 10, 'input_length': 2},
+               kwargs={'output_dim': 4., 'context_dim': 10, 'input_length': 2},
                input_shape=(3, 2),
                input_dtype='int32',
                expected_output_dtype=K.floatx())
