@@ -24,7 +24,7 @@ def set_trainable(net, boolean):
         layer.trainable = boolean
 
 batch_size = 128
-nb_epoch = 3
+nb_epoch = 5
 nb_zdim = 100
 
 # number of convolutional filters to use
@@ -62,7 +62,7 @@ discriminator.add(Convolution2D(nb_filters * 4, kernel_size[0], kernel_size[1],
                                 subsample=(nb_pool, nb_pool), border_mode='same'))
 discriminator.add(LeakyReLU(0.2))
 discriminator.add(Flatten())
-discriminator.add(MinibatchDiscrimination(5, 3))
+discriminator.add(MinibatchDiscrimination(8, 4))
 discriminator.add(Dense(output_dim=1))
 discriminator.add(Activation('sigmoid'))
 
