@@ -186,6 +186,9 @@ def int_shape(x):
 def ndim(x):
     '''Returns the number of axes in a tensor, as an integer.
     '''
+    if isinstance(x, tf.SparseTensor):
+        return x.shape.get_shape()[0]
+    
     dims = x.get_shape()._dims
     if dims is not None:
         return len(dims)
@@ -314,7 +317,10 @@ def dot(x, y):
         xt = tf.reshape(x, [-1, x_shape[-1]])
         yt = tf.reshape(tf.transpose(y, perm=y_permute_dim), [y_shape[-2], -1])
         return tf.reshape(tf.matmul(xt, yt), x_shape[:-1] + y_shape[:-2] + y_shape[-1:])
-    out = tf.matmul(x, y)
+    if isinstance(x, tf.SparseTensor):
+        out = tf.sparse_tensor_dense_matmul(x, y)
+    else:
+        out = tf.matmul(x, y)
     return out
 
 
@@ -965,8 +971,13 @@ class Function(object):
 
     def __call__(self, inputs):
         assert type(inputs) in {list, tuple}
-        names = [getattr(v, 'name', None) for v in self.inputs]
-        feed_dict = dict(zip(names, inputs))
+        feed_dict = {}
+        for tensor, value in zip(self.inputs, inputs):
+            if isinstance(tensor, tf.SparseTensor):
+                sparse_coo = value.tocoo()
+                indices = np.concatenate((np.expand_dims(sparse_coo.row, 1), np.expand_dims(sparse_coo.col, 1)), 1)
+                value = (indices, value.data, value.shape)
+            feed_dict[tensor] = value
         session = get_session()
         updated = session.run(self.outputs + [self.updates_op], feed_dict=feed_dict)
         return updated[:len(self.outputs)]
