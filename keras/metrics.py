@@ -80,12 +80,11 @@ def matthews(y_true, y_pred):
     y_pos = y_true
     y_neg = 1 - y_true
 
-    dtype = np.float64
-    TP = K.sum(K.cast(y_pos * y_pred_pos, dtype))
-    TN = K.sum(K.cast(y_neg * y_pred_neg, dtype))
+    TP = K.sum(y_pos * y_pred_pos)
+    TN = K.sum(y_neg * y_pred_neg)
 
-    FP = K.sum(1 - K.cast(y_neg * y_pred_pos, dtype))
-    FN = K.sum(1 - K.cast(y_pos * y_pred_neg, dtype))
+    FP = K.sum(1 - y_neg * y_pred_pos)
+    FN = K.sum(1 - y_pos * y_pred_neg)
 
     MCC = (TP*TN-FP*FN)/K.sqrt((TP+FP)*(TP+FN)*(TN+FP)*(TN+FN))
     
