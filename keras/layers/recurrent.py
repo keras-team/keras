@@ -1819,7 +1819,7 @@ class AttLSTMCond(LSTM):
             self.V_x = self.init((self.output_dim, self.input_dim), name='{}_V_x'.format(self.name))
             self.W_x = self.init((self.output_dim, self.context_dim), name='{}_W_x'.format(self.name))
             self.b_x = K.zeros((self.context_dim,), name='{}_b_x'.format(self.name))
-            self.trainable_weights = [self.wa, self.Wa, self.Ua, self.ba, # AttModel parameters
+            self.trainable_weights = [self.wa, self.Wa, self.Ua, self.ba, self.ca, # AttModel parameters
                                       self.V_i, self.W_i, self.U_i, self.b_i,
                                       self.V_c, self.W_c, self.U_c, self.b_c,
                                       self.V_f, self.W_f, self.U_f, self.b_f,

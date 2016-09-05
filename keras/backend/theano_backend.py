@@ -1275,3 +1275,19 @@ def random_multinomial(shape, p=0.0, dtype=_FLOATX, seed=None):
 
 
 
+# COUNT SKETCH
+
+def count_sketch(h, s, x, d=16000):
+    #x = T.matrix(name='x', dtype='float32')
+    rval, updates = theano.scan(fn=__count_sketch,
+                            sequences=[h, s, x.dimshuffle(1,0)],
+                            outputs_info = T.alloc(0., x.shape[0], d),
+                            non_sequences=[], n_steps=x.shape[1])
+    return rval
+    #func = theano.function([x, h, s], [rval])
+    #return func
+
+def __count_sketch(h, s, v,#Sequences
+                   y, # Outputs info
+                   ):
+    return T.inc_subtensor(y[:, h], T.dot(s, v))
