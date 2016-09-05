@@ -407,6 +407,11 @@ def repeatRdim(x, n, axis=1):
 def set_subtensor(x, v):
     return T.set_subtensor(x, v)
 
+
+def inc_subtensor(x, v):
+    return T.inc_subtensor(x, v)
+
+
 def tile(x, n):
     return T.tile(x, n)
 
@@ -1283,11 +1288,10 @@ def count_sketch(h, s, x, d=16000):
                             sequences=[h, s, x.dimshuffle(1,0)],
                             outputs_info = T.alloc(0., x.shape[0], d),
                             non_sequences=[], n_steps=x.shape[1])
-    return rval
-    #func = theano.function([x, h, s], [rval])
-    #return func
+
+    return rval[-1] # We are interested only in the last value
 
 def __count_sketch(h, s, v,#Sequences
                    y, # Outputs info
                    ):
-    return T.inc_subtensor(y[:, h], T.dot(s, v))
+    return T.cast(T.inc_subtensor(y[:, h], T.dot(s, v)), 'float32')

@@ -1472,7 +1472,7 @@ class CompactBilinearPooling(Layer):
             raise Exception('CompactBilinearPooling must be called on a list of tensors '
                             '(at least 2). Got: ' + str(x))
         return self.multimodal_compact_bilinear(x)
-
+    
     def get_config(self):
         config = {'d': self.d}
         base_config = super(CompactBilinearPooling, self).get_config()
@@ -1480,7 +1480,6 @@ class CompactBilinearPooling(Layer):
 
     def get_output_shape_for(self, input_shape):
         assert type(input_shape) is list  # must have mutiple input shape tuples
-        print 'size', tuple([input_shape[0][0], self.d])
         #return input_shape[0][0], self.d
         return tuple([input_shape[0][0], self.d])
 
