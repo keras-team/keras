@@ -20,7 +20,8 @@ class _Pooling1D(Layer):
         self.stride = stride
         self.st = (self.stride, 1)
         self.pool_size = (pool_length, 1)
-        assert border_mode in {'valid', 'same'}, 'border_mode must be in {valid, same}'
+        assert border_mode in {
+            'valid', 'same'}, 'border_mode must be in {valid, same}'
         self.border_mode = border_mode
         self.input_spec = [InputSpec(ndim=3)]
 
@@ -123,7 +124,8 @@ class _Pooling2D(Layer):
         if strides is None:
             strides = self.pool_size
         self.strides = tuple(strides)
-        assert border_mode in {'valid', 'same'}, 'border_mode must be in {valid, same}'
+        assert border_mode in {
+            'valid', 'same'}, 'border_mode must be in {valid, same}'
         self.border_mode = border_mode
         assert dim_ordering in {'tf', 'th'}, 'dim_ordering must be in {tf, th}'
         self.dim_ordering = dim_ordering
@@ -268,7 +270,8 @@ class _Pooling3D(Layer):
         if strides is None:
             strides = self.pool_size
         self.strides = tuple(strides)
-        assert border_mode in {'valid', 'same'}, 'border_mode must be in {valid, same}'
+        assert border_mode in {
+            'valid', 'same'}, 'border_mode must be in {valid, same}'
         self.border_mode = border_mode
         assert dim_ordering in {'tf', 'th'}, 'dim_ordering must be in {tf, th}'
         self.dim_ordering = dim_ordering
@@ -294,9 +297,19 @@ class _Pooling3D(Layer):
                                       self.border_mode, self.strides[2])
 
         if self.dim_ordering == 'th':
-            return (input_shape[0], input_shape[1], len_dim1, len_dim2, len_dim3)
+            return (
+                input_shape[0],
+                input_shape[1],
+                len_dim1,
+                len_dim2,
+                len_dim3)
         elif self.dim_ordering == 'tf':
-            return (input_shape[0], len_dim1, len_dim2, len_dim3, input_shape[4])
+            return (
+                input_shape[0],
+                len_dim1,
+                len_dim2,
+                len_dim3,
+                input_shape[4])
         else:
             raise Exception('Invalid dim_ordering: ' + self.dim_ordering)
 
@@ -414,8 +427,8 @@ class _GlobalPooling1D(Layer):
         raise NotImplementedError
 
     def compute_mask(self, input, input_mask=None):
-        if type(input_mask) is list:
-            return [None]*len(input_mask)
+        if isinstance(input_mask, list):
+            return [None] * len(input_mask)
         else:
             return None
 
@@ -431,19 +444,20 @@ class GlobalAveragePooling1D(_GlobalPooling1D):
     '''
 
     def call(self, x, mask=None):
-        if mask == None:
+        if mask is None:
             return K.mean(x, axis=1)
         else:
             mask = K.cast(mask, K.floatx())
-            #Expand count so we can do a broadcast division
+            # Expand count so we can do a broadcast division
             count = K.sum(mask, axis=1)
             count = K.expand_dims(count, dim=1)
-            if K.backend() == 'tensorflow':#tensorflow shape command dosn't work
-                mask = K.repeat_elements(K.expand_dims(mask), K.int_shape(x)[2], 2)
-            else:#theano
+            if K.backend() == 'tensorflow':  # tensorflow shape command dosn't work
+                mask = K.repeat_elements(
+                    K.expand_dims(mask), K.int_shape(x)[2], 2)
+            else:  # theano
                 mask = K.repeat_elements(K.expand_dims(mask), K.shape(x)[2], 2)
-            x = x*mask#zero out everything in the mask
-            avg = K.sum(x, axis=1)  / (count+1e-5)
+            x = x * mask  # zero out everything in the mask
+            avg = K.sum(x, axis=1) / (count + 1e-5)
             return K.cast(avg, x.dtype)
 
 
@@ -458,15 +472,17 @@ class GlobalMaxPooling1D(_GlobalPooling1D):
     '''
 
     def call(self, x, mask=None):
-        if mask == None:
+        if mask is None:
             return K.max(x, axis=1)
         else:
             mask = K.cast(mask, K.floatx())
-            if K.backend() == 'tensorflow':#tensorflow shape command dosn't work
-                mask = K.repeat_elements(K.expand_dims(mask), K.int_shape(x)[2], 2)
-            else:#theano
+            if K.backend() == 'tensorflow':  # tensorflow shape command dosn't work
+                mask = K.repeat_elements(
+                    K.expand_dims(mask), K.int_shape(x)[2], 2)
+            else:  # theano
                 mask = K.repeat_elements(K.expand_dims(mask), K.shape(x)[2], 2)
-            x = x-mask*(K.max(x)-K.min(x))*1.1 #make everying in the mask smaller than non-masked. 
+            # make everying in the mask smaller than non-masked.
+            x = x - mask * (K.max(x) - K.min(x)) * 1.1
             return K.max(x, axis=1)
 
 
