@@ -85,8 +85,11 @@ def mathews_correlation(y_true, y_pred):
 
     fp = K.sum(1 - y_neg * y_pred_pos)
     fn = K.sum(1 - y_pos * y_pred_neg)
+    
+    numerator = (tp * tn - fp * fn)
+    denominator = K.sqrt((tp + fp) * (tp + fn) * (tn + fp) * (tn + fn))
 
-    return (tp*tn-fp*fn)/(K.sqrt((tp+fp)*(tp+fn)*(tn+fp)*(tn+fn))+K.epsilon())
+    return numerator / (denominator + K.epsilon())
 
 # aliases
 mse = MSE = mean_squared_error
