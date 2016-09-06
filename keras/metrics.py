@@ -74,21 +74,19 @@ def cosine_proximity(y_true, y_pred):
 def matthews(y_true, y_pred):
     ''' Matthews correlation coefficient
     '''
-    y_pred_pos = K.round(y_pred)
+    y_pred_pos = K.round(K.clip(y_pred, 0 ,1))
     y_pred_neg = 1 - y_pred_pos
     
-    y_pos = y_true
-    y_neg = 1 - y_true
+    y_pos = K.round(K.clip(y_true, 0, 1))
+    y_neg = 1 - y_pos
 
-    TP = K.sum(y_pos * y_pred_pos)
-    TN = K.sum(y_neg * y_pred_neg)
+    tp = K.sum(y_pos * y_pred_pos)
+    tn = K.sum(y_neg * y_pred_neg)
 
-    FP = K.sum(1 - y_neg * y_pred_pos)
-    FN = K.sum(1 - y_pos * y_pred_neg)
-
-    MCC = (TP*TN-FP*FN)/K.sqrt((TP+FP)*(TP+FN)*(TN+FP)*(TN+FN))
+    fp = K.sum(1 - y_neg * y_pred_pos)
+    fn = K.sum(1 - y_pos * y_pred_neg)
     
-    return MCC
+    return (tp*tn-fp*fn)/(K.sqrt((tp+fp)*(tp+fn)*(tn+fp)*(tn+fn))+K.epsilon())
 
 # aliases
 mse = MSE = mean_squared_error
