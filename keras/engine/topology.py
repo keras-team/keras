@@ -1233,7 +1233,7 @@ class Merge(Layer):
                 raise Exception('Invalid format for dot_axes - list elements should be "int".')
             if shape1[self.dot_axes[0]] != shape2[self.dot_axes[1]]:
                 raise Exception('Dimension incompatibility using dot mode: ' +
-                                '%s != %s. ' % (shape1[dot_axes[0]], shape2[dot_axes[1]]) +
+                                '%s != %s. ' % (shape1[self.dot_axes[0]], shape2[self.dot_axes[1]]) +
                                 'Layer shapes: %s, %s' % (shape1, shape2))
         elif mode == 'concat':
             reduced_inputs_shapes = [list(shape) for shape in input_shapes]
