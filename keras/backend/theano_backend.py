@@ -4,6 +4,7 @@ from theano.sandbox.rng_mrg import MRG_RandomStreams as RandomStreams
 from theano.tensor.signal import pool
 from theano.tensor.nnet import conv3d2d
 from theano.printing import Print
+import theano.sparse as T_sp
 try:
     from theano.tensor.nnet.nnet import softsign as T_softsign
 except ImportError:
@@ -156,7 +157,10 @@ Assumed overridden:
 
 
 def dot(x, y):
-    return T.dot(x, y)
+    if isinstance(x, T_sp.SparseVariable):
+        return T_sp.basic.structured_dot(x,y)
+    else:
+        return T.dot(x, y)
 
 
 def batch_dot(x, y, axes=None):
