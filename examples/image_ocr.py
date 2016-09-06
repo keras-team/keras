@@ -61,6 +61,7 @@ OUTPUT_DIR = "image_ocr"
 
 np.random.seed(55)
 
+
 # this creates larger "blotches" of noise which look
 # more realistic than just adding gaussian noise
 # assumes greyscale with pixels ranging from 0 to 1
@@ -72,6 +73,7 @@ def speckle(img):
     img_speck[img_speck > 1] = 1
     img_speck[img_speck <= 0] = 0
     return img_speck
+
 
 # paints the string in a random location the bounding box
 # also uses a random font, a slight random rotation,
@@ -114,6 +116,7 @@ def paint_text(text, w, h):
 
     return a
 
+
 def shuffle_mats_or_lists(matrix_list, stop_ind=None):
     ret = []
     assert all([len(i) == len(matrix_list[0]) for i in matrix_list])
@@ -131,8 +134,10 @@ def shuffle_mats_or_lists(matrix_list, stop_ind=None):
         elif isinstance(mat, list):
             ret.append([mat[i] for i in a])
         else:
-            raise TypeError('shuffle_mats_or_lists only supports numpy.array and list objects')
+            raise TypeError('shuffle_mats_or_lists only supports '
+                            'numpy.array and list objects')
     return ret
+
 
 def text_to_labels(text, num_classes):
     ret = []
@@ -143,6 +148,7 @@ def text_to_labels(text, num_classes):
             ret.append(26)
     return ret
 
+
 # only a-z and space..probably not to difficult
 # to expand to uppercase and symbols
 
@@ -150,14 +156,15 @@ def is_valid_str(in_str):
     search = re.compile(r'[^a-z\ ]').search
     return not bool(search(in_str))
 
+
 # Uses generator functions to supply train/test with
 # data. Image renderings are text are created on the fly
 # each time with random perturbations
 
 class TextImageGenerator(keras.callbacks.Callback):
 
-    def __init__(self, monogram_file, bigram_file, minibatch_size, img_w,
-                 img_h, downsample_width, val_split,
+    def __init__(self, monogram_file, bigram_file, minibatch_size,
+                 img_w, img_h, downsample_width, val_split,
                  absolute_max_string_len=16):
 
         self.minibatch_size = minibatch_size
@@ -221,7 +228,10 @@ class TextImageGenerator(keras.callbacks.Callback):
     # each time an image is requested from train/val/test, a new random
     # painting of the text is performed
     def get_batch(self, index, size, train):
-        X_data = np.ones([size, 1, self.img_h, self.img_w])
+        if K.image_dim_ordering() == 'th':
+            X_data = np.ones([size, 1, self.img_h, self.img_w])
+        else:
+            X_data = np.ones([size, self.img_h, self.img_w, 1])
         labels = np.ones([size, self.absolute_max_string_len])
         input_length = np.zeros([size, 1])
         label_length = np.zeros([size, 1])
@@ -231,13 +241,19 @@ class TextImageGenerator(keras.callbacks.Callback):
             # Mix in some blank inputs.  This seems to be important for
             # achieving translational invariance
             if train and i > size - 4:
-                X_data[i, 0, :, :] = paint_text('', self.img_w, self.img_h)
+                if K.image_dim_ordering() == 'th':
+                    X_data[i, 0, :, :] = paint_text('', self.img_w, self.img_h)
+                else:
+                    X_data[i, :, :, 0] = paint_text('', self.img_w, self.img_h)
                 labels[i, 0] = self.blank_label
                 input_length[i] = self.downsample_width
                 label_length[i] = 1
                 source_str.append('')
             else:
-                X_data[i, 0, :, :] = paint_text(self.X_text[index + i], self.img_w, self.img_h)
+                if K.image_dim_ordering() == 'th':
+                    X_data[i, 0, :, :] = paint_text(self.X_text[index + i], self.img_w, self.img_h)
+                else:
+                    X_data[i, :, :, 0] = paint_text(self.X_text[index + i], self.img_w, self.img_h)
                 labels[i, :] = self.Y_data[index + i]
                 input_length[i] = self.downsample_width
                 label_length[i] = self.Y_len[index + i]
@@ -285,6 +301,7 @@ class TextImageGenerator(keras.callbacks.Callback):
         if epoch == 30:
             self.build_word_list(64000, 12, 0.5)
 
+
 # the actual loss calc occurs here despite it not being
 # an internal Keras loss function
 
@@ -294,6 +311,7 @@ def ctc_lambda_func(args):
     # tend to be garbage:
     y_pred = y_pred[:, 2:, :]
     return K.ctc_batch_cost(labels, y_pred, input_length, label_length)
+
 
 # For a real OCR application, this should be beam search with a dictionary
 # and language model.  For this example, best path is sufficient.
@@ -314,9 +332,10 @@ def decode_batch(test_func, word_batch):
         ret.append(outstr)
     return ret
 
+
 class VizCallback(keras.callbacks.Callback):
 
-    def __init__(self, test_func, text_img_gen, num_display_words = 6):
+    def __init__(self, test_func, text_img_gen, num_display_words=6):
         self.test_func = test_func
         self.output_dir = os.path.join(
             OUTPUT_DIR, datetime.datetime.now().strftime('%A, %d. %B %Y %I.%M%p'))
@@ -350,7 +369,11 @@ class VizCallback(keras.callbacks.Callback):
 
         for i in range(self.num_display_words):
             pylab.subplot(self.num_display_words, 1, i + 1)
-            pylab.imshow(word_batch['the_input'][i, 0, :, :], cmap='Greys_r')
+            if K.image_dim_ordering() == 'th':
+                the_input = word_batch['the_input'][i, 0, :, :]
+            else:
+                the_input = word_batch['the_input'][i, :, :, 0]
+            pylab.imshow(the_input, cmap='Greys_r')
             pylab.xlabel('Truth = \'%s\' Decoded = \'%s\'' % (word_batch['source_str'][i], res[i]))
         fig = pylab.gcf()
         fig.set_size_inches(10, 12)
@@ -375,6 +398,11 @@ time_dense_size = 32
 rnn_size = 512
 time_steps = img_w / (pool_size_1 * pool_size_2)
 
+if K.image_dim_ordering() == 'th':
+    input_shape = (1, img_h, img_w)
+else:
+    input_shape = (img_h, img_w, 1)
+
 fdir = os.path.dirname(get_file('wordlists.tgz',
                                 origin='http://www.isosemi.com/datasets/wordlists.tgz', untar=True))
 
@@ -387,7 +415,7 @@ img_gen = TextImageGenerator(monogram_file=os.path.join(fdir, 'wordlist_mono_cle
                              val_split=words_per_epoch - val_words)
 
 act = 'relu'
-input_data = Input(name='the_input', shape=(1, img_h, img_w), dtype='float32')
+input_data = Input(name='the_input', shape=input_shape, dtype='float32')
 inner = Convolution2D(conv_num_filters, filter_size, filter_size, border_mode='same',
                       activation=act, name='conv1')(input_data)
 inner = MaxPooling2D(pool_size=(pool_size_1, pool_size_1), name='max1')(inner)

@@ -162,7 +162,7 @@ def img_to_array(img, dim_ordering='default'):
 
 def load_img(path, grayscale=False, target_size=None):
     '''Load an image into PIL format.
-    
+
     # Arguments
         path: path to image file
         grayscale: boolean
