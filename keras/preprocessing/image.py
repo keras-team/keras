@@ -161,6 +161,14 @@ def img_to_array(img, dim_ordering='default'):
 
 
 def load_img(path, grayscale=False, target_size=None):
+    '''Load an image into PIL format.
+    
+    # Arguments
+        path: path to image file
+        grayscale: boolean
+        target_size: None (default to original size)
+            or (img_height, img_width)
+    '''
     from PIL import Image
     img = Image.open(path)
     if grayscale:
