@@ -41,7 +41,7 @@ def variable(value, dtype=_FLOATX, name=None):
     return theano.shared(value=value, name=name, strict=False)
 
 
-def placeholder(shape=None, ndim=None, dtype=_FLOATX, name=None):
+def placeholder(shape=None, ndim=None, dtype=_FLOATX, sparse=None, name=None):
     '''Instantiate an input data placeholder variable.
     '''
     if shape is None and ndim is None:
@@ -52,7 +52,10 @@ def placeholder(shape=None, ndim=None, dtype=_FLOATX, name=None):
         shape = tuple([None for _ in range(ndim)])
 
     broadcast = (False,) * ndim
-    x = T.TensorType(dtype, broadcast)(name)
+    if sparse:
+        x = T_sp.csr_matrix(name=name, dtype=dtype)
+    else:
+        x = T.TensorType(dtype, broadcast)(name)
     x._keras_shape = shape
     x._uses_learning_phase = False
     return x

@@ -763,7 +763,7 @@ class Model(Container):
             do_validation = True
             if verbose:
                 print('Train on %d samples, validate on %d samples' %
-                      (len(ins[0]), len(val_ins[0])))
+                      (ins[0].shape[0], val_ins[0].shape[0]))
 
         nb_train_sample = ins[0].shape[0]
         index_array = np.arange(nb_train_sample)
@@ -904,7 +904,7 @@ class Model(Container):
             and/or metrics). The attribute `model.metrics_names` will give you
             the display labels for the scalar outputs.
         '''
-        nb_sample = len(ins[0])
+        nb_sample = ins[0].shape[0]
         outs = []
         if verbose == 1:
             progbar = Progbar(target=nb_sample)

@@ -144,7 +144,7 @@ def variable(value, dtype=_FLOATX, name=None):
     return v
 
 
-def placeholder(shape=None, ndim=None, dtype=_FLOATX, name=None):
+def placeholder(shape=None, ndim=None, dtype=_FLOATX, sparse=None, name=None):
     '''Instantiates a placeholder.
 
     # Arguments
@@ -162,7 +162,11 @@ def placeholder(shape=None, ndim=None, dtype=_FLOATX, name=None):
     if not shape:
         if ndim:
             shape = tuple([None for _ in range(ndim)])
-    x = tf.placeholder(dtype, shape=shape, name=name)
+    if sparse:
+        shape = list([0 for _ in range(len(shape))])
+        x = tf.sparse_placeholder(dtype, shape=tf.constant(np.array(shape, dtype=np.int64)), name=name)
+    else:
+        x = tf.placeholder(dtype, shape=shape, name=name)
     x._keras_shape = shape
     x._uses_learning_phase = False
     return x
@@ -678,11 +682,34 @@ def concatenate(tensors, axis=-1):
     '''Concantes a list of tensors alongside the specified axis.
     '''
     if axis < 0:
-        if len(tensors[0].get_shape()):
+        if isinstance(tensors[0], tf.SparseTensor):
+            axis = axis % int(tensors[0].shape.get_shape()[0])
+        elif len(tensors[0].get_shape()):
             axis = axis % len(tensors[0].get_shape())
         else:
             axis = 0
-    return tf.concat(axis, tensors)
+
+    any_sparse = False
+    all_sparse = True
+    for tensor in tensors:
+        if isinstance(tensor, tf.SparseTensor):
+            any_sparse = True
+        else:
+            all_sparse = False
+
+    if all_sparse:
+        return tf.sparse_concat(axis, tensors)
+    elif any_sparse:
+        converted = []
+        for tensor in tensors:
+            if isinstance(tensor, tf.SparseTensor):
+                converted.append(tf.sparse_tensor_to_dense(tensor))
+            else:
+                converted.append(tensor)
+
+        return tf.concat(axis, converted)
+    else:
+        return tf.concat(axis, tensors)
 
 
 def reshape(x, shape):
