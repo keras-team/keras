@@ -71,7 +71,7 @@ def cosine_proximity(y_true, y_pred):
     return -K.mean(y_true * y_pred)
 
 
-def matthews_corrcoef(y_true, y_pred):
+def mathews_correlation(y_true, y_pred):
     ''' Matthews correlation coefficient
     '''
     y_pred_pos = K.round(K.clip(y_pred, 0, 1))
