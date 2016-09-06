@@ -173,6 +173,7 @@ match = Sequential()
 match.add(Merge([input_encoder_m, question_encoder],
                 mode='dot',
                 dot_axes=[2, 2]))
+match.add(Activation('softmax'))
 # output: (samples, story_maxlen, query_maxlen)
 # embed the input into a single vector with size = story_maxlen:
 input_encoder_c = Sequential()
