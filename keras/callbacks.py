@@ -451,7 +451,7 @@ class TensorBoard(Callback):
             write_graph is set to True.
     '''
 
-    def __init__(self, log_dir='./logs', histogram_freq=0, write_graph=True):
+    def __init__(self, log_dir='./logs', histogram_freq=0, write_graph=True, write_images=False):
         super(TensorBoard, self).__init__()
         if K._BACKEND != 'tensorflow':
             raise Exception('TensorBoard callback only works '
@@ -460,6 +460,7 @@ class TensorBoard(Callback):
         self.histogram_freq = histogram_freq
         self.merged = None
         self.write_graph = write_graph
+        self.write_images = write_images
 
     def _set_model(self, model):
         import tensorflow as tf
@@ -468,12 +469,25 @@ class TensorBoard(Callback):
         self.model = model
         self.sess = KTF.get_session()
         if self.histogram_freq and self.merged is None:
-            layers = self.model.layers
-            for layer in layers:
-                if hasattr(layer, 'W'):
-                    tf.histogram_summary('{}_W'.format(layer.name), layer.W)
-                if hasattr(layer, 'b'):
-                    tf.histogram_summary('{}_b'.format(layer.name), layer.b)
+            for layer in self.model.layers:
+
+                for weight in layer.weights:
+                    tf.histogram_summary(weight.name, weight)
+
+                    if self.write_images:
+                        w_img = tf.squeeze(weight)
+
+                        shape = w_img.get_shape()
+                        if len(shape) > 1 and shape[0] > shape[1]:
+                            w_img = tf.transpose(w_img)
+
+                        if len(shape) == 1:
+                            w_img = tf.expand_dims(w_img, 0)
+
+                        w_img = tf.expand_dims(tf.expand_dims(w_img, 0), -1)
+
+                        tf.image_summary(weight.name, w_img)
+
                 if hasattr(layer, 'output'):
                     tf.histogram_summary('{}_out'.format(layer.name),
                                          layer.output)
