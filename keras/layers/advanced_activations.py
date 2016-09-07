@@ -289,23 +289,25 @@ class HierarchicalSoftmax(Layer):
     - [Strategies for Training Large Vocabulary Neural Language Models](http://arxiv.org/pdf/1512.04906)
 
     '''
-    def __init__(self, total_outputs, per_class = None,
+    def __init__(self, total_outputs, batch_size, per_class = None,
                  top_weights_init = 'uniform', top_bias_init = 'zero',
                  bottom_weights_init = 'uniform', bottom_bias_init = 'zero',
                  **kwargs):
         assert K.backend() == 'theano', "HierarchicalSoftmax only supported by Theano"
         
-        if per_top is None:
-            per_top = int(np.ceil(np.sqrt(total_class)))
+        if per_class is None:
+            per_class = int(np.ceil(np.sqrt(total_outputs)))
 
         #naming convention:
         #the first layer maps inputs to classes
         #the second layer maps classes to outputs
             
         self.total_outputs = total_outputs
-        self.per_class = per_top
+        self.per_class = per_class
 
-        self.n_classes = int(np.ceil(self.total_class * 1. / self.per_top))
+        self.batch_size = batch_size
+        
+        self.n_classes = int(np.ceil(self.total_outputs * 1. / self.per_class))
         self.n_outputs_actual = self.n_classes * self.per_class
 
         self.top_weights_init = initializations.get(top_weights_init)
@@ -315,11 +317,10 @@ class HierarchicalSoftmax(Layer):
         self.bottom_bias_init = initializations.get(bottom_bias_init)
         
         assert self.n_outputs_actual >= self.total_outputs, "The number of actual HSM outputs must be at least the number of outputs you're modeling over."
+        super(HierarchicalSoftmax, self).__init__(**kwargs)
         
     def build(self, input_shape):
-
         input_dim = input_shape[0][1]
-        self.batch_size = input_shape[0][0]
 
         self.top_weights = self.top_weights_init((input_dim, self.n_classes,),
                                                  name='{}_top_weights'.format(self.name))
@@ -327,30 +328,28 @@ class HierarchicalSoftmax(Layer):
         self.top_bias = self.top_bias_init((self.n_classes,),
                                            name='{}_top_bias'.format(self.name))
 
-        self.bottom_weights = self.bottom_init((self.n_classes, input_dim, self.per_class,),
-                                               name='{}_bottom_weights'.format(self.name))
+        self.bottom_weights = self.bottom_weights_init((self.n_classes, input_dim, self.per_class,),
+                                                       name='{}_bottom_weights'.format(self.name))
 
         self.bottom_bias = self.top_bias_init((self.n_classes, self.per_class,),
                                               name='{}_top_bias'.format(self.name))
         
-        
-        self.trainable_weights = [self.top_level_weights,
-                                  self.top_level_bias,
-                                  self.second_level_weights,
-                                  self.second_level_bias]
+        self.trainable_weights = [self.top_weights,
+                                  self.top_bias,
+                                  self.bottom_weights,
+                                  self.bottom_bias]
 
         
     def call(self, inputs, mask=None):
         if type(inputs) is not list or len(inputs) != 2:
             raise Exception('HierarchicalSoftmax must be called on a list of two tensors, got: ' + str(inputs))
         input_vecs, labels = inputs
-        return K.hierarchical_softmax(input_vecs, self.batch_size,
-                                      self.n_outputs, self.nclasses, self.per_class,
-                                      self.top_weights, self.top_bias,
-                                      self.bottom_weights, self.bottom_bias,
-                                      labels)
+        return -K.hierarchical_softmax(input_vecs, self.batch_size,
+                                       self.total_outputs, self.n_classes, self.per_class,
+                                       self.top_weights, self.top_bias,
+                                       self.bottom_weights, self.bottom_bias,
+                                       labels)
                                       
-        
     def get_output_shape_for(self, input_shape):
         return (input_shape[0][0],1)
 
