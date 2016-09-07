@@ -431,7 +431,7 @@ def batch_normalization(x, mean, var, beta, gamma, epsilon=0.0001):
 # SHAPE OPERATIONS
 
 def concatenate(tensors, axis=-1):
-    (any_sparse, all_sparse) = how_sparse(tensors)
+    (_, all_sparse) = how_sparse(tensors)
 
     if all_sparse:
         axis = axis % ndim(tensors[0])
@@ -441,10 +441,8 @@ def concatenate(tensors, axis=-1):
             return T_sp.basic.hstack(tensors, format='csr')
         else:
             raise Exception('Invalid concat axis for sparse matrix: ' + axis)
-    elif any_sparse:
-        return tf.concat(axis, to_dense(tensors))
     else:
-        return T.concatenate(tensors, axis=axis)
+        return T.concatenate(to_dense(tensors), axis=axis)
 
 
 def reshape(x, shape):

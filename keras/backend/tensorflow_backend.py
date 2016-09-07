@@ -710,14 +710,12 @@ def concatenate(tensors, axis=-1):
         else:
             axis = 0
 
-    (any_sparse, all_sparse) = how_sparse(tensors)
+    (_, all_sparse) = how_sparse(tensors)
 
     if all_sparse:
         return tf.sparse_concat(axis, tensors)
-    elif any_sparse:
-        return tf.concat(axis, to_dense(tensors))
     else:
-        return tf.concat(axis, tensors)
+        return tf.concat(axis, to_dense(tensors))
 
 
 def reshape(x, shape):
