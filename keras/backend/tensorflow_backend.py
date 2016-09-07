@@ -192,7 +192,7 @@ def ndim(x):
     '''
     if isinstance(x, tf.SparseTensor):
         return x.shape.get_shape()[0]
-    
+
     dims = x.get_shape()._dims
     if dims is not None:
         return len(dims)
