@@ -162,7 +162,7 @@ def variable(value, dtype=_FLOATX, name=None):
     return v
 
 
-def placeholder(shape=None, ndim=None, dtype=_FLOATX, sparse=None, name=None):
+def placeholder(shape=None, ndim=None, dtype=_FLOATX, sparse=False, name=None):
     '''Instantiates a placeholder.
 
     # Arguments

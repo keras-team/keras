@@ -56,7 +56,7 @@ def variable(value, dtype=_FLOATX, name=None):
         return theano.shared(value=value, name=name, strict=False)
 
 
-def placeholder(shape=None, ndim=None, dtype=_FLOATX, sparse=None, name=None):
+def placeholder(shape=None, ndim=None, dtype=_FLOATX, sparse=False, name=None):
     '''Instantiate an input data placeholder variable.
     '''
     if shape is None and ndim is None:
