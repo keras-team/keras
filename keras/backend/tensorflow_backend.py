@@ -105,12 +105,34 @@ def _convert_string_dtype(dtype):
     else:
         raise ValueError('Unsupported dtype:', dtype)
 
-
 def _to_tensor(x, dtype):
     x = tf.convert_to_tensor(x)
     if x.dtype != dtype:
         x = tf.cast(x, dtype)
     return x
+
+def is_sparse(tensor):
+    return isinstance(tensor, tf.SparseTensor)
+
+def how_sparse(tensors):
+    any_sparse = False
+    all_sparse = True
+    for tensor in tensors:
+        if is_sparse(tensor):
+            any_sparse = True
+        else:
+            all_sparse = False
+
+    return (any_sparse, all_sparse and any_sparse)
+
+def to_dense(tensors):
+    converted = []
+    for tensor in tensors:
+        if is_sparse(tensor):
+            converted.append(tf.sparse_tensor_to_dense(tensor))
+        else:
+            converted.append(tensor)
+    return converted
 
 
 def variable(value, dtype=_FLOATX, name=None):
@@ -190,7 +212,7 @@ def int_shape(x):
 def ndim(x):
     '''Returns the number of axes in a tensor, as an integer.
     '''
-    if isinstance(x, tf.SparseTensor):
+    if is_sparse(x):
         return x.shape.get_shape()[0]
 
     dims = x.get_shape()._dims
@@ -321,7 +343,7 @@ def dot(x, y):
         xt = tf.reshape(x, [-1, x_shape[-1]])
         yt = tf.reshape(tf.transpose(y, perm=y_permute_dim), [y_shape[-2], -1])
         return tf.reshape(tf.matmul(xt, yt), x_shape[:-1] + y_shape[:-2] + y_shape[-1:])
-    if isinstance(x, tf.SparseTensor):
+    if is_sparse(x):
         out = tf.sparse_tensor_dense_matmul(x, y)
     else:
         out = tf.matmul(x, y)
@@ -682,32 +704,18 @@ def concatenate(tensors, axis=-1):
     '''Concantes a list of tensors alongside the specified axis.
     '''
     if axis < 0:
-        if isinstance(tensors[0], tf.SparseTensor):
-            axis = axis % int(tensors[0].shape.get_shape()[0])
-        elif len(tensors[0].get_shape()):
-            axis = axis % len(tensors[0].get_shape())
+        ndim = ndim(tensors[0]) 
+        if ndim:
+            axis = axis % ndim
         else:
             axis = 0
 
-    any_sparse = False
-    all_sparse = True
-    for tensor in tensors:
-        if isinstance(tensor, tf.SparseTensor):
-            any_sparse = True
-        else:
-            all_sparse = False
+    (any_sparse, all_sparse) = how_sparse(tensors)
 
     if all_sparse:
         return tf.sparse_concat(axis, tensors)
     elif any_sparse:
-        converted = []
-        for tensor in tensors:
-            if isinstance(tensor, tf.SparseTensor):
-                converted.append(tf.sparse_tensor_to_dense(tensor))
-            else:
-                converted.append(tensor)
-
-        return tf.concat(axis, converted)
+        return tf.concat(axis, to_dense(tensors))
     else:
         return tf.concat(axis, tensors)
 
@@ -1000,7 +1008,7 @@ class Function(object):
         assert type(inputs) in {list, tuple}
         feed_dict = {}
         for tensor, value in zip(self.inputs, inputs):
-            if isinstance(tensor, tf.SparseTensor):
+            if is_sparse(tensor):
                 sparse_coo = value.tocoo()
                 indices = np.concatenate((np.expand_dims(sparse_coo.row, 1), np.expand_dims(sparse_coo.col, 1)), 1)
                 value = (indices, value.data, value.shape)

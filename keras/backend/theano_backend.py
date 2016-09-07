@@ -4,7 +4,10 @@ from theano.sandbox.rng_mrg import MRG_RandomStreams as RandomStreams
 from theano.tensor.signal import pool
 from theano.tensor.nnet import conv3d2d
 from theano.printing import Print
-import theano.sparse as T_sp
+try:
+    import theano.sparse as T_sp
+except ImportError:
+    HAS_SPARSE = False
 try:
     from theano.tensor.nnet.nnet import softsign as T_softsign
 except ImportError:
@@ -31,8 +34,30 @@ def set_learning_phase(value):
                          '0 or 1.')
     _LEARNING_PHASE = value
 
-
 # VARIABLE MANIPULATION
+
+def is_sparse(tensor):
+    return HAS_SPARSE and isinstance(tensor, T_sp.SparseVariable)
+
+def how_sparse(tensors):
+    any_sparse = False
+    all_sparse = True
+    for tensor in tensors:
+        if is_sparse(tensor):
+            any_sparse = True
+        else:
+            all_sparse = False
+
+    return (any_sparse, all_sparse and any_sparse)
+
+def to_dense(tensors):
+    converted = []
+    for tensor in tensors:
+        if is_sparse(tensor):
+            converted.append(T_sp.dense_from_sparse(tensor))
+        else:
+            converted.append(tensor)
+    return converted
 
 def variable(value, dtype=_FLOATX, name=None):
     '''Instantiate a tensor variable.
@@ -160,7 +185,7 @@ Assumed overridden:
 
 
 def dot(x, y):
-    if isinstance(x, T_sp.SparseVariable):
+    if is_sparse(x):
         return T_sp.basic.structured_dot(x,y)
     else:
         return T.dot(x, y)
@@ -406,7 +431,20 @@ def batch_normalization(x, mean, var, beta, gamma, epsilon=0.0001):
 # SHAPE OPERATIONS
 
 def concatenate(tensors, axis=-1):
-    return T.concatenate(tensors, axis=axis)
+    (any_sparse, all_sparse) = how_sparse(tensors)
+
+    if all_sparse:
+        axis = axis % ndim(tensors[0])
+        if axis == 0:
+            return T_sp.basic.vstack(axis, tensors)
+        elif axis == 1:
+            return T_sp.basic.hstack(axis, tensors)
+        else:
+            raise Exception('Invalid concat axis for sparse matrix: ' + axis)
+    elif any_sparse:
+        return tf.concat(axis, to_dense(tensors))
+    else:
+        return T.concatenate(tensors, axis=axis)
 
 
 def reshape(x, shape):
