@@ -39,7 +39,7 @@ def set_learning_phase(value):
 
 def is_sparse(tensor):
     global HAS_SPARSE
-    return HAS_SPARSE and isinstance(tensor, T_sp.SparseVariable)
+    return HAS_SPARSE and isinstance(tensor.type, T_sp.SparseType)
 
 def how_sparse(tensors):
     any_sparse = False
