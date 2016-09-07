@@ -1,17 +1,17 @@
 from __future__ import absolute_import
 from __future__ import print_function
 import pytest
-import numpy as np
-np.random.seed(1337)
 
 from keras.models import Model
 from keras.layers import Dense, Input
 from keras.utils.test_utils import keras_test
-import scipy.sparse as sparse
-
 from keras import backend as K
 from keras.backend import theano_backend as KTH
 from keras.backend import tensorflow_backend as KTF
+
+import scipy.sparse as sparse
+import numpy as np
+np.random.seed(1337)
 
 
 input_dim = 16
@@ -20,13 +20,15 @@ nb_class = 4
 batch_size = 32
 nb_epoch = 1
 
+
 def do_sparse():
     return K == KTF or KTH.th_sparse_module
+
 
 @keras_test
 def test_sparse_mlp():
     if not do_sparse():
-      return
+        return
 
     input = Input(batch_shape=(None, input_dim), sparse=True)
     hidden = Dense(nb_hidden, activation='relu')(input)
