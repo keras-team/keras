@@ -704,9 +704,9 @@ def concatenate(tensors, axis=-1):
     '''Concantes a list of tensors alongside the specified axis.
     '''
     if axis < 0:
-        ndim = ndim(tensors[0]) 
-        if ndim:
-            axis = axis % ndim
+        dims = ndim(tensors[0])
+        if dims:
+            axis = axis % dims
         else:
             axis = 0
 

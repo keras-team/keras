@@ -186,7 +186,7 @@ Assumed overridden:
 
 def dot(x, y):
     if is_sparse(x):
-        return T_sp.basic.structured_dot(x,y)
+        return T_sp.basic.structured_dot(x, y)
     else:
         return T.dot(x, y)
 
