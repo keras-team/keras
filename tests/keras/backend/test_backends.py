@@ -683,17 +683,15 @@ class TestBackend(object):
         
         backends = [KTF]
         if KTH.HAS_SPARSE:
-            #Theano has some dependency issues for sparse
-            backends.append(KTH)                
+            # Theano has some dependency issues for sparse
+            backends.append(KTH)
 
         for K in backends:
             t_W = K.variable(W)
-            k_s =  K.eval(K.dot(K.variable(x_sparse), t_W))
-            k_d =  K.eval(K.dot(K.variable(x_dense), t_W))
+            k_s = K.eval(K.dot(K.variable(x_sparse), t_W))
+            k_d = K.eval(K.dot(K.variable(x_dense), t_W))
             
             assert np.all(k_s == k_d)
-
-
 
 
 if __name__ == '__main__':
