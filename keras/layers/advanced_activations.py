@@ -280,8 +280,8 @@ class HierarchicalSoftmax(Layer):
         1D Tensor with shape (nb_samples,) representing the negative log probability of the correct class
 
     # Arguments
-        total_class: How many classes the hierarchical softmax is over
-        per_top: How many classes per top level code (should be on the order of the square root of the total number of classes)
+        total_outputs: How many outputs the hierarchical softmax is over
+        per_class: How many outputs per top level class (should be on the order of the square root of the total number of classes)
 
     # References
     - [Classes for Fast Maximum Entropy Training](http://arxiv.org/pdf/cs/0108006.pdf)
@@ -289,101 +289,67 @@ class HierarchicalSoftmax(Layer):
     - [Strategies for Training Large Vocabulary Neural Language Models](http://arxiv.org/pdf/1512.04906)
 
     '''
-    def __init__(self, total_class, per_top = None, **kwargs):
+    def __init__(self, total_outputs, per_class = None,
+                 top_weights_init = 'uniform', top_bias_init = 'zero',
+                 bottom_weights_init = 'uniform', bottom_bias_init = 'zero',
+                 **kwargs):
+        assert K.backend() == 'theano', "HierarchicalSoftmax only supported by Theano"
+        
         if per_top is None:
             per_top = int(np.ceil(np.sqrt(total_class)))
-        self.per_top = per_top
-        self.total_class = total_class
 
-        self.n_top_level = int(np.ceil(self.total_class * 1. / self.per_top))
-        self.n_second_level = self.n_top_level * self.per_top
+        #naming convention:
+        #the first layer maps inputs to classes
+        #the second layer maps classes to outputs
+            
+        self.total_outputs = total_outputs
+        self.per_class = per_top
+
+        self.n_classes = int(np.ceil(self.total_class * 1. / self.per_top))
+        self.n_outputs_actual = self.n_classes * self.per_class
+
+        self.top_weights_init = initializations.get(top_weights_init)
+        self.top_bias_init = initializations.get(top_bias_init)
+
+        self.bottom_weights_init = initializations.get(bottom_weights_init)
+        self.bottom_bias_init = initializations.get(bottom_bias_init)
         
-        self.class_to_all_top = np.reshape(np.array([item for sublist in
-                                                     [[i for _ in range(self.per_top)]
-                                                      for i in range(self.n_top_level)]
-                                                     for item in sublist]),
-                                           (self.n_second_level, 1))
-
-        self.top_to_all_second = np.reshape(np.arange(self.n_second_level),
-                                            (self.n_top_level, per_top))
+        assert self.n_outputs_actual >= self.total_outputs, "The number of actual HSM outputs must be at least the number of outputs you're modeling over."
         
-        self.class_to_all_second = np.array([item for sublist in
-                                             [range(per_top)
-                                              for _ in range(self.n_second_level)]
-                                             for item in sublist])
-
-        super(HierarchicalSoftmax, self).__init__(**kwargs)
-
     def build(self, input_shape):
 
         input_dim = input_shape[0][1]
+        self.batch_size = input_shape[0][0]
 
-        #Some matrices that provide required mappings into the weight matrices
-        self.class_to_top = K.variable(self.class_to_all_top, dtype = np.int32)
-        self.top_to_second = K.variable(self.top_to_all_second, dtype = np.int32)
-        self.class_to_second = K.variable(self.class_to_all_second, dtype = np.int32)
+        self.top_weights = self.top_weights_init((input_dim, self.n_classes,),
+                                                 name='{}_top_weights'.format(self.name))
 
-        #A few identity matrices we need in memory for indexing purposes
-        self.identity_constant_top = K.eye(self.n_top_level)
-        self.identity_constant_second = K.eye(self.per_top)
+        self.top_bias = self.top_bias_init((self.n_classes,),
+                                           name='{}_top_bias'.format(self.name))
 
-        self.top_level_weights = K.variable(np.random.random((self.n_top_level,input_dim)))
-        self.top_level_biases = K.zeros((self.n_top_level,))
+        self.bottom_weights = self.bottom_init((self.n_classes, input_dim, self.per_class,),
+                                               name='{}_bottom_weights'.format(self.name))
 
-        self.second_level_weights = K.variable(np.random.random((self.n_second_level,input_dim)))
-        self.second_level_biases = K.zeros((self.n_second_level,))
-
+        self.bottom_bias = self.top_bias_init((self.n_classes, self.per_class,),
+                                              name='{}_top_bias'.format(self.name))
+        
         
         self.trainable_weights = [self.top_level_weights,
-                                  self.top_level_biases,
+                                  self.top_level_bias,
                                   self.second_level_weights,
-                                  self.second_level_biases]
+                                  self.second_level_bias]
 
-        self.non_trainable_weights = [self.class_to_top,
-                                      self.top_to_second,
-                                      self.class_to_second,
-                                      self.identity_constant_top,
-                                      self.identity_constant_second]
-        
         
     def call(self, inputs, mask=None):
         if type(inputs) is not list or len(inputs) != 2:
             raise Exception('HierarchicalSoftmax must be called on a list of two tensors, got: ' + str(inputs))
         input_vecs, labels = inputs
-
-        #first: get the prob of the top level class for all inputs
-        top_logprobs = K.dot(input_vecs, K.transpose(self.top_level_weights))
-        top_logprobs += self.top_level_biases
-        top_probs = K.softmax(top_logprobs)
-
-        #second: for each label, record the probability of the correct top class
-        batch_tops = K.gather(self.class_to_top, labels)
-        top_index_mat = K.squeeze(K.squeeze(K.gather(self.identity_constant_top, batch_tops),1),1)
-        batch_top_probs = K.max(K.minimum(top_probs, top_index_mat), 1)
-
-        #third: get the (batch, per_second_level) matrix of indices, so we know which weights to use
-        second_level_indices = K.squeeze(K.squeeze(K.gather(self.top_to_second, batch_tops),1),1)
-
-        #fourth: compute the second level probabilities
-        second_level_selected_weights = K.permute_dimensions(K.gather(self.second_level_weights,
-                                                                      second_level_indices), (0,2,1))
-        second_level_selected_biases = K.gather(self.second_level_biases,
-                                       second_level_indices)
-
-        second_logprobs = K.squeeze(K.batch_dot(K.expand_dims(input_vecs,1),
-                                                second_level_selected_weights),1)
-        second_logprobs += second_level_selected_biases
-        second_probs = K.softmax(second_logprobs)
-
-        #finally, select the columns of the correct labels
-        second_index_mat = K.squeeze(K.gather(self.identity_constant_second,
-                                              K.gather(self.class_to_second, labels)),1)
-        batch_second_probs = K.max(K.minimum(second_probs, second_index_mat), 1)
-
-        #now we can output the negative log probability of the correct class for each input
-        batch_top_probs = -K.log(batch_top_probs)
-        batch_second_probs = -K.log(batch_second_probs)
-        return batch_top_probs + batch_second_probs
+        return K.hierarchical_softmax(input_vecs, self.batch_size,
+                                      self.n_outputs, self.nclasses, self.per_class,
+                                      self.top_weights, self.top_bias,
+                                      self.bottom_weights, self.bottom_bias,
+                                      labels)
+                                      
         
     def get_output_shape_for(self, input_shape):
         return (input_shape[0][0],1)
