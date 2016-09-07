@@ -471,13 +471,7 @@ class TensorBoard(Callback):
         if self.histogram_freq and self.merged is None:
             for layer in self.model.layers:
 
-                weights = []
-                if hasattr(layer, 'trainable_weights'):
-                    weights.extend(layer.trainable_weights)
-                if hasattr(layer, 'non_trainable_weights'):
-                    weights.extend(layer.non_trainable_weights)
-
-                for weight in weights:
+                for weight in layer.weights:
                     tf.histogram_summary(weight.name, weight)
 
                     if self.write_images:
