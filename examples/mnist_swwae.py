@@ -1,6 +1,6 @@
 '''Trains a stacked what-where autoencoder built on residual blocks on the
 MNIST dataset.  It exemplifies two influential methods that have been developed
-the past few years.
+in the past few years.
 
 The first is the idea of properly "unpooling." During any max pool, the
 exact location (the "where") of the maximal value in a pooled receptive field
@@ -97,7 +97,7 @@ pool_size = 2
 # The total number of feature maps at each layer
 nfeats = [8, 16, 32, 64, 128]
 # The sizes of the pooling kernel at each layer
-pool_sizes = np.array([1, 1, 1, 1, 1])*pool_size
+pool_sizes = np.array([1, 1, 1, 1, 1]) * pool_size
 # The convolution kernel size
 ksize = 3
 # Number of epochs to train for
@@ -129,7 +129,7 @@ nfeats_all = [input_shape[0]] + nfeats
 img_input = Input(shape=input_shape)
 
 # We push the "where" masks to the following list
-wheres = [None]*nlayers
+wheres = [None] * nlayers
 y = img_input
 for i in range(nlayers):
     y_prepool = convresblock(y, nfeats=nfeats_all[i + 1], ksize=ksize)
