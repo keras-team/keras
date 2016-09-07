@@ -105,14 +105,17 @@ def _convert_string_dtype(dtype):
     else:
         raise ValueError('Unsupported dtype:', dtype)
 
+
 def _to_tensor(x, dtype):
     x = tf.convert_to_tensor(x)
     if x.dtype != dtype:
         x = tf.cast(x, dtype)
     return x
 
+
 def is_sparse(tensor):
     return isinstance(tensor, tf.SparseTensor)
+
 
 def how_sparse(tensors):
     any_sparse = False
@@ -124,6 +127,7 @@ def how_sparse(tensors):
             all_sparse = False
 
     return (any_sparse, all_sparse and any_sparse)
+
 
 def to_dense(tensors):
     converted = []
@@ -219,7 +223,7 @@ def ndim(x):
     '''Returns the number of axes in a tensor, as an integer.
     '''
     if is_sparse(x):
-        return x.shape.get_shape()[0]
+        return int(x.shape.get_shape()[0])
 
     dims = x.get_shape()._dims
     if dims is not None:
@@ -237,7 +241,10 @@ def eval(x):
     '''Evaluates the value of a tensor.
     Returns a Numpy array.
     '''
-    return x.eval(session=get_session())
+    if is_sparse(x):
+        return to_dense([x])[0].eval(session=get_session())
+    else:
+        return x.eval(session=get_session())
 
 
 def zeros(shape, dtype=_FLOATX, name=None):
