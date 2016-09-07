@@ -436,9 +436,9 @@ def concatenate(tensors, axis=-1):
     if all_sparse:
         axis = axis % ndim(tensors[0])
         if axis == 0:
-            return T_sp.basic.vstack(axis, tensors)
+            return T_sp.basic.vstack(tensors, format='csr')
         elif axis == 1:
-            return T_sp.basic.hstack(axis, tensors)
+            return T_sp.basic.hstack(tensors, format='csr')
         else:
             raise Exception('Invalid concat axis for sparse matrix: ' + axis)
     elif any_sparse:
