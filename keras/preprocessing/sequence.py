@@ -138,7 +138,7 @@ def skipgrams(sequence, vocabulary_size,
                     continue
                 couples.append([wi, wj])
                 if categorical:
-                    labels.append([0,1])
+                    labels.append([0, 1])
                 else:
                     labels.append(1)
 
@@ -149,12 +149,12 @@ def skipgrams(sequence, vocabulary_size,
 
         couples += [[words[i %len(words)], random.randint(1, vocabulary_size-1)] for i in range(nb_negative_samples)]
         if categorical:
-            labels += [[1,0]]*nb_negative_samples
+            labels += [[1, 0]]*nb_negative_samples
         else:
             labels += [0]*nb_negative_samples
 
     if shuffle:
-        seed = random.randint(0,10e6)
+        seed = random.randint(0, 10e6)
         random.seed(seed)
         random.shuffle(couples)
         random.seed(seed)
