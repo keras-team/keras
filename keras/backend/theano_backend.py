@@ -96,7 +96,7 @@ def dtype(x):
 def eval(x):
     '''Run a graph.
     '''
-    return x.eval()
+    return to_dense(x).eval()
 
 
 def zeros(shape, dtype=_FLOATX, name=None):

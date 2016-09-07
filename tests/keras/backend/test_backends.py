@@ -691,7 +691,8 @@ class TestBackend(object):
             k_s = K.eval(K.dot(K.variable(x_sparse), t_W))
             k_d = K.eval(K.dot(K.variable(x_dense), t_W))
 
-            assert np.all(k_s == k_d)
+            assert k_s.shape == k_d.shape
+            assert_allclose(k_s, k_d, atol=1e-05)
 
     def test_sparse_concat(self):
         x_d = np.array([0, 7, 2, 3], dtype=np.float32)
@@ -722,7 +723,8 @@ class TestBackend(object):
 
             k_d = K.eval(K.concatenate([K.variable(x_dense_1), K.variable(x_dense_2)]))
 
-            assert np.all(k_s_d == k_d)
+            assert k_s_d.shape == k_d.shape
+            assert_allclose(k_s_d, k_d, atol=1e-05)
 
 
 if __name__ == '__main__':
