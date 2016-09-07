@@ -37,4 +37,3 @@ def test_sparse_mlp():
     x = sparse.rand(batch_size, input_dim, density=0.1, format='csr')
     y = np.random.random((batch_size, nb_class))
     model.fit(x, y, nb_epoch=1)
-    
