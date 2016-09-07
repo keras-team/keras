@@ -1716,7 +1716,7 @@ class AttLSTMCond(LSTM):
             InProceedings of the IEEE International Conference on Computer Vision 2015 (pp. 4507-4515).
     '''
     def __init__(self, output_dim, return_extra_variables=False,
-                 init='glorot_uniform', inner_init='orthogonal', init_state=None, init_memory=None,
+                 init='glorot_uniform', inner_init='orthogonal', #init_state=None, init_memory=None,
                  forget_bias_init='one', activation='tanh',
                  inner_activation='hard_sigmoid',
                  W_regularizer=None, U_regularizer=None, V_regularizer=None, b_regularizer=None,
@@ -1727,8 +1727,8 @@ class AttLSTMCond(LSTM):
         self.return_extra_variables = return_extra_variables
         self.init = initializations.get(init)
         self.inner_init = initializations.get(inner_init)
-        self.init_state = init_state
-        self.init_memory = init_memory
+        #self.init_state = init_state
+        #self.init_memory = init_memory
         self.forget_bias_init = initializations.get(forget_bias_init)
         self.activation = activations.get(activation)
         self.inner_activation = activations.get(inner_activation)
@@ -1750,9 +1750,14 @@ class AttLSTMCond(LSTM):
 
 
     def build(self, input_shape):
-        assert len(input_shape) == 2, 'You should pass two inputs to LSTMAttnCond'
+        assert len(input_shape) == 2 or len(input_shape) == 4, 'You should pass two inputs to LSTMAttnCond (context and previous_embedded_words) and two optional inputs (init_state and init_memory)'
 
-        self.input_spec = [InputSpec(shape=input_shape[0]), InputSpec(shape=input_shape[1])]
+        if len(input_shape) == 2:
+            self.input_spec = [InputSpec(shape=input_shape[0]), InputSpec(shape=input_shape[1])]
+            self.num_inputs = 2
+        elif len(input_shape) == 4:
+            self.input_spec = [InputSpec(shape=input_shape[0]), InputSpec(shape=input_shape[1]), InputSpec(shape=input_shape[2]), InputSpec(shape=input_shape[3])]
+            self.num_inputs = 4
         self.input_dim = input_shape[1][2]
         self.context_steps = input_shape[0][1]
         self.context_dim = input_shape[0][2]
@@ -1906,9 +1911,17 @@ class AttLSTMCond(LSTM):
         # input shape: (nb_samples, time (padded with zeros), context_dim)
         # note that the .build() method of subclasses MUST define
         # self.input_spec with a complete input shape.
+
         input_shape = self.input_spec[1].shape
         self.context = x[0]
         state_below = x[1]
+        if self.num_inputs == 2:
+            self.init_state = None
+            self.init_memory = None
+        elif self.num_inputs == 4:
+            self.init_state = x[2]
+            self.init_memory = x[3]
+
         if K._BACKEND == 'tensorflow':
             if not input_shape[1]:
                 raise Exception('When using TensorFlow, you should define '

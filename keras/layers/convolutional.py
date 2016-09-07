@@ -1424,13 +1424,11 @@ class CompactBilinearPooling(Layer):
         for i in range(self.nmodes):
             self.in_feat.append(input_shapes[i][1])
             if self.h[i] is None:
-                self.h[i] = K.ceil(K.random_uniform((input_shapes[i][1],),
-                                                    low=0., high=self.d - 1, dtype='float32')).astype('int64')
+                self.h[i] = K.random_uniform((input_shapes[i][1],),
+                                                    low=0., high=self.d, dtype='float32').astype('int64')
             if self.s[i] is None:
                 self.s[i] = K.switch(K.random_binomial((input_shapes[i][1],),
                                                        p=0.5, dtype='float32') < 0.5, -1, 1).astype('int64')
-        # define count sketch function
-        #self.count_sketch_func = K.count_sketch(self.h[0], self.s[0], self.d)
         self.built = True
 
     def compute_mask(self, input, input_mask=None):
@@ -1439,32 +1437,12 @@ class CompactBilinearPooling(Layer):
         else:
             return input_mask[0]
 
-    '''
-    def count_sketch(self, v, h, s, index):
-        y = K.zeros_symbolic([v.shape[0], self.d], dtype='float32')
-        for j in range(self.in_feat[index]):
-            y = K.set_subtensor(y[:, h[j]], y[:, h[j]] + K.dot(s[j], v[:, j]))
-        return y
-    '''
-
     def multimodal_compact_bilinear(self, x):
         v = [[]] * self.nmodes
         acum_fft = 1.0
         for i in range(self.nmodes):
             v[i] = K.count_sketch(self.h[i], self.s[i], x[i], self.d)
             acum_fft = acum_fft * K.fft(v[i])
-            #v[i] = self.count_sketch_func(x[i], self.h[i], self.s[i])
-            
-            #v[i] = K.count_sketch(self.h[i], self.s[i], x[i], self.d)
-
-            #rval, updates = theano.scan(fn=count_sketch,
-            #                sequences=[self.h[i], self.s[i], x[i].dimshuffle(1,0)],
-            #                outputs_info = T.alloc(0., x[i].shape[0], d),
-            #                non_sequences=[], n_steps=self._in_feat[i])
-            #func = theano.function([x[i]], [rval])
-            #v[i] = func(x[i])
-
-            #v[i] = self.count_sketch(x[i], self.h[i], self.s[i], i)
         return K.cast(K.ifft(acum_fft), dtype='float32')
 
     def call(self, x, mask=None):
@@ -1483,9 +1461,3 @@ class CompactBilinearPooling(Layer):
         #return input_shape[0][0], self.d
         return tuple([input_shape[0][0], self.d])
 
-'''
-def count_sketch(h, s, v,#Sequences
-                 y, # Outputs info
-                ):
-    return K.inc_subtensor(y[:, h], K.dot(s, v))
-'''
