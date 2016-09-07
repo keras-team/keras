@@ -64,8 +64,11 @@ def to_dense(tensors):
 def variable(value, dtype=_FLOATX, name=None):
     '''Instantiate a tensor variable.
     '''
-    value = np.asarray(value, dtype=dtype)
-    return theano.shared(value=value, name=name, strict=False)
+    if hasattr(value, 'tocoo'):
+        return T_sp.as_sparse_variable(value)
+    else:
+        value = np.asarray(value, dtype=dtype)
+        return theano.shared(value=value, name=name, strict=False)
 
 
 def placeholder(shape=None, ndim=None, dtype=_FLOATX, sparse=None, name=None):

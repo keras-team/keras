@@ -146,6 +146,12 @@ def variable(value, dtype=_FLOATX, name=None):
     # Returns
         Tensor variable instance.
     '''
+    if hasattr(value, 'tocoo'):
+        sparse_coo = value.tocoo()
+        indices = np.concatenate((np.expand_dims(sparse_coo.row, 1), np.expand_dims(sparse_coo.col, 1)), 1)
+        #SparseTensor doesn't need initialization
+        return tf.SparseTensor(indices=indices, values=value.data, shape=value.shape)
+
     v = tf.Variable(value, dtype=_convert_string_dtype(dtype), name=name)
     if _MANUAL_VAR_INIT:
         return v
