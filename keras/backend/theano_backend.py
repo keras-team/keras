@@ -5,10 +5,9 @@ from theano.tensor.signal import pool
 from theano.tensor.nnet import conv3d2d
 from theano.printing import Print
 try:
-    import theano.sparse as T_sp
-    HAS_SPARSE = True
+    import theano.sparse as th_sparse_module
 except ImportError:
-    HAS_SPARSE = False
+    th_sparse_module = None
 try:
     from theano.tensor.nnet.nnet import softsign as T_softsign
 except ImportError:
@@ -16,6 +15,7 @@ except ImportError:
 import inspect
 import numpy as np
 from .common import _FLOATX, _EPSILON, _IMAGE_DIM_ORDERING
+py_all = all
 
 
 # INTERNAL UTILS
@@ -38,34 +38,19 @@ def set_learning_phase(value):
 # VARIABLE MANIPULATION
 
 def is_sparse(tensor):
-    global HAS_SPARSE
-    return HAS_SPARSE and isinstance(tensor.type, T_sp.SparseType)
+    return th_sparse_module and isinstance(tensor.type, th_sparse_module.SparseType)
 
-def how_sparse(tensors):
-    any_sparse = False
-    all_sparse = True
-    for tensor in tensors:
-        if is_sparse(tensor):
-            any_sparse = True
-        else:
-            all_sparse = False
-
-    return (any_sparse, all_sparse and any_sparse)
-
-def to_dense(tensors):
-    converted = []
-    for tensor in tensors:
-        if is_sparse(tensor):
-            converted.append(T_sp.dense_from_sparse(tensor))
-        else:
-            converted.append(tensor)
-    return converted
+def to_dense(tensor):
+    if is_sparse(tensor):
+        return th_sparse_module.dense_from_sparse(tensor)
+    else:
+        return tensor
 
 def variable(value, dtype=_FLOATX, name=None):
     '''Instantiate a tensor variable.
     '''
     if hasattr(value, 'tocoo'):
-        return T_sp.as_sparse_variable(value)
+        return th_sparse_module.as_sparse_variable(value)
     else:
         value = np.asarray(value, dtype=dtype)
         return theano.shared(value=value, name=name, strict=False)
@@ -83,7 +68,7 @@ def placeholder(shape=None, ndim=None, dtype=_FLOATX, sparse=None, name=None):
 
     broadcast = (False,) * ndim
     if sparse:
-        x = T_sp.csr_matrix(name=name, dtype=dtype)
+        x = th_sparse_module.csr_matrix(name=name, dtype=dtype)
     else:
         x = T.TensorType(dtype, broadcast)(name)
     x._keras_shape = shape
@@ -191,7 +176,7 @@ Assumed overridden:
 
 def dot(x, y):
     if is_sparse(x):
-        return T_sp.basic.structured_dot(x, y)
+        return th_sparse_module.basic.structured_dot(x, y)
     else:
         return T.dot(x, y)
 
@@ -436,18 +421,16 @@ def batch_normalization(x, mean, var, beta, gamma, epsilon=0.0001):
 # SHAPE OPERATIONS
 
 def concatenate(tensors, axis=-1):
-    (_, all_sparse) = how_sparse(tensors)
-
-    if all_sparse:
+    if py_all([is_sparse(x) for x in tensors]):
         axis = axis % ndim(tensors[0])
         if axis == 0:
-            return T_sp.basic.vstack(tensors, format='csr')
+            return th_sparse_module.basic.vstack(tensors, format='csr')
         elif axis == 1:
-            return T_sp.basic.hstack(tensors, format='csr')
+            return th_sparse_module.basic.hstack(tensors, format='csr')
         else:
             raise Exception('Invalid concat axis for sparse matrix: ' + axis)
     else:
-        return T.concatenate(to_dense(tensors), axis=axis)
+        return T.concatenate([to_dense(x) for x in tensors], axis=axis)
 
 
 def reshape(x, shape):

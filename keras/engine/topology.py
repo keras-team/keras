@@ -947,7 +947,7 @@ class InputLayer(Layer):
     '''TODO: dosctring
     '''
     def __init__(self, input_shape=None, batch_input_shape=None,
-                 input_dtype=None, input_tensor=None, sparse=None, name=None):
+                 input_dtype=None, input_tensor=None, sparse=False, name=None):
         self.input_spec = None
         self.supports_masking = False
         self.uses_learning_phase = False
@@ -1034,7 +1034,7 @@ class InputLayer(Layer):
 
 
 def Input(shape=None, batch_shape=None,
-          name=None, dtype=K.floatx(), sparse=None,
+          name=None, dtype=K.floatx(), sparse=False,
           tensor=None):
     '''`Input()` is used to instantiate a Keras tensor.
     A Keras tensor is a tensor object from the underlying backend

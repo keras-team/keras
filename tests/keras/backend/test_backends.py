@@ -682,7 +682,7 @@ class TestBackend(object):
         W = np.random.random((5, 4))
 
         backends = [KTF]
-        if KTH.HAS_SPARSE:
+        if KTH.th_sparse_module:
             # Theano has some dependency issues for sparse
             backends.append(KTH)
 
@@ -710,7 +710,7 @@ class TestBackend(object):
         x_dense_2 = x_sparse_2.toarray()
 
         backends = [KTF]
-        if KTH.HAS_SPARSE:
+        if KTH.th_sparse_module:
             # Theano has some dependency issues for sparse
             backends.append(KTH)
 

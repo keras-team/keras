@@ -5,6 +5,7 @@ import os
 import copy
 import warnings
 from .common import _FLOATX, _EPSILON, _IMAGE_DIM_ORDERING, reset_uids
+py_all = all
 
 # INTERNAL UTILS
 
@@ -117,26 +118,11 @@ def is_sparse(tensor):
     return isinstance(tensor, tf.SparseTensor)
 
 
-def how_sparse(tensors):
-    any_sparse = False
-    all_sparse = True
-    for tensor in tensors:
-        if is_sparse(tensor):
-            any_sparse = True
-        else:
-            all_sparse = False
-
-    return (any_sparse, all_sparse and any_sparse)
-
-
-def to_dense(tensors):
-    converted = []
-    for tensor in tensors:
-        if is_sparse(tensor):
-            converted.append(tf.sparse_tensor_to_dense(tensor))
-        else:
-            converted.append(tensor)
-    return converted
+def to_dense(tensor):
+    if is_sparse(tensor):
+        return tf.sparse_tensor_to_dense(tensor)
+    else:
+        return tensor
 
 
 def variable(value, dtype=_FLOATX, name=None):
@@ -241,10 +227,7 @@ def eval(x):
     '''Evaluates the value of a tensor.
     Returns a Numpy array.
     '''
-    if is_sparse(x):
-        return to_dense([x])[0].eval(session=get_session())
-    else:
-        return x.eval(session=get_session())
+    return to_dense(x).eval(session=get_session())
 
 
 def zeros(shape, dtype=_FLOATX, name=None):
@@ -723,12 +706,10 @@ def concatenate(tensors, axis=-1):
         else:
             axis = 0
 
-    (_, all_sparse) = how_sparse(tensors)
-
-    if all_sparse:
+    if py_all([is_sparse(x) for x in tensors]):
         return tf.sparse_concat(axis, tensors)
     else:
-        return tf.concat(axis, to_dense(tensors))
+        return tf.concat(axis, [to_dense(x) for x in tensors])
 
 
 def reshape(x, shape):
