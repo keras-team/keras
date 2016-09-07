@@ -6,6 +6,7 @@ from theano.tensor.nnet import conv3d2d
 from theano.printing import Print
 try:
     import theano.sparse as T_sp
+    HAS_SPARSE = True
 except ImportError:
     HAS_SPARSE = False
 try:
@@ -37,6 +38,7 @@ def set_learning_phase(value):
 # VARIABLE MANIPULATION
 
 def is_sparse(tensor):
+    global HAS_SPARSE
     return HAS_SPARSE and isinstance(tensor, T_sp.SparseVariable)
 
 def how_sparse(tensors):
