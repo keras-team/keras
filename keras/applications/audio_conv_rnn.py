@@ -37,7 +37,7 @@ def AudioConvRNN(weights='msd', input_tensor=None):
     convention used by the model is the one
     specified in your Keras config file.
 
-    For preparing mel-spectrogram input, see 
+    For preparing mel-spectrogram input, see
     `audio_preprocessor.py` in [Music-auto_tagging-keras](https://github.com/keunwoochoi/music-auto_tagging-keras)
 
     # Arguments
