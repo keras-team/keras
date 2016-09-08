@@ -1426,11 +1426,11 @@ class Model(Container):
                 # build batch logs
                 batch_logs = {}
                 if type(x) is list:
-                    batch_size = len(x[0])
+                    batch_size = x[0].shape[0]
                 elif type(x) is dict:
-                    batch_size = len(list(x.values())[0])
+                    batch_size = list(x.values())[0].shape[0]
                 else:
-                    batch_size = len(x)
+                    batch_size = x.shape[0]
                 batch_logs['batch'] = batch_index
                 batch_logs['size'] = batch_size
                 callbacks.on_batch_begin(batch_index, batch_logs)
