@@ -1,6 +1,10 @@
 # -*- coding: utf-8 -*-
 '''AudioConvRNN model for Keras.
 
+# Reference:
+
+- [Music-auto_tagging-keras](https://github.com/keunwoochoi/music-auto_tagging-keras)
+
 '''
 from __future__ import print_function
 from __future__ import absolute_import
@@ -32,6 +36,9 @@ def AudioConvRNN(weights='msd', input_tensor=None):
     TensorFlow and Theano. The dimension ordering
     convention used by the model is the one
     specified in your Keras config file.
+
+    For preparing mel-spectrogram input, see 
+    `audio_preprocessor.py` in [Music-auto_tagging-keras](https://github.com/keunwoochoi/music-auto_tagging-keras)
 
     # Arguments
         weights: one of `None` (random initialization)
