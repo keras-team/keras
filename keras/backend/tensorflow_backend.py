@@ -9,6 +9,7 @@ import os
 import copy
 import warnings
 from .common import _FLOATX, _EPSILON, _IMAGE_DIM_ORDERING, reset_uids
+py_all = all
 
 # INTERNAL UTILS
 
@@ -117,6 +118,17 @@ def _to_tensor(x, dtype):
     return x
 
 
+def is_sparse(tensor):
+    return isinstance(tensor, tf.SparseTensor)
+
+
+def to_dense(tensor):
+    if is_sparse(tensor):
+        return tf.sparse_tensor_to_dense(tensor)
+    else:
+        return tensor
+
+
 def variable(value, dtype=_FLOATX, name=None):
     '''Instantiates a tensor.
 
@@ -128,6 +140,12 @@ def variable(value, dtype=_FLOATX, name=None):
     # Returns
         Tensor variable instance.
     '''
+    if hasattr(value, 'tocoo'):
+        sparse_coo = value.tocoo()
+        indices = np.concatenate((np.expand_dims(sparse_coo.row, 1), np.expand_dims(sparse_coo.col, 1)), 1)
+        # SparseTensor doesn't need initialization
+        return tf.SparseTensor(indices=indices, values=value.data, shape=value.shape)
+
     v = tf.Variable(value, dtype=_convert_string_dtype(dtype), name=name)
     if _MANUAL_VAR_INIT:
         return v
@@ -148,7 +166,7 @@ def variable(value, dtype=_FLOATX, name=None):
     return v
 
 
-def placeholder(shape=None, ndim=None, dtype=_FLOATX, name=None):
+def placeholder(shape=None, ndim=None, dtype=_FLOATX, sparse=False, name=None):
     '''Instantiates a placeholder.
 
     # Arguments
@@ -166,7 +184,11 @@ def placeholder(shape=None, ndim=None, dtype=_FLOATX, name=None):
     if not shape:
         if ndim:
             shape = tuple([None for _ in range(ndim)])
-    x = tf.placeholder(dtype, shape=shape, name=name)
+    if sparse:
+        tf_shape = tf.constant(np.array(list([0 for _ in range(len(shape))]), dtype=np.int64))
+        x = tf.sparse_placeholder(dtype, shape=tf_shape, name=name)
+    else:
+        x = tf.placeholder(dtype, shape=shape, name=name)
     x._keras_shape = shape
     x._uses_learning_phase = False
     return x
@@ -190,6 +212,9 @@ def int_shape(x):
 def ndim(x):
     '''Returns the number of axes in a tensor, as an integer.
     '''
+    if is_sparse(x):
+        return int(x.shape.get_shape()[0])
+
     dims = x.get_shape()._dims
     if dims is not None:
         return len(dims)
@@ -206,7 +231,7 @@ def eval(x):
     '''Evaluates the value of a tensor.
     Returns a Numpy array.
     '''
-    return x.eval(session=get_session())
+    return to_dense(x).eval(session=get_session())
 
 
 def zeros(shape, dtype=_FLOATX, name=None):
@@ -318,7 +343,10 @@ def dot(x, y):
         xt = tf.reshape(x, [-1, x_shape[-1]])
         yt = tf.reshape(tf.transpose(y, perm=y_permute_dim), [y_shape[-2], -1])
         return tf.reshape(tf.matmul(xt, yt), x_shape[:-1] + y_shape[:-2] + y_shape[-1:])
-    out = tf.matmul(x, y)
+    if is_sparse(x):
+        out = tf.sparse_tensor_dense_matmul(x, y)
+    else:
+        out = tf.matmul(x, y)
     return out
 
 
@@ -676,11 +704,16 @@ def concatenate(tensors, axis=-1):
     '''Concantes a list of tensors alongside the specified axis.
     '''
     if axis < 0:
-        if len(tensors[0].get_shape()):
-            axis = axis % len(tensors[0].get_shape())
+        dims = ndim(tensors[0])
+        if dims:
+            axis = axis % dims
         else:
             axis = 0
-    return tf.concat(axis, tensors)
+
+    if py_all([is_sparse(x) for x in tensors]):
+        return tf.sparse_concat(axis, tensors)
+    else:
+        return tf.concat(axis, [to_dense(x) for x in tensors])
 
 
 def reshape(x, shape):
@@ -969,8 +1002,13 @@ class Function(object):
 
     def __call__(self, inputs):
         assert type(inputs) in {list, tuple}
-        names = [getattr(v, 'name', None) for v in self.inputs]
-        feed_dict = dict(zip(names, inputs))
+        feed_dict = {}
+        for tensor, value in zip(self.inputs, inputs):
+            if is_sparse(tensor):
+                sparse_coo = value.tocoo()
+                indices = np.concatenate((np.expand_dims(sparse_coo.row, 1), np.expand_dims(sparse_coo.col, 1)), 1)
+                value = (indices, value.data, value.shape)
+            feed_dict[tensor] = value
         session = get_session()
         updated = session.run(self.outputs + [self.updates_op], feed_dict=feed_dict)
         return updated[:len(self.outputs)]

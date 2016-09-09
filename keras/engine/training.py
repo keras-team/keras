@@ -763,9 +763,9 @@ class Model(Container):
             do_validation = True
             if verbose:
                 print('Train on %d samples, validate on %d samples' %
-                      (len(ins[0]), len(val_ins[0])))
+                      (ins[0].shape[0], val_ins[0].shape[0]))
 
-        nb_train_sample = len(ins[0])
+        nb_train_sample = ins[0].shape[0]
         index_array = np.arange(nb_train_sample)
 
         self.history = cbks.History()
@@ -859,7 +859,7 @@ class Model(Container):
             or list of arrays of predictions
             (if the model has multiple outputs).
         '''
-        nb_sample = len(ins[0])
+        nb_sample = ins[0].shape[0]
         outs = []
         if verbose == 1:
             progbar = Progbar(target=nb_sample)
@@ -904,7 +904,7 @@ class Model(Container):
             and/or metrics). The attribute `model.metrics_names` will give you
             the display labels for the scalar outputs.
         '''
-        nb_sample = len(ins[0])
+        nb_sample = ins[0].shape[0]
         outs = []
         if verbose == 1:
             progbar = Progbar(target=nb_sample)
@@ -1426,11 +1426,11 @@ class Model(Container):
                 # build batch logs
                 batch_logs = {}
                 if type(x) is list:
-                    batch_size = len(x[0])
+                    batch_size = x[0].shape[0]
                 elif type(x) is dict:
-                    batch_size = len(list(x.values())[0])
+                    batch_size = list(x.values())[0].shape[0]
                 else:
-                    batch_size = len(x)
+                    batch_size = x.shape[0]
                 batch_logs['batch'] = batch_index
                 batch_logs['size'] = batch_size
                 callbacks.on_batch_begin(batch_index, batch_logs)

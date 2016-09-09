@@ -2,6 +2,7 @@ import sys
 import pytest
 from numpy.testing import assert_allclose
 import numpy as np
+import scipy.sparse as sparse
 
 from keras.backend import theano_backend as KTH
 from keras.backend import tensorflow_backend as KTF
@@ -779,6 +780,61 @@ class TestBackend(object):
         for K in [KTH, KTF]:
             koh = K.eval(K.one_hot(K.variable(indices, dtype='int32'), nb_classes))
             assert np.all(koh == oh)
+
+    def test_sparse_dot(self):
+        x_d = np.array([0, 7, 2, 3], dtype=np.float32)
+        x_r = np.array([0, 2, 2, 3], dtype=np.int64)
+        x_c = np.array([4, 3, 2, 3], dtype=np.int64)
+
+        x_sparse = sparse.csr_matrix((x_d, (x_r, x_c)), shape=(4, 5))
+        x_dense = x_sparse.toarray()
+
+        W = np.random.random((5, 4))
+
+        backends = [KTF]
+        if KTH.th_sparse_module:
+            # Theano has some dependency issues for sparse
+            backends.append(KTH)
+
+        for K in backends:
+            t_W = K.variable(W)
+            k_s = K.eval(K.dot(K.variable(x_sparse), t_W))
+            k_d = K.eval(K.dot(K.variable(x_dense), t_W))
+
+            assert k_s.shape == k_d.shape
+            assert_allclose(k_s, k_d, atol=1e-05)
+
+    def test_sparse_concat(self):
+        x_d = np.array([0, 7, 2, 3], dtype=np.float32)
+        x_r = np.array([0, 2, 2, 3], dtype=np.int64)
+        x_c = np.array([4, 3, 2, 3], dtype=np.int64)
+
+        x_sparse_1 = sparse.csr_matrix((x_d, (x_r, x_c)), shape=(4, 5))
+
+        x_d = np.array([0, 7, 2, 3], dtype=np.float32)
+        x_r = np.array([0, 2, 2, 3], dtype=np.int64)
+        x_c = np.array([4, 3, 2, 3], dtype=np.int64)
+
+        x_sparse_2 = sparse.csr_matrix((x_d, (x_r, x_c)), shape=(4, 5))
+
+        x_dense_1 = x_sparse_1.toarray()
+        x_dense_2 = x_sparse_2.toarray()
+
+        backends = [KTF]
+        if KTH.th_sparse_module:
+            # Theano has some dependency issues for sparse
+            backends.append(KTH)
+
+        for K in backends:
+            k_s = K.concatenate([K.variable(x_sparse_1), K.variable(x_sparse_2)])
+            assert K.is_sparse(k_s)
+
+            k_s_d = K.eval(k_s)
+
+            k_d = K.eval(K.concatenate([K.variable(x_dense_1), K.variable(x_dense_2)]))
+
+            assert k_s_d.shape == k_d.shape
+            assert_allclose(k_s_d, k_d, atol=1e-05)
 
 
 if __name__ == '__main__':
