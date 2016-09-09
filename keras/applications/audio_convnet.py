@@ -20,6 +20,7 @@ from ..layers.normalization import BatchNormalization
 from ..layers.advanced_activations import ELU
 from ..utils.data_utils import get_file
 from ..layers import Input, Dense
+from .audio_conv_utils import decode_predictions, load_preprocess_input
 
 TH_WEIGHTS_PATH = 'https://github.com/keunwoochoi/music-auto_tagging-keras/blob/master/data/cnn_weights_theano.h5'
 TF_WEIGHTS_PATH = 'https://github.com/keunwoochoi/music-auto_tagging-keras/blob/master/data/cnn_weights_tensorflow.h5'
@@ -43,7 +44,7 @@ def AudioConvnet(weights='msd', input_tensor=None):
 
     # Arguments
         weights: one of `None` (random initialization)
-            or "imagenet" (pre-training on ImageNet).
+            or "msd" (pre-training on ImageNet).
         input_tensor: optional Keras tensor (i.e. output of `layers.Input()`)
             to use as image input for the model.
 

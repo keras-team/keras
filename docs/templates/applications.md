@@ -13,6 +13,8 @@ Models for image classification with weights trained on ImageNet:
 - [VGG19](#vgg19)
 - [ResNet50](#resnet50)
 - [InceptionV3](#inceptionv3)
+- [AudioConvnet](#audioconvnet)
+- [AudioConvRNN](#audioconvrnn)
 
 All of these architectures are compatible with both TensorFlow and Theano, and upon instantiation the models will be built according to the image dimension ordering set in your Keras configuration file at `~/.keras/keras.json`. For instance, if you have set `image_dim_ordering=tf`, then any model loaded from this repository will get built according to the TensorFlow dimension ordering convention, "Width-Height-Depth".
 
@@ -151,6 +153,30 @@ input_tensor = Input(shape=(224, 224, 3))  # this assumes K.image_dim_ordering()
 model = InceptionV3(input_tensor=input_tensor, weights='imagenet', include_top=True)
 ```
 
+
+### Tag music with AudioConvnet
+
+```python
+
+from keras.applications.audio_convnet import AudioConvnet
+from keras.applications.audio_convnet import load_preprocess_input, decode_predictions
+from keras.layers import Input
+
+# this could also be the output a different Keras model or layer
+input_tensor = Input(shape=(96, 1366, 1))  # this assumes K.image_dim_ordering() == 'tf'
+
+model = AudioConvnet(weights='msd')
+
+audio_path = 'audio_file.mp3'
+melgram = load_preprocess_input(audio_path)
+melgrams = np.expand_dims(melgram, axis=0)
+
+preds = model.predict(melgrams)
+print('Predicted:', decode_predictions(preds))
+# print: [[('Rock', 0.835323), ('Guitar', 0.523324)]]
+```
+
+
 -----
 
 ## VGG16
@@ -258,3 +284,51 @@ A Keras model instance.
 ### License
 
 These weights are trained by ourselves and are released under the MIT license.
+
+-----
+
+## AudioConvnet
+
+
+```python
+keras.applications.audio_convnet.AudioConvnet(weights='msd', input_tensor=None)
+```
+
+### Arguments
+
+- weights: one of `None` (random initialization) or "msd" (pre-training on [Million Song Dataset](http://labrosa.ee.columbia.edu/millionsong/)).
+- input_tensor: optional Keras tensor (i.e. output of `layers.Input()`) to use as image input for the model.
+
+### Returns
+
+A Keras model instance.
+
+### References
+
+- [Automatic tagging using deep convolutional neural networks](https://arxiv.org/abs/1606.00298)
+
+### License
+
+These weights are ported from the ones [released by Keunwoo Choi](https://github.com/keunwoochoi/music-auto_tagging-keras) under the [MIT license](https://github.com/keunwoochoi/music-auto_tagging-keras/blob/master/LICENSE.md).
+
+-----
+
+## AudioConvRNN
+
+
+```python
+keras.applications.audio_conv_rnn.AudioConvRNN(weights='msd', input_tensor=None)
+```
+
+### Arguments
+
+- weights: one of `None` (random initialization) or "msd" (pre-training on [Million Song Dataset](http://labrosa.ee.columbia.edu/millionsong/)).
+- input_tensor: optional Keras tensor (i.e. output of `layers.Input()`) to use as image input for the model.
+
+### Returns
+
+A Keras model instance.
+
+### License
+
+These weights are ported from the ones [released by Keunwoo Choi](https://github.com/keunwoochoi/music-auto_tagging-keras) under the [MIT license](https://github.com/keunwoochoi/music-auto_tagging-keras/blob/master/LICENSE.md).
