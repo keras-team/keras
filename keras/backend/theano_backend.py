@@ -37,6 +37,11 @@ def set_learning_phase(value):
 
 # VARIABLE MANIPULATION
 
+def check_sparse():
+    if not th_sparse_module:
+            raise ImportError("Failed to import theano.sparse\n"
+                              "You probably need to pip install nose-parameterized")
+
 def is_sparse(tensor):
     return th_sparse_module and isinstance(tensor.type, th_sparse_module.SparseType)
 
@@ -50,6 +55,7 @@ def variable(value, dtype=_FLOATX, name=None):
     '''Instantiate a tensor variable.
     '''
     if hasattr(value, 'tocoo'):
+        check_sparse()
         return th_sparse_module.as_sparse_variable(value)
     else:
         value = np.asarray(value, dtype=dtype)
@@ -68,6 +74,7 @@ def placeholder(shape=None, ndim=None, dtype=_FLOATX, sparse=False, name=None):
 
     broadcast = (False,) * ndim
     if sparse:
+        check_sparse()
         x = th_sparse_module.csr_matrix(name=name, dtype=dtype)
     else:
         x = T.TensorType(dtype, broadcast)(name)
