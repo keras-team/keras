@@ -169,6 +169,8 @@ audio_path = 'audio_file.mp3'
 melgram = load_preprocess_input(audio_path)
 melgrams = np.expand_dims(melgram, axis=0)
 
+# This model use Batch Normalization, so the prediction is affected by batch.
+# Use multiple, different data samples together (at least 4) for reliable prediction.
 preds = model.predict(melgrams)
 print('Predicted:')
 print(decode_predictions(preds))
