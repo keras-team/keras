@@ -160,10 +160,8 @@ model = InceptionV3(input_tensor=input_tensor, weights='imagenet', include_top=T
 
 from keras.applications.audio_convnet import AudioConvnet
 from keras.applications.audio_convnet import load_preprocess_input, decode_predictions
-from keras.layers import Input
 
 # this could also be the output a different Keras model or layer
-input_tensor = Input(shape=(96, 1366, 1))  # this assumes K.image_dim_ordering() == 'tf'
 
 model = AudioConvnet(weights='msd')
 
@@ -171,9 +169,12 @@ audio_path = 'audio_file.mp3'
 melgram = load_preprocess_input(audio_path)
 melgrams = np.expand_dims(melgram, axis=0)
 
+# This model use Batch Normalization, so the prediction is affected by batch.
+# Use multiple, different data samples together (at least 4) for reliable prediction.
 preds = model.predict(melgrams)
-print('Predicted:', decode_predictions(preds))
-# print: [[('Rock', 0.835323), ('Guitar', 0.523324)]]
+print('Predicted:')
+print(decode_predictions(preds))
+# print: ('Predicted:', [[('rock', 0.097071797), ('pop', 0.042456303), ('alternative', 0.032439161), ('indie', 0.024491295), ('female vocalists', 0.016455274)]])
 ```
 
 

@@ -42,6 +42,10 @@ def AudioConvnet(weights='msd', input_tensor=None):
     For preparing mel-spectrogram input, see
     `audio_preprocessor.py` in [Music-auto_tagging-keras](https://github.com/keunwoochoi/music-auto_tagging-keras)
 
+    This model use Batch Normalization, so the prediction
+    is affected by batch. Use multiple, different data 
+    samples together (at least 4) for reliable prediction.
+
     # Arguments
         weights: one of `None` (random initialization)
             or "msd" (pre-training on ImageNet).
