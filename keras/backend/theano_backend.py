@@ -37,19 +37,23 @@ def set_learning_phase(value):
 
 # VARIABLE MANIPULATION
 
+
 def _assert_sparse_module():
     if not th_sparse_module:
         raise ImportError("Failed to import theano.sparse\n"
-                              "You probably need to pip install nose-parameterized")
+                          "You probably need to pip install nose-parameterized")
+
 
 def is_sparse(tensor):
     return th_sparse_module and isinstance(tensor.type, th_sparse_module.SparseType)
+
 
 def to_dense(tensor):
     if is_sparse(tensor):
         return th_sparse_module.dense_from_sparse(tensor)
     else:
         return tensor
+
 
 def variable(value, dtype=_FLOATX, name=None):
     '''Instantiate a tensor variable.
