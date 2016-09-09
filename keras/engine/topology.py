@@ -464,6 +464,17 @@ class Layer(object):
             x: can be a tensor or list/tuple of tensors.
             mask: tensor or list/tuple of tensors.
         '''
+        # place the op on the right device:
+        if type(x) in [list, tuple] and not hasattr(x[0], '_keras_on_device'):
+            x[0]._keras_on_device = True
+
+            def _call(*inputs):
+                assert hasattr(inputs[0], '_keras_on_device')
+                return self.__call__(list(inputs[:-1]), inputs[-1])
+            return K.run_on_device(_call, list(x) + [mask])
+        elif type(x) not in [list, tuple] and not hasattr(x, '_keras_on_device'):
+            x._keras_on_device = True
+            return K.run_on_device(self.__call__, [x, mask])
         if not self.built:
             # raise exceptions in case the input is not compatible
             # with the input_spec specified in the layer constructor
@@ -1302,6 +1313,14 @@ class Merge(Layer):
         making it possible to __call__ a Merge instance many times
         (it is just a layer), it would make for a rather inelegant API.
         '''
+        # place the op on the right device
+        if not hasattr(inputs[0], '_keras_on_device'):
+            inputs[0]._keras_on_device = True
+
+            def _call(*inputs):
+                return self.__call__(list(inputs[:-1]), inputs[-1])
+            return K.run_on_device(_call, inputs + [mask])
+
         if type(inputs) is not list:
             raise Exception('Merge can only be called on a list of tensors, '
                             'not a single tensor. Received: ' + str(inputs))

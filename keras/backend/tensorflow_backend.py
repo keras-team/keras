@@ -15,7 +15,7 @@ from .common import _FLOATX, _EPSILON, _IMAGE_DIM_ORDERING, reset_uids
 _SESSION = None
 _LEARNING_PHASE = tf.placeholder(dtype='uint8', name='keras_learning_phase')  # 0 = test, 1 = train
 _MANUAL_VAR_INIT = False
-
+_DEVICE = None
 
 def clear_session():
     global _SESSION
@@ -128,7 +128,11 @@ def variable(value, dtype=_FLOATX, name=None):
     # Returns
         Tensor variable instance.
     '''
-    v = tf.Variable(value, dtype=_convert_string_dtype(dtype), name=name)
+    if _DEVICE is None:
+        v = tf.Variable(value, dtype=_convert_string_dtype(dtype), name=name)
+    else:
+        with tf.device(_get_tf_device_name(_DEVICE)):
+            v = tf.Variable(value, dtype=_convert_string_dtype(dtype), name=name)   
     if _MANUAL_VAR_INIT:
         return v
     if tf.get_default_graph() is get_session().graph:
@@ -1805,3 +1809,39 @@ def ctc_decode(y_pred, input_length, greedy=True, beam_width=100,
                      for st in decoded]
 
     return (decoded_dense, log_prob)
+
+
+# MULTI GPU
+
+def set_device(dev):
+    global _DEVICE
+    _DEVICE = dev
+
+
+def get_device():
+    return _DEVICE
+
+
+def _get_tf_device_name(device):
+    return '/' + device[:3] + ':' + device[3:]
+
+
+class device(object):
+
+    def __init__(self, name):
+        self.name = name
+
+    def __enter__(self):
+        set_device(self.name)
+
+    def __exit__(self, type, value, traceback):
+        set_device(None)
+
+
+def run_on_device(function, inputs):
+    if _DEVICE is None:
+        y = function(*inputs)
+    else:
+        with tf.device(_get_tf_device_name(_DEVICE)):
+            y = function(*inputs)
+    return y
