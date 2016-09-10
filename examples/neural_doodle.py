@@ -83,7 +83,7 @@ nb_colors = 3  # RGB
 ref_img = imread(target_mask_path)
 img_nrows, img_ncols = ref_img.shape[:2]
 
-total_variation_weight = 8.5e-5
+total_variation_weight = 50.
 style_weight = 1.
 content_weight = 0.1 if use_content_img else 0
 
@@ -229,14 +229,16 @@ def region_style_loss(style_image, target_image, style_mask, target_mask):
     if K.image_dim_ordering() == 'th':
         masked_style = style_image * style_mask
         masked_target = target_image * target_mask
+        nb_channels = K.shape(style_image)[0]
     else:
         masked_style = K.permute_dimensions(
             style_image, (2, 0, 1)) * style_mask
         masked_target = K.permute_dimensions(
             target_image, (2, 0, 1)) * target_mask
-    s = gram_matrix(masked_style) * K.sum(style_mask)
-    c = gram_matrix(masked_target) * K.sum(target_mask)
-    return K.sum(K.square(s - c))
+        nb_channels = K.shape(style_image)[-1]
+    s = gram_matrix(masked_style) / K.mean(style_mask) / nb_channels
+    c = gram_matrix(masked_target) / K.mean(target_mask) / nb_channels
+    return K.mean(K.square(s - c))
 
 
 def style_loss(style_image, target_image, style_masks, target_masks):
@@ -255,8 +257,7 @@ def style_loss(style_image, target_image, style_masks, target_masks):
             target_mask = target_masks[:, :, i]
         loss += region_style_loss(style_image,
                                   target_image, style_mask, target_mask)
-    size = img_nrows * img_ncols
-    return loss / (4. * nb_colors**2 * size**2)
+    return loss
 
 
 def content_loss(content_image, target_image):
@@ -348,7 +349,7 @@ if K.image_dim_ordering() == 'th':
 else:
     x = np.random.uniform(0, 255, (1, img_nrows, img_ncols, 3)) - 128.
 
-for i in range(100):
+for i in range(50):
     print('Start of iteration', i)
     start_time = time.time()
     x, min_val, info = fmin_l_bfgs_b(evaluator.loss, x.flatten(),
