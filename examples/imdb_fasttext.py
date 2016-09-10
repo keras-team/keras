@@ -21,9 +21,6 @@ from keras.layers import Embedding
 from keras.layers import AveragePooling1D
 from keras.datasets import imdb
 
-import theano.sandbox.cuda
-theano.sandbox.cuda.use('gpu2')
-
 
 def create_ngram_set(input_list, ngram_value=2):
     """
