@@ -37,7 +37,7 @@ sys.setrecursionlimit(100000)
 
 batch_size = 128 # was 128
 nb_classes = 10
-max_epoch = 200#182 # This is equivalent to 64K caffe iterations with 45K/5K train/val split
+max_epoch = 200  # 182 # This is equivalent to 64K caffe iterations with 45K/5K train/val split
 
 # early stopping patience
 patience = 200
@@ -61,7 +61,7 @@ lr = 0.1 # was 0.1
 reg_fac = 0.0005
 
 # weights initialization method
-w_init = "he_normal" #"he_normal" "he_uniform"
+w_init = "he_normal"  # "he_normal" "he_uniform"
 
 # width of the feature maps for wide resnets
 K = 1 # 4 for n=3
@@ -81,15 +81,15 @@ epochs = [60, 120, 160, 200]
 
 # this will do preprocessing and realtime data augmentation
 datagen = ImageDataGenerator(
-    #rescale=1./255
-    #featurewise_center=True,  # set input mean to 0 over the dataset
-    #samplewise_center=False,  # set each sample mean to 0
-    #featurewise_std_normalization=True,  # divide inputs by std of the dataset
-    #samplewise_std_normalization=False,  # divide each input by its std
-    #zca_whitening=False,  # apply ZCA whitening
-    #rotation_range=20,  # randomly rotate images in the range (degrees, 0 to 180)
-    #zoom_range=0.1,
-    #shear_range=0.1,
+    # rescale=1./255
+    # featurewise_center=True,  # set input mean to 0 over the dataset
+    # samplewise_center=False,  # set each sample mean to 0
+    # featurewise_std_normalization=True,  # divide inputs by std of the dataset
+    # samplewise_std_normalization=False,  # divide each input by its std
+    # zca_whitening=False,  # apply ZCA whitening
+    # rotation_range=20,  # randomly rotate images in the range (degrees, 0 to 180)
+    # zoom_range=0.1,
+    # shear_range=0.1,
     width_shift_range=0.25,  # randomly shift images horizontally (fraction of total width)
     height_shift_range=0.25,  # randomly shift images vertically (fraction of total height)
     horizontal_flip=True,  # randomly flip images
@@ -97,7 +97,7 @@ datagen = ImageDataGenerator(
 
 def error(y_true, y_pred):
     return (1.0 - metrics.categorical_accuracy(y_true, y_pred))*100
-    
+
 def print_summary(layers, line_length):
     total_params = 0
     for i in range(len(layers)):
@@ -108,19 +108,19 @@ def print_summary(layers, line_length):
     print('Total params: %d ' % (total_params))
     print('Total number of layers %d' % (n*6 + 2))
     print('=' * line_length)
-    
+
 def summary(model, line_length=100):
     if hasattr(model, 'flattened_layers'):
-	flattened_layers = model.flattened_layers
+        flattened_layers = model.flattened_layers
     else:
-	flattened_layers = model.layers
+        flattened_layers = model.layers
     print_summary(flattened_layers, line_length)
 
 def get_cifar_data(dataset='cifar10'):
-    #if dataset == 'cifar10':
+    # if dataset == 'cifar10':
     print('Loading CIFAR10')
     (X_train, y_train), (X_test, y_test) = cifar10.load_data()
-    #else:
+    # else:
     #    print('Loading CIFAR100')
     #    (X_train, y_train), (X_test, y_test) = cifar100.load_data()
 
@@ -152,10 +152,10 @@ def get_cifar_data(dataset='cifar10'):
 def _conv_bn_relu(nb_filter, nb_row, nb_col, subsample=(1, 1)):
     def f(input):
         x = Convolution2D(nb_filter=nb_filter, nb_row=nb_row, nb_col=nb_col,
-                    subsample=subsample, W_regularizer=l2(reg_fac),
-                    b_regularizer=l2(reg_fac),
-                    #activity_regularizer=activity_l2(reg_fac),
-                    init=w_init, border_mode="same")(input)
+                          subsample=subsample, W_regularizer=l2(reg_fac),
+                          b_regularizer=l2(reg_fac),
+                          # activity_regularizer=activity_l2(reg_fac),
+                          init=w_init, border_mode="same")(input)
         x = BatchNormalization(mode=0, axis=1)(x)
         return Activation("relu")(x)
     return f
@@ -164,10 +164,10 @@ def _conv_bn_relu(nb_filter, nb_row, nb_col, subsample=(1, 1)):
 def _conv_bn(nb_filter, nb_row, nb_col, subsample=(1, 1)):
     def f(input):
         x = Convolution2D(nb_filter=nb_filter, nb_row=nb_row, nb_col=nb_col,
-                    subsample=subsample, W_regularizer=l2(reg_fac),
-                    b_regularizer=l2(reg_fac),
-                    #activity_regularizer=activity_l2(reg_fac),
-                    init=w_init, border_mode="same")(input)
+                          subsample=subsample, W_regularizer=l2(reg_fac),
+                          b_regularizer=l2(reg_fac),
+                          # activity_regularizer=activity_l2(reg_fac),
+                          init=w_init, border_mode="same")(input)
         x = BatchNormalization(mode=0, axis=1)(x)
         return x
     return f
@@ -179,10 +179,10 @@ def _bn_relu_conv(nb_filter, nb_row, nb_col, subsample=(1, 1)):
         norm = BatchNormalization(mode=0, axis=1)(input)
         activation = Activation("relu")(norm)
         return Convolution2D(nb_filter=nb_filter, nb_row=nb_row, nb_col=nb_col,
-                    subsample=subsample, W_regularizer=l2(reg_fac),
-                    b_regularizer=l2(reg_fac),
-                    #activity_regularizer=activity_l2(reg_fac),
-                    init=w_init, border_mode="same")(activation)
+                             subsample=subsample, W_regularizer=l2(reg_fac),
+                             b_regularizer=l2(reg_fac),
+                             # activity_regularizer=activity_l2(reg_fac),
+                             init=w_init, border_mode="same")(activation)
     return f
 
 # Adds a shortcut between input and residual block and merges them with "sum"
@@ -198,20 +198,20 @@ def _shortcut(input, residual):
     # 1 X 1 conv if shape is different. Else identity.
     if stride_width > 1 or stride_height > 1 or not equal_channels:
         shortcut = Convolution2D(nb_filter=residual._keras_shape[1], nb_row=1, nb_col=1,
-                    W_regularizer=l2(reg_fac),
-                    b_regularizer=l2(reg_fac),
-                    #activity_regularizer=activity_l2(reg_fac),
-                    subsample=(stride_width, stride_height),
-                    init=w_init, border_mode="valid")(input)
+                                 W_regularizer=l2(reg_fac),
+                                 b_regularizer=l2(reg_fac),
+                                 # activity_regularizer=activity_l2(reg_fac),
+                                 subsample=(stride_width, stride_height),
+                                 init=w_init, border_mode="valid")(input)
     return merge([shortcut, residual], mode="sum")
 
 def _first_shortcut(input, residual):
     shortcut = Convolution2D(nb_filter=residual._keras_shape[1], nb_row=1, nb_col=1,
-                    W_regularizer=l2(reg_fac),
-                    b_regularizer=l2(reg_fac),
-                    #activity_regularizer=activity_l2(reg_fac),
-                    subsample=(1, 1),
-                    init=w_init, border_mode="same")(input)
+                             W_regularizer=l2(reg_fac),
+                             b_regularizer=l2(reg_fac),
+                             # activity_regularizer=activity_l2(reg_fac),
+                             subsample=(1, 1),
+                             init=w_init, border_mode="same")(input)
     return merge([shortcut, residual], mode="sum")
 
 def _basic_first_block(nb_filters, init_subsample=(1, 1)):
@@ -219,10 +219,10 @@ def _basic_first_block(nb_filters, init_subsample=(1, 1)):
         conv1 = _conv_bn_relu(nb_filters, 3, 3, subsample=init_subsample)(input)
         #conv1 = Dropout(0.3)(conv1)
         residual = Convolution2D(nb_filter=nb_filters, nb_row=3, nb_col=3,
-                    subsample=init_subsample, W_regularizer=l2(reg_fac),
-                    b_regularizer=l2(reg_fac),
-                    #activity_regularizer=activity_l2(reg_fac),
-                    init=w_init, border_mode="same")(conv1)
+                                 subsample=init_subsample, W_regularizer=l2(reg_fac),
+                                 b_regularizer=l2(reg_fac),
+                                 # activity_regularizer=activity_l2(reg_fac),
+                                 init=w_init, border_mode="same")(conv1)
         return _first_shortcut(input, residual)
     return f
 
@@ -255,31 +255,31 @@ def _block(block_function, nb_filters, n, is_first_layer=False):
             if i == 0 and not is_first_layer:
                 init_subsample = (2, 2)
             input = block_function(nb_filters=nb_filters, init_subsample=init_subsample)(input)
-	    return input
+            return input
     return f
 
 # Builds a residual block with repeating bottleneck blocks.
 def _residual_block(block_fun, nb_filters, n, is_first_layer=False):
     block_function = _basic_block
     if block_fun == 'bottleneck':
-	block_function = _bottleneck
+        block_function = _bottleneck
     return _block(block_function, nb_filters, n, is_first_layer)
 
 def _output_block_1fc(nb_classes):
     def f(input):
-	x = Dense(nb_classes, init=w_init, W_regularizer=l2(reg_fac),
-	                b_regularizer=l2(reg_fac),
-	                #activity_regularizer=activity_l2(reg_fac)
-	                )(input)
-	return Activation('softmax')(x)
+        x = Dense(nb_classes, init=w_init, W_regularizer=l2(reg_fac),
+                  b_regularizer=l2(reg_fac),
+                  # activity_regularizer=activity_l2(reg_fac)
+                  )(input)
+        return Activation('softmax')(x)
     return f
 
 def compile_model(model, loss_func='categorical_crossentropy'):
     opt = SGD(lr=lr, decay=1e-6, momentum=0.9, nesterov=True)
     #opt = Adam(lr=lr)
     model.compile(loss=loss_func,
-		optimizer=opt,
-                metrics=['accuracy', error])
+                  optimizer=opt,
+                  metrics=['accuracy', error])
     plot(model, to_file='model.png', show_shapes=True)
     summary(model)
     return model
@@ -292,10 +292,10 @@ def get_conv_branch(resnet=True, mao=False, pool_sz=8):
     for i in range(NR):
         if i == 0:
             x = block_function(block_fn, nb_filters=filters[i], n=n-1,
-                        is_first_layer=first_layer[i])(x)
+                               is_first_layer=first_layer[i])(x)
         else:
             x = block_function(block_fn, nb_filters=filters[i], n=n,
-                        is_first_layer=first_layer[i])(x)
+                               is_first_layer=first_layer[i])(x)
     x = BatchNormalization(mode=0, axis=1)(x)
     x = Activation("relu")(x)
     x = GlobalAveragePooling2D()(x)
@@ -323,22 +323,22 @@ lr_scheduler = StepLearningRateScheduler(monitor='val_loss', epochs=10, verbose=
 if not data_augmentation:
     print('Not using data augmentation.')
     hist = model.fit(X_train, y_train,
-				batch_size=batch_size,
-				nb_epoch=max_epoch,
-			  	verbose=1,
-			  	callbacks=[stop_early, model_checkpoint, lr_scheduler],
-			  	#validation_data=(X_test, y_test),
-			  	validation_split=0.1)
+                     batch_size=batch_size,
+                     nb_epoch=max_epoch,
+                     verbose=1,
+                     callbacks=[stop_early, model_checkpoint, lr_scheduler],
+                     #validation_data=(X_test, y_test),
+                     validation_split=0.1)
 else:
     print('Using real-time data augmentation.')
     # fit the model on the batches generated by datagen.flow()
     hist = model.fit_generator(datagen.flow(X_train, y_train,
-    				#save_to_dir='data/aug_data'
-		                    batch_size=batch_size),
-		                    samples_per_epoch=X_train.shape[0]*M,
-		                    nb_epoch=max_epoch,
-		                    callbacks=[stop_early, model_checkpoint, lr_scheduler],
-		                    validation_data=(X_test, y_test))
+                                            # save_to_dir='data/aug_data'
+                                            batch_size=batch_size),
+                               samples_per_epoch=X_train.shape[0]*M,
+                               nb_epoch=max_epoch,
+                               callbacks=[stop_early, model_checkpoint, lr_scheduler],
+                               validation_data=(X_test, y_test))
 
 score = model.evaluate(X_test, y_test, verbose=0)
 print('Test scores and losses:', score)
