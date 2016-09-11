@@ -138,7 +138,8 @@ class SGD(Optimizer):
 
     def get_updates(self, params, constraints, loss):
         grads = self.get_gradients(loss, params)
-        lr = self.lr # Needed if the user uses their own scheduler
+        # Needed if the user uses their own scheduler
+        lr = self.lr
         if self.decay != 0.0:
             lr = self.lr * (1. / (1. + self.decay * self.iterations))
         self.updates = [K.update_add(self.iterations, 1)]
