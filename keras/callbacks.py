@@ -421,6 +421,121 @@ class LearningRateScheduler(Callback):
         assert type(lr) == float, 'The output of the "schedule" function should be float.'
         K.set_value(self.model.optimizer.lr, lr)
 
+class StepLearningRateScheduler(Callback):
+    ''' Step Learning Rate Scheduler (both manual and automatic)
+
+    Thie implements a stepwise (stair-case) style drop learning rate schedule.
+    It either accepts discrete list of epochs to drop the learning rate in
+    or drops the learning rate automatically once the target quantity stops
+    improving after a certain patient amount of epochs.
+
+    Most recent ultra deep networks including GoogLeNet and ResNets and their variants
+    use this kind of learning rate schedule or its variation to train in the
+    presence of highly regularized layers to combat overfitting.
+
+    Parts of the code were taken from early stopping as the automatic schedule
+    type is very similar to early stopping. Here, instead of stopping the training,
+    it reduces the learning rate.
+
+    # Arguments
+        monitor: quantity to be monitored.
+        epochs: number of epochs in which learning rate will be dropped.
+                If it is a list it will be considered discrete epoch drop
+                with user specified list of epochs.
+                If it is a scalar, it is considered automatic learning rate
+                schedule and the learning rate will drop if the monitored
+                quantitiy doesn't drop after epochs number of epochs
+        verbose: verbosity level.
+                 0 to turn it off (default),
+                 1 to print when the learning rate is dropped
+                 >= 2 to print the learning rate every epoch
+        mode: one of {auto, min, max}. In 'min' mode,
+            training will stop when the quantity
+            monitored has stopped decreasing; in 'max'
+            mode it will stop when the quantity
+            monitored has stopped increasing.
+    '''
+    def __init__(self, monitor='val_loss', epochs=0,
+                 verbose=0, mode='auto', decay_ratio=0.5):
+        super(StepLearningRateScheduler, self).__init__()
+        self.monitor = monitor
+        self.verbose = verbose
+        self.epochs = epochs
+        self.wait = 0
+        self.decay_ratio = decay_ratio
+        if type(self.epochs) is list:
+            # Then it is discrete user supplied manual schedule
+            self.schedule_type = 'manual'
+        else:
+            # Then, it is an automatic scheduling when amount monitored flattened
+            self.schedule_type = 'auto'
+            self.patience = epochs
+            if mode not in ['auto', 'min', 'max']:
+                warnings.warn('Mode %s is unknown, '
+                              'falling back to auto mode.'
+                              % (self.mode), RuntimeWarning)
+                mode = 'auto'
+
+            if mode == 'min':
+                self.monitor_op = np.less
+                self.best = np.Inf
+            elif mode == 'max':
+                self.monitor_op = np.greater
+                self.best = -np.Inf
+            else:
+                if 'acc' in self.monitor:
+                    self.monitor_op = np.greater
+                    self.best = -np.Inf
+                else:
+                    self.monitor_op = np.less
+                    self.best = np.Inf
+
+    def on_train_begin(self, logs={}):
+        # This function is litrally taken from EarlyStopping
+        # as it is very similar to the auto schedule
+        if self.schedule_type == 'auto':
+            self.wait = 0       # Allow instances to be re-used
+            self.best = np.Inf if self.monitor_op == np.less else -np.Inf
+
+    def on_epoch_end(self, epoch, logs={}):
+        assert hasattr(self.model.optimizer, 'lr'), \
+            'Optimizer must have a "lr" attribute.'
+        # First, get the current learning rate
+        lr = K.get_value(self.model.optimizer.lr)
+        if self.verbose > 1:
+            print('\n\nThe current learning rate for epoch {} was: \
+             {}\n'.format(epoch+1, lr))
+
+        if self.schedule_type == 'manual':
+            if epoch+1 in self.epochs:
+                lr *= float(self.decay_ratio)
+                if self.verbose > 0:
+                    print('\n\nReducing learning rate for epoch {} to: \
+                    {} manually\n'.format(epoch+2, lr))
+        else: # auto scheduler
+
+            current = logs.get(self.monitor)
+
+            if current is None:
+                warnings.warn('\nStepLearningRateScheduler'
+                              ' requires %s available!' %
+                              (self.monitor), RuntimeWarning)
+
+            if self.monitor_op(current, self.best):
+                self.best = current
+                self.wait = 0
+            else:
+                if self.wait >= self.patience:
+                    lr *= self.decay_ratio
+                    if self.verbose > 0:
+                        print('\n\nReducing learning rate for epoch {} to: \
+                         {} automatically\n'.format(epoch+2, lr))
+                    self.wait = 0
+
+                self.wait += 1
+
+        # Finally, set the new learning rate
+        K.set_value(self.model.optimizer.lr, lr)
 
 class TensorBoard(Callback):
     ''' Tensorboard basic visualizations.
