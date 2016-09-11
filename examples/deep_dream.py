@@ -74,7 +74,7 @@ def deprocess_image(x):
     x = np.clip(x, 0, 255).astype('uint8')
     return x
 
-# build the VGG16 network
+# build the VGG16 network (reference: http://arxiv.org/pdf/1409.1556.pdf)
 model = Sequential()
 model.add(ZeroPadding2D((1, 1), batch_input_shape=(1, 3, img_width, img_height)))
 first_layer = model.layers[-1]
