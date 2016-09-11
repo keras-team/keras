@@ -423,29 +423,29 @@ class LearningRateScheduler(Callback):
 
 class StepLearningRateScheduler(Callback):
     ''' Step Learning Rate Scheduler (both manual and automatic)
-    
+
     Thie implements a stepwise (stair-case) style drop learning rate schedule.
     It either accepts discrete list of epochs to drop the learning rate in
-    or drops the learning rate automatically once the target quantity stops 
+    or drops the learning rate automatically once the target quantity stops
     improving after a certain patient amount of epochs.
-    
+
     Most recent ultra deep networks including GoogLeNet and ResNets and their variants
     use this kind of learning rate schedule or its variation to train in the
     presence of highly regularized layers to combat overfitting.
-    
+
     Parts of the code were taken from early stopping as the automatic schedule
     type is very similar to early stopping. Here, instead of stopping the training,
     it reduces the learning rate.
-    
+
     # Arguments
         monitor: quantity to be monitored.
         epochs: number of epochs in which learning rate will be dropped.
                 If it is a list it will be considered discrete epoch drop
                 with user specified list of epochs.
                 If it is a scalar, it is considered automatic learning rate
-                schedule and the learning rate will drop if the monitored 
+                schedule and the learning rate will drop if the monitored
                 quantitiy doesn't drop after epochs number of epochs
-        verbose: verbosity level. 
+        verbose: verbosity level.
                  0 to turn it off (default),
                  1 to print when the learning rate is dropped
                  >= 2 to print the learning rate every epoch
@@ -458,13 +458,11 @@ class StepLearningRateScheduler(Callback):
     def __init__(self, monitor='val_loss', epochs=0,
                  verbose=0, mode='auto', decay_ratio=0.5):
         super(StepLearningRateScheduler, self).__init__()
-
         self.monitor = monitor
         self.verbose = verbose
         self.epochs = epochs
         self.wait = 0
         self.decay_ratio = decay_ratio
-        
         if type(self.epochs) is list:
             # Then it is discrete user supplied manual schedule
             self.schedule_type = 'manual'
@@ -491,14 +489,14 @@ class StepLearningRateScheduler(Callback):
                 else:
                     self.monitor_op = np.less
                     self.best = np.Inf
-                    
+
     def on_train_begin(self, logs={}):
-        # This function is litrally taken from EarlyStopping 
+        # This function is litrally taken from EarlyStopping
         # as it is very similar to the auto schedule
         if self.schedule_type == 'auto':
             self.wait = 0       # Allow instances to be re-used
             self.best = np.Inf if self.monitor_op == np.less else -np.Inf
-        
+
     def on_epoch_end(self, epoch, logs={}):
         assert hasattr(self.model.optimizer, 'lr'), \
             'Optimizer must have a "lr" attribute.'
@@ -507,17 +505,17 @@ class StepLearningRateScheduler(Callback):
         if self.verbose > 1:
             print('\n\nThe current learning rate for epoch {} was: \
              {}\n'.format(epoch+1, lr))
-            
+
         if self.schedule_type == 'manual':
             if epoch+1 in self.epochs:
-                lr *= float(self.decay_ratio)                
+                lr *= float(self.decay_ratio)
                 if self.verbose > 0:
                     print('\n\nReducing learning rate for epoch {} to: \
                     {} manually\n'.format(epoch+2, lr))
         else: # auto scheduler
-        
+
             current = logs.get(self.monitor)
-            
+
             if current is None:
                 warnings.warn('\nStepLearningRateScheduler'
                               ' requires %s available!' %
@@ -535,8 +533,8 @@ class StepLearningRateScheduler(Callback):
                     self.wait = 0
 
                 self.wait += 1
-        
-        # Finally, set the new learning rate            
+
+        # Finally, set the new learning rate
         K.set_value(self.model.optimizer.lr, lr)
 
 class TensorBoard(Callback):
