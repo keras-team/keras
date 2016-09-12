@@ -289,7 +289,7 @@ class HierarchicalSoftmax(Layer):
     - [Strategies for Training Large Vocabulary Neural Language Models](http://arxiv.org/pdf/1512.04906)
 
     '''
-    def __init__(self, total_outputs, batch_size, per_class = None,
+    def __init__(self, total_outputs, per_class = None,
                  top_weights_init = 'uniform', top_bias_init = 'zero',
                  bottom_weights_init = 'uniform', bottom_bias_init = 'zero',
                  **kwargs):
@@ -304,8 +304,6 @@ class HierarchicalSoftmax(Layer):
             
         self.total_outputs = total_outputs
         self.per_class = per_class
-
-        self.batch_size = batch_size
         
         self.n_classes = int(np.ceil(self.total_outputs * 1. / self.per_class))
         self.n_outputs_actual = self.n_classes * self.per_class
@@ -344,7 +342,7 @@ class HierarchicalSoftmax(Layer):
         if type(inputs) is not list or len(inputs) != 2:
             raise Exception('HierarchicalSoftmax must be called on a list of two tensors, got: ' + str(inputs))
         input_vecs, labels = inputs
-        return -K.hierarchical_softmax(input_vecs, self.batch_size,
+        return -K.hierarchical_softmax(input_vecs, input_vecs.shape[0],
                                        self.total_outputs, self.n_classes, self.per_class,
                                        self.top_weights, self.top_bias,
                                        self.bottom_weights, self.bottom_bias,
