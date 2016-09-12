@@ -1450,9 +1450,9 @@ class CompactBilinearPooling(Layer):
         return self.multimodal_compact_bilinear(x)
     
     def get_config(self):
-        config = {'d': self.d}
-        config = {'h': self.h}
-        config = {'s': self.s}
+        config = {'d': self.d,
+                  'h': self.h,
+                  's': self.s}
         base_config = super(CompactBilinearPooling, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
@@ -1514,7 +1514,7 @@ class BilinearPooling(Layer):
     
     def get_config(self):
         base_config = super(BilinearPooling, self).get_config()
-        return dict(list(base_config.items()) + list(config.items()))
+        return base_config
 
     def get_output_shape_for(self, input_shape):
         assert type(input_shape) is list  # must have mutiple input shape tuples
@@ -1575,9 +1575,9 @@ class CountSketch(Layer):
         return self.compact(x)
     
     def get_config(self):
-        config = {'d': self.d}
-        config = {'h': self.h}
-        config = {'s': self.s}
+        config = {'d': self.d,
+                  'h': self.h,
+                  's': self.s}
         base_config = super(CountSketch, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
