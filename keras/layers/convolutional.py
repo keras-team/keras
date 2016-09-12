@@ -1418,11 +1418,9 @@ class CompactBilinearPooling(Layer):
         super(CompactBilinearPooling, self).__init__(**kwargs)
 
     def build(self, input_shapes):
-        self.in_feat = []
         self.trainable_weights = []
         self.nmodes = len(input_shapes)
         for i in range(self.nmodes):
-            self.in_feat.append(input_shapes[i][1])
             if self.h[i] is None:
                 self.h[i] = K.random_uniform((input_shapes[i][1],),
                                                     low=0., high=self.d, dtype='float32').astype('int64')
@@ -1453,11 +1451,139 @@ class CompactBilinearPooling(Layer):
     
     def get_config(self):
         config = {'d': self.d}
+        config = {'h': self.h}
+        config = {'s': self.s}
         base_config = super(CompactBilinearPooling, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
     def get_output_shape_for(self, input_shape):
         assert type(input_shape) is list  # must have mutiple input shape tuples
-        #return input_shape[0][0], self.d
         return tuple([input_shape[0][0], self.d])
 
+
+    
+class BilinearPooling(Layer):
+    '''Compact Bilinear Pooling
+
+    # References:
+        - [Multimodal Compact Bilinear Pooling for Visual Question Answering and Visual Grounding](http://arxiv.org/pdf/1606.01847v2.pdf)
+    '''
+
+    def __init__(self, d, **kwargs):
+
+        # layer parameters
+        self.inbound_nodes = []
+        self.outbound_nodes = []
+        self.constraints = {}
+        self.regularizers = []
+        self.trainable_weights = []
+        self.non_trainable_weights = []
+        self.supports_masking = True
+        self.trainable = False
+        self.uses_learning_phase = False
+        self.input_spec = None  # compatible with whatever
+        super(BilinearPooling, self).__init__(**kwargs)
+
+    def build(self, input_shapes):
+        self.trainable_weights = []
+        self.nmodes = len(input_shapes)
+        for i,s in enumerate(input_shapes):
+            if s != input_shapes[0]:
+                raise Exception('The input size of all vectors must be the same: '
+                                'shape of vector on position '+str(i)+' (0-based) '+str(s)+' != shape of vector on position 0 '+str(input_shapes[0]))
+        self.built = True
+
+    def compute_mask(self, input, input_mask=None):
+        if input_mask is None or not any([m is not None for m in input_mask]):
+            return None
+        else:
+            return input_mask[0]
+
+    def multimodal_bilinear(self, x):
+        v = [[]] * self.nmodes
+        acum_fft = 1.0
+        for i in range(self.nmodes):
+            acum_fft = acum_fft * K.fft(x[i])
+        return K.cast(K.ifft(acum_fft), dtype='float32')
+
+    def call(self, x, mask=None):
+        if type(x) is not list or len(x) <= 1:
+            raise Exception('BilinearPooling must be called on a list of tensors '
+                            '(at least 2). Got: ' + str(x))
+        return self.multimodal_bilinear(x)
+    
+    def get_config(self):
+        base_config = super(BilinearPooling, self).get_config()
+        return dict(list(base_config.items()) + list(config.items()))
+
+    def get_output_shape_for(self, input_shape):
+        assert type(input_shape) is list  # must have mutiple input shape tuples
+        return input_shape[0]
+
+
+class CountSketch(Layer):
+    '''Count Sketch vector compacting
+    # Arguments:
+        d: dimension of the output compact representation
+    '''
+
+    def __init__(self, d, **kwargs):
+        self.h = [None, None]
+        self.s = [None, None]
+        self.d = d
+
+        # layer parameters
+        self.inbound_nodes = []
+        self.outbound_nodes = []
+        self.constraints = {}
+        self.regularizers = []
+        self.trainable_weights = []
+        self.non_trainable_weights = []
+        self.supports_masking = True
+        self.trainable = False
+        self.uses_learning_phase = False
+        self.input_spec = None  # compatible with whatever
+        super(CountSketch, self).__init__(**kwargs)
+
+    def build(self, input_shapes):
+        self.trainable_weights = []
+        self.nmodes = len(input_shapes)
+        for i in range(self.nmodes):
+            if self.h[i] is None:
+                self.h[i] = K.random_uniform((input_shapes[i][1],),
+                                                    low=0., high=self.d, dtype='float32').astype('int64')
+            if self.s[i] is None:
+                self.s[i] = K.switch(K.random_binomial((input_shapes[i][1],),
+                                                       p=0.5, dtype='float32') < 0.5, -1, 1).astype('int64')
+        self.built = True
+
+    def compute_mask(self, input, input_mask=None):
+        if input_mask is None or not any([m is not None for m in input_mask]):
+            return [None]*len(input_mask)
+        else:
+            return input_mask
+
+    def compact(self, x):
+        v = [[]] * self.nmodes
+        for i in range(self.nmodes):
+            v[i] = K.count_sketch(self.h[i], self.s[i], x[i], self.d)
+        return v
+
+    def call(self, x, mask=None):
+        if type(x) is not list or len(x) <= 1:
+            raise Exception('CountSketch must be called on a list of tensors.')
+        return self.compact(x)
+    
+    def get_config(self):
+        config = {'d': self.d}
+        config = {'h': self.h}
+        config = {'s': self.s}
+        base_config = super(CountSketch, self).get_config()
+        return dict(list(base_config.items()) + list(config.items()))
+
+    def get_output_shape_for(self, input_shape):
+        assert type(input_shape) is list  # must have mutiple input shape tuples
+        shapes = []
+        for s in input_shape:
+            shapes.append(tuple([s[0], self.d]))
+        return shapes
