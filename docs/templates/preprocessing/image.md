@@ -56,12 +56,14 @@ Generate batches of tensor image data with real-time data augmentation. The data
             - __X__: sample data.
             - __augment__: Boolean (default: False). Whether to fit on randomly augmented samples.
             - __rounds__: int (default: 1). If augment, how many augmentation passes over the data to use.
+            - __seed__: int (default: None). Random seed.
     - __flow(X, y)__: Takes numpy data & label arrays, and generates batches of augmented/normalized data. Yields batches indefinitely, in an infinite loop.
         - __Arguments__:
             - __X__: data.
             - __y__: labels.
             - __batch_size__: int (default: 32).
             - __shuffle__: boolean (defaut: True).
+            - __seed__: int (default: None).
             - __save_to_dir__: None or str (default: None). This allows you to optimally specify a directory to which to save the augmented pictures being generated (useful for visualizing what you are doing).
             - __save_prefix__: str (default: `''`). Prefix to use for filenames of saved pictures (only relevant if `save_to_dir` is set).
             - __save_format__: one of "png", "jpeg" (only relevant if `save_to_dir` is set). Default: "jpeg".
@@ -77,7 +79,7 @@ Generate batches of tensor image data with real-time data augmentation. The data
             - __class_mode__: one of "categorical", "binary", "sparse" or None. Default: "categorical". Determines the type of label arrays that are returned: "categorical" will be 2D one-hot encoded labels, "binary" will be 1D binary labels, "sparse" will be 1D integer labels. If None, no labels are returned (the generator will only yield batches of image data, which is useful to use `model.predict_generator()`, `model.evaluate_generator()`, etc.).
             - __batch_size__: size of the batches of data (default: 32).
             - __shuffle__: whether to shuffle the data (default: True)
-            - __seed__: optional random seed for shuffling.
+            - __seed__: optional random seed for shuffling and transformations.
             - __save_to_dir__: None or str (default: None). This allows you to optimally specify a directory to which to save the augmented pictures being generated (useful for visualizing what you are doing).
             - __save_prefix__: str. Prefix to use for filenames of saved pictures (only relevant if `save_to_dir` is set).
             - __save_format__: one of "png", "jpeg" (only relevant if `save_to_dir` is set). Default: "jpeg".
@@ -150,4 +152,39 @@ model.fit_generator(
         nb_epoch=50,
         validation_data=validation_generator,
         nb_val_samples=800)
+```
+
+Example of using it to transform images and masks together.
+
+```python
+
+# we create two instances with the same arguments
+data_gen_args = dict(
+    featurewise_center=True,
+    featurewise_std_normalization=True,
+    rotation_range=90.,
+    width_shift_range=0.1,
+    height_shift_range=0.1,
+    zoom_range=0.2
+)
+generator_i = ImageDataGenerator(**data_gen_args)
+generator_m = ImageDataGenerator(**data_gen_args)
+
+# We need to provide the same seed to the fit and flow methods
+seed = 1
+fake_y = np.zeroes(images.shape)
+generator_i.fit(images, augment=True, seed=seed)
+generator_m.fit(masks, augment=True, seed=seed)
+flow_images = generator_i.flow(images, fake_y, batch_size=2, seed=seed)
+flow_masks = generator_m.flow(masks, fake_y, batch_size=2, seed=seed)
+
+# combine the two generators into one which gives the first from each
+def dual_gen(flow_images,flow_masks):
+    for [X,_],[y,_] in zip(flow_images,flow_masks):
+        yield X,y
+
+model.fit_generator(
+        dual_gen(flow_images,flow_masks),
+        samples_per_epoch=2000,
+        nb_epoch=50)
 ```
