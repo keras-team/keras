@@ -4,10 +4,12 @@
 
 Keras is a model-level library, providing high-level building blocks for developing deep learning models. It does not handle itself low-level operations such as tensor products, convolutions and so on. Instead, it relies on a specialized, well-optimized tensor manipulation library to do so, serving as the "backend engine" of Keras. Rather than picking one single tensor library and making the implementation of Keras tied to that library, Keras handles the problem in a modular way, and several different backend engines can be plugged seamlessly into Keras.
 
-At this time, Keras has two backend implementations available: the **Theano** backend and the **TensorFlow** backend.
+At this time, Keras has two backend implementations available: the **TensorFlow** backend and the **Theano** backend.
 
-- [Theano](http://deeplearning.net/software/theano/) is an open-source symbolic tensor manipulation framework developed by LISA/MILA Lab at Université de Montréal.
 - [TensorFlow](http://www.tensorflow.org/) is an open-source symbolic tensor manipulation framework developed by Google, Inc.
+- [Theano](http://deeplearning.net/software/theano/) is an open-source symbolic tensor manipulation framework developed by LISA/MILA Lab at Université de Montréal.
+
+In the future, we are likely to add more backend options. If you are interested in developing a new backend, get in touch!
 
 ----
 
@@ -19,9 +21,16 @@ If you have run Keras at least once, you will find the Keras configuration file 
 
 If it isn't there, you can create it.
 
-It probably looks like this:
+The default configuration file looks like this:
 
-`{"epsilon": 1e-07, "floatx": "float32", "backend": "theano"}`
+```
+{
+    "image_dim_ordering": "tf",
+    "epsilon": 1e-07,
+    "floatx": "float32",
+    "backend": "tensorflow"
+}
+```
 
 Simply change the field `backend` to either `"theano"` or `"tensorflow"`, and Keras will use the new configuration next time you run any Keras code.
 
@@ -29,9 +38,8 @@ You can also define the environment variable ``KERAS_BACKEND`` and this will
 override what is defined in your config file :
 
 ```bash
-KERAS_BACKEND=tensorflow python -c "from keras import backend; print(backend._BACKEND)"
+KERAS_BACKEND=tensorflow python -c "from keras import backend"
 Using TensorFlow backend.
-tensorflow
 ```
 
 ----
