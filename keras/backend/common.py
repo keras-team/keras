@@ -7,6 +7,7 @@ _FLOATX = 'float32'
 _EPSILON = 10e-8
 _UID_PREFIXES = defaultdict(int)
 _IMAGE_DIM_ORDERING = 'th'
+_LEGACY_WEIGHT_ORDERING = False
 
 
 def epsilon():
@@ -64,3 +65,25 @@ def set_image_dim_ordering(dim_ordering):
 def get_uid(prefix=''):
     _UID_PREFIXES[prefix] += 1
     return _UID_PREFIXES[prefix]
+
+
+def reset_uids():
+    global _UID_PREFIXES
+    _UID_PREFIXES = defaultdict(int)
+
+
+def is_keras_tensor(x):
+    if hasattr(x, '_keras_shape'):
+        return True
+    else:
+        return False
+
+
+def set_legacy_weight_ordering(value):
+    global _LEGACY_WEIGHT_ORDERING
+    assert value in {True, False}
+    _LEGACY_WEIGHT_ORDERING = value
+
+
+def legacy_weight_ordering():
+    return _LEGACY_WEIGHT_ORDERING

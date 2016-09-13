@@ -48,7 +48,7 @@ def test_softplus():
         return np.log(np.ones_like(x) + np.exp(x))
 
     x = K.placeholder(ndim=2)
-    f = K.function([x],  [activations.softplus(x)])
+    f = K.function([x], [activations.softplus(x)])
     test_values = get_standard_values()
 
     result = f([test_values])[0]
@@ -64,7 +64,7 @@ def test_softsign():
         return np.divide(x, np.ones_like(x) + np.absolute(x))
 
     x = K.placeholder(ndim=2)
-    f = K.function([x],  [activations.softsign(x)])
+    f = K.function([x], [activations.softsign(x)])
     test_values = get_standard_values()
 
     result = f([test_values])[0]
@@ -85,7 +85,7 @@ def test_sigmoid():
     sigmoid = np.vectorize(ref_sigmoid)
 
     x = K.placeholder(ndim=2)
-    f = K.function([x],  [activations.sigmoid(x)])
+    f = K.function([x], [activations.sigmoid(x)])
     test_values = get_standard_values()
 
     result = f([test_values])[0]
@@ -108,7 +108,7 @@ def test_hard_sigmoid():
     hard_sigmoid = np.vectorize(ref_hard_sigmoid)
 
     x = K.placeholder(ndim=2)
-    f = K.function([x],  [activations.hard_sigmoid(x)])
+    f = K.function([x], [activations.hard_sigmoid(x)])
     test_values = get_standard_values()
 
     result = f([test_values])[0]

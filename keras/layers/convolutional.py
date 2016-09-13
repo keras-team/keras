@@ -4,7 +4,7 @@ from __future__ import absolute_import
 from .. import backend as K
 from .. import activations, initializations, regularizers, constraints
 from ..engine import Layer, InputSpec
-from ..utils.np_utils import conv_output_length
+from ..utils.np_utils import conv_output_length, conv_input_length
 
 # imports for backwards namespace compatibility
 from .pooling import AveragePooling1D, AveragePooling2D, AveragePooling3D
@@ -59,7 +59,8 @@ class Convolution1D(Layer):
             (eg. maxnorm, nonneg), applied to the main weights matrix.
         b_constraint: instance of the [constraints](../constraints.md) module,
             applied to the bias.
-        bias: whether to include a bias (i.e. make the layer affine rather than linear).
+        bias: whether to include a bias
+            (i.e. make the layer affine rather than linear).
         input_dim: Number of channels/dimensions in the input.
             Either this argument or the keyword argument `input_shape`must be
             provided when using this layer as the first layer in a model.
@@ -235,7 +236,8 @@ class Convolution2D(Layer):
             It defaults to the `image_dim_ordering` value found in your
             Keras config file at `~/.keras/keras.json`.
             If you never set it, then it will be "th".
-        bias: whether to include a bias (i.e. make the layer affine rather than linear).
+        bias: whether to include a bias
+            (i.e. make the layer affine rather than linear).
 
     # Input shape
         4D tensor with shape:
@@ -252,11 +254,12 @@ class Convolution2D(Layer):
     '''
     def __init__(self, nb_filter, nb_row, nb_col,
                  init='glorot_uniform', activation='linear', weights=None,
-                 border_mode='valid', subsample=(1, 1), dim_ordering=K.image_dim_ordering(),
+                 border_mode='valid', subsample=(1, 1), dim_ordering='default',
                  W_regularizer=None, b_regularizer=None, activity_regularizer=None,
                  W_constraint=None, b_constraint=None,
                  bias=True, **kwargs):
-
+        if dim_ordering == 'default':
+            dim_ordering = K.image_dim_ordering()
         if border_mode not in {'valid', 'same'}:
             raise Exception('Invalid border mode for Convolution2D:', border_mode)
         self.nb_filter = nb_filter
@@ -377,6 +380,539 @@ class Convolution2D(Layer):
         return dict(list(base_config.items()) + list(config.items()))
 
 
+class Deconvolution2D(Convolution2D):
+    '''Transposed convolution operator for filtering windows of two-dimensional inputs.
+    The need for transposed convolutions generally arises from the desire
+    to use a transformation going in the opposite direction of a normal convolution,
+    i.e., from something that has the shape of the output of some convolution
+    to something that has the shape of its input
+    while maintaining a connectivity pattern that is compatible with said convolution. [1]
+
+    When using this layer as the first layer in a model,
+    provide the keyword argument `input_shape`
+    (tuple of integers, does not include the sample axis),
+    e.g. `input_shape=(3, 128, 128)` for 128x128 RGB pictures.
+
+    # Examples
+
+    ```python
+        # apply a 3x3 transposed convolution with stride 1x1 and 3 output filters on a 12x12 image:
+        model = Sequential()
+        model.add(Deconvolution2D(3, 3, 3, output_shape=(None, 3, 14, 14), border_mode='valid', input_shape=(3, 12, 12)))
+        # output_shape will be (None, 3, 14, 14)
+
+        # apply a 3x3 transposed convolution with stride 2x2 and 3 output filters on a 12x12 image:
+        model = Sequential()
+        model.add(Deconvolution2D(3, 3, 3, output_shape=(None, 3, 25, 25), subsample=(2, 2), border_mode='valid', input_shape=(3, 12, 12)))
+        model.summary()
+        # output_shape will be (None, 3, 25, 25)
+    ```
+
+    # Arguments
+        nb_filter: Number of transposed convolution filters to use.
+        nb_row: Number of rows in the transposed convolution kernel.
+        nb_col: Number of columns in the transposed convolution kernel.
+        output_shape: Output shape of the transposed convolution operation.
+            tuple of integers (nb_samples, nb_filter, nb_output_rows, nb_output_cols)
+            Formula for calculation of the output shape [1], [2]:
+                o = s (i - 1) + a + k - 2p, \quad a \in \{0, \ldots, s - 1\}
+                where:
+                    i - input size (rows or cols),
+                    k - kernel size (nb_filter),
+                    s - stride (subsample for rows or cols respectively),
+                    p - padding size,
+                    a - user-specified quantity used to distinguish between
+                        the s different possible output sizes.
+        init: name of initialization function for the weights of the layer
+            (see [initializations](../initializations.md)), or alternatively,
+            Theano function to use for weights initialization.
+            This parameter is only relevant if you don't pass
+            a `weights` argument.
+        activation: name of activation function to use
+            (see [activations](../activations.md)),
+            or alternatively, elementwise Theano/TensorFlow function.
+            If you don't specify anything, no activation is applied
+            (ie. "linear" activation: a(x) = x).
+        weights: list of numpy arrays to set as initial weights.
+        border_mode: 'valid' or 'same'.
+        subsample: tuple of length 2. Factor by which to oversample output.
+            Also called strides elsewhere.
+        W_regularizer: instance of [WeightRegularizer](../regularizers.md)
+            (eg. L1 or L2 regularization), applied to the main weights matrix.
+        b_regularizer: instance of [WeightRegularizer](../regularizers.md),
+            applied to the bias.
+        activity_regularizer: instance of [ActivityRegularizer](../regularizers.md),
+            applied to the network output.
+        W_constraint: instance of the [constraints](../constraints.md) module
+            (eg. maxnorm, nonneg), applied to the main weights matrix.
+        b_constraint: instance of the [constraints](../constraints.md) module,
+            applied to the bias.
+        dim_ordering: 'th' or 'tf'. In 'th' mode, the channels dimension
+            (the depth) is at index 1, in 'tf' mode is it at index 3.
+            It defaults to the `image_dim_ordering` value found in your
+            Keras config file at `~/.keras/keras.json`.
+            If you never set it, then it will be "th".
+        bias: whether to include a bias (i.e. make the layer affine rather than linear).
+
+    # Input shape
+        4D tensor with shape:
+        `(samples, channels, rows, cols)` if dim_ordering='th'
+        or 4D tensor with shape:
+        `(samples, rows, cols, channels)` if dim_ordering='tf'.
+
+    # Output shape
+        4D tensor with shape:
+        `(samples, nb_filter, new_rows, new_cols)` if dim_ordering='th'
+        or 4D tensor with shape:
+        `(samples, new_rows, new_cols, nb_filter)` if dim_ordering='tf'.
+        `rows` and `cols` values might have changed due to padding.
+
+    # References
+        [1] [A guide to convolution arithmetic for deep learning](https://arxiv.org/abs/1603.07285 "arXiv:1603.07285v1 [stat.ML]")
+        [2] [Transposed convolution arithmetic](http://deeplearning.net/software/theano_versions/dev/tutorial/conv_arithmetic.html#transposed-convolution-arithmetic)
+        [3] [Deconvolutional Networks](http://www.matthewzeiler.com/pubs/cvpr2010/cvpr2010.pdf)
+    '''
+    def __init__(self, nb_filter, nb_row, nb_col, output_shape,
+                 init='glorot_uniform', activation='linear', weights=None,
+                 border_mode='valid', subsample=(1, 1),
+                 dim_ordering=K.image_dim_ordering(),
+                 W_regularizer=None, b_regularizer=None, activity_regularizer=None,
+                 W_constraint=None, b_constraint=None,
+                 bias=True, **kwargs):
+
+        if border_mode not in {'valid', 'same'}:
+            raise Exception('Invalid border mode for Deconvolution2D:', border_mode)
+
+        self.output_shape_ = output_shape
+
+        super(Deconvolution2D, self).__init__(nb_filter, nb_row, nb_col,
+                                              init=init, activation=activation,
+                                              weights=weights, border_mode=border_mode,
+                                              subsample=subsample, dim_ordering=dim_ordering,
+                                              W_regularizer=W_regularizer, b_regularizer=b_regularizer,
+                                              activity_regularizer=activity_regularizer,
+                                              W_constraint=W_constraint, b_constraint=b_constraint,
+                                              bias=bias, **kwargs)
+
+    def get_output_shape_for(self, input_shape):
+        if self.dim_ordering == 'th':
+            rows = input_shape[2]
+            cols = input_shape[3]
+        elif self.dim_ordering == 'tf':
+            rows = input_shape[1]
+            cols = input_shape[2]
+        else:
+            raise Exception('Invalid dim_ordering: ' + self.dim_ordering)
+
+        rows = conv_input_length(rows, self.nb_row,
+                                 self.border_mode, self.subsample[0])
+        cols = conv_input_length(cols, self.nb_col,
+                                 self.border_mode, self.subsample[1])
+
+        if self.dim_ordering == 'th':
+            return (input_shape[0], self.nb_filter, rows, cols)
+        elif self.dim_ordering == 'tf':
+            return (input_shape[0], rows, cols, self.nb_filter)
+        else:
+            raise Exception('Invalid dim_ordering: ' + self.dim_ordering)
+
+    def call(self, x, mask=None):
+        output = K.deconv2d(x, self.W, self.output_shape_,
+                            strides=self.subsample,
+                            border_mode=self.border_mode,
+                            dim_ordering=self.dim_ordering,
+                            filter_shape=self.W_shape)
+        if self.bias:
+            if self.dim_ordering == 'th':
+                output += K.reshape(self.b, (1, self.nb_filter, 1, 1))
+            elif self.dim_ordering == 'tf':
+                output += K.reshape(self.b, (1, 1, 1, self.nb_filter))
+            else:
+                raise Exception('Invalid dim_ordering: ' + self.dim_ordering)
+        output = self.activation(output)
+        return output
+
+    def get_config(self):
+        config = {'output_shape': self.output_shape}
+        base_config = super(Deconvolution2D, self).get_config()
+        return dict(list(base_config.items()) + list(config.items()))
+
+
+class AtrousConvolution2D(Convolution2D):
+    '''Atrous Convolution operator for filtering windows of two-dimensional inputs.
+    A.k.a dilated convolution or convolution with holes.
+    When using this layer as the first layer in a model,
+    provide the keyword argument `input_shape`
+    (tuple of integers, does not include the sample axis),
+    e.g. `input_shape=(3, 128, 128)` for 128x128 RGB pictures.
+
+    # Examples
+
+    ```python
+        # apply a 3x3 convolution with atrous rate 2x2 and 64 output filters on a 256x256 image:
+        model = Sequential()
+        model.add(AtrousConvolution2D(64, 3, 3, atrous_rate=(2,2), border_mode='valid', input_shape=(3, 256, 256)))
+        # now the actual kernel size is dilated from 3x3 to 5x5 (3+(3-1)*(2-1)=5)
+        # thus model.output_shape == (None, 64, 252, 252)
+    ```
+
+    # Arguments
+        nb_filter: Number of convolution filters to use.
+        nb_row: Number of rows in the convolution kernel.
+        nb_col: Number of columns in the convolution kernel.
+        init: name of initialization function for the weights of the layer
+            (see [initializations](../initializations.md)), or alternatively,
+            Theano function to use for weights initialization.
+            This parameter is only relevant if you don't pass
+            a `weights` argument.
+        activation: name of activation function to use
+            (see [activations](../activations.md)),
+            or alternatively, elementwise Theano function.
+            If you don't specify anything, no activation is applied
+            (ie. "linear" activation: a(x) = x).
+        weights: list of numpy arrays to set as initial weights.
+        border_mode: 'valid' or 'same'.
+        subsample: tuple of length 2. Factor by which to subsample output.
+            Also called strides elsewhere.
+        atrous_rate: tuple of length 2. Factor for kernel dilation.
+            Also called filter_dilation elsewhere.
+        W_regularizer: instance of [WeightRegularizer](../regularizers.md)
+            (eg. L1 or L2 regularization), applied to the main weights matrix.
+        b_regularizer: instance of [WeightRegularizer](../regularizers.md),
+            applied to the bias.
+        activity_regularizer: instance of [ActivityRegularizer](../regularizers.md),
+            applied to the network output.
+        W_constraint: instance of the [constraints](../constraints.md) module
+            (eg. maxnorm, nonneg), applied to the main weights matrix.
+        b_constraint: instance of the [constraints](../constraints.md) module,
+            applied to the bias.
+        dim_ordering: 'th' or 'tf'. In 'th' mode, the channels dimension
+            (the depth) is at index 1, in 'tf' mode is it at index 3.
+            It defaults to the `image_dim_ordering` value found in your
+            Keras config file at `~/.keras/keras.json`.
+            If you never set it, then it will be "th".
+        bias: whether to include a bias (i.e. make the layer affine rather than linear).
+
+    # Input shape
+        4D tensor with shape:
+        `(samples, channels, rows, cols)` if dim_ordering='th'
+        or 4D tensor with shape:
+        `(samples, rows, cols, channels)` if dim_ordering='tf'.
+
+    # Output shape
+        4D tensor with shape:
+        `(samples, nb_filter, new_rows, new_cols)` if dim_ordering='th'
+        or 4D tensor with shape:
+        `(samples, new_rows, new_cols, nb_filter)` if dim_ordering='tf'.
+        `rows` and `cols` values might have changed due to padding.
+
+    # References
+        - [Multi-Scale Context Aggregation by Dilated Convolutions](https://arxiv.org/abs/1511.07122)
+    '''
+    def __init__(self, nb_filter, nb_row, nb_col,
+                 init='glorot_uniform', activation='linear', weights=None,
+                 border_mode='valid', subsample=(1, 1),
+                 atrous_rate=(1, 1), dim_ordering='default',
+                 W_regularizer=None, b_regularizer=None, activity_regularizer=None,
+                 W_constraint=None, b_constraint=None,
+                 bias=True, **kwargs):
+        if dim_ordering == 'default':
+            dim_ordering = K.image_dim_ordering()
+
+        if border_mode not in {'valid', 'same'}:
+            raise Exception('Invalid border mode for AtrousConv2D:', border_mode)
+
+        self.atrous_rate = tuple(atrous_rate)
+
+        super(AtrousConvolution2D, self).__init__(nb_filter, nb_row, nb_col,
+                                                  init=init, activation=activation,
+                                                  weights=weights, border_mode=border_mode,
+                                                  subsample=subsample, dim_ordering=dim_ordering,
+                                                  W_regularizer=W_regularizer, b_regularizer=b_regularizer,
+                                                  activity_regularizer=activity_regularizer,
+                                                  W_constraint=W_constraint, b_constraint=b_constraint,
+                                                  bias=bias, **kwargs)
+
+    def get_output_shape_for(self, input_shape):
+        if self.dim_ordering == 'th':
+            rows = input_shape[2]
+            cols = input_shape[3]
+        elif self.dim_ordering == 'tf':
+            rows = input_shape[1]
+            cols = input_shape[2]
+        else:
+            raise Exception('Invalid dim_ordering: ' + self.dim_ordering)
+
+        rows = conv_output_length(rows, self.nb_row, self.border_mode,
+                                  self.subsample[0], dilation=self.atrous_rate[0])
+        cols = conv_output_length(cols, self.nb_col, self.border_mode,
+                                  self.subsample[1], dilation=self.atrous_rate[1])
+
+        if self.dim_ordering == 'th':
+            return (input_shape[0], self.nb_filter, rows, cols)
+        elif self.dim_ordering == 'tf':
+            return (input_shape[0], rows, cols, self.nb_filter)
+        else:
+            raise Exception('Invalid dim_ordering: ' + self.dim_ordering)
+
+    def call(self, x, mask=None):
+        output = K.conv2d(x, self.W, strides=self.subsample,
+                          border_mode=self.border_mode,
+                          dim_ordering=self.dim_ordering,
+                          filter_shape=self.W_shape,
+                          filter_dilation=self.atrous_rate)
+        if self.bias:
+            if self.dim_ordering == 'th':
+                output += K.reshape(self.b, (1, self.nb_filter, 1, 1))
+            elif self.dim_ordering == 'tf':
+                output += K.reshape(self.b, (1, 1, 1, self.nb_filter))
+            else:
+                raise Exception('Invalid dim_ordering: ' + self.dim_ordering)
+        output = self.activation(output)
+        return output
+
+    def get_config(self):
+        config = {'atrous_rate': self.atrous_rate}
+        base_config = super(AtrousConvolution2D, self).get_config()
+        return dict(list(base_config.items()) + list(config.items()))
+
+
+class SeparableConvolution2D(Layer):
+    '''Separable convolution operator for 2D inputs.
+
+    Separable convolutions consist in first performing
+    a depthwise spatial convolution
+    (which acts on each input channel separately)
+    followed by a pointwise convolution which mixes together the resulting
+    output channels. The `depth_multiplier` argument controls how many
+    output channels are generated per input channel in the depthwise step.
+
+    Intuitively, separable convolutions can be understood as
+    a way to factorize a convolution kernel into two smaller kernels,
+    or as an extreme version of an Inception block.
+
+    When using this layer as the first layer in a model,
+    provide the keyword argument `input_shape`
+    (tuple of integers, does not include the sample axis),
+    e.g. `input_shape=(3, 128, 128)` for 128x128 RGB pictures.
+
+    # Theano warning
+
+    This layer is only available with the
+    TensorFlow backend for the time being.
+
+    # Arguments
+        nb_filter: Number of convolution filters to use.
+        nb_row: Number of rows in the convolution kernel.
+        nb_col: Number of columns in the convolution kernel.
+        init: name of initialization function for the weights of the layer
+            (see [initializations](../initializations.md)), or alternatively,
+            Theano function to use for weights initialization.
+            This parameter is only relevant if you don't pass
+            a `weights` argument.
+        activation: name of activation function to use
+            (see [activations](../activations.md)),
+            or alternatively, elementwise Theano function.
+            If you don't specify anything, no activation is applied
+            (ie. "linear" activation: a(x) = x).
+        weights: list of numpy arrays to set as initial weights.
+        border_mode: 'valid' or 'same'.
+        subsample: tuple of length 2. Factor by which to subsample output.
+            Also called strides elsewhere.
+        depth_multiplier: how many output channel to use per input channel
+            for the depthwise convolution step.
+        depthwise_regularizer: instance of [WeightRegularizer](../regularizers.md)
+            (eg. L1 or L2 regularization), applied to the depthwise weights matrix.
+        pointwise_regularizer: instance of [WeightRegularizer](../regularizers.md)
+            (eg. L1 or L2 regularization), applied to the pointwise weights matrix.
+        b_regularizer: instance of [WeightRegularizer](../regularizers.md),
+            applied to the bias.
+        activity_regularizer: instance of [ActivityRegularizer](../regularizers.md),
+            applied to the network output.
+        depthwise_constraint: instance of the [constraints](../constraints.md) module
+            (eg. maxnorm, nonneg), applied to the depthwise weights matrix.
+        pointwise_constraint: instance of the [constraints](../constraints.md) module
+            (eg. maxnorm, nonneg), applied to the pointwise weights matrix.
+        b_constraint: instance of the [constraints](../constraints.md) module,
+            applied to the bias.
+        dim_ordering: 'th' or 'tf'. In 'th' mode, the channels dimension
+            (the depth) is at index 1, in 'tf' mode is it at index 3.
+            It defaults to the `image_dim_ordering` value found in your
+            Keras config file at `~/.keras/keras.json`.
+            If you never set it, then it will be "th".
+        bias: whether to include a bias
+            (i.e. make the layer affine rather than linear).
+
+    # Input shape
+        4D tensor with shape:
+        `(samples, channels, rows, cols)` if dim_ordering='th'
+        or 4D tensor with shape:
+        `(samples, rows, cols, channels)` if dim_ordering='tf'.
+
+    # Output shape
+        4D tensor with shape:
+        `(samples, nb_filter, new_rows, new_cols)` if dim_ordering='th'
+        or 4D tensor with shape:
+        `(samples, new_rows, new_cols, nb_filter)` if dim_ordering='tf'.
+        `rows` and `cols` values might have changed due to padding.
+    '''
+    def __init__(self, nb_filter, nb_row, nb_col,
+                 init='glorot_uniform', activation='linear', weights=None,
+                 border_mode='valid', subsample=(1, 1),
+                 depth_multiplier=1, dim_ordering='default',
+                 depthwise_regularizer=None, pointwise_regularizer=None,
+                 b_regularizer=None, activity_regularizer=None,
+                 depthwise_constraint=None, pointwise_constraint=None,
+                 b_constraint=None,
+                 bias=True, **kwargs):
+
+        if K._BACKEND != 'tensorflow':
+            raise Exception('SeparableConv2D is only available '
+                            'with TensorFlow for the time being.')
+
+        if dim_ordering == 'default':
+            dim_ordering = K.image_dim_ordering()
+
+        if border_mode not in {'valid', 'same'}:
+            raise Exception('Invalid border mode for SeparableConv2D:', border_mode)
+
+        if border_mode not in {'valid', 'same'}:
+            raise Exception('Invalid border mode for SeparableConv2D:', border_mode)
+        self.nb_filter = nb_filter
+        self.nb_row = nb_row
+        self.nb_col = nb_col
+        self.init = initializations.get(init, dim_ordering=dim_ordering)
+        self.activation = activations.get(activation)
+        assert border_mode in {'valid', 'same'}, 'border_mode must be in {valid, same}'
+        self.border_mode = border_mode
+        self.subsample = tuple(subsample)
+        self.depth_multiplier = depth_multiplier
+        assert dim_ordering in {'tf', 'th'}, 'dim_ordering must be in {tf, th}'
+        self.dim_ordering = dim_ordering
+
+        self.depthwise_regularizer = regularizers.get(depthwise_regularizer)
+        self.pointwise_regularizer = regularizers.get(pointwise_regularizer)
+        self.b_regularizer = regularizers.get(b_regularizer)
+        self.activity_regularizer = regularizers.get(activity_regularizer)
+
+        self.depthwise_constraint = constraints.get(depthwise_constraint)
+        self.pointwise_constraint = constraints.get(pointwise_constraint)
+        self.b_constraint = constraints.get(b_constraint)
+
+        self.bias = bias
+        self.input_spec = [InputSpec(ndim=4)]
+        self.initial_weights = weights
+        super(SeparableConvolution2D, self).__init__(**kwargs)
+
+    def build(self, input_shape):
+        if self.dim_ordering == 'th':
+            stack_size = input_shape[1]
+            depthwise_shape = (self.depth_multiplier, stack_size, self.nb_row, self.nb_col)
+            pointwise_shape = (self.nb_filter, self.depth_multiplier * stack_size, 1, 1)
+        elif self.dim_ordering == 'tf':
+            stack_size = input_shape[3]
+            depthwise_shape = (self.nb_row, self.nb_col, stack_size, self.depth_multiplier)
+            pointwise_shape = (1, 1, self.depth_multiplier * stack_size, self.nb_filter)
+        else:
+            raise Exception('Invalid dim_ordering: ' + self.dim_ordering)
+        self.depthwise_kernel = self.init(depthwise_shape,
+                                          name='{}_depthwise_kernel'.format(self.name))
+        self.pointwise_kernel = self.init(pointwise_shape,
+                                          name='{}_pointwise_kernel'.format(self.name))
+        if self.bias:
+            self.b = K.zeros((self.nb_filter,), name='{}_b'.format(self.name))
+            self.trainable_weights = [self.depthwise_kernel,
+                                      self.pointwise_kernel,
+                                      self.b]
+        else:
+            self.trainable_weights = [self.depthwise_kernel,
+                                      self.pointwise_kernel]
+        self.regularizers = []
+        if self.depthwise_regularizer:
+            self.depthwise_regularizer.set_param(self.depthwise_kernel)
+            self.regularizers.append(self.depthwise_regularizer)
+        if self.pointwise_regularizer:
+            self.pointwise_regularizer.set_param(self.pointwise_kernel)
+            self.regularizers.append(self.pointwise_regularizer)
+        if self.bias and self.b_regularizer:
+            self.b_regularizer.set_param(self.b)
+            self.regularizers.append(self.b_regularizer)
+        if self.activity_regularizer:
+            self.activity_regularizer.set_layer(self)
+            self.regularizers.append(self.activity_regularizer)
+
+        self.constraints = {}
+        if self.depthwise_constraint:
+            self.constraints[self.depthwise_kernel] = self.depthwise_constraint
+        if self.pointwise_constraint:
+            self.constraints[self.pointwise_kernel] = self.pointwise_constraint
+        if self.bias and self.b_constraint:
+            self.constraints[self.b] = self.b_constraint
+
+        if self.initial_weights is not None:
+            self.set_weights(self.initial_weights)
+            del self.initial_weights
+
+    def get_output_shape_for(self, input_shape):
+        if self.dim_ordering == 'th':
+            rows = input_shape[2]
+            cols = input_shape[3]
+        elif self.dim_ordering == 'tf':
+            rows = input_shape[1]
+            cols = input_shape[2]
+        else:
+            raise Exception('Invalid dim_ordering: ' + self.dim_ordering)
+
+        rows = conv_output_length(rows, self.nb_row,
+                                  self.border_mode, self.subsample[0])
+        cols = conv_output_length(cols, self.nb_col,
+                                  self.border_mode, self.subsample[1])
+
+        if self.dim_ordering == 'th':
+            return (input_shape[0], self.nb_filter, rows, cols)
+        elif self.dim_ordering == 'tf':
+            return (input_shape[0], rows, cols, self.nb_filter)
+        else:
+            raise Exception('Invalid dim_ordering: ' + self.dim_ordering)
+
+    def call(self, x, mask=None):
+        output = K.separable_conv2d(x, self.depthwise_kernel,
+                                    self.pointwise_kernel,
+                                    strides=self.subsample,
+                                    border_mode=self.border_mode,
+                                    dim_ordering=self.dim_ordering)
+        if self.bias:
+            if self.dim_ordering == 'th':
+                output += K.reshape(self.b, (1, self.nb_filter, 1, 1))
+            elif self.dim_ordering == 'tf':
+                output += K.reshape(self.b, (1, 1, 1, self.nb_filter))
+            else:
+                raise Exception('Invalid dim_ordering: ' + self.dim_ordering)
+        output = self.activation(output)
+        return output
+
+    def get_config(self):
+        config = {'nb_filter': self.nb_filter,
+                  'nb_row': self.nb_row,
+                  'nb_col': self.nb_col,
+                  'init': self.init.__name__,
+                  'activation': self.activation.__name__,
+                  'border_mode': self.border_mode,
+                  'subsample': self.subsample,
+                  'depth_multiplier': self.depth_multiplier,
+                  'dim_ordering': self.dim_ordering,
+                  'depthwise_regularizer': self.depthwise_regularizer.get_config() if self.depthwise_regularizer else None,
+                  'pointwise_regularizer': self.depthwise_regularizer.get_config() if self.depthwise_regularizer else None,
+                  'b_regularizer': self.b_regularizer.get_config() if self.b_regularizer else None,
+                  'activity_regularizer': self.activity_regularizer.get_config() if self.activity_regularizer else None,
+                  'depthwise_constraint': self.depthwise_constraint.get_config() if self.depthwise_constraint else None,
+                  'pointwise_constraint': self.pointwise_constraint.get_config() if self.pointwise_constraint else None,
+                  'b_constraint': self.b_constraint.get_config() if self.b_constraint else None,
+                  'bias': self.bias}
+        base_config = super(SeparableConvolution2D, self).get_config()
+        return dict(list(base_config.items()) + list(config.items()))
+
+
 class Convolution3D(Layer):
     '''Convolution operator for filtering windows of three-dimensional inputs.
     When using this layer as the first layer in a model,
@@ -437,10 +973,13 @@ class Convolution3D(Layer):
 
     def __init__(self, nb_filter, kernel_dim1, kernel_dim2, kernel_dim3,
                  init='glorot_uniform', activation='linear', weights=None,
-                 border_mode='valid', subsample=(1, 1, 1), dim_ordering=K.image_dim_ordering(),
+                 border_mode='valid', subsample=(1, 1, 1), dim_ordering='default',
                  W_regularizer=None, b_regularizer=None, activity_regularizer=None,
                  W_constraint=None, b_constraint=None,
                  bias=True, **kwargs):
+        if dim_ordering == 'default':
+            dim_ordering = K.image_dim_ordering()
+
         if border_mode not in {'valid', 'same'}:
             raise Exception('Invalid border mode for Convolution3D:', border_mode)
         self.nb_filter = nb_filter
@@ -594,7 +1133,8 @@ class UpSampling1D(Layer):
         super(UpSampling1D, self).__init__(**kwargs)
 
     def get_output_shape_for(self, input_shape):
-        return (input_shape[0], self.length * input_shape[1], input_shape[2])
+        length = self.length * input_shape[1] if input_shape[1] is not None else None
+        return (input_shape[0], length, input_shape[2])
 
     def call(self, x, mask=None):
         output = K.repeat_elements(x, self.length, axis=1)
@@ -632,7 +1172,9 @@ class UpSampling2D(Layer):
         `(samples, upsampled_rows, upsampled_cols, channels)` if dim_ordering='tf'.
     '''
 
-    def __init__(self, size=(2, 2), dim_ordering=K.image_dim_ordering(), **kwargs):
+    def __init__(self, size=(2, 2), dim_ordering='default', **kwargs):
+        if dim_ordering == 'default':
+            dim_ordering = K.image_dim_ordering()
         self.size = tuple(size)
         assert dim_ordering in {'tf', 'th'}, 'dim_ordering must be in {tf, th}'
         self.dim_ordering = dim_ordering
@@ -641,14 +1183,18 @@ class UpSampling2D(Layer):
 
     def get_output_shape_for(self, input_shape):
         if self.dim_ordering == 'th':
+            width = self.size[0] * input_shape[2] if input_shape[2] is not None else None
+            height = self.size[1] * input_shape[3] if input_shape[3] is not None else None
             return (input_shape[0],
                     input_shape[1],
-                    self.size[0] * input_shape[2],
-                    self.size[1] * input_shape[3])
+                    width,
+                    height)
         elif self.dim_ordering == 'tf':
+            width = self.size[0] * input_shape[1] if input_shape[1] is not None else None
+            height = self.size[1] * input_shape[2] if input_shape[2] is not None else None
             return (input_shape[0],
-                    self.size[0] * input_shape[1],
-                    self.size[1] * input_shape[2],
+                    width,
+                    height,
                     input_shape[3])
         else:
             raise Exception('Invalid dim_ordering: ' + self.dim_ordering)
@@ -666,8 +1212,6 @@ class UpSampling2D(Layer):
 class UpSampling3D(Layer):
     '''Repeat the first, second and third dimension of the data
     by size[0], size[1] and size[2] respectively.
-
-    Note: this layer will only work with Theano for the time being.
 
     # Arguments
         size: tuple of 3 integers. The upsampling factors for dim1, dim2 and dim3.
@@ -691,10 +1235,9 @@ class UpSampling3D(Layer):
         `(samples, upsampled_dim1, upsampled_dim2, upsampled_dim3, channels)` if dim_ordering='tf'.
     '''
 
-    def __init__(self, size=(2, 2, 2), dim_ordering=K.image_dim_ordering(), **kwargs):
-        if K._BACKEND != 'theano':
-            raise Exception(self.__class__.__name__ +
-                            ' is currently only working with Theano backend.')
+    def __init__(self, size=(2, 2, 2), dim_ordering='default', **kwargs):
+        if dim_ordering == 'default':
+            dim_ordering = K.image_dim_ordering()
         self.size = tuple(size)
         assert dim_ordering in {'tf', 'th'}, 'dim_ordering must be in {tf, th}'
         self.dim_ordering = dim_ordering
@@ -703,16 +1246,22 @@ class UpSampling3D(Layer):
 
     def get_output_shape_for(self, input_shape):
         if self.dim_ordering == 'th':
+            dim1 = self.size[0] * input_shape[2] if input_shape[2] is not None else None
+            dim2 = self.size[1] * input_shape[3] if input_shape[3] is not None else None
+            dim3 = self.size[2] * input_shape[4] if input_shape[4] is not None else None
             return (input_shape[0],
                     input_shape[1],
-                    self.size[0] * input_shape[2],
-                    self.size[1] * input_shape[3],
-                    self.size[2] * input_shape[4])
+                    dim1,
+                    dim2,
+                    dim3)
         elif self.dim_ordering == 'tf':
+            dim1 = self.size[0] * input_shape[1] if input_shape[1] is not None else None
+            dim2 = self.size[1] * input_shape[2] if input_shape[2] is not None else None
+            dim3 = self.size[2] * input_shape[3] if input_shape[3] is not None else None
             return (input_shape[0],
-                    self.size[0] * input_shape[1],
-                    self.size[1] * input_shape[2],
-                    self.size[2] * input_shape[3],
+                    dim1,
+                    dim2,
+                    dim3,
                     input_shape[4])
         else:
             raise Exception('Invalid dim_ordering: ' + self.dim_ordering)
@@ -785,8 +1334,10 @@ class ZeroPadding2D(Layer):
         (samples, depth, first_padded_axis, second_padded_axis)
     '''
 
-    def __init__(self, padding=(1, 1), dim_ordering=K.image_dim_ordering(), **kwargs):
+    def __init__(self, padding=(1, 1), dim_ordering='default', **kwargs):
         super(ZeroPadding2D, self).__init__(**kwargs)
+        if dim_ordering == 'default':
+            dim_ordering = K.image_dim_ordering()
         self.padding = tuple(padding)
         assert dim_ordering in {'tf', 'th'}, 'dim_ordering must be in {tf, th}'
         self.dim_ordering = dim_ordering
@@ -823,8 +1374,6 @@ class ZeroPadding2D(Layer):
 class ZeroPadding3D(Layer):
     '''Zero-padding layer for 3D data (spatial or spatio-temporal).
 
-    Note: this layer will only work with Theano for the time being.
-
     # Arguments
         padding: tuple of int (length 3)
             How many zeros to add at the beginning and end of
@@ -845,11 +1394,10 @@ class ZeroPadding3D(Layer):
         (samples, depth, first_padded_axis, second_padded_axis, third_axis_to_pad)
     '''
 
-    def __init__(self, padding=(1, 1, 1), dim_ordering=K.image_dim_ordering(), **kwargs):
-        if K._BACKEND != 'theano':
-            raise Exception(self.__class__.__name__ +
-                            ' is currently only working with Theano backend.')
+    def __init__(self, padding=(1, 1, 1), dim_ordering='default', **kwargs):
         super(ZeroPadding3D, self).__init__(**kwargs)
+        if dim_ordering == 'default':
+            dim_ordering = K.image_dim_ordering()
         self.padding = tuple(padding)
         assert dim_ordering in {'tf', 'th'}, 'dim_ordering must be in {tf, th}'
         self.dim_ordering = dim_ordering
@@ -885,3 +1433,220 @@ class ZeroPadding3D(Layer):
         config = {'padding': self.padding}
         base_config = super(ZeroPadding3D, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
+
+class Cropping1D(Layer):
+    '''Cropping layer for 1D input (e.g. temporal sequence).
+    It crops along the time dimension (axis 1).
+
+    # Arguments
+        cropping: tuple of int (length 2)
+            How many units should be trimmed off at the beginning and end of
+            the cropping dimension (axis 1).
+
+    # Input shape
+        3D tensor with shape (samples, axis_to_crop, features)
+
+    # Output shape
+        3D tensor with shape (samples, cropped_axis, features)
+    '''
+
+    def __init__(self, cropping=(1, 1), **kwargs):
+        super(Cropping1D, self).__init__(**kwargs)
+        self.cropping = tuple(cropping)
+        assert len(self.cropping) == 2, 'cropping must be a tuple length of 2'
+        self.input_spec = [InputSpec(ndim=3)]
+
+    def build(self, input_shape):
+        self.input_spec = [InputSpec(shape=input_shape)]
+
+    def get_output_shape_for(self, input_shape):
+        length = input_shape[1] - self.cropping[0] - self.cropping[1] if input_shape[1] is not None else None
+        return (input_shape[0],
+                length,
+                input_shape[2])
+
+    def call(self, x, mask=None):
+        input_shape = self.input_spec[0].shape
+        return x[:, self.cropping[0]:input_shape[1]-self.cropping[1], :]
+
+    def get_config(self):
+        config = {'cropping': self.cropping}
+        base_config = super(Cropping1D, self).get_config()
+        return dict(list(base_config.items()) + list(config.items()))
+
+class Cropping2D(Layer):
+    '''Cropping layer for 2D input (e.g. picture).
+    It crops along spatial dimensions, i.e. width and height.
+
+    # Arguments
+        cropping: tuple of tuple of int (length 2)
+            How many units should be trimmed off at the beginning and end of
+            the 2 cropping dimensions (width, height).
+        dim_ordering: 'th' or 'tf'.
+            In 'th' mode, the channels dimension (the depth)
+            is at index 1, in 'tf' mode is it at index 3.
+            It defaults to the `image_dim_ordering` value found in your
+            Keras config file at `~/.keras/keras.json`.
+            If you never set it, then it will be "th".
+
+    # Input shape
+        4D tensor with shape:
+        (samples, depth, first_axis_to_crop, second_axis_to_crop)
+
+    # Output shape
+        4D tensor with shape:
+        (samples, depth, first_cropped_axis, second_cropped_axis)
+
+    # Examples
+
+    ```python
+        # Crop the input 2D images or feature maps
+        model = Sequential()
+        model.add(Cropping2D(cropping=((2, 2), (4, 4)), input_shape=(3, 28, 28)))
+        # now model.output_shape == (None, 3, 24, 20)
+        model.add(Convolution2D(64, 3, 3, border_mode='same))
+        model.add(Cropping2D(cropping=((2, 2), (2, 2))))
+        # now model.output_shape == (None, 64, 20, 16)
+
+    ```
+
+    '''
+
+    def __init__(self, cropping=((0, 0), (0, 0)), dim_ordering='default', **kwargs):
+        super(Cropping2D, self).__init__(**kwargs)
+        if dim_ordering == 'default':
+            dim_ordering = K.image_dim_ordering()
+        self.cropping = tuple(cropping)
+        assert len(self.cropping) == 2, 'cropping must be a tuple length of 2'
+        assert len(self.cropping[0]) == 2, 'cropping[0] must be a tuple length of 2'
+        assert len(self.cropping[1]) == 2, 'cropping[1] must be a tuple length of 2'
+        assert dim_ordering in {'tf', 'th'}, 'dim_ordering must be in {tf, th}'
+        self.dim_ordering = dim_ordering
+        self.input_spec = [InputSpec(ndim=4)]
+
+    def build(self, input_shape):
+        self.input_spec = [InputSpec(shape=input_shape)]
+
+    def get_output_shape_for(self, input_shape):
+        if self.dim_ordering == 'th':
+            return (input_shape[0],
+                    input_shape[1],
+                    input_shape[2] - self.cropping[0][0] - self.cropping[0][1],
+                    input_shape[3] - self.cropping[1][0] - self.cropping[1][1])
+        elif self.dim_ordering == 'tf':
+            return (input_shape[0],
+                    input_shape[1] - self.cropping[0][0] - self.cropping[0][1],
+                    input_shape[2] - self.cropping[1][0] - self.cropping[1][1],
+                    input_shape[3])
+        else:
+            raise Exception('Invalid dim_ordering: ' + self.dim_ordering)
+
+    def call(self, x, mask=None):
+        input_shape = self.input_spec[0].shape
+        if self.dim_ordering == 'th':
+            return x[:,
+                     :,
+                     self.cropping[0][0]:input_shape[2]-self.cropping[0][1],
+                     self.cropping[1][0]:input_shape[3]-self.cropping[1][1]]
+        elif self.dim_ordering == 'tf':
+            return x[:,
+                     self.cropping[0][0]:input_shape[1]-self.cropping[0][1],
+                     self.cropping[1][0]:input_shape[2]-self.cropping[1][1],
+                     :]
+
+    def get_config(self):
+        config = {'cropping': self.cropping}
+        base_config = super(Cropping2D, self).get_config()
+        return dict(list(base_config.items()) + list(config.items()))
+
+class Cropping3D(Layer):
+    '''Cropping layer for 2D input (e.g. picture).
+
+    # Arguments
+        cropping: tuple of tuple of int (length 3)
+            How many units should be trimmed off at the beginning and end of
+            the 3 cropping dimensions (kernel_dim1, kernel_dim2, kernerl_dim3).
+        dim_ordering: 'th' or 'tf'.
+            In 'th' mode, the channels dimension (the depth)
+            is at index 1, in 'tf' mode is it at index 4.
+            It defaults to the `image_dim_ordering` value found in your
+            Keras config file at `~/.keras/keras.json`.
+            If you never set it, then it will be "th".
+
+    # Input shape
+        5D tensor with shape:
+        (samples, depth, first_axis_to_crop, second_axis_to_crop, third_axis_to_crop)
+
+    # Output shape
+        5D tensor with shape:
+        (samples, depth, first_cropped_axis, second_cropped_axis, third_cropped_axis)
+
+    '''
+
+    def __init__(self, cropping=((1, 1), (1, 1), (1, 1)), dim_ordering='default', **kwargs):
+        super(Cropping3D, self).__init__(**kwargs)
+        if dim_ordering == 'default':
+            dim_ordering = K.image_dim_ordering()
+        self.cropping = tuple(cropping)
+        assert len(self.cropping) == 3, 'cropping must be a tuple length of 3'
+        assert len(self.cropping[0]) == 2, 'cropping[0] must be a tuple length of 2'
+        assert len(self.cropping[1]) == 2, 'cropping[1] must be a tuple length of 2'
+        assert len(self.cropping[2]) == 2, 'cropping[2] must be a tuple length of 2'
+        assert dim_ordering in {'tf', 'th'}, 'dim_ordering must be in {tf, th}'
+        self.dim_ordering = dim_ordering
+        self.input_spec = [InputSpec(ndim=5)]
+
+    def build(self, input_shape):
+        self.input_spec = [InputSpec(shape=input_shape)]
+
+    def get_output_shape_for(self, input_shape):
+        if self.dim_ordering == 'th':
+            dim1 = input_shape[2] - self.cropping[0][0] - self.cropping[0][1] if input_shape[2] is not None else None
+            dim2 = input_shape[3] - self.cropping[1][0] - self.cropping[1][1] if input_shape[3] is not None else None
+            dim3 = input_shape[4] - self.cropping[2][0] - self.cropping[2][1] if input_shape[4] is not None else None
+            return (input_shape[0],
+                    input_shape[1],
+                    dim1,
+                    dim2,
+                    dim3)
+        elif self.dim_ordering == 'tf':
+            dim1 = input_shape[1] - self.cropping[0][0] - self.cropping[0][1] if input_shape[1] is not None else None
+            dim2 = input_shape[2] - self.cropping[1][0] - self.cropping[1][1] if input_shape[2] is not None else None
+            dim3 = input_shape[3] - self.cropping[2][0] - self.cropping[2][1] if input_shape[3] is not None else None
+            return (input_shape[0],
+                    dim1,
+                    dim2,
+                    dim3,
+                    input_shape[4])
+        else:
+            raise Exception('Invalid dim_ordering: ' + self.dim_ordering)
+
+    def call(self, x, mask=None):
+        input_shape = self.input_spec[0].shape
+        if self.dim_ordering == 'th':
+            return x[:,
+                     :,
+                     self.cropping[0][0]:input_shape[2]-self.cropping[0][1],
+                     self.cropping[1][0]:input_shape[3]-self.cropping[1][1],
+                     self.cropping[2][0]:input_shape[4]-self.cropping[2][1]]
+        elif self.dim_ordering == 'tf':
+            return x[:,
+                     self.cropping[0][0]:input_shape[1]-self.cropping[0][1],
+                     self.cropping[1][0]:input_shape[2]-self.cropping[1][1],
+                     self.cropping[2][0]:input_shape[3]-self.cropping[2][1],
+                     :]
+
+    def get_config(self):
+        config = {'cropping': self.cropping}
+        base_config = super(Cropping3D, self).get_config()
+        return dict(list(base_config.items()) + list(config.items()))
+
+
+# Aliases
+
+Conv1D = Convolution1D
+Conv2D = Convolution2D
+Conv3D = Convolution3D
+Deconv2D = Deconvolution2D
+AtrousConv2D = AtrousConvolution2D
+SeparableConv2D = SeparableConvolution2D

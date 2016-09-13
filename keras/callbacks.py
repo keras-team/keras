@@ -9,6 +9,7 @@ import warnings
 from collections import deque
 from .utils.generic_utils import Progbar
 from keras import backend as K
+from pkg_resources import parse_version
 
 
 class CallbackList(object):
@@ -212,6 +213,7 @@ class History(Callback):
         for k, v in logs.items():
             self.history.setdefault(k, []).append(v)
 
+
 class ModelCheckpoint(Callback):
     '''Save the model after every epoch.
 
@@ -229,25 +231,29 @@ class ModelCheckpoint(Callback):
         verbose: verbosity mode, 0 or 1.
         save_best_only: if `save_best_only=True`,
             the latest best model according to
-            the validation loss will not be overwritten.
+            the quantity monitored will not be overwritten.
         mode: one of {auto, min, max}.
             If `save_best_only=True`, the decision
             to overwrite the current save file is made
             based on either the maximization or the
-            minization of the monitored. For `val_acc`,
+            minimization of the monitored quantity. For `val_acc`,
             this should be `max`, for `val_loss` this should
             be `min`, etc. In `auto` mode, the direction is
             automatically inferred from the name of the monitored quantity.
+        save_weights_only: if True, then only the model's weights will be
+            saved (`model.save_weights(filepath)`), else the full model
+            is saved (`model.save(filepath)`).
 
     '''
     def __init__(self, filepath, monitor='val_loss', verbose=0,
-                 save_best_only=False, mode='auto'):
-
+                 save_best_only=False, save_weights_only=False,
+                 mode='auto'):
         super(ModelCheckpoint, self).__init__()
         self.monitor = monitor
         self.verbose = verbose
         self.filepath = filepath
         self.save_best_only = save_best_only
+        self.save_weights_only = save_weights_only
 
         if mode not in ['auto', 'min', 'max']:
             warnings.warn('ModelCheckpoint mode %s is unknown, '
@@ -284,7 +290,10 @@ class ModelCheckpoint(Callback):
                               % (epoch, self.monitor, self.best,
                                  current, filepath))
                     self.best = current
-                    self.model.save_weights(filepath, overwrite=True)
+                    if self.save_weights_only:
+                        self.model.save_weights(filepath, overwrite=True)
+                    else:
+                        self.model.save(filepath, overwrite=True)
                 else:
                     if self.verbose > 0:
                         print('Epoch %05d: %s did not improve' %
@@ -292,7 +301,10 @@ class ModelCheckpoint(Callback):
         else:
             if self.verbose > 0:
                 print('Epoch %05d: saving model to %s' % (epoch, filepath))
-            self.model.save_weights(filepath, overwrite=True)
+            if self.save_weights_only:
+                self.model.save_weights(filepath, overwrite=True)
+            else:
+                self.model.save(filepath, overwrite=True)
 
 
 class EarlyStopping(Callback):
@@ -319,7 +331,8 @@ class EarlyStopping(Callback):
 
         if mode not in ['auto', 'min', 'max']:
             warnings.warn('EarlyStopping mode %s is unknown, '
-                          'fallback to auto mode.' % (self.mode), RuntimeWarning)
+                          'fallback to auto mode.' % (self.mode),
+                          RuntimeWarning)
             mode = 'auto'
 
         if mode == 'min':
@@ -361,8 +374,8 @@ class RemoteMonitor(Callback):
     # Arguments
         root: root url to which the events will be sent (at the end
             of every epoch). Events are sent to
-            `root + '/publish/epoch/end/'` by default. Calls are 
-            HTTP POST, with a `data` argument which is a 
+            `root + '/publish/epoch/end/'` by default. Calls are
+            HTTP POST, with a `data` argument which is a
             JSON-encoded dictionary of event data.
     '''
 
@@ -433,11 +446,12 @@ class TensorBoard(Callback):
         histogram_freq: frequency (in epochs) at which to compute activation
             histograms for the layers of the model. If set to 0,
             histograms won't be computed.
-        write_graph: whether to visualize the graph in Tensorboard. The log file can
-            become quite large when write_graph is set to True.
+        write_graph: whether to visualize the graph in Tensorboard.
+            The log file can become quite large when
+            write_graph is set to True.
     '''
 
-    def __init__(self, log_dir='./logs', histogram_freq=0, write_graph=True):
+    def __init__(self, log_dir='./logs', histogram_freq=0, write_graph=True, write_images=False):
         super(TensorBoard, self).__init__()
         if K._BACKEND != 'tensorflow':
             raise Exception('TensorBoard callback only works '
@@ -446,6 +460,7 @@ class TensorBoard(Callback):
         self.histogram_freq = histogram_freq
         self.merged = None
         self.write_graph = write_graph
+        self.write_images = write_images
 
     def _set_model(self, model):
         import tensorflow as tf
@@ -454,18 +469,31 @@ class TensorBoard(Callback):
         self.model = model
         self.sess = KTF.get_session()
         if self.histogram_freq and self.merged is None:
-            layers = self.model.layers
-            for layer in layers:
-                if hasattr(layer, 'W'):
-                    tf.histogram_summary('{}_W'.format(layer), layer.W)
-                if hasattr(layer, 'b'):
-                    tf.histogram_summary('{}_b'.format(layer), layer.b)
+            for layer in self.model.layers:
+
+                for weight in layer.weights:
+                    tf.histogram_summary(weight.name, weight)
+
+                    if self.write_images:
+                        w_img = tf.squeeze(weight)
+
+                        shape = w_img.get_shape()
+                        if len(shape) > 1 and shape[0] > shape[1]:
+                            w_img = tf.transpose(w_img)
+
+                        if len(shape) == 1:
+                            w_img = tf.expand_dims(w_img, 0)
+
+                        w_img = tf.expand_dims(tf.expand_dims(w_img, 0), -1)
+
+                        tf.image_summary(weight.name, w_img)
+
                 if hasattr(layer, 'output'):
-                    tf.histogram_summary('{}_out'.format(layer),
+                    tf.histogram_summary('{}_out'.format(layer.name),
                                          layer.output)
         self.merged = tf.merge_all_summaries()
         if self.write_graph:
-            if tf.__version__ >= '0.8.0':
+            if parse_version(tf.__version__) >= parse_version('0.8.0'):
                 self.writer = tf.train.SummaryWriter(self.log_dir,
                                                      self.sess.graph)
             else:

@@ -78,7 +78,7 @@ class BaseWrapper(object):
 
         for params_name in params:
             if params_name not in legal_params:
-                assert False, '{} is not a legal parameter'.format(params_name)
+                raise ValueError('{} is not a legal parameter'.format(params_name))
 
     def get_params(self, deep=True):
         '''Get parameters for this estimator.
@@ -234,6 +234,13 @@ class KerasClassifier(BaseWrapper):
                 Mean accuracy of predictions on X wrt. y.
         '''
         kwargs = self.filter_sk_params(Sequential.evaluate, kwargs)
+
+        loss_name = self.model.loss
+        if hasattr(loss_name, '__name__'):
+            loss_name = loss_name.__name__
+        if loss_name == 'categorical_crossentropy' and len(y.shape) != 2:
+            y = to_categorical(y)
+
         outputs = self.model.evaluate(X, y, **kwargs)
         if type(outputs) is not list:
             outputs = [outputs]
@@ -263,7 +270,7 @@ class KerasRegressor(BaseWrapper):
                 Predictions.
         '''
         kwargs = self.filter_sk_params(Sequential.predict, kwargs)
-        return self.model.predict(X, **kwargs)
+        return np.squeeze(self.model.predict(X, **kwargs))
 
     def score(self, X, y, **kwargs):
         '''Returns the mean loss on the given test data and labels.

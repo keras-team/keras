@@ -99,6 +99,7 @@ class Tokenizer(object):
         wcounts = list(self.word_counts.items())
         wcounts.sort(key=lambda x: x[1], reverse=True)
         sorted_voc = [wc[0] for wc in wcounts]
+        # note that index 0 is reserved, never assigned to an existing word
         self.word_index = dict(list(zip(sorted_voc, list(range(1, len(sorted_voc) + 1)))))
 
         self.index_docs = {}

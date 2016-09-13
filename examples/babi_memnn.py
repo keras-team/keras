@@ -95,7 +95,7 @@ def vectorize_stories(data, word_idx, story_maxlen, query_maxlen):
 
 
 try:
-    path = get_file('babi-tasks-v1-2.tar.gz', origin='http://www.thespermwhale.com/jaseweston/babi/tasks_1-20_v1-2.tar.gz')
+    path = get_file('babi-tasks-v1-2.tar.gz', origin='https://s3.amazonaws.com/text-datasets/babi_tasks_1-20_v1-2.tar.gz')
 except:
     print('Error downloading dataset, please download it manually:\n'
           '$ wget http://www.thespermwhale.com/jaseweston/babi/tasks_1-20_v1-2.tar.gz\n'
@@ -173,6 +173,7 @@ match = Sequential()
 match.add(Merge([input_encoder_m, question_encoder],
                 mode='dot',
                 dot_axes=[2, 2]))
+match.add(Activation('softmax'))
 # output: (samples, story_maxlen, query_maxlen)
 # embed the input into a single vector with size = story_maxlen:
 input_encoder_c = Sequential()

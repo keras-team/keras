@@ -1,6 +1,7 @@
 from __future__ import absolute_import
-import h5py
+from __future__ import print_function
 import numpy as np
+import sys
 from collections import defaultdict
 
 
@@ -8,6 +9,8 @@ class HDF5Matrix():
     refs = defaultdict(int)
 
     def __init__(self, datapath, dataset, start, end, normalizer=None):
+        import h5py
+
         if datapath not in list(self.refs.keys()):
             f = h5py.File(datapath)
             self.refs[datapath] = f
@@ -29,7 +32,7 @@ class HDF5Matrix():
                 raise IndexError
         elif isinstance(key, int):
             if key + self.start < self.end:
-                idx = key+self.start
+                idx = key + self.start
             else:
                 raise IndexError
         elif isinstance(key, np.ndarray):
@@ -49,7 +52,7 @@ class HDF5Matrix():
 
     @property
     def shape(self):
-        return tuple([self.end - self.start, self.data.shape[1]])
+        return (self.end - self.start,) + self.data.shape[1:]
 
 
 def save_array(array, name):
@@ -69,3 +72,17 @@ def load_array(name):
     a[:] = array[:]
     f.close()
     return a
+
+
+def ask_to_proceed_with_overwrite(filepath):
+    get_input = input
+    if sys.version_info[:2] <= (2, 7):
+        get_input = raw_input
+    overwrite = get_input('[WARNING] %s already exists - overwrite? '
+                          '[y/n]' % (filepath))
+    while overwrite not in ['y', 'n']:
+        overwrite = get_input('Enter "y" (overwrite) or "n" (cancel).')
+    if overwrite == 'n':
+        return False
+    print('[TIP] Next time specify overwrite=True!')
+    return True

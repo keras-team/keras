@@ -4,10 +4,12 @@ import pytest
 from keras.models import Sequential
 from keras.engine.training import weighted_objective
 from keras.layers.core import TimeDistributedDense, Masking
+from keras.utils.test_utils import keras_test
 from keras import objectives
 from keras import backend as K
 
 
+@keras_test
 def test_masking():
     np.random.seed(1337)
     X = np.array([[[1], [1]],
@@ -22,6 +24,7 @@ def test_masking():
     assert loss == 0
 
 
+@keras_test
 def test_loss_masking():
     weighted_loss = weighted_objective(objectives.get('mae'))
     shape = (3, 4, 2)
