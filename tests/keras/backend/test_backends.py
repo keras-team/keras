@@ -487,8 +487,8 @@ class TestBackend(object):
                 kernel_th = KTH.variable(convert_kernel(kernel_val))
                 kernel_tf = KTF.variable(kernel_val)
 
-                zth = KTH.eval(KTH.conv2d(xth, kernel_th))
-                ztf = KTF.eval(KTF.conv2d(xtf, kernel_tf))
+                zth = KTH.eval(KTH.conv2d(xth, kernel_th, dim_ordering='th'))
+                ztf = KTF.eval(KTF.conv2d(xtf, kernel_tf, dim_ordering='th'))
 
                 assert zth.shape == ztf.shape
                 assert_allclose(zth, ztf, atol=1e-05)
@@ -531,8 +531,8 @@ class TestBackend(object):
                 kernel_th = KTH.variable(convert_kernel(kernel_val))
                 kernel_tf = KTF.variable(kernel_val)
 
-                zth = KTH.eval(KTH.conv3d(xth, kernel_th))
-                ztf = KTF.eval(KTF.conv3d(xtf, kernel_tf))
+                zth = KTH.eval(KTH.conv3d(xth, kernel_th, dim_ordering='th'))
+                ztf = KTF.eval(KTF.conv3d(xtf, kernel_tf, dim_ordering='th'))
 
                 assert zth.shape == ztf.shape
                 assert_allclose(zth, ztf, atol=1e-05)
@@ -558,23 +558,23 @@ class TestBackend(object):
         assert_allclose(zth, ztf, atol=1e-05)
 
     def test_pool2d(self):
-        check_single_tensor_operation('pool2d', (5, 3, 10, 12), pool_size=(2, 2),
+        check_single_tensor_operation('pool2d', (5, 10, 12, 3), pool_size=(2, 2),
                                       strides=(1, 1), border_mode='valid')
 
-        check_single_tensor_operation('pool2d', (5, 3, 9, 11), pool_size=(2, 2),
+        check_single_tensor_operation('pool2d', (5, 9, 11, 3), pool_size=(2, 2),
                                       strides=(1, 1), border_mode='valid')
 
-        check_single_tensor_operation('pool2d', (5, 3, 9, 11), pool_size=(2, 3),
+        check_single_tensor_operation('pool2d', (5, 9, 11, 3), pool_size=(2, 3),
                                       strides=(1, 1), border_mode='valid')
 
     def test_pool3d(self):
-        check_single_tensor_operation('pool3d', (5, 3, 10, 12, 5), pool_size=(2, 2, 2),
+        check_single_tensor_operation('pool3d', (5, 10, 12, 5, 3), pool_size=(2, 2, 2),
                                       strides=(1, 1, 1), border_mode='valid')
 
-        check_single_tensor_operation('pool3d', (5, 3, 9, 11, 5), pool_size=(2, 2, 2),
+        check_single_tensor_operation('pool3d', (5, 9, 11, 5, 3), pool_size=(2, 2, 2),
                                       strides=(1, 1, 1), border_mode='valid')
 
-        check_single_tensor_operation('pool3d', (5, 3, 9, 11, 5), pool_size=(2, 3, 2),
+        check_single_tensor_operation('pool3d', (5, 9, 11, 5, 3), pool_size=(2, 3, 2),
                                       strides=(1, 1, 1), border_mode='valid')
 
     def test_random_normal(self):

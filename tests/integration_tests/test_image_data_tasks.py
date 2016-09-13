@@ -16,7 +16,7 @@ def test_image_classification():
     with convolutional hidden layer.
     '''
     np.random.seed(1337)
-    input_shape = (3, 16, 16)
+    input_shape = (16, 16, 3)
     (X_train, y_train), (X_test, y_test) = get_test_data(nb_train=500,
                                                          nb_test=200,
                                                          input_shape=input_shape,

@@ -43,10 +43,10 @@ def test_TimeDistributed():
 
     # test with Convolution2D
     model = Sequential()
-    model.add(wrappers.TimeDistributed(convolutional.Convolution2D(5, 2, 2, border_mode='same'), input_shape=(2, 3, 4, 4)))
+    model.add(wrappers.TimeDistributed(convolutional.Convolution2D(5, 2, 2, border_mode='same'), input_shape=(2, 4, 4, 3)))
     model.add(core.Activation('relu'))
     model.compile(optimizer='rmsprop', loss='mse')
-    model.train_on_batch(np.random.random((1, 2, 3, 4, 4)), np.random.random((1, 2, 5, 4, 4)))
+    model.train_on_batch(np.random.random((1, 2, 4, 4, 3)), np.random.random((1, 2, 4, 4, 5)))
 
     model = model_from_json(model.to_json())
     model.summary()
