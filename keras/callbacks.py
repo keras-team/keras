@@ -574,7 +574,7 @@ class LambdaCallback(Callback):
                  **kwargs):
         super(Callback, self).__init__()
         self.__dict__.update(kwargs)
-        self.on_epoch_begin = on_epoch_begin if on_train_begin else lambda: None
+        self.on_epoch_begin = on_epoch_begin if on_epoch_begin else lambda: None
         self.on_epoch_end = on_epoch_end if on_epoch_end else lambda: None
         self.on_batch_begin = on_batch_begin if on_batch_begin else lambda: None
         self.on_batch_end = on_batch_end if on_batch_end else lambda: None
