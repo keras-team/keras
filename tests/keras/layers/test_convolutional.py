@@ -108,23 +108,25 @@ def test_deconvolution_2d():
                        kwargs={'nb_filter': nb_filter,
                                'nb_row': 3,
                                'nb_col': 3,
-                               'output_shape': (nb_samples, rows, cols, nb_filter),
+                               'output_shape': (nb_samples, nb_filter, rows, cols),
                                'border_mode': border_mode,
-                               'subsample': subsample},
-                       input_shape=(nb_samples, nb_row, nb_col, stack_size),
+                               'subsample': subsample,
+                               'dim_ordering': 'th'},
+                       input_shape=(nb_samples, stack_size, nb_row, nb_col),
                        fixed_batch_size=True)
 
             layer_test(convolutional.Deconvolution2D,
                        kwargs={'nb_filter': nb_filter,
                                'nb_row': 3,
                                'nb_col': 3,
-                               'output_shape': (nb_samples, rows, cols, nb_filter),
+                               'output_shape': (nb_samples, nb_filter, rows, cols),
                                'border_mode': border_mode,
+                               'dim_ordering': 'th',
                                'W_regularizer': 'l2',
                                'b_regularizer': 'l2',
                                'activity_regularizer': 'activity_l2',
                                'subsample': subsample},
-                       input_shape=(nb_samples, nb_row, nb_col, stack_size),
+                       input_shape=(nb_samples, stack_size, nb_row, nb_col),
                        fixed_batch_size=True)
 
 

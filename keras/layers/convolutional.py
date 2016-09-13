@@ -475,11 +475,12 @@ class Deconvolution2D(Convolution2D):
     def __init__(self, nb_filter, nb_row, nb_col, output_shape,
                  init='glorot_uniform', activation='linear', weights=None,
                  border_mode='valid', subsample=(1, 1),
-                 dim_ordering=K.image_dim_ordering(),
+                 dim_ordering='default',
                  W_regularizer=None, b_regularizer=None, activity_regularizer=None,
                  W_constraint=None, b_constraint=None,
                  bias=True, **kwargs):
-
+        if dim_ordering == 'default':
+            dim_ordering = K.image_dim_ordering()
         if border_mode not in {'valid', 'same'}:
             raise Exception('Invalid border mode for Deconvolution2D:', border_mode)
 
