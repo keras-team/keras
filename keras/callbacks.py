@@ -315,11 +315,13 @@ class EarlyStopping(Callback):
         patience: number of epochs with no improvement
             after which training will be stopped.
         verbose: verbosity mode.
-        mode: one of {auto, min, max}. In 'min' mode,
+        mode: one of {auto, min, max}. In `min` mode,
             training will stop when the quantity
-            monitored has stopped decreasing; in 'max'
+            monitored has stopped decreasing; in `max`
             mode it will stop when the quantity
-            monitored has stopped increasing.
+            monitored has stopped increasing; in `auto`
+            mode, the direction is automatically inferred
+            from the name of the monitored quantity.
     '''
     def __init__(self, monitor='val_loss', patience=0, verbose=0, mode='auto'):
         super(EarlyStopping, self).__init__()
