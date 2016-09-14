@@ -1727,21 +1727,20 @@ class AttLSTMCond(LSTM):
         self.return_extra_variables = return_extra_variables
         self.init = initializations.get(init)
         self.inner_init = initializations.get(inner_init)
-        #self.init_state = init_state
-        #self.init_memory = init_memory
         self.forget_bias_init = initializations.get(forget_bias_init)
         self.activation = activations.get(activation)
         self.inner_activation = activations.get(inner_activation)
         self.W_regularizer = regularizers.get(W_regularizer)
         self.U_regularizer = regularizers.get(U_regularizer)
-        self.V_regularizer = V_regularizer
+        self.V_regularizer = regularizers.get(V_regularizer)
         self.b_regularizer = regularizers.get(b_regularizer)
-        self.dropout_W, self.dropout_U, self.dropout_V = dropout_W, dropout_U, dropout_V
         # attention model learnable params
         self.wa_regularizer = regularizers.get(wa_regularizer)
         self.Wa_regularizer = regularizers.get(Wa_regularizer)
         self.Ua_regularizer = regularizers.get(Ua_regularizer)
         self.ba_regularizer = regularizers.get(ba_regularizer)
+        # Dropouts
+        self.dropout_W, self.dropout_U, self.dropout_V = dropout_W, dropout_U, dropout_V
         self.dropout_wa, self.dropout_Wa, self.dropout_Ua = dropout_wa, dropout_Wa, dropout_Ua
 
         if self.dropout_W or self.dropout_U or self.dropout_wa or self.dropout_Wa or self.dropout_Ua:
@@ -1756,7 +1755,8 @@ class AttLSTMCond(LSTM):
             self.input_spec = [InputSpec(shape=input_shape[0]), InputSpec(shape=input_shape[1])]
             self.num_inputs = 2
         elif len(input_shape) == 4:
-            self.input_spec = [InputSpec(shape=input_shape[0]), InputSpec(shape=input_shape[1]), InputSpec(shape=input_shape[2]), InputSpec(shape=input_shape[3])]
+            self.input_spec = [InputSpec(shape=input_shape[0]), InputSpec(shape=input_shape[1]),
+                               InputSpec(shape=input_shape[2]), InputSpec(shape=input_shape[3])]
             self.num_inputs = 4
         self.input_dim = input_shape[1][2]
         self.context_steps = input_shape[0][1]
