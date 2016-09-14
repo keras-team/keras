@@ -152,6 +152,7 @@ PAGES = [
         'page': 'layers/convolutional.md',
         'classes': [
             convolutional.Convolution1D,
+            convolutional.AtrousConvolution1D,
             convolutional.Convolution2D,
             convolutional.AtrousConvolution2D,
             convolutional.SeparableConvolution2D,
