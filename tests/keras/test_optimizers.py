@@ -54,8 +54,8 @@ def test_adagrad():
 
 
 def test_adadelta():
-    _test_optimizer(Adadelta())
-    _test_optimizer(Adadelta(decay=1e-3))
+    _test_optimizer(Adadelta(), target=0.83)
+    _test_optimizer(Adadelta(decay=1e-3), target=0.83)
 
 
 def test_adam():
