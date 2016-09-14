@@ -113,7 +113,7 @@ class Convolution1D(Layer):
 
     def build(self, input_shape):
         input_dim = input_shape[2]
-        self.W_shape = (self.nb_filter, input_dim, self.filter_length, 1)
+        self.W_shape = (1, self.filter_length, input_dim, self.nb_filter)
         self.W = self.init(self.W_shape, name='{}_W'.format(self.name))
         if self.bias:
             self.b = K.zeros((self.nb_filter,), name='{}_b'.format(self.name))
@@ -152,15 +152,13 @@ class Convolution1D(Layer):
         return (input_shape[0], length, self.nb_filter)
 
     def call(self, x, mask=None):
-        x = K.expand_dims(x, -1)  # add a dimension of the right
-        x = K.permute_dimensions(x, (0, 2, 1, 3))
+        x = K.expand_dims(x, 1)  # add a dummy dimension
         output = K.conv2d(x, self.W, strides=self.subsample,
                           border_mode=self.border_mode,
-                          dim_ordering='th')
+                          dim_ordering='tf')
+        output = K.squeeze(output, 1)  # remove the dummy dimension
         if self.bias:
-            output += K.reshape(self.b, (1, self.nb_filter, 1, 1))
-        output = K.squeeze(output, 3)  # remove the dummy 3rd dimension
-        output = K.permute_dimensions(output, (0, 2, 1))
+            output += K.reshape(self.b, (1, 1, self.nb_filter))
         output = self.activation(output)
         return output
 
@@ -281,16 +279,14 @@ class AtrousConvolution1D(Convolution1D):
         return (input_shape[0], length, self.nb_filter)
 
     def call(self, x, mask=None):
-        x = K.expand_dims(x, -1) # add a dimension of the right
-        x = K.permute_dimensions(x, (0, 2, 1, 3))
+        x = K.expand_dims(x, 1)  # add a dummy dimension
         output = K.conv2d(x, self.W, strides=self.subsample,
                           border_mode=self.border_mode,
-                          dim_ordering='th',
+                          dim_ordering='tf',
                           filter_dilation=(self.atrous_rate, self.atrous_rate))
+        output = K.squeeze(output, 1)  # remove the dummy dimension
         if self.bias:
-            output += K.reshape(self.b, (1, self.nb_filter, 1, 1))
-        output = K.squeeze(output, 3) # remove the dummy 3rd dimension
-        output = K.permute_dimensions(output, (0, 2, 1))
+            output += K.reshape(self.b, (1, 1, self.nb_filter))
         output = self.activation(output)
         return output
 
