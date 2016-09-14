@@ -1902,8 +1902,8 @@ class AttLSTMCond(LSTM):
         if self.return_extra_variables:
             dim_x_att = (input_shape[1][0], input_shape[1][1], self.context_dim)
             dim_alpha_att = (input_shape[1][0], input_shape[1][1], input_shape[0][1])
-            #return [main_out, dim_x_att, dim_alpha_att]
-            return [main_out, dim_x_att]
+            return [main_out, dim_x_att, dim_alpha_att]
+            #return [main_out, dim_x_att]
         else:
             return main_out
 
@@ -1949,7 +1949,7 @@ class AttLSTMCond(LSTM):
                                              constants=constants,
                                              unroll=self.unroll,
                                              input_length=input_shape[1],
-                                             pos_extra_outputs_states=[2])
+                                             pos_extra_outputs_states=[2,3])
         if self.stateful:
             self.updates = []
             for i in range(len(states)):
@@ -1961,38 +1961,39 @@ class AttLSTMCond(LSTM):
             ret = last_output
 
         if self.return_extra_variables:
-            return [ret, states[2]]
+            return [ret, states[2], states[3]]
         else:
             return ret
 
     def compute_mask(self, input, mask):
         if self.return_extra_variables:
             #return [None, None, None]
-            return [None, None]
+            return [None, None, None]
         return None
 
     def step(self, x, states):
         h_tm1 = states[0]  # State
         c_tm1 = states[1]  # Memory
         non_used_x_att = states[2]  # Required for returning extra variables
-        B_U = states[3]    # Dropout U
-        B_W = states[4]    # Dropout W
-        B_V = states[5]    # Dropout V
+        non_used_alphas_att = states[3]  # Required for returning extra variables
+
+        B_U = states[4]    # Dropout U
+        B_W = states[5]    # Dropout W
+        B_V = states[6]    # Dropout V
 
         # Att model dropouts
-        B_wa = states[6]
-        B_Wa = states[7]
-        B_Ua = states[8]
-        pctx_ = states[9]  # Projected context (i.e. context * Ua + ba)
-        context = states[10]  # Original context
+        B_wa = states[7]
+        B_Wa = states[8]
+        B_Ua = states[9]
+        pctx_ = states[10]  # Projected context (i.e. context * Ua + ba)
+        context = states[11]  # Original context
 
         # AttModel (see Formulation in class header)
         p_state_ = K.dot(h_tm1, self.Wa)
         pctx_ = K.tanh(pctx_ +  p_state_[:, None, :])
         e = K.dot(pctx_, self.wa) + self.ca
-        alpha = K.softmax(e)
-        ctx_ = (context * alpha[:, :, None]).sum(axis=1) # sum over the in_timesteps dimension resulting in [batch_size, context_dim]
-
+        alphas = K.softmax(e)
+        ctx_ = (context * alphas[:, :, None]).sum(axis=1) # sum over the in_timesteps dimension resulting in [batch_size, context_dim]
         # LSTM
         if self.consume_less == 'gpu':
             z = x + K.dot(ctx_ * B_W[0], self.W) + K.dot(h_tm1 * B_U[0], self.U) + self.b
@@ -2008,8 +2009,8 @@ class AttLSTMCond(LSTM):
             o = self.inner_activation(z3)
 
         h = o * self.activation(c)
-        #return h, [h, c, x_, alpha]
-        return h, [h, c, ctx_]
+
+        return h, [h, c, ctx_, alphas]
 
 
     def get_constants(self, x):
@@ -2108,9 +2109,12 @@ class AttLSTMCond(LSTM):
                 initial_states = [initial_state for _ in range(2)]
 
         initial_state = K.zeros_like(x)  # (samples, intput_timesteps, ctx_dim)
+        initial_state_alphas = K.sum(initial_state, axis=2)  # (samples, input_timesteps)
         initial_state = K.sum(initial_state, axis=1)  # (samples, ctx_dim)
         reducer = K.ones((self.context_dim, self.context_dim))
-        extra_states = [K.dot(initial_state, reducer)] # (samples, ctx_dim)
+        reducer_alphas = K.ones((self.context_steps, self.context_steps))
+        extra_states = [K.dot(initial_state, reducer),
+                        K.dot(initial_state_alphas, reducer_alphas)] # (samples, ctx_dim)
 
         return initial_states + extra_states
 
