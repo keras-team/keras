@@ -17,9 +17,10 @@ def test_convolution_1d():
     nb_filter = 3
 
     for border_mode in ['valid', 'same']:
-        for subsample_length in [1]:
+        for subsample_length in [1, 2]:
             if border_mode == 'same' and subsample_length != 1:
                 continue
+
             layer_test(convolutional.Convolution1D,
                        kwargs={'nb_filter': nb_filter,
                                'filter_length': filter_length,
