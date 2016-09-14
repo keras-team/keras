@@ -7,6 +7,8 @@ from .. import backend as K
 from .. import activations, initializations, regularizers, constraints
 from ..engine import Layer, InputSpec
 
+import numpy as np
+
 def conv_output_length(input_length, filter_size, border_mode, stride):
     if input_length is None:
         return None
@@ -1527,9 +1529,10 @@ class CountSketch(Layer):
         d: dimension of the output compact representation
     '''
 
-    def __init__(self, d, **kwargs):
+    def __init__(self, d, return_extra=False, **kwargs):
         self.h = [None, None]
         self.s = [None, None]
+        self.return_extra = return_extra
         self.d = d
 
         # layer parameters
@@ -1543,25 +1546,33 @@ class CountSketch(Layer):
         self.trainable = False
         self.uses_learning_phase = False
         self.input_spec = None  # compatible with whatever
+        self.built = False
         super(CountSketch, self).__init__(**kwargs)
 
     def build(self, input_shapes):
-        self.trainable_weights = []
-        self.nmodes = len(input_shapes)
-        for i in range(self.nmodes):
-            if self.h[i] is None:
-                self.h[i] = K.random_uniform((input_shapes[i][1],),
-                                                    low=0., high=self.d, dtype='float32').astype('int64')
-            if self.s[i] is None:
-                self.s[i] = K.switch(K.random_binomial((input_shapes[i][1],),
-                                                       p=0.5, dtype='float32') < 0.5, -1, 1).astype('int64')
+        if not self.built:
+            self.trainable_weights = []
+            self.nmodes = len(input_shapes)
+            for i in range(self.nmodes):
+                if self.h[i] is None:
+                    self.h[i] = np.random.random_integers(0, self.d-1, size=(input_shapes[i][1],))
+                    self.h[i] = K.variable(self.h[i], dtype='int64', name='h'+str(i))
+                if self.s[i] is None:
+                    self.s[i] =  (np.floor(np.random.uniform(0, 2, size=(input_shapes[i][1],)))*2-1).astype('int64')
+                    self.s[i] = K.variable(self.s[i], dtype='int64', name='s'+str(i))
         self.built = True
 
     def compute_mask(self, input, input_mask=None):
+        to_return = []
         if input_mask is None or not any([m is not None for m in input_mask]):
-            return [None]*len(input_mask)
+            for i in range(len(input_mask)):
+                to_return.append(None)
         else:
-            return input_mask
+            to_return =  input_mask
+        if self.return_extra:
+            for i in range(self.nmodes):
+                to_return += [None, None]
+        return to_return
 
     def compact(self, x):
         v = [[]] * self.nmodes
@@ -1572,11 +1583,15 @@ class CountSketch(Layer):
     def call(self, x, mask=None):
         if type(x) is not list or len(x) <= 1:
             raise Exception('CountSketch must be called on a list of tensors.')
-        return self.compact(x)
-    
+        y = self.compact(x)
+        if self.return_extra:
+            return y+self.h+self.s
+        return y   
+ 
     def get_config(self):
         config = {'d': self.d,
                   'h': self.h,
+                  'return_extra': self.return_extra,
                   's': self.s}
         base_config = super(CountSketch, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
@@ -1586,4 +1601,9 @@ class CountSketch(Layer):
         shapes = []
         for s in input_shape:
             shapes.append(tuple([s[0], self.d]))
+        if self.return_extra:
+            for i in range(self.nmodes):
+                shapes.append(tuple([input_shape[i][1],1]))
+            for i in range(self.nmodes):
+                shapes.append(tuple([input_shape[i][1],1]))
         return shapes
