@@ -1,12 +1,14 @@
 from __future__ import absolute_import
 from __future__ import print_function
 
+import csv
+
 import numpy as np
 import time
 import json
 import warnings
 
-from collections import deque
+from collections import deque, OrderedDict, Iterable
 from .utils.generic_utils import Progbar
 from keras import backend as K
 from pkg_resources import parse_version
@@ -532,6 +534,111 @@ class TensorBoard(Callback):
             summary_value.tag = name
             self.writer.add_summary(summary, epoch)
         self.writer.flush()
+
+
+class ReduceLROnPlateau(Callback):
+    """
+    Reduce learning rate when a metric has stopped improving.
+    """
+
+    def __init__(self, monitor='val_loss', reduce_factor=0.1, patience=0, verbose=0, mode='auto', epsilon=1e-4,
+                 cooldown=0, min_lr=0):
+        super(Callback, self).__init__()
+
+        self.monitor = monitor
+        self.reduce_factor = reduce_factor
+        self.min_lr = min_lr
+        self.epsilon = epsilon
+        self.patience = patience
+        self.verbose = verbose
+        self.cooldown = cooldown  # Number of epochs to wait after reducing learning rate.
+        self.in_cooldown = 0  # Cooldown counter.
+        self.wait = 0
+        self.best = 0
+        self.mode = mode
+        self.reset()
+
+    def reset(self):
+        if self.mode not in ['auto', 'min', 'max']:
+            warnings.warn('Learning Rate Plateau Reducing mode %s is unknown, '
+                          'fallback to auto mode.' % (self.mode), RuntimeWarning)
+            self.mode = 'auto'
+        if self.mode == 'min' or (self.mode == 'auto' and 'acc' not in self.monitor):
+            self.monitor_op = lambda a, b: np.less(a, b - self.epsilon)
+            self.best = np.Inf
+        else:
+            self.monitor_op = lambda a, b: np.greater(a, b + self.epsilon)
+            self.best = -np.Inf
+        self.in_cooldown = 0  # Cooldown counter.
+        self.wait = 0
+
+    def on_train_begin(self, logs={}):
+        self.reset()
+
+    def on_epoch_end(self, epoch, logs={}):
+        logs['lr'] = K.get_value(self.model.optimizer.lr)
+        current = logs.get(self.monitor)
+        if current is None:
+            warnings.warn('Learning Rate Plateau Reducing requires %s available!' %
+                          (self.monitor), RuntimeWarning)
+        else:
+            if self.in_cooldown > 0:
+                self.in_cooldown -= 1
+                self.wait = 0
+            elif self.monitor_op(current, self.best):
+                self.best = current
+                self.wait = 0
+            else:
+                if self.wait >= self.patience:
+                    old_lr = float(K.get_value(self.model.optimizer.lr))
+                    if old_lr > self.min_lr:
+                        new_lr = old_lr * self.reduce_factor
+                        new_lr = max(new_lr, self.min_lr)
+                        K.set_value(self.model.optimizer.lr, new_lr)
+                        if self.verbose > 0:
+                            print('\nEpoch %05d: reducing learning rate to %s (Patience: ' % (epoch, new_lr))
+                        self.in_cooldown = self.cooldown
+                self.wait += 1
+
+
+class CSVLogger(Callback):
+    '''Callback that records events
+    into a csv file.
+    '''
+
+    def __init__(self, filename, sep=';', rewrite=True):
+        self.sep = sep
+        self.filename = filename
+        self.rewrite = rewrite
+        self.writer = None
+        self.keys_ = None
+        super(CSVLogger, self).__init__()
+
+    def on_train_begin(self, logs={}):
+        if self.rewrite:
+            self.csvfile = open(self.filename, 'w')
+        else:
+            self.csvfile = open(self.filename, 'a')
+
+    def on_epoch_end(self, epoch, logs={}):
+        def handle_value(k):
+            if isinstance(k, Iterable) and not (isinstance(k, np.ndarray) and k.ndim == 0):
+                return '"[%s]"' % (', '.join(map(lambda x: str(x), k)))
+            else:
+                return k
+
+        if not self.writer:
+            self.keys_ = sorted(logs.keys())
+            self.writer = csv.DictWriter(self.csvfile, fieldnames=['epoch'] + self.keys_)
+            self.writer.writeheader()
+
+        row_dict = OrderedDict({'epoch': epoch})
+        row_dict.update((key, handle_value(logs[key])) for key in self.keys_)
+        self.writer.writerow(row_dict)
+        self.csvfile.flush()
+
+    def on_train_end(self, logs={}):
+        self.csvfile.close()
 
 
 class LambdaCallback(Callback):
