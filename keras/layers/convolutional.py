@@ -1424,11 +1424,11 @@ class CompactBilinearPooling(Layer):
         self.nmodes = len(input_shapes)
         for i in range(self.nmodes):
             if self.h[i] is None:
-                self.h[i] = K.random_uniform((input_shapes[i][1],),
-                                                    low=0., high=self.d, dtype='float32').astype('int64')
+                self.h[i] = np.random.random_integers(0, self.d-1, size=(input_shapes[i][1],))
+                self.h[i] = K.variable(self.h[i], dtype='int64', name='h'+str(i))
             if self.s[i] is None:
-                self.s[i] = K.switch(K.random_binomial((input_shapes[i][1],),
-                                                       p=0.5, dtype='float32') < 0.5, -1, 1).astype('int64')
+                self.s[i] =  (np.floor(np.random.uniform(0, 2, size=(input_shapes[i][1],)))*2-1).astype('int64')
+                self.s[i] = K.variable(self.s[i], dtype='int64', name='s'+str(i))
         self.built = True
 
     def compute_mask(self, input, input_mask=None):
