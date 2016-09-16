@@ -1921,7 +1921,6 @@ class AttLSTMCond(LSTM):
         elif self.num_inputs == 4:
             self.init_state = x[2]
             self.init_memory = x[3]
-
         if K._BACKEND == 'tensorflow':
             if not input_shape[1]:
                 raise Exception('When using TensorFlow, you should define '
@@ -1941,11 +1940,10 @@ class AttLSTMCond(LSTM):
             initial_states = self.get_initial_states(self.context)
         constants = self.get_constants(state_below)
         preprocessed_input = self.preprocess_input(state_below)
-
         last_output, outputs, states = K.rnn(self.step, preprocessed_input,
                                              initial_states,
                                              go_backwards=self.go_backwards,
-                                             mask=None,
+                                             mask=mask[1],
                                              constants=constants,
                                              unroll=self.unroll,
                                              input_length=input_shape[1],
@@ -1968,8 +1966,8 @@ class AttLSTMCond(LSTM):
     def compute_mask(self, input, mask):
         if self.return_extra_variables:
             #return [None, None, None]
-            return [None, None, None]
-        return None
+            return [mask[1], mask[1], mask[1]]
+        return mask[1]
 
     def step(self, x, states):
         h_tm1 = states[0]  # State
@@ -1994,6 +1992,7 @@ class AttLSTMCond(LSTM):
         e = K.dot(pctx_, self.wa) + self.ca
         alphas = K.softmax(e)
         ctx_ = (context * alphas[:, :, None]).sum(axis=1) # sum over the in_timesteps dimension resulting in [batch_size, context_dim]
+
         # LSTM
         if self.consume_less == 'gpu':
             z = x + K.dot(ctx_ * B_W[0], self.W) + K.dot(h_tm1 * B_U[0], self.U) + self.b
