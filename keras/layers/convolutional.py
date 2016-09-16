@@ -1401,9 +1401,10 @@ class CompactBilinearPooling(Layer):
         - [Multimodal Compact Bilinear Pooling for Visual Question Answering and Visual Grounding](http://arxiv.org/pdf/1606.01847v2.pdf)
     '''
 
-    def __init__(self, d, **kwargs):
+    def __init__(self, d, return_extra=False, **kwargs):
         self.h = [None, None]
         self.s = [None, None]
+        self.return_extra = return_extra
         self.d = d
 
         # layer parameters
@@ -1432,36 +1433,63 @@ class CompactBilinearPooling(Layer):
         self.built = True
 
     def compute_mask(self, input, input_mask=None):
+        to_return = []
         if input_mask is None or not any([m is not None for m in input_mask]):
-            return None
+            to_return.append(None)
         else:
-            return input_mask[0]
+            to_return = input_mask[0]
+        if self.return_extra:
+            for i in range(self.nmodes):
+                to_return += [None, None, None, None]
+        return to_return +[None]
 
     def multimodal_compact_bilinear(self, x):
         v = [[]] * self.nmodes
+        fft_v = [[]] * self.nmodes
         acum_fft = 1.0
         for i in range(self.nmodes):
             v[i] = K.count_sketch(self.h[i], self.s[i], x[i], self.d)
-            acum_fft = acum_fft * K.fft(v[i])
-        return K.cast(K.ifft(acum_fft), dtype='float32')
+            fft_v[i] = K.fft(v[i])
+            acum_fft *= fft_v[i]
+        #acum_fft = K.concatenate((acum_fft[:, 1:, 0], acum_fft[:,1:,0][::-1]))
+        out = K.cast(K.ifft(acum_fft), dtype='float32')
+        if self.return_extra:
+            return [out]+v+fft_v+[acum_fft]
+        else:
+            return out
 
     def call(self, x, mask=None):
         if type(x) is not list or len(x) <= 1:
             raise Exception('CompactBilinearPooling must be called on a list of tensors '
                             '(at least 2). Got: ' + str(x))
-        return self.multimodal_compact_bilinear(x)
+        y = self.multimodal_compact_bilinear(x)
+        if self.return_extra:
+            return y+self.h+self.s
+        return y
 
     def get_config(self):
         config = {'d': self.d,
                   'h': self.h,
+                  'return_extra': self.return_extra,
                   's': self.s}
         base_config = super(CompactBilinearPooling, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
     def get_output_shape_for(self, input_shape):
         assert type(input_shape) is list  # must have mutiple input shape tuples
-        return tuple([input_shape[0][0], self.d])
-
+        shapes = []
+        shapes.append(tuple([input_shape[0][0], self.d]))
+        if self.return_extra:
+            for s in input_shape: # v
+                shapes.append(tuple([s[0], self.d]))
+            for s in input_shape: # fft_v
+                shapes.append(tuple([s[0], self.d]))
+            shapes.append(tuple([s[0], self.d])) # acum_fft
+            for i in range(self.nmodes): # h
+                shapes.append(tuple([input_shape[i][1],1]))
+            for i in range(self.nmodes): # v
+                shapes.append(tuple([input_shape[i][1],1]))
+        return shapes
 
     
 class BilinearPooling(Layer):
