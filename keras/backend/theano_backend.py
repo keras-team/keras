@@ -277,6 +277,18 @@ def prod(x, axis=None, keepdims=False):
     return T.prod(x, axis=axis, keepdims=keepdims)
 
 
+def cumsum(x, axis=None):
+    '''Cumulative sum of the values in a tensor, alongside the specified axis.
+    '''
+    return T.extra_ops.cumsum(x, axis=axis)
+
+
+def cumprod(x, axis=None):
+    '''Cumulative product of the values in a tensor, alongside the specified axis.
+    '''
+    return T.extra_ops.cumprod(x, axis=axis)
+
+
 def mean(x, axis=None, keepdims=False):
     dtype = None
     if 'int' in x.dtype:
