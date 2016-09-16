@@ -3,6 +3,8 @@
 [![Build Status](https://travis-ci.org/fchollet/keras.svg?branch=master)](https://travis-ci.org/fchollet/keras)
 [![PyPI version](https://badge.fury.io/py/keras.svg)](https://badge.fury.io/py/keras)
 [![license](https://img.shields.io/github/license/mashape/apistatus.svg?maxAge=2592000)](https://github.com/fchollet/keras/blob/master/LICENSE)
+[![Join the chat at https://gitter.im/Keras-io/Lobby](https://badges.gitter.im/Keras-io/Lobby.svg)](https://gitter.im/Keras-io/Lobby)
+
 
 ## You have just found Keras.
 
