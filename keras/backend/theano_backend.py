@@ -321,7 +321,7 @@ def logical_or(x, y):
 
 
 def logical_xor(x, y):
-    return ((x + y) == 1)
+    return ((x + y) == 1) * 1.0
 
 
 def argmax(x, axis=-1):

@@ -9,10 +9,15 @@ from keras.backend import tensorflow_backend as KTF
 from keras.utils.np_utils import convert_kernel
 
 
-def check_single_tensor_operation(function_name, input_shape, **kwargs):
+def check_single_tensor_operation(function_name, input_shape, binary=False, **kwargs):
     val = np.random.random(input_shape) - 0.5
+
     xth = KTH.variable(val)
     xtf = KTF.variable(val)
+
+    if binary:
+        xth = K.binarize(xth)
+        xtf = K.binarize(xtf)
 
     zth = KTH.eval(getattr(KTH, function_name)(xth, **kwargs))
     ztf = KTF.eval(getattr(KTF, function_name)(xtf, **kwargs))
@@ -22,11 +27,15 @@ def check_single_tensor_operation(function_name, input_shape, **kwargs):
 
 
 def check_two_tensor_operation(function_name, x_input_shape,
-                               y_input_shape, **kwargs):
+                               y_input_shape, binary=False, **kwargs):
     xval = np.random.random(x_input_shape) - 0.5
 
     xth = KTH.variable(xval)
     xtf = KTF.variable(xval)
+
+    if binary:
+        xth = K.binarize(xth)
+        xtf = K.binarize(xtf)
 
     yval = np.random.random(y_input_shape) - 0.5
 
@@ -73,6 +82,13 @@ class TestBackend(object):
         check_single_tensor_operation('transpose', (4, 2))
         check_single_tensor_operation('reverse', (4, 3, 2), axes=1)
         check_single_tensor_operation('reverse', (4, 3, 2), axes=(1, 2))
+
+    def test_logical_operations(self):
+        check_single_tensor_operation('logical_not', (4, 2))
+
+        check_two_tensor_operation('logical_and', (4, 3), (4, 3))
+        check_two_tensor_operation('logical_or', (4, 3), (4, 3))
+        check_two_tensor_operation('logical_xor', (4, 3), (4, 3))
 
     def test_shape_operations(self):
         # concatenate
