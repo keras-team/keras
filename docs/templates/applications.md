@@ -13,8 +13,8 @@ Models for image classification with weights trained on ImageNet:
 - [VGG19](#vgg19)
 - [ResNet50](#resnet50)
 - [InceptionV3](#inceptionv3)
-- [AudioConvnet](#audioconvnet)
-- [AudioConvRNN](#audioconvrnn)
+- [MusicTaggerCNN](#musictaggercnn)
+- [MusicTaggerCRNN](#musictaggercrnn)
 
 All of these architectures are compatible with both TensorFlow and Theano, and upon instantiation the models will be built according to the image dimension ordering set in your Keras configuration file at `~/.keras/keras.json`. For instance, if you have set `image_dim_ordering=tf`, then any model loaded from this repository will get built according to the TensorFlow dimension ordering convention, "Width-Height-Depth".
 
@@ -154,23 +154,21 @@ model = InceptionV3(input_tensor=input_tensor, weights='imagenet', include_top=T
 ```
 
 
-### Tag music with AudioConvnet
+### Tag music with MusicTaggerCNN
 
 ```python
 
-from keras.applications.audio_convnet import AudioConvnet
-from keras.applications.audio_convnet import load_preprocess_input, decode_predictions
+from keras.applications.music_tagger_cnn import MusicTaggerCNN
+from keras.applications.music_tagger_cnn import load_preprocess_input, decode_predictions
 
 # this could also be the output a different Keras model or layer
 
-model = AudioConvnet(weights='msd')
+model = MusicTaggerCNN(weights='msd')
 
 audio_path = 'audio_file.mp3'
 melgram = load_preprocess_input(audio_path)
 melgrams = np.expand_dims(melgram, axis=0)
 
-# This model use Batch Normalization, so the prediction is affected by batch.
-# Use multiple, different data samples together (at least 4) for reliable prediction.
 preds = model.predict(melgrams)
 print('Predicted:')
 print(decode_predictions(preds))
@@ -288,11 +286,11 @@ These weights are trained by ourselves and are released under the MIT license.
 
 -----
 
-## AudioConvnet
+## MusicTaggerCNN
 
 
 ```python
-keras.applications.audio_convnet.AudioConvnet(weights='msd', input_tensor=None)
+keras.applications.music_tagger_cnn.MusicTaggerCNN(weights='msd', input_tensor=None)
 ```
 
 ### Arguments
@@ -314,11 +312,11 @@ These weights are ported from the ones [released by Keunwoo Choi](https://github
 
 -----
 
-## AudioConvRNN
+## MusicTaggerCRNN
 
 
 ```python
-keras.applications.audio_conv_rnn.AudioConvRNN(weights='msd', input_tensor=None)
+keras.applications.music_tagger_crnn.MusicTaggerCRNN(weights='msd', input_tensor=None)
 ```
 
 ### Arguments
@@ -329,6 +327,10 @@ keras.applications.audio_conv_rnn.AudioConvRNN(weights='msd', input_tensor=None)
 ### Returns
 
 A Keras model instance.
+
+### References
+
+- [Convolutional Recurrent Neural Networks for Music Classification](https://arxiv.org/abs/1609.04243)
 
 ### License
 
