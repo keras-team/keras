@@ -1168,15 +1168,24 @@ def rnn(step_function, inputs, initial_states,
         states = initial_states
         nb_states = len(states)
         if nb_states == 0:
-            raise Exception('No initial states provided.')
-        elif nb_states == 1:
-            state = states[0]
+            # use dummy state, otherwise _dynamic_rnn_loop breaks
+            state = inputs[:, 0, :]
+            state_size = state.get_shape()[-1]
         else:
-            state = tf.concat(1, states)
-
-        state_size = int(states[0].get_shape()[-1])
+            state_size = int(states[0].get_shape()[-1])
+            if nb_states == 1:
+                state = states[0]
+            else:
+                state = tf.concat(1, states)
 
         if mask is not None:
+            if len(initial_states) == 0:
+                raise ValueError('No initial states provided! '
+                                 'When using masking in an RNN, you should '
+                                 'provide initial states '
+                                 '(and your step function should return '
+                                 'as its first state at time `t` '
+                                 'the output at time `t-1`).')
             if go_backwards:
                 mask = tf.reverse(mask, [True] + [False] * (ndim - 2))
 
@@ -1213,14 +1222,19 @@ def rnn(step_function, inputs, initial_states,
                     states = []
                     for i in range(nb_states):
                         states.append(state[:, i * state_size: (i + 1) * state_size])
-                else:
+                elif nb_states == 1:
                     states = [state]
+                else:
+                    states = []
                 output, new_states = step_function(input, states + constants)
 
-                if len(new_states) == 1:
+                if len(new_states) > 1:
+                    new_state = tf.concat(1, new_states)
+                elif len(new_states) == 1:
                     new_state = new_states[0]
                 else:
-                    new_state = tf.concat(1, new_states)
+                    # return dummy state, otherwise _dynamic_rnn_loop breaks
+                    new_state = output
                 return output, new_state
 
         _step.state_size = state_size * nb_states
@@ -1238,8 +1252,10 @@ def rnn(step_function, inputs, initial_states,
             new_states = []
             for i in range(nb_states):
                 new_states.append(final_state[:, i * state_size: (i + 1) * state_size])
-        else:
+        elif nb_states == 1:
             new_states = [final_state]
+        else:
+            new_states = []
 
         # all this circus is to recover the last vector in the sequence.
         begin = tf.pack([tf.shape(outputs)[0] - 1] + [0] * (ndim - 1))
