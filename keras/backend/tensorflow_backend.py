@@ -519,20 +519,20 @@ def binarize(x):
     return round(clip(x, 0, 1))
 
 
-def logical_not(x, name=None):
-    return tf.logical_not(x, name=name)
+def logical_not(x):
+    return 1 - x
 
 
-def logical_and(x, y, name=None):
-    return tf.logical_and(x, y, name=name)
+def logical_and(x, y):
+    return clip(x + y - 1, 0, 1)
 
 
-def logical_or(x, y, name=None):
-    return tf.logical_or(x, y, name=name)
+def logical_or(x, y):
+    return clip(x + y, 0, 1)
 
 
-def logical_xor(x, y, name=None):
-    return tf.logical_xor(x, y, name=name)
+def logical_xor(x, y):
+    return ((x + y) == 1) * 1.0
 
 
 def argmax(x, axis=-1):
