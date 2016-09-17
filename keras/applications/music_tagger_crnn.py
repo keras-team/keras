@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-'''AudioConvRNN model for Keras.
+'''MusicTaggerCRNN model for Keras.
 
 # Reference:
 
@@ -21,12 +21,12 @@ from ..layers.recurrent import GRU
 from ..utils.data_utils import get_file
 from .audio_conv_utils import decode_predictions, load_preprocess_input
 
-TH_WEIGHTS_PATH = 'https://github.com/keunwoochoi/music-auto_tagging-keras/blob/master/data/rnn_weights_theano.5'
-TF_WEIGHTS_PATH = 'https://github.com/keunwoochoi/music-auto_tagging-keras/blob/master/data/rnn_weights_tensorflow.5'
+TH_WEIGHTS_PATH = 'https://github.com/keunwoochoi/music-auto_tagging-keras/blob/master/data/music_tagger_crnn_weights_theano.h5'
+TF_WEIGHTS_PATH = 'https://github.com/keunwoochoi/music-auto_tagging-keras/blob/master/data/music_tagger_crnn_weights_tensorflow.h5'
 
 
-def AudioConvRNN(weights='msd', input_tensor=None):
-    '''Instantiate the AudioConvRNN architecture,
+def MusicTaggerCRNN(weights='msd', input_tensor=None):
+    '''Instantiate the MusicTaggerCRNN architecture,
     optionally loading weights pre-trained
     on Million Song Dataset. Note that when using TensorFlow,
     for best performance you should set
@@ -39,11 +39,9 @@ def AudioConvRNN(weights='msd', input_tensor=None):
     specified in your Keras config file.
 
     For preparing mel-spectrogram input, see
-    `audio_preprocessor.py` in [Music-auto_tagging-keras](https://github.com/keunwoochoi/music-auto_tagging-keras)
-
-    This model use Batch Normalization, so the prediction
-    is affected by batch. Use multiple, different data 
-    samples together (at least 4) for reliable prediction.
+    `audio_conv_utils.py` in [applications](https://github.com/fchollet/keras/tree/master/keras/applications).
+    You will need to install [Librosa](http://librosa.github.io/librosa/)
+    to use it.
 
     # Arguments
         weights: one of `None` (random initialization)
@@ -90,30 +88,30 @@ def AudioConvRNN(weights='msd', input_tensor=None):
 
     # Conv block 1
     x = Convolution2D(64, 3, 3, border_mode='same', name='conv1')(x)
-    x = BatchNormalization(axis=channel_axis, mode=2, name='bn1')(x)
+    x = BatchNormalization(axis=channel_axis, mode=0, name='bn1')(x)
     x = ELU()(x)
-    x = MaxPooling2D((2, 2), strides=(2, 2), name='pool1')(x)
+    x = MaxPooling2D(pool_size=(2, 2), strides=(2, 2), name='pool1')(x)
     x = Dropout(0.5, name='dropout1')(x)
 
     # Conv block 2
     x = Convolution2D(128, 3, 3, border_mode='same', name='conv2')(x)
-    x = BatchNormalization(axis=channel_axis, mode=2, name='bn2')(x)
+    x = BatchNormalization(axis=channel_axis, mode=0, name='bn2')(x)
     x = ELU()(x)
-    x = MaxPooling2D((3, 3), strides=(3, 3), name='pool2')(x)
+    x = MaxPooling2D(pool_size=(3, 3), strides=(3, 3), name='pool2')(x)
     x = Dropout(0.5, name='dropout2')(x)
 
     # Conv block 3
     x = Convolution2D(128, 3, 3, border_mode='same', name='conv3')(x)
-    x = BatchNormalization(axis=channel_axis, mode=2, name='bn3')(x)
+    x = BatchNormalization(axis=channel_axis, mode=0, name='bn3')(x)
     x = ELU()(x)
-    x = MaxPooling2D((4, 4), strides=(4, 4), name='pool3')(x)
+    x = MaxPooling2D(pool_size=(4, 4), strides=(4, 4), name='pool3')(x)
     x = Dropout(0.5, name='dropout3')(x)
 
     # Conv block 4
     x = Convolution2D(128, 3, 3, border_mode='same', name='conv4')(x)
-    x = BatchNormalization(axis=channel_axis, mode=2, name='bn4')(x)
+    x = BatchNormalization(axis=channel_axis, mode=0, name='bn4')(x)
     x = ELU()(x)
-    x = MaxPooling2D((4, 4), strides=(4, 4), name='pool4')(x)
+    x = MaxPooling2D(pool_size=(4, 4), strides=(4, 4), name='pool4')(x)
     x = Dropout(0.5, name='dropout4')(x)
 
     # reshaping
@@ -129,16 +127,22 @@ def AudioConvRNN(weights='msd', input_tensor=None):
 
     # Create model
     model = Model(melgram_input, x)
-
-    # Load weights
-    if K._BACKEND == 'theano':
-        weights_path = get_file('rnn_weights_theano.h5',
-                                TH_WEIGHTS_PATH,
-                                cache_subdir='models')
+    if weights is None:
+        return model
     else:
-        weights_path = get_file('rnn_weights_tensorflow.h5',
-                                TF_WEIGHTS_PATH,
-                                cache_subdir='models')
+        # Load weights
+        if K.image_dim_ordering == 'tf':
+            raise RuntimeError("Please set image_dim_ordering == 'th'." + \
+                "You can set it at ~/.keras/keras.json")
+                
+        if K._BACKEND == 'theano':
+            weights_path = get_file('music_tagger_crnn_weights_theano.h5',
+                                    TH_WEIGHTS_PATH,
+                                    cache_subdir='models')
+        else:
+            weights_path = get_file('music_tagger_crnn_weights_tensorflow.h5',
+                                    TF_WEIGHTS_PATH,
+                                    cache_subdir='models')
 
-    model.load_weights(weights_path)
-    return model
+        model.load_weights(weights_path)
+        return model
