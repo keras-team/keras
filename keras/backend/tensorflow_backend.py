@@ -515,6 +515,26 @@ def all(x, axis=None, keepdims=False):
     return tf.cast(x, tf.uint8)
 
 
+def binarize(x):
+    return round(clip(x, 0, 1))
+
+
+def logical_not(x):
+    return 1 - x
+
+
+def logical_and(x, y):
+    return clip(x + y - 1, 0, 1)
+
+
+def logical_or(x, y):
+    return clip(x + y, 0, 1)
+
+
+def logical_xor(x, y):
+    return ((x + y) == 1)
+
+
 def argmax(x, axis=-1):
     '''Returns the index of the maximum value
     along a tensor axis.

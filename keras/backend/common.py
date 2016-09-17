@@ -87,19 +87,3 @@ def set_legacy_weight_ordering(value):
 
 def legacy_weight_ordering():
     return _LEGACY_WEIGHT_ORDERING
-
-def binarize(x):
-    return K.round(K.clip(x, 0, 1))
-    
-def not(x):
-    return 1 - x
-    
-def logical_and(x, y):
-    return K.clip(x + y - 1, 0, 1)
-    
-def logical_or(x, y):
-    return K.clip(x + y, 0, 1)
-    
-def logical_xor(x, y):
-    return ((x + y) == 1)
-    
