@@ -132,9 +132,9 @@ def MusicTaggerCNN(weights='msd', input_tensor=None):
     else:
         # Load weights
         if K.image_dim_ordering == 'tf':
-            raise RuntimeError("Please set image_dim_ordering == 'th'." + \
-                "You can set it at ~/.keras/keras.json")
-            
+            raise RuntimeError("Please set image_dim_ordering == 'th'."
+                               "You can set it at ~/.keras/keras.json")
+
         if K._BACKEND == 'theano':
             weights_path = get_file('music_tagger_cnn_weights_theano.h5',
                                     TH_WEIGHTS_PATH,
