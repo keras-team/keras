@@ -9,6 +9,7 @@ from keras.models import Sequential
 from keras.layers import Dense, Activation, Flatten, LeakyReLU, MinibatchDiscrimination
 from keras.layers import Convolution2D, UpSampling2D, Reshape
 from keras.optimizers import Adam
+import keras.backend as K
 try:
     import matplotlib.pyplot as plt
     plotting_enabled = True
@@ -16,6 +17,14 @@ except ImportError:
     plotting_enabled = False
 
 np.random.seed(42)  # for reproducibility
+
+
+def append_minibatch_discrimination_features(activation, x, nb_kernels, kernel_dim):
+    activation = K.reshape(activation, (-1, nb_kernels, kernel_dim))
+    diffs = K.expand_dims(activation, 3) - K.expand_dims(K.permute_dimensions(activation, [1, 2, 0]), 0)
+    abs_diffs = K.sum(K.abs(diffs), axis=2)
+    minibatch_features = K.sum(K.exp(-abs_diffs), axis=2)
+    return K.concatenate([x, minibatch_features], 1)
 
 
 def set_trainable(net, boolean):
