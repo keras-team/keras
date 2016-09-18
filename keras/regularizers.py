@@ -4,9 +4,13 @@ from . import backend as K
 
 class Regularizer(object):
     def set_param(self, p):
+        if hasattr(self, 'p'):
+            raise Exception('Regularizers cannot be reused')
         self.p = p
 
     def set_layer(self, layer):
+        if hasattr(self, 'layer'):
+            raise Exception('Regularizers cannot be reused')
         self.layer = layer
 
     def __call__(self, loss):
@@ -29,6 +33,8 @@ class EigenvalueRegularizer(Regularizer):
         self.uses_learning_phase = True
 
     def set_param(self, p):
+        if hasattr(self, 'p'):
+            raise Exception('Regularizers cannot be reused')
         self.p = p
 
     def __call__(self, loss):
@@ -63,6 +69,8 @@ class WeightRegularizer(Regularizer):
         self.uses_learning_phase = True
 
     def set_param(self, p):
+        if hasattr(self, 'p'):
+            raise Exception('Regularizers cannot be reused')
         self.p = p
 
     def __call__(self, loss):
@@ -95,6 +103,8 @@ class ActivityRegularizer(Regularizer):
         self.uses_learning_phase = True
 
     def set_layer(self, layer):
+        if hasattr(self, 'layer'):
+            raise Exception('Regularizers cannot be reused')
         self.layer = layer
 
     def __call__(self, loss):
