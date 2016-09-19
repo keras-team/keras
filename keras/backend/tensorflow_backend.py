@@ -1238,7 +1238,12 @@ def rnn(step_function, inputs, initial_states,
                 return output, new_state
 
         _step.state_size = state_size * nb_states
-        _step.output_size = int(_step(tf.unpack(inputs)[0], state)[0].get_shape()[-1])
+        # recover output size by calling _step on the first input
+        slice_begin = tf.pack([0] * ndim)
+        slice_size = tf.pack([1] + [-1] * (ndim - 1))
+        first_input = tf.slice(inputs, slice_begin, slice_size)
+        first_input = tf.squeeze(first_input, [0])
+        _step.output_size = int(_step(first_input, state)[0].get_shape()[-1])
 
         (outputs, final_state) = _dynamic_rnn_loop(
             _step,
@@ -1258,9 +1263,9 @@ def rnn(step_function, inputs, initial_states,
             new_states = []
 
         # all this circus is to recover the last vector in the sequence.
-        begin = tf.pack([tf.shape(outputs)[0] - 1] + [0] * (ndim - 1))
-        size = tf.pack([1] + [-1] * (ndim - 1))
-        last_output = tf.slice(outputs, begin, size)
+        slice_begin = tf.pack([tf.shape(outputs)[0] - 1] + [0] * (ndim - 1))
+        slice_size = tf.pack([1] + [-1] * (ndim - 1))
+        last_output = tf.slice(outputs, slice_begin, slice_size)
         last_output = tf.squeeze(last_output, [0])
 
     axes = [1, 0] + list(range(2, len(outputs.get_shape())))

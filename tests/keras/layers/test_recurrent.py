@@ -26,6 +26,15 @@ def _runner(layer_class):
                        'return_sequences': True},
                input_shape=(nb_samples, timesteps, embedding_dim))
 
+    # check dynamic behavior
+    layer = layer_class(output_dim, input_dim=embedding_dim)
+    model = Sequential()
+    model.add(layer)
+    model.compile('sgd', 'mse')
+    x = np.random.random((nb_samples, timesteps, embedding_dim))
+    y = np.random.random((nb_samples, output_dim))
+    model.train_on_batch(x, y)
+
     # check dropout
     layer_test(layer_class,
                kwargs={'output_dim': output_dim,
