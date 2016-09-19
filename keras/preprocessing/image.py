@@ -122,8 +122,13 @@ def array_to_img(x, dim_ordering='default', scale=True):
     from PIL import Image
     if dim_ordering == 'default':
         dim_ordering = K.image_dim_ordering()
+    if dim_ordering not in ['th', 'tf']:
+        raise Exception('Unknown dim_ordering: ', dim_ordering)
     if dim_ordering == 'th':
-        x = x.transpose(1, 2, 0)
+        x = x.transpose(2, 1, 0)
+    else: # tensorflow dim_ordering
+        x = x.transpose(1, 0, 2)
+    # image x has dim_ordering (height, width, channel)
     if scale:
         x += max(-np.min(x), 0)
         x_max = np.max(x)
@@ -145,16 +150,18 @@ def img_to_array(img, dim_ordering='default'):
         dim_ordering = K.image_dim_ordering()
     if dim_ordering not in ['th', 'tf']:
         raise Exception('Unknown dim_ordering: ', dim_ordering)
-    # image has dim_ordering (height, width, channel)
+    # image x has dim_ordering (height, width, channel)
     x = np.asarray(img, dtype='float32')
     if len(x.shape) == 3:
         if dim_ordering == 'th':
-            x = x.transpose(2, 0, 1)
+            x = x.transpose(2, 1, 0)
+        else: # tensorflow dim_ordering
+            x = x.transpose(1, 0, 2)
     elif len(x.shape) == 2:
         if dim_ordering == 'th':
-            x = x.reshape((1, x.shape[0], x.shape[1]))
-        else:
-            x = x.reshape((x.shape[0], x.shape[1], 1))
+            x = np.expand_dims(x.transpose(), axis=0)
+        else: # tensorflow dim_ordering
+            x = np.expand_dims(x.transpose(), axis=3)
     else:
         raise Exception('Unsupported image shape: ', x.shape)
     return x
