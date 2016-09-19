@@ -536,6 +536,8 @@ def pack(x):
 
 
 def get_value(x):
+    if isinstance(x, np.ndarray):
+        return x
     if not hasattr(x, 'get_value'):
         raise Exception("'get_value() can only be called on a variable. " +
                         "If you have an expression instead, use eval().")
