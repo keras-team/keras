@@ -1238,7 +1238,7 @@ def rnn(step_function, inputs, initial_states,
                 return output, new_state
 
         _step.state_size = state_size * nb_states
-        _step.output_size = int(_step(tf.unpack(inputs)[0], state)[0].get_shape()[-1])
+        _step.output_size = int(_step(inputs[0], state)[0].get_shape()[-1])
 
         (outputs, final_state) = _dynamic_rnn_loop(
             _step,
