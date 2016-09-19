@@ -1430,30 +1430,8 @@ class CompactBilinearPooling(Layer):
         for i in range(self.nmodes):
             h = np.random.random_integers(0, self.d - 1, size=(input_shapes[i][1],))
             s = (np.floor(np.random.uniform(0, 2, size=(input_shapes[i][1],))) * 2 - 1).astype("int64")
-            print i
-            print h.shape
-            print s.shape
-            self.non_trainable_weights.append(h)
-            self.non_trainable_weights.append(s)
-            print "len_non_trainable", len(self.non_trainable_weights)
-            """
-            h = self.non_trainable_weights[i*2]
-            s = self.non_trainable_weights[i*2+1]
-            if h is None:
-                h = np.random.random_integers(0, self.d-1, size=(input_shapes[i][1],))
-            if s is None:
-                s =  (np.floor(np.random.uniform(0, 2, size=(input_shapes[i][1],)))*2-1).astype("int64")
-            self.non_trainable_weights[i * 2] = h
-            self.non_trainable_weights[i * 2 + 1] = s
-            """
-            """
-            if eval('self.h'+str(i)) is None:
-                exec('self.h'+str(i)+' = np.random.random_integers(0, self.d-1, size=(input_shapes[i][1],))')
-                #self.h[i] = K.variable(self.h[i], dtype='int64', name='h'+str(i))
-            if eval('self.s'+str(i)) is None:
-                exec('self.s'+str(i)+' =  (np.floor(np.random.uniform(0, 2, size=(input_shapes[i][1],)))*2-1).astype("int64")')
-                #self.s[i] = K.variable(self.s[i], dtype='int64', name='s'+str(i))
-            """
+            self.non_trainable_weights.append(np.asarray(h))
+            self.non_trainable_weights.append(np.asarray(s))
 
         self.built = True
 
@@ -1474,11 +1452,6 @@ class CompactBilinearPooling(Layer):
         fft_v = [[]] * self.nmodes
         acum_fft = 1.0
         for i in range(self.nmodes):
-            #h = K.variable(eval('self.h'+str(i)), dtype='int64', name='h'+str(i))
-            #s = K.variable(eval('self.s'+str(i)), dtype='int64', name='s'+str(i))
-            print "i",i
-            print "idx h",i * 2
-            print "idx s",i * 2 + 1
             h = self.non_trainable_weights[i * 2]
             s = self.non_trainable_weights[i * 2 + 1]
             h_ = K.variable(h, dtype='int64', name='h' + str(i))
@@ -1486,7 +1459,6 @@ class CompactBilinearPooling(Layer):
             v[i] = K.count_sketch(h_, s_, x[i], self.d)
             fft_v[i] = K.fft(v[i])
             acum_fft *= fft_v[i]
-        #acum_fft = K.concatenate((acum_fft[:, 1:, 0], acum_fft[:,1:,0][::-1]))
         out = K.cast(K.ifft(acum_fft), dtype='float32')
         if self.return_extra:
             return [out]+v+fft_v+[acum_fft]
@@ -1499,7 +1471,7 @@ class CompactBilinearPooling(Layer):
                             '(at least 2). Got: ' + str(x))
         y = self.multimodal_compact_bilinear(x)
         if self.return_extra:
-            return y+self.h+self.s
+            return y + self.non_trainable_weights
         return y
 
     def get_config(self):
