@@ -105,6 +105,13 @@ def _runner(layer_class):
                     shape=shape)
     K.eval(layer.output)
 
+    # check unknown time dimension
+
+    model = Sequential()
+    layer = layer_class(output_dim, batch_input_shape=(nb_samples, None, embedding_dim))
+
+    model.add(layer)
+
 
 @keras_test
 def test_SimpleRNN():
