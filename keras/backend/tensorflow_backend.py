@@ -1,9 +1,9 @@
 import tensorflow as tf
 from tensorflow.python.training import moving_averages
 try:
-    import tensorflow.contrib.ctc as ctc
-except ImportError:
     from tensorflow.python.ops import ctc_ops as ctc
+except ImportError:
+    import tensorflow.contrib.ctc as ctc
 import numpy as np
 import os
 import copy
