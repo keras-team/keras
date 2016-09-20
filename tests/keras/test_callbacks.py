@@ -294,11 +294,12 @@ def test_LambdaCallback():
             pass
     p = multiprocessing.Process(target=f)
     p.start()
-    processes = [p]
+    cleanup_callback = callbacks.LambdaCallback(on_train_end=lambda logs: p.terminate())
     
-    cbks = [callbacks.LambdaCallback(on_train_end=lambda logs: [p.terminate() for p in processes if p.is_alive()])]
+    cbks = [cleanup_callback]
     model.fit(X_train, y_train, batch_size=batch_size,
               validation_data=(X_test, y_test), callbacks=cbks, nb_epoch=5)
+    p.join()
     assert not p.is_alive()
     
 
