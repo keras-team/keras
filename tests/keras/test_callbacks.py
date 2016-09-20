@@ -288,10 +288,6 @@ def test_LambdaCallback():
     model.compile(loss='categorical_crossentropy',
                   optimizer='sgd',
                   metrics=['accuracy'])
-
-    batch_print_callback = callbacks.LambdaCallback(on_batch_begin=lambda batch, logs: print(batch))
-   
-    plot_loss_callback = callbacks.LambdaCallback(on_epoch_end=lambda epoch, logs: plt.plot(np.arange(epoch), logs['loss']))
     
     # Start an arbitrary process that should run during model training and be terminated after training has completed.
     def f():
@@ -300,11 +296,10 @@ def test_LambdaCallback():
     p = multiprocessing.Process(target=f)
     p.start()
     
-    cleanup_callback = callbacks.LambdaCallback(on_train_end=lambda logs: [p.terminate() for p in processes if p.is_alive()])
-     
-    cbks = [batch_print_callback, plot_loss_callback, cleanup_callback]
+    cbks = [callbacks.LambdaCallback(on_train_end=lambda logs: [p.terminate() for p in processes if p.is_alive()])]
     model.fit(X_train, y_train, batch_size=batch_size,
               validation_data=(X_test, y_test), callbacks=cbks, nb_epoch=5)
+    assert not p.is_alive()
     
 
 if __name__ == '__main__':
