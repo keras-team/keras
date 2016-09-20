@@ -294,6 +294,7 @@ def test_LambdaCallback():
             pass
     p = multiprocessing.Process(target=f)
     p.start()
+    processes = [p]
     
     cbks = [callbacks.LambdaCallback(on_train_end=lambda logs: [p.terminate() for p in processes if p.is_alive()])]
     model.fit(X_train, y_train, batch_size=batch_size,
