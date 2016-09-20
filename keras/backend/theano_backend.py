@@ -304,6 +304,26 @@ def all(x, axis=None, keepdims=False):
     return T.all(x, axis=axis, keepdims=keepdims)
 
 
+def binarize(x):
+    return round(clip(x, 0, 1))
+
+
+def logical_not(x):
+    return 1 - x
+
+
+def logical_and(x, y):
+    return clip(x + y - 1, 0, 1)
+
+
+def logical_or(x, y):
+    return clip(x + y, 0, 1)
+
+
+def logical_xor(x, y):
+    return 1 - abs(x + y - 1)
+
+
 def argmax(x, axis=-1):
     return T.argmax(x, axis=axis, keepdims=False)
 
