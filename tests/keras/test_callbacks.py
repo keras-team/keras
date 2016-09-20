@@ -1,6 +1,8 @@
 import pytest
 import os
 import sys
+import multiprocessing
+import matplotlib.pyplot as plt
 import numpy as np
 np.random.seed(1337)
 
@@ -271,6 +273,39 @@ def test_TensorBoard():
         shutil.rmtree(filepath)
 
     KTF.set_session(old_session)
+    
+def test_LambdaCallback():
+    (X_train, y_train), (X_test, y_test) = get_test_data(nb_train=train_samples,
+                                                         nb_test=test_samples,
+                                                         input_shape=(input_dim,),
+                                                         classification=True,
+                                                         nb_class=nb_class)
+    y_test = np_utils.to_categorical(y_test)
+    y_train = np_utils.to_categorical(y_train)
+    model = Sequential()
+    model.add(Dense(nb_hidden, input_dim=input_dim, activation='relu'))
+    model.add(Dense(nb_class, activation='softmax'))
+    model.compile(loss='categorical_crossentropy',
+                  optimizer='sgd',
+                  metrics=['accuracy'])
+
+    batch_print_callback = callbacks.LambdaCallback(on_batch_begin=lambda batch, logs: print(batch))
+   
+    plot_loss_callback = callbacks.LambdaCallback(on_epoch_end=lambda epoch, logs: plt.plot(np.arange(epoch), logs['loss']))
+    
+    # Start an arbitrary process that should run during model training and be terminated after training has completed.
+    def f():
+        while True:
+            pass
+    p = multiprocessing.Process(target=f)
+    p.start()
+    
+    cleanup_callback = callbacks.LambdaCallback(on_train_end=lambda logs: [p.terminate() for p in processes if p.is_alive()])
+     
+    cbks = [batch_print_callback, plot_loss_callback, cleanup_callback]
+    model.fit(X_train, y_train, batch_size=batch_size,
+              validation_data=(X_test, y_test), callbacks=cbks, nb_epoch=5)
+    
 
 if __name__ == '__main__':
     pytest.main([__file__])
