@@ -2,7 +2,6 @@ import pytest
 import os
 import sys
 import multiprocessing
-import matplotlib.pyplot as plt
 import numpy as np
 np.random.seed(1337)
 
