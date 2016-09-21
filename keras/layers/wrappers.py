@@ -112,9 +112,15 @@ class TimeDistributed(Wrapper):
             def step(x, states):
                 output = self.layer.call(x)
                 return output, []
-
+            input_length = input_shape[1]
+            if K.backend() == 'tensorflow' and len(input_shape) > 3:
+                if input_length is None:
+                    raise Exception('Number of timesteps should be defined for unrolling the RNN')
+                unroll = True
+            else:
+                unroll = False
             last_output, outputs, states = K.rnn(step, X,
-                                                 initial_states=[], unroll=K._BACKEND == 'tensorflow')
+                                                 initial_states=[], input_length=input_length, unroll=unroll)
             y = outputs
         else:
             # no batch size specified, therefore the layer will be able
