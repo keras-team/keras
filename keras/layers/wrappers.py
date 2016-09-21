@@ -115,7 +115,15 @@ class TimeDistributed(Wrapper):
             input_length = input_shape[1]
             if K.backend() == 'tensorflow' and len(input_shape) > 3:
                 if input_length is None:
-                    raise Exception('Number of timesteps should be defined for unrolling the RNN')
+                    raise Exception('When using TensorFlow, you should define '
+                                    'explicitly the number of timesteps of '
+                                    'your sequences.\n'
+                                    'If your first layer is an Embedding, '
+                                    'make sure to pass it an "input_length" '
+                                    'argument. Otherwise, make sure '
+                                    'the first layer has '
+                                    'an "input_shape" or "batch_input_shape" '
+                                    'argument, including the time axis.')
                 unroll = True
             else:
                 unroll = False
