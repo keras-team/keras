@@ -114,7 +114,7 @@ class TimeDistributed(Wrapper):
                 return output, []
 
             last_output, outputs, states = K.rnn(step, X,
-                                                 initial_states=[])
+                                                 initial_states=[], unroll=K._BACKEND == 'tensorflow')
             y = outputs
         else:
             # no batch size specified, therefore the layer will be able
