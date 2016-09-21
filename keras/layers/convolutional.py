@@ -610,18 +610,13 @@ class Deconvolution2D(Convolution2D):
 
     def get_output_shape_for(self, input_shape):
         if self.dim_ordering == 'th':
-            rows = input_shape[2]
-            cols = input_shape[3]
+            rows = self.output_shape_[2]
+            cols = self.output_shape_[3]
         elif self.dim_ordering == 'tf':
-            rows = input_shape[1]
-            cols = input_shape[2]
+            rows = self.output_shape_[1]
+            cols = self.output_shape_[2]
         else:
             raise Exception('Invalid dim_ordering: ' + self.dim_ordering)
-
-        rows = conv_input_length(rows, self.nb_row,
-                                 self.border_mode, self.subsample[0])
-        cols = conv_input_length(cols, self.nb_col,
-                                 self.border_mode, self.subsample[1])
 
         if self.dim_ordering == 'th':
             return (input_shape[0], self.nb_filter, rows, cols)
