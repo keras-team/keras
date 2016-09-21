@@ -18,6 +18,14 @@ from .common import _FLOATX, _EPSILON
 theano.config.floatX = _FLOATX
 _LEARNING_PHASE = T.scalar(dtype='uint8', name='keras_learning_phase')  # 0 = test, 1 = train
 
+def printing(x, string=''):
+    '''
+    Print the value of a tensor variable
+    :param x: Tensor variable
+    :param string: Prefix to print
+    :return:
+    '''
+    return theano.printing.Print(string)(x)
 
 def learning_phase():
     # False = test, True = train
