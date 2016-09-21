@@ -4,7 +4,16 @@ from .. import backend as K
 import numpy as np
 
 
-class LeakyReLU(Layer):
+class AdvancedActivation(Layer):
+    '''
+    Base class for all advanced activation layers
+    '''
+    def __init__(self, **kwargs):
+        self.__name__ = self.__class__.__name__
+        super(AdvancedActivation, self).__init__(**kwargs)
+
+
+class LeakyReLU(AdvancedActivation):
     '''Special version of a Rectified Linear Unit
     that allows a small gradient when the unit is not active:
     `f(x) = alpha * x for x < 0`,
@@ -35,7 +44,7 @@ class LeakyReLU(Layer):
         return dict(list(base_config.items()) + list(config.items()))
 
 
-class PReLU(Layer):
+class PReLU(AdvancedActivation):
     '''Parametric Rectified Linear Unit:
     `f(x) = alphas * x for x < 0`,
     `f(x) = x for x >= 0`,
@@ -82,7 +91,7 @@ class PReLU(Layer):
         return dict(list(base_config.items()) + list(config.items()))
 
 
-class ELU(Layer):
+class ELU(AdvancedActivation):
     '''Exponential Linear Unit:
     `f(x) =  alpha * (exp(x) - 1.) for x < 0`,
     `f(x) = x for x >= 0`.
@@ -117,7 +126,7 @@ class ELU(Layer):
         return dict(list(base_config.items()) + list(config.items()))
 
 
-class ParametricSoftplus(Layer):
+class ParametricSoftplus(AdvancedActivation):
     '''Parametric Softplus:
     `alpha * log(1 + exp(beta * x))`
 
@@ -167,7 +176,7 @@ class ParametricSoftplus(Layer):
         return dict(list(base_config.items()) + list(config.items()))
 
 
-class ThresholdedReLU(Layer):
+class ThresholdedReLU(AdvancedActivation):
     '''Thresholded Rectified Linear Unit:
     `f(x) = x for x > theta`
     `f(x) = 0 otherwise`.
@@ -200,7 +209,7 @@ class ThresholdedReLU(Layer):
         return dict(list(base_config.items()) + list(config.items()))
 
 
-class SReLU(Layer):
+class SReLU(AdvancedActivation):
     '''S-shaped Rectified Linear Unit.
 
     # Input shape
@@ -264,3 +273,8 @@ class SReLU(Layer):
                   'a_right_init': self.a_right_init}
         base_config = super(SReLU, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
+
+
+from ..utils.generic_utils import get_from_module
+def get(identifier):
+    return get_from_module(identifier, globals(), 'activation function')

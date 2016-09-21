@@ -1,4 +1,7 @@
 from __future__ import absolute_import
+
+from keras.layers import advanced_activations
+
 from . import backend as K
 
 
@@ -50,4 +53,9 @@ from .utils.generic_utils import get_from_module
 def get(identifier):
     if identifier is None:
         return linear
-    return get_from_module(identifier, globals(), 'activation function')
+    try:
+        return get_from_module(identifier, globals(), 'activation function')
+    except LookupError:
+        advanced = advanced_activations.get(identifier)
+        # TODO: figure how to pass parameters when cloning in wrappers
+        return advanced()
