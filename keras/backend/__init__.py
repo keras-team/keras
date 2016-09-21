@@ -22,8 +22,10 @@ if not os.access(_keras_base_dir, os.W_OK):
 _keras_dir = os.path.join(_keras_base_dir, '.keras')
 if not os.path.exists(_keras_dir):
     os.makedirs(_keras_dir)
-
-_BACKEND = 'tensorflow'
+if os.name == 'nt':
+    _BACKEND = 'theano'
+else:
+    _BACKEND = 'tensorflow'
 _config_path = os.path.expanduser(os.path.join(_keras_dir, 'keras.json'))
 if os.path.exists(_config_path):
     _config = json.load(open(_config_path))
