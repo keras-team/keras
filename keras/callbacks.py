@@ -539,12 +539,24 @@ class TensorBoard(Callback):
 class ReduceLROnPlateau(Callback):
     '''Reduce learning rate when a metric has stopped improving.
 
+    Models often benefit from reducing the lr by a factor of
+    2-10 once learning stagnates. This callback monitors a
+    quantity and if no improvement is seen for a 'patience' number
+    of epochs, the learning rate is reduced.
+
+    # Example
+        ```python
+            reduce_lr = ReduceLROnPlateau(monitor='val_loss', reduce_factor=0.2,
+                                          patience=5, min_lr=0.001)
+            model.fit(X_train, Y_train, callbacks=[reduce_lr])
+        ```
+
     # Arguments
         monitor: quantity to be monitored.
         reduce_factor: factor by which the learning rate will
             be reduced. new_lr = lr * reduce_factor
         patience: number of epochs with no improvement
-            after which learning rate will be reduce.
+            after which learning rate will be reduced.
         verbose: int. 0: quiet, 1: update messages.
         mode: one of {auto, min, max}. In `min` mode,
             lr will be reduced when the quantity
@@ -560,7 +572,7 @@ class ReduceLROnPlateau(Callback):
         min_lr: lower bound on the learning rate.
     '''
 
-    def __init__(self, monitor='val_loss', reduce_factor=0.1, patience=0,
+    def __init__(self, monitor='val_loss', reduce_factor=0.1, patience=10,
                  verbose=0, mode='auto', epsilon=1e-4, cooldown=0, min_lr=0):
         super(Callback, self).__init__()
 
@@ -626,6 +638,12 @@ class CSVLogger(Callback):
     '''Callback that streams epoch results to a csv file.
     Supports all values that can be represented as a string,
     including 1D iterables such as np.ndarray.
+
+    # Example
+        ```python
+            csv_logger = CSVLogger('training.log')
+            model.fit(X_train, Y_train, callbacks=[csv_logger])
+        ```
 
     Arguments
         filename: filename of the csv file, e.g. 'run/log.csv'.
