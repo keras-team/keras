@@ -51,6 +51,11 @@ def test_TimeDistributed():
     model = model_from_json(model.to_json())
     model.summary()
 
+    # test with Convolution2D and functional API
+    layer = wrappers.TimeDistributed(convolutional.Convolution2D(5, 3, 3, border_mode='same'))
+    input_ = Input(batch_shape=(32, 10, 16, 16, 3))
+    layer(input_)
+
     # test stacked layers
     model = Sequential()
     model.add(wrappers.TimeDistributed(core.Dense(2), input_shape=(3, 4)))
