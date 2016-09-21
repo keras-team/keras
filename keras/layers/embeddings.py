@@ -132,6 +132,7 @@ class Embedding(Layer):
             W = K.in_train_phase(self.W * B, self.W)
         else:
             W = self.W
+
         out = K.gather(W, x)
         return out
 

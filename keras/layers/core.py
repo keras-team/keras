@@ -1097,6 +1097,8 @@ class TimeDistributedDense(Layer):
         # x has shape (samples, timesteps, context_dim)
         input_length = input_shape[1]
         # Note: input_length should always be provided when using tensorflow backend.
+        x = K.printing(x, 'SOFTMAX (x)!!')
+
         if not input_length:
             if hasattr(K, 'int_shape'):
                 input_length = K.int_shape(x)[1]
@@ -1116,6 +1118,8 @@ class TimeDistributedDense(Layer):
         # We have to reshape Y to (samples, timesteps, output_dim)
         y = K.reshape(y, (-1, input_length, self.output_dim))  # (samples, timesteps, output_dim)
         y = self.activation(y)
+        y = K.printing(y, 'SOFTMAX!!')
+
         return y
 
     def get_config(self):

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import
 import numpy as np
-
+np.set_printoptions(threshold=np.inf)
 import types
 import theano
 import theano.tensor as T
@@ -1650,7 +1650,7 @@ class AttLSTMCond(LSTM):
         return_extra_variables: indicates if we only need the LSTM hidden state (False) or we want 
             additional internal variables as outputs (True). The additional variables provided are:
             - x_att (None, out_timesteps, dim_encoder): feature vector computed after the Att.Model at each timestep
-            TO BE INCLUDED: - alpha (None, out_timesteps, in_timesteps): weights computed by the Att.Model at each timestep
+            - alphas (None, out_timesteps, in_timesteps): weights computed by the Att.Model at each timestep
         output_timesteps: number of output timesteps (# of output vectors generated)
         init: weight initialization function.
             Can be the name of an existing function (str),
@@ -1718,7 +1718,7 @@ class AttLSTMCond(LSTM):
     def __init__(self, output_dim, return_extra_variables=False,
                  init='glorot_uniform', inner_init='orthogonal', #init_state=None, init_memory=None,
                  forget_bias_init='one', activation='tanh',
-                 inner_activation='hard_sigmoid',
+                 inner_activation='sigmoid',
                  W_regularizer=None, U_regularizer=None, V_regularizer=None, b_regularizer=None,
                  dropout_W=0., dropout_U=0., dropout_V=0., dropout_wa=0., dropout_Wa=0., dropout_Ua=0.,
                  wa_regularizer=None, Wa_regularizer=None, Ua_regularizer=None, ba_regularizer=None,
@@ -1891,9 +1891,10 @@ class AttLSTMCond(LSTM):
                            #K.zeros((input_shape[0], input_shape[2]))]
 
     def preprocess_input(self, x):
-        return K.dot(x, self.V)
+        return K.dot(x, self.V) + self.b
 
     def get_output_shape_for(self, input_shape):
+
         if self.return_sequences:
             main_out = (input_shape[1][0], input_shape[1][1], self.output_dim)
         else:
@@ -1903,7 +1904,6 @@ class AttLSTMCond(LSTM):
             dim_x_att = (input_shape[1][0], input_shape[1][1], self.context_dim)
             dim_alpha_att = (input_shape[1][0], input_shape[1][1], input_shape[0][1])
             return [main_out, dim_x_att, dim_alpha_att]
-            #return [main_out, dim_x_att]
         else:
             return main_out
 
@@ -1918,6 +1918,9 @@ class AttLSTMCond(LSTM):
         if self.num_inputs == 2:
             self.init_state = None
             self.init_memory = None
+        elif self.num_inputs == 3:
+            self.init_state = x[2]
+            self.init_memory = x[2]
         elif self.num_inputs == 4:
             self.init_state = x[2]
             self.init_memory = x[3]
@@ -1946,7 +1949,7 @@ class AttLSTMCond(LSTM):
                                              mask=mask[1],
                                              constants=constants,
                                              unroll=self.unroll,
-                                             input_length=input_shape[1],
+                                             input_length=state_below.shape[1],
                                              pos_extra_outputs_states=[2,3])
         if self.stateful:
             self.updates = []
@@ -1959,13 +1962,13 @@ class AttLSTMCond(LSTM):
             ret = last_output
 
         if self.return_extra_variables:
+            #states[2] = K.printing(states[2], str(self.name) + 'x_att=')
             return [ret, states[2], states[3]]
         else:
             return ret
 
     def compute_mask(self, input, mask):
         if self.return_extra_variables:
-            #return [None, None, None]
             return [mask[1], mask[1], mask[1]]
         return mask[1]
 
@@ -1990,12 +1993,15 @@ class AttLSTMCond(LSTM):
         p_state_ = K.dot(h_tm1, self.Wa)
         pctx_ = K.tanh(pctx_ +  p_state_[:, None, :])
         e = K.dot(pctx_, self.wa) + self.ca
-        alphas = K.softmax(e)
+        alphas_shape = e.shape
+        alphas = K.softmax(e.reshape([alphas_shape[0], alphas_shape[1]]))
         ctx_ = (context * alphas[:, :, None]).sum(axis=1) # sum over the in_timesteps dimension resulting in [batch_size, context_dim]
 
         # LSTM
         if self.consume_less == 'gpu':
-            z = x + K.dot(ctx_ * B_W[0], self.W) + K.dot(h_tm1 * B_U[0], self.U) + self.b
+            z = x + \
+                K.dot(ctx_ * B_W[0], self.W) + \
+                K.dot(h_tm1 * B_U[0], self.U)
 
             z0 = z[:, :self.output_dim]
             z1 = z[:, self.output_dim: 2 * self.output_dim]
@@ -2004,9 +2010,8 @@ class AttLSTMCond(LSTM):
 
             i = self.inner_activation(z0)
             f = self.inner_activation(z1)
-            c = f * c_tm1 + i * self.activation(z2)
             o = self.inner_activation(z3)
-
+            c = f * c_tm1 + i * self.activation(z2)
         h = o * self.activation(c)
 
         return h, [h, c, ctx_, alphas]
