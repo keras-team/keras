@@ -86,7 +86,8 @@ class TimeDistributed(Wrapper):
     # Arguments
         layer: a layer instance.
     """
-    def __init__(self, layer, **kwargs):
+    def __init__(self, layer, unroll=True, **kwargs):
+        self.unroll = unroll
         self.supports_masking = True
         super(TimeDistributed, self).__init__(layer, **kwargs)
 
@@ -114,6 +115,7 @@ class TimeDistributed(Wrapper):
                 return output, []
 
             last_output, outputs, states = K.rnn(step, X,
+                                                 unroll=self.unroll,
                                                  initial_states=[])
             y = outputs
         else:
