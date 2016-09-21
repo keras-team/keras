@@ -47,7 +47,7 @@ Generate batches of tensor image data with real-time data augmentation. The data
         "th" mode means that the images should have shape `(samples, channels, width, height)`.
         It defaults to the `image_dim_ordering` value found in your
         Keras config file at `~/.keras/keras.json`.
-        If you never set it, then it will be "th".
+        If you never set it, then it will be "tf".
 
 - __Methods__:
     - __fit(X)__: Compute the internal data stats related to the data-dependent transformations, based on an array of sample data.
