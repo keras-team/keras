@@ -62,7 +62,7 @@ class Recurrent(Layer):
 
         # the following is identical:
         model = Sequential()
-        model.add(LSTM(32, context_dim=64, input_length=10))
+        model.add(LSTM(32, input_dim=64, input_length=10))
 
         # for subsequent layers, not need to specify the input size:
         model.add(LSTM(16))
@@ -71,7 +71,7 @@ class Recurrent(Layer):
     # Arguments
         weights: list of Numpy arrays to set as initial weights.
             The list should have 3 elements, of shapes:
-            `[(context_dim, output_dim), (output_dim, output_dim), (output_dim,)]`.
+            `[(input_dim, output_dim), (output_dim, output_dim), (output_dim,)]`.
         return_sequences: Boolean. Whether to return the last output
             in the output sequence, or the full sequence.
         go_backwards: Boolean (default False).
@@ -96,7 +96,7 @@ class Recurrent(Layer):
             enabling more time-efficient parallelization on the GPU. Note: RNN
             dropout must be shared for all gates, resulting in a slightly
             reduced regularization.
-        context_dim: dimensionality of the input (integer).
+        input_dim: dimensionality of the input (integer).
             This argument (or alternatively, the keyword argument `input_shape`)
             is required when using this layer as the first layer in a model.
         input_length: Length of input sequences, to be specified
@@ -110,7 +110,7 @@ class Recurrent(Layer):
             (e.g. via the `input_shape` argument)
 
     # Input shape
-        3D tensor with shape `(nb_samples, timesteps, context_dim)`.
+        3D tensor with shape `(nb_samples, timesteps, input_dim)`.
 
     # Output shape
         - if `return_sequences`: 3D tensor with shape
@@ -166,10 +166,10 @@ class Recurrent(Layer):
 
         self.supports_masking = True
         self.input_spec = [InputSpec(ndim=3)]
-        self.context_dim = input_dim
+        self.input_dim = input_dim
         self.input_length = input_length
-        if self.context_dim:
-            kwargs['input_shape'] = (self.input_length, self.context_dim)
+        if self.input_dim:
+            kwargs['input_shape'] = (self.input_length, self.input_dim)
         super(Recurrent, self).__init__(**kwargs)
 
     def get_output_shape_for(self, input_shape):
@@ -192,9 +192,9 @@ class Recurrent(Layer):
 
     def get_initial_states(self, x):
         # build an all-zero tensor of shape (samples, output_dim)
-        initial_state = K.zeros_like(x)  # (samples, timesteps, context_dim)
-        initial_state = K.sum(initial_state, axis=1)  # (samples, context_dim)
-        reducer = K.zeros((self.context_dim, self.output_dim))
+        initial_state = K.zeros_like(x)  # (samples, timesteps, input_dim)
+        initial_state = K.sum(initial_state, axis=1)  # (samples, input_dim)
+        reducer = K.zeros((self.input_dim, self.output_dim))
         initial_state = K.dot(initial_state, reducer)  # (samples, output_dim)
         initial_states = [initial_state for _ in range(len(self.states))]
         return initial_states
@@ -203,7 +203,7 @@ class Recurrent(Layer):
         return x
 
     def call(self, x, mask=None):
-        # input shape: (nb_samples, time (padded with zeros), context_dim)
+        # input shape: (nb_samples, time (padded with zeros), input_dim)
         # note that the .build() method of subclasses MUST define
         # self.input_spec with a complete input shape.
         input_shape = self.input_spec[0].shape
@@ -253,7 +253,7 @@ class Recurrent(Layer):
         if self.stateful:
             config['batch_input_shape'] = self.input_spec[0].shape
         else:
-            config['context_dim'] = self.context_dim
+            config['input_dim'] = self.input_dim
             config['input_length'] = self.input_length
 
         base_config = super(Recurrent, self).get_config()
@@ -679,7 +679,7 @@ class LSTM(Recurrent):
 
     def build(self, input_shape):
         self.input_spec = [InputSpec(shape=input_shape)]
-        self.context_dim = input_shape[2]
+        self.input_dim = input_shape[2]
 
         if self.stateful:
             self.reset_states()
@@ -688,7 +688,7 @@ class LSTM(Recurrent):
             self.states = [None, None]
 
         if self.consume_less == 'gpu':
-            self.W = self.init((self.context_dim, 4 * self.output_dim),
+            self.W = self.init((self.input_dim, 4 * self.output_dim),
                                name='{}_W'.format(self.name))
             self.U = self.inner_init((self.output_dim, 4 * self.output_dim),
                                      name='{}_U'.format(self.name))
@@ -700,26 +700,26 @@ class LSTM(Recurrent):
                                 name='{}_b'.format(self.name))
             self.trainable_weights = [self.W, self.U, self.b]
         else:
-            self.W_i = self.init((self.context_dim, self.output_dim),
+            self.W_i = self.init((self.input_dim, self.output_dim),
                                  name='{}_W_i'.format(self.name))
             self.U_i = self.inner_init((self.output_dim, self.output_dim),
                                        name='{}_U_i'.format(self.name))
             self.b_i = K.zeros((self.output_dim,), name='{}_b_i'.format(self.name))
 
-            self.W_f = self.init((self.context_dim, self.output_dim),
+            self.W_f = self.init((self.input_dim, self.output_dim),
                                  name='{}_W_f'.format(self.name))
             self.U_f = self.inner_init((self.output_dim, self.output_dim),
                                        name='{}_U_f'.format(self.name))
             self.b_f = self.forget_bias_init((self.output_dim,),
                                              name='{}_b_f'.format(self.name))
 
-            self.W_c = self.init((self.context_dim, self.output_dim),
+            self.W_c = self.init((self.input_dim, self.output_dim),
                                  name='{}_W_c'.format(self.name))
             self.U_c = self.inner_init((self.output_dim, self.output_dim),
                                        name='{}_U_c'.format(self.name))
             self.b_c = K.zeros((self.output_dim,), name='{}_b_c'.format(self.name))
 
-            self.W_o = self.init((self.context_dim, self.output_dim),
+            self.W_o = self.init((self.input_dim, self.output_dim),
                                  name='{}_W_o'.format(self.name))
             self.U_o = self.inner_init((self.output_dim, self.output_dim),
                                        name='{}_U_o'.format(self.name))
@@ -792,9 +792,9 @@ class LSTM(Recurrent):
     def get_initial_states(self, x):
         # build an all-zero tensor of shape (samples, output_dim)
         if self.init_state is None:
-            initial_state = K.zeros_like(x)  # (samples, timesteps, context_dim)
-            initial_state = K.sum(initial_state, axis=1)  # (samples, context_dim)
-            reducer = K.ones((self.context_dim, self.output_dim))
+            initial_state = K.zeros_like(x)  # (samples, timesteps, input_dim)
+            initial_state = K.sum(initial_state, axis=1)  # (samples, input_dim)
+            reducer = K.ones((self.input_dim, self.output_dim))
             initial_state = K.dot(initial_state, reducer)  # (samples, output_dim)
             if self.init_memory is None:
                 initial_states = [initial_state for _ in range(len(self.states))]
@@ -1068,8 +1068,8 @@ class LSTMCond(Recurrent):
     def get_initial_states(self, x):
         # build an all-zero tensor of shape (samples, output_dim)
         if self.init_state is None:
-            initial_state = K.zeros_like(x[:, :, :self.input_dim])  # (samples, timesteps, context_dim)
-            initial_state = K.sum(initial_state, axis=1)  # (samples, context_dim)
+            initial_state = K.zeros_like(x[:, :, :self.input_dim])  # (samples, timesteps, input_dim)
+            initial_state = K.sum(initial_state, axis=1)  # (samples, input_dim)
             reducer = K.ones((self.input_dim, self.output_dim))
             initial_state = K.dot(initial_state, reducer)  # (samples, output_dim)
             if self.init_memory is None:
@@ -1160,7 +1160,7 @@ class LSTMCond(Recurrent):
 
         
     def call(self, x, mask=None):
-        # input shape: (nb_samples, time (padded with zeros), context_dim)
+        # input shape: (nb_samples, time (padded with zeros), input_dim)
         # note that the .build() method of subclasses MUST define
         # self.input_spec with a complete input shape.
 
@@ -1279,7 +1279,7 @@ class AttLSTM(LSTM):
 
         where the following are learnable with the respectively named sizes:
                 wa                Wa                     Ua                 ba
-            [context_dim] [context_dim, context_dim] [output_dim, context_dim] [context_dim]
+            [input_dim] [input_dim, input_dim] [output_dim, input_dim] [input_dim]
 
         The names of 'Ua' and 'Wa' are exchanged w.r.t. the provided reference as well as 'v' being renamed
         to 'x' for matching Keras LSTM's nomenclature.
@@ -1427,7 +1427,7 @@ class AttLSTM(LSTM):
         return x
 
     def call(self, x, mask=None):
-        # input shape: (nb_samples, time (padded with zeros), context_dim)
+        # input shape: (nb_samples, time (padded with zeros), input_dim)
         # note that the .build() method of subclasses MUST define
         # self.input_spec with a complete input shape.
         input_shape = self.input_spec[0].shape
@@ -1487,7 +1487,7 @@ class AttLSTM(LSTM):
         # AttModel (see Formulation in class header)
         e = K.dot(K.tanh(context + K.dot(h_tm1[:, None, :] * B_Ua, self.Ua) + self.ba) * B_wa, self.wa)
         alpha = K.softmax(e)
-        x_ = (x * alpha[:,:,None]).sum(axis=1) # sum over the in_timesteps dimension resulting in [batch_size, context_dim]
+        x_ = (x * alpha[:,:,None]).sum(axis=1) # sum over the in_timesteps dimension resulting in [batch_size, input_dim]
 
         # LSTM
         if self.consume_less == 'gpu':
@@ -1583,10 +1583,10 @@ class AttLSTM(LSTM):
     def get_initial_states(self, x):
         # build an all-zero tensor of shape (samples, output_dim)
         if self.init_state is None:
-            initial_state = K.zeros_like(x)  # (samples, timesteps_trg, timesteps, context_dim)
-            initial_state = K.sum(initial_state, axis=1)  # (samples, timesteps_trg, context_dim)
-            initial_state = K.sum(initial_state, axis=1)  # (samples, context_dim)
-            reducer = K.ones((self.context_dim, self.output_dim))
+            initial_state = K.zeros_like(x)  # (samples, timesteps_trg, timesteps, input_dim)
+            initial_state = K.sum(initial_state, axis=1)  # (samples, timesteps_trg, input_dim)
+            initial_state = K.sum(initial_state, axis=1)  # (samples, input_dim)
+            reducer = K.ones((self.input_dim, self.output_dim))
             initial_state = K.dot(initial_state, reducer)  # (samples, output_dim)
             if self.init_memory is None:
                 initial_states = [initial_state for _ in range(len(self.states))]
@@ -1705,7 +1705,7 @@ class AttLSTMCond(LSTM):
 
         where the following are learnable with the respectively named sizes:
                 wa                Wa                     Ua                 ba
-            [context_dim] [context_dim, context_dim] [output_dim, context_dim] [context_dim]
+            [input_dim] [input_dim, input_dim] [output_dim, input_dim] [input_dim]
 
         The names of 'Ua' and 'Wa' are exchanged w.r.t. the provided reference as well as 'v' being renamed
         to 'x' for matching Keras LSTM's nomenclature.
@@ -1718,7 +1718,7 @@ class AttLSTMCond(LSTM):
     def __init__(self, output_dim, return_extra_variables=False,
                  init='glorot_uniform', inner_init='orthogonal', #init_state=None, init_memory=None,
                  forget_bias_init='one', activation='tanh',
-                 inner_activation='sigmoid',
+                 inner_activation='sigmoid', context_dim = None,
                  W_regularizer=None, U_regularizer=None, V_regularizer=None, b_regularizer=None,
                  dropout_W=0., dropout_U=0., dropout_V=0., dropout_wa=0., dropout_Wa=0., dropout_Ua=0.,
                  wa_regularizer=None, Wa_regularizer=None, Ua_regularizer=None, ba_regularizer=None,
@@ -1730,6 +1730,7 @@ class AttLSTMCond(LSTM):
         self.forget_bias_init = initializations.get(forget_bias_init)
         self.activation = activations.get(activation)
         self.inner_activation = activations.get(inner_activation)
+        self.context_dim = context_dim
         self.W_regularizer = regularizers.get(W_regularizer)
         self.U_regularizer = regularizers.get(U_regularizer)
         self.V_regularizer = regularizers.get(V_regularizer)
@@ -1908,7 +1909,7 @@ class AttLSTMCond(LSTM):
             return main_out
 
     def call(self, x, mask=None):
-        # input shape: (nb_samples, time (padded with zeros), context_dim)
+        # input shape: (nb_samples, time (padded with zeros), input_dim)
         # note that the .build() method of subclasses MUST define
         # self.input_spec with a complete input shape.
 
@@ -1995,7 +1996,7 @@ class AttLSTMCond(LSTM):
         e = K.dot(pctx_, self.wa) + self.ca
         alphas_shape = e.shape
         alphas = K.softmax(e.reshape([alphas_shape[0], alphas_shape[1]]))
-        ctx_ = (context * alphas[:, :, None]).sum(axis=1) # sum over the in_timesteps dimension resulting in [batch_size, context_dim]
+        ctx_ = (context * alphas[:, :, None]).sum(axis=1) # sum over the in_timesteps dimension resulting in [batch_size, input_dim]
 
         # LSTM
         if self.consume_less == 'gpu':
@@ -2144,7 +2145,9 @@ class AttLSTMCond(LSTM):
                   "dropout_V": self.dropout_V,
                   'dropout_wa': self.dropout_wa,
                   'dropout_Wa': self.dropout_Wa,
-                  'dropout_Ua': self.dropout_Ua}
+                  'dropout_Ua': self.dropout_Ua,
+                  'input_dim': self.input_dim,
+                  'context_dim': self.context_dim}
         base_config = super(AttLSTMCond, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 

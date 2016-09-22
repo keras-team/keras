@@ -319,7 +319,7 @@ class RepeatVector(Layer):
 
     ```python
         model = Sequential()
-        model.add(Dense(32, context_dim=32))
+        model.add(Dense(32, input_dim=32))
         # now: model.output_shape == (None, 32)
         # note: `None` is the batch dimension
 
@@ -553,7 +553,7 @@ class Dense(Layer):
 
     ```python
         # as first layer in a sequential model:
-        model = Sequential(Dense(32, context_dim=16))
+        model = Sequential(Dense(32, input_dim=16))
         # now the model will take as input arrays of shape (*, 16)
         # and output arrays of shape (*, 32)
 
@@ -578,7 +578,7 @@ class Dense(Layer):
             If you don't specify anything, no activation is applied
             (ie. "linear" activation: a(x) = x).
         weights: list of numpy arrays to set as initial weights.
-            The list should have 2 elements, of shape `(context_dim, output_dim)`
+            The list should have 2 elements, of shape `(input_dim, output_dim)`
             and (output_dim,) for weights and biases respectively.
         W_regularizer: instance of [WeightRegularizer](../regularizers.md)
             (eg. L1 or L2 regularization), applied to the main weights matrix.
@@ -590,12 +590,12 @@ class Dense(Layer):
             (eg. maxnorm, nonneg), applied to the main weights matrix.
         b_constraint: instance of the [constraints](../constraints.md) module,
             applied to the bias.
-        context_dim: dimensionality of the input (integer).
+        input_dim: dimensionality of the input (integer).
             This argument (or alternatively, the keyword argument `input_shape`)
             is required when using this layer as the first layer in a model.
 
     # Input shape
-        2D tensor with shape: `(nb_samples, context_dim)`.
+        2D tensor with shape: `(nb_samples, input_dim)`.
 
     # Output shape
         2D tensor with shape: `(nb_samples, output_dim)`.
@@ -680,7 +680,7 @@ class Dense(Layer):
                   'b_constraint': self.b_constraint.get_config() if self.b_constraint else None,
                   'W_learning_rate_multiplier': self.W_learning_rate_multiplier,
                   'b_learning_rate_multiplier': self.b_learning_rate_multiplier,
-                  'context_dim': self.input_dim}
+                  'input_dim': self.input_dim}
         base_config = super(Dense, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
@@ -728,7 +728,7 @@ class MaxoutDense(Layer):
     '''A dense maxout layer.
 
     A `MaxoutDense` layer takes the element-wise maximum of
-    `nb_feature` `Dense(context_dim, output_dim)` linear layers.
+    `nb_feature` `Dense(input_dim, output_dim)` linear layers.
     This allows the layer to learn a convex,
     piecewise linear activation function over the inputs.
 
@@ -751,7 +751,7 @@ class MaxoutDense(Layer):
             If you don't specify anything, no activation is applied
             (ie. "linear" activation: a(x) = x).
         weights: list of numpy arrays to set as initial weights.
-            The list should have 2 elements, of shape `(context_dim, output_dim)`
+            The list should have 2 elements, of shape `(input_dim, output_dim)`
             and (output_dim,) for weights and biases respectively.
         W_regularizer: instance of [WeightRegularizer](../regularizers.md)
             (eg. L1 or L2 regularization), applied to the main weights matrix.
@@ -763,12 +763,12 @@ class MaxoutDense(Layer):
             (eg. maxnorm, nonneg), applied to the main weights matrix.
         b_constraint: instance of the [constraints](../constraints.md) module,
             applied to the bias.
-        context_dim: dimensionality of the input (integer).
+        input_dim: dimensionality of the input (integer).
             This argument (or alternatively, the keyword argument `input_shape`)
             is required when using this layer as the first layer in a model.
 
     # Input shape
-        2D tensor with shape: `(nb_samples, context_dim)`.
+        2D tensor with shape: `(nb_samples, input_dim)`.
 
     # Output shape
         2D tensor with shape: `(nb_samples, output_dim)`.
@@ -852,7 +852,7 @@ class MaxoutDense(Layer):
                   'activity_regularizer': self.activity_regularizer.get_config() if self.activity_regularizer else None,
                   'W_constraint': self.W_constraint.get_config() if self.W_constraint else None,
                   'b_constraint': self.b_constraint.get_config() if self.b_constraint else None,
-                  'context_dim': self.input_dim}
+                  'input_dim': self.input_dim}
         base_config = super(MaxoutDense, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
@@ -874,7 +874,7 @@ class Highway(Layer):
             If you don't specify anything, no activation is applied
             (ie. "linear" activation: a(x) = x).
         weights: list of numpy arrays to set as initial weights.
-            The list should have 2 elements, of shape `(context_dim, output_dim)`
+            The list should have 2 elements, of shape `(input_dim, output_dim)`
             and (output_dim,) for weights and biases respectively.
         W_regularizer: instance of [WeightRegularizer](../regularizers.md)
             (eg. L1 or L2 regularization), applied to the main weights matrix.
@@ -886,15 +886,15 @@ class Highway(Layer):
             (eg. maxnorm, nonneg), applied to the main weights matrix.
         b_constraint: instance of the [constraints](../constraints.md) module,
             applied to the bias.
-        context_dim: dimensionality of the input (integer).
+        input_dim: dimensionality of the input (integer).
             This argument (or alternatively, the keyword argument `input_shape`)
             is required when using this layer as the first layer in a model.
 
     # Input shape
-        2D tensor with shape: `(nb_samples, context_dim)`.
+        2D tensor with shape: `(nb_samples, input_dim)`.
 
     # Output shape
-        2D tensor with shape: `(nb_samples, context_dim)`.
+        2D tensor with shape: `(nb_samples, input_dim)`.
 
     # References
         - [Highway Networks](http://arxiv.org/pdf/1505.00387v2.pdf)
@@ -978,7 +978,7 @@ class Highway(Layer):
                   'activity_regularizer': self.activity_regularizer.get_config() if self.activity_regularizer else None,
                   'W_constraint': self.W_constraint.get_config() if self.W_constraint else None,
                   'b_constraint': self.b_constraint.get_config() if self.b_constraint else None,
-                  'context_dim': self.input_dim}
+                  'input_dim': self.input_dim}
         base_config = super(Highway, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
@@ -993,7 +993,7 @@ class TimeDistributedDense(Layer):
     ```
 
     # Input shape
-        3D tensor with shape `(nb_sample, time_dimension, context_dim)`.
+        3D tensor with shape `(nb_sample, time_dimension, input_dim)`.
     # Output shape
         3D tensor with shape `(nb_sample, time_dimension, output_dim)`.
     # Arguments
@@ -1009,7 +1009,7 @@ class TimeDistributedDense(Layer):
             If you don't specify anything, no activation is applied
             (ie. "linear" activation: a(x) = x).
         weights: list of numpy arrays to set as initial weights.
-            The list should have 2 elements, of shape `(context_dim, output_dim)`
+            The list should have 2 elements, of shape `(input_dim, output_dim)`
             and (output_dim,) for weights and biases respectively.
         W_regularizer: instance of [WeightRegularizer](../regularizers.md)
             (eg. L1 or L2 regularization), applied to the main weights matrix.
@@ -1021,7 +1021,7 @@ class TimeDistributedDense(Layer):
             (eg. maxnorm, nonneg), applied to the main weights matrix.
         b_constraint: instance of the [constraints](../constraints.md) module,
             applied to the bias.
-        context_dim: dimensionality of the input (integer).
+        input_dim: dimensionality of the input (integer).
             This argument (or alternatively, the keyword argument `input_shape`)
             is required when using this layer as the first layer in a model.
     '''
@@ -1094,7 +1094,7 @@ class TimeDistributedDense(Layer):
 
     def call(self, x, mask=None):
         input_shape = self.input_spec[0].shape
-        # x has shape (samples, timesteps, context_dim)
+        # x has shape (samples, timesteps, input_dim)
         input_length = input_shape[1]
         # Note: input_length should always be provided when using tensorflow backend.
         x = K.printing(x, 'SOFTMAX (x)!!')
@@ -1113,7 +1113,7 @@ class TimeDistributedDense(Layer):
                 input_length = K.shape(x)[1]
 
         # Squash samples and timesteps into a single axis
-        x = K.reshape(x, (-1, input_shape[-1]))  # (samples * timesteps, context_dim)
+        x = K.reshape(x, (-1, input_shape[-1]))  # (samples * timesteps, input_dim)
         y = K.dot(x, self.W) + self.b  # (samples * timesteps, output_dim)
         # We have to reshape Y to (samples, timesteps, output_dim)
         y = K.reshape(y, (-1, input_length, self.output_dim))  # (samples, timesteps, output_dim)
@@ -1131,7 +1131,7 @@ class TimeDistributedDense(Layer):
                   'activity_regularizer': self.activity_regularizer.get_config() if self.activity_regularizer else None,
                   'W_constraint': self.W_constraint.get_config() if self.W_constraint else None,
                   'b_constraint': self.b_constraint.get_config() if self.b_constraint else None,
-                  'context_dim': self.input_dim,
+                  'input_dim': self.input_dim,
                   'input_length': self.input_length}
         base_config = super(TimeDistributedDense, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))

@@ -80,7 +80,7 @@ class ClassActivationMapping(Layer):
 class Convolution1D(Layer):
     '''Convolution operator for filtering neighborhoods of one-dimensional inputs.
     When using this layer as the first layer in a model,
-    either provide the keyword argument `context_dim`
+    either provide the keyword argument `input_dim`
     (int, e.g. 128 for sequences of 128-dimensional vectors),
     or `input_shape` (tuple of integers, e.g. (10, 128) for sequences
     of 10 vectors of 128-dimensional vectors).
@@ -126,7 +126,7 @@ class Convolution1D(Layer):
         b_constraint: instance of the [constraints](../constraints.md) module,
             applied to the bias.
         bias: whether to include a bias (i.e. make the layer affine rather than linear).
-        context_dim: Number of channels/dimensions in the input.
+        input_dim: Number of channels/dimensions in the input.
             Either this argument or the keyword argument `input_shape`must be
             provided when using this layer as the first layer in a model.
         input_length: Length of input sequences, when it is constant.
@@ -135,7 +135,7 @@ class Convolution1D(Layer):
             (without it, the shape of the dense outputs cannot be computed).
 
     # Input shape
-        3D tensor with shape: `(samples, steps, context_dim)`.
+        3D tensor with shape: `(samples, steps, input_dim)`.
 
     # Output shape
         3D tensor with shape: `(samples, new_steps, nb_filter)`.
@@ -249,7 +249,7 @@ class Convolution1D(Layer):
                   'b_constraint': self.b_constraint.get_config() if self.b_constraint else None,
                   'b_learning_rate_multiplier': self.b_learning_rate_multiplier,
                   'bias': self.bias,
-                  'context_dim': self.input_dim,
+                  'input_dim': self.input_dim,
                   'input_length': self.input_length}
         base_config = super(Convolution1D, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))

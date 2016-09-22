@@ -33,6 +33,7 @@ def layer_from_config(config, custom_objects={}):
     else:
         layer_class = get_from_module(class_name, globals(), 'layer',
                                       instantiate=False)
+
     return layer_class.from_config(config['config'])
 
 
