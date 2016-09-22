@@ -90,55 +90,6 @@ class TestImage:
                 assert ((potentially_flipped_x == x).all() or
                         (potentially_flipped_x == flip_axis(x, col_index)).all())
 
-    def test_dual_generators(self):
-        '''
-        Should be able to run ImageDataGenerator on multiple arrays of images
-        and get identical transforms (as long as we provide the same seed).
-        This lets us transform images and masks together or other use cases.
-        '''
-        for test_images in self.all_test_images:
-            img_list = []
-            for im in test_images:
-                img_list.append(img_to_array(im)[None, ...])
-
-            X = np.vstack(img_list)
-            y = np.arange(X.shape[0])
-
-            seed = 1
-            batch_size = 2
-            data_gen_args = dict(
-                featurewise_center=True,
-                samplewise_center=True,
-                featurewise_std_normalization=True,
-                samplewise_std_normalization=True,
-                zca_whitening=True,
-                rotation_range=90.,
-                width_shift_range=0.1,
-                height_shift_range=0.1,
-                shear_range=0.5,
-                zoom_range=0.2,
-                channel_shift_range=0.01,
-                fill_mode='nearest',
-                cval=0.5,
-                horizontal_flip=True,
-                vertical_flip=True)
-
-            generator1 = ImageDataGenerator(**data_gen_args)
-            generator2 = ImageDataGenerator(**data_gen_args)
-
-            generator1.fit(X, augment=True, seed=seed)
-            generator2.fit(X, augment=True, seed=seed)
-
-            flow1 = generator1.flow(X, y, batch_size=batch_size, seed=seed)
-            flow2 = generator2.flow(X, y, batch_size=batch_size, seed=seed)
-
-            for i in range(10):
-                X1, y1 = next(flow1)
-                X2, y2 = next(flow2)
-                for b in range(batch_size):
-                    assert (X1 == X2).all()
-                    assert (y1 == y2).all()
-
 
 if __name__ == '__main__':
     pytest.main([__file__])

@@ -154,37 +154,39 @@ model.fit_generator(
         nb_val_samples=800)
 ```
 
-Example of using it to transform images and masks together.
+Example of transforming images and masks together.
 
 ```python
-
 # we create two instances with the same arguments
-data_gen_args = dict(
-    featurewise_center=True,
-    featurewise_std_normalization=True,
-    rotation_range=90.,
-    width_shift_range=0.1,
-    height_shift_range=0.1,
-    zoom_range=0.2
-)
-generator_i = ImageDataGenerator(**data_gen_args)
-generator_m = ImageDataGenerator(**data_gen_args)
+data_gen_args = dict(featurewise_center=True,
+                     featurewise_std_normalization=True,
+                     rotation_range=90.,
+                     width_shift_range=0.1,
+                     height_shift_range=0.1,
+                     zoom_range=0.2)
+image_datagen = ImageDataGenerator(**data_gen_args)
+mask_datagen = ImageDataGenerator(**data_gen_args)
 
-# We need to provide the same seed to the fit and flow methods
+# Provide the same seed and keyword arguments to the fit and flow methods
 seed = 1
-fake_y = np.zeroes(images.shape)
-generator_i.fit(images, augment=True, seed=seed)
-generator_m.fit(masks, augment=True, seed=seed)
-flow_images = generator_i.flow(images, fake_y, batch_size=2, seed=seed)
-flow_masks = generator_m.flow(masks, fake_y, batch_size=2, seed=seed)
+image_datagen.fit(images, augment=True, seed=seed)
+mask_datagen.fit(masks, augment=True, seed=seed)
 
-# combine the two generators into one which gives the first from each
-def dual_gen(flow_images,flow_masks):
-    for [X,_],[y,_] in zip(flow_images,flow_masks):
-        yield X,y
+image_generator = image_datagen.flow_from_directory(
+    'data/images',
+    class_mode=None,
+    seed=seed)
+
+mask_generator = mask_datagen.flow_from_directory(
+    'data/masks',
+    class_mode=None,
+    seed=seed)
+
+# combine generators into one which yields image and masks
+train_generator = zip(image_generator, mask_generator)
 
 model.fit_generator(
-        dual_gen(flow_images,flow_masks),
-        samples_per_epoch=2000,
-        nb_epoch=50)
+    train_generator,
+    samples_per_epoch=2000,
+    nb_epoch=50)
 ```
