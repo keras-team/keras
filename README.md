@@ -28,8 +28,14 @@ x = Dense(100, W_learning_rate_multiplier=10.0, b_learning_rate_multiplier=10.0)
 
 ## New layers for multimodal data
 
+#### Recurrent layers
+- [LSTMCond](https://github.com/MarcBS/keras/blob/ba642f5d345983c3ebeffede41c57e03a5c1f7ee/keras/layers/recurrent.py#L940): LSTM conditioned to the previously generated word (additional input with previous word).
 - [AttLSTM](https://github.com/MarcBS/keras/blob/ba642f5d345983c3ebeffede41c57e03a5c1f7ee/keras/layers/recurrent.py#L1261): LSTM with Attention mechanism.
-- [LSTMCond](https://github.com/MarcBS/keras/blob/ba642f5d345983c3ebeffede41c57e03a5c1f7ee/keras/layers/recurrent.py#L940): LSTM with an additional input consisting in the previously generated word.
+- [AttLSTMCond](https://github.com/MarcBS/keras/blob/4e6a8ec8a55bd0d5d091a44b058a797d3d934ce0/keras/layers/recurrent.py#L1642): LSTM with Attention mechanism and conditioned to previously generated word.
+
+#### Convolutional layers
+- [ClassActivationMapping](https://github.com/MarcBS/keras/blob/4e6a8ec8a55bd0d5d091a44b058a797d3d934ce0/keras/layers/convolutional.py#L23): Class Activation Mapping computation used in [GAP networks](http://arxiv.org/pdf/1512.04150.pdf).
+- [CompactBilinearPooling](https://github.com/MarcBS/keras/blob/4e6a8ec8a55bd0d5d091a44b058a797d3d934ce0/keras/layers/convolutional.py#L1395): compact version of bilinear pooling for [merging multimodal data](http://arxiv.org/pdf/1606.01847v2.pdf).
 
 ## Installation
 
