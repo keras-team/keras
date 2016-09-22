@@ -1,7 +1,5 @@
 # MarcBS/keras fork
 
-![Build status](https://api.travis-ci.org/MarcBS/keras.svg)
-
 This fork of Keras offers the following contributions:
 
 - Caffe to Keras conversion module
