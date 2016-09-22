@@ -532,3 +532,58 @@ class TensorBoard(Callback):
             summary_value.tag = name
             self.writer.add_summary(summary, epoch)
         self.writer.flush()
+
+
+class LambdaCallback(Callback):
+    """Callback for creating simple, custom callbacks on-the-fly.
+
+    This callback is constructed with anonymous functions that will be called
+    at the appropiate time. Note that the callbacks expects positional
+    arguments, as:
+     - `on_epoch_begin` and `on_epoch_end` expect two positional arguments: `epoch`, `logs`
+     - `on_batch_begin` and `on_batch_end` expect two positional arguments: `batch`, `logs`
+     - `on_train_begin` and `on_train_end` expect one positional argument: `logs`
+
+    # Arguments
+        on_epoch_begin: called at the beginning of every epoch.
+        on_epoch_end: called at the end of every epoch.
+        on_batch_begin: called at the beginning of every batch.
+        on_batch_end: called at the end of every batch.
+        on_train_begin: called at the beginning of model training.
+        on_train_end: called at the end of model training.
+
+    # Example
+        ```python
+        # Print the batch number at the beginning of every batch.
+        batch_print_callback = LambdaCallback(on_batch_begin=lambda batch, logs: print(batch))
+
+        # Plot the loss after every epoch.
+        import numpy as np
+        import matplotlib.pyplot as plt
+        plot_loss_callback = LambdaCallback(on_epoch_end=lambda epoch, logs: plt.plot(np.arange(epoch), logs['loss']))
+
+        # Terminate some processes after having finished model training.
+        processes = ...
+        cleanup_callback = LambdaCallback(on_train_end=lambda logs: [p.terminate() for p in processes if p.is_alive()])
+
+        model.fit(..., callbacks=[batch_print_callback, plot_loss_callback, cleanup_callback])
+        ```
+
+    """
+
+    def __init__(self,
+                 on_epoch_begin=None,
+                 on_epoch_end=None,
+                 on_batch_begin=None,
+                 on_batch_end=None,
+                 on_train_begin=None,
+                 on_train_end=None,
+                 **kwargs):
+        super(Callback, self).__init__()
+        self.__dict__.update(kwargs)
+        self.on_epoch_begin = on_epoch_begin if on_epoch_begin else lambda epoch, logs: None
+        self.on_epoch_end = on_epoch_end if on_epoch_end else lambda epoch, logs: None
+        self.on_batch_begin = on_batch_begin if on_batch_begin else lambda batch, logs: None
+        self.on_batch_end = on_batch_end if on_batch_end else lambda batch, logs: None
+        self.on_train_begin = on_train_begin if on_train_begin else lambda logs: None
+        self.on_train_end = on_train_end if on_train_end else lambda logs: None
