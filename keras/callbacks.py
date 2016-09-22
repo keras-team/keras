@@ -539,22 +539,22 @@ class TensorBoard(Callback):
 class ReduceLROnPlateau(Callback):
     '''Reduce learning rate when a metric has stopped improving.
 
-    Models often benefit from reducing the lr by a factor of
-    2-10 once learning stagnates. This callback monitors a
+    Models often benefit from reducing the learning rate by a factor
+    of 2-10 once learning stagnates. This callback monitors a
     quantity and if no improvement is seen for a 'patience' number
     of epochs, the learning rate is reduced.
 
     # Example
         ```python
-            reduce_lr = ReduceLROnPlateau(monitor='val_loss', reduce_factor=0.2,
+            reduce_lr = ReduceLROnPlateau(monitor='val_loss', factor=0.2,
                                           patience=5, min_lr=0.001)
             model.fit(X_train, Y_train, callbacks=[reduce_lr])
         ```
 
     # Arguments
         monitor: quantity to be monitored.
-        reduce_factor: factor by which the learning rate will
-            be reduced. new_lr = lr * reduce_factor
+        factor: factor by which the learning rate will
+            be reduced. new_lr = lr * factor
         patience: number of epochs with no improvement
             after which learning rate will be reduced.
         verbose: int. 0: quiet, 1: update messages.
@@ -572,12 +572,12 @@ class ReduceLROnPlateau(Callback):
         min_lr: lower bound on the learning rate.
     '''
 
-    def __init__(self, monitor='val_loss', reduce_factor=0.1, patience=10,
+    def __init__(self, monitor='val_loss', factor=0.1, patience=10,
                  verbose=0, mode='auto', epsilon=1e-4, cooldown=0, min_lr=0):
         super(Callback, self).__init__()
 
         self.monitor = monitor
-        self.reduce_factor = reduce_factor
+        self.factor = factor
         self.min_lr = min_lr
         self.epsilon = epsilon
         self.patience = patience
@@ -625,7 +625,7 @@ class ReduceLROnPlateau(Callback):
                 if self.wait >= self.patience:
                     old_lr = float(K.get_value(self.model.optimizer.lr))
                     if old_lr > self.min_lr:
-                        new_lr = old_lr * self.reduce_factor
+                        new_lr = old_lr * self.factor
                         new_lr = max(new_lr, self.min_lr)
                         K.set_value(self.model.optimizer.lr, new_lr)
                         if self.verbose > 0:
@@ -648,23 +648,23 @@ class CSVLogger(Callback):
     Arguments
         filename: filename of the csv file, e.g. 'run/log.csv'.
         separator: string used to separate elements in the csv file.
-        rewrite: True: overwrite existing file, False: append if
-            file exists (useful for continuing training).
+        append: True: append if file exists (useful for continuing
+            training). False: overwrite existing file,
     '''
 
-    def __init__(self, filename, separator=',', rewrite=True):
+    def __init__(self, filename, separator=',', append=False):
         self.sep = separator
         self.filename = filename
-        self.rewrite = rewrite
+        self.append = append
         self.writer = None
-        self.keys_ = None
+        self.keys = None
         super(CSVLogger, self).__init__()
 
     def on_train_begin(self, logs={}):
-        if self.rewrite:
-            self.csv_file = open(self.filename, 'w')
-        else:
+        if self.append:
             self.csv_file = open(self.filename, 'a')
+        else:
+            self.csv_file = open(self.filename, 'w')
 
     def on_epoch_end(self, epoch, logs={}):
         def handle_value(k):
@@ -675,12 +675,12 @@ class CSVLogger(Callback):
                 return k
 
         if not self.writer:
-            self.keys_ = sorted(logs.keys())
-            self.writer = csv.DictWriter(self.csv_file, fieldnames=['epoch'] + self.keys_)
+            self.keys = sorted(logs.keys())
+            self.writer = csv.DictWriter(self.csv_file, fieldnames=['epoch'] + self.keys)
             self.writer.writeheader()
 
         row_dict = OrderedDict({'epoch': epoch})
-        row_dict.update((key, handle_value(logs[key])) for key in self.keys_)
+        row_dict.update((key, handle_value(logs[key])) for key in self.keys)
         self.writer.writerow(row_dict)
         self.csv_file.flush()
 

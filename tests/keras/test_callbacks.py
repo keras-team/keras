@@ -167,7 +167,7 @@ def test_ReduceLROnPlateau():
                   metrics=['accuracy'])
 
     # This should reduce the LR after the first epoch (due to high epsilon).
-    cbks = [callbacks.ReduceLROnPlateau(monitor='val_loss', reduce_factor=0.1, epsilon=10, patience=1, cooldown=5)]
+    cbks = [callbacks.ReduceLROnPlateau(monitor='val_loss', factor=0.1, epsilon=10, patience=1, cooldown=5)]
     model.fit(X_train, y_train, batch_size=batch_size,
               validation_data=(X_test, y_test), callbacks=cbks, nb_epoch=5, verbose=2)
     assert (float(K.get_value(model.optimizer.lr)) - 0.01) < K.epsilon()
@@ -176,7 +176,7 @@ def test_ReduceLROnPlateau():
     model.compile(loss='categorical_crossentropy',
                   optimizer=optimizers.SGD(lr=0.1),
                   metrics=['accuracy'])
-    cbks = [callbacks.ReduceLROnPlateau(monitor='val_loss', reduce_factor=0.1, epsilon=0, patience=1, cooldown=5)]
+    cbks = [callbacks.ReduceLROnPlateau(monitor='val_loss', factor=0.1, epsilon=0, patience=1, cooldown=5)]
     model.fit(X_train, y_train, batch_size=batch_size,
               validation_data=(X_test, y_test), callbacks=cbks, nb_epoch=5, verbose=2)
     assert (float(K.get_value(model.optimizer.lr)) - 0.01) > K.epsilon()
