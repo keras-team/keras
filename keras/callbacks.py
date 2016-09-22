@@ -577,6 +577,8 @@ class ReduceLROnPlateau(Callback):
         super(Callback, self).__init__()
 
         self.monitor = monitor
+        if factor >= 1.0:
+            raise ValueError('ReduceLROnPlateau does not support a factor >= 1.0.')
         self.factor = factor
         self.min_lr = min_lr
         self.epsilon = epsilon
@@ -603,6 +605,7 @@ class ReduceLROnPlateau(Callback):
             self.best = -np.Inf
         self.cooldown_counter = 0
         self.wait = 0
+        self.lr_epsilon = self.min_lr * 1e-4
 
     def on_train_begin(self, logs={}):
         self.reset()
@@ -624,7 +627,7 @@ class ReduceLROnPlateau(Callback):
             elif self.cooldown_counter <= 0:
                 if self.wait >= self.patience:
                     old_lr = float(K.get_value(self.model.optimizer.lr))
-                    if old_lr > self.min_lr:
+                    if old_lr > self.min_lr + self.lr_epsilon:
                         new_lr = old_lr * self.factor
                         new_lr = max(new_lr, self.min_lr)
                         K.set_value(self.model.optimizer.lr, new_lr)
