@@ -931,11 +931,26 @@ def in_test_phase(x, alt):
 
 # NN OPERATIONS
 
+def _assert_has_capability(module, func):
+    assert hasattr(module, func), ('It looks like like your version of '
+                                   'Theano is out of date. '
+                                   'Install the latest version with:\n'
+                                   'pip install git+git://github.com/Theano/Theano.git --upgrade --no-deps')
+
+
+def elu(x, alpha=1.0):
+    """ Exponential linear unit
+
+    # Arguments
+        x: Tensor to compute the activation function for.
+        alpha: scalar
+    """
+    _assert_has_capability(T.nnet, 'elu')
+    return T.nnet.elu(x, alpha)
+
+
 def relu(x, alpha=0., max_value=None):
-    assert hasattr(T.nnet, 'relu'), ('It looks like like your version of '
-                                     'Theano is out of date. '
-                                     'Install the latest version with:\n'
-                                     'pip install git+git://github.com/Theano/Theano.git --upgrade --no-deps')
+    _assert_has_capability(T.nnet, 'relu')
     x = T.nnet.relu(x, alpha)
     if max_value is not None:
         x = T.minimum(x, max_value)
