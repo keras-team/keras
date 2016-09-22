@@ -492,6 +492,7 @@ class TestBackend(object):
         check_single_tensor_operation('relu', (4, 2), alpha=0.1, max_value=0.5)
         check_single_tensor_operation('softmax', (4, 10))
         check_single_tensor_operation('softplus', (4, 10))
+        check_single_tensor_operation('elu', (4, 10), alpha=0.5)
 
         check_single_tensor_operation('sigmoid', (4, 2))
         check_single_tensor_operation('hard_sigmoid', (4, 2))

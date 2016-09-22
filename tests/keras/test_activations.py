@@ -131,6 +131,23 @@ def test_relu():
     assert_allclose(result, test_values, rtol=1e-05)
 
 
+def test_elu():
+    x = K.placeholder(ndim=2)
+    f = K.function([x], [activations.elu(x, 0.5)])
+
+    test_values = get_standard_values()
+    result = f([test_values])[0]
+
+    # because no negatives in test values
+    assert_allclose(result, test_values, rtol=1e-05)
+
+    negative_values = np.array([[-1, -2]], dtype=K.floatx())
+    result = f([negative_values])[0]
+    true_result = (np.exp(negative_values) - 1) / 2
+
+    assert_allclose(result, true_result)
+
+
 def test_tanh():
     test_values = get_standard_values()
 
