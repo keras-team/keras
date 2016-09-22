@@ -29,23 +29,6 @@ def relu(x, alpha=0., max_value=None):
     return K.relu(x, alpha=alpha, max_value=max_value)
 
 
-def softexp(x, alpha=0., max_value=None):
-    """Soft Exponential activation function by Godfrey and Gashler
-
-    See: https://arxiv.org/pdf/1602.01321.pdf
-
-    α == 0:  f(α, x) = x
-    α  > 0:  f(α, x) = (exp(αx)-1) / α + α
-    α  < 0:  f(α, x) = -ln(1-α(x + α)) / α
-    """
-    if alpha == 0:
-        return x
-    elif alpha > 0:
-        return alpha + (K.exp(alpha * x) - 1.) / alpha
-    else:
-        return - K.log(1 - alpha * (x + alpha)) / alpha
-
-
 def tanh(x):
     return K.tanh(x)
 
