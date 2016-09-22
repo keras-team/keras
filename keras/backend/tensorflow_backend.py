@@ -587,7 +587,7 @@ def pow(x, a):
 def clip(x, min_value, max_value):
     '''Element-wise value clipping.
 
-    If max_value < min_value then min_value "wins" and the output is alwayas min_value
+    If max_value < min_value then min_value "wins" and the output is always min_value
     '''
     if max_value < min_value:
         max_value = min_value
