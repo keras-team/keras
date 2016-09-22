@@ -30,20 +30,16 @@ def relu(x, alpha=0., max_value=None):
 
 
 def softexp(x, alpha=0., max_value=None):
-    """Soft Exponential by Godfrey and Gashler
+    """Soft Exponential activation function by Godfrey and Gashler
 
-    TODO: is K.log a natural log?
     See: https://arxiv.org/pdf/1602.01321.pdf
 
-    α > 0:
-        f(α,x) = α + (exp(α * x) - 1) / α
-    α == 0:
-        f(α,x) = x
-    α < 0:
-        f(α,x) = - ln(1 - α * (x + α)) / α
+    α == 0:  f(α, x) = x
+    α  > 0:  f(α, x) = (exp(αx)-1) / α + α
+    α  < 0:  f(α, x) = -ln(1-α(x + α)) / α
     """
     if alpha == 0:
-        return 1 * x
+        return x
     elif alpha > 0:
         return alpha + (K.exp(alpha * x) - 1.) / alpha
     else:
