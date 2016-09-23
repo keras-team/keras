@@ -215,8 +215,14 @@ class ParametricSoftExp(Layer):
         return - K.log(1 - alpha * (x + alpha)) / alpha
 
     def call(self, x, mask=None):
-        return K.switch(self.alphas > 0, self.call_alpha_gt0,
-                        K.switch(self.alphas < 0, self.call_alpha_lt0, x))
+        pos = self.call_alpha_gt(x, self.alphas)
+        neg = self.call_alpha_lt(x, self.alphas)
+
+        is_pos = K.greater(self.alphas, 0)
+        is_neg = K.lesser(self.alphas, 0)
+
+        return K.select(is_pos, pos,
+                        K.select(is_neg, neg, x))
 
     def get_config(self):
         config = {'alpha_init': float(self.alpha_init)}
