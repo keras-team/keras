@@ -102,7 +102,7 @@ lstm_out = LSTM(32)(x)
 Here we insert the auxiliary loss, allowing the LSTM and Embedding layer to be trained smoothly even though the main loss will be much higher in the model.
 
 ```python
-auxiliary_loss = Dense(1, activation='sigmoid', name='aux_output')(lstm_out)
+auxiliary_output = Dense(1, activation='sigmoid', name='aux_output')(lstm_out)
 ```
 
 At this point, we feed into the model our auxiliary input data by concatenating it with the LSTM output:
@@ -117,13 +117,13 @@ x = Dense(64, activation='relu')(x)
 x = Dense(64, activation='relu')(x)
 
 # and finally we add the main logistic regression layer
-main_loss = Dense(1, activation='sigmoid', name='main_output')(x)
+main_output = Dense(1, activation='sigmoid', name='main_output')(x)
 ```
 
 This defines a model with two inputs and two outputs:
 
 ```python
-model = Model(input=[main_input, auxiliary_input], output=[main_loss, auxiliary_loss])
+model = Model(input=[main_input, auxiliary_input], output=[main_output, auxiliary_output])
 ```
 
 We compile the model and assign a weight of 0.2 to the auxiliary loss.
