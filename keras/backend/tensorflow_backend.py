@@ -1293,6 +1293,10 @@ def switch(condition, then_expression, else_expression):
     return x
 
 
+def select(condition, then_expression, else_expression):
+    return tf.select(condition, then_expression, else_expression)
+
+
 def in_train_phase(x, alt):
     '''Selects `x` in train phase, and `alt` otherwise.
     Note that `alt` should have the *same shape* as `x`.
