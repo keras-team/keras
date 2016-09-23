@@ -159,6 +159,7 @@ def test_ReduceLROnPlateau():
                                                          nb_class=nb_class)
     y_test = np_utils.to_categorical(y_test)
     y_train = np_utils.to_categorical(y_train)
+
     def make_model():
         np.random.seed(1337)
         model = Sequential()
@@ -183,6 +184,7 @@ def test_ReduceLROnPlateau():
     model.fit(X_train, y_train, batch_size=batch_size,
               validation_data=(X_test, y_test), callbacks=cbks, nb_epoch=5, verbose=2)
     assert np.allclose(float(K.get_value(model.optimizer.lr)), 0.1, atol=K.epsilon())
+
 
 @pytest.mark.skipif((K._BACKEND != 'tensorflow'),
                     reason="Requires tensorflow backend")
@@ -271,7 +273,7 @@ def test_TensorBoard():
         session = tf.Session('')
         KTF.set_session(session)
         model = Graph()
-        model.add_input(name='X_vars', input_shape=(input_dim, ))
+        model.add_input(name='X_vars', input_shape=(input_dim,))
 
         model.add_node(Dense(nb_hidden, activation="sigmoid"),
                        name='Dense1', input='X_vars')
@@ -309,6 +311,7 @@ def test_TensorBoard():
 
     KTF.set_session(old_session)
 
+
 def test_LambdaCallback():
     (X_train, y_train), (X_test, y_test) = get_test_data(nb_train=train_samples,
                                                          nb_test=test_samples,
@@ -328,6 +331,7 @@ def test_LambdaCallback():
     def f():
         while True:
             pass
+
     p = multiprocessing.Process(target=f)
     p.start()
     cleanup_callback = callbacks.LambdaCallback(on_train_end=lambda logs: p.terminate())
