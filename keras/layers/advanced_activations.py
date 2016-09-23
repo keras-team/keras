@@ -196,7 +196,7 @@ class ParametricSoftExp(Layer):
         self.supports_masking = True
         self.alpha_init = K.cast_to_floatx(alpha_init)
         self.initial_weights = weights
-        super(ParametricSoftplus, self).__init__(**kwargs)
+        super(ParametricSoftExp, self).__init__(**kwargs)
 
     def build(self, input_shape):
         input_shape = input_shape[1:]
@@ -220,7 +220,7 @@ class ParametricSoftExp(Layer):
 
     def get_config(self):
         config = {'alpha_init': float(self.alpha_init)}
-        base_config = super(ParametricSoftplus, self).get_config()
+        base_config = super(ParametricSoftExp, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
 
