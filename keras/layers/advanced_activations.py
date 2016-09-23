@@ -208,15 +208,15 @@ class ParametricSoftExp(Layer):
             self.set_weights(self.initial_weights)
             del self.initial_weights  # should this be set to None rather than deleted?
 
-    def call_alpha_gt0(self, x, alpha):
+    def call_alpha_pos(self, x, alpha):
         return alpha + (K.exp(alpha * x) - 1.) / alpha
 
-    def call_alpha_lt0(self, x, alpha):
+    def call_alpha_neg(self, x, alpha):
         return - K.log(1 - alpha * (x + alpha)) / alpha
 
     def call(self, x, mask=None):
-        pos = self.call_alpha_gt(x, self.alphas)
-        neg = self.call_alpha_lt(x, self.alphas)
+        pos = self.call_alpha_pos(x, self.alphas)
+        neg = self.call_alpha_neg(x, self.alphas)
 
         is_pos = K.greater(self.alphas, 0)
         is_neg = K.lesser(self.alphas, 0)
