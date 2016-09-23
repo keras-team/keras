@@ -159,28 +159,30 @@ def test_ReduceLROnPlateau():
                                                          nb_class=nb_class)
     y_test = np_utils.to_categorical(y_test)
     y_train = np_utils.to_categorical(y_train)
-    model = Sequential()
-    model.add(Dense(nb_hidden, input_dim=input_dim, activation='relu'))
-    model.add(Dense(nb_class, activation='softmax'))
-    model.compile(loss='categorical_crossentropy',
-                  optimizer=optimizers.SGD(lr=0.1),
-                  metrics=['accuracy'])
+    def make_model():
+        np.random.seed(1337)
+        model = Sequential()
+        model.add(Dense(nb_hidden, input_dim=input_dim, activation='relu'))
+        model.add(Dense(nb_class, activation='softmax'))
+
+        model.compile(loss='categorical_crossentropy',
+                      optimizer=optimizers.SGD(lr=0.1),
+                      metrics=['accuracy'])
+        return model
+
+    model = make_model()
 
     # This should reduce the LR after the first epoch (due to high epsilon).
     cbks = [callbacks.ReduceLROnPlateau(monitor='val_loss', factor=0.1, epsilon=10, patience=1, cooldown=5)]
     model.fit(X_train, y_train, batch_size=batch_size,
               validation_data=(X_test, y_test), callbacks=cbks, nb_epoch=5, verbose=2)
-    assert (float(K.get_value(model.optimizer.lr)) - 0.01) < K.epsilon()
+    assert np.allclose(float(K.get_value(model.optimizer.lr)), 0.01, atol=K.epsilon())
 
-    # This should not reduce the LR at all (due to zero epsilon).
-    model.compile(loss='categorical_crossentropy',
-                  optimizer=optimizers.SGD(lr=0.1),
-                  metrics=['accuracy'])
+    model = make_model()
     cbks = [callbacks.ReduceLROnPlateau(monitor='val_loss', factor=0.1, epsilon=0, patience=1, cooldown=5)]
     model.fit(X_train, y_train, batch_size=batch_size,
               validation_data=(X_test, y_test), callbacks=cbks, nb_epoch=5, verbose=2)
-    assert (float(K.get_value(model.optimizer.lr)) - 0.01) > K.epsilon()
-
+    assert np.allclose(float(K.get_value(model.optimizer.lr)), 0.1, atol=K.epsilon())
 
 @pytest.mark.skipif((K._BACKEND != 'tensorflow'),
                     reason="Requires tensorflow backend")
