@@ -25,7 +25,8 @@ TH_WEIGHTS_PATH = 'https://github.com/keunwoochoi/music-auto_tagging-keras/blob/
 TF_WEIGHTS_PATH = 'https://github.com/keunwoochoi/music-auto_tagging-keras/blob/master/data/music_tagger_crnn_weights_tensorflow.h5'
 
 
-def MusicTaggerCRNN(weights='msd', input_tensor=None):
+def MusicTaggerCRNN(weights='msd', input_tensor=None,
+                    include_top=True):
     '''Instantiate the MusicTaggerCRNN architecture,
     optionally loading weights pre-trained
     on Million Song Dataset. Note that when using TensorFlow,
@@ -48,6 +49,9 @@ def MusicTaggerCRNN(weights='msd', input_tensor=None):
             or "msd" (pre-training on ImageNet).
         input_tensor: optional Keras tensor (i.e. output of `layers.Input()`)
             to use as image input for the model.
+        include_top: whether to include the 1 fully-connected
+            layer (output layer) at the top of the network.
+            If False, the network outputs 32-dim features.
 
 
     # Returns
@@ -123,7 +127,9 @@ def MusicTaggerCRNN(weights='msd', input_tensor=None):
     x = GRU(32, return_sequences=True, name='gru1')(x)
     x = GRU(32, return_sequences=False, name='gru2')(x)
     x = Dropout(0.3)(x)
-    x = Dense(50, activation='sigmoid', name='output')(x)
+
+    if include_top:
+        x = Dense(50, activation='sigmoid', name='output')(x)
 
     # Create model
     model = Model(melgram_input, x)
@@ -144,5 +150,5 @@ def MusicTaggerCRNN(weights='msd', input_tensor=None):
                                     TF_WEIGHTS_PATH,
                                     cache_subdir='models')
 
-        model.load_weights(weights_path)
+        model.load_weights(weights_path, by_name=True)
         return model
