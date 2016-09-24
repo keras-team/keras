@@ -30,7 +30,7 @@ def librosa_exists():
         return True
 
 
-def load_preprocess_input(audio_path, dim_ordering='default'):
+def preprocess_input(audio_path, dim_ordering='default'):
     if dim_ordering == 'default':
         dim_ordering = K.image_dim_ordering()
     assert dim_ordering in {'tf', 'th'}
@@ -44,18 +44,19 @@ def load_preprocess_input(audio_path, dim_ordering='default'):
 
     src, sr = librosa.load(audio_path, sr=SR)
     n_sample = src.shape[0]
-    n_sample_wanted = int(DURA*SR)
+    n_sample_wanted = int(DURA * SR)
 
     # trim the signal at the center
     if n_sample < n_sample_wanted:  # if too short
-        src = np.hstack((src, np.zeros((int(DURA*SR) - n_sample,))))
+        src = np.hstack((src, np.zeros((int(DURA * SR) - n_sample,))))
     elif n_sample > n_sample_wanted:  # if too long
-        src = src[(n_sample-n_sample_wanted)/2:(n_sample+n_sample_wanted)/2]
+        src = src[(n_sample - n_sample_wanted) / 2:
+                  (n_sample + n_sample_wanted) / 2]
 
     logam = librosa.logamplitude
     melgram = librosa.feature.melspectrogram
     x = logam(melgram(y=src, sr=SR, hop_length=HOP_LEN,
-                      n_fft=N_FFT, n_mels=N_MELS)**2,
+                      n_fft=N_FFT, n_mels=N_MELS) ** 2,
               ref_power=1.0)
 
     if dim_ordering == 'th':
