@@ -26,6 +26,7 @@ All of these architectures are compatible with both TensorFlow and Theano, and u
 from keras.applications.resnet50 import ResNet50
 from keras.preprocessing import image
 from keras.applications.resnet50 import preprocess_input, decode_predictions
+import numpy as np
 
 model = ResNet50(weights='imagenet')
 
@@ -36,8 +37,10 @@ x = np.expand_dims(x, axis=0)
 x = preprocess_input(x)
 
 preds = model.predict(x)
-print('Predicted:', decode_predictions(preds))
-# print: [[u'n02504458', u'African_elephant']]
+# decode the results into a list of tuples (class, description, probability)
+# (one such list for each sample in the batch)
+print('Predicted:', decode_predictions(preds, top=3)[0])
+# Predicted: [(u'n02504013', u'Indian_elephant', 0.82658225), (u'n01871265', u'tusker', 0.1122357), (u'n02504458', u'African_elephant', 0.061040461)]
 ```
 
 ### Extract features with VGG16
