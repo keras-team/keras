@@ -159,17 +159,15 @@ model = InceptionV3(input_tensor=input_tensor, weights='imagenet', include_top=T
 ### Music tagging and feature extraction with MusicTaggerCRNN
 
 ```python
-
 from keras.applications.music_tagger_crnn import MusicTaggerCRNN
-from keras.applications.music_tagger_crnn import load_preprocess_input, decode_predictions
-
-# this could also be the output a different Keras model or layer
+from keras.applications.music_tagger_crnn import preprocess_input, decode_predictions
+import numpy as np
 
 # 1. Tagging
 model = MusicTaggerCRNN(weights='msd')
 
 audio_path = 'audio_file.mp3'
-melgram = load_preprocess_input(audio_path)
+melgram = preprocess_input(audio_path)
 melgrams = np.expand_dims(melgram, axis=0)
 
 preds = model.predict(melgrams)
@@ -181,15 +179,13 @@ print(decode_predictions(preds))
 model = MusicTaggerCRNN(weights='msd', include_top=False)
 
 audio_path = 'audio_file.mp3'
-melgram = load_preprocess_input(audio_path)
+melgram = preprocess_input(audio_path)
 melgrams = np.expand_dims(melgram, axis=0)
 
 feats = model.predict(melgrams)
 print('Features:')
 print(feats[0, :10])
 # print: ('Features:', [-0.19160545 0.94259131 -0.9991011 0.47644514 -0.19089699 0.99033844 0.1103896 -0.00340496 0.14823607 0.59856361])
-
-
 ```
 
 
@@ -310,6 +306,8 @@ These weights are trained by ourselves and are released under the MIT license.
 keras.applications.music_tagger_crnn.MusicTaggerCRNN(weights='msd', input_tensor=None, include_top=True)
 ```
 
+A convolutional-recurrent model taking as input a vectorized representation of the Melgram spectrogram of a music track and capable of outputting the musical genre of the track. You can use `keras.applications.music_tagger_crnn.preprocess_input` the convert a sound file to a vectorized spectrogram. This requires to have installed the [Librosa](http://librosa.github.io/librosa/) library. See [the usage example](#music-tagging-and-feature-extraction-with-musictaggercrnn).
+
 ### Arguments
 
 - weights: one of `None` (random initialization) or "msd" (pre-training on [Million Song Dataset](http://labrosa.ee.columbia.edu/millionsong/)).
@@ -319,6 +317,7 @@ keras.applications.music_tagger_crnn.MusicTaggerCRNN(weights='msd', input_tensor
 ### Returns
 
 A Keras model instance.
+
 
 ### References
 

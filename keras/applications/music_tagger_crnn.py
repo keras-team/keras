@@ -19,10 +19,10 @@ from ..layers.normalization import BatchNormalization
 from ..layers.advanced_activations import ELU
 from ..layers.recurrent import GRU
 from ..utils.data_utils import get_file
-from .audio_conv_utils import decode_predictions, load_preprocess_input
+from .audio_conv_utils import decode_predictions, preprocess_input
 
-TH_WEIGHTS_PATH = 'https://github.com/keunwoochoi/music-auto_tagging-keras/blob/master/data/music_tagger_crnn_weights_theano.h5'
-TF_WEIGHTS_PATH = 'https://github.com/keunwoochoi/music-auto_tagging-keras/blob/master/data/music_tagger_crnn_weights_tensorflow.h5'
+TH_WEIGHTS_PATH = 'https://github.com/keunwoochoi/music-auto_tagging-keras/raw/master/data/music_tagger_crnn_weights_theano.h5'
+TF_WEIGHTS_PATH = 'https://github.com/keunwoochoi/music-auto_tagging-keras/raw/master/data/music_tagger_crnn_weights_tensorflow.h5'
 
 
 def MusicTaggerCRNN(weights='msd', input_tensor=None,
@@ -137,7 +137,7 @@ def MusicTaggerCRNN(weights='msd', input_tensor=None,
         return model
     else:
         # Load weights
-        if K.image_dim_ordering == 'tf':
+        if K.image_dim_ordering() == 'tf':
             raise RuntimeError("Please set image_dim_ordering == 'th'."
                                "You can set it at ~/.keras/keras.json")
 

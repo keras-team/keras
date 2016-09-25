@@ -1,12 +1,6 @@
 import numpy as np
 from .. import backend as K
 
-if librosa_exists():
-    import librosa
-else:
-    raise RuntimeError('librosa is required to process audio files\n' +
-                       'In short, $ pip install librosa\nor visit ' +
-                       'http://librosa.github.io/librosa/ for details.')
 
 TAGS = ['rock', 'pop', 'alternative', 'indie', 'electronic',
         'female vocalists', 'dance', '00s', 'alternative rock', 'jazz',
@@ -34,6 +28,13 @@ def preprocess_input(audio_path, dim_ordering='default'):
     if dim_ordering == 'default':
         dim_ordering = K.image_dim_ordering()
     assert dim_ordering in {'tf', 'th'}
+
+    if librosa_exists():
+        import librosa
+    else:
+        raise RuntimeError('librosa is required to process audio files\n' +
+                           'In short, $ pip install librosa\nor visit ' +
+                           'http://librosa.github.io/librosa/ for details.')
 
     # mel-spectrogram parameters
     SR = 12000
