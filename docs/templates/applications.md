@@ -13,6 +13,7 @@ Models for image classification with weights trained on ImageNet:
 - [VGG19](#vgg19)
 - [ResNet50](#resnet50)
 - [InceptionV3](#inceptionv3)
+- [MusicTaggerCRNN](#musictaggercrnn)
 
 All of these architectures are compatible with both TensorFlow and Theano, and upon instantiation the models will be built according to the image dimension ordering set in your Keras configuration file at `~/.keras/keras.json`. For instance, if you have set `image_dim_ordering=tf`, then any model loaded from this repository will get built according to the TensorFlow dimension ordering convention, "Width-Height-Depth".
 
@@ -154,6 +155,44 @@ input_tensor = Input(shape=(224, 224, 3))  # this assumes K.image_dim_ordering()
 model = InceptionV3(input_tensor=input_tensor, weights='imagenet', include_top=True)
 ```
 
+
+### Music tagging and feature extraction with MusicTaggerCRNN
+
+```python
+
+from keras.applications.music_tagger_crnn import MusicTaggerCRNN
+from keras.applications.music_tagger_crnn import load_preprocess_input, decode_predictions
+
+# this could also be the output a different Keras model or layer
+
+# 1. Tagging
+model = MusicTaggerCRNN(weights='msd')
+
+audio_path = 'audio_file.mp3'
+melgram = load_preprocess_input(audio_path)
+melgrams = np.expand_dims(melgram, axis=0)
+
+preds = model.predict(melgrams)
+print('Predicted:')
+print(decode_predictions(preds))
+# print: ('Predicted:', [[('rock', 0.097071797), ('pop', 0.042456303), ('alternative', 0.032439161), ('indie', 0.024491295), ('female vocalists', 0.016455274)]])
+
+#. 2. Feature extraction
+model = MusicTaggerCRNN(weights='msd', include_top=False)
+
+audio_path = 'audio_file.mp3'
+melgram = load_preprocess_input(audio_path)
+melgrams = np.expand_dims(melgram, axis=0)
+
+feats = model.predict(melgrams)
+print('Features:')
+print(feats[0, :10])
+# print: ('Features:', [-0.19160545 0.94259131 -0.9991011 0.47644514 -0.19089699 0.99033844 0.1103896 -0.00340496 0.14823607 0.59856361])
+
+
+```
+
+
 -----
 
 ## VGG16
@@ -261,3 +300,30 @@ A Keras model instance.
 ### License
 
 These weights are trained by ourselves and are released under the MIT license.
+
+-----
+
+## MusicTaggerCRNN
+
+
+```python
+keras.applications.music_tagger_crnn.MusicTaggerCRNN(weights='msd', input_tensor=None, include_top=True)
+```
+
+### Arguments
+
+- weights: one of `None` (random initialization) or "msd" (pre-training on [Million Song Dataset](http://labrosa.ee.columbia.edu/millionsong/)).
+- input_tensor: optional Keras tensor (i.e. output of `layers.Input()`) to use as image input for the model.
+- include_top: whether to include the 1 fully-connected layer (output layer) at the top of the network. If False, the network outputs 32-dim features.
+
+### Returns
+
+A Keras model instance.
+
+### References
+
+- [Convolutional Recurrent Neural Networks for Music Classification](https://arxiv.org/abs/1609.04243)
+
+### License
+
+These weights are ported from the ones [released by Keunwoo Choi](https://github.com/keunwoochoi/music-auto_tagging-keras) under the [MIT license](https://github.com/keunwoochoi/music-auto_tagging-keras/blob/master/LICENSE.md).
