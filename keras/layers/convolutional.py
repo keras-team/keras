@@ -556,7 +556,7 @@ class Deconvolution2D(Convolution2D):
                     p - padding size,
                     a - user-specified quantity used to distinguish between
                         the s different possible output sizes.
-             Because a is not specified explicitely and Theano and Tensorflow
+             Because a is not specified explicitly and Theano and Tensorflow
              use different values, it is better to use a dummy input and observe
              the actual output shape of a layer as specified in the examples.
         init: name of initialization function for the weights of the layer
