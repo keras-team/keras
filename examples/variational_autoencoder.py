@@ -16,6 +16,7 @@ original_dim = 784
 latent_dim = 2
 intermediate_dim = 256
 nb_epoch = 50
+epsilon_std = 0.01
 
 x = Input(batch_shape=(batch_size, original_dim))
 h = Dense(intermediate_dim, activation='relu')(x)
@@ -25,7 +26,8 @@ z_log_var = Dense(latent_dim)(h)
 
 def sampling(args):
     z_mean, z_log_var = args
-    epsilon = K.random_normal(shape=(batch_size, latent_dim), mean=0.)
+    epsilon = K.random_normal(shape=(batch_size, latent_dim), mean=0.
+                              std=epsilon_std)
     return z_mean + K.exp(z_log_var / 2) * epsilon
 
 # note that "output_shape" isn't necessary with the TensorFlow backend
@@ -39,7 +41,7 @@ x_decoded_mean = decoder_mean(h_decoded)
 
 
 def vae_loss(x, x_decoded_mean):
-    xent_loss = original_dim * objectives.binary_crossentropy(x, x_decoded_mean)
+    xent_loss = objectives.binary_crossentropy(x, x_decoded_mean)
     kl_loss = - 0.5 * K.sum(1 + z_log_var - K.square(z_mean) - K.exp(z_log_var), axis=-1)
     return xent_loss + kl_loss
 
@@ -86,7 +88,7 @@ grid_y = np.linspace(-15, 15, n)
 
 for i, yi in enumerate(grid_x):
     for j, xi in enumerate(grid_y):
-        z_sample = np.array([[xi, yi]])
+        z_sample = np.array([[xi, yi]]) * 0.01
         x_decoded = generator.predict(z_sample)
         digit = x_decoded[0].reshape(digit_size, digit_size)
         figure[i * digit_size: (i + 1) * digit_size,
