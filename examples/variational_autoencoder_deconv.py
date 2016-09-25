@@ -62,15 +62,18 @@ decoder_c_1 = Reshape((nb_filters, 14, 14))
 decoder_c_2 = Deconvolution2D(nb_filters, nb_conv, nb_conv,
                               (batch_size, nb_filters, 14, 14),
                               border_mode='same',
-                              subsample=(1, 1))
+                              subsample=(1, 1),
+                              activation='relu')
 decoder_c_3 = Deconvolution2D(nb_filters, nb_conv, nb_conv,
                               (batch_size, nb_filters, 14, 14),
                               border_mode='same',
-                              subsample=(1, 1))
+                              subsample=(1, 1),
+                              activation='relu')
 decoder_mean = Deconvolution2D(nb_filters, 2, 2,
                                (batch_size, nb_filters, 29, 29),
                                border_mode='valid',
-                               subsample=(2, 2))
+                               subsample=(2, 2),
+                               activation='relu')
 decoder_mean_c = Convolution2D(img_chns, 2, 2, border_mode='valid', activation='relu')
 
 h_decoded = decoder_h(z)
