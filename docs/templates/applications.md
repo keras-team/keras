@@ -306,7 +306,7 @@ These weights are trained by ourselves and are released under the MIT license.
 keras.applications.music_tagger_crnn.MusicTaggerCRNN(weights='msd', input_tensor=None, include_top=True)
 ```
 
-A convolutional-recurrent model taking as input a vectorized representation of the Melgram spectrogram of a music track and capable of outputting the musical genre of the track. You can use `keras.applications.music_tagger_crnn.preprocess_input` the convert a sound file to a vectorized spectrogram. This requires to have installed the [Librosa](http://librosa.github.io/librosa/) library. See [the usage example](#music-tagging-and-feature-extraction-with-musictaggercrnn).
+A convolutional-recurrent model taking as input a vectorized representation of the Melgram spectrogram of a music track and capable of outputting the musical genre of the track. You can use `keras.applications.music_tagger_crnn.preprocess_input` to convert a sound file to a vectorized spectrogram. This requires to have installed the [Librosa](http://librosa.github.io/librosa/) library. See [the usage example](#music-tagging-and-feature-extraction-with-musictaggercrnn).
 
 ### Arguments
 
@@ -317,7 +317,6 @@ A convolutional-recurrent model taking as input a vectorized representation of t
 ### Returns
 
 A Keras model instance.
-
 
 ### References
 
