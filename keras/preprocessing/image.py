@@ -181,7 +181,7 @@ def load_img(path, grayscale=False, target_size=None):
 
 
 def list_pictures(directory, ext='jpg|jpeg|bmp|png'):
-    return [os.path.join(directory, f) for f in os.listdir(directory)
+    return [os.path.join(directory, f) for f in sorted(os.listdir(directory))
             if os.path.isfile(os.path.join(directory, f)) and re.match('([\w]+\.(?:' + ext + '))', f)]
 
 
@@ -563,7 +563,7 @@ class DirectoryIterator(Iterator):
 
         for subdir in classes:
             subpath = os.path.join(directory, subdir)
-            for fname in os.listdir(subpath):
+            for fname in sorted(os.listdir(subpath)):
                 is_valid = False
                 for extension in white_list_formats:
                     if fname.lower().endswith('.' + extension):
@@ -579,7 +579,7 @@ class DirectoryIterator(Iterator):
         i = 0
         for subdir in classes:
             subpath = os.path.join(directory, subdir)
-            for fname in os.listdir(subpath):
+            for fname in sorted(os.listdir(subpath)):
                 is_valid = False
                 for extension in white_list_formats:
                     if fname.lower().endswith('.' + extension):
