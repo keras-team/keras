@@ -3,6 +3,7 @@ import json
 
 from ..utils.data_utils import get_file
 from .. import backend as K
+import numpy as np
 
 CLASS_INDEX = None
 CLASS_INDEX_PATH = 'https://s3.amazonaws.com/deep-learning-models/image-models/imagenet_class_index.json'
@@ -12,7 +13,8 @@ def preprocess_input(x, dim_ordering='default'):
     if dim_ordering == 'default':
         dim_ordering = K.image_dim_ordering()
     assert dim_ordering in {'tf', 'th'}
-
+    x = np.asarray(x, dtype='float64')
+    
     if dim_ordering == 'th':
         x[:, 0, :, :] -= 103.939
         x[:, 1, :, :] -= 116.779
