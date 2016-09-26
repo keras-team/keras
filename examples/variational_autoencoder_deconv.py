@@ -74,7 +74,7 @@ decoder_mean = Deconvolution2D(nb_filters, 2, 2,
                                border_mode='valid',
                                subsample=(2, 2),
                                activation='relu')
-decoder_mean_c = Convolution2D(img_chns, 2, 2, border_mode='valid', activation='relu')
+decoder_mean_c = Convolution2D(img_chns, 2, 2, border_mode='valid', activation='sigmoid')
 
 h_decoded = decoder_h(z)
 f_decoded = decoder_f(h_decoded)
@@ -88,7 +88,7 @@ def vae_loss(x, x_decoded_mean):
     # NOTE: binary_crossentropy expects a batch_size by dim for x and x_decoded_mean, so we MUST flatten these!
     x = K.flatten(x)
     x_decoded_mean = K.flatten(x_decoded_mean)
-    xent_loss = objectives.binary_crossentropy(x, x_decoded_mean)
+    xent_loss = 28 * 28 * objectives.binary_crossentropy(x, x_decoded_mean)
     kl_loss = - 0.5 * K.mean(1 + z_log_var - K.square(z_mean) - K.exp(z_log_var), axis=-1)
     return xent_loss + kl_loss
 
@@ -151,7 +151,7 @@ grid_y = np.linspace(-15, 15, n)
 
 for i, yi in enumerate(grid_x):
     for j, xi in enumerate(grid_y):
-        z_sample = np.array([[xi, yi]]) * 0.01
+        z_sample = np.array([[xi, yi]])
         z_sample = np.tile(z_sample, batch_size).reshape(batch_size, 2)
         x_decoded = generator.predict(z_sample, batch_size=batch_size)
         digit = x_decoded[0].reshape(digit_size, digit_size)

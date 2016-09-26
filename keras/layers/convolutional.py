@@ -587,7 +587,7 @@ class Deconvolution2D(Convolution2D):
             (the depth) is at index 1, in 'tf' mode is it at index 3.
             It defaults to the `image_dim_ordering` value found in your
             Keras config file at `~/.keras/keras.json`.
-            If you never set it, then it will be "th".
+            If you never set it, then it will be "tf".
         bias: whether to include a bias (i.e. make the layer affine rather than linear).
 
     # Input shape

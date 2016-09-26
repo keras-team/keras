@@ -41,7 +41,7 @@ x_decoded_mean = decoder_mean(h_decoded)
 
 
 def vae_loss(x, x_decoded_mean):
-    xent_loss = objectives.binary_crossentropy(x, x_decoded_mean)
+    xent_loss = original_dim * objectives.binary_crossentropy(x, x_decoded_mean)
     kl_loss = - 0.5 * K.sum(1 + z_log_var - K.square(z_mean) - K.exp(z_log_var), axis=-1)
     return xent_loss + kl_loss
 
@@ -88,7 +88,7 @@ grid_y = np.linspace(-15, 15, n)
 
 for i, yi in enumerate(grid_x):
     for j, xi in enumerate(grid_y):
-        z_sample = np.array([[xi, yi]]) * 0.01
+        z_sample = np.array([[xi, yi]])
         x_decoded = generator.predict(z_sample)
         digit = x_decoded[0].reshape(digit_size, digit_size)
         figure[i * digit_size: (i + 1) * digit_size,
