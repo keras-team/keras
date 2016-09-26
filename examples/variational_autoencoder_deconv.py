@@ -6,7 +6,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from keras.layers import Input, Dense, Lambda, Flatten, Reshape
-from keras.layers import Convolution2D, MaxPooling2D
+from keras.layers import Convolution2D, Deconvolution2D, MaxPooling2D
 from keras.models import Model
 from keras import backend as K
 from keras import objectives
@@ -19,11 +19,11 @@ nb_filters = 64
 # convolution kernel size
 nb_conv = 3
 
-batch_size = 128
+batch_size = 100
 original_dim = (img_chns, img_rows, img_cols)
 latent_dim = 2
 intermediate_dim = 128
-epsilon_std = 1.0
+epsilon_std = 0.01
 nb_epoch = 5
 
 
@@ -62,15 +62,18 @@ decoder_c_1 = Reshape((nb_filters, 14, 14))
 decoder_c_2 = Deconvolution2D(nb_filters, nb_conv, nb_conv,
                               (batch_size, nb_filters, 14, 14),
                               border_mode='same',
-                              subsample=(1, 1))
+                              subsample=(1, 1),
+                              activation='relu')
 decoder_c_3 = Deconvolution2D(nb_filters, nb_conv, nb_conv,
                               (batch_size, nb_filters, 14, 14),
                               border_mode='same',
-                              subsample=(1, 1))
+                              subsample=(1, 1),
+                              activation='relu')
 decoder_mean = Deconvolution2D(nb_filters, 2, 2,
                                (batch_size, nb_filters, 29, 29),
                                border_mode='valid',
-                               subsample=(2, 2))
+                               subsample=(2, 2),
+                               activation='relu')
 decoder_mean_c = Convolution2D(img_chns, 2, 2, border_mode='valid', activation='relu')
 
 h_decoded = decoder_h(z)
@@ -85,7 +88,7 @@ def vae_loss(x, x_decoded_mean):
     # NOTE: binary_crossentropy expects a batch_size by dim for x and x_decoded_mean, so we MUST flatten these!
     x = K.flatten(x)
     x_decoded_mean = K.flatten(x_decoded_mean)
-    xent_loss = 28 * 28 * objectives.binary_crossentropy(x, x_decoded_mean)
+    xent_loss = objectives.binary_crossentropy(x, x_decoded_mean)
     kl_loss = - 0.5 * K.mean(1 + z_log_var - K.square(z_mean) - K.exp(z_log_var), axis=-1)
     return xent_loss + kl_loss
 
@@ -148,7 +151,7 @@ grid_y = np.linspace(-15, 15, n)
 
 for i, yi in enumerate(grid_x):
     for j, xi in enumerate(grid_y):
-        z_sample = np.array([[xi, yi]])
+        z_sample = np.array([[xi, yi]]) * 0.01
         z_sample = np.tile(z_sample, batch_size).reshape(batch_size, 2)
         x_decoded = generator.predict(z_sample, batch_size=batch_size)
         digit = x_decoded[0].reshape(digit_size, digit_size)
