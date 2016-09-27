@@ -94,7 +94,12 @@ def print_summary(layers, relevant_nodes=None, line_length=100, positions=[.33, 
             print('=' * line_length)
         else:
             print('_' * line_length)
-        total_params += layers[i].count_params()
+        if type(layers[i]) in (Model, Sequential):
+            for layer in layers[i].layers:
+                if layer not in layers:
+                    total_params += layer.count_params()
+        else:
+            total_params += layers[i].count_params()
 
     print('Total params: %s' % total_params)
     print('_' * line_length)
