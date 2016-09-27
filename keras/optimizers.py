@@ -301,7 +301,7 @@ class Adadelta(Optimizer):
     # References
         - [Adadelta - an adaptive learning rate method](http://arxiv.org/abs/1212.5701)
     '''
-    def __init__(self, lr=1.0, rho=0.95, epsilon=1e-8, decay=0.,
+    def __init__(self, lr=0.01, rho=0.95, epsilon=1e-8, decay=0.,
                  **kwargs):
         super(Adadelta, self).__init__(**kwargs)
         self.__dict__.update(locals())
