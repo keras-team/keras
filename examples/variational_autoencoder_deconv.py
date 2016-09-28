@@ -30,14 +30,14 @@ nb_epoch = 5
 x = Input(batch_shape=(batch_size,) + original_dim)
 conv_1 = Convolution2D(img_chns, 2, 2, border_mode='same', activation='relu')(x)
 conv_2 = Convolution2D(nb_filters, 2, 2,
-                    border_mode='same', activation='relu',
-                    subsample=(2, 2))(conv_1)
+                       border_mode='same', activation='relu',
+                       subsample=(2, 2))(conv_1)
 conv_3 = Convolution2D(nb_filters, nb_conv, nb_conv,
-                    border_mode='same', activation='relu',
-                    subsample=(1, 1))(conv_2)
+                       border_mode='same', activation='relu',
+                       subsample=(1, 1))(conv_2)
 conv_4 = Convolution2D(nb_filters, nb_conv, nb_conv,
-                    border_mode='same', activation='relu',
-                    subsample=(1, 1))(conv_3)
+                       border_mode='same', activation='relu',
+                       subsample=(1, 1))(conv_3)
 flat = Flatten()(conv_4)
 hidden = Dense(intermediate_dim, activation='relu')(flat)
 
@@ -60,20 +60,20 @@ decoder_hid = Dense(intermediate_dim, activation='relu')
 decoder_upsample = Dense(nb_filters * 14 * 14, activation='relu')
 decoder_reshape = Reshape((nb_filters, 14, 14))
 decoder_deconv_1 = Deconvolution2D(nb_filters, nb_conv, nb_conv,
-                              (batch_size, nb_filters, 14, 14),
-                              border_mode='same',
-                              subsample=(1, 1),
-                              activation='relu')
+                                   (batch_size, nb_filters, 14, 14),
+                                   border_mode='same',
+                                   subsample=(1, 1),
+                                   activation='relu')
 decoder_deconv_2 = Deconvolution2D(nb_filters, nb_conv, nb_conv,
-                              (batch_size, nb_filters, 14, 14),
-                              border_mode='same',
-                              subsample=(1, 1),
-                              activation='relu')
+                                   (batch_size, nb_filters, 14, 14),
+                                   border_mode='same',
+                                   subsample=(1, 1),
+                                   activation='relu')
 decoder_deconv_3_upsamp = Deconvolution2D(nb_filters, 2, 2,
-                               (batch_size, nb_filters, 29, 29),
-                               border_mode='valid',
-                               subsample=(2, 2),
-                               activation='relu')
+                                          (batch_size, nb_filters, 29, 29),
+                                          border_mode='valid',
+                                          subsample=(2, 2),
+                                          activation='relu')
 decoder_mean_squash = Convolution2D(img_chns, 2, 2, border_mode='valid', activation='sigmoid')
 
 hid_decoded = decoder_hid(z)
