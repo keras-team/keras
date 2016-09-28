@@ -507,7 +507,7 @@ In this model, two input sequences are encoded into vectors by two separate LSTM
 
 These two vectors are then concatenated, and a fully connected network is trained on top of the concatenated representations.
 
-<img src="https://keras.io/img/dual_lstm.png" alt="Dual LSTM" style="width: 600px;"/>
+<img src="http://i.imgur.com/ylF279g.png" alt="Dual LSTM" style="width: 400px;"/>
 
 ```python
 from keras.models import Sequential
