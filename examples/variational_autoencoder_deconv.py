@@ -28,21 +28,21 @@ nb_epoch = 5
 
 
 x = Input(batch_shape=(batch_size,) + original_dim)
-c_1 = Convolution2D(img_chns, 2, 2, border_mode='same', activation='relu')(x)
-c_2 = Convolution2D(nb_filters, 2, 2,
+conv_1 = Convolution2D(img_chns, 2, 2, border_mode='same', activation='relu')(x)
+conv_2 = Convolution2D(nb_filters, 2, 2,
                     border_mode='same', activation='relu',
-                    subsample=(2, 2))(c_1)
-c_3 = Convolution2D(nb_filters, nb_conv, nb_conv,
+                    subsample=(2, 2))(conv_1)
+conv_3 = Convolution2D(nb_filters, nb_conv, nb_conv,
                     border_mode='same', activation='relu',
-                    subsample=(1, 1))(c_2)
-c_4 = Convolution2D(nb_filters, nb_conv, nb_conv,
+                    subsample=(1, 1))(conv_2)
+conv_4 = Convolution2D(nb_filters, nb_conv, nb_conv,
                     border_mode='same', activation='relu',
-                    subsample=(1, 1))(c_3)
-f = Flatten()(c_4)
-h = Dense(intermediate_dim, activation='relu')(f)
+                    subsample=(1, 1))(conv_3)
+flat = Flatten()(conv_4)
+hidden = Dense(intermediate_dim, activation='relu')(flat)
 
-z_mean = Dense(latent_dim)(h)
-z_log_var = Dense(latent_dim)(h)
+z_mean = Dense(latent_dim)(hidden)
+z_log_var = Dense(latent_dim)(hidden)
 
 
 def sampling(args):
@@ -56,43 +56,43 @@ def sampling(args):
 z = Lambda(sampling, output_shape=(latent_dim,))([z_mean, z_log_var])
 
 # we instantiate these layers separately so as to reuse them later
-decoder_h = Dense(intermediate_dim, activation='relu')
-decoder_f = Dense(nb_filters*14*14, activation='relu')
-decoder_c_1 = Reshape((nb_filters, 14, 14))
-decoder_c_2 = Deconvolution2D(nb_filters, nb_conv, nb_conv,
+decoder_hid = Dense(intermediate_dim, activation='relu')
+decoder_upsample = Dense(nb_filters * 14 * 14, activation='relu')
+decoder_reshape = Reshape((nb_filters, 14, 14))
+decoder_deconv_1 = Deconvolution2D(nb_filters, nb_conv, nb_conv,
                               (batch_size, nb_filters, 14, 14),
                               border_mode='same',
                               subsample=(1, 1),
                               activation='relu')
-decoder_c_3 = Deconvolution2D(nb_filters, nb_conv, nb_conv,
+decoder_deconv_2 = Deconvolution2D(nb_filters, nb_conv, nb_conv,
                               (batch_size, nb_filters, 14, 14),
                               border_mode='same',
                               subsample=(1, 1),
                               activation='relu')
-decoder_mean = Deconvolution2D(nb_filters, 2, 2,
+decoder_deconv_3_upsamp = Deconvolution2D(nb_filters, 2, 2,
                                (batch_size, nb_filters, 29, 29),
                                border_mode='valid',
                                subsample=(2, 2),
                                activation='relu')
-decoder_mean_c = Convolution2D(img_chns, 2, 2, border_mode='valid', activation='sigmoid')
+decoder_mean_squash = Convolution2D(img_chns, 2, 2, border_mode='valid', activation='sigmoid')
 
-h_decoded = decoder_h(z)
-f_decoded = decoder_f(h_decoded)
-c_1_decoded = decoder_c_1(f_decoded)
-c_2_decoded = decoder_c_2(c_1_decoded)
-c_3_decoded = decoder_c_3(c_2_decoded)
-x_decoded_mean = decoder_mean(c_3_decoded)
-x_decoded_mean = decoder_mean_c(x_decoded_mean)
+hid_decoded = decoder_hid(z)
+up_decoded = decoder_upsample(hid_decoded)
+reshape_decoded = decoder_reshape(up_decoded)
+deconv_1_decoded = decoder_deconv_1(reshape_decoded)
+deconv_2_decoded = decoder_deconv_2(deconv_1_decoded)
+x_decoded_relu = decoder_deconv_3_upsamp(deconv_2_decoded)
+x_decoded_mean_squash = decoder_mean_squash(x_decoded_relu)
 
 def vae_loss(x, x_decoded_mean):
     # NOTE: binary_crossentropy expects a batch_size by dim for x and x_decoded_mean, so we MUST flatten these!
     x = K.flatten(x)
     x_decoded_mean = K.flatten(x_decoded_mean)
-    xent_loss = 28 * 28 * objectives.binary_crossentropy(x, x_decoded_mean)
+    xent_loss = img_rows * img_cols * objectives.binary_crossentropy(x, x_decoded_mean)
     kl_loss = - 0.5 * K.mean(1 + z_log_var - K.square(z_mean) - K.exp(z_log_var), axis=-1)
     return xent_loss + kl_loss
 
-vae = Model(x, x_decoded_mean)
+vae = Model(x, x_decoded_mean_squash)
 vae.compile(optimizer='rmsprop', loss=vae_loss)
 vae.summary()
 
@@ -101,15 +101,6 @@ vae.summary()
 
 x_train = x_train.astype('float32')[:, None, :, :] / 255.
 x_test = x_test.astype('float32')[:, None, :, :] / 255.
-
-end = len(x_test) - len(x_test) % batch_size
-x_test = x_test[:end]
-
-end = len(x_train) - len(x_train) % batch_size
-x_train = x_train[:end]
-
-end = len(y_test) - len(y_test) % batch_size
-y_test = y_test[:end]
 
 print(x_train.shape)
 
@@ -132,14 +123,14 @@ plt.show()
 
 # build a digit generator that can sample from the learned distribution
 decoder_input = Input(shape=(latent_dim,))
-_h_decoded = decoder_h(decoder_input)
-_f_decoded = decoder_f(_h_decoded)
-_c_1_decoded = decoder_c_1(_f_decoded)
-_c_2_decoded = decoder_c_2(_c_1_decoded)
-_c_3_decoded = decoder_c_3(_c_2_decoded)
-_x_decoded_mean = decoder_mean(_c_3_decoded)
-_x_decoded_mean_c = decoder_mean_c(_x_decoded_mean)
-generator = Model(decoder_input, _x_decoded_mean_c)
+_hid_decoded = decoder_hid(decoder_input)
+_up_decoded = decoder_upsample(_hid_decoded)
+_reshape_decoded = decoder_reshape(_up_decoded)
+_deconv_1_decoded = decoder_deconv_1(_reshape_decoded)
+_deconv_2_decoded = decoder_deconv_2(_deconv_1_decoded)
+_x_decoded_relu = decoder_deconv_3_upsamp(_deconv_2_decoded)
+_x_decoded_mean_squash = decoder_mean_squash(_x_decoded_relu)
+generator = Model(decoder_input, _x_decoded_mean_squash)
 
 # display a 2D manifold of the digits
 n = 15  # figure with 15x15 digits
