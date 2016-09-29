@@ -27,6 +27,7 @@ def printing(x, string=''):
     '''
     return theano.printing.Print(string)(x)
 
+
 def learning_phase():
     # False = test, True = train
     return _LEARNING_PHASE
@@ -969,7 +970,6 @@ def softplus(x):
 
 def softsign(x):
     return T_softsign(x)
-
 
 def categorical_crossentropy(output, target, from_logits=False):
     if from_logits:

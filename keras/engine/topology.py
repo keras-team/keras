@@ -162,9 +162,9 @@ class Node(object):
         if len(output_tensors) != len(output_shapes):
             raise Exception('The `get_output_shape_for` method of layer "' +
                             outbound_layer.name +
-                            '"" should return one shape tuple per '
-                            'output tensor of the layer. Found: ' +
-                            str(output_shapes))
+                            '"" should return one shape tuple (counted ' + str(len(output_shapes)) + ') per '
+                            'output tensor (counted ' + str(len(output_tensors)) +') tensors of the layer. \n Shapes: ' +
+                            str(output_shapes) + '\n Tensors:' + str(output_tensors))
         if len(output_tensors) != len(output_masks):
             raise Exception('The `compute_mask` method of layer "' +
                             outbound_layer.name +
