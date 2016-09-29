@@ -12,6 +12,8 @@ from keras import backend as K
 from keras import objectives
 from keras.datasets import mnist
 
+K.set_image_dim_ordering('th') # this is a Theano oriented example
+
 # input image dimensions
 img_rows, img_cols, img_chns = 28, 28, 1
 # number of convolutional filters to use
