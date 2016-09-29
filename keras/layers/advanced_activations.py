@@ -4,6 +4,10 @@ from ..engine import Layer
 from .. import backend as K
 import numpy as np
 
+import logging
+
+logger = logging.getLogger(__name__)
+
 
 class LeakyReLU(Layer):
     '''Special version of a Rectified Linear Unit
@@ -136,7 +140,8 @@ class ParametricSoftplus(Layer):
         weights: initial weights, as a list of 2 numpy arrays.
 
     # References
-        - [Inferring Nonlinear Neuronal Computation Based on Physiologically Plausible Inputs](http://journals.plos.org/ploscompbiol/article?id=10.1371/journal.pcbi.1003143)
+        - "Inferring Nonlinear Neuronal Computation Based on Physiologically Plausible Inputs"
+          [McFarland 2013](http://journals.plos.org/ploscompbiol/article?id=10.1371/journal.pcbi.1003143)
     '''
     def __init__(self, alpha_init=0.2, beta_init=5.0,
                  weights=None, **kwargs):
@@ -171,7 +176,8 @@ class ParametricSoftplus(Layer):
 class ParametricSoftExp(Layer):
     """Soft Exponential activation function with trainable alpha
 
-    See: https://arxiv.org/pdf/1602.01321.pdf by Godfrey and Gashler
+    # References
+        [Godfrey and Gashler](https://arxiv.org/pdf/1602.01321.pdf)
 
     # Input shape
         Arbitrary. Use the keyword argument `input_shape`
@@ -194,14 +200,22 @@ class ParametricSoftExp(Layer):
     def __init__(self, alpha_init=0.1,
                  weights=None, **kwargs):
         self.supports_masking = True
-        self.alpha_init = K.cast_to_floatx(alpha_init)
+        try:
+            self.alpha_init = K.cast_to_floatx(alpha_init)
+        except:
+            logger.warn('Using raw alpha_init tensor provided. Shape has not been validated.')
+            self.alpha_init = alpha_init
         self.initial_weights = weights
         super(ParametricSoftExp, self).__init__(**kwargs)
 
     def build(self, input_shape):
         input_shape = input_shape[1:]
-        self.alphas = K.variable(self.alpha_init * np.ones(input_shape),
-                                 name='{}_alphas'.format(self.name))
+        try:
+            self.alphas = K.variable(self.alpha_init * np.ones(input_shape),
+                                     name='{}_alphas'.format(self.name))
+        except:
+            self.alphas = K.variable(self.alpha_init, name='{}_alphas'.format(self.name))
+        assert self.alphas.shape == input_shape, "alphas.shape = {} != {} = input_shape".format(self.alphas.shape, input_shape)
         self.trainable_weights = [self.alphas]
 
         if self.initial_weights is not None:

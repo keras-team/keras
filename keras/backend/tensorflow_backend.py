@@ -1294,6 +1294,10 @@ def switch(condition, then_expression, else_expression):
 
 
 def select(condition, then_expression, else_expression):
+    """TensorFlow API: tf.select(condition, t, e, name=None)
+
+    `then_expression` & `else_expression` must be tensors of the same shape
+    """
     return tf.select(condition, then_expression, else_expression)
 
 

@@ -1,6 +1,12 @@
 from __future__ import absolute_import
 import numpy as np
 from . import backend as K
+from .utils.generic_utils import get_from_module
+
+
+def constant_zero(y_true, y_pred, constant_loss=0.):
+    """For testing or nonlearning feedforward, always report a loss of 0 (zero)"""
+    return constant_loss * (y_pred - y_true)
 
 
 def mean_squared_error(y_true, y_pred):
@@ -65,6 +71,7 @@ def cosine_proximity(y_true, y_pred):
 
 
 # aliases
+cz = CZ = constant_zero
 mse = MSE = mean_squared_error
 mae = MAE = mean_absolute_error
 mape = MAPE = mean_absolute_percentage_error
@@ -72,6 +79,6 @@ msle = MSLE = mean_squared_logarithmic_error
 kld = KLD = kullback_leibler_divergence
 cosine = cosine_proximity
 
-from .utils.generic_utils import get_from_module
+
 def get(identifier):
     return get_from_module(identifier, globals(), 'objective')
