@@ -94,7 +94,9 @@ def print_summary(layers, relevant_nodes=None, line_length=100, positions=[.33, 
         else:
             print('_' * line_length)
 
-    def count_total_params(layers, layer_set=set()):
+    def count_total_params(layers, layer_set=None):
+        if layer_set is None:
+            layer_set = set()
         total_params = 0
         for layer in layers:
             if layer in layer_set:
