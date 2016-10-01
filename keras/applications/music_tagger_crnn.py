@@ -19,10 +19,11 @@ from ..layers.normalization import BatchNormalization
 from ..layers.advanced_activations import ELU
 from ..layers.recurrent import GRU
 from ..utils.data_utils import get_file
+from ..utils.layer_utils import convert_all_kernels_in_model
 from .audio_conv_utils import decode_predictions, preprocess_input
 
-TH_WEIGHTS_PATH = 'https://github.com/keunwoochoi/music-auto_tagging-keras/raw/master/data/music_tagger_crnn_weights_theano.h5'
-TF_WEIGHTS_PATH = 'https://github.com/keunwoochoi/music-auto_tagging-keras/raw/master/data/music_tagger_crnn_weights_tensorflow.h5'
+TH_WEIGHTS_PATH = 'https://github.com/fchollet/deep-learning-models/releases/download/v0.3/music_tagger_crnn_weights_tf_kernels_th_dim_ordering.h5'
+TF_WEIGHTS_PATH = 'https://github.com/fchollet/deep-learning-models/releases/download/v0.3/music_tagger_crnn_weights_tf_kernels_tf_dim_ordering.h5'
 
 
 def MusicTaggerCRNN(weights='msd', input_tensor=None,
@@ -95,28 +96,24 @@ def MusicTaggerCRNN(weights='msd', input_tensor=None,
     x = BatchNormalization(axis=channel_axis, mode=0, name='bn1')(x)
     x = ELU()(x)
     x = MaxPooling2D(pool_size=(2, 2), strides=(2, 2), name='pool1')(x)
-    x = Dropout(0.5, name='dropout1')(x)
 
     # Conv block 2
     x = Convolution2D(128, 3, 3, border_mode='same', name='conv2')(x)
     x = BatchNormalization(axis=channel_axis, mode=0, name='bn2')(x)
     x = ELU()(x)
     x = MaxPooling2D(pool_size=(3, 3), strides=(3, 3), name='pool2')(x)
-    x = Dropout(0.5, name='dropout2')(x)
 
     # Conv block 3
     x = Convolution2D(128, 3, 3, border_mode='same', name='conv3')(x)
     x = BatchNormalization(axis=channel_axis, mode=0, name='bn3')(x)
     x = ELU()(x)
     x = MaxPooling2D(pool_size=(4, 4), strides=(4, 4), name='pool3')(x)
-    x = Dropout(0.5, name='dropout3')(x)
 
     # Conv block 4
     x = Convolution2D(128, 3, 3, border_mode='same', name='conv4')(x)
     x = BatchNormalization(axis=channel_axis, mode=0, name='bn4')(x)
     x = ELU()(x)
     x = MaxPooling2D(pool_size=(4, 4), strides=(4, 4), name='pool4')(x)
-    x = Dropout(0.5, name='dropout4')(x)
 
     # reshaping
     if K.image_dim_ordering() == 'th':
@@ -126,7 +123,6 @@ def MusicTaggerCRNN(weights='msd', input_tensor=None,
     # GRU block 1, 2, output
     x = GRU(32, return_sequences=True, name='gru1')(x)
     x = GRU(32, return_sequences=False, name='gru2')(x)
-    x = Dropout(0.3)(x)
 
     if include_top:
         x = Dense(50, activation='sigmoid', name='output')(x)
@@ -138,17 +134,14 @@ def MusicTaggerCRNN(weights='msd', input_tensor=None,
     else:
         # Load weights
         if K.image_dim_ordering() == 'tf':
-            raise RuntimeError('Please set `image_dim_ordering` to "th".'
-                               'You can set it at `~/.keras/keras.json`.')
-
-        if K._BACKEND == 'theano':
-            weights_path = get_file('music_tagger_crnn_weights_theano.h5',
-                                    TH_WEIGHTS_PATH,
-                                    cache_subdir='models')
-        else:
-            weights_path = get_file('music_tagger_crnn_weights_tensorflow.h5',
+            weights_path = get_file('music_tagger_crnn_weights_tf_kernels_tf_dim_ordering.h5',
                                     TF_WEIGHTS_PATH,
                                     cache_subdir='models')
-
+        else:
+            weights_path = get_file('music_tagger_crnn_weights_tf_kernels_th_dim_ordering.h5',
+                                    TH_WEIGHTS_PATH,
+                                    cache_subdir='models')
         model.load_weights(weights_path, by_name=True)
+        if K.backend() == 'theano':
+            convert_all_kernels_in_model(model)
         return model

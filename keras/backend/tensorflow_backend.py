@@ -1361,6 +1361,7 @@ def elu(x, alpha=1.):
     else:
         return tf.select(x > 0, res, alpha*res)
 
+
 def softmax(x):
     '''Softmax of a tensor.
     '''
