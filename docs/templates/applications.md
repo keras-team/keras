@@ -50,6 +50,7 @@ print('Predicted:', decode_predictions(preds, top=3)[0])
 from keras.applications.vgg16 import VGG16
 from keras.preprocessing import image
 from keras.applications.vgg16 import preprocess_input
+import numpy as np
 
 model = VGG16(weights='imagenet', include_top=False)
 
@@ -69,6 +70,7 @@ from keras.applications.vgg19 import VGG19
 from keras.preprocessing import image
 from keras.applications.vgg19 import preprocess_input
 from keras.models import Model
+import numpy as np
 
 base_model = VGG19(weights='imagenet')
 model = Model(input=base_model.input, output=base_model.get_layer('block4_pool').output)
