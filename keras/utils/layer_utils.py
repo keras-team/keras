@@ -87,16 +87,28 @@ def print_summary(layers, relevant_nodes=None, line_length=100, positions=[.33, 
                 fields = ['', '', '', connections[i]]
                 print_row(fields, positions)
 
-    total_params = 0
     for i in range(len(layers)):
         print_layer_summary(layers[i])
         if i == len(layers) - 1:
             print('=' * line_length)
         else:
             print('_' * line_length)
-        total_params += layers[i].count_params()
 
-    print('Total params: %s' % total_params)
+    def count_total_params(layers, layer_set=None):
+        if layer_set is None:
+            layer_set = set()
+        total_params = 0
+        for layer in layers:
+            if layer in layer_set:
+                continue
+            layer_set.add(layer)
+            if type(layer) in (Model, Sequential):
+                total_params += count_total_params(layer.layers, layer_set)
+            else:
+                total_params += layer.count_params()
+        return total_params
+
+    print('Total params: %s' % count_total_params(layers))
     print('_' * line_length)
 
 
