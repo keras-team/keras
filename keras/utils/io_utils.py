@@ -32,7 +32,7 @@ class HDF5Matrix():
     '''
     refs = defaultdict(int)
 
-    def __init__(self, datapath, dataset, start, end, normalizer=None):
+    def __init__(self, datapath, dataset, start=0, end=None, normalizer=None):
         import h5py
 
         if datapath not in list(self.refs.keys()):
@@ -40,9 +40,12 @@ class HDF5Matrix():
             self.refs[datapath] = f
         else:
             f = self.refs[datapath]
-        self.start = start
-        self.end = end
         self.data = f[dataset]
+        self.start = start
+        if end is None:
+            self.end = self.data.shape[0]
+        else:
+            self.end = end
         self.normalizer = normalizer
 
     def __len__(self):
