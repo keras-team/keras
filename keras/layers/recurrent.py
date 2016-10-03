@@ -121,6 +121,13 @@ class Recurrent(Layer):
             in your model, you would need to specify the input length
             at the level of the first layer
             (e.g. via the `input_shape` argument)
+        hidden_state_init: Numpy array to use as the initial hidden state.
+            Note that a `batch_size` must be specified when using
+            `hidden_state_init`, and that the shape of `hidden_state_init`
+            must be `(nb_samples, output_dim)`.
+        hidden_state_broadcasted: Take the final hidden state from a prior RNN
+            layer and use it as the initial hidden state for the current RNN
+            layer.
 
     # Input shape
         3D tensor with shape `(nb_samples, timesteps, input_dim)`.
@@ -165,7 +172,8 @@ class Recurrent(Layer):
     def __init__(self, weights=None,
                  return_sequences=False, go_backwards=False, stateful=False,
                  unroll=False, consume_less='cpu',
-                 input_dim=None, input_length=None, **kwargs):
+                 input_dim=None, input_length=None, hidden_state_init=None,
+                 hidden_state_broadcasted=None, **kwargs):
         self.return_sequences = return_sequences
         self.initial_weights = weights
         self.go_backwards = go_backwards
@@ -179,6 +187,13 @@ class Recurrent(Layer):
         self.input_length = input_length
         if self.input_dim:
             kwargs['input_shape'] = (self.input_length, self.input_dim)
+
+        if hidden_state_init is not None and hidden_state_broadcasted:
+            raise Exception('RNN arguments are overspecified - ' +
+                            '`hidden_state_init` and `hidden_state_broadcasted` ' +
+                            'cannot both be used.')
+        self.hidden_state_init = hidden_state_init
+        self.hidden_state_broadcasted = hidden_state_broadcasted
         super(Recurrent, self).__init__(**kwargs)
 
     def get_output_shape_for(self, input_shape):
@@ -200,11 +215,34 @@ class Recurrent(Layer):
         return []
 
     def get_initial_states(self, x):
-        # build an all-zero tensor of shape (samples, output_dim)
-        initial_state = K.zeros_like(x)  # (samples, timesteps, input_dim)
-        initial_state = K.sum(initial_state, axis=(1, 2))  # (samples,)
-        initial_state = K.expand_dims(initial_state)  # (samples, 1)
-        initial_state = K.tile(initial_state, [1, self.output_dim])  # (samples, output_dim)
+
+        input_shape = self.input_spec[0].shape
+
+        if self.hidden_state_init is not None:
+            if not input_shape[0]:
+                raise Exception('If using `hidden_state_init` with an RNN ' +
+                                'layer, a complete input_shape must be ' +
+                                'provided (including batch size).')
+            msg = ('`hidden_state_init` shape in an RNN layer must be of ' +
+                   'shape (batch_size, output_dim)')
+            assert (self.hidden_state_init.shape ==
+                    (input_shape[0], self.output_dim)), msg
+            initial_state = K.variable(value=self.hidden_state_init)
+        elif self.hidden_state_broadcasted:
+            if not input_shape[0]:
+                raise Exception('If using `hidden_state_broadcasted` with ' +
+                                'an RNN layer, a complete input_shape must ' +
+                                'be provided (including batch size).')
+            initial_state = x[:, input_shape[1] - 1, :]
+            initial_state = K.reshape(initial_state,
+                                      (input_shape[0], self.output_dim))
+        else:
+            # build an all-zero tensor of shape (samples, output_dim)
+            initial_state = K.zeros_like(x)  # (samples, timesteps, input_dim)
+            initial_state = K.sum(initial_state, axis=(1, 2))  # (samples,)
+            initial_state = K.expand_dims(initial_state)  # (samples, 1)
+            initial_state = K.tile(initial_state, [1, self.output_dim])  # (samples, output_dim)
+
         initial_states = [initial_state for _ in range(len(self.states))]
         return initial_states
 
