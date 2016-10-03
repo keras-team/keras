@@ -92,16 +92,14 @@ def matthews_correlation(y_true, y_pred):
     return numerator / (denominator + K.epsilon())
 
 
-def fmeasure(y_true, y_pred, beta=1, zero_threshold=1e-9):
+def fmeasure(y_true, y_pred, beta=1):
     '''Approximate F-score as an overall loss for all the samples at once.
-    `zero_threshold` close to zero is considered a negative outcome.
     '''
     
-    # Count false and positive outcomes.
-    count_nonzero = lambda x: K.sum(K.greater(K.abs(x), zero_threshold))
-    c1 = count_nonzero(y_true * y_pred)
-    c2 = count_nonzero(y_pred)
-    c3 = count_nonzero(y_true)
+    # Count non-zero elements.    
+    c1 = K.sum(K.round(K.clip(y_true * y_pred, 0, 1)))
+    c2 = K.sum(K.round(K.clip(y_pred, 0, 1)))
+    c3 = K.sum(K.round(K.clip(y_true, 0, 1)))
     
     # If there are no true samples, fix the F score at 0.
     if c3 == 0:
