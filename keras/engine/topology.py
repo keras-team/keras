@@ -349,7 +349,7 @@ class Layer(object):
             return True
         assert type(self.input_spec) is list, ('input_spec must be a list of ' +
                                                'InputSpec instances. Found: ' +
-                                               str(self.input_spec))
+                                               str(type(self.input_spec)))
         inputs = to_list(input)
         if len(self.input_spec) > 1:
             if len(inputs) != len(self.input_spec):
