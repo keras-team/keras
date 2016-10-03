@@ -98,7 +98,7 @@ def fmeasure(y_true, y_pred, beta=1, zero_threshold=1e-9):
     '''
     
     # Count false and positive outcomes.
-    count_nonzero = lambda x: K.sum(K.lesser(K.abs(x), zero_threshold))
+    count_nonzero = lambda x: K.sum(K.greater(K.abs(x), zero_threshold))
     c1 = count_nonzero(y_true * y_pred)
     c2 = count_nonzero(y_pred)
     c3 = count_nonzero(y_true)
