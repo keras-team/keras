@@ -92,7 +92,7 @@ def matthews_correlation(y_true, y_pred):
     return numerator / (denominator + K.epsilon())
 
 
-def fmeasure(y_true, y_pred, beta=1, zero_threshold=1e-6):
+def fmeasure(y_true, y_pred, beta=1, zero_threshold=1e-9):
     '''Approximate F-score as an overall loss for all the samples at once.
     `zero_threshold` close to zero is considered a negative outcome.
     '''
