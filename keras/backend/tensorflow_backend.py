@@ -1,4 +1,5 @@
 import tensorflow as tf
+from tensorflow.python.ops import control_flow_ops
 from tensorflow.python.training import moving_averages
 try:
     from tensorflow.python.ops import ctc_ops as ctc
@@ -1284,9 +1285,9 @@ def switch(condition, then_expression, else_expression):
         else_expression: TensorFlow operation.
     '''
     x_shape = copy.copy(then_expression.get_shape())
-    x = tf.python.control_flow_ops.cond(tf.cast(condition, 'bool'),
-                                        lambda: then_expression,
-                                        lambda: else_expression)
+    x = control_flow_ops.cond(tf.cast(condition, 'bool'),
+                              lambda: then_expression,
+                              lambda: else_expression)
     x.set_shape(x_shape)
     return x
 
@@ -1301,9 +1302,9 @@ def in_train_phase(x, alt):
         return alt
     # else: assume learning phase is a placeholder.
     x_shape = copy.copy(x.get_shape())
-    x = tf.python.control_flow_ops.cond(tf.cast(_LEARNING_PHASE, 'bool'),
-                                        lambda: x,
-                                        lambda: alt)
+    x = control_flow_ops.cond(tf.cast(_LEARNING_PHASE, 'bool'),
+                              lambda: x,
+                              lambda: alt)
     x._uses_learning_phase = True
     x.set_shape(x_shape)
     return x
@@ -1318,9 +1319,9 @@ def in_test_phase(x, alt):
     elif _LEARNING_PHASE is 0:
         return x
     x_shape = copy.copy(x.get_shape())
-    x = tf.python.control_flow_ops.cond(tf.cast(_LEARNING_PHASE, 'bool'),
-                                        lambda: alt,
-                                        lambda: x)
+    x = control_flow_ops.cond(tf.cast(_LEARNING_PHASE, 'bool'),
+                              lambda: alt,
+                              lambda: x)
     x._uses_learning_phase = True
     x.set_shape(x_shape)
     return x
