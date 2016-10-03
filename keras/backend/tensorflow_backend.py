@@ -1286,8 +1286,8 @@ def switch(condition, then_expression, else_expression):
     '''
     x_shape = copy.copy(then_expression.get_shape())
     x = control_flow_ops.cond(tf.cast(condition, 'bool'),
-                                        lambda: then_expression,
-                                        lambda: else_expression)
+                              lambda: then_expression,
+                              lambda: else_expression)
     x.set_shape(x_shape)
     return x
 
@@ -1303,8 +1303,8 @@ def in_train_phase(x, alt):
     # else: assume learning phase is a placeholder.
     x_shape = copy.copy(x.get_shape())
     x = control_flow_ops.cond(tf.cast(_LEARNING_PHASE, 'bool'),
-                                        lambda: x,
-                                        lambda: alt)
+                              lambda: x,
+                              lambda: alt)
     x._uses_learning_phase = True
     x.set_shape(x_shape)
     return x
@@ -1320,8 +1320,8 @@ def in_test_phase(x, alt):
         return x
     x_shape = copy.copy(x.get_shape())
     x = control_flow_ops.cond(tf.cast(_LEARNING_PHASE, 'bool'),
-                                        lambda: alt,
-                                        lambda: x)
+                              lambda: alt,
+                              lambda: x)
     x._uses_learning_phase = True
     x.set_shape(x_shape)
     return x
