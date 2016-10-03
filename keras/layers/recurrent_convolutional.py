@@ -92,18 +92,18 @@ class RecurrentConv2D(Layer):
 
         self.input_dim = input_dim
         self.input_length = input_length
-        #if self.input_dim:
+        # if self.input_dim:
         #    kwargs['input_shape'] = (self.input_length, self.input_dim)
 
         super(RecurrentConv2D, self).__init__(**kwargs)
 
-    def compute_mask(self, input,mask):
+    def compute_mask(self, input, mask):
         if self.return_sequences:
             return mask
         else:
             return None
 
-    def get_output_shape_for(self,input_shape):
+    def get_output_shape_for(self, input_shape):
 
         if self.dim_ordering == 'th':
             rows = input_shape[2+1]
@@ -153,16 +153,15 @@ class RecurrentConv2D(Layer):
 
         initial_states = [initial_state for _ in range(2)]
         return initial_states
-        
+
     def preprocess_input(self, x):
         return x
-    def call(self, x,mask=None):
 
-       
+    def call(self, x, mask=None):
 
         assert K.ndim(x) == 5
         input_shape = self.input_spec[0].shape
-       
+
         if K._BACKEND == 'tensorflow':
             if not input_shape[1]:
                 raise Exception('When using TensorFlow, you should define ' +
@@ -178,7 +177,6 @@ class RecurrentConv2D(Layer):
 
         constants = self.get_constants(x)
         preprocessed_input = self.preprocess_input(x)
-
 
         last_output, outputs, states = K.rnn(self.step, preprocessed_input,
                                              initial_states,
@@ -286,9 +284,10 @@ class LSTMConv2D(RecurrentConv2D):
         self.subsample = sub_sample
 
         assert dim_ordering in {'tf', "th"}, 'dim_ordering must be in {tf,"th}'
-        
+
         if dim_ordering == "th":
-            print "Warning, unlike convolution3D the time must be the first dimention"
+            print("Warning, unlike convolution3D the time must be the " +\
+                  "first dimention")
         self.dim_ordering = dim_ordering
 
         kwargs["nb_filter"] = nb_filter
@@ -307,7 +306,6 @@ class LSTMConv2D(RecurrentConv2D):
 
     def build(self, input_shape):
         self.input_spec = [InputSpec(shape=input_shape)]
-        
 
         if self.dim_ordering == 'th':
             stack_size = input_shape[1+1]
@@ -345,7 +343,7 @@ class LSTMConv2D(RecurrentConv2D):
 
         self.W_c = self.init(self.W_shape)
         self.U_c = self.inner_init(self.W_shape1)
-        self.b_c = K.zeros((self.nb_filter))
+        self.b_c = K.zeros((self.nb_filter,))
 
         self.W_o = self.init(self.W_shape)
         self.U_o = self.inner_init(self.W_shape1)
@@ -355,8 +353,7 @@ class LSTMConv2D(RecurrentConv2D):
                                   self.W_c, self.U_c, self.b_c,
                                   self.W_f, self.U_f, self.b_f,
                                   self.W_o, self.U_o, self.b_o]
-                                  
- 
+
         self.W = K.concatenate([self.W_i, self.W_f, self.W_c, self.W_o])
         self.U = K.concatenate([self.U_i, self.U_f, self.U_c, self.U_o])
         self.b = K.concatenate([self.b_i, self.b_f, self.b_c, self.b_o])
@@ -478,13 +475,13 @@ class LSTMConv2D(RecurrentConv2D):
 
         return h, [h, c]
 
-
     def get_constants(self, x):
         constants = []
         if 0 < self.dropout_U < 1:
             ones = K.ones_like(K.reshape(x[:, 0, 0], (-1, 1)))
             ones = K.concatenate([ones] * self.output_dim, 1)
-            B_U = [K.in_train_phase(K.dropout(ones, self.dropout_U), ones) for _ in range(4)]
+            B_U = [K.in_train_phase(K.dropout(ones, self.dropout_U), ones)
+                   for _ in range(4)]
             constants.append(B_U)
         else:
             constants.append([K.cast_to_floatx(1.) for _ in range(4)])
@@ -494,12 +491,12 @@ class LSTMConv2D(RecurrentConv2D):
             input_dim = input_shape[-1]
             ones = K.ones_like(K.reshape(x[:, 0, 0], (-1, 1)))
             ones = K.concatenate([ones] * input_dim, 1)
-            B_W = [K.in_train_phase(K.dropout(ones, self.dropout_W), ones) for _ in range(4)]
+            B_W = [K.in_train_phase(K.dropout(ones, self.dropout_W), ones)
+                   for _ in range(4)]
             constants.append(B_W)
         else:
             constants.append([K.cast_to_floatx(1.) for _ in range(4)])
-        return constants        
-        
+        return constants
 
     def get_config(self):
         config = {"name": self.__class__.__name__,
