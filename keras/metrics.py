@@ -91,6 +91,34 @@ def matthews_correlation(y_true, y_pred):
 
     return numerator / (denominator + K.epsilon())
 
+
+def fmeasure(y_true, y_pred, beta=1, zero_threshold=1e-6):
+    '''Approximate F-score as an overall loss for all the samples at once.
+    `zero_threshold` close to zero is considered a negative outcome.
+    '''
+    
+    # Count false and positive outcomes.
+    count_nonzero = lambda x: K.sum(K.lesser(K.abs(x), zero_threshold))
+    c1 = count_nonzero(y_true * y_pred)
+    c2 = count_nonzero(y_pred)
+    c3 = count_nonzero(y_true)
+    
+    # If there are no true samples, fix the F score at 0.
+    if c3 == 0:
+        return 0
+    
+    # How many selected items are relevant?
+    precision = c1 / c2
+    
+    # How many relevant items are selected?
+    recall = c1 / c3
+    
+    # The harmonic mean of precision and recall.
+    beta2 = beta ** 2
+    f_score = (1 + beta2) * (precision * recall) / (beta2 * precision + recall)
+    return f_score
+
+
 # aliases
 mse = MSE = mean_squared_error
 mae = MAE = mean_absolute_error

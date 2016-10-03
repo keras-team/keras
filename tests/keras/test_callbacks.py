@@ -310,36 +310,6 @@ def test_TensorBoard():
         shutil.rmtree(filepath)
 
     KTF.set_session(old_session)
-    
-def test_LambdaCallback():
-    (X_train, y_train), (X_test, y_test) = get_test_data(nb_train=train_samples,
-                                                         nb_test=test_samples,
-                                                         input_shape=(input_dim,),
-                                                         classification=True,
-                                                         nb_class=nb_class)
-    y_test = np_utils.to_categorical(y_test)
-    y_train = np_utils.to_categorical(y_train)
-    model = Sequential()
-    model.add(Dense(nb_hidden, input_dim=input_dim, activation='relu'))
-    model.add(Dense(nb_class, activation='softmax'))
-    model.compile(loss='categorical_crossentropy',
-                  optimizer='sgd',
-                  metrics=['accuracy'])
-    
-    # Start an arbitrary process that should run during model training and be terminated after training has completed.
-    def f():
-        while True:
-            pass
-    p = multiprocessing.Process(target=f)
-    p.start()
-    cleanup_callback = callbacks.LambdaCallback(on_train_end=lambda logs: p.terminate())
-    
-    cbks = [cleanup_callback]
-    model.fit(X_train, y_train, batch_size=batch_size,
-              validation_data=(X_test, y_test), callbacks=cbks, nb_epoch=5)
-    p.join()
-    assert not p.is_alive()
-    
 
 
 def test_LambdaCallback():
