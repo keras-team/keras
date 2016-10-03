@@ -286,7 +286,7 @@ class LSTMConv2D(RecurrentConv2D):
         assert dim_ordering in {'tf', "th"}, 'dim_ordering must be in {tf,"th}'
 
         if dim_ordering == "th":
-            print("Warning, unlike convolution3D the time must be the " +\
+            print("Warning, unlike convolution3D the time must be the "
                   "first dimention")
         self.dim_ordering = dim_ordering
 
@@ -333,21 +333,26 @@ class LSTMConv2D(RecurrentConv2D):
             # initial states: 2 all-zero tensor of shape (nb_filter)
             self.states = [None, None, None, None]
 
-        self.W_i = self.init(self.W_shape)
-        self.U_i = self.inner_init(self.W_shape1)
-        self.b_i = K.zeros((self.nb_filter,))
+        self.W_i = self.init(self.W_shape, name='{}_W_i'.format(self.name))
+        self.U_i = self.inner_init(self.W_shape1,
+                                   name='{}_U_i'.format(self.name))
+        self.b_i = K.zeros((self.nb_filter,), name='{}_b_i'.format(self.name))
 
-        self.W_f = self.init(self.W_shape)
-        self.U_f = self.inner_init(self.W_shape1)
-        self.b_f = self.forget_bias_init((self.nb_filter,))
+        self.W_f = self.init(self.W_shape, name='{}_W_f'.format(self.name))
+        self.U_f = self.inner_init(self.W_shape1,
+                                   name='{}_U_f'.format(self.name))
+        self.b_f = self.forget_bias_init((self.nb_filter,),
+                                         name='{}_b_f'.format(self.name))
 
-        self.W_c = self.init(self.W_shape)
-        self.U_c = self.inner_init(self.W_shape1)
-        self.b_c = K.zeros((self.nb_filter,))
+        self.W_c = self.init(self.W_shape, name='{}_W_c'.format(self.name))
+        self.U_c = self.inner_init(self.W_shape1,
+                                   name='{}_U_c'.format(self.name))
+        self.b_c = K.zeros((self.nb_filter,), name='{}_b_c'.format(self.name))
 
-        self.W_o = self.init(self.W_shape)
-        self.U_o = self.inner_init(self.W_shape1)
-        self.b_o = K.zeros((self.nb_filter,))
+        self.W_o = self.init(self.W_shape, name='{}_W_o'.format(self.name))
+        self.U_o = self.inner_init(self.W_shape1,
+                                   name='{}_U_o'.format(self.name))
+        self.b_o = K.zeros((self.nb_filter,), name='{}_b_o'.format(self.name))
 
         self.trainable_weights = [self.W_i, self.U_i, self.b_i,
                                   self.W_c, self.U_c, self.b_c,
