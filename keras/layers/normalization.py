@@ -58,7 +58,7 @@ class BatchNormalization(Layer):
         Same shape as input.
 
     # References
-        - [Batch Normalization: Accelerating Deep Network Training by Reducing Internal Covariate Shift](http://jmlr.org/proceedings/papers/v37/ioffe15.html)
+        - [Batch Normalization: Accelerating Deep Network Training by Reducing Internal Covariate Shift](http://jmlr.org/proceedings/papers/v37/ioffe15.pdf)
     '''
     def __init__(self, epsilon=1e-5, mode=0, axis=-1, momentum=0.99,
                  weights=None, beta_init='zero', gamma_init='one',
@@ -140,7 +140,7 @@ class BatchNormalization(Layer):
                 self.updates = [K.moving_average_update(self.running_mean, mean, self.momentum),
                                 K.moving_average_update(self.running_std, std, self.momentum)]
 
-                if sorted(reduction_axes) == range(K.ndim(x))[:-1]:
+                if K.backend() == 'tensorflow' and sorted(reduction_axes) == range(K.ndim(x))[:-1]:
                     x_normed_running = K.batch_normalization(
                         x, self.running_mean, self.running_std,
                         self.beta, self.gamma,

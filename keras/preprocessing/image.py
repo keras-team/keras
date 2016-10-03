@@ -181,7 +181,7 @@ def load_img(path, grayscale=False, target_size=None):
 
 
 def list_pictures(directory, ext='jpg|jpeg|bmp|png'):
-    return [os.path.join(directory, f) for f in os.listdir(directory)
+    return [os.path.join(directory, f) for f in sorted(os.listdir(directory))
             if os.path.isfile(os.path.join(directory, f)) and re.match('([\w]+\.(?:' + ext + '))', f)]
 
 
@@ -390,6 +390,9 @@ class ImageDataGenerator(object):
                 how many augmentation passes to do over the data
             seed: random seed.
         '''
+        if seed is not None:
+            np.random.seed(seed)
+
         X = np.copy(X)
         if augment:
             aX = np.zeros(tuple([rounds * X.shape[0]] + list(X.shape)[1:]))
@@ -431,11 +434,11 @@ class Iterator(object):
         # ensure self.batch_index is 0
         self.reset()
         while 1:
+            if seed is not None:
+                np.random.seed(seed + self.total_batches_seen)
             if self.batch_index == 0:
                 index_array = np.arange(N)
                 if shuffle:
-                    if seed is not None:
-                        np.random.seed(seed + self.total_batches_seen)
                     index_array = np.random.permutation(N)
 
             current_index = (self.batch_index * batch_size) % N
@@ -560,7 +563,7 @@ class DirectoryIterator(Iterator):
 
         for subdir in classes:
             subpath = os.path.join(directory, subdir)
-            for fname in os.listdir(subpath):
+            for fname in sorted(os.listdir(subpath)):
                 is_valid = False
                 for extension in white_list_formats:
                     if fname.lower().endswith('.' + extension):
@@ -576,7 +579,7 @@ class DirectoryIterator(Iterator):
         i = 0
         for subdir in classes:
             subpath = os.path.join(directory, subdir)
-            for fname in os.listdir(subpath):
+            for fname in sorted(os.listdir(subpath)):
                 is_valid = False
                 for extension in white_list_formats:
                     if fname.lower().endswith('.' + extension):

@@ -1,9 +1,9 @@
 import tensorflow as tf
 from tensorflow.python.training import moving_averages
 try:
-    import tensorflow.contrib.ctc as ctc
-except ImportError:
     from tensorflow.python.ops import ctc_ops as ctc
+except ImportError:
+    import tensorflow.contrib.ctc as ctc
 import numpy as np
 import os
 import copy
@@ -844,7 +844,7 @@ def temporal_padding(x, padding=1):
     return tf.pad(x, pattern)
 
 
-def spatial_2d_padding(x, padding=(1, 1), dim_ordering='th'):
+def spatial_2d_padding(x, padding=(1, 1), dim_ordering=_IMAGE_DIM_ORDERING):
     '''Pads the 2nd and 3rd dimensions of a 4D tensor
     with "padding[0]" and "padding[1]" (resp.) zeros left and right.
     '''
@@ -858,7 +858,7 @@ def spatial_2d_padding(x, padding=(1, 1), dim_ordering='th'):
     return tf.pad(x, pattern)
 
 
-def spatial_3d_padding(x, padding=(1, 1, 1), dim_ordering='th'):
+def spatial_3d_padding(x, padding=(1, 1, 1), dim_ordering=_IMAGE_DIM_ORDERING):
     '''Pads 5D tensor with zeros for the depth, height, width dimension with
     "padding[0]", "padding[1]" and "padding[2]" (resp.) zeros left and right
 
@@ -1168,15 +1168,24 @@ def rnn(step_function, inputs, initial_states,
         states = initial_states
         nb_states = len(states)
         if nb_states == 0:
-            raise Exception('No initial states provided.')
-        elif nb_states == 1:
-            state = states[0]
+            # use dummy state, otherwise _dynamic_rnn_loop breaks
+            state = inputs[:, 0, :]
+            state_size = state.get_shape()[-1]
         else:
-            state = tf.concat(1, states)
-
-        state_size = int(states[0].get_shape()[-1])
+            state_size = int(states[0].get_shape()[-1])
+            if nb_states == 1:
+                state = states[0]
+            else:
+                state = tf.concat(1, states)
 
         if mask is not None:
+            if len(initial_states) == 0:
+                raise ValueError('No initial states provided! '
+                                 'When using masking in an RNN, you should '
+                                 'provide initial states '
+                                 '(and your step function should return '
+                                 'as its first state at time `t` '
+                                 'the output at time `t-1`).')
             if go_backwards:
                 mask = tf.reverse(mask, [True] + [False] * (ndim - 2))
 
@@ -1213,18 +1222,28 @@ def rnn(step_function, inputs, initial_states,
                     states = []
                     for i in range(nb_states):
                         states.append(state[:, i * state_size: (i + 1) * state_size])
-                else:
+                elif nb_states == 1:
                     states = [state]
+                else:
+                    states = []
                 output, new_states = step_function(input, states + constants)
 
-                if len(new_states) == 1:
+                if len(new_states) > 1:
+                    new_state = tf.concat(1, new_states)
+                elif len(new_states) == 1:
                     new_state = new_states[0]
                 else:
-                    new_state = tf.concat(1, new_states)
+                    # return dummy state, otherwise _dynamic_rnn_loop breaks
+                    new_state = output
                 return output, new_state
 
         _step.state_size = state_size * nb_states
-        _step.output_size = int(_step(tf.unpack(inputs)[0], state)[0].get_shape()[-1])
+        # recover output size by calling _step on the first input
+        slice_begin = tf.pack([0] * ndim)
+        slice_size = tf.pack([1] + [-1] * (ndim - 1))
+        first_input = tf.slice(inputs, slice_begin, slice_size)
+        first_input = tf.squeeze(first_input, [0])
+        _step.output_size = int(_step(first_input, state)[0].get_shape()[-1])
 
         (outputs, final_state) = _dynamic_rnn_loop(
             _step,
@@ -1238,13 +1257,15 @@ def rnn(step_function, inputs, initial_states,
             new_states = []
             for i in range(nb_states):
                 new_states.append(final_state[:, i * state_size: (i + 1) * state_size])
-        else:
+        elif nb_states == 1:
             new_states = [final_state]
+        else:
+            new_states = []
 
         # all this circus is to recover the last vector in the sequence.
-        begin = tf.pack([tf.shape(outputs)[0] - 1] + [0] * (ndim - 1))
-        size = tf.pack([1] + [-1] * (ndim - 1))
-        last_output = tf.slice(outputs, begin, size)
+        slice_begin = tf.pack([tf.shape(outputs)[0] - 1] + [0] * (ndim - 1))
+        slice_size = tf.pack([1] + [-1] * (ndim - 1))
+        last_output = tf.slice(outputs, slice_begin, slice_size)
         last_output = tf.squeeze(last_output, [0])
 
     axes = [1, 0] + list(range(2, len(outputs.get_shape())))
@@ -1325,6 +1346,20 @@ def relu(x, alpha=0., max_value=None):
         alpha = _to_tensor(alpha, x.dtype.base_dtype)
         x -= alpha * negative_part
     return x
+
+
+def elu(x, alpha=1.):
+    """ Exponential linear unit
+
+    # Arguments
+        x: Tensor to compute the activation function for.
+        alpha: scalar
+    """
+    res = tf.nn.elu(x)
+    if alpha == 1:
+        return res
+    else:
+        return tf.select(x > 0, res, alpha*res)
 
 
 def softmax(x):

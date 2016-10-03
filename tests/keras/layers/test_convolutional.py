@@ -17,9 +17,10 @@ def test_convolution_1d():
     nb_filter = 3
 
     for border_mode in ['valid', 'same']:
-        for subsample_length in [1]:
+        for subsample_length in [1, 2]:
             if border_mode == 'same' and subsample_length != 1:
                 continue
+
             layer_test(convolutional.Convolution1D,
                        kwargs={'nb_filter': nb_filter,
                                'filter_length': filter_length,
@@ -36,6 +37,42 @@ def test_convolution_1d():
                                'activity_regularizer': 'activity_l2',
                                'subsample_length': subsample_length},
                        input_shape=(nb_samples, nb_steps, input_dim))
+
+
+@keras_test
+def test_atrous_conv_1d():
+    nb_samples = 2
+    nb_steps = 8
+    input_dim = 2
+    filter_length = 3
+    nb_filter = 3
+
+    for border_mode in ['valid', 'same']:
+        for subsample_length in [1, 2]:
+            for atrous_rate in [1, 2]:
+                if border_mode == 'same' and subsample_length != 1:
+                    continue
+                if subsample_length != 1 and atrous_rate != 1:
+                    continue
+
+                layer_test(convolutional.AtrousConv1D,
+                           kwargs={'nb_filter': nb_filter,
+                                   'filter_length': filter_length,
+                                   'border_mode': border_mode,
+                                   'subsample_length': subsample_length,
+                                   'atrous_rate': atrous_rate},
+                           input_shape=(nb_samples, nb_steps, input_dim))
+
+                layer_test(convolutional.AtrousConv1D,
+                           kwargs={'nb_filter': nb_filter,
+                                   'filter_length': filter_length,
+                                   'border_mode': border_mode,
+                                   'W_regularizer': 'l2',
+                                   'b_regularizer': 'l2',
+                                   'activity_regularizer': 'activity_l2',
+                                   'subsample_length': subsample_length,
+                                   'atrous_rate': atrous_rate},
+                           input_shape=(nb_samples, nb_steps, input_dim))
 
 
 @keras_test
@@ -75,7 +112,7 @@ def test_convolution_2d():
                                'nb_col': 3,
                                'border_mode': border_mode,
                                'subsample': subsample},
-                       input_shape=(nb_samples, stack_size, nb_row, nb_col))
+                       input_shape=(nb_samples, nb_row, nb_col, stack_size))
 
             layer_test(convolutional.Convolution2D,
                        kwargs={'nb_filter': nb_filter,
@@ -86,7 +123,7 @@ def test_convolution_2d():
                                'b_regularizer': 'l2',
                                'activity_regularizer': 'activity_l2',
                                'subsample': subsample},
-                       input_shape=(nb_samples, stack_size, nb_row, nb_col))
+                       input_shape=(nb_samples, nb_row, nb_col, stack_size))
 
 
 @keras_test
@@ -110,7 +147,8 @@ def test_deconvolution_2d():
                                'nb_col': 3,
                                'output_shape': (nb_samples, nb_filter, rows, cols),
                                'border_mode': border_mode,
-                               'subsample': subsample},
+                               'subsample': subsample,
+                               'dim_ordering': 'th'},
                        input_shape=(nb_samples, stack_size, nb_row, nb_col),
                        fixed_batch_size=True)
 
@@ -120,6 +158,7 @@ def test_deconvolution_2d():
                                'nb_col': 3,
                                'output_shape': (nb_samples, nb_filter, rows, cols),
                                'border_mode': border_mode,
+                               'dim_ordering': 'th',
                                'W_regularizer': 'l2',
                                'b_regularizer': 'l2',
                                'activity_regularizer': 'activity_l2',
@@ -151,7 +190,7 @@ def test_atrous_conv_2d():
                                    'border_mode': border_mode,
                                    'subsample': subsample,
                                    'atrous_rate': atrous_rate},
-                           input_shape=(nb_samples, stack_size, nb_row, nb_col))
+                           input_shape=(nb_samples, nb_row, nb_col, stack_size))
 
                 layer_test(convolutional.AtrousConv2D,
                            kwargs={'nb_filter': nb_filter,
@@ -163,7 +202,7 @@ def test_atrous_conv_2d():
                                    'activity_regularizer': 'activity_l2',
                                    'subsample': subsample,
                                    'atrous_rate': atrous_rate},
-                           input_shape=(nb_samples, stack_size, nb_row, nb_col))
+                           input_shape=(nb_samples, nb_row, nb_col, stack_size))
 
 
 @pytest.mark.skipif(K._BACKEND != 'tensorflow', reason="Requires TF backend")
@@ -188,7 +227,7 @@ def test_separable_conv_2d():
                                    'border_mode': border_mode,
                                    'subsample': subsample,
                                    'depth_multiplier': multiplier},
-                           input_shape=(nb_samples, stack_size, nb_row, nb_col))
+                           input_shape=(nb_samples, nb_row, nb_col, stack_size))
 
                 layer_test(convolutional.SeparableConv2D,
                            kwargs={'nb_filter': nb_filter,
@@ -203,7 +242,7 @@ def test_separable_conv_2d():
                                    'depthwise_constraint': 'unitnorm',
                                    'subsample': subsample,
                                    'depth_multiplier': multiplier},
-                           input_shape=(nb_samples, stack_size, nb_row, nb_col))
+                           input_shape=(nb_samples, nb_row, nb_col, stack_size))
 
 
 @keras_test
@@ -239,7 +278,7 @@ def test_maxpooling_2d():
                    kwargs={'strides': strides,
                            'border_mode': 'valid',
                            'pool_size': pool_size},
-                   input_shape=(3, 4, 11, 12))
+                   input_shape=(3, 11, 12, 4))
 
 
 @keras_test
@@ -253,7 +292,7 @@ def test_averagepooling_2d():
                            kwargs={'strides': strides,
                                    'border_mode': border_mode,
                                    'pool_size': pool_size},
-                           input_shape=(3, 4, 11, 12))
+                           input_shape=(3, 11, 12, 4))
 
 
 @keras_test
@@ -281,8 +320,9 @@ def test_convolution_3d():
                                'kernel_dim3': kernel_dim3,
                                'border_mode': border_mode,
                                'subsample': subsample},
-                       input_shape=(nb_samples, stack_size,
-                                    input_len_dim1, input_len_dim2, input_len_dim3))
+                       input_shape=(nb_samples,
+                                    input_len_dim1, input_len_dim2, input_len_dim3,
+                                    stack_size))
 
             layer_test(convolutional.Convolution3D,
                        kwargs={'nb_filter': nb_filter,
@@ -294,8 +334,9 @@ def test_convolution_3d():
                                'b_regularizer': 'l2',
                                'activity_regularizer': 'activity_l2',
                                'subsample': subsample},
-                       input_shape=(nb_samples, stack_size,
-                                    input_len_dim1, input_len_dim2, input_len_dim3))
+                       input_shape=(nb_samples,
+                                    input_len_dim1, input_len_dim2, input_len_dim3,
+                                    stack_size))
 
 
 @keras_test
@@ -329,7 +370,7 @@ def test_zero_padding_2d():
     input_nb_row = 11
     input_nb_col = 12
 
-    input = np.ones((nb_samples, stack_size, input_nb_row, input_nb_col))
+    input = np.ones((nb_samples, input_nb_row, input_nb_col, stack_size))
 
     # basic test
     layer_test(convolutional.ZeroPadding2D,
@@ -342,9 +383,9 @@ def test_zero_padding_2d():
 
     out = K.eval(layer.output)
     for offset in [0, 1, -1, -2]:
+        assert_allclose(out[:, offset, :, :], 0.)
         assert_allclose(out[:, :, offset, :], 0.)
-        assert_allclose(out[:, :, :, offset], 0.)
-    assert_allclose(out[:, :, 2:-2, 2:-2], 1.)
+    assert_allclose(out[:, 2:-2, 2:-2, :], 1.)
     layer.get_config()
 
 
@@ -355,8 +396,9 @@ def test_zero_padding_3d():
     input_len_dim2 = 11
     input_len_dim3 = 12
 
-    input = np.ones((nb_samples, stack_size, input_len_dim1,
-                     input_len_dim2, input_len_dim3))
+    input = np.ones((nb_samples,
+                     input_len_dim1, input_len_dim2, input_len_dim3,
+                     stack_size))
 
     # basic test
     layer_test(convolutional.ZeroPadding3D,
@@ -368,10 +410,10 @@ def test_zero_padding_3d():
     layer.set_input(K.variable(input), shape=input.shape)
     out = K.eval(layer.output)
     for offset in [0, 1, -1, -2]:
+        assert_allclose(out[:, offset, :, :, :], 0.)
         assert_allclose(out[:, :, offset, :, :], 0.)
         assert_allclose(out[:, :, :, offset, :], 0.)
-        assert_allclose(out[:, :, :, :, offset], 0.)
-    assert_allclose(out[:, :, 2:-2, 2:-2, 2:-2], 1.)
+    assert_allclose(out[:, 2:-2, 2:-2, 2:-2, :], 1.)
     layer.get_config()
 
 

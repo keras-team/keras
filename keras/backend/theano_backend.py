@@ -573,7 +573,7 @@ def temporal_padding(x, padding=1):
     return T.set_subtensor(output[:, padding:x.shape[1] + padding, :], x)
 
 
-def spatial_2d_padding(x, padding=(1, 1), dim_ordering='th'):
+def spatial_2d_padding(x, padding=(1, 1), dim_ordering=_IMAGE_DIM_ORDERING):
     '''Pad the 2nd and 3rd dimensions of a 4D tensor
     with "padding[0]" and "padding[1]" (resp.) zeros left and right.
     '''
@@ -604,7 +604,7 @@ def spatial_2d_padding(x, padding=(1, 1), dim_ordering='th'):
     return T.set_subtensor(output[indices], x)
 
 
-def spatial_3d_padding(x, padding=(1, 1, 1), dim_ordering='th'):
+def spatial_3d_padding(x, padding=(1, 1, 1), dim_ordering=_IMAGE_DIM_ORDERING):
     '''Pad the 2nd, 3rd and 4th dimensions of a 5D tensor
     with "padding[0]", "padding[1]" and "padding[2]" (resp.) zeros left and right.
     '''
@@ -931,11 +931,26 @@ def in_test_phase(x, alt):
 
 # NN OPERATIONS
 
+def _assert_has_capability(module, func):
+    assert hasattr(module, func), ('It looks like like your version of '
+                                   'Theano is out of date. '
+                                   'Install the latest version with:\n'
+                                   'pip install git+git://github.com/Theano/Theano.git --upgrade --no-deps')
+
+
+def elu(x, alpha=1.0):
+    """ Exponential linear unit
+
+    # Arguments
+        x: Tensor to compute the activation function for.
+        alpha: scalar
+    """
+    _assert_has_capability(T.nnet, 'elu')
+    return T.nnet.elu(x, alpha)
+
+
 def relu(x, alpha=0., max_value=None):
-    assert hasattr(T.nnet, 'relu'), ('It looks like like your version of '
-                                     'Theano is out of date. '
-                                     'Install the latest version with:\n'
-                                     'pip install git+git://github.com/Theano/Theano.git --upgrade --no-deps')
+    _assert_has_capability(T.nnet, 'relu')
     x = T.nnet.relu(x, alpha)
     if max_value is not None:
         x = T.minimum(x, max_value)
@@ -1197,7 +1212,7 @@ def separable_conv2d(x, depthwise_kernel, pointwise_kernel, strides=(1, 1),
 
 
 def conv3d(x, kernel, strides=(1, 1, 1),
-           border_mode='valid', dim_ordering='th',
+           border_mode='valid', dim_ordering=_IMAGE_DIM_ORDERING,
            volume_shape=None, filter_shape=None):
     '''
     Run on cuDNN if available.
@@ -1259,7 +1274,7 @@ def conv3d(x, kernel, strides=(1, 1, 1),
 
 
 def pool2d(x, pool_size, strides=(1, 1), border_mode='valid',
-           dim_ordering='th', pool_mode='max'):
+           dim_ordering=_IMAGE_DIM_ORDERING, pool_mode='max'):
     if border_mode == 'same':
         w_pad = pool_size[0] - 2 if pool_size[0] % 2 == 1 else pool_size[0] - 1
         h_pad = pool_size[1] - 2 if pool_size[1] % 2 == 1 else pool_size[1] - 1
@@ -1302,7 +1317,7 @@ def pool2d(x, pool_size, strides=(1, 1), border_mode='valid',
 
 
 def pool3d(x, pool_size, strides=(1, 1, 1), border_mode='valid',
-           dim_ordering='th', pool_mode='max'):
+           dim_ordering=_IMAGE_DIM_ORDERING, pool_mode='max'):
     if border_mode == 'same':
         # TODO: add implementation for border_mode="same"
         raise Exception('border_mode="same" not supported with Theano.')

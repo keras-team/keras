@@ -2571,6 +2571,16 @@ class Container(Layer):
                                     ' weights, but the saved weights have ' +
                                     str(len(weight_values)) +
                                     ' elements.')
+                if layer.__class__.__name__ == 'Convolution1D':
+                    # this is for backwards compatibility with
+                    # the old Conv1D weights format.
+                    w = weight_values[0]
+                    shape = w.shape
+                    if shape[:2] != (layer.filter_length, 1) or shape[3] != layer.nb_filter:
+                        # legacy shape: (self.nb_filter, input_dim, self.filter_length, 1)
+                        assert shape[0] == layer.nb_filter and shape[2:] == (layer.filter_length, 1)
+                        w = np.transpose(w, (2, 3, 1, 0))
+                        weight_values[0] = w
                 weight_value_tuples += zip(symbolic_weights, weight_values)
             K.batch_set_value(weight_value_tuples)
 

@@ -83,9 +83,9 @@ def matthews_correlation(y_true, y_pred):
     tp = K.sum(y_pos * y_pred_pos)
     tn = K.sum(y_neg * y_pred_neg)
 
-    fp = K.sum(1 - y_neg * y_pred_pos)
-    fn = K.sum(1 - y_pos * y_pred_neg)
-    
+    fp = K.sum(y_neg * y_pred_pos)
+    fn = K.sum(y_pos * y_pred_neg)
+
     numerator = (tp * tn - fp * fn)
     denominator = K.sqrt((tp + fp) * (tp + fn) * (tn + fp) * (tn + fn))
 

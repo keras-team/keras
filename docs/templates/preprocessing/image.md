@@ -47,7 +47,7 @@ Generate batches of tensor image data with real-time data augmentation. The data
         "th" mode means that the images should have shape `(samples, channels, width, height)`.
         It defaults to the `image_dim_ordering` value found in your
         Keras config file at `~/.keras/keras.json`.
-        If you never set it, then it will be "th".
+        If you never set it, then it will be "tf".
 
 - __Methods__:
     - __fit(X)__: Compute the internal data stats related to the data-dependent transformations, based on an array of sample data.
@@ -56,12 +56,14 @@ Generate batches of tensor image data with real-time data augmentation. The data
             - __X__: sample data.
             - __augment__: Boolean (default: False). Whether to fit on randomly augmented samples.
             - __rounds__: int (default: 1). If augment, how many augmentation passes over the data to use.
+            - __seed__: int (default: None). Random seed.
     - __flow(X, y)__: Takes numpy data & label arrays, and generates batches of augmented/normalized data. Yields batches indefinitely, in an infinite loop.
         - __Arguments__:
             - __X__: data.
             - __y__: labels.
             - __batch_size__: int (default: 32).
             - __shuffle__: boolean (defaut: True).
+            - __seed__: int (default: None).
             - __save_to_dir__: None or str (default: None). This allows you to optimally specify a directory to which to save the augmented pictures being generated (useful for visualizing what you are doing).
             - __save_prefix__: str (default: `''`). Prefix to use for filenames of saved pictures (only relevant if `save_to_dir` is set).
             - __save_format__: one of "png", "jpeg" (only relevant if `save_to_dir` is set). Default: "jpeg".
@@ -77,7 +79,7 @@ Generate batches of tensor image data with real-time data augmentation. The data
             - __class_mode__: one of "categorical", "binary", "sparse" or None. Default: "categorical". Determines the type of label arrays that are returned: "categorical" will be 2D one-hot encoded labels, "binary" will be 1D binary labels, "sparse" will be 1D integer labels. If None, no labels are returned (the generator will only yield batches of image data, which is useful to use `model.predict_generator()`, `model.evaluate_generator()`, etc.).
             - __batch_size__: size of the batches of data (default: 32).
             - __shuffle__: whether to shuffle the data (default: True)
-            - __seed__: optional random seed for shuffling.
+            - __seed__: optional random seed for shuffling and transformations.
             - __save_to_dir__: None or str (default: None). This allows you to optimally specify a directory to which to save the augmented pictures being generated (useful for visualizing what you are doing).
             - __save_prefix__: str. Prefix to use for filenames of saved pictures (only relevant if `save_to_dir` is set).
             - __save_format__: one of "png", "jpeg" (only relevant if `save_to_dir` is set). Default: "jpeg".
@@ -150,4 +152,41 @@ model.fit_generator(
         nb_epoch=50,
         validation_data=validation_generator,
         nb_val_samples=800)
+```
+
+Example of transforming images and masks together.
+
+```python
+# we create two instances with the same arguments
+data_gen_args = dict(featurewise_center=True,
+                     featurewise_std_normalization=True,
+                     rotation_range=90.,
+                     width_shift_range=0.1,
+                     height_shift_range=0.1,
+                     zoom_range=0.2)
+image_datagen = ImageDataGenerator(**data_gen_args)
+mask_datagen = ImageDataGenerator(**data_gen_args)
+
+# Provide the same seed and keyword arguments to the fit and flow methods
+seed = 1
+image_datagen.fit(images, augment=True, seed=seed)
+mask_datagen.fit(masks, augment=True, seed=seed)
+
+image_generator = image_datagen.flow_from_directory(
+    'data/images',
+    class_mode=None,
+    seed=seed)
+
+mask_generator = mask_datagen.flow_from_directory(
+    'data/masks',
+    class_mode=None,
+    seed=seed)
+
+# combine generators into one which yields image and masks
+train_generator = zip(image_generator, mask_generator)
+
+model.fit_generator(
+    train_generator,
+    samples_per_epoch=2000,
+    nb_epoch=50)
 ```

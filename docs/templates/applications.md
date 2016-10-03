@@ -7,7 +7,7 @@ Weights are downloaded automatically when instantiating a model. They are stored
 
 ## Available models
 
-Models for image classification with weights trained on ImageNet:
+### Models for image classification with weights trained on ImageNet:
 
 - [VGG16](#vgg16)
 - [VGG19](#vgg19)
@@ -16,9 +16,13 @@ Models for image classification with weights trained on ImageNet:
 
 All of these architectures are compatible with both TensorFlow and Theano, and upon instantiation the models will be built according to the image dimension ordering set in your Keras configuration file at `~/.keras/keras.json`. For instance, if you have set `image_dim_ordering=tf`, then any model loaded from this repository will get built according to the TensorFlow dimension ordering convention, "Width-Height-Depth".
 
+### Model for music audio file auto-tagging (taking as input Mel-spectrograms):
+
+- [MusicTaggerCRNN](#musictaggercrnn)
+
 -----
 
-## Examples
+## Usage examples for image classification models
 
 ### Classify ImageNet classes with ResNet50
 
@@ -26,6 +30,7 @@ All of these architectures are compatible with both TensorFlow and Theano, and u
 from keras.applications.resnet50 import ResNet50
 from keras.preprocessing import image
 from keras.applications.resnet50 import preprocess_input, decode_predictions
+import numpy as np
 
 model = ResNet50(weights='imagenet')
 
@@ -36,8 +41,10 @@ x = np.expand_dims(x, axis=0)
 x = preprocess_input(x)
 
 preds = model.predict(x)
-print('Predicted:', decode_predictions(preds))
-# print: [[u'n02504458', u'African_elephant']]
+# decode the results into a list of tuples (class, description, probability)
+# (one such list for each sample in the batch)
+print('Predicted:', decode_predictions(preds, top=3)[0])
+# Predicted: [(u'n02504013', u'Indian_elephant', 0.82658225), (u'n01871265', u'tusker', 0.1122357), (u'n02504458', u'African_elephant', 0.061040461)]
 ```
 
 ### Extract features with VGG16
@@ -46,6 +53,7 @@ print('Predicted:', decode_predictions(preds))
 from keras.applications.vgg16 import VGG16
 from keras.preprocessing import image
 from keras.applications.vgg16 import preprocess_input
+import numpy as np
 
 model = VGG16(weights='imagenet', include_top=False)
 
@@ -65,6 +73,7 @@ from keras.applications.vgg19 import VGG19
 from keras.preprocessing import image
 from keras.applications.vgg19 import preprocess_input
 from keras.models import Model
+import numpy as np
 
 base_model = VGG19(weights='imagenet')
 model = Model(input=base_model.input, output=base_model.get_layer('block4_pool').output)
@@ -150,6 +159,17 @@ input_tensor = Input(shape=(224, 224, 3))  # this assumes K.image_dim_ordering()
 
 model = InceptionV3(input_tensor=input_tensor, weights='imagenet', include_top=True)
 ```
+
+-----
+
+# Documentation for individual models
+
+
+- [VGG16](#vgg16)
+- [VGG19](#vgg19)
+- [ResNet50](#resnet50)
+- [InceptionV3](#inceptionv3)
+- [MusicTaggerCRNN](#musictaggercrnn)
 
 -----
 
@@ -258,3 +278,64 @@ A Keras model instance.
 ### License
 
 These weights are trained by ourselves and are released under the MIT license.
+
+-----
+
+## MusicTaggerCRNN
+
+
+```python
+keras.applications.music_tagger_crnn.MusicTaggerCRNN(weights='msd', input_tensor=None, include_top=True)
+```
+
+A convolutional-recurrent model taking as input a vectorized representation of the MelSpectrogram of a music track and capable of outputting the musical genre of the track. You can use `keras.applications.music_tagger_crnn.preprocess_input` to convert a sound file to a vectorized spectrogram. This requires to have installed the [Librosa](http://librosa.github.io/librosa/) library. See [the usage example](#music-tagging-and-feature-extraction-with-musictaggercrnn).
+
+### Arguments
+
+- weights: one of `None` (random initialization) or "msd" (pre-training on [Million Song Dataset](http://labrosa.ee.columbia.edu/millionsong/)).
+- input_tensor: optional Keras tensor (i.e. output of `layers.Input()`) to use as image input for the model.
+- include_top: whether to include the 1 fully-connected layer (output layer) at the top of the network. If False, the network outputs 32-dim features.
+
+### Returns
+
+A Keras model instance.
+
+### References
+
+- [Convolutional Recurrent Neural Networks for Music Classification](https://arxiv.org/abs/1609.04243)
+
+### License
+
+These weights are ported from the ones [released by Keunwoo Choi](https://github.com/keunwoochoi/music-auto_tagging-keras) under the [MIT license](https://github.com/keunwoochoi/music-auto_tagging-keras/blob/master/LICENSE.md).
+
+### Examples: music tagging and audio feature extraction
+
+```python
+from keras.applications.music_tagger_crnn import MusicTaggerCRNN
+from keras.applications.music_tagger_crnn import preprocess_input, decode_predictions
+import numpy as np
+
+# 1. Tagging
+model = MusicTaggerCRNN(weights='msd')
+
+audio_path = 'audio_file.mp3'
+melgram = preprocess_input(audio_path)
+melgrams = np.expand_dims(melgram, axis=0)
+
+preds = model.predict(melgrams)
+print('Predicted:')
+print(decode_predictions(preds))
+# print: ('Predicted:', [[('rock', 0.097071797), ('pop', 0.042456303), ('alternative', 0.032439161), ('indie', 0.024491295), ('female vocalists', 0.016455274)]])
+
+#. 2. Feature extraction
+model = MusicTaggerCRNN(weights='msd', include_top=False)
+
+audio_path = 'audio_file.mp3'
+melgram = preprocess_input(audio_path)
+melgrams = np.expand_dims(melgram, axis=0)
+
+feats = model.predict(melgrams)
+print('Features:')
+print(feats[0, :10])
+# print: ('Features:', [-0.19160545 0.94259131 -0.9991011 0.47644514 -0.19089699 0.99033844 0.1103896 -0.00340496 0.14823607 0.59856361])
+```

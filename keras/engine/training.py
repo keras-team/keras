@@ -680,6 +680,8 @@ class Model(Container):
         self.test_function = None
         self.predict_function = None
 
+        self._collected_trainable_weights = collect_trainable_weights(self)
+
     def _make_train_function(self):
         if not hasattr(self, 'train_function'):
             raise Exception('You must compile your model before using it.')
@@ -689,9 +691,9 @@ class Model(Container):
             else:
                 inputs = self.inputs + self.targets + self.sample_weights
 
-            # get trainable weights
-            trainable_weights = collect_trainable_weights(self)
-            training_updates = self.optimizer.get_updates(trainable_weights, self.constraints, self.total_loss)
+            training_updates = self.optimizer.get_updates(self._collected_trainable_weights,
+                                                          self.constraints,
+                                                          self.total_loss)
             updates = self.updates + training_updates
 
             # returns loss and metrics. Updates weights at each call.
