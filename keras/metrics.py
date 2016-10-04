@@ -96,7 +96,7 @@ def fmeasure(y_true, y_pred, beta=1):
     '''Approximate F-score as an overall loss for all the samples at once.
     '''
     
-    # Count non-zero elements.    
+    # Count non-zero elements.
     c1 = K.sum(K.round(K.clip(y_true * y_pred, 0, 1)))
     c2 = K.sum(K.round(K.clip(y_pred, 0, 1)))
     c3 = K.sum(K.round(K.clip(y_true, 0, 1)))

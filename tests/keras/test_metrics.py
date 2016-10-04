@@ -55,7 +55,7 @@ def test_fmeasure():
 
     actual = K.eval(metrics.fmeasure(y_true, y_pred))
     epsilon = 1e-05
-    assert expected - epsilon <= actual <= expected + epsilon   
+    assert expected - epsilon <= actual <= expected + epsilon
 
 
 def test_sparse_metrics():
