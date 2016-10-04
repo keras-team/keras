@@ -447,7 +447,6 @@ class _GlobalPooling2D(Layer):
         super(_GlobalPooling2D, self).__init__(**kwargs)
         if dim_ordering == 'default':
             dim_ordering = K.image_dim_ordering()
-        print(dim_ordering)
         self.dim_ordering = dim_ordering
         self.input_spec = [InputSpec(ndim=4)]
 
