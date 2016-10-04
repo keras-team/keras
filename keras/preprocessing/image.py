@@ -16,9 +16,8 @@ import threading
 from .. import backend as K
 
 
-def matrix_rotation(x, rg, row_index=1, col_index=2, channel_index=0,
+def matrix_rotation(x, theta, row_index=1, col_index=2, channel_index=0,
                     fill_mode='nearest', cval=0.):
-    theta = np.pi / 180 * np.random.uniform(-rg, rg)
     rotation_matrix = np.array([[np.cos(theta), -np.sin(theta), 0],
                                 [np.sin(theta), np.cos(theta), 0],
                                 [0, 0, 1]])
@@ -29,11 +28,11 @@ def matrix_rotation(x, rg, row_index=1, col_index=2, channel_index=0,
     return x
 
 
-def matrix_shift(x, wrg, hrg, row_index=1, col_index=2, channel_index=0,
+def matrix_shift(x, shift_x, shift_y, row_index=1, col_index=2, channel_index=0,
                  fill_mode='nearest', cval=0.):
     h, w = x.shape[row_index], x.shape[col_index]
-    tx = np.random.uniform(-hrg, hrg) * h
-    ty = np.random.uniform(-wrg, wrg) * w
+    tx = shift_y * h
+    ty = shift_y * w
     translation_matrix = np.array([[1, 0, tx],
                                    [0, 1, ty],
                                    [0, 0, 1]])
@@ -45,9 +44,8 @@ def matrix_shift(x, wrg, hrg, row_index=1, col_index=2, channel_index=0,
 
 def matrix_shear(x, intensity, row_index=1, col_index=2, channel_index=0,
                  fill_mode='nearest', cval=0.):
-    shear = np.random.uniform(-intensity, intensity)
-    shear_matrix = np.array([[1, -np.sin(shear), 0],
-                             [0, np.cos(shear), 0],
+    shear_matrix = np.array([[1, -np.sin(intensity), 0],
+                             [0, np.cos(intensity), 0],
                              [0, 0, 1]])
 
     h, w = x.shape[row_index], x.shape[col_index]
@@ -56,18 +54,10 @@ def matrix_shear(x, intensity, row_index=1, col_index=2, channel_index=0,
     return x
 
 
-def matrix_zoom(x, zoom_range, row_index=1, col_index=2, channel_index=0,
+def matrix_zoom(x, zoom_x, zoom_y, row_index=1, col_index=2, channel_index=0,
                 fill_mode='nearest', cval=0.):
-    if len(zoom_range) != 2:
-        raise Exception('zoom_range should be a tuple or list of two floats. '
-                        'Received arg: ', zoom_range)
-
-    if zoom_range[0] == 1 and zoom_range[1] == 1:
-        zx, zy = 1, 1
-    else:
-        zx, zy = np.random.uniform(zoom_range[0], zoom_range[1], 2)
-    zoom_matrix = np.array([[zx, 0, 0],
-                            [0, zy, 0],
+    zoom_matrix = np.array([[zoom_x, 0, 0],
+                            [0, zoom_y, 0],
                             [0, 0, 1]])
 
     h, w = x.shape[row_index], x.shape[col_index]
@@ -84,7 +74,7 @@ def matrix_barrel_transform(x, intensity):
 def matrix_channel_shift(x, intensity, channel_index=0):
     x = np.rollaxis(x, channel_index, 0)
     min_x, max_x = np.min(x), np.max(x)
-    channel_images = [np.clip(x_channel + np.random.uniform(-intensity, intensity), min_x, max_x)
+    channel_images = [np.clip(x_channel + intensity, min_x, max_x)
                       for x_channel in x]
     x = np.stack(channel_images, axis=0)
     x = np.rollaxis(x, 0, channel_index+1)
