@@ -1789,9 +1789,9 @@ def ctc_label_dense_to_sparse(labels, label_lengths):
     max_num_labels_tns = tf.pack([label_shape[1]])
 
     def range_less_than(previous_state, current_input):
-        return tf.expand_dims(tf.range(label_shape[1]), 0) < current_input
+        return tf.expand_dims(tf.range(label_shape[1]), 0) < tf.fill(max_num_labels_tns, current_input)
 
-    init = tf.cast(tf.fill(max_num_labels_tns, 0), tf.bool)
+    init = tf.cast(tf.fill([1, label_shape[1]], 0), tf.bool)
     dense_mask = functional_ops.scan(range_less_than, label_lengths,
                                      initializer=init, parallel_iterations=1)
     dense_mask = dense_mask[:, 0, :]
