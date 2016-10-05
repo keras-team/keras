@@ -226,7 +226,6 @@ class Recurrent(Layer):
             initial_states = self.get_initial_states(x)
         constants = self.get_constants(x)
         preprocessed_input = self.preprocess_input(x)
-
         last_output, outputs, states = K.rnn(self.step, preprocessed_input,
                                              initial_states,
                                              go_backwards=self.go_backwards,
@@ -898,13 +897,6 @@ class LSTM(Recurrent):
                   'dropout_U': self.dropout_U}
         base_config = super(LSTM, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
-
-def _get_reversed_input(self, train=False):
-    if hasattr(self, 'previous'):
-        X = self.previous.get_output(train=train)
-    else:
-        X = self.input
-    return X[::-1]
 
 
 class LSTMCond(Recurrent):
@@ -1718,10 +1710,11 @@ class AttLSTMCond(LSTM):
     def __init__(self, output_dim, return_extra_variables=False,
                  init='glorot_uniform', inner_init='orthogonal', #init_state=None, init_memory=None,
                  forget_bias_init='one', activation='tanh',
-                 inner_activation='sigmoid', context_dim = None,
+                 inner_activation='sigmoid',
                  W_regularizer=None, U_regularizer=None, V_regularizer=None, b_regularizer=None,
-                 dropout_W=0., dropout_U=0., dropout_V=0., dropout_wa=0., dropout_Wa=0., dropout_Ua=0.,
                  wa_regularizer=None, Wa_regularizer=None, Ua_regularizer=None, ba_regularizer=None,
+                 dropout_W=0., dropout_U=0., dropout_V=0., dropout_wa=0., dropout_Wa=0., dropout_Ua=0.,
+
                  **kwargs):
         self.output_dim = output_dim
         self.return_extra_variables = return_extra_variables
@@ -1730,7 +1723,6 @@ class AttLSTMCond(LSTM):
         self.forget_bias_init = initializations.get(forget_bias_init)
         self.activation = activations.get(activation)
         self.inner_activation = activations.get(inner_activation)
-        self.context_dim = context_dim
         self.W_regularizer = regularizers.get(W_regularizer)
         self.U_regularizer = regularizers.get(U_regularizer)
         self.V_regularizer = regularizers.get(V_regularizer)
@@ -1762,7 +1754,7 @@ class AttLSTMCond(LSTM):
         self.input_dim = input_shape[1][2]
         self.context_steps = input_shape[0][1]
         self.context_dim = input_shape[0][2]
-
+        #print [i.shape for i in self.input_spec]
         if self.stateful:
             self.reset_states()
         else:
@@ -1891,8 +1883,8 @@ class AttLSTMCond(LSTM):
                            K.zeros((input_shape[0], input_shape[3]))]#,
                            #K.zeros((input_shape[0], input_shape[2]))]
 
-    def preprocess_input(self, x):
-        return K.dot(x, self.V) + self.b
+    def preprocess_input(self, x, B_V):
+        return K.dot(x * B_V[0], self.V) + self.b
 
     def get_output_shape_for(self, input_shape):
 
@@ -1942,8 +1934,8 @@ class AttLSTMCond(LSTM):
             initial_states = self.states
         else:
             initial_states = self.get_initial_states(self.context)
-        constants = self.get_constants(state_below)
-        preprocessed_input = self.preprocess_input(state_below)
+        constants, B_V = self.get_constants(state_below)
+        preprocessed_input = self.preprocess_input(state_below, B_V)
         last_output, outputs, states = K.rnn(self.step, preprocessed_input,
                                              initial_states,
                                              go_backwards=self.go_backwards,
@@ -1981,19 +1973,17 @@ class AttLSTMCond(LSTM):
 
         B_U = states[4]    # Dropout U
         B_W = states[5]    # Dropout W
-        B_V = states[6]    # Dropout V
 
         # Att model dropouts
-        B_wa = states[7]
-        B_Wa = states[8]
-        B_Ua = states[9]
-        pctx_ = states[10]  # Projected context (i.e. context * Ua + ba)
-        context = states[11]  # Original context
+        B_wa = states[6]
+        B_Wa = states[7]
+        pctx_ = states[8]  # Projected context (i.e. context * Ua + ba)
+        context = states[9]  # Original context
 
         # AttModel (see Formulation in class header)
-        p_state_ = K.dot(h_tm1, self.Wa)
+        p_state_ = K.dot(h_tm1 * B_Wa[0], self.Wa)
         pctx_ = K.tanh(pctx_ +  p_state_[:, None, :])
-        e = K.dot(pctx_, self.wa) + self.ca
+        e = K.dot(pctx_ * B_wa[0], self.wa) + self.ca
         alphas_shape = e.shape
         alphas = K.softmax(e.reshape([alphas_shape[0], alphas_shape[1]]))
         ctx_ = (context * alphas[:, :, None]).sum(axis=1) # sum over the in_timesteps dimension resulting in [batch_size, input_dim]
@@ -2020,7 +2010,7 @@ class AttLSTMCond(LSTM):
 
     def get_constants(self, x):
         constants = []
-        # States[3]
+        # States[4]
         if 0 < self.dropout_U < 1:
             ones = K.ones_like(K.reshape(x[:, 0, 0], (-1, 1)))
             ones = K.concatenate([ones] * self.output_dim, 1)
@@ -2029,7 +2019,7 @@ class AttLSTMCond(LSTM):
         else:
             constants.append([K.cast_to_floatx(1.) for _ in range(4)])
 
-        # States[4]
+        # States[5]
         if 0 < self.dropout_W < 1:
             input_shape = self.input_spec[1][0].shape
             input_dim = input_shape[-1]
@@ -2039,53 +2029,52 @@ class AttLSTMCond(LSTM):
             constants.append(B_W)
         else:
             constants.append([K.cast_to_floatx(1.) for _ in range(4)])
-        # States[5]
+
         if 0 < self.dropout_V < 1:
             input_dim = self.input_dim
-            ones = K.ones_like(K.reshape(x[:, 0, 0], (-1, 1)))
-            ones = K.concatenate([ones] * input_dim, 1)
+            ones = K.ones_like(K.reshape(x[:, :, 0], (-1, x.shape[1], 1))) # (bs, timesteps, 1)
+            ones = K.concatenate([ones] * input_dim, axis=2)
             B_V = [K.in_train_phase(K.dropout(ones, self.dropout_V), ones) for _ in range(4)]
-            constants.append(B_V)
         else:
-            constants.append([K.cast_to_floatx(1.) for _ in range(4)])
+            B_V = [K.cast_to_floatx(1.) for _ in range(4)]
 
         # AttModel
         # States[6]
         if 0 < self.dropout_wa < 1:
             input_dim = self.context_dim
-            ones = K.ones_like(K.reshape(x[:, 0, 0], (-1, 1)))
-            ones = K.concatenate([ones] * input_dim, 2)
-            B_wa = K.in_train_phase(K.dropout(ones, self.dropout_wa), ones)
+            ones = K.ones_like(K.reshape(self.context[:, :, 0], (-1, self.output_dim, 1)))
+            ones = K.concatenate([ones] * input_dim, 1)
+            B_wa = [K.in_train_phase(K.dropout(ones, self.dropout_wa), ones)]
             constants.append(B_wa)
-        else:
-            constants.append(K.cast_to_floatx(1.))
-
-        # States[7]
-        if 0 < self.dropout_Wa < 1:
-            input_dim = self.context_dim
-            ones = K.ones_like(K.reshape(x[:, 0, 0], (-1, 1)))
-            ones = K.concatenate([ones] * input_dim, 2)
-            B_Wa = K.in_train_phase(K.dropout(ones, self.dropout_Wa), ones)
-            constants.append(B_Wa)
-        else:
-            constants.append(K.cast_to_floatx(1.))
-        # States[8]
-        if 0 < self.dropout_Ua < 1:
-            ones = K.ones_like(K.reshape(x[:, 0, 0], (-1, 1)))
-            ones = K.concatenate([ones] * self.output_dim, 2)
-            B_Ua = K.in_train_phase(K.dropout(ones, self.dropout_Ua), ones)
-            constants.append(B_Ua)
         else:
             constants.append([K.cast_to_floatx(1.)])
 
-        # States[9]
-        pctx = K.dot(self.context, self.Ua) + self.ba
+        # States[7]
+        if 0 < self.dropout_Wa < 1:
+            input_dim = self.output_dim
+            ones = K.ones_like(K.reshape(self.context[:, 0, 0], (-1, 1)))
+            ones = K.concatenate([ones] * input_dim, 1)
+            B_Wa = [K.in_train_phase(K.dropout(ones, self.dropout_Wa), ones)]
+            constants.append(B_Wa)
+        else:
+            constants.append([K.cast_to_floatx(1.)])
+
+        if 0 < self.dropout_Ua < 1:
+            input_dim = self.context_dim
+            ones = K.ones_like(K.reshape(self.context[:, :, 0], (-1, self.context.shape[1], 1)))
+            ones = K.concatenate([ones] * input_dim, axis=2)
+            B_Ua = [K.in_train_phase(K.dropout(ones, self.dropout_Ua), ones)]
+        else:
+            B_Ua = [K.cast_to_floatx(1.)]
+
+        # States[8]
+        pctx = K.dot(self.context * B_Ua[0], self.Ua) + self.ba
         constants.append(pctx)
 
-        # States[10]
+        # States[9]
         constants.append(self.context)
 
-        return constants
+        return constants, B_V
 
     def get_initial_states(self, x):
         # build an all-zero tensor of shape (samples, output_dim)

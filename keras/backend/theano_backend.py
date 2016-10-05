@@ -760,7 +760,7 @@ def rnn(step_function, inputs, initial_states,
         states = [T.squeeze(state[-1]) for state in states]
     else:
         states = [state if i_s in pos_extra_outputs_states
-                  else T.squeeze(state[-1]) for i_s, state in enumerate(states)]
+                        else T.squeeze(state[-1]) for i_s, state in enumerate(states)]
     return last_output, outputs, states
 
 
