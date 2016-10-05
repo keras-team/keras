@@ -2041,9 +2041,8 @@ class AttLSTMCond(LSTM):
         # AttModel
         # States[6]
         if 0 < self.dropout_wa < 1:
-            input_dim = self.context_dim
-            ones = K.ones_like(K.reshape(self.context[:, :, 0], (-1, self.output_dim, 1)))
-            ones = K.concatenate([ones] * input_dim, 1)
+            ones = K.ones_like(K.reshape(self.context[:, :, 0], (-1, self.context.shape[1], 1)))
+            #ones = K.concatenate([ones], 1)
             B_wa = [K.in_train_phase(K.dropout(ones, self.dropout_wa), ones)]
             constants.append(B_wa)
         else:
@@ -2052,7 +2051,7 @@ class AttLSTMCond(LSTM):
         # States[7]
         if 0 < self.dropout_Wa < 1:
             input_dim = self.output_dim
-            ones = K.ones_like(K.reshape(self.context[:, 0, 0], (-1, 1)))
+            ones = K.ones_like(K.reshape(x[:, 0, 0], (-1, 1)))
             ones = K.concatenate([ones] * input_dim, 1)
             B_Wa = [K.in_train_phase(K.dropout(ones, self.dropout_Wa), ones)]
             constants.append(B_Wa)
@@ -2064,11 +2063,11 @@ class AttLSTMCond(LSTM):
             ones = K.ones_like(K.reshape(self.context[:, :, 0], (-1, self.context.shape[1], 1)))
             ones = K.concatenate([ones] * input_dim, axis=2)
             B_Ua = [K.in_train_phase(K.dropout(ones, self.dropout_Ua), ones)]
+            pctx = K.dot(self.context * B_Ua[0], self.Ua) + self.ba
         else:
-            B_Ua = [K.cast_to_floatx(1.)]
+            pctx = K.dot(self.context, self.Ua) + self.ba
 
         # States[8]
-        pctx = K.dot(self.context * B_Ua[0], self.Ua) + self.ba
         constants.append(pctx)
 
         # States[9]
