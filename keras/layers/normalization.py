@@ -117,11 +117,11 @@ class BatchNormalization(Layer):
             shuffle_pattern = list(range(len(input_shape)))
             shuffle_pattern[1] = shuffle_pattern[self.axis]
             shuffle_pattern[self.axis] = 1
-            
+
             reduction_axes = list(range(len(input_shape)))
             del reduction_axes[1]
 
-            x = x.dimshuffle(shuffle_pattern)
+            x = K.permute_dimensions(x, shuffle_pattern)
 
             if self.mode == 2:
                 x_normed, mean, std = K.normalize_batch_in_training(
@@ -154,10 +154,10 @@ class BatchNormalization(Layer):
                         epsilon=self.epsilon)
                 else:
                     # need broadcasting
-                    broadcast_running_mean = K.reshape(self.running_mean, broadcast_shape).dimshuffle(shuffle_pattern)
-                    broadcast_running_std = K.reshape(self.running_std, broadcast_shape).dimshuffle(shuffle_pattern)
-                    broadcast_beta = K.reshape(self.beta, broadcast_shape).dimshuffle(shuffle_pattern)
-                    broadcast_gamma = K.reshape(self.gamma, broadcast_shape).dimshuffle(shuffle_pattern)
+                    broadcast_running_mean = K.permute_dimensions(K.reshape(self.running_mean, broadcast_shape), shuffle_pattern)
+                    broadcast_running_std = K.permute_dimensions(K.reshape(self.running_std, broadcast_shape), shuffle_pattern)
+                    broadcast_beta = K.permute_dimensions(K.reshape(self.beta, broadcast_shape), shuffle_pattern)
+                    broadcast_gamma = K.permute_dimensions(K.reshape(self.gamma, broadcast_shape), shuffle_pattern)
                     x_normed_running = K.batch_normalization(
                         x, broadcast_running_mean, broadcast_running_std,
                         broadcast_beta, broadcast_gamma,
@@ -165,7 +165,7 @@ class BatchNormalization(Layer):
 
                 # pick the normalized form of x corresponding to the training phase
                 x_normed = K.in_train_phase(x_normed, x_normed_running)
-                x_normed = x_normed.dimshuffle(shuffle_pattern)
+                x_normed = K.permute_dimensions(x_normed, shuffle_pattern)
 
         elif self.mode == 1:
             # sample-wise normalization
