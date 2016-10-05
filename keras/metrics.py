@@ -95,16 +95,16 @@ def matthews_correlation(y_true, y_pred):
 def fbetascore(y_true, y_pred, beta=1):
     '''Compute F score, the weighted harmonic mean of precision and recall.
     
-    This is useful for multi-label classification where input samples can be 
-    tagged with a set of labels. By only using accuracy (precision) a model 
-    would achieve a perfect score by simply assigning every class to every 
-    input. In order to avoid this, a metric should penalize incorrect class 
-    assignments as well (recall). The F-beta score (ranged from 0.0 to 1.0) 
-    computes this, as a weighted mean of the proportion of correct class 
+    This is useful for multi-label classification where input samples can be
+    tagged with a set of labels. By only using accuracy (precision) a model
+    would achieve a perfect score by simply assigning every class to every
+    input. In order to avoid this, a metric should penalize incorrect class
+    assignments as well (recall). The F-beta score (ranged from 0.0 to 1.0)
+    computes this, as a weighted mean of the proportion of correct class
     assignments vs. the proportion of incorrect class assignments.
     
-    With beta = 1, this is equivalent to a F-measure. With beta < 1, assigning 
-    correct classes becomes more important, and with beta > 1 the metric is 
+    With beta = 1, this is equivalent to a F-measure. With beta < 1, assigning
+    correct classes becomes more important, and with beta > 1 the metric is
     instead weighted towards penalizing incorrect class assignments.
     
     '''
