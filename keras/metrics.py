@@ -110,7 +110,7 @@ def fbetascore(y_true, y_pred, beta=1):
     '''
     if beta < 0:
         raise ValueError('The lowest choosable beta is zero (only precision).')
-    
+
     # Count positive samples.
     c1 = K.sum(K.round(K.clip(y_true * y_pred, 0, 1)))
     c2 = K.sum(K.round(K.clip(y_pred, 0, 1)))
