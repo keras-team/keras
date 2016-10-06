@@ -1486,6 +1486,15 @@ def l2_normalize(x, axis):
     return tf.nn.l2_normalize(x, dim=axis)
 
 
+def in_top_k(predictions, targets, k):
+    '''Given tensors representing predictions and targets, evaluates whether the
+    targets are within the top k predictions
+    '''
+    y_pred = reshape(predictions, [1, shape(predictions)[0]])
+    y_target = reshape(argmax(targets), [1])
+    return cast(any(tf.nn.in_top_k(y_pred, y_target, k)), 'float32')
+
+
 # CONVOLUTIONS
 
 def _preprocess_deconv_output_shape(shape, dim_ordering):

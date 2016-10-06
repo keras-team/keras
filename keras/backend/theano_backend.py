@@ -1043,6 +1043,14 @@ def l2_normalize(x, axis):
     return x / norm
 
 
+def in_top_k(predictions, targets, k):
+    '''Given tensors representing predictions and targets, evaluates whether the
+    targets are within the top k predictions
+    '''
+    top_k_pred = T.argsort(predictions)[-k:]
+    return cast(any(equal(top_k_pred, T.argmax(targets))), 'float32')
+
+
 # CONVOLUTIONS
 
 def _preprocess_conv2d_input(x, dim_ordering):
