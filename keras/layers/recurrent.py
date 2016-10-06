@@ -1769,7 +1769,7 @@ class AttLSTMCond(LSTM):
         self.Ua = self.init((self.context_dim, self.context_dim),
                             name='{}_Ua'.format(self.name))
 
-        self.Wa = self.inner_init((self.output_dim, self.context_dim),
+        self.Wa = self.init((self.output_dim, self.context_dim),
                                   name='{}_Wa'.format(self.name))
 
         self.ba = K.variable((np.zeros(self.context_dim)),
@@ -1781,7 +1781,7 @@ class AttLSTMCond(LSTM):
                                name='{}_W'.format(self.name))
             self.U = self.inner_init((self.output_dim, 4 * self.output_dim),
                                      name='{}_U'.format(self.name))
-            self.V = self.inner_init((self.input_dim, 4 * self.output_dim),
+            self.V = self.init((self.input_dim, 4 * self.output_dim),
                                      name='{}_V'.format(self.name))
             self.b = K.variable(np.hstack((np.zeros(self.output_dim),
                                            K.get_value(self.forget_bias_init(self.output_dim)),
