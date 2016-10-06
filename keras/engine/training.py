@@ -450,7 +450,7 @@ def generator_queue(generator, max_q_size=10,
             q.close()
         raise
 
-    return q, _stop
+    return q, _stop, generator_threads
 
 
 class Model(Container):
@@ -1393,7 +1393,7 @@ class Model(Container):
             self.validation_data = None
 
         # start generator thread storing batches into a queue
-        data_gen_queue, _stop = generator_queue(generator, max_q_size=max_q_size, nb_worker=nb_worker,
+        data_gen_queue, _stop,threads = generator_queue(generator, max_q_size=max_q_size, nb_worker=nb_worker,
                                                 pickle_safe=pickle_safe)
 
         callback_model.stop_training = False
@@ -1491,6 +1491,8 @@ class Model(Container):
         if pickle_safe:
             data_gen_queue.close()
         callbacks.on_train_end()
+        for t in threads:
+            t.join()
         return self.history
 
     def evaluate_generator(self, generator, val_samples, max_q_size=10, nb_worker=1, pickle_safe=False):
@@ -1523,7 +1525,7 @@ class Model(Container):
         wait_time = 0.01
         all_outs = []
         weights = []
-        data_gen_queue, _stop = generator_queue(generator, max_q_size=max_q_size, nb_worker=nb_worker,
+        data_gen_queue, _stop,threads = generator_queue(generator, max_q_size=max_q_size, nb_worker=nb_worker,
                                                 pickle_safe=pickle_safe)
 
         while processed_samples < val_samples:
@@ -1571,6 +1573,8 @@ class Model(Container):
         if pickle_safe:
             data_gen_queue.close()
         if type(outs) is not list:
+            for t in threads:
+                t.join()
             return np.average(np.asarray(all_outs),
                               weights=weights)
         else:
@@ -1578,6 +1582,8 @@ class Model(Container):
             for i in range(len(outs)):
                 averages.append(np.average([out[i] for out in all_outs],
                                            weights=weights))
+            for t in threads:
+                t.join()
             return averages
 
     def predict_generator(self, generator, val_samples, max_q_size=10, nb_worker=1, pickle_safe=False):
