@@ -18,7 +18,6 @@ all_metrics = [
     metrics.poisson,
     metrics.cosine_proximity,
     metrics.matthews_correlation,
-    metrics.top_k_categorical_accuracy,
 ]
 
 all_sparse_metrics = [
