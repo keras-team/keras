@@ -85,6 +85,31 @@ def orthogonal(shape, scale=1.1, name=None):
     q = q.reshape(shape)
     return K.variable(scale * q[:shape[0], :shape[1]], name=name)
 
+def ortho_weight(ndim):
+    """
+    Random orthogonal weights, we take
+    the right matrix in the SVD.
+
+    Remember in SVD, u has the same # rows as W
+    and v has the same # of cols as W. So we
+    are ensuring that the rows are
+    orthogonal.
+    """
+    W = np.random.randn(ndim, ndim)
+    u, _, _ = np.linalg.svd(W)
+    return K.variable(u, dtype='float32')
+
+def norm_weight(nin,nout=None, scale=0.01, ortho=True):
+    """
+    Random weights drawn from a Gaussian
+    """
+    if nout == None:
+        nout = nin
+    if nout == nin and ortho:
+        W = ortho_weight(nin)
+    else:
+        W = scale * np.random.randn(nin, nout)
+    return K.variable(W, dtype='float32')
 
 def identity(shape, scale=1, name=None):
     if len(shape) != 2 or shape[0] != shape[1]:
