@@ -270,6 +270,22 @@ def test_globalpooling_2d():
 
 
 @keras_test
+def test_globalpooling_3d():
+    layer_test(pooling.GlobalMaxPooling3D,
+               kwargs={'dim_ordering': 'th'},
+               input_shape=(3, 4, 3, 4, 3))
+    layer_test(pooling.GlobalMaxPooling3D,
+               kwargs={'dim_ordering': 'tf'},
+               input_shape=(3, 4, 3, 4, 3))
+    layer_test(pooling.GlobalAveragePooling3D,
+               kwargs={'dim_ordering': 'th'},
+               input_shape=(3, 4, 3, 4, 3))
+    layer_test(pooling.GlobalAveragePooling3D,
+               kwargs={'dim_ordering': 'tf'},
+               input_shape=(3, 4, 3, 4, 3))
+
+
+@keras_test
 def test_maxpooling_2d():
     pool_size = (3, 3)
 
