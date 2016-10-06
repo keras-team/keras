@@ -39,11 +39,23 @@ def test_matthews_correlation():
     y_pred = K.variable(np.array([1, 0, 1, 0, 1, 0, 0, 1, 0, 0, 0, 0, 1, 0]))
 
     # Calculated using sklearn.metrics.matthews_corrcoef
-    actual = -0.14907119849998601
+    expected = -0.14907119849998601
 
-    calc = K.eval(metrics.matthews_correlation(y_true, y_pred))
+    actual = K.eval(metrics.matthews_correlation(y_true, y_pred))
     epsilon = 1e-05
-    assert actual - epsilon <= calc <= actual + epsilon
+    assert expected - epsilon <= actual <= expected + epsilon
+
+
+def test_fbetascore():
+    y_true = K.variable(np.array([0, 1, 1, 1, 0, 0, 0, 1, 1, 1, 0, 1, 0, 0]))
+    y_pred = K.variable(np.array([1, 0, 1, 0, 1, 0, 0, 1, 0, 0, 0, 0, 1, 0]))
+
+    # Calculated using sklearn.metrics.f1_score
+    expected = 0.33333333333333331
+
+    actual = K.eval(metrics.fbetascore(y_true, y_pred))
+    epsilon = 1e-05
+    assert expected - epsilon <= actual <= expected + epsilon
 
 
 def test_sparse_metrics():
