@@ -46,14 +46,14 @@ def test_matthews_correlation():
     assert expected - epsilon <= actual <= expected + epsilon
 
 
-def test_fbetascore():
+def test_fbeta_score():
     y_true = K.variable(np.array([0, 1, 1, 1, 0, 0, 0, 1, 1, 1, 0, 1, 0, 0]))
     y_pred = K.variable(np.array([1, 0, 1, 0, 1, 0, 0, 1, 0, 0, 0, 0, 1, 0]))
 
     # Calculated using sklearn.metrics.f1_score
     expected = 0.33333333333333331
 
-    actual = K.eval(metrics.fbetascore(y_true, y_pred))
+    actual = K.eval(metrics.fbeta_score(y_true, y_pred))
     epsilon = 1e-05
     assert expected - epsilon <= actual <= expected + epsilon
 
