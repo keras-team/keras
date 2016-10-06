@@ -975,7 +975,7 @@ class LSTMCond(Recurrent):
                                name='{}_W'.format(self.name))
             self.U = self.inner_init((self.output_dim, 4 * self.output_dim),
                                      name='{}_U'.format(self.name))
-            self.V = self.inner_init((self.embedding_size, 4 * self.output_dim),
+            self.V = self.init((self.embedding_size, 4 * self.output_dim),
                                      name='{}_V'.format(self.name))
             self.b = K.variable(np.hstack((np.zeros(self.output_dim),
                                            K.get_value(self.forget_bias_init(self.output_dim)),
@@ -1710,13 +1710,14 @@ class AttLSTMCond(LSTM):
     def __init__(self, output_dim, return_extra_variables=False,
                  init='glorot_uniform', inner_init='orthogonal', #init_state=None, init_memory=None,
                  forget_bias_init='one', activation='tanh',
-                 inner_activation='sigmoid',
+                 inner_activation='sigmoid', context_dim=None,
                  W_regularizer=None, U_regularizer=None, V_regularizer=None, b_regularizer=None,
                  wa_regularizer=None, Wa_regularizer=None, Ua_regularizer=None, ba_regularizer=None,
                  dropout_W=0., dropout_U=0., dropout_V=0., dropout_wa=0., dropout_Wa=0., dropout_Ua=0.,
 
                  **kwargs):
         self.output_dim = output_dim
+        self.context_dim = context_dim
         self.return_extra_variables = return_extra_variables
         self.init = initializations.get(init)
         self.inner_init = initializations.get(inner_init)
@@ -1751,9 +1752,9 @@ class AttLSTMCond(LSTM):
             self.input_spec = [InputSpec(shape=input_shape[0]), InputSpec(shape=input_shape[1]),
                                InputSpec(shape=input_shape[2]), InputSpec(shape=input_shape[3])]
             self.num_inputs = 4
-        self.input_dim = input_shape[1][2]
-        self.context_steps = input_shape[0][1]
-        self.context_dim = input_shape[0][2]
+        self.input_dim = input_shape[1][2]      # previous word
+        self.context_steps = input_shape[0][1]  # context timesteps
+        self.context_dim = input_shape[0][2]    # context
         #print [i.shape for i in self.input_spec]
         if self.stateful:
             self.reset_states()
@@ -1990,9 +1991,7 @@ class AttLSTMCond(LSTM):
 
         # LSTM
         if self.consume_less == 'gpu':
-            z = x + \
-                K.dot(ctx_ * B_W[0], self.W) + \
-                K.dot(h_tm1 * B_U[0], self.U)
+            z = x + K.dot(ctx_ * B_W[0], self.W) + K.dot(h_tm1 * B_U[0], self.U)
 
             z0 = z[:, :self.output_dim]
             z1 = z[:, self.output_dim: 2 * self.output_dim]

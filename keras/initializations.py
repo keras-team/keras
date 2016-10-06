@@ -11,7 +11,7 @@ def get_fans(shape, dim_ordering='th'):
         # TH kernel shape: (depth, input_depth, ...)
         # TF kernel shape: (..., input_depth, depth)
         if dim_ordering == 'th':
-            receptive_field_size = np.prod(shape[2:])
+            receptive_field_size = np.qod(shape[2:])
             fan_in = shape[1] * receptive_field_size
             fan_out = shape[0] * receptive_field_size
         elif dim_ordering == 'tf':
@@ -85,7 +85,7 @@ def orthogonal(shape, scale=1.1, name=None):
     q = q.reshape(shape)
     return K.variable(scale * q[:shape[0], :shape[1]], name=name)
 
-def ortho_weight(ndim):
+def ortho_weight(shape, name=None):
     """
     Random orthogonal weights, we take
     the right matrix in the SVD.
@@ -95,21 +95,20 @@ def ortho_weight(ndim):
     are ensuring that the rows are
     orthogonal.
     """
-    W = np.random.randn(ndim, ndim)
+    W = np.random.randn(shape[0], shape[1])
     u, _, _ = np.linalg.svd(W)
-    return K.variable(u, dtype='float32')
+    return K.variable(u, dtype='float32', name=name)
 
-def norm_weight(nin,nout=None, scale=0.01, ortho=True):
+def norm_weight(shape, scale=0.01, ortho=True, name=None):
     """
     Random weights drawn from a Gaussian
     """
-    if nout == None:
-        nout = nin
-    if nout == nin and ortho:
-        W = ortho_weight(nin)
+    assert len(shape)==2, 'shape must have length 2'
+    if shape[0] == shape[1] and ortho:
+        W = ortho_weight(shape)
     else:
-        W = scale * np.random.randn(nin, nout)
-    return K.variable(W, dtype='float32')
+        W = scale * np.random.randn(shape[0], shape[1])
+    return K.variable(W, dtype='float32', name=name)
 
 def identity(shape, scale=1, name=None):
     if len(shape) != 2 or shape[0] != shape[1]:
