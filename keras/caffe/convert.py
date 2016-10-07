@@ -144,7 +144,8 @@ def create_model(layers, phase, input_dim, debug=False):
             if in_deploy_mode:
                 dim = input_dim
             else:
-                dim = get_data_dim(layers[network_input])
+                raise Exception("You must define the 'input_dim' of your network at the start of your .prototxt file.")
+                #dim = get_data_dim(layers[0])
             net_node[layer_nb] = Input(shape=dim, name=name)
         
         # other cases
