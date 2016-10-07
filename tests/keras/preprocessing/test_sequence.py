@@ -63,7 +63,7 @@ def test_pad_sequences_vector():
 
 def test_make_sampling_table():
     a = make_sampling_table(3)
-    assert_allclose(a, np.asarray([0.00315225,  0.00315225,  0.00547597]),
+    assert_allclose(a, np.asarray([0.00315225, 0.00315225, 0.00547597]),
                     rtol=.1)
 
 

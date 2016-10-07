@@ -1,4 +1,4 @@
-# MarcBS/keras fork
+# MarcBS/keras Multimodal Learning fork
 
 This fork of Keras offers the following contributions:
 
@@ -6,9 +6,11 @@ This fork of Keras offers the following contributions:
 - Layer-specific learning rates
 - New layers for multimodal data
 
+
 Contact email: marc.bolanos@ub.edu
 
 GitHub page: https://github.com/MarcBS
+
 
 MarcBS/keras is compatible with: __Python 2.7__ and __Theano__ only.
 
@@ -49,7 +51,6 @@ git clone https://github.com/MarcBS/keras.git
 ```
 export PYTHONPATH=$PYTHONPATH:/path/to/keras
 ```
-
 
 ## Keras
 

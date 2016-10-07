@@ -1,7 +1,8 @@
 import pytest
-from keras.utils.test_utils import layer_test
+from keras.utils.test_utils import layer_test, keras_test
 
 
+@keras_test
 def test_leaky_relu():
     from keras.layers.advanced_activations import LeakyReLU
     for alpha in [0., .5, -1.]:
@@ -9,12 +10,14 @@ def test_leaky_relu():
                    input_shape=(2, 3, 4))
 
 
+@keras_test
 def test_prelu():
     from keras.layers.advanced_activations import PReLU
     layer_test(PReLU, kwargs={},
                input_shape=(2, 3, 4))
 
 
+@keras_test
 def test_elu():
     from keras.layers.advanced_activations import ELU
     for alpha in [0., .5, -1.]:
@@ -22,6 +25,7 @@ def test_elu():
                    input_shape=(2, 3, 4))
 
 
+@keras_test
 def test_parametric_softplus():
     from keras.layers.advanced_activations import ParametricSoftplus
     for alpha in [0., .5, -1.]:
@@ -31,12 +35,14 @@ def test_parametric_softplus():
                    input_shape=(2, 3, 4))
 
 
+@keras_test
 def test_thresholded_relu():
     from keras.layers.advanced_activations import ThresholdedReLU
     layer_test(ThresholdedReLU, kwargs={'theta': 0.5},
                input_shape=(2, 3, 4))
 
 
+@keras_test
 def test_srelu():
     from keras.layers.advanced_activations import SReLU
     layer_test(SReLU, kwargs={},

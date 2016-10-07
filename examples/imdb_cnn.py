@@ -1,6 +1,6 @@
 '''This example demonstrates the use of Convolution1D for text classification.
 
-Gets to 0.88 test accuracy after 2 epochs. 
+Gets to 0.89 test accuracy after 2 epochs.
 90s/epoch on Intel i5 2.4Ghz CPU.
 10s/epoch on Tesla K40 GPU.
 
@@ -12,9 +12,9 @@ np.random.seed(1337)  # for reproducibility
 
 from keras.preprocessing import sequence
 from keras.models import Sequential
-from keras.layers import Dense, Dropout, Activation, Lambda
+from keras.layers import Dense, Dropout, Activation, Flatten
 from keras.layers import Embedding
-from keras.layers import Convolution1D
+from keras.layers import Convolution1D, MaxPooling1D
 from keras.datasets import imdb
 from keras import backend as K
 
@@ -30,8 +30,7 @@ hidden_dims = 250
 nb_epoch = 2
 
 print('Loading data...')
-(X_train, y_train), (X_test, y_test) = imdb.load_data(nb_words=max_features,
-                                                      test_split=0.2)
+(X_train, y_train), (X_test, y_test) = imdb.load_data(nb_words=max_features)
 print(len(X_train), 'train sequences')
 print(len(X_test), 'test sequences')
 
@@ -58,13 +57,12 @@ model.add(Convolution1D(nb_filter=nb_filter,
                         border_mode='valid',
                         activation='relu',
                         subsample_length=1))
+# we use max pooling:
+model.add(MaxPooling1D(pool_length=model.output_shape[1]))
 
-# we use max over time pooling by defining a python function to use
-# in a Lambda layer
-def max_1d(X):
-    return K.max(X, axis=1)
-
-model.add(Lambda(max_1d, output_shape=(nb_filter,)))
+# We flatten the output of the conv layer,
+# so that we can add a vanilla dense layer:
+model.add(Flatten())
 
 # We add a vanilla hidden layer:
 model.add(Dense(hidden_dims))

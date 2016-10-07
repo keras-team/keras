@@ -125,6 +125,8 @@ class Embedding(Layer):
         return (input_shape[0], input_length, self.output_dim)
 
     def call(self, x, mask=None):
+        if K.dtype(x) != 'int32':
+            x = K.cast(x, 'int32')
         if 0. < self.dropout < 1.:
             retain_p = 1. - self.dropout
             B = K.random_binomial((self.input_dim,), p=retain_p) * (1. / retain_p)

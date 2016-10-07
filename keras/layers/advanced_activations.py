@@ -107,12 +107,10 @@ class ELU(Layer):
         super(ELU, self).__init__(**kwargs)
 
     def call(self, x, mask=None):
-        pos = K.relu(x)
-        neg = (x - abs(x)) * 0.5
-        return pos + self.alpha * (K.exp(neg) - 1.)
+        return K.elu(x, self.alpha)
 
     def get_config(self):
-        config = {'alpha': self.alpha}
+        config = {'alpha': float(self.alpha)}
         base_config = super(ELU, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
@@ -161,8 +159,8 @@ class ParametricSoftplus(Layer):
         return K.softplus(self.betas * x) * self.alphas
 
     def get_config(self):
-        config = {'alpha_init': self.alpha_init,
-                  'beta_init': self.beta_init}
+        config = {'alpha_init': float(self.alpha_init),
+                  'beta_init': float(self.beta_init)}
         base_config = super(ParametricSoftplus, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
@@ -195,7 +193,7 @@ class ThresholdedReLU(Layer):
         return x * K.cast(x > self.theta, K.floatx())
 
     def get_config(self):
-        config = {'theta': self.theta}
+        config = {'theta': float(self.theta)}
         base_config = super(ThresholdedReLU, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 

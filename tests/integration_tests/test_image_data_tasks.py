@@ -2,20 +2,21 @@ from __future__ import print_function
 import numpy as np
 import pytest
 
-from keras.utils.test_utils import get_test_data
+from keras.utils.test_utils import get_test_data, keras_test
 from keras.models import Sequential
 from keras.layers.core import Dense, Flatten, Activation
 from keras.layers.convolutional import Convolution2D, MaxPooling2D
 from keras.utils.np_utils import to_categorical
 
 
+@keras_test
 def test_image_classification():
     '''
     Classify random 16x16 color images into several classes using logistic regression
     with convolutional hidden layer.
     '''
     np.random.seed(1337)
-    input_shape = (3, 16, 16)
+    input_shape = (16, 16, 3)
     (X_train, y_train), (X_test, y_test) = get_test_data(nb_train=500,
                                                          nb_test=200,
                                                          input_shape=input_shape,
