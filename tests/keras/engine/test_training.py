@@ -7,8 +7,10 @@ from keras.engine.topology import merge, Input
 from keras.engine.training import Model
 from keras.models import Sequential, Graph
 from keras import backend as K
+from keras.utils.test_utils import keras_test
 
 
+@keras_test
 def test_model_methods():
     a = Input(shape=(3,), name='input_a')
     b = Input(shape=(3,), name='input_b')
@@ -167,6 +169,7 @@ def test_model_methods():
     out = model.predict([input_a_np, input_b_np], batch_size=4)
 
 
+@keras_test
 def test_trainable_argument():
     x = np.random.random((5, 3))
     y = np.random.random((5, 2))

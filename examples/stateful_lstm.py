@@ -16,7 +16,7 @@ epochs = 25
 lahead = 1
 
 
-def gen_cosine_amp(amp=100, period=25, x0=0, xn=50000, step=1, k=0.0001):
+def gen_cosine_amp(amp=100, period=1000, x0=0, xn=50000, step=1, k=0.0001):
     """Generates an absolute cosine time series with the amplitude
     exponentially decreasing
 
@@ -31,7 +31,7 @@ def gen_cosine_amp(amp=100, period=25, x0=0, xn=50000, step=1, k=0.0001):
     cos = np.zeros(((xn - x0) * step, 1, 1))
     for i in range(len(cos)):
         idx = x0 + i * step
-        cos[i, 0, 0] = amp * np.cos(idx / (2 * np.pi * period))
+        cos[i, 0, 0] = amp * np.cos(2 * np.pi * idx / period)
         cos[i, 0, 0] = cos[i, 0, 0] * np.exp(-k * idx)
     return cos
 

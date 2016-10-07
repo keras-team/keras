@@ -5,6 +5,7 @@ import warnings
 import copy
 import time
 import numpy as np
+import multiprocessing
 import threading
 try:
     import queue
@@ -206,12 +207,12 @@ def check_loss_and_target_compatibility(targets, losses, output_shapes):
                                 '`sparse_categorical_crossentropy` instead, '
                                 'which does expect integer targets.')
         if loss.__name__ in key_losses and shape[1] is not None and y.shape[1] != shape[1]:
-                raise Exception('A target array with shape ' + str(y.shape) +
-                                ' was passed for an output of shape ' + str(shape) +
-                                ' while using as loss `' + loss.__name__ + '`. '
-                                'This loss expects '
-                                'targets to have the same shape '
-                                'as the output.')
+            raise Exception('A target array with shape ' + str(y.shape) +
+                            ' was passed for an output of shape ' + str(shape) +
+                            ' while using as loss `' + loss.__name__ + '`. '
+                            'This loss expects '
+                            'targets to have the same shape '
+                            'as the output.')
 
 
 def collect_metrics(metrics, output_names):
@@ -396,41 +397,59 @@ def standardize_weights(y, sample_weight=None, class_weight=None,
         return weights
     else:
         if sample_weight_mode is None:
-            return np.ones((y.shape[0],))
+            return np.ones((y.shape[0],), dtype=K.floatx())
         else:
-            return np.ones((y.shape[0], y.shape[1]))
+            return np.ones((y.shape[0], y.shape[1]), dtype=K.floatx())
 
 
 def generator_queue(generator, max_q_size=10,
-                    wait_time=0.05, nb_worker=1):
-    '''Builds a threading queue out of a data generator.
+                    wait_time=0.05, nb_worker=1, pickle_safe=False):
+    '''Builds a queue out of a data generator.
+    If pickle_safe, use a multiprocessing approach. Else, use threading.
     Used in `fit_generator`, `evaluate_generator`, `predict_generator`.
+
     '''
 
-    q = queue.Queue()
-    _stop = threading.Event()
+    generator_threads = []
+    if pickle_safe:
+        q = multiprocessing.Queue(maxsize=max_q_size)
+        _stop = multiprocessing.Event()
+    else:
+        q = queue.Queue()
+        _stop = threading.Event()
 
-    def data_generator_task():
-        while not _stop.is_set():
-            try:
-                if q.qsize() < max_q_size:
-                    try:
+    try:
+        def data_generator_task():
+            while not _stop.is_set():
+                try:
+                    if pickle_safe or q.qsize() < max_q_size:
                         generator_output = next(generator)
-                    except ValueError:
-                        continue
-                    q.put(generator_output)
-                else:
-                    time.sleep(wait_time)
-            except Exception:
-                _stop.set()
-                raise
+                        q.put(generator_output)
+                    else:
+                        time.sleep(wait_time)
+                except Exception:
+                    _stop.set()
+                    raise
 
-    generator_threads = [threading.Thread(target=data_generator_task)
-                         for _ in range(nb_worker)]
-
-    for thread in generator_threads:
-        thread.daemon = True
-        thread.start()
+        for i in range(nb_worker):
+            if pickle_safe:
+                # Reset random seed else all children processes share the same seed
+                np.random.seed()
+                thread = multiprocessing.Process(target=data_generator_task)
+            else:
+                thread = threading.Thread(target=data_generator_task)
+            generator_threads.append(thread)
+            thread.daemon = True
+            thread.start()
+    except:
+        _stop.set()
+        if pickle_safe:
+            # Terminate all daemon processes
+            for p in generator_threads:
+                if p.is_alive():
+                    p.terminate()
+            q.close()
+        raise
 
     return q, _stop
 
@@ -487,7 +506,7 @@ class Model(Container):
                                 'it should have one entry per model outputs. '
                                 'The model has ' + str(len(self.outputs)) +
                                 ' outputs, but you passed loss_weights=' +
-                                str(loss))
+                                str(loss_weights))
             loss_weights_list = loss_weights
         else:
             raise Exception('Could not interpret loss_weights argument: ' +
@@ -587,8 +606,9 @@ class Model(Container):
             self.targets.append(K.placeholder(ndim=len(shape), name=name + '_target'))
 
         # prepare metrics
+        self.metrics = metrics
         self.metrics_names = ['loss']
-        self.metrics = []
+        self.metrics_tensors = []
 
         # compute total loss
         total_loss = None
@@ -602,7 +622,7 @@ class Model(Container):
             output_loss = weighted_loss(y_true, y_pred,
                                         sample_weight, mask)
             if len(self.outputs) > 1:
-                self.metrics.append(output_loss)
+                self.metrics_tensors.append(output_loss)
                 self.metrics_names.append(self.output_names[i] + '_loss')
             if total_loss is None:
                 total_loss = loss_weight * output_loss
@@ -625,23 +645,23 @@ class Model(Container):
                 if metric == 'accuracy' or metric == 'acc':
                     # custom handling of accuracy (because of class mode duality)
                     output_shape = self.internal_output_shapes[i]
-                    if output_shape[-1] == 1:
+                    if output_shape[-1] == 1 or self.loss_functions[i] == objectives.binary_crossentropy:
                         # case: binary accuracy
-                        self.metrics.append(metrics_module.binary_accuracy(y_true, y_pred))
+                        self.metrics_tensors.append(metrics_module.binary_accuracy(y_true, y_pred))
                     elif self.loss_functions[i] == objectives.sparse_categorical_crossentropy:
                         # case: categorical accuracy with sparse targets
-                        self.metrics.append(
+                        self.metrics_tensors.append(
                             metrics_module.sparse_categorical_accuracy(y_true, y_pred))
                     else:
                         # case: categorical accuracy with dense targets
-                        self.metrics.append(metrics_module.categorical_accuracy(y_true, y_pred))
+                        self.metrics_tensors.append(metrics_module.categorical_accuracy(y_true, y_pred))
                     if len(self.output_names) == 1:
                         self.metrics_names.append('acc')
                     else:
                         self.metrics_names.append(self.output_layers[i].name + '_acc')
                 else:
                     metric_fn = metrics_module.get(metric)
-                    self.metrics.append(metric_fn(y_true, y_pred))
+                    self.metrics_tensors.append(metric_fn(y_true, y_pred))
                     if len(self.output_names) == 1:
                         self.metrics_names.append(metric_fn.__name__)
                     else:
@@ -661,11 +681,13 @@ class Model(Container):
         self.test_function = None
         self.predict_function = None
 
+        self._collected_trainable_weights = collect_trainable_weights(self)
+
     def _make_train_function(self):
         if not hasattr(self, 'train_function'):
             raise Exception('You must compile your model before using it.')
         if self.train_function is None:
-            if self.uses_learning_phase:
+            if self.uses_learning_phase and type(K.learning_phase()) is not int:
                 inputs = self.inputs + self.targets + self.sample_weights + [K.learning_phase()]
             else:
                 inputs = self.inputs + self.targets + self.sample_weights
@@ -678,13 +700,15 @@ class Model(Container):
                 else:
                     lr_multipliers += [1.0, 1.0]
 
-            trainable_weights = collect_trainable_weights(self)
-            training_updates = self.optimizer.get_updates(trainable_weights, self.constraints, lr_multipliers, self.total_loss)
+            training_updates = self.optimizer.get_updates(self._collected_trainable_weights,
+                                                          self.constraints,
+                                                          lr_multipliers,
+                                                          self.total_loss)
             updates = self.updates + training_updates
 
             # returns loss and metrics. Updates weights at each call.
             self.train_function = K.function(inputs,
-                                             [self.total_loss] + self.metrics,
+                                             [self.total_loss] + self.metrics_tensors,
                                              updates=updates,
                                              **self._function_kwargs)
 
@@ -692,14 +716,14 @@ class Model(Container):
         if not hasattr(self, 'test_function'):
             raise Exception('You must compile your model before using it.')
         if self.test_function is None:
-            if self.uses_learning_phase:
+            if self.uses_learning_phase and type(K.learning_phase()) is not int:
                 inputs = self.inputs + self.targets + self.sample_weights + [K.learning_phase()]
             else:
                 inputs = self.inputs + self.targets + self.sample_weights
             # return loss and metrics, no gradient updates.
             # Does update the network states.
             self.test_function = K.function(inputs,
-                                            [self.total_loss] + self.metrics,
+                                            [self.total_loss] + self.metrics_tensors,
                                             updates=self.state_updates,
                                             **self._function_kwargs)
 
@@ -707,7 +731,7 @@ class Model(Container):
         if not hasattr(self, 'predict_function'):
             self.predict_function = None
         if self.predict_function is None:
-            if self.uses_learning_phase:
+            if self.uses_learning_phase and type(K.learning_phase()) is not int:
                 inputs = self.inputs + [K.learning_phase()]
             else:
                 inputs = self.inputs
@@ -751,9 +775,9 @@ class Model(Container):
             do_validation = True
             if verbose:
                 print('Train on %d samples, validate on %d samples' %
-                      (len(ins[0]), len(val_ins[0])))
+                      (ins[0].shape[0], val_ins[0].shape[0]))
 
-        nb_train_sample = len(ins[0])
+        nb_train_sample = ins[0].shape[0]
         index_array = np.arange(nb_train_sample)
 
         self.history = cbks.History()
@@ -847,7 +871,7 @@ class Model(Container):
             or list of arrays of predictions
             (if the model has multiple outputs).
         '''
-        nb_sample = len(ins[0])
+        nb_sample = ins[0].shape[0]
         outs = []
         if verbose == 1:
             progbar = Progbar(target=nb_sample)
@@ -867,7 +891,7 @@ class Model(Container):
             if batch_index == 0:
                 for batch_out in batch_outs:
                     shape = (nb_sample,) + batch_out.shape[1:]
-                    outs.append(np.zeros(shape))
+                    outs.append(np.zeros(shape, dtype=K.floatx()))
 
             for i, batch_out in enumerate(batch_outs):
                 outs[i][batch_start:batch_end] = batch_out
@@ -892,7 +916,7 @@ class Model(Container):
             and/or metrics). The attribute `model.metrics_names` will give you
             the display labels for the scalar outputs.
         '''
-        nb_sample = len(ins[0])
+        nb_sample = ins[0].shape[0]
         outs = []
         if verbose == 1:
             progbar = Progbar(target=nb_sample)
@@ -1034,7 +1058,7 @@ class Model(Container):
                                                                            batch_size=batch_size)
             self._make_test_function()
             val_f = self.test_function
-            if self.uses_learning_phase:
+            if self.uses_learning_phase and type(K.learning_phase()) is not int:
                 val_ins = val_x + val_y + val_sample_weights + [0.]
             else:
                 val_ins = val_x + val_y + val_sample_weights
@@ -1044,10 +1068,11 @@ class Model(Container):
             split_at = int(len(x[0]) * (1. - validation_split))
             x, val_x = (slice_X(x, 0, split_at), slice_X(x, split_at))
             y, val_y = (slice_X(y, 0, split_at), slice_X(y, split_at))
-            sample_weights, val_sample_weights = (slice_X(sample_weights, 0, split_at), slice_X(sample_weights, split_at))
+            sample_weights, val_sample_weights = (
+                slice_X(sample_weights, 0, split_at), slice_X(sample_weights, split_at))
             self._make_test_function()
             val_f = self.test_function
-            if self.uses_learning_phase:
+            if self.uses_learning_phase and type(K.learning_phase()) is not int:
                 val_ins = val_x + val_y + val_sample_weights + [0.]
             else:
                 val_ins = val_x + val_y + val_sample_weights
@@ -1057,7 +1082,7 @@ class Model(Container):
             val_ins = None
 
         # prepare input arrays and training function
-        if self.uses_learning_phase:
+        if self.uses_learning_phase and type(K.learning_phase()) is not int:
             ins = x + y + sample_weights + [1.]
         else:
             ins = x + y + sample_weights
@@ -1117,7 +1142,7 @@ class Model(Container):
                                                            check_batch_dim=False,
                                                            batch_size=batch_size)
         # prepare inputs, delegate logic to _test_loop
-        if self.uses_learning_phase:
+        if self.uses_learning_phase and type(K.learning_phase()) is not int:
             ins = x + y + sample_weights + [0.]
         else:
             ins = x + y + sample_weights
@@ -1154,7 +1179,7 @@ class Model(Container):
                                 'Batch size: ' + str(batch_size) + '.')
 
         # prepare inputs, delegate logic to _predict_loop
-        if self.uses_learning_phase:
+        if self.uses_learning_phase and type(K.learning_phase()) is not int:
             ins = x + [0.]
         else:
             ins = x
@@ -1198,7 +1223,7 @@ class Model(Container):
                                                            sample_weight=sample_weight,
                                                            class_weight=class_weight,
                                                            check_batch_dim=True)
-        if self.uses_learning_phase:
+        if self.uses_learning_phase and type(K.learning_phase()) is not int:
             ins = x + y + sample_weights + [1.]
         else:
             ins = x + y + sample_weights
@@ -1236,7 +1261,7 @@ class Model(Container):
         x, y, sample_weights = self._standardize_user_data(x, y,
                                                            sample_weight=sample_weight,
                                                            check_batch_dim=True)
-        if self.uses_learning_phase:
+        if self.uses_learning_phase and type(K.learning_phase()) is not int:
             ins = x + y + sample_weights + [0.]
         else:
             ins = x + y + sample_weights
@@ -1251,7 +1276,7 @@ class Model(Container):
         '''
         x = standardize_input_data(x, self.input_names,
                                    self.internal_input_shapes)
-        if self.uses_learning_phase:
+        if self.uses_learning_phase and type(K.learning_phase()) is not int:
             ins = x + [0.]
         else:
             ins = x
@@ -1264,7 +1289,7 @@ class Model(Container):
     def fit_generator(self, generator, samples_per_epoch, nb_epoch,
                       verbose=1, callbacks=[],
                       validation_data=None, nb_val_samples=None,
-                      class_weight={}, max_q_size=10):
+                      class_weight={}, max_q_size=10, nb_worker=1, pickle_safe=False):
         '''Fits the model on data generated batch-by-batch by
         a Python generator.
         The generator is run in parallel to the model, for efficiency.
@@ -1295,6 +1320,11 @@ class Model(Container):
             class_weight: dictionary mapping class indices to a weight
                 for the class.
             max_q_size: maximum size for the generator queue
+            nb_worker: maximum number of processes to spin up when using process based threading
+            pickle_safe: if True, use process based threading. Note that because
+                this implementation relies on multiprocessing, you should not pass
+                non picklable arguments to the generator as they can't be passed
+                easily to children processes.
 
         # Returns
             A `History` object.
@@ -1373,7 +1403,8 @@ class Model(Container):
             self.validation_data = None
 
         # start generator thread storing batches into a queue
-        data_gen_queue, _stop = generator_queue(generator, max_q_size=max_q_size, nb_worker=max_q_size)
+        data_gen_queue, _stop = generator_queue(generator, max_q_size=max_q_size, nb_worker=nb_worker,
+                                                pickle_safe=pickle_safe)
 
         callback_model.stop_training = False
         while epoch < nb_epoch:
@@ -1407,11 +1438,11 @@ class Model(Container):
                 # build batch logs
                 batch_logs = {}
                 if type(x) is list:
-                    batch_size = len(x[0])
+                    batch_size = x[0].shape[0]
                 elif type(x) is dict:
-                    batch_size = len(list(x.values())[0])
+                    batch_size = list(x.values())[0].shape[0]
                 else:
-                    batch_size = len(x)
+                    batch_size = x.shape[0]
                 batch_logs['batch'] = batch_index
                 batch_logs['size'] = batch_size
                 callbacks.on_batch_begin(batch_index, batch_logs)
@@ -1452,6 +1483,7 @@ class Model(Container):
                         # no need for try/except because
                         # data has already been validated
                         val_outs = self.evaluate(val_x, val_y,
+                                                 batch_size=batch_size,
                                                  sample_weight=val_sample_weights,
                                                  verbose=0)
                     if type(val_outs) is not list:
@@ -1466,10 +1498,12 @@ class Model(Container):
                 break
 
         _stop.set()
+        if pickle_safe:
+            data_gen_queue.close()
         callbacks.on_train_end()
         return self.history
 
-    def evaluate_generator(self, generator, val_samples, max_q_size=10):
+    def evaluate_generator(self, generator, val_samples, max_q_size=10, nb_worker=1, pickle_safe=False):
         '''Evaluates the model on a data generator. The generator should
         return the same kind of data as accepted by `test_on_batch`.
 
@@ -1481,6 +1515,11 @@ class Model(Container):
                 total number of samples to generate from `generator`
                 before returning.
             max_q_size: maximum size for the generator queue
+            nb_worker: maximum number of processes to spin up when using process based threading
+            pickle_safe: if True, use process based threading. Note that because
+                this implementation relies on multiprocessing, you should not pass
+                non picklable arguments to the generator as they can't be passed
+                easily to children processes.
 
         # Returns
             Scalar test loss (if the model has a single output and no metrics)
@@ -1494,7 +1533,8 @@ class Model(Container):
         wait_time = 0.01
         all_outs = []
         weights = []
-        data_gen_queue, _stop = generator_queue(generator, max_q_size=max_q_size, nb_worker=max_q_size)
+        data_gen_queue, _stop = generator_queue(generator, max_q_size=max_q_size, nb_worker=nb_worker,
+                                                pickle_safe=pickle_safe)
 
         while processed_samples < val_samples:
             generator_output = None
@@ -1538,6 +1578,8 @@ class Model(Container):
             weights.append(nb_samples)
 
         _stop.set()
+        if pickle_safe:
+            data_gen_queue.close()
         if type(outs) is not list:
             return np.average(np.asarray(all_outs),
                               weights=weights)
@@ -1545,10 +1587,10 @@ class Model(Container):
             averages = []
             for i in range(len(outs)):
                 averages.append(np.average([out[i] for out in all_outs],
-                                weights=weights))
+                                           weights=weights))
             return averages
 
-    def predict_generator(self, generator, val_samples, max_q_size=10):
+    def predict_generator(self, generator, val_samples, max_q_size=10, nb_worker=1, pickle_safe=False):
         '''Generates predictions for the input samples from a data generator.
         The generator should return the same kind of data as accepted by
         `predict_on_batch`.
@@ -1558,6 +1600,11 @@ class Model(Container):
             val_samples: total number of samples to generate from `generator`
                 before returning.
             max_q_size: maximum size for the generator queue
+            nb_worker: maximum number of processes to spin up when using process based threading
+            pickle_safe: if True, use process based threading. Note that because
+                this implementation relies on multiprocessing, you should not pass
+                non picklable arguments to the generator as they can't be passed
+                easily to children processes.
 
         # Returns
             Numpy array(s) of predictions.
@@ -1567,7 +1614,8 @@ class Model(Container):
         processed_samples = 0
         wait_time = 0.01
         all_outs = []
-        data_gen_queue, _stop = generator_queue(generator, max_q_size=max_q_size, nb_worker=max_q_size)
+        data_gen_queue, _stop = generator_queue(generator, max_q_size=max_q_size, nb_worker=nb_worker,
+                                                pickle_safe=pickle_safe)
 
         while processed_samples < val_samples:
             generator_output = None
@@ -1611,7 +1659,7 @@ class Model(Container):
             if len(all_outs) == 0:
                 for out in outs:
                     shape = (val_samples,) + out.shape[1:]
-                    all_outs.append(np.zeros(shape))
+                    all_outs.append(np.zeros(shape, dtype=K.floatx()))
 
             for i, out in enumerate(outs):
                 all_outs[i][processed_samples:(processed_samples + nb_samples)] = out
@@ -1619,6 +1667,8 @@ class Model(Container):
             processed_samples += nb_samples
 
         _stop.set()
+        if pickle_safe:
+            data_gen_queue.close()
         if len(all_outs) == 1:
             return all_outs[0]
         return all_outs

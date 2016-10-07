@@ -45,22 +45,27 @@ def test_sgd():
 
 def test_rmsprop():
     _test_optimizer(RMSprop())
+    _test_optimizer(RMSprop(decay=1e-3))
 
 
 def test_adagrad():
     _test_optimizer(Adagrad())
+    _test_optimizer(Adagrad(decay=1e-3))
 
 
 def test_adadelta():
-    _test_optimizer(Adadelta())
+    _test_optimizer(Adadelta(), target=0.83)
+    _test_optimizer(Adadelta(decay=1e-3), target=0.83)
 
 
 def test_adam():
     _test_optimizer(Adam())
+    _test_optimizer(Adam(decay=1e-3))
 
 
 def test_adamax():
     _test_optimizer(Adamax())
+    _test_optimizer(Adamax(decay=1e-3))
 
 
 def test_nadam():

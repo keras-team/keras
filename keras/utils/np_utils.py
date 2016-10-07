@@ -3,6 +3,7 @@ import numpy as np
 import scipy as sp
 from six.moves import range
 from six.moves import zip
+from .. import backend as K
 
 
 def to_categorical(y, nb_classes=None):
@@ -52,25 +53,84 @@ def categorical_probas_to_classes(p):
     return np.argmax(p, axis=1)
 
 
-def convert_kernel(kernel, dim_ordering='th'):
+def convert_kernel(kernel, dim_ordering='default'):
     '''Converts a kernel matrix (Numpy array)
     from Theano format to TensorFlow format
     (or reciprocally, since the transformation
     is its own inverse).
     '''
+    if dim_ordering == 'default':
+        dim_ordering = K.image_dim_ordering()
     new_kernel = np.copy(kernel)
-    if dim_ordering == 'th':
-        w = kernel.shape[2]
-        h = kernel.shape[3]
-        for i in range(w):
-            for j in range(h):
-                new_kernel[:, :, i, j] = kernel[:, :, w - i - 1, h - j - 1]
-    elif dim_ordering == 'tf':
-        w = kernel.shape[0]
-        h = kernel.shape[1]
-        for i in range(w):
-            for j in range(h):
-                new_kernel[i, j, :, :] = kernel[w - i - 1, h - j - 1, :, :]
+    if kernel.ndim == 4:
+        # conv 2d
+        # TH kernel shape: (depth, input_depth, rows, cols)
+        # TF kernel shape: (rows, cols, input_depth, depth)
+        if dim_ordering == 'th':
+            w = kernel.shape[2]
+            h = kernel.shape[3]
+            for i in range(w):
+                for j in range(h):
+                    new_kernel[:, :, i, j] = kernel[:, :, w - i - 1, h - j - 1]
+        elif dim_ordering == 'tf':
+            w = kernel.shape[0]
+            h = kernel.shape[1]
+            for i in range(w):
+                for j in range(h):
+                    new_kernel[i, j, :, :] = kernel[w - i - 1, h - j - 1, :, :]
+        else:
+            raise Exception('Invalid dim_ordering: ' + str(dim_ordering))
+    elif kernel.ndim == 5:
+        # conv 3d
+        # TH kernel shape: (out_depth, input_depth, kernel_dim1, kernel_dim2, kernel_dim3)
+        # TF kernel shape: (kernel_dim1, kernel_dim2, kernel_dim3, input_depth, out_depth)
+        if dim_ordering == 'th':
+            w = kernel.shape[2]
+            h = kernel.shape[3]
+            z = kernel.shape[4]
+            for i in range(w):
+                for j in range(h):
+                    for k in range(z):
+                        new_kernel[:, :, i, j, k] = kernel[:, :,
+                                                           w - i - 1,
+                                                           h - j - 1,
+                                                           z - k - 1]
+        elif dim_ordering == 'tf':
+            w = kernel.shape[0]
+            h = kernel.shape[1]
+            z = kernel.shape[2]
+            for i in range(w):
+                for j in range(h):
+                    for k in range(z):
+                        new_kernel[i, j, k, :, :] = kernel[w - i - 1,
+                                                           h - j - 1,
+                                                           z - k - 1,
+                                                           :, :]
+        else:
+            raise Exception('Invalid dim_ordering: ' + str(dim_ordering))
     else:
-        raise Exception('Invalid dim_ordering: ' + str(dim_ordering))
+        raise ValueError('Invalid kernel shape:', kernel.shape)
     return new_kernel
+
+
+def conv_output_length(input_length, filter_size, border_mode, stride, dilation=1):
+    if input_length is None:
+        return None
+    assert border_mode in {'same', 'valid'}
+    dilated_filter_size = filter_size + (filter_size - 1) * (dilation - 1)
+    if border_mode == 'same':
+        output_length = input_length
+    elif border_mode == 'valid':
+        output_length = input_length - dilated_filter_size + 1
+    return (output_length + stride - 1) // stride
+
+
+def conv_input_length(output_length, filter_size, border_mode, stride):
+    if output_length is None:
+        return None
+    assert border_mode in {'same', 'valid'}
+    if border_mode == 'same':
+        pad = filter_size // 2
+    elif border_mode == 'valid':
+        pad = 0
+    return (output_length - 1) * stride - 2 * pad + filter_size

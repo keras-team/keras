@@ -30,3 +30,11 @@ For a few examples of such functions, check out the [objectives source](https://
 - __kullback_leibler_divergence__ / __kld__: Information gain from a predicted probability distribution Q to a true probability distribution P. Gives a measure of difference between both distributions.
 - __poisson__: Mean of `(predictions - targets * log(predictions))`
 - __cosine_proximity__: The opposite (negative) of the mean cosine proximity between predictions and targets.
+
+**Note**: when using the `categorical_crossentropy` objective, your targets should be in categorical format (e.g. if you have 10 classes, the target for each sample should be a 10-dimensional vector that is all-zeros expect for a 1 at the index corresponding to the class of the sample). In order to convert *integer targets* into *categorical targets*, you can use the Keras utility `to_categorical`:
+
+```python
+from keras.utils.np_utils import to_categorical
+
+categorical_labels = to_categorical(int_labels, nb_classes=None)
+```
