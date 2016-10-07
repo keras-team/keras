@@ -435,7 +435,7 @@ def batch_normalization(x, mean, var, beta, gamma, epsilon=0.0001):
                 beta = beta.dimshuffle(shuffle_pattern)
                 gamma = gamma.dimshuffle(shuffle_pattern)
             normed = theano.sandbox.cuda.dnn.dnn_batch_normalization_test(x, gamma, beta, mean, var,
-                                                                        'spatial', epsilon)
+                                                                          'spatial', epsilon)
             if axis != 1:
                 normed = normed.dimshuffle(shuffle_pattern)
             return normed
