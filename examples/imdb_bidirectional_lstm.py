@@ -50,7 +50,7 @@ after_dp = Dropout(0.5)(merged)
 output = Dense(1, activation='sigmoid')(after_dp)
 
 model = Model(input=sequence, output=output)
-
+model.summary()
 # try using different optimizers and different optimizer configs
 model.compile('adam', 'binary_crossentropy', metrics=['accuracy'])
 
