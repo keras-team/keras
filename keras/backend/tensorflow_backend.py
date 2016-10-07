@@ -1485,14 +1485,18 @@ def l2_normalize(x, axis):
         axis = axis % len(x.get_shape())
     return tf.nn.l2_normalize(x, dim=axis)
 
-
 def in_top_k(predictions, targets, k):
-    '''Given tensors representing predictions and targets, evaluates whether the
-    targets are within the top k predictions
+    '''Says whether the targets are in the top k predictions
+
+    # Arguments
+        predictions: A tensor of shape batch_size x classess and type float32.
+        targets: A tensor of shape batch_size and type int32 or int64.
+        k: An int, number of top elements to consider.
+    # Output
+        A tensor of shape batch_size and type bool. output_i is True if
+        targets_i is within top-k values of predictions_i
     '''
-    y_pred = reshape(predictions, [1, shape(predictions)[0]])
-    y_target = reshape(argmax(targets), [1])
-    return cast(any(tf.nn.in_top_k(y_pred, y_target, k)), 'float32')
+    return tf.nn.in_top_k(predictions, targets, k)
 
 
 # CONVOLUTIONS
