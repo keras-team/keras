@@ -173,7 +173,7 @@ class ParametricSoftplus(Layer):
         return dict(list(base_config.items()) + list(config.items()))
 
 
-class ParametricSoftExp(Layer):
+class ParametricSoftExponential(Layer):
     """Soft Exponential activation function with trainable alpha
 
     # References
@@ -202,7 +202,7 @@ class ParametricSoftExp(Layer):
         self.supports_masking = True
         self.alpha_init = K.cast_to_floatx(alpha_init)
         self.initial_weights = weights
-        super(ParametricSoftExp, self).__init__(**kwargs)
+        super(ParametricSoftExponential, self).__init__(**kwargs)
 
     def build(self, input_shape):
         input_shape = input_shape[1:]
@@ -232,7 +232,7 @@ class ParametricSoftExp(Layer):
 
     def get_config(self):
         config = {'alpha_init': float(self.alpha_init)}
-        base_config = super(ParametricSoftExp, self).get_config()
+        base_config = super(ParametricSoftExponential, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
 
