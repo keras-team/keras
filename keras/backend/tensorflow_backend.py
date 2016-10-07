@@ -1298,7 +1298,9 @@ def select(condition, then_expression, else_expression):
 
     `then_expression` & `else_expression` must be tensors of the same shape
     """
-    return tf.select(condition, then_expression, else_expression)
+    # duplicate condition elements to match shape of the then (and else expressions)
+    tiled_condition = tf.tile(condition, tf.pack([1, tf.shape(then_expression)[1]]))
+    return tf.select(tiled_condition, then_expression, else_expression)
 
 
 def in_train_phase(x, alt):

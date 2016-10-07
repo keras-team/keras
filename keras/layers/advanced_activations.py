@@ -200,37 +200,29 @@ class ParametricSoftExp(Layer):
     def __init__(self, alpha_init=0.1,
                  weights=None, **kwargs):
         self.supports_masking = True
-        try:
-            self.alpha_init = K.cast_to_floatx(alpha_init)
-        except:
-            logger.warn('Using raw alpha_init tensor provided. Shape has not been validated.')
-            self.alpha_init = alpha_init
+        self.alpha_init = K.cast_to_floatx(alpha_init)
         self.initial_weights = weights
         super(ParametricSoftExp, self).__init__(**kwargs)
 
     def build(self, input_shape):
         input_shape = input_shape[1:]
-        try:
-            self.alphas = K.variable(self.alpha_init * np.ones(input_shape),
-                                     name='{}_alphas'.format(self.name))
-        except:
-            self.alphas = K.variable(self.alpha_init, name='{}_alphas'.format(self.name))
-        assert self.alphas.shape == input_shape, "alphas.shape = {} != {} = input_shape".format(self.alphas.shape, input_shape)
+        self.alphas = K.variable(self.alpha_init * np.ones(input_shape),
+                                 name='{}_alphas'.format(self.name))
         self.trainable_weights = [self.alphas]
 
         if self.initial_weights is not None:
             self.set_weights(self.initial_weights)
-            del self.initial_weights  # should this be set to None rather than deleted?
-
-    def call_alpha_pos(self, x, alpha):
-        return alpha + (K.exp(alpha * x) - 1.) / alpha
-
-    def call_alpha_neg(self, x, alpha):
-        return - K.log(1 - alpha * (x + alpha)) / alpha
+            del self.initial_weights
 
     def call(self, x, mask=None):
-        pos = self.call_alpha_pos(x, self.alphas)
-        neg = self.call_alpha_neg(x, self.alphas)
+        def call_alpha_pos(x, alpha):
+            return alpha + (K.exp(alpha * x) - 1.) / alpha
+
+        def call_alpha_neg(x, alpha):
+            return - K.log(1 - alpha * (x + alpha)) / alpha
+
+        pos = call_alpha_pos(x, self.alphas)
+        neg = call_alpha_neg(x, self.alphas)
 
         is_pos = K.greater(self.alphas, 0)
         is_neg = K.lesser(self.alphas, 0)

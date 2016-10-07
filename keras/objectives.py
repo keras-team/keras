@@ -4,11 +4,6 @@ from . import backend as K
 from .utils.generic_utils import get_from_module
 
 
-def constant_zero(y_true, y_pred, constant_loss=0.):
-    """For testing or nonlearning feedforward, always report a loss of 0 (zero)"""
-    return constant_loss * (y_pred - y_true)
-
-
 def mean_squared_error(y_true, y_pred):
     return K.mean(K.square(y_pred - y_true), axis=-1)
 
@@ -71,7 +66,6 @@ def cosine_proximity(y_true, y_pred):
 
 
 # aliases
-cz = CZ = constant_zero
 mse = MSE = mean_squared_error
 mae = MAE = mean_absolute_error
 mape = MAPE = mean_absolute_percentage_error
