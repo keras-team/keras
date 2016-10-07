@@ -730,6 +730,13 @@ def get_value(x):
     return x.get_value()
 
 
+def batch_get_value(xs):
+    '''Returns the value of more than one tensor variable,
+    as a list of Numpy arrays.
+    '''
+    return [get_value(x) for x in xs]
+
+
 def set_value(x, value):
     x.set_value(np.asarray(value, dtype=x.dtype))
 
