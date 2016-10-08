@@ -17,6 +17,10 @@ def sparse_categorical_accuracy(y_true, y_pred):
                           K.cast(K.argmax(y_pred, axis=-1), K.floatx())))
 
 
+def top_k_categorical_accuracy(y_true, y_pred, k=5):
+    return K.mean(K.in_top_k(y_pred, K.argmax(y_true, axis=-1), k))
+
+
 def mean_squared_error(y_true, y_pred):
     return K.mean(K.square(y_pred - y_true))
 
