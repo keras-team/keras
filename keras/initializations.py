@@ -2,7 +2,6 @@ from __future__ import absolute_import
 import numpy as np
 from . import backend as K
 
-
 def get_fans(shape, dim_ordering='th'):
     if len(shape) == 2:
         fan_in = shape[0]
@@ -84,6 +83,30 @@ def orthogonal(shape, scale=1.1, name=None):
     q = q.reshape(shape)
     return K.variable(scale * q[:shape[0], :shape[1]], name=name)
 
+def ortho_weight(shape, name=None):
+    """
+    Random orthogonal weights, we take
+    the right matrix in the SVD.
+
+    Remember in SVD, u has the same # rows as W
+    and v has the same # of cols as W. So we
+    are ensuring that the rows are
+    orthogonal.
+    """
+    W = np.random.randn(shape[0], shape[1])
+    u, _, _ = np.linalg.svd(W)
+    return K.variable(u, dtype='float32', name=name)
+
+def norm_weight(shape, scale=0.01, ortho=True, name=None):
+    """
+    Random weights drawn from a Gaussian
+    """
+    assert len(shape)==2, 'shape must have length 2'
+    if shape[0] == shape[1] and ortho:
+        W = ortho_weight(shape)
+    else:
+        W = scale * np.random.randn(shape[0], shape[1])
+    return K.variable(W, dtype='float32', name=name)
 
 def identity(shape, scale=1, name=None):
     if len(shape) != 2 or shape[0] != shape[1]:

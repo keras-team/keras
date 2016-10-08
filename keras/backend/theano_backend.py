@@ -3,6 +3,7 @@ from theano import tensor as T
 from theano.sandbox.rng_mrg import MRG_RandomStreams as RandomStreams
 from theano.tensor.signal import pool
 from theano.tensor.nnet import conv3d2d
+from theano.tensor.fft import rfft, irfft
 from theano.printing import Print
 try:
     import theano.sparse as th_sparse_module
@@ -12,6 +13,7 @@ try:
     from theano.tensor.nnet.nnet import softsign as T_softsign
 except ImportError:
     from theano.sandbox.softsign import softsign as T_softsign
+
 import inspect
 import numpy as np
 from .common import _FLOATX, _EPSILON, _IMAGE_DIM_ORDERING
@@ -21,6 +23,15 @@ py_all = all
 # INTERNAL UTILS
 theano.config.floatX = _FLOATX
 _LEARNING_PHASE = T.scalar(dtype='uint8', name='keras_learning_phase')  # 0 = test, 1 = train
+
+def printing(x, string=''):
+    '''
+    Print the value of a tensor variable
+    :param x: Tensor variable
+    :param string: Prefix to print
+    :return:
+    '''
+    return theano.printing.Print(string)(x)
 
 
 def learning_phase():
@@ -100,6 +111,7 @@ def ndim(x):
     return x.ndim
 
 
+
 def dtype(x):
     return x.dtype
 
@@ -114,6 +126,13 @@ def zeros(shape, dtype=_FLOATX, name=None):
     '''Instantiate an all-zeros variable.
     '''
     return variable(np.zeros(shape), dtype, name)
+
+
+def zeros_symbolic(shape, dtype=_FLOATX):
+    '''Instantiate an all-zeros symbolic variable.
+    '''
+    return T.zeros(shape, dtype=dtype)
+
 
 
 def ones(shape, dtype=_FLOATX, name=None):
@@ -157,6 +176,8 @@ def count_params(x):
 def cast(x, dtype):
     return T.cast(x, dtype)
 
+def ceil(x):
+    return T.ceil(x)
 
 # UPDATES OPS
 
@@ -254,6 +275,23 @@ def gather(reference, indices):
     return reference[indices]
 
 
+def fft(x, norm=None):
+    '''Fast fourier transform:
+       Compute an n-point fft of frames along given axis.
+    '''
+    return rfft(x, norm=norm)
+
+
+def ifft(x, norm=None, is_odd=False):
+    '''Inverse fast fourier transform
+    '''
+    return irfft(x, norm=norm, is_odd=is_odd)
+
+def real(x):
+    '''Grabs the real part of a complex tensor
+    '''
+    return T.real(x)
+
 # ELEMENT-WISE OPERATIONS
 
 
@@ -287,10 +325,8 @@ def mean(x, axis=None, keepdims=False):
 def std(x, axis=None, keepdims=False):
     return T.std(x, axis=axis, keepdims=keepdims)
 
-
 def var(x, axis=None, keepdims=False):
     return T.var(x, axis=axis, keepdims=keepdims)
-
 
 def any(x, axis=None, keepdims=False):
     '''Bitwise reduction (logical OR).
@@ -521,6 +557,24 @@ def repeat(x, n):
     return T.extra_ops.repeat(x, n, axis=1)
 
 
+def repeatRdim(x, n, axis=1):
+    '''Repeat a RD tensor.
+
+    If x has shape (samples, dim1, dim2) and n=2 and axis=1,
+    the output will have shape (samples, 2, dim1, dim2).
+    '''
+    new_dim = range(axis) + ['x'] + range(axis,x.ndim)
+    x = x.dimshuffle(tuple(new_dim))
+    return T.extra_ops.repeat(x, n, axis=axis)
+
+def set_subtensor(x, v):
+    return T.set_subtensor(x, v)
+
+
+def inc_subtensor(x, v):
+    return T.inc_subtensor(x, v)
+
+
 def tile(x, n):
     return T.tile(x, n)
 
@@ -562,7 +616,7 @@ def temporal_padding(x, padding=1):
     '''Pad the middle dimension of a 3D tensor
     with "padding" zeros left and right.
 
-    Apologies for the inane API, but Theano makes this
+    Appologies for the inane API, but Theano makes this
     really hard.
     '''
     input_shape = x.shape
@@ -668,6 +722,8 @@ def reverse(x, axes):
 
 
 def get_value(x):
+    if isinstance(x, np.ndarray):
+        return x
     if not hasattr(x, 'get_value'):
         raise Exception("'get_value() can only be called on a variable. " +
                         "If you have an expression instead, use eval().")
@@ -742,7 +798,7 @@ def stop_gradient(variables):
 
 def rnn(step_function, inputs, initial_states,
         go_backwards=False, mask=None, constants=None,
-        unroll=False, input_length=None):
+        unroll=False, input_length=None, pos_extra_outputs_states=None):
     '''Iterates over the time dimension of a tensor.
 
     # Arguments
@@ -788,6 +844,179 @@ def rnn(step_function, inputs, initial_states,
 
     axes = [1, 0] + list(range(2, ndim))
     inputs = inputs.dimshuffle(axes)
+
+    if constants is None:
+        constants = []
+
+    if mask is not None:
+        # if mask.ndim == ndim-1:
+        #    mask = expand_dims(mask)
+        # assert mask.ndim == ndim
+        # mask = mask.dimshuffle(axes)
+
+        if mask.ndim < ndim:
+            mask = expand_dims(mask)
+        mask = mask.dimshuffle([1,0]+list(range(2,mask.ndim)))
+
+        if unroll:
+            indices = list(range(input_length))
+            if go_backwards:
+                indices = indices[::-1]
+
+            successive_outputs = []
+            successive_states = []
+            states = initial_states
+            for i in indices:
+                output, new_states = step_function(inputs[i], states + constants)
+
+                if len(successive_outputs) == 0:
+                    prev_output = zeros_like(output)
+                else:
+                    prev_output = successive_outputs[-1]
+
+                output = T.switch(mask[i], output, prev_output)
+                kept_states = []
+                for state, new_state in zip(states, new_states):
+                    kept_states.append(T.switch(mask[i], new_state, state))
+                states = kept_states
+
+                successive_outputs.append(output)
+                successive_states.append(states)
+
+            outputs = T.stack(*successive_outputs)
+            states = []
+            for i in range(len(successive_states[-1])):
+                states.append(T.stack(*[states_at_step[i] for states_at_step in successive_states]))
+        else:
+            # build an all-zero tensor of shape (samples, output_dim)
+            initial_output = step_function(inputs[0], initial_states + constants)[0] * 0
+            # Theano gets confused by broadcasting patterns in the scan op
+            initial_output = T.unbroadcast(initial_output, 0, 1)
+
+            def _step(input, mask, output_tm1, *states):
+                output, new_states = step_function(input, states)
+                # output previous output if masked.
+                output = T.switch(mask, output, output_tm1)
+                return_states = []
+                for state, new_state in zip(states, new_states):
+                    return_states.append(T.switch(mask, new_state, state))
+                return [output] + return_states
+
+            results, _ = theano.scan(
+                _step,
+                sequences=[inputs, mask],
+                outputs_info=[initial_output] + initial_states,
+                non_sequences=constants,
+                go_backwards=go_backwards)
+
+            # deal with Theano API inconsistency
+            if type(results) is list:
+                outputs = results[0]
+                states = results[1:]
+            else:
+                outputs = results
+                states = []
+    else:
+        if unroll:
+            indices = list(range(input_length))
+            if go_backwards:
+                indices = indices[::-1]
+
+            successive_outputs = []
+            successive_states = []
+            states = initial_states
+            for i in indices:
+                output, states = step_function(inputs[i], states + constants)
+                successive_outputs.append(output)
+                successive_states.append(states)
+            outputs = T.stack(*successive_outputs)
+            states = []
+            for i in range(len(successive_states[-1])):
+                states.append(T.stack(*[states_at_step[i] for states_at_step in successive_states]))
+
+        else:
+            def _step(input, *states):
+                output, new_states = step_function(input, states)
+                return [output] + new_states
+
+            results, _ = theano.scan(
+                _step,
+                sequences=inputs,
+                outputs_info=[None] + initial_states,
+                non_sequences=constants,
+                go_backwards=go_backwards)
+            # deal with Theano API inconsistency
+            if type(results) is list:
+                outputs = results[0]
+                states = results[1:]
+            else:
+                outputs = results
+                states = []
+
+    outputs = T.squeeze(outputs)
+    last_output = outputs[-1]
+
+    axes = [1, 0] + list(range(2, outputs.ndim))
+    outputs = outputs.dimshuffle(axes)
+
+    if(pos_extra_outputs_states is None):
+        states = [T.squeeze(state[-1]) for state in states]
+    else:
+        states = [state if i_s in pos_extra_outputs_states
+                        else T.squeeze(state[-1]) for i_s, state in enumerate(states)]
+    return last_output, outputs, states
+
+
+
+def _rnn(step_function, inputs, initial_states,
+        go_backwards=False, mask=None, constants=None,
+        unroll=False, input_length=None):
+    '''Iterates over the time dimension of a tensor.
+
+    # Arguments
+        inputs: tensor of temporal data of shape (samples, time, ...)
+            (at least 3D).
+        step_function:
+            Parameters:
+                input: tensor with shape (samples, ...) (no time dimension),
+                    representing input for the batch of samples at a certain
+                    time step.
+                states: list of tensors.
+            Returns:
+                output: tensor with shape (samples, ...) (no time dimension),
+                new_states: list of tensors, same length and shapes
+                    as 'states'.
+        initial_states: tensor with shape (samples, ...) (no time dimension),
+            containing the initial values for the states used in
+            the step function.
+        go_backwards: boolean. If True, do the iteration over
+            the time dimension in reverse order.
+        mask: binary tensor with shape (samples, time),
+            with a zero for every element that is masked.
+        constants: a list of constant values passed at each step.
+        unroll: whether to unroll the RNN or to use a symbolic loop (`scan`).
+        input_length: must be specified if using `unroll`.
+
+    # Returns
+        A tuple (last_output, outputs, new_states).
+            last_output: the latest output of the rnn, of shape (samples, ...)
+            outputs: tensor with shape (samples, time, ...) where each
+                entry outputs[s, t] is the output of the step function
+                at time t for sample s.
+            new_states: list of tensors, latest states returned by
+                the step function, of shape (samples, ...).
+    '''
+    ndim = inputs[0].ndim
+    assert ndim >= 3, 'Input should be at least 3D.'
+
+    if unroll:
+        raise NotImplementedError()
+        if input_length is None:
+            raise Exception('When specifying `unroll=True`, an `input_length` '
+                            'must be provided to `rnn`.')
+
+    axes = [1, 0] + list(range(2, ndim))
+    inputs = inputs[0].dimshuffle(axes)
 
     if constants is None:
         constants = []
@@ -968,7 +1197,6 @@ def softplus(x):
 def softsign(x):
     return T_softsign(x)
 
-
 def categorical_crossentropy(output, target, from_logits=False):
     if from_logits:
         output = T.nnet.softmax(output)
@@ -1023,7 +1251,6 @@ def dropout(x, level, noise_shape=None, seed=None):
         raise Exception('Dropout level must be in interval [0, 1[.')
     if seed is None:
         seed = np.random.randint(1, 10e6)
-
     rng = RandomStreams(seed=seed)
     retain_prob = 1. - level
 
@@ -1042,6 +1269,10 @@ def l2_normalize(x, axis):
     norm = T.sqrt(T.sum(T.square(x), axis=axis, keepdims=True))
     return x / norm
 
+
+def l1_normalize(x, axis):
+    norm = T.max(T.sum(abs(x), axis=axis, keepdims=True))
+    return x / norm
 
 # CONVOLUTIONS
 
@@ -1374,28 +1605,50 @@ def pool3d(x, pool_size, strides=(1, 1, 1), border_mode='valid',
     return pool_out
 
 
+
 # RANDOMNESS
 
 
 def random_normal(shape, mean=0.0, std=1.0, dtype=_FLOATX, seed=None):
     if seed is None:
-        seed = np.random.randint(1, 10e6)
+        seed = np.random.randint(10e6)
     rng = RandomStreams(seed=seed)
     return rng.normal(size=shape, avg=mean, std=std, dtype=dtype)
 
 
 def random_uniform(shape, low=0.0, high=1.0, dtype=_FLOATX, seed=None):
     if seed is None:
-        seed = np.random.randint(1, 10e6)
+        seed = np.random.randint(10e6)
     rng = RandomStreams(seed=seed)
     return rng.uniform(shape, low=low, high=high, dtype=dtype)
 
 
 def random_binomial(shape, p=0.0, dtype=_FLOATX, seed=None):
     if seed is None:
-        seed = np.random.randint(1, 10e6)
+        seed = np.random.randint(10e6)
     rng = RandomStreams(seed=seed)
     return rng.binomial(shape, p=p, dtype=dtype)
+
+
+def random_multinomial(shape, p=0.0, dtype=_FLOATX, seed=None):
+    if seed is None:
+        seed = np.random.randint(10e6)
+    rng = RandomStreams(seed=seed)
+    return rng.multinomial(shape, pvals=p, dtype=dtype)
+
+# COUNT SKETCH
+def count_sketch(h, s, x, d=16000):
+    rval, updates = theano.scan(fn=__count_sketch,
+                            sequences=[h, s, x.dimshuffle(1,0)],
+                            outputs_info = T.alloc(0., x.shape[0], d),
+                            non_sequences=[], n_steps=x.shape[1])
+    return rval[-1] # We are interested only in the last value
+
+def __count_sketch(h, s, v,  # Sequences
+                   y, # Outputs info
+                   ):
+    return T.cast(T.inc_subtensor(y[:, h], T.dot(s, v)), 'float32')
+
 
 # Theano implementation of CTC
 # Used with permission from Shawn Tan

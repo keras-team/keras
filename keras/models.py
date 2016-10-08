@@ -209,14 +209,14 @@ class Sequential(Model):
         means is that it should have received an `input_shape`
         or `batch_input_shape` argument,
         or for some type of layers (recurrent, Dense...)
-        an `input_dim` argument.
+        an `context_dim` argument.
 
     # Example
 
         ```python
             model = Sequential()
             # first layer must have a defined input shape
-            model.add(Dense(32, input_dim=500))
+            model.add(Dense(32, context_dim=500))
             # afterwards, Keras does automatic shape inference
             model.add(Dense(32))
 

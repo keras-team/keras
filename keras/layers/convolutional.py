@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import
 
+from theano.tensor.shared_randomstreams import RandomStreams
+
 from .. import backend as K
 from .. import activations, initializations, regularizers, constraints
 from ..engine import Layer, InputSpec
@@ -9,6 +11,65 @@ from ..utils.np_utils import conv_output_length, conv_input_length
 # imports for backwards namespace compatibility
 from .pooling import AveragePooling1D, AveragePooling2D, AveragePooling3D
 from .pooling import MaxPooling1D, MaxPooling2D, MaxPooling3D
+
+import numpy as np
+
+
+class ClassActivationMapping(Layer):
+    '''Class Activation Mapping computation used in GAP networks.
+
+    # Arguments
+        weights: Set of weights (numpy.array) already learned that connect a
+            GAP (global average pooling) layer with a Dense layer.
+
+    # References
+        [1]Zhou B, Khosla A, Lapedriza A, Oliva A, Torralba A. 
+            Learning Deep Features for Discriminative Localization. 
+            arXiv preprint arXiv:1512.04150. 2015 Dec 14.
+    '''
+    def __init__(self, weights_shape, weights=None, **kwargs):
+        self.weights_shape = weights_shape
+        self.initial_weights = [weights]
+        self.init = initializations.get('uniform', dim_ordering='th')
+        self.input_spec = [InputSpec(ndim=4)]
+        super(ClassActivationMapping, self).__init__(**kwargs)
+
+
+    def build(self, input_shape):
+        self.W = self.init(self.weights_shape,
+                           name='{}_W'.format(self.name))
+        self.trainable_weights = [self.W]
+
+        # initialize weights
+        if(self.initial_weights[0] is not None):
+            self.set_weights(self.initial_weights)
+
+        
+    def call(self, x, mask=None):
+        '''
+        # Formulation
+            The original CAM formulation from [1] is as follows:         
+
+                CAM(x,y,c) = ∑_k w_k(c) * f_k(x,y),
+
+            where CAM(x,y,c) is the class activation map of class 'c' 
+            at pixel (x,y), w_k is the weight (self.W) of the k-th kernel 
+            learned on the Dense layer after GAP, and f_k is the feature 
+            activation at pixel (x,y) produced by the deep convolution layers
+            applied before the GAP layer.
+        '''
+        x = K.permute_dimensions(x, (0,2,3,1))
+        x = K.dot(x, self.W)
+        x = K.permute_dimensions(x, (0,3,1,2)) # (batch_size, n_classes, x, y)
+        return x
+
+    def get_output_shape_for(self, input_shape):
+        return tuple([input_shape[0]] + [self.weights_shape[1]] + list(input_shape[2:]))
+
+    def get_config(self):
+        config = {'weights_shape': self.weights_shape}
+        base_config = super(ClassActivationMapping, self).get_config()
+        return dict(list(base_config.items()) + list(config.items()))
 
 
 class Convolution1D(Layer):
@@ -81,6 +142,7 @@ class Convolution1D(Layer):
                  border_mode='valid', subsample_length=1,
                  W_regularizer=None, b_regularizer=None, activity_regularizer=None,
                  W_constraint=None, b_constraint=None,
+                 W_learning_rate_multiplier=None, b_learning_rate_multiplier=None,
                  bias=True, input_dim=None, input_length=None, **kwargs):
 
         if border_mode not in {'valid', 'same'}:
@@ -101,6 +163,11 @@ class Convolution1D(Layer):
 
         self.W_constraint = constraints.get(W_constraint)
         self.b_constraint = constraints.get(b_constraint)
+
+        self.W_learning_rate_multiplier = W_learning_rate_multiplier
+        self.b_learning_rate_multiplier = b_learning_rate_multiplier
+        self.learning_rate_multipliers = [self.W_learning_rate_multiplier,
+                                          self.b_learning_rate_multiplier]
 
         self.bias = bias
         self.input_spec = [InputSpec(ndim=3)]
@@ -174,12 +241,18 @@ class Convolution1D(Layer):
                   'activity_regularizer': self.activity_regularizer.get_config() if self.activity_regularizer else None,
                   'W_constraint': self.W_constraint.get_config() if self.W_constraint else None,
                   'b_constraint': self.b_constraint.get_config() if self.b_constraint else None,
+                  'b_learning_rate_multiplier': self.b_learning_rate_multiplier,
                   'bias': self.bias,
                   'input_dim': self.input_dim,
                   'input_length': self.input_length}
         base_config = super(Convolution1D, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
+    def set_lr_multipliers(self, W_learning_rate_multiplier, b_learning_rate_multiplier):
+        self.W_learning_rate_multiplier = W_learning_rate_multiplier
+        self.b_learning_rate_multiplier = b_learning_rate_multiplier
+        self.learning_rate_multipliers = [self.W_learning_rate_multiplier,
+                                          self.b_learning_rate_multiplier]
 
 class AtrousConvolution1D(Convolution1D):
     '''Atrous Convolution operator for filtering neighborhoods of one-dimensional inputs.
@@ -369,7 +442,8 @@ class Convolution2D(Layer):
                  init='glorot_uniform', activation='linear', weights=None,
                  border_mode='valid', subsample=(1, 1), dim_ordering='default',
                  W_regularizer=None, b_regularizer=None, activity_regularizer=None,
-                 W_constraint=None, b_constraint=None,
+                 W_constraint=None, b_constraint=None, 
+                 W_learning_rate_multiplier=None, b_learning_rate_multiplier=None,
                  bias=True, **kwargs):
         if dim_ordering == 'default':
             dim_ordering = K.image_dim_ordering()
@@ -392,6 +466,10 @@ class Convolution2D(Layer):
 
         self.W_constraint = constraints.get(W_constraint)
         self.b_constraint = constraints.get(b_constraint)
+
+        self.W_learning_rate_multiplier = W_learning_rate_multiplier
+        self.b_learning_rate_multiplier = b_learning_rate_multiplier
+        self.learning_rate_multipliers = [self.W_learning_rate_multiplier, self.b_learning_rate_multiplier]
 
         self.bias = bias
         self.input_spec = [InputSpec(ndim=4)]
@@ -488,9 +566,17 @@ class Convolution2D(Layer):
                   'activity_regularizer': self.activity_regularizer.get_config() if self.activity_regularizer else None,
                   'W_constraint': self.W_constraint.get_config() if self.W_constraint else None,
                   'b_constraint': self.b_constraint.get_config() if self.b_constraint else None,
+                  'W_learning_rate_multiplier': self.W_learning_rate_multiplier,
+                  'b_learning_rate_multiplier': self.b_learning_rate_multiplier,
                   'bias': self.bias}
         base_config = super(Convolution2D, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
+
+    def set_lr_multipliers(self, W_learning_rate_multiplier, b_learning_rate_multiplier):
+        self.W_learning_rate_multiplier = W_learning_rate_multiplier
+        self.b_learning_rate_multiplier = b_learning_rate_multiplier
+        self.learning_rate_multipliers = [self.W_learning_rate_multiplier,
+                                          self.b_learning_rate_multiplier]
 
 
 class Deconvolution2D(Convolution2D):
@@ -613,7 +699,8 @@ class Deconvolution2D(Convolution2D):
                  border_mode='valid', subsample=(1, 1),
                  dim_ordering='default',
                  W_regularizer=None, b_regularizer=None, activity_regularizer=None,
-                 W_constraint=None, b_constraint=None,
+                 W_constraint=None, b_constraint=None, 
+                 W_learning_rate_multiplier=None, b_learning_rate_multiplier=None,
                  bias=True, **kwargs):
         if dim_ordering == 'default':
             dim_ordering = K.image_dim_ordering()
@@ -668,6 +755,12 @@ class Deconvolution2D(Convolution2D):
         config = {'output_shape': self.output_shape}
         base_config = super(Deconvolution2D, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
+
+    def set_lr_multipliers(self, W_learning_rate_multiplier, b_learning_rate_multiplier):
+        self.W_learning_rate_multiplier = W_learning_rate_multiplier
+        self.b_learning_rate_multiplier = b_learning_rate_multiplier
+        self.learning_rate_multipliers = [self.W_learning_rate_multiplier,
+                                          self.b_learning_rate_multiplier]
 
 
 class AtrousConvolution2D(Convolution2D):
@@ -1566,6 +1659,252 @@ class ZeroPadding3D(Layer):
         base_config = super(ZeroPadding3D, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
+
+class CompactBilinearPooling(Layer):
+    '''Compact Bilinear Pooling
+    # Arguments:
+        d: dimension of the compact bilinear feature
+
+    # References:
+        - [Multimodal Compact Bilinear Pooling for Visual Question Answering and Visual Grounding](http://arxiv.org/pdf/1606.01847v2.pdf)
+    '''
+
+    def __init__(self, d, return_extra=False, **kwargs):
+        self.h = [None, None]
+        self.s = [None, None]
+        self.return_extra = return_extra
+        self.d = d
+
+        # layer parameters
+        self.inbound_nodes = []
+        self.outbound_nodes = []
+        self.constraints = {}
+        self.regularizers = []
+        self.trainable_weights = []
+        self.non_trainable_weights = []
+        self.supports_masking = True
+        self.trainable = False
+        self.uses_learning_phase = False
+        self.input_spec = None  # compatible with whatever
+        super(CompactBilinearPooling, self).__init__(**kwargs)
+
+    def build(self, input_shapes):
+        self.trainable_weights = []
+        self.nmodes = len(input_shapes)
+        for i in range(self.nmodes):
+            if self.h[i] is None:
+                self.h[i] = np.random.random_integers(0, self.d-1, size=(input_shapes[i][1],))
+                self.h[i] = K.variable(self.h[i], dtype='int64', name='h'+str(i))
+            if self.s[i] is None:
+                self.s[i] =  (np.floor(np.random.uniform(0, 2, size=(input_shapes[i][1],)))*2-1).astype('int64')
+                self.s[i] = K.variable(self.s[i], dtype='int64', name='s'+str(i))
+        self.non_trainable_weights = [self.h, self.s]
+
+        self.built = True
+
+    def compute_mask(self, input, input_mask=None):
+        to_return = []
+        if input_mask is None or not any([m is not None for m in input_mask]):
+            to_return.append(None)
+        else:
+            to_return = input_mask[0]
+        if self.return_extra:
+            for i in range(self.nmodes):
+                to_return += [None, None, None, None]
+        return to_return +[None]
+
+    def multimodal_compact_bilinear(self, x):
+        v = [[]] * self.nmodes
+        fft_v = [[]] * self.nmodes
+        acum_fft = 1.0
+        for i in range(self.nmodes):
+            v[i] = K.count_sketch(self.h[i], self.s[i], x[i], self.d)
+            fft_v[i] = K.fft(v[i])
+            acum_fft *= fft_v[i]
+        #acum_fft = K.concatenate((acum_fft[:, 1:, 0], acum_fft[:,1:,0][::-1]))
+        out = K.cast(K.ifft(acum_fft), dtype='float32')
+        if self.return_extra:
+            return [out]+v+fft_v+[acum_fft]
+        else:
+            return out
+
+    def call(self, x, mask=None):
+        if type(x) is not list or len(x) <= 1:
+            raise Exception('CompactBilinearPooling must be called on a list of tensors '
+                            '(at least 2). Got: ' + str(x))
+        y = self.multimodal_compact_bilinear(x)
+        if self.return_extra:
+            return y+self.h+self.s
+        return y
+
+    def get_config(self):
+        config = {'d': self.d,
+                  'h': self.h,
+                  'return_extra': self.return_extra,
+                  's': self.s}
+        config = {'d': self.d}
+        base_config = super(CompactBilinearPooling, self).get_config()
+        return dict(list(base_config.items()) + list(config.items()))
+
+    def get_output_shape_for(self, input_shape):
+        assert type(input_shape) is list  # must have mutiple input shape tuples
+        shapes = []
+        shapes.append(tuple([input_shape[0][0], self.d]))
+        if self.return_extra:
+            for s in input_shape: # v
+                shapes.append(tuple([s[0], self.d]))
+            for s in input_shape: # fft_v
+                shapes.append(tuple([s[0], self.d]))
+            shapes.append(tuple([s[0], self.d])) # acum_fft
+            for i in range(self.nmodes): # h
+                shapes.append(tuple([input_shape[i][1],1]))
+            for i in range(self.nmodes): # v
+                shapes.append(tuple([input_shape[i][1],1]))
+        return shapes
+
+    
+class BilinearPooling(Layer):
+    '''Compact Bilinear Pooling
+
+    # References:
+        - [Multimodal Compact Bilinear Pooling for Visual Question Answering and Visual Grounding](http://arxiv.org/pdf/1606.01847v2.pdf)
+    '''
+
+    def __init__(self, d, **kwargs):
+
+        # layer parameters
+        self.inbound_nodes = []
+        self.outbound_nodes = []
+        self.constraints = {}
+        self.regularizers = []
+        self.trainable_weights = []
+        self.non_trainable_weights = []
+        self.supports_masking = True
+        self.trainable = False
+        self.uses_learning_phase = False
+        self.input_spec = None  # compatible with whatever
+        super(BilinearPooling, self).__init__(**kwargs)
+
+    def build(self, input_shapes):
+        self.trainable_weights = []
+        self.nmodes = len(input_shapes)
+        for i,s in enumerate(input_shapes):
+            if s != input_shapes[0]:
+                raise Exception('The input size of all vectors must be the same: '
+                                'shape of vector on position '+str(i)+' (0-based) '+str(s)+' != shape of vector on position 0 '+str(input_shapes[0]))
+        self.built = True
+
+    def compute_mask(self, input, input_mask=None):
+        if input_mask is None or not any([m is not None for m in input_mask]):
+            return None
+        else:
+            return input_mask[0]
+
+    def multimodal_bilinear(self, x):
+        v = [[]] * self.nmodes
+        acum_fft = 1.0
+        for i in range(self.nmodes):
+            acum_fft = acum_fft * K.fft(x[i])
+        return K.cast(K.ifft(acum_fft), dtype='float32')
+
+    def call(self, x, mask=None):
+        if type(x) is not list or len(x) <= 1:
+            raise Exception('BilinearPooling must be called on a list of tensors '
+                            '(at least 2). Got: ' + str(x))
+        return self.multimodal_bilinear(x)
+    
+    def get_config(self):
+        base_config = super(BilinearPooling, self).get_config()
+        return dict(list(base_config.items()))
+
+    def get_output_shape_for(self, input_shape):
+        assert type(input_shape) is list  # must have mutiple input shape tuples
+        return input_shape[0]
+
+
+class CountSketch(Layer):
+    '''Count Sketch vector compacting
+    # Arguments:
+        d: dimension of the output compact representation
+    '''
+
+    def __init__(self, d, return_extra=False, **kwargs):
+        self.h = [None, None]
+        self.s = [None, None]
+        self.return_extra = return_extra
+        self.d = d
+
+        # layer parameters
+        self.inbound_nodes = []
+        self.outbound_nodes = []
+        self.constraints = {}
+        self.regularizers = []
+        self.trainable_weights = []
+        self.non_trainable_weights = []
+        self.supports_masking = True
+        self.trainable = False
+        self.uses_learning_phase = False
+        self.input_spec = None  # compatible with whatever
+        self.built = False
+        super(CountSketch, self).__init__(**kwargs)
+
+    def build(self, input_shapes):
+        if not self.built:
+            self.trainable_weights = []
+            self.nmodes = len(input_shapes)
+            for i in range(self.nmodes):
+                if self.h[i] is None:
+                    self.h[i] = np.random.random_integers(0, self.d-1, size=(input_shapes[i][1],))
+                    self.h[i] = K.variable(self.h[i], dtype='int64', name='h'+str(i))
+                if self.s[i] is None:
+                    self.s[i] =  (np.floor(np.random.uniform(0, 2, size=(input_shapes[i][1],)))*2-1).astype('int64')
+                    self.s[i] = K.variable(self.s[i], dtype='int64', name='s'+str(i))
+        self.built = True
+
+    def compute_mask(self, input, input_mask=None):
+        to_return = []
+        if input_mask is None or not any([m is not None for m in input_mask]):
+            for i in range(len(input_mask)):
+                to_return.append(None)
+        else:
+            to_return =  input_mask
+        if self.return_extra:
+            for i in range(self.nmodes):
+                to_return += [None, None]
+        return to_return
+
+    def compact(self, x):
+        v = [[]] * self.nmodes
+        for i in range(self.nmodes):
+            v[i] = K.count_sketch(self.h[i], self.s[i], x[i], self.d)
+        return v
+
+    def call(self, x, mask=None):
+        if type(x) is not list or len(x) <= 1:
+            raise Exception('CountSketch must be called on a list of tensors.')
+        y = self.compact(x)
+        if self.return_extra:
+            return y+self.h+self.s
+        return y   
+ 
+    def get_config(self):
+        config = {'d': self.d,
+                  'return_extra': self.return_extra}
+        base_config = super(CountSketch, self).get_config()
+        return dict(list(base_config.items()) + list(config.items()))
+
+    def get_output_shape_for(self, input_shape):
+        assert type(input_shape) is list  # must have mutiple input shape tuples
+        shapes = []
+        for s in input_shape:
+            shapes.append(tuple([s[0], self.d]))
+        if self.return_extra:
+            for i in range(self.nmodes):
+                shapes.append(tuple([input_shape[i][1],1]))
+            for i in range(self.nmodes):
+                shapes.append(tuple([input_shape[i][1],1]))
+        return shapes
+
 class Cropping1D(Layer):
     '''Cropping layer for 1D input (e.g. temporal sequence).
     It crops along the time dimension (axis 1).
@@ -1783,3 +2122,4 @@ Deconv2D = Deconvolution2D
 AtrousConv1D = AtrousConvolution1D
 AtrousConv2D = AtrousConvolution2D
 SeparableConv2D = SeparableConvolution2D
+

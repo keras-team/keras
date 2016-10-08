@@ -163,9 +163,9 @@ class Node(object):
         if len(output_tensors) != len(output_shapes):
             raise Exception('The `get_output_shape_for` method of layer "' +
                             outbound_layer.name +
-                            '"" should return one shape tuple per '
-                            'output tensor of the layer. Found: ' +
-                            str(output_shapes))
+                            '"" should return one shape tuple (counted ' + str(len(output_shapes)) + ') per '
+                            'output tensor (counted ' + str(len(output_tensors)) +') tensors of the layer. \n Shapes: ' +
+                            str(output_shapes) + '\n Tensors:' + str(output_tensors))
         if len(output_tensors) != len(output_masks):
             raise Exception('The `compute_mask` method of layer "' +
                             outbound_layer.name +
@@ -541,7 +541,7 @@ class Layer(object):
                 where to connect the current layer.
             tensor_indices: integer or list of integers.
                 The output of the inbound node might be a list/tuple
-                of tensor, and we might only be interested in one specific entry.
+                of tensor, and we might only be interested in one sepcific entry.
                 This index allows you to specify the index of the entry in the output list
                 (if applicable). "None" means that we take all outputs (as a list).
         '''
@@ -880,11 +880,10 @@ class Layer(object):
         if not params:
             return
         weight_value_tuples = []
-        param_values = K.batch_get_value(params)
-        for pv, p, w in zip(param_values, params, weights):
-            if pv.shape != w.shape:
+        for p, w in zip(params, weights):
+            if K.get_value(p).shape != w.shape:
                 raise Exception('Layer weight shape ' +
-                                str(pv.shape) +
+                                str(K.get_value(p).shape) +
                                 ' not compatible with '
                                 'provided weight shape ' + str(w.shape))
             weight_value_tuples.append((p, w))
@@ -1183,6 +1182,7 @@ class Merge(Layer):
                 node_indices = [0 for _ in range(len(layers))]
             self._arguments_validation(layers, mode,
                                        concat_axis, dot_axes,
+                                       output_shape,
                                        node_indices, tensor_indices)
             self.built = True
             self.add_inbound_node(layers, node_indices, tensor_indices)
@@ -1190,7 +1190,7 @@ class Merge(Layer):
             self.built = False
 
     def _arguments_validation(self, layers, mode, concat_axis, dot_axes,
-                              node_indices, tensor_indices):
+                              output_shape, node_indices, tensor_indices):
         '''Validates user-passed arguments and raises exceptions
         as appropriate.
         '''
@@ -1271,6 +1271,12 @@ class Merge(Layer):
                 s /= len(inputs)
             return s
 
+        elif self.mode == 'max':
+            s = inputs[0]
+            for i in range(1, len(inputs)):
+                s = K.maximum(s, inputs[i])
+            return s
+
         elif self.mode == 'concat':
             return K.concatenate(inputs, axis=self.concat_axis)
 
@@ -1295,7 +1301,6 @@ class Merge(Layer):
             l2 = inputs[1]
             denominator = K.sqrt(K.batch_dot(l1, l1, self.dot_axes) *
                                  K.batch_dot(l2, l2, self.dot_axes))
-            denominator = K.maximum(denominator, K.epsilon())
             output = K.batch_dot(l1, l2, self.dot_axes) / denominator
             output = K.expand_dims(output, 1)
             return output
@@ -1305,8 +1310,8 @@ class Merge(Layer):
     def __call__(self, inputs, mask=None):
         '''We disable successive calls to __call__ for Merge layers.
         Although there is no technical obstacle to
-        making it possible to __call__ a Merge instance many times
-        (it is just a layer), it would make for a rather inelegant API.
+        making it possible to __call__ a Merge intance many times
+        (it is just a layer), it would make for a rather unelegant API.
         '''
         if type(inputs) is not list:
             raise Exception('Merge can only be called on a list of tensors, '
@@ -1334,17 +1339,18 @@ class Merge(Layer):
                 tensor_indices.append(tensor_index)
             self._arguments_validation(layers, self.mode,
                                        self.concat_axis, self.dot_axes,
+                                       self._output_shape,
                                        node_indices, tensor_indices)
             self.built = True
             self.add_inbound_node(layers, node_indices, tensor_indices)
 
             outputs = self.inbound_nodes[-1].output_tensors
-            return outputs[0]  # merge only returns a single tensor
+            return outputs[0] # merge only returns a single tensor
         else:
             return self.call(inputs, mask)
 
     def get_output_shape_for(self, input_shape):
-        assert type(input_shape) is list  # must have multiple input shape tuples
+        assert type(input_shape) is list  # must have mutiple input shape tuples
         # case: callable self._output_shape
         if hasattr(self.mode, '__call__'):
             if hasattr(self._output_shape, '__call__'):
@@ -1373,6 +1379,8 @@ class Merge(Layer):
                     break
                 output_shape[self.concat_axis] += shape[self.concat_axis]
             return tuple(output_shape)
+        elif self.mode == 'join':
+            return None
         elif self.mode in ['dot', 'cos']:
             shape1 = list(input_shapes[0])
             shape2 = list(input_shapes[1])
@@ -1486,7 +1494,7 @@ def merge(inputs, mode='sum', concat_axis=-1,
 
     # Arguments
         mode: string or lambda/function. If string, must be one
-            of: 'sum', 'mul', 'concat', 'ave', 'cos', 'dot'.
+            of: 'sum', 'mul', 'concat', 'ave', 'join', 'cos', 'dot', 'max'.
             If lambda/function, it should take as input a list of tensors
             and return a single tensor.
         concat_axis: integer, axis to use in mode `concat`.
@@ -1494,8 +1502,7 @@ def merge(inputs, mode='sum', concat_axis=-1,
         output_shape: shape tuple (tuple of integers), or lambda/function
             to compute output_shape (only if merge mode is a lambda/function).
             If the latter case, it should take as input a list of shape tuples
-            (1:1 mapping to input tensors) and return a single shape tuple, including the
-            batch size (same convention as the `get_output_shape_for` method of layers).
+            (1:1 mapping to input tensors) and return a single shape tuple.
         node_indices: optional list of integers containing
             the output node index for each input layer
             (in case some input layers have multiple output nodes).
@@ -1716,7 +1723,7 @@ class Container(Layer):
         layers_depths = {}  # map {layer: depth value}
         layer_indices = {}  # map {layer: index in traversal}
 
-        def make_node_marker(node, depth):
+        def make_node_key(node, depth):
             return str(id(node)) + '-' + str(depth)
 
         def build_map_of_graph(tensor, seen_nodes=set(), depth=0,
@@ -1740,7 +1747,7 @@ class Container(Layer):
             node = layer.inbound_nodes[node_index]
 
             # prevent cycles
-            seen_nodes.add(make_node_marker(node, depth))
+            seen_nodes.add(make_node_key(node, depth))
 
             node_key = layer.name + '_ib-' + str(node_index)
             # update container_nodes
@@ -1768,10 +1775,9 @@ class Container(Layer):
                 node_index = node.node_indices[i]
                 tensor_index = node.tensor_indices[i]
                 next_node = layer.inbound_nodes[node_index]
-                # use node_marker to prevent cycles
-                node_marker = make_node_marker(next_node, current_depth + 1)
-                if node_marker not in seen_nodes:
-                    build_map_of_graph(x, seen_nodes, current_depth + 1,
+                node_key = make_node_key(next_node, depth + 1)
+                if node_key not in seen_nodes:
+                    build_map_of_graph(x, seen_nodes, depth + 1,
                                        layer, node_index, tensor_index)
 
         for x in self.outputs:
@@ -2263,6 +2269,8 @@ class Container(Layer):
         return output_tensors, output_masks, output_shapes
 
     def get_config(self):
+        '''TODO: add keras version information
+        '''
         config = {
             'name': self.name,
         }
@@ -2343,9 +2351,9 @@ class Container(Layer):
         # the graph reconstruction process
         created_layers = {}
 
-        def process_layer(layer_data):
-            # iterate over saved layers, instantiate them,
-            # then call them on appropriate inputs to create graph nodes
+        # iterate over saved layers, instantiate them,
+        # then call them on appropriate inputs to create graph nodes
+        for layer_data in config['layers']:
             layer_name = layer_data['name']
 
             # instantiate layer
@@ -2370,10 +2378,6 @@ class Container(Layer):
                         layer(input_tensors[0])
                     else:
                         layer(input_tensors)
-
-        for layer_data in config['layers']:
-            process_layer(layer_data)
-
         name = config.get('name')
         input_tensors = []
         output_tensors = []
@@ -2456,8 +2460,8 @@ class Container(Layer):
 
         for layer in flattened_layers:
             g = f.create_group(layer.name)
-            symbolic_weights = layer.weights
-            weight_values = K.batch_get_value(symbolic_weights)
+            symbolic_weights = layer.trainable_weights + layer.non_trainable_weights
+            weight_values = layer.get_weights()
             weight_names = []
             for i, (w, val) in enumerate(zip(symbolic_weights, weight_values)):
                 if hasattr(w, 'name') and w.name:
@@ -2502,7 +2506,7 @@ class Container(Layer):
         if hasattr(f, 'close'):
             f.close()
 
-    def load_weights_from_hdf5_group(self, f):
+    def load_weights_from_hdf5_group(self, f, seq_to_functional=False):
         '''Weight loading is based on layer order in a list
         (matching model.flattened_layers for Sequential models,
         and model.layers for Model class instances), not
@@ -2514,6 +2518,10 @@ class Container(Layer):
             flattened_layers = self.flattened_layers
         else:
             flattened_layers = self.layers
+
+        if seq_to_functional:
+            # Ignore input layer if we load weights from an equivalent sequential model
+            flattened_layers = flattened_layers[1:]
 
         if 'nb_layers' in f.attrs:
             # legacy format
@@ -2663,7 +2671,11 @@ class Container(Layer):
 
             raise TypeError('Not JSON Serializable:', obj)
 
-        model_config = self._updated_config()
+        config = self.get_config()
+        model_config = {
+            'class_name': self.__class__.__name__,
+            'config': config,
+        }
         return json.dumps(model_config, default=get_json_type, **kwargs)
 
     def to_yaml(self, **kwargs):
@@ -2677,9 +2689,14 @@ class Container(Layer):
         functions / classes.
         '''
         import yaml
-        return yaml.dump(self._updated_config(), **kwargs)
+        config = self.get_config()
+        model_config = {
+            'class_name': self.__class__.__name__,
+            'config': config,
+        }
+        return yaml.dump(model_config, **kwargs)
 
-    def summary(self, line_length=100, positions=[.33, .55, .67, 1.]):
+    def summary(self):
         from keras.utils.layer_utils import print_summary
 
         if hasattr(self, 'flattened_layers'):
@@ -2688,7 +2705,7 @@ class Container(Layer):
         else:
             flattened_layers = self.layers
 
-        print_summary(flattened_layers, getattr(self, 'container_nodes', None), line_length=line_length, positions=positions)
+        print_summary(flattened_layers, getattr(self, 'container_nodes', None))
 
 
 def get_source_inputs(tensor, layer=None, node_index=None):

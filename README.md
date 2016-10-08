@@ -1,168 +1,57 @@
-# Keras: Deep Learning library for TensorFlow and Theano
+# MarcBS/keras Multimodal Learning fork
 
-[![Build Status](https://travis-ci.org/fchollet/keras.svg?branch=master)](https://travis-ci.org/fchollet/keras)
-[![PyPI version](https://badge.fury.io/py/keras.svg)](https://badge.fury.io/py/keras)
-[![license](https://img.shields.io/github/license/mashape/apistatus.svg?maxAge=2592000)](https://github.com/fchollet/keras/blob/master/LICENSE)
-[![Join the chat at https://gitter.im/Keras-io/Lobby](https://badges.gitter.im/Keras-io/Lobby.svg)](https://gitter.im/Keras-io/Lobby)
+This fork of Keras offers the following contributions:
 
-
-## You have just found Keras.
-
-Keras is a minimalist, highly modular neural networks library, written in Python and capable of running on top of either [TensorFlow](https://github.com/tensorflow/tensorflow) or [Theano](https://github.com/Theano/Theano). It was developed with a focus on enabling fast experimentation. *Being able to go from idea to result with the least possible delay is key to doing good research.*
-
-Use Keras if you need a deep learning library that:
-
-- Allows for easy and fast prototyping (through total modularity, minimalism, and extensibility).
-- Supports both convolutional networks and recurrent networks, as well as combinations of the two.
-- Supports arbitrary connectivity schemes (including multi-input and multi-output training).
-- Runs seamlessly on CPU and GPU.
-
-Read the documentation at [Keras.io](http://keras.io).
-
-Keras is compatible with: __Python 2.7-3.5__.
+- Caffe to Keras conversion module
+- Layer-specific learning rates
+- New layers for multimodal data
 
 
-------------------
+Contact email: marc.bolanos@ub.edu
+
+GitHub page: https://github.com/MarcBS
 
 
-## Guiding principles
+MarcBS/keras is compatible with: __Python 2.7__ and __Theano__ only.
 
-- __Modularity.__ A model is understood as a sequence or a graph of standalone, fully-configurable modules that can be plugged together with as little restrictions as possible. In particular, neural layers, cost functions, optimizers, initialization schemes, activation functions, regularization schemes are all standalone modules that you can combine to create new models.
+## Caffe to Keras conversion module
 
-- __Minimalism.__ Each module should be kept short and simple. Every piece of code should be transparent upon first reading. No black magic: it hurts iteration speed and ability to innovate.
+This module allows to convert Caffe models to Keras for their later training or test use.
+See [this README](keras/caffe/README.md) for further information.
 
-- __Easy extensibility.__ New modules are dead simple to add (as new classes and functions), and existing modules provide ample examples. To be able to easily create new modules allows for total expressiveness, making Keras suitable for advanced research.
+## Layer-specific learning rates
 
-- __Work with Python__. No separate models configuration files in a declarative format. Models are described in Python code, which is compact, easier to debug, and allows for ease of extensibility.
+This functionality allows to add learning rates multipliers to each of the learnable layers in the networks. During training they will
+be multiplied by the global learning rate for modifying the weight of the error on each layer independently. Here is a simple example of usage:
 
-
-------------------
-
-
-## Getting started: 30 seconds to Keras
-
-The core data structure of Keras is a __model__, a way to organize layers. The main type of model is the [`Sequential`](http://keras.io/getting-started/sequential-model-guide) model, a linear stack of layers. For more complex architectures, you should use the [Keras functional API](http://keras.io/getting-started/functional-api-guide).
-
-Here's the `Sequential` model:
-
-```python
-from keras.models import Sequential
-
-model = Sequential()
+```
+x = Dense(100, W_learning_rate_multiplier=10.0, b_learning_rate_multiplier=10.0)  (x)
 ```
 
-Stacking layers is as easy as `.add()`:
+## New layers for multimodal data
 
-```python
-from keras.layers import Dense, Activation
+#### Recurrent layers
+- [LSTMCond](https://github.com/MarcBS/keras/blob/ba642f5d345983c3ebeffede41c57e03a5c1f7ee/keras/layers/recurrent.py#L940): LSTM conditioned to the previously generated word (additional input with previous word).
+- [AttLSTM](https://github.com/MarcBS/keras/blob/ba642f5d345983c3ebeffede41c57e03a5c1f7ee/keras/layers/recurrent.py#L1261): LSTM with Attention mechanism.
+- [AttLSTMCond](https://github.com/MarcBS/keras/blob/4e6a8ec8a55bd0d5d091a44b058a797d3d934ce0/keras/layers/recurrent.py#L1642): LSTM with Attention mechanism and conditioned to previously generated word.
 
-model.add(Dense(output_dim=64, input_dim=100))
-model.add(Activation("relu"))
-model.add(Dense(output_dim=10))
-model.add(Activation("softmax"))
-```
-
-Once your model looks good, configure its learning process with `.compile()`:
-```python
-model.compile(loss='categorical_crossentropy', optimizer='sgd', metrics=['accuracy'])
-```
-
-If you need to, you can further configure your optimizer. A core principle of Keras is to make things reasonably simple, while allowing the user to be fully in control when they need to (the ultimate control being the easy extensibility of the source code).
-```python
-from keras.optimizers import SGD
-model.compile(loss='categorical_crossentropy', optimizer=SGD(lr=0.01, momentum=0.9, nesterov=True))
-```
-
-You can now iterate on your training data in batches:
-```python
-model.fit(X_train, Y_train, nb_epoch=5, batch_size=32)
-```
-
-Alternatively, you can feed batches to your model manually:
-```python
-model.train_on_batch(X_batch, Y_batch)
-```
-
-Evaluate your performance in one line:
-```python
-loss_and_metrics = model.evaluate(X_test, Y_test, batch_size=32)
-```
-
-Or generate predictions on new data:
-```python
-classes = model.predict_classes(X_test, batch_size=32)
-proba = model.predict_proba(X_test, batch_size=32)
-```
-
-Building a question answering system, an image classification model, a Neural Turing Machine, a word2vec embedder or any other model is just as fast. The ideas behind deep learning are simple, so why should their implementation be painful?
-
-For a more in-depth tutorial about Keras, you can check out:
-
-- [Getting started with the Sequential model](http://keras.io/getting-started/sequential-model-guide)
-- [Getting started with the functional API](http://keras.io/getting-started/functional-api-guide)
-
-In the [examples folder](https://github.com/fchollet/keras/tree/master/examples) of the repository, you will find more advanced models: question-answering with memory networks, text generation with stacked LSTMs, etc.
-
-
-------------------
-
+#### Convolutional layers
+- [ClassActivationMapping](https://github.com/MarcBS/keras/blob/4e6a8ec8a55bd0d5d091a44b058a797d3d934ce0/keras/layers/convolutional.py#L23): Class Activation Mapping computation used in [GAP networks](http://arxiv.org/pdf/1512.04150.pdf).
+- [CompactBilinearPooling](https://github.com/MarcBS/keras/blob/4e6a8ec8a55bd0d5d091a44b058a797d3d934ce0/keras/layers/convolutional.py#L1395): compact version of bilinear pooling for [merging multimodal data](http://arxiv.org/pdf/1606.01847v2.pdf).
 
 ## Installation
 
-Keras uses the following dependencies:
+In order to install the library you just have to follow these steps:
 
-- numpy, scipy
-- pyyaml
-- HDF5 and h5py (optional, required if you use model saving/loading functions)
-- Optional but recommended if you use CNNs: cuDNN.
-
-
-*When using the TensorFlow backend:*
-
-- TensorFlow
-    - [See installation instructions](https://github.com/tensorflow/tensorflow#download-and-setup).
-
-*When using the Theano backend:*
-
-- Theano
-    - [See installation instructions](http://deeplearning.net/software/theano/install.html#install).
-
-To install Keras, `cd` to the Keras folder and run the install command:
-```sh
-sudo python setup.py install
+1) Clone this repository:
+```
+git clone https://github.com/MarcBS/keras.git
+```
+2) Include the repository path into your PYTHONPATH:
+```
+export PYTHONPATH=$PYTHONPATH:/path/to/keras
 ```
 
-You can also install Keras from PyPI:
-```sh
-sudo pip install keras
-```
+## Keras
 
-------------------
-
-
-## Switching from TensorFlow to Theano
-
-By default, Keras will use TensorFlow as its tensor manipulation library. [Follow these instructions](http://keras.io/backend/) to configure the Keras backend.
-
-------------------
-
-
-## Support
-
-You can ask questions and join the development discussion on the [Keras Google group](https://groups.google.com/forum/#!forum/keras-users).
-
-You can also post bug reports and feature requests in [Github issues](https://github.com/fchollet/keras/issues). Make sure to read [our guidelines](https://github.com/fchollet/keras/blob/master/CONTRIBUTING.md) first.
-
-
-------------------
-
-
-## Why this name, Keras?
-
-Keras (κέρας) means _horn_ in Greek. It is a reference to a literary image from ancient Greek and Latin literature, first found in the _Odyssey_, where dream spirits (_Oneiroi_, singular _Oneiros_) are divided between those who deceive men with false visions, who arrive to Earth through a gate of ivory, and those who announce a future that will come to pass, who arrive through a gate of horn. It's a play on the words κέρας (horn) / κραίνω (fulfill), and ἐλέφας (ivory) / ἐλεφαίρομαι (deceive).
-
-Keras was initially developed as part of the research effort of project ONEIROS (Open-ended Neuro-Electronic Intelligent Robot Operating System).
-
->_"Oneiroi are beyond our unravelling --who can be sure what tale they tell? Not all that men look for comes to pass. Two gates there are that give passage to fleeting Oneiroi; one is made of horn, one of ivory. The Oneiroi that pass through sawn ivory are deceitful, bearing a message that will not be fulfilled; those that come out through polished horn have truth behind them, to be accomplished for men who see them."_ Homer, Odyssey 19. 562 ff (Shewring translation).
-
-------------------
+For additional information on the Deep Learning library, visit the official web page www.keras.io or the GitHub repository https://github.com/fchollet/keras.

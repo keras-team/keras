@@ -29,6 +29,7 @@ def standardize_input_data(data, names, shapes=None,
     arrays (same order as `names`), while checking that the provided
     arrays have shapes that match the network's expectations.
     '''
+
     if type(data) is dict:
         arrays = []
         for name in names:
@@ -691,8 +692,17 @@ class Model(Container):
             else:
                 inputs = self.inputs + self.targets + self.sample_weights
 
+            # get trainable weights and LR multipliers
+            lr_multipliers = []
+            for layer in self.layers:
+                if('learning_rate_multipliers' in layer.__dict__.keys() and layer.__dict__['learning_rate_multipliers'] != [None, None]):
+                    lr_multipliers += layer.learning_rate_multipliers
+                else:
+                    lr_multipliers += [1.0, 1.0]
+
             training_updates = self.optimizer.get_updates(self._collected_trainable_weights,
                                                           self.constraints,
+                                                          lr_multipliers,
                                                           self.total_loss)
             updates = self.updates + training_updates
 

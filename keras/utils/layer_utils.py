@@ -6,6 +6,7 @@ from ..layers import *
 from ..models import Model, Sequential, Graph
 from .. import backend as K
 
+from ..caffe.extra_layers import *
 
 def layer_from_config(config, custom_objects={}):
     '''
@@ -33,6 +34,7 @@ def layer_from_config(config, custom_objects={}):
     else:
         layer_class = get_from_module(class_name, globals(), 'layer',
                                       instantiate=False)
+
     return layer_class.from_config(config['config'])
 
 

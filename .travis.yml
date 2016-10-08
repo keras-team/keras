@@ -3,18 +3,18 @@ dist: trusty
 language: python
 matrix:
     include:
-        - python: 3.4
-          env: KERAS_BACKEND=theano
-        - python: 3.4
-          env: KERAS_BACKEND=tensorflow
+#        - python: 3.4
+#          env: KERAS_BACKEND=theano
+#        - python: 3.4
+#          env: KERAS_BACKEND=tensorflow
         - python: 2.7
           env: KERAS_BACKEND=theano
-        - python: 2.7
-          env: KERAS_BACKEND=tensorflow
+#        - python: 2.7
+#          env: KERAS_BACKEND=tensorflow
         - python: 2.7
           env: KERAS_BACKEND=theano TEST_MODE=INTEGRATION_TESTS
-        - python: 2.7
-          env: KERAS_BACKEND=theano TEST_MODE=PEP8
+#        - python: 2.7
+#          env: KERAS_BACKEND=theano TEST_MODE=PEP8
 install:
   # code below is taken from http://conda.pydata.org/docs/travis.html
   # We do this conditionally because it saves us some downloading if the
@@ -65,7 +65,7 @@ script:
   - if [[ "$TEST_MODE" == "INTEGRATION_TESTS" ]]; then
        PYTHONPATH=$PWD:$PYTHONPATH py.test tests/integration_tests;
     elif [[ "$TEST_MODE" == "PEP8" ]]; then
-       PYTHONPATH=$PWD:$PYTHONPATH py.test --pep8 -m pep8 -n0;
+       PYTHONPATH=$PWD:$PYTHONPATH py.test --pep8 -m pep8 -n0 --ignore=keras/caffe/caffe_pb2.py;
     else
        PYTHONPATH=$PWD:$PYTHONPATH py.test tests/ --ignore=tests/integration_tests;
     fi

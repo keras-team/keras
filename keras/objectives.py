@@ -35,6 +35,11 @@ def categorical_crossentropy(y_true, y_pred):
     '''
     return K.categorical_crossentropy(y_pred, y_true)
 
+def ecoc_crossentropy(y_true, y_pred):
+    '''
+        Loss for ecoc classifiers.
+    '''
+    return K.sum(y_true - y_true * y_pred) / K.sum(y_true)
 
 def sparse_categorical_crossentropy(y_true, y_pred):
     '''expects an array of integer classes.

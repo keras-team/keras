@@ -16,10 +16,10 @@ class MaxNorm(Constraint):
     # Arguments
         m: the maximum norm for the incoming weights.
         axis: integer, axis along which to calculate weight norms. For instance,
-            in a `Dense` layer the weight matrix has shape (input_dim, output_dim),
-            set `axis` to `0` to constrain each weight vector of length (input_dim).
-            In a `MaxoutDense` layer the weight tensor has shape (nb_feature, input_dim, output_dim),
-            set `axis` to `1` to constrain each weight vector of length (input_dim),
+            in a `Dense` layer the weight matrix has shape (context_dim, output_dim),
+            set `axis` to `0` to constrain each weight vector of length (context_dim).
+            In a `MaxoutDense` layer the weight tensor has shape (nb_feature, context_dim, output_dim),
+            set `axis` to `1` to constrain each weight vector of length (context_dim),
             i.e. constrain the filters incident to the `max` operation.
             In a `Convolution2D` layer with the Theano backend, the weight tensor
             has shape (nb_filter, stack_size, nb_row, nb_col), set `axis` to `[1,2,3]`
@@ -60,10 +60,10 @@ class UnitNorm(Constraint):
 
     # Arguments
         axis: integer, axis along which to calculate weight norms. For instance,
-            in a `Dense` layer the weight matrix has shape (input_dim, output_dim),
-            set `axis` to `0` to constrain each weight vector of length (input_dim).
-            In a `MaxoutDense` layer the weight tensor has shape (nb_feature, input_dim, output_dim),
-            set `axis` to `1` to constrain each weight vector of length (input_dim),
+            in a `Dense` layer the weight matrix has shape (context_dim, output_dim),
+            set `axis` to `0` to constrain each weight vector of length (context_dim).
+            In a `MaxoutDense` layer the weight tensor has shape (nb_feature, context_dim, output_dim),
+            set `axis` to `1` to constrain each weight vector of length (context_dim),
             i.e. constrain the filters incident to the `max` operation.
             In a `Convolution2D` layer with the Theano backend, the weight tensor
             has shape (nb_filter, stack_size, nb_row, nb_col), set `axis` to `[1,2,3]`
