@@ -1,3 +1,5 @@
+# Keras examples directory
+
 [addition_rnn.py](addition_rnn.py)
 Implementation of sequence to sequence learning for performing addition of two numbers (as strings).
 
