@@ -4,6 +4,7 @@ from .. import activations, initializations, regularizers
 import numpy as np
 from ..engine import Layer, InputSpec
 from ..utils.np_utils import conv_output_length
+import warnings
 
 
 class RecurrentConv2D(Layer):
@@ -77,8 +78,7 @@ class RecurrentConv2D(Layer):
     def __init__(self, weights=None,
                  return_sequences=False, go_backwards=False, stateful=False,
                  nb_row=None, nb_col=None, nb_filter=None,
-                 dim_ordering=None,
-                 input_dim=None, input_length=None, **kwargs):
+                 dim_ordering=None, **kwargs):
         self.return_sequences = return_sequences
         self.initial_weights = weights
         self.go_backwards = go_backwards
@@ -89,11 +89,6 @@ class RecurrentConv2D(Layer):
         self.nb_filter = nb_filter
         self.dim_ordering = dim_ordering
         self.input_spec = [InputSpec(ndim=5)]
-
-        self.input_dim = input_dim
-        self.input_length = input_length
-        # if self.input_dim:
-        #    kwargs['input_shape'] = (self.input_length, self.input_dim)
 
         super(RecurrentConv2D, self).__init__(**kwargs)
 
@@ -106,11 +101,11 @@ class RecurrentConv2D(Layer):
     def get_output_shape_for(self, input_shape):
 
         if self.dim_ordering == 'th':
-            rows = input_shape[2+1]
-            cols = input_shape[3+1]
+            rows = input_shape[3]
+            cols = input_shape[4]
         elif self.dim_ordering == 'tf':
-            rows = input_shape[1+1]
-            cols = input_shape[2+1]
+            rows = input_shape[2]
+            cols = input_shape[3]
         else:
             raise Exception('Invalid dim_ordering: ' + self.dim_ordering)
 
@@ -147,7 +142,6 @@ class RecurrentConv2D(Layer):
         initial_state = K.zeros_like(X)
         # (samples,row, col, filter)
         initial_state = K.sum(initial_state, axis=1)
-        # initial_state = initial_state[::,]
         initial_state = self.conv_step(initial_state, K.zeros(self.W_shape),
                                        border_mode=self.border_mode)
 
@@ -161,7 +155,7 @@ class RecurrentConv2D(Layer):
 
         assert K.ndim(x) == 5
         input_shape = self.input_spec[0].shape
-
+        unroll = False
         if K._BACKEND == 'tensorflow':
             if not input_shape[1]:
                 raise Exception('When using TensorFlow, you should define ' +
@@ -169,6 +163,8 @@ class RecurrentConv2D(Layer):
                                 'your sequences. Make sure the first layer ' +
                                 'has a "batch_input_shape" argument ' +
                                 'including the samples axis.')
+            else:
+                unroll = True
 
         if self.stateful:
             initial_states = self.states
@@ -183,6 +179,7 @@ class RecurrentConv2D(Layer):
                                              go_backwards=self.go_backwards,
                                              mask=mask,
                                              constants=constants,
+                                             unroll=unroll,
                                              input_length=input_shape[1])
         if self.stateful:
             self.updates = []
@@ -195,15 +192,12 @@ class RecurrentConv2D(Layer):
             return last_output
 
     def get_config(self):
-        config = {"name": self.__class__.__name__,
-                  "return_sequences": self.return_sequences,
-                  "go_backwards": self.go_backwards,
-                  "stateful": self.stateful}
+        config = {'name': self.__class__.__name__,
+                  'return_sequences': self.return_sequences,
+                  'go_backwards': self.go_backwards,
+                  'stateful': self.stateful}
         if self.stateful:
             config['batch_input_shape'] = self.input_shape
-        else:
-            config['input_dim'] = self.input_dim
-            config['input_length'] = self.input_length
 
         base_config = super(RecurrentConv2D, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
@@ -226,7 +220,7 @@ class LSTMConv2D(RecurrentConv2D):
             `(samples, o_row, o_col, nb_filter)` if dim_ordering='tf'.
         if return_sequences=True
             5D tensor with shape:
-            `(samples, time,nb_filter, o_row, o_col)` if dim_ordering='th'
+            `(samples, time, nb_filter, o_row, o_col)` if dim_ordering='th'
             or 5D tensor with shape:
             `(samples, time, o_row, o_col, nb_filter)` if dim_ordering='tf'.
 
@@ -268,8 +262,9 @@ class LSTMConv2D(RecurrentConv2D):
     def __init__(self, nb_filter, nb_row, nb_col,
                  init='glorot_uniform', inner_init='orthogonal',
                  forget_bias_init='one', activation='tanh',
-                 inner_activation='hard_sigmoid', dim_ordering="tf",
-                 border_mode="valid", sub_sample=(1, 1),
+                 inner_activation='hard_sigmoid',
+                 dim_ordering=K.image_dim_ordering(),
+                 border_mode='valid', sub_sample=(1, 1),
                  W_regularizer=None, U_regularizer=None, b_regularizer=None,
                  dropout_W=0., dropout_U=0., **kwargs):
         self.nb_filter = nb_filter
@@ -283,17 +278,21 @@ class LSTMConv2D(RecurrentConv2D):
         self.border_mode = border_mode
         self.subsample = sub_sample
 
-        assert dim_ordering in {'tf', "th"}, 'dim_ordering must be in {tf,"th}'
+        assert dim_ordering in {'tf', 'th'}, 'dim_ordering must be in {tf,th}'
 
-        if dim_ordering == "th":
-            print("Warning, unlike convolution3D the time must be the "
-                  "first dimention")
+        if dim_ordering == 'th':
+            warnings.warn('Be carefull if used with convolution3D layers:\n'
+                          'th in convolution 3D corresponds to '
+                          '(samples, channels, conv_dim1, conv_dim2,'
+                          'conv_dim3)\n'
+                          'while for this network it corresponds to: '
+                          '(samples, time, channels, rows, cols)')
         self.dim_ordering = dim_ordering
 
-        kwargs["nb_filter"] = nb_filter
-        kwargs["nb_row"] = nb_row
-        kwargs["nb_col"] = nb_col
-        kwargs["dim_ordering"] = dim_ordering
+        kwargs['nb_filter'] = nb_filter
+        kwargs['nb_row'] = nb_row
+        kwargs['nb_col'] = nb_col
+        kwargs['dim_ordering'] = dim_ordering
 
         self.W_regularizer = regularizers.get(W_regularizer)
         self.U_regularizer = regularizers.get(U_regularizer)
@@ -308,11 +307,11 @@ class LSTMConv2D(RecurrentConv2D):
         self.input_spec = [InputSpec(shape=input_shape)]
 
         if self.dim_ordering == 'th':
-            stack_size = input_shape[1+1]
+            stack_size = input_shape[2]
             self.W_shape = (self.nb_filter, stack_size,
                             self.nb_row, self.nb_col)
         elif self.dim_ordering == 'tf':
-            stack_size = input_shape[3+1]
+            stack_size = input_shape[4]
             self.W_shape = (self.nb_row, self.nb_col,
                             stack_size, self.nb_filter)
         else:
@@ -404,7 +403,7 @@ class LSTMConv2D(RecurrentConv2D):
                            K.zeros((input_shape[0],
                                     out_row, out_col, out_filter))]
 
-    def conv_step(self, x, W, b=None, border_mode="valid"):
+    def conv_step(self, x, W, b=None, border_mode='valid'):
         input_shape = self.input_spec[0].shape
 
         conv_out = K.conv2d(x, W, strides=self.subsample,
@@ -425,7 +424,7 @@ class LSTMConv2D(RecurrentConv2D):
 
         return conv_out
 
-    def conv_step_hidden(self, x, W, border_mode="valid"):
+    def conv_step_hidden(self, x, W, border_mode='valid'):
         # This new function was defined because the
         # image shape must be hardcoded
         input_shape = self.input_spec[0].shape
@@ -464,13 +463,13 @@ class LSTMConv2D(RecurrentConv2D):
         # U : from nb_filter to nb_filter
         # Same because must be stable in the ouptut space
         h_i = self.conv_step_hidden(h_tm1, self.U_i * B_U[0],
-                                    border_mode="same")
+                                    border_mode='same')
         h_f = self.conv_step_hidden(h_tm1, self.U_f * B_U[1],
-                                    border_mode="same")
+                                    border_mode='same')
         h_c = self.conv_step_hidden(h_tm1, self.U_c * B_U[2],
-                                    border_mode="same")
+                                    border_mode='same')
         h_o = self.conv_step_hidden(h_tm1, self.U_o * B_U[3],
-                                    border_mode="same")
+                                    border_mode='same')
 
         i = self.inner_activation(x_i + h_i)
         f = self.inner_activation(x_f + h_f)
@@ -504,16 +503,16 @@ class LSTMConv2D(RecurrentConv2D):
         return constants
 
     def get_config(self):
-        config = {"name": self.__class__.__name__,
-                  "nb_filter": self.nb_filter,
+        config = {'name': self.__class__.__name__,
+                  'nb_filter': self.nb_filter,
                   'nb_row': self.nb_row,
                   'nb_col': self.nb_col,
-                  "init": self.init.__name__,
-                  "inner_init": self.inner_init.__name__,
-                  "forget_bias_init": self.forget_bias_init.__name__,
-                  "activation": self.activation.__name__,
+                  'init': self.init.__name__,
+                  'inner_init': self.inner_init.__name__,
+                  'forget_bias_init': self.forget_bias_init.__name__,
+                  'activation': self.activation.__name__,
                   'dim_ordering': self.dim_ordering,
                   'border_mode': self.border_mode,
-                  "inner_activation": self.inner_activation.__name__}
+                  'inner_activation': self.inner_activation.__name__}
         base_config = super(LSTMConv2D, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
