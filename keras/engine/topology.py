@@ -944,7 +944,7 @@ class Layer(object):
 
 
 class InputLayer(Layer):
-    '''TODO: dosctring
+    '''TODO: docstring
     '''
     def __init__(self, input_shape=None, batch_input_shape=None,
                  input_dtype=None, input_tensor=None, sparse=False, name=None):
@@ -1538,7 +1538,7 @@ def merge(inputs, mode='sum', concat_axis=-1,
 
 
 class Container(Layer):
-    '''TODO: dosctring
+    '''TODO: docstring
 
     # Properties
         name
