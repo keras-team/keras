@@ -617,14 +617,14 @@ class ReduceLROnPlateau(Callback):
             warnings.warn('Learning Rate Plateau Reducing requires %s available!' %
                           self.monitor, RuntimeWarning)
         else:
-            if self.cooldown_counter > 0:
+            if self.in_cooldown():
                 self.cooldown_counter -= 1
                 self.wait = 0
 
             if self.monitor_op(current, self.best):
                 self.best = current
                 self.wait = 0
-            elif self.cooldown_counter <= 0:
+            elif not self.in_cooldown():
                 if self.wait >= self.patience:
                     old_lr = float(K.get_value(self.model.optimizer.lr))
                     if old_lr > self.min_lr + self.lr_epsilon:
@@ -634,7 +634,11 @@ class ReduceLROnPlateau(Callback):
                         if self.verbose > 0:
                             print('\nEpoch %05d: reducing learning rate to %s.' % (epoch, new_lr))
                         self.cooldown_counter = self.cooldown
+                        self.wait = 0
                 self.wait += 1
+
+    def in_cooldown(self):
+        return self.cooldown_counter > 0
 
 
 class CSVLogger(Callback):
