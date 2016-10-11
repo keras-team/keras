@@ -1441,14 +1441,13 @@ class ZeroPadding1D(Layer):
         if isinstance(padding, int):
             self.left_pad = padding
             self.right_pad = padding
-        elif isinstance(padding, tuple):
-            self.left_pad = padding[0]
-            self.right_pad = padding[1]
         elif isinstance(padding, dict):
             self.left_pad = padding.get('left_pad', 1)
             self.right_pad = padding.get('right_pad', 1)
         else:
-            raise TypeError('padding should be int or tuple of int of length 2 or dict')
+            padding = tuple(padding)
+            self.left_pad = padding[0]
+            self.right_pad = padding[1]
         self.input_spec = [InputSpec(ndim=3)]
 
     def get_output_shape_for(self, input_shape):
@@ -1519,7 +1518,13 @@ class ZeroPadding2D(Layer):
             dim_ordering = K.image_dim_ordering()
 
         self.padding = padding
-        if isinstance(padding, tuple):
+        try:
+            self.top_pad = padding.get('top_pad', 1)
+            self.bottom_pad = padding.get('bottom_pad', 1)
+            self.left_pad = padding.get('left_pad', 1)
+            self.right_pad = padding.get('right_pad', 1)
+        except AttributeError:
+            padding = tuple(padding)
             if len(padding) == 2:
                 self.top_pad = padding[0]
                 self.bottom_pad = padding[0]
@@ -1532,13 +1537,6 @@ class ZeroPadding2D(Layer):
                 self.right_pad = padding[3]
             else:
                 raise TypeError('padding should be tuple of int of length 2 or 4, or dict')
-        elif isinstance(padding, dict):
-            self.top_pad = padding.get('top_pad', 1)
-            self.bottom_pad = padding.get('bottom_pad', 1)
-            self.left_pad = padding.get('left_pad', 1)
-            self.right_pad = padding.get('right_pad', 1)
-        else:
-            raise TypeError('padding should be tuple of int of length 2 or 4, or dict')
 
         assert dim_ordering in {'tf', 'th'}, 'dim_ordering must be in {tf, th}'
         self.dim_ordering = dim_ordering
