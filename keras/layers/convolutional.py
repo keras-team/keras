@@ -1434,14 +1434,9 @@ class ZeroPadding1D(Layer):
         3D tensor with shape (samples, padded_axis, features)
     '''
 
-    def __init__(self, padding=1, left_pad=1, right_pad=1, **kwargs):
+    def __init__(self, padding=1, **kwargs):
         super(ZeroPadding1D, self).__init__(**kwargs)
         self.padding = padding
-        self.left_pad = left_pad
-        self.right_pad = right_pad
-        if self.padding != 1:
-            self.left_pad = self.padding
-            self.right_pad = self.padding
 
         if isinstance(padding, int):
             self.left_pad = padding
@@ -1523,6 +1518,7 @@ class ZeroPadding2D(Layer):
         if dim_ordering == 'default':
             dim_ordering = K.image_dim_ordering()
 
+        self.padding = padding
         if isinstance(padding, tuple):
             if len(padding) == 2:
                 self.top_pad = padding[0]
