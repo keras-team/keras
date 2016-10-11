@@ -1214,8 +1214,6 @@ class TimeDistributedDense(Layer):
         # We have to reshape Y to (samples, timesteps, output_dim)
         y = K.reshape(y, (-1, input_length, self.output_dim))  # (samples, timesteps, output_dim)
         y = self.activation(y)
-        y = K.printing(y, 'SOFTMAX!!')
-
         return y
 
     def get_config(self):
