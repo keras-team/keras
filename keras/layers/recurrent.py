@@ -1761,9 +1761,10 @@ class AttLSTMCond(LSTM):
             self.input_spec = [InputSpec(shape=input_shape[0]), InputSpec(shape=input_shape[1]),
                                InputSpec(shape=input_shape[2]), InputSpec(shape=input_shape[3])]
             self.num_inputs = 4
-        self.input_dim = input_shape[1][2]
-        self.context_steps = input_shape[0][1] #if input_shape[0][1] is not None else self.max_ctx_len
-        self.context_dim = input_shape[0][2]
+
+        self.input_dim = input_shape[0][2]
+        self.context_steps = input_shape[1][1] #if input_shape[0][1] is not None else self.max_ctx_len
+        self.context_dim = input_shape[1][2]
         if self.stateful:
             self.reset_states()
         else:
@@ -1897,13 +1898,13 @@ class AttLSTMCond(LSTM):
 
     def get_output_shape_for(self, input_shape):
         if self.return_sequences:
-            main_out = (input_shape[1][0], input_shape[1][1], self.output_dim)
+            main_out = (input_shape[0][0], input_shape[0][1], self.output_dim)
         else:
-            main_out = (input_shape[1][0], self.output_dim)
+            main_out = (input_shape[0][0], self.output_dim)
 
         if self.return_extra_variables:
-            dim_x_att = (input_shape[1][0], input_shape[1][1], self.context_dim)
-            dim_alpha_att = (input_shape[1][0], input_shape[1][1], input_shape[0][1])
+            dim_x_att = (input_shape[0][0], input_shape[0][1], self.context_dim)
+            dim_alpha_att = (input_shape[0][0], input_shape[0][1], input_shape[1][1])
             return [main_out, dim_x_att, dim_alpha_att]
         else:
             return main_out
@@ -1913,9 +1914,9 @@ class AttLSTMCond(LSTM):
         # note that the .build() method of subclasses MUST define
         # self.input_spec with a complete input shape.
 
-        input_shape = self.input_spec[1].shape
-        self.context = x[0]
-        state_below = x[1]
+        input_shape = self.input_spec[0].shape
+        state_below = x[0]
+        self.context = x[1]
         if self.num_inputs == 2:
             self.init_state = None
             self.init_memory = None
@@ -1947,7 +1948,7 @@ class AttLSTMCond(LSTM):
         last_output, outputs, states = K.rnn(self.step, preprocessed_input,
                                              initial_states,
                                              go_backwards=self.go_backwards,
-                                             mask=mask[1],
+                                             mask=mask[0],
                                              constants=constants,
                                              unroll=self.unroll,
                                              input_length=state_below.shape[1],
@@ -1970,8 +1971,8 @@ class AttLSTMCond(LSTM):
 
     def compute_mask(self, input, mask):
         if self.return_extra_variables:
-            return [mask[1], mask[1], mask[1]]
-        return mask[1]
+            return [mask[0], mask[0], mask[0]]
+        return mask[0]
 
     def step(self, x, states):
         h_tm1 = states[0]  # State
@@ -2029,7 +2030,7 @@ class AttLSTMCond(LSTM):
 
         # States[5]
         if 0 < self.dropout_W < 1:
-            input_shape = self.input_spec[1][0].shape
+            input_shape = self.input_spec[0][0].shape
             input_dim = input_shape[-1]
             ones = K.ones_like(K.reshape(x[:, 0, 0], (-1, 1)))
             ones = K.concatenate([ones] * input_dim, 1)
