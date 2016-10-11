@@ -967,7 +967,8 @@ class LSTMCond(LSTM):
                                            np.zeros(self.output_dim),
                                            np.zeros(self.output_dim))),
                                 name='{}_b'.format(self.name))
-            self.trainable_weights = [self.W, self.U,
+            self.trainable_weights = [self.W,
+                                      self.U,
                                       self.V,
                                       self.b]
 
@@ -996,8 +997,7 @@ class LSTMCond(LSTM):
             self.V_x = self.init((self.output_dim, self.input_dim), name='{}_V_x'.format(self.name))
             self.W_x = self.init((self.output_dim, self.context_dim), name='{}_W_x'.format(self.name))
             self.b_x = K.zeros((self.context_dim,), name='{}_b_x'.format(self.name))
-            self.trainable_weights = [self.wa, self.Wa, self.Ua, self.ba, self.ca, # AttModel parameters
-                                      self.V_i, self.W_i, self.U_i, self.b_i,
+            self.trainable_weights = [self.V_i, self.W_i, self.U_i, self.b_i,
                                       self.V_c, self.W_c, self.U_c, self.b_c,
                                       self.V_f, self.W_f, self.U_f, self.b_f,
                                       self.V_o, self.W_o, self.U_o, self.b_o,
@@ -1097,7 +1097,7 @@ class LSTMCond(LSTM):
         last_output, outputs, states = K.rnn(self.step, preprocessed_input,
                                              initial_states,
                                              go_backwards=self.go_backwards,
-                                             mask=mask[1],
+                                             mask=mask[0],
                                              constants=constants,
                                              unroll=self.unroll,
                                              input_length=state_below.shape[1])
@@ -1762,7 +1762,7 @@ class AttLSTMCond(LSTM):
                                InputSpec(shape=input_shape[2]), InputSpec(shape=input_shape[3])]
             self.num_inputs = 4
         self.input_dim = input_shape[1][2]
-        self.context_steps = input_shape[0][1]
+        self.context_steps = input_shape[0][1] #if input_shape[0][1] is not None else self.max_ctx_len
         self.context_dim = input_shape[0][2]
         if self.stateful:
             self.reset_states()
