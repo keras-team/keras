@@ -395,6 +395,19 @@ def normalize_batch_in_training(x, gamma, beta,
                                 reduction_axes, epsilon=0.0001):
     '''Compute mean and std for batch then apply batch_normalization on batch.
     '''
+    dev = theano.config.device
+    use_cudnn = ndim(x) < 5 and reduction_axes == [0, 2, 3] and (dev.startswith('cuda') or dev.startswith('gpu'))
+    if use_cudnn:
+        broadcast_beta = beta.dimshuffle('x', 0, 'x', 'x')
+        broadcast_gamma = gamma.dimshuffle('x', 0, 'x', 'x')
+        try:
+            normed, mean, stdinv = theano.sandbox.cuda.dnn.dnn_batch_normalization_train(
+                x, broadcast_gamma, broadcast_beta, 'spatial', epsilon)
+            var = T.inv(stdinv ** 2)
+            return normed, T.flatten(mean), T.flatten(var)
+        except AttributeError:
+            pass
+
     var = x.var(reduction_axes)
     mean = x.mean(reduction_axes)
 
