@@ -1195,8 +1195,6 @@ class TimeDistributedDense(Layer):
         # x has shape (samples, timesteps, input_dim)
         input_length = input_shape[1]
         # Note: input_length should always be provided when using tensorflow backend.
-        x = K.printing(x, 'SOFTMAX (x)!!')
-
         if not input_length:
             if hasattr(K, 'int_shape'):
                 input_length = K.int_shape(x)[1]
