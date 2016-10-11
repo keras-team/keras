@@ -1936,9 +1936,8 @@ class Container(Layer):
         '''
         state_updates = []
         for layer in self.layers:
-            if getattr(layer, 'stateful', False):
-                if hasattr(layer, 'updates'):
-                    state_updates += layer.updates
+            if getattr(layer, 'stateful', False) and hasattr(layer, 'updates'):
+	        state_updates += layer.updates
         return state_updates
 
     @property
