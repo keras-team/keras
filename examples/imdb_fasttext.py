@@ -16,8 +16,9 @@ np.random.seed(1337)  # for reproducibility
 
 from keras.preprocessing import sequence
 from keras.models import Sequential
-from keras.layers import Dense, Lambda
+from keras.layers import Dense
 from keras.layers import Embedding
+from keras.layers import GlobalAveragePooling1D
 from keras.datasets import imdb
 from keras import backend as K
 
@@ -119,9 +120,9 @@ model.add(Embedding(max_features,
                     embedding_dims,
                     input_length=maxlen))
 
-# we add a Lambda layer, which will average the embeddings
+# we add a GlobalAveragePooling1D, which will average the embeddings
 # of all words in the document
-model.add(Lambda(lambda x: K.mean(x, axis=1), output_shape=lambda s:(s[0], s[2])))
+model.add(GlobalAveragePooling1D())
 
 # We project onto a single unit output layer, and squash it with a sigmoid:
 model.add(Dense(1, activation='sigmoid'))
