@@ -1413,19 +1413,14 @@ class ZeroPadding1D(Layer):
 
     # Arguments
         padding: int or tuple of int (length 2) or dictionary
-            If int then defines how many zeros to add at the beginning and end of
-            the padding dimension (axis 1) symmetrically.
-            If tuple of int (length 2) then:
-            left_pad = padding[0],
-            right_pad = padding[1]
-            If 'padding' is a dictionary then it should have keys 'left_pad', 'right_pad'.
+            For symmetric padding: int
+            How many zeros to add at the beginning and end of
+            the padding dimension (axis 1).
+            For asymmetric padding: tuple of int (length 2)
+            How many zeros to add at the beginning and at the end of
+            the padding dimension (left_pad, right_pad) or
+            {'left_pad': left_pad, 'right_pad': right_pad}.
             If any key is missing, default value of 1 will be used for the missing key.
-        left_pad:
-            How many zeros to add at the beginning of
-            the padding dimension.
-        right_pad:
-            How many zeros to add at the end of
-            the padding dimension.
 
     # Input shape
         3D tensor with shape (samples, axis_to_pad, features)
@@ -1470,25 +1465,15 @@ class ZeroPadding2D(Layer):
 
     # Arguments
         padding: tuple of int (length 2) or tuple of int (length 4) or dictionary
-            If tuple of int (length 2) then defines
-            how many zeros to add at the beginning and end of
-            the 2 padding dimensions (rows and cols) symmetrically.
-            If tuple of int (length 2) then:
-            top_pad = padding[0],
-            bottom_pad = padding[1],
-            left_pad = padding[2],
-            right_pad = padding[3]
-            If 'padding' is a dictionary then it should have keys
-            'top_pad', 'bottom_pad', 'left_pad', 'right_pad'.
+            For symmetric padding tuple of int (length 2)
+            How many zeros to add at the beginning and end of
+            the 2 padding dimensions (rows and cols).
+            For asymmetric padding tuple of int (length 4)
+            How many zeros to add at the beginning and at the end of
+            the 2 padding dimensions (rows and cols).
+            (top_pad, bottom_pad, left_pad, right_pad) or
+            {'top_pad': top_pad, 'bottom_pad': bottom_pad, 'left_pad': left_pad, 'right_pad': right_pad}
             If any key is missing, default value of 1 will be used for the missing key.
-        top_pad: int
-            How many zeros to add to the top of the rows.
-        bottom_pad: int
-            How many zeros to add at the bottom of the rows.
-        left_pad:
-            How many zeros to add to the left of the cols.
-        right_pad:
-            How many zeros to add to the right of the cols.
         dim_ordering: 'th' or 'tf'.
             In 'th' mode, the channels dimension (the depth)
             is at index 1, in 'tf' mode is it at index 3.
