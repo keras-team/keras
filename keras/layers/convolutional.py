@@ -1412,11 +1412,14 @@ class ZeroPadding1D(Layer):
     '''Zero-padding layer for 1D input (e.g. temporal sequence).
 
     # Arguments
-        padding: int
-            How many zeros to add at the beginning and end of
+        padding: int or tuple of int (length 2) or dictionary
+            If int then defines how many zeros to add at the beginning and end of
             the padding dimension (axis 1) symmetrically.
-            Setting padding to the value different from 1
-            overrides left_pad, right_pad arguments.
+            If tuple of int (length 2) then:
+            left_pad = padding[0],
+            right_pad = padding[1]
+            If 'padding' is a dictionary then it should have keys 'left_pad', 'right_pad'.
+            If any key is missing, default value of 1 will be used for the missing key.
         left_pad:
             How many zeros to add at the beginning of
             the padding dimension.
@@ -1439,6 +1442,18 @@ class ZeroPadding1D(Layer):
         if self.padding != 1:
             self.left_pad = self.padding
             self.right_pad = self.padding
+
+        if isinstance(padding, int):
+            self.left_pad = padding
+            self.right_pad = padding
+        elif isinstance(padding, tuple):
+            self.left_pad = padding[0]
+            self.right_pad = padding[1]
+        elif isinstance(padding, dict):
+            self.left_pad = padding.get('left_pad', 1)
+            self.right_pad = padding.get('right_pad', 1)
+        else:
+            raise TypeError('padding should be int or tuple of int of length 2 or dict')
         self.input_spec = [InputSpec(ndim=3)]
 
     def get_output_shape_for(self, input_shape):
@@ -1451,9 +1466,7 @@ class ZeroPadding1D(Layer):
         return K.asymmetric_temporal_padding(x, left_pad=self.left_pad, right_pad=self.right_pad)
 
     def get_config(self):
-        config = {'padding': self.padding,
-                  'left_pad': self.left_pad,
-                  'right_pad': self.right_pad}
+        config = {'padding': self.padding}
         base_config = super(ZeroPadding1D, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
@@ -1462,11 +1475,18 @@ class ZeroPadding2D(Layer):
     '''Zero-padding layer for 2D input (e.g. picture).
 
     # Arguments
-        padding: tuple of int (length 2)
-            How many zeros to add at the beginning and end of
+        padding: tuple of int (length 2) or tuple of int (length 4) or dictionary
+            If tuple of int (length 2) then defines
+            how many zeros to add at the beginning and end of
             the 2 padding dimensions (rows and cols) symmetrically.
-            Setting padding to the values different from (1, 1)
-            overrides top_pad, bottom_pad; and left_pad, right_pad arguments.
+            If tuple of int (length 2) then:
+            top_pad = padding[0],
+            bottom_pad = padding[1],
+            left_pad = padding[2],
+            right_pad = padding[3]
+            If 'padding' is a dictionary then it should have keys
+            'top_pad', 'bottom_pad', 'left_pad', 'right_pad'.
+            If any key is missing, default value of 1 will be used for the missing key.
         top_pad: int
             How many zeros to add to the top of the rows.
         bottom_pad: int
@@ -1497,29 +1517,32 @@ class ZeroPadding2D(Layer):
 
     def __init__(self,
                  padding=(1, 1),
-                 top_pad=1,
-                 bottom_pad=1,
-                 left_pad=1,
-                 right_pad=1,
                  dim_ordering='default',
                  **kwargs):
-        import sys
         super(ZeroPadding2D, self).__init__(**kwargs)
         if dim_ordering == 'default':
             dim_ordering = K.image_dim_ordering()
 
-        self.padding = padding
-        self.top_pad = top_pad
-        self.bottom_pad = bottom_pad
-        self.left_pad = left_pad
-        self.right_pad = right_pad
-
-        if padding[0] != 1:
-            self.top_pad = self.padding[0]
-            self.bottom_pad = self.padding[0]
-        if padding[1] != 1:
-            self.left_pad = self.padding[1]
-            self.right_pad = self.padding[1]
+        if isinstance(padding, tuple):
+            if len(padding) == 2:
+                self.top_pad = padding[0]
+                self.bottom_pad = padding[0]
+                self.left_pad = padding[1]
+                self.right_pad = padding[1]
+            elif len(padding) == 4:
+                self.top_pad = padding[0]
+                self.bottom_pad = padding[1]
+                self.left_pad = padding[2]
+                self.right_pad = padding[3]
+            else:
+                raise TypeError('padding should be tuple of int of length 2 or 4, or dict')
+        elif isinstance(padding, dict):
+            self.top_pad = padding.get('top_pad', 1)
+            self.bottom_pad = padding.get('bottom_pad', 1)
+            self.left_pad = padding.get('left_pad', 1)
+            self.right_pad = padding.get('right_pad', 1)
+        else:
+            raise TypeError('padding should be tuple of int of length 2 or 4, or dict')
 
         assert dim_ordering in {'tf', 'th'}, 'dim_ordering must be in {tf, th}'
         self.dim_ordering = dim_ordering
@@ -1552,11 +1575,7 @@ class ZeroPadding2D(Layer):
                                                dim_ordering=self.dim_ordering)
 
     def get_config(self):
-        config = {'padding': self.padding,
-                  'top_pad': self.top_pad,
-                  'bottom_pad': self.bottom_pad,
-                  'left_pad': self.left_pad,
-                  'right_pad': self.right_pad}
+        config = {'padding': self.padding}
         base_config = super(ZeroPadding2D, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 

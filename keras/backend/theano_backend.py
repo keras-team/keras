@@ -623,9 +623,6 @@ def asymmetric_spatial_2d_padding(x, top_pad=1, bottom_pad=1, left_pad=1, right_
     '''Pad the rows and columns of a 4D tensor
     with "top_pad", "bottom_pad", "left_pad", "right_pad"  (resp.) zeros rows on top, bottom; cols on left, right.
     '''
-    from theano import tensor as T
-    import sys
-
     input_shape = x.shape
     if dim_ordering == 'th':
         output_shape = (input_shape[0],

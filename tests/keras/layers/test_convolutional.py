@@ -370,7 +370,6 @@ def test_zero_padding_2d():
     input_nb_row = 11
     input_nb_col = 12
     dim_ordering = K.image_dim_ordering()
-    print("Dim ordering: {}".format(dim_ordering))
     assert dim_ordering in {'tf', 'th'}, 'dim_ordering must be in {tf, th}'
 
     if dim_ordering == 'tf':
@@ -381,6 +380,12 @@ def test_zero_padding_2d():
     # basic test
     layer_test(convolutional.ZeroPadding2D,
                kwargs={'padding': (2, 2)},
+               input_shape=input.shape)
+    layer_test(convolutional.ZeroPadding2D,
+               kwargs={'padding': (1, 2, 3, 4)},
+               input_shape=input.shape)
+    layer_test(convolutional.ZeroPadding2D,
+               kwargs={'padding': {'top_pad': 1, 'bottom_pad': 2, 'left_pad': 3, 'right_pad': 4}},
                input_shape=input.shape)
 
     # correctness test
@@ -398,6 +403,31 @@ def test_zero_padding_2d():
             assert_allclose(out[:, :, offset, :], 0.)
             assert_allclose(out[:, :, :, offset], 0.)
         assert_allclose(out[:, 2:-2, 2:-2, :], 1.)
+
+    layer = convolutional.ZeroPadding2D(padding=(1, 2, 3, 4))
+    layer.set_input(K.variable(input), shape=input.shape)
+
+    out = K.eval(layer.output)
+    if dim_ordering == 'tf':
+        for top_offset in [0]:
+            assert_allclose(out[:, top_offset, :, :], 0.)
+        for bottom_offset in [-1, -2]:
+            assert_allclose(out[:, bottom_offset, :, :], 0.)
+        for left_offset in [0, 1, 2]:
+            assert_allclose(out[:, :, left_offset, :], 0.)
+        for right_offset in [-1, -2, -3, -4]:
+            assert_allclose(out[:, :, right_offset, :], 0.)
+        assert_allclose(out[:, 1:-2, 3:-4, :], 1.)
+    elif dim_ordering == 'th':
+        for top_offset in [0]:
+            assert_allclose(out[:, :, top_offset, :], 0.)
+        for bottom_offset in [-1, -2]:
+            assert_allclose(out[:, :, bottom_offset, :], 0.)
+        for left_offset in [0, 1, 2]:
+            assert_allclose(out[:, :, :, left_offset], 0.)
+        for right_offset in [-1, -2, -3, -4]:
+            assert_allclose(out[:, :, :, right_offset], 0.)
+        assert_allclose(out[:, :, 1:-2, 3:-4], 1.)
     layer.get_config()
 
 
