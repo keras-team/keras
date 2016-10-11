@@ -1761,7 +1761,6 @@ class AttLSTMCond(LSTM):
             self.input_spec = [InputSpec(shape=input_shape[0]), InputSpec(shape=input_shape[1]),
                                InputSpec(shape=input_shape[2]), InputSpec(shape=input_shape[3])]
             self.num_inputs = 4
-
         self.input_dim = input_shape[0][2]
         self.context_steps = input_shape[1][1] #if input_shape[0][1] is not None else self.max_ctx_len
         self.context_dim = input_shape[1][2]
@@ -1943,7 +1942,8 @@ class AttLSTMCond(LSTM):
             initial_states = self.states
         else:
             initial_states = self.get_initial_states(self.context)
-        constants, B_V = self.get_constants(state_below)
+
+        constants, B_V = self.get_constants(state_below, mask[1])
         preprocessed_input = self.preprocess_input(state_below, B_V)
         last_output, outputs, states = K.rnn(self.step, preprocessed_input,
                                              initial_states,
@@ -1986,8 +1986,13 @@ class AttLSTMCond(LSTM):
         # Att model dropouts
         B_wa = states[6]
         B_Wa = states[7]
-        pctx_ = states[8]  # Projected context (i.e. context * Ua + ba)
-        context = states[9]  # Original context
+        pctx_ = states[8]       # Projected context (i.e. context * Ua + ba)
+        context = states[9]     # Original context
+        mask_input = states[10] # Context mask
+
+        if mask_input.ndim > 1: # Mask the context (only if necessary)
+            pctx_ = mask_input[:, :, None] * pctx_
+            context = mask_input[:, :, None] * context    # Masked context
 
         # AttModel (see Formulation in class header)
         p_state_ = K.dot(h_tm1 * B_Wa[0], self.Wa)
@@ -2017,7 +2022,7 @@ class AttLSTMCond(LSTM):
         return h, [h, c, ctx_, alphas]
 
 
-    def get_constants(self, x):
+    def get_constants(self, x, mask_input):
         constants = []
         # States[4]
         if 0 < self.dropout_U < 1:
@@ -2082,6 +2087,11 @@ class AttLSTMCond(LSTM):
         # States[9]
         constants.append(self.context)
 
+        # States[10]
+        if mask_input is None:
+            mask_input = K.variable([])
+        constants.append(mask_input)
+
         return constants, B_V
 
     def get_initial_states(self, x):
@@ -2114,9 +2124,9 @@ class AttLSTMCond(LSTM):
         initial_state_alphas = K.sum(initial_state, axis=2)  # (samples, input_timesteps)
         initial_state = K.sum(initial_state, axis=1)  # (samples, ctx_dim)
         reducer = K.ones((self.context_dim, self.context_dim))
-        reducer_alphas = K.ones((self.context_steps, self.context_steps))
-        extra_states = [K.dot(initial_state, reducer),
-                        K.dot(initial_state_alphas, reducer_alphas)] # (samples, ctx_dim)
+        #reducer_alphas = K.ones((self.context_steps, self.context_steps))
+        extra_states = [K.dot(initial_state, reducer), initial_state_alphas]  # (samples, ctx_dim)
+                        #K.dot(initial_state_alphas, reducer_alphas)]
 
         return initial_states + extra_states
 
