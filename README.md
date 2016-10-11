@@ -28,7 +28,7 @@ be multiplied by the global learning rate for modifying the weight of the error 
 x = Dense(100, W_learning_rate_multiplier=10.0, b_learning_rate_multiplier=10.0)  (x)
 ```
 
-## New layers for multimodal data
+## New layers for sequence-to-sequence learning and multimodal data
 
 #### Recurrent layers
 - [LSTMCond](https://github.com/MarcBS/keras/blob/ba642f5d345983c3ebeffede41c57e03a5c1f7ee/keras/layers/recurrent.py#L940): LSTM conditioned to the previously generated word (additional input with previous word).
