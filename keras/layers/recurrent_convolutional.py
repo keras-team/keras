@@ -75,7 +75,7 @@ class RecurrentConv2D(Layer):
         a specific layer, or on your entire model.
     '''
 
-    def __init__(self, weights=None,nb_row=None, nb_col=None, nb_filter=None,
+    def __init__(self, weights=None, nb_row=None, nb_col=None, nb_filter=None,
                  return_sequences=False, go_backwards=False, stateful=False,
                  dim_ordering=None, **kwargs):
         self.return_sequences = return_sequences
@@ -267,7 +267,7 @@ class LSTMConv2D(RecurrentConv2D):
         if dim_ordering == 'default':
             dim_ordering = K.image_dim_ordering()
         if dim_ordering not in {'tf', 'th'}:
-            raise ValueError('dim_ordering must be in {tf,th}',dim_ordering)
+            raise ValueError('dim_ordering must be in {tf,th}', dim_ordering)
         self.nb_filter = nb_filter
         self.nb_row = nb_row
         self.nb_col = nb_col
@@ -278,8 +278,6 @@ class LSTMConv2D(RecurrentConv2D):
         self.inner_activation = activations.get(inner_activation)
         self.border_mode = border_mode
         self.subsample = sub_sample
-
-        
 
         if dim_ordering == 'th':
             warnings.warn('Be carefull if used with convolution3D layers:\n'

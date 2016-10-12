@@ -17,7 +17,7 @@ def test_recurrent_convolutional():
     input_channel = 3
     input_nb_row = 30
     input_nb_col = 30
-    sequence_len  = 10
+    sequence_len = 10
     for dim_ordering in ['th', 'tf']:
 
         if dim_ordering == 'th':
@@ -28,17 +28,17 @@ def test_recurrent_convolutional():
             input = np.random.rand(nb_samples, sequence_len,
                                    input_nb_row, input_nb_col,
                                    input_channel)
- 
-        for return_sequences in [True,False]:
+
+        for return_sequences in [True, False]:
             output = layer_test(recurrent_convolutional.LSTMConv2D,
-                       kwargs={'dim_ordering' : dim_ordering,
-                               'return_sequences' : return_sequences,
-                               'nb_filter': nb_filter,
-                               'nb_row' : nb_row,
-                               'nb_col' : nb_col,
-                               'border_mode': "same"},
-                       input_shape=input.shape)
-         
+                                kwargs={'dim_ordering': dim_ordering,
+                                        'return_sequences': return_sequences,
+                                        'nb_filter': nb_filter,
+                                        'nb_row': nb_row,
+                                        'nb_col': nb_col,
+                                        'border_mode': "same"},
+                                input_shape=input.shape)
+
             output_shape = [nb_samples, input_nb_row, input_nb_col]
 
             if dim_ordering == 'th':
@@ -48,7 +48,7 @@ def test_recurrent_convolutional():
 
             if return_sequences:
                 output_shape.insert(1, sequence_len)
-                
+
             assert output.shape == tuple(output_shape)
 
 if __name__ == '__main__':
