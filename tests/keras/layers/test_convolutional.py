@@ -364,6 +364,45 @@ def test_averagepooling_3d():
 
 
 @keras_test
+def test_zero_padding_1d():
+    nb_samples = 2
+    input_dim = 2
+    nb_steps = 11
+    input = np.ones((nb_samples, nb_steps, input_dim))
+
+    # basic test
+    layer_test(convolutional.ZeroPadding1D,
+               kwargs={'padding': 2},
+               input_shape=input.shape)
+    layer_test(convolutional.ZeroPadding1D,
+               kwargs={'padding': (1, 2)},
+               input_shape=input.shape)
+    layer_test(convolutional.ZeroPadding1D,
+               kwargs={'padding': {'left_pad': 1, 'right_pad': 2}},
+               input_shape=input.shape)
+
+    # correctness test
+    layer = convolutional.ZeroPadding1D(padding=2)
+    layer.set_input(K.variable(input), shape=input.shape)
+
+    out = K.eval(layer.output)
+    for offset in [0, 1, -1, -2]:
+        assert_allclose(out[:, offset, :], 0.)
+    assert_allclose(out[:, 2:-2, :], 1.)
+
+    layer = convolutional.ZeroPadding1D(padding=(1, 2))
+    layer.set_input(K.variable(input), shape=input.shape)
+
+    out = K.eval(layer.output)
+    for left_offset in [0]:
+        assert_allclose(out[:, left_offset, :], 0.)
+    for right_offset in [-1, -2]:
+        assert_allclose(out[:, right_offset, :], 0.)
+    assert_allclose(out[:, 1:-2, :], 1.)
+    layer.get_config()
+
+
+@keras_test
 def test_zero_padding_2d():
     nb_samples = 2
     stack_size = 2
