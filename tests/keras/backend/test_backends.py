@@ -249,6 +249,29 @@ class TestBackend(object):
         assert_allclose(zero_zth, zth, atol=1e-05)
         assert_allclose(zero_ztf, ztf, atol=1e-05)
 
+    def test_gradient_reversal(self):
+        val = np.random.random((4, 2))
+        lth = KTH.variable(0.5)
+        ltf = KTF.variable(0.5)
+
+        xth = KTH.variable(val)
+        xtf = KTF.variable(val)
+
+        yth = xth ** 2
+        ytf = xtf ** 2
+
+        lossth = KTH.ReverseGradient(lth)(KTH.sum(yth))
+        losstf = KTF.ReverseGradientBuilder()(KTF.sum(ytf), ltf)
+
+        gradth = KTH.gradients(lossth, [xth])
+        gradtf = KTF.gradients(losstf, [xtf])
+        zth = KTH.eval(gradth[0])
+        ztf = KTF.eval(gradtf[0])
+
+        assert_allclose(zth, -2 * 0.5 * val, atol=1e-05)
+        assert_allclose(ztf, -2 * 0.5 * val, atol=1e-05)
+        assert_allclose(zth, ztf, atol=1e-05)
+
     def test_function(self):
         val = np.random.random((4, 2))
         input_val = np.random.random((4, 2))

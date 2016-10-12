@@ -1213,3 +1213,32 @@ class TimeDistributedDense(Layer):
                   'input_length': self.input_length}
         base_config = super(TimeDistributedDense, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
+
+
+class GradientReversal(Layer):
+    def __init__(self, l, **kwargs):
+        super(GradientReversal, self).__init__(**kwargs)
+        self.l = K.variable(l)
+        self.supports_masking = False
+
+        if K._BACKEND == 'theano':
+            self.op = K.ReverseGradient(self.l)
+        elif K._BACKEND == 'tensorflow':
+            self.op = K.ReverseGradientBuilder()
+
+    def build(self, input_shape):
+        self.trainable_weights = []
+
+    def call(self, x, mask=None):
+        if K._BACKEND == 'theano':
+            return self.op(x)
+        elif K._BACKEND == 'tensorflow':
+            return self.op(x, self.l)
+
+    def get_output_shape_for(self, input_shape):
+        return input_shape
+
+    def get_config(self):
+        config = {'lambda' : self.l}
+        base_config = super(GradientReversal, self).get_config()
+        return dict(list(base_config.items()) + list(config.items()))
