@@ -450,7 +450,7 @@ class Adamax(Optimizer):
             lr *= (1. / (1. + self.decay * self.iterations))
 
         t = self.iterations + 1
-        lr_t = self.lr / (1. - K.pow(self.beta_1, t))
+        lr_t = lr / (1. - K.pow(self.beta_1, t))
 
         shapes = [K.get_variable_shape(p) for p in params]
         # zero init of 1st moment
