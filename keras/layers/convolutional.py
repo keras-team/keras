@@ -1418,9 +1418,9 @@ class ZeroPadding1D(Layer):
             the padding dimension (axis 1).
             For asymmetric padding: tuple of int (length 2)
             How many zeros to add at the beginning and at the end of
-            the padding dimension (left_pad, right_pad) or
-            {'left_pad': left_pad, 'right_pad': right_pad}.
-            If any key is missing, default value of 1 will be used for the missing key.
+            the padding dimension '(left_pad, right_pad)' or
+            '{'left_pad': left_pad, 'right_pad': right_pad}'.
+            If any key is missing, default value of 0 will be used for the missing key.
 
     # Input shape
         3D tensor with shape (samples, axis_to_pad, features)
@@ -1437,8 +1437,12 @@ class ZeroPadding1D(Layer):
             self.left_pad = padding
             self.right_pad = padding
         elif isinstance(padding, dict):
-            self.left_pad = padding.get('left_pad', 1)
-            self.right_pad = padding.get('right_pad', 1)
+            if set(padding.keys()) <= {'left_pad', 'right_pad'}:
+                self.left_pad = padding.get('left_pad', 0)
+                self.right_pad = padding.get('right_pad', 0)
+            else:
+                raise ValueError('Unexpected key is found in the padding argument. '
+                                 'Keys have to be in {"left_pad", "right_pad"}')
         else:
             padding = tuple(padding)
             self.left_pad = padding[0]
@@ -1471,9 +1475,9 @@ class ZeroPadding2D(Layer):
             For asymmetric padding tuple of int (length 4)
             How many zeros to add at the beginning and at the end of
             the 2 padding dimensions (rows and cols).
-            (top_pad, bottom_pad, left_pad, right_pad) or
-            {'top_pad': top_pad, 'bottom_pad': bottom_pad, 'left_pad': left_pad, 'right_pad': right_pad}
-            If any key is missing, default value of 1 will be used for the missing key.
+            '(top_pad, bottom_pad, left_pad, right_pad)' or
+            '{'top_pad': top_pad, 'bottom_pad': bottom_pad, 'left_pad': left_pad, 'right_pad': right_pad}'
+            If any key is missing, default value of 0 will be used for the missing key.
         dim_ordering: 'th' or 'tf'.
             In 'th' mode, the channels dimension (the depth)
             is at index 1, in 'tf' mode is it at index 3.
@@ -1504,10 +1508,14 @@ class ZeroPadding2D(Layer):
 
         self.padding = padding
         try:
-            self.top_pad = padding.get('top_pad', 1)
-            self.bottom_pad = padding.get('bottom_pad', 1)
-            self.left_pad = padding.get('left_pad', 1)
-            self.right_pad = padding.get('right_pad', 1)
+            if set(padding.keys()) <= {'top_pad', 'bottom_pad', 'left_pad', 'right_pad'}:
+                self.top_pad = padding.get('top_pad', 0)
+                self.bottom_pad = padding.get('bottom_pad', 0)
+                self.left_pad = padding.get('left_pad', 0)
+                self.right_pad = padding.get('right_pad', 0)
+            else:
+                raise ValueError('Unexpected key is found in the padding argument. '
+                                 'Keys have to be in {"top_pad", "bottom_pad", "left_pad", "right_pad"}')
         except AttributeError:
             padding = tuple(padding)
             if len(padding) == 2:
