@@ -1934,6 +1934,7 @@ class ReverseGradientBuilder(object):
 
     def __call__(self, x, l=1.0):
         grad_name = "GradientReversal%d" % self.num_calls
+
         @tf.python.framework.ops.RegisterGradient(grad_name)
         def _flip_gradients(op, grad):
             return [tf.neg(grad) * l]

@@ -966,8 +966,8 @@ def rnn(step_function, inputs, initial_states,
 def switch(condition, then_expression, else_expression, lazy=False):
     '''condition: scalar tensor.
 
-	# Arguments:
-	    lazy: Use ifelse op which evaluates arguments in a lazy manner.
+    # Arguments:
+        lazy: Use ifelse op which evaluates arguments in a lazy manner.
     '''
     if lazy:
         return theano.ifelse.ifelse(condition, then_expression, else_expression)
@@ -1698,13 +1698,13 @@ class ReverseGradient(theano.Op):
     '''Flips the sign of the gradient during training.'''
     view_map = {0: [0]}
     __props__ = ('l', )
+
     def __init__(self, l):
         super(ReverseGradient, self).__init__()
         self.l = l
 
     def make_node(self, x):
-        assert (hasattr(self, '_props'),
-            'Your version of theano is too old to support __props__.')
+        assert (hasattr(self, '_props'), 'Your version of theano is too old to support __props__.')
         x = T.as_tensor_variable(x)
         return theano.Apply(self, [x], [x.type()])
 

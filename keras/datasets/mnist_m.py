@@ -11,7 +11,7 @@ def load_data(path='keras_mnistm.pkl.gz'):
     else:
         f = open(path, 'rb')
 
-    if  sys.version_info < (3,):
+    if sys.version_info < (3,):
         data = cPickle.load(f)
     else:
         data = cPickle.load(f, encoding='bytes')
