@@ -1085,6 +1085,16 @@ def _preprocess_conv2d_input(x, dim_ordering):
     return x
 
 
+def _preprocess_conv3d_input(x, dim_ordering):
+    if dim_ordering == 'tf':
+        # TF uses the last dimension as channel dimension,
+        # instead of the 2nd one.
+        # TH input shape: (samples, input_depth, rows, cols, slices)
+        # TF input shape: (samples, rows, cols, slices, input_depth)
+        x = x.dimshuffle((0, 4, 1, 2, 3))
+    return x
+
+
 def _preprocess_conv2d_kernel(kernel, dim_ordering):
     if dim_ordering == 'tf':
         # TF uses the last dimension as channel dimension,
@@ -1092,6 +1102,16 @@ def _preprocess_conv2d_kernel(kernel, dim_ordering):
         # TH kernel shape: (depth, input_depth, rows, cols)
         # TF kernel shape: (rows, cols, input_depth, depth)
         kernel = kernel.dimshuffle((3, 2, 0, 1))
+    return kernel
+
+
+def _preprocess_conv3d_kernel(kernel, dim_ordering):
+    if dim_ordering == 'tf':
+        # TF uses the last dimension as channel dimension,
+        # instead of the 2nd one.
+        # TH kernel shape: (depth, input_depth, rows, cols, slices)
+        # TF kernel shape: (rows, cols, slices, input_depth, depth)
+        kernel = kernel.dimshuffle((4, 3, 0, 1, 2))
     return kernel
 
 
@@ -1105,7 +1125,7 @@ def _preprocess_border_mode(border_mode):
     return th_border_mode
 
 
-def _preprocess_image_shape(dim_ordering, image_shape):
+def _preprocess_conv2d_image_shape(dim_ordering, image_shape):
     # Theano might not accept long type
     def int_or_none(value):
         try:
@@ -1121,7 +1141,23 @@ def _preprocess_image_shape(dim_ordering, image_shape):
     return image_shape
 
 
-def _preprocess_filter_shape(dim_ordering, filter_shape):
+def _preprocess_conv3d_volume_shape(dim_ordering, volume_shape):
+    # Theano might not accept long type
+    def int_or_none(value):
+        try:
+            return int(value)
+        except TypeError:
+            return None
+    if dim_ordering == 'tf':
+        if volume_shape:
+            volume_shape = (volume_shape[0], volume_shape[4],
+                            volume_shape[1], volume_shape[2], volume_shape[3])
+    if volume_shape is not None:
+        volume_shape = tuple(int_or_none(v) for v in volume_shape)
+    return volume_shape
+
+
+def _preprocess_conv2d_filter_shape(dim_ordering, filter_shape):
     # Theano might not accept long type
     def int_or_none(value):
         try:
@@ -1137,6 +1173,22 @@ def _preprocess_filter_shape(dim_ordering, filter_shape):
     return filter_shape
 
 
+def _preprocess_conv3d_filter_shape(dim_ordering, filter_shape):
+    # Theano might not accept long type
+    def int_or_none(value):
+        try:
+            return int(value)
+        except TypeError:
+            return None
+    if dim_ordering == 'tf':
+        if filter_shape:
+            filter_shape = (filter_shape[4], filter_shape[3],
+                            filter_shape[0], filter_shape[1], filter_shape[2])
+    if filter_shape is not None:
+        filter_shape = tuple(int_or_none(v) for v in filter_shape)
+    return filter_shape
+
+
 def _postprocess_conv2d_output(conv_out, x, border_mode, np_kernel, strides, dim_ordering):
     if border_mode == 'same':
         if np_kernel.shape[2] % 2 == 0:
@@ -1145,6 +1197,19 @@ def _postprocess_conv2d_output(conv_out, x, border_mode, np_kernel, strides, dim
             conv_out = conv_out[:, :, :, :(x.shape[3] + strides[1] - 1) // strides[1]]
     if dim_ordering == 'tf':
         conv_out = conv_out.dimshuffle((0, 2, 3, 1))
+    return conv_out
+
+
+def _postprocess_conv3d_output(conv_out, x, border_mode, np_kernel, strides, dim_ordering):
+    if border_mode == 'same':
+        if np_kernel.shape[2] % 2 == 0:
+            conv_out = conv_out[:, :, :(x.shape[2] + strides[0] - 1) // strides[0], :, :]
+        if np_kernel.shape[3] % 2 == 0:
+            conv_out = conv_out[:, :, :, :(x.shape[3] + strides[1] - 1) // strides[1], :]
+        if np_kernel.shape[4] % 2 == 0:
+            conv_out = conv_out[:, :, :, :, :(x.shape[4] + strides[2] - 1) // strides[2]]
+    if dim_ordering == 'tf':
+        conv_out = conv_out.dimshuffle((0, 2, 3, 4, 1))
     return conv_out
 
 
@@ -1168,8 +1233,8 @@ def conv2d(x, kernel, strides=(1, 1), border_mode='valid',
     kernel = _preprocess_conv2d_kernel(kernel, dim_ordering)
     th_border_mode = _preprocess_border_mode(border_mode)
     np_kernel = kernel.eval()
-    image_shape = _preprocess_image_shape(dim_ordering, image_shape)
-    filter_shape = _preprocess_filter_shape(dim_ordering, filter_shape)
+    image_shape = _preprocess_conv2d_image_shape(dim_ordering, image_shape)
+    filter_shape = _preprocess_conv2d_filter_shape(dim_ordering, filter_shape)
 
     # TODO: remove the if statement when theano with no filter dilation is deprecated.
     if filter_dilation == (1, 1):
@@ -1215,7 +1280,7 @@ def deconv2d(x, kernel, output_shape, strides=(1, 1),
     kernel = kernel.dimshuffle((1, 0, 2, 3))
     th_border_mode = _preprocess_border_mode(border_mode)
     np_kernel = kernel.eval()
-    filter_shape = _preprocess_filter_shape(dim_ordering, filter_shape)
+    filter_shape = _preprocess_conv2d_filter_shape(dim_ordering, filter_shape)
 
     op = T.nnet.abstract_conv.AbstractConv2d_gradInputs(imshp=output_shape,
                                                         kshp=filter_shape,
@@ -1243,7 +1308,53 @@ def separable_conv2d(x, depthwise_kernel, pointwise_kernel, strides=(1, 1),
 
 def conv3d(x, kernel, strides=(1, 1, 1),
            border_mode='valid', dim_ordering=_IMAGE_DIM_ORDERING,
-           volume_shape=None, filter_shape=None):
+           volume_shape=None, filter_shape=None,
+           filter_dilation=(1, 1, 1)):
+    '''3D convolution.
+
+    # Arguments
+        kernel: kernel tensor.
+        strides: strides tuple.
+        border_mode: string, "same" or "valid".
+        dim_ordering: "tf" or "th".
+            Whether to use Theano or TensorFlow dimension ordering
+        in inputs/kernels/ouputs.
+    '''
+    if dim_ordering not in {'th', 'tf'}:
+        raise Exception('Unknown dim_ordering ' + str(dim_ordering))
+
+    # TODO: remove this if statement when Theano without AbstractConv3d is deprecated
+    if not hasattr(T.nnet, 'conv3d'):
+        if filter_dilation != (1, 1, 1):
+            raise Exception('conv3d with filter dilation requires Theano '
+                            '0.9.0dev3 or newer.')
+
+        return _old_theano_conv3d(x, kernel, strides, border_mode,
+                                  dim_ordering, volume_shape, filter_shape)
+
+    x = _preprocess_conv3d_input(x, dim_ordering)
+    kernel = _preprocess_conv3d_kernel(kernel, dim_ordering)
+    th_border_mode = _preprocess_border_mode(border_mode)
+    np_kernel = kernel.eval()
+    volume_shape = _preprocess_conv3d_volume_shape(dim_ordering, volume_shape)
+    filter_shape = _preprocess_conv3d_filter_shape(dim_ordering, filter_shape)
+
+    conv_out = T.nnet.conv3d(x, kernel,
+                             border_mode=th_border_mode,
+                             subsample=strides,
+                             input_shape=volume_shape,
+                             filter_shape=filter_shape,
+                             filter_dilation=filter_dilation)
+
+    conv_out = _postprocess_conv3d_output(conv_out, x, border_mode, np_kernel,
+                                          strides, dim_ordering)
+    return conv_out
+
+
+# TODO: remove this function when theano without AbstractConv3d is deprecated
+def _old_theano_conv3d(x, kernel, strides=(1, 1, 1),
+                       border_mode='valid', dim_ordering=_IMAGE_DIM_ORDERING,
+                       volume_shape=None, filter_shape=None):
     '''
     Run on cuDNN if available.
     border_mode: string, "same" or "valid".
