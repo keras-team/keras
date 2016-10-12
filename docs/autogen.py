@@ -40,6 +40,7 @@ Index
     Sequence preprocessing
 
 Objectives
+Metrics
 Optimizers
 Activations
 Callbacks
@@ -79,6 +80,7 @@ from keras import callbacks
 from keras import models
 from keras.engine import topology
 from keras import objectives
+from keras import metrics
 from keras import backend
 from keras import constraints
 from keras import activations

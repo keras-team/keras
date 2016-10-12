@@ -38,6 +38,7 @@ pages:
   - Text Preprocessing: preprocessing/text.md
   - Image Preprocessing: preprocessing/image.md
 - Objectives: objectives.md
+- Metrics: metrics.md
 - Optimizers: optimizers.md
 - Activations: activations.md
 - Callbacks: callbacks.md
