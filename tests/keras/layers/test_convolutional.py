@@ -299,12 +299,10 @@ def test_maxpooling_2d():
 
 @keras_test
 def test_averagepooling_2d():
-    pool_size = (3, 3)
-
     for border_mode in ['valid', 'same']:
         for pool_size in [(2, 2), (3, 3), (4, 4), (5, 5)]:
             for strides in [(1, 1), (2, 2)]:
-                layer_test(convolutional.MaxPooling2D,
+                layer_test(convolutional.AveragePooling2D,
                            kwargs={'strides': strides,
                                    'border_mode': border_mode,
                                    'pool_size': pool_size},
