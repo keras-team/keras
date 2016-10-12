@@ -75,15 +75,13 @@ class RecurrentConv2D(Layer):
         a specific layer, or on your entire model.
     '''
 
-    def __init__(self, weights=None,
+    def __init__(self, weights=None,nb_row=None, nb_col=None, nb_filter=None,
                  return_sequences=False, go_backwards=False, stateful=False,
-                 nb_row=None, nb_col=None, nb_filter=None,
                  dim_ordering=None, **kwargs):
         self.return_sequences = return_sequences
-        self.initial_weights = weights
         self.go_backwards = go_backwards
         self.stateful = stateful
-
+        self.initial_weights = weights
         self.nb_row = nb_row
         self.nb_col = nb_col
         self.nb_filter = nb_filter
@@ -152,11 +150,10 @@ class RecurrentConv2D(Layer):
         return x
 
     def call(self, x, mask=None):
-
         assert K.ndim(x) == 5
         input_shape = self.input_spec[0].shape
         unroll = False
-        if K._BACKEND == 'tensorflow':
+        if K.backend() == 'tensorflow':
             if not input_shape[1]:
                 raise Exception('When using TensorFlow, you should define ' +
                                 'explicitely the number of timesteps of ' +
@@ -192,8 +189,7 @@ class RecurrentConv2D(Layer):
             return last_output
 
     def get_config(self):
-        config = {'name': self.__class__.__name__,
-                  'return_sequences': self.return_sequences,
+        config = {'return_sequences': self.return_sequences,
                   'go_backwards': self.go_backwards,
                   'stateful': self.stateful}
         if self.stateful:
@@ -263,10 +259,15 @@ class LSTMConv2D(RecurrentConv2D):
                  init='glorot_uniform', inner_init='orthogonal',
                  forget_bias_init='one', activation='tanh',
                  inner_activation='hard_sigmoid',
-                 dim_ordering=K.image_dim_ordering(),
+                 dim_ordering='default',
                  border_mode='valid', sub_sample=(1, 1),
                  W_regularizer=None, U_regularizer=None, b_regularizer=None,
                  dropout_W=0., dropout_U=0., **kwargs):
+
+        if dim_ordering == 'default':
+            dim_ordering = K.image_dim_ordering()
+        if dim_ordering not in {'tf', 'th'}:
+            raise ValueError('dim_ordering must be in {tf,th}',dim_ordering)
         self.nb_filter = nb_filter
         self.nb_row = nb_row
         self.nb_col = nb_col
@@ -278,7 +279,7 @@ class LSTMConv2D(RecurrentConv2D):
         self.border_mode = border_mode
         self.subsample = sub_sample
 
-        assert dim_ordering in {'tf', 'th'}, 'dim_ordering must be in {tf,th}'
+        
 
         if dim_ordering == 'th':
             warnings.warn('Be carefull if used with convolution3D layers:\n'
@@ -380,15 +381,16 @@ class LSTMConv2D(RecurrentConv2D):
     def reset_states(self):
         assert self.stateful, 'Layer must be stateful.'
         input_shape = self.input_spec[0].shape
+        output_shape = self.get_output_shape_for(input_shape)
         if not input_shape[0]:
             raise Exception('If a RNN is stateful, a complete ' +
                             'input_shape must be provided ' +
                             '(including batch size).')
 
         if self.return_sequences:
-            out_row, out_col, out_filter = self.output_shape[2:]
+            out_row, out_col, out_filter = output_shape[2:]
         else:
-            out_row, out_col, out_filter = self.output_shape[1:]
+            out_row, out_col, out_filter = output_shape[1:]
 
         if hasattr(self, 'states'):
             K.set_value(self.states[0],
@@ -503,8 +505,7 @@ class LSTMConv2D(RecurrentConv2D):
         return constants
 
     def get_config(self):
-        config = {'name': self.__class__.__name__,
-                  'nb_filter': self.nb_filter,
+        config = {'nb_filter': self.nb_filter,
                   'nb_row': self.nb_row,
                   'nb_col': self.nb_col,
                   'init': self.init.__name__,
