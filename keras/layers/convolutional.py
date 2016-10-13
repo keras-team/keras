@@ -1412,14 +1412,15 @@ class ZeroPadding1D(Layer):
     '''Zero-padding layer for 1D input (e.g. temporal sequence).
 
     # Arguments
-        padding: int or tuple of int (length 2) or dictionary
-            For symmetric padding: int
+        padding: int, or tuple of int (length 2), or dictionary.
+            - If int:
             How many zeros to add at the beginning and end of
             the padding dimension (axis 1).
-            For asymmetric padding: tuple of int (length 2)
+            - If tuple of int (length 2)
             How many zeros to add at the beginning and at the end of
-            the padding dimension '(left_pad, right_pad)' or
-            '{'left_pad': left_pad, 'right_pad': right_pad}'.
+            the padding dimension, in order '(left_pad, right_pad)'.
+            - If dictionary: should contain the keys
+            {'left_pad', 'right_pad'}.
             If any key is missing, default value of 0 will be used for the missing key.
 
     # Input shape
@@ -1436,15 +1437,21 @@ class ZeroPadding1D(Layer):
         if isinstance(padding, int):
             self.left_pad = padding
             self.right_pad = padding
+
         elif isinstance(padding, dict):
             if set(padding.keys()) <= {'left_pad', 'right_pad'}:
                 self.left_pad = padding.get('left_pad', 0)
                 self.right_pad = padding.get('right_pad', 0)
             else:
-                raise ValueError('Unexpected key is found in the padding argument. '
-                                 'Keys have to be in {"left_pad", "right_pad"}')
+                raise ValueError('Unexpected key found in `padding` dictionary. '
+                                 'Keys have to be in {"left_pad", "right_pad"}. '
+                                 'Found: ' + str(padding.keys()))
         else:
             padding = tuple(padding)
+            if len(padding) != 2:
+                raise ValueError('`padding` should be int, or dict with keys '
+                                 '{"left_pad", "right_pad"}, or tuple of length 2. '
+                                 'Found: ' + str(padding))
             self.left_pad = padding[0]
             self.right_pad = padding[1]
         self.input_spec = [InputSpec(ndim=3)]
@@ -1468,15 +1475,16 @@ class ZeroPadding2D(Layer):
     '''Zero-padding layer for 2D input (e.g. picture).
 
     # Arguments
-        padding: tuple of int (length 2) or tuple of int (length 4) or dictionary
-            For symmetric padding tuple of int (length 2)
+        padding: tuple of int (length 2), or tuple of int (length 4), or dictionary.
+            - If tuple of int (length 2):
             How many zeros to add at the beginning and end of
             the 2 padding dimensions (rows and cols).
-            For asymmetric padding tuple of int (length 4)
+            - If tuple of int (length 4):
             How many zeros to add at the beginning and at the end of
-            the 2 padding dimensions (rows and cols).
-            '(top_pad, bottom_pad, left_pad, right_pad)' or
-            '{'top_pad': top_pad, 'bottom_pad': bottom_pad, 'left_pad': left_pad, 'right_pad': right_pad}'
+            the 2 padding dimensions (rows and cols), in the order
+            '(top_pad, bottom_pad, left_pad, right_pad)'.
+            - If dictionary: should contain the keys
+            {'top_pad', 'bottom_pad', 'left_pad', 'right_pad'}.
             If any key is missing, default value of 0 will be used for the missing key.
         dim_ordering: 'th' or 'tf'.
             In 'th' mode, the channels dimension (the depth)
@@ -1507,16 +1515,18 @@ class ZeroPadding2D(Layer):
             dim_ordering = K.image_dim_ordering()
 
         self.padding = padding
-        try:
+        if isinstance(padding, dict):
             if set(padding.keys()) <= {'top_pad', 'bottom_pad', 'left_pad', 'right_pad'}:
                 self.top_pad = padding.get('top_pad', 0)
                 self.bottom_pad = padding.get('bottom_pad', 0)
                 self.left_pad = padding.get('left_pad', 0)
                 self.right_pad = padding.get('right_pad', 0)
             else:
-                raise ValueError('Unexpected key is found in the padding argument. '
-                                 'Keys have to be in {"top_pad", "bottom_pad", "left_pad", "right_pad"}')
-        except AttributeError:
+                raise ValueError('Unexpected key found in `padding` dictionary. '
+                                 'Keys have to be in {"top_pad", "bottom_pad", '
+                                 '"left_pad", "right_pad"}.'
+                                 'Found: ' + str(padding.keys()))
+        else:
             padding = tuple(padding)
             if len(padding) == 2:
                 self.top_pad = padding[0]
@@ -1529,9 +1539,11 @@ class ZeroPadding2D(Layer):
                 self.left_pad = padding[2]
                 self.right_pad = padding[3]
             else:
-                raise TypeError('padding should be tuple of int of length 2 or 4, or dict')
+                raise TypeError('`padding` should be tuple of int '
+                                'of length 2 or 4, or dict. '
+                                'Found: ' + str(padding))
 
-        assert dim_ordering in {'tf', 'th'}, 'dim_ordering must be in {tf, th}'
+        assert dim_ordering in {'tf', 'th'}, '`dim_ordering` must be in {"tf", "th"}.'
         self.dim_ordering = dim_ordering
         self.input_spec = [InputSpec(ndim=4)]
 
@@ -1574,6 +1586,7 @@ class ZeroPadding3D(Layer):
         padding: tuple of int (length 3)
             How many zeros to add at the beginning and end of
             the 3 padding dimensions (axis 3, 4 and 5).
+            Currentl only symmetric padding is supported.
         dim_ordering: 'th' or 'tf'.
             In 'th' mode, the channels dimension (the depth)
             is at index 1, in 'tf' mode is it at index 4.

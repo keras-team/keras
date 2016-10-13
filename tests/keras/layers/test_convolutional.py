@@ -381,7 +381,7 @@ def test_averagepooling_3d():
 def test_zero_padding_1d():
     nb_samples = 2
     input_dim = 2
-    nb_steps = 11
+    nb_steps = 5
     input = np.ones((nb_samples, nb_steps, input_dim))
 
     # basic test
@@ -420,8 +420,8 @@ def test_zero_padding_1d():
 def test_zero_padding_2d():
     nb_samples = 2
     stack_size = 2
-    input_nb_row = 11
-    input_nb_col = 12
+    input_nb_row = 4
+    input_nb_col = 5
     dim_ordering = K.image_dim_ordering()
     assert dim_ordering in {'tf', 'th'}, 'dim_ordering must be in {tf, th}'
 
@@ -487,9 +487,9 @@ def test_zero_padding_2d():
 def test_zero_padding_3d():
     nb_samples = 2
     stack_size = 2
-    input_len_dim1 = 10
-    input_len_dim2 = 11
-    input_len_dim3 = 12
+    input_len_dim1 = 4
+    input_len_dim2 = 5
+    input_len_dim3 = 3
 
     input = np.ones((nb_samples,
                      input_len_dim1, input_len_dim2, input_len_dim3,
@@ -608,7 +608,7 @@ def test_upsampling_3d():
 @keras_test
 def test_cropping_1d():
     nb_samples = 2
-    time_length = 10
+    time_length = 4
     input_len_dim1 = 2
     input = np.random.rand(nb_samples, time_length, input_len_dim1)
 
