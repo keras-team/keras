@@ -1231,4 +1231,22 @@ class TimeDistributedDense(Layer):
         return dict(list(base_config.items()) + list(config.items()))
 
 
+class MaskedMean(Layer):
+    """
+    This layer is called after an Embedding layer.
+    It averages all of the masked-out embeddings.
+    The mask is discarded
+    """
 
+    def __init__(self, **kwargs):
+        self.support_mask = True
+        super(MaskedMean, self).__init__(**kwargs)
+
+    def call(self, x, mask=None):
+        return K.mean(mask[:, :, None] * x, axis=1)
+
+    def compute_mask(self, input_shape, input_mask=None):
+        return None
+
+    def get_output_shape_for(self, input_shape):
+        return (input_shape[0], input_shape[2])
