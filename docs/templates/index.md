@@ -143,7 +143,10 @@ By default, Keras will use TensorFlow as its tensor manipulation library. [Follo
 
 ## Support
 
-You can ask questions and join the development discussion on the [Keras Google group](https://groups.google.com/forum/#!forum/keras-users).
+You can ask questions and join the development discussion:
+
+- On the [Keras Google group](https://groups.google.com/forum/#!forum/keras-users).
+- On the [Keras Gitter channel](https://gitter.im/Keras-io/Lobby).
 
 You can also post bug reports and feature requests in [Github issues](https://github.com/fchollet/keras/issues). Make sure to read [our guidelines](https://github.com/fchollet/keras/blob/master/CONTRIBUTING.md) first.
 
