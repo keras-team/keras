@@ -31,11 +31,12 @@ x = Dense(100, W_learning_rate_multiplier=10.0, b_learning_rate_multiplier=10.0)
 ## New layers for sequence-to-sequence learning and multimodal data
 
 #### Recurrent layers
+LSTM layers:
 - [LSTMCond](https://github.com/MarcBS/keras/blob/ba642f5d345983c3ebeffede41c57e03a5c1f7ee/keras/layers/recurrent.py#L940): LSTM conditioned to the previously generated word (additional input with previous word).
 - [AttLSTM](https://github.com/MarcBS/keras/blob/ba642f5d345983c3ebeffede41c57e03a5c1f7ee/keras/layers/recurrent.py#L1261): LSTM with Attention mechanism.
 - [AttLSTMCond](https://github.com/MarcBS/keras/blob/4e6a8ec8a55bd0d5d091a44b058a797d3d934ce0/keras/layers/recurrent.py#L1642): LSTM with Attention mechanism and conditioned to previously generated word.
 
-And the corresponding GRU version:
+And their corresponding GRU version:
 
 - [GRUCond](https://github.com/MarcBS/keras/blob/d8450ef65e2b143aefb1fe1e919fbd9c34dac927/keras/layers/recurrent.py#L605): GRU conditioned to the previously generated word (additional input with previous word).
 - [AttGRUCond](https://github.com/MarcBS/keras/blob/d8450ef65e2b143aefb1fe1e919fbd9c34dac927/keras/layers/recurrent.py#L972): GRU with Attention mechanism and conditioned to previously generated word.
