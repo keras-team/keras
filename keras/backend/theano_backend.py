@@ -586,6 +586,21 @@ def temporal_padding(x, padding=1):
     return T.set_subtensor(output[:, padding:x.shape[1] + padding, :], x)
 
 
+def asymmetric_temporal_padding(x, left_pad=1, right_pad=1):
+    '''Pad the middle dimension of a 3D tensor
+    with "left_pad" zeros left and "right_pad" right.
+
+    Apologies for the inane API, but Theano makes this
+    really hard.
+    '''
+    input_shape = x.shape
+    output_shape = (input_shape[0],
+                    input_shape[1] + left_pad + right_pad,
+                    input_shape[2])
+    output = T.zeros(output_shape)
+    return T.set_subtensor(output[:, left_pad:x.shape[1] + left_pad, :], x)
+
+
 def spatial_2d_padding(x, padding=(1, 1), dim_ordering=_IMAGE_DIM_ORDERING):
     '''Pad the 2nd and 3rd dimensions of a 4D tensor
     with "padding[0]" and "padding[1]" (resp.) zeros left and right.
@@ -611,6 +626,38 @@ def spatial_2d_padding(x, padding=(1, 1), dim_ordering=_IMAGE_DIM_ORDERING):
         indices = (slice(None),
                    slice(padding[0], input_shape[1] + padding[0]),
                    slice(padding[1], input_shape[2] + padding[1]),
+                   slice(None))
+    else:
+        raise Exception('Invalid dim_ordering: ' + dim_ordering)
+    return T.set_subtensor(output[indices], x)
+
+
+def asymmetric_spatial_2d_padding(x, top_pad=1, bottom_pad=1, left_pad=1, right_pad=1, dim_ordering=_IMAGE_DIM_ORDERING):
+    '''Pad the rows and columns of a 4D tensor
+    with "top_pad", "bottom_pad", "left_pad", "right_pad"  (resp.) zeros rows on top, bottom; cols on left, right.
+    '''
+    input_shape = x.shape
+    if dim_ordering == 'th':
+        output_shape = (input_shape[0],
+                        input_shape[1],
+                        input_shape[2] + top_pad + bottom_pad,
+                        input_shape[3] + left_pad + right_pad)
+        output = T.zeros(output_shape)
+        indices = (slice(None),
+                   slice(None),
+                   slice(top_pad, input_shape[2] + top_pad),
+                   slice(left_pad, input_shape[3] + left_pad))
+
+    elif dim_ordering == 'tf':
+        output_shape = (input_shape[0],
+                        input_shape[1] + top_pad + bottom_pad,
+                        input_shape[2] + left_pad + right_pad,
+                        input_shape[3])
+        print(output_shape)
+        output = T.zeros(output_shape)
+        indices = (slice(None),
+                   slice(top_pad, input_shape[1] + top_pad),
+                   slice(left_pad, input_shape[2] + left_pad),
                    slice(None))
     else:
         raise Exception('Invalid dim_ordering: ' + dim_ordering)

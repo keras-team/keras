@@ -845,6 +845,14 @@ def temporal_padding(x, padding=1):
     return tf.pad(x, pattern)
 
 
+def asymmetric_temporal_padding(x, left_pad=1, right_pad=1):
+    '''Pad the middle dimension of a 3D tensor
+    with "left_pad" zeros left and "right_pad" right.
+    '''
+    pattern = [[0, 0], [left_pad, right_pad], [0, 0]]
+    return tf.pad(x, pattern)
+
+
 def spatial_2d_padding(x, padding=(1, 1), dim_ordering=_IMAGE_DIM_ORDERING):
     '''Pads the 2nd and 3rd dimensions of a 4D tensor
     with "padding[0]" and "padding[1]" (resp.) zeros left and right.
@@ -855,6 +863,23 @@ def spatial_2d_padding(x, padding=(1, 1), dim_ordering=_IMAGE_DIM_ORDERING):
     else:
         pattern = [[0, 0],
                    [padding[0], padding[0]], [padding[1], padding[1]],
+                   [0, 0]]
+    return tf.pad(x, pattern)
+
+
+def asymmetric_spatial_2d_padding(x, top_pad=1, bottom_pad=1, left_pad=1, right_pad=1, dim_ordering=_IMAGE_DIM_ORDERING):
+    '''Pad the rows and columns of a 4D tensor
+    with "top_pad", "bottom_pad", "left_pad", "right_pad"  (resp.) zeros rows on top, bottom; cols on left, right.
+    '''
+    if dim_ordering == 'th':
+        pattern = [[0, 0],
+                   [0, 0],
+                   [top_pad, bottom_pad],
+                   [left_pad, right_pad]]
+    else:
+        pattern = [[0, 0],
+                   [top_pad, bottom_pad],
+                   [left_pad, right_pad],
                    [0, 0]]
     return tf.pad(x, pattern)
 

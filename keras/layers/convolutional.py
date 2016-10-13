@@ -1412,9 +1412,15 @@ class ZeroPadding1D(Layer):
     '''Zero-padding layer for 1D input (e.g. temporal sequence).
 
     # Arguments
-        padding: int
+        padding: int or tuple of int (length 2) or dictionary
+            For symmetric padding: int
             How many zeros to add at the beginning and end of
             the padding dimension (axis 1).
+            For asymmetric padding: tuple of int (length 2)
+            How many zeros to add at the beginning and at the end of
+            the padding dimension '(left_pad, right_pad)' or
+            '{'left_pad': left_pad, 'right_pad': right_pad}'.
+            If any key is missing, default value of 0 will be used for the missing key.
 
     # Input shape
         3D tensor with shape (samples, axis_to_pad, features)
@@ -1426,16 +1432,31 @@ class ZeroPadding1D(Layer):
     def __init__(self, padding=1, **kwargs):
         super(ZeroPadding1D, self).__init__(**kwargs)
         self.padding = padding
+
+        if isinstance(padding, int):
+            self.left_pad = padding
+            self.right_pad = padding
+        elif isinstance(padding, dict):
+            if set(padding.keys()) <= {'left_pad', 'right_pad'}:
+                self.left_pad = padding.get('left_pad', 0)
+                self.right_pad = padding.get('right_pad', 0)
+            else:
+                raise ValueError('Unexpected key is found in the padding argument. '
+                                 'Keys have to be in {"left_pad", "right_pad"}')
+        else:
+            padding = tuple(padding)
+            self.left_pad = padding[0]
+            self.right_pad = padding[1]
         self.input_spec = [InputSpec(ndim=3)]
 
     def get_output_shape_for(self, input_shape):
-        length = input_shape[1] + self.padding * 2 if input_shape[1] is not None else None
+        length = input_shape[1] + self.left_pad + self.right_pad if input_shape[1] is not None else None
         return (input_shape[0],
                 length,
                 input_shape[2])
 
     def call(self, x, mask=None):
-        return K.temporal_padding(x, padding=self.padding)
+        return K.asymmetric_temporal_padding(x, left_pad=self.left_pad, right_pad=self.right_pad)
 
     def get_config(self):
         config = {'padding': self.padding}
@@ -1447,9 +1468,16 @@ class ZeroPadding2D(Layer):
     '''Zero-padding layer for 2D input (e.g. picture).
 
     # Arguments
-        padding: tuple of int (length 2)
+        padding: tuple of int (length 2) or tuple of int (length 4) or dictionary
+            For symmetric padding tuple of int (length 2)
             How many zeros to add at the beginning and end of
-            the 2 padding dimensions (axis 3 and 4).
+            the 2 padding dimensions (rows and cols).
+            For asymmetric padding tuple of int (length 4)
+            How many zeros to add at the beginning and at the end of
+            the 2 padding dimensions (rows and cols).
+            '(top_pad, bottom_pad, left_pad, right_pad)' or
+            '{'top_pad': top_pad, 'bottom_pad': bottom_pad, 'left_pad': left_pad, 'right_pad': right_pad}'
+            If any key is missing, default value of 0 will be used for the missing key.
         dim_ordering: 'th' or 'tf'.
             In 'th' mode, the channels dimension (the depth)
             is at index 1, in 'tf' mode is it at index 3.
@@ -1459,43 +1487,79 @@ class ZeroPadding2D(Layer):
 
     # Input shape
         4D tensor with shape:
-        (samples, depth, first_axis_to_pad, second_axis_to_pad)
+        `(samples, channels, rows, cols)` if dim_ordering='th'
+        or 4D tensor with shape:
+        `(samples, rows, cols, channels)` if dim_ordering='tf'.
 
     # Output shape
         4D tensor with shape:
-        (samples, depth, first_padded_axis, second_padded_axis)
+        `(samples, channels, padded_rows, padded_cols)` if dim_ordering='th'
+        or 4D tensor with shape:
+        `(samples, padded_rows, padded_cols, channels)` if dim_ordering='tf'.
     '''
 
-    def __init__(self, padding=(1, 1), dim_ordering='default', **kwargs):
+    def __init__(self,
+                 padding=(1, 1),
+                 dim_ordering='default',
+                 **kwargs):
         super(ZeroPadding2D, self).__init__(**kwargs)
         if dim_ordering == 'default':
             dim_ordering = K.image_dim_ordering()
-        self.padding = tuple(padding)
+
+        self.padding = padding
+        try:
+            if set(padding.keys()) <= {'top_pad', 'bottom_pad', 'left_pad', 'right_pad'}:
+                self.top_pad = padding.get('top_pad', 0)
+                self.bottom_pad = padding.get('bottom_pad', 0)
+                self.left_pad = padding.get('left_pad', 0)
+                self.right_pad = padding.get('right_pad', 0)
+            else:
+                raise ValueError('Unexpected key is found in the padding argument. '
+                                 'Keys have to be in {"top_pad", "bottom_pad", "left_pad", "right_pad"}')
+        except AttributeError:
+            padding = tuple(padding)
+            if len(padding) == 2:
+                self.top_pad = padding[0]
+                self.bottom_pad = padding[0]
+                self.left_pad = padding[1]
+                self.right_pad = padding[1]
+            elif len(padding) == 4:
+                self.top_pad = padding[0]
+                self.bottom_pad = padding[1]
+                self.left_pad = padding[2]
+                self.right_pad = padding[3]
+            else:
+                raise TypeError('padding should be tuple of int of length 2 or 4, or dict')
+
         assert dim_ordering in {'tf', 'th'}, 'dim_ordering must be in {tf, th}'
         self.dim_ordering = dim_ordering
         self.input_spec = [InputSpec(ndim=4)]
 
     def get_output_shape_for(self, input_shape):
         if self.dim_ordering == 'th':
-            width = input_shape[2] + 2 * self.padding[0] if input_shape[2] is not None else None
-            height = input_shape[3] + 2 * self.padding[1] if input_shape[3] is not None else None
+            rows = input_shape[2] + self.top_pad + self.bottom_pad if input_shape[2] is not None else None
+            cols = input_shape[3] + self.left_pad + self.right_pad if input_shape[3] is not None else None
             return (input_shape[0],
                     input_shape[1],
-                    width,
-                    height)
+                    rows,
+                    cols)
         elif self.dim_ordering == 'tf':
-            width = input_shape[1] + 2 * self.padding[0] if input_shape[1] is not None else None
-            height = input_shape[2] + 2 * self.padding[1] if input_shape[2] is not None else None
+            rows = input_shape[1] + self.top_pad + self.bottom_pad if input_shape[1] is not None else None
+            cols = input_shape[2] + self.left_pad + self.right_pad if input_shape[2] is not None else None
             return (input_shape[0],
-                    width,
-                    height,
+                    rows,
+                    cols,
                     input_shape[3])
         else:
             raise Exception('Invalid dim_ordering: ' + self.dim_ordering)
 
     def call(self, x, mask=None):
-        return K.spatial_2d_padding(x, padding=self.padding,
-                                    dim_ordering=self.dim_ordering)
+        return K.asymmetric_spatial_2d_padding(x,
+                                               top_pad=self.top_pad,
+                                               bottom_pad=self.bottom_pad,
+                                               left_pad=self.left_pad,
+                                               right_pad=self.right_pad,
+                                               dim_ordering=self.dim_ordering)
 
     def get_config(self):
         config = {'padding': self.padding}
