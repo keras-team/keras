@@ -193,7 +193,7 @@ class RecurrentConv2D(Layer):
                   'go_backwards': self.go_backwards,
                   'stateful': self.stateful}
         if self.stateful:
-            config['batch_input_shape'] = self.input_shape
+            config['batch_input_shape'] = self.input_spec[0].shape
 
         base_config = super(RecurrentConv2D, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
@@ -202,23 +202,28 @@ class RecurrentConv2D(Layer):
 class LSTMConv2D(RecurrentConv2D):
     '''
     # Input shape
+        - if dim_ordering='th'
             5D tensor with shape:
-            `(samples,time, channels, rows, cols)` if dim_ordering='th'
-            or 5D tensor with shape:
-            `(samples,time, rows, cols, channels)` if dim_ordering='tf'.
+            `(samples,time, channels, rows, cols)`
+        - if dim_ordering='tf'
+            5D tensor with shape:
+            `(samples,time, rows, cols, channels)`
 
      # Output shape
-        if return_sequences=False
-
-            4D tensor with shape:
-            `(samples, nb_filter, o_row, o_col)` if dim_ordering='th'
-            or 4D tensor with shape:
-            `(samples, o_row, o_col, nb_filter)` if dim_ordering='tf'.
-        if return_sequences=True
-            5D tensor with shape:
-            `(samples, time, nb_filter, o_row, o_col)` if dim_ordering='th'
-            or 5D tensor with shape:
-            `(samples, time, o_row, o_col, nb_filter)` if dim_ordering='tf'.
+        - if `return_sequences`
+             - if dim_ordering='th'
+                5D tensor with shape:
+                `(samples, time, nb_filter, o_row, o_col)`
+             - if dim_ordering='tf'
+                5D tensor with shape:
+                `(samples, time, o_row, o_col, nb_filter)`
+        - else
+            - if dim_ordering ='th'
+                4D tensor with shape:
+                `(samples, nb_filter, o_row, o_col)`
+            - if dim_ordering='tf'
+                4D tensor with shape:
+                `(samples, o_row, o_col, nb_filter)`
 
         where o_row and o_col depend on the shape of the filter and
         the border_mode
@@ -229,11 +234,11 @@ class LSTMConv2D(RecurrentConv2D):
             nb_col: Number of columns in the convolution kernel.
             border_mode: 'valid' or 'same'.
             sub_sample: tuple of length 2. Factor by which to subsample output.
-            Also called strides elsewhere.
-            dim_ordering: "tf" if the feature are at the last dimension or "th"
-            stateful : has not been checked yet.
-
-
+                Also called strides elsewhere.
+            dim_ordering: 'tf' if the feature are at the last dimension or 'th'
+            stateful : Boolean (default False). If True, the last state
+                for each sample at index i in a batch will be used as initial
+                state for the sample of index i in the following batch.
             init: weight initialization function.
                 Can be the name of an existing function (str),
                 or a Theano function
@@ -241,8 +246,7 @@ class LSTMConv2D(RecurrentConv2D):
             inner_init: initialization function of the inner cells.
             forget_bias_init: initialization function for the bias of the
             forget gate.
-                [Jozefowicz et al.]
-                (http://www.jmlr.org/proceedings/papers/v37/jozefowicz15.pdf)
+                [Jozefowicz et al.](http://www.jmlr.org/proceedings/papers/v37/jozefowicz15.pdf)
                 recommend initializing with ones.
             activation: activation function.
                 Can be the name of an existing function (str),
@@ -448,8 +452,8 @@ class LSTMConv2D(RecurrentConv2D):
         assert len(states) == 4
         h_tm1 = states[0]
         c_tm1 = states[1]
-        B_W = states[2]
-        B_U = states[3]
+        B_U = states[2]
+        B_W = states[3]
 
         x_i = self.conv_step(x * B_W[0], self.W_i, self.b_i,
                              border_mode=self.border_mode)
@@ -462,13 +466,13 @@ class LSTMConv2D(RecurrentConv2D):
 
         # U : from nb_filter to nb_filter
         # Same because must be stable in the ouptut space
-        h_i = self.conv_step_hidden(h_tm1, self.U_i * B_U[0],
+        h_i = self.conv_step_hidden(h_tm1 * B_U[0], self.U_i,
                                     border_mode='same')
-        h_f = self.conv_step_hidden(h_tm1, self.U_f * B_U[1],
+        h_f = self.conv_step_hidden(h_tm1 * B_U[1], self.U_f,
                                     border_mode='same')
-        h_c = self.conv_step_hidden(h_tm1, self.U_c * B_U[2],
+        h_c = self.conv_step_hidden(h_tm1 * B_U[2], self.U_c,
                                     border_mode='same')
-        h_o = self.conv_step_hidden(h_tm1, self.U_o * B_U[3],
+        h_o = self.conv_step_hidden(h_tm1 * B_U[3], self.U_o,
                                     border_mode='same')
 
         i = self.inner_activation(x_i + h_i)
@@ -482,8 +486,11 @@ class LSTMConv2D(RecurrentConv2D):
     def get_constants(self, x):
         constants = []
         if 0 < self.dropout_U < 1:
-            ones = K.ones_like(K.reshape(x[:, 0, 0], (-1, 1)))
-            ones = K.concatenate([ones] * self.output_dim, 1)
+            ones = K.zeros_like(x)
+            ones = K.sum(ones, axis=1)
+            ones = self.conv_step(ones, K.zeros(self.W_shape),
+                                  border_mode=self.border_mode)
+            ones = ones + 1
             B_U = [K.in_train_phase(K.dropout(ones, self.dropout_U), ones)
                    for _ in range(4)]
             constants.append(B_U)
@@ -491,10 +498,9 @@ class LSTMConv2D(RecurrentConv2D):
             constants.append([K.cast_to_floatx(1.) for _ in range(4)])
 
         if 0 < self.dropout_W < 1:
-            input_shape = self.input_spec[0].shape
-            input_dim = input_shape[-1]
-            ones = K.ones_like(K.reshape(x[:, 0, 0], (-1, 1)))
-            ones = K.concatenate([ones] * input_dim, 1)
+            ones = K.zeros_like(x)
+            ones = K.sum(ones, axis=1)
+            ones = ones + 1
             B_W = [K.in_train_phase(K.dropout(ones, self.dropout_W), ones)
                    for _ in range(4)]
             constants.append(B_W)
