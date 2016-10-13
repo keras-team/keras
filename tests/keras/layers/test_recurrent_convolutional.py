@@ -54,7 +54,7 @@ def test_recurrent_convolutional():
             assert output.shape == tuple(output_shape)
 
             # No need to check statefulness for both
-            if dim_ordering == 'th':
+            if dim_ordering == 'th' or return_sequences:
                 continue
 
             # Tests for statefulness
