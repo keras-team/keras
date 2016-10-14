@@ -542,16 +542,17 @@ def depth_to_space(x, scale, dim_ordering=_IMAGE_DIM_ORDERING, name=None):
 
     - [1]: [Real-Time Single Image and Video Super-Resolution Using an Efficient Sub-Pixel Convolutional Neural Network](https://arxiv.org/abs/1609.05158)
     '''
+    import ipdb; ipdb.set_trace()
     if dim_ordering == 'tf':
-        x = transpose(x, (0, 3, 1, 2))
+        x = x.transpose(0, 3, 1, 2)
     # borrowed from @ajbrock https://github.com/ajbrock/Neural-Photo-Editor/blob/master/layers.py#L49
-    b, r, c, k = x.shape
+    b, k, r, c = x.shape
     out = T.zeros((b, k/(scale*scale), r*scale, c*scale))
-    for x in xrange(scale):  # loop across all feature maps belonging to this channel
-        for y in xrange(scale):
-            out = T.set_subtensor(out[:, :, x::scale, y::scale], input[:, scale*x+y::scale*scale, :, :])
+    for i in xrange(scale):  # loop across all feature maps belonging to this channel
+        for j in xrange(scale):
+            out = T.set_subtensor(out[:, :, i::scale, j::scale], x[:, scale*i+j::scale*scale, :, :])
     if dim_ordering == 'tf':
-        out = transpose(x, (0, 2, 3, 1))
+        out = out.transpose(0, 2, 3, 1)
     return out
 
 
