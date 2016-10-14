@@ -20,7 +20,6 @@ from keras.layers import Dense
 from keras.layers import Embedding
 from keras.layers import GlobalAveragePooling1D
 from keras.datasets import imdb
-from keras import backend as K
 
 
 def create_ngram_set(input_list, ngram_value=2):
