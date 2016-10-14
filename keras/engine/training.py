@@ -1667,7 +1667,11 @@ def collect_trainable_weights(layer):
         warnings.warn('Error when trying to import the legacy model "Graph".')
         # Dummy class Graph
         class Graph(object):
+            
+            
             pass
+        
+        
     if isinstance(layer, Sequential):
         for sublayer in layer.flattened_layers:
             weights += collect_trainable_weights(sublayer)
