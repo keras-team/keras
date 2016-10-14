@@ -961,8 +961,6 @@ class GRUCond(GRU):
                   'dropout_W': self.dropout_W,
                   'dropout_U': self.dropout_U,
                   'dropout_V': self.dropout_V,
-                  'input_dim': self.input_dim,
-                  'context_dim': self.context_dim
                   }
         base_config = super(GRUCond, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
@@ -1451,8 +1449,6 @@ class AttGRUCond(GRU):
                   'dropout_wa': self.dropout_wa,
                   'dropout_Wa': self.dropout_Wa,
                   'dropout_Ua': self.dropout_Ua,
-                  'input_dim': self.input_dim,
-                  'context_dim': self.context_dim
                   }
         base_config = super(AttGRUCond, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
@@ -2578,7 +2574,7 @@ class AttLSTMCond(LSTM):
             InProceedings of the IEEE International Conference on Computer Vision 2015 (pp. 4507-4515).
     '''
     def __init__(self, output_dim, return_extra_variables=False,
-                 init='glorot_uniform', inner_init='orthogonal',
+                 init='glorot_uniform', inner_init='orthogonal', #context_dim=None, input_dim=None,
                  forget_bias_init='one', activation='tanh', inner_activation='sigmoid',
                  W_regularizer=None, U_regularizer=None, V_regularizer=None, b_regularizer=None,
                  wa_regularizer=None, Wa_regularizer=None, Ua_regularizer=None, ba_regularizer=None,
@@ -2603,7 +2599,8 @@ class AttLSTMCond(LSTM):
         # Dropouts
         self.dropout_W, self.dropout_U, self.dropout_V = dropout_W, dropout_U, dropout_V
         self.dropout_wa, self.dropout_Wa, self.dropout_Ua = dropout_wa, dropout_Wa, dropout_Ua
-
+        #self.context_dim = context_dim
+        #self.input_dim = input_dim
         if self.dropout_W or self.dropout_U or self.dropout_wa or self.dropout_Wa or self.dropout_Ua:
             self.uses_learning_phase = True
         super(AttLSTMCond, self).__init__(output_dim, **kwargs)
@@ -3010,9 +3007,7 @@ class AttLSTMCond(LSTM):
                   'dropout_V': self.dropout_V,
                   'dropout_wa': self.dropout_wa,
                   'dropout_Wa': self.dropout_Wa,
-                  'dropout_Ua': self.dropout_Ua,
-                  'input_dim': self.input_dim,
-                  'context_dim': self.context_dim}
+                  'dropout_Ua': self.dropout_Ua}
         base_config = super(AttLSTMCond, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
