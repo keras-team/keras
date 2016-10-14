@@ -8,7 +8,7 @@ import numpy as np
 from . import backend as K
 from .utils.io_utils import ask_to_proceed_with_overwrite
 from .engine.training import Model
-from .engine.topology import get_source_inputs, Node
+from .engine.topology import get_source_inputs, Node, Merge
 from .optimizers import optimizer_from_config
 from .legacy.models import Graph
 
@@ -31,7 +31,7 @@ def save_model(model, filepath, overwrite=True):
             return obj.__name__
 
         # if obj is a python 'type'
-        if type(obj).__name__ == type.__name__:
+        if type(obj) is type:
             return obj.__name__
 
         raise TypeError('Not JSON Serializable:', obj)
@@ -92,81 +92,6 @@ def save_model(model, filepath, overwrite=True):
                     param_dset[:] = val
     f.flush()
     f.close()
-
-
-def load_model(filepath, custom_objects={}):
-
-    def deserialize(obj):
-        if type(obj) is list:
-            deserialized = []
-            for value in obj:
-                if value in custom_objects:
-                    deserialized.append(custom_objects[value])
-                else:
-                    deserialized.append(value)
-            return deserialized
-        if type(obj) is dict:
-            deserialized = {}
-            for key, value in obj.items():
-                if value in custom_objects:
-                    deserialized[key] = custom_objects[value]
-                else:
-                    deserialized[key] = value
-            return deserialized
-        if obj in custom_objects:
-            return custom_objects[obj]
-        return obj
-
-    import h5py
-    f = h5py.File(filepath, mode='r')
-
-    # instantiate model
-    model_config = f.attrs.get('model_config')
-    if model_config is None:
-        raise ValueError('No model found in config file.')
-    model_config = json.loads(model_config.decode('utf-8'))
-    model = model_from_config(model_config, custom_objects=custom_objects)
-
-    # set weights
-    model.load_weights_from_hdf5_group(f['model_weights'])
-
-    # instantiate optimizer
-    training_config = f.attrs.get('training_config')
-    if training_config is None:
-        warnings.warn('No training configuration found in save file: '
-                      'the model was *not* compiled. Compile it manually.')
-        f.close()
-        return model
-    training_config = json.loads(training_config.decode('utf-8'))
-    optimizer_config = training_config['optimizer_config']
-    optimizer = optimizer_from_config(optimizer_config)
-
-    # recover loss functions and metrics
-    loss = deserialize(training_config['loss'])
-    metrics = deserialize(training_config['metrics'])
-    sample_weight_mode = training_config['sample_weight_mode']
-    loss_weights = training_config['loss_weights']
-
-    # compile model
-    model.compile(optimizer=optimizer,
-                  loss=loss,
-                  metrics=metrics,
-                  loss_weights=loss_weights,
-                  sample_weight_mode=sample_weight_mode)
-
-    # set optimizer weights
-    if 'optimizer_weights' in f:
-        # build train function (to get weight updates)
-        if model.__class__.__name__ == 'Sequential':
-            model.model._make_train_function()
-        else:
-            model._make_train_function()
-        optimizer_weights_group = f['optimizer_weights']
-        optimizer_weight_names = [n.decode('utf8') for n in optimizer_weights_group.attrs['weight_names']]
-        optimizer_weight_values = [optimizer_weights_group[n] for n in optimizer_weight_names]
-        model.optimizer.set_weights(optimizer_weight_values)
-    f.close()
-    return model
 
 
 def model_from_config(config, custom_objects={}):
@@ -400,7 +325,7 @@ class Sequential(Model):
         if self._flattened_layers is not None:
             return self._flattened_layers
         layers = []
-        if self.layers[0].__class__.__name__ == 'Merge':
+        if isinstance(self.layers[0], Merge):
             merge = self.layers[0]
             for layer in merge.layers:
                 if hasattr(layer, 'flattened_layers'):
@@ -949,7 +874,7 @@ class Sequential(Model):
         as a Python list.
         '''
         config = []
-        if self.layers[0].__class__.__name__ == 'Merge':
+        if isinstance(self.layers[0], Merge):
             assert hasattr(self.layers[0], 'layers')
             layers = []
             for layer in self.layers[0].layers:
@@ -1024,3 +949,78 @@ class Sequential(Model):
             layer = get_or_create_layer(conf)
             model.add(layer)
         return model
+
+
+def load_model(filepath, custom_objects={}):
+
+    def deserialize(obj):
+        if type(obj) is list:
+            deserialized = []
+            for value in obj:
+                if value in custom_objects:
+                    deserialized.append(custom_objects[value])
+                else:
+                    deserialized.append(value)
+            return deserialized
+        if type(obj) is dict:
+            deserialized = {}
+            for key, value in obj.items():
+                if value in custom_objects:
+                    deserialized[key] = custom_objects[value]
+                else:
+                    deserialized[key] = value
+            return deserialized
+        if obj in custom_objects:
+            return custom_objects[obj]
+        return obj
+
+    import h5py
+    f = h5py.File(filepath, mode='r')
+
+    # instantiate model
+    model_config = f.attrs.get('model_config')
+    if model_config is None:
+        raise ValueError('No model found in config file.')
+    model_config = json.loads(model_config.decode('utf-8'))
+    model = model_from_config(model_config, custom_objects=custom_objects)
+
+    # set weights
+    model.load_weights_from_hdf5_group(f['model_weights'])
+
+    # instantiate optimizer
+    training_config = f.attrs.get('training_config')
+    if training_config is None:
+        warnings.warn('No training configuration found in save file: '
+                      'the model was *not* compiled. Compile it manually.')
+        f.close()
+        return model
+    training_config = json.loads(training_config.decode('utf-8'))
+    optimizer_config = training_config['optimizer_config']
+    optimizer = optimizer_from_config(optimizer_config)
+
+    # recover loss functions and metrics
+    loss = deserialize(training_config['loss'])
+    metrics = deserialize(training_config['metrics'])
+    sample_weight_mode = training_config['sample_weight_mode']
+    loss_weights = training_config['loss_weights']
+
+    # compile model
+    model.compile(optimizer=optimizer,
+                  loss=loss,
+                  metrics=metrics,
+                  loss_weights=loss_weights,
+                  sample_weight_mode=sample_weight_mode)
+
+    # set optimizer weights
+    if 'optimizer_weights' in f:
+        # build train function (to get weight updates)
+        if isinstance(model, Sequential):
+            model.model._make_train_function()
+        else:
+            model._make_train_function()
+        optimizer_weights_group = f['optimizer_weights']
+        optimizer_weight_names = [n.decode('utf8') for n in optimizer_weights_group.attrs['weight_names']]
+        optimizer_weight_values = [optimizer_weights_group[n] for n in optimizer_weight_names]
+        model.optimizer.set_weights(optimizer_weight_values)
+    f.close()
+    return model

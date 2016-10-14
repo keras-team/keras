@@ -1,4 +1,5 @@
 import os
+from keras.models import Sequential
 
 try:
     # pydot-ng is a fork of pydot that is better maintained
@@ -17,7 +18,7 @@ def model_to_dot(model, show_shapes=False, show_layer_names=True):
     dot.set('concentrate', True)
     dot.set_node_defaults(shape='record')
 
-    if model.__class__.__name__ == 'Sequential':
+    if isinstance(model, Sequential):
         if not model.built:
             model.build()
         model = model.model
