@@ -1301,14 +1301,13 @@ def rnn(step_function, inputs, initial_states,
 
 
 def _cond(condition, then_lambda, else_lambda):
-  """Backwards compatible interface to tf.cond prior to public introduction."""
-  try:
-    cond_fn = tf.cond
-  except AttributeError:
-    from tensorflow.python.ops import control_flow_ops
-    cond_fn = control_flow_ops.cond
-
-  return cond_fn(condition, then_lambda, else_lambda)
+    '''Backwards compatible interface to tf.cond prior to public introduction.'''
+    try:
+        cond_fn = tf.cond
+    except AttributeError:
+        from tensorflow.python.ops import control_flow_ops
+        cond_fn = control_flow_ops.cond
+    return cond_fn(condition, then_lambda, else_lambda)
 
 
 def switch(condition, then_expression, else_expression):
