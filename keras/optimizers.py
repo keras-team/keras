@@ -230,6 +230,7 @@ class RMSprop(Optimizer):
     def get_config(self):
         config = {'lr': float(K.get_value(self.lr)),
                   'rho': float(K.get_value(self.rho)),
+                  'decay': float(K.get_value(self.decay)),
                   'epsilon': self.epsilon}
         base_config = super(RMSprop, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
@@ -281,6 +282,7 @@ class Adagrad(Optimizer):
 
     def get_config(self):
         config = {'lr': float(K.get_value(self.lr)),
+                  'decay': float(K.get_value(self.decay)),
                   'epsilon': self.epsilon}
         base_config = super(Adagrad, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
@@ -346,6 +348,7 @@ class Adadelta(Optimizer):
     def get_config(self):
         config = {'lr': float(K.get_value(self.lr)),
                   'rho': self.rho,
+                  'decay': float(K.get_value(self.decay)),
                   'epsilon': self.epsilon}
         base_config = super(Adadelta, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
@@ -411,6 +414,7 @@ class Adam(Optimizer):
         config = {'lr': float(K.get_value(self.lr)),
                   'beta_1': float(K.get_value(self.beta_1)),
                   'beta_2': float(K.get_value(self.beta_2)),
+                  'decay': float(K.get_value(self.decay)),
                   'epsilon': self.epsilon}
         base_config = super(Adam, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
@@ -450,7 +454,7 @@ class Adamax(Optimizer):
             lr *= (1. / (1. + self.decay * self.iterations))
 
         t = self.iterations + 1
-        lr_t = self.lr / (1. - K.pow(self.beta_1, t))
+        lr_t = lr / (1. - K.pow(self.beta_1, t))
 
         shapes = [K.get_variable_shape(p) for p in params]
         # zero init of 1st moment
@@ -480,6 +484,7 @@ class Adamax(Optimizer):
         config = {'lr': float(K.get_value(self.lr)),
                   'beta_1': float(K.get_value(self.beta_1)),
                   'beta_2': float(K.get_value(self.beta_2)),
+                  'decay': float(K.get_value(self.decay)),
                   'epsilon': self.epsilon}
         base_config = super(Adamax, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))

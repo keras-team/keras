@@ -1,4 +1,5 @@
 import tensorflow as tf
+from tensorflow.python.ops import control_flow_ops
 from tensorflow.python.training import moving_averages
 try:
     from tensorflow.python.ops import ctc_ops as ctc
@@ -844,6 +845,14 @@ def temporal_padding(x, padding=1):
     return tf.pad(x, pattern)
 
 
+def asymmetric_temporal_padding(x, left_pad=1, right_pad=1):
+    '''Pad the middle dimension of a 3D tensor
+    with "left_pad" zeros left and "right_pad" right.
+    '''
+    pattern = [[0, 0], [left_pad, right_pad], [0, 0]]
+    return tf.pad(x, pattern)
+
+
 def spatial_2d_padding(x, padding=(1, 1), dim_ordering=_IMAGE_DIM_ORDERING):
     '''Pads the 2nd and 3rd dimensions of a 4D tensor
     with "padding[0]" and "padding[1]" (resp.) zeros left and right.
@@ -854,6 +863,23 @@ def spatial_2d_padding(x, padding=(1, 1), dim_ordering=_IMAGE_DIM_ORDERING):
     else:
         pattern = [[0, 0],
                    [padding[0], padding[0]], [padding[1], padding[1]],
+                   [0, 0]]
+    return tf.pad(x, pattern)
+
+
+def asymmetric_spatial_2d_padding(x, top_pad=1, bottom_pad=1, left_pad=1, right_pad=1, dim_ordering=_IMAGE_DIM_ORDERING):
+    '''Pad the rows and columns of a 4D tensor
+    with "top_pad", "bottom_pad", "left_pad", "right_pad"  (resp.) zeros rows on top, bottom; cols on left, right.
+    '''
+    if dim_ordering == 'th':
+        pattern = [[0, 0],
+                   [0, 0],
+                   [top_pad, bottom_pad],
+                   [left_pad, right_pad]]
+    else:
+        pattern = [[0, 0],
+                   [top_pad, bottom_pad],
+                   [left_pad, right_pad],
                    [0, 0]]
     return tf.pad(x, pattern)
 
@@ -1284,9 +1310,9 @@ def switch(condition, then_expression, else_expression):
         else_expression: TensorFlow operation.
     '''
     x_shape = copy.copy(then_expression.get_shape())
-    x = tf.python.control_flow_ops.cond(tf.cast(condition, 'bool'),
-                                        lambda: then_expression,
-                                        lambda: else_expression)
+    x = control_flow_ops.cond(tf.cast(condition, 'bool'),
+                              lambda: then_expression,
+                              lambda: else_expression)
     x.set_shape(x_shape)
     return x
 
@@ -1301,9 +1327,9 @@ def in_train_phase(x, alt):
         return alt
     # else: assume learning phase is a placeholder.
     x_shape = copy.copy(x.get_shape())
-    x = tf.python.control_flow_ops.cond(tf.cast(_LEARNING_PHASE, 'bool'),
-                                        lambda: x,
-                                        lambda: alt)
+    x = control_flow_ops.cond(tf.cast(_LEARNING_PHASE, 'bool'),
+                              lambda: x,
+                              lambda: alt)
     x._uses_learning_phase = True
     x.set_shape(x_shape)
     return x
@@ -1318,9 +1344,9 @@ def in_test_phase(x, alt):
     elif _LEARNING_PHASE is 0:
         return x
     x_shape = copy.copy(x.get_shape())
-    x = tf.python.control_flow_ops.cond(tf.cast(_LEARNING_PHASE, 'bool'),
-                                        lambda: alt,
-                                        lambda: x)
+    x = control_flow_ops.cond(tf.cast(_LEARNING_PHASE, 'bool'),
+                              lambda: alt,
+                              lambda: x)
     x._uses_learning_phase = True
     x.set_shape(x_shape)
     return x
@@ -1360,6 +1386,7 @@ def elu(x, alpha=1.):
         return res
     else:
         return tf.select(x > 0, res, alpha*res)
+
 
 def softmax(x):
     '''Softmax of a tensor.
@@ -1482,6 +1509,20 @@ def l2_normalize(x, axis):
     if axis < 0:
         axis = axis % len(x.get_shape())
     return tf.nn.l2_normalize(x, dim=axis)
+
+def in_top_k(predictions, targets, k):
+    '''Says whether the `targets` are in the top `k` `predictions`
+
+    # Arguments
+        predictions: A tensor of shape batch_size x classess and type float32.
+        targets: A tensor of shape batch_size and type int32 or int64.
+        k: An int, number of top elements to consider.
+
+    # Returns
+        A tensor of shape batch_size and type bool. output_i is True if
+        targets_i is within top-k values of predictions_i
+    '''
+    return tf.nn.in_top_k(predictions, targets, k)
 
 
 # CONVOLUTIONS
@@ -1787,9 +1828,9 @@ def ctc_label_dense_to_sparse(labels, label_lengths):
     max_num_labels_tns = tf.pack([label_shape[1]])
 
     def range_less_than(previous_state, current_input):
-        return tf.expand_dims(tf.range(label_shape[1]), 0) < current_input
+        return tf.expand_dims(tf.range(label_shape[1]), 0) < tf.fill(max_num_labels_tns, current_input)
 
-    init = tf.cast(tf.fill(max_num_labels_tns, 0), tf.bool)
+    init = tf.cast(tf.fill([1, label_shape[1]], 0), tf.bool)
     dense_mask = functional_ops.scan(range_less_than, label_lengths,
                                      initializer=init, parallel_iterations=1)
     dense_mask = dense_mask[:, 0, :]

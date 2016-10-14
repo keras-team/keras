@@ -270,6 +270,22 @@ def test_globalpooling_2d():
 
 
 @keras_test
+def test_globalpooling_3d():
+    layer_test(pooling.GlobalMaxPooling3D,
+               kwargs={'dim_ordering': 'th'},
+               input_shape=(3, 4, 3, 4, 3))
+    layer_test(pooling.GlobalMaxPooling3D,
+               kwargs={'dim_ordering': 'tf'},
+               input_shape=(3, 4, 3, 4, 3))
+    layer_test(pooling.GlobalAveragePooling3D,
+               kwargs={'dim_ordering': 'th'},
+               input_shape=(3, 4, 3, 4, 3))
+    layer_test(pooling.GlobalAveragePooling3D,
+               kwargs={'dim_ordering': 'tf'},
+               input_shape=(3, 4, 3, 4, 3))
+
+
+@keras_test
 def test_maxpooling_2d():
     pool_size = (3, 3)
 
@@ -283,12 +299,10 @@ def test_maxpooling_2d():
 
 @keras_test
 def test_averagepooling_2d():
-    pool_size = (3, 3)
-
     for border_mode in ['valid', 'same']:
         for pool_size in [(2, 2), (3, 3), (4, 4), (5, 5)]:
             for strides in [(1, 1), (2, 2)]:
-                layer_test(convolutional.MaxPooling2D,
+                layer_test(convolutional.AveragePooling2D,
                            kwargs={'strides': strides,
                                    'border_mode': border_mode,
                                    'pool_size': pool_size},
@@ -364,17 +378,67 @@ def test_averagepooling_3d():
 
 
 @keras_test
+def test_zero_padding_1d():
+    nb_samples = 2
+    input_dim = 2
+    nb_steps = 5
+    input = np.ones((nb_samples, nb_steps, input_dim))
+
+    # basic test
+    layer_test(convolutional.ZeroPadding1D,
+               kwargs={'padding': 2},
+               input_shape=input.shape)
+    layer_test(convolutional.ZeroPadding1D,
+               kwargs={'padding': (1, 2)},
+               input_shape=input.shape)
+    layer_test(convolutional.ZeroPadding1D,
+               kwargs={'padding': {'left_pad': 1, 'right_pad': 2}},
+               input_shape=input.shape)
+
+    # correctness test
+    layer = convolutional.ZeroPadding1D(padding=2)
+    layer.set_input(K.variable(input), shape=input.shape)
+
+    out = K.eval(layer.output)
+    for offset in [0, 1, -1, -2]:
+        assert_allclose(out[:, offset, :], 0.)
+    assert_allclose(out[:, 2:-2, :], 1.)
+
+    layer = convolutional.ZeroPadding1D(padding=(1, 2))
+    layer.set_input(K.variable(input), shape=input.shape)
+
+    out = K.eval(layer.output)
+    for left_offset in [0]:
+        assert_allclose(out[:, left_offset, :], 0.)
+    for right_offset in [-1, -2]:
+        assert_allclose(out[:, right_offset, :], 0.)
+    assert_allclose(out[:, 1:-2, :], 1.)
+    layer.get_config()
+
+
+@keras_test
 def test_zero_padding_2d():
     nb_samples = 2
     stack_size = 2
-    input_nb_row = 11
-    input_nb_col = 12
+    input_nb_row = 4
+    input_nb_col = 5
+    dim_ordering = K.image_dim_ordering()
+    assert dim_ordering in {'tf', 'th'}, 'dim_ordering must be in {tf, th}'
 
-    input = np.ones((nb_samples, input_nb_row, input_nb_col, stack_size))
+    if dim_ordering == 'tf':
+        input = np.ones((nb_samples, input_nb_row, input_nb_col, stack_size))
+    elif dim_ordering == 'th':
+        input = np.ones((nb_samples, stack_size, input_nb_row, input_nb_col))
 
     # basic test
     layer_test(convolutional.ZeroPadding2D,
                kwargs={'padding': (2, 2)},
+               input_shape=input.shape)
+    layer_test(convolutional.ZeroPadding2D,
+               kwargs={'padding': (1, 2, 3, 4)},
+               input_shape=input.shape)
+    layer_test(convolutional.ZeroPadding2D,
+               kwargs={'padding': {'top_pad': 1, 'bottom_pad': 2, 'left_pad': 3, 'right_pad': 4}},
                input_shape=input.shape)
 
     # correctness test
@@ -382,19 +446,50 @@ def test_zero_padding_2d():
     layer.set_input(K.variable(input), shape=input.shape)
 
     out = K.eval(layer.output)
-    for offset in [0, 1, -1, -2]:
-        assert_allclose(out[:, offset, :, :], 0.)
-        assert_allclose(out[:, :, offset, :], 0.)
-    assert_allclose(out[:, 2:-2, 2:-2, :], 1.)
+    if dim_ordering == 'tf':
+        for offset in [0, 1, -1, -2]:
+            assert_allclose(out[:, offset, :, :], 0.)
+            assert_allclose(out[:, :, offset, :], 0.)
+        assert_allclose(out[:, 2:-2, 2:-2, :], 1.)
+    elif dim_ordering == 'th':
+        for offset in [0, 1, -1, -2]:
+            assert_allclose(out[:, :, offset, :], 0.)
+            assert_allclose(out[:, :, :, offset], 0.)
+        assert_allclose(out[:, 2:-2, 2:-2, :], 1.)
+
+    layer = convolutional.ZeroPadding2D(padding=(1, 2, 3, 4))
+    layer.set_input(K.variable(input), shape=input.shape)
+
+    out = K.eval(layer.output)
+    if dim_ordering == 'tf':
+        for top_offset in [0]:
+            assert_allclose(out[:, top_offset, :, :], 0.)
+        for bottom_offset in [-1, -2]:
+            assert_allclose(out[:, bottom_offset, :, :], 0.)
+        for left_offset in [0, 1, 2]:
+            assert_allclose(out[:, :, left_offset, :], 0.)
+        for right_offset in [-1, -2, -3, -4]:
+            assert_allclose(out[:, :, right_offset, :], 0.)
+        assert_allclose(out[:, 1:-2, 3:-4, :], 1.)
+    elif dim_ordering == 'th':
+        for top_offset in [0]:
+            assert_allclose(out[:, :, top_offset, :], 0.)
+        for bottom_offset in [-1, -2]:
+            assert_allclose(out[:, :, bottom_offset, :], 0.)
+        for left_offset in [0, 1, 2]:
+            assert_allclose(out[:, :, :, left_offset], 0.)
+        for right_offset in [-1, -2, -3, -4]:
+            assert_allclose(out[:, :, :, right_offset], 0.)
+        assert_allclose(out[:, :, 1:-2, 3:-4], 1.)
     layer.get_config()
 
 
 def test_zero_padding_3d():
     nb_samples = 2
     stack_size = 2
-    input_len_dim1 = 10
-    input_len_dim2 = 11
-    input_len_dim3 = 12
+    input_len_dim1 = 4
+    input_len_dim2 = 5
+    input_len_dim3 = 3
 
     input = np.ones((nb_samples,
                      input_len_dim1, input_len_dim2, input_len_dim3,
@@ -513,7 +608,7 @@ def test_upsampling_3d():
 @keras_test
 def test_cropping_1d():
     nb_samples = 2
-    time_length = 10
+    time_length = 4
     input_len_dim1 = 2
     input = np.random.rand(nb_samples, time_length, input_len_dim1)
 

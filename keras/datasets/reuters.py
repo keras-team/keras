@@ -10,7 +10,8 @@ import sys
 def load_data(path='reuters.pkl', nb_words=None, skip_top=0,
               maxlen=None, test_split=0.2, seed=113,
               start_char=1, oov_char=2, index_from=3):
-    '''
+    '''Loads the Reuters newswire classification dataset.
+
     # Arguments
         path: where to store the data (in `/.keras/dataset`)
         nb_words: max number of words to include. Words are ranked
