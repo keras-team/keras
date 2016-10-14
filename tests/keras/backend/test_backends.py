@@ -131,6 +131,17 @@ class TestBackend(object):
         tf_rep = KTF.eval(KTF.tile(arr_tf, n))
         assert_allclose(tf_rep, th_rep, atol=1e-05)
 
+    def test_depth_to_space(self):
+        scale = 2
+        shape = (3, 4, 4, 3*scale*scale)
+        arr = np.arange(np.prod(shape)).reshape(shape)
+        arr_th = KTH.variable(arr)
+        arr_tf = KTF.variable(arr)
+
+        th_up = KTH.eval(KTH.depth_to_space(arr_th, scale))
+        tf_up = KTF.eval(KTF.depth_to_space(arr_tf, scale))
+        assert_allclose(tf_up, th_up, atol=1e-05)
+
     def test_value_manipulation(self):
         val = np.random.random((4, 2))
         xth = KTH.variable(val)
