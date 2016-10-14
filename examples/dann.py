@@ -83,6 +83,17 @@ def batch_gen(batches, id_array, data, labels):
             yield data[batch_ids]
         np.random.shuffle(id_array)
 
+
+def evaluate_dann(num_batches, size):
+    acc = 0
+    for i in range(0, num_batches):
+        _, prob = dann_model.predict_on_batch(XT_test[i * size:i * size + size])
+        predictions = np.argmax(prob, axis=1)
+        actual = np.argmax(y_test[i * size:i * size + size], axis=1)
+        acc += float(np.sum((predictions == actual))) / size
+    return acc / num_batches
+
+
 # Model parameters
 
 batch_size = 128
@@ -269,11 +280,10 @@ for i in range(nb_epoch):
         j += 1
 
 print('Evaluating target samples on DANN model')
-out = dann_model.predict_on_batch(XT_test[0:batch_size / 2])
-out = np.argmax(out[1], axis=1)
-actual = np.argmax(y_test[0:batch_size / 2], axis=1)
-acc = float(np.sum((out == actual))) / float(len(out))
-print('Accuracy: ', acc)
+size = batch_size / 2
+nb_testbatches = XT_test.shape[0] / size
+acc = evaluate_dann(nb_testbatches, size)
+print('Accuracy:', acc)
 print('Visualizing output of domain invariant features')
 
 # Plot both MNIST and MNIST-M
