@@ -91,9 +91,22 @@ class TimeDistributed(Wrapper):
         super(TimeDistributed, self).__init__(layer, **kwargs)
 
     def build(self, input_shape):
-        assert len(input_shape) >= 3
-        self.input_spec = [InputSpec(shape=input_shape)]
-        child_input_shape = (input_shape[0],) + input_shape[2:]
+
+        #assert len(input_shape) >= 3
+        #self.input_spec = [InputSpec(shape=input_shape)]
+
+        if type(input_shape) != list:
+            input_shape = [input_shape]
+        for shape in input_shape:
+            assert len(shape) >= 3
+        self.input_spec = [InputSpec(shape=shape) for shape in input_shape]
+
+        #child_input_shape = (input_shape[0],) + input_shape[2:]
+
+        child_input_shape = [((shape[0],) + shape[2:]) for shape in input_shape]
+        if len(input_shape) == 1:
+            child_input_shape = child_input_shape[0]
+
         if not self.layer.built:
             self.layer.build(child_input_shape)
             self.layer.built = True
@@ -128,14 +141,46 @@ class TimeDistributed(Wrapper):
         super(TimeDistributed, self).build()
 
     def get_output_shape_for(self, input_shape):
-        child_input_shape = (input_shape[0],) + input_shape[2:]
+
+        #child_input_shape = (input_shape[0],) + input_shape[2:]
+
+        if type(input_shape) == list:
+            child_input_shape = [((shape[0],) + shape[2:]) for shape in input_shape]
+            timesteps = input_shape[0][1]
+        else:
+            child_input_shape = (input_shape[0],) + input_shape[2:]
+            timesteps = input_shape[1]
+
         child_output_shape = self.layer.get_output_shape_for(child_input_shape)
-        timesteps = input_shape[1]
+
+        #timesteps = input_shape[1]
         return (child_output_shape[0], timesteps) + child_output_shape[1:]
 
+    def compute_mask(self, input, input_mask):
+        if type(input_mask) != list:
+            return input_mask
+        elif not any(input_mask):
+            return None
+        else:
+            not_None_masks = [m for m in input_mask if m is not None]
+            if len(not_None_masks) == 1:
+                return not_None_masks[0]
+            else:
+                input_mask = K.concatenate(input_mask)
+                return K.prod(input_mask, axis=0)
+
     def call(self, X, mask=None):
-        input_shape = self.input_spec[0].shape
-        if input_shape[0]:
+        #input_shape = self.input_spec[0].shape
+        #if input_shape[0]:
+
+        input_shapes = [input_spec.shape for input_spec in self.input_spec]
+        batch_size = False
+        for shape in input_shapes:
+            if shape[0] is not None:
+                batch_size = True
+                break
+        if batch_size:
+
             # batch size matters, use rnn-based implementation
             def step(x, states):
                 output = self.layer.call(x)
@@ -162,10 +207,23 @@ class TimeDistributed(Wrapper):
             # no batch size specified, therefore the layer will be able
             # to process batches of any size
             # we can go with reshape-based implementation for performance
-            input_length = input_shape[1]
+
+            #input_length = input_shape[1]
+            if type(X) != list:
+                X = [X]
+            input_length = input_shapes[0][1]
+
             if not input_length:
-                input_length = K.shape(X)[1]
-            X = K.reshape(X, (-1, ) + input_shape[2:])  # (nb_samples * timesteps, ...)
+                #input_length = K.shape(X)[1]
+                input_length = K.shape(X[0])[1]
+            #X = K.reshape(X, (-1, ) + input_shape[2:])  # (nb_samples * timesteps, ...)
+            X = [K.reshape(X[i], (-1,) + input_shapes[i][2:]) for i in range(len(X))]  # (nb_samples * timesteps, ...)
+            if len(X) == 1:
+                X = X[0]
+                input_shape = input_shapes[0]
+            else:
+                input_shape = input_shapes
+
             y = self.layer.call(X)  # (nb_samples * timesteps, ...)
             # (nb_samples, timesteps, ...)
             output_shape = self.get_output_shape_for(input_shape)

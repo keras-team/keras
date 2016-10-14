@@ -174,6 +174,7 @@ class Convolution1D(Layer):
         self.initial_weights = weights
         self.input_dim = input_dim
         self.input_length = input_length
+        self.supports_masking = True
         if self.input_dim:
             kwargs['input_shape'] = (self.input_length, self.input_dim)
         super(Convolution1D, self).__init__(**kwargs)
@@ -474,6 +475,7 @@ class Convolution2D(Layer):
         self.bias = bias
         self.input_spec = [InputSpec(ndim=4)]
         self.initial_weights = weights
+        self.supports_masking = True
         super(Convolution2D, self).__init__(**kwargs)
 
     def build(self, input_shape):
@@ -1760,7 +1762,10 @@ class CompactBilinearPooling(Layer):
                 shapes.append(tuple([input_shape[i][1],1]))
             for i in range(self.nmodes): # v
                 shapes.append(tuple([input_shape[i][1],1]))
-        return shapes
+            return shapes
+        else:
+            return shapes[0]
+
 
     
 class BilinearPooling(Layer):

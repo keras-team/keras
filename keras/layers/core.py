@@ -1232,3 +1232,43 @@ class TimeDistributedDense(Layer):
 
 
 
+class WeightedSum(Layer):
+    def __init__(self, sum_dims=[], **kwargs):
+        assert isinstance(sum_dims, list)
+        self.sum_dims = sum_dims
+        self.supports_masking = True
+        super(WeightedSum, self).__init__(**kwargs)
+
+    def build(self, input_shape):
+        assert isinstance(input_shape, list)
+        assert len(input_shape) == 2
+
+    def call(self, x, mask=None):
+        x = x[0]*x[1]
+        for d in self.sum_dims:
+            x = K.sum(x, axis=d)
+        return x
+
+    def get_output_shape_for(self, input_shape):
+        out_dim = []
+        num_dim = len(input_shape[0])
+        for d in range(num_dim):
+            if d not in self.sum_dims:
+                out_dim.append(max(input_shape[0][d], input_shape[1][d]))
+        return tuple(out_dim)
+
+    def compute_mask(self, input, input_mask):
+        if not any(input_mask):
+            return None
+        else:
+            not_None_masks = [m for m in input_mask if m is not None]
+            if len(not_None_masks) == 1:
+                return not_None_masks[0]
+            else:
+                input_mask = K.concatenate(input_mask)
+                return K.prod(input_mask, axis=0)
+
+    def get_config(self):
+        config = {'sum_dims': self.sum_dims}
+        base_config = super(WeightedSum, self).get_config()
+        return dict(list(base_config.items()) + list(config.items()))
