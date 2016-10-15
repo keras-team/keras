@@ -1,5 +1,5 @@
 from ..engine import Layer, InputSpec
-from .. import initializations
+from .. import initializations, regularizers
 from .. import backend as K
 
 
@@ -44,6 +44,10 @@ class BatchNormalization(Layer):
             [initializations](../initializations.md)), or alternatively,
             Theano/TensorFlow function to use for weights initialization.
             This parameter is only relevant if you don't pass a `weights` argument.
+        gamma_regularizer: instance of [WeightRegularizer](../regularizers.md)
+            (eg. L1 or L2 regularization), applied to the gamma vector.
+        beta_regularizer: instance of [WeightRegularizer](../regularizers.md),
+            applied to the beta vector.
 
     # Input shape
         Arbitrary. Use the keyword argument `input_shape`
@@ -54,10 +58,11 @@ class BatchNormalization(Layer):
         Same shape as input.
 
     # References
-        - [Batch Normalization: Accelerating Deep Network Training by Reducing Internal Covariate Shift](http://jmlr.org/proceedings/papers/v37/ioffe15.html)
+        - [Batch Normalization: Accelerating Deep Network Training by Reducing Internal Covariate Shift](http://jmlr.org/proceedings/papers/v37/ioffe15.pdf)
     '''
     def __init__(self, epsilon=1e-5, mode=0, axis=-1, momentum=0.99,
-                 weights=None, beta_init='zero', gamma_init='one', **kwargs):
+                 weights=None, beta_init='zero', gamma_init='one',
+                 gamma_regularizer=None, beta_regularizer=None, **kwargs):
         self.supports_masking = True
         self.beta_init = initializations.get(beta_init)
         self.gamma_init = initializations.get(gamma_init)
@@ -65,6 +70,8 @@ class BatchNormalization(Layer):
         self.mode = mode
         self.axis = axis
         self.momentum = momentum
+        self.gamma_regularizer = regularizers.get(gamma_regularizer)
+        self.beta_regularizer = regularizers.get(beta_regularizer)
         self.initial_weights = weights
         if self.mode == 0:
             self.uses_learning_phase = True
@@ -77,6 +84,15 @@ class BatchNormalization(Layer):
         self.gamma = self.gamma_init(shape, name='{}_gamma'.format(self.name))
         self.beta = self.beta_init(shape, name='{}_beta'.format(self.name))
         self.trainable_weights = [self.gamma, self.beta]
+
+        self.regularizers = []
+        if self.gamma_regularizer:
+            self.gamma_regularizer.set_param(self.gamma)
+            self.regularizers.append(self.gamma_regularizer)
+
+        if self.beta_regularizer:
+            self.beta_regularizer.set_param(self.beta)
+            self.regularizers.append(self.beta_regularizer)
 
         self.running_mean = K.zeros(shape,
                                     name='{}_running_mean'.format(self.name))
@@ -124,7 +140,7 @@ class BatchNormalization(Layer):
                 self.updates = [K.moving_average_update(self.running_mean, mean, self.momentum),
                                 K.moving_average_update(self.running_std, std, self.momentum)]
 
-                if sorted(reduction_axes) == range(K.ndim(x))[:-1]:
+                if K.backend() == 'tensorflow' and sorted(reduction_axes) == range(K.ndim(x))[:-1]:
                     x_normed_running = K.batch_normalization(
                         x, self.running_mean, self.running_std,
                         self.beta, self.gamma,
@@ -155,6 +171,8 @@ class BatchNormalization(Layer):
         config = {"epsilon": self.epsilon,
                   "mode": self.mode,
                   "axis": self.axis,
+                  "gamma_regularizer": self.gamma_regularizer.get_config() if self.gamma_regularizer else None,
+                  "beta_regularizer": self.beta_regularizer.get_config() if self.beta_regularizer else None,
                   "momentum": self.momentum}
         base_config = super(BatchNormalization, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))

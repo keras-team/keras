@@ -6,7 +6,7 @@ from collections import defaultdict
 _FLOATX = 'float32'
 _EPSILON = 10e-8
 _UID_PREFIXES = defaultdict(int)
-_IMAGE_DIM_ORDERING = 'th'
+_IMAGE_DIM_ORDERING = 'tf'
 _LEGACY_WEIGHT_ORDERING = False
 
 

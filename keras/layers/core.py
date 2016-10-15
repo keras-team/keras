@@ -111,7 +111,7 @@ class SpatialDropout2D(Dropout):
             (the depth) is at index 1, in 'tf' mode is it at index 3.
             It defaults to the `image_dim_ordering` value found in your
             Keras config file at `~/.keras/keras.json`.
-            If you never set it, then it will be "th".
+            If you never set it, then it will be "tf".
 
     # Input shape
         4D tensor with shape:
@@ -159,7 +159,7 @@ class SpatialDropout3D(Dropout):
             is at index 1, in 'tf' mode is it at index 4.
             It defaults to the `image_dim_ordering` value found in your
             Keras config file at `~/.keras/keras.json`.
-            If you never set it, then it will be "th".
+            If you never set it, then it will be "tf".
 
     # Input shape
         5D tensor with shape:
@@ -537,7 +537,10 @@ class Lambda(Layer):
             # otherwise, we default to the input shape
             return input_shape
         elif type(self._output_shape) in {tuple, list}:
-            nb_samples = input_shape[0] if input_shape else None
+            if type(input_shape) is list:
+                nb_samples = input_shape[0][0]
+            else:
+                nb_samples = input_shape[0] if input_shape else None
             return (nb_samples,) + tuple(self._output_shape)
         else:
             shape = self._output_shape(input_shape)

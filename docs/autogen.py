@@ -83,6 +83,7 @@ from keras import backend
 from keras import constraints
 from keras import activations
 from keras import regularizers
+from keras.utils import io_utils
 
 
 EXCLUDE = {
@@ -133,6 +134,8 @@ PAGES = [
             core.Dense,
             core.Activation,
             core.Dropout,
+            core.SpatialDropout2D,
+            core.SpatialDropout3D,
             core.Flatten,
             core.Reshape,
             core.Permute,
@@ -150,11 +153,15 @@ PAGES = [
         'page': 'layers/convolutional.md',
         'classes': [
             convolutional.Convolution1D,
+            convolutional.AtrousConvolution1D,
             convolutional.Convolution2D,
             convolutional.AtrousConvolution2D,
             convolutional.SeparableConvolution2D,
             convolutional.Deconvolution2D,
             convolutional.Convolution3D,
+            convolutional.Cropping1D,
+            convolutional.Cropping2D,
+            convolutional.Cropping3D,
             convolutional.UpSampling1D,
             convolutional.UpSampling2D,
             convolutional.UpSampling3D,
@@ -230,6 +237,12 @@ PAGES = [
     {
         'page': 'backend.md',
         'all_module_functions': [backend],
+    },
+    {
+        'page': 'io_utils.md',
+        'classes': [
+            io_utils.HDF5Matrix
+        ],
     },
 ]
 

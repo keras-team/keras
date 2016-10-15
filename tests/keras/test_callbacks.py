@@ -1,7 +1,11 @@
-import pytest
 import os
 import sys
+import multiprocessing
+
 import numpy as np
+import pytest
+from keras import optimizers
+
 np.random.seed(1337)
 
 from keras import callbacks
@@ -147,6 +151,41 @@ def test_LearningRateScheduler():
     assert (float(K.get_value(model.optimizer.lr)) - 0.2) < K.epsilon()
 
 
+def test_ReduceLROnPlateau():
+    (X_train, y_train), (X_test, y_test) = get_test_data(nb_train=train_samples,
+                                                         nb_test=test_samples,
+                                                         input_shape=(input_dim,),
+                                                         classification=True,
+                                                         nb_class=nb_class)
+    y_test = np_utils.to_categorical(y_test)
+    y_train = np_utils.to_categorical(y_train)
+
+    def make_model():
+        np.random.seed(1337)
+        model = Sequential()
+        model.add(Dense(nb_hidden, input_dim=input_dim, activation='relu'))
+        model.add(Dense(nb_class, activation='softmax'))
+
+        model.compile(loss='categorical_crossentropy',
+                      optimizer=optimizers.SGD(lr=0.1),
+                      metrics=['accuracy'])
+        return model
+
+    model = make_model()
+
+    # This should reduce the LR after the first epoch (due to high epsilon).
+    cbks = [callbacks.ReduceLROnPlateau(monitor='val_loss', factor=0.1, epsilon=10, patience=1, cooldown=5)]
+    model.fit(X_train, y_train, batch_size=batch_size,
+              validation_data=(X_test, y_test), callbacks=cbks, nb_epoch=5, verbose=2)
+    assert np.allclose(float(K.get_value(model.optimizer.lr)), 0.01, atol=K.epsilon())
+
+    model = make_model()
+    cbks = [callbacks.ReduceLROnPlateau(monitor='val_loss', factor=0.1, epsilon=0, patience=1, cooldown=5)]
+    model.fit(X_train, y_train, batch_size=batch_size,
+              validation_data=(X_test, y_test), callbacks=cbks, nb_epoch=5, verbose=2)
+    assert np.allclose(float(K.get_value(model.optimizer.lr)), 0.1, atol=K.epsilon())
+
+
 @pytest.mark.skipif((K._BACKEND != 'tensorflow'),
                     reason="Requires tensorflow backend")
 def test_TensorBoard():
@@ -234,7 +273,7 @@ def test_TensorBoard():
         session = tf.Session('')
         KTF.set_session(session)
         model = Graph()
-        model.add_input(name='X_vars', input_shape=(input_dim, ))
+        model.add_input(name='X_vars', input_shape=(input_dim,))
 
         model.add_node(Dense(nb_hidden, activation="sigmoid"),
                        name='Dense1', input='X_vars')
@@ -271,6 +310,38 @@ def test_TensorBoard():
         shutil.rmtree(filepath)
 
     KTF.set_session(old_session)
+
+
+def test_LambdaCallback():
+    (X_train, y_train), (X_test, y_test) = get_test_data(nb_train=train_samples,
+                                                         nb_test=test_samples,
+                                                         input_shape=(input_dim,),
+                                                         classification=True,
+                                                         nb_class=nb_class)
+    y_test = np_utils.to_categorical(y_test)
+    y_train = np_utils.to_categorical(y_train)
+    model = Sequential()
+    model.add(Dense(nb_hidden, input_dim=input_dim, activation='relu'))
+    model.add(Dense(nb_class, activation='softmax'))
+    model.compile(loss='categorical_crossentropy',
+                  optimizer='sgd',
+                  metrics=['accuracy'])
+
+    # Start an arbitrary process that should run during model training and be terminated after training has completed.
+    def f():
+        while True:
+            pass
+
+    p = multiprocessing.Process(target=f)
+    p.start()
+    cleanup_callback = callbacks.LambdaCallback(on_train_end=lambda logs: p.terminate())
+
+    cbks = [cleanup_callback]
+    model.fit(X_train, y_train, batch_size=batch_size,
+              validation_data=(X_test, y_test), callbacks=cbks, nb_epoch=5)
+    p.join()
+    assert not p.is_alive()
+
 
 if __name__ == '__main__':
     pytest.main([__file__])

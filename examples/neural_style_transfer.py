@@ -72,13 +72,13 @@ style_weight = 1.
 content_weight = 0.025
 
 # dimensions of the generated picture.
-img_width = 400
-img_height = 400
-assert img_height == img_width, 'Due to the use of the Gram matrix, width and height must match.'
+img_nrows = 400
+img_ncols = 400
+assert img_ncols == img_nrows, 'Due to the use of the Gram matrix, width and height must match.'
 
 # util function to open, resize and format pictures into appropriate tensors
 def preprocess_image(image_path):
-    img = load_img(image_path, target_size=(img_width, img_height))
+    img = load_img(image_path, target_size=(img_nrows, img_ncols))
     img = img_to_array(img)
     img = np.expand_dims(img, axis=0)
     img = vgg16.preprocess_input(img)
@@ -87,14 +87,16 @@ def preprocess_image(image_path):
 # util function to convert a tensor into a valid image
 def deprocess_image(x):
     if K.image_dim_ordering() == 'th':
-        x = x.reshape((3, img_width, img_height))
+        x = x.reshape((3, img_nrows, img_ncols))
         x = x.transpose((1, 2, 0))
     else:
-        x = x.reshape((img_width, img_height, 3))
-    x = x[:, :, ::-1]
+        x = x.reshape((img_nrows, img_ncols, 3))
+    # Remove zero-center by mean pixel
     x[:, :, 0] += 103.939
     x[:, :, 1] += 116.779
     x[:, :, 2] += 123.68
+    # 'BGR'->'RGB'
+    x = x[:, :, ::-1]
     x = np.clip(x, 0, 255).astype('uint8')
     return x
 
@@ -104,9 +106,9 @@ style_reference_image = K.variable(preprocess_image(style_reference_image_path))
 
 # this will contain our generated image
 if K.image_dim_ordering() == 'th':
-    combination_image = K.placeholder((1, 3, img_width, img_height))
+    combination_image = K.placeholder((1, 3, img_nrows, img_ncols))
 else:
-    combination_image = K.placeholder((1, img_width, img_height, 3))
+    combination_image = K.placeholder((1, img_nrows, img_ncols, 3))
 
 # combine the 3 images into a single Keras tensor
 input_tensor = K.concatenate([base_image,
@@ -128,7 +130,10 @@ outputs_dict = dict([(layer.name, layer.output) for layer in model.layers])
 # the gram matrix of an image tensor (feature-wise outer product)
 def gram_matrix(x):
     assert K.ndim(x) == 3
-    features = K.batch_flatten(x)
+    if K.image_dim_ordering() == 'th':
+        features = K.batch_flatten(x)
+    else:
+        features = K.batch_flatten(K.permute_dimensions(x, (2, 0, 1)))
     gram = K.dot(features, K.transpose(features))
     return gram
 
@@ -143,7 +148,7 @@ def style_loss(style, combination):
     S = gram_matrix(style)
     C = gram_matrix(combination)
     channels = 3
-    size = img_width * img_height
+    size = img_nrows * img_ncols
     return K.sum(K.square(S - C)) / (4. * (channels ** 2) * (size ** 2))
 
 # an auxiliary loss function
@@ -157,11 +162,11 @@ def content_loss(base, combination):
 def total_variation_loss(x):
     assert K.ndim(x) == 4
     if K.image_dim_ordering() == 'th':
-        a = K.square(x[:, :, :img_width-1, :img_height-1] - x[:, :, 1:, :img_height-1])
-        b = K.square(x[:, :, :img_width-1, :img_height-1] - x[:, :, :img_width-1, 1:])
+        a = K.square(x[:, :, :img_nrows-1, :img_ncols-1] - x[:, :, 1:, :img_ncols-1])
+        b = K.square(x[:, :, :img_nrows-1, :img_ncols-1] - x[:, :, :img_nrows-1, 1:])
     else:
-        a = K.square(x[:, :img_width-1, :img_height-1, :] - x[:, 1:, :img_height-1, :])
-        b = K.square(x[:, :img_width-1, :img_height-1, :] - x[:, :img_width-1, 1:, :])
+        a = K.square(x[:, :img_nrows-1, :img_ncols-1, :] - x[:, 1:, :img_ncols-1, :])
+        b = K.square(x[:, :img_nrows-1, :img_ncols-1, :] - x[:, :img_nrows-1, 1:, :])
     return K.sum(K.pow(a + b, 1.25))
 
 # combine these loss functions into a single scalar
@@ -196,9 +201,9 @@ f_outputs = K.function([combination_image], outputs)
 
 def eval_loss_and_grads(x):
     if K.image_dim_ordering() == 'th':
-        x = x.reshape((1, 3, img_width, img_height))
+        x = x.reshape((1, 3, img_nrows, img_ncols))
     else:
-        x = x.reshape((1, img_width, img_height, 3))
+        x = x.reshape((1, img_nrows, img_ncols, 3))
     outs = f_outputs([x])
     loss_value = outs[0]
     if len(outs[1:]) == 1:
@@ -237,9 +242,9 @@ evaluator = Evaluator()
 # run scipy-based optimization (L-BFGS) over the pixels of the generated image
 # so as to minimize the neural style loss
 if K.image_dim_ordering() == 'th':
-    x = np.random.uniform(0, 255, (1, 3, img_width, img_height)) - 128.
+    x = np.random.uniform(0, 255, (1, 3, img_nrows, img_ncols)) - 128.
 else:
-    x = np.random.uniform(0, 255, (1, img_width, img_height, 3)) - 128.
+    x = np.random.uniform(0, 255, (1, img_nrows, img_ncols, 3)) - 128.
 
 for i in range(10):
     print('Start of iteration', i)

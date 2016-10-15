@@ -15,6 +15,9 @@ def softmax(x):
                         'Here, ndim=' + str(ndim))
 
 
+def elu(x, alpha=1.0):
+    return K.elu(x, alpha)
+
 def softplus(x):
     return K.softplus(x)
 

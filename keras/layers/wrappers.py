@@ -20,6 +20,13 @@ class Wrapper(Layer):
         self.regularizers = getattr(self.layer, 'regularizers', [])
         self.constraints = getattr(self.layer, 'constraints', {})
 
+        # properly attribute the current layer to
+        # regularizers that need access to it
+        # (e.g. ActivityRegularizer).
+        for regularizer in self.regularizers:
+            if hasattr(regularizer, 'set_layer'):
+                regularizer.set_layer(self)
+
     def get_weights(self):
         weights = self.layer.get_weights()
         return weights
@@ -86,17 +93,6 @@ class TimeDistributed(Wrapper):
     def build(self, input_shape):
         assert len(input_shape) >= 3
         self.input_spec = [InputSpec(shape=input_shape)]
-        if K._BACKEND == 'tensorflow':
-            if not input_shape[1]:
-                raise Exception('When using TensorFlow, you should define '
-                                'explicitly the number of timesteps of '
-                                'your sequences.\n'
-                                'If your first layer is an Embedding, '
-                                'make sure to pass it an "input_length" '
-                                'argument. Otherwise, make sure '
-                                'the first layer has '
-                                'an "input_shape" or "batch_input_shape" '
-                                'argument, including the time axis.')
         child_input_shape = (input_shape[0],) + input_shape[2:]
         if not self.layer.built:
             self.layer.build(child_input_shape)
@@ -116,9 +112,23 @@ class TimeDistributed(Wrapper):
             def step(x, states):
                 output = self.layer.call(x)
                 return output, []
-
+            input_length = input_shape[1]
+            if K.backend() == 'tensorflow' and len(input_shape) > 3:
+                if input_length is None:
+                    raise Exception('When using TensorFlow, you should define '
+                                    'explicitly the number of timesteps of '
+                                    'your sequences.\n'
+                                    'If your first layer is an Embedding, '
+                                    'make sure to pass it an "input_length" '
+                                    'argument. Otherwise, make sure '
+                                    'the first layer has '
+                                    'an "input_shape" or "batch_input_shape" '
+                                    'argument, including the time axis.')
+                unroll = True
+            else:
+                unroll = False
             last_output, outputs, states = K.rnn(step, X,
-                                                 initial_states=[])
+                                                 initial_states=[], input_length=input_length, unroll=unroll)
             y = outputs
         else:
             # no batch size specified, therefore the layer will be able
@@ -136,20 +146,25 @@ class TimeDistributed(Wrapper):
 
 
 class Bidirectional(Wrapper):
-    ''' Bidirectional wrapper for RNNs
+    ''' Bidirectional wrapper for RNNs.
 
     # Arguments:
         layer: `Recurrent` instance.
-        merge_mode: Mode by which outputs of the forward and backward RNNs will be combined. One of {'sum', 'mul', 'concat', 'ave', None}. If None, the outputs will not be combined, they will be returned as a list.
+        merge_mode: Mode by which outputs of the
+            forward and backward RNNs will be combined.
+            One of {'sum', 'mul', 'concat', 'ave', None}.
+            If None, the outputs will not be combined,
+            they will be returned as a list.
 
     # Examples:
+
     ```python
-    model = Sequential()
-    model.add(Bidirectional(LSTM(10, return_sequences=True), input_shape=(5, 10)))
-    model.add(Bidirectional(LSTM(10)))
-    model.add(Dense(5))
-    model.add(Activation('softmax'))
-    model.compile(loss='categorical_crossentropy', optimizer='rmsprop')
+        model = Sequential()
+        model.add(Bidirectional(LSTM(10, return_sequences=True), input_shape=(5, 10)))
+        model.add(Bidirectional(LSTM(10)))
+        model.add(Dense(5))
+        model.add(Activation('softmax'))
+        model.compile(loss='categorical_crossentropy', optimizer='rmsprop')
     ```
     '''
     def __init__(self, layer, merge_mode='concat', weights=None, **kwargs):

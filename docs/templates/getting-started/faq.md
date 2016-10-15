@@ -113,10 +113,37 @@ Note that you will first need to install HDF5 and the Python library h5py, which
 model.save_weights('my_model_weights.h5')
 ```
 
-Assuming you have code for instantiating your model, you can then load the weights you saved into a model with the same architecture:
+Assuming you have code for instantiating your model, you can then load the weights you saved into a model with the *same* architecture:
 
 ```python
 model.load_weights('my_model_weights.h5')
+```
+
+If you need to load weights into a *different* architecture (with some layers in common), for instance for fine-tuning or transfer-learning, you can load weights by *layer name*:
+
+```python
+model.load_weights('my_model_weights.h5', by_name=True)
+```
+
+For example:
+
+```python
+"""
+Assume original model looks like this:
+    model = Sequential()
+    model.add(Dense(2, input_dim=3, name="dense_1"))
+    model.add(Dense(3, name="dense_2"))
+    ...
+    model.save_weights(fname)
+"""
+
+# new model
+model = Sequential()
+model.add(Dense(2, input_dim=3, name="dense_1"))  # will be loaded
+model.add(Dense(10, name="new_dense"))  # will not be loaded
+
+# load weights from first model; will only affect the first layer, dense_1.
+model.load_weights(fname, by_name=True)
 ```
 
 ---
@@ -339,10 +366,10 @@ Code and pre-trained weights are available for the following image classificatio
 They can be imported from the module `keras.applications`:
 
 ```python
-from keras.applications.vgg16 impoprt VGG16
-from keras.applications.vgg19 impoprt VGG19
-from keras.applications.resnet50 impoprt ResNet50
-from keras.applications.inception_v3 impoprt InceptionV3
+from keras.applications.vgg16 import VGG16
+from keras.applications.vgg19 import VGG19
+from keras.applications.resnet50 import ResNet50
+from keras.applications.inception_v3 import InceptionV3
 
 model = VGG16(weights='imagenet', include_top=True)
 ```

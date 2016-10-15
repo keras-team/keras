@@ -1,10 +1,17 @@
 import tensorflow as tf
+
 from tensorflow.python.training import moving_averages
+try:
+    from tensorflow.python.ops import ctc_ops as ctc
+except ImportError:
+    import tensorflow.contrib.ctc as ctc
+
 import numpy as np
 import os
 import copy
 import warnings
 from .common import _FLOATX, _EPSILON, _IMAGE_DIM_ORDERING, reset_uids
+py_all = all
 
 # INTERNAL UTILS
 
@@ -113,6 +120,17 @@ def _to_tensor(x, dtype):
     return x
 
 
+def is_sparse(tensor):
+    return isinstance(tensor, tf.SparseTensor)
+
+
+def to_dense(tensor):
+    if is_sparse(tensor):
+        return tf.sparse_tensor_to_dense(tensor)
+    else:
+        return tensor
+
+
 def variable(value, dtype=_FLOATX, name=None):
     '''Instantiates a tensor.
 
@@ -124,6 +142,12 @@ def variable(value, dtype=_FLOATX, name=None):
     # Returns
         Tensor variable instance.
     '''
+    if hasattr(value, 'tocoo'):
+        sparse_coo = value.tocoo()
+        indices = np.concatenate((np.expand_dims(sparse_coo.row, 1), np.expand_dims(sparse_coo.col, 1)), 1)
+        # SparseTensor doesn't need initialization
+        return tf.SparseTensor(indices=indices, values=value.data, shape=value.shape)
+
     v = tf.Variable(value, dtype=_convert_string_dtype(dtype), name=name)
     if _MANUAL_VAR_INIT:
         return v
@@ -144,7 +168,7 @@ def variable(value, dtype=_FLOATX, name=None):
     return v
 
 
-def placeholder(shape=None, ndim=None, dtype=_FLOATX, name=None):
+def placeholder(shape=None, ndim=None, dtype=_FLOATX, sparse=False, name=None):
     '''Instantiates a placeholder.
 
     # Arguments
@@ -162,7 +186,11 @@ def placeholder(shape=None, ndim=None, dtype=_FLOATX, name=None):
     if not shape:
         if ndim:
             shape = tuple([None for _ in range(ndim)])
-    x = tf.placeholder(dtype, shape=shape, name=name)
+    if sparse:
+        tf_shape = tf.constant(np.array(list([0 for _ in range(len(shape))]), dtype=np.int64))
+        x = tf.sparse_placeholder(dtype, shape=tf_shape, name=name)
+    else:
+        x = tf.placeholder(dtype, shape=shape, name=name)
     x._keras_shape = shape
     x._uses_learning_phase = False
     return x
@@ -186,6 +214,9 @@ def int_shape(x):
 def ndim(x):
     '''Returns the number of axes in a tensor, as an integer.
     '''
+    if is_sparse(x):
+        return int(x.shape.get_shape()[0])
+
     dims = x.get_shape()._dims
     if dims is not None:
         return len(dims)
@@ -202,7 +233,7 @@ def eval(x):
     '''Evaluates the value of a tensor.
     Returns a Numpy array.
     '''
-    return x.eval(session=get_session())
+    return to_dense(x).eval(session=get_session())
 
 
 def zeros(shape, dtype=_FLOATX, name=None):
@@ -314,7 +345,10 @@ def dot(x, y):
         xt = tf.reshape(x, [-1, x_shape[-1]])
         yt = tf.reshape(tf.transpose(y, perm=y_permute_dim), [y_shape[-2], -1])
         return tf.reshape(tf.matmul(xt, yt), x_shape[:-1] + y_shape[:-2] + y_shape[-1:])
-    out = tf.matmul(x, y)
+    if is_sparse(x):
+        out = tf.sparse_tensor_dense_matmul(x, y)
+    else:
+        out = tf.matmul(x, y)
     return out
 
 
@@ -672,11 +706,16 @@ def concatenate(tensors, axis=-1):
     '''Concantes a list of tensors alongside the specified axis.
     '''
     if axis < 0:
-        if len(tensors[0].get_shape()):
-            axis = axis % len(tensors[0].get_shape())
+        dims = ndim(tensors[0])
+        if dims:
+            axis = axis % dims
         else:
             axis = 0
-    return tf.concat(axis, tensors)
+
+    if py_all([is_sparse(x) for x in tensors]):
+        return tf.sparse_concat(axis, tensors)
+    else:
+        return tf.concat(axis, [to_dense(x) for x in tensors])
 
 
 def reshape(x, shape):
@@ -807,7 +846,15 @@ def temporal_padding(x, padding=1):
     return tf.pad(x, pattern)
 
 
-def spatial_2d_padding(x, padding=(1, 1), dim_ordering='th'):
+def asymmetric_temporal_padding(x, left_pad=1, right_pad=1):
+    '''Pad the middle dimension of a 3D tensor
+    with "left_pad" zeros left and "right_pad" right.
+    '''
+    pattern = [[0, 0], [left_pad, right_pad], [0, 0]]
+    return tf.pad(x, pattern)
+
+
+def spatial_2d_padding(x, padding=(1, 1), dim_ordering=_IMAGE_DIM_ORDERING):
     '''Pads the 2nd and 3rd dimensions of a 4D tensor
     with "padding[0]" and "padding[1]" (resp.) zeros left and right.
     '''
@@ -821,7 +868,24 @@ def spatial_2d_padding(x, padding=(1, 1), dim_ordering='th'):
     return tf.pad(x, pattern)
 
 
-def spatial_3d_padding(x, padding=(1, 1, 1), dim_ordering='th'):
+def asymmetric_spatial_2d_padding(x, top_pad=1, bottom_pad=1, left_pad=1, right_pad=1, dim_ordering=_IMAGE_DIM_ORDERING):
+    '''Pad the rows and columns of a 4D tensor
+    with "top_pad", "bottom_pad", "left_pad", "right_pad"  (resp.) zeros rows on top, bottom; cols on left, right.
+    '''
+    if dim_ordering == 'th':
+        pattern = [[0, 0],
+                   [0, 0],
+                   [top_pad, bottom_pad],
+                   [left_pad, right_pad]]
+    else:
+        pattern = [[0, 0],
+                   [top_pad, bottom_pad],
+                   [left_pad, right_pad],
+                   [0, 0]]
+    return tf.pad(x, pattern)
+
+
+def spatial_3d_padding(x, padding=(1, 1, 1), dim_ordering=_IMAGE_DIM_ORDERING):
     '''Pads 5D tensor with zeros for the depth, height, width dimension with
     "padding[0]", "padding[1]" and "padding[2]" (resp.) zeros left and right
 
@@ -965,8 +1029,13 @@ class Function(object):
 
     def __call__(self, inputs):
         assert type(inputs) in {list, tuple}
-        names = [getattr(v, 'name', None) for v in self.inputs]
-        feed_dict = dict(zip(names, inputs))
+        feed_dict = {}
+        for tensor, value in zip(self.inputs, inputs):
+            if is_sparse(tensor):
+                sparse_coo = value.tocoo()
+                indices = np.concatenate((np.expand_dims(sparse_coo.row, 1), np.expand_dims(sparse_coo.col, 1)), 1)
+                value = (indices, value.data, value.shape)
+            feed_dict[tensor] = value
         session = get_session()
         updated = session.run(self.outputs + [self.updates_op], feed_dict=feed_dict)
         return updated[:len(self.outputs)]
@@ -1126,17 +1195,26 @@ def rnn(step_function, inputs, initial_states,
         states = initial_states
         nb_states = len(states)
         if nb_states == 0:
-            raise Exception('No initial states provided.')
-        elif nb_states == 1:
-            state = states[0]
+            # use dummy state, otherwise _dynamic_rnn_loop breaks
+            state = inputs[:, 0, :]
+            state_size = state.get_shape()[-1]
         else:
-            state = tf.concat(1, states)
-
-        state_size = int(states[0].get_shape()[-1])
+            state_size = int(states[0].get_shape()[-1])
+            if nb_states == 1:
+                state = states[0]
+            else:
+                state = tf.concat(1, states)
 
         if mask is not None:
+            if len(initial_states) == 0:
+                raise ValueError('No initial states provided! '
+                                 'When using masking in an RNN, you should '
+                                 'provide initial states '
+                                 '(and your step function should return '
+                                 'as its first state at time `t` '
+                                 'the output at time `t-1`).')
             if go_backwards:
-                mask = tf.reverse(mask, [True] + [False] * (ndim - 1))
+                mask = tf.reverse(mask, [True] + [False] * (ndim - 2))
 
             # Transpose not supported by bool tensor types, hence round-trip to uint8.
             mask = tf.cast(mask, tf.uint8)
@@ -1171,20 +1249,28 @@ def rnn(step_function, inputs, initial_states,
                     states = []
                     for i in range(nb_states):
                         states.append(state[:, i * state_size: (i + 1) * state_size])
-                else:
+                elif nb_states == 1:
                     states = [state]
+                else:
+                    states = []
                 output, new_states = step_function(input, states + constants)
 
-                if len(new_states) == 1:
+                if len(new_states) > 1:
+                    new_state = tf.concat(1, new_states)
+                elif len(new_states) == 1:
                     new_state = new_states[0]
                 else:
-                    new_state = tf.concat(1, new_states)
+                    # return dummy state, otherwise _dynamic_rnn_loop breaks
+                    new_state = output
                 return output, new_state
 
-        # state size is assumed to be the same as output size
-        # (always the case)
         _step.state_size = state_size * nb_states
-        _step.output_size = state_size
+        # recover output size by calling _step on the first input
+        slice_begin = tf.pack([0] * ndim)
+        slice_size = tf.pack([1] + [-1] * (ndim - 1))
+        first_input = tf.slice(inputs, slice_begin, slice_size)
+        first_input = tf.squeeze(first_input, [0])
+        _step.output_size = int(_step(first_input, state)[0].get_shape()[-1])
 
         (outputs, final_state) = _dynamic_rnn_loop(
             _step,
@@ -1198,18 +1284,30 @@ def rnn(step_function, inputs, initial_states,
             new_states = []
             for i in range(nb_states):
                 new_states.append(final_state[:, i * state_size: (i + 1) * state_size])
-        else:
+        elif nb_states == 1:
             new_states = [final_state]
+        else:
+            new_states = []
 
         # all this circus is to recover the last vector in the sequence.
-        begin = tf.pack([tf.shape(outputs)[0] - 1] + [0] * (ndim - 1))
-        size = tf.pack([1] + [-1] * (ndim - 1))
-        last_output = tf.slice(outputs, begin, size)
+        slice_begin = tf.pack([tf.shape(outputs)[0] - 1] + [0] * (ndim - 1))
+        slice_size = tf.pack([1] + [-1] * (ndim - 1))
+        last_output = tf.slice(outputs, slice_begin, slice_size)
         last_output = tf.squeeze(last_output, [0])
 
     axes = [1, 0] + list(range(2, len(outputs.get_shape())))
     outputs = tf.transpose(outputs, axes)
     return last_output, outputs, new_states
+
+
+def _cond(condition, then_lambda, else_lambda):
+    '''Backwards compatible interface to tf.cond prior to public introduction.'''
+    try:
+        cond_fn = tf.cond
+    except AttributeError:
+        from tensorflow.python.ops import control_flow_ops
+        cond_fn = control_flow_ops.cond
+    return cond_fn(condition, then_lambda, else_lambda)
 
 
 def switch(condition, then_expression, else_expression):
@@ -1223,9 +1321,8 @@ def switch(condition, then_expression, else_expression):
         else_expression: TensorFlow operation.
     '''
     x_shape = copy.copy(then_expression.get_shape())
-    x = tf.python.control_flow_ops.cond(tf.cast(condition, 'bool'),
-                                        lambda: then_expression,
-                                        lambda: else_expression)
+    x = _cond(tf.cast(condition, 'bool'),
+              lambda: then_expression, lambda: else_expression)
     x.set_shape(x_shape)
     return x
 
@@ -1240,9 +1337,7 @@ def in_train_phase(x, alt):
         return alt
     # else: assume learning phase is a placeholder.
     x_shape = copy.copy(x.get_shape())
-    x = tf.python.control_flow_ops.cond(tf.cast(_LEARNING_PHASE, 'bool'),
-                                        lambda: x,
-                                        lambda: alt)
+    x = _cond(tf.cast(_LEARNING_PHASE, 'bool'), lambda: x, lambda: alt)
     x._uses_learning_phase = True
     x.set_shape(x_shape)
     return x
@@ -1257,9 +1352,7 @@ def in_test_phase(x, alt):
     elif _LEARNING_PHASE is 0:
         return x
     x_shape = copy.copy(x.get_shape())
-    x = tf.python.control_flow_ops.cond(tf.cast(_LEARNING_PHASE, 'bool'),
-                                        lambda: alt,
-                                        lambda: x)
+    x = _cond(tf.cast(_LEARNING_PHASE, 'bool'), lambda: alt, lambda: x)
     x._uses_learning_phase = True
     x.set_shape(x_shape)
     return x
@@ -1285,6 +1378,20 @@ def relu(x, alpha=0., max_value=None):
         alpha = _to_tensor(alpha, x.dtype.base_dtype)
         x -= alpha * negative_part
     return x
+
+
+def elu(x, alpha=1.):
+    """ Exponential linear unit
+
+    # Arguments
+        x: Tensor to compute the activation function for.
+        alpha: scalar
+    """
+    res = tf.nn.elu(x)
+    if alpha == 1:
+        return res
+    else:
+        return tf.select(x > 0, res, alpha*res)
 
 
 def softmax(x):
@@ -1408,6 +1515,20 @@ def l2_normalize(x, axis):
     if axis < 0:
         axis = axis % len(x.get_shape())
     return tf.nn.l2_normalize(x, dim=axis)
+
+def in_top_k(predictions, targets, k):
+    '''Says whether the `targets` are in the top `k` `predictions`
+
+    # Arguments
+        predictions: A tensor of shape batch_size x classess and type float32.
+        targets: A tensor of shape batch_size and type int32 or int64.
+        k: An int, number of top elements to consider.
+
+    # Returns
+        A tensor of shape batch_size and type bool. output_i is True if
+        targets_i is within top-k values of predictions_i
+    '''
+    return tf.nn.in_top_k(predictions, targets, k)
 
 
 # CONVOLUTIONS
@@ -1713,9 +1834,9 @@ def ctc_label_dense_to_sparse(labels, label_lengths):
     max_num_labels_tns = tf.pack([label_shape[1]])
 
     def range_less_than(previous_state, current_input):
-        return tf.expand_dims(tf.range(label_shape[1]), 0) < current_input
+        return tf.expand_dims(tf.range(label_shape[1]), 0) < tf.fill(max_num_labels_tns, current_input)
 
-    init = tf.cast(tf.fill(max_num_labels_tns, 0), tf.bool)
+    init = tf.cast(tf.fill([1, label_shape[1]], 0), tf.bool)
     dense_mask = functional_ops.scan(range_less_than, label_lengths,
                                      initializer=init, parallel_iterations=1)
     dense_mask = dense_mask[:, 0, :]
@@ -1757,13 +1878,13 @@ def ctc_batch_cost(y_true, y_pred, input_length, label_length):
 
     y_pred = tf.log(tf.transpose(y_pred, perm=[1, 0, 2]) + 1e-8)
 
-    return tf.expand_dims(tf.contrib.ctc.ctc_loss(inputs=y_pred,
-                                                  labels=sparse_labels,
-                                                  sequence_length=input_length), 1)
+    return tf.expand_dims(ctc.ctc_loss(inputs=y_pred,
+                                       labels=sparse_labels,
+                                       sequence_length=input_length), 1)
 
 
-def ctc_decode(y_pred, input_length, greedy=True, beam_width=None,
-               dict_seq_lens=None, dict_values=None):
+def ctc_decode(y_pred, input_length, greedy=True, beam_width=100,
+               top_paths=1):
     '''Decodes the output of a softmax using either
        greedy (also known as best path) or a constrained dictionary
        search.
@@ -1771,38 +1892,33 @@ def ctc_decode(y_pred, input_length, greedy=True, beam_width=None,
     # Arguments
         y_pred: tensor (samples, time_steps, num_categories) containing the prediction,
                 or output of the softmax
-        input_length: tensor (samples,1) containing the sequence length for
+        input_length: tensor (samples,) containing the sequence length for
                 each batch item in y_pred
-        greedy:  perform much faster best-path search if true.  This does
+        greedy: perform much faster best-path search if true.  This does
                 not use a dictionary
-        beam_width:  if greedy is false and this value is not none, then
-                the constrained dictionary search uses a beam of this width
-        dict_seq_lens: the length of each element in the dict_values list
-        dict_values:  list of lists representing the dictionary.
+        beam_width: if greedy is false: a beam search decoder will be used
+                with a beam of this width
+        top_paths: if greedy is false: how many of the most probable paths will be returned
 
     # Returns
-        Tensor with shape (samples,time_steps,num_categories) containing the
-            path probabilities (in softmax output format).  Note that a function that
-            pulls out the argmax and collapses blank labels is still needed.
+        Tuple:
+            List: if greedy is true, returns a list of one element that contains
+                the decoded sequence. If false, returns the `top_paths` most probable
+                decoded sequences. Important: blank labels are returned as -1
+            Tensor (top_paths,) that contains the log probability of each decoded sequence
     '''
     y_pred = tf.log(tf.transpose(y_pred, perm=[1, 0, 2]) + 1e-8)
-    input_length = tf.to_int32(tf.squeeze(input_length))
+    input_length = tf.to_int32(input_length)
 
     if greedy:
-        (decoded, log_prob) = tf.contrib.ctc.ctc_greedy_decoder(
+        (decoded, log_prob) = ctc.ctc_greedy_decoder(
             inputs=y_pred,
             sequence_length=input_length)
     else:
-        if beam_width is not None:
-            (decoded, log_prob) = tf.contrib.ctc.ctc_beam_search_decoder(
-                inputs=y_pred,
-                sequence_length=input_length,
-                dict_seq_lens=dict_seq_lens, dict_values=dict_values)
-        else:
-            (decoded, log_prob) = tf.contrib.ctc.ctc_beam_search_decoder(
-                inputs=y_pred,
-                sequence_length=input_length, beam_width=beam_width,
-                dict_seq_lens=dict_seq_lens, dict_values=dict_values)
+        (decoded, log_prob) = ctc.ctc_beam_search_decoder(
+            inputs=y_pred,
+            sequence_length=input_length, beam_width=beam_width,
+            top_paths=top_paths)
 
     decoded_dense = [tf.sparse_to_dense(st.indices, st.shape, st.values, default_value=-1)
                      for st in decoded]

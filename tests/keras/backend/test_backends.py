@@ -2,6 +2,7 @@ import sys
 import pytest
 from numpy.testing import assert_allclose
 import numpy as np
+import scipy.sparse as sparse
 
 from keras.backend import theano_backend as KTH
 from keras.backend import tensorflow_backend as KTF
@@ -429,6 +430,50 @@ class TestBackend(object):
         assert_allclose(unrolled_masked_th_outputs, masked_th_outputs, atol=1e-04)
         assert_allclose(unrolled_masked_th_state, masked_th_state, atol=1e-04)
 
+    def test_rnn_no_states(self):
+        # implement a simple RNN without states
+        input_dim = 8
+        output_dim = 4
+        timesteps = 5
+
+        input_val = np.random.random((32, timesteps, input_dim))
+        W_i_val = np.random.random((input_dim, output_dim))
+
+        def rnn_step_fn(input_dim, output_dim, K):
+            W_i = K.variable(W_i_val)
+
+            def step_function(x, states):
+                assert len(states) == 0
+                output = K.dot(x, W_i)
+                return output, []
+            return step_function
+
+        # test default setup
+        th_rnn_step_fn = rnn_step_fn(input_dim, output_dim, KTH)
+        th_inputs = KTH.variable(input_val)
+        th_initial_states = []
+        last_output, outputs, new_states = KTH.rnn(th_rnn_step_fn, th_inputs,
+                                                   th_initial_states,
+                                                   go_backwards=False,
+                                                   mask=None)
+        th_last_output = KTH.eval(last_output)
+        th_outputs = KTH.eval(outputs)
+        assert len(new_states) == 0
+
+        tf_rnn_step_fn = rnn_step_fn(input_dim, output_dim, KTF)
+        tf_inputs = KTF.variable(input_val)
+        tf_initial_states = []
+        last_output, outputs, new_states = KTF.rnn(tf_rnn_step_fn, tf_inputs,
+                                                   tf_initial_states,
+                                                   go_backwards=False,
+                                                   mask=None)
+        tf_last_output = KTF.eval(last_output)
+        tf_outputs = KTF.eval(outputs)
+        assert len(new_states) == 0
+
+        assert_allclose(tf_last_output, th_last_output, atol=1e-04)
+        assert_allclose(tf_outputs, th_outputs, atol=1e-04)
+
     def test_switch(self):
         val = np.random.random()
         xth = KTH.variable(val)
@@ -447,6 +492,7 @@ class TestBackend(object):
         check_single_tensor_operation('relu', (4, 2), alpha=0.1, max_value=0.5)
         check_single_tensor_operation('softmax', (4, 10))
         check_single_tensor_operation('softplus', (4, 10))
+        check_single_tensor_operation('elu', (4, 10), alpha=0.5)
 
         check_single_tensor_operation('sigmoid', (4, 2))
         check_single_tensor_operation('hard_sigmoid', (4, 2))
@@ -483,11 +529,11 @@ class TestBackend(object):
 
                 kernel_val = np.random.random(kernel_shape) - 0.5
 
-                kernel_th = KTH.variable(convert_kernel(kernel_val))
+                kernel_th = KTH.variable(convert_kernel(kernel_val, dim_ordering='th'))
                 kernel_tf = KTF.variable(kernel_val)
 
-                zth = KTH.eval(KTH.conv2d(xth, kernel_th))
-                ztf = KTF.eval(KTF.conv2d(xtf, kernel_tf))
+                zth = KTH.eval(KTH.conv2d(xth, kernel_th, dim_ordering='th'))
+                ztf = KTF.eval(KTF.conv2d(xtf, kernel_tf, dim_ordering='th'))
 
                 assert zth.shape == ztf.shape
                 assert_allclose(zth, ztf, atol=1e-05)
@@ -527,11 +573,11 @@ class TestBackend(object):
 
                 kernel_val = np.random.random(kernel_shape) - 0.5
 
-                kernel_th = KTH.variable(convert_kernel(kernel_val))
+                kernel_th = KTH.variable(convert_kernel(kernel_val, dim_ordering='th'))
                 kernel_tf = KTF.variable(kernel_val)
 
-                zth = KTH.eval(KTH.conv3d(xth, kernel_th))
-                ztf = KTF.eval(KTF.conv3d(xtf, kernel_tf))
+                zth = KTH.eval(KTH.conv3d(xth, kernel_th, dim_ordering='th'))
+                ztf = KTF.eval(KTF.conv3d(xtf, kernel_tf, dim_ordering='th'))
 
                 assert zth.shape == ztf.shape
                 assert_allclose(zth, ztf, atol=1e-05)
@@ -557,23 +603,23 @@ class TestBackend(object):
         assert_allclose(zth, ztf, atol=1e-05)
 
     def test_pool2d(self):
-        check_single_tensor_operation('pool2d', (5, 3, 10, 12), pool_size=(2, 2),
+        check_single_tensor_operation('pool2d', (5, 10, 12, 3), pool_size=(2, 2),
                                       strides=(1, 1), border_mode='valid')
 
-        check_single_tensor_operation('pool2d', (5, 3, 9, 11), pool_size=(2, 2),
+        check_single_tensor_operation('pool2d', (5, 9, 11, 3), pool_size=(2, 2),
                                       strides=(1, 1), border_mode='valid')
 
-        check_single_tensor_operation('pool2d', (5, 3, 9, 11), pool_size=(2, 3),
+        check_single_tensor_operation('pool2d', (5, 9, 11, 3), pool_size=(2, 3),
                                       strides=(1, 1), border_mode='valid')
 
     def test_pool3d(self):
-        check_single_tensor_operation('pool3d', (5, 3, 10, 12, 5), pool_size=(2, 2, 2),
+        check_single_tensor_operation('pool3d', (5, 10, 12, 5, 3), pool_size=(2, 2, 2),
                                       strides=(1, 1, 1), border_mode='valid')
 
-        check_single_tensor_operation('pool3d', (5, 3, 9, 11, 5), pool_size=(2, 2, 2),
+        check_single_tensor_operation('pool3d', (5, 9, 11, 5, 3), pool_size=(2, 2, 2),
                                       strides=(1, 1, 1), border_mode='valid')
 
-        check_single_tensor_operation('pool3d', (5, 3, 9, 11, 5), pool_size=(2, 3, 2),
+        check_single_tensor_operation('pool3d', (5, 9, 11, 5, 3), pool_size=(2, 3, 2),
                                       strides=(1, 1, 1), border_mode='valid')
 
     def test_random_normal(self):
@@ -660,6 +706,116 @@ class TestBackend(object):
         res = KTH.eval(KTH.ctc_batch_cost(labels_th, inputs_th, input_lens_th, label_lens_th))
         assert_allclose(res[0, :], loss_log_probs_th, atol=1e-05)
 
+    def test_ctc_decode_greedy(self):
+        # Test adapted from tensorflow
+        """Test two batch entries - best path decoder."""
+        max_time_steps = 6
+
+        seq_len_0 = 4
+        input_prob_matrix_0 = np.asarray(
+            [[1.0, 0.0, 0.0, 0.0],  # t=0
+             [0.0, 0.0, 0.4, 0.6],  # t=1
+             [0.0, 0.0, 0.4, 0.6],  # t=2
+             [0.0, 0.9, 0.1, 0.0],  # t=3
+             [0.0, 0.0, 0.0, 0.0],  # t=4 (ignored)
+             [0.0, 0.0, 0.0, 0.0]],  # t=5 (ignored)
+            dtype=np.float32)
+        input_log_prob_matrix_0 = np.log(input_prob_matrix_0)
+
+        seq_len_1 = 5
+        # dimensions are time x depth
+
+        input_prob_matrix_1 = np.asarray(
+            [[0.1, 0.9, 0.0, 0.0],  # t=0
+             [0.0, 0.9, 0.1, 0.0],  # t=1
+             [0.0, 0.0, 0.1, 0.9],  # t=2
+             [0.0, 0.9, 0.1, 0.1],  # t=3
+             [0.9, 0.1, 0.0, 0.0],  # t=4
+             [0.0, 0.0, 0.0, 0.0]],  # t=5 (ignored)
+            dtype=np.float32)
+
+        # len max_time_steps array of batch_size x depth matrices
+        inputs = [np.vstack([input_prob_matrix_0[t, :],
+                             input_prob_matrix_1[t, :]])
+                  for t in range(max_time_steps)]
+
+        # change tensorflow order to keras backend order
+        inputs = KTF.variable(np.asarray(inputs).transpose((1, 0, 2)))
+        # batch_size length vector of sequence_lengths
+        input_length = KTF.variable(np.array([seq_len_0, seq_len_1], dtype=np.int32))
+
+        # batch_size length vector of negative log probabilities
+        log_prob_truth = np.array([
+            np.sum(-np.log([1.0, 0.6, 0.6, 0.9])),
+            np.sum(-np.log([0.9, 0.9, 0.9, 0.9, 0.9]))
+        ], np.float32)[:, np.newaxis]
+
+        # keras output, unlike tensorflow, is a dense (not sparse) tensor
+        decode_truth = np.array([[0, 1, -1], [1, 1, 0]])
+
+        decode_pred_tf, log_prob_pred_tf = KTF.ctc_decode(inputs,
+                                                          input_length,
+                                                          greedy=True)
+
+        assert len(decode_pred_tf) == 1
+
+        decode_pred = KTF.eval(decode_pred_tf[0])
+        log_prob_pred = KTF.eval(log_prob_pred_tf)
+
+        assert np.alltrue(decode_truth == decode_pred)
+        assert np.allclose(log_prob_truth, log_prob_pred)
+
+    def test_ctc_decode_beam_search(self):
+        """Test one batch, two beams - hibernating beam search."""
+
+        depth = 6
+
+        seq_len_0 = 5
+        input_prob_matrix_0 = np.asarray(
+            [[0.30999, 0.309938, 0.0679938, 0.0673362, 0.0708352, 0.173908],
+             [0.215136, 0.439699, 0.0370931, 0.0393967, 0.0381581, 0.230517],
+             [0.199959, 0.489485, 0.0233221, 0.0251417, 0.0233289, 0.238763],
+             [0.279611, 0.452966, 0.0204795, 0.0209126, 0.0194803, 0.20655],
+             [0.51286, 0.288951, 0.0243026, 0.0220788, 0.0219297, 0.129878],
+             # Random entry added in at time=5
+             [0.155251, 0.164444, 0.173517, 0.176138, 0.169979, 0.160671]],
+            dtype=np.float32)
+
+        # len max_time_steps array of batch_size x depth matrices
+        inputs = ([input_prob_matrix_0[t, :][np.newaxis, :]
+                  for t in range(seq_len_0)] +  # Pad to max_time_steps = 8
+                  2 * [np.zeros((1, depth), dtype=np.float32)])
+
+        inputs = KTF.variable(np.asarray(inputs).transpose((1, 0, 2)))
+
+        # batch_size length vector of sequence_lengths
+        input_length = KTF.variable(np.array([seq_len_0], dtype=np.int32))
+        # batch_size length vector of negative log probabilities
+        log_prob_truth = np.array([
+            0.584855,  # output beam 0
+            0.389139  # output beam 1
+        ], np.float32)[np.newaxis, :]
+
+        decode_truth = [np.array([1, 0]), np.array([0, 1, 0])]
+
+        beam_width = 2
+        top_paths = 2
+
+        decode_pred_tf, log_prob_pred_tf = KTF.ctc_decode(inputs,
+                                                          input_length,
+                                                          greedy=False,
+                                                          beam_width=beam_width,
+                                                          top_paths=top_paths)
+
+        assert len(decode_pred_tf) == top_paths
+
+        log_prob_pred = KTF.eval(log_prob_pred_tf)
+
+        for i in range(top_paths):
+            assert np.alltrue(decode_truth[i] == KTF.eval(decode_pred_tf[i]))
+
+        assert np.allclose(log_prob_truth, log_prob_pred)
+
     def test_one_hot(self):
         input_length = 10
         nb_classes = 20
@@ -669,6 +825,61 @@ class TestBackend(object):
         for K in [KTH, KTF]:
             koh = K.eval(K.one_hot(K.variable(indices, dtype='int32'), nb_classes))
             assert np.all(koh == oh)
+
+    def test_sparse_dot(self):
+        x_d = np.array([0, 7, 2, 3], dtype=np.float32)
+        x_r = np.array([0, 2, 2, 3], dtype=np.int64)
+        x_c = np.array([4, 3, 2, 3], dtype=np.int64)
+
+        x_sparse = sparse.csr_matrix((x_d, (x_r, x_c)), shape=(4, 5))
+        x_dense = x_sparse.toarray()
+
+        W = np.random.random((5, 4))
+
+        backends = [KTF]
+        if KTH.th_sparse_module:
+            # Theano has some dependency issues for sparse
+            backends.append(KTH)
+
+        for K in backends:
+            t_W = K.variable(W)
+            k_s = K.eval(K.dot(K.variable(x_sparse), t_W))
+            k_d = K.eval(K.dot(K.variable(x_dense), t_W))
+
+            assert k_s.shape == k_d.shape
+            assert_allclose(k_s, k_d, atol=1e-05)
+
+    def test_sparse_concat(self):
+        x_d = np.array([0, 7, 2, 3], dtype=np.float32)
+        x_r = np.array([0, 2, 2, 3], dtype=np.int64)
+        x_c = np.array([4, 3, 2, 3], dtype=np.int64)
+
+        x_sparse_1 = sparse.csr_matrix((x_d, (x_r, x_c)), shape=(4, 5))
+
+        x_d = np.array([0, 7, 2, 3], dtype=np.float32)
+        x_r = np.array([0, 2, 2, 3], dtype=np.int64)
+        x_c = np.array([4, 3, 2, 3], dtype=np.int64)
+
+        x_sparse_2 = sparse.csr_matrix((x_d, (x_r, x_c)), shape=(4, 5))
+
+        x_dense_1 = x_sparse_1.toarray()
+        x_dense_2 = x_sparse_2.toarray()
+
+        backends = [KTF]
+        if KTH.th_sparse_module:
+            # Theano has some dependency issues for sparse
+            backends.append(KTH)
+
+        for K in backends:
+            k_s = K.concatenate([K.variable(x_sparse_1), K.variable(x_sparse_2)])
+            assert K.is_sparse(k_s)
+
+            k_s_d = K.eval(k_s)
+
+            k_d = K.eval(K.concatenate([K.variable(x_dense_1), K.variable(x_dense_2)]))
+
+            assert k_s_d.shape == k_d.shape
+            assert_allclose(k_s_d, k_d, atol=1e-05)
 
 
 if __name__ == '__main__':

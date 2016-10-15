@@ -1,3 +1,5 @@
+import os
+
 try:
     # pydot-ng is a fork of pydot that is better maintained
     import pydot_ng as pydot
@@ -64,4 +66,9 @@ def model_to_dot(model, show_shapes=False, show_layer_names=True):
 
 def plot(model, to_file='model.png', show_shapes=False, show_layer_names=True):
     dot = model_to_dot(model, show_shapes, show_layer_names)
-    dot.write_png(to_file)
+    _, format = os.path.splitext(to_file)
+    if not format:
+        format = 'png'
+    else:
+        format = format[1:]
+    dot.write(to_file, format=format)

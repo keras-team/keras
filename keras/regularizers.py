@@ -1,8 +1,10 @@
 from __future__ import absolute_import
 from . import backend as K
+from .utils.generic_utils import get_from_module
 
 
 class Regularizer(object):
+
     def set_param(self, p):
         self.p = p
 
@@ -29,6 +31,9 @@ class EigenvalueRegularizer(Regularizer):
         self.uses_learning_phase = True
 
     def set_param(self, p):
+        if hasattr(self, 'p'):
+            raise Exception('Regularizers cannot be reused. '
+                            'Instantiate one regularizer per layer.')
         self.p = p
 
     def __call__(self, loss):
@@ -50,23 +55,30 @@ class EigenvalueRegularizer(Regularizer):
         WWd = K.dot(WW, main_eigenvect)
 
         # the corresponding dominant eigenvalue:
-        main_eigenval = K.dot(K.transpose(WWd), main_eigenvect) / K.dot(K.transpose(main_eigenvect), main_eigenvect)
-        regularized_loss = loss + (main_eigenval ** 0.5) * self.k  # multiplied by the given regularization gain
+        main_eigenval = (K.dot(K.transpose(WWd), main_eigenvect) /
+                         K.dot(K.transpose(main_eigenvect), main_eigenvect))
+        # multiplied by the given regularization gain
+        regularized_loss = loss + (main_eigenval ** 0.5) * self.k
 
         return K.in_train_phase(regularized_loss[0, 0], loss)
 
 
 class WeightRegularizer(Regularizer):
+
     def __init__(self, l1=0., l2=0.):
         self.l1 = K.cast_to_floatx(l1)
         self.l2 = K.cast_to_floatx(l2)
         self.uses_learning_phase = True
+        self.p = None
 
     def set_param(self, p):
+        if self.p is not None:
+            raise Exception('Regularizers cannot be reused. '
+                            'Instantiate one regularizer per layer.')
         self.p = p
 
     def __call__(self, loss):
-        if not hasattr(self, 'p'):
+        if self.p is None:
             raise Exception('Need to call `set_param` on '
                             'WeightRegularizer instance '
                             'before calling the instance. '
@@ -89,16 +101,20 @@ class WeightRegularizer(Regularizer):
 
 
 class ActivityRegularizer(Regularizer):
+
     def __init__(self, l1=0., l2=0.):
         self.l1 = K.cast_to_floatx(l1)
         self.l2 = K.cast_to_floatx(l2)
         self.uses_learning_phase = True
+        self.layer = None
 
     def set_layer(self, layer):
+        if self.layer is not None:
+            raise Exception('Regularizers cannot be reused')
         self.layer = layer
 
     def __call__(self, loss):
-        if not hasattr(self, 'layer'):
+        if self.layer is None:
             raise Exception('Need to call `set_layer` on '
                             'ActivityRegularizer instance '
                             'before calling the instance.')
@@ -141,7 +157,6 @@ def activity_l1l2(l1=0.01, l2=0.01):
     return ActivityRegularizer(l1=l1, l2=l2)
 
 
-from .utils.generic_utils import get_from_module
 def get(identifier, kwargs=None):
     return get_from_module(identifier, globals(), 'regularizer',
                            instantiate=True, kwargs=kwargs)
