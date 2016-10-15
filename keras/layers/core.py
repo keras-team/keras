@@ -1216,29 +1216,28 @@ class TimeDistributedDense(Layer):
 
 
 class GradientReversal(Layer):
-    def __init__(self, l, **kwargs):
-        super(GradientReversal, self).__init__(**kwargs)
-        self.l = K.variable(l)
-        self.supports_masking = False
+    '''
+    Flip the sign of gradient during training.
 
-        if K._BACKEND == 'theano':
-            self.op = K.ReverseGradient(self.l)
-        elif K._BACKEND == 'tensorflow':
-            self.op = K.ReverseGradientBuilder()
+    # Arguments:
+        hp_lambda: Scalar to multiply the flipped gradient.
+    '''
+    def __init__(self, hp_lambda, **kwargs):
+        super(GradientReversal, self).__init__(**kwargs)
+        self.hp_lambda = K.variable(hp_lambda)
+        self.supports_masking = False
+        self.op = K.ReverseGradient(self.hp_lambda)
 
     def build(self, input_shape):
         self.trainable_weights = []
 
     def call(self, x, mask=None):
-        if K._BACKEND == 'theano':
-            return self.op(x)
-        elif K._BACKEND == 'tensorflow':
-            return self.op(x, self.l)
+        return self.op(x)
 
     def get_output_shape_for(self, input_shape):
         return input_shape
 
     def get_config(self):
-        config = {'lambda': self.l}
+        config = {'hp_lambda': self.hp_lambda}
         base_config = super(GradientReversal, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))

@@ -1927,17 +1927,18 @@ def ctc_decode(y_pred, input_length, greedy=True, beam_width=100,
     return (decoded_dense, log_prob)
 
 
-class ReverseGradientBuilder(object):
-    '''Flips the sign of incoming gradients in training'''
-    def __init__(self):
+class ReverseGradient(object):
+    '''Flips the sign of incoming gradient during training.'''
+    def __init__(self, hp_lambda):
         self.num_calls = 0
+        self.hp_lambda = hp_lambda
 
-    def __call__(self, x, l=1.0):
+    def __call__(self, x):
         grad_name = "GradientReversal%d" % self.num_calls
 
         @tf.python.framework.ops.RegisterGradient(grad_name)
         def _flip_gradients(op, grad):
-            return [tf.neg(grad) * l]
+            return [tf.neg(grad) * self.hp_lambda]
 
         g = get_session().graph
         with g.gradient_override_map({'Identity': grad_name}):
