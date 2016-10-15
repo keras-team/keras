@@ -2527,8 +2527,13 @@ class Container(Layer):
                                     ' weights, but the saved weights have ' +
                                     str(len(weight_values)) +
                                     ' elements.')
-                if layer.__class__.__name__ == 'Convolution1D':
-                    # This is for backwards compatibility with
+                # Import deferred to runtime because of circular dependencies.
+                # The relative inelegance of the solution should be compared
+                # with the alternative: possibly significant refactoring
+                # to get rid of the circular dependencies
+                from keras.layers.convolutional import Convolution1D
+                if isinstance(layer, Convolution1D):
+                    # this is for backwards compatibility with
                     # the old Conv1D weights format.
                     w = weight_values[0]
                     shape = w.shape
@@ -2613,8 +2618,8 @@ class Container(Layer):
             if type(obj).__module__ == np.__name__:
                 return obj.item()
 
-            # If obj is a python 'type'
-            if type(obj).__name__ == type.__name__:
+            # if obj is a python 'type'
+            if type(obj) is type:
                 return obj.__name__
 
             raise TypeError('Not JSON Serializable:', obj)

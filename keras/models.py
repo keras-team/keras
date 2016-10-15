@@ -32,7 +32,7 @@ def save_model(model, filepath, overwrite=True):
             return obj.__name__
 
         # if obj is a python 'type'
-        if type(obj).__name__ == type.__name__:
+        if type(obj) is type:
             return obj.__name__
 
         raise TypeError('Not JSON Serializable:', obj)
@@ -181,7 +181,7 @@ def load_model(filepath, custom_objects={}):
     f.close()
     return model
 
-
+    
 def model_from_config(config, custom_objects={}):
     from keras.utils.layer_utils import layer_from_config
     if isinstance(config, list):
