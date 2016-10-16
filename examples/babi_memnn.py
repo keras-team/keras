@@ -210,4 +210,4 @@ answer.fit([inputs_train, queries_train, inputs_train], answers_train,
 
 # Evaluating on the test set
 loss, acc = answer.evaluate([inputs_test, queries_test, inputs_test], answers_test, batch_size=32)
-print("\nTest Evaluation: Loss= {0}, Acc= {1}".format(loss,acc))
+print("Test Evaluation: Loss= {0}, Acc= {1}".format(loss,acc))
