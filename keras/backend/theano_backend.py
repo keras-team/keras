@@ -1506,6 +1506,60 @@ def pool2d(x, pool_size, strides=(1, 1), border_mode='valid',
 
 def pool3d(x, pool_size, strides=(1, 1, 1), border_mode='valid',
            dim_ordering=_IMAGE_DIM_ORDERING, pool_mode='max'):
+    # TODO: remove this if statement when Theano without pool_3d is deprecated
+    #       (pool_3d was introduced after 0.9.0dev3)
+    if not hasattr(T.signal.pool, 'pool_3d'):
+        return _old_theano_pool3d(x, pool_size, strides, border_mode,
+                                  dim_ordering, pool_mode)
+
+    if border_mode == 'same':
+        w_pad = pool_size[0] - 2 if pool_size[0] % 2 == 1 else pool_size[0] - 1
+        h_pad = pool_size[1] - 2 if pool_size[1] % 2 == 1 else pool_size[1] - 1
+        d_pad = pool_size[2] - 2 if pool_size[2] % 2 == 1 else pool_size[2] - 1
+        padding = (w_pad, h_pad, d_pad)
+    elif border_mode == 'valid':
+        padding = (0, 0, 0)
+    else:
+        raise Exception('Invalid border mode: ' + str(border_mode))
+
+    if dim_ordering not in {'th', 'tf'}:
+        raise Exception('Unknown dim_ordering ' + str(dim_ordering))
+
+    if dim_ordering == 'tf':
+        x = x.dimshuffle((0, 4, 1, 2, 3))
+
+    if pool_mode == 'max':
+        pool_out = pool.pool_3d(x, ds=pool_size, st=strides,
+                                ignore_border=True,
+                                padding=padding,
+                                mode='max')
+    elif pool_mode == 'avg':
+        pool_out = pool.pool_3d(x, ds=pool_size, st=strides,
+                                ignore_border=True,
+                                padding=padding,
+                                mode='average_exc_pad')
+    else:
+        raise Exception('Invalid pooling mode: ' + str(pool_mode))
+
+    if border_mode == 'same':
+        expected_width = (x.shape[2] + strides[0] - 1) // strides[0]
+        expected_height = (x.shape[3] + strides[1] - 1) // strides[1]
+        expected_depth = (x.shape[4] + strides[2] - 1) // strides[2]
+
+        pool_out = pool_out[:, :,
+                            : expected_width,
+                            : expected_height,
+                            : expected_depth]
+
+    if dim_ordering == 'tf':
+        pool_out = pool_out.dimshuffle((0, 2, 3, 4, 1))
+    return pool_out
+
+
+# TODO: remove this function when Theano without pool_3d is deprecated
+#       (pool_3d was introduced after 0.9.0dev3)
+def _old_theano_pool3d(x, pool_size, strides=(1, 1, 1), border_mode='valid',
+                       dim_ordering=_IMAGE_DIM_ORDERING, pool_mode='max'):
     if border_mode == 'same':
         # TODO: add implementation for border_mode="same"
         raise Exception('border_mode="same" not supported with Theano.')
