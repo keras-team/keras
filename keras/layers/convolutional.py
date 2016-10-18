@@ -1693,6 +1693,7 @@ class CompactBilinearPooling(Layer):
     def build(self, input_shapes):
         self.trainable_weights = []
         self.nmodes = len(input_shapes)
+        self.shape_in = input_shapes
         for i in range(self.nmodes):
             if self.h[i] is None:
                 self.h[i] = np.random.random_integers(0, self.d-1, size=(input_shapes[i][1],))
@@ -1731,10 +1732,16 @@ class CompactBilinearPooling(Layer):
             return out
 
     def call(self, x, mask=None):
-        if type(x) is not list or len(x) <= 1:
+        if type(x) is not list or len(x) < 2:
             raise Exception('CompactBilinearPooling must be called on a list of tensors '
                             '(at least 2). Got: ' + str(x))
+        if len(self.shape_in[0]) > 2:
+            x = [K.dimshuffle(x[i], tuple([0] + range(2, len(self.shape_in)) + [1])) for i in range(self.nmodes)]
+            x = [K.reshape(x, tuple([-1] + [self.shape_in[1]])) for i in range(self.nmodes)]
+            x = [K.reshape(K.dimshuffle(x[i], tuple([0]+range(2,len(self.shape_in))+[1])), tuple([-1] + [self.shape_in[1]])) for i in range(self.nmodes)]
         y = self.multimodal_compact_bilinear(x)
+        if len(self.shape_in) > 2:
+            y = K.dimshuffle(K.reshape(y, tuple([-1] + self.shape_in[2:] + [self.d])), tuple([0,-1]+range(1,len(self.shape_in)-1)))
         if self.return_extra:
             return y+self.h+self.s
         return y

@@ -477,7 +477,6 @@ class RepeatMatrix(Layer):
         return tuple(output_shape)
 
     def compute_mask(self, input, input_mask=None):
-        # return K.repeatRdim(input_mask, self.n, axis=self.dim)
         return input_mask
 
     def call(self, x, mask=None):
@@ -1252,9 +1251,29 @@ class MaskedMean(Layer):
 
 
 class WeightedSum(Layer):
+    ''' Applies a weighted sum over a set of vectors input[0] and their respective weights input[1].
+        First, the weights are tiled for matching the length of the input vectors on dim=1.
+        Second, an element-wise multiplication is applied over the inputs.
+        Third, the output tensor is summed over the defined set of dimensions if
+        the input parameter sum_dims is provided.
+
+    # Arguments
+        sum_dims: dimensions on which the final summation will be applied after the respective multiplication
+
+    # Input shape
+        List with two tensors:
+            input[0]: vectors
+            input[1]: weights
+        Both tensors must have a matching number of dimensions and lengths, except
+        dim=1, which must be 1 for the set of weights.
+
+    # Output shape
+        Vector with the same number of dimensions and length as input[0] but having removed the dimensions
+        specified in sum_dims (if any).
+    '''
     def __init__(self, sum_dims=[], **kwargs):
         assert isinstance(sum_dims, list)
-        self.sum_dims = sum_dims
+        self.sum_dims = sorted(sum_dims)[::-1]
         self.supports_masking = True
         super(WeightedSum, self).__init__(**kwargs)
 
@@ -1263,7 +1282,16 @@ class WeightedSum(Layer):
         assert len(input_shape) == 2
 
     def call(self, x, mask=None):
-        x = x[0]*x[1]
+        # get input values and weights
+        values = x[0]
+        weights = x[1]
+
+        # tile weights before summing
+        K.repeatRdim(weights, K.shape(values)[1], axis=1)
+
+        #x = K.dot(values, weights)
+        x = values*weights
+
         for d in self.sum_dims:
             x = K.sum(x, axis=d)
         return x
@@ -1282,10 +1310,12 @@ class WeightedSum(Layer):
         else:
             not_None_masks = [m for m in input_mask if m is not None]
             if len(not_None_masks) == 1:
-                return not_None_masks[0]
+                out_mask = input_mask[not_None_masks[0]]
             else:
-                input_mask = K.concatenate(input_mask)
-                return K.prod(input_mask, axis=0)
+                out_mask = input_mask[not_None_masks[0]] * input_mask[not_None_masks[1]]
+
+            return out_mask
+
 
     def get_config(self):
         config = {'sum_dims': self.sum_dims}

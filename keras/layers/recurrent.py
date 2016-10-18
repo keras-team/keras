@@ -1718,6 +1718,7 @@ class LSTM(Recurrent):
             constants.append(B_W)
         else:
             constants.append([K.cast_to_floatx(1.) for _ in range(4)])
+
         return constants
 
     def get_config(self):
@@ -1969,7 +1970,10 @@ class LSTMCond(LSTM):
         return ret
 
     def compute_mask(self, input, mask):
-        return mask[0]
+        if self.return_sequences:
+            return mask[0]
+        else:
+            return None
 
 
     def step(self, x, states):

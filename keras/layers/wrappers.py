@@ -91,7 +91,6 @@ class TimeDistributed(Wrapper):
         super(TimeDistributed, self).__init__(layer, **kwargs)
 
     def build(self, input_shape):
-
         #assert len(input_shape) >= 3
         #self.input_spec = [InputSpec(shape=input_shape)]
 
@@ -122,6 +121,7 @@ class TimeDistributed(Wrapper):
         X = self.get_input(train)
         mask = self.get_input_mask(train)
 
+        input_shape = self.input_spec[0].shape
         self.input_spec = [InputSpec(shape=input_shape)]
         if K._BACKEND == 'tensorflow':
             if not input_shape[1]:
@@ -145,8 +145,13 @@ class TimeDistributed(Wrapper):
         #child_input_shape = (input_shape[0],) + input_shape[2:]
 
         if type(input_shape) == list:
+            all_timesteps = [shape[1] for shape in input_shape]
+            if None in all_timesteps:
+                timesteps = None
+            else:
+                timesteps = max(all_timesteps)
             child_input_shape = [((shape[0],) + shape[2:]) for shape in input_shape]
-            timesteps = input_shape[0][1]
+            #timesteps = input_shape[0][1]
         else:
             child_input_shape = (input_shape[0],) + input_shape[2:]
             timesteps = input_shape[1]
@@ -170,7 +175,7 @@ class TimeDistributed(Wrapper):
                 return K.prod(input_mask, axis=0)
 
     def call(self, X, mask=None):
-        #input_shape = self.input_spec[0].shape
+        input_shape = self.input_spec[0].shape
         #if input_shape[0]:
 
         input_shapes = [input_spec.shape for input_spec in self.input_spec]
@@ -179,8 +184,8 @@ class TimeDistributed(Wrapper):
             if shape[0] is not None:
                 batch_size = True
                 break
-        if batch_size:
 
+        if batch_size:
             # batch size matters, use rnn-based implementation
             def step(x, states):
                 output = self.layer.call(x)
@@ -208,16 +213,16 @@ class TimeDistributed(Wrapper):
             # to process batches of any size
             # we can go with reshape-based implementation for performance
 
-            #input_length = input_shape[1]
             if type(X) != list:
                 X = [X]
-            input_length = input_shapes[0][1]
+            input_length = [K.shape(X[i])[1] for i in range(len(X))]
+            max_length = K.max(input_length)
 
-            if not input_length:
-                #input_length = K.shape(X)[1]
-                input_length = K.shape(X[0])[1]
-            #X = K.reshape(X, (-1, ) + input_shape[2:])  # (nb_samples * timesteps, ...)
-            X = [K.reshape(X[i], (-1,) + input_shapes[i][2:]) for i in range(len(X))]  # (nb_samples * timesteps, ...)
+            # repeat broadcastable inputs for balancing dimensions
+            X = [K.repeatRdim(X[i], max_length, axis=1) if input_length[i]==1 else X[i] for i in range(len(X))]
+            # (nb_samples * timesteps, ...)
+            X = [K.reshape(X[i], (-1,) + input_shapes[i][2:]) for i in range(len(X))]
+
             if len(X) == 1:
                 X = X[0]
                 input_shape = input_shapes[0]
@@ -227,7 +232,7 @@ class TimeDistributed(Wrapper):
             y = self.layer.call(X)  # (nb_samples * timesteps, ...)
             # (nb_samples, timesteps, ...)
             output_shape = self.get_output_shape_for(input_shape)
-            y = K.reshape(y, (-1, input_length) + output_shape[2:])
+            y = K.reshape(y, (-1, max_length) + output_shape[2:])
         return y
 
 

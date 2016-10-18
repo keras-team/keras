@@ -558,7 +558,7 @@ def repeat(x, n):
 
 
 def repeatRdim(x, n, axis=1):
-    '''Repeat a RD tensor.
+    '''Repeat an RD tensor.
 
     If x has shape (samples, dim1, dim2) and n=2 and axis=1,
     the output will have shape (samples, 2, dim1, dim2).
