@@ -1543,7 +1543,7 @@ class Model(Container):
         all_outs = []
         weights = []
         data_gen_queue, _stop, generator_threads = generator_queue(generator, max_q_size=max_q_size, nb_worker=nb_worker,
-                                                pickle_safe=pickle_safe)
+                                                                   pickle_safe=pickle_safe)
 
         while processed_samples < val_samples:
             generator_output = None
@@ -1628,7 +1628,7 @@ class Model(Container):
         wait_time = 0.01
         all_outs = []
         data_gen_queue, _stop, generator_threads = generator_queue(generator, max_q_size=max_q_size, nb_worker=nb_worker,
-                                                pickle_safe=pickle_safe)
+                                                                   pickle_safe=pickle_safe)
 
         while processed_samples < val_samples:
             generator_output = None
