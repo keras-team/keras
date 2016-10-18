@@ -1803,7 +1803,19 @@ class LSTMCond(LSTM):
                                InputSpec(shape=input_shape[2]), InputSpec(shape=input_shape[3])]
             self.num_inputs = 4
         self.input_dim = input_shape[0][2]
-        self.context_dim = input_shape[1][1]
+        if self.input_spec[1].ndim == 3:
+            self.context_dim = input_shape[1][2]
+            self.static_ctx = False
+            assert input_shape[1][1] == input_shape[0][1], 'When using a 3D ctx in LSTMCond, it has to have the same ' \
+                                                          'number of timesteps (dimension 1) as the input. Currently,' \
+                                                          'the number of input timesteps is: ' \
+                                                           + str(input_shape[0][1]) + \
+                                                          ', while the number of ctx timesteps is ' \
+                                                           + str(input_shape[1][1]) + ' (complete shapes: '\
+                                                           + str(input_shape[0]) + ', ' + str(input_shape[1]) + ')'
+        else:
+            self.context_dim = input_shape[1][1]
+            self.static_ctx = True
 
         if self.stateful:
             self.reset_states()
@@ -1901,8 +1913,11 @@ class LSTMCond(LSTM):
             self.states = [K.zeros((input_shape[0], self.output_dim)),
                            K.zeros((input_shape[0], self.output_dim))]#,
 
-    def preprocess_input(self, x, B_V):
-        return K.dot(x * B_V[0], self.V) + self.b
+    def preprocess_input(self, x, context, dropouts):
+        if self.static_ctx:
+            return K.dot(x * dropouts[0][0], self.V)
+        else:
+            return K.dot(context * dropouts[0][0], self.W) + K.dot(x * dropouts[1][0], self.V)
 
     def get_output_shape_for(self, input_shape):
         if self.return_sequences:
@@ -1946,9 +1961,9 @@ class LSTMCond(LSTM):
         if self.stateful:
             initial_states = self.states
         else:
-            initial_states = self.get_initial_states(self.context)
-        constants, B_V = self.get_constants(state_below)
-        preprocessed_input = self.preprocess_input(state_below, B_V)
+            initial_states = self.get_initial_states(state_below)
+        constants, dropouts = self.get_constants(state_below)
+        preprocessed_input = self.preprocess_input(state_below, self.context, dropouts)
 
         last_output, outputs, states = K.rnn(self.step, preprocessed_input,
                                              initial_states,
@@ -1961,7 +1976,6 @@ class LSTMCond(LSTM):
             self.updates = []
             for i in range(len(states)):
                 self.updates.append((self.states[i], states[i]))
-
         if self.return_sequences:
             ret = outputs
         else:
@@ -1982,12 +1996,12 @@ class LSTMCond(LSTM):
         c_tm1 = states[1]  # Memory
 
         B_U = states[2]    # Dropout U
-        B_W = states[3]    # Dropout W
-
-        context = states[4]
-
-        z = x + K.dot(context * B_W[0], self.W) + K.dot(h_tm1 * B_U[0], self.U) + self.b
-
+        if self.static_ctx:
+            B_W = states[3]    # Dropout W
+            context = states[4]
+            z = x + K.dot(context * B_W[0], self.W) + K.dot(h_tm1 * B_U[0], self.U) + self.b
+        else:
+            z = x + K.dot(h_tm1 * B_U[0], self.U) + self.b
         z0 = z[:, :self.output_dim]
         z1 = z[:, self.output_dim: 2 * self.output_dim]
         z2 = z[:, 2 * self.output_dim: 3 * self.output_dim]
@@ -1997,14 +2011,13 @@ class LSTMCond(LSTM):
         f = self.inner_activation(z1)
         c = f * c_tm1 + i * self.activation(z2)
         o = self.inner_activation(z3)
-
         h = o * self.activation(c)
-
         return h, [h, c]
 
 
     def get_constants(self, x):
         constants = []
+        dropouts = []
         # States[2]
         if 0 < self.dropout_U < 1:
             ones = K.ones_like(K.reshape(x[:, 0, 0], (-1, 1)))
@@ -2023,7 +2036,11 @@ class LSTMCond(LSTM):
             B_W = [K.in_train_phase(K.dropout(ones, self.dropout_W), ones) for _ in range(4)]
             constants.append(B_W)
         else:
-            constants.append([K.cast_to_floatx(1.) for _ in range(4)])
+            B_W = [K.cast_to_floatx(1.) for _ in range(4)]
+        if self.static_ctx:
+            constants.append(B_W)
+        else:
+            dropouts.append(B_W)
 
         if 0 < self.dropout_V < 1:
             input_dim = self.input_dim
@@ -2032,16 +2049,18 @@ class LSTMCond(LSTM):
             B_V = [K.in_train_phase(K.dropout(ones, self.dropout_V), ones) for _ in range(4)]
         else:
             B_V = [K.cast_to_floatx(1.) for _ in range(4)]
+        dropouts.append(B_V)
         # States[4]
-        constants.append(self.context)
+        if self.static_ctx:
+            constants.append(self.context)
 
-        return constants, B_V
+        return constants, dropouts
 
     def get_initial_states(self, x):
         # build an all-zero tensor of shape (samples, output_dim)
         if self.init_state is None:
-            initial_state = K.zeros_like(x)  # (samples, intput_timesteps, ctx_dim)
-            reducer = K.ones((self.context_dim, self.output_dim))
+            initial_state = K.zeros_like(x[:, 0, :])  # (samples, ctx_dim)
+            reducer = K.ones((self.input_dim, self.output_dim))
             initial_state = K.dot(initial_state, reducer)  # (samples, output_dim)
             if self.init_memory is None:
                 initial_states = [initial_state for _ in range(2)]
@@ -2751,7 +2770,7 @@ class AttLSTMCond(LSTM):
                            K.zeros((input_shape[0], input_shape[3]))]
 
     def preprocess_input(self, x, B_V):
-        return K.dot(x * B_V[0], self.V) + self.b
+        return K.dot(x * B_V[0], self.V)
 
     def get_output_shape_for(self, input_shape):
         if self.return_sequences:
@@ -2865,7 +2884,7 @@ class AttLSTMCond(LSTM):
         if self.consume_less == 'gpu':
             z = x + \
                 K.dot(ctx_ * B_W[0], self.W) + \
-                K.dot(h_tm1 * B_U[0], self.U)
+                K.dot(h_tm1 * B_U[0], self.U) + self.b
 
             z0 = z[:, :self.output_dim]
             z1 = z[:, self.output_dim: 2 * self.output_dim]
