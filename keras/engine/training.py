@@ -1407,7 +1407,7 @@ class Model(Container):
 
         # start generator thread storing batches into a queue
         data_gen_queue, _stop, generator_threads = generator_queue(generator, max_q_size=max_q_size, nb_worker=nb_worker,
-                                                pickle_safe=pickle_safe)
+                                                                   pickle_safe=pickle_safe)
 
         callback_model.stop_training = False
         while epoch < nb_epoch:
