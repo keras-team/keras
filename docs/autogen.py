@@ -227,7 +227,10 @@ PAGES = [
         'page': 'layers/wrappers.md',
         'all_module_classes': [wrappers],
     },
-
+    {
+        'page': 'metrics.md',
+        'all_module_functions': [metrics],
+    },
     {
         'page': 'optimizers.md',
         'all_module_classes': [optimizers],
