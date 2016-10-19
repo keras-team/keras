@@ -453,7 +453,7 @@ def generator_queue(generator, max_q_size=10,
             q.close()
         raise
 
-    return q, _stop
+    return q, _stop, generator_threads
 
 
 class Model(Container):
@@ -1406,8 +1406,8 @@ class Model(Container):
             self.validation_data = None
 
         # start generator thread storing batches into a queue
-        data_gen_queue, _stop = generator_queue(generator, max_q_size=max_q_size, nb_worker=nb_worker,
-                                                pickle_safe=pickle_safe)
+        data_gen_queue, _stop, generator_threads = generator_queue(generator, max_q_size=max_q_size, nb_worker=nb_worker,
+                                                                   pickle_safe=pickle_safe)
 
         callback_model.stop_training = False
         while epoch < nb_epoch:
@@ -1481,7 +1481,9 @@ class Model(Container):
                     if val_gen:
                         val_outs = self.evaluate_generator(validation_data,
                                                            nb_val_samples,
-                                                           max_q_size=max_q_size)
+                                                           max_q_size=max_q_size,
+                                                           nb_worker=nb_worker,
+                                                           pickle_safe=pickle_safe)
                     else:
                         # no need for try/except because
                         # data has already been validated
@@ -1502,6 +1504,10 @@ class Model(Container):
 
         _stop.set()
         if pickle_safe:
+            # Terminate all daemon processes
+            for p in generator_threads:
+                if p.is_alive():
+                    p.terminate()
             data_gen_queue.close()
         callbacks.on_train_end()
         return self.history
@@ -1536,8 +1542,8 @@ class Model(Container):
         wait_time = 0.01
         all_outs = []
         weights = []
-        data_gen_queue, _stop = generator_queue(generator, max_q_size=max_q_size, nb_worker=nb_worker,
-                                                pickle_safe=pickle_safe)
+        data_gen_queue, _stop, generator_threads = generator_queue(generator, max_q_size=max_q_size, nb_worker=nb_worker,
+                                                                   pickle_safe=pickle_safe)
 
         while processed_samples < val_samples:
             generator_output = None
@@ -1582,6 +1588,10 @@ class Model(Container):
 
         _stop.set()
         if pickle_safe:
+            # Terminate all daemon processes
+            for p in generator_threads:
+                if p.is_alive():
+                    p.terminate()
             data_gen_queue.close()
         if type(outs) is not list:
             return np.average(np.asarray(all_outs),
@@ -1617,8 +1627,8 @@ class Model(Container):
         processed_samples = 0
         wait_time = 0.01
         all_outs = []
-        data_gen_queue, _stop = generator_queue(generator, max_q_size=max_q_size, nb_worker=nb_worker,
-                                                pickle_safe=pickle_safe)
+        data_gen_queue, _stop, generator_threads = generator_queue(generator, max_q_size=max_q_size, nb_worker=nb_worker,
+                                                                   pickle_safe=pickle_safe)
 
         while processed_samples < val_samples:
             generator_output = None
@@ -1671,6 +1681,10 @@ class Model(Container):
 
         _stop.set()
         if pickle_safe:
+            # Terminate all daemon processes
+            for p in generator_threads:
+                if p.is_alive():
+                    p.terminate()
             data_gen_queue.close()
         if len(all_outs) == 1:
             return all_outs[0]
