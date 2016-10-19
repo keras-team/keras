@@ -1713,7 +1713,7 @@ def separable_conv2d(x, depthwise_kernel, pointwise_kernel, strides=(1, 1),
 
 def conv3d(x, kernel, strides=(1, 1, 1),
            border_mode='valid', dim_ordering=_IMAGE_DIM_ORDERING,
-           volume_shape=None, filter_shape=None):
+           volume_shape=None, filter_shape=None, filter_dilation=(1, 1, 1)):
     '''3D convolution.
 
     # Arguments
@@ -1730,9 +1730,11 @@ def conv3d(x, kernel, strides=(1, 1, 1),
     x = _preprocess_conv3d_input(x, dim_ordering)
     kernel = _preprocess_conv3d_kernel(kernel, dim_ordering)
     padding = _preprocess_border_mode(border_mode)
-    strides = (1,) + strides + (1,)
+    if filter_dilation != (1, 1, 1):
+        assert strides == (1, 1, 1), 'Invalid strides for dilated convolution'
 
-    x = tf.nn.conv3d(x, kernel, strides, padding)
+    x = tf.nn.convolution(x, kernel, padding,
+                          strides=strides, dilation_rate=filter_dilation)
     return _postprocess_conv3d_output(x, dim_ordering)
 
 

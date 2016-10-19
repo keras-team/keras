@@ -1246,6 +1246,151 @@ class Convolution3D(Layer):
         return dict(list(base_config.items()) + list(config.items()))
 
 
+class AtrousConvolution3D(Convolution3D):
+    '''Atrous Convolution operator for filtering windows of three-dimensional inputs.
+    A.k.a dilated convolution or convolution with holes.
+    When using this layer as the first layer in a model,
+    provide the keyword argument `input_shape`
+    (tuple of integers, does not include the sample axis),
+    e.g. `input_shape=(3, 128, 128, 128)` for 128x128x128 RGB volume.
+
+    # Theano warning
+
+    This layer is only available with the
+    TensorFlow backend for the time being.
+
+    # Examples
+    ```python
+        # apply a 3x3x3 convolution with atrous rate 2x2x2 and 64 output filters on a 256x256x256 image:
+        model = Sequential()
+        model.add(AtrousConvolution2D(64, 3, 3, 3, atrous_rate=(2,2,2), border_mode='valid', input_shape=(3, 256, 256, 256)))
+        # now the actual kernel size is dilated from 3x3x3 to 5x5x5 (3+(3-1)*(2-1)=5)
+        # thus model.output_shape == (None, 64, 252, 252, 252)
+    ```
+    # Arguments
+        nb_filter: Number of convolution filters to use.
+        kernel_dim1: Length of the first dimension in the convolution kernel.
+        kernel_dim2: Length of the second dimension in the convolution kernel.
+        kernel_dim3: Length of the third dimension in the convolution kernel.
+        init: name of initialization function for the weights of the layer
+            (see [initializations](../initializations.md)), or alternatively,
+            Theano function to use for weights initialization.
+            This parameter is only relevant if you don't pass
+            a `weights` argument.
+        activation: name of activation function to use
+            (see [activations](../activations.md)),
+            or alternatively, elementwise Theano function.
+            If you don't specify anything, no activation is applied
+            (ie. "linear" activation: a(x) = x).
+        weights: list of numpy arrays to set as initial weights.
+        border_mode: 'valid' or 'same'.
+        subsample: tuple of length 3. Factor by which to subsample output.
+            Also called strides elsewhere.
+        atrous_rate: tuple of length 3. Factor for kernel dilation.
+            Also called filter_dilation elsewhere.
+        W_regularizer: instance of [WeightRegularizer](../regularizers.md)
+            (eg. L1 or L2 regularization), applied to the main weights matrix.
+        b_regularizer: instance of [WeightRegularizer](../regularizers.md),
+            applied to the bias.
+        activity_regularizer: instance of [ActivityRegularizer](../regularizers.md),
+            applied to the network output.
+        W_constraint: instance of the [constraints](../constraints.md) module
+            (eg. maxnorm, nonneg), applied to the main weights matrix.
+        b_constraint: instance of the [constraints](../constraints.md) module,
+            applied to the bias.
+        dim_ordering: 'th' or 'tf'. In 'th' mode, the channels dimension
+            (the depth) is at index 1, in 'tf' mode is it at index 3.
+            It defaults to the `image_dim_ordering` value found in your
+            Keras config file at `~/.keras/keras.json`.
+            If you never set it, then it will be "th".
+        bias: whether to include a bias (i.e. make the layer affine rather than linear).
+    # Input shape
+        5D tensor with shape:
+        `(samples, channels, dim1, dim2, dim3)` if dim_ordering='th'
+        or 5D tensor with shape:
+        `(samples, dim1, dim2, dim3, channels)` if dim_ordering='tf'.
+    # Output shape
+        5D tensor with shape:
+        `(samples, nb_filter, new_dim1, new_dim2, new_dim3)` if dim_ordering='th'
+        or 5D tensor with shape:
+        `(samples, new_dim1, new_dim2, new_dim3, nb_filter)` if dim_ordering='tf'.
+        `dim1`, `dim2` and `dim3` values might have changed due to padding.
+    # References
+        - [Multi-Scale Context Aggregation by Dilated Convolutions](https://arxiv.org/abs/1511.07122)
+    '''
+
+    def __init__(self, nb_filter, kernel_dim1, kernel_dim2, kernel_dim3,
+                 init='glorot_uniform', activation='linear', weights=None,
+                 border_mode='valid', subsample=(1, 1, 1),
+                 atrous_rate=(1, 1, 1), dim_ordering='default',
+                 W_regularizer=None, b_regularizer=None, activity_regularizer=None,
+                 W_constraint=None, b_constraint=None,
+                 bias=True, **kwargs):
+        if dim_ordering == 'default':
+            dim_ordering = K.image_dim_ordering()
+
+        if border_mode not in {'valid', 'same'}:
+            raise Exception('Invalid border mode for AtrousConv3D:', border_mode)
+
+        self.atrous_rate = tuple(atrous_rate)
+
+        super(AtrousConvolution3D, self).__init__(nb_filter, kernel_dim1, kernel_dim2, kernel_dim3,
+                                                  init=init, activation=activation,
+                                                  weights=weights, border_mode=border_mode,
+                                                  subsample=subsample, dim_ordering=dim_ordering,
+                                                  W_regularizer=W_regularizer, b_regularizer=b_regularizer,
+                                                  activity_regularizer=activity_regularizer,
+                                                  W_constraint=W_constraint, b_constraint=b_constraint,
+                                                  bias=bias, **kwargs)
+
+    def get_output_shape_for(self, input_shape):
+        if self.dim_ordering == 'th':
+            conv_dim1 = input_shape[2]
+            conv_dim2 = input_shape[3]
+            conv_dim3 = input_shape[4]
+        elif self.dim_ordering == 'tf':
+            conv_dim1 = input_shape[1]
+            conv_dim2 = input_shape[2]
+            conv_dim3 = input_shape[3]
+        else:
+            raise Exception('Invalid dim_ordering: ' + self.dim_ordering)
+
+        conv_dim1 = conv_output_length(conv_dim1, self.kernel_dim1, self.border_mode,
+                                       self.subsample[0], dilation=self.atrous_rate[0])
+        conv_dim2 = conv_output_length(conv_dim2, self.kernel_dim2, self.border_mode,
+                                       self.subsample[1], dilation=self.atrous_rate[1])
+        conv_dim3 = conv_output_length(conv_dim3, self.kernel_dim3, self.border_mode,
+                                       self.subsample[2], dilation=self.atrous_rate[2])
+
+        if self.dim_ordering == 'th':
+            return (input_shape[0], self.nb_filter, conv_dim1, conv_dim2, conv_dim3)
+        elif self.dim_ordering == 'tf':
+            return (input_shape[0], conv_dim1, conv_dim2, conv_dim3, self.nb_filter)
+        else:
+            raise Exception('Invalid dim_ordering: ' + self.dim_ordering)
+
+    def call(self, x, mask=None):
+        output = K.conv3d(x, self.W, strides=self.subsample,
+                          border_mode=self.border_mode,
+                          dim_ordering=self.dim_ordering,
+                          filter_shape=self.W_shape,
+                          filter_dilation=self.atrous_rate)
+        if self.bias:
+            if self.dim_ordering == 'th':
+                output += K.reshape(self.b, (1, self.nb_filter, 1, 1, 1))
+            elif self.dim_ordering == 'tf':
+                output += K.reshape(self.b, (1, 1, 1, 1, self.nb_filter))
+            else:
+                raise Exception('Invalid dim_ordering: ' + self.dim_ordering)
+        output = self.activation(output)
+        return output
+
+    def get_config(self):
+        config = {'atrous_rate': self.atrous_rate}
+        base_config = super(AtrousConvolution3D, self).get_config()
+        return dict(list(base_config.items()) + list(config.items()))
+
+
 class UpSampling1D(Layer):
     '''Repeat each temporal step `length` times along the time axis.
 
@@ -1859,4 +2004,5 @@ Conv3D = Convolution3D
 Deconv2D = Deconvolution2D
 AtrousConv1D = AtrousConvolution1D
 AtrousConv2D = AtrousConvolution2D
+AtrousConv3D = AtrousConvolution3D
 SeparableConv2D = SeparableConvolution2D

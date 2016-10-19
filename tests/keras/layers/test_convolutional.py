@@ -354,6 +354,49 @@ def test_convolution_3d():
 
 
 @keras_test
+def test_atrous_conv_3d():
+    nb_samples = 2
+    nb_filter = 2
+    stack_size = 3
+    kernel_dim1 = 7
+    kernel_dim2 = 5
+    kernel_dim3 = 6
+
+    for border_mode in ['valid', 'same']:
+        for subsample in [(1, 1, 1), (2, 2, 2)]:
+            for atrous_rate in [(1, 1, 1), (2, 2, 2)]:
+                if border_mode == 'same' and subsample != (1, 1, 1):
+                    continue
+                if subsample != (1, 1, 1) and atrous_rate != (1, 1, 1):
+                    continue
+
+                layer_test(convolutional.AtrousConv3D,
+                           kwargs={'nb_filter': nb_filter,
+                                   'kernel_dim1': 3,
+                                   'kernel_dim2': 3,
+                                   'kernel_dim3': 3,
+                                   'border_mode': border_mode,
+                                   'subsample': subsample,
+                                   'atrous_rate': atrous_rate},
+                           input_shape=(nb_samples, kernel_dim1, kernel_dim2,
+                                        kernel_dim3, stack_size))
+
+                layer_test(convolutional.AtrousConv3D,
+                           kwargs={'nb_filter': nb_filter,
+                                   'kernel_dim1': 3,
+                                   'kernel_dim2': 3,
+                                   'kernel_dim3': 3,
+                                   'border_mode': border_mode,
+                                   'W_regularizer': 'l2',
+                                   'b_regularizer': 'l2',
+                                   'activity_regularizer': 'activity_l2',
+                                   'subsample': subsample,
+                                   'atrous_rate': atrous_rate},
+                           input_shape=(nb_samples, kernel_dim1, kernel_dim2,
+                                        kernel_dim3, stack_size))
+
+
+@keras_test
 def test_maxpooling_3d():
     pool_size = (3, 3, 3)
 
