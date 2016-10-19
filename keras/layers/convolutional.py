@@ -1724,7 +1724,6 @@ class CompactBilinearPooling(Layer):
             v[i] = K.count_sketch(self.h[i], self.s[i], x[i], self.d)
             fft_v[i] = K.fft(v[i])
             acum_fft *= fft_v[i]
-        #acum_fft = K.concatenate((acum_fft[:, 1:, 0], acum_fft[:,1:,0][::-1]))
         out = K.cast(K.ifft(acum_fft), dtype='float32')
         if self.return_extra:
             return [out]+v+fft_v+[acum_fft]
@@ -1736,12 +1735,14 @@ class CompactBilinearPooling(Layer):
             raise Exception('CompactBilinearPooling must be called on a list of tensors '
                             '(at least 2). Got: ' + str(x))
         if len(self.shape_in[0]) > 2:
-            x = [K.dimshuffle(x[i], tuple([0] + range(2, len(self.shape_in)) + [1])) for i in range(self.nmodes)]
-            x = [K.reshape(x, tuple([-1] + [self.shape_in[1]])) for i in range(self.nmodes)]
-            x = [K.reshape(K.dimshuffle(x[i], tuple([0]+range(2,len(self.shape_in))+[1])), tuple([-1] + [self.shape_in[1]])) for i in range(self.nmodes)]
+            x = [x[i].dimshuffle(tuple([0] + range(2, len(self.shape_in[0])) + [1])) for i in range(self.nmodes)]
+            x = [K.reshape(x[i], tuple([-1] + [self.shape_in[0][1]])) for i in range(self.nmodes)]
+            #x = [K.reshape(K.dimshuffle(x[i], tuple([0]+range(2,len(self.shape_in))+[1])), tuple([-1] + [self.shape_in[1]])) for i in range(self.nmodes)]
         y = self.multimodal_compact_bilinear(x)
         if len(self.shape_in) > 2:
-            y = K.dimshuffle(K.reshape(y, tuple([-1] + self.shape_in[2:] + [self.d])), tuple([0,-1]+range(1,len(self.shape_in)-1)))
+            y = K.reshape(y, tuple([-1] + self.shape_in[0][2:] + [self.d]))
+            y.dimshuffle(tuple([0, -1] + range(1, len(self.shape_in[0]) - 1)))
+            #y = K.dimshuffle(K.reshape(y, tuple([-1] + self.shape_in[0][2:] + [self.d])), tuple([0,-1]+range(1,len(self.shape_in)-1)))
         if self.return_extra:
             return y+self.h+self.s
         return y
@@ -1758,17 +1759,17 @@ class CompactBilinearPooling(Layer):
     def get_output_shape_for(self, input_shape):
         assert type(input_shape) is list  # must have mutiple input shape tuples
         shapes = []
-        shapes.append(tuple([input_shape[0][0], self.d]))
+        shapes.append(tuple([input_shape[0][0], self.d] + list(input_shape[0][2:])))
         if self.return_extra:
             for s in input_shape: # v
-                shapes.append(tuple([s[0], self.d]))
+                shapes.append(tuple([np.prod(s[0]+list(s[2:])), self.d]))
             for s in input_shape: # fft_v
-                shapes.append(tuple([s[0], self.d]))
-            shapes.append(tuple([s[0], self.d])) # acum_fft
-            for i in range(self.nmodes): # h
-                shapes.append(tuple([input_shape[i][1],1]))
-            for i in range(self.nmodes): # v
-                shapes.append(tuple([input_shape[i][1],1]))
+                shapes.append(tuple([np.prod(s[0]+list(s[2:])), self.d]))
+            shapes.append(tuple([np.prod(s[0]+list(s[2:])), self.d])) # acum_fft
+            for s in input_shape: # h
+                shapes.append(tuple([s[1],1]))
+            for s in input_shape: # s
+                shapes.append(tuple([s[1],1]))
             return shapes
         else:
             return shapes[0]
