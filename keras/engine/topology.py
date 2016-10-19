@@ -1106,7 +1106,7 @@ class Merge(Layer):
 
     ```python
     model1 = Sequential()
-    model1.add(Dense(32))
+    model1.add(Dense(32, input_dim=32))
 
     model2 = Sequential()
     model2.add(Dense(32))
