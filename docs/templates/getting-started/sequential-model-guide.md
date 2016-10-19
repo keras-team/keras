@@ -121,7 +121,7 @@ Before training a model, you need to configure the learning process, which is do
 
 - an optimizer. This could be the string identifier of an existing optimizer (such as `rmsprop` or `adagrad`), or an instance of the `Optimizer` class. See: [optimizers](/optimizers).
 - a loss function. This is the objective that the model will try to minimize. It can be the string identifier of an existing loss function (such as `categorical_crossentropy` or `mse`), or it can be an objective function. See: [objectives](/objectives).
-- a list of metrics. For any classification problem you will want to set this to `metrics=['accuracy']`. A metric could be the string identifier of an existing metric or a custom metric function.  Custom metric function should return either a single tensor value or a dict `metric_name -> metric_value`
+- a list of metrics. For any classification problem you will want to set this to `metrics=['accuracy']`. A metric could be the string identifier of an existing metric or a custom metric function.  Custom metric function should return either a single tensor value or a dict `metric_name -> metric_value`. See: [metrics](/metrics).
 
 ```python
 # for a multi-class classification problem
