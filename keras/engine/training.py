@@ -258,7 +258,10 @@ def collect_trainable_weights(layer):
         weights += layer.trainable_weights
     # dedupe weights
     weights = list(set(weights))
-    weights.sort(key=lambda x: x.name)
+    try:
+        weights.sort(key=lambda x: x.name)
+    except TypeError:
+        pass
     return weights
 
 
