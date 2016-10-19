@@ -6,6 +6,7 @@ import copy
 import time
 import numpy as np
 import multiprocessing
+import re
 import threading
 
 import six
