@@ -96,6 +96,53 @@ class Dropout(Layer):
         return dict(list(base_config.items()) + list(config.items()))
 
 
+class SpatialDropout1D(Dropout):
+    '''This version performs the same function as Dropout, however it drops
+    entire 1D feature maps instead of individual elements. If adjacent frames
+    within feature maps are strongly correlated (as is normally the case in
+    early convolution layers) then regular dropout will not regularize the
+    activations and will otherwise just result in an effective learning rate
+    decrease. In this case, SpatialDropout1D will help promote independence
+    between feature maps and should be used instead.
+
+    # Arguments
+        p: float between 0 and 1. Fraction of the input units to drop.
+        dim_ordering: 'th' or 'tf'. In 'th' mode, the channels dimension
+            (the depth) is at index 1, in 'tf' mode is it at index 3.
+            It defaults to the `image_dim_ordering` value found in your
+            Keras config file at `~/.keras/keras.json`.
+            If you never set it, then it will be "tf".
+
+    # Input shape
+        3D tensor with shape:
+        `(samples, channels, timesteps)` if dim_ordering='th'
+        or 3D tensor with shape:
+        `(samples, timesteps, channels)` if dim_ordering='tf'.
+
+    # Output shape
+        Same as input
+
+    # References
+        - [Efficient Object Localization Using Convolutional Networks](https://arxiv.org/pdf/1411.4280.pdf)
+    '''
+    def __init__(self, p, dim_ordering='default', **kwargs):
+        if dim_ordering == 'default':
+            dim_ordering = K.image_dim_ordering()
+        assert dim_ordering in {'tf', 'th'}, 'dim_ordering must be in {tf, th}'
+        self.dim_ordering = dim_ordering
+        super(SpatialDropout1D, self).__init__(p, **kwargs)
+
+    def _get_noise_shape(self, x):
+        input_shape = K.shape(x)
+        if self.dim_ordering == 'th':
+            noise_shape = (input_shape[0], input_shape[1], 1)
+        elif self.dim_ordering == 'tf':
+            noise_shape = (input_shape[0], 1, input_shape[2])
+        else:
+            raise Exception('Invalid dim_ordering: ' + self.dim_ordering)
+        return noise_shape
+    
+    
 class SpatialDropout2D(Dropout):
     '''This version performs the same function as Dropout, however it drops
     entire 2D feature maps instead of individual elements. If adjacent pixels
