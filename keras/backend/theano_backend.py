@@ -5,6 +5,7 @@ from theano.tensor.signal import pool
 from theano.tensor.nnet import conv3d2d
 from theano.tensor.fft import rfft, irfft
 from theano.printing import Print
+from theano.tensor.signal.conv import conv2d as vec_conv
 try:
     import theano.sparse as th_sparse_module
 except ImportError:
@@ -1131,6 +1132,8 @@ def _rnn(step_function, inputs, initial_states,
     states = [T.squeeze(state[-1]) for state in states]
     return last_output, outputs, states
 
+def floor(x):
+    return T.floor(x)
 
 def switch(condition, then_expression, else_expression):
     '''condition: scalar tensor.
@@ -1648,6 +1651,35 @@ def __count_sketch(h, s, v,  # Sequences
                    y, # Outputs info
                    ):
     return T.cast(T.inc_subtensor(y[:, h], T.dot(s, v)), 'float32')
+
+
+# 1d Convolution
+def conv1d(u, v):
+    '''1D convolution over a set of vectors. All inputs will be treated by pairs.
+        #x must be equal to #kernel
+
+    # Arguments
+        u: first set of vectors
+        v: second set of vectors
+    '''
+
+    def __vec_conv(u, v,  # Sequences
+                   w,  # Outputs info
+                   ):
+        u = u.dimshuffle(('x', 0))
+        v = v.dimshuffle(('x', 0))
+        conv_out = vec_conv(u, v,
+                            border_mode='full')
+
+        init_cut = u.shape[1] / 2
+        end_cut = init_cut + u.shape[1]
+        return conv_out[0, init_cut:end_cut]
+
+    conv_out, updates = theano.scan(__vec_conv,
+                                sequences=[u, v],
+                                outputs_info=T.alloc(0., u.shape[1]),#, d),
+                                non_sequences=[], n_steps=u.shape[0])
+    return conv_out
 
 
 # Theano implementation of CTC

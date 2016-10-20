@@ -1671,10 +1671,11 @@ class CompactBilinearPooling(Layer):
         - [Multimodal Compact Bilinear Pooling for Visual Question Answering and Visual Grounding](http://arxiv.org/pdf/1606.01847v2.pdf)
     '''
 
-    def __init__(self, d, return_extra=False, **kwargs):
+    def __init__(self, d, return_extra=False, conv_type='conv', **kwargs):
         self.h = [None, None]
         self.s = [None, None]
         self.return_extra = return_extra
+        self.conv_type = conv_type
         self.d = d
 
         # layer parameters
@@ -1693,6 +1694,7 @@ class CompactBilinearPooling(Layer):
     def build(self, input_shapes):
         self.trainable_weights = []
         self.nmodes = len(input_shapes)
+        assert self.nmodes == 2
         self.shape_in = input_shapes
         for i in range(self.nmodes):
             if self.h[i] is None:
@@ -1714,18 +1716,32 @@ class CompactBilinearPooling(Layer):
         if self.return_extra:
             for i in range(self.nmodes):
                 to_return += [None, None, None, None]
-        return to_return +[None]
+        return to_return # +[None]
 
     def multimodal_compact_bilinear(self, x):
         v = [[]] * self.nmodes
-        fft_v = [[]] * self.nmodes
-        acum_fft = 1.0
-        for i in range(self.nmodes):
-            v[i] = K.count_sketch(self.h[i], self.s[i], x[i], self.d)
-            fft_v[i] = K.fft(v[i])
-            acum_fft *= fft_v[i]
-        out = K.cast(K.ifft(acum_fft), dtype='float32')
+
+        if self.conv_type == 'conv':
+            for i in range(self.nmodes):
+                v[i] = K.count_sketch(self.h[i], self.s[i], x[i], self.d)
+            out = K.conv1d(v[0], v[1])
+
+        elif self.conv_type == 'fft':
+            raise NotImplementedError()
+            fft_v = [[]] * self.nmodes
+            acum_fft = 1.0
+            for i in range(self.nmodes):
+                v[i] = K.count_sketch(self.h[i], self.s[i], x[i], self.d)
+                fft_v[i] = K.fft(v[i])
+                acum_fft *= fft_v[i]
+            out = K.cast(K.ifft(acum_fft), dtype='float32')
+
+        else:
+            raise NotImplementedError()
+
         if self.return_extra:
+            # TODO: remove fft_v and acum_fft from all returns
+            raise NotImplementedError("return_extra not implemented")
             return [out]+v+fft_v+[acum_fft]
         else:
             return out
@@ -1751,8 +1767,10 @@ class CompactBilinearPooling(Layer):
         config = {'d': self.d,
                   'h': self.h,
                   'return_extra': self.return_extra,
-                  's': self.s}
-        config = {'d': self.d}
+                  's': self.s,
+                  'conv_type': self.conv_type}
+        config = {'d': self.d,
+                  'conv_type': self.conv_type}
         base_config = super(CompactBilinearPooling, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
@@ -1760,6 +1778,7 @@ class CompactBilinearPooling(Layer):
         assert type(input_shape) is list  # must have mutiple input shape tuples
         shapes = []
         shapes.append(tuple([input_shape[0][0], self.d] + list(input_shape[0][2:])))
+        #shapes.append(tuple([input_shape[0][0], input_shape[0][1]] + list(input_shape[0][2:])))
         if self.return_extra:
             for s in input_shape: # v
                 shapes.append(tuple([np.prod(s[0]+list(s[2:])), self.d]))
