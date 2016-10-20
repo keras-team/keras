@@ -762,7 +762,7 @@ class Model(Container):
             nb_epoch: number of times to iterate over the data
             verbose: verbosity mode, 0, 1 or 2
             step: int (default: 1).
-                Callbacks will only be verbose every step epochs. This avoids 
+                Callbacks will only be verbose every step epochs. This avoids
                 epochs spamming for small models.
                 Will be ignored if verbose is set to 0.
             callbacks: list of callbacks to be called during training
@@ -1005,8 +1005,8 @@ class Model(Container):
                                 str(x[0].shape[0]) + ' samples')
         return x, y, sample_weights
 
-    def fit(self, x, y, batch_size=32, nb_epoch=10, verbose=1, step=1, 
-            callbacks=[], validation_split=0., validation_data=None, 
+    def fit(self, x, y, batch_size=32, nb_epoch=10, verbose=1, step=1,
+            callbacks=[], validation_split=0., validation_data=None,
             shuffle=True, class_weight=None, sample_weight=None):
         '''Trains the model for a fixed number of epochs (iterations on a dataset).
 
@@ -1023,7 +1023,7 @@ class Model(Container):
             nb_epoch: integer, the number of times to iterate over the training data arrays.
             verbose: 0, 1, or 2. Verbosity mode. 0 = silent, 1 = verbose, 2 = one log line per epoch.
             step: int (default: 1).
-                Callbacks will only be verbose every step epochs. This avoids 
+                Callbacks will only be verbose every step epochs. This avoids
                 epochs spamming for small models.
                 Will be ignored if verbose is set to 0.
             callbacks: list of callbacks to be called during training.
