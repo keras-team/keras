@@ -153,7 +153,7 @@ def test_dropout():
                kwargs={'p': 0.5},
                input_shape=(3, 2))
 
-        layer_test(core.SpatialDropout1D,
+    layer_test(core.SpatialDropout1D,
                kwargs={'p': 0.5},
                input_shape=(2, 3, 4))
     
