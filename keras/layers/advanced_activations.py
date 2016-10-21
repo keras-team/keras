@@ -82,6 +82,57 @@ class PReLU(Layer):
         return dict(list(base_config.items()) + list(config.items()))
 
 
+class ChannelWisePReLU(Layer):
+    '''Channel-wise Parametric Rectified Linear Unit:
+    `f(x) = alphas * x for x < 0`,
+    `f(x) = x for x >= 0`,
+    where `alphas` is a learned vector with the same number of elments as channels has x (or features).
+
+    # Input shape
+        Arbitrary. Use the keyword argument `input_shape`
+        (tuple of integers, does not include the samples axis)
+        when using this layer as the first layer in a model.
+
+    # Output shape
+        Same shape as the input.
+
+    # Arguments
+        init: initialization function for the weights.
+        weights: initial weights, as a list of a single Numpy array.
+        channels_shared: True if we use the same parameter for all channeles or False if not.
+        axis: Channels axis.
+    # References
+        - [Delving Deep into Rectifiers: Surpassing Human-Level Performance on ImageNet Classification](http://arxiv.org/pdf/1502.01852v1.pdf)
+    '''
+    def __init__(self, init='zero', weights=None, channels_shared=False, axis=1, **kwargs):
+        self.supports_masking = True
+        self.init = initializations.get(init)
+        self.initial_weights = weights
+        self.channels_shared = channels_shared
+        self.axis = axis
+        super(ChannelWisePReLU, self).__init__(**kwargs)
+
+    def build(self, input_shape):
+        size = input_shape[self.axis] if self.channels_shared==False else 1
+        self.alphas = self.init([size],
+                                name='{}_alphas'.format(self.name))
+        self.trainable_weights = [self.alphas]
+
+        if self.initial_weights is not None:
+            self.set_weights(self.initial_weights)
+            del self.initial_weights
+
+    def call(self, x, mask=None):
+        pos = K.relu(x)
+        neg = self.alphas * (x - abs(x)) * 0.5
+        return pos + neg
+
+    def get_config(self):
+        config = {'init': self.init.__name__}
+        base_config = super(ChannelWisePReLU, self).get_config()
+        return dict(list(base_config.items()) + list(config.items()))
+
+
 class ELU(Layer):
     '''Exponential Linear Unit:
     `f(x) =  alpha * (exp(x) - 1.) for x < 0`,
