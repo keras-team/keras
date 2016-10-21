@@ -279,6 +279,28 @@ assert conv.get_input_shape_at(1) == (None, 3, 64, 64)
 
 Code examples are still the best way to get started, so here are a few more.
 
+### Stateful RNN
+
+The following code can be used instead of the Sequential model in the [stateful lstm](https://github.com/fchollet/keras/blob/master/examples/stateful_lstm.py) example.
+
+```python
+from keras.models import Model
+from keras.layers import Dense, LSTM, Input
+
+print('Creating Model')
+inputs = Input(shape=(1,), batch_shape=(batch_size, tsteps, 1))
+layer_one = LSTM(50,
+               batch_input_shape=(batch_size, tsteps, 1),
+               return_sequences=True,
+               stateful=True)(inputs)
+layer_two = LSTM(50,
+               batch_input_shape=(batch_size, tsteps, 1),
+               stateful=True)(layer_one)
+layer_three = Dense(1)(layer_two)
+model = Model(input=inputs, output=layer_three)
+model.compile(loss='mse', optimizer='rmsprop')
+```
+
 ### Inception module
 
 For more information about the Inception architecture, see [Going Deeper with Convolutions](http://arxiv.org/abs/1409.4842).
