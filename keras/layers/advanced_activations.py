@@ -128,7 +128,7 @@ class ChannelWisePReLU(Layer):
         return pos + neg
 
     def get_config(self):
-        config = {'init': self.init.__name__}
+        config = {'init': self.init.__name__, 'channels_shared': self.channels_shared, 'axis': self.axis}
         base_config = super(ChannelWisePReLU, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
