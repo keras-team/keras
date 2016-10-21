@@ -180,6 +180,9 @@ def cast(x, dtype):
 def ceil(x):
     return T.ceil(x)
 
+def floor(x):
+    return T.floor(x)
+
 # UPDATES OPS
 
 
@@ -1131,9 +1134,6 @@ def _rnn(step_function, inputs, initial_states,
     outputs = outputs.dimshuffle(axes)
     states = [T.squeeze(state[-1]) for state in states]
     return last_output, outputs, states
-
-def floor(x):
-    return T.floor(x)
 
 def switch(condition, then_expression, else_expression):
     '''condition: scalar tensor.

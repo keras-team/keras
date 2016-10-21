@@ -1677,6 +1677,7 @@ class CompactBilinearPooling(Layer):
         self.return_extra = return_extra
         self.conv_type = conv_type
         self.d = d
+        self.shape_in = None
 
         # layer parameters
         self.inbound_nodes = []
@@ -1701,9 +1702,9 @@ class CompactBilinearPooling(Layer):
                 self.h[i] = np.random.random_integers(0, self.d-1, size=(input_shapes[i][1],))
                 self.h[i] = K.variable(self.h[i], dtype='int64', name='h'+str(i))
             if self.s[i] is None:
-                self.s[i] =  (np.floor(np.random.uniform(0, 2, size=(input_shapes[i][1],)))*2-1).astype('int64')
+                self.s[i] = (np.floor(np.random.uniform(0, 2, size=(input_shapes[i][1],)))*2-1).astype('int64')
                 self.s[i] = K.variable(self.s[i], dtype='int64', name='s'+str(i))
-        self.non_trainable_weights = [self.h, self.s]
+        self.non_trainable_weights = [self.h[i] for i in range(self.nmodes)] + [self.s[i] for i in range(self.nmodes)]
 
         self.built = True
 
@@ -1731,9 +1732,21 @@ class CompactBilinearPooling(Layer):
             fft_v = [[]] * self.nmodes
             acum_fft = 1.0
             for i in range(self.nmodes):
+                '''
                 v[i] = K.count_sketch(self.h[i], self.s[i], x[i], self.d)
                 fft_v[i] = K.fft(v[i])
                 acum_fft *= fft_v[i]
+                '''
+                v[i] = K.count_sketch(self.h[i], self.s[i], x[i], self.d)
+                zeros_pad = K.zeros_like(v[i])[:, :-1]
+                v_in = K.concatenate([zeros_pad,
+                                      v[i],
+                                      zeros_pad], axis=1)
+                fft_v[i] = K.fft(v_in)
+                prev = K.cast(K.floor(self.d/2.), 'int16')
+                post = K.cast(K.ceil(self.d/2.), 'int16')
+                acum_fft *= K.concatenate((fft_v[i][:, -post:], fft_v[i][:, :prev]), axis=1)
+
             out = K.cast(K.ifft(acum_fft), dtype='float32')
 
         else:
@@ -1753,12 +1766,12 @@ class CompactBilinearPooling(Layer):
         if len(self.shape_in[0]) > 2:
             x = [x[i].dimshuffle(tuple([0] + range(2, len(self.shape_in[0])) + [1])) for i in range(self.nmodes)]
             x = [K.reshape(x[i], tuple([-1] + [self.shape_in[0][1]])) for i in range(self.nmodes)]
-            #x = [K.reshape(K.dimshuffle(x[i], tuple([0]+range(2,len(self.shape_in))+[1])), tuple([-1] + [self.shape_in[1]])) for i in range(self.nmodes)]
+            ##x = [K.reshape(K.dimshuffle(x[i], tuple([0]+range(2,len(self.shape_in))+[1])), tuple([-1] + [self.shape_in[1]])) for i in range(self.nmodes)]
         y = self.multimodal_compact_bilinear(x)
-        if len(self.shape_in) > 2:
+        if len(self.shape_in[0]) > 2:
             y = K.reshape(y, tuple([-1] + self.shape_in[0][2:] + [self.d]))
             y.dimshuffle(tuple([0, -1] + range(1, len(self.shape_in[0]) - 1)))
-            #y = K.dimshuffle(K.reshape(y, tuple([-1] + self.shape_in[0][2:] + [self.d])), tuple([0,-1]+range(1,len(self.shape_in)-1)))
+            ##y = K.dimshuffle(K.reshape(y, tuple([-1] + self.shape_in[0][2:] + [self.d])), tuple([0,-1]+range(1,len(self.shape_in)-1)))
         if self.return_extra:
             return y+self.h+self.s
         return y
@@ -1770,6 +1783,7 @@ class CompactBilinearPooling(Layer):
                   's': self.s,
                   'conv_type': self.conv_type}
         config = {'d': self.d,
+                  'return_extra': self.return_extra,
                   'conv_type': self.conv_type}
         base_config = super(CompactBilinearPooling, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
@@ -1778,7 +1792,6 @@ class CompactBilinearPooling(Layer):
         assert type(input_shape) is list  # must have mutiple input shape tuples
         shapes = []
         shapes.append(tuple([input_shape[0][0], self.d] + list(input_shape[0][2:])))
-        #shapes.append(tuple([input_shape[0][0], input_shape[0][1]] + list(input_shape[0][2:])))
         if self.return_extra:
             for s in input_shape: # v
                 shapes.append(tuple([np.prod(s[0]+list(s[2:])), self.d]))
