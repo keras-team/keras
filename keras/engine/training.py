@@ -261,12 +261,10 @@ def collect_trainable_weights(layer):
     weights = list(set(weights))
     # TF variables have auto-generated the name, while Theano has auto-generated the auto_name variable. name in Theano is None
     if weights:
-        if K.backend() == 'tensorflow':
-            weights.sort(key=lambda x: x.name)
-        elif K.backend() == 'theano':
+        if K.backend() == 'theano':
             weights.sort(key=lambda x: x.auto_name)
         else:
-            raise Exception('Unknown backend: ' + str(K._BACKEND))
+            weights.sort(key=lambda x: x.name)
     return weights
 
 
