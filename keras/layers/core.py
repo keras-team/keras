@@ -115,9 +115,7 @@ class SpatialDropout1D(Dropout):
 
     # Input shape
         3D tensor with shape:
-        `(samples, channels, timesteps)` if dim_ordering='th'
-        or 3D tensor with shape:
-        `(samples, timesteps, channels)` if dim_ordering='tf'.
+        `(samples, timesteps, channels)` 
 
     # Output shape
         Same as input
@@ -134,9 +132,7 @@ class SpatialDropout1D(Dropout):
 
     def _get_noise_shape(self, x):
         input_shape = K.shape(x)
-        if self.dim_ordering == 'th':
-            noise_shape = (input_shape[0], input_shape[1], 1)
-        elif self.dim_ordering == 'tf':
+        if self.dim_ordering in ['th', 'tf']:
             noise_shape = (input_shape[0], 1, input_shape[2])
         else:
             raise Exception('Invalid dim_ordering: ' + self.dim_ordering)
