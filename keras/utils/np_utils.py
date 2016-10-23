@@ -7,8 +7,14 @@ from .. import backend as K
 
 
 def to_categorical(y, nb_classes=None):
-    '''Convert class vector (integers from 0 to nb_classes)
-    to binary class matrix, for use with categorical_crossentropy.
+    '''Convert class vector (integers from 0 to nb_classes) to binary class matrix, for use with categorical_crossentropy.
+
+    # Arguments
+        y: class vector to be converted into a matrix
+        nb_classes: total number of classes
+
+    # Returns
+        A binary matrix representation of the input.
     '''
     if not nb_classes:
         nb_classes = np.max(y)+1
