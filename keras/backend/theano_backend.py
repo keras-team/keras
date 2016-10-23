@@ -404,8 +404,14 @@ def normalize_batch_in_training(x, gamma, beta,
         broadcast_beta = beta.dimshuffle(*broadcast_pattern)
         broadcast_gamma = gamma.dimshuffle(*broadcast_pattern)
         try:
-            normed, mean, stdinv = theano.sandbox.cuda.dnn.dnn_batch_normalization_train(
-                x, broadcast_gamma, broadcast_beta, 'spatial', epsilon)
+            if dev.startswith('gpu'):
+                # use Theano's old gpu backend
+                normed, mean, stdinv = theano.sandbox.cuda.dnn.dnn_batch_normalization_train(
+                    x, broadcast_gamma, broadcast_beta, 'spatial', epsilon)
+            else:
+                # use Theano's new gpu backend
+                normed, mean, stdinv = theano.gpuarray.dnn.dnn_batch_normalization_train(
+                    x, broadcast_gamma, broadcast_beta, 'spatial', epsilon)
             var = T.inv(stdinv ** 2)
             return normed, T.flatten(mean), T.flatten(var)
         except ValueError:
@@ -455,8 +461,14 @@ def batch_normalization(x, mean, var, beta, gamma, epsilon=0.0001):
                 var = var.dimshuffle(shuffle_pattern)
                 beta = beta.dimshuffle(shuffle_pattern)
                 gamma = gamma.dimshuffle(shuffle_pattern)
-            normed = theano.sandbox.cuda.dnn.dnn_batch_normalization_test(x, gamma, beta, mean, var,
-                                                                          'spatial', epsilon)
+            if dev.startswith('gpu'):
+                # use Theano's old gpu backend
+                normed = theano.sandbox.cuda.dnn.dnn_batch_normalization_test(
+                    x, gamma, beta, mean, var, 'spatial', epsilon)
+            else:
+                # use Theano's new gpu backend
+                normed = theano.gpuarray.dnn.dnn_batch_normalization_test(
+                    x, gamma, beta, mean, var, 'spatial', epsilon)
             if axis != 1:
                 normed = normed.dimshuffle(shuffle_pattern)
             return normed
