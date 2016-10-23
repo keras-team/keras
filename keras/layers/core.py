@@ -115,7 +115,7 @@ class SpatialDropout1D(Dropout):
 
     # Input shape
         3D tensor with shape:
-        `(samples, timesteps, channels)` 
+        `(samples, timesteps, channels)`
 
     # Output shape
         Same as input
