@@ -5,7 +5,7 @@ from numpy.testing import assert_allclose
 from keras.layers import Dense, Dropout
 from keras.engine.topology import merge, Input
 from keras.engine.training import Model
-from keras.models import Sequential, Graph
+from keras.models import Sequential
 from keras import backend as K
 from keras.utils.test_utils import keras_test
 

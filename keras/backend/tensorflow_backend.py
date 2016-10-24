@@ -1261,7 +1261,7 @@ def rnn(step_function, inputs, initial_states,
                     new_state = new_states[0]
                 else:
                     # return dummy state, otherwise _dynamic_rnn_loop breaks
-                    new_state = output
+                    new_state = state
                 return output, new_state
 
         _step.state_size = state_size * nb_states
