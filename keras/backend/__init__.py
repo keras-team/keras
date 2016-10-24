@@ -15,13 +15,7 @@ from .common import is_keras_tensor
 from .common import legacy_weight_ordering
 from .common import set_legacy_weight_ordering
 
-_keras_base_dir = os.path.expanduser('~')
-if not os.access(_keras_base_dir, os.W_OK):
-    _keras_base_dir = '/tmp'
-
-_keras_dir = os.path.join(_keras_base_dir, '.keras')
-if not os.path.exists(_keras_dir):
-    os.makedirs(_keras_dir)
+from ..config import KERAS_DIR as _keras_dir
 
 # Set theano as default backend for Windows users since tensorflow is not available for Windows yet.
 if os.name == 'nt':
