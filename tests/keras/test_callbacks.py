@@ -343,5 +343,41 @@ def test_LambdaCallback():
     assert not p.is_alive()
 
 
+@pytest.mark.skipif((K._BACKEND != 'tensorflow'),
+                    reason="Requires tensorflow backend")
+def test_TensorBoard_with_ReduceLROnPlateau():
+    import shutil
+    filepath = './logs'
+    (X_train, y_train), (X_test, y_test) = get_test_data(nb_train=train_samples,
+                                                         nb_test=test_samples,
+                                                         input_shape=(input_dim,),
+                                                         classification=True,
+                                                         nb_class=nb_class)
+    y_test = np_utils.to_categorical(y_test)
+    y_train = np_utils.to_categorical(y_train)
+
+    model = Sequential()
+    model.add(Dense(nb_hidden, input_dim=input_dim, activation='relu'))
+    model.add(Dense(nb_class, activation='softmax'))
+    model.compile(loss='binary_crossentropy',
+                  optimizer='sgd',
+                  metrics=['accuracy'])
+
+    cbks = [
+        callbacks.ReduceLROnPlateau(
+            monitor='val_loss',
+            factor=0.5,
+            patience=4,
+            verbose=1),
+        callbacks.TensorBoard(
+            log_dir=filepath)]
+
+    model.fit(X_train, y_train, batch_size=batch_size,
+              validation_data=(X_test, y_test), callbacks=cbks, nb_epoch=2)
+
+    assert os.path.exists(filepath)
+    shutil.rmtree(filepath)
+
+
 if __name__ == '__main__':
     pytest.main([__file__])
