@@ -23,17 +23,29 @@ def model_to_dot(model, show_shapes=False, show_layer_names=True):
         model = model.model
     layers = model.layers
 
-    # first, populate the nodes of the graph
+    # Create graph nodes.
     for layer in layers:
         layer_id = str(id(layer))
+        
+        # Append a wrapped layer's label to node's label, if it exists
+        # (e.g. TimeDistributed(Dense()) becomes "TimeDistributedDense",
+        # Bidirectional(LSTM()) becomes "BidirectionalLSTM", and so on).
+        # Layer names are comma separated, to not cause confusion about
+        # being unique identifiers.
+        layer_name = layer.name
+        layer_class_name = layer.__class__.__name__
+        if layer.__module__ == 'keras.layers.wrappers':
+            layer_name += ', ' + layer.layer.name
+            layer_class_name += layer.layer.__class__.__name__
+        
+        # Create node's label.
         if show_layer_names:
-            label = str(layer.name) + ' (' + layer.__class__.__name__ + ')'
+            label = '{} ({})'.format(layer_name, layer_class_name)
         else:
-            label = layer.__class__.__name__
+            label = layer_class_name
 
+        # Rebuild the label as a table including input/output shapes.
         if show_shapes:
-            # Build the label that will actually contain a table with the
-            # input/output
             try:
                 outputlabels = str(layer.output_shape)
             except:
@@ -50,13 +62,12 @@ def model_to_dot(model, show_shapes=False, show_layer_names=True):
         node = pydot.Node(layer_id, label=label)
         dot.add_node(node)
 
-    # second, add the edges
+    # Connect nodes with edges.
     for layer in layers:
         layer_id = str(id(layer))
         for i, node in enumerate(layer.inbound_nodes):
             node_key = layer.name + '_ib-' + str(i)
             if node_key in model.container_nodes:
-                # add edges
                 for inbound_layer in node.inbound_layers:
                     inbound_layer_id = str(id(inbound_layer))
                     layer_id = str(id(layer))
