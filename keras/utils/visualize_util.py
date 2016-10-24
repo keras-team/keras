@@ -36,7 +36,7 @@ def model_to_dot(model, show_shapes=False, show_layer_names=True):
         # being unique identifiers.
         layer_name = layer.name
         layer_class_name = layer.__class__.__name__
-        if issubclass(layer.__class__, Wrapper):
+        if isinstance(layer, Wrapper):
             layer_name += ', ' + layer.layer.name
             layer_class_name += layer.layer.__class__.__name__
         
