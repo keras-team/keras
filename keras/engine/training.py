@@ -747,7 +747,7 @@ class Model(Container):
                                                **kwargs)
 
     def _fit_loop(self, f, ins, out_labels=[], batch_size=32,
-                  nb_epoch=100, verbose=1, step=1, callbacks=[],
+                  nb_epoch=100, verbose=1, verbose_step=1, callbacks=[],
                   val_f=None, val_ins=None, shuffle=True,
                   callback_metrics=[]):
         '''Abstract fit function for f(ins).
@@ -761,7 +761,7 @@ class Model(Container):
             batch_size: integer batch size
             nb_epoch: number of times to iterate over the data
             verbose: verbosity mode, 0, 1 or 2
-            step: int (default: 1).
+            verbose_step: int (default: 1).
                 Callbacks will only be verbose every step epochs. This avoids
                 epochs spamming for small models.
                 Will be ignored if verbose is set to 0.
@@ -814,7 +814,7 @@ class Model(Container):
         self.validation_data = val_ins
 
         for epoch in range(nb_epoch):
-            if epoch % step == 0 or epoch == 0 or epoch == nb_epoch-1:
+            if epoch % verbose_step == 0 or epoch == 0 or epoch == nb_epoch-1:
                 for callback in callbacks.callbacks:
                     callback.verbose = verbose
             else:
@@ -1005,7 +1005,7 @@ class Model(Container):
                                 str(x[0].shape[0]) + ' samples')
         return x, y, sample_weights
 
-    def fit(self, x, y, batch_size=32, nb_epoch=10, verbose=1, step=1,
+    def fit(self, x, y, batch_size=32, nb_epoch=10, verbose=1, verbose_step=1,
             callbacks=[], validation_split=0., validation_data=None,
             shuffle=True, class_weight=None, sample_weight=None):
         '''Trains the model for a fixed number of epochs (iterations on a dataset).
@@ -1022,7 +1022,7 @@ class Model(Container):
             batch_size: integer. Number of samples per gradient update.
             nb_epoch: integer, the number of times to iterate over the training data arrays.
             verbose: 0, 1, or 2. Verbosity mode. 0 = silent, 1 = verbose, 2 = one log line per epoch.
-            step: int (default: 1).
+            verbose_step: int (default: 1).
                 Callbacks will only be verbose every step epochs. This avoids
                 epochs spamming for small models.
                 Will be ignored if verbose is set to 0.
@@ -1129,7 +1129,8 @@ class Model(Container):
         # delegate logic to _fit_loop
         return self._fit_loop(f, ins, out_labels=out_labels,
                               batch_size=batch_size, nb_epoch=nb_epoch,
-                              verbose=verbose, step=step, callbacks=callbacks,
+                              verbose=verbose, verbose_step=verbose_step,
+                              callbacks=callbacks,
                               val_f=val_f, val_ins=val_ins, shuffle=shuffle,
                               callback_metrics=callback_metrics)
 
