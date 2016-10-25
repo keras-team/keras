@@ -262,7 +262,7 @@ class Sequential(Model):
         '''
         if not isinstance(layer, Layer):
             raise ValueError(
-                "The added layer must be an instance of class %s.Layer" \
+                "The added layer must be an instance of class %s.Layer"
                 % Layer.__module__)
         if not self.outputs:
             # first layer in model: check that it is an input layer
