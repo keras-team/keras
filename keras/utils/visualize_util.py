@@ -29,22 +29,18 @@ def model_to_dot(model, show_shapes=False, show_layer_names=True):
     for layer in layers:
         layer_id = str(id(layer))
         
-        # Append a wrapped layer's label to node's label, if it exists
-        # (e.g. TimeDistributed(Dense()) becomes "TimeDistributedDense",
-        # Bidirectional(LSTM()) becomes "BidirectionalLSTM", and so on).
-        # Layer names are comma separated, to not cause confusion about
-        # being unique identifiers.
+        # Append a wrapped layer's label to node's label, if it exists.
         layer_name = layer.name
-        layer_class_name = layer.__class__.__name__
+        class_name = layer.__class__.__name__
         if isinstance(layer, Wrapper):
-            layer_name += ', ' + layer.layer.name
-            layer_class_name += layer.layer.__class__.__name__
-        
+            layer_name = '{}({})'.format(layer_name, layer.layer.name)
+            class_name = '{}({})'.format(class_name, layer.layer.__class__.__name__)
+
         # Create node's label.
         if show_layer_names:
-            label = '{} ({})'.format(layer_name, layer_class_name)
+            label = '{}: {}'.format(layer_name, class_name)
         else:
-            label = layer_class_name
+            label = class_name
 
         # Rebuild the label as a table including input/output shapes.
         if show_shapes:
