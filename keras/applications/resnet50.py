@@ -29,7 +29,7 @@ TH_WEIGHTS_PATH_NO_TOP = 'https://github.com/fchollet/deep-learning-models/relea
 TF_WEIGHTS_PATH_NO_TOP = 'https://github.com/fchollet/deep-learning-models/releases/download/v0.2/resnet50_weights_tf_dim_ordering_tf_kernels_notop.h5'
 
 
-def identity_block(input_tensor, kernel_size, filters, stage, block):
+def identity_block(input_tensor, kernel_size, filters, stage, block, layers_lr=1.0):
     '''The identity_block is the block that has no conv layer at shortcut
 
     # Arguments
@@ -38,6 +38,8 @@ def identity_block(input_tensor, kernel_size, filters, stage, block):
         filters: list of integers, the nb_filters of 3 conv layer at main path
         stage: integer, current stage label, used for generating layer names
         block: 'a','b'..., current block label, used for generating layer names
+        layers_lr: common lr multiplier for all layers in the network.
+            You can externally add new layers to the model with different learning rates.
     '''
     nb_filter1, nb_filter2, nb_filter3 = filters
     if K.image_dim_ordering() == 'tf':
@@ -47,16 +49,19 @@ def identity_block(input_tensor, kernel_size, filters, stage, block):
     conv_name_base = 'res' + str(stage) + block + '_branch'
     bn_name_base = 'bn' + str(stage) + block + '_branch'
 
-    x = Convolution2D(nb_filter1, 1, 1, name=conv_name_base + '2a')(input_tensor)
+    x = Convolution2D(nb_filter1, 1, 1, name=conv_name_base + '2a',
+                      W_learning_rate_multiplier=layers_lr, b_learning_rate_multiplier=layers_lr)(input_tensor)
     x = BatchNormalization(axis=bn_axis, name=bn_name_base + '2a')(x)
     x = Activation('relu')(x)
 
     x = Convolution2D(nb_filter2, kernel_size, kernel_size,
-                      border_mode='same', name=conv_name_base + '2b')(x)
+                      border_mode='same', name=conv_name_base + '2b',
+                      W_learning_rate_multiplier=layers_lr, b_learning_rate_multiplier=layers_lr)(x)
     x = BatchNormalization(axis=bn_axis, name=bn_name_base + '2b')(x)
     x = Activation('relu')(x)
 
-    x = Convolution2D(nb_filter3, 1, 1, name=conv_name_base + '2c')(x)
+    x = Convolution2D(nb_filter3, 1, 1, name=conv_name_base + '2c',
+                      W_learning_rate_multiplier=layers_lr, b_learning_rate_multiplier=layers_lr)(x)
     x = BatchNormalization(axis=bn_axis, name=bn_name_base + '2c')(x)
 
     x = merge([x, input_tensor], mode='sum')
@@ -64,7 +69,7 @@ def identity_block(input_tensor, kernel_size, filters, stage, block):
     return x
 
 
-def conv_block(input_tensor, kernel_size, filters, stage, block, strides=(2, 2)):
+def conv_block(input_tensor, kernel_size, filters, stage, block, strides=(2, 2), layers_lr=1.0):
     '''conv_block is the block that has a conv layer at shortcut
 
     # Arguments
@@ -73,6 +78,8 @@ def conv_block(input_tensor, kernel_size, filters, stage, block, strides=(2, 2))
         filters: list of integers, the nb_filters of 3 conv layer at main path
         stage: integer, current stage label, used for generating layer names
         block: 'a','b'..., current block label, used for generating layer names
+        layers_lr: common lr multiplier for all layers in the network.
+            You can externally add new layers to the model with different learning rates.
 
     Note that from stage 3, the first conv layer at main path is with subsample=(2,2)
     And the shortcut should have subsample=(2,2) as well
@@ -86,16 +93,19 @@ def conv_block(input_tensor, kernel_size, filters, stage, block, strides=(2, 2))
     bn_name_base = 'bn' + str(stage) + block + '_branch'
 
     x = Convolution2D(nb_filter1, 1, 1, subsample=strides,
-                      name=conv_name_base + '2a')(input_tensor)
+                      name=conv_name_base + '2a',
+                      W_learning_rate_multiplier=layers_lr, b_learning_rate_multiplier=layers_lr)(input_tensor)
     x = BatchNormalization(axis=bn_axis, name=bn_name_base + '2a')(x)
     x = Activation('relu')(x)
 
     x = Convolution2D(nb_filter2, kernel_size, kernel_size, border_mode='same',
-                      name=conv_name_base + '2b')(x)
+                      name=conv_name_base + '2b',
+                      W_learning_rate_multiplier=layers_lr, b_learning_rate_multiplier=layers_lr)(x)
     x = BatchNormalization(axis=bn_axis, name=bn_name_base + '2b')(x)
     x = Activation('relu')(x)
 
-    x = Convolution2D(nb_filter3, 1, 1, name=conv_name_base + '2c')(x)
+    x = Convolution2D(nb_filter3, 1, 1, name=conv_name_base + '2c',
+                      W_learning_rate_multiplier=layers_lr, b_learning_rate_multiplier=layers_lr)(x)
     x = BatchNormalization(axis=bn_axis, name=bn_name_base + '2c')(x)
 
     shortcut = Convolution2D(nb_filter3, 1, 1, subsample=strides,
@@ -108,7 +118,7 @@ def conv_block(input_tensor, kernel_size, filters, stage, block, strides=(2, 2))
 
 
 def ResNet50(include_top=True, weights='imagenet',
-             input_tensor=None):
+             input_tensor=None, layers_lr=1.0):
     '''Instantiate the ResNet50 architecture,
     optionally loading weights pre-trained
     on ImageNet. Note that when using TensorFlow,
@@ -128,6 +138,8 @@ def ResNet50(include_top=True, weights='imagenet',
             or "imagenet" (pre-training on ImageNet).
         input_tensor: optional Keras tensor (i.e. xput of `layers.Input()`)
             to use as image input for the model.
+        layers_lr: common lr multiplier for all layers in the network.
+            You can externally add new layers to the model with different learning rates.
 
     # Returns
         A Keras model instance.
@@ -161,36 +173,38 @@ def ResNet50(include_top=True, weights='imagenet',
         bn_axis = 1
 
     x = ZeroPadding2D((3, 3))(img_input)
-    x = Convolution2D(64, 7, 7, subsample=(2, 2), name='conv1')(x)
+    x = Convolution2D(64, 7, 7, subsample=(2, 2), name='conv1',
+                      W_learning_rate_multiplier=layers_lr, b_learning_rate_multiplier=layers_lr)(x)
     x = BatchNormalization(axis=bn_axis, name='bn_conv1')(x)
     x = Activation('relu')(x)
     x = MaxPooling2D((3, 3), strides=(2, 2))(x)
 
-    x = conv_block(x, 3, [64, 64, 256], stage=2, block='a', strides=(1, 1))
-    x = identity_block(x, 3, [64, 64, 256], stage=2, block='b')
-    x = identity_block(x, 3, [64, 64, 256], stage=2, block='c')
+    x = conv_block(x, 3, [64, 64, 256], stage=2, block='a', strides=(1, 1), layers_lr=layers_lr)
+    x = identity_block(x, 3, [64, 64, 256], stage=2, block='b', layers_lr=layers_lr)
+    x = identity_block(x, 3, [64, 64, 256], stage=2, block='c', layers_lr=layers_lr)
 
-    x = conv_block(x, 3, [128, 128, 512], stage=3, block='a')
-    x = identity_block(x, 3, [128, 128, 512], stage=3, block='b')
-    x = identity_block(x, 3, [128, 128, 512], stage=3, block='c')
-    x = identity_block(x, 3, [128, 128, 512], stage=3, block='d')
+    x = conv_block(x, 3, [128, 128, 512], stage=3, block='a', layers_lr=layers_lr)
+    x = identity_block(x, 3, [128, 128, 512], stage=3, block='b', layers_lr=layers_lr)
+    x = identity_block(x, 3, [128, 128, 512], stage=3, block='c', layers_lr=layers_lr)
+    x = identity_block(x, 3, [128, 128, 512], stage=3, block='d', layers_lr=layers_lr)
 
-    x = conv_block(x, 3, [256, 256, 1024], stage=4, block='a')
-    x = identity_block(x, 3, [256, 256, 1024], stage=4, block='b')
-    x = identity_block(x, 3, [256, 256, 1024], stage=4, block='c')
-    x = identity_block(x, 3, [256, 256, 1024], stage=4, block='d')
-    x = identity_block(x, 3, [256, 256, 1024], stage=4, block='e')
-    x = identity_block(x, 3, [256, 256, 1024], stage=4, block='f')
+    x = conv_block(x, 3, [256, 256, 1024], stage=4, block='a', layers_lr=layers_lr)
+    x = identity_block(x, 3, [256, 256, 1024], stage=4, block='b', layers_lr=layers_lr)
+    x = identity_block(x, 3, [256, 256, 1024], stage=4, block='c', layers_lr=layers_lr)
+    x = identity_block(x, 3, [256, 256, 1024], stage=4, block='d', layers_lr=layers_lr)
+    x = identity_block(x, 3, [256, 256, 1024], stage=4, block='e', layers_lr=layers_lr)
+    x = identity_block(x, 3, [256, 256, 1024], stage=4, block='f', layers_lr=layers_lr)
 
-    x = conv_block(x, 3, [512, 512, 2048], stage=5, block='a')
-    x = identity_block(x, 3, [512, 512, 2048], stage=5, block='b')
-    x = identity_block(x, 3, [512, 512, 2048], stage=5, block='c')
+    x = conv_block(x, 3, [512, 512, 2048], stage=5, block='a', layers_lr=layers_lr)
+    x = identity_block(x, 3, [512, 512, 2048], stage=5, block='b', layers_lr=layers_lr)
+    x = identity_block(x, 3, [512, 512, 2048], stage=5, block='c', layers_lr=layers_lr)
 
     x = AveragePooling2D((7, 7), name='avg_pool')(x)
 
     if include_top:
         x = Flatten()(x)
-        x = Dense(1000, activation='softmax', name='fc1000')(x)
+        x = Dense(1000, activation='softmax', name='fc1000',
+                  W_learning_rate_multiplier=layers_lr, b_learning_rate_multiplier=layers_lr)(x)
 
     model = Model(img_input, x)
 

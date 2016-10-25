@@ -1778,11 +1778,6 @@ class CompactBilinearPooling(Layer):
 
     def get_config(self):
         config = {'d': self.d,
-                  'h': self.h,
-                  'return_extra': self.return_extra,
-                  's': self.s,
-                  'conv_type': self.conv_type}
-        config = {'d': self.d,
                   'return_extra': self.return_extra,
                   'conv_type': self.conv_type}
         base_config = super(CompactBilinearPooling, self).get_config()
