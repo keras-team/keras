@@ -411,7 +411,7 @@ class ImageDataGenerator(object):
 
         if self.zca_whitening:
             flatX = np.reshape(X, (X.shape[0], X.shape[1] * X.shape[2] * X.shape[3]))
-            sigma = np.dot(flatX.T, flatX) / flatX.shape[1]
+            sigma = np.dot(flatX.T, flatX) / flatX.shape[0]
             U, S, V = linalg.svd(sigma)
             self.principal_components = np.dot(np.dot(U, np.diag(1. / np.sqrt(S + 10e-7))), U.T)
 
