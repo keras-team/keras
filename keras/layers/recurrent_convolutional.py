@@ -7,7 +7,7 @@ from ..utils.np_utils import conv_output_length
 import warnings
 
 
-class RecurrentConv2D(Layer):
+class ConvRecurrent2D(Layer):
     '''Abstract base class for recurrent layers.
     Do not use in a model -- it's not a functional layer!
 
@@ -88,7 +88,7 @@ class RecurrentConv2D(Layer):
         self.dim_ordering = dim_ordering
         self.input_spec = [InputSpec(ndim=5)]
 
-        super(RecurrentConv2D, self).__init__(**kwargs)
+        super(ConvRecurrent2D, self).__init__(**kwargs)
 
     def compute_mask(self, input, mask):
         if self.return_sequences:
@@ -195,11 +195,11 @@ class RecurrentConv2D(Layer):
         if self.stateful:
             config['batch_input_shape'] = self.input_spec[0].shape
 
-        base_config = super(RecurrentConv2D, self).get_config()
+        base_config = super(ConvRecurrent2D, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
 
-class LSTMConv2D(RecurrentConv2D):
+class ConvLSTM2D(ConvRecurrent2D):
     '''
     # Input shape
         - if dim_ordering='th'
@@ -304,7 +304,7 @@ class LSTMConv2D(RecurrentConv2D):
         if self.dropout_W or self.dropout_U:
             self.uses_learning_phase = True
 
-        super(LSTMConv2D, self).__init__(**kwargs)
+        super(ConvLSTM2D, self).__init__(**kwargs)
 
     def build(self, input_shape):
         self.input_spec = [InputSpec(shape=input_shape)]
@@ -519,5 +519,5 @@ class LSTMConv2D(RecurrentConv2D):
                   'dim_ordering': self.dim_ordering,
                   'border_mode': self.border_mode,
                   'inner_activation': self.inner_activation.__name__}
-        base_config = super(LSTMConv2D, self).get_config()
+        base_config = super(ConvLSTM2D, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))

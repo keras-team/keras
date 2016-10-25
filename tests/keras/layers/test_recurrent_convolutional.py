@@ -32,7 +32,7 @@ def test_recurrent_convolutional():
 
         for return_sequences in [True, False]:
             # test for ouptput shape:
-            output = layer_test(recurrent_convolutional.LSTMConv2D,
+            output = layer_test(recurrent_convolutional.ConvLSTM2D,
                                 kwargs={'dim_ordering': dim_ordering,
                                         'return_sequences': return_sequences,
                                         'nb_filter': nb_filter,
@@ -67,7 +67,7 @@ def test_recurrent_convolutional():
                       'stateful': True,
                       'batch_input_shape': input.shape,
                       'border_mode': "same"}
-            layer = recurrent_convolutional.LSTMConv2D(**kwargs)
+            layer = recurrent_convolutional.ConvLSTM2D(**kwargs)
 
             model.add(layer)
             model.compile(optimizer='sgd', loss='mse')
@@ -110,13 +110,13 @@ def test_recurrent_convolutional():
                       'b_regularizer': 'l2',
                       'border_mode': "same"}
 
-            layer = recurrent_convolutional.LSTMConv2D(**kwargs)
+            layer = recurrent_convolutional.ConvLSTM2D(**kwargs)
             layer.set_input(K.variable(np.ones(input.shape)),
                             shape=input.shape)
             K.eval(layer.output)
 
             # check dropout
-            layer_test(recurrent_convolutional.LSTMConv2D,
+            layer_test(recurrent_convolutional.ConvLSTM2D,
                        kwargs={'dim_ordering': dim_ordering,
                                'return_sequences': return_sequences,
                                'nb_filter': nb_filter,
