@@ -5,7 +5,7 @@ from numpy.testing import assert_allclose
 from keras.layers.core import Dense, Activation
 from keras.utils.test_utils import layer_test, keras_test
 from keras.layers import normalization
-from keras.models import Sequential, Graph
+from keras.models import Sequential
 from keras import backend as K
 
 input_1 = np.arange(10)

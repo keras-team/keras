@@ -404,26 +404,27 @@ class Sequential(Model):
         if self._flattened_layers is not None:
             return self._flattened_layers
         layers = []
-        if self.layers[0].__class__.__name__ == 'Merge':
-            merge = self.layers[0]
-            for layer in merge.layers:
-                if hasattr(layer, 'flattened_layers'):
-                    for sublayer in layer.flattened_layers:
-                        if sublayer not in layers:
-                            layers.append(sublayer)
-                elif hasattr(layer, 'layers'):
-                    for sublayer in layer.layers:
-                        if sublayer not in layers:
-                            layers.append(sublayer)
-                else:
-                    if layer not in layers:
-                        layers.append(layer)
-        else:
-            if self.layers[0] not in layers:
-                layers.append(self.layers[0])
-        for layer in self.layers[1:]:
-            if layer not in layers:
-                layers.append(layer)
+        if self.layers:
+            if self.layers[0].__class__.__name__ == 'Merge':
+                merge = self.layers[0]
+                for layer in merge.layers:
+                    if hasattr(layer, 'flattened_layers'):
+                        for sublayer in layer.flattened_layers:
+                            if sublayer not in layers:
+                                layers.append(sublayer)
+                    elif hasattr(layer, 'layers'):
+                        for sublayer in layer.layers:
+                            if sublayer not in layers:
+                                layers.append(sublayer)
+                    else:
+                        if layer not in layers:
+                            layers.append(layer)
+            else:
+                if self.layers[0] not in layers:
+                    layers.append(self.layers[0])
+            for layer in self.layers[1:]:
+                if layer not in layers:
+                    layers.append(layer)
         self._flattened_layers = layers
         return layers
 

@@ -538,7 +538,8 @@ class Graph(Model):
                       verbose=1, callbacks=[],
                       validation_data=None, nb_val_samples=None,
                       class_weight={},
-                      max_q_size=10, **kwargs):
+                      max_q_size=10, nb_worker=1,
+                      pickle_safe=False, **kwargs):
         '''Fits a model on data generated batch-by-batch by a Python generator.
         The generator is run in parallel to the model, for efficiency.
         For instance, this allows you to do real-time data augmentation
@@ -599,10 +600,6 @@ class Graph(Model):
                           'the model at compile time:\n'
                           '`model.compile(optimizer, loss, '
                           'metrics=["accuracy"])`')
-        if 'nb_worker' in kwargs:
-            kwargs.pop('nb_worker')
-            warnings.warn('The "nb_worker" argument is deprecated, '
-                          'please remove it from your code.')
         if 'nb_val_worker' in kwargs:
             kwargs.pop('nb_val_worker')
             warnings.warn('The "nb_val_worker" argument is deprecated, '
@@ -647,13 +644,16 @@ class Graph(Model):
                                                    validation_data=validation_data,
                                                    nb_val_samples=nb_val_samples,
                                                    class_weight=class_weight,
-                                                   max_q_size=max_q_size)
+                                                   max_q_size=max_q_size,
+                                                   nb_worker=nb_worker,
+                                                   pickle_safe=pickle_safe)
         self.train_on_batch = self._train_on_batch
         self.evaluate = self._evaluate
         return history
 
     def evaluate_generator(self, generator, val_samples,
-                           verbose=1, max_q_size=10, **kwargs):
+                           verbose=1, max_q_size=10, nb_worker=1,
+                           pickle_safe=False, **kwargs):
         '''Evaluates the model on a generator. The generator should
         return the same kind of data with every yield as accepted
         by `evaluate`.
@@ -707,7 +707,9 @@ class Graph(Model):
         generator = fixed_generator()
         history = super(Graph, self).evaluate_generator(generator,
                                                         val_samples,
-                                                        max_q_size=max_q_size)
+                                                        max_q_size=max_q_size,
+                                                        nb_worker=nb_worker,
+                                                        pickle_safe=pickle_safe)
         self.test_on_batch = self._test_on_batch
         return history
 
