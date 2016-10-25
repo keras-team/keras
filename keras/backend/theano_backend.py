@@ -441,6 +441,8 @@ def batch_normalization(x, mean, var, beta, gamma, epsilon=0.0001):
             return normed
         except AttributeError:
             pass
+        except ValueError:
+            pass
     return T.nnet.bn.batch_normalization(x, gamma, beta, mean, sqrt(var + epsilon),
                                          mode='high_mem')
 
