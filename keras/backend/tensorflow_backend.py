@@ -188,6 +188,7 @@ def placeholder(shape=None, ndim=None, dtype=_FLOATX, sparse=False, name=None):
             shape = tuple([None for _ in range(ndim)])
     if sparse:
         x = tf.sparse_placeholder(dtype, name=name)
+        x._dims = len(shape)
     else:
         x = tf.placeholder(dtype, shape=shape, name=name)
     x._keras_shape = shape
@@ -214,7 +215,7 @@ def ndim(x):
     '''Returns the number of axes in a tensor, as an integer.
     '''
     if is_sparse(x):
-        return int(x.shape.get_shape()[0])
+        return x._dims
 
     dims = x.get_shape()._dims
     if dims is not None:
