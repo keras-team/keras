@@ -1935,6 +1935,7 @@ def reverse_gradient(X, hp_lambda):
         reverse_gradient.num_calls = 1
 
     grad_name = "GradientReversal%d" % reverse_gradient.num_calls
+
     @tf.python.framework.ops.RegisterGradient(grad_name)
     def _flip_gradients(op, grad):
         return [tf.neg(grad) * hp_lambda]
