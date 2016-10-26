@@ -248,7 +248,9 @@ PAGES = [
     },
     {
         'page': 'utils/data_utils.md',
-        'all_module_functions': [data_utils]
+        'functions': [
+            data_utils.get_file,
+        ]
     },
     {
         'page': 'utils/io_utils.md',
@@ -258,7 +260,9 @@ PAGES = [
     },
     {
         'page': 'utils/layer_utils.md',
-        'all_module_functions': [layer_utils]
+        'functions': [
+            layer_utils.layer_from_config,
+        ]
     },
     {
         'page': 'utils/np_utils.md',
