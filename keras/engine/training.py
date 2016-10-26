@@ -1216,7 +1216,7 @@ class Model(Container):
                 from this class during training.
                 This can be useful to tell the model to "pay more attention" to
                 samples from an under-represented class.
-            check_batch_dim: Check batch dimensions for consistency. (default is True)
+            check_batch_dim: Check batch dimensions for shape consistency. (default is True)
 
         # Returns
             Scalar training loss (if the model has a single output and no metrics)
