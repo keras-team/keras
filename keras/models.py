@@ -573,7 +573,8 @@ class Sequential(Model):
                 See [callbacks](/callbacks).
             validation_split: float (0. < x < 1).
                 Fraction of the data to use as held-out validation data.
-            validation_data: tuple (X, y) to be used as held-out
+            validation_data: tuple (x_val, y_val) or tuple
+                (x_val, y_val, val_sample_weights) to be used as held-out
                 validation data. Will override validation_split.
             shuffle: boolean or str (for 'batch').
                 Whether to shuffle the samples at each epoch.
