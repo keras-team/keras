@@ -84,10 +84,13 @@ def batch_gen(batches, id_array, data, labels):
         np.random.shuffle(id_array)
 
 
-def evaluate_dann(num_batches, size):
+def evaluate_dann(X_test, batch_size):
+    """Predict batch by batch."""
+    size = batch_size / 2
+    num_batches = X_test.shape[0] / size
     acc = 0
     for i in range(0, num_batches):
-        _, prob = dann_model.predict_on_batch(XT_test[i * size:i * size + size])
+        _, prob = dann_model.predict_on_batch(X_test[i * size:i * size + size])
         predictions = np.argmax(prob, axis=1)
         actual = np.argmax(y_test[i * size:i * size + size], axis=1)
         acc += float(np.sum((predictions == actual))) / size
@@ -180,10 +183,10 @@ class DANNBuilder(object):
                       optimizer=self.opt, metrics=['accuracy'])
         return model
 
-    def build_dann_model(self, main_input, plot_model=False):
+    def build_dann_model(self, main_input, hp_lambda, plot_model=False):
         net = self._build_feature_extractor(main_input)
-        self.grl = GradientReversal(1.0)
-        branch = self.grl(net)
+        self.grl = GradientReversal()
+        branch = self.grl(net, hp_lambda)
         branch = Dense(128, activation='relu')(branch)
         branch = Dropout(0.1)(branch)
         branch = Dense(2, activation='softmax', name='domain_output')(branch)
@@ -191,10 +194,8 @@ class DANNBuilder(object):
         # When building DANN model, route first half of batch (source examples)
         # to domain classifier, and route full batch (half source, half target)
         # to the domain classifier.
-        net = Lambda(lambda x: K.switch(K.learning_phase(),
-                     x[:int(batch_size / 2), :], x, lazy=True),
-                     output_shape=lambda x: ((batch_size / 2,) +
-                     x[1:]) if _TRAIN else x[0:])(net)
+        net = Lambda(lambda x: K.switch(K.learning_phase(), x[:int(batch_size / 2), :], x, lazy=True),
+                     output_shape=lambda x: ((batch_size / 2,) + x[1:]))(net)
 
         net = self._build_classifier(net)
         model = Model(input=main_input, output=[branch, net])
@@ -219,7 +220,8 @@ builder = DANNBuilder()
 src_model = builder.build_source_model(main_input)
 src_vis = builder.build_tsne_model(main_input)
 
-dann_model = builder.build_dann_model(main_input)
+hp_lambda = K.variable(1.0)
+dann_model = builder.build_dann_model(main_input, hp_lambda)
 dann_vis = builder.build_tsne_model(main_input)
 print('Training source only model')
 src_model.fit(X_train, y_train, batch_size=64, nb_epoch=10, verbose=1,
@@ -257,7 +259,7 @@ for i in range(nb_epoch):
         p = float(j) / num_steps
         l = 2. / (1. + np.exp(-10. * p)) - 1
         lr = 0.01 / (1. + 10 * p)**0.75
-        builder.grl.l = l
+        hp_lambda = l
         builder.opt.lr = lr
 
         if xb.shape[0] != batch_size / 2:
@@ -280,9 +282,7 @@ for i in range(nb_epoch):
         j += 1
 
 print('Evaluating target samples on DANN model')
-size = batch_size / 2
-nb_testbatches = XT_test.shape[0] / size
-acc = evaluate_dann(nb_testbatches, size)
+acc = evaluate_dann(XT_test, batch_size)
 print('Accuracy:', acc)
 print('Visualizing output of domain invariant features')
 

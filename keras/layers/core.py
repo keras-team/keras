@@ -1222,22 +1222,20 @@ class GradientReversal(Layer):
     # Arguments:
         hp_lambda: Scalar to multiply the flipped gradient.
     '''
-    def __init__(self, hp_lambda, **kwargs):
+    def __init__(self, **kwargs):
         super(GradientReversal, self).__init__(**kwargs)
-        self.hp_lambda = K.variable(hp_lambda)
         self.supports_masking = False
-        self.op = K.ReverseGradient(self.hp_lambda)
 
     def build(self, input_shape):
         self.trainable_weights = []
 
-    def call(self, x, mask=None):
-        return self.op(x)
+    def call(self, x, hp_lambda, mask=None):
+        return K.reverse_gradient(x, hp_lambda)
 
     def get_output_shape_for(self, input_shape):
         return input_shape
 
     def get_config(self):
-        config = {'hp_lambda': self.hp_lambda}
+        config = {}
         base_config = super(GradientReversal, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
