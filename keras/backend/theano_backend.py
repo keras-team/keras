@@ -1269,7 +1269,7 @@ def dropout(x, level, noise_shape=None, seed=None):
 
 
 def l2_normalize(x, axis):
-    norm = T.sqrt(T.sum(T.square(x), axis=axis, keepdims=True))
+    norm = T.sqrt(T.sum(T.square(x), axis=axis, keepdims=True)) + _EPSILON # avoid division by values close to 0
     return x / norm
 
 
