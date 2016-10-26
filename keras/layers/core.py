@@ -1216,12 +1216,7 @@ class TimeDistributedDense(Layer):
 
 
 class GradientReversal(Layer):
-    '''
-    Flip the sign of gradient during training.
-
-    # Arguments:
-        hp_lambda: Scalar to multiply the flipped gradient.
-    '''
+    '''Flip the sign of gradient during training.'''
     def __init__(self, **kwargs):
         super(GradientReversal, self).__init__(**kwargs)
         self.supports_masking = False
