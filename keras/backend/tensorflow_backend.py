@@ -187,8 +187,7 @@ def placeholder(shape=None, ndim=None, dtype=_FLOATX, sparse=False, name=None):
         if ndim:
             shape = tuple([None for _ in range(ndim)])
     if sparse:
-        tf_shape = tf.constant(np.array(list([0 for _ in range(len(shape))]), dtype=np.int64))
-        x = tf.sparse_placeholder(dtype, shape=tf_shape, name=name)
+        x = tf.sparse_placeholder(dtype, name=name)
     else:
         x = tf.placeholder(dtype, shape=shape, name=name)
     x._keras_shape = shape
