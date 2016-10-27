@@ -66,7 +66,7 @@ def func_reconstruct_closure(values):
     src += ["  return lambda:(%s)" % ','.join(["_%d" % n for n in nums]), ""]
     src = '\n'.join(src)
     try:
-        exec(src)
+        exec(src, globals())
     except:
         raise SyntaxError(src)
     return func(values).__closure__

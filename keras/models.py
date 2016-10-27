@@ -8,7 +8,7 @@ import numpy as np
 from . import backend as K
 from .utils.io_utils import ask_to_proceed_with_overwrite
 from .engine.training import Model
-from .engine.topology import get_source_inputs, Node
+from .engine.topology import get_source_inputs, Node, Layer
 from .optimizers import optimizer_from_config
 from .legacy.models import Graph
 
@@ -260,6 +260,10 @@ class Sequential(Model):
         # Arguments
             layer: layer instance.
         '''
+        if not isinstance(layer, Layer):
+            raise ValueError('The added layer must be '
+                             'an instance of class Layer. '
+                             'Found: ' + str(layer))
         if not self.outputs:
             # first layer in model: check that it is an input layer
             if len(layer.inbound_nodes) == 0:
@@ -400,26 +404,27 @@ class Sequential(Model):
         if self._flattened_layers is not None:
             return self._flattened_layers
         layers = []
-        if self.layers[0].__class__.__name__ == 'Merge':
-            merge = self.layers[0]
-            for layer in merge.layers:
-                if hasattr(layer, 'flattened_layers'):
-                    for sublayer in layer.flattened_layers:
-                        if sublayer not in layers:
-                            layers.append(sublayer)
-                elif hasattr(layer, 'layers'):
-                    for sublayer in layer.layers:
-                        if sublayer not in layers:
-                            layers.append(sublayer)
-                else:
-                    if layer not in layers:
-                        layers.append(layer)
-        else:
-            if self.layers[0] not in layers:
-                layers.append(self.layers[0])
-        for layer in self.layers[1:]:
-            if layer not in layers:
-                layers.append(layer)
+        if self.layers:
+            if self.layers[0].__class__.__name__ == 'Merge':
+                merge = self.layers[0]
+                for layer in merge.layers:
+                    if hasattr(layer, 'flattened_layers'):
+                        for sublayer in layer.flattened_layers:
+                            if sublayer not in layers:
+                                layers.append(sublayer)
+                    elif hasattr(layer, 'layers'):
+                        for sublayer in layer.layers:
+                            if sublayer not in layers:
+                                layers.append(sublayer)
+                    else:
+                        if layer not in layers:
+                            layers.append(layer)
+            else:
+                if self.layers[0] not in layers:
+                    layers.append(self.layers[0])
+            for layer in self.layers[1:]:
+                if layer not in layers:
+                    layers.append(layer)
         self._flattened_layers = layers
         return layers
 
@@ -517,6 +522,7 @@ class Sequential(Model):
             metrics: list of metrics to be evaluated by the model
                 during training and testing.
                 Typically you will use `metrics=['accuracy']`.
+                See [metrics](/metrics).
             sample_weight_mode: if you need to do timestep-wise
                 sample weighting (2D weights), set this to "temporal".
                 "None" defaults to sample-wise weights (1D).
@@ -571,7 +577,8 @@ class Sequential(Model):
                 See [callbacks](/callbacks).
             validation_split: float (0. < x < 1).
                 Fraction of the data to use as held-out validation data.
-            validation_data: tuple (X, y) to be used as held-out
+            validation_data: tuple (x_val, y_val) or tuple
+                (x_val, y_val, val_sample_weights) to be used as held-out
                 validation data. Will override validation_split.
             shuffle: boolean or str (for 'batch').
                 Whether to shuffle the samples at each epoch.

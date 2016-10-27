@@ -6,9 +6,33 @@ from collections import defaultdict
 
 
 class HDF5Matrix():
+    '''Representation of HDF5 dataset which can be used instead of a
+    Numpy array.
+
+    # Example
+
+    ```python
+        X_data = HDF5Matrix('input/file.hdf5', 'data')
+        model.predict(X_data)
+    ```
+
+    Providing start and end allows use of a slice of the dataset.
+
+    Optionally, a normalizer function (or lambda) can be given. This will
+    be called on every slice of data retrieved.
+
+    # Arguments
+        datapath: string, path to a HDF5 file
+        dataset: string, name of the HDF5 dataset in the file specified
+            in datapath
+        start: int, start of desired slice of the specified dataset
+        end: int, end of desired slice of the specified dataset
+        normalizer: function to be called on data when retrieved
+
+    '''
     refs = defaultdict(int)
 
-    def __init__(self, datapath, dataset, start, end, normalizer=None):
+    def __init__(self, datapath, dataset, start=0, end=None, normalizer=None):
         import h5py
 
         if datapath not in list(self.refs.keys()):
@@ -16,9 +40,12 @@ class HDF5Matrix():
             self.refs[datapath] = f
         else:
             f = self.refs[datapath]
-        self.start = start
-        self.end = end
         self.data = f[dataset]
+        self.start = start
+        if end is None:
+            self.end = self.data.shape[0]
+        else:
+            self.end = end
         self.normalizer = normalizer
 
     def __len__(self):

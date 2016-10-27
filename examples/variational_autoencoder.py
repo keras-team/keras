@@ -16,6 +16,7 @@ original_dim = 784
 latent_dim = 2
 intermediate_dim = 256
 nb_epoch = 50
+epsilon_std = 0.01
 
 x = Input(batch_shape=(batch_size, original_dim))
 h = Dense(intermediate_dim, activation='relu')(x)
@@ -25,7 +26,8 @@ z_log_var = Dense(latent_dim)(h)
 
 def sampling(args):
     z_mean, z_log_var = args
-    epsilon = K.random_normal(shape=(batch_size, latent_dim), mean=0.)
+    epsilon = K.random_normal(shape=(batch_size, latent_dim), mean=0.,
+                              std=epsilon_std)
     return z_mean + K.exp(z_log_var / 2) * epsilon
 
 # note that "output_shape" isn't necessary with the TensorFlow backend

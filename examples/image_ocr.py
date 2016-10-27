@@ -109,7 +109,7 @@ def paint_text(text, w, h):
     a = np.frombuffer(buf, np.uint8)
     a.shape = (h, w, 4)
     a = a[:, :, 0]  # grab single channel
-    a /= 255
+    a = a.astype(np.float32) / 255
     a = np.expand_dims(a, 0)
     a = speckle(a)
     a = image.random_rotation(a, 3 * (w - top_left_x) / w + 1)
@@ -396,7 +396,7 @@ pool_size_1 = 4
 pool_size_2 = 2
 time_dense_size = 32
 rnn_size = 512
-time_steps = img_w / (pool_size_1 * pool_size_2)
+time_steps = img_w // (pool_size_1 * pool_size_2)
 
 if K.image_dim_ordering() == 'th':
     input_shape = (1, img_h, img_w)
@@ -411,7 +411,7 @@ img_gen = TextImageGenerator(monogram_file=os.path.join(fdir, 'wordlist_mono_cle
                              minibatch_size=32,
                              img_w=img_w,
                              img_h=img_h,
-                             downsample_width=img_w / (pool_size_1 * pool_size_2) - 2,
+                             downsample_width=img_w // (pool_size_1 * pool_size_2) - 2,
                              val_split=words_per_epoch - val_words)
 
 act = 'relu'
@@ -423,7 +423,7 @@ inner = Convolution2D(conv_num_filters, filter_size, filter_size, border_mode='s
                       activation=act, name='conv2')(inner)
 inner = MaxPooling2D(pool_size=(pool_size_2, pool_size_2), name='max2')(inner)
 
-conv_to_rnn_dims = ((img_h / (pool_size_1 * pool_size_2)) * conv_num_filters, img_w / (pool_size_1 * pool_size_2))
+conv_to_rnn_dims = ((img_h // (pool_size_1 * pool_size_2)) * conv_num_filters, img_w // (pool_size_1 * pool_size_2))
 inner = Reshape(target_shape=conv_to_rnn_dims, name='reshape')(inner)
 inner = Permute(dims=(2, 1), name='permute')(inner)
 

@@ -1,12 +1,6 @@
 import numpy as np
 from .. import backend as K
 
-if librosa_exists():
-    import librosa
-else:
-    raise RuntimeError('librosa is required to process audio files\n' +
-                       'In short, $ pip install librosa\nor visit ' +
-                       'http://librosa.github.io/librosa/ for details.')
 
 TAGS = ['rock', 'pop', 'alternative', 'indie', 'electronic',
         'female vocalists', 'dance', '00s', 'alternative rock', 'jazz',
@@ -31,9 +25,18 @@ def librosa_exists():
 
 
 def preprocess_input(audio_path, dim_ordering='default'):
+    '''Reads an audio file and outputs a Mel-spectrogram.
+    '''
     if dim_ordering == 'default':
         dim_ordering = K.image_dim_ordering()
     assert dim_ordering in {'tf', 'th'}
+
+    if librosa_exists():
+        import librosa
+    else:
+        raise RuntimeError('Librosa is required to process audio files.\n' +
+                           'Install it via `pip install librosa` \nor visit ' +
+                           'http://librosa.github.io/librosa/ for details.')
 
     # mel-spectrogram parameters
     SR = 12000
@@ -60,14 +63,15 @@ def preprocess_input(audio_path, dim_ordering='default'):
               ref_power=1.0)
 
     if dim_ordering == 'th':
-        x = x[np.newaxis, :]
+        x = np.expand_dims(x, axis=0)
     elif dim_ordering == 'tf':
-        x = x[:, np.newaxis]
+        x = np.expand_dims(x, axis=3)
     return x
 
 
 def decode_predictions(preds, top_n=5):
-    '''
+    '''Decode the output of a music tagger model.
+
     # Arguments
         preds: 2-dimensional numpy array
         top_n: integer in [0, 50], number of items to show

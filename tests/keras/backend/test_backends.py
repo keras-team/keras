@@ -2,6 +2,7 @@ import sys
 import pytest
 from numpy.testing import assert_allclose
 import numpy as np
+import scipy.sparse as sparse
 
 from keras.backend import theano_backend as KTH
 from keras.backend import tensorflow_backend as KTF
@@ -429,6 +430,50 @@ class TestBackend(object):
         assert_allclose(unrolled_masked_th_outputs, masked_th_outputs, atol=1e-04)
         assert_allclose(unrolled_masked_th_state, masked_th_state, atol=1e-04)
 
+    def test_rnn_no_states(self):
+        # implement a simple RNN without states
+        input_dim = 8
+        output_dim = 4
+        timesteps = 5
+
+        input_val = np.random.random((32, timesteps, input_dim))
+        W_i_val = np.random.random((input_dim, output_dim))
+
+        def rnn_step_fn(input_dim, output_dim, K):
+            W_i = K.variable(W_i_val)
+
+            def step_function(x, states):
+                assert len(states) == 0
+                output = K.dot(x, W_i)
+                return output, []
+            return step_function
+
+        # test default setup
+        th_rnn_step_fn = rnn_step_fn(input_dim, output_dim, KTH)
+        th_inputs = KTH.variable(input_val)
+        th_initial_states = []
+        last_output, outputs, new_states = KTH.rnn(th_rnn_step_fn, th_inputs,
+                                                   th_initial_states,
+                                                   go_backwards=False,
+                                                   mask=None)
+        th_last_output = KTH.eval(last_output)
+        th_outputs = KTH.eval(outputs)
+        assert len(new_states) == 0
+
+        tf_rnn_step_fn = rnn_step_fn(input_dim, output_dim, KTF)
+        tf_inputs = KTF.variable(input_val)
+        tf_initial_states = []
+        last_output, outputs, new_states = KTF.rnn(tf_rnn_step_fn, tf_inputs,
+                                                   tf_initial_states,
+                                                   go_backwards=False,
+                                                   mask=None)
+        tf_last_output = KTF.eval(last_output)
+        tf_outputs = KTF.eval(outputs)
+        assert len(new_states) == 0
+
+        assert_allclose(tf_last_output, th_last_output, atol=1e-04)
+        assert_allclose(tf_outputs, th_outputs, atol=1e-04)
+
     def test_switch(self):
         val = np.random.random()
         xth = KTH.variable(val)
@@ -447,6 +492,7 @@ class TestBackend(object):
         check_single_tensor_operation('relu', (4, 2), alpha=0.1, max_value=0.5)
         check_single_tensor_operation('softmax', (4, 10))
         check_single_tensor_operation('softplus', (4, 10))
+        check_single_tensor_operation('elu', (4, 10), alpha=0.5)
 
         check_single_tensor_operation('sigmoid', (4, 2))
         check_single_tensor_operation('hard_sigmoid', (4, 2))
@@ -483,11 +529,11 @@ class TestBackend(object):
 
                 kernel_val = np.random.random(kernel_shape) - 0.5
 
-                kernel_th = KTH.variable(convert_kernel(kernel_val))
+                kernel_th = KTH.variable(convert_kernel(kernel_val, dim_ordering='th'))
                 kernel_tf = KTF.variable(kernel_val)
 
-                zth = KTH.eval(KTH.conv2d(xth, kernel_th))
-                ztf = KTF.eval(KTF.conv2d(xtf, kernel_tf))
+                zth = KTH.eval(KTH.conv2d(xth, kernel_th, dim_ordering='th'))
+                ztf = KTF.eval(KTF.conv2d(xtf, kernel_tf, dim_ordering='th'))
 
                 assert zth.shape == ztf.shape
                 assert_allclose(zth, ztf, atol=1e-05)
@@ -527,11 +573,11 @@ class TestBackend(object):
 
                 kernel_val = np.random.random(kernel_shape) - 0.5
 
-                kernel_th = KTH.variable(convert_kernel(kernel_val))
+                kernel_th = KTH.variable(convert_kernel(kernel_val, dim_ordering='th'))
                 kernel_tf = KTF.variable(kernel_val)
 
-                zth = KTH.eval(KTH.conv3d(xth, kernel_th))
-                ztf = KTF.eval(KTF.conv3d(xtf, kernel_tf))
+                zth = KTH.eval(KTH.conv3d(xth, kernel_th, dim_ordering='th'))
+                ztf = KTF.eval(KTF.conv3d(xtf, kernel_tf, dim_ordering='th'))
 
                 assert zth.shape == ztf.shape
                 assert_allclose(zth, ztf, atol=1e-05)
@@ -557,23 +603,23 @@ class TestBackend(object):
         assert_allclose(zth, ztf, atol=1e-05)
 
     def test_pool2d(self):
-        check_single_tensor_operation('pool2d', (5, 3, 10, 12), pool_size=(2, 2),
+        check_single_tensor_operation('pool2d', (5, 10, 12, 3), pool_size=(2, 2),
                                       strides=(1, 1), border_mode='valid')
 
-        check_single_tensor_operation('pool2d', (5, 3, 9, 11), pool_size=(2, 2),
+        check_single_tensor_operation('pool2d', (5, 9, 11, 3), pool_size=(2, 2),
                                       strides=(1, 1), border_mode='valid')
 
-        check_single_tensor_operation('pool2d', (5, 3, 9, 11), pool_size=(2, 3),
+        check_single_tensor_operation('pool2d', (5, 9, 11, 3), pool_size=(2, 3),
                                       strides=(1, 1), border_mode='valid')
 
     def test_pool3d(self):
-        check_single_tensor_operation('pool3d', (5, 3, 10, 12, 5), pool_size=(2, 2, 2),
+        check_single_tensor_operation('pool3d', (5, 10, 12, 5, 3), pool_size=(2, 2, 2),
                                       strides=(1, 1, 1), border_mode='valid')
 
-        check_single_tensor_operation('pool3d', (5, 3, 9, 11, 5), pool_size=(2, 2, 2),
+        check_single_tensor_operation('pool3d', (5, 9, 11, 5, 3), pool_size=(2, 2, 2),
                                       strides=(1, 1, 1), border_mode='valid')
 
-        check_single_tensor_operation('pool3d', (5, 3, 9, 11, 5), pool_size=(2, 3, 2),
+        check_single_tensor_operation('pool3d', (5, 9, 11, 5, 3), pool_size=(2, 3, 2),
                                       strides=(1, 1, 1), border_mode='valid')
 
     def test_random_normal(self):
@@ -779,6 +825,61 @@ class TestBackend(object):
         for K in [KTH, KTF]:
             koh = K.eval(K.one_hot(K.variable(indices, dtype='int32'), nb_classes))
             assert np.all(koh == oh)
+
+    def test_sparse_dot(self):
+        x_d = np.array([0, 7, 2, 3], dtype=np.float32)
+        x_r = np.array([0, 2, 2, 3], dtype=np.int64)
+        x_c = np.array([4, 3, 2, 3], dtype=np.int64)
+
+        x_sparse = sparse.csr_matrix((x_d, (x_r, x_c)), shape=(4, 5))
+        x_dense = x_sparse.toarray()
+
+        W = np.random.random((5, 4))
+
+        backends = [KTF]
+        if KTH.th_sparse_module:
+            # Theano has some dependency issues for sparse
+            backends.append(KTH)
+
+        for K in backends:
+            t_W = K.variable(W)
+            k_s = K.eval(K.dot(K.variable(x_sparse), t_W))
+            k_d = K.eval(K.dot(K.variable(x_dense), t_W))
+
+            assert k_s.shape == k_d.shape
+            assert_allclose(k_s, k_d, atol=1e-05)
+
+    def test_sparse_concat(self):
+        x_d = np.array([0, 7, 2, 3], dtype=np.float32)
+        x_r = np.array([0, 2, 2, 3], dtype=np.int64)
+        x_c = np.array([4, 3, 2, 3], dtype=np.int64)
+
+        x_sparse_1 = sparse.csr_matrix((x_d, (x_r, x_c)), shape=(4, 5))
+
+        x_d = np.array([0, 7, 2, 3], dtype=np.float32)
+        x_r = np.array([0, 2, 2, 3], dtype=np.int64)
+        x_c = np.array([4, 3, 2, 3], dtype=np.int64)
+
+        x_sparse_2 = sparse.csr_matrix((x_d, (x_r, x_c)), shape=(4, 5))
+
+        x_dense_1 = x_sparse_1.toarray()
+        x_dense_2 = x_sparse_2.toarray()
+
+        backends = [KTF]
+        if KTH.th_sparse_module:
+            # Theano has some dependency issues for sparse
+            backends.append(KTH)
+
+        for K in backends:
+            k_s = K.concatenate([K.variable(x_sparse_1), K.variable(x_sparse_2)])
+            assert K.is_sparse(k_s)
+
+            k_s_d = K.eval(k_s)
+
+            k_d = K.eval(K.concatenate([K.variable(x_dense_1), K.variable(x_dense_2)]))
+
+            assert k_s_d.shape == k_d.shape
+            assert_allclose(k_s_d, k_d, atol=1e-05)
 
 
 if __name__ == '__main__':
