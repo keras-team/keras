@@ -1,6 +1,6 @@
 from keras.models import Sequential
 from keras.layers.convolutional import Convolution3D
-from keras.layers.recurrent_convolutional import LSTMConv2D
+from keras.layers.recurrent_convolutional import ConvLSTM2D
 from keras.layers.normalization import BatchNormalization
 import numpy as np
 from pylab import *
@@ -10,20 +10,20 @@ from pylab import *
 # with identical shape.
 
 seq = Sequential()
-seq.add(LSTMConv2D(nb_filter=40, nb_row=3, nb_col=3,
+seq.add(ConvLSTM2D(nb_filter=40, nb_row=3, nb_col=3,
                    input_shape=(None, 40, 40, 1),
                    border_mode="same", return_sequences=True))
 seq.add(BatchNormalization())
 
-seq.add(LSTMConv2D(nb_filter=40, nb_row=3, nb_col=3,
+seq.add(ConvLSTM2D(nb_filter=40, nb_row=3, nb_col=3,
                    border_mode="same", return_sequences=True))
 seq.add(BatchNormalization())
 
-seq.add(LSTMConv2D(nb_filter=40, nb_row=3, nb_col=3,
+seq.add(ConvLSTM2D(nb_filter=40, nb_row=3, nb_col=3,
                    border_mode="same", return_sequences=True))
 seq.add(BatchNormalization())
 
-seq.add(LSTMConv2D(nb_filter=40, nb_row=3, nb_col=3,
+seq.add(ConvLSTM2D(nb_filter=40, nb_row=3, nb_col=3,
                    border_mode="same", return_sequences=True))
 seq.add(BatchNormalization())
 
