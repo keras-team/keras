@@ -39,6 +39,14 @@ def time_distributed_dense(x, w, b=None, dropout=None,
     return x
 
 
+def zoneout(level, h_tm1, h, noise_shape):
+    '''Apply a zoneout function to preserve a fraction of values from h_tm1 in h.'''
+    h_diff = h - h_tm1
+    h = K.in_train_phase(K.dropout(h_diff, level, noise_shape=noise_shape), h_diff)
+    h = h * (1. - level) + h_tm1
+    return h
+
+
 class Recurrent(Layer):
     '''Abstract base class for recurrent layers.
     Do not use in a model -- it's not a valid layer!
@@ -272,15 +280,17 @@ class SimpleRNN(Recurrent):
             applied to the bias.
         dropout_W: float between 0 and 1. Fraction of the input units to drop for input gates.
         dropout_U: float between 0 and 1. Fraction of the input units to drop for recurrent connections.
+        zoneout_h: float between 0 and 1. Fraction of the hidden/output units to maintain their previous values.
 
     # References
         - [A Theoretically Grounded Application of Dropout in Recurrent Neural Networks](http://arxiv.org/abs/1512.05287)
+        - [Zoneout: Regularizing RNNs by Randomly Preserving Hidden Activations](https://arxiv.org/abs/1606.01305)
     '''
     def __init__(self, output_dim,
                  init='glorot_uniform', inner_init='orthogonal',
                  activation='tanh',
                  W_regularizer=None, U_regularizer=None, b_regularizer=None,
-                 dropout_W=0., dropout_U=0., **kwargs):
+                 dropout_W=0., dropout_U=0., zoneout_h=0., **kwargs):
         self.output_dim = output_dim
         self.init = initializations.get(init)
         self.inner_init = initializations.get(inner_init)
@@ -290,8 +300,9 @@ class SimpleRNN(Recurrent):
         self.b_regularizer = regularizers.get(b_regularizer)
         self.dropout_W = dropout_W
         self.dropout_U = dropout_U
+        self.zoneout_h = zoneout_h
 
-        if self.dropout_W or self.dropout_U:
+        if self.dropout_W or self.dropout_U or self.zoneout_h:
             self.uses_learning_phase = True
         super(SimpleRNN, self).__init__(**kwargs)
 
@@ -365,6 +376,8 @@ class SimpleRNN(Recurrent):
             h = K.dot(x * B_W, self.W) + self.b
 
         output = self.activation(h + K.dot(prev_output * B_U, self.U))
+        if 0 < self.zoneout_h < 1:
+            output = zoneout(self.zoneout_h, prev_output, output, noise_shape=(self.output_dim,))
         return output, [output]
 
     def get_constants(self, x):
@@ -396,7 +409,8 @@ class SimpleRNN(Recurrent):
                   'U_regularizer': self.U_regularizer.get_config() if self.U_regularizer else None,
                   'b_regularizer': self.b_regularizer.get_config() if self.b_regularizer else None,
                   'dropout_W': self.dropout_W,
-                  'dropout_U': self.dropout_U}
+                  'dropout_U': self.dropout_U,
+                  'zoneout_h': self.zoneout_h}
         base_config = super(SimpleRNN, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
@@ -422,17 +436,19 @@ class GRU(Recurrent):
             applied to the bias.
         dropout_W: float between 0 and 1. Fraction of the input units to drop for input gates.
         dropout_U: float between 0 and 1. Fraction of the input units to drop for recurrent connections.
+        zoneout_h: float between 0 and 1. Fraction of the hidden/output units to maintain their previous values.
 
     # References
         - [On the Properties of Neural Machine Translation: Encoder-Decoder Approaches](http://www.aclweb.org/anthology/W14-4012)
         - [Empirical Evaluation of Gated Recurrent Neural Networks on Sequence Modeling](http://arxiv.org/pdf/1412.3555v1.pdf)
         - [A Theoretically Grounded Application of Dropout in Recurrent Neural Networks](http://arxiv.org/abs/1512.05287)
+        - [Zoneout: Regularizing RNNs by Randomly Preserving Hidden Activations](https://arxiv.org/abs/1606.01305)
     '''
     def __init__(self, output_dim,
                  init='glorot_uniform', inner_init='orthogonal',
                  activation='tanh', inner_activation='hard_sigmoid',
                  W_regularizer=None, U_regularizer=None, b_regularizer=None,
-                 dropout_W=0., dropout_U=0., **kwargs):
+                 dropout_W=0., dropout_U=0., zoneout_h=0., **kwargs):
         self.output_dim = output_dim
         self.init = initializations.get(init)
         self.inner_init = initializations.get(inner_init)
@@ -443,8 +459,9 @@ class GRU(Recurrent):
         self.b_regularizer = regularizers.get(b_regularizer)
         self.dropout_W = dropout_W
         self.dropout_U = dropout_U
+        self.zoneout_h = zoneout_h
 
-        if self.dropout_W or self.dropout_U:
+        if self.dropout_W or self.dropout_U or self.zoneout_h:
             self.uses_learning_phase = True
         super(GRU, self).__init__(**kwargs)
 
@@ -581,7 +598,10 @@ class GRU(Recurrent):
             r = self.inner_activation(x_r + K.dot(h_tm1 * B_U[1], self.U_r))
 
             hh = self.activation(x_h + K.dot(r * h_tm1 * B_U[2], self.U_h))
+
         h = z * h_tm1 + (1 - z) * hh
+        if 0 < self.zoneout_h < 1:
+            h = zoneout(self.zoneout_h, h_tm1, h, noise_shape=(self.output_dim,))
         return h, [h]
 
     def get_constants(self, x):
@@ -615,7 +635,8 @@ class GRU(Recurrent):
                   'U_regularizer': self.U_regularizer.get_config() if self.U_regularizer else None,
                   'b_regularizer': self.b_regularizer.get_config() if self.b_regularizer else None,
                   'dropout_W': self.dropout_W,
-                  'dropout_U': self.dropout_U}
+                  'dropout_U': self.dropout_U,
+                  'zoneout_h': self.zoneout_h}
         base_config = super(GRU, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
@@ -647,19 +668,22 @@ class LSTM(Recurrent):
             applied to the bias.
         dropout_W: float between 0 and 1. Fraction of the input units to drop for input gates.
         dropout_U: float between 0 and 1. Fraction of the input units to drop for recurrent connections.
+        zoneout_h: float between 0 and 1. Fraction of the hidden/output units to maintain their previous values.
+        zoneout_c: float between 0 and 1. Fraction of the cell units to maintain their previous values.
 
     # References
         - [Long short-term memory](http://deeplearning.cs.cmu.edu/pdfs/Hochreiter97_lstm.pdf) (original 1997 paper)
         - [Learning to forget: Continual prediction with LSTM](http://www.mitpressjournals.org/doi/pdf/10.1162/089976600300015015)
         - [Supervised sequence labeling with recurrent neural networks](http://www.cs.toronto.edu/~graves/preprint.pdf)
         - [A Theoretically Grounded Application of Dropout in Recurrent Neural Networks](http://arxiv.org/abs/1512.05287)
+        - [Zoneout: Regularizing RNNs by Randomly Preserving Hidden Activations](https://arxiv.org/abs/1606.01305)
     '''
     def __init__(self, output_dim,
                  init='glorot_uniform', inner_init='orthogonal',
                  forget_bias_init='one', activation='tanh',
                  inner_activation='hard_sigmoid',
                  W_regularizer=None, U_regularizer=None, b_regularizer=None,
-                 dropout_W=0., dropout_U=0., **kwargs):
+                 dropout_W=0., dropout_U=0., zoneout_h=0., zoneout_c=0., **kwargs):
         self.output_dim = output_dim
         self.init = initializations.get(init)
         self.inner_init = initializations.get(inner_init)
@@ -671,8 +695,10 @@ class LSTM(Recurrent):
         self.b_regularizer = regularizers.get(b_regularizer)
         self.dropout_W = dropout_W
         self.dropout_U = dropout_U
+        self.zoneout_h = zoneout_h
+        self.zoneout_c = zoneout_c
 
-        if self.dropout_W or self.dropout_U:
+        if self.dropout_W or self.dropout_U or self.zoneout_h or self.zoneout_c:
             self.uses_learning_phase = True
         super(LSTM, self).__init__(**kwargs)
 
@@ -843,7 +869,11 @@ class LSTM(Recurrent):
             c = f * c_tm1 + i * self.activation(x_c + K.dot(h_tm1 * B_U[2], self.U_c))
             o = self.inner_activation(x_o + K.dot(h_tm1 * B_U[3], self.U_o))
 
+        if 0 < self.zoneout_c < 1:
+            c = zoneout(self.zoneout_c, c_tm1, c, noise_shape=(self.output_dim,))
         h = o * self.activation(c)
+        if 0 < self.zoneout_h < 1:
+            h = zoneout(self.zoneout_h, h_tm1, h, noise_shape=(self.output_dim,))
         return h, [h, c]
 
     def get_constants(self, x):
@@ -878,6 +908,8 @@ class LSTM(Recurrent):
                   'U_regularizer': self.U_regularizer.get_config() if self.U_regularizer else None,
                   'b_regularizer': self.b_regularizer.get_config() if self.b_regularizer else None,
                   'dropout_W': self.dropout_W,
-                  'dropout_U': self.dropout_U}
+                  'dropout_U': self.dropout_U,
+                  'zoneout_h': self.zoneout_h,
+                  'zoneout_c': self.zoneout_c}
         base_config = super(LSTM, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
