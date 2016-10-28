@@ -268,10 +268,16 @@ def eye(size, dtype=_FLOATX, name=None):
     elif type(size) in [list, tuple]:
         return variable(np.eye(*size), dtype, name)
     else:
-        assert len(size.get_shape()._dims) == 1, 'Scalar required.'
         tf_dtype = _convert_string_dtype(dtype)
-        diagonal = tf.ones(size, dtype=tf_dtype)
-        return tf.diag(diagonal, name=name)
+        _ndim = len(size.get_shape()._dims)
+        if _ndim == 1:
+            diagonal = tf.ones(size, dtype=tf_dtype)
+            return tf.diag(diagonal, name=name)
+        elif ndim == 2:
+            diagonal = tf.ones(tf.max(size), dtype=tf_dtype)
+            return tf.slice(tf.diag(diagonal), begin=[0, 0], size=size, name=name)
+        else:
+            raise Exception('Rank of size should be 1 or 2')
 
 
 def zeros_like(x, name=None):
