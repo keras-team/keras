@@ -1072,6 +1072,33 @@ def stop_gradient(variables):
     return tf.stop_gradient(variables)
 
 
+# SHAPE INFERENCE
+
+def infer_shape(func, input_shape):
+    '''Automatic shape inference
+
+    # Arguments
+        func: Function, lambda or callable object which accepts a tensor or a list of tensors
+        and returns a tensor or a list of tensors.
+        input_shape: tuple or list of tuples. Shape(s) of input(s).
+
+    # Returns
+        tuple if func returns a single tensor, list of tuple if func returns a list of tensors.
+    '''
+    if type(input_shape[0]) in [list, tuple]:
+        xs = [placeholder(shape=shape) for shape in input_shape]
+        output = func(xs)
+    else:
+        x = placeholder(shape=input_shape)
+        output = func(x)
+    if type(output) in [list, tuple]:
+        output_shapes = [int_shape(o) for o in output]
+        return output_shapes
+    else:
+        output_shape = int_shape(output)
+        return output_shape
+
+
 # CONTROL FLOW
 
 def rnn(step_function, inputs, initial_states,

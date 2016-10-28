@@ -1353,13 +1353,7 @@ class Merge(Layer):
             elif self._output_shape is not None:
                 return (input_shape[0][0],) + tuple(self._output_shape)
             else:
-                # TODO: consider shape auto-inference with TF
-                raise Exception('The Merge layer ' + self.name +
-                                ' has a callable `mode` argument, ' +
-                                'and we cannot infer its output shape because ' +
-                                'no `output_shape` argument was provided.' +
-                                'Make sure to pass a shape tuple (or a callable) ' +
-                                '`output_shape` to Merge.')
+                return K.infer_shape(self.mode, input_shape)
         # pre-defined merge modes
         input_shapes = input_shape
         if self.mode in ['sum', 'mul', 'ave', 'max']:

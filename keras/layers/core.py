@@ -522,20 +522,7 @@ class Lambda(Layer):
 
     def get_output_shape_for(self, input_shape):
         if self._output_shape is None:
-            # if TensorFlow, we can infer the output shape directly:
-            if K._BACKEND == 'tensorflow':
-                if type(input_shape) is list:
-                    xs = [K.placeholder(shape=shape) for shape in input_shape]
-                    x = self.call(xs)
-                else:
-                    x = K.placeholder(shape=input_shape)
-                    x = self.call(x)
-                if type(x) is list:
-                    return [K.int_shape(x_elem) for x_elem in x]
-                else:
-                    return K.int_shape(x)
-            # otherwise, we default to the input shape
-            return input_shape
+            return K.infer_shape(self.call, input_shape)            
         elif type(self._output_shape) in {tuple, list}:
             if type(input_shape) is list:
                 nb_samples = input_shape[0][0]

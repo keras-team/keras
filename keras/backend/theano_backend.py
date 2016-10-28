@@ -805,6 +805,49 @@ def function(inputs, outputs, updates=[], **kwargs):
 def gradients(loss, variables):
     return T.grad(loss, variables)
 
+# SHAPE INFERENCE
+
+def infer_shape(func, input_shape):
+    '''Automatic shape inference
+
+    # Arguments
+        func: Function, lambda or callable object which accepts a tensor or a list of tensors
+        and returns a tensor or a list of tensors.
+        input_shape: tuple or list of tuples. Shape(s) of input(s).
+
+    # Returns
+        tuple if func returns a single tensor, list of tuple if func returns a list of tensors.
+    '''
+    if not type(input_shape[0]) in [list, tuple]:
+        input_shapes = [input_shape]
+    else:
+        input_shapes = input_shape
+    input_shapes_1 = list(map(list, input_shapes))
+    input_shapes_2 = list(map(list, input_shapes))
+    for i in range(len(input_shapes)):
+        for j in range(len(input_shapes[i])):
+            if not input_shapes_1[i][j]:
+                input_shapes_1[i][j] = 10
+                input_shapes_2[i][j] = 0
+    input1 = [np.zeros(input_shapes_1[i]) for i in range(len(input_shapes))]
+    input2 = [np.zeros(input_shapes_2[i]) for i in range(len(input_shapes))]
+    xs = [placeholder(ndim=len(input_shapes[i])) for i in range(len(input_shapes))]
+    ys = func(xs if len(xs) > 1 else xs[0])
+    if type(ys) not in [list, tuple]:
+        ys = [ys]
+    f = function(inputs=xs, outputs=[y.shape for y in ys])
+    output_shapes_1 = list(map(list, f(input1)))
+    output_shapes_2 = list(map(list, f(input2)))
+    for i in range(len(output_shapes_1)):
+        for j in range(len(output_shapes_1[i])):
+            if output_shapes_1[i][j] != output_shapes_2[i][j] or output_shapes_1[i][j] == 0:
+                output_shapes_1[i][j] = None
+    output_shapes_1 = list(map(tuple, output_shapes_1))
+    if len(output_shapes_1) == 1:
+        return output_shapes_1[0]
+    else:
+        return output_shapes_1
+
 
 def stop_gradient(variables):
     '''Returns `variables` but with zero gradient with respect to every other
