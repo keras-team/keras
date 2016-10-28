@@ -240,7 +240,7 @@ def zeros(shape, dtype=_FLOATX, name=None):
     '''Instantiates an all-zeros tensor variable.
     '''
     tf_dtype = _convert_string_dtype(dtype)
-    if type(shape) in [list, tuple]:
+    if type(shape) in [int, list, tuple]:
         shape = tuple(map(int, shape))
         tf_dtype = _convert_string_dtype(dtype)
         return variable(tf.constant_initializer(0., dtype=tf_dtype)(shape), dtype, name)
@@ -252,7 +252,7 @@ def ones(shape, dtype=_FLOATX, name=None):
     '''Instantiates an all-ones tensor variable.
     '''
     tf_dtype = _convert_string_dtype(dtype)
-    if type(shape) in [list, tuple]:
+    if type(shape) in [int, list, tuple]:
         shape = tuple(map(int, shape))
         tf_dtype = _convert_string_dtype(dtype)
         return variable(tf.constant_initializer(1., dtype=tf_dtype)(shape), dtype, name)
@@ -265,6 +265,8 @@ def eye(size, dtype=_FLOATX, name=None):
     '''
     if type(size) == int:
         return variable(np.eye(size), dtype, name)
+    elif type(size) in [list, tuple]:
+        return variable(np.eye(*size), dtype, name)
     else:
         assert len(size.get_shape()._dims) == 1, 'Scalar required.'
         tf_dtype = _convert_string_dtype(dtype)
