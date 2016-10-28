@@ -127,15 +127,11 @@ class SpatialDropout1D(Dropout):
         if dim_ordering == 'default':
             dim_ordering = K.image_dim_ordering()
         assert dim_ordering in {'tf', 'th'}, 'dim_ordering must be in {tf, th}'
-        self.dim_ordering = dim_ordering
         super(SpatialDropout1D, self).__init__(p, **kwargs)
 
     def _get_noise_shape(self, x):
         input_shape = K.shape(x)
-        if self.dim_ordering in ['th', 'tf']:
-            noise_shape = (input_shape[0], 1, input_shape[2])
-        else:
-            raise Exception('Invalid dim_ordering: ' + self.dim_ordering)
+        noise_shape = (input_shape[0], 1, input_shape[2])
         return noise_shape
     
     
