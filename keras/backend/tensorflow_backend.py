@@ -273,7 +273,7 @@ def eye(size, dtype=_FLOATX, name=None):
         if _ndim == 1:
             diagonal = tf.ones(size, dtype=tf_dtype)
             return tf.diag(diagonal, name=name)
-        elif ndim == 2:
+        elif _ndim == 2:
             diagonal = tf.ones(tf.max(size), dtype=tf_dtype)
             return tf.slice(tf.diag(diagonal), begin=[0, 0], size=size, name=name)
         else:
