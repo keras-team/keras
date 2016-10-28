@@ -2,22 +2,25 @@ import pytest
 import numpy as np
 from numpy.testing import assert_allclose
 
-from keras.utils.test_utils import layer_test
+from keras.utils.test_utils import layer_test, keras_test
+from keras.utils.np_utils import conv_input_length
 from keras import backend as K
-from keras.layers import convolutional
+from keras.layers import convolutional, pooling
 
 
+@keras_test
 def test_convolution_1d():
     nb_samples = 2
     nb_steps = 8
-    input_dim = 5
+    input_dim = 2
     filter_length = 3
-    nb_filter = 4
+    nb_filter = 3
 
     for border_mode in ['valid', 'same']:
-        for subsample_length in [1]:
+        for subsample_length in [1, 2]:
             if border_mode == 'same' and subsample_length != 1:
                 continue
+
             layer_test(convolutional.Convolution1D,
                        kwargs={'nb_filter': nb_filter,
                                'filter_length': filter_length,
@@ -36,6 +39,43 @@ def test_convolution_1d():
                        input_shape=(nb_samples, nb_steps, input_dim))
 
 
+@keras_test
+def test_atrous_conv_1d():
+    nb_samples = 2
+    nb_steps = 8
+    input_dim = 2
+    filter_length = 3
+    nb_filter = 3
+
+    for border_mode in ['valid', 'same']:
+        for subsample_length in [1, 2]:
+            for atrous_rate in [1, 2]:
+                if border_mode == 'same' and subsample_length != 1:
+                    continue
+                if subsample_length != 1 and atrous_rate != 1:
+                    continue
+
+                layer_test(convolutional.AtrousConv1D,
+                           kwargs={'nb_filter': nb_filter,
+                                   'filter_length': filter_length,
+                                   'border_mode': border_mode,
+                                   'subsample_length': subsample_length,
+                                   'atrous_rate': atrous_rate},
+                           input_shape=(nb_samples, nb_steps, input_dim))
+
+                layer_test(convolutional.AtrousConv1D,
+                           kwargs={'nb_filter': nb_filter,
+                                   'filter_length': filter_length,
+                                   'border_mode': border_mode,
+                                   'W_regularizer': 'l2',
+                                   'b_regularizer': 'l2',
+                                   'activity_regularizer': 'activity_l2',
+                                   'subsample_length': subsample_length,
+                                   'atrous_rate': atrous_rate},
+                           input_shape=(nb_samples, nb_steps, input_dim))
+
+
+@keras_test
 def test_maxpooling_1d():
     for stride in [1, 2]:
         layer_test(convolutional.MaxPooling1D,
@@ -44,6 +84,7 @@ def test_maxpooling_1d():
                    input_shape=(3, 5, 4))
 
 
+@keras_test
 def test_averagepooling_1d():
     for stride in [1, 2]:
         layer_test(convolutional.AveragePooling1D,
@@ -52,10 +93,11 @@ def test_averagepooling_1d():
                    input_shape=(3, 5, 4))
 
 
+@keras_test
 def test_convolution_2d():
-    nb_samples = 8
-    nb_filter = 3
-    stack_size = 4
+    nb_samples = 2
+    nb_filter = 2
+    stack_size = 3
     nb_row = 10
     nb_col = 6
 
@@ -70,7 +112,7 @@ def test_convolution_2d():
                                'nb_col': 3,
                                'border_mode': border_mode,
                                'subsample': subsample},
-                       input_shape=(nb_samples, stack_size, nb_row, nb_col))
+                       input_shape=(nb_samples, nb_row, nb_col, stack_size))
 
             layer_test(convolutional.Convolution2D,
                        kwargs={'nb_filter': nb_filter,
@@ -81,9 +123,169 @@ def test_convolution_2d():
                                'b_regularizer': 'l2',
                                'activity_regularizer': 'activity_l2',
                                'subsample': subsample},
-                       input_shape=(nb_samples, stack_size, nb_row, nb_col))
+                       input_shape=(nb_samples, nb_row, nb_col, stack_size))
 
 
+@keras_test
+def test_deconvolution_2d():
+    nb_samples = 2
+    nb_filter = 2
+    stack_size = 3
+    nb_row = 10
+    nb_col = 6
+
+    for border_mode in ['valid', 'same']:
+        for subsample in [(1, 1), (2, 2)]:
+            if border_mode == 'same' and subsample != (1, 1):
+                continue
+
+            rows = conv_input_length(nb_row, 3, border_mode, subsample[0])
+            cols = conv_input_length(nb_col, 3, border_mode, subsample[1])
+            layer_test(convolutional.Deconvolution2D,
+                       kwargs={'nb_filter': nb_filter,
+                               'nb_row': 3,
+                               'nb_col': 3,
+                               'output_shape': (nb_samples, nb_filter, rows, cols),
+                               'border_mode': border_mode,
+                               'subsample': subsample,
+                               'dim_ordering': 'th'},
+                       input_shape=(nb_samples, stack_size, nb_row, nb_col),
+                       fixed_batch_size=True)
+
+            layer_test(convolutional.Deconvolution2D,
+                       kwargs={'nb_filter': nb_filter,
+                               'nb_row': 3,
+                               'nb_col': 3,
+                               'output_shape': (nb_samples, nb_filter, rows, cols),
+                               'border_mode': border_mode,
+                               'dim_ordering': 'th',
+                               'W_regularizer': 'l2',
+                               'b_regularizer': 'l2',
+                               'activity_regularizer': 'activity_l2',
+                               'subsample': subsample},
+                       input_shape=(nb_samples, stack_size, nb_row, nb_col),
+                       fixed_batch_size=True)
+
+
+@keras_test
+def test_atrous_conv_2d():
+    nb_samples = 2
+    nb_filter = 2
+    stack_size = 3
+    nb_row = 10
+    nb_col = 6
+
+    for border_mode in ['valid', 'same']:
+        for subsample in [(1, 1), (2, 2)]:
+            for atrous_rate in [(1, 1), (2, 2)]:
+                if border_mode == 'same' and subsample != (1, 1):
+                    continue
+                if subsample != (1, 1) and atrous_rate != (1, 1):
+                    continue
+
+                layer_test(convolutional.AtrousConv2D,
+                           kwargs={'nb_filter': nb_filter,
+                                   'nb_row': 3,
+                                   'nb_col': 3,
+                                   'border_mode': border_mode,
+                                   'subsample': subsample,
+                                   'atrous_rate': atrous_rate},
+                           input_shape=(nb_samples, nb_row, nb_col, stack_size))
+
+                layer_test(convolutional.AtrousConv2D,
+                           kwargs={'nb_filter': nb_filter,
+                                   'nb_row': 3,
+                                   'nb_col': 3,
+                                   'border_mode': border_mode,
+                                   'W_regularizer': 'l2',
+                                   'b_regularizer': 'l2',
+                                   'activity_regularizer': 'activity_l2',
+                                   'subsample': subsample,
+                                   'atrous_rate': atrous_rate},
+                           input_shape=(nb_samples, nb_row, nb_col, stack_size))
+
+
+@pytest.mark.skipif(K._BACKEND != 'tensorflow', reason="Requires TF backend")
+@keras_test
+def test_separable_conv_2d():
+    nb_samples = 2
+    nb_filter = 6
+    stack_size = 3
+    nb_row = 10
+    nb_col = 6
+
+    for border_mode in ['valid', 'same']:
+        for subsample in [(1, 1), (2, 2)]:
+            for multiplier in [1, 2]:
+                if border_mode == 'same' and subsample != (1, 1):
+                    continue
+
+                layer_test(convolutional.SeparableConv2D,
+                           kwargs={'nb_filter': nb_filter,
+                                   'nb_row': 3,
+                                   'nb_col': 3,
+                                   'border_mode': border_mode,
+                                   'subsample': subsample,
+                                   'depth_multiplier': multiplier},
+                           input_shape=(nb_samples, nb_row, nb_col, stack_size))
+
+                layer_test(convolutional.SeparableConv2D,
+                           kwargs={'nb_filter': nb_filter,
+                                   'nb_row': 3,
+                                   'nb_col': 3,
+                                   'border_mode': border_mode,
+                                   'depthwise_regularizer': 'l2',
+                                   'pointwise_regularizer': 'l2',
+                                   'b_regularizer': 'l2',
+                                   'activity_regularizer': 'activity_l2',
+                                   'pointwise_constraint': 'unitnorm',
+                                   'depthwise_constraint': 'unitnorm',
+                                   'subsample': subsample,
+                                   'depth_multiplier': multiplier},
+                           input_shape=(nb_samples, nb_row, nb_col, stack_size))
+
+
+@keras_test
+def test_globalpooling_1d():
+    layer_test(pooling.GlobalMaxPooling1D,
+               input_shape=(3, 4, 5))
+    layer_test(pooling.GlobalAveragePooling1D,
+               input_shape=(3, 4, 5))
+
+
+@keras_test
+def test_globalpooling_2d():
+    layer_test(pooling.GlobalMaxPooling2D,
+               kwargs={'dim_ordering': 'th'},
+               input_shape=(3, 4, 5, 6))
+    layer_test(pooling.GlobalMaxPooling2D,
+               kwargs={'dim_ordering': 'tf'},
+               input_shape=(3, 5, 6, 4))
+    layer_test(pooling.GlobalAveragePooling2D,
+               kwargs={'dim_ordering': 'th'},
+               input_shape=(3, 4, 5, 6))
+    layer_test(pooling.GlobalAveragePooling2D,
+               kwargs={'dim_ordering': 'tf'},
+               input_shape=(3, 5, 6, 4))
+
+
+@keras_test
+def test_globalpooling_3d():
+    layer_test(pooling.GlobalMaxPooling3D,
+               kwargs={'dim_ordering': 'th'},
+               input_shape=(3, 4, 3, 4, 3))
+    layer_test(pooling.GlobalMaxPooling3D,
+               kwargs={'dim_ordering': 'tf'},
+               input_shape=(3, 4, 3, 4, 3))
+    layer_test(pooling.GlobalAveragePooling3D,
+               kwargs={'dim_ordering': 'th'},
+               input_shape=(3, 4, 3, 4, 3))
+    layer_test(pooling.GlobalAveragePooling3D,
+               kwargs={'dim_ordering': 'tf'},
+               input_shape=(3, 4, 3, 4, 3))
+
+
+@keras_test
 def test_maxpooling_2d():
     pool_size = (3, 3)
 
@@ -92,27 +294,26 @@ def test_maxpooling_2d():
                    kwargs={'strides': strides,
                            'border_mode': 'valid',
                            'pool_size': pool_size},
-                   input_shape=(3, 4, 11, 12))
+                   input_shape=(3, 11, 12, 4))
 
 
+@keras_test
 def test_averagepooling_2d():
-    pool_size = (3, 3)
-
     for border_mode in ['valid', 'same']:
         for pool_size in [(2, 2), (3, 3), (4, 4), (5, 5)]:
             for strides in [(1, 1), (2, 2)]:
-                layer_test(convolutional.MaxPooling2D,
+                layer_test(convolutional.AveragePooling2D,
                            kwargs={'strides': strides,
                                    'border_mode': border_mode,
                                    'pool_size': pool_size},
-                           input_shape=(3, 4, 11, 12))
+                           input_shape=(3, 11, 12, 4))
 
 
-@pytest.mark.skipif(K._BACKEND != 'theano', reason="Requires Theano backend")
+@keras_test
 def test_convolution_3d():
     nb_samples = 2
-    nb_filter = 5
-    stack_size = 4
+    nb_filter = 2
+    stack_size = 3
     kernel_dim1 = 2
     kernel_dim2 = 3
     kernel_dim3 = 1
@@ -133,8 +334,9 @@ def test_convolution_3d():
                                'kernel_dim3': kernel_dim3,
                                'border_mode': border_mode,
                                'subsample': subsample},
-                       input_shape=(nb_samples, stack_size,
-                                    input_len_dim1, input_len_dim2, input_len_dim3))
+                       input_shape=(nb_samples,
+                                    input_len_dim1, input_len_dim2, input_len_dim3,
+                                    stack_size))
 
             layer_test(convolutional.Convolution3D,
                        kwargs={'nb_filter': nb_filter,
@@ -146,11 +348,12 @@ def test_convolution_3d():
                                'b_regularizer': 'l2',
                                'activity_regularizer': 'activity_l2',
                                'subsample': subsample},
-                       input_shape=(nb_samples, stack_size,
-                                    input_len_dim1, input_len_dim2, input_len_dim3))
+                       input_shape=(nb_samples,
+                                    input_len_dim1, input_len_dim2, input_len_dim3,
+                                    stack_size))
 
 
-@pytest.mark.skipif(K._BACKEND != 'theano', reason="Requires Theano backend")
+@keras_test
 def test_maxpooling_3d():
     pool_size = (3, 3, 3)
 
@@ -162,7 +365,7 @@ def test_maxpooling_3d():
                    input_shape=(3, 4, 11, 12, 10))
 
 
-@pytest.mark.skipif(K._BACKEND != 'theano', reason="Requires Theano backend")
+@keras_test
 def test_averagepooling_3d():
     pool_size = (3, 3, 3)
 
@@ -174,17 +377,68 @@ def test_averagepooling_3d():
                    input_shape=(3, 4, 11, 12, 10))
 
 
-def test_zero_padding_2d():
-    nb_samples = 9
-    stack_size = 7
-    input_nb_row = 11
-    input_nb_col = 12
+@keras_test
+def test_zero_padding_1d():
+    nb_samples = 2
+    input_dim = 2
+    nb_steps = 5
+    input = np.ones((nb_samples, nb_steps, input_dim))
 
-    input = np.ones((nb_samples, stack_size, input_nb_row, input_nb_col))
+    # basic test
+    layer_test(convolutional.ZeroPadding1D,
+               kwargs={'padding': 2},
+               input_shape=input.shape)
+    layer_test(convolutional.ZeroPadding1D,
+               kwargs={'padding': (1, 2)},
+               input_shape=input.shape)
+    layer_test(convolutional.ZeroPadding1D,
+               kwargs={'padding': {'left_pad': 1, 'right_pad': 2}},
+               input_shape=input.shape)
+
+    # correctness test
+    layer = convolutional.ZeroPadding1D(padding=2)
+    layer.set_input(K.variable(input), shape=input.shape)
+
+    out = K.eval(layer.output)
+    for offset in [0, 1, -1, -2]:
+        assert_allclose(out[:, offset, :], 0.)
+    assert_allclose(out[:, 2:-2, :], 1.)
+
+    layer = convolutional.ZeroPadding1D(padding=(1, 2))
+    layer.set_input(K.variable(input), shape=input.shape)
+
+    out = K.eval(layer.output)
+    for left_offset in [0]:
+        assert_allclose(out[:, left_offset, :], 0.)
+    for right_offset in [-1, -2]:
+        assert_allclose(out[:, right_offset, :], 0.)
+    assert_allclose(out[:, 1:-2, :], 1.)
+    layer.get_config()
+
+
+@keras_test
+def test_zero_padding_2d():
+    nb_samples = 2
+    stack_size = 2
+    input_nb_row = 4
+    input_nb_col = 5
+    dim_ordering = K.image_dim_ordering()
+    assert dim_ordering in {'tf', 'th'}, 'dim_ordering must be in {tf, th}'
+
+    if dim_ordering == 'tf':
+        input = np.ones((nb_samples, input_nb_row, input_nb_col, stack_size))
+    elif dim_ordering == 'th':
+        input = np.ones((nb_samples, stack_size, input_nb_row, input_nb_col))
 
     # basic test
     layer_test(convolutional.ZeroPadding2D,
                kwargs={'padding': (2, 2)},
+               input_shape=input.shape)
+    layer_test(convolutional.ZeroPadding2D,
+               kwargs={'padding': (1, 2, 3, 4)},
+               input_shape=input.shape)
+    layer_test(convolutional.ZeroPadding2D,
+               kwargs={'padding': {'top_pad': 1, 'bottom_pad': 2, 'left_pad': 3, 'right_pad': 4}},
                input_shape=input.shape)
 
     # correctness test
@@ -192,23 +446,54 @@ def test_zero_padding_2d():
     layer.set_input(K.variable(input), shape=input.shape)
 
     out = K.eval(layer.output)
-    for offset in [0, 1, -1, -2]:
-        assert_allclose(out[:, :, offset, :], 0.)
-        assert_allclose(out[:, :, :, offset], 0.)
-    assert_allclose(out[:, :, 2:-2, 2:-2], 1.)
+    if dim_ordering == 'tf':
+        for offset in [0, 1, -1, -2]:
+            assert_allclose(out[:, offset, :, :], 0.)
+            assert_allclose(out[:, :, offset, :], 0.)
+        assert_allclose(out[:, 2:-2, 2:-2, :], 1.)
+    elif dim_ordering == 'th':
+        for offset in [0, 1, -1, -2]:
+            assert_allclose(out[:, :, offset, :], 0.)
+            assert_allclose(out[:, :, :, offset], 0.)
+        assert_allclose(out[:, 2:-2, 2:-2, :], 1.)
+
+    layer = convolutional.ZeroPadding2D(padding=(1, 2, 3, 4))
+    layer.set_input(K.variable(input), shape=input.shape)
+
+    out = K.eval(layer.output)
+    if dim_ordering == 'tf':
+        for top_offset in [0]:
+            assert_allclose(out[:, top_offset, :, :], 0.)
+        for bottom_offset in [-1, -2]:
+            assert_allclose(out[:, bottom_offset, :, :], 0.)
+        for left_offset in [0, 1, 2]:
+            assert_allclose(out[:, :, left_offset, :], 0.)
+        for right_offset in [-1, -2, -3, -4]:
+            assert_allclose(out[:, :, right_offset, :], 0.)
+        assert_allclose(out[:, 1:-2, 3:-4, :], 1.)
+    elif dim_ordering == 'th':
+        for top_offset in [0]:
+            assert_allclose(out[:, :, top_offset, :], 0.)
+        for bottom_offset in [-1, -2]:
+            assert_allclose(out[:, :, bottom_offset, :], 0.)
+        for left_offset in [0, 1, 2]:
+            assert_allclose(out[:, :, :, left_offset], 0.)
+        for right_offset in [-1, -2, -3, -4]:
+            assert_allclose(out[:, :, :, right_offset], 0.)
+        assert_allclose(out[:, :, 1:-2, 3:-4], 1.)
     layer.get_config()
 
 
-@pytest.mark.skipif(K._BACKEND != 'theano', reason="Requires Theano backend")
 def test_zero_padding_3d():
-    nb_samples = 9
-    stack_size = 7
-    input_len_dim1 = 10
-    input_len_dim2 = 11
-    input_len_dim3 = 12
+    nb_samples = 2
+    stack_size = 2
+    input_len_dim1 = 4
+    input_len_dim2 = 5
+    input_len_dim3 = 3
 
-    input = np.ones((nb_samples, stack_size, input_len_dim1,
-                     input_len_dim2, input_len_dim3))
+    input = np.ones((nb_samples,
+                     input_len_dim1, input_len_dim2, input_len_dim3,
+                     stack_size))
 
     # basic test
     layer_test(convolutional.ZeroPadding3D,
@@ -220,22 +505,24 @@ def test_zero_padding_3d():
     layer.set_input(K.variable(input), shape=input.shape)
     out = K.eval(layer.output)
     for offset in [0, 1, -1, -2]:
+        assert_allclose(out[:, offset, :, :, :], 0.)
         assert_allclose(out[:, :, offset, :, :], 0.)
         assert_allclose(out[:, :, :, offset, :], 0.)
-        assert_allclose(out[:, :, :, :, offset], 0.)
-    assert_allclose(out[:, :, 2:-2, 2:-2, 2:-2], 1.)
+    assert_allclose(out[:, 2:-2, 2:-2, 2:-2, :], 1.)
     layer.get_config()
 
 
+@keras_test
 def test_upsampling_1d():
     layer_test(convolutional.UpSampling1D,
                kwargs={'length': 2},
                input_shape=(3, 5, 4))
 
 
+@keras_test
 def test_upsampling_2d():
-    nb_samples = 9
-    stack_size = 7
+    nb_samples = 2
+    stack_size = 2
     input_nb_row = 11
     input_nb_col = 12
 
@@ -273,10 +560,9 @@ def test_upsampling_2d():
                 assert_allclose(out, expected_out)
 
 
-@pytest.mark.skipif(K._BACKEND != 'theano', reason="Requires Theano backend")
 def test_upsampling_3d():
-    nb_samples = 9
-    stack_size = 7
+    nb_samples = 2
+    stack_size = 2
     input_len_dim1 = 10
     input_len_dim2 = 11
     input_len_dim3 = 12
@@ -319,6 +605,93 @@ def test_upsampling_3d():
                     assert_allclose(out, expected_out)
 
 
+@keras_test
+def test_cropping_1d():
+    nb_samples = 2
+    time_length = 4
+    input_len_dim1 = 2
+    input = np.random.rand(nb_samples, time_length, input_len_dim1)
+
+    layer_test(convolutional.Cropping1D,
+               kwargs={'cropping': (2, 2)},
+               input_shape=input.shape)
+
+
+def test_cropping_2d():
+    nb_samples = 2
+    stack_size = 2
+    input_len_dim1 = 8
+    input_len_dim2 = 8
+    cropping = ((2, 2), (3, 3))
+    dim_ordering = K.image_dim_ordering()
+
+    if dim_ordering == 'th':
+        input = np.random.rand(nb_samples, stack_size, input_len_dim1, input_len_dim2)
+    else:
+        input = np.random.rand(nb_samples, input_len_dim1, input_len_dim2, stack_size)
+    # basic test
+    layer_test(convolutional.Cropping2D,
+               kwargs={'cropping': cropping,
+                       'dim_ordering': dim_ordering},
+               input_shape=input.shape)
+    # correctness test
+    layer = convolutional.Cropping2D(cropping=cropping, dim_ordering=dim_ordering)
+    layer.set_input(K.variable(input), shape=input.shape)
+
+    out = K.eval(layer.output)
+    # compare with numpy
+    if dim_ordering == 'th':
+        expected_out = input[:,
+                             :,
+                             cropping[0][0]:-cropping[0][1],
+                             cropping[1][0]:-cropping[1][1]]
+    else:
+        expected_out = input[:,
+                             cropping[0][0]:-cropping[0][1],
+                             cropping[1][0]:-cropping[1][1],
+                             :]
+
+    assert_allclose(out, expected_out)
+
+
+def test_cropping_3d():
+    nb_samples = 2
+    stack_size = 2
+    input_len_dim1 = 8
+    input_len_dim2 = 8
+    input_len_dim3 = 8
+    cropping = ((2, 2), (3, 3), (2, 3))
+    dim_ordering = K.image_dim_ordering()
+
+    if dim_ordering == 'th':
+        input = np.random.rand(nb_samples, stack_size, input_len_dim1, input_len_dim2, input_len_dim3)
+    else:
+        input = np.random.rand(nb_samples, input_len_dim1, input_len_dim2, input_len_dim3, stack_size)
+    # basic test
+    layer_test(convolutional.Cropping3D,
+               kwargs={'cropping': cropping,
+                       'dim_ordering': dim_ordering},
+               input_shape=input.shape)
+    # correctness test
+    layer = convolutional.Cropping3D(cropping=cropping, dim_ordering=dim_ordering)
+    layer.set_input(K.variable(input), shape=input.shape)
+
+    out = K.eval(layer.output)
+    # compare with numpy
+    if dim_ordering == 'th':
+        expected_out = input[:,
+                             :,
+                             cropping[0][0]:-cropping[0][1],
+                             cropping[1][0]:-cropping[1][1],
+                             cropping[2][0]:-cropping[2][1]]
+    else:
+        expected_out = input[:,
+                             cropping[0][0]:-cropping[0][1],
+                             cropping[1][0]:-cropping[1][1],
+                             cropping[2][0]:-cropping[2][1],
+                             :]
+
+    assert_allclose(out, expected_out)
+
 if __name__ == '__main__':
-    # pytest.main([__file__])
-    test_convolution_3d()
+    pytest.main([__file__])

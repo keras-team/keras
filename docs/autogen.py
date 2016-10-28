@@ -40,6 +40,7 @@ Index
     Sequence preprocessing
 
 Objectives
+Metrics
 Optimizers
 Activations
 Callbacks
@@ -65,6 +66,8 @@ if sys.version[0] == '2':
     sys.setdefaultencoding('utf8')
 
 from keras.layers import convolutional
+from keras.layers import pooling
+from keras.layers import local
 from keras.layers import recurrent
 from keras.layers import core
 from keras.layers import noise
@@ -77,10 +80,15 @@ from keras import callbacks
 from keras import models
 from keras.engine import topology
 from keras import objectives
+from keras import metrics
 from keras import backend
 from keras import constraints
 from keras import activations
 from keras import regularizers
+from keras.utils import data_utils
+from keras.utils import io_utils
+from keras.utils import layer_utils
+from keras.utils import np_utils
 
 
 EXCLUDE = {
@@ -88,6 +96,7 @@ EXCLUDE = {
     'Wrapper',
     'get_session',
     'set_session',
+    'CallbackList',
 }
 
 PAGES = [
@@ -105,6 +114,7 @@ PAGES = [
             models.Sequential.predict_on_batch,
             models.Sequential.fit_generator,
             models.Sequential.evaluate_generator,
+            models.Sequential.predict_generator,
         ],
     },
     {
@@ -119,6 +129,7 @@ PAGES = [
             models.Model.predict_on_batch,
             models.Model.fit_generator,
             models.Model.evaluate_generator,
+            models.Model.predict_generator,
             models.Model.get_layer,
         ]
     },
@@ -128,6 +139,8 @@ PAGES = [
             core.Dense,
             core.Activation,
             core.Dropout,
+            core.SpatialDropout2D,
+            core.SpatialDropout3D,
             core.Flatten,
             core.Reshape,
             core.Permute,
@@ -145,20 +158,43 @@ PAGES = [
         'page': 'layers/convolutional.md',
         'classes': [
             convolutional.Convolution1D,
+            convolutional.AtrousConvolution1D,
             convolutional.Convolution2D,
+            convolutional.AtrousConvolution2D,
+            convolutional.SeparableConvolution2D,
+            convolutional.Deconvolution2D,
             convolutional.Convolution3D,
-            convolutional.MaxPooling1D,
-            convolutional.MaxPooling2D,
-            convolutional.MaxPooling3D,
-            convolutional.AveragePooling1D,
-            convolutional.AveragePooling2D,
-            convolutional.AveragePooling3D,
+            convolutional.Cropping1D,
+            convolutional.Cropping2D,
+            convolutional.Cropping3D,
             convolutional.UpSampling1D,
             convolutional.UpSampling2D,
             convolutional.UpSampling3D,
             convolutional.ZeroPadding1D,
             convolutional.ZeroPadding2D,
             convolutional.ZeroPadding3D,
+        ],
+    },
+    {
+        'page': 'layers/pooling.md',
+        'classes': [
+            pooling.MaxPooling1D,
+            pooling.MaxPooling2D,
+            pooling.MaxPooling3D,
+            pooling.AveragePooling1D,
+            pooling.AveragePooling2D,
+            pooling.AveragePooling3D,
+            pooling.GlobalMaxPooling1D,
+            pooling.GlobalAveragePooling1D,
+            pooling.GlobalMaxPooling2D,
+            pooling.GlobalAveragePooling2D,
+        ],
+    },
+    {
+        'page': 'layers/local.md',
+        'classes': [
+            local.LocallyConnected1D,
+            local.LocallyConnected2D,
         ],
     },
     {
@@ -194,8 +230,10 @@ PAGES = [
         'page': 'layers/wrappers.md',
         'all_module_classes': [wrappers],
     },
-
-
+    {
+        'page': 'metrics.md',
+        'all_module_functions': [metrics],
+    },
     {
         'page': 'optimizers.md',
         'all_module_classes': [optimizers],
@@ -207,6 +245,28 @@ PAGES = [
     {
         'page': 'backend.md',
         'all_module_functions': [backend],
+    },
+    {
+        'page': 'utils/data_utils.md',
+        'functions': [
+            data_utils.get_file,
+        ]
+    },
+    {
+        'page': 'utils/io_utils.md',
+        'classes': [
+            io_utils.HDF5Matrix
+        ],
+    },
+    {
+        'page': 'utils/layer_utils.md',
+        'functions': [
+            layer_utils.layer_from_config,
+        ]
+    },
+    {
+        'page': 'utils/np_utils.md',
+        'all_module_functions': [np_utils]
     },
 ]
 

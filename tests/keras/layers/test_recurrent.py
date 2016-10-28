@@ -1,4 +1,5 @@
 import pytest
+import sys
 import numpy as np
 from numpy.testing import assert_allclose
 
@@ -7,39 +8,77 @@ from keras.layers import recurrent, embeddings
 from keras.models import Sequential
 from keras.layers.core import Masking
 from keras import regularizers
+from keras.utils.test_utils import keras_test
 
 from keras import backend as K
 
-nb_samples, timesteps, embedding_dim, output_dim = 3, 5, 10, 5
+nb_samples, timesteps, embedding_dim, output_dim = 2, 5, 4, 3
 embedding_num = 12
 
 
-def _runner(layer_class):
+def rnn_test(f):
     """
     All the recurrent layers share the same interface,
     so we can run through them with a single function.
     """
-    # check return_sequences
+    kf = keras_test(f)
+
+    def wrapped(layer_class):
+        return kf(layer_class)
+
+    # functools doesnt propagate arguments info for pytest correctly in 2.7
+    # and wrapped doesnt work with pytest in 3.4
+    if sys.version_info >= (3, 0):
+        f = kf
+    else:
+        f = wrapped
+
+    return pytest.mark.parametrize("layer_class", [
+        recurrent.SimpleRNN,
+        recurrent.GRU,
+        recurrent.LSTM
+    ])(f)
+
+
+@rnn_test
+def test_return_sequences(layer_class):
     layer_test(layer_class,
                kwargs={'output_dim': output_dim,
                        'return_sequences': True},
-               input_shape=(3, 2, 3))
+               input_shape=(nb_samples, timesteps, embedding_dim))
 
-    # check dropout
+
+@rnn_test
+def test_dynamic_behavior(layer_class):
+    layer = layer_class(output_dim, input_dim=embedding_dim)
+    model = Sequential()
+    model.add(layer)
+    model.compile('sgd', 'mse')
+    x = np.random.random((nb_samples, timesteps, embedding_dim))
+    y = np.random.random((nb_samples, output_dim))
+    model.train_on_batch(x, y)
+
+
+@rnn_test
+def test_dropout(layer_class):
     layer_test(layer_class,
                kwargs={'output_dim': output_dim,
                        'dropout_U': 0.1,
                        'dropout_W': 0.1},
-               input_shape=(3, 2, 3))
+               input_shape=(nb_samples, timesteps, embedding_dim))
 
-    # check implementation modes
+
+@rnn_test
+def test_implementation_mode(layer_class):
     for mode in ['cpu', 'mem', 'gpu']:
         layer_test(layer_class,
                    kwargs={'output_dim': output_dim,
                            'consume_less': mode},
-                   input_shape=(3, 2, 3))
+                   input_shape=(nb_samples, timesteps, embedding_dim))
 
-    # check statefulness
+
+@rnn_test
+def test_statefulness(layer_class):
     model = Sequential()
     model.add(embeddings.Embedding(embedding_num, embedding_dim,
                                    mask_zero=True,
@@ -82,7 +121,6 @@ def _runner(layer_class):
     left_padded_input = np.ones((nb_samples, timesteps))
     left_padded_input[0, :1] = 0
     left_padded_input[1, :2] = 0
-    left_padded_input[2, :3] = 0
     out6 = model.predict(left_padded_input)
 
     layer.reset_states()
@@ -90,12 +128,13 @@ def _runner(layer_class):
     right_padded_input = np.ones((nb_samples, timesteps))
     right_padded_input[0, -1:] = 0
     right_padded_input[1, -2:] = 0
-    right_padded_input[2, -3:] = 0
     out7 = model.predict(right_padded_input)
 
     assert_allclose(out7, out6, atol=1e-5)
 
-    # check regularizers
+
+@rnn_test
+def test_regularizer(layer_class):
     layer = layer_class(output_dim, return_sequences=False, weights=None,
                         batch_input_shape=(nb_samples, timesteps, embedding_dim),
                         W_regularizer=regularizers.WeightRegularizer(l1=0.01),
@@ -107,18 +146,7 @@ def _runner(layer_class):
     K.eval(layer.output)
 
 
-def test_SimpleRNN():
-    _runner(recurrent.SimpleRNN)
-
-
-def test_GRU():
-    _runner(recurrent.GRU)
-
-
-def test_LSTM():
-    _runner(recurrent.LSTM)
-
-
+@keras_test
 def test_masking_layer():
     ''' This test based on a previously failing issue here:
     https://github.com/fchollet/keras/issues/1567

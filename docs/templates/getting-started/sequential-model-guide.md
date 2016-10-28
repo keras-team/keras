@@ -86,7 +86,7 @@ final_model.add(merged)
 final_model.add(Dense(10, activation='softmax'))
 ```
 
-<img src="http://s3.amazonaws.com/keras.io/img/two_branches_sequential_model.png" alt="two branch Sequential" style="width: 400px;"/>
+<img src="https://s3.amazonaws.com/keras.io/img/two_branches_sequential_model.png" alt="two branch Sequential" style="width: 400px;"/>
 
 Such a two-branch model can then be trained via e.g.:
 
@@ -107,7 +107,7 @@ The `Merge` layer supports a number of pre-defined modes:
 You can also pass a function as the `mode` argument, allowing for arbitrary transformations:
 
 ```python
-merged = Merge([left_branch, right_branch], mode=lambda x, y: x - y)
+merged = Merge([left_branch, right_branch], mode=lambda x: x[0] - x[1])
 ```
 
 Now you know enough to be able to define *almost* any model with Keras. For complex models that cannot be expressed via `Sequential` and `Merge`, you can use [the functional API](/getting-started/functional-api-guide).
@@ -121,7 +121,7 @@ Before training a model, you need to configure the learning process, which is do
 
 - an optimizer. This could be the string identifier of an existing optimizer (such as `rmsprop` or `adagrad`), or an instance of the `Optimizer` class. See: [optimizers](/optimizers).
 - a loss function. This is the objective that the model will try to minimize. It can be the string identifier of an existing loss function (such as `categorical_crossentropy` or `mse`), or it can be an objective function. See: [objectives](/objectives).
-- a list of metrics. For any classification problem you will want to set this to `metrics=['accuracy']`. A metric could be the string identifier of an existing metric (only `accuracy` is supported at this point), or a custom metric function.
+- a list of metrics. For any classification problem you will want to set this to `metrics=['accuracy']`. A metric could be the string identifier of an existing metric or a custom metric function.  Custom metric function should return either a single tensor value or a dict `metric_name -> metric_value`. See: [metrics](/metrics).
 
 ```python
 # for a multi-class classification problem
@@ -137,6 +137,24 @@ model.compile(optimizer='rmsprop',
 # for a mean squared error regression problem
 model.compile(optimizer='rmsprop',
               loss='mse')
+
+# for custom metrics
+import keras.backend as K
+
+def mean_pred(y_true, y_pred):
+    return K.mean(y_pred)
+
+def false_rates(y_true, y_pred):
+    false_neg = ...
+    false_pos = ...
+    return {
+        'false_neg': false_neg,
+        'false_pos': false_pos,
+    }
+
+model.compile(optimizer='rmsprop',
+              loss='binary_crossentropy',
+              metrics=['accuracy', mean_pred, false_rates])
 ```
 
 ----
@@ -149,7 +167,7 @@ Keras models are trained on Numpy arrays of input data and labels. For training 
 # for a single-input model with 2 classes (binary):
 
 model = Sequential()
-model.add(Dense(1, input_dim=784, activation='softmax'))
+model.add(Dense(1, input_dim=784, activation='sigmoid'))
 model.compile(optimizer='rmsprop',
               loss='binary_crossentropy',
               metrics=['accuracy'])
@@ -381,7 +399,7 @@ image_model.load_weights('weight_file.h5')
 language_model = Sequential()
 language_model.add(Embedding(vocab_size, 256, input_length=max_caption_len))
 language_model.add(GRU(output_dim=128, return_sequences=True))
-language_model.add(TimeDistributedDense(128))
+language_model.add(TimeDistributed(Dense(128)))
 
 # let's repeat the image vector to turn it into a sequence.
 image_model.add(RepeatVector(max_caption_len))
@@ -418,7 +436,7 @@ The first two LSTMs return their full output sequences, but the last one only re
 the last step in its output sequence, thus dropping the temporal dimension
 (i.e. converting the input sequence into a single vector).
 
-<img src="http://keras.io/img/regular_stacked_lstm.png" alt="stacked LSTM" style="width: 300px;"/>
+<img src="https://keras.io/img/regular_stacked_lstm.png" alt="stacked LSTM" style="width: 300px;"/>
 
 ```python
 from keras.models import Sequential
@@ -507,7 +525,7 @@ In this model, two input sequences are encoded into vectors by two separate LSTM
 
 These two vectors are then concatenated, and a fully connected network is trained on top of the concatenated representations.
 
-<img src="http://keras.io/img/dual_lstm.png" alt="Dual LSTM" style="width: 600px;"/>
+<img src="https://keras.io/img/dual_lstm.png" alt="Dual LSTM" style="width: 600px;"/>
 
 ```python
 from keras.models import Sequential
