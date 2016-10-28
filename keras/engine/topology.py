@@ -2479,7 +2479,7 @@ class Container(Layer):
                 else:
                     param_dset[:] = val
 
-    def load_weights(self, filepath, by_name=False):
+    def load_weights(self, filepath, by_name=False, seq_to_functional=False):
         '''Load all layer weights from a HDF5 save file.
 
         If `by_name` is False (default) weights are loaded
@@ -2499,9 +2499,9 @@ class Container(Layer):
         if 'layer_names' not in f.attrs and 'model_weights' in f:
             f = f['model_weights']
         if by_name:
-            self.load_weights_from_hdf5_group_by_name(f)
+            self.load_weights_from_hdf5_group_by_name(f, seq_to_functional=seq_to_functional)
         else:
-            self.load_weights_from_hdf5_group(f)
+            self.load_weights_from_hdf5_group(f, seq_to_functional=seq_to_functional)
 
         if hasattr(f, 'close'):
             f.close()
@@ -2592,7 +2592,7 @@ class Container(Layer):
                 weight_value_tuples += zip(symbolic_weights, weight_values)
             K.batch_set_value(weight_value_tuples)
 
-    def load_weights_from_hdf5_group_by_name(self, f):
+    def load_weights_from_hdf5_group_by_name(self, f, seq_to_functional=False):
         ''' Name-based weight loading
         (instead of topological weight loading).
         Layers that have no matching name are skipped.
@@ -2602,6 +2602,10 @@ class Container(Layer):
             flattened_layers = self.flattened_layers
         else:
             flattened_layers = self.layers
+
+        if seq_to_functional:
+            # Ignore input layer if we load weights from an equivalent sequential model
+            flattened_layers = flattened_layers[1:]
 
         if 'nb_layers' in f.attrs:
                 raise Exception('The weight file you are trying to load is' +
