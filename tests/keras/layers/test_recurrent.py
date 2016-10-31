@@ -1,5 +1,4 @@
 import pytest
-import sys
 import numpy as np
 from numpy.testing import assert_allclose
 
@@ -21,18 +20,7 @@ def rnn_test(f):
     All the recurrent layers share the same interface,
     so we can run through them with a single function.
     """
-    kf = keras_test(f)
-
-    def wrapped(layer_class):
-        return kf(layer_class)
-
-    # functools doesnt propagate arguments info for pytest correctly in 2.7
-    # and wrapped doesnt work with pytest in 3.4
-    if sys.version_info >= (3, 0):
-        f = kf
-    else:
-        f = wrapped
-
+    f = keras_test(f)
     return pytest.mark.parametrize("layer_class", [
         recurrent.SimpleRNN,
         recurrent.GRU,

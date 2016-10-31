@@ -8,7 +8,7 @@ import numpy as np
 from . import backend as K
 from .utils.io_utils import ask_to_proceed_with_overwrite
 from .engine.training import Model
-from .engine.topology import get_source_inputs, Node
+from .engine.topology import get_source_inputs, Node, Layer
 from .optimizers import optimizer_from_config
 from .legacy.models import Graph
 
@@ -260,6 +260,10 @@ class Sequential(Model):
         # Arguments
             layer: layer instance.
         '''
+        if not isinstance(layer, Layer):
+            raise ValueError('The added layer must be '
+                             'an instance of class Layer. '
+                             'Found: ' + str(layer))
         if not self.outputs:
             # first layer in model: check that it is an input layer
             if len(layer.inbound_nodes) == 0:
@@ -573,7 +577,8 @@ class Sequential(Model):
                 See [callbacks](/callbacks).
             validation_split: float (0. < x < 1).
                 Fraction of the data to use as held-out validation data.
-            validation_data: tuple (X, y) to be used as held-out
+            validation_data: tuple (x_val, y_val) or tuple
+                (x_val, y_val, val_sample_weights) to be used as held-out
                 validation data. Will override validation_split.
             shuffle: boolean or str (for 'batch').
                 Whether to shuffle the samples at each epoch.
