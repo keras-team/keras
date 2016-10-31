@@ -464,69 +464,72 @@ class Layer(object):
             x: can be a tensor or list/tuple of tensors.
             mask: tensor or list/tuple of tensors.
         '''
-        if not self.built:
-            # raise exceptions in case the input is not compatible
-            # with the input_spec specified in the layer constructor
-            self.assert_input_compatibility(x)
+        import tensorflow as tf
+        with tf.name_scope(self.name):
 
-            # collect input shapes to build layer
-            input_shapes = []
-            for x_elem in to_list(x):
-                if hasattr(x_elem, '_keras_shape'):
-                    input_shapes.append(x_elem._keras_shape)
-                elif hasattr(K, 'int_shape'):
-                    input_shapes.append(K.int_shape(x_elem))
+            if not self.built:
+                # raise exceptions in case the input is not compatible
+                # with the input_spec specified in the layer constructor
+                self.assert_input_compatibility(x)
+
+                # collect input shapes to build layer
+                input_shapes = []
+                for x_elem in to_list(x):
+                    if hasattr(x_elem, '_keras_shape'):
+                        input_shapes.append(x_elem._keras_shape)
+                    elif hasattr(K, 'int_shape'):
+                        input_shapes.append(K.int_shape(x_elem))
+                    else:
+                        raise Exception('You tried to call layer "' + self.name +
+                                        '". This layer has no information'
+                                        ' about its expected input shape, '
+                                        'and thus cannot be built. '
+                                        'You can build it manually via: '
+                                        '`layer.build(batch_input_shape)`')
+                if len(input_shapes) == 1:
+                    self.build(input_shapes[0])
                 else:
-                    raise Exception('You tried to call layer "' + self.name +
-                                    '". This layer has no information'
-                                    ' about its expected input shape, '
-                                    'and thus cannot be built. '
-                                    'You can build it manually via: '
-                                    '`layer.build(batch_input_shape)`')
-            if len(input_shapes) == 1:
-                self.build(input_shapes[0])
-            else:
-                self.build(input_shapes)
-            self.built = True
+                    self.build(input_shapes)
+                self.built = True
 
-        # raise exceptions in case the input is not compatible
-        # with the input_spec set at build time
-        self.assert_input_compatibility(x)
-        # build and connect layer
-        input_added = False
-        input_tensors = to_list(x)
+            # raise exceptions in case the input is not compatible
+            # with the input_spec set at build time
+            self.assert_input_compatibility(x)
+            # build and connect layer
+            input_added = False
+            input_tensors = to_list(x)
 
-        inbound_layers = []
-        node_indices = []
-        tensor_indices = []
-        for input_tensor in input_tensors:
-            if hasattr(input_tensor, '_keras_history') and input_tensor._keras_history:
-                # this is a Keras tensor
-                previous_layer, node_index, tensor_index = input_tensor._keras_history
-                inbound_layers.append(previous_layer)
-                node_indices.append(node_index)
-                tensor_indices.append(tensor_index)
-            else:
-                inbound_layers = None
-                break
-        if inbound_layers:
-            # this will call layer.build() if necessary
-            self.add_inbound_node(inbound_layers, node_indices, tensor_indices)
-            input_added = True
+            inbound_layers = []
+            node_indices = []
+            tensor_indices = []
+            for input_tensor in input_tensors:
+                if hasattr(input_tensor, '_keras_history') and input_tensor._keras_history:
+                    # this is a Keras tensor
+                    previous_layer, node_index, tensor_index = input_tensor._keras_history
+                    inbound_layers.append(previous_layer)
+                    node_indices.append(node_index)
+                    tensor_indices.append(tensor_index)
+                else:
+                    inbound_layers = None
+                    break
+            if inbound_layers:
+                # this will call layer.build() if necessary
+                self.add_inbound_node(inbound_layers, node_indices, tensor_indices)
+                input_added = True
 
-        # get the output tensor to be returned
-        if input_added:
-            # output was already computed when calling self.add_inbound_node
-            outputs = self.inbound_nodes[-1].output_tensors
-            # if single output tensor: return it,
-            # else return a list (at least 2 elements)
-            if len(outputs) == 1:
-                return outputs[0]
+            # get the output tensor to be returned
+            if input_added:
+                # output was already computed when calling self.add_inbound_node
+                outputs = self.inbound_nodes[-1].output_tensors
+                # if single output tensor: return it,
+                # else return a list (at least 2 elements)
+                if len(outputs) == 1:
+                    return outputs[0]
+                else:
+                    return outputs
             else:
-                return outputs
-        else:
-            # this case appears if the input was not a Keras tensor
-            return self.call(x, mask)
+                # this case appears if the input was not a Keras tensor
+                return self.call(x, mask)
 
     def add_inbound_node(self, inbound_layers,
                          node_indices=None, tensor_indices=None):

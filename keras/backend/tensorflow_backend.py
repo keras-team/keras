@@ -20,6 +20,9 @@ _LEARNING_PHASE = tf.placeholder(dtype='uint8', name='keras_learning_phase')  # 
 _MANUAL_VAR_INIT = False
 
 
+def name_scope(name_scope):
+    return tf.name_scope(name_scope)
+
 def clear_session():
     global _SESSION
     global _LEARNING_PHASE
