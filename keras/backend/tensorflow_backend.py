@@ -10,7 +10,7 @@ import numpy as np
 import os
 import copy
 import warnings
-from .common import _FLOATX, _EPSILON, _IMAGE_DIM_ORDERING, reset_uids
+from .common import _FLOATX, _EPSILON, image_dim_ordering, reset_uids
 py_all = all
 
 # INTERNAL UTILS
@@ -62,7 +62,8 @@ def learning_phase():
     '''
     graph = tf.get_default_graph()
     if graph not in _GRAPH_LEARNING_PHASES:
-        phase = tf.placeholder(dtype='bool', name='keras_learning_phase')
+        phase = tf.placeholder(dtype='bool',
+                               name='keras_learning_phase')
         _GRAPH_LEARNING_PHASES[graph] = phase
     return _GRAPH_LEARNING_PHASES[graph]
 
@@ -170,10 +171,12 @@ def variable(value, dtype=_FLOATX, name=None):
     '''
     if hasattr(value, 'tocoo'):
         sparse_coo = value.tocoo()
-        indices = np.concatenate((np.expand_dims(sparse_coo.row, 1), np.expand_dims(sparse_coo.col, 1)), 1)
+        indices = np.concatenate((np.expand_dims(sparse_coo.row, 1),
+                                  np.expand_dims(sparse_coo.col, 1)), 1)
         # SparseTensor doesn't need initialization
-        return tf.SparseTensor(indices=indices, values=sparse_coo.data, shape=sparse_coo.shape)
-
+        return tf.SparseTensor(indices=indices,
+                               values=sparse_coo.data,
+                               shape=sparse_coo.shape)
     v = tf.Variable(value, dtype=_convert_string_dtype(dtype), name=name)
     return v
 
@@ -209,7 +212,8 @@ def placeholder(shape=None, ndim=None, dtype=_FLOATX, sparse=False, name=None):
         if ndim:
             shape = tuple([None for _ in range(ndim)])
     if sparse:
-        tf_shape = tf.constant(np.array(list([0 for _ in range(len(shape))]), dtype=np.int64))
+        tf_shape = tf.constant(np.array(list([0 for _ in range(len(shape))]),
+                                        dtype=np.int64))
         x = tf.sparse_placeholder(dtype, shape=tf_shape, name=name)
     else:
         x = tf.placeholder(dtype, shape=shape, name=name)
@@ -263,7 +267,8 @@ def zeros(shape, dtype=_FLOATX, name=None):
     '''
     shape = tuple(map(int, shape))
     tf_dtype = _convert_string_dtype(dtype)
-    return variable(tf.constant_initializer(0., dtype=tf_dtype)(shape), dtype, name)
+    return variable(tf.constant_initializer(0., dtype=tf_dtype)(shape),
+                    dtype, name)
 
 
 def ones(shape, dtype=_FLOATX, name=None):
@@ -271,7 +276,8 @@ def ones(shape, dtype=_FLOATX, name=None):
     '''
     shape = tuple(map(int, shape))
     tf_dtype = _convert_string_dtype(dtype)
-    return variable(tf.constant_initializer(1., dtype=tf_dtype)(shape), dtype, name)
+    return variable(tf.constant_initializer(1., dtype=tf_dtype)(shape),
+                    dtype, name)
 
 
 def eye(size, dtype=_FLOATX, name=None):
@@ -876,10 +882,15 @@ def asymmetric_temporal_padding(x, left_pad=1, right_pad=1):
     return tf.pad(x, pattern)
 
 
-def spatial_2d_padding(x, padding=(1, 1), dim_ordering=_IMAGE_DIM_ORDERING):
+def spatial_2d_padding(x, padding=(1, 1), dim_ordering='default'):
     '''Pads the 2nd and 3rd dimensions of a 4D tensor
     with "padding[0]" and "padding[1]" (resp.) zeros left and right.
     '''
+    if dim_ordering == 'default':
+        dim_ordering = image_dim_ordering()
+    if dim_ordering not in {'th', 'tf'}:
+        raise ValueError('Unknown dim_ordering ' + str(dim_ordering))
+
     if dim_ordering == 'th':
         pattern = [[0, 0], [0, 0],
                    [padding[0], padding[0]], [padding[1], padding[1]]]
@@ -890,10 +901,18 @@ def spatial_2d_padding(x, padding=(1, 1), dim_ordering=_IMAGE_DIM_ORDERING):
     return tf.pad(x, pattern)
 
 
-def asymmetric_spatial_2d_padding(x, top_pad=1, bottom_pad=1, left_pad=1, right_pad=1, dim_ordering=_IMAGE_DIM_ORDERING):
+def asymmetric_spatial_2d_padding(x, top_pad=1, bottom_pad=1,
+                                  left_pad=1, right_pad=1,
+                                  dim_ordering='default'):
     '''Pad the rows and columns of a 4D tensor
-    with "top_pad", "bottom_pad", "left_pad", "right_pad"  (resp.) zeros rows on top, bottom; cols on left, right.
+    with "top_pad", "bottom_pad", "left_pad", "right_pad" (resp.) zeros
+    rows on top, bottom; cols on left, right.
     '''
+    if dim_ordering == 'default':
+        dim_ordering = image_dim_ordering()
+    if dim_ordering not in {'th', 'tf'}:
+        raise ValueError('Unknown dim_ordering ' + str(dim_ordering))
+
     if dim_ordering == 'th':
         pattern = [[0, 0],
                    [0, 0],
@@ -907,13 +926,18 @@ def asymmetric_spatial_2d_padding(x, top_pad=1, bottom_pad=1, left_pad=1, right_
     return tf.pad(x, pattern)
 
 
-def spatial_3d_padding(x, padding=(1, 1, 1), dim_ordering=_IMAGE_DIM_ORDERING):
+def spatial_3d_padding(x, padding=(1, 1, 1), dim_ordering='default'):
     '''Pads 5D tensor with zeros for the depth, height, width dimension with
     "padding[0]", "padding[1]" and "padding[2]" (resp.) zeros left and right
 
     For 'tf' dim_ordering, the 2nd, 3rd and 4th dimension will be padded.
     For 'th' dim_ordering, the 3rd, 4th and 5th dimension will be padded.
     '''
+    if dim_ordering == 'default':
+        dim_ordering = image_dim_ordering()
+    if dim_ordering not in {'th', 'tf'}:
+        raise ValueError('Unknown dim_ordering ' + str(dim_ordering))
+
     if dim_ordering == 'th':
         pattern = [
             [0, 0],
@@ -1055,7 +1079,8 @@ class Function(object):
         for tensor, value in zip(self.inputs, inputs):
             if is_sparse(tensor):
                 sparse_coo = value.tocoo()
-                indices = np.concatenate((np.expand_dims(sparse_coo.row, 1), np.expand_dims(sparse_coo.col, 1)), 1)
+                indices = np.concatenate((np.expand_dims(sparse_coo.row, 1),
+                                          np.expand_dims(sparse_coo.col, 1)), 1)
                 value = (indices, sparse_coo.data, sparse_coo.shape)
             feed_dict[tensor] = value
         session = get_session()
@@ -1073,8 +1098,8 @@ def function(inputs, outputs, updates=[], **kwargs):
     '''
     if len(kwargs) > 0:
         msg = [
-            "Expected no kwargs, you passed %s" % len(kwargs),
-            "kwargs passed to function are ignored with Tensorflow backend"
+            'Expected no kwargs, you passed %s' % len(kwargs),
+            'kwargs passed to function are ignored with Tensorflow backend'
         ]
         warnings.warn('\n'.join(msg))
     return Function(inputs, outputs, updates=updates)
@@ -1640,8 +1665,29 @@ def _postprocess_conv3d_output(x, dim_ordering):
     return x
 
 
+def conv1d(x, kernel, stride=1, border_mode='valid',
+           image_shape=None, filter_shape=None):
+    '''1D convolution.
+
+    # Arguments
+        kernel: kernel tensor.
+        strides: stride integer.
+        border_mode: string, "same" or "valid".
+    '''
+    # pre-process dtype
+    if _FLOATX == 'float64':
+        x = tf.cast(x, 'float32')
+        kernel = tf.cast(kernel, 'float32')
+    padding = _preprocess_border_mode(border_mode)
+    x = tf.nn.conv1d(x, kernel, stride, padding=padding)
+    # post-process dtype
+    if _FLOATX == 'float64':
+        x = tf.cast(x, 'float64')
+    return x
+
+
 def conv2d(x, kernel, strides=(1, 1), border_mode='valid',
-           dim_ordering=_IMAGE_DIM_ORDERING,
+           dim_ordering='default',
            image_shape=None, filter_shape=None, filter_dilation=(1, 1)):
     '''2D convolution.
 
@@ -1653,8 +1699,10 @@ def conv2d(x, kernel, strides=(1, 1), border_mode='valid',
             Whether to use Theano or TensorFlow dimension ordering
             for inputs/kernels/ouputs.
     '''
+    if dim_ordering == 'default':
+        dim_ordering = image_dim_ordering()
     if dim_ordering not in {'th', 'tf'}:
-        raise Exception('Unknown dim_ordering ' + str(dim_ordering))
+        raise ValueError('Unknown dim_ordering ' + str(dim_ordering))
 
     x = _preprocess_conv2d_input(x, dim_ordering)
     kernel = _preprocess_conv2d_kernel(kernel, dim_ordering)
@@ -1671,7 +1719,7 @@ def conv2d(x, kernel, strides=(1, 1), border_mode='valid',
 
 def deconv2d(x, kernel, output_shape, strides=(1, 1),
              border_mode='valid',
-             dim_ordering=_IMAGE_DIM_ORDERING,
+             dim_ordering='default',
              image_shape=None, filter_shape=None):
     '''2D deconvolution (i.e. transposed convolution).
 
@@ -1685,8 +1733,10 @@ def deconv2d(x, kernel, output_shape, strides=(1, 1),
             Whether to use Theano or TensorFlow dimension ordering
             for inputs/kernels/ouputs.
     '''
+    if dim_ordering == 'default':
+        dim_ordering = image_dim_ordering()
     if dim_ordering not in {'th', 'tf'}:
-        raise Exception('Unknown dim_ordering ' + str(dim_ordering))
+        raise ValueError('Unknown dim_ordering ' + str(dim_ordering))
 
     x = _preprocess_conv2d_input(x, dim_ordering)
     output_shape = _preprocess_deconv_output_shape(output_shape, dim_ordering)
@@ -1702,10 +1752,12 @@ def deconv2d(x, kernel, output_shape, strides=(1, 1),
 
 def atrous_conv2d(x, kernel, rate=1,
                   border_mode='valid',
-                  dim_ordering=_IMAGE_DIM_ORDERING,
+                  dim_ordering='default',
                   image_shape=None, filter_shape=None):
+    if dim_ordering == 'default':
+        dim_ordering = image_dim_ordering()
     if dim_ordering not in {'th', 'tf'}:
-        raise Exception('Unknown dim_ordering ' + str(dim_ordering))
+        raise ValueError('Unknown dim_ordering ' + str(dim_ordering))
     if rate == 1:
         return conv2d(x, kernel, strides=(1, 1), border_mode=border_mode,
                       dim_ordering=dim_ordering)
@@ -1719,9 +1771,11 @@ def atrous_conv2d(x, kernel, rate=1,
 
 
 def separable_conv2d(x, depthwise_kernel, pointwise_kernel, strides=(1, 1),
-                     border_mode='valid', dim_ordering=_IMAGE_DIM_ORDERING):
+                     border_mode='valid', dim_ordering='default'):
+    if dim_ordering == 'default':
+        dim_ordering = image_dim_ordering()
     if dim_ordering not in {'th', 'tf'}:
-        raise Exception('Unknown dim_ordering ' + str(dim_ordering))
+        raise ValueError('Unknown dim_ordering ' + str(dim_ordering))
 
     x = _preprocess_conv2d_input(x, dim_ordering)
     depthwise_kernel = _preprocess_conv2d_kernel(depthwise_kernel,
@@ -1737,7 +1791,7 @@ def separable_conv2d(x, depthwise_kernel, pointwise_kernel, strides=(1, 1),
 
 
 def conv3d(x, kernel, strides=(1, 1, 1),
-           border_mode='valid', dim_ordering=_IMAGE_DIM_ORDERING,
+           border_mode='valid', dim_ordering='default',
            volume_shape=None, filter_shape=None):
     '''3D convolution.
 
@@ -1749,8 +1803,10 @@ def conv3d(x, kernel, strides=(1, 1, 1),
             Whether to use Theano or TensorFlow dimension ordering
             for inputs/kernels/ouputs.
     '''
+    if dim_ordering == 'default':
+        dim_ordering = image_dim_ordering()
     if dim_ordering not in {'th', 'tf'}:
-        raise Exception('Unknown dim_ordering ' + str(dim_ordering))
+        raise ValueError('Unknown dim_ordering ' + str(dim_ordering))
 
     x = _preprocess_conv3d_input(x, dim_ordering)
     kernel = _preprocess_conv3d_kernel(kernel, dim_ordering)
@@ -1762,7 +1818,7 @@ def conv3d(x, kernel, strides=(1, 1, 1),
 
 
 def pool2d(x, pool_size, strides=(1, 1),
-           border_mode='valid', dim_ordering=_IMAGE_DIM_ORDERING,
+           border_mode='valid', dim_ordering='default',
            pool_mode='max'):
     '''2D Pooling.
 
@@ -1773,8 +1829,10 @@ def pool2d(x, pool_size, strides=(1, 1),
         dim_ordering: one of "th", "tf".
         pool_mode: one of "max", "avg".
     '''
+    if dim_ordering == 'default':
+        dim_ordering = image_dim_ordering()
     if dim_ordering not in {'th', 'tf'}:
-        raise Exception('Unknown dim_ordering ' + str(dim_ordering))
+        raise ValueError('Unknown dim_ordering ' + str(dim_ordering))
 
     padding = _preprocess_border_mode(border_mode)
     strides = (1,) + strides + (1,)
@@ -1793,7 +1851,7 @@ def pool2d(x, pool_size, strides=(1, 1),
 
 
 def pool3d(x, pool_size, strides=(1, 1, 1), border_mode='valid',
-           dim_ordering=_IMAGE_DIM_ORDERING, pool_mode='max'):
+           dim_ordering='default', pool_mode='max'):
     '''3D Pooling.
 
     # Arguments
@@ -1803,8 +1861,10 @@ def pool3d(x, pool_size, strides=(1, 1, 1), border_mode='valid',
         dim_ordering: one of "th", "tf".
         pool_mode: one of "max", "avg".
     '''
+    if dim_ordering == 'default':
+        dim_ordering = image_dim_ordering()
     if dim_ordering not in {'th', 'tf'}:
-        raise Exception('Unknown dim_ordering ' + str(dim_ordering))
+        raise ValueError('Unknown dim_ordering ' + str(dim_ordering))
 
     padding = _preprocess_border_mode(border_mode)
     strides = (1,) + strides + (1,)
