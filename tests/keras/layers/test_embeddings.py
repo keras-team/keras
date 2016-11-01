@@ -12,6 +12,13 @@ def test_embedding():
                input_dtype='int32',
                expected_output_dtype=K.floatx())
 
+@keras_test
+def test_multi_dim_embedding():
+    layer_test(Embedding,
+               kwargs={'output_dim': 4, 'input_dim': 10, 'input_length': (2, 5)},
+               input_shape=(3, 2, 5),
+               input_dtype='int32',
+               expected_output_dtype=K.floatx())
 
 if __name__ == '__main__':
     pytest.main([__file__])
