@@ -8,6 +8,13 @@ from keras import backend as K
 from keras.layers import convolutional, pooling
 
 
+# TensorFlow does not support full convolution.
+if K._BACKEND == 'theano':
+    _convolution_border_modes = ['valid', 'same', 'full']
+else:
+    _convolution_border_modes = ['valid', 'same']
+
+
 @keras_test
 def test_convolution_1d():
     nb_samples = 2
@@ -16,7 +23,7 @@ def test_convolution_1d():
     filter_length = 3
     nb_filter = 3
 
-    for border_mode in ['valid', 'same']:
+    for border_mode in _convolution_border_modes:
         for subsample_length in [1, 2]:
             if border_mode == 'same' and subsample_length != 1:
                 continue
@@ -47,7 +54,7 @@ def test_atrous_conv_1d():
     filter_length = 3
     nb_filter = 3
 
-    for border_mode in ['valid', 'same']:
+    for border_mode in _convolution_border_modes:
         for subsample_length in [1, 2]:
             for atrous_rate in [1, 2]:
                 if border_mode == 'same' and subsample_length != 1:
@@ -101,7 +108,7 @@ def test_convolution_2d():
     nb_row = 10
     nb_col = 6
 
-    for border_mode in ['valid', 'same']:
+    for border_mode in _convolution_border_modes:
         for subsample in [(1, 1), (2, 2)]:
             if border_mode == 'same' and subsample != (1, 1):
                 continue
@@ -134,7 +141,7 @@ def test_deconvolution_2d():
     nb_row = 10
     nb_col = 6
 
-    for border_mode in ['valid', 'same']:
+    for border_mode in _convolution_border_modes:
         for subsample in [(1, 1), (2, 2)]:
             if border_mode == 'same' and subsample != (1, 1):
                 continue
@@ -175,7 +182,7 @@ def test_atrous_conv_2d():
     nb_row = 10
     nb_col = 6
 
-    for border_mode in ['valid', 'same']:
+    for border_mode in _convolution_border_modes:
         for subsample in [(1, 1), (2, 2)]:
             for atrous_rate in [(1, 1), (2, 2)]:
                 if border_mode == 'same' and subsample != (1, 1):
@@ -214,7 +221,7 @@ def test_separable_conv_2d():
     nb_row = 10
     nb_col = 6
 
-    for border_mode in ['valid', 'same']:
+    for border_mode in _convolution_border_modes:
         for subsample in [(1, 1), (2, 2)]:
             for multiplier in [1, 2]:
                 if border_mode == 'same' and subsample != (1, 1):
@@ -322,7 +329,7 @@ def test_convolution_3d():
     input_len_dim2 = 11
     input_len_dim3 = 12
 
-    for border_mode in ['same', 'valid']:
+    for border_mode in _convolution_border_modes:
         for subsample in [(1, 1, 1), (2, 2, 2)]:
             if border_mode == 'same' and subsample != (1, 1, 1):
                 continue

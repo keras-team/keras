@@ -1182,6 +1182,8 @@ def _preprocess_border_mode(border_mode):
         th_border_mode = 'half'
     elif border_mode == 'valid':
         th_border_mode = 'valid'
+    elif border_mode == 'full':
+        th_border_mode = 'full'
     else:
         raise Exception('Border mode not supported: ' + str(border_mode))
     return th_border_mode
