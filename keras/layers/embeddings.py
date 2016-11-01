@@ -48,17 +48,18 @@ class Embedding(Layer):
           in the model need to support masking or an exception will be raised.
           If mask_zero is set to True, as a consequence, index 0 cannot be
           used in the vocabulary (input_dim should equal |vocabulary| + 2).
-      input_length: Length of input sequences, when it is constant.
+      input_length: Length of input sequences, when it is constant and input is 2D.
+                    Tuple of input shape, not including the batch size, when input is 3D.
           This argument is required if you are going to connect
           `Flatten` then `Dense` layers upstream
           (without it, the shape of the dense outputs cannot be computed).
       dropout: float between 0 and 1. Fraction of the embeddings to drop.
 
     # Input shape
-        N - Dimensional tensor with shape: `(nb_samples, sequence_length)`.
+        N - Dimensional tensor with shape: `(nb_samples, ...)`.
 
     # Output shape
-        N+1 - Dimensional tensor with shape: `(nb_samples, sequence_length, output_dim)`.
+        N+1 - Dimensional tensor with shape: `(nb_samples, ..., output_dim)`.
 
     # References
         - [A Theoretically Grounded Application of Dropout in Recurrent Neural Networks](http://arxiv.org/abs/1512.05287)
