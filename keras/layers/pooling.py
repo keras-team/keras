@@ -34,14 +34,12 @@ class _Pooling1D(Layer):
         raise NotImplementedError
 
     def call(self, x, mask=None):
-        x = K.expand_dims(x, -1)   # add dummy last dimension
-        x = K.permute_dimensions(x, (0, 2, 1, 3))
+        x = K.expand_dims(x, 2)   # add dummy last dimension
         output = self._pooling_function(inputs=x, pool_size=self.pool_size,
                                         strides=self.st,
                                         border_mode=self.border_mode,
-                                        dim_ordering='th')
-        output = K.permute_dimensions(output, (0, 2, 1, 3))
-        return K.squeeze(output, 3)  # remove dummy last dimension
+                                        dim_ordering='tf')
+        return K.squeeze(output, 2)  # remove dummy last dimension
 
     def get_config(self):
         config = {'stride': self.stride,
