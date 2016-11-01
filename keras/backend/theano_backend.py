@@ -113,19 +113,29 @@ def eval(x):
 def zeros(shape, dtype=_FLOATX, name=None):
     '''Instantiate an all-zeros variable.
     '''
-    return variable(np.zeros(shape), dtype, name)
+    if type(shape) in [int, tuple, list]:
+        return variable(np.zeros(shape), dtype, name)
+    else:
+        return T.zeros(shape, dtype=dtype)
 
 
 def ones(shape, dtype=_FLOATX, name=None):
     '''Instantiate an all-ones variable.
     '''
-    return variable(np.ones(shape), dtype, name)
-
+    if type(shape) in [int, tuple, list]:
+        return variable(np.ones(shape), dtype, name)
+    else:
+        return T.ones(zeros, dtype=dtype)
 
 def eye(size, dtype=_FLOATX, name=None):
     '''Instantiate an identity matrix.
     '''
-    return variable(np.eye(size), dtype, name)
+    if type(size) == int:
+        return variable(np.eye(size), dtype, name)
+    elif type(size) in [tuple, list]:
+        return variable(np.eye(*size), dtype, name)
+    else:
+        return T.eye(size, dtype=dtype)
 
 
 def ones_like(x):

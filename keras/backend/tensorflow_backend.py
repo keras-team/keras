@@ -239,23 +239,45 @@ def eval(x):
 def zeros(shape, dtype=_FLOATX, name=None):
     '''Instantiates an all-zeros tensor variable.
     '''
-    shape = tuple(map(int, shape))
     tf_dtype = _convert_string_dtype(dtype)
-    return variable(tf.constant_initializer(0., dtype=tf_dtype)(shape), dtype, name)
+    if type(shape) in [int, list, tuple]:
+        shape = tuple(map(int, shape))
+        tf_dtype = _convert_string_dtype(dtype)
+        return variable(tf.constant_initializer(0., dtype=tf_dtype)(shape), dtype, name)
+    else:
+        return tf.zeros(shape, tf_dtype, name)
 
 
 def ones(shape, dtype=_FLOATX, name=None):
     '''Instantiates an all-ones tensor variable.
     '''
-    shape = tuple(map(int, shape))
     tf_dtype = _convert_string_dtype(dtype)
-    return variable(tf.constant_initializer(1., dtype=tf_dtype)(shape), dtype, name)
+    if type(shape) in [int, list, tuple]:
+        shape = tuple(map(int, shape))
+        tf_dtype = _convert_string_dtype(dtype)
+        return variable(tf.constant_initializer(1., dtype=tf_dtype)(shape), dtype, name)
+    else:
+        return tf.ones(shape, tf_dtype, name)
 
 
 def eye(size, dtype=_FLOATX, name=None):
     '''Instantiate an identity matrix.
     '''
-    return variable(np.eye(size), dtype, name)
+    if type(size) == int:
+        return variable(np.eye(size), dtype, name)
+    elif type(size) in [list, tuple]:
+        return variable(np.eye(*size), dtype, name)
+    else:
+        tf_dtype = _convert_string_dtype(dtype)
+        _ndim = len(size.get_shape()._dims)
+        if _ndim == 1:
+            diagonal = tf.ones(size, dtype=tf_dtype)
+            return tf.diag(diagonal, name=name)
+        elif _ndim == 2:
+            diagonal = tf.ones(tf.max(size), dtype=tf_dtype)
+            return tf.slice(tf.diag(diagonal), begin=[0, 0], size=size, name=name)
+        else:
+            raise Exception('Rank of size should be 1 or 2')
 
 
 def zeros_like(x, name=None):
