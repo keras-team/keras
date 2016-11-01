@@ -15,22 +15,36 @@ py_all = all
 
 # INTERNAL UTILS
 
+# This is the default internal TF session used by Keras.
+# It can be set manually via `set_session(sess)`.
 _SESSION = None
-_LEARNING_PHASE = tf.placeholder(dtype='uint8', name='keras_learning_phase')  # 0 = test, 1 = train
+# This dictionary holds a mapping {graph: learning_phase}.
+# A learning phase is a bool tensor used to run Keras models in
+# either train mode (learning_phase == 1) or test mode (learning_phase == 0).
+_GRAPH_LEARNING_PHASES = {}
+# This boolean flag can be set to True to leave variable initialization
+# up to the user.
+# Change its value via `manual_variable_initialization(value)`.
 _MANUAL_VAR_INIT = False
 
 
 def clear_session():
+    '''Destroys the current TF graph and creates a new one.
+
+    Useful to avoid clutter from old models / layers.
+    '''
     global _SESSION
-    global _LEARNING_PHASE
+    global _GRAPH_LEARNING_PHASES
     tf.reset_default_graph()
     reset_uids()
     _SESSION = None
-    _LEARNING_PHASE = tf.placeholder(dtype='uint8', name='keras_learning_phase')
+    phase = tf.placeholder(dtype='bool', name='keras_learning_phase')
+    _GRAPH_LEARNING_PHASES[tf.get_default_graph()] = phase
 
 
 def manual_variable_initialization(value):
-    '''Whether variables should be initialized
+    '''Returns a boolean:
+    whether variables should be initialized
     as they are instantiated (default), or if
     the user should handle the initialization
     (e.g. via tf.initialize_all_variables()).
@@ -42,19 +56,26 @@ def manual_variable_initialization(value):
 def learning_phase():
     '''Returns the learning phase flag.
 
-    The learning phase flag is an integer tensor (0 = test, 1 = train)
+    The learning phase flag is a bool tensor (0 = test, 1 = train)
     to be passed as input to any Keras function
     that uses a different behavior at train time and test time.
     '''
-    return _LEARNING_PHASE
+    graph = tf.get_default_graph()
+    if graph not in _GRAPH_LEARNING_PHASES:
+        phase = tf.placeholder(dtype='bool', name='keras_learning_phase')
+        _GRAPH_LEARNING_PHASES[graph] = phase
+    return _GRAPH_LEARNING_PHASES[graph]
 
 
 def set_learning_phase(value):
-    global _LEARNING_PHASE
+    '''Sets the learning phase to a fixed value,
+    either 0 or 1 (integers).
+    '''
+    global _GRAPH_LEARNING_PHASES
     if value not in {0, 1}:
         raise ValueError('Expected learning phase to be '
                          '0 or 1.')
-    _LEARNING_PHASE = value
+    _GRAPH_LEARNING_PHASES[tf.get_default_graph()] = value
 
 
 def get_session():
@@ -72,15 +93,20 @@ def get_session():
     '''
     global _SESSION
     if tf.get_default_session() is not None:
-        return tf.get_default_session()
-    if _SESSION is None:
-        if not os.environ.get('OMP_NUM_THREADS'):
-            _SESSION = tf.Session(config=tf.ConfigProto(allow_soft_placement=True))
-        else:
-            nb_thread = int(os.environ.get('OMP_NUM_THREADS'))
-            _SESSION = tf.Session(config=tf.ConfigProto(intra_op_parallelism_threads=nb_thread,
-                                                        allow_soft_placement=True))
-    return _SESSION
+        session = tf.get_default_session()
+    else:
+        if _SESSION is None:
+            if not os.environ.get('OMP_NUM_THREADS'):
+                config = tf.ConfigProto(allow_soft_placement=True)
+            else:
+                nb_thread = int(os.environ.get('OMP_NUM_THREADS'))
+                config = tf.ConfigProto(intra_op_parallelism_threads=nb_thread,
+                                        allow_soft_placement=True)
+            _SESSION = tf.Session(config=config)
+        session = _SESSION
+    if not _MANUAL_VAR_INIT:
+        _initialize_variables()
+    return session
 
 
 def set_session(session):
@@ -149,23 +175,19 @@ def variable(value, dtype=_FLOATX, name=None):
         return tf.SparseTensor(indices=indices, values=sparse_coo.data, shape=sparse_coo.shape)
 
     v = tf.Variable(value, dtype=_convert_string_dtype(dtype), name=name)
-    if _MANUAL_VAR_INIT:
-        return v
-    if tf.get_default_graph() is get_session().graph:
-        try:
-            get_session().run(v.initializer)
-        except tf.errors.InvalidArgumentError:
-            warnings.warn('Could not automatically initialize variable, '
-                          'make sure you do it manually (e.g. via '
-                          '`tf.initialize_all_variables()`).')
-    else:
-        warnings.warn('The default TensorFlow graph is not the graph '
-                      'associated with the TensorFlow session currently '
-                      'registered with Keras, and as such Keras '
-                      'was not able to automatically initialize a variable. '
-                      'You should consider registering the proper session '
-                      'with Keras via `K.set_session(sess)`.')
     return v
+
+
+def _initialize_variables():
+    variables = tf.all_variables()
+    uninitialized_variables = []
+    for v in variables:
+        if not hasattr(v, '_keras_initialized') or not v._keras_initialized:
+            uninitialized_variables.append(v)
+            v._keras_initialized = True
+    if uninitialized_variables:
+        sess = get_session()
+        sess.run(tf.initialize_variables(uninitialized_variables))
 
 
 def placeholder(shape=None, ndim=None, dtype=_FLOATX, sparse=False, name=None):
@@ -1321,8 +1343,11 @@ def switch(condition, then_expression, else_expression):
         else_expression: TensorFlow operation.
     '''
     x_shape = copy.copy(then_expression.get_shape())
-    x = _cond(tf.cast(condition, 'bool'),
-              lambda: then_expression, lambda: else_expression)
+    if condition.dtype != tf.bool:
+        condition = tf.cast(condition, 'bool')
+    x = _cond(condition,
+              lambda: then_expression,
+              lambda: else_expression)
     x.set_shape(x_shape)
     return x
 
@@ -1331,15 +1356,13 @@ def in_train_phase(x, alt):
     '''Selects `x` in train phase, and `alt` otherwise.
     Note that `alt` should have the *same shape* as `x`.
     '''
-    if _LEARNING_PHASE is 1:
+    if learning_phase() is 1:
         return x
-    elif _LEARNING_PHASE is 0:
+    elif learning_phase() is 0:
         return alt
-    # else: assume learning phase is a placeholder.
-    x_shape = copy.copy(x.get_shape())
-    x = _cond(tf.cast(_LEARNING_PHASE, 'bool'), lambda: x, lambda: alt)
+    # else: assume learning phase is a placeholder tensor.
+    x = switch(learning_phase(), x, alt)
     x._uses_learning_phase = True
-    x.set_shape(x_shape)
     return x
 
 
@@ -1347,14 +1370,13 @@ def in_test_phase(x, alt):
     '''Selects `x` in test phase, and `alt` otherwise.
     Note that `alt` should have the *same shape* as `x`.
     '''
-    if _LEARNING_PHASE is 1:
+    if learning_phase() is 1:
         return alt
-    elif _LEARNING_PHASE is 0:
+    elif learning_phase() is 0:
         return x
-    x_shape = copy.copy(x.get_shape())
-    x = _cond(tf.cast(_LEARNING_PHASE, 'bool'), lambda: alt, lambda: x)
+    # else: assume learning phase is a placeholder tensor.
+    x = switch(learning_phase(), alt, x)
     x._uses_learning_phase = True
-    x.set_shape(x_shape)
     return x
 
 
@@ -1381,12 +1403,12 @@ def relu(x, alpha=0., max_value=None):
 
 
 def elu(x, alpha=1.):
-    """ Exponential linear unit
+    '''Exponential linear unit.
 
     # Arguments
         x: Tensor to compute the activation function for.
         alpha: scalar
-    """
+    '''
     res = tf.nn.elu(x)
     if alpha == 1:
         return res
@@ -1407,6 +1429,8 @@ def softplus(x):
 
 
 def softsign(x):
+    '''Softsign of a tensor.
+    '''
     return tf.nn.softsign(x)
 
 
@@ -1516,8 +1540,9 @@ def l2_normalize(x, axis):
         axis = axis % len(x.get_shape())
     return tf.nn.l2_normalize(x, dim=axis)
 
+
 def in_top_k(predictions, targets, k):
-    '''Says whether the `targets` are in the top `k` `predictions`
+    '''Returns whether the `targets` are in the top `k` `predictions`
 
     # Arguments
         predictions: A tensor of shape batch_size x classess and type float32.
