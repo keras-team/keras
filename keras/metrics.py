@@ -34,30 +34,30 @@ def top_k_categorical_accuracy(y_true, y_pred, k=5):
 
 
 def mean_squared_error(y_true, y_pred):
-    '''Calculates the mean squared error (mse) rate between predicted and target
-    values
+    '''Calculates the mean squared error (mse) rate
+    between predicted and target values
     '''
     return K.mean(K.square(y_pred - y_true))
 
 
 def mean_absolute_error(y_true, y_pred):
-    '''Calculates the mean absolute error (mae) rate between predicted and target
-    values
+    '''Calculates the mean absolute error (mae) rate
+    between predicted and target values
     '''
     return K.mean(K.abs(y_pred - y_true))
 
 
 def mean_absolute_percentage_error(y_true, y_pred):
-    '''Calculates the mean absolute percentage error (mape) rate between predicted
-    and target values
+    '''Calculates the mean absolute percentage error (mape) rate
+    between predicted and target values
     '''
     diff = K.abs((y_true - y_pred) / K.clip(K.abs(y_true), K.epsilon(), np.inf))
     return 100. * K.mean(diff)
 
 
 def mean_squared_logarithmic_error(y_true, y_pred):
-    '''Calculates the mean squared logarithmic error (msle) rate between predicted
-    and target values
+    '''Calculates the mean squared logarithmic error (msle) rate
+    between predicted and target values
     '''
     first_log = K.log(K.clip(y_pred, K.epsilon(), np.inf) + 1.)
     second_log = K.log(K.clip(y_true, K.epsilon(), np.inf) + 1.)
