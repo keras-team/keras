@@ -1,6 +1,8 @@
 import tensorflow as tf
 
 from tensorflow.python.training import moving_averages
+from tensorflow.python.ops import tensor_array_ops
+from tensorflow.python.ops import control_flow_ops
 try:
     from tensorflow.python.ops import ctc_ops as ctc
 except ImportError:
@@ -1168,6 +1170,13 @@ def rnn(step_function, inputs, initial_states,
     axes = [1, 0] + list(range(2, ndim))
     inputs = tf.transpose(inputs, (axes))
 
+    if mask is not None:
+        if mask.dtype != tf.bool:
+            mask = tf.cast(mask, tf.bool)
+        if len(mask.get_shape()) == ndim - 1:
+            mask = expand_dims(mask)
+        mask = tf.transpose(mask, axes)
+
     if constants is None:
         constants = []
 
@@ -1184,13 +1193,7 @@ def rnn(step_function, inputs, initial_states,
             input_list.reverse()
 
         if mask is not None:
-            # Transpose not supported by bool tensor types, hence round-trip to uint8.
-            mask = tf.cast(mask, tf.uint8)
-            if len(mask.get_shape()) == ndim - 1:
-                mask = expand_dims(mask)
-            mask = tf.cast(tf.transpose(mask, axes), tf.bool)
             mask_list = tf.unpack(mask)
-
             if go_backwards:
                 mask_list.reverse()
 
@@ -1234,26 +1237,25 @@ def rnn(step_function, inputs, initial_states,
             outputs = tf.pack(successive_outputs)
 
     else:
-        from tensorflow.python.ops.rnn import _dynamic_rnn_loop
-
         if go_backwards:
             inputs = tf.reverse(inputs, [True] + [False] * (ndim - 1))
 
-        states = initial_states
-        nb_states = len(states)
-        if nb_states == 0:
-            # use dummy state, otherwise _dynamic_rnn_loop breaks
-            state = inputs[:, 0, :]
-            state_size = state.get_shape()[-1]
-        else:
-            state_size = int(states[0].get_shape()[-1])
-            if nb_states == 1:
-                state = states[0]
-            else:
-                state = tf.concat(1, states)
+        states = tuple(initial_states)
+
+        time_steps = tf.shape(inputs)[0]
+        output_ta = tensor_array_ops.TensorArray(
+            dtype=inputs.dtype,
+            size=time_steps,
+            tensor_array_name='output_ta')
+        input_ta = tensor_array_ops.TensorArray(
+            dtype=inputs.dtype,
+            size=time_steps,
+            tensor_array_name='input_ta')
+        input_ta = input_ta.unpack(inputs)
+        time = tf.constant(0, dtype='int32', name='time')
 
         if mask is not None:
-            if len(initial_states) == 0:
+            if len(states) == 0:
                 raise ValueError('No initial states provided! '
                                  'When using masking in an RNN, you should '
                                  'provide initial states '
@@ -1263,84 +1265,44 @@ def rnn(step_function, inputs, initial_states,
             if go_backwards:
                 mask = tf.reverse(mask, [True] + [False] * (ndim - 2))
 
-            # Transpose not supported by bool tensor types, hence round-trip to uint8.
-            mask = tf.cast(mask, tf.uint8)
-            if len(mask.get_shape()) == ndim - 1:
-                mask = expand_dims(mask)
-            mask = tf.transpose(mask, axes)
-            inputs = tf.concat(2, [tf.cast(mask, inputs.dtype), inputs])
+            mask_ta = tensor_array_ops.TensorArray(
+                dtype=tf.bool,
+                size=time_steps,
+                tensor_array_name='mask_ta')
+            mask_ta = mask_ta.unpack(mask)
 
-            def _step(input, state):
-                if nb_states > 1:
-                    states = []
-                    for i in range(nb_states):
-                        states.append(state[:, i * state_size: (i + 1) * state_size])
-                else:
-                    states = [state]
-                mask_t = tf.cast(input[:, 0], tf.bool)
-                input = input[:, 1:]
-                output, new_states = step_function(input, states + constants)
-
-                output = tf.select(mask_t, output, states[0])
-                new_states = [tf.select(mask_t, new_states[i], states[i]) for i in range(len(states))]
-
-                if len(new_states) == 1:
-                    new_state = new_states[0]
-                else:
-                    new_state = tf.concat(1, new_states)
-
-                return output, new_state
+            def _step(time, output_ta_t, *states):
+                current_input = input_ta.read(time)
+                mask_t = mask_ta.read(time)
+                output, new_states = step_function(current_input,
+                                                   tuple(states) +
+                                                   tuple(constants))
+                tiled_mask_t = tf.tile(mask_t, tf.pack([1, tf.shape(output)[1]]))
+                output = tf.select(tiled_mask_t, output, states[0])
+                new_states = [tf.select(tiled_mask_t, new_states[i], states[i]) for i in range(len(states))]
+                output_ta_t = output_ta_t.write(time, output)
+                return (time + 1, output_ta_t) + tuple(new_states)
         else:
-            def _step(input, state):
-                if nb_states > 1:
-                    states = []
-                    for i in range(nb_states):
-                        states.append(state[:, i * state_size: (i + 1) * state_size])
-                elif nb_states == 1:
-                    states = [state]
-                else:
-                    states = []
-                output, new_states = step_function(input, states + constants)
+            def _step(time, output_ta_t, *states):
+                current_input = input_ta.read(time)
+                output, new_states = step_function(current_input,
+                                                   tuple(states) +
+                                                   tuple(constants))
+                output_ta_t = output_ta_t.write(time, output)
+                return (time + 1, output_ta_t) + tuple(new_states)
 
-                if len(new_states) > 1:
-                    new_state = tf.concat(1, new_states)
-                elif len(new_states) == 1:
-                    new_state = new_states[0]
-                else:
-                    # return dummy state, otherwise _dynamic_rnn_loop breaks
-                    new_state = state
-                return output, new_state
-
-        _step.state_size = state_size * nb_states
-        # recover output size by calling _step on the first input
-        slice_begin = tf.pack([0] * ndim)
-        slice_size = tf.pack([1] + [-1] * (ndim - 1))
-        first_input = tf.slice(inputs, slice_begin, slice_size)
-        first_input = tf.squeeze(first_input, [0])
-        _step.output_size = int(_step(first_input, state)[0].get_shape()[-1])
-
-        (outputs, final_state) = _dynamic_rnn_loop(
-            _step,
-            inputs,
-            state,
+        final_outputs = control_flow_ops.while_loop(
+            cond=lambda time, *_: time < time_steps,
+            body=_step,
+            loop_vars=(time, output_ta) + states,
             parallel_iterations=32,
-            swap_memory=True,
-            sequence_length=None)
+            swap_memory=True)
+        last_time = final_outputs[0]
+        output_ta = final_outputs[1]
+        new_states = final_outputs[2:]
 
-        if nb_states > 1:
-            new_states = []
-            for i in range(nb_states):
-                new_states.append(final_state[:, i * state_size: (i + 1) * state_size])
-        elif nb_states == 1:
-            new_states = [final_state]
-        else:
-            new_states = []
-
-        # all this circus is to recover the last vector in the sequence.
-        slice_begin = tf.pack([tf.shape(outputs)[0] - 1] + [0] * (ndim - 1))
-        slice_size = tf.pack([1] + [-1] * (ndim - 1))
-        last_output = tf.slice(outputs, slice_begin, slice_size)
-        last_output = tf.squeeze(last_output, [0])
+        outputs = output_ta.pack()
+        last_output = output_ta.read(last_time - 1)
 
     axes = [1, 0] + list(range(2, len(outputs.get_shape())))
     outputs = tf.transpose(outputs, axes)
@@ -1348,7 +1310,8 @@ def rnn(step_function, inputs, initial_states,
 
 
 def _cond(condition, then_lambda, else_lambda):
-    '''Backwards compatible interface to tf.cond prior to public introduction.'''
+    '''Backwards compatible interface to tf.cond prior to public introduction.
+    '''
     try:
         cond_fn = tf.cond
     except AttributeError:
@@ -1358,7 +1321,8 @@ def _cond(condition, then_lambda, else_lambda):
 
 
 def switch(condition, then_expression, else_expression):
-    '''Switches between two operations depending on a scalar value (int or bool).
+    '''Switches between two operations
+    depending on a scalar value (int or bool).
     Note that both `then_expression` and `else_expression`
     should be symbolic tensors of the *same shape*.
 
@@ -1438,7 +1402,7 @@ def elu(x, alpha=1.):
     if alpha == 1:
         return res
     else:
-        return tf.select(x > 0, res, alpha*res)
+        return tf.select(x > 0, res, alpha * res)
 
 
 def softmax(x):
