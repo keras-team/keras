@@ -127,22 +127,46 @@ class TimeDistributed(Wrapper):
                 unroll = True
             else:
                 unroll = False
-            last_output, outputs, states = K.rnn(step, X,
-                                                 initial_states=[], input_length=input_length, unroll=unroll)
-            y = outputs
+            _, outputs, _ = K.rnn(step, X, mask=mask,
+                                  initial_states=[], input_length=input_length, unroll=unroll)
         else:
             # no batch size specified, therefore the layer will be able
             # to process batches of any size
             # we can go with reshape-based implementation for performance
-            input_length = input_shape[1]
-            if not input_length:
-                input_length = K.shape(X)[1]
+            input_length = input_shape[1] if input_shape[1] else K.shape(X)
+            if mask is not None:
+                mask_ndim = K.ndim(mask)
+                input_ndim = K.ndim(X)
+                if mask_ndim == input_ndim:
+                    mask_shape = input_shape
+                elif mask_ndim == input_ndim - 1:
+                    mask_shape = input_shape[:-1]
+                else:
+                    raise Exception("Mask is of an unexpected shape. Mask's ndim: %s, input's ndim %s" %
+                                    (mask_ndim, input_ndim))
+                mask = K.reshape(mask, (-1,) + mask_shape[2:])  # (batch_size * timesteps, ...)
+
             X = K.reshape(X, (-1, ) + input_shape[2:])  # (nb_samples * timesteps, ...)
-            y = self.layer.call(X)  # (nb_samples * timesteps, ...)
+            outputs = self.layer.call(X, mask=mask)  # (nb_samples * timesteps, ...)
             # (nb_samples, timesteps, ...)
             output_shape = self.get_output_shape_for(input_shape)
-            y = K.reshape(y, (-1, input_length) + output_shape[2:])
-        return y
+            outputs = K.reshape(outputs, (-1, input_length) + output_shape[2:])
+        return outputs
+
+    def compute_mask(self, input, input_mask=None):
+        input_shape = self.input_spec[0].shape
+        output_shape = self.get_output_shape_for(input_shape)
+        dim_change = len(input_shape[2:]) - len(output_shape[2:])
+
+        if input_mask is None:
+            return None
+        # If the Layer has reduced the dimension between input and output,
+        # we only want to propagate the mask in the remaining dimensions if
+        # all of the input mask was zero for the reduced dimensions.
+        elif dim_change >= 0:
+            return K.any(input_mask, axis=list(range(-dim_change, 0)))
+        else:
+            return input_mask
 
 
 class Bidirectional(Wrapper):
