@@ -10,4 +10,4 @@ from .embeddings import *
 from .noise import *
 from .advanced_activations import *
 from .wrappers import *
-from .recurrent_convolutional import *
+from .convolutional_recurrent import *

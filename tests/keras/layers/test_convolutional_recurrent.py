@@ -4,7 +4,7 @@ from numpy.testing import assert_allclose
 
 from keras import backend as K
 from keras.models import Sequential
-from keras.layers import recurrent_convolutional
+from keras.layers import convolutional_recurrent
 from keras.utils.test_utils import layer_test
 from keras import regularizers
 
@@ -15,10 +15,10 @@ def test_recurrent_convolutional():
     nb_col = 4
     nb_filter = 20
     nb_samples = 5
-    input_channel = 3
-    input_nb_row = 30
-    input_nb_col = 30
-    sequence_len = 10
+    input_channel = 2
+    input_nb_row = 10
+    input_nb_col = 10
+    sequence_len = 2
     for dim_ordering in ['th', 'tf']:
 
         if dim_ordering == 'th':
@@ -32,7 +32,7 @@ def test_recurrent_convolutional():
 
         for return_sequences in [True, False]:
             # test for ouptput shape:
-            output = layer_test(recurrent_convolutional.ConvLSTM2D,
+            output = layer_test(convolutional_recurrent.ConvLSTM2D,
                                 kwargs={'dim_ordering': dim_ordering,
                                         'return_sequences': return_sequences,
                                         'nb_filter': nb_filter,
@@ -67,7 +67,7 @@ def test_recurrent_convolutional():
                       'stateful': True,
                       'batch_input_shape': input.shape,
                       'border_mode': "same"}
-            layer = recurrent_convolutional.ConvLSTM2D(**kwargs)
+            layer = convolutional_recurrent.ConvLSTM2D(**kwargs)
 
             model.add(layer)
             model.compile(optimizer='sgd', loss='mse')
@@ -110,13 +110,13 @@ def test_recurrent_convolutional():
                       'b_regularizer': 'l2',
                       'border_mode': "same"}
 
-            layer = recurrent_convolutional.ConvLSTM2D(**kwargs)
+            layer = convolutional_recurrent.ConvLSTM2D(**kwargs)
             layer.set_input(K.variable(np.ones(input.shape)),
                             shape=input.shape)
             K.eval(layer.output)
 
             # check dropout
-            layer_test(recurrent_convolutional.ConvLSTM2D,
+            layer_test(convolutional_recurrent.ConvLSTM2D,
                        kwargs={'dim_ordering': dim_ordering,
                                'return_sequences': return_sequences,
                                'nb_filter': nb_filter,

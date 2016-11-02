@@ -8,20 +8,20 @@ import warnings
 
 
 class ConvRecurrent2D(Layer):
-    '''Abstract base class for recurrent layers.
+    '''Abstract base class for convolutionnal recurrent layers.
     Do not use in a model -- it's not a functional layer!
 
-    All recurrent layers (GRU, LSTM, SimpleRNN) also
+    ConvLSTM2D
     follow the specifications of this class and accept
     the keyword arguments listed below.
 
     # Input shape
-        5D tensor with shape `(nb_samples, timesteps, channels,rows,cols)`.
+        5D tensor with shape `(nb_samples, timesteps, channels, rows, cols)`.
 
     # Output shape
         - if `return_sequences`: 5D tensor with shape
-            `(nb_samples, timesteps, channels,rows,cols)`.
-        - else, 2D tensor with shape `(nb_samples, channels,rows,cols)`.
+            `(nb_samples, timesteps, channels, rows, cols)`.
+        - else, 4D tensor with shape `(nb_samples, channels, rows, cols)`.
 
     # Arguments
         weights: list of numpy arrays to set as initial weights.
@@ -200,7 +200,8 @@ class ConvRecurrent2D(Layer):
 
 
 class ConvLSTM2D(ConvRecurrent2D):
-    '''
+    '''Convolutional LSTM.
+
     # Input shape
         - if dim_ordering='th'
             5D tensor with shape:
@@ -213,17 +214,17 @@ class ConvLSTM2D(ConvRecurrent2D):
         - if `return_sequences`
              - if dim_ordering='th'
                 5D tensor with shape:
-                `(samples, time, nb_filter, o_row, o_col)`
+                `(samples, time, nb_filter, output_row, output_col)`
              - if dim_ordering='tf'
                 5D tensor with shape:
-                `(samples, time, o_row, o_col, nb_filter)`
+                `(samples, time, output_row, output_col, nb_filter)`
         - else
             - if dim_ordering ='th'
                 4D tensor with shape:
-                `(samples, nb_filter, o_row, o_col)`
+                `(samples, nb_filter, output_row, output_col)`
             - if dim_ordering='tf'
                 4D tensor with shape:
-                `(samples, o_row, o_col, nb_filter)`
+                `(samples, output_row, output_col, nb_filter)`
 
         where o_row and o_col depend on the shape of the filter and
         the border_mode
