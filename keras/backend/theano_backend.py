@@ -23,6 +23,20 @@ theano.config.floatX = _FLOATX
 _LEARNING_PHASE = T.scalar(dtype='uint8', name='keras_learning_phase')  # 0 = test, 1 = train
 
 
+class EmptyContext():
+    def __init__(self):
+        return None
+
+    def __enter__(self):
+        return None
+
+    def __exit__(self, a, b, c):
+        return None
+
+def name_scope(name_scope):
+    # method does not apply to theano, just a placeholder
+    return EmptyContext()
+
 def learning_phase():
     # False = test, True = train
     return _LEARNING_PHASE

@@ -30,6 +30,9 @@ _GRAPH_LEARNING_PHASES = {}
 _MANUAL_VAR_INIT = False
 
 
+def name_scope(name_scope):
+    return tf.name_scope(name_scope)
+
 def clear_session():
     '''Destroys the current TF graph and creates a new one.
 

@@ -465,240 +465,243 @@ class Model(Container):
 
     def compile(self, optimizer, loss, metrics=[], loss_weights=None,
                 sample_weight_mode=None, **kwargs):
-        '''Configures the model for training.
 
-        # Arguments
-            optimizer: str (name of optimizer) or optimizer object.
-                See [optimizers](/optimizers).
-            loss: str (name of objective function) or objective function.
-                See [objectives](/objectives).
-                If the model has multiple outputs, you can use a different loss
-                on each output by passing a dictionary or a list of objectives.
-            metrics: list of metrics to be evaluated by the model
-                during training and testing.
-                Typically you will use `metrics=['accuracy']`.
-                To specify different metrics for different outputs of a
-                multi-output model, you could also pass a dictionary,
-                such as `metrics={'output_a': 'accuracy'}`.
-            sample_weight_mode: if you need to do timestep-wise
-                sample weighting (2D weights), set this to "temporal".
-                "None" defaults to sample-wise weights (1D).
-                If the model has multiple outputs, you can use a different
-                `sample_weight_mode` on each output by passing a
-                dictionary or a list of modes.
-            kwargs: when using the Theano backend, these arguments
-                are passed into K.function. Ignored for Tensorflow backend.
-        '''
-        self.optimizer = optimizers.get(optimizer)
-        self.sample_weight_mode = sample_weight_mode
-        self.loss = loss
-        self.loss_weights = loss_weights
+        with K.name_scope('compile'):
 
-        # prepare loss weights
-        if loss_weights is None:
-            loss_weights_list = [1. for _ in range(len(self.outputs))]
-        elif type(loss_weights) is dict:
-            for name in loss_weights:
-                if name not in self.output_names:
-                    raise Exception('Unknown entry in loss_weights '
-                                    'dictionary: "' + name + '". '
-                                    'Only expected the following keys: ' +
-                                    str(self.output_names))
-            loss_weights_list = []
-            for name in self.output_names:
-                loss_weights_list.append(loss_weights.get(name, 1.))
-        elif type(loss_weights) is list:
-            if len(loss_weights) != len(self.outputs):
-                raise Exception('When passing a list as loss_weights, '
-                                'it should have one entry per model outputs. '
-                                'The model has ' + str(len(self.outputs)) +
-                                ' outputs, but you passed loss_weights=' +
+            '''Configures the model for training.
+
+            # Arguments
+                optimizer: str (name of optimizer) or optimizer object.
+                    See [optimizers](/optimizers).
+                loss: str (name of objective function) or objective function.
+                    See [objectives](/objectives).
+                    If the model has multiple outputs, you can use a different loss
+                    on each output by passing a dictionary or a list of objectives.
+                metrics: list of metrics to be evaluated by the model
+                    during training and testing.
+                    Typically you will use `metrics=['accuracy']`.
+                    To specify different metrics for different outputs of a
+                    multi-output model, you could also pass a dictionary,
+                    such as `metrics={'output_a': 'accuracy'}`.
+                sample_weight_mode: if you need to do timestep-wise
+                    sample weighting (2D weights), set this to "temporal".
+                    "None" defaults to sample-wise weights (1D).
+                    If the model has multiple outputs, you can use a different
+                    `sample_weight_mode` on each output by passing a
+                    dictionary or a list of modes.
+                kwargs: when using the Theano backend, these arguments
+                    are passed into K.function. Ignored for Tensorflow backend.
+            '''
+            self.optimizer = optimizers.get(optimizer)
+            self.sample_weight_mode = sample_weight_mode
+            self.loss = loss
+            self.loss_weights = loss_weights
+
+            # prepare loss weights
+            if loss_weights is None:
+                loss_weights_list = [1. for _ in range(len(self.outputs))]
+            elif type(loss_weights) is dict:
+                for name in loss_weights:
+                    if name not in self.output_names:
+                        raise Exception('Unknown entry in loss_weights '
+                                        'dictionary: "' + name + '". '
+                                        'Only expected the following keys: ' +
+                                        str(self.output_names))
+                loss_weights_list = []
+                for name in self.output_names:
+                    loss_weights_list.append(loss_weights.get(name, 1.))
+            elif type(loss_weights) is list:
+                if len(loss_weights) != len(self.outputs):
+                    raise Exception('When passing a list as loss_weights, '
+                                    'it should have one entry per model outputs. '
+                                    'The model has ' + str(len(self.outputs)) +
+                                    ' outputs, but you passed loss_weights=' +
+                                    str(loss_weights))
+                loss_weights_list = loss_weights
+            else:
+                raise Exception('Could not interpret loss_weights argument: ' +
                                 str(loss_weights))
-            loss_weights_list = loss_weights
-        else:
-            raise Exception('Could not interpret loss_weights argument: ' +
-                            str(loss_weights))
 
-        # prepare loss functions
-        if type(loss) is dict:
-            for name in loss:
-                if name not in self.output_names:
-                    raise Exception('Unknown entry in loss '
-                                    'dictionary: "' + name + '". '
-                                    'Only expected the following keys: ' +
-                                    str(self.output_names))
-            loss_functions = []
-            for name in self.output_names:
-                if name not in loss:
-                    raise Exception('Output "' + name +
-                                    '" missing from loss dictionary')
-                loss_functions.append(objectives.get(loss[name]))
-        elif type(loss) is list:
-            if len(loss) != len(self.outputs):
-                raise Exception('When passing a list as loss, '
-                                'it should have one entry per model outputs. '
-                                'The model has ' + str(len(self.outputs)) +
-                                ' outputs, but you passed loss=' +
-                                str(loss))
-            loss_functions = [objectives.get(l) for l in loss]
-        else:
-            loss_function = objectives.get(loss)
-            loss_functions = [loss_function for _ in range(len(self.outputs))]
-        self.loss_functions = loss_functions
-        weighted_losses = [weighted_objective(fn) for fn in loss_functions]
-
-        # prepare output masks
-        masks = self.compute_mask(self.inputs, mask=None)
-        if masks is None:
-            masks = [None for _ in self.outputs]
-        if type(masks) is not list:
-            masks = [masks]
-
-        # prepare sample weights
-        if type(sample_weight_mode) is dict:
-            for name in sample_weight_mode:
-                if name not in self.output_names:
-                    raise Exception('Unknown entry in '
-                                    'sample_weight_mode dictionary: "' +
-                                    name + '". '
-                                    'Only expected the following keys: ' +
-                                    str(self.output_names))
-            sample_weights = []
-            sample_weight_modes = []
-            for name in self.output_names:
-                if name not in sample_weight_mode:
-                    raise Exception('Output "' + name +
-                                    '" missing from sample_weight_modes '
-                                    'dictionary')
-                if sample_weight_mode.get(name) == 'temporal':
-                    weight = K.placeholder(ndim=2, name=name + '_sample_weights')
-                    sample_weight_modes.append('temporal')
-                else:
-                    weight = K.placeholder(ndim=1, name=name + '_sample_weights')
-                    sample_weight_modes.append(None)
-                sample_weights.append(weight)
-        elif type(sample_weight_mode) is list:
-            if len(sample_weight_mode) != len(self.outputs):
-                raise Exception('When passing a list as sample_weight_mode, ' +
-                                'it should have one entry per model outputs. '
-                                'The model has ' + str(len(self.outputs)) +
-                                ' outputs, but you passed sample_weight_mode=' +
-                                str(sample_weight_mode))
-            sample_weights = []
-            sample_weight_modes = []
-            for mode, name in zip(sample_weight_mode, self.output_names):
-                if mode == 'temporal':
-                    weight = K.placeholder(ndim=2, name=name + '_sample_weights')
-                    sample_weight_modes.append('temporal')
-                else:
-                    weight = K.placeholder(ndim=1, name=name + '_sample_weights')
-                    sample_weight_modes.append(None)
-                sample_weights.append(weight)
-        else:
-            if sample_weight_mode == 'temporal':
-                sample_weights = [K.placeholder(ndim=2, name=name + '_sample_weights')
-                                  for name in self.output_names]
-                sample_weight_modes = ['temporal' for name in self.output_names]
+            # prepare loss functions
+            if type(loss) is dict:
+                for name in loss:
+                    if name not in self.output_names:
+                        raise Exception('Unknown entry in loss '
+                                        'dictionary: "' + name + '". '
+                                        'Only expected the following keys: ' +
+                                        str(self.output_names))
+                loss_functions = []
+                for name in self.output_names:
+                    if name not in loss:
+                        raise Exception('Output "' + name +
+                                        '" missing from loss dictionary')
+                    loss_functions.append(objectives.get(loss[name]))
+            elif type(loss) is list:
+                if len(loss) != len(self.outputs):
+                    raise Exception('When passing a list as loss, '
+                                    'it should have one entry per model outputs. '
+                                    'The model has ' + str(len(self.outputs)) +
+                                    ' outputs, but you passed loss=' +
+                                    str(loss))
+                loss_functions = [objectives.get(l) for l in loss]
             else:
-                sample_weights = [K.placeholder(ndim=1, name=name + '_sample_weights')
-                                  for name in self.output_names]
-                sample_weight_modes = [None for name in self.output_names]
-        self.sample_weight_modes = sample_weight_modes
+                loss_function = objectives.get(loss)
+                loss_functions = [loss_function for _ in range(len(self.outputs))]
+            self.loss_functions = loss_functions
+            weighted_losses = [weighted_objective(fn) for fn in loss_functions]
 
-        # prepare targets of model
-        self.targets = []
-        for i in range(len(self.outputs)):
-            shape = self.internal_output_shapes[i]
-            name = self.output_names[i]
-            self.targets.append(K.placeholder(ndim=len(shape), name=name + '_target'))
+            # prepare output masks
+            masks = self.compute_mask(self.inputs, mask=None)
+            if masks is None:
+                masks = [None for _ in self.outputs]
+            if type(masks) is not list:
+                masks = [masks]
 
-        # prepare metrics
-        self.metrics = metrics
-        self.metrics_names = ['loss']
-        self.metrics_tensors = []
-
-        # compute total loss
-        total_loss = None
-        for i in range(len(self.outputs)):
-            y_true = self.targets[i]
-            y_pred = self.outputs[i]
-            weighted_loss = weighted_losses[i]
-            sample_weight = sample_weights[i]
-            mask = masks[i]
-            loss_weight = loss_weights_list[i]
-            output_loss = weighted_loss(y_true, y_pred,
-                                        sample_weight, mask)
-            if len(self.outputs) > 1:
-                self.metrics_tensors.append(output_loss)
-                self.metrics_names.append(self.output_names[i] + '_loss')
-            if total_loss is None:
-                total_loss = loss_weight * output_loss
-            else:
-                total_loss += loss_weight * output_loss
-
-        # add regularization penalties to the loss
-        for r in self.regularizers:
-            total_loss = r(total_loss)
-
-        # list of same size as output_names.
-        # contains tuples (metrics for output, names of metrics)
-        nested_metrics = collect_metrics(metrics, self.output_names)
-
-        def append_metric(layer_num, metric_name, metric_tensor):
-            """Helper function, used in loop below"""
-            if len(self.output_names) > 1:
-                metric_name = self.output_layers[layer_num].name + '_' + metric_name
-
-            self.metrics_names.append(metric_name)
-            self.metrics_tensors.append(metric_tensor)
-
-        for i in range(len(self.outputs)):
-            y_true = self.targets[i]
-            y_pred = self.outputs[i]
-            output_metrics = nested_metrics[i]
-
-            for metric in output_metrics:
-                if metric == 'accuracy' or metric == 'acc':
-                    # custom handling of accuracy (because of class mode duality)
-                    output_shape = self.internal_output_shapes[i]
-                    acc_fn = None
-                    if output_shape[-1] == 1 or self.loss_functions[i] == objectives.binary_crossentropy:
-                        # case: binary accuracy
-                        acc_fn = metrics_module.binary_accuracy
-                    elif self.loss_functions[i] == objectives.sparse_categorical_crossentropy:
-                        # case: categorical accuracy with sparse targets
-                        acc_fn = metrics_module.sparse_categorical_accuracy
+            # prepare sample weights
+            if type(sample_weight_mode) is dict:
+                for name in sample_weight_mode:
+                    if name not in self.output_names:
+                        raise Exception('Unknown entry in '
+                                        'sample_weight_mode dictionary: "' +
+                                        name + '". '
+                                        'Only expected the following keys: ' +
+                                        str(self.output_names))
+                sample_weights = []
+                sample_weight_modes = []
+                for name in self.output_names:
+                    if name not in sample_weight_mode:
+                        raise Exception('Output "' + name +
+                                        '" missing from sample_weight_modes '
+                                        'dictionary')
+                    if sample_weight_mode.get(name) == 'temporal':
+                        weight = K.placeholder(ndim=2, name=name + '_sample_weights')
+                        sample_weight_modes.append('temporal')
                     else:
-                        acc_fn = metrics_module.categorical_accuracy
-
-                    append_metric(i, 'acc', acc_fn(y_true, y_pred))
+                        weight = K.placeholder(ndim=1, name=name + '_sample_weights')
+                        sample_weight_modes.append(None)
+                    sample_weights.append(weight)
+            elif type(sample_weight_mode) is list:
+                if len(sample_weight_mode) != len(self.outputs):
+                    raise Exception('When passing a list as sample_weight_mode, ' +
+                                    'it should have one entry per model outputs. '
+                                    'The model has ' + str(len(self.outputs)) +
+                                    ' outputs, but you passed sample_weight_mode=' +
+                                    str(sample_weight_mode))
+                sample_weights = []
+                sample_weight_modes = []
+                for mode, name in zip(sample_weight_mode, self.output_names):
+                    if mode == 'temporal':
+                        weight = K.placeholder(ndim=2, name=name + '_sample_weights')
+                        sample_weight_modes.append('temporal')
+                    else:
+                        weight = K.placeholder(ndim=1, name=name + '_sample_weights')
+                        sample_weight_modes.append(None)
+                    sample_weights.append(weight)
+            else:
+                if sample_weight_mode == 'temporal':
+                    sample_weights = [K.placeholder(ndim=2, name=name + '_sample_weights')
+                                      for name in self.output_names]
+                    sample_weight_modes = ['temporal' for name in self.output_names]
                 else:
-                    metric_fn = metrics_module.get(metric)
-                    metric_result = metric_fn(y_true, y_pred)
+                    sample_weights = [K.placeholder(ndim=1, name=name + '_sample_weights')
+                                      for name in self.output_names]
+                    sample_weight_modes = [None for name in self.output_names]
+            self.sample_weight_modes = sample_weight_modes
 
-                    if not isinstance(metric_result, dict):
-                        metric_result = {
-                            metric_fn.__name__: metric_result
-                        }
+            # prepare targets of model
+            self.targets = []
+            for i in range(len(self.outputs)):
+                shape = self.internal_output_shapes[i]
+                name = self.output_names[i]
+                self.targets.append(K.placeholder(ndim=len(shape), name=name + '_target'))
 
-                    for name, tensor in six.iteritems(metric_result):
-                        append_metric(i, name, tensor)
+            # prepare metrics
+            self.metrics = metrics
+            self.metrics_names = ['loss']
+            self.metrics_tensors = []
 
-        # prepare gradient updates and state updates
-        self.optimizer = optimizers.get(optimizer)
-        self.total_loss = total_loss
-        self.sample_weights = sample_weights
+            # compute total loss
+            total_loss = None
+            for i in range(len(self.outputs)):
+                y_true = self.targets[i]
+                y_pred = self.outputs[i]
+                weighted_loss = weighted_losses[i]
+                sample_weight = sample_weights[i]
+                mask = masks[i]
+                loss_weight = loss_weights_list[i]
+                output_loss = weighted_loss(y_true, y_pred,
+                                            sample_weight, mask)
+                if len(self.outputs) > 1:
+                    self.metrics_tensors.append(output_loss)
+                    self.metrics_names.append(self.output_names[i] + '_loss')
+                if total_loss is None:
+                    total_loss = loss_weight * output_loss
+                else:
+                    total_loss += loss_weight * output_loss
 
-        # functions for train, test and predict will
-        # be compiled lazily when required.
-        # This saves time when the user is not using all functions.
-        self._function_kwargs = kwargs
+            # add regularization penalties to the loss
+            for r in self.regularizers:
+                total_loss = r(total_loss)
 
-        self.train_function = None
-        self.test_function = None
-        self.predict_function = None
+            # list of same size as output_names.
+            # contains tuples (metrics for output, names of metrics)
+            nested_metrics = collect_metrics(metrics, self.output_names)
 
-        self._collected_trainable_weights = collect_trainable_weights(self)
+            def append_metric(layer_num, metric_name, metric_tensor):
+                """Helper function, used in loop below"""
+                if len(self.output_names) > 1:
+                    metric_name = self.output_layers[layer_num].name + '_' + metric_name
+
+                self.metrics_names.append(metric_name)
+                self.metrics_tensors.append(metric_tensor)
+
+            for i in range(len(self.outputs)):
+                y_true = self.targets[i]
+                y_pred = self.outputs[i]
+                output_metrics = nested_metrics[i]
+
+                for metric in output_metrics:
+                    if metric == 'accuracy' or metric == 'acc':
+                        # custom handling of accuracy (because of class mode duality)
+                        output_shape = self.internal_output_shapes[i]
+                        acc_fn = None
+                        if output_shape[-1] == 1 or self.loss_functions[i] == objectives.binary_crossentropy:
+                            # case: binary accuracy
+                            acc_fn = metrics_module.binary_accuracy
+                        elif self.loss_functions[i] == objectives.sparse_categorical_crossentropy:
+                            # case: categorical accuracy with sparse targets
+                            acc_fn = metrics_module.sparse_categorical_accuracy
+                        else:
+                            acc_fn = metrics_module.categorical_accuracy
+
+                        append_metric(i, 'acc', acc_fn(y_true, y_pred))
+                    else:
+                        metric_fn = metrics_module.get(metric)
+                        metric_result = metric_fn(y_true, y_pred)
+
+                        if not isinstance(metric_result, dict):
+                            metric_result = {
+                                metric_fn.__name__: metric_result
+                            }
+
+                        for name, tensor in six.iteritems(metric_result):
+                            append_metric(i, name, tensor)
+
+            # prepare gradient updates and state updates
+            self.optimizer = optimizers.get(optimizer)
+            self.total_loss = total_loss
+            self.sample_weights = sample_weights
+
+            # functions for train, test and predict will
+            # be compiled lazily when required.
+            # This saves time when the user is not using all functions.
+            self._function_kwargs = kwargs
+
+            self.train_function = None
+            self.test_function = None
+            self.predict_function = None
+
+            self._collected_trainable_weights = collect_trainable_weights(self)
 
     def _make_train_function(self):
         if not hasattr(self, 'train_function'):
@@ -1002,126 +1005,128 @@ class Model(Container):
     def fit(self, x, y, batch_size=32, nb_epoch=10, verbose=1, callbacks=[],
             validation_split=0., validation_data=None, shuffle=True,
             class_weight=None, sample_weight=None):
-        '''Trains the model for a fixed number of epochs (iterations on a dataset).
 
-        # Arguments
-            x: Numpy array of training data,
-                or list of Numpy arrays if the model has multiple inputs.
-                If all inputs in the model are named, you can also pass a dictionary
-                mapping input names to Numpy arrays.
-            y: Numpy array of target data,
-                or list of Numpy arrays if the model has multiple outputs.
-                If all outputs in the model are named, you can also pass a dictionary
-                mapping output names to Numpy arrays.
-            batch_size: integer. Number of samples per gradient update.
-            nb_epoch: integer, the number of times to iterate over the training data arrays.
-            verbose: 0, 1, or 2. Verbosity mode. 0 = silent, 1 = verbose, 2 = one log line per epoch.
-            callbacks: list of callbacks to be called during training.
-                See [callbacks](/callbacks).
-            validation_split: float between 0 and 1:
-                fraction of the training data to be used as validation data.
-                The model will set apart this fraction of the training data,
-                will not train on it, and will evaluate the loss and any model metrics
-                on this data at the end of each epoch.
-            validation_data: data on which to evaluate the loss and any model metrics
-                at the end of each epoch. The model will not be trained on this data.
-                This could be a tuple (x_val, y_val) or a tuple (x_val, y_val, val_sample_weights).
-            shuffle: boolean, whether to shuffle the training data before each epoch.
-            class_weight: optional dictionary mapping class indices (integers) to
-                a weight (float) to apply to the model's loss for the samples
-                from this class during training.
-                This can be useful to tell the model to "pay more attention" to
-                samples from an under-represented class.
-            sample_weight: optional array of the same length as x, containing
-                weights to apply to the model's loss for each sample.
-                In the case of temporal data, you can pass a 2D array
-                with shape (samples, sequence_length),
-                to apply a different weight to every timestep of every sample.
-                In this case you should make sure to specify sample_weight_mode="temporal" in compile().
+        with K.name_scope('fit'):
+            '''Trains the model for a fixed number of epochs (iterations on a dataset).
+
+            # Arguments
+                x: Numpy array of training data,
+                    or list of Numpy arrays if the model has multiple inputs.
+                    If all inputs in the model are named, you can also pass a dictionary
+                    mapping input names to Numpy arrays.
+                y: Numpy array of target data,
+                    or list of Numpy arrays if the model has multiple outputs.
+                    If all outputs in the model are named, you can also pass a dictionary
+                    mapping output names to Numpy arrays.
+                batch_size: integer. Number of samples per gradient update.
+                nb_epoch: integer, the number of times to iterate over the training data arrays.
+                verbose: 0, 1, or 2. Verbosity mode. 0 = silent, 1 = verbose, 2 = one log line per epoch.
+                callbacks: list of callbacks to be called during training.
+                    See [callbacks](/callbacks).
+                validation_split: float between 0 and 1:
+                    fraction of the training data to be used as validation data.
+                    The model will set apart this fraction of the training data,
+                    will not train on it, and will evaluate the loss and any model metrics
+                    on this data at the end of each epoch.
+                validation_data: data on which to evaluate the loss and any model metrics
+                    at the end of each epoch. The model will not be trained on this data.
+                    This could be a tuple (x_val, y_val) or a tuple (x_val, y_val, val_sample_weights).
+                shuffle: boolean, whether to shuffle the training data before each epoch.
+                class_weight: optional dictionary mapping class indices (integers) to
+                    a weight (float) to apply to the model's loss for the samples
+                    from this class during training.
+                    This can be useful to tell the model to "pay more attention" to
+                    samples from an under-represented class.
+                sample_weight: optional array of the same length as x, containing
+                    weights to apply to the model's loss for each sample.
+                    In the case of temporal data, you can pass a 2D array
+                    with shape (samples, sequence_length),
+                    to apply a different weight to every timestep of every sample.
+                    In this case you should make sure to specify sample_weight_mode="temporal" in compile().
 
 
-        # Returns
-            A `History` instance. Its `history` attribute contains
-            all information collected during training.
-        '''
-        # validate user data
-        x, y, sample_weights = self._standardize_user_data(x, y,
-                                                           sample_weight=sample_weight,
-                                                           class_weight=class_weight,
-                                                           check_batch_dim=False,
-                                                           batch_size=batch_size)
-        # prepare validation data
-        if validation_data:
-            do_validation = True
-            if len(validation_data) == 2:
-                val_x, val_y = validation_data
-                val_sample_weight = None
-            elif len(validation_data) == 3:
-                val_x, val_y, val_sample_weight = validation_data
+            # Returns
+                A `History` instance. Its `history` attribute contains
+                all information collected during training.
+            '''
+            # validate user data
+            x, y, sample_weights = self._standardize_user_data(x, y,
+                                                               sample_weight=sample_weight,
+                                                               class_weight=class_weight,
+                                                               check_batch_dim=False,
+                                                               batch_size=batch_size)
+            # prepare validation data
+            if validation_data:
+                do_validation = True
+                if len(validation_data) == 2:
+                    val_x, val_y = validation_data
+                    val_sample_weight = None
+                elif len(validation_data) == 3:
+                    val_x, val_y, val_sample_weight = validation_data
+                else:
+                    raise
+                val_x, val_y, val_sample_weights = self._standardize_user_data(val_x, val_y,
+                                                                               sample_weight=val_sample_weight,
+                                                                               check_batch_dim=False,
+                                                                               batch_size=batch_size)
+                self._make_test_function()
+                val_f = self.test_function
+                if self.uses_learning_phase and type(K.learning_phase()) is not int:
+                    val_ins = val_x + val_y + val_sample_weights + [0.]
+                else:
+                    val_ins = val_x + val_y + val_sample_weights
+
+            elif validation_split and 0. < validation_split < 1.:
+                do_validation = True
+                split_at = int(len(x[0]) * (1. - validation_split))
+                x, val_x = (slice_X(x, 0, split_at), slice_X(x, split_at))
+                y, val_y = (slice_X(y, 0, split_at), slice_X(y, split_at))
+                sample_weights, val_sample_weights = (
+                    slice_X(sample_weights, 0, split_at), slice_X(sample_weights, split_at))
+                self._make_test_function()
+                val_f = self.test_function
+                if self.uses_learning_phase and type(K.learning_phase()) is not int:
+                    val_ins = val_x + val_y + val_sample_weights + [0.]
+                else:
+                    val_ins = val_x + val_y + val_sample_weights
             else:
-                raise
-            val_x, val_y, val_sample_weights = self._standardize_user_data(val_x, val_y,
-                                                                           sample_weight=val_sample_weight,
-                                                                           check_batch_dim=False,
-                                                                           batch_size=batch_size)
-            self._make_test_function()
-            val_f = self.test_function
+                do_validation = False
+                val_f = None
+                val_ins = None
+
+            # prepare input arrays and training function
             if self.uses_learning_phase and type(K.learning_phase()) is not int:
-                val_ins = val_x + val_y + val_sample_weights + [0.]
+                ins = x + y + sample_weights + [1.]
             else:
-                val_ins = val_x + val_y + val_sample_weights
+                ins = x + y + sample_weights
+            self._make_train_function()
+            f = self.train_function
 
-        elif validation_split and 0. < validation_split < 1.:
-            do_validation = True
-            split_at = int(len(x[0]) * (1. - validation_split))
-            x, val_x = (slice_X(x, 0, split_at), slice_X(x, split_at))
-            y, val_y = (slice_X(y, 0, split_at), slice_X(y, split_at))
-            sample_weights, val_sample_weights = (
-                slice_X(sample_weights, 0, split_at), slice_X(sample_weights, split_at))
-            self._make_test_function()
-            val_f = self.test_function
-            if self.uses_learning_phase and type(K.learning_phase()) is not int:
-                val_ins = val_x + val_y + val_sample_weights + [0.]
+            # prepare display labels
+            out_labels = self.metrics_names
+
+            # rename duplicated metrics name
+            # (can happen with an output layer shared among multiple dataflows)
+            deduped_out_labels = []
+            for i, label in enumerate(out_labels):
+                new_label = label
+                if out_labels.count(label) > 1:
+                    dup_idx = out_labels[:i].count(label)
+                    new_label += '_' + str(dup_idx + 1)
+                deduped_out_labels.append(new_label)
+            out_labels = deduped_out_labels
+
+            if do_validation:
+                callback_metrics = copy.copy(out_labels) + ['val_' + n for n in out_labels]
             else:
-                val_ins = val_x + val_y + val_sample_weights
-        else:
-            do_validation = False
-            val_f = None
-            val_ins = None
+                callback_metrics = copy.copy(out_labels)
 
-        # prepare input arrays and training function
-        if self.uses_learning_phase and type(K.learning_phase()) is not int:
-            ins = x + y + sample_weights + [1.]
-        else:
-            ins = x + y + sample_weights
-        self._make_train_function()
-        f = self.train_function
-
-        # prepare display labels
-        out_labels = self.metrics_names
-
-        # rename duplicated metrics name
-        # (can happen with an output layer shared among multiple dataflows)
-        deduped_out_labels = []
-        for i, label in enumerate(out_labels):
-            new_label = label
-            if out_labels.count(label) > 1:
-                dup_idx = out_labels[:i].count(label)
-                new_label += '_' + str(dup_idx + 1)
-            deduped_out_labels.append(new_label)
-        out_labels = deduped_out_labels
-
-        if do_validation:
-            callback_metrics = copy.copy(out_labels) + ['val_' + n for n in out_labels]
-        else:
-            callback_metrics = copy.copy(out_labels)
-
-        # delegate logic to _fit_loop
-        return self._fit_loop(f, ins, out_labels=out_labels,
-                              batch_size=batch_size, nb_epoch=nb_epoch,
-                              verbose=verbose, callbacks=callbacks,
-                              val_f=val_f, val_ins=val_ins, shuffle=shuffle,
-                              callback_metrics=callback_metrics)
+            # delegate logic to _fit_loop
+            return self._fit_loop(f, ins, out_labels=out_labels,
+                                  batch_size=batch_size, nb_epoch=nb_epoch,
+                                  verbose=verbose, callbacks=callbacks,
+                                  val_f=val_f, val_ins=val_ins, shuffle=shuffle,
+                                  callback_metrics=callback_metrics)
 
     def evaluate(self, x, y, batch_size=32, verbose=1, sample_weight=None):
         '''Returns the loss value and metrics values for the model
