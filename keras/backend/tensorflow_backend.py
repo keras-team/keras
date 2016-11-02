@@ -1357,7 +1357,7 @@ def _cond(condition, then_lambda, else_lambda):
     return cond_fn(condition, then_lambda, else_lambda)
 
 
-def switch(condition, then_expression, else_expression):
+def switch(condition, then_expression, else_expression, lazy=False):
     '''Switches between two operations depending on a scalar value (int or bool).
     Note that both `then_expression` and `else_expression`
     should be symbolic tensors of the *same shape*.
@@ -1366,6 +1366,7 @@ def switch(condition, then_expression, else_expression):
         condition: scalar tensor.
         then_expression: TensorFlow operation.
         else_expression: TensorFlow operation.
+        lazy: Unused (compatibility with Theano backend)
     '''
     x_shape = copy.copy(then_expression.get_shape())
     if condition.dtype != tf.bool:
@@ -2009,3 +2010,23 @@ def ctc_decode(y_pred, input_length, greedy=True, beam_width=100,
                      for st in decoded]
 
     return (decoded_dense, log_prob)
+
+
+def reverse_gradient(X, hp_lambda):
+    '''Flips the sign of the incoming gradient during training.'''
+    try:
+        reverse_gradient.num_calls += 1
+    except AttributeError:
+        reverse_gradient.num_calls = 1
+
+    grad_name = "GradientReversal%d" % reverse_gradient.num_calls
+
+    @tf.python.framework.ops.RegisterGradient(grad_name)
+    def _flip_gradients(op, grad):
+        return [tf.neg(grad) * hp_lambda]
+
+    g = get_session().graph
+    with g.gradient_override_map({'Identity': grad_name}):
+        y = tf.identity(X)
+
+    return y

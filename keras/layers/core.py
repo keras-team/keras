@@ -1213,3 +1213,24 @@ class TimeDistributedDense(Layer):
                   'input_length': self.input_length}
         base_config = super(TimeDistributedDense, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
+
+
+class GradientReversal(Layer):
+    '''Flip the sign of gradient during training.'''
+    def __init__(self, **kwargs):
+        super(GradientReversal, self).__init__(**kwargs)
+        self.supports_masking = False
+
+    def build(self, input_shape):
+        self.trainable_weights = []
+
+    def call(self, x, hp_lambda, mask=None):
+        return K.reverse_gradient(x, hp_lambda)
+
+    def get_output_shape_for(self, input_shape):
+        return input_shape
+
+    def get_config(self):
+        config = {}
+        base_config = super(GradientReversal, self).get_config()
+        return dict(list(base_config.items()) + list(config.items()))

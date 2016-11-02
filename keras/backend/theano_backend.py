@@ -997,9 +997,15 @@ def rnn(step_function, inputs, initial_states,
     return last_output, outputs, states
 
 
-def switch(condition, then_expression, else_expression):
+def switch(condition, then_expression, else_expression, lazy=False):
     '''condition: scalar tensor.
+
+    # Arguments:
+        lazy: Use ifelse op which evaluates arguments in a lazy manner.
     '''
+    if lazy:
+        return theano.ifelse.ifelse(condition, then_expression, else_expression)
+
     return T.switch(condition, then_expression, else_expression)
 
 
@@ -1815,3 +1821,33 @@ def ctc_batch_cost(y_true, y_pred, input_length, label_length):
 
     ret = ret.dimshuffle('x', 0)
     return ret
+
+
+class ReverseGradient(theano.Op):
+    '''Flips the sign of incoming gradient during training.'''
+    __props__ = ('hp_lambda', )
+
+    def __init__(self):
+        super(ReverseGradient, self).__init__()
+        self.hp_lambda = None
+
+    def make_node(self, x):
+        assert hasattr(self, '_props'), 'Your version of theano is too old to support __props__.'
+        x = T.as_tensor_variable(x)
+        return theano.Apply(self, [x], [x.type()])
+
+    def perform(self, node, inputs, output_storage):
+        xin, = inputs
+        xout, = output_storage
+        xout[0] = xin
+
+    def grad(self, input, output_gradients):
+        return [-self.hp_lambda * output_gradients[0]]
+
+    def infer_shape(self, node, i0_shapes):
+        return i0_shapes
+
+_reverse_gradient = ReverseGradient()
+def reverse_gradient(x, hp_lambda):
+    _reverse_gradient.hp_lambda = hp_lambda
+    return _reverse_gradient(x)
