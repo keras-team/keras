@@ -86,6 +86,7 @@ class Dropout(Layer):
         return None
 
     def call(self, x, mask=None):
+
         if 0. < self.p < 1.:
             noise_shape = self._get_noise_shape(x)
             x = K.in_train_phase(K.dropout(x, self.p, noise_shape), x)
@@ -1304,7 +1305,7 @@ class WeightedSum(Layer):
                 out_dim.append(max(input_shape[0][d], input_shape[1][d]))
         return tuple(out_dim)
 
-    def compute_mask(self, input, input_mask):
+    def compute_mask(self, input, input_mask=None):
         if not any(input_mask):
             return None
         else:
@@ -1321,3 +1322,40 @@ class WeightedSum(Layer):
         config = {'sum_dims': self.sum_dims}
         base_config = super(WeightedSum, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
+
+
+class SetSubtensor(Layer):
+    """
+    This layer performs a set_subtensor operation over two layers
+    # Arguments
+        indices: list of strings specifying the indexation over the two input layers
+
+    # Input shape
+        List with two tensors:
+            input[0]: Tensor to overwrite
+            input[1]: Tensor that overwrites
+    # Output shape
+        K.set_subtensor(input[0][indices[0], input[1][indices[1]])
+    # Supports masking: The mask of the first input layer
+    """
+    def __init__(self, indices, **kwargs):
+        self.supports_masking = True
+        self.indices = indices
+        super(SetSubtensor, self).__init__(**kwargs)
+
+    def build(self, input_shape):
+        assert isinstance(input_shape, list)
+        assert len(input_shape) == 2
+
+    def call(self, x, mask=None):
+        return K.set_subtensor(eval('x[0]' + self.indices[0]), eval('x[1]' + self.indices[1]))
+
+    def compute_mask(self, input_shape, input_mask=None):
+        return input_mask[0]
+
+    def get_output_shape_for(self, input_shape):
+        return input_shape[0]
+
+    def get_config(self):
+        base_config = super(SetSubtensor, self).get_config()
+        return dict(list(base_config.items()))
