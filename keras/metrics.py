@@ -198,6 +198,8 @@ def fbeta_score(y_true, y_pred, beta):
 
 
 def fmeasure(y_true, y_pred):
+    '''Calculates the f-measure, the harmonic mean of precision and recall.
+    '''
     return fbeta_score(y_true, y_pred, beta=1)
 
 
