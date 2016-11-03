@@ -613,6 +613,7 @@ class GRUCond(GRU):
             Can be the name of an existing function (str),
             or a Theano function (see: [initializations](../initializations.md)).
         inner_init: initialization function of the inner cells.
+        return_states: boolean indicating if we want the intermediate states (hidden_state and memory) as additional outputs
         activation: activation function.
             Can be the name of an existing function (str),
             or a Theano function (see: [activations](../activations.md)).
@@ -673,12 +674,14 @@ class GRUCond(GRU):
     '''
     def __init__(self, output_dim,
                  init='glorot_uniform', inner_init='orthogonal',
+                 return_states=False,
                  activation='tanh', inner_activation='hard_sigmoid',
                  W_regularizer=None, U_regularizer=None, V_regularizer=None, b_regularizer=None,
                  dropout_W=0., dropout_U=0., dropout_V=0., **kwargs):
         self.output_dim = output_dim
         self.init = initializations.get(init)
         self.inner_init = initializations.get(inner_init)
+        self.return_states = return_states
         self.activation = activations.get(activation)
         self.inner_activation = activations.get(inner_activation)
         self.W_regularizer = regularizers.get(W_regularizer)
@@ -811,6 +814,10 @@ class GRUCond(GRU):
         else:
             main_out = (input_shape[0][0], self.output_dim)
 
+        if self.return_states:
+            states_dim = (input_shape[0][0], input_shape[0][1], self.output_dim)
+            main_out = [main_out, states_dim]
+
         return main_out
 
 
@@ -822,11 +829,12 @@ class GRUCond(GRU):
         input_shape = self.input_spec[0].shape
         state_below = x[0]
         self.context = x[1]
-        if self.num_inputs == 2:
+        if self.num_inputs == 2: # input: [state_below, context]
             self.init_state = None
             self.init_memory = None
-        elif self.num_inputs == 3:
+        elif self.num_inputs == 3: # input: [state_below, context, init_hidden_state]
             self.init_state = x[2]
+            self.init_memory = None
 
         if K._BACKEND == 'tensorflow':
             if not input_shape[1]:
@@ -865,13 +873,23 @@ class GRUCond(GRU):
         else:
             ret = last_output
 
+        # intermediate states as additional outputs
+        if self.return_states:
+            ret = [ret, states[0]]
+
         return ret
 
     def compute_mask(self, input, mask):
-        return mask[0]
+        if self.return_sequences:
+            ret = mask[0]
+        else:
+            ret = None
+        if self.return_states:
+            ret = [ret, None]
+        return ret
 
     def step(self, x, states):
-        h_tm1 = states[0]  # previous memory
+        h_tm1 = states[0]  # previous hidden state
 
         # dropout matrices for recurrent units
         B_U = states[1]     # Dropout U
@@ -978,6 +996,11 @@ class AttGRUCond(GRU):
         init: weight initialization function.
             Can be the name of an existing function (str),
             or a Theano function (see: [initializations](../initializations.md)).
+        return_extra_variables: indicates if we only need the LSTM hidden state (False) or we want
+            additional internal variables as outputs (True). The additional variables provided are:
+            - x_att (None, out_timesteps, dim_encoder): feature vector computed after the Att.Model at each timestep
+            - alphas (None, out_timesteps, in_timesteps): weights computed by the Att.Model at each timestep
+        return_states: boolean indicating if we want the intermediate states (hidden_state and memory) as additional outputs
         inner_init: initialization function of the inner cells.
         activation: activation function.
             Can be the name of an existing function (str),
@@ -1037,7 +1060,7 @@ class AttGRUCond(GRU):
         - [Empirical Evaluation of Gated Recurrent Neural Networks on Sequence Modeling](http://arxiv.org/pdf/1412.3555v1.pdf)
         - [A Theoretically Grounded Application of Dropout in Recurrent Neural Networks](http://arxiv.org/abs/1512.05287)
     '''
-    def __init__(self, output_dim, return_extra_variables=False,
+    def __init__(self, output_dim, return_extra_variables=False, return_states=False,
                  init='glorot_uniform', inner_init='orthogonal',
                  activation='tanh', inner_activation='hard_sigmoid',
                  W_regularizer=None, U_regularizer=None, V_regularizer=None, b_regularizer=None,
@@ -1045,6 +1068,7 @@ class AttGRUCond(GRU):
                  dropout_W=0., dropout_U=0., dropout_V=0., dropout_wa=0., dropout_Wa=0., dropout_Ua=0., **kwargs):
         self.output_dim = output_dim
         self.return_extra_variables = return_extra_variables
+        self.return_states = return_states
         self.init = initializations.get(init)
         self.inner_init = initializations.get(inner_init)
         self.activation = activations.get(activation)
@@ -1220,9 +1244,15 @@ class AttGRUCond(GRU):
         if self.return_extra_variables:
             dim_x_att = (input_shape[0][0], input_shape[0][1], self.context_dim)
             dim_alpha_att = (input_shape[0][0], input_shape[0][1], input_shape[1][1])
-            return [main_out, dim_x_att, dim_alpha_att]
-        else:
-            return main_out
+            main_out = [main_out, dim_x_att, dim_alpha_att]
+
+        if self.return_states:
+            if not isinstance(main_out, list):
+                main_out = [main_out]
+            states_dim = (input_shape[0][0], input_shape[0][1], self.output_dim)
+            main_out += [states_dim]
+
+        return main_out
 
 
     def call(self, x, mask=None):
@@ -1233,11 +1263,12 @@ class AttGRUCond(GRU):
         input_shape = self.input_spec[0].shape
         state_below = x[0]
         self.context = x[1]
-        if self.num_inputs == 2:
+        if self.num_inputs == 2: # input: [state_below, context]
             self.init_state = None
             self.init_memory = None
-        elif self.num_inputs == 3:
+        elif self.num_inputs == 3: # input: [state_below, context, init_hidden_state]
             self.init_state = x[2]
+            self.init_memory = None
         if K._BACKEND == 'tensorflow':
             if not input_shape[1]:
                 raise Exception('When using TensorFlow, you should define '
@@ -1277,14 +1308,28 @@ class AttGRUCond(GRU):
             ret = last_output
 
         if self.return_extra_variables:
-            return [ret, states[1], states[2]]
-        else:
-            return ret
+            ret = [ret, states[1], states[2]]
+
+        # intermediate states as additional outputs
+        if self.return_states:
+            if not isinstance(ret, list):
+                ret = [ret]
+            ret += [states[0], states[1]]
+
+        return ret
 
     def compute_mask(self, input, mask):
         if self.return_extra_variables:
-            return [mask[0], mask[0], mask[0]]
-        return mask[0]
+            ret = [mask[0], mask[0], mask[0]]
+        else:
+            ret = mask[0]
+
+        if self.return_states:
+            if not isinstance(ret, list):
+                ret = [ret]
+            ret += [mask[0]]
+
+        return ret
 
     def step(self, x, states):
         h_tm1 = states[0]  # previous memory
@@ -1746,6 +1791,7 @@ class LSTMCond(LSTM):
             Can be the name of an existing function (str),
             or a Theano function (see: [initializations](../initializations.md)).
         inner_init: initialization function of the inner cells.
+        return_states: boolean indicating if we want the intermediate states (hidden_state and memory) as additional outputs
         forget_bias_init: initialization function for the bias of the forget gate.
             [Jozefowicz et al.](http://www.jmlr.org/proceedings/papers/v37/jozefowicz15.pdf)
             recommend initializing with ones.
@@ -1770,6 +1816,7 @@ class LSTMCond(LSTM):
     '''
     def __init__(self, output_dim,
                  init='glorot_uniform', inner_init='orthogonal',
+                 return_states=False,
                  forget_bias_init='one', activation='tanh',
                  inner_activation='hard_sigmoid', consume_less='gpu',
                  W_regularizer=None, V_regularizer=None, U_regularizer=None, b_regularizer=None,
@@ -1777,6 +1824,7 @@ class LSTMCond(LSTM):
         self.output_dim = output_dim
         self.init = initializations.get(init)
         self.inner_init = initializations.get(inner_init)
+        self.return_states = return_states
         self.forget_bias_init = initializations.get(forget_bias_init)
         self.activation = activations.get(activation)
         self.inner_activation = activations.get(inner_activation)
@@ -1925,6 +1973,10 @@ class LSTMCond(LSTM):
         else:
             main_out = (input_shape[0][0], self.output_dim)
 
+        if self.return_states:
+            states_dim = (input_shape[0][0], input_shape[0][1], self.output_dim)
+            main_out = [main_out, states_dim, states_dim]
+
         return main_out
 
 
@@ -1936,13 +1988,13 @@ class LSTMCond(LSTM):
         input_shape = self.input_spec[0].shape
         state_below = x[0]
         self.context = x[1]
-        if self.num_inputs == 2:
+        if self.num_inputs == 2: # input: [state_below, context]
             self.init_state = None
             self.init_memory = None
-        elif self.num_inputs == 3:
+        elif self.num_inputs == 3: # input: [state_below, context, init_generic]
             self.init_state = x[2]
             self.init_memory = x[2]
-        elif self.num_inputs == 4:
+        elif self.num_inputs == 4: # input: [state_below, context, init_state, init_memory]
             self.init_state = x[2]
             self.init_memory = x[3]
         if K._BACKEND == 'tensorflow':
@@ -1981,14 +2033,20 @@ class LSTMCond(LSTM):
         else:
             ret = last_output
 
+        # intermediate states as additional outputs
+        if self.return_states:
+            ret = [ret, states[0], states[1]]
+
         return ret
 
     def compute_mask(self, input, mask):
         if self.return_sequences:
-            return mask[0]
+            ret = mask[0]
         else:
-            return None
-
+            ret = None
+        if self.return_states:
+            ret = [ret, None, None]
+        return ret
 
     def step(self, x, states):
 
@@ -2532,6 +2590,7 @@ class AttLSTMCond(LSTM):
             additional internal variables as outputs (True). The additional variables provided are:
             - x_att (None, out_timesteps, dim_encoder): feature vector computed after the Att.Model at each timestep
             - alphas (None, out_timesteps, in_timesteps): weights computed by the Att.Model at each timestep
+        return_states: boolean indicating if we want the intermediate states (hidden_state and memory) as additional outputs
         output_timesteps: number of output timesteps (# of output vectors generated)
         init: weight initialization function.
             Can be the name of an existing function (str),
@@ -2596,7 +2655,7 @@ class AttLSTMCond(LSTM):
             Describing videos by exploiting temporal structure.
             InProceedings of the IEEE International Conference on Computer Vision 2015 (pp. 4507-4515).
     '''
-    def __init__(self, output_dim, return_extra_variables=False,
+    def __init__(self, output_dim, return_extra_variables=False, return_states=False,
                  init='glorot_uniform', inner_init='orthogonal', #context_dim=None, input_dim=None,
                  forget_bias_init='one', activation='tanh', inner_activation='sigmoid',
                  W_regularizer=None, U_regularizer=None, V_regularizer=None, b_regularizer=None,
@@ -2605,6 +2664,7 @@ class AttLSTMCond(LSTM):
                  **kwargs):
         self.output_dim = output_dim
         self.return_extra_variables = return_extra_variables
+        self.return_states = return_states
         self.init = initializations.get(init)
         self.inner_init = initializations.get(inner_init)
         self.forget_bias_init = initializations.get(forget_bias_init)
@@ -2781,9 +2841,15 @@ class AttLSTMCond(LSTM):
         if self.return_extra_variables:
             dim_x_att = (input_shape[0][0], input_shape[0][1], self.context_dim)
             dim_alpha_att = (input_shape[0][0], input_shape[0][1], input_shape[1][1])
-            return [main_out, dim_x_att, dim_alpha_att]
-        else:
-            return main_out
+            main_out = [main_out, dim_x_att, dim_alpha_att]
+
+        if self.return_states:
+            if not isinstance(main_out, list):
+                main_out = [main_out]
+            states_dim = (input_shape[0][0], input_shape[0][1], self.output_dim)
+            main_out += [states_dim, states_dim]
+
+        return main_out
 
     def call(self, x, mask=None):
         # input shape: (nb_samples, time (padded with zeros), input_dim)
@@ -2793,13 +2859,13 @@ class AttLSTMCond(LSTM):
         input_shape = self.input_spec[0].shape
         state_below = x[0]
         self.context = x[1]
-        if self.num_inputs == 2:
+        if self.num_inputs == 2: # input: [state_below, context]
             self.init_state = None
             self.init_memory = None
-        elif self.num_inputs == 3:
+        elif self.num_inputs == 3: # input: [state_below, context, init_generic]
             self.init_state = x[2]
             self.init_memory = x[2]
-        elif self.num_inputs == 4:
+        elif self.num_inputs == 4: # input: [state_below, context, init_state, init_memory]
             self.init_state = x[2]
             self.init_memory = x[3]
         if K._BACKEND == 'tensorflow':
@@ -2841,15 +2907,29 @@ class AttLSTMCond(LSTM):
             ret = last_output
 
         if self.return_extra_variables:
-            return [ret, states[2], states[3]]
-        else:
-            return ret
+            ret = [ret, states[2], states[3]]
+
+        # intermediate states as additional outputs
+        if self.return_states:
+            if not isinstance(ret, list):
+                ret = [ret]
+            ret += [states[0], states[1]]
+
+        return ret
 
 
     def compute_mask(self, input, mask):
         if self.return_extra_variables:
-            return [mask[0], mask[0], mask[0]]
-        return mask[0]
+            ret = [mask[0], mask[0], mask[0]]
+        else:
+            ret = mask[0]
+
+        if self.return_states:
+            if not isinstance(ret, list):
+                ret = [ret]
+            ret += [mask[0], mask[0]]
+
+        return ret
 
 
     def step(self, x, states):
