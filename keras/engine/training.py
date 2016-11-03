@@ -1028,7 +1028,7 @@ class Model(Container):
                 on this data at the end of each epoch.
             validation_data: data on which to evaluate the loss and any model metrics
                 at the end of each epoch. The model will not be trained on this data.
-                This could be a tuple (x_val, y_val) or a tuple (val_x, val_y, val_sample_weights).
+                This could be a tuple (x_val, y_val) or a tuple (x_val, y_val, val_sample_weights).
             shuffle: boolean, whether to shuffle the training data before each epoch.
             class_weight: optional dictionary mapping class indices (integers) to
                 a weight (float) to apply to the model's loss for the samples

@@ -47,7 +47,7 @@ class Convolution1D(Layer):
             If you don't specify anything, no activation is applied
             (ie. "linear" activation: a(x) = x).
         weights: list of numpy arrays to set as initial weights.
-        border_mode: 'valid' or 'same'.
+        border_mode: 'valid', 'same' or 'full'. ('full' requires the Theano backend.)
         subsample_length: factor by which to subsample output.
         W_regularizer: instance of [WeightRegularizer](../regularizers.md)
             (eg. L1 or L2 regularization), applied to the main weights matrix.
@@ -83,13 +83,12 @@ class Convolution1D(Layer):
                  W_constraint=None, b_constraint=None,
                  bias=True, input_dim=None, input_length=None, **kwargs):
 
-        if border_mode not in {'valid', 'same'}:
+        if border_mode not in {'valid', 'same', 'full'}:
             raise Exception('Invalid border mode for Convolution1D:', border_mode)
         self.nb_filter = nb_filter
         self.filter_length = filter_length
         self.init = initializations.get(init, dim_ordering='th')
         self.activation = activations.get(activation)
-        assert border_mode in {'valid', 'same'}, 'border_mode must be in {valid, same}'
         self.border_mode = border_mode
         self.subsample_length = subsample_length
 
@@ -218,7 +217,7 @@ class AtrousConvolution1D(Convolution1D):
             If you don't specify anything, no activation is applied
             (ie. "linear" activation: a(x) = x).
         weights: list of numpy arrays to set as initial weights.
-        border_mode: 'valid' or 'same'.
+        border_mode: 'valid', 'same' or 'full'. ('full' requires the Theano backend.)
         subsample_length: factor by which to subsample output.
         atrous_rate: Factor for kernel dilation. Also called filter_dilation
             elsewhere.
@@ -256,7 +255,7 @@ class AtrousConvolution1D(Convolution1D):
                  W_constraint=None, b_constraint=None,
                  bias=True, **kwargs):
 
-        if border_mode not in {'valid', 'same'}:
+        if border_mode not in {'valid', 'same', 'full'}:
             raise Exception('Invalid border mode for AtrousConv1D:', border_mode)
 
         self.atrous_rate = int(atrous_rate)
@@ -331,7 +330,7 @@ class Convolution2D(Layer):
             If you don't specify anything, no activation is applied
             (ie. "linear" activation: a(x) = x).
         weights: list of numpy arrays to set as initial weights.
-        border_mode: 'valid' or 'same'.
+        border_mode: 'valid', 'same' or 'full'. ('full' requires the Theano backend.)
         subsample: tuple of length 2. Factor by which to subsample output.
             Also called strides elsewhere.
         W_regularizer: instance of [WeightRegularizer](../regularizers.md)
@@ -373,14 +372,13 @@ class Convolution2D(Layer):
                  bias=True, **kwargs):
         if dim_ordering == 'default':
             dim_ordering = K.image_dim_ordering()
-        if border_mode not in {'valid', 'same'}:
+        if border_mode not in {'valid', 'same', 'full'}:
             raise Exception('Invalid border mode for Convolution2D:', border_mode)
         self.nb_filter = nb_filter
         self.nb_row = nb_row
         self.nb_col = nb_col
         self.init = initializations.get(init, dim_ordering=dim_ordering)
         self.activation = activations.get(activation)
-        assert border_mode in {'valid', 'same'}, 'border_mode must be in {valid, same}'
         self.border_mode = border_mode
         self.subsample = tuple(subsample)
         assert dim_ordering in {'tf', 'th'}, 'dim_ordering must be in {tf, th}'
@@ -570,7 +568,7 @@ class Deconvolution2D(Convolution2D):
             If you don't specify anything, no activation is applied
             (ie. "linear" activation: a(x) = x).
         weights: list of numpy arrays to set as initial weights.
-        border_mode: 'valid' or 'same'.
+        border_mode: 'valid', 'same' or 'full'. ('full' requires the Theano backend.)
         subsample: tuple of length 2. Factor by which to oversample output.
             Also called strides elsewhere.
         W_regularizer: instance of [WeightRegularizer](../regularizers.md)
@@ -617,7 +615,7 @@ class Deconvolution2D(Convolution2D):
                  bias=True, **kwargs):
         if dim_ordering == 'default':
             dim_ordering = K.image_dim_ordering()
-        if border_mode not in {'valid', 'same'}:
+        if border_mode not in {'valid', 'same', 'full'}:
             raise Exception('Invalid border mode for Deconvolution2D:', border_mode)
 
         self.output_shape_ = output_shape
@@ -665,7 +663,7 @@ class Deconvolution2D(Convolution2D):
         return output
 
     def get_config(self):
-        config = {'output_shape': self.output_shape}
+        config = {'output_shape': self.output_shape_}
         base_config = super(Deconvolution2D, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
@@ -703,7 +701,7 @@ class AtrousConvolution2D(Convolution2D):
             If you don't specify anything, no activation is applied
             (ie. "linear" activation: a(x) = x).
         weights: list of numpy arrays to set as initial weights.
-        border_mode: 'valid' or 'same'.
+        border_mode: 'valid', 'same' or 'full'. ('full' requires the Theano backend.)
         subsample: tuple of length 2. Factor by which to subsample output.
             Also called strides elsewhere.
         atrous_rate: tuple of length 2. Factor for kernel dilation.
@@ -751,7 +749,7 @@ class AtrousConvolution2D(Convolution2D):
         if dim_ordering == 'default':
             dim_ordering = K.image_dim_ordering()
 
-        if border_mode not in {'valid', 'same'}:
+        if border_mode not in {'valid', 'same', 'full'}:
             raise Exception('Invalid border mode for AtrousConv2D:', border_mode)
 
         self.atrous_rate = tuple(atrous_rate)
@@ -1068,7 +1066,7 @@ class Convolution3D(Layer):
             If you don't specify anything, no activation is applied
             (ie. "linear" activation: a(x) = x).
         weights: list of Numpy arrays to set as initial weights.
-        border_mode: 'valid' or 'same'.
+        border_mode: 'valid', 'same' or 'full'. ('full' requires the Theano backend.)
         subsample: tuple of length 3. Factor by which to subsample output.
             Also called strides elsewhere.
             Note: 'subsample' is implemented by slicing the output of conv3d with strides=(1,1,1).
@@ -1112,7 +1110,7 @@ class Convolution3D(Layer):
         if dim_ordering == 'default':
             dim_ordering = K.image_dim_ordering()
 
-        if border_mode not in {'valid', 'same'}:
+        if border_mode not in {'valid', 'same', 'full'}:
             raise Exception('Invalid border mode for Convolution3D:', border_mode)
         self.nb_filter = nb_filter
         self.kernel_dim1 = kernel_dim1
@@ -1120,7 +1118,6 @@ class Convolution3D(Layer):
         self.kernel_dim3 = kernel_dim3
         self.init = initializations.get(init, dim_ordering=dim_ordering)
         self.activation = activations.get(activation)
-        assert border_mode in {'valid', 'same'}, 'border_mode must be in {valid, same}'
         self.border_mode = border_mode
         self.subsample = tuple(subsample)
         assert dim_ordering in {'tf', 'th'}, 'dim_ordering must be in {tf, th}'

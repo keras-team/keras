@@ -199,6 +199,18 @@ class Recurrent(Layer):
         # note that the .build() method of subclasses MUST define
         # self.input_spec with a complete input shape.
         input_shape = self.input_spec[0].shape
+        if self.unroll and input_shape[1] is None:
+            raise ValueError('Cannot unroll a RNN if the '
+                             'time dimension is undefined. \n'
+                             '- If using a Sequential model, '
+                             'specify the time dimension by passing '
+                             'an `input_shape` or `batch_input_shape` '
+                             'argument to your first layer. If your '
+                             'first layer is an Embedding, you can '
+                             'also use the `input_length` argument.\n'
+                             '- If using the functional API, specify '
+                             'the time dimension by passing a `shape` '
+                             'or `batch_shape` argument to your Input layer.')
         if self.stateful:
             initial_states = self.states
         else:
@@ -318,8 +330,16 @@ class SimpleRNN(Recurrent):
         assert self.stateful, 'Layer must be stateful.'
         input_shape = self.input_spec[0].shape
         if not input_shape[0]:
-            raise Exception('If a RNN is stateful, a complete ' +
-                            'input_shape must be provided (including batch size).')
+            raise Exception('If a RNN is stateful, it needs to know '
+                            'its batch size. Specify the batch size '
+                            'of your input tensors: \n'
+                            '- If using a Sequential model, '
+                            'specify the batch size by passing '
+                            'a `batch_input_shape` '
+                            'argument to your first layer.\n'
+                            '- If using the functional API, specify '
+                            'the time dimension by passing a '
+                            '`batch_shape` argument to your Input layer.')
         if hasattr(self, 'states'):
             K.set_value(self.states[0],
                         np.zeros((input_shape[0], self.output_dim)))

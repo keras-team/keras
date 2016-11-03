@@ -27,7 +27,7 @@ else:
     original_img_size = (img_rows, img_cols, img_chns)
 latent_dim = 2
 intermediate_dim = 128
-epsilon_std = 0.01
+epsilon_std = 1.0
 nb_epoch = 5
 
 x = Input(batch_shape=(batch_size,) + original_img_size)

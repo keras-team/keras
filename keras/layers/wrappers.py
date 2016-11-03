@@ -112,23 +112,11 @@ class TimeDistributed(Wrapper):
             def step(x, states):
                 output = self.layer.call(x)
                 return output, []
-            input_length = input_shape[1]
-            if K.backend() == 'tensorflow' and len(input_shape) > 3:
-                if input_length is None:
-                    raise Exception('When using TensorFlow, you should define '
-                                    'explicitly the number of timesteps of '
-                                    'your sequences.\n'
-                                    'If your first layer is an Embedding, '
-                                    'make sure to pass it an "input_length" '
-                                    'argument. Otherwise, make sure '
-                                    'the first layer has '
-                                    'an "input_shape" or "batch_input_shape" '
-                                    'argument, including the time axis.')
-                unroll = True
-            else:
-                unroll = False
-            last_output, outputs, states = K.rnn(step, X,
-                                                 initial_states=[], input_length=input_length, unroll=unroll)
+
+            _, outputs, _ = K.rnn(step, X,
+                                  initial_states=[],
+                                  input_length=input_shape[1],
+                                  unroll=False)
             y = outputs
         else:
             # no batch size specified, therefore the layer will be able

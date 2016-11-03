@@ -8,7 +8,7 @@ import numpy as np
 from . import backend as K
 from .utils.io_utils import ask_to_proceed_with_overwrite
 from .engine.training import Model
-from .engine.topology import get_source_inputs, Node
+from .engine.topology import get_source_inputs, Node, Layer
 from .optimizers import optimizer_from_config
 from .legacy.models import Graph
 
@@ -260,6 +260,10 @@ class Sequential(Model):
         # Arguments
             layer: layer instance.
         '''
+        if not isinstance(layer, Layer):
+            raise ValueError('The added layer must be '
+                             'an instance of class Layer. '
+                             'Found: ' + str(layer))
         if not self.outputs:
             # first layer in model: check that it is an input layer
             if len(layer.inbound_nodes) == 0:
@@ -573,7 +577,8 @@ class Sequential(Model):
                 See [callbacks](/callbacks).
             validation_split: float (0. < x < 1).
                 Fraction of the data to use as held-out validation data.
-            validation_data: tuple (X, y) to be used as held-out
+            validation_data: tuple (x_val, y_val) or tuple
+                (x_val, y_val, val_sample_weights) to be used as held-out
                 validation data. Will override validation_split.
             shuffle: boolean or str (for 'batch').
                 Whether to shuffle the samples at each epoch.
@@ -787,7 +792,8 @@ class Sequential(Model):
     def fit_generator(self, generator, samples_per_epoch, nb_epoch,
                       verbose=1, callbacks=[],
                       validation_data=None, nb_val_samples=None,
-                      class_weight=None, max_q_size=10, nb_worker=1, pickle_safe=False, **kwargs):
+                      class_weight=None, max_q_size=10, nb_worker=1,
+                      pickle_safe=False, **kwargs):
         '''Fits the model on data generated batch-by-batch by
         a Python generator.
         The generator is run in parallel to the model, for efficiency.
@@ -875,7 +881,9 @@ class Sequential(Model):
                                         nb_worker=nb_worker,
                                         pickle_safe=pickle_safe)
 
-    def evaluate_generator(self, generator, val_samples, max_q_size=10, nb_worker=1, pickle_safe=False, **kwargs):
+    def evaluate_generator(self, generator, val_samples,
+                           max_q_size=10, nb_worker=1,
+                           pickle_safe=False, **kwargs):
         '''Evaluates the model on a data generator. The generator should
         return the same kind of data as accepted by `test_on_batch`.
 
@@ -917,7 +925,8 @@ class Sequential(Model):
                                              nb_worker=nb_worker,
                                              pickle_safe=pickle_safe)
 
-    def predict_generator(self, generator, val_samples, max_q_size=10, nb_worker=1, pickle_safe=False):
+    def predict_generator(self, generator, val_samples,
+                          max_q_size=10, nb_worker=1, pickle_safe=False):
         '''Generates predictions for the input samples from a data generator.
         The generator should return the same kind of data as accepted by
         `predict_on_batch`.

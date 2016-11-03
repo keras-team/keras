@@ -85,7 +85,10 @@ from keras import backend
 from keras import constraints
 from keras import activations
 from keras import regularizers
+from keras.utils import data_utils
 from keras.utils import io_utils
+from keras.utils import layer_utils
+from keras.utils import np_utils
 
 
 EXCLUDE = {
@@ -244,10 +247,26 @@ PAGES = [
         'all_module_functions': [backend],
     },
     {
-        'page': 'io_utils.md',
+        'page': 'utils/data_utils.md',
+        'functions': [
+            data_utils.get_file,
+        ]
+    },
+    {
+        'page': 'utils/io_utils.md',
         'classes': [
             io_utils.HDF5Matrix
         ],
+    },
+    {
+        'page': 'utils/layer_utils.md',
+        'functions': [
+            layer_utils.layer_from_config,
+        ]
+    },
+    {
+        'page': 'utils/np_utils.md',
+        'all_module_functions': [np_utils]
     },
 ]
 

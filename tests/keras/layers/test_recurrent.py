@@ -1,5 +1,4 @@
 import pytest
-import sys
 import numpy as np
 from numpy.testing import assert_allclose
 
@@ -21,18 +20,7 @@ def rnn_test(f):
     All the recurrent layers share the same interface,
     so we can run through them with a single function.
     """
-    kf = keras_test(f)
-
-    def wrapped(layer_class):
-        return kf(layer_class)
-
-    # functools doesnt propagate arguments info for pytest correctly in 2.7
-    # and wrapped doesnt work with pytest in 3.4
-    if sys.version_info >= (3, 0):
-        f = kf
-    else:
-        f = wrapped
-
+    f = keras_test(f)
     return pytest.mark.parametrize("layer_class", [
         recurrent.SimpleRNN,
         recurrent.GRU,
@@ -152,13 +140,20 @@ def test_masking_layer():
     https://github.com/fchollet/keras/issues/1567
 
     '''
-    model = Sequential()
-    model.add(Masking(input_shape=(3, 4)))
-    model.add(recurrent.LSTM(output_dim=5, return_sequences=True))
-    model.compile(loss='categorical_crossentropy', optimizer='adam')
     I = np.random.random((6, 3, 4))
     V = np.abs(np.random.random((6, 3, 5)))
     V /= V.sum(axis=-1, keepdims=True)
+
+    model = Sequential()
+    model.add(Masking(input_shape=(3, 4)))
+    model.add(recurrent.LSTM(output_dim=5, return_sequences=True, unroll=False))
+    model.compile(loss='categorical_crossentropy', optimizer='adam')
+    model.fit(I, V, nb_epoch=1, batch_size=100, verbose=1)
+
+    model = Sequential()
+    model.add(Masking(input_shape=(3, 4)))
+    model.add(recurrent.LSTM(output_dim=5, return_sequences=True, unroll=True))
+    model.compile(loss='categorical_crossentropy', optimizer='adam')
     model.fit(I, V, nb_epoch=1, batch_size=100, verbose=1)
 
 

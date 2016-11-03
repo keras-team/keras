@@ -14,7 +14,7 @@ except ImportError:
     from theano.sandbox.softsign import softsign as T_softsign
 import inspect
 import numpy as np
-from .common import _FLOATX, _EPSILON, _IMAGE_DIM_ORDERING
+from .common import _FLOATX, _EPSILON, image_dim_ordering
 py_all = all
 
 
@@ -34,6 +34,7 @@ def set_learning_phase(value):
         raise ValueError('Expected learning phase to be '
                          '0 or 1.')
     _LEARNING_PHASE = value
+
 
 # VARIABLE MANIPULATION
 
@@ -88,7 +89,7 @@ def placeholder(shape=None, ndim=None, dtype=_FLOATX, sparse=False, name=None):
 
 
 def shape(x):
-    '''Return the shape of a tensor.
+    '''Returns the shape of a tensor.
 
     Warning: type returned will be different for
     Theano backend (Theano tensor type) and TF backend (TF TensorShape).
@@ -105,25 +106,25 @@ def dtype(x):
 
 
 def eval(x):
-    '''Run a graph.
+    '''Returns the value of a tensor.
     '''
     return to_dense(x).eval()
 
 
 def zeros(shape, dtype=_FLOATX, name=None):
-    '''Instantiate an all-zeros variable.
+    '''Instantiates an all-zeros variable.
     '''
     return variable(np.zeros(shape), dtype, name)
 
 
 def ones(shape, dtype=_FLOATX, name=None):
-    '''Instantiate an all-ones variable.
+    '''Instantiates an all-ones variable.
     '''
     return variable(np.ones(shape), dtype, name)
 
 
 def eye(size, dtype=_FLOATX, name=None):
-    '''Instantiate an identity matrix.
+    '''Instantiates an identity matrix.
     '''
     return variable(np.eye(size), dtype, name)
 
@@ -147,7 +148,7 @@ def random_normal_variable(shape, mean, scale, dtype=_FLOATX, name=None):
 
 
 def count_params(x):
-    '''Return number of scalars in a tensor.
+    '''Returns the number of scalars in a tensor.
 
     Return: numpy integer.
     '''
@@ -393,7 +394,7 @@ def cos(x):
 
 def normalize_batch_in_training(x, gamma, beta,
                                 reduction_axes, epsilon=0.0001):
-    '''Compute mean and std for batch then apply batch_normalization on batch.
+    '''Computes mean and std for batch then apply batch_normalization on batch.
     '''
     dev = theano.config.device
     use_cudnn = ndim(x) < 5 and reduction_axes == [0, 2, 3] and (dev.startswith('cuda') or dev.startswith('gpu'))
@@ -437,9 +438,24 @@ def batch_normalization(x, mean, var, beta, gamma, epsilon=0.0001):
     use_cudnn = ndim < 5 and (dev.startswith('cuda') or dev.startswith('gpu'))
     if use_cudnn:
         try:
-            return theano.sandbox.cuda.dnn.dnn_batch_normalization_test(x, gamma, beta, mean, var,
-                                                                        'spatial', epsilon)
+            axis = mean.broadcastable.index(False)
+            if axis != 1:
+                shuffle_pattern = list(range(ndim))
+                shuffle_pattern[1] = shuffle_pattern[axis]
+                shuffle_pattern[axis] = 1
+                x = x.dimshuffle(shuffle_pattern)
+                mean = mean.dimshuffle(shuffle_pattern)
+                var = var.dimshuffle(shuffle_pattern)
+                beta = beta.dimshuffle(shuffle_pattern)
+                gamma = gamma.dimshuffle(shuffle_pattern)
+            normed = theano.sandbox.cuda.dnn.dnn_batch_normalization_test(x, gamma, beta, mean, var,
+                                                                          'spatial', epsilon)
+            if axis != 1:
+                normed = normed.dimshuffle(shuffle_pattern)
+            return normed
         except AttributeError:
+            pass
+        except ValueError:
             pass
     return T.nnet.bn.batch_normalization(x, gamma, beta, mean, sqrt(var + epsilon),
                                          mode='high_mem')
@@ -601,10 +617,15 @@ def asymmetric_temporal_padding(x, left_pad=1, right_pad=1):
     return T.set_subtensor(output[:, left_pad:x.shape[1] + left_pad, :], x)
 
 
-def spatial_2d_padding(x, padding=(1, 1), dim_ordering=_IMAGE_DIM_ORDERING):
+def spatial_2d_padding(x, padding=(1, 1), dim_ordering='default'):
     '''Pad the 2nd and 3rd dimensions of a 4D tensor
     with "padding[0]" and "padding[1]" (resp.) zeros left and right.
     '''
+    if dim_ordering == 'default':
+        dim_ordering = image_dim_ordering()
+    if dim_ordering not in {'th', 'tf'}:
+        raise ValueError('Unknown dim_ordering ' + str(dim_ordering))
+
     input_shape = x.shape
     if dim_ordering == 'th':
         output_shape = (input_shape[0],
@@ -632,10 +653,18 @@ def spatial_2d_padding(x, padding=(1, 1), dim_ordering=_IMAGE_DIM_ORDERING):
     return T.set_subtensor(output[indices], x)
 
 
-def asymmetric_spatial_2d_padding(x, top_pad=1, bottom_pad=1, left_pad=1, right_pad=1, dim_ordering=_IMAGE_DIM_ORDERING):
+def asymmetric_spatial_2d_padding(x, top_pad=1, bottom_pad=1,
+                                  left_pad=1, right_pad=1,
+                                  dim_ordering='default'):
     '''Pad the rows and columns of a 4D tensor
-    with "top_pad", "bottom_pad", "left_pad", "right_pad"  (resp.) zeros rows on top, bottom; cols on left, right.
+    with "top_pad", "bottom_pad", "left_pad", "right_pad" (resp.) zeros
+    rows on top, bottom; cols on left, right.
     '''
+    if dim_ordering == 'default':
+        dim_ordering = image_dim_ordering()
+    if dim_ordering not in {'th', 'tf'}:
+        raise ValueError('Unknown dim_ordering ' + str(dim_ordering))
+
     input_shape = x.shape
     if dim_ordering == 'th':
         output_shape = (input_shape[0],
@@ -664,10 +693,15 @@ def asymmetric_spatial_2d_padding(x, top_pad=1, bottom_pad=1, left_pad=1, right_
     return T.set_subtensor(output[indices], x)
 
 
-def spatial_3d_padding(x, padding=(1, 1, 1), dim_ordering=_IMAGE_DIM_ORDERING):
+def spatial_3d_padding(x, padding=(1, 1, 1), dim_ordering='default'):
     '''Pad the 2nd, 3rd and 4th dimensions of a 5D tensor
     with "padding[0]", "padding[1]" and "padding[2]" (resp.) zeros left and right.
     '''
+    if dim_ordering == 'default':
+        dim_ordering = image_dim_ordering()
+    if dim_ordering not in {'th', 'tf'}:
+        raise ValueError('Unknown dim_ordering ' + str(dim_ordering))
+
     input_shape = x.shape
     if dim_ordering == 'th':
         output_shape = (input_shape[0],
@@ -1104,7 +1138,7 @@ def l2_normalize(x, axis):
 
 
 def in_top_k(predictions, targets, k):
-    '''Says whether the `targets` are in the top `k` `predictions`
+    '''Returns whether the `targets` are in the top `k` `predictions`
 
     # Arguments
         predictions: A tensor of shape batch_size x classess and type float32.
@@ -1167,6 +1201,8 @@ def _preprocess_border_mode(border_mode):
         th_border_mode = 'half'
     elif border_mode == 'valid':
         th_border_mode = 'valid'
+    elif border_mode == 'full':
+        th_border_mode = 'full'
     else:
         raise Exception('Border mode not supported: ' + str(border_mode))
     return th_border_mode
@@ -1260,8 +1296,20 @@ def _postprocess_conv3d_output(conv_out, x, border_mode, np_kernel, strides, dim
     return conv_out
 
 
+def conv1d(x, kernel, stride=1, border_mode='valid',
+           image_shape=None, filter_shape=None):
+    '''1D convolution.
+
+    # Arguments
+        kernel: kernel tensor.
+        strides: stride integer.
+        border_mode: string, "same" or "valid".
+    '''
+    raise NotImplementedError
+
+
 def conv2d(x, kernel, strides=(1, 1), border_mode='valid',
-           dim_ordering=_IMAGE_DIM_ORDERING, image_shape=None,
+           dim_ordering='default', image_shape=None,
            filter_shape=None, filter_dilation=(1, 1)):
     '''2D convolution.
 
@@ -1273,6 +1321,8 @@ def conv2d(x, kernel, strides=(1, 1), border_mode='valid',
             Whether to use Theano or TensorFlow dimension ordering
         in inputs/kernels/ouputs.
     '''
+    if dim_ordering == 'default':
+        dim_ordering = image_dim_ordering()
     if dim_ordering not in {'th', 'tf'}:
         raise Exception('Unknown dim_ordering ' + str(dim_ordering))
 
@@ -1305,7 +1355,7 @@ def conv2d(x, kernel, strides=(1, 1), border_mode='valid',
 
 def deconv2d(x, kernel, output_shape, strides=(1, 1),
              border_mode='valid',
-             dim_ordering=_IMAGE_DIM_ORDERING,
+             dim_ordering='default',
              image_shape=None, filter_shape=None):
     '''2D deconvolution (transposed convolution).
 
@@ -1319,6 +1369,8 @@ def deconv2d(x, kernel, output_shape, strides=(1, 1),
         in inputs/kernels/ouputs.
     '''
     flip_filters = False
+    if dim_ordering == 'default':
+        dim_ordering = image_dim_ordering()
     if dim_ordering not in {'th', 'tf'}:
         raise Exception('Unknown dim_ordering ' + str(dim_ordering))
 
@@ -1343,18 +1395,18 @@ def deconv2d(x, kernel, output_shape, strides=(1, 1),
 
 def atrous_conv2d(x, kernel, rate=1,
                   border_mode='valid',
-                  dim_ordering=_IMAGE_DIM_ORDERING,
+                  dim_ordering='default',
                   image_shape=None, filter_shape=None):
     raise NotImplementedError
 
 
 def separable_conv2d(x, depthwise_kernel, pointwise_kernel, strides=(1, 1),
-                     border_mode='valid', dim_ordering=_IMAGE_DIM_ORDERING):
+                     border_mode='valid', dim_ordering='default'):
     raise NotImplementedError
 
 
 def conv3d(x, kernel, strides=(1, 1, 1),
-           border_mode='valid', dim_ordering=_IMAGE_DIM_ORDERING,
+           border_mode='valid', dim_ordering='default',
            volume_shape=None, filter_shape=None,
            filter_dilation=(1, 1, 1)):
     '''3D convolution.
@@ -1367,6 +1419,8 @@ def conv3d(x, kernel, strides=(1, 1, 1),
             Whether to use Theano or TensorFlow dimension ordering
         in inputs/kernels/ouputs.
     '''
+    if dim_ordering == 'default':
+        dim_ordering = image_dim_ordering()
     if dim_ordering not in {'th', 'tf'}:
         raise Exception('Unknown dim_ordering ' + str(dim_ordering))
 
@@ -1400,12 +1454,14 @@ def conv3d(x, kernel, strides=(1, 1, 1),
 
 # TODO: remove this function when theano without AbstractConv3d is deprecated
 def _old_theano_conv3d(x, kernel, strides=(1, 1, 1),
-                       border_mode='valid', dim_ordering=_IMAGE_DIM_ORDERING,
+                       border_mode='valid', dim_ordering='default',
                        volume_shape=None, filter_shape=None):
     '''
     Run on cuDNN if available.
     border_mode: string, "same" or "valid".
     '''
+    if dim_ordering == 'default':
+        dim_ordering = image_dim_ordering()
     if dim_ordering not in {'th', 'tf'}:
         raise Exception('Unknown dim_ordering ' + str(dim_ordering))
 
@@ -1462,7 +1518,12 @@ def _old_theano_conv3d(x, kernel, strides=(1, 1, 1),
 
 
 def pool2d(x, pool_size, strides=(1, 1), border_mode='valid',
-           dim_ordering=_IMAGE_DIM_ORDERING, pool_mode='max'):
+           dim_ordering='default', pool_mode='max'):
+    if dim_ordering == 'default':
+        dim_ordering = image_dim_ordering()
+    if dim_ordering not in {'th', 'tf'}:
+        raise Exception('Unknown dim_ordering ' + str(dim_ordering))
+
     if border_mode == 'same':
         w_pad = pool_size[0] - 2 if pool_size[0] % 2 == 1 else pool_size[0] - 1
         h_pad = pool_size[1] - 2 if pool_size[1] % 2 == 1 else pool_size[1] - 1
@@ -1505,7 +1566,12 @@ def pool2d(x, pool_size, strides=(1, 1), border_mode='valid',
 
 
 def pool3d(x, pool_size, strides=(1, 1, 1), border_mode='valid',
-           dim_ordering=_IMAGE_DIM_ORDERING, pool_mode='max'):
+           dim_ordering='default', pool_mode='max'):
+    if dim_ordering == 'default':
+        dim_ordering = image_dim_ordering()
+    if dim_ordering not in {'th', 'tf'}:
+        raise Exception('Unknown dim_ordering ' + str(dim_ordering))
+
     # TODO: remove this if statement when Theano without pool_3d is deprecated
     #       (pool_3d was introduced after 0.9.0dev3)
     if not hasattr(T.signal.pool, 'pool_3d'):
@@ -1559,7 +1625,12 @@ def pool3d(x, pool_size, strides=(1, 1, 1), border_mode='valid',
 # TODO: remove this function when Theano without pool_3d is deprecated
 #       (pool_3d was introduced after 0.9.0dev3)
 def _old_theano_pool3d(x, pool_size, strides=(1, 1, 1), border_mode='valid',
-                       dim_ordering=_IMAGE_DIM_ORDERING, pool_mode='max'):
+                       dim_ordering='default', pool_mode='max'):
+    if dim_ordering == 'default':
+        dim_ordering = image_dim_ordering()
+    if dim_ordering not in {'th', 'tf'}:
+        raise Exception('Unknown dim_ordering ' + str(dim_ordering))
+
     if border_mode == 'same':
         # TODO: add implementation for border_mode="same"
         raise Exception('border_mode="same" not supported with Theano.')
@@ -1650,10 +1721,12 @@ def ctc_interleave_blanks(Y):
     Y_ = T.set_subtensor(Y_[T.arange(Y.shape[0]) * 2 + 1], Y)
     return Y_
 
+
 def ctc_create_skip_idxs(Y):
     skip_idxs = T.arange((Y.shape[0] - 3) // 2) * 2 + 1
     non_repeats = T.neq(Y[skip_idxs], Y[skip_idxs + 2])
     return skip_idxs[non_repeats.nonzero()]
+
 
 def ctc_update_log_p(skip_idxs, zeros, active, log_p_curr, log_p_prev):
     active_skip_idxs = skip_idxs[(skip_idxs < active).nonzero()]
@@ -1680,11 +1753,11 @@ def ctc_update_log_p(skip_idxs, zeros, active, log_p_curr, log_p_prev):
     )
     return active_next, log_p_next
 
+
 def ctc_path_probs(predict, Y, alpha=1e-4):
     smoothed_predict = (1 - alpha) * predict[:, Y] + alpha * np.float32(1.) / Y.shape[0]
     L = T.log(smoothed_predict)
     zeros = T.zeros_like(L[0])
-    base = T.set_subtensor(zeros[:1], np.float32(1))
     log_first = zeros
 
     f_skip_idxs = ctc_create_skip_idxs(Y)
@@ -1703,11 +1776,13 @@ def ctc_path_probs(predict, Y, alpha=1e-4):
     log_probs = log_f_probs + log_b_probs[::-1, ::-1] - L
     return log_probs, mask
 
+
 def ctc_cost(predict, Y):
     log_probs, mask = ctc_path_probs(predict, ctc_interleave_blanks(Y))
     common_factor = T.max(log_probs)
     total_log_prob = T.log(T.sum(T.exp(log_probs - common_factor)[mask.nonzero()])) + common_factor
     return -total_log_prob
+
 
 # batchifies original CTC code
 def ctc_batch_cost(y_true, y_pred, input_length, label_length):
@@ -1733,7 +1808,7 @@ def ctc_batch_cost(y_true, y_pred, input_length, label_length):
         return ctc_cost(y_pred_step, y_true_step)
 
     ret, _ = theano.scan(
-        fn = ctc_step,
+        fn=ctc_step,
         outputs_info=None,
         sequences=[y_true, y_pred, input_length, label_length]
     )

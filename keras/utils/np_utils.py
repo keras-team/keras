@@ -7,8 +7,14 @@ from .. import backend as K
 
 
 def to_categorical(y, nb_classes=None):
-    '''Convert class vector (integers from 0 to nb_classes)
-    to binary class matrix, for use with categorical_crossentropy.
+    '''Convert class vector (integers from 0 to nb_classes) to binary class matrix, for use with categorical_crossentropy.
+
+    # Arguments
+        y: class vector to be converted into a matrix
+        nb_classes: total number of classes
+
+    # Returns
+        A binary matrix representation of the input.
     '''
     if not nb_classes:
         nb_classes = np.max(y)+1
@@ -116,21 +122,25 @@ def convert_kernel(kernel, dim_ordering='default'):
 def conv_output_length(input_length, filter_size, border_mode, stride, dilation=1):
     if input_length is None:
         return None
-    assert border_mode in {'same', 'valid'}
+    assert border_mode in {'same', 'valid', 'full'}
     dilated_filter_size = filter_size + (filter_size - 1) * (dilation - 1)
     if border_mode == 'same':
         output_length = input_length
     elif border_mode == 'valid':
         output_length = input_length - dilated_filter_size + 1
+    elif border_mode == 'full':
+        output_length = input_length + dilated_filter_size - 1
     return (output_length + stride - 1) // stride
 
 
 def conv_input_length(output_length, filter_size, border_mode, stride):
     if output_length is None:
         return None
-    assert border_mode in {'same', 'valid'}
+    assert border_mode in {'same', 'valid', 'full'}
     if border_mode == 'same':
         pad = filter_size // 2
     elif border_mode == 'valid':
         pad = 0
+    elif border_mode == 'full':
+        pad = filter_size - 1
     return (output_length - 1) * stride - 2 * pad + filter_size
