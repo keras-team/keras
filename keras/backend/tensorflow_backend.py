@@ -176,16 +176,9 @@ def variable(value, dtype=_FLOATX, name=None):
         indices = np.concatenate((np.expand_dims(sparse_coo.row, 1),
                                   np.expand_dims(sparse_coo.col, 1)), 1)
         # SparseTensor doesn't need initialization
-<<<<<<< HEAD
         v = tf.SparseTensor(indices=indices, values=sparse_coo.data, shape=sparse_coo.shape)
         v._dims = len(sparse_coo.shape)
         return v
-
-=======
-        return tf.SparseTensor(indices=indices,
-                               values=sparse_coo.data,
-                               shape=sparse_coo.shape)
->>>>>>> 71494ffdbc8193ece7a82496ec7835f195fb8309
     v = tf.Variable(value, dtype=_convert_string_dtype(dtype), name=name)
     return v
 
