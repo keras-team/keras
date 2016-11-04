@@ -153,15 +153,6 @@ class ConvRecurrent2D(Layer):
         assert K.ndim(x) == 5
         input_shape = self.input_spec[0].shape
         unroll = False
-        if K.backend() == 'tensorflow':
-            if not input_shape[1]:
-                raise Exception('When using TensorFlow, you should define ' +
-                                'explicitely the number of timesteps of ' +
-                                'your sequences. Make sure the first layer ' +
-                                'has a "batch_input_shape" argument ' +
-                                'including the samples axis.')
-            else:
-                unroll = True
 
         if self.stateful:
             initial_states = self.states
