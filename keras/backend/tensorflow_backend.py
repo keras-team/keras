@@ -1973,6 +1973,6 @@ def ctc_decode(y_pred, input_length, greedy=True, beam_width=100,
 
     return (decoded_dense, log_prob)
 
-def range(start,stop,delta):
+def arange(start,stop,delta):
     return tf.range(start,stop,delta)
 

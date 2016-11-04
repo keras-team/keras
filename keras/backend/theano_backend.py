@@ -1816,6 +1816,6 @@ def ctc_batch_cost(y_true, y_pred, input_length, label_length):
     ret = ret.dimshuffle('x', 0)
     return ret
 
-def range(start,stop,delta):
+def arange(start,stop,delta):
     return T.arange(start,stop,delta)
     
