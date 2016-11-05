@@ -176,9 +176,9 @@ def variable(value, dtype=_FLOATX, name=None):
         indices = np.concatenate((np.expand_dims(sparse_coo.row, 1),
                                   np.expand_dims(sparse_coo.col, 1)), 1)
         # SparseTensor doesn't need initialization
-        return tf.SparseTensor(indices=indices,
-                               values=sparse_coo.data,
-                               shape=sparse_coo.shape)
+        v = tf.SparseTensor(indices=indices, values=sparse_coo.data, shape=sparse_coo.shape)
+        v._dims = len(sparse_coo.shape)
+        return v
     v = tf.Variable(value, dtype=_convert_string_dtype(dtype), name=name)
     return v
 
@@ -214,9 +214,8 @@ def placeholder(shape=None, ndim=None, dtype=_FLOATX, sparse=False, name=None):
         if ndim:
             shape = tuple([None for _ in range(ndim)])
     if sparse:
-        tf_shape = tf.constant(np.array(list([0 for _ in range(len(shape))]),
-                                        dtype=np.int64))
-        x = tf.sparse_placeholder(dtype, shape=tf_shape, name=name)
+        x = tf.sparse_placeholder(dtype, name=name)
+        x._dims = len(shape)
     else:
         x = tf.placeholder(dtype, shape=shape, name=name)
     x._keras_shape = shape
@@ -243,7 +242,7 @@ def ndim(x):
     '''Returns the number of axes in a tensor, as an integer.
     '''
     if is_sparse(x):
-        return int(x.shape.get_shape()[0])
+        return x._dims
 
     dims = x.get_shape()._dims
     if dims is not None:
