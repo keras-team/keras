@@ -6,6 +6,7 @@ import os
 import numpy as np
 
 from . import backend as K
+from . import optimizers
 from .utils.io_utils import ask_to_proceed_with_overwrite
 from .engine.training import Model
 from .engine.topology import get_source_inputs, Node, Layer
@@ -56,40 +57,52 @@ def save_model(model, filepath, overwrite=True):
     model.save_weights_to_hdf5_group(model_weights_group)
 
     if hasattr(model, 'optimizer'):
-        f.attrs['training_config'] = json.dumps({
-            'optimizer_config': {
-                'class_name': model.optimizer.__class__.__name__,
-                'config': model.optimizer.get_config()
-            },
-            'loss': model.loss,
-            'metrics': model.metrics,
-            'sample_weight_mode': model.sample_weight_mode,
-            'loss_weights': model.loss_weights,
-        }, default=get_json_type).encode('utf8')
+        if isinstance(model.optimizer, optimizers.TFOptimizer):
+            warnings.warn(
+                'TensorFlow optimizers do not '
+                'make it possible to access '
+                'optimizer attributes or optimizer state '
+                'after instantiation. '
+                'As a result, we cannot save the optimizer '
+                'as part of the model save file.'
+                'You will have to compile your model again after loading it. '
+                'Prefer using a Keras optimizer instead '
+                '(see keras.io/optimizers).')
+        else:
+            f.attrs['training_config'] = json.dumps({
+                'optimizer_config': {
+                    'class_name': model.optimizer.__class__.__name__,
+                    'config': model.optimizer.get_config()
+                },
+                'loss': model.loss,
+                'metrics': model.metrics,
+                'sample_weight_mode': model.sample_weight_mode,
+                'loss_weights': model.loss_weights,
+            }, default=get_json_type).encode('utf8')
 
-        # save optimizer weights
-        symbolic_weights = getattr(model.optimizer, 'weights')
-        if symbolic_weights:
-            optimizer_weights_group = f.create_group('optimizer_weights')
-            weight_values = K.batch_get_value(symbolic_weights)
-            weight_names = []
-            for i, (w, val) in enumerate(zip(symbolic_weights, weight_values)):
-                if hasattr(w, 'name') and w.name:
-                    name = str(w.name)
-                else:
-                    name = 'param_' + str(i)
-                weight_names.append(name.encode('utf8'))
-            optimizer_weights_group.attrs['weight_names'] = weight_names
-            for name, val in zip(weight_names, weight_values):
-                param_dset = optimizer_weights_group.create_dataset(
-                    name,
-                    val.shape,
-                    dtype=val.dtype)
-                if not val.shape:
-                    # scalar
-                    param_dset[()] = val
-                else:
-                    param_dset[:] = val
+            # save optimizer weights
+            symbolic_weights = getattr(model.optimizer, 'weights')
+            if symbolic_weights:
+                optimizer_weights_group = f.create_group('optimizer_weights')
+                weight_values = K.batch_get_value(symbolic_weights)
+                weight_names = []
+                for i, (w, val) in enumerate(zip(symbolic_weights, weight_values)):
+                    if hasattr(w, 'name') and w.name:
+                        name = str(w.name)
+                    else:
+                        name = 'param_' + str(i)
+                    weight_names.append(name.encode('utf8'))
+                optimizer_weights_group.attrs['weight_names'] = weight_names
+                for name, val in zip(weight_names, weight_values):
+                    param_dset = optimizer_weights_group.create_dataset(
+                        name,
+                        val.shape,
+                        dtype=val.dtype)
+                    if not val.shape:
+                        # scalar
+                        param_dset[()] = val
+                    else:
+                        param_dset[:] = val
     f.flush()
     f.close()
 

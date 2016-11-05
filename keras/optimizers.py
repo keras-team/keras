@@ -2,6 +2,7 @@ from __future__ import absolute_import
 from . import backend as K
 from .utils.generic_utils import get_from_module
 from six.moves import zip
+import warnings
 
 
 def clip_norm(g, c, n):
@@ -577,7 +578,6 @@ class TFOptimizer(Optimizer):
                              'all weights constraints in your model, '
                              'or use a Keras optimizer.')
         grads = self.optimizer.compute_gradients(loss, params)
-        self.updates.append(K.update_add(self.iterations, 1))
         opt_update = self.optimizer.apply_gradients(
             grads, global_step=self.iterations)
         self.updates.append(opt_update)
