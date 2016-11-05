@@ -168,11 +168,11 @@ class BatchNormalization(Layer):
         return x_normed
 
     def get_config(self):
-        config = {"epsilon": self.epsilon,
-                  "mode": self.mode,
-                  "axis": self.axis,
-                  "gamma_regularizer": self.gamma_regularizer.get_config() if self.gamma_regularizer else None,
-                  "beta_regularizer": self.beta_regularizer.get_config() if self.beta_regularizer else None,
-                  "momentum": self.momentum}
+        config = {'epsilon': self.epsilon,
+                  'mode': self.mode,
+                  'axis': self.axis,
+                  'gamma_regularizer': self.gamma_regularizer.get_config() if self.gamma_regularizer else None,
+                  'beta_regularizer': self.beta_regularizer.get_config() if self.beta_regularizer else None,
+                  'momentum': self.momentum}
         base_config = super(BatchNormalization, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
