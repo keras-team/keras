@@ -10,14 +10,13 @@ from keras import regularizers
 
 
 def test_recurrent_convolutional():
-
-    nb_row = 4
-    nb_col = 4
-    nb_filter = 20
-    nb_samples = 5
+    nb_row = 3
+    nb_col = 3
+    nb_filter = 5
+    nb_samples = 2
     input_channel = 2
-    input_nb_row = 10
-    input_nb_col = 10
+    input_nb_row = 5
+    input_nb_col = 5
     sequence_len = 2
     for dim_ordering in ['th', 'tf']:
 
