@@ -18,6 +18,9 @@ Trains a simple deep CNN on the CIFAR10 small images dataset.
 [conv_filter_visualization.py](conv_filter_visualization.py)
 Visualization of the filters of VGG16, via gradient ascent in input space.
 
+[conv_lstm.py](conv_lstm.py)
+Demonstrates the use of a convolutional LSTM network.
+
 [deep_dream.py](deep_dream.py)
 Deep Dreams in Keras.
 
