@@ -457,7 +457,7 @@ class ConvLSTM2D(ConvRecurrent2D):
                              border_mode=self.border_mode)
 
         # U : from nb_filter to nb_filter
-        # Same because must be stable in the ouptut space
+        # Same because must be stable in the output space
         h_i = self.conv_step_hidden(h_tm1 * B_U[0], self.U_i,
                                     border_mode='same')
         h_f = self.conv_step_hidden(h_tm1 * B_U[1], self.U_f,
