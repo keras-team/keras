@@ -8,7 +8,7 @@ import warnings
 
 
 class ConvRecurrent2D(Layer):
-    '''Abstract base class for convolutionnal recurrent layers.
+    '''Abstract base class for convolutional recurrent layers.
     Do not use in a model -- it's not a functional layer!
 
     ConvLSTM2D
