@@ -75,7 +75,7 @@ class LocallyConnected1D(Layer):
         `steps` value might have changed due to padding.
     '''
     def __init__(self, nb_filter, filter_length,
-                 init='uniform', activation='linear', weights=None,
+                 init='glorot_uniform', activation=None, weights=None,
                  border_mode='valid', subsample_length=1,
                  W_regularizer=None, b_regularizer=None, activity_regularizer=None,
                  W_constraint=None, b_constraint=None,
@@ -257,7 +257,7 @@ class LocallyConnected2D(Layer):
         `rows` and `cols` values might have changed due to padding.
     '''
     def __init__(self, nb_filter, nb_row, nb_col,
-                 init='glorot_uniform', activation='linear', weights=None,
+                 init='glorot_uniform', activation=None, weights=None,
                  border_mode='valid', subsample=(1, 1),
                  dim_ordering='default',
                  W_regularizer=None, b_regularizer=None, activity_regularizer=None,
