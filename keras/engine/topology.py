@@ -95,33 +95,34 @@ class Node(object):
                  input_tensors, output_tensors,
                  input_masks, output_masks,
                  input_shapes, output_shapes):
-        # layer instance (NOT a list).
+        # Layer instance (NOT a list).
         # this is the layer that takes a list of input tensors
         # and turns them into a list of output tensors.
-        # the current node will be added to the inbound_nodes of outbound_layer
+        # the current node will be added to the inbound_nodes of outbound_layer.
         self.outbound_layer = outbound_layer
 
-        # the following 3 properties describe where
+        # The following 3 properties describe where
         # the input tensors come from: which layers,
         # and for each layer, which node and which
         # tensor output of each node.
-        self.inbound_layers = inbound_layers  # list of layer instances
-        self.node_indices = node_indices  # list of integers, 1:1 mapping with inbound_layers
-        self.tensor_indices = tensor_indices  # list of integers, 1:1 mapping with inbound_layers
 
-        # tensor inputs and outputs of outbound_layer
-        self.input_tensors = input_tensors  # list of tensors. 1:1 mapping with inbound_layers
-        self.output_tensors = output_tensors  # list of tensors, created by outbound_layer.call()
+        self.inbound_layers = inbound_layers  # List of layer instances
+        self.node_indices = node_indices  # List of integers, 1:1 mapping with inbound_layers.
+        self.tensor_indices = tensor_indices  # List of integers, 1:1 mapping with inbound_layers.
+
+        # Tensor inputs and outputs of outbound_layer.
+        self.input_tensors = input_tensors  # List of tensors. 1:1 mapping with inbound_layers.
+        self.output_tensors = output_tensors  # List of tensors, created by outbound_layer.call().
 
         # input and output masks
-        self.input_masks = input_masks  # list of tensors, 1:1 mapping with input_tensor
-        self.output_masks = output_masks  # list of tensors, created by outbound_layer.compute_mask()
+        self.input_masks = input_masks  # List of tensors, 1:1 mapping with input_tensor.
+        self.output_masks = output_masks  # List of tensors, created by outbound_layer.compute_mask().
 
         # input and output shapes
-        self.input_shapes = input_shapes  # list of shape tuples, shapes of input_tensors
-        self.output_shapes = output_shapes  # list of shape tuples, shapes of output_tensors
+        self.input_shapes = input_shapes  # List of shape tuples, shapes of input_tensors.
+        self.output_shapes = output_shapes  # List of shape tuples, shapes of output_tensors.
 
-        # add nodes to all layers involved.
+        # Add nodes to all layers involved.
         for layer in inbound_layers:
             if layer is not None:
                 layer.outbound_nodes.append(self)
@@ -152,7 +153,7 @@ class Node(object):
         if len(input_tensors) == 1:
             output_tensors = to_list(outbound_layer.call(input_tensors[0], mask=input_masks[0]))
             output_masks = to_list(outbound_layer.compute_mask(input_tensors[0], input_masks[0]))
-            # TODO: try to auto-infer shape if exception is raised by get_output_shape_for
+            # TODO: try to auto-infer shape if exception is raised by get_output_shape_for.
             output_shapes = to_list(outbound_layer.get_output_shape_for(input_shapes[0]))
         else:
             output_tensors = to_list(outbound_layer.call(input_tensors, mask=input_masks))
@@ -270,7 +271,7 @@ class Layer(object):
         assert_input_compatibility()
     '''
     def __init__(self, **kwargs):
-        # these properties should have been set
+        # These properties should have been set
         # by the child class, as appropriate.
         if not hasattr(self, 'input_spec'):
             self.input_spec = None
@@ -279,12 +280,12 @@ class Layer(object):
         if not hasattr(self, 'uses_learning_phase'):
             self.uses_learning_phase = False
 
-        # these lists will be filled via successive calls
-        # to self.add_inbound_node()
+        # These lists will be filled via successive calls
+        # to self.add_inbound_node().
         self.inbound_nodes = []
         self.outbound_nodes = []
 
-        # these properties will be set upon call of self.build(),
+        # These properties will be set upon call of self.build(),
         # which itself will be called upon self.add_inbound_node if necessary.
         if not hasattr(self, 'trainable_weights'):
             self.trainable_weights = []
@@ -296,7 +297,7 @@ class Layer(object):
             self.constraints = {}  # dict {tensor: constraint instance}
         self.built = False
 
-        # these properties should be set by the user via keyword arguments.
+        # These properties should be set by the user via keyword arguments.
         # note that 'input_dtype', 'input_shape' and 'batch_input_shape'
         # are only applicable to input layers: do not pass these keywords
         # to non-input layers.
@@ -317,7 +318,7 @@ class Layer(object):
 
         self.trainable = kwargs.get('trainable', True)
         if 'batch_input_shape' in kwargs or 'input_shape' in kwargs:
-            # in this case we will create an input layer
+            # In this case we will create an input layer
             # to insert before the current layer
             if 'batch_input_shape' in kwargs:
                 batch_input_shape = tuple(kwargs['batch_input_shape'])
@@ -364,10 +365,10 @@ class Layer(object):
         self.batch_input_shape = batch_input_shape
         self.input_dtype = input_dtype
 
-        # instantiate the input layer
+        # Instantiate the input layer.
         x = Input(batch_shape=batch_input_shape,
                   dtype=input_dtype, name=name)
-        # this will build the current layer
+        # This will build the current layer
         # and create the node connecting the current layer
         # to the input layer we just created.
         self(x)
@@ -394,7 +395,7 @@ class Layer(object):
             if spec is None:
                 continue
 
-            # check ndim
+            # Check ndim.
             if spec.ndim is not None:
                 if type(spec.ndim) is str:
                     int_ndim = spec.ndim[:spec.ndim.find('+')]
@@ -423,7 +424,7 @@ class Layer(object):
                 if hasattr(x, '_keras_shape'):
                     x_shape = x._keras_shape
                 elif hasattr(K, 'int_shape'):
-                    # tensorflow shape inference
+                    # Tensorflow shape inference.
                     x_shape = K.int_shape(x)
                 else:
                     continue
@@ -502,7 +503,7 @@ class Layer(object):
         tensor_indices = []
         for input_tensor in input_tensors:
             if hasattr(input_tensor, '_keras_history') and input_tensor._keras_history:
-                # this is a Keras tensor
+                # This is a Keras tensor.
                 previous_layer, node_index, tensor_index = input_tensor._keras_history
                 inbound_layers.append(previous_layer)
                 node_indices.append(node_index)
