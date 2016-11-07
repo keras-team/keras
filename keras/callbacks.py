@@ -432,7 +432,11 @@ class LearningRateScheduler(Callback):
         assert hasattr(self.model.optimizer, 'lr'), \
             'Optimizer must have a "lr" attribute.'
         lr = self.schedule(epoch)
-        assert type(lr) == float, 'The output of the "schedule" function should be float.'
+
+        if not isinstance(lr, (float, np.float32, np.float64)):
+            raise ValueError('The output of the "schedule" function '
+                             'should be float.')
+
         K.set_value(self.model.optimizer.lr, lr)
 
 
