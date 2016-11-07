@@ -3052,28 +3052,29 @@ class AttLSTMCond(LSTM):
 
         return constants, B_V
 
+
     def get_initial_states(self, x):
         # build an all-zero tensor of shape (samples, output_dim)
         if self.init_state is None:
             initial_state = K.zeros_like(x)  # (samples, intput_timesteps, ctx_dim)
             initial_state = K.sum(initial_state, axis=1)  # (samples, ctx_dim)
-            reducer = K.ones((self.context_dim, self.output_dim))
-            initial_state = K.dot(initial_state, reducer)  # (samples, output_dim)
+            #reducer = K.ones((self.context_dim, self.output_dim))
+            #initial_state = K.dot(initial_state, reducer)  # (samples, output_dim)
             if self.init_memory is None:
                 initial_states = [initial_state for _ in range(2)]
             else:
                 initial_memory = self.init_memory
-                reducer = K.ones((self.output_dim, self.output_dim))
-                initial_memory = K.dot(initial_memory, reducer)  # (samples, output_dim)
+                #reducer = K.ones((self.output_dim, self.output_dim))
+                #initial_memory = K.dot(initial_memory, reducer)  # (samples, output_dim)
                 initial_states = [initial_state, initial_memory]
         else:
             initial_state = self.init_state
-            reducer = K.ones((self.output_dim, self.output_dim))
-            initial_state = K.dot(initial_state, reducer)  # (samples, output_dim)
+            #reducer = K.ones((self.output_dim, self.output_dim))
+            #initial_state = K.dot(initial_state, reducer)  # (samples, output_dim)
             if self.init_memory is not None: # We have state and memory
                 initial_memory = self.init_memory
-                reducer = K.ones((self.output_dim, self.output_dim))
-                initial_memory = K.dot(initial_memory, reducer)  # (samples, output_dim)
+                #reducer = K.ones((self.output_dim, self.output_dim))
+                #initial_memory = K.dot(initial_memory, reducer)  # (samples, output_dim)
                 initial_states = [initial_state, initial_memory]
             else:
                 initial_states = [initial_state for _ in range(2)]
@@ -3081,9 +3082,10 @@ class AttLSTMCond(LSTM):
         initial_state = K.zeros_like(x)  # (samples, intput_timesteps, ctx_dim)
         initial_state_alphas = K.sum(initial_state, axis=2)  # (samples, input_timesteps)
         initial_state = K.sum(initial_state, axis=1)  # (samples, ctx_dim)
-        reducer = K.ones((self.context_dim, self.context_dim))
+        #reducer = K.ones((self.context_dim, self.context_dim))
+        extra_states = [initial_state, initial_state_alphas]  # (samples, ctx_dim)
         #reducer_alphas = K.ones((self.context_steps, self.context_steps))
-        extra_states = [K.dot(initial_state, reducer), initial_state_alphas]  # (samples, ctx_dim)
+        #extra_states = [K.dot(initial_state, reducer), initial_state_alphas]  # (samples, ctx_dim)
                         #K.dot(initial_state_alphas, reducer_alphas)]
 
         return initial_states + extra_states
