@@ -1,5 +1,5 @@
 ''' 
-This example demonstrate the use of item2vec[1] on the 1M MovieLens dataset[2].
+This example demonstrates the use of item2vec[1] on the 1M MovieLens dataset[2].
 
 References:
 [1] Oren Barkan and Noam Koenigstein,
