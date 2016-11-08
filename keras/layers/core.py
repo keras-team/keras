@@ -1357,5 +1357,6 @@ class SetSubtensor(Layer):
         return input_shape[0]
 
     def get_config(self):
+        config = {'indices': self.indices}
         base_config = super(SetSubtensor, self).get_config()
-        return dict(list(base_config.items()))
+        return dict(list(base_config.items()) + list(config.items()))
