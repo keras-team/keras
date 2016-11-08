@@ -1540,15 +1540,33 @@ def pool2d(x, pool_size, strides=(1, 1), border_mode='valid',
         x = x.dimshuffle((0, 3, 1, 2))
 
     if pool_mode == 'max':
-        pool_out = pool.pool_2d(x, ds=pool_size, st=strides,
-                                ignore_border=True,
-                                padding=padding,
-                                mode='max')
+        # TODO remove the old call once Theano older than 0.9.0dev4 is deprecated
+        try:
+            # new interface (introduced in 0.9.0dev4)
+            pool_out = pool.pool_2d(x, ws=pool_size, stride=strides,
+                                    ignore_border=True,
+                                    pad=padding,
+                                    mode='max')
+        except TypeError:
+            # old interface
+            pool_out = pool.pool_2d(x, ds=pool_size, st=strides,
+                                    ignore_border=True,
+                                    padding=padding,
+                                    mode='max')
     elif pool_mode == 'avg':
-        pool_out = pool.pool_2d(x, ds=pool_size, st=strides,
-                                ignore_border=True,
-                                padding=padding,
-                                mode='average_exc_pad')
+        # TODO remove the old call once Theano older than 0.9.0dev4 is deprecated
+        try:
+            # new interface (introduced in 0.9.0dev4)
+            pool_out = pool.pool_2d(x, ws=pool_size, stride=strides,
+                                    ignore_border=True,
+                                    pad=padding,
+                                    mode='average_exc_pad')
+        except TypeError:
+            # old interface
+            pool_out = pool.pool_2d(x, ds=pool_size, st=strides,
+                                    ignore_border=True,
+                                    padding=padding,
+                                    mode='average_exc_pad')
     else:
         raise Exception('Invalid pooling mode: ' + str(pool_mode))
 
@@ -1595,15 +1613,33 @@ def pool3d(x, pool_size, strides=(1, 1, 1), border_mode='valid',
         x = x.dimshuffle((0, 4, 1, 2, 3))
 
     if pool_mode == 'max':
-        pool_out = pool.pool_3d(x, ds=pool_size, st=strides,
-                                ignore_border=True,
-                                padding=padding,
-                                mode='max')
+        # TODO remove the old call once Theano older than 0.9.0dev4 is deprecated
+        try:
+            # new interface (introduced in 0.9.0dev4)
+            pool_out = pool.pool_3d(x, ws=pool_size, stride=strides,
+                                    ignore_border=True,
+                                    pad=padding,
+                                    mode='max')
+        except TypeError:
+            # old interface
+            pool_out = pool.pool_3d(x, ds=pool_size, st=strides,
+                                    ignore_border=True,
+                                    padding=padding,
+                                    mode='max')
     elif pool_mode == 'avg':
-        pool_out = pool.pool_3d(x, ds=pool_size, st=strides,
-                                ignore_border=True,
-                                padding=padding,
-                                mode='average_exc_pad')
+        # TODO remove the old call once Theano older than 0.9.0dev4 is deprecated
+        try:
+            # new interface (introduced in 0.9.0dev4)
+            pool_out = pool.pool_3d(x, ws=pool_size, stride=strides,
+                                    ignore_border=True,
+                                    pad=padding,
+                                    mode='average_exc_pad')
+        except TypeError:
+            # old interface
+            pool_out = pool.pool_3d(x, ds=pool_size, st=strides,
+                                    ignore_border=True,
+                                    padding=padding,
+                                    mode='average_exc_pad')
     else:
         raise Exception('Invalid pooling mode: ' + str(pool_mode))
 
