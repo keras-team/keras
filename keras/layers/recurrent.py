@@ -1331,6 +1331,14 @@ class AttGRUCond(GRU):
 
         return ret
 
+    def get_alignments(self, pctx_, h_tm1):
+        # AttModel (see Formulation in class header)
+        p_state_ = K.dot(h_tm1, self.Wa)
+        pctx_ = K.tanh(pctx_ +  p_state_[:, None, :])
+        e = K.dot(pctx_, self.wa) + self.ca
+        alphas_shape = e.shape
+        return K.softmax(e.reshape([alphas_shape[0], alphas_shape[1]]))
+
     def step(self, x, states):
         h_tm1 = states[0]  # previous memory
         non_used_x_att = states[1]  # Placeholder for returning extra variables
@@ -1842,7 +1850,9 @@ class LSTMCond(LSTM):
         super(LSTMCond, self).__init__(output_dim, **kwargs)
 
     def build(self, input_shape):
-        assert len(input_shape) == 2 or len(input_shape) == 4, 'You should pass two inputs to LSTMCond (context and previous_embedded_words) and two optional inputs (init_state and init_memory)'
+        assert len(input_shape) == 2 or len(input_shape) == 4, 'You should pass two inputs to LSTMCond ' \
+                                                               '(context and previous_embedded_words) and ' \
+                                                               'two optional inputs (init_state and init_memory)'
 
         if len(input_shape) == 2:
             self.input_spec = [InputSpec(shape=input_shape[0]), InputSpec(shape=input_shape[1])]
@@ -2118,9 +2128,11 @@ class LSTMCond(LSTM):
     def get_initial_states(self, x):
         # build an all-zero tensor of shape (samples, output_dim)
         if self.init_state is None:
-            initial_state = K.zeros_like(x[:, 0, :])  # (samples, ctx_dim)
-            #reducer = K.ones((self.input_dim, self.output_dim))
-            #initial_state = K.dot(initial_state, reducer)  # (samples, output_dim)
+            # build an all-zero tensor of shape (samples, output_dim)
+            initial_state = K.zeros_like(x)  # (samples, timesteps, input_dim)
+            initial_state = K.sum(initial_state, axis=(1, 2))  # (samples,)
+            initial_state = K.expand_dims(initial_state)  # (samples, 1)
+            initial_state = K.tile(initial_state, [1, self.output_dim])  # (samples, output_dim)
             if self.init_memory is None:
                 initial_states = [initial_state for _ in range(2)]
             else:
