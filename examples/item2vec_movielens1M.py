@@ -1,4 +1,4 @@
-''' 
+'''
 This example demonstrates the use of item2vec[1] on the 1M MovieLens dataset[2].
 
 References:
@@ -52,7 +52,7 @@ def LoadMovieLensData(movies_filepath, rating_filepath, positive_score_threshold
     item2genre = {}
     item2name = {}
     user2items = {}
-    # Parse movieId,title,genres        
+    # Parse movieId,title,genres
     with open(movies_filepath) as reader:
         for line in reader:
             line = line.split("::")
@@ -68,7 +68,7 @@ def LoadMovieLensData(movies_filepath, rating_filepath, positive_score_threshold
     return user2items, item2name, item2genre
         
 def GetEmbeddingLayer(num_items, embedding_dim, l2_reg = None):
-    return Embedding(num_items, embedding_dim) if l2_reg == None else Embedding(num_items, embedding_dim, W_regularizer = l2(l2_reg))
+    return Embedding(num_items, embedding_dim) if l2_reg is None else Embedding(num_items, embedding_dim, W_regularizer = l2(l2_reg))
     
 
 def Item2vecModel(num_items, embedding_dim, l2_reg = None, dual_embedding = True, bias = False):
@@ -90,7 +90,7 @@ def Item2vecModel(num_items, embedding_dim, l2_reg = None, dual_embedding = True
     return Model(input = [input_u, input_v], output = [output_layer])
 
 def FilterItems(item_lists, item_counter, min_count = 3, max_len_list = 10):
-    # filter items and uninformative lists
+    # Filter items and uninformative lists
     item_list_filtered = []
     for item_list in item_lists:
         item_list = [item for item in item_list if item_counter[item] > min_count]
@@ -151,7 +151,7 @@ def Skipgrams(sequence, window_size = 4, negative_samples = 1,
                 labels.append(1)
                 negative_indices = [int(random01() * pool_length) for n in range_negative_samples]
                 for n in range_negative_samples:
-                    couples.append([wi, negative_pool[negative_indices[n]]])    
+                    couples.append([wi, negative_pool[negative_indices[n]]])
                     labels.append(0)
     if shuffle:
         seed = random.randint(0, 10e6)
@@ -256,7 +256,7 @@ total_length = sum([len(item_list) for item_list in item_lists])
 item_counter = GetItemCounter(item_lists)
 
 # Create subsampling table and negative pool (for negative sampling)
-sampling_table = SubsamplingTable(item_counter, total_length, rho = sampling_factor)
+sampling_table = SubsamplingTable(item_counter, total_length, sampling_factor)
 negative_pool = GenerateNegativePool(item_counter, total_length, p)
 
 # Generate dataset
@@ -274,7 +274,6 @@ for i in range(num_epoch):
 
 # Get embeddding
 U = model.layers[2].get_weights()[0]
-V = model.layers[3].get_weights()[0]
 
 # Print results for movie ID 588"
 PrintMostSimilar("588", U, int2item, item2name, item2genre, top_k = 10)
