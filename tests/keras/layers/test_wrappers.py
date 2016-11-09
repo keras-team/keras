@@ -2,7 +2,7 @@ import pytest
 import numpy as np
 from numpy.testing import assert_allclose
 from keras.utils.test_utils import keras_test
-from keras.layers import wrappers, Input
+from keras.layers import wrappers, Input, ELU
 from keras.layers import core, convolutional, recurrent
 from keras.models import Sequential, Model, model_from_json
 
@@ -112,6 +112,14 @@ def test_Bidirectional():
         input = Input((timesteps, dim))
         output = wrappers.Bidirectional(rnn(output_dim), merge_mode=mode)(input)
         model = Model(input, output)
+        model.compile(loss='mse', optimizer='sgd')
+        model.fit(x, y, nb_epoch=1, batch_size=1)
+
+        # test with advanced activation
+        model = Sequential()
+        model.add(wrappers.Bidirectional(rnn(output_dim, activation=ELU()),
+                                         merge_mode=mode,
+                                         input_shape=(timesteps, dim)))
         model.compile(loss='mse', optimizer='sgd')
         model.fit(x, y, nb_epoch=1, batch_size=1)
 

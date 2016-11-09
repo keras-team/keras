@@ -170,5 +170,18 @@ def test_linear():
         assert(x == activations.linear(x))
 
 
+def test_can_get_advanced_activation():
+    for activation in [
+        "ELU",
+        "LeakyReLU",
+        "ThresholdedReLU",
+        "PReLU",
+        "SReLU",
+        "ParametricSoftplus"
+    ]:
+        tensor = K.zeros((3, 4))
+        activations.get(activation)(tensor)
+
+
 if __name__ == '__main__':
     pytest.main([__file__])
