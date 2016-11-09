@@ -72,7 +72,6 @@ def create_temporal_sequential_model():
     return model
 
 
-# @keras_test
 def _fit_weights_sequential(model, class_weight=None, sample_weight=None,
                              X_train=X_train, Y_train=Y_train,
                              X_test=X_test, Y_test=Y_test):
