@@ -109,6 +109,14 @@ class BatchNormalization(Layer):
     def call(self, x, mask=None):
         if self.mode == 0 or self.mode == 2:
             assert self.built, 'Layer must be built before being called'
+            assert self.mode == 2 or self.called_with in {None, x}, (
+                'You are attempting to share a same `BatchNormalization` '
+                'layer across different data flows. '
+                'This is not possible. '
+                'You should use `mode=2` in `BatchNormalization`, '
+                'which has a similar behavior but is shareable '
+                '(see docs for a description of the behavior).')
+
             input_shape = self.input_spec[0].shape
 
             reduction_axes = list(range(len(input_shape)))
@@ -116,26 +124,12 @@ class BatchNormalization(Layer):
             broadcast_shape = [1] * len(input_shape)
             broadcast_shape[self.axis] = input_shape[self.axis]
 
-            if self.mode == 2:
-                x_normed, mean, std = K.normalize_batch_in_training(
-                    x, self.gamma, self.beta, reduction_axes,
-                    epsilon=self.epsilon)
-            else:
-                # mode 0
-                if self.called_with not in {None, x}:
-                    raise Exception('You are attempting to share a '
-                                    'same `BatchNormalization` layer across '
-                                    'different data flows. '
-                                    'This is not possible. '
-                                    'You should use `mode=2` in '
-                                    '`BatchNormalization`, which has '
-                                    'a similar behavior but is shareable '
-                                    '(see docs for a description of '
-                                    'the behavior).')
+            x_normed, mean, std = K.normalize_batch_in_training(
+                x, self.gamma, self.beta, reduction_axes,
+                epsilon=self.epsilon)
+
+            if self.mode == 0:
                 self.called_with = x
-                x_normed, mean, std = K.normalize_batch_in_training(
-                    x, self.gamma, self.beta, reduction_axes,
-                    epsilon=self.epsilon)
 
                 self.updates = [K.moving_average_update(self.running_mean, mean, self.momentum),
                                 K.moving_average_update(self.running_std, std, self.momentum)]
