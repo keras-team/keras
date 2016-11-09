@@ -366,9 +366,7 @@ def weighted_metric(fn):
             if K.backend() == 'theano':
                 weight_indices = weights.nonzero()[0]
             else:
-                from tensorflow import where
                 weight_indices = K.not_equal(weights, 0)
-                weight_indices = where(weight_indices)
             sub_weights = weights[weight_indices]
 
             # expand out sub_weights to allow for proper multiplication
