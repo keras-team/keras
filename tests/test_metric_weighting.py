@@ -230,28 +230,6 @@ def test_sequential_temporal_sample_weights_with_none_mode():
                                                               temporal_Y_test[test_ids, :],
                                                               sample_weight=test_weights[test_ids])
     assert(np.isclose(test_acc, test_weighted_acc))
-    # model.compile(loss=loss, optimizer='rmsprop',
-                  # sample_weight_mode='temporal')
-    # score = _test_weights_sequential(model,
-                                     # sample_weight=temporal_sample_weight,
-                                     # X_train=temporal_X_train,
-                                     # X_test=temporal_X_test,
-                                     # Y_train=temporal_Y_train,
-                                     # Y_test=temporal_Y_test)
-    # assert(score < standard_score_sequential)
 
-    # # a twist: sample-wise weights with temporal output
-    # model = create_temporal_sequential_model()
-    # model.compile(loss=loss, optimizer='rmsprop',
-                  # sample_weight_mode=None)
-    # score = _test_weights_sequential(model,
-                                     # sample_weight=sample_weight,
-                                     # X_train=temporal_X_train,
-                                     # X_test=temporal_X_test,
-                                     # Y_train=temporal_Y_train,
-                                     # Y_test=temporal_Y_test)
-    # assert(score < standard_score_sequential)
-
-
-# if __name__ == '__main__':
-    # pytest.main([__file__])
+if __name__ == '__main__':
+    pytest.main([__file__])
