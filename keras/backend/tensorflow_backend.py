@@ -778,7 +778,7 @@ def resize_images(X, height_factor, width_factor, dim_ordering):
         X = tf.image.resize_nearest_neighbor(X, new_shape)
         X = permute_dimensions(X, [0, 3, 1, 2])
         X.set_shape((None, None, original_shape[2] * height_factor if original_shape[2] is not None else None,
-                                 original_shape[3] * width_factor if original_shape[3] is not None else None))
+                    original_shape[3] * width_factor if original_shape[3] is not None else None))
         return X
     elif dim_ordering == 'tf':
         original_shape = int_shape(X)
@@ -786,7 +786,7 @@ def resize_images(X, height_factor, width_factor, dim_ordering):
         new_shape *= tf.constant(np.array([height_factor, width_factor]).astype('int32'))
         X = tf.image.resize_nearest_neighbor(X, new_shape)
         X.set_shape((None, original_shape[1] * height_factor if original_shape[1] is not None else None,
-                           original_shape[2] * width_factor if original_shape[2] is not None else None, None))
+                    original_shape[2] * width_factor if original_shape[2] is not None else None, None))
         return X
     else:
         raise Exception('Invalid dim_ordering: ' + dim_ordering)
