@@ -2910,7 +2910,7 @@ class AttLSTMCond(LSTM):
                                              constants=constants,
                                              unroll=self.unroll,
                                              input_length=state_below.shape[1],
-                                             pos_extra_outputs_states=[2,3])
+                                             pos_extra_outputs_states=[2, 3])
         if self.stateful:
             self.updates = []
             for i in range(len(states)):
@@ -2948,46 +2948,41 @@ class AttLSTMCond(LSTM):
 
 
     def step(self, x, states):
-        h_tm1 = states[0]  # State
-        c_tm1 = states[1]  # Memory
-        non_used_x_att = states[2]  # Placeholder for returning extra variables
-        non_used_alphas_att = states[3]  # Placeholder for returning extra variables
-
-        B_U = states[4]    # Dropout U
-        B_W = states[5]    # Dropout W
-
+        h_tm1 = states[0]                                 # State
+        c_tm1 = states[1]                                 # Memory
+        non_used_x_att = states[2]                        # Placeholder for returning extra variables
+        non_used_alphas_att = states[3]                   # Placeholder for returning extra variables
+        B_U = states[4]                                   # Dropout U
+        B_W = states[5]                                   # Dropout W
         # Att model dropouts
-        B_wa = states[6]
-        B_Wa = states[7]
-        pctx_ = states[8]        # Projected context (i.e. context * Ua + ba)
-        context = states[9]      # Original context
-        mask_input = states[10]  # Context mask
-
-        if mask_input.ndim > 1: # Mask the context (only if necessary)
+        B_wa = states[6]                                  # Dropout wa
+        B_Wa = states[7]                                  # Dropout Wa
+        pctx_ = states[8]                                 # Projected context (i.e. context * Ua + ba)
+        context = states[9]                               # Original context
+        mask_input = states[10]                           # Context mask
+        if mask_input.ndim > 1:                           # Mask the context (only if necessary)
             pctx_ = mask_input[:, :, None] * pctx_
-            context = mask_input[:, :, None] * context    # Masked context
+            context = mask_input[:, :, None] * context
 
-        # AttModel (see Formulation in class header)
+        # Attention model (see Formulation in class header)
         p_state_ = K.dot(h_tm1 * B_Wa[0], self.Wa)
         pctx_ = K.tanh(pctx_ +  p_state_[:, None, :])
-        #context = K.printing(context, 'context')
-
         e = K.dot(pctx_ * B_wa[0], self.wa) + self.ca
         alphas_shape = e.shape
         alphas = K.softmax(e.reshape([alphas_shape[0], alphas_shape[1]]))
-        ctx_ = (context * alphas[:, :, None]).sum(axis=1) # sum over the in_timesteps dimension resulting in [batch_size, input_dim]
-
+        # sum over the in_timesteps dimension resulting in [batch_size, input_dim]
+        ctx_ = (context * alphas[:, :, None]).sum(axis=1)
         # LSTM
         if self.consume_less == 'gpu':
             z = x + \
+                K.dot(h_tm1 * B_U[0], self.U)  + \
                 K.dot(ctx_ * B_W[0], self.W) + \
-                K.dot(h_tm1 * B_U[0], self.U) + self.b
+                self.b
 
             z0 = z[:, :self.output_dim]
             z1 = z[:, self.output_dim: 2 * self.output_dim]
             z2 = z[:, 2 * self.output_dim: 3 * self.output_dim]
             z3 = z[:, 3 * self.output_dim:]
-
             i = self.inner_activation(z0)
             f = self.inner_activation(z1)
             o = self.inner_activation(z3)
@@ -3090,14 +3085,10 @@ class AttLSTMCond(LSTM):
             else:
                 initial_states = [initial_state for _ in range(2)]
 
-        initial_state = K.zeros_like(x)  # (samples, intput_timesteps, ctx_dim)
-        initial_state_alphas = K.sum(initial_state, axis=2)  # (samples, input_timesteps)
-        initial_state = K.sum(initial_state, axis=1)  # (samples, ctx_dim)
-        #reducer = K.ones((self.context_dim, self.context_dim))
+        initial_state = K.zeros_like(self.context)            # (samples, intput_timesteps, ctx_dim)
+        initial_state_alphas = K.sum(initial_state, axis=2)   # (samples, input_timesteps)
+        initial_state = K.sum(initial_state, axis=1)          # (samples, ctx_dim)
         extra_states = [initial_state, initial_state_alphas]  # (samples, ctx_dim)
-        #reducer_alphas = K.ones((self.context_steps, self.context_steps))
-        #extra_states = [K.dot(initial_state, reducer), initial_state_alphas]  # (samples, ctx_dim)
-                        #K.dot(initial_state_alphas, reducer_alphas)]
 
         return initial_states + extra_states
 
