@@ -96,14 +96,14 @@ def _fit_weights_sequential(model, class_weight=None, sample_weight=None,
                   class_weight=class_weight, sample_weight=sample_weight,
                   validation_split=0.1)
 
-
-# no evaluation weights: reference point
-model = create_sequential_model()
-model.compile(loss=loss, optimizer='rmsprop', metrics=['acc',
-                                                        {"metric": "accuracy",
-                                                        "weighted": "True"}])
-_fit_weights_sequential(model,sample_weight=sample_weight)
-(loss_val, acc, weighted_acc) = model.evaluate(X_test[test_ids, :], Y_test[test_ids, :])
+def setup_module():
+    # no evaluation weights: reference point
+    model = create_sequential_model()
+    model.compile(loss=loss, optimizer='rmsprop', metrics=['acc',
+                                                            {"metric": "accuracy",
+                                                            "weighted": "True"}])
+    _fit_weights_sequential(model,sample_weight=sample_weight)
+    (loss_val, acc, weighted_acc) = model.evaluate(X_test[test_ids, :], Y_test[test_ids, :])
 
 @keras_test
 def test_sequential_sample_weights_unchanged_acc():
