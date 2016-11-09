@@ -375,12 +375,12 @@ def weighted_metric(fn):
             ndim = K.ndim(y_true)
             weight_ndim = K.ndim(weights)
             for _ in range(ndim - weight_ndim):
-              sub_weights = K.expand_dims(sub_weights)
+                sub_weights = K.expand_dims(sub_weights)
 
             # break out with metric on zero_vectors if sub_weights is empty
             # THIS DOES NOT WORK YET
             # if not sub_weights.shape[0].eval():
-              # return fn([0], [0])
+                # return fn([0], [0])
 
             # subsampling y-vectors on weight_indices
             sub_y_true = y_true[weight_indices]
@@ -712,7 +712,7 @@ class Model(Container):
                     weighted_metric_flag = metric_iter.get("weighted", False)
                     metric = metric_iter.get("metric")
                 else:
-                  metric = metric_iter
+                    metric = metric_iter
 
                 if metric == 'accuracy' or metric == 'acc':
                     # custom handling of accuracy (because of class mode duality)
@@ -730,14 +730,14 @@ class Model(Container):
                     if weighted_metric_flag:
                         append_metric(i, 'weighted_acc',
                                       weighted_metric(acc_fn)(y_true, y_pred,
-                                                                 sample_weight, mask))
+                                                              sample_weight, mask))
                     else:
                         append_metric(i, 'acc', acc_fn(y_true, y_pred))
                 else:
                     metric_fn = metrics_module.get(metric)
                     if weighted_metric_flag:
                         metric_result = weighted_metric(acc_fn)(y_true, y_pred,
-                                                                   sample_weight, mask)
+                                                                sample_weight, mask)
                     else:
                         metric_result = metric_fn(y_true, y_pred)
 

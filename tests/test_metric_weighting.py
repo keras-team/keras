@@ -73,8 +73,8 @@ def create_temporal_sequential_model():
 
 
 def _fit_weights_sequential(model, class_weight=None, sample_weight=None,
-                             X_train=X_train, Y_train=Y_train,
-                             X_test=X_test, Y_test=Y_test):
+                            X_train=X_train, Y_train=Y_train,
+                            X_test=X_test, Y_test=Y_test):
     if sample_weight is not None:
         model.fit(X_train, Y_train, batch_size=batch_size,
                   nb_epoch=nb_epoch // 3, verbose=0,
@@ -100,9 +100,9 @@ def setup_module():
     # no evaluation weights: reference point
     model = create_sequential_model()
     model.compile(loss=loss, optimizer='rmsprop', metrics=['acc',
-                                                            {"metric": "accuracy",
+                                                           {"metric": "accuracy",
                                                             "weighted": "True"}])
-    _fit_weights_sequential(model,sample_weight=sample_weight)
+    _fit_weights_sequential(model, sample_weight=sample_weight)
     (loss_val, acc, weighted_acc) = model.evaluate(X_test[test_ids, :], Y_test[test_ids, :])
 
 @keras_test
