@@ -369,7 +369,7 @@ def weighted_metric(fn):
             # expand out sub_weights to allow for proper multiplication
             ndim = K.ndim(y_true)
             weight_ndim = K.ndim(weights)
-            for _ in xrange(ndim - weight_ndim):
+            for _ in range(ndim - weight_ndim):
               sub_weights = K.expand_dims(sub_weights)
 
             # break out with metric on zero_vectors if sub_weights is empty
