@@ -852,7 +852,7 @@ class GRUCond(GRU):
         if self.stateful:
             initial_states = self.states
         else:
-            initial_states = self.get_initial_states(self.context)
+            initial_states = self.get_initial_states(state_below)
 
         constants, B_V = self.get_constants(state_below)
         preprocessed_input = self.preprocess_input(state_below, B_V)
@@ -955,13 +955,13 @@ class GRUCond(GRU):
     def get_initial_states(self, x):
         # build an all-zero tensor of shape (samples, output_dim)
         if self.init_state is None:
-            initial_state = K.zeros_like(x)  # (samples, intput_timesteps, ctx_dim)
-            initial_state = K.sum(initial_state, axis=1)  # (samples, ctx_dim)
-            #reducer = K.ones((self.context_dim, self.output_dim))
+        # build an all-zero tensor of shape (samples, output_dim)
+            initial_state = K.zeros_like(x)  # (samples, timesteps, input_dim)
+            initial_state = K.sum(initial_state, axis=(1, 2))  # (samples,)
+            initial_state = K.expand_dims(initial_state)  # (samples, 1)
+            initial_state = K.tile(initial_state, [1, self.output_dim]) # (samples, output_dim)
         else:
             initial_state = self.init_state
-            #reducer = K.ones((self.output_dim, self.output_dim))
-            #initial_state = K.dot(initial_state, reducer)  # (samples, output_dim)
         initial_states = [initial_state]
 
         return initial_states
@@ -1285,7 +1285,7 @@ class AttGRUCond(GRU):
         if self.stateful:
             initial_states = self.states
         else:
-            initial_states = self.get_initial_states(self.context)
+            initial_states = self.get_initial_states(state_below)
 
         constants, B_V = self.get_constants(state_below, mask[1])
         preprocessed_input = self.preprocess_input(state_below, B_V)
@@ -1461,13 +1461,14 @@ class AttGRUCond(GRU):
     def get_initial_states(self, x):
         # build an all-zero tensor of shape (samples, output_dim)
         if self.init_state is None:
-            initial_state = K.zeros_like(x)  # (samples, intput_timesteps, ctx_dim)
-            initial_state = K.sum(initial_state, axis=1)  # (samples, ctx_dim)
-            #reducer = K.ones((self.context_dim, self.output_dim))
+            # build an all-zero tensor of shape (samples, output_dim)
+            initial_state = K.zeros_like(x)  # (samples, timesteps, input_dim)
+            initial_state = K.sum(initial_state, axis=(1, 2))  # (samples,)
+            initial_state = K.expand_dims(initial_state)  # (samples, 1)
+            initial_state = K.tile(initial_state, [1, self.output_dim]) # (samples, output_dim)
         else:
             initial_state = self.init_state
-            #reducer = K.ones((self.output_dim, self.output_dim))
-        #initial_state = K.dot(initial_state, reducer)  # (samples, output_dim)
+
         initial_states = [initial_state]
 
         initial_state = K.zeros_like(x)  # (samples, intput_timesteps, ctx_dim)
@@ -1682,10 +1683,11 @@ class LSTM(Recurrent):
     def get_initial_states(self, x):
         # build an all-zero tensor of shape (samples, output_dim)
         if self.init_state is None:
+            # build an all-zero tensor of shape (samples, output_dim)
             initial_state = K.zeros_like(x)  # (samples, timesteps, input_dim)
-            initial_state = K.sum(initial_state, axis=1)  # (samples, input_dim)
-            reducer = K.ones((self.input_dim, self.output_dim))
-            initial_state = K.dot(initial_state, reducer)  # (samples, output_dim)
+            initial_state = K.sum(initial_state, axis=(1, 2))  # (samples,)
+            initial_state = K.expand_dims(initial_state)  # (samples, 1)
+            initial_state = K.tile(initial_state, [1, self.output_dim]) # (samples, output_dim)
             if self.init_memory is None:
                 initial_states = [initial_state for _ in range(len(self.states))]
                 return initial_states
@@ -2897,7 +2899,7 @@ class AttLSTMCond(LSTM):
         if self.stateful:
             initial_states = self.states
         else:
-            initial_states = self.get_initial_states(self.context)
+            initial_states = self.get_initial_states(state_below)
 
         constants, B_V = self.get_constants(state_below, mask[1])
         preprocessed_input = self.preprocess_input(state_below, B_V)
@@ -2968,6 +2970,8 @@ class AttLSTMCond(LSTM):
         # AttModel (see Formulation in class header)
         p_state_ = K.dot(h_tm1 * B_Wa[0], self.Wa)
         pctx_ = K.tanh(pctx_ +  p_state_[:, None, :])
+        #context = K.printing(context, 'context')
+
         e = K.dot(pctx_ * B_wa[0], self.wa) + self.ca
         alphas_shape = e.shape
         alphas = K.softmax(e.reshape([alphas_shape[0], alphas_shape[1]]))
@@ -3069,25 +3073,19 @@ class AttLSTMCond(LSTM):
     def get_initial_states(self, x):
         # build an all-zero tensor of shape (samples, output_dim)
         if self.init_state is None:
-            initial_state = K.zeros_like(x)  # (samples, intput_timesteps, ctx_dim)
-            initial_state = K.sum(initial_state, axis=1)  # (samples, ctx_dim)
-            #reducer = K.ones((self.context_dim, self.output_dim))
-            #initial_state = K.dot(initial_state, reducer)  # (samples, output_dim)
+            initial_state = K.zeros_like(x)  # (samples, timesteps, input_dim)
+            initial_state = K.sum(initial_state, axis=(1, 2))  # (samples,)
+            initial_state = K.expand_dims(initial_state)  # (samples, 1)
+            initial_state = K.tile(initial_state, [1, self.output_dim])  # (samples, output_dim)
             if self.init_memory is None:
                 initial_states = [initial_state for _ in range(2)]
             else:
                 initial_memory = self.init_memory
-                #reducer = K.ones((self.output_dim, self.output_dim))
-                #initial_memory = K.dot(initial_memory, reducer)  # (samples, output_dim)
                 initial_states = [initial_state, initial_memory]
         else:
             initial_state = self.init_state
-            #reducer = K.ones((self.output_dim, self.output_dim))
-            #initial_state = K.dot(initial_state, reducer)  # (samples, output_dim)
             if self.init_memory is not None: # We have state and memory
                 initial_memory = self.init_memory
-                #reducer = K.ones((self.output_dim, self.output_dim))
-                #initial_memory = K.dot(initial_memory, reducer)  # (samples, output_dim)
                 initial_states = [initial_state, initial_memory]
             else:
                 initial_states = [initial_state for _ in range(2)]
