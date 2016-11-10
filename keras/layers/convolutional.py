@@ -1668,6 +1668,7 @@ class Cropping1D(Layer):
 
     def build(self, input_shape):
         self.input_spec = [InputSpec(shape=input_shape)]
+        self.built = True
 
     def get_output_shape_for(self, input_shape):
         length = input_shape[1] - self.cropping[0] - self.cropping[1] if input_shape[1] is not None else None
@@ -1683,6 +1684,7 @@ class Cropping1D(Layer):
         config = {'cropping': self.cropping}
         base_config = super(Cropping1D, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
+
 
 class Cropping2D(Layer):
     '''Cropping layer for 2D input (e.g. picture).
@@ -1736,6 +1738,7 @@ class Cropping2D(Layer):
 
     def build(self, input_shape):
         self.input_spec = [InputSpec(shape=input_shape)]
+        self.built = True
 
     def get_output_shape_for(self, input_shape):
         if self.dim_ordering == 'th':
@@ -1768,6 +1771,7 @@ class Cropping2D(Layer):
         config = {'cropping': self.cropping}
         base_config = super(Cropping2D, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
+
 
 class Cropping3D(Layer):
     '''Cropping layer for 3D data (e.g. spatial or saptio-temporal).
@@ -1808,6 +1812,7 @@ class Cropping3D(Layer):
 
     def build(self, input_shape):
         self.input_spec = [InputSpec(shape=input_shape)]
+        self.built = True
 
     def get_output_shape_for(self, input_shape):
         if self.dim_ordering == 'th':

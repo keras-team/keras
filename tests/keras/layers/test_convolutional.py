@@ -451,8 +451,8 @@ def test_zero_padding_2d():
 
     # correctness test
     layer = convolutional.ZeroPadding2D(padding=(2, 2))
-    output = layer(K.variable(input))
     layer.build(input.shape)
+    output = layer(K.variable(input))
     np_output = K.eval(output)
     if dim_ordering == 'tf':
         for offset in [0, 1, -1, -2]:
