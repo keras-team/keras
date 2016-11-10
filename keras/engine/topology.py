@@ -771,7 +771,10 @@ class Layer(object):
         the layer has exactly one inbound node, i.e. if it is connected
         to one incoming layer).
         '''
-        if len(self.inbound_nodes) != 1:
+        if len(self.inbound_nodes) == 0:
+            raise Exception('Layer ' + self.name +
+                            ' has no inbound nodes.')
+        if len(self.inbound_nodes) > 1:
             raise Exception('Layer ' + self.name +
                             ' has multiple inbound nodes, ' +
                             'hence the notion of "layer output" '
