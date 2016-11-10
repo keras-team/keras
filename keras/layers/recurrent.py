@@ -383,7 +383,7 @@ class SimpleRNN(Recurrent):
             input_shape = self.input_spec[0].shape
             input_dim = input_shape[-1]
             ones = K.ones_like(K.reshape(x[:, 0, 0], (-1, 1)))
-            ones = K.tile(ones, (1, input_dim))
+            ones = K.tile(ones, (1, int(input_dim)))
             B_W = K.in_train_phase(K.dropout(ones, self.dropout_W), ones)
             constants.append(B_W)
         else:
@@ -597,7 +597,7 @@ class GRU(Recurrent):
             input_shape = self.input_spec[0].shape
             input_dim = input_shape[-1]
             ones = K.ones_like(K.reshape(x[:, 0, 0], (-1, 1)))
-            ones = K.tile(ones, (1, input_dim))
+            ones = K.tile(ones, (1, int(input_dim)))
             B_W = [K.in_train_phase(K.dropout(ones, self.dropout_W), ones) for _ in range(3)]
             constants.append(B_W)
         else:
@@ -837,7 +837,7 @@ class LSTM(Recurrent):
             input_shape = self.input_spec[0].shape
             input_dim = input_shape[-1]
             ones = K.ones_like(K.reshape(x[:, 0, 0], (-1, 1)))
-            ones = K.tile(ones, (1, input_dim))
+            ones = K.tile(ones, (1, int(input_dim)))
             B_W = [K.in_train_phase(K.dropout(ones, self.dropout_W), ones) for _ in range(4)]
             constants.append(B_W)
         else:
