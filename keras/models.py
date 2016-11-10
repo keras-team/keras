@@ -9,7 +9,7 @@ from . import backend as K
 from . import optimizers
 from .utils.io_utils import ask_to_proceed_with_overwrite
 from .engine.training import Model
-from .engine.topology import get_source_inputs, Node, Layer
+from .engine.topology import get_source_inputs, Node, Layer, Merge
 from .optimizers import optimizer_from_config
 from .legacy.models import Graph
 
@@ -170,7 +170,7 @@ def load_model(filepath, custom_objects={}):
     # set optimizer weights
     if 'optimizer_weights' in f:
         # build train function (to get weight updates)
-        if model.__class__.__name__ == 'Sequential':
+        if isinstance(model, Sequential):
             model.model._make_train_function()
         else:
             model._make_train_function()
@@ -418,7 +418,7 @@ class Sequential(Model):
             return self._flattened_layers
         layers = []
         if self.layers:
-            if self.layers[0].__class__.__name__ == 'Merge':
+            if isinstance(self.layers[0], Merge):
                 merge = self.layers[0]
                 for layer in merge.layers:
                     if hasattr(layer, 'flattened_layers'):
@@ -973,7 +973,7 @@ class Sequential(Model):
         as a Python list.
         '''
         config = []
-        if self.layers[0].__class__.__name__ == 'Merge':
+        if isinstance(self.layers[0], Merge):
             assert hasattr(self.layers[0], 'layers')
             layers = []
             for layer in self.layers[0].layers:

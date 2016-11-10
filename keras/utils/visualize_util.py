@@ -1,6 +1,7 @@
 import os
 
 from ..layers.wrappers import Wrapper
+from ..models import Sequential
 
 try:
     # pydot-ng is a fork of pydot that is better maintained
@@ -19,7 +20,7 @@ def model_to_dot(model, show_shapes=False, show_layer_names=True):
     dot.set('concentrate', True)
     dot.set_node_defaults(shape='record')
 
-    if model.__class__.__name__ == 'Sequential':
+    if isinstance(model, Sequential):
         if not model.built:
             model.build()
         model = model.model
@@ -28,13 +29,14 @@ def model_to_dot(model, show_shapes=False, show_layer_names=True):
     # Create graph nodes.
     for layer in layers:
         layer_id = str(id(layer))
-        
+
         # Append a wrapped layer's label to node's label, if it exists.
         layer_name = layer.name
         class_name = layer.__class__.__name__
         if isinstance(layer, Wrapper):
             layer_name = '{}({})'.format(layer_name, layer.layer.name)
-            class_name = '{}({})'.format(class_name, layer.layer.__class__.__name__)
+            child_class_name = layer.layer.__class__.__name__
+            class_name = '{}({})'.format(class_name, child_class_name)
 
         # Create node's label.
         if show_layer_names:
