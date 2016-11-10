@@ -706,65 +706,6 @@ class Layer(object):
         return self._get_node_attribute_at_index(0, 'input_tensors',
                                                  'input')
 
-    def set_input(self, input_tensor, shape=None):
-        if len(self.inbound_nodes) > 1:
-            raise Exception('Cannot `set_input` for layer ' + self.name +
-                            ' because it has more than one inbound connection.')
-        if len(self.inbound_nodes) == 1:
-            # Check that the inbound node is an Input node.
-            if self.inbound_nodes[0].inbound_layers:
-                warnings.warn('You are manually setting the input for layer ' +
-                              self.name + ' but it is not an Input layer. '
-                              'This will cause part of your model '
-                              'to be disconnected.')
-        if self.outbound_nodes:
-            warnings.warn('You are manually setting the input for layer ' +
-                          self.name + ' but it has ' +
-                          str(len(self.outbound_nodes)) +
-                          ' outbound layers. '
-                          'This will cause part of your model '
-                          'to be disconnected.')
-        if hasattr(K, 'int_shape'):
-            # Auto-infered shape takes priority.
-            shape = K.int_shape(input_tensor)
-        elif not shape:
-            raise Exception('`set_input` needs to know the shape '
-                            'of the `input_tensor` it receives, but '
-                            'Keras was not able to infer it automatically.'
-                            ' Specify it via: '
-                            '`model.set_input(input_tensor, shape)`')
-        # Reset layer connections.
-        self.inbound_nodes = []
-        self.outbound_nodes = []
-        input_shape = tuple(shape)
-        self.build(input_shape=input_shape)
-
-        # Set Keras tensor metadata.
-        input_tensor._uses_learning_phase = False
-        input_tensor._keras_history = (None, 0, 0)
-        input_tensor._keras_shape = input_shape
-
-        output_tensors = to_list(self.call(input_tensor))
-        output_shapes = to_list(self.get_output_shape_for(input_shape))
-        output_masks = to_list(self.compute_mask(input_tensor, None))
-
-        for i, output_tensor in enumerate(output_tensors):
-            output_tensor._keras_history = (self, 0, i)
-            output_tensor._keras_shape = output_shapes[i]
-            output_tensor._uses_learning_phase = self.uses_learning_phase
-
-        # Create node.
-        Node(self,
-             inbound_layers=[],
-             node_indices=[],
-             tensor_indices=[],
-             input_tensors=[input_tensor],
-             output_tensors=output_tensors,
-             input_masks=[None],
-             output_masks=output_masks,
-             input_shapes=[input_shape],
-             output_shapes=output_shapes)
-
     @property
     def output(self):
         '''Retrieves the output tensor(s) of a layer (only applicable if
