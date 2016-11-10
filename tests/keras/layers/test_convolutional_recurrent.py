@@ -110,6 +110,7 @@ def test_recurrent_convolutional():
                       'border_mode': "same"}
 
             layer = convolutional_recurrent.ConvLSTM2D(**kwargs)
+            layer.build(input.shape)
             output = layer(K.variable(np.ones(input.shape)))
             K.eval(output)
 

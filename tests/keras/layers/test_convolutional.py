@@ -389,7 +389,8 @@ def test_zero_padding_1d():
     nb_samples = 2
     input_dim = 2
     nb_steps = 5
-    input = np.ones((nb_samples, nb_steps, input_dim))
+    shape = (nb_samples, nb_steps, input_dim)
+    input = np.ones(shape)
 
     # basic test
     layer_test(convolutional.ZeroPadding1D,
@@ -404,6 +405,7 @@ def test_zero_padding_1d():
 
     # correctness test
     layer = convolutional.ZeroPadding1D(padding=2)
+    layer.build(shape)
     output = layer(K.variable(input))
     np_output = K.eval(output)
     for offset in [0, 1, -1, -2]:
@@ -411,6 +413,7 @@ def test_zero_padding_1d():
     assert_allclose(np_output[:, 2:-2, :], 1.)
 
     layer = convolutional.ZeroPadding1D(padding=(1, 2))
+    layer.build(shape)
     output = layer(K.variable(input))
     np_output = K.eval(output)
     for left_offset in [0]:
@@ -449,6 +452,7 @@ def test_zero_padding_2d():
     # correctness test
     layer = convolutional.ZeroPadding2D(padding=(2, 2))
     output = layer(K.variable(input))
+    layer.build(input.shape)
     np_output = K.eval(output)
     if dim_ordering == 'tf':
         for offset in [0, 1, -1, -2]:
@@ -462,6 +466,7 @@ def test_zero_padding_2d():
         assert_allclose(np_output[:, 2:-2, 2:-2, :], 1.)
 
     layer = convolutional.ZeroPadding2D(padding=(1, 2, 3, 4))
+    layer.build(input.shape)
     output = layer(K.variable(input))
     np_output = K.eval(output)
     if dim_ordering == 'tf':
@@ -505,6 +510,7 @@ def test_zero_padding_3d():
 
     # correctness test
     layer = convolutional.ZeroPadding3D(padding=(2, 2, 2))
+    layer.build(input.shape)
     output = layer(K.variable(input))
     np_output = K.eval(output)
     for offset in [0, 1, -1, -2]:
@@ -542,6 +548,7 @@ def test_upsampling_2d():
                 layer = convolutional.UpSampling2D(
                     size=(length_row, length_col),
                     dim_ordering=dim_ordering)
+                layer.build(input.shape)
                 output = layer(K.variable(input))
                 np_output = K.eval(output)
                 if dim_ordering == 'th':
@@ -582,6 +589,7 @@ def test_upsampling_3d():
                     layer = convolutional.UpSampling3D(
                         size=(length_dim1, length_dim2, length_dim3),
                         dim_ordering=dim_ordering)
+                    layer.build(input.shape)
                     output = layer(K.variable(input))
                     np_output = K.eval(output)
                     if dim_ordering == 'th':
@@ -641,6 +649,7 @@ def test_cropping_2d():
     # correctness test
     layer = convolutional.Cropping2D(cropping=cropping,
                                      dim_ordering=dim_ordering)
+    layer.build(input.shape)
     output = layer(K.variable(input))
     np_output = K.eval(output)
     # compare with numpy
@@ -681,6 +690,7 @@ def test_cropping_3d():
     # correctness test
     layer = convolutional.Cropping3D(cropping=cropping,
                                      dim_ordering=dim_ordering)
+    layer.build(input.shape)
     output = layer(K.variable(input))
     np_output = K.eval(output)
     # compare with numpy

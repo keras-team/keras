@@ -371,6 +371,7 @@ class ConvLSTM2D(ConvRecurrent2D):
         if self.initial_weights is not None:
             self.set_weights(self.initial_weights)
             del self.initial_weights
+        self.built = True
 
     def reset_states(self):
         assert self.stateful, 'Layer must be stateful.'

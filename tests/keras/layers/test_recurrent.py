@@ -129,6 +129,7 @@ def test_regularizer(layer_class):
                         U_regularizer=regularizers.WeightRegularizer(l1=0.01),
                         b_regularizer='l2')
     shape = (nb_samples, timesteps, embedding_dim)
+    layer.build(shape)
     output = layer(K.variable(np.ones(shape)))
     K.eval(output)
 

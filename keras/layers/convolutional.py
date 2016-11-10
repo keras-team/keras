@@ -142,6 +142,7 @@ class Convolution1D(Layer):
         if self.initial_weights is not None:
             self.set_weights(self.initial_weights)
             del self.initial_weights
+        self.built = True
 
     def get_output_shape_for(self, input_shape):
         length = conv_output_length(input_shape[1],
@@ -434,6 +435,7 @@ class Convolution2D(Layer):
         if self.initial_weights is not None:
             self.set_weights(self.initial_weights)
             del self.initial_weights
+        self.built = True
 
     def get_output_shape_for(self, input_shape):
         if self.dim_ordering == 'th':
@@ -982,6 +984,7 @@ class SeparableConvolution2D(Layer):
         if self.initial_weights is not None:
             self.set_weights(self.initial_weights)
             del self.initial_weights
+        self.built = True
 
     def get_output_shape_for(self, input_shape):
         if self.dim_ordering == 'th':
@@ -1179,6 +1182,7 @@ class Convolution3D(Layer):
         if self.initial_weights is not None:
             self.set_weights(self.initial_weights)
             del self.initial_weights
+        self.built = True
 
     def get_output_shape_for(self, input_shape):
         if self.dim_ordering == 'th':
