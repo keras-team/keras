@@ -70,9 +70,18 @@ class TimeDistributed(Wrapper):
         model.add(TimeDistributed(Dense(32)))
         # now model.output_shape == (None, 10, 32)
     ```
-
     The output will then have shape `(32, 10, 8)`.
 
+    Additionally, you can apply TimeDistributed to Layers which reduce the dimension of your input. This example
+    applies an LSTM encoder to batches of multiple sentences. In order to correctly deal with masking, the indicies
+    of the input which are reduced are passed to TimeDistributed. This is not required if the input is not being
+    reduced.
+    ```python
+        model = Sequential()
+        lstm = LSTM(32, input_shape=(10, 64))
+        model.add(TimeDistributed(lstm, reduction_indicies=[1], input_shape=(10, 12, 64)))
+        # now model.output_shape = (None, 10, 32)
+    ```
     Note this is strictly equivalent to using `layers.core.TimeDistributedDense`.
     However what is different about `TimeDistributed`
     is that it can be used with arbitrary layers, not just `Dense`,
@@ -82,12 +91,17 @@ class TimeDistributed(Wrapper):
         model = Sequential()
         model.add(TimeDistributed(Convolution2D(64, 3, 3), input_shape=(10, 3, 299, 299)))
     ```
-
     # Arguments
         layer: a layer instance.
+        reduction_dimensions: a list of dimension indexes (not including the batch dimension) which specifies
+                                        dimensions of the input which are reduced.
     """
-    def __init__(self, layer, **kwargs):
+    def __init__(self, layer, reduction_dimensions=None, **kwargs):
         self.supports_masking = True
+        if reduction_dimensions is not None and (0 in reduction_dimensions):
+            raise Exception("You cannot TimeDistribute a layer which reduces the time dimension.")
+        # Add in the batch dimension.
+        self.reduction_dimensions = [x + 1 for x in reduction_dimensions]
         super(TimeDistributed, self).__init__(layer, **kwargs)
 
     def build(self, input_shape):
@@ -154,19 +168,23 @@ class TimeDistributed(Wrapper):
         return outputs
 
     def compute_mask(self, input, input_mask=None):
-        input_shape = self.input_spec[0].shape
-        output_shape = self.get_output_shape_for(input_shape)
-        dim_change = len(input_shape[2:]) - len(output_shape[2:])
-
-        if input_mask is None:
+        if input_mask is None or self.reduction_dimensions is None:
+            # Either there was no input mask or the masking will have been applied in the
+            # Layer being TimeDistributed and no dimensions of the input were reduced.
+            # Therefore, we no longer need a mask.
             return None
-        # If the Layer has reduced the dimension between input and output,
-        # we only want to propagate the mask in the remaining dimensions if
-        # all of the input mask was zero for the reduced dimensions.
-        elif dim_change >= 0:
-            return K.any(input_mask, axis=list(range(-dim_change, 0)))
         else:
-            return input_mask
+            # Masking was applied to the Layer, but it is possible that whole
+            # dimensions were masked. Here, we generate a mask which is all ones
+            # unless all of a given reduced dimension was masked.
+            input_ndim = K.ndim(input)
+            mask_ndim = K.ndim(input_mask)
+
+            if mask_ndim == input_ndim - 1 and mask_ndim in self.reduction_dimensions:
+                # Check user hasn't masked the final dimension
+                # if the mask is smaller than the input.
+                self.reduction_dimensions.remove(input_ndim)
+            return K.any(input_mask, self.reduction_dimensions)
 
 
 class Bidirectional(Wrapper):
