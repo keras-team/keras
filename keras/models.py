@@ -785,7 +785,7 @@ class Sequential(Model):
     def fit_generator(self, generator, samples_per_epoch, nb_epoch,
                       verbose=1, callbacks=[],
                       validation_data=None, nb_val_samples=None,
-                      class_weight=None, max_q_size=10, nb_worker=1, pickle_safe=False, **kwargs):
+                      class_weight=None, max_q_size=10, nb_worker=1, epoch_offset=0, pickle_safe=False, **kwargs):
         '''Fits the model on data generated batch-by-batch by
         a Python generator.
         The generator is run in parallel to the model, for efficiency.
@@ -871,7 +871,8 @@ class Sequential(Model):
                                         class_weight=class_weight,
                                         max_q_size=max_q_size,
                                         nb_worker=nb_worker,
-                                        pickle_safe=pickle_safe)
+                                        pickle_safe=pickle_safe,
+                                        epoch_offset=epoch_offset)
 
     def evaluate_generator(self, generator, val_samples, max_q_size=10, nb_worker=1, pickle_safe=False, **kwargs):
         '''Evaluates the model on a data generator. The generator should
