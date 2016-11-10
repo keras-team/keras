@@ -258,10 +258,12 @@ def collect_trainable_weights(layer):
         weights += layer.trainable_weights
     # dedupe weights
     weights = list(set(weights))
-    # TF variables have auto-generated the name, while Theano has auto-generated the auto_name variable. name in Theano is None
+    # TF variables have auto-generated the name, while Theano has auto-generated the auto_name variable.
+    # name in Theano is sometimes None.
+    # However, to work save_model() and load_model() properly, weights must be sorted by names.
     if weights:
         if K.backend() == 'theano':
-            weights.sort(key=lambda x: x.auto_name)
+            weights.sort(key=lambda x: x.name if x.name else x.auto_name)
         else:
             weights.sort(key=lambda x: x.name)
     return weights
