@@ -17,7 +17,8 @@ def get_from_module(identifier, module_params, module_name,
         else:
             func_name = identifier[:idx]
             aux_kwargs = eval('dict' + identifier[idx:])
-            if not kwargs: kwargs = {}
+            if not kwargs:
+                kwargs = {}
             kwargs.update(aux_kwargs)
             res = partial(module_params.get(func_name), **kwargs)
 
@@ -32,8 +33,8 @@ def get_from_module(identifier, module_params, module_name,
         else:
             return res
     elif type(identifier) is dict:
-        func_name = identifier.pop('func_name')
-        res = module_params.get(func_name)
+        name = identifier.pop('name')
+        res = module_params.get(name)
 
         if not res:
             raise Exception('Invalid ' + str(module_name) + ': ' +
