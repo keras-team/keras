@@ -692,7 +692,7 @@ class GRUCond(GRU):
 
         if self.dropout_W or self.dropout_U or self.dropout_V:
             self.uses_learning_phase = True
-        super(AttGRUCond, self).__init__(output_dim, **kwargs)
+        super(GRUCond, self).__init__(output_dim, **kwargs)
 
     def build(self, input_shape):
         assert len(input_shape) == 2 or len(input_shape) == 3, 'You should pass two inputs to LSTMAttnCond ' \
@@ -1471,14 +1471,10 @@ class AttGRUCond(GRU):
 
         initial_states = [initial_state]
 
-        initial_state = K.zeros_like(x)  # (samples, intput_timesteps, ctx_dim)
-        initial_state_alphas = K.sum(initial_state, axis=2)  # (samples, input_timesteps)
-        initial_state = K.sum(initial_state, axis=1)  # (samples, ctx_dim)
-        #reducer = K.ones((self.context_dim, self.context_dim))
-        #reducer_alphas = K.ones((self.context_steps, self.context_steps))
+        initial_state = K.zeros_like(self.context)            # (samples, intput_timesteps, ctx_dim)
+        initial_state_alphas = K.sum(initial_state, axis=2)   # (samples, input_timesteps)
+        initial_state = K.sum(initial_state, axis=1)          # (samples, ctx_dim)
         extra_states = [initial_state, initial_state_alphas]  # (samples, ctx_dim)
-        #extra_states = [K.dot(initial_state, reducer), initial_state_alphas]  # (samples, ctx_dim)
-                        #K.dot(initial_state_alphas, reducer_alphas)]
 
         return initial_states + extra_states
 
