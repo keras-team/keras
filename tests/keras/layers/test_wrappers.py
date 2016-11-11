@@ -75,6 +75,13 @@ def test_TimeDistributed():
     outer_model.compile(optimizer='rmsprop', loss='mse')
     outer_model.fit(np.random.random((10, 3, 2)), np.random.random((10, 3, 3)), nb_epoch=1, batch_size=10)
 
+    # test wrapping a Layer which reduces dimensionality of input.
+    model = Sequential()
+    model.add(wrappers.TimeDistributed(recurrent.SimpleRNN(2), reduction_dimensions=[1], input_shape=(3, 5, 4)))
+    model.add(core.Activation('relu'))
+    model.compile(optimizer='rmsprop', loss='mse')
+    model.fit(np.random.random((10, 3, 5, 4)), np.random.random((10, 3, 2)), nb_epoch=1, batch_size=10)
+
 
 @keras_test
 def test_Bidirectional():

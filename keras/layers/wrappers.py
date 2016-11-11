@@ -100,8 +100,7 @@ class TimeDistributed(Wrapper):
         self.supports_masking = True
         if reduction_dimensions is not None and (0 in reduction_dimensions):
             raise Exception("You cannot TimeDistribute a layer which reduces the time dimension.")
-        # Add in the batch dimension.
-        self.reduction_dimensions = [x + 1 for x in reduction_dimensions]
+        self.reduction_dimensions = reduction_dimensions
         super(TimeDistributed, self).__init__(layer, **kwargs)
 
     def build(self, input_shape):
@@ -174,17 +173,18 @@ class TimeDistributed(Wrapper):
             # Therefore, we no longer need a mask.
             return None
         else:
+            reduction_dims = [x + 1 for x in self.reduction_dimensions]
             # Masking was applied to the Layer, but it is possible that whole
             # dimensions were masked. Here, we generate a mask which is all ones
             # unless all of a given reduced dimension was masked.
             input_ndim = K.ndim(input)
             mask_ndim = K.ndim(input_mask)
 
-            if mask_ndim == input_ndim - 1 and mask_ndim in self.reduction_dimensions:
+            if mask_ndim == input_ndim - 1 and mask_ndim in reduction_dims:
                 # Check user hasn't masked the final dimension
                 # if the mask is smaller than the input.
-                self.reduction_dimensions.remove(input_ndim)
-            return K.any(input_mask, self.reduction_dimensions)
+                reduction_dims.remove(input_ndim)
+            return K.any(input_mask, reduction_dims)
 
 
 class Bidirectional(Wrapper):
