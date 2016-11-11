@@ -818,6 +818,7 @@ class Model(Container):
         callbacks.on_train_begin()
         callback_model.stop_training = False
         self.validation_data = val_ins
+        self.validation_gen = None
 
         for epoch in range(nb_epoch):
             callbacks.on_epoch_begin(epoch)
@@ -1412,8 +1413,13 @@ class Model(Container):
                                 'or (val_x, val_y). Found: ' + str(validation_data))
             val_x, val_y, val_sample_weights = self._standardize_user_data(val_x, val_y, val_sample_weight)
             self.validation_data = val_x + [val_y, val_sample_weights]
+            self.validation_gen = None
         else:
             self.validation_data = None
+            self.validation_gen = dict(
+                generator=validation_data,
+                nb_samples=nb_val_samples
+            )
 
         # start generator thread storing batches into a queue
         data_gen_queue, _stop, generator_threads = generator_queue(generator, max_q_size=max_q_size, nb_worker=nb_worker,
