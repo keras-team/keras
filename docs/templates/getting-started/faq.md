@@ -14,6 +14,7 @@
 - [How can I use stateful RNNs?](#how-can-i-use-stateful-rnns)
 - [How can I remove a layer from a Sequential model?](#how-can-i-remove-a-layer-from-a-sequential-model)
 - [How can I use pre-trained models in Keras?](#how-can-i-use-pre-trained-models-in-keras)
+- [How can I get output from intermediate layer in Keras?](how-can-I-get-output-from-intermediate-layer-in-keras)
 
 ---
 
@@ -383,3 +384,17 @@ The VGG16 model is also the basis for several Keras example scripts:
 - [Style transfer](https://github.com/fchollet/keras/blob/master/examples/neural_style_transfer.py)
 - [Feature visualization](https://github.com/fchollet/keras/blob/master/examples/conv_filter_visualization.py)
 - [Deep dream](https://github.com/fchollet/keras/blob/master/examples/deep_dream.py)
+
+---
+
+###How can I get output from intermediate layer in Keras?
+
+You can create another model with needed layer(s) as output and call `predict` on it
+
+```python
+from keras.models import Sequential, Model
+
+my_model = Sequential(...)
+
+new_model = Model(input=my_model.input, output=my_model.get_layer('layer_name').output)
+```
