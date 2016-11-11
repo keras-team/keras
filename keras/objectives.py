@@ -34,15 +34,34 @@ def hinge(y_true, y_pred):
 def categorical_crossentropy(y_true, y_pred):
     '''Expects a binary class matrix instead of a vector of scalar classes.
     '''
-    return K.categorical_crossentropy(y_pred, y_true)
+    return K.categorical_crossentropy(y_pred, y_true, from_logits=False)
+
+
+def softmax_categorical_crossentropy(y_true, y_pred):
+    '''Expects a binary class matrix instead of a vector of scalar classes.
+    This objective already includes a softmax activation, so the
+    network output must be on a logit scale (-inf; +inf).
+    '''
+    return K.categorical_crossentropy(y_pred, y_true, from_logits=True)
 
 
 def sparse_categorical_crossentropy(y_true, y_pred):
-    '''expects an array of integer classes.
+    '''expects an array of integer classes (labels) and predicted probabilities
+    for each class, for instance the output of a softmax activation.
     Note: labels shape must have the same number of dimensions as output shape.
     If you get a shape error, add a length-1 dimension to labels.
     '''
-    return K.sparse_categorical_crossentropy(y_pred, y_true)
+    return K.sparse_categorical_crossentropy(y_pred, y_true, from_logits=False)
+
+
+def sparse_softmax_categorical_crossentropy(y_true, y_pred):
+    '''expects an array of integer classes (labels) and predicted logit-probabilities
+    for each class. This objective already includes a softmax activation, so the
+    network output must be on a logit scale (-inf; +inf).
+    Note: labels shape must have the same number of dimensions as output shape.
+    If you get a shape error, add a length-1 dimension to labels.
+    '''
+    return K.sparse_categorical_crossentropy(y_pred, y_true, from_logits=True)
 
 
 def binary_crossentropy(y_true, y_pred):

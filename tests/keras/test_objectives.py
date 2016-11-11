@@ -44,5 +44,17 @@ def test_cce_one_hot():
     assert K.eval(objectives.sparse_categorical_crossentropy(y_a, y_b)).shape == (6,)
 
 
+def test_sparse_softmax_categorical_crossentropy():
+    y_labels = K.variable(np.random.randint(0, 7, (5, 6)))
+    y_logits = K.variable(np.random.random((5, 6, 7)) * 12)
+    objective_value = K.eval(objectives.sparse_softmax_categorical_crossentropy(y_labels, y_logits))
+    assert objective_value.shape == (5, 6)
+
+    y_a = K.variable(np.random.randint(0, 7, (6,)))
+    y_b = K.variable(np.random.random((6, 7)))
+    objective_value = K.eval(objectives.sparse_softmax_categorical_crossentropy(y_a, y_b))
+    assert objective_value.shape == (6,)
+
+
 if __name__ == "__main__":
     pytest.main([__file__])

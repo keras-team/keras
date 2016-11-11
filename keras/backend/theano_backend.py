@@ -1055,6 +1055,21 @@ def softmax(x):
     return T.nnet.softmax(x)
 
 
+def softmax_3d(x):
+    '''Softmax on the last axis of a 2d or 3d tensor.
+    '''
+    nd = ndim(x)
+    if nd == 2:
+        return softmax(x)
+    elif nd == 3:
+        e = exp(x - max(x, axis=-1, keepdims=True))
+        s = sum(e, axis=-1, keepdims=True)
+        return e / s
+    else:
+        raise Exception('Cannot apply softmax to a tensor that is not 2D or 3D. ' +
+                        'Here, ndim=' + str(nd))
+
+
 def softplus(x):
     return T.nnet.softplus(x)
 
@@ -1065,7 +1080,7 @@ def softsign(x):
 
 def categorical_crossentropy(output, target, from_logits=False):
     if from_logits:
-        output = T.nnet.softmax(output)
+        output = softmax_3d(output)
     else:
         # scale preds so that the class probas of each sample sum to 1
         output /= output.sum(axis=-1, keepdims=True)

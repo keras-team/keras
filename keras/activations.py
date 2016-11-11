@@ -3,16 +3,7 @@ from . import backend as K
 
 
 def softmax(x):
-    ndim = K.ndim(x)
-    if ndim == 2:
-        return K.softmax(x)
-    elif ndim == 3:
-        e = K.exp(x - K.max(x, axis=-1, keepdims=True))
-        s = K.sum(e, axis=-1, keepdims=True)
-        return e / s
-    else:
-        raise Exception('Cannot apply softmax to a tensor that is not 2D or 3D. ' +
-                        'Here, ndim=' + str(ndim))
+    return K.softmax_3d(x)
 
 
 def elu(x, alpha=1.0):
