@@ -37,6 +37,12 @@ def categorical_crossentropy(y_true, y_pred):
     return K.categorical_crossentropy(y_pred, y_true)
 
 
+def log_categorical_crossentropy(y_true, log_y_pred):
+    '''log_y_pred = log(y_pred). Use log_softmax for the activation.
+    '''
+    return K.log_categorical_crossentropy(log_y_pred, y_true)
+
+
 def sparse_categorical_crossentropy(y_true, y_pred):
     '''expects an array of integer classes.
     Note: labels shape must have the same number of dimensions as output shape.

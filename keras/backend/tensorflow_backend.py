@@ -597,6 +597,11 @@ def log(x):
     return tf.log(x)
 
 
+def logsumexp(x, axis=None):
+    x_max = max(x, axis=axis, keepdims=True)
+    return log(sum(exp(x - x_max), axis=axis, keepdims=True)) + x_max
+
+
 def round(x):
     '''Element-wise rounding to the closest integer.
     '''
@@ -1412,6 +1417,12 @@ def softmax(x):
     return tf.nn.softmax(x)
 
 
+def log_softmax(x, axis=-1):
+    '''LogSoftmax of a tensor.
+    '''
+    return tf.nn.log_softmax(x, dim=axis)
+
+
 def softplus(x):
     '''Softplus of a tensor.
     '''
@@ -1443,6 +1454,10 @@ def categorical_crossentropy(output, target, from_logits=False):
                                reduction_indices=len(output.get_shape()) - 1)
     else:
         return tf.nn.softmax_cross_entropy_with_logits(output, target)
+
+
+def log_categorical_crossentropy(log_output, target):
+    return -sum(target * log_output, axis=-1)
 
 
 def sparse_categorical_crossentropy(output, target, from_logits=False):

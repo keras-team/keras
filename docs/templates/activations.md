@@ -29,6 +29,7 @@ model.add(Activation(tanh))
 ## Available activations
 
 - __softmax__: Softmax applied across inputs last dimension. Expects shape either `(nb_samples, nb_timesteps, nb_dims)` or `(nb_samples, nb_dims)`.
+- __log_softmax__: The log value of softmax. Use this with a log_categorical_crossentropy objective function.
 - __softplus__
 - __softsign__
 - __relu__

@@ -15,8 +15,13 @@ def softmax(x):
                         'Here, ndim=' + str(ndim))
 
 
+def log_softmax(x, axis=-1):
+    return K.log_softmax(x, axis=axis)
+
+
 def elu(x, alpha=1.0):
     return K.elu(x, alpha)
+
 
 def softplus(x):
     return K.softplus(x)
