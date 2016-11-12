@@ -33,10 +33,10 @@ def test_softmax():
 
 
 def test_time_distributed_softmax():
-    x = K.placeholder(shape=(1, 1, 5))
+    x = K.placeholder(shape=(1, 1, 1, 5))
     f = K.function([x], [activations.softmax(x)])
     test_values = get_standard_values()
-    test_values = np.reshape(test_values, (1, 1, np.size(test_values)))
+    test_values = np.reshape(test_values, (1, 1, 1, np.size(test_values)))
     f([test_values])[0]
 
 
