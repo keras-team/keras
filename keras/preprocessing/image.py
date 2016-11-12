@@ -220,6 +220,9 @@ class ImageDataGenerator(object):
             If you never set it, then it will be "th".
         interpolation_order: The order of the spline interpolation, default is 0.
             The order has to be in the range 0-5.
+            0 is nearest-neighbor interpolation.
+            1 is bilinear interpolation.
+            3 is bicubic spline interpolation.
     '''
     def __init__(self,
                  featurewise_center=False,
