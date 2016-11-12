@@ -131,6 +131,18 @@ class TestBackend(object):
         tf_rep = KTF.eval(KTF.tile(arr_tf, n))
         assert_allclose(tf_rep, th_rep, atol=1e-05)
 
+    def test_resize(self):
+        shape = (4, 5)
+        arr = np.arange(np.prod(shape)).reshape(shape)
+        arr_th = KTH.variable(arr)
+        arr_tf = KTF.variable(arr)
+
+        for interp in ('nearest_neighbor', 'linear'):
+            for n0, n1 in [[(3, 4), (1, 0)], [(7, 8), (0, 1)], [1, 0], [6, 1]]:
+                th_rep = KTH.eval(KTH.resize(arr_th, n0, n1, interp))
+                tf_rep = KTF.eval(KTF.resize(arr_tf, n0, n1, interp))
+                assert_allclose(tf_rep, th_rep, atol=1e-05)
+
     def test_value_manipulation(self):
         val = np.random.random((4, 2))
         xth = KTH.variable(val)
