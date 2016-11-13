@@ -59,8 +59,8 @@ def test_adagrad():
 
 
 def test_adadelta():
-    _test_optimizer(Adadelta(), target=0.83)
     logging.debug("test_adadelta begin")
+    _test_optimizer(Adadelta(), target=0.83)
     _test_optimizer(Adadelta(decay=1e-3), target=0.83)
 
 
