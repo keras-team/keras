@@ -7,12 +7,9 @@ import marshal
 import types as python_types
 from functools import partial
 
-import logging
-logging.basicConfig(format="\n[DEBUG]%(filename)s:%(funcName)s:%(message)s", level=logging.DEBUG, stream=sys.stderr)
 
 def get_from_module(identifier, module_params, module_name,
                     instantiate=False, kwargs=None):
-    logging.debug("identifier is {}".format(identifier))
     if isinstance(identifier, six.string_types):
         idx = identifier.find('(')
         if -1 == idx:
@@ -47,7 +44,6 @@ def get_from_module(identifier, module_params, module_name,
             return res(**identifier)
         else:
             return partial(res, **identifier)
-    logging.debug("identifier {} is neither of string nor dict type".format(identifier))
     return identifier
 
 

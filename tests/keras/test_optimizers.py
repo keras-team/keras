@@ -7,10 +7,6 @@ from keras.models import Sequential
 from keras.layers.core import Dense, Activation
 from keras.utils.np_utils import to_categorical
 
-import logging
-import sys
-logging.basicConfig(format="\n[DEBUG]%(filename)s:%(funcName)s:%(message)s", level=logging.DEBUG, stream=sys.stderr)
-
 
 (X_train, y_train), (X_test, y_test) = get_test_data(nb_train=1000,
                                                      nb_test=200,
@@ -31,7 +27,6 @@ def get_model(input_dim, nb_hidden, output_dim):
 
 
 def _test_optimizer(optimizer, target=0.89):
-    logging.debug("optimizer: {}".format(optimizer))
     model = get_model(X_train.shape[1], 10, y_train.shape[1])
     model.compile(loss='categorical_crossentropy',
                   optimizer=optimizer,
@@ -59,7 +54,6 @@ def test_adagrad():
 
 
 def test_adadelta():
-    logging.debug("test_adadelta begin")
     _test_optimizer(Adadelta(), target=0.83)
     _test_optimizer(Adadelta(decay=1e-3), target=0.83)
 

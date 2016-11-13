@@ -603,18 +603,13 @@ adam = Adam
 adamax = Adamax
 nadam = Nadam
 
-import logging
-import sys
-logging.basicConfig(format="\n[DEBUG]%(filename)s:%(funcName)s:%(message)s", level=logging.DEBUG, stream=sys.stderr)
 
 def get(identifier, kwargs=None):
     if K.backend() == 'tensorflow':
         # Wrap TF optimizer instances
         import tensorflow as tf
         if isinstance(identifier, tf.train.Optimizer):
-            logging.debug("identifier {} is an instance of tensorflow's optimizer".format(identifier))
             return TFOptimizer(identifier)
     # Instantiate a Keras optimizer
-    logging.debug("identifier {} isn't an instance of tensorflow's optimizer, and enter get_from_module function".format(identifier))
     return get_from_module(identifier, globals(), 'optimizer',
                            instantiate=True, kwargs=kwargs)
