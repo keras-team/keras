@@ -7,7 +7,8 @@ from keras.models import Sequential
 from keras.layers.core import Dense, Activation
 from keras.utils.np_utils import to_categorical
 
-import logging, sys
+import logging
+import sys
 logging.basicConfig(format="\n[DEBUG]%(filename)s:%(funcName)s:%(message)s", level=logging.DEBUG, stream=sys.stderr)
 
 

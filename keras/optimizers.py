@@ -603,7 +603,8 @@ adam = Adam
 adamax = Adamax
 nadam = Nadam
 
-import logging, sys
+import logging
+import sys
 logging.basicConfig(format="\n[DEBUG]%(filename)s:%(funcName)s:%(message)s", level=logging.DEBUG, stream=sys.stderr)
 
 def get(identifier, kwargs=None):
