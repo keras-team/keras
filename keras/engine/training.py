@@ -1675,6 +1675,8 @@ class Model(Container):
                 nb_samples = len(list(x.values())[0])
             else:
                 nb_samples = len(x)
+            # for val_samples < batch_size in generator
+            nb_samples = min(nb_samples, val_samples)
 
             if type(outs) != list:
                 outs = [outs]
@@ -1685,7 +1687,7 @@ class Model(Container):
                     all_outs.append(np.zeros(shape, dtype=K.floatx()))
 
             for i, out in enumerate(outs):
-                all_outs[i][processed_samples:(processed_samples + nb_samples)] = out
+                all_outs[i][processed_samples:(processed_samples + nb_samples)] = out[:nb_samples]
 
             processed_samples += nb_samples
 
