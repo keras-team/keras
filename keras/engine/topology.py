@@ -1853,11 +1853,13 @@ class Container(Layer):
         # based on layer names, because names can potentially
         # be changed at any point by the user
         # without the container being notified of it.
-        if index:
+        if index is not None:
             if len(self.layers) <= index:
                 raise Exception('Was asked to retrieve layer at index ' +
                                 str(index) + ' but model only has ' +
                                 str(len(self.layers)) + ' layers.')
+            else:
+                return self.layers[index]
         else:
             assert name, 'Provide either a layer name or layer index.'
         layer = None
