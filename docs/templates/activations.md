@@ -28,7 +28,7 @@ model.add(Activation(tanh))
 
 ## Available activations
 
-- __softmax__: Softmax applied across inputs last dimension. Expects shape either `(nb_samples, nb_timesteps, nb_dims)` or `(nb_samples, nb_dims)`.
+- __softmax__: Softmax applied across inputs last dimension. 2 or more dimensions are supported. Such as `(nb_samples, nb_dims)` or `(nb_samples, nb_timesteps, nb_dims)`.
 - __softplus__
 - __softsign__
 - __relu__
