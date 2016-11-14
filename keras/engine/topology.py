@@ -307,8 +307,7 @@ class Layer(object):
                           'batch_input_shape',
                           'input_dtype',
                           'name',
-                          'trainable',
-                          'create_input_layer'}
+                          'trainable'}
         for kwarg in kwargs.keys():
             assert kwarg in allowed_kwargs, 'Keyword argument not understood: ' + kwarg
 
@@ -329,8 +328,6 @@ class Layer(object):
             self.batch_input_shape = batch_input_shape
             input_dtype = kwargs.get('input_dtype', K.floatx())
             self.input_dtype = input_dtype
-            if 'create_input_layer' in kwargs:
-                self.create_input_layer(batch_input_shape, input_dtype)
 
     @property
     def trainable_weights(self):
