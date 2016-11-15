@@ -282,6 +282,9 @@ class Layer(object):
         if not hasattr(self, 'uses_learning_phase'):
             self.uses_learning_phase = False
 
+        # Per-input updates.
+        self._per_input_updates = {}
+
         # These lists will be filled via successive calls
         # to self.add_inbound_node().
         self.inbound_nodes = []
@@ -798,6 +801,26 @@ class Layer(object):
                             'the notion of "output shape" is ' +
                             'ill-defined for the layer. ' +
                             'Use `get_output_shape_at(node_index)` instead.')
+
+    def add_updates(self, updates, inputs):
+        # Update self.updates
+        if not hasattr(self, 'updates'):
+            self.updates = []
+        self.updates += updates
+        # Update self._per_input_updates
+        inputs = to_list(inputs)
+        updates = to_list(updates)
+        inputs_hash = ', '.join([str(abs(id(x))) for x in inputs])
+        if inputs_hash not in self._per_input_updates:
+            self._per_input_updates[inputs_hash] = []
+        self._per_input_updates[inputs_hash] += updates
+
+    def get_updates_for(self, inputs):
+        inputs = to_list(inputs)
+        inputs_hash = ', '.join([str(abs(id(x))) for x in inputs])
+        if inputs_hash in self._per_input_updates:
+            return self._per_input_updates[inputs_hash]
+        return []
 
     @property
     def weights(self):
@@ -1871,8 +1894,22 @@ class Container(Layer):
         updates = []
         for layer in self.layers:
             if hasattr(layer, 'updates'):
-                updates += layer.updates
+                if len(layer.inbound_nodes) == 1:
+                    updates += layer.updates
+                else:
+                    for node_index, node in enumerate(layer.inbound_nodes):
+                        node_key = layer.name + '_ib-' + str(node_index)
+                        if node_key in self.container_nodes:
+                            # The model owns this layer node.
+                            inputs = node.input_tensors
+                            updates += layer.get_updates_for(inputs)
         return updates
+
+    def get_updates_for(self, inputs):
+        # In this case, returns model updates,
+        # since a model cannot have inputs-specific updates
+        # (only atomic layers can).
+        return self.updates
 
     @property
     def stateful(self):

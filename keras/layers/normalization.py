@@ -104,7 +104,6 @@ class BatchNormalization(Layer):
             self.set_weights(self.initial_weights)
             del self.initial_weights
         self.built = True
-        self.called_with = None
 
     def call(self, x, mask=None):
         if self.mode == 0 or self.mode == 2:
@@ -122,23 +121,12 @@ class BatchNormalization(Layer):
                     epsilon=self.epsilon)
             else:
                 # mode 0
-                if self.called_with not in {None, x}:
-                    raise Exception('You are attempting to share a '
-                                    'same `BatchNormalization` layer across '
-                                    'different data flows. '
-                                    'This is not possible. '
-                                    'You should use `mode=2` in '
-                                    '`BatchNormalization`, which has '
-                                    'a similar behavior but is shareable '
-                                    '(see docs for a description of '
-                                    'the behavior).')
-                self.called_with = x
                 x_normed, mean, std = K.normalize_batch_in_training(
                     x, self.gamma, self.beta, reduction_axes,
                     epsilon=self.epsilon)
 
-                self.updates = [K.moving_average_update(self.running_mean, mean, self.momentum),
-                                K.moving_average_update(self.running_std, std, self.momentum)]
+                self.add_updates([K.moving_average_update(self.running_mean, mean, self.momentum),
+                                  K.moving_average_update(self.running_std, std, self.momentum)], x)
 
                 if K.backend() == 'tensorflow' and sorted(reduction_axes) == range(K.ndim(x))[:-1]:
                     x_normed_running = K.batch_normalization(

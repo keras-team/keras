@@ -226,9 +226,10 @@ class Recurrent(Layer):
                                              unroll=self.unroll,
                                              input_length=input_shape[1])
         if self.stateful:
-            self.updates = []
+            updates = []
             for i in range(len(states)):
-                self.updates.append((self.states[i], states[i]))
+                updates.append((self.states[i], states[i]))
+            self.add_updates(updates, x)
 
         if self.return_sequences:
             return outputs
