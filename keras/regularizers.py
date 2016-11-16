@@ -27,6 +27,7 @@ class EigenvalueRegularizer(Regularizer):
     the original loss (evaluated on the
     validation data).
     '''
+
     def __init__(self, k):
         self.k = k
         self.uses_learning_phase = True
@@ -110,7 +111,7 @@ class ActivityRegularizer(Regularizer):
     def __init__(self, l1=0., l2=0.):
         self.l1 = K.cast_to_floatx(l1)
         if np.isnan(self.l1):
-            raise Exception('Regularizers l1 value is nan.')        
+            raise Exception('Regularizers l1 value is nan.')
         self.l2 = K.cast_to_floatx(l2)
         if np.isnan(self.l2):
             raise Exception('Regularizers l2 value is nan.')
