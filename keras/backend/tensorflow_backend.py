@@ -508,6 +508,8 @@ def cumsum(x, axis=None):
 def cumprod(x, axis=None):
     '''Cumulative product of the values in a tensor, alongside the specified axis.
     '''
+    if axis is None:
+        axis = 0
     axis = _normalize_axis(axis, ndim(x))
     return tf.cumprod(x, axis=axis)
 

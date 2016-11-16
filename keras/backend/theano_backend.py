@@ -281,12 +281,16 @@ def prod(x, axis=None, keepdims=False):
 def cumsum(x, axis=None):
     '''Cumulative sum of the values in a tensor, alongside the specified axis.
     '''
+    if axis is None:
+        axis = 0
     return T.extra_ops.cumsum(x, axis=axis)
 
 
 def cumprod(x, axis=None):
     '''Cumulative product of the values in a tensor, alongside the specified axis.
     '''
+    if axis is None:
+        axis = 0
     return T.extra_ops.cumprod(x, axis=axis)
 
 
