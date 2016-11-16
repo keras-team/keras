@@ -15,32 +15,58 @@ nb_samples, timesteps, embedding_dim, output_dim = 2, 5, 4, 3
 embedding_num = 12
 
 
-def _runner(layer_class):
+def rnn_test(f):
     """
     All the recurrent layers share the same interface,
     so we can run through them with a single function.
     """
-    # check return_sequences
+    f = keras_test(f)
+    return pytest.mark.parametrize("layer_class", [
+        recurrent.SimpleRNN,
+        recurrent.GRU,
+        recurrent.LSTM
+    ])(f)
+
+
+@rnn_test
+def test_return_sequences(layer_class):
     layer_test(layer_class,
                kwargs={'output_dim': output_dim,
                        'return_sequences': True},
                input_shape=(nb_samples, timesteps, embedding_dim))
 
-    # check dropout
+
+@rnn_test
+def test_dynamic_behavior(layer_class):
+    layer = layer_class(output_dim, input_dim=embedding_dim)
+    model = Sequential()
+    model.add(layer)
+    model.compile('sgd', 'mse')
+    x = np.random.random((nb_samples, timesteps, embedding_dim))
+    y = np.random.random((nb_samples, output_dim))
+    model.train_on_batch(x, y)
+
+
+@rnn_test
+def test_dropout(layer_class):
     layer_test(layer_class,
                kwargs={'output_dim': output_dim,
                        'dropout_U': 0.1,
                        'dropout_W': 0.1},
                input_shape=(nb_samples, timesteps, embedding_dim))
 
-    # check implementation modes
+
+@rnn_test
+def test_implementation_mode(layer_class):
     for mode in ['cpu', 'mem', 'gpu']:
         layer_test(layer_class,
                    kwargs={'output_dim': output_dim,
                            'consume_less': mode},
                    input_shape=(nb_samples, timesteps, embedding_dim))
 
-    # check statefulness
+
+@rnn_test
+def test_statefulness(layer_class):
     model = Sequential()
     model.add(embeddings.Embedding(embedding_num, embedding_dim,
                                    mask_zero=True,
@@ -94,31 +120,18 @@ def _runner(layer_class):
 
     assert_allclose(out7, out6, atol=1e-5)
 
-    # check regularizers
+
+@rnn_test
+def test_regularizer(layer_class):
     layer = layer_class(output_dim, return_sequences=False, weights=None,
                         batch_input_shape=(nb_samples, timesteps, embedding_dim),
                         W_regularizer=regularizers.WeightRegularizer(l1=0.01),
                         U_regularizer=regularizers.WeightRegularizer(l1=0.01),
                         b_regularizer='l2')
     shape = (nb_samples, timesteps, embedding_dim)
-    layer.set_input(K.variable(np.ones(shape)),
-                    shape=shape)
-    K.eval(layer.output)
-
-
-@keras_test
-def test_SimpleRNN():
-    _runner(recurrent.SimpleRNN)
-
-
-@keras_test
-def test_GRU():
-    _runner(recurrent.GRU)
-
-
-@keras_test
-def test_LSTM():
-    _runner(recurrent.LSTM)
+    layer.build(shape)
+    output = layer(K.variable(np.ones(shape)))
+    K.eval(output)
 
 
 @keras_test
@@ -127,13 +140,20 @@ def test_masking_layer():
     https://github.com/fchollet/keras/issues/1567
 
     '''
-    model = Sequential()
-    model.add(Masking(input_shape=(3, 4)))
-    model.add(recurrent.LSTM(output_dim=5, return_sequences=True))
-    model.compile(loss='categorical_crossentropy', optimizer='adam')
     I = np.random.random((6, 3, 4))
     V = np.abs(np.random.random((6, 3, 5)))
     V /= V.sum(axis=-1, keepdims=True)
+
+    model = Sequential()
+    model.add(Masking(input_shape=(3, 4)))
+    model.add(recurrent.LSTM(output_dim=5, return_sequences=True, unroll=False))
+    model.compile(loss='categorical_crossentropy', optimizer='adam')
+    model.fit(I, V, nb_epoch=1, batch_size=100, verbose=1)
+
+    model = Sequential()
+    model.add(Masking(input_shape=(3, 4)))
+    model.add(recurrent.LSTM(output_dim=5, return_sequences=True, unroll=True))
+    model.compile(loss='categorical_crossentropy', optimizer='adam')
     model.fit(I, V, nb_epoch=1, batch_size=100, verbose=1)
 
 

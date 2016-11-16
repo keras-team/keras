@@ -7,8 +7,8 @@ only gets to 7.8% (same as a fully-converged ResNet 50).
 For comparison, VGG16 only gets to 9.9%, quite a bit worse.
 
 Also, do note that the input image format for this model is different than for
-other models (299x299 instead of 224x224), and that the input preprocessing function
-is also different.
+the VGG16 and ResNet models (299x299 instead of 224x224), and that the input preprocessing function
+is also different (same as Xception).
 
 # Reference:
 
@@ -76,8 +76,8 @@ def InceptionV3(include_top=True, weights='imagenet',
     Note that the default input image size for this model is 299x299.
 
     # Arguments
-        include_top: whether to include the 3 fully-connected
-            layers at the top of the network.
+        include_top: whether to include the fully-connected
+            layer at the top of the network.
         weights: one of `None` (random initialization)
             or "imagenet" (pre-training on ImageNet).
         input_tensor: optional Keras tensor (i.e. output of `layers.Input()`)

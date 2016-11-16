@@ -11,7 +11,7 @@ from keras.preprocessing import sequence
 from keras.models import Sequential
 from keras.layers import Dense, Dropout, Activation
 from keras.layers import Embedding
-from keras.layers import LSTM, GRU, SimpleRNN
+from keras.layers import LSTM
 from keras.layers import Convolution1D, MaxPooling1D
 from keras.datasets import imdb
 

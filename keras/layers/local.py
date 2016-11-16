@@ -75,7 +75,7 @@ class LocallyConnected1D(Layer):
         `steps` value might have changed due to padding.
     '''
     def __init__(self, nb_filter, filter_length,
-                 init='uniform', activation='linear', weights=None,
+                 init='glorot_uniform', activation=None, weights=None,
                  border_mode='valid', subsample_length=1,
                  W_regularizer=None, b_regularizer=None, activity_regularizer=None,
                  W_constraint=None, b_constraint=None,
@@ -139,6 +139,7 @@ class LocallyConnected1D(Layer):
         if self.initial_weights is not None:
             self.set_weights(self.initial_weights)
             del self.initial_weights
+        self.built = True
 
     def get_output_shape_for(self, input_shape):
         length = conv_output_length(input_shape[1],
@@ -257,7 +258,7 @@ class LocallyConnected2D(Layer):
         `rows` and `cols` values might have changed due to padding.
     '''
     def __init__(self, nb_filter, nb_row, nb_col,
-                 init='glorot_uniform', activation='linear', weights=None,
+                 init='glorot_uniform', activation=None, weights=None,
                  border_mode='valid', subsample=(1, 1),
                  dim_ordering='default',
                  W_regularizer=None, b_regularizer=None, activity_regularizer=None,
@@ -333,6 +334,7 @@ class LocallyConnected2D(Layer):
         if self.initial_weights is not None:
             self.set_weights(self.initial_weights)
             del self.initial_weights
+        self.built = True
 
     def get_output_shape_for(self, input_shape):
         if self.dim_ordering == 'th':

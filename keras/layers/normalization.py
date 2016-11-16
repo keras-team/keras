@@ -58,7 +58,7 @@ class BatchNormalization(Layer):
         Same shape as input.
 
     # References
-        - [Batch Normalization: Accelerating Deep Network Training by Reducing Internal Covariate Shift](http://jmlr.org/proceedings/papers/v37/ioffe15.html)
+        - [Batch Normalization: Accelerating Deep Network Training by Reducing Internal Covariate Shift](http://jmlr.org/proceedings/papers/v37/ioffe15.pdf)
     '''
     def __init__(self, epsilon=1e-5, mode=0, axis=-1, momentum=0.99,
                  weights=None, beta_init='zero', gamma_init='one',
@@ -168,11 +168,11 @@ class BatchNormalization(Layer):
         return x_normed
 
     def get_config(self):
-        config = {"epsilon": self.epsilon,
-                  "mode": self.mode,
-                  "axis": self.axis,
-                  "gamma_regularizer": self.gamma_regularizer.get_config() if self.gamma_regularizer else None,
-                  "beta_regularizer": self.beta_regularizer.get_config() if self.beta_regularizer else None,
-                  "momentum": self.momentum}
+        config = {'epsilon': self.epsilon,
+                  'mode': self.mode,
+                  'axis': self.axis,
+                  'gamma_regularizer': self.gamma_regularizer.get_config() if self.gamma_regularizer else None,
+                  'beta_regularizer': self.beta_regularizer.get_config() if self.beta_regularizer else None,
+                  'momentum': self.momentum}
         base_config = super(BatchNormalization, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))

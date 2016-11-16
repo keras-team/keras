@@ -14,30 +14,37 @@ def preprocess_input(x, dim_ordering='default'):
     assert dim_ordering in {'tf', 'th'}
 
     if dim_ordering == 'th':
+        # 'RGB'->'BGR'
+        x = x[:, ::-1, :, :]
+        # Zero-center by mean pixel
         x[:, 0, :, :] -= 103.939
         x[:, 1, :, :] -= 116.779
         x[:, 2, :, :] -= 123.68
-        # 'RGB'->'BGR'
-        x = x[:, ::-1, :, :]
     else:
+        # 'RGB'->'BGR'
+        x = x[:, :, :, ::-1]
+        # Zero-center by mean pixel
         x[:, :, :, 0] -= 103.939
         x[:, :, :, 1] -= 116.779
         x[:, :, :, 2] -= 123.68
-        # 'RGB'->'BGR'
-        x = x[:, :, :, ::-1]
     return x
 
 
-def decode_predictions(preds):
+def decode_predictions(preds, top=5):
     global CLASS_INDEX
-    assert len(preds.shape) == 2 and preds.shape[1] == 1000
+    if len(preds.shape) != 2 or preds.shape[1] != 1000:
+        raise ValueError('`decode_predictions` expects '
+                         'a batch of predictions '
+                         '(i.e. a 2D array of shape (samples, 1000)). '
+                         'Found array with shape: ' + str(preds.shape))
     if CLASS_INDEX is None:
         fpath = get_file('imagenet_class_index.json',
                          CLASS_INDEX_PATH,
                          cache_subdir='models')
         CLASS_INDEX = json.load(open(fpath))
-    indices = np.argmax(preds, axis=-1)
     results = []
-    for i in indices:
-        results.append(CLASS_INDEX[str(i)])
+    for pred in preds:
+        top_indices = pred.argsort()[-top:][::-1]
+        result = [tuple(CLASS_INDEX[str(i)]) + (pred[i],) for i in top_indices]
+        results.append(result)
     return results

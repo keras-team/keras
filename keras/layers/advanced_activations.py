@@ -107,9 +107,7 @@ class ELU(Layer):
         super(ELU, self).__init__(**kwargs)
 
     def call(self, x, mask=None):
-        pos = K.relu(x)
-        neg = (x - abs(x)) * 0.5
-        return pos + self.alpha * (K.exp(neg) - 1.)
+        return K.elu(x, self.alpha)
 
     def get_config(self):
         config = {'alpha': float(self.alpha)}

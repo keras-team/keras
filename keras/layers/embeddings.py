@@ -110,6 +110,7 @@ class Embedding(Layer):
 
         if self.initial_weights is not None:
             self.set_weights(self.initial_weights)
+        self.built = True
 
     def compute_mask(self, x, mask=None):
         if not self.mask_zero:
