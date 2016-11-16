@@ -500,6 +500,8 @@ def cumsum(x, axis=None):
     '''Cumulative sum of the values in a tensor, alongside the specified axis.
     '''
     axis = _normalize_axis(axis, ndim(x))
+    if axis is None:
+        axis = 0
     return tf.cumsum(x, axis=axis)
 
 
