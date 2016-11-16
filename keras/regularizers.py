@@ -1,6 +1,7 @@
 from __future__ import absolute_import
 from . import backend as K
 from .utils.generic_utils import get_from_module
+import numpy as np
 
 
 class Regularizer(object):
@@ -67,7 +68,11 @@ class WeightRegularizer(Regularizer):
 
     def __init__(self, l1=0., l2=0.):
         self.l1 = K.cast_to_floatx(l1)
+        if np.isnan(self.l1):
+            raise Exception('Regularizers l1 value is nan.')
         self.l2 = K.cast_to_floatx(l2)
+        if np.isnan(self.l2):
+            raise Exception('Regularizers l2 value is nan.')
         self.uses_learning_phase = True
         self.p = None
 
@@ -104,7 +109,11 @@ class ActivityRegularizer(Regularizer):
 
     def __init__(self, l1=0., l2=0.):
         self.l1 = K.cast_to_floatx(l1)
+        if np.isnan(self.l1):
+            raise Exception('Regularizers l1 value is nan.')        
         self.l2 = K.cast_to_floatx(l2)
+        if np.isnan(self.l2):
+            raise Exception('Regularizers l2 value is nan.')
         self.uses_learning_phase = True
         self.layer = None
 
