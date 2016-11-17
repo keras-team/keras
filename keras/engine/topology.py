@@ -799,6 +799,33 @@ class Layer(object):
                             'ill-defined for the layer. ' +
                             'Use `get_output_shape_at(node_index)` instead.')
 
+    def add_updates(self, updates, inputs):
+        # Update self.updates
+        if not hasattr(self, 'updates'):
+            self.updates = []
+        try:
+            self.updates += updates
+        except AttributeError:
+            pass
+        # Update self._per_input_updates
+        if not hasattr(self, '_per_input_updates'):
+            self._per_input_updates = {}
+        inputs = to_list(inputs)
+        updates = to_list(updates)
+        inputs_hash = ', '.join([str(abs(id(x))) for x in inputs])
+        if inputs_hash not in self._per_input_updates:
+            self._per_input_updates[inputs_hash] = []
+        self._per_input_updates[inputs_hash] += updates
+
+    def get_updates_for(self, inputs):
+        if not hasattr(self, '_per_input_updates'):
+            return []
+        inputs = to_list(inputs)
+        inputs_hash = ', '.join([str(abs(id(x))) for x in inputs])
+        if inputs_hash in self._per_input_updates:
+            return self._per_input_updates[inputs_hash]
+        return []
+
     @property
     def weights(self):
         return self.trainable_weights + self.non_trainable_weights
@@ -1871,7 +1898,15 @@ class Container(Layer):
         updates = []
         for layer in self.layers:
             if hasattr(layer, 'updates'):
-                updates += layer.updates
+                if len(layer.inbound_nodes) == 1:
+                    updates += layer.updates
+                else:
+                    for node_index, node in enumerate(layer.inbound_nodes):
+                        node_key = layer.name + '_ib-' + str(node_index)
+                        if node_key in self.container_nodes:
+                            # The model owns this layer node.
+                            inputs = node.input_tensors
+                            updates += layer.get_updates_for(inputs)
         return updates
 
     @property
@@ -2160,6 +2195,10 @@ class Container(Layer):
                         computed_masks = [x[1] for x in computed_data]
                         output_tensors = to_list(layer.call(computed_tensors, computed_masks))
                         output_masks = to_list(layer.compute_mask(computed_tensors, computed_masks))
+
+                    # update model updates
+                    layer_inputs = [x[0] for x in computed_data]
+                    self.add_updates(layer.get_updates_for(layer_inputs), inputs)
 
                     # Update _keras_shape.
                     if all([hasattr(x, '_keras_shape') for x in computed_tensors]):

@@ -473,13 +473,15 @@ class Sequential(Model):
 
     @property
     def updates(self):
-        # support for legacy behavior
-        return self._gather_list_attr('updates')
+        return self.model.updates
 
     @property
     def state_updates(self):
         # support for legacy behavior
-        return self._gather_list_attr('state_updates')
+        return self.model.state_updates
+
+    def get_updates_for(self, inputs):
+        return self.model.get_updates_for(inputs)
 
     @property
     def regularizers(self):
