@@ -19,6 +19,10 @@ MarcBS/keras is compatible with: __Python 2.7__ and __Theano__ only.
 This module allows to convert Caffe models to Keras for their later training or test use.
 See [this README](keras/caffe/README.md) for further information.
 
+**Please, be aware that this feature is not regularly maintained**. Thus, some layers or parameter definitions introduced in newer versions of either Keras or Caffe might not be compatible with the converter.
+
+**For this reason, any pull requests with updated versions of the caffe2keras converter are highly welcome!**
+
 ## Layer-specific learning rates
 
 This functionality allows to add learning rates multipliers to each of the learnable layers in the networks. During training they will
