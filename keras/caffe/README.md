@@ -2,6 +2,11 @@
 
 This is intended to serve as a conversion module for Caffe models to Keras Functional API models.
 
+**Please, be aware that this feature is not regularly maintained.** Thus, some layers or parameter definitions introduced in newer versions of either Keras or Caffe might not be compatible with the converter.
+
+**For this reason, any pull requests with updated versions of the caffe2keras converter are highly welcome!**
+
+
 ### Conversion
 
 In order to convert a model you just need the .caffemodel weights and the .prototxt deploy or train file. In any case you will need to include the input image dimensions as a header to the .prototxt network structure as if it was a deploy model (see an example [here](models)) and also include an initial data layer:
