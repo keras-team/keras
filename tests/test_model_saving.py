@@ -5,7 +5,7 @@ import numpy as np
 from numpy.testing import assert_allclose
 
 from keras.models import Model, Sequential
-from keras.layers import Dense, Dropout, RepeatVector, TimeDistributed
+from keras.layers import Dense, Dropout, RepeatVector, TimeDistributed, LSTM
 from keras.layers import Input
 from keras import optimizers
 from keras import objectives
@@ -231,6 +231,34 @@ def test_loading_weights_by_name_2():
     assert_allclose(np.zeros_like(jerry[1]), jerry[1])  # biases init to 0
     assert_allclose(np.zeros_like(jessica[1]), jessica[1])  # biases init to 0
 
+@keras_test
+def test_loading_states():
+    """
+    Test saving and loading states of stateful model
+    """
+
+    _, fname = tempfile.mkstemp('.h5')
+
+    model = Sequential()
+    model.add(LSTM(10, batch_input_shape=(1, 1, 1), return_sequences=False, stateful=True))
+    model.add(Dense(1, activation='linear'))
+    model.compile(loss='mse', optimizer='adam')
+
+    model.train_on_batch(np.expand_dims(np.expand_dims([0], 1), 0), np.asarray([1]))
+    model.train_on_batch(np.expand_dims(np.expand_dims([1], 1), 0), np.asarray([0]))
+
+    save_model(model, fname, overwrite=True)
+
+    prediction_1 = np.asscalar(model.predict(np.expand_dims(np.expand_dims([0], 1), 0)))
+    prediction_2 = np.asscalar(model.predict(np.expand_dims(np.expand_dims([0], 1), 0)))
+
+    # Restore model from file
+    restored = load_model(fname)
+    prediction_3 = np.asscalar(restored.predict(np.expand_dims(np.expand_dims([0], 1), 0)))
+
+    # Prediction 3 should be same as prediction 1
+    assert np.max(np.abs(prediction_3 - prediction_1)) < 1e-05
+    assert np.max(np.abs(prediction_3 - prediction_2)) > 1e-05
 
 if __name__ == '__main__':
     pytest.main([__file__])

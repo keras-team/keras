@@ -56,6 +56,9 @@ def save_model(model, filepath, overwrite=True):
     model_weights_group = f.create_group('model_weights')
     model.save_weights_to_hdf5_group(model_weights_group)
 
+    model_states_group = f.create_group('model_states')
+    model.save_states_to_hdf5_group(model_states_group)
+
     if hasattr(model, 'optimizer'):
         if isinstance(model.optimizer, optimizers.TFOptimizer):
             warnings.warn(
@@ -142,6 +145,10 @@ def load_model(filepath, custom_objects={}):
 
     # set weights
     model.load_weights_from_hdf5_group(f['model_weights'])
+
+    # set states
+    if 'model_states' in f:
+        model.load_states_from_hdf5_group(f['model_states'])
 
     # instantiate optimizer
     training_config = f.attrs.get('training_config')
