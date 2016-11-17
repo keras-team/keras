@@ -282,9 +282,6 @@ class Layer(object):
         if not hasattr(self, 'uses_learning_phase'):
             self.uses_learning_phase = False
 
-        # Per-input updates.
-        self._per_input_updates = {}
-
         # These lists will be filled via successive calls
         # to self.add_inbound_node().
         self.inbound_nodes = []
@@ -806,8 +803,13 @@ class Layer(object):
         # Update self.updates
         if not hasattr(self, 'updates'):
             self.updates = []
-        self.updates += updates
+        try:
+            self.updates += updates
+        except AttributeError:
+            pass
         # Update self._per_input_updates
+        if not hasattr(self, '_per_input_updates'):
+            self._per_input_updates = {}
         inputs = to_list(inputs)
         updates = to_list(updates)
         inputs_hash = ', '.join([str(abs(id(x))) for x in inputs])
@@ -816,6 +818,8 @@ class Layer(object):
         self._per_input_updates[inputs_hash] += updates
 
     def get_updates_for(self, inputs):
+        if not hasattr(self, '_per_input_updates'):
+            return []
         inputs = to_list(inputs)
         inputs_hash = ', '.join([str(abs(id(x))) for x in inputs])
         if inputs_hash in self._per_input_updates:
@@ -1905,12 +1909,6 @@ class Container(Layer):
                             updates += layer.get_updates_for(inputs)
         return updates
 
-    def get_updates_for(self, inputs):
-        # In this case, returns model updates,
-        # since a model cannot have inputs-specific updates
-        # (only atomic layers can).
-        return self.updates
-
     @property
     def stateful(self):
         return any([(hasattr(layer, 'stateful') and layer.stateful) for layer in self.layers])
@@ -2197,6 +2195,10 @@ class Container(Layer):
                         computed_masks = [x[1] for x in computed_data]
                         output_tensors = to_list(layer.call(computed_tensors, computed_masks))
                         output_masks = to_list(layer.compute_mask(computed_tensors, computed_masks))
+
+                    # update model updates
+                    layer_inputs = [x[0] for x in computed_data]
+                    self.add_updates(layer.get_updates_for(layer_inputs), inputs)
 
                     # Update _keras_shape.
                     if all([hasattr(x, '_keras_shape') for x in computed_tensors]):
