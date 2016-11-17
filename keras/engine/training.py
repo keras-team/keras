@@ -186,13 +186,12 @@ def check_array_lengths(X, Y, W):
 
 
 def check_loss_and_target_compatibility(targets, losses, output_shapes):
-    assert len(targets) == len(losses) == len(output_shapes)
     key_losses = {'mean_square_error',
                   'binary_crossentropy',
                   'categorical_crossentropy'}
     for y, loss, shape in zip(targets, losses, output_shapes):
         if loss.__name__ == 'categorical_crossentropy':
-            if y.shape[1] == 1:
+            if y.shape[-1] == 1:
                 raise Exception('You are passing a target array of shape ' + str(y.shape) +
                                 ' while using as loss `categorical_crossentropy`. '
                                 '`categorical_crossentropy` expects '
@@ -208,13 +207,15 @@ def check_loss_and_target_compatibility(targets, losses, output_shapes):
                                 'Alternatively, you can use the loss function '
                                 '`sparse_categorical_crossentropy` instead, '
                                 'which does expect integer targets.')
-        if loss.__name__ in key_losses and shape[1] is not None and y.shape[1] != shape[1]:
-            raise Exception('A target array with shape ' + str(y.shape) +
-                            ' was passed for an output of shape ' + str(shape) +
-                            ' while using as loss `' + loss.__name__ + '`. '
-                            'This loss expects '
-                            'targets to have the same shape '
-                            'as the output.')
+        if loss.__name__ in key_losses:
+            for target_dim, out_dim in zip(y.shape[1:], shape[1:]):
+                if target_dim is not None and target_dim != out_dim:
+                    raise Exception('A target array with shape ' + str(y.shape) +
+                                    ' was passed for an output of shape ' + str(shape) +
+                                    ' while using as loss `' + loss.__name__ + '`. '
+                                    'This loss expects '
+                                    'targets to have the same shape '
+                                    'as the output.')
 
 
 def collect_metrics(metrics, output_names):

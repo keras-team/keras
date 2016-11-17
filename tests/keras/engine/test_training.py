@@ -4,7 +4,7 @@ from numpy.testing import assert_allclose
 
 from keras.layers import Dense, Dropout
 from keras.engine.topology import merge, Input
-from keras.engine.training import Model
+from keras.engine.training import Model, check_loss_and_target_compatibility
 from keras.models import Sequential
 from keras import backend as K
 from keras.utils.test_utils import keras_test
@@ -200,6 +200,30 @@ def test_trainable_argument():
     model.train_on_batch(x, y)
     out_2 = model.predict(x)
     assert_allclose(out, out_2)
+
+
+@keras_test
+def test_check_not_last_is_one():
+    a = np.random.random((2, 1, 3))
+    check_loss_and_target_compatibility([a], [K.categorical_crossentropy], [a.shape])
+
+
+@keras_test
+def test_check_last_is_one():
+    a = np.random.random((2, 3, 1))
+    with pytest.raises(Exception) as exc:
+        check_loss_and_target_compatibility([a], [K.categorical_crossentropy], [a.shape])
+
+    assert "You are passing a target array" in str(exc)
+
+
+@keras_test
+def test_check_bad_shape():
+    a = np.random.random((2, 3, 5))
+    with pytest.raises(Exception) as exc:
+        check_loss_and_target_compatibility([a], [K.categorical_crossentropy], [(2, 3, 6)])
+
+    assert "targets to have the same shape" in str(exc)
 
 
 if __name__ == '__main__':
