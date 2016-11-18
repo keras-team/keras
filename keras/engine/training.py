@@ -7,6 +7,7 @@ import time
 import numpy as np
 import multiprocessing
 import threading
+from collections import namedtuple
 
 import six
 
@@ -1401,25 +1402,31 @@ class Model(Container):
         })
         callbacks.on_train_begin()
 
-        if do_validation and not val_gen:
-            if len(validation_data) == 2:
-                val_x, val_y = validation_data
-                val_sample_weight = None
-            elif len(validation_data) == 3:
-                val_x, val_y, val_sample_weight = validation_data
+        if do_validation:
+            if not val_gen:
+                if len(validation_data) == 2:
+                    val_x, val_y = validation_data
+                    val_sample_weight = None
+                elif len(validation_data) == 3:
+                    val_x, val_y, val_sample_weight = validation_data
+                else:
+                    raise Exception('validation_data should be a tuple '
+                                    '(val_x, val_y, val_sample_weight) '
+                                    'or (val_x, val_y). Found: ' + str(validation_data))
+                val_x, val_y, val_sample_weights = self._standardize_user_data(val_x, val_y, val_sample_weight)
+                self.validation_data = val_x + [val_y, val_sample_weights]
+                self.validation_gen = None
             else:
-                raise Exception('validation_data should be a tuple '
-                                '(val_x, val_y, val_sample_weight) '
-                                'or (val_x, val_y). Found: ' + str(validation_data))
-            val_x, val_y, val_sample_weights = self._standardize_user_data(val_x, val_y, val_sample_weight)
-            self.validation_data = val_x + [val_y, val_sample_weights]
-            self.validation_gen = None
+                ValidationGen = namedtuple('ValidationGen', ['generator', 'nb_samples'])
+
+                self.validation_data = None
+                self.validation_gen = ValidationGen(
+                    generator=validation_data,
+                    nb_samples=nb_val_samples
+                )
         else:
             self.validation_data = None
-            self.validation_gen = dict(
-                generator=validation_data,
-                nb_samples=nb_val_samples
-            )
+            self.validation_gen = None
 
         # start generator thread storing batches into a queue
         data_gen_queue, _stop, generator_threads = generator_queue(generator, max_q_size=max_q_size, nb_worker=nb_worker,

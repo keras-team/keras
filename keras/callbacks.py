@@ -544,8 +544,8 @@ class TensorBoard(Callback):
                 summary_str = get_val_summary(self.model.validation_data)
                 self.writer.add_summary(summary_str, epoch)
             elif self.model.validation_gen:
-                val_gen = self.model.validation_gen['generator']
-                nb_val_samples = self.model.validation_gen['nb_samples']
+                val_gen = self.model.validation_gen.generator
+                nb_val_samples = self.model.validation_gen.nb_samples
                 # process nb_samples from validation data generator
                 sub_summaries = []
                 processed_samples = 0
