@@ -1314,7 +1314,7 @@ class AttGRUCond(GRU):
         if self.return_states:
             if not isinstance(ret, list):
                 ret = [ret]
-            ret += [states[0], states[1]]
+            ret += [states[0]]
 
         return ret
 
