@@ -189,8 +189,7 @@ def GetMostSimilar(item_vector, item_vectors, top_k = 10, distance_type = 'cosin
 def PrintMostSimilar(item_id, item_vectors, int2item, item2name, item2genre, top_k = 10):
     dists_sorted, dists_argsorted = GetMostSimilar(item_vectors[item2int[item_id]], item_vectors, top_k = top_k + 1)
     print(" ".join(["Seed: ", item_id, item2name[item_id], item2genre[item_id]]))
-    records = [[int2item[j], item2name[int2item[j]], 1 - s, item2genre[int2item[j]]] for j, s in zip(dists_argsorted[1:],
-                                                                                                              dists_sorted[1:])]
+    records = [[int2item[j], item2name[int2item[j]], 1 - s, item2genre[int2item[j]]] for j, s in zip(dists_argsorted[1:], dists_sorted[1:])]
     print (tabulate(records, ["ID", "Name", "Score", "Genres"]))
 
 def SampleDataset(item_lists, num_items, negative_pool, negative_samples, sampling_table, window_size):
