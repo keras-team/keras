@@ -149,6 +149,7 @@ def test_model_methods():
 
     # test starting from non-zero initial epoch
     trained_epochs = []
+
     def on_epoch_begin(epoch, logs):
         trained_epochs.append(epoch)
     tracker_cb = LambdaCallback(on_epoch_begin=on_epoch_begin)
@@ -157,13 +158,15 @@ def test_model_methods():
                     initial_epoch=2, callbacks=[tracker_cb])
     assert trained_epochs == [2, 3, 4]
 
+    # test starting from non-zero initial epoch for generator too
     trained_epochs = []
+
     def gen_data(batch_sz):
         while True:
             yield ([np.random.random((batch_sz, 3)), np.random.random((batch_sz, 3))],
                    [np.random.random((batch_sz, 4)), np.random.random((batch_sz, 3))])
     out = model.fit_generator(gen_data(4), samples_per_epoch=10, nb_epoch=5,
-                    initial_epoch=2, callbacks=[tracker_cb])
+                              initial_epoch=2, callbacks=[tracker_cb])
     assert trained_epochs == [2, 3, 4]
 
     # test with a custom metric function
