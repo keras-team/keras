@@ -107,11 +107,6 @@ class SpatialDropout1D(Dropout):
 
     # Arguments
         p: float between 0 and 1. Fraction of the input units to drop.
-        dim_ordering: 'th' or 'tf'. In 'th' mode, the channels dimension
-            (the depth) is at index 1, in 'tf' mode is it at index 3.
-            It defaults to the `image_dim_ordering` value found in your
-            Keras config file at `~/.keras/keras.json`.
-            If you never set it, then it will be "tf".
 
     # Input shape
         3D tensor with shape:
@@ -123,10 +118,7 @@ class SpatialDropout1D(Dropout):
     # References
         - [Efficient Object Localization Using Convolutional Networks](https://arxiv.org/pdf/1411.4280.pdf)
     '''
-    def __init__(self, p, dim_ordering='default', **kwargs):
-        if dim_ordering == 'default':
-            dim_ordering = K.image_dim_ordering()
-        assert dim_ordering in {'tf', 'th'}, 'dim_ordering must be in {tf, th}'
+    def __init__(self, p, **kwargs):
         super(SpatialDropout1D, self).__init__(p, **kwargs)
 
     def _get_noise_shape(self, x):
