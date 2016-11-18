@@ -115,6 +115,13 @@ def test_Bidirectional():
         model.compile(loss='mse', optimizer='sgd')
         model.fit(x, y, nb_epoch=1, batch_size=1)
 
+        # Bidirectional and stateful
+        input = Input(batch_shape=(1, timesteps, dim))
+        output = wrappers.Bidirectional(rnn(output_dim, stateful=True), merge_mode=mode)(input)
+        model = Model(input, output)
+        model.compile(loss='mse', optimizer='sgd')
+        model.fit(x, y, nb_epoch=1, batch_size=1)
+
 
 if __name__ == '__main__':
     pytest.main([__file__])
