@@ -157,5 +157,13 @@ def test_masking_layer():
     model.fit(I, V, nb_epoch=1, batch_size=100, verbose=1)
 
 
+@rnn_test
+def test_from_config(layer_class):
+    for stateful in (False, True):
+        l1 = layer_class(output_dim=1, stateful=stateful)
+        l2 = layer_class.from_config(l1.get_config())
+        assert l1.get_config() == l2.get_config()
+
+
 if __name__ == '__main__':
     pytest.main([__file__])
