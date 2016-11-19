@@ -96,6 +96,37 @@ class Dropout(Layer):
         return dict(list(base_config.items()) + list(config.items()))
 
 
+class SpatialDropout1D(Dropout):
+    '''This version performs the same function as Dropout, however it drops
+    entire 1D feature maps instead of individual elements. If adjacent frames
+    within feature maps are strongly correlated (as is normally the case in
+    early convolution layers) then regular dropout will not regularize the
+    activations and will otherwise just result in an effective learning rate
+    decrease. In this case, SpatialDropout1D will help promote independence
+    between feature maps and should be used instead.
+
+    # Arguments
+        p: float between 0 and 1. Fraction of the input units to drop.
+
+    # Input shape
+        3D tensor with shape:
+        `(samples, timesteps, channels)`
+
+    # Output shape
+        Same as input
+
+    # References
+        - [Efficient Object Localization Using Convolutional Networks](https://arxiv.org/pdf/1411.4280.pdf)
+    '''
+    def __init__(self, p, **kwargs):
+        super(SpatialDropout1D, self).__init__(p, **kwargs)
+
+    def _get_noise_shape(self, x):
+        input_shape = K.shape(x)
+        noise_shape = (input_shape[0], 1, input_shape[2])
+        return noise_shape
+    
+    
 class SpatialDropout2D(Dropout):
     '''This version performs the same function as Dropout, however it drops
     entire 2D feature maps instead of individual elements. If adjacent pixels
