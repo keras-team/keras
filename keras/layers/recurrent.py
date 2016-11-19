@@ -272,6 +272,8 @@ class SimpleRNN(Recurrent):
             applied to the bias.
         dropout_W: float between 0 and 1. Fraction of the input units to drop for input gates.
         dropout_U: float between 0 and 1. Fraction of the input units to drop for recurrent connections.
+        weight_norm: whether to use weight normalization
+            (cf. https://arxiv.org/abs/1602.07868, which is accepted in NIPS 2016).
 
     # References
         - [A Theoretically Grounded Application of Dropout in Recurrent Neural Networks](http://arxiv.org/abs/1512.05287)
@@ -280,7 +282,7 @@ class SimpleRNN(Recurrent):
                  init='glorot_uniform', inner_init='orthogonal',
                  activation='tanh',
                  W_regularizer=None, U_regularizer=None, b_regularizer=None,
-                 dropout_W=0., dropout_U=0., **kwargs):
+                 dropout_W=0., dropout_U=0., weight_norm=False, **kwargs):
         self.output_dim = output_dim
         self.init = initializations.get(init)
         self.inner_init = initializations.get(inner_init)
@@ -289,6 +291,7 @@ class SimpleRNN(Recurrent):
         self.U_regularizer = regularizers.get(U_regularizer)
         self.b_regularizer = regularizers.get(b_regularizer)
         self.dropout_W, self.dropout_U = dropout_W, dropout_U
+        self.weight_norm = weight_norm
 
         if self.dropout_W or self.dropout_U:
             self.uses_learning_phase = True
@@ -310,6 +313,13 @@ class SimpleRNN(Recurrent):
                                  name='{}_U'.format(self.name))
         self.b = K.zeros((self.output_dim,), name='{}_b'.format(self.name))
 
+        self.trainable_weights = [self.W, self.U, self.b]
+
+        if self.weight_norm:
+            self.g_W = K.ones((self.output_dim,), name='{}_g_W'.format(self.name))
+            self.g_U = K.ones((self.output_dim,), name='{}_g_U'.format(self.name))
+            self.trainable_weights += [self.g_W, self.g_U]
+
         self.regularizers = []
         if self.W_regularizer:
             self.W_regularizer.set_param(self.W)
@@ -321,7 +331,6 @@ class SimpleRNN(Recurrent):
             self.b_regularizer.set_param(self.b)
             self.regularizers.append(self.b_regularizer)
 
-        self.trainable_weights = [self.W, self.U, self.b]
 
         if self.initial_weights is not None:
             self.set_weights(self.initial_weights)
@@ -360,6 +369,13 @@ class SimpleRNN(Recurrent):
             return x
 
     def step(self, x, states):
+        if self.weight_norm:
+            W = self.W * self.g_W / K.sqrt(K.sum(K.square(self.W), axis=0))
+            U = self.U * self.g_U / K.sqrt(K.sum(K.square(self.U), axis=0))
+        else:
+            W = self.W
+            U = self.U
+
         prev_output = states[0]
         B_U = states[1]
         B_W = states[2]
@@ -367,9 +383,9 @@ class SimpleRNN(Recurrent):
         if self.consume_less == 'cpu':
             h = x
         else:
-            h = K.dot(x * B_W, self.W) + self.b
+            h = K.dot(x * B_W, W) + self.b
 
-        output = self.activation(h + K.dot(prev_output * B_U, self.U))
+        output = self.activation(h + K.dot(prev_output * B_U, U))
         return output, [output]
 
     def get_constants(self, x):
@@ -401,7 +417,8 @@ class SimpleRNN(Recurrent):
                   'U_regularizer': self.U_regularizer.get_config() if self.U_regularizer else None,
                   'b_regularizer': self.b_regularizer.get_config() if self.b_regularizer else None,
                   'dropout_W': self.dropout_W,
-                  'dropout_U': self.dropout_U}
+                  'dropout_U': self.dropout_U,
+                  'weight_norm': self.weight_norm}
         base_config = super(SimpleRNN, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
@@ -427,6 +444,8 @@ class GRU(Recurrent):
             applied to the bias.
         dropout_W: float between 0 and 1. Fraction of the input units to drop for input gates.
         dropout_U: float between 0 and 1. Fraction of the input units to drop for recurrent connections.
+        weight_norm: whether to use weight normalization
+            (cf. https://arxiv.org/abs/1602.07868, which is accepted in NIPS 2016).
 
     # References
         - [On the Properties of Neural Machine Translation: Encoder–Decoder Approaches](http://www.aclweb.org/anthology/W14-4012)
@@ -437,7 +456,7 @@ class GRU(Recurrent):
                  init='glorot_uniform', inner_init='orthogonal',
                  activation='tanh', inner_activation='hard_sigmoid',
                  W_regularizer=None, U_regularizer=None, b_regularizer=None,
-                 dropout_W=0., dropout_U=0., **kwargs):
+                 dropout_W=0., dropout_U=0., weight_norm=False, **kwargs):
         self.output_dim = output_dim
         self.init = initializations.get(init)
         self.inner_init = initializations.get(inner_init)
@@ -447,6 +466,7 @@ class GRU(Recurrent):
         self.U_regularizer = regularizers.get(U_regularizer)
         self.b_regularizer = regularizers.get(b_regularizer)
         self.dropout_W, self.dropout_U = dropout_W, dropout_U
+        self.weight_norm = weight_norm
 
         if self.dropout_W or self.dropout_U:
             self.uses_learning_phase = True
@@ -475,6 +495,11 @@ class GRU(Recurrent):
                                 name='{}_b'.format(self.name))
 
             self.trainable_weights = [self.W, self.U, self.b]
+
+            if self.weight_norm:
+                self.g_W = K.ones((3 * self.output_dim,), name='{}_g_W'.format(self.name))
+                self.g_U = K.ones((3 * self.output_dim,), name='{}_g_U'.format(self.name))
+                self.trainable_weights += [self.g_W, self.g_U]
         else:
 
             self.W_z = self.init((self.input_dim, self.output_dim),
@@ -498,6 +523,17 @@ class GRU(Recurrent):
             self.trainable_weights = [self.W_z, self.U_z, self.b_z,
                                       self.W_r, self.U_r, self.b_r,
                                       self.W_h, self.U_h, self.b_h]
+
+            if self.weight_norm:
+                if self.consume_less == 'mem':
+                    self.g_W_z = K.ones((self.output_dim,), name='{}_g_W_z'.format(self.name))
+                    self.g_W_r = K.ones((self.output_dim,), name='{}_g_W_r'.format(self.name))
+                    self.g_W_h = K.ones((self.output_dim,), name='{}_g_W_h'.format(self.name))
+                    self.trainable_weights += [self.g_W_z, self.g_W_r, self.g_W_h]
+                self.g_U_z = K.ones((self.output_dim,), name='{}_g_U_z'.format(self.name))
+                self.g_U_r = K.ones((self.output_dim,), name='{}_g_U_r'.format(self.name))
+                self.g_U_h = K.ones((self.output_dim,), name='{}_g_U_h'.format(self.name))
+                self.trainable_weights += [self.g_U_z, self.g_U_r, self.g_U_h]
 
             self.W = K.concatenate([self.W_z, self.W_r, self.W_h])
             self.U = K.concatenate([self.U_z, self.U_r, self.U_h])
@@ -553,9 +589,15 @@ class GRU(Recurrent):
         B_W = states[2]
 
         if self.consume_less == 'gpu':
+            if self.weight_norm:
+                W = self.W * self.g_W / K.sqrt(K.sum(K.square(self.W), axis=0))
+                U = self.U * self.g_U / K.sqrt(K.sum(K.square(self.U), axis=0))
+            else:
+                W = self.W
+                U = self.U
 
-            matrix_x = K.dot(x * B_W[0], self.W) + self.b
-            matrix_inner = K.dot(h_tm1 * B_U[0], self.U[:, :2 * self.output_dim])
+            matrix_x = K.dot(x * B_W[0], W) + self.b
+            matrix_inner = K.dot(h_tm1 * B_U[0], U[:, :2 * self.output_dim])
 
             x_z = matrix_x[:, :self.output_dim]
             x_r = matrix_x[:, self.output_dim: 2 * self.output_dim]
@@ -574,15 +616,33 @@ class GRU(Recurrent):
                 x_r = x[:, self.output_dim: 2 * self.output_dim]
                 x_h = x[:, 2 * self.output_dim:]
             elif self.consume_less == 'mem':
-                x_z = K.dot(x * B_W[0], self.W_z) + self.b_z
-                x_r = K.dot(x * B_W[1], self.W_r) + self.b_r
-                x_h = K.dot(x * B_W[2], self.W_h) + self.b_h
+                if self.weight_norm:
+                    W_z = self.W_z * self.g_W_z / K.sqrt(K.sum(K.square(self.W_z), axis=0))
+                    W_r = self.W_r * self.g_W_r / K.sqrt(K.sum(K.square(self.W_r), axis=0))
+                    W_h = self.W_h * self.g_W_h / K.sqrt(K.sum(K.square(self.W_h), axis=0))
+                else:
+                    W_z = self.W_z
+                    W_r = self.W_r
+                    W_h = self.W_h
+                x_z = K.dot(x * B_W[0], W_z) + self.b_z
+                x_r = K.dot(x * B_W[1], W_r) + self.b_r
+                x_h = K.dot(x * B_W[2], W_h) + self.b_h
             else:
                 raise Exception('Unknown `consume_less` mode.')
-            z = self.inner_activation(x_z + K.dot(h_tm1 * B_U[0], self.U_z))
-            r = self.inner_activation(x_r + K.dot(h_tm1 * B_U[1], self.U_r))
 
-            hh = self.activation(x_h + K.dot(r * h_tm1 * B_U[2], self.U_h))
+            if self.weight_norm:
+                U_z = self.U_z * self.g_U_z / K.sqrt(K.sum(K.square(self.U_z), axis=0))
+                U_r = self.U_r * self.g_U_r / K.sqrt(K.sum(K.square(self.U_r), axis=0))
+                U_h = self.U_h * self.g_U_h / K.sqrt(K.sum(K.square(self.U_h), axis=0))
+            else:
+                U_z = self.U_z
+                U_r = self.U_r
+                U_h = self.U_h
+
+            z = self.inner_activation(x_z + K.dot(h_tm1 * B_U[0], U_z))
+            r = self.inner_activation(x_r + K.dot(h_tm1 * B_U[1], U_r))
+
+            hh = self.activation(x_h + K.dot(r * h_tm1 * B_U[2], U_h))
         h = z * h_tm1 + (1 - z) * hh
         return h, [h]
 
@@ -617,7 +677,8 @@ class GRU(Recurrent):
                   'U_regularizer': self.U_regularizer.get_config() if self.U_regularizer else None,
                   'b_regularizer': self.b_regularizer.get_config() if self.b_regularizer else None,
                   'dropout_W': self.dropout_W,
-                  'dropout_U': self.dropout_U}
+                  'dropout_U': self.dropout_U,
+                  'weight_norm': self.weight_norm}
         base_config = super(GRU, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
@@ -649,6 +710,8 @@ class LSTM(Recurrent):
             applied to the bias.
         dropout_W: float between 0 and 1. Fraction of the input units to drop for input gates.
         dropout_U: float between 0 and 1. Fraction of the input units to drop for recurrent connections.
+        weight_norm: whether to use weight normalization
+            (cf. https://arxiv.org/abs/1602.07868, which is accepted in NIPS 2016).
 
     # References
         - [Long short-term memory](http://deeplearning.cs.cmu.edu/pdfs/Hochreiter97_lstm.pdf) (original 1997 paper)
@@ -661,7 +724,7 @@ class LSTM(Recurrent):
                  forget_bias_init='one', activation='tanh',
                  inner_activation='hard_sigmoid',
                  W_regularizer=None, U_regularizer=None, b_regularizer=None,
-                 dropout_W=0., dropout_U=0., **kwargs):
+                 dropout_W=0., dropout_U=0., weight_norm=False, **kwargs):
         self.output_dim = output_dim
         self.init = initializations.get(init)
         self.inner_init = initializations.get(inner_init)
@@ -672,6 +735,7 @@ class LSTM(Recurrent):
         self.U_regularizer = regularizers.get(U_regularizer)
         self.b_regularizer = regularizers.get(b_regularizer)
         self.dropout_W, self.dropout_U = dropout_W, dropout_U
+        self.weight_norm = weight_norm
 
         if self.dropout_W or self.dropout_U:
             self.uses_learning_phase = True
@@ -693,12 +757,18 @@ class LSTM(Recurrent):
             self.U = self.inner_init((self.output_dim, 4 * self.output_dim),
                                      name='{}_U'.format(self.name))
 
+            if self.weight_norm:
+                self.g_W = K.ones((4 * self.output_dim,), name='{}_g_W'.format(self.name))
+                self.g_U = K.ones((4 * self.output_dim,), name='{}_g_U'.format(self.name))
+
             self.b = K.variable(np.hstack((np.zeros(self.output_dim),
                                            K.get_value(self.forget_bias_init((self.output_dim,))),
                                            np.zeros(self.output_dim),
                                            np.zeros(self.output_dim))),
                                 name='{}_b'.format(self.name))
             self.trainable_weights = [self.W, self.U, self.b]
+            if self.weight_norm:
+                self.trainable_weights += [self.g_W, self.g_U]
         else:
             self.W_i = self.init((self.input_dim, self.output_dim),
                                  name='{}_W_i'.format(self.name))
@@ -729,6 +799,19 @@ class LSTM(Recurrent):
                                       self.W_c, self.U_c, self.b_c,
                                       self.W_f, self.U_f, self.b_f,
                                       self.W_o, self.U_o, self.b_o]
+
+            if self.weight_norm:
+                if self.consume_less == 'mem':
+                    self.g_W_i = K.ones((self.output_dim,), name='{}_g_W_i'.format(self.name))
+                    self.g_W_f = K.ones((self.output_dim,), name='{}_g_W_f'.format(self.name))
+                    self.g_W_c = K.ones((self.output_dim,), name='{}_g_W_c'.format(self.name))
+                    self.g_W_o = K.ones((self.output_dim,), name='{}_g_W_o'.format(self.name))
+                    self.trainable_weights += [self.g_W_i, self.g_W_f, self.g_W_c, self.g_W_o]
+                self.g_U_i = K.ones((self.output_dim,), name='{}_g_U_i'.format(self.name))
+                self.g_U_f = K.ones((self.output_dim,), name='{}_g_U_f'.format(self.name))
+                self.g_U_c = K.ones((self.output_dim,), name='{}_g_U_c'.format(self.name))
+                self.g_U_o = K.ones((self.output_dim,), name='{}_g_U_o'.format(self.name))
+                self.trainable_weights += [self.g_U_i, self.g_U_f, self.g_U_c, self.g_U_o]
 
             self.W = K.concatenate([self.W_i, self.W_f, self.W_c, self.W_o])
             self.U = K.concatenate([self.U_i, self.U_f, self.U_c, self.U_o])
@@ -794,7 +877,13 @@ class LSTM(Recurrent):
         B_W = states[3]
 
         if self.consume_less == 'gpu':
-            z = K.dot(x * B_W[0], self.W) + K.dot(h_tm1 * B_U[0], self.U) + self.b
+            if self.weight_norm:
+                W = self.W * self.g_W / K.sqrt(K.sum(K.square(self.W), axis=0))
+                U = self.U * self.g_U / K.sqrt(K.sum(K.square(self.U), axis=0))
+            else:
+                W = self.W
+                U = self.U
+            z = K.dot(x * B_W[0], W) + K.dot(h_tm1 * B_U[0], U) + self.b
 
             z0 = z[:, :self.output_dim]
             z1 = z[:, self.output_dim: 2 * self.output_dim]
@@ -812,17 +901,39 @@ class LSTM(Recurrent):
                 x_c = x[:, 2 * self.output_dim: 3 * self.output_dim]
                 x_o = x[:, 3 * self.output_dim:]
             elif self.consume_less == 'mem':
-                x_i = K.dot(x * B_W[0], self.W_i) + self.b_i
-                x_f = K.dot(x * B_W[1], self.W_f) + self.b_f
-                x_c = K.dot(x * B_W[2], self.W_c) + self.b_c
-                x_o = K.dot(x * B_W[3], self.W_o) + self.b_o
+                if self.weight_norm:
+                    W_i = self.W_i * self.g_W_i / K.sqrt(K.sum(K.square(self.W_i), axis=0))
+                    W_f = self.W_f * self.g_W_f / K.sqrt(K.sum(K.square(self.W_f), axis=0))
+                    W_c = self.W_c * self.g_W_c / K.sqrt(K.sum(K.square(self.W_c), axis=0))
+                    W_o = self.W_o * self.g_W_o / K.sqrt(K.sum(K.square(self.W_o), axis=0))
+                else:
+                    W_i = self.W_i
+                    W_f = self.W_f
+                    W_c = self.W_c
+                    W_o = self.W_o
+
+                x_i = K.dot(x * B_W[0], W_i) + self.b_i
+                x_f = K.dot(x * B_W[1], W_f) + self.b_f
+                x_c = K.dot(x * B_W[2], W_c) + self.b_c
+                x_o = K.dot(x * B_W[3], W_o) + self.b_o
             else:
                 raise Exception('Unknown `consume_less` mode.')
 
-            i = self.inner_activation(x_i + K.dot(h_tm1 * B_U[0], self.U_i))
-            f = self.inner_activation(x_f + K.dot(h_tm1 * B_U[1], self.U_f))
-            c = f * c_tm1 + i * self.activation(x_c + K.dot(h_tm1 * B_U[2], self.U_c))
-            o = self.inner_activation(x_o + K.dot(h_tm1 * B_U[3], self.U_o))
+            if self.weight_norm:
+                U_i = self.U_i * self.g_U_i / K.sqrt(K.sum(K.square(self.U_i), axis=0))
+                U_f = self.U_f * self.g_U_f / K.sqrt(K.sum(K.square(self.U_f), axis=0))
+                U_c = self.U_c * self.g_U_c / K.sqrt(K.sum(K.square(self.U_c), axis=0))
+                U_o = self.U_o * self.g_U_o / K.sqrt(K.sum(K.square(self.U_o), axis=0))
+            else:
+                U_i = self.U_i
+                U_f = self.U_f
+                U_c = self.U_c
+                U_o = self.U_o
+
+            i = self.inner_activation(x_i + K.dot(h_tm1 * B_U[0], U_i))
+            f = self.inner_activation(x_f + K.dot(h_tm1 * B_U[1], U_f))
+            c = f * c_tm1 + i * self.activation(x_c + K.dot(h_tm1 * B_U[2], U_c))
+            o = self.inner_activation(x_o + K.dot(h_tm1 * B_U[3], U_o))
 
         h = o * self.activation(c)
         return h, [h, c]
@@ -859,6 +970,7 @@ class LSTM(Recurrent):
                   'U_regularizer': self.U_regularizer.get_config() if self.U_regularizer else None,
                   'b_regularizer': self.b_regularizer.get_config() if self.b_regularizer else None,
                   'dropout_W': self.dropout_W,
-                  'dropout_U': self.dropout_U}
+                  'dropout_U': self.dropout_U,
+                  'weight_norm': self.weight_norm}
         base_config = super(LSTM, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
