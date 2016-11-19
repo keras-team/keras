@@ -654,6 +654,8 @@ class Dense(Layer):
         input_dim: dimensionality of the input (integer).
             This argument (or alternatively, the keyword argument `input_shape`)
             is required when using this layer as the first layer in a model.
+        weight_norm: whether to use weight normalization
+            (cf. https://arxiv.org/abs/1602.07868, which is accepted in NIPS 2016).
 
     # Input shape
         2D tensor with shape: `(nb_samples, input_dim)`.
@@ -665,7 +667,7 @@ class Dense(Layer):
                  activation=None, weights=None,
                  W_regularizer=None, b_regularizer=None, activity_regularizer=None,
                  W_constraint=None, b_constraint=None,
-                 bias=True, input_dim=None, **kwargs):
+                 bias=True, input_dim=None, weight_norm=False, **kwargs):
         self.init = initializations.get(init)
         self.activation = activations.get(activation)
         self.output_dim = output_dim
@@ -681,6 +683,7 @@ class Dense(Layer):
         self.bias = bias
         self.initial_weights = weights
         self.input_spec = [InputSpec(ndim=2)]
+        self.weight_norm = weight_norm
 
         if self.input_dim:
             kwargs['input_shape'] = (self.input_dim,)
@@ -694,12 +697,16 @@ class Dense(Layer):
 
         self.W = self.init((input_dim, self.output_dim),
                            name='{}_W'.format(self.name))
+        self.trainable_weights = [self.W]
+
+        if self.weight_norm:
+            self.g = K.ones((self.output_dim,), name='{}_g'.format(self.name))
+            self.trainable_weights.append(self.g)
+
         if self.bias:
             self.b = K.zeros((self.output_dim,),
                              name='{}_b'.format(self.name))
-            self.trainable_weights = [self.W, self.b]
-        else:
-            self.trainable_weights = [self.W]
+            self.trainable_weights.append(self.b)
 
         self.regularizers = []
         if self.W_regularizer:
@@ -726,9 +733,16 @@ class Dense(Layer):
         self.built = True
 
     def call(self, x, mask=None):
-        output = K.dot(x, self.W)
+        if self.weight_norm:
+            W = self.W * self.g / K.sqrt(K.sum(K.square(self.W), axis=0))
+        else:
+            W = self.W
+
+        output = K.dot(x, W)
+
         if self.bias:
             output += self.b
+
         return self.activation(output)
 
     def get_output_shape_for(self, input_shape):
@@ -745,7 +759,8 @@ class Dense(Layer):
                   'W_constraint': self.W_constraint.get_config() if self.W_constraint else None,
                   'b_constraint': self.b_constraint.get_config() if self.b_constraint else None,
                   'bias': self.bias,
-                  'input_dim': self.input_dim}
+                  'input_dim': self.input_dim,
+                  'weight_norm': self.weight_norm}
         base_config = super(Dense, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
