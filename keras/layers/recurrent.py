@@ -218,13 +218,14 @@ class Recurrent(Layer):
         constants = self.get_constants(x)
         preprocessed_input = self.preprocess_input(x)
 
-        last_output, outputs, states = K.rnn(self.step, preprocessed_input,
-                                             initial_states,
-                                             go_backwards=self.go_backwards,
-                                             mask=mask,
-                                             constants=constants,
-                                             unroll=self.unroll,
-                                             input_length=input_shape[1])
+        last_output, outputs, states, updates = K.rnn(self.step, preprocessed_input,
+                                                      initial_states,
+                                                      go_backwards=self.go_backwards,
+                                                      mask=mask,
+                                                      constants=constants,
+                                                      unroll=self.unroll,
+                                                      input_length=input_shape[1])
+        self.add_rnn_updates(updates)
         if self.stateful:
             updates = []
             for i in range(len(states)):

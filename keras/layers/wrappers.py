@@ -113,10 +113,11 @@ class TimeDistributed(Wrapper):
                 output = self.layer.call(x)
                 return output, []
 
-            _, outputs, _ = K.rnn(step, X,
-                                  initial_states=[],
-                                  input_length=input_shape[1],
-                                  unroll=False)
+            _, outputs, _, updates = K.rnn(step, X,
+                                           initial_states=[],
+                                           input_length=input_shape[1],
+                                           unroll=False)
+            self.add_rnn_updates(updates)
             y = outputs
         else:
             # no batch size specified, therefore the layer will be able

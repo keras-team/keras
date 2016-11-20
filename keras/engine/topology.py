@@ -799,7 +799,7 @@ class Layer(object):
                             'ill-defined for the layer. ' +
                             'Use `get_output_shape_at(node_index)` instead.')
 
-    def add_updates(self, updates, inputs):
+    def add_updates(self, updates, inputs=None):
         # Update self.updates
         if not hasattr(self, 'updates'):
             self.updates = []
@@ -807,15 +807,26 @@ class Layer(object):
             self.updates += updates
         except AttributeError:
             pass
-        # Update self._per_input_updates
-        if not hasattr(self, '_per_input_updates'):
-            self._per_input_updates = {}
-        inputs = to_list(inputs)
-        updates = to_list(updates)
-        inputs_hash = ', '.join([str(abs(id(x))) for x in inputs])
-        if inputs_hash not in self._per_input_updates:
-            self._per_input_updates[inputs_hash] = []
-        self._per_input_updates[inputs_hash] += updates
+
+        if inputs is not None:
+            # Update self._per_input_updates
+            if not hasattr(self, '_per_input_updates'):
+                self._per_input_updates = {}
+            inputs = to_list(inputs)
+            updates = to_list(updates)
+            inputs_hash = ', '.join([str(abs(id(x))) for x in inputs])
+            if inputs_hash not in self._per_input_updates:
+                self._per_input_updates[inputs_hash] = []
+            self._per_input_updates[inputs_hash] += updates
+
+    def add_rnn_updates(self, updates):
+        # Update self.rnn_updates
+        if not hasattr(self, 'rnn_updates'):
+            self.rnn_updates = []
+        try:
+            self.rnn_updates += updates
+        except AttributeError:
+            pass
 
     def get_updates_for(self, inputs):
         if not hasattr(self, '_per_input_updates'):
@@ -1931,6 +1942,15 @@ class Container(Layer):
                 if hasattr(layer, 'updates'):
                     state_updates += layer.updates
         return state_updates
+
+    @property
+    def rnn_updates(self):
+        '''Returns the theano.scan() `updates` from all layers.'''
+        rnn_updates = []
+        for layer in self.layers:
+            if hasattr(layer, 'rnn_updates'):
+                rnn_updates += layer.rnn_updates
+        return rnn_updates
 
     @property
     def constraints(self):

@@ -105,10 +105,24 @@ def dtype(x):
     return x.dtype
 
 
-def eval(x):
-    '''Returns the value of a tensor.
+def eval(x, updates=None):
+    '''Evaluates the value of a tensor.
+
+    # Arguments
+        x: tensor
+        updates: The updates of theano.scan().
+            This is passed to theano.function().
+            This is ignored in TensorFlow.
+
+    # Returns
+        A Numpy array.
     '''
-    return to_dense(x).eval()
+    x = to_dense(x)
+    if updates is not None:
+        f = theano.function([], x, updates=updates)
+        return f()
+    else:
+        return x.eval()
 
 
 def zeros(shape, dtype=_FLOATX, name=None):
@@ -864,13 +878,18 @@ def rnn(step_function, inputs, initial_states,
         input_length: must be specified if using `unroll`.
 
     # Returns
-        A tuple (last_output, outputs, new_states).
+        A tuple (last_output, outputs, new_states, updates).
             last_output: the latest output of the rnn, of shape (samples, ...)
             outputs: tensor with shape (samples, time, ...) where each
                 entry outputs[s, t] is the output of the step function
                 at time t for sample s.
             new_states: list of tensors, latest states returned by
                 the step function, of shape (samples, ...).
+            updates: The return value of theano.scan() updates.
+                Theano returns OrderedUpdates but it is converted to a Python list.
+                This must be passed to K.function() and K.eval().
+                If you are using inside a Layer, call Layer.add_rnn_updates().
+                TensorFlow always returns [].
     '''
     ndim = inputs.ndim
     assert ndim >= 3, 'Input should be at least 3D.'
@@ -921,6 +940,7 @@ def rnn(step_function, inputs, initial_states,
             states = []
             for i in range(len(successive_states[-1])):
                 states.append(T.stack(*[states_at_step[i] for states_at_step in successive_states]))
+            updates = []
         else:
             # build an all-zero tensor of shape (samples, output_dim)
             initial_output = step_function(inputs[0], initial_states + constants)[0] * 0
@@ -936,7 +956,7 @@ def rnn(step_function, inputs, initial_states,
                     return_states.append(T.switch(mask, new_state, state))
                 return [output] + return_states
 
-            results, _ = theano.scan(
+            results, updates = theano.scan(
                 _step,
                 sequences=[inputs, mask],
                 outputs_info=[initial_output] + initial_states,
@@ -950,6 +970,8 @@ def rnn(step_function, inputs, initial_states,
             else:
                 outputs = results
                 states = []
+
+            updates = list(updates.items())
     else:
         if unroll:
             indices = list(range(input_length))
@@ -967,13 +989,13 @@ def rnn(step_function, inputs, initial_states,
             states = []
             for i in range(len(successive_states[-1])):
                 states.append(T.stack(*[states_at_step[i] for states_at_step in successive_states]))
-
+            updates = []
         else:
             def _step(input, *states):
                 output, new_states = step_function(input, states)
                 return [output] + new_states
 
-            results, _ = theano.scan(
+            results, updates = theano.scan(
                 _step,
                 sequences=inputs,
                 outputs_info=[None] + initial_states,
@@ -988,13 +1010,15 @@ def rnn(step_function, inputs, initial_states,
                 outputs = results
                 states = []
 
+            updates = list(updates.items())
+
     outputs = T.squeeze(outputs)
     last_output = outputs[-1]
 
     axes = [1, 0] + list(range(2, outputs.ndim))
     outputs = outputs.dimshuffle(axes)
     states = [T.squeeze(state[-1]) for state in states]
-    return last_output, outputs, states
+    return last_output, outputs, states, updates
 
 
 def switch(condition, then_expression, else_expression):

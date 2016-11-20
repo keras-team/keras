@@ -2,7 +2,7 @@ import pytest
 import numpy as np
 from numpy.testing import assert_allclose
 from keras.utils.test_utils import keras_test
-from keras.layers import wrappers, Input
+from keras.layers import wrappers, Input, Dropout
 from keras.layers import core, convolutional, recurrent
 from keras.models import Sequential, Model, model_from_json
 
@@ -74,6 +74,16 @@ def test_TimeDistributed():
     outer_model = Model(x, y)
     outer_model.compile(optimizer='rmsprop', loss='mse')
     outer_model.fit(np.random.random((10, 3, 2)), np.random.random((10, 3, 3)), nb_epoch=1, batch_size=10)
+
+    # batch_input_shape + TimeDistributed + random number
+    x = Input(batch_shape=(1, 1, 1))
+    y = wrappers.TimeDistributed(Dropout(0.5))(x)
+    outer_model = Model(x, y)
+    outer_model.compile(optimizer='rmsprop', loss='mse')
+    outer_model.fit(np.random.random((1, 1, 1)),
+                    np.random.random((1, 1, 1)),
+                    validation_data=[np.random.random((1, 1, 1)), np.random.random((1, 1, 1))],
+                    nb_epoch=1, batch_size=1)
 
 
 @keras_test
