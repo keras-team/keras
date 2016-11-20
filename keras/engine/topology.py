@@ -1129,7 +1129,7 @@ class Merge(Layer):
             take as input a list of masks and return a single mask.
     '''
     def __init__(self, layers=None, mode='sum', concat_axis=-1,
-                 dot_axes=-1, output_shape=None, output_mask=None, 
+                 dot_axes=-1, output_shape=None, output_mask=None,
                  arguments={}, node_indices=None, tensor_indices=None,
                  name=None):
         self.layers = layers
