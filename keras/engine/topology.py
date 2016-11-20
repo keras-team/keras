@@ -1139,6 +1139,7 @@ class Merge(Layer):
         self._output_shape = output_shape
         self.node_indices = node_indices
         self._output_mask = output_mask
+        self.arguments = arguments
 
         # Layer parameters.
         self.inbound_nodes = []
@@ -1443,7 +1444,7 @@ class Merge(Layer):
                 'output_shape_type': output_shape_type,
                 'output_mask': output_mask,
                 'output_mask_type': output_mask_type,
-                'arguments': arguments }
+                'arguments': self.arguments}
 
     @classmethod
     def from_config(cls, config):
