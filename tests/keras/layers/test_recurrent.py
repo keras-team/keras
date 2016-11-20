@@ -165,5 +165,11 @@ def test_from_config(layer_class):
         assert l1.get_config() == l2.get_config()
 
 
+@rnn_test
+def test_requires_batch_size(layer_class):
+    for stateful in (False, True):
+        assert layer_class(output_dim=1, stateful=stateful).requires_batch_size == stateful
+
+
 if __name__ == '__main__':
     pytest.main([__file__])

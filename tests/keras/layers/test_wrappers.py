@@ -2,7 +2,7 @@ import pytest
 import numpy as np
 from numpy.testing import assert_allclose
 from keras.utils.test_utils import keras_test
-from keras.layers import wrappers, Input
+from keras.layers import wrappers, Input, SimpleRNN
 from keras.layers import core, convolutional, recurrent
 from keras.models import Sequential, Model, model_from_json
 
@@ -74,6 +74,30 @@ def test_TimeDistributed():
     outer_model = Model(x, y)
     outer_model.compile(optimizer='rmsprop', loss='mse')
     outer_model.fit(np.random.random((10, 3, 2)), np.random.random((10, 3, 3)), nb_epoch=1, batch_size=10)
+
+
+@keras_test
+def test_TimeDistributed_requires_batch_size():
+    # test TimeDistributed which requires batch size
+    rnn = SimpleRNN
+    for stateful in (False, True):
+        layer = rnn(1, stateful=stateful)
+        assert layer.requires_batch_size == stateful
+        layer = wrappers.TimeDistributed(layer)
+        assert layer.requires_batch_size == stateful
+
+        x = Input(batch_shape=(2, 3, 4, 5))
+        y = wrappers.TimeDistributed(rnn(6, stateful=stateful, return_sequences=True))(x)
+        outer_model = Model(x, y)
+        outer_model.compile(optimizer='rmsprop', loss='mse')
+        outer_model.fit(np.random.random((2, 3, 4, 5)), np.random.random((2, 3, 4, 6)), nb_epoch=1, batch_size=2)
+
+        # wraps layer which requires batch size
+        x = Input(batch_shape=(2, 3, 4, 5, 6))
+        y = wrappers.TimeDistributed(wrappers.TimeDistributed(rnn(7, stateful=stateful, return_sequences=True)))(x)
+        outer_model = Model(x, y)
+        outer_model.compile(optimizer='rmsprop', loss='mse')
+        outer_model.fit(np.random.random((2, 3, 4, 5, 6)), np.random.random((2, 3, 4, 5, 7)), nb_epoch=1, batch_size=2)
 
 
 @keras_test

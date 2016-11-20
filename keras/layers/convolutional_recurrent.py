@@ -179,6 +179,10 @@ class ConvRecurrent2D(Layer):
         else:
             return last_output
 
+    @property
+    def requires_batch_size(self):
+        return self.stateful
+
     def get_config(self):
         config = {'return_sequences': self.return_sequences,
                   'go_backwards': self.go_backwards,
