@@ -1470,7 +1470,7 @@ class Merge(Layer):
         elif output_mask_type == 'lambda':
             output_mask = func_load(config['output_mask'], globs=globals())
         else:
-            output_shape = config['output_mask']
+            output_mask = config['output_mask']
 
         config['mode'] = mode
         config['output_shape'] = output_shape
