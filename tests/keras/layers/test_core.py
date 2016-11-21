@@ -53,7 +53,7 @@ def test_merge():
     input_b = Input(shape=input_shapes[1][1:])
     merged = merge([input_a, input_b],
                    mode=lambda tup: K.concatenate([tup[0], tup[1]]),
-                   output_shape=lambda tup: (tup[0][:-1],) + (tup[0][-1] + tup[1][-1],))
+                   output_shape=lambda tup: tup[0][:-1] + (tup[0][-1] + tup[1][-1],))
     model = Model([input_a, input_b], merged)
     expected_output_shape = model.get_output_shape_for(input_shapes)
     actual_output_shape = model.predict(inputs).shape
@@ -70,7 +70,7 @@ def test_merge():
 
     def fn_output_shape(tup):
         s1, s2 = tup
-        return (s1[:-1],) + (s1[-1] + s2[-1],)
+        return s1[:-1] + (s1[-1] + s2[-1],)
 
     input_a = Input(shape=input_shapes[0][1:])
     input_b = Input(shape=input_shapes[1][1:])
@@ -109,7 +109,11 @@ def test_merge():
     model = Model.from_config(config)
     model.compile('rmsprop', 'mse')
 
-    assert model.layers[-1]._output_mask == fn_output_mask 
+    mask_inputs = (np.zeros(input_shapes[0][:-1]), np.ones(input_shapes[1][:-1]))
+    expected_mask_output = np.concatenate(mask_inputs, axis=-1)
+    mask_input_placeholders = [K.placeholder(shape=input_shape[:-1]) for input_shape in input_shapes]
+    mask_output = model.layers[-1]._output_mask(mask_input_placeholders)
+    assert np.all(K.function(mask_input_placeholders, mask_output)(mask_inputs) == expected_mask_output)
 
     # test lambda with output_mask lambda
     input_a = Input(shape=input_shapes[0][1:])
@@ -117,7 +121,7 @@ def test_merge():
     a = Masking()(input_a)
     b = Masking()(input_b)
     merged = merge([a, b], mode=lambda tup: K.concatenate([tup[0], tup[1]]),
-                  output_shape=lambda tup: (tup[0][:-1],) + (tup[0][-1] + tup[1][-1],),
+                  output_shape=lambda tup: tup[0][:-1] + (tup[0][-1] + tup[1][-1],),
                   output_mask=lambda tup: K.concatenate([tup[0], tup[1]]))
     model = Model([input_a , input_b], merged)
     expected_output_shape = model.get_output_shape_for(input_shapes)
@@ -128,7 +132,8 @@ def test_merge():
     model = Model.from_config(config)
     model.compile('rmsprop', 'mse')
 
-    assert model.layers[-1]._output_mask == fn_output_mask 
+    mask_output = model.layers[-1]._output_mask(mask_input_placeholders)
+    assert np.all(K.function(mask_input_placeholders, mask_output)(mask_inputs) == expected_mask_output)
 
 
 @keras_test
