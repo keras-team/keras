@@ -25,6 +25,7 @@ pages:
   - Core Layers: layers/core.md
   - Convolutional Layers: layers/convolutional.md
   - Pooling Layers: layers/pooling.md
+  - Locally-connected Layers: layers/local.md
   - Recurrent Layers: layers/recurrent.md
   - Embedding Layers: layers/embeddings.md
   - Advanced Activations Layers: layers/advanced-activations.md
@@ -37,17 +38,23 @@ pages:
   - Text Preprocessing: preprocessing/text.md
   - Image Preprocessing: preprocessing/image.md
 - Objectives: objectives.md
+- Metrics: metrics.md
 - Optimizers: optimizers.md
 - Activations: activations.md
 - Callbacks: callbacks.md
 - Datasets: datasets.md
+- Applications: applications.md
 - Backend: backend.md
 - Initializations: initializations.md
 - Regularizers: regularizers.md
 - Constraints: constraints.md
 - Visualization: visualization.md
 - Scikit-learn API: scikit-learn-api.md
-
+- Utils:
+  - Data Utils: utils/data_utils.md
+  - I/O Utils: utils/io_utils.md
+  - Layer Utils: utils/layer_utils.md
+  - Numpy Utils: utils/np_utils.md
 
 
 
