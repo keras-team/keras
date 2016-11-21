@@ -286,6 +286,11 @@ def test_lambda():
                kwargs={'function': lambda x: x + 1},
                input_shape=(3, 2))
 
+    layer_test(Lambda,
+               kwargs={'function': lambda x, a, b: x * a + b,
+               'arguments': {'a': 0.6, 'b': 0.4}},
+               input_shape=(3, 2))
+
     # test serialization with function
     def f(x):
         return x + 1
