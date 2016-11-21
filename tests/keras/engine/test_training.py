@@ -226,9 +226,10 @@ def test_trainable_argument():
 
 
 @keras_test
-def test_check_not_last_is_one():
+def test_check_not_failing():
     a = np.random.random((2, 1, 3))
     check_loss_and_target_compatibility([a], [K.categorical_crossentropy], [a.shape])
+    check_loss_and_target_compatibility([a], [K.categorical_crossentropy], [(2, None, 3)])
 
 
 @keras_test

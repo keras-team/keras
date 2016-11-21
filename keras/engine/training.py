@@ -209,7 +209,7 @@ def check_loss_and_target_compatibility(targets, losses, output_shapes):
                                 'which does expect integer targets.')
         if loss.__name__ in key_losses:
             for target_dim, out_dim in zip(y.shape[1:], shape[1:]):
-                if target_dim is not None and target_dim != out_dim:
+                if out_dim is not None and target_dim != out_dim:
                     raise Exception('A target array with shape ' + str(y.shape) +
                                     ' was passed for an output of shape ' + str(shape) +
                                     ' while using as loss `' + loss.__name__ + '`. '
