@@ -1479,7 +1479,7 @@ class Merge(Layer):
 
 
 def merge(inputs, mode='sum', concat_axis=-1,
-          dot_axes=-1, output_shape=None, output_mask=None, name=None):
+          dot_axes=-1, output_shape=None, output_mask=None, arguments={}, name=None):
     '''Functional merge, to apply to Keras tensors (NOT layers).
     Returns a Keras tensor.
 
@@ -1530,6 +1530,7 @@ def merge(inputs, mode='sum', concat_axis=-1,
                             dot_axes=dot_axes,
                             output_shape=output_shape,
                             output_mask=output_mask,
+                            arguments=arguments,
                             node_indices=node_indices,
                             tensor_indices=tensor_indices,
                             name=name)
@@ -1540,6 +1541,7 @@ def merge(inputs, mode='sum', concat_axis=-1,
                             dot_axes=dot_axes,
                             output_shape=output_shape,
                             output_mask=output_mask,
+                            arguments=arguments,
                             name=name)
         return merge_layer(inputs)
 
