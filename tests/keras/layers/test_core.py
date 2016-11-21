@@ -74,7 +74,7 @@ def test_merge():
 
     input_a = Input(shape=input_shapes[0][1:])
     input_b = Input(shape=input_shapes[1][1:])
-    merged = merge([input_a, input_b ],
+    merged = merge([input_a, input_b],
                    mode=fn_mode,
                    output_shape=fn_output_shape)
     model = Model([input_a, input_b], merged)
@@ -92,15 +92,15 @@ def test_merge():
     inputs = [np.random.random(shape) for shape in input_shapes]
 
     def fn_output_mask(tup):
-      x_mask, y_mask = tup
-      return K.concatenate([x_mask, y_mask])
+        x_mask, y_mask = tup
+        return K.concatenate([x_mask, y_mask])
 
     input_a = Input(shape=input_shapes[0][1:])
     input_b = Input(shape=input_shapes[1][1:])
     a = Masking()(input_a)
     b = Masking()(input_b)
     merged = merge([a, b], mode=fn_mode, output_shape=fn_output_shape, output_mask=fn_output_mask)
-    model = Model([input_a , input_b], merged)
+    model = Model([input_a, input_b], merged)
     expected_output_shape = model.get_output_shape_for(input_shapes)
     actual_output_shape = model.predict(inputs).shape
     assert expected_output_shape == actual_output_shape
@@ -121,9 +121,9 @@ def test_merge():
     a = Masking()(input_a)
     b = Masking()(input_b)
     merged = merge([a, b], mode=lambda tup: K.concatenate([tup[0], tup[1]]),
-                  output_shape=lambda tup: tup[0][:-1] + (tup[0][-1] + tup[1][-1],),
-                  output_mask=lambda tup: K.concatenate([tup[0], tup[1]]))
-    model = Model([input_a , input_b], merged)
+                   output_shape=lambda tup: tup[0][:-1] + (tup[0][-1] + tup[1][-1],),
+                   output_mask=lambda tup: K.concatenate([tup[0], tup[1]]))
+    model = Model([input_a, input_b], merged)
     expected_output_shape = model.get_output_shape_for(input_shapes)
     actual_output_shape = model.predict(inputs).shape
     assert expected_output_shape == actual_output_shape
@@ -226,7 +226,7 @@ def test_dropout():
     layer_test(core.SpatialDropout1D,
                kwargs={'p': 0.5},
                input_shape=(2, 3, 4))
-    
+
     layer_test(core.SpatialDropout2D,
                kwargs={'p': 0.5},
                input_shape=(2, 3, 4, 5))
@@ -288,7 +288,7 @@ def test_lambda():
 
     layer_test(Lambda,
                kwargs={'function': lambda x, a, b: x * a + b,
-               'arguments': {'a': 0.6, 'b': 0.4}},
+                       'arguments': {'a': 0.6, 'b': 0.4}},
                input_shape=(3, 2))
 
     # test serialization with function
