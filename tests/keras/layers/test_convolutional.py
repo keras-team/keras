@@ -177,6 +177,52 @@ def test_deconvolution_2d():
 
 
 @keras_test
+def test_deconvolution_3d():
+    nb_samples = 2
+    nb_filter = 2
+    stack_size = 3
+    kernel_dim1 = 10
+    kernel_dim2 = 6
+    kernel_dim3 = 5
+
+    for batch_size in [None, nb_samples]:
+        for border_mode in _convolution_border_modes:
+            for subsample in [(1, 1, 1), (2, 2, 2)]:
+                if border_mode == 'same' and subsample != (1, 1, 1):
+                    continue
+
+                dim1 = conv_input_length(kernel_dim1, 3, border_mode, subsample[0])
+                dim2 = conv_input_length(kernel_dim2, 3, border_mode, subsample[1])
+                dim3 = conv_input_length(kernel_dim3, 3, border_mode, subsample[2])
+                layer_test(convolutional.Deconvolution3D,
+                           kwargs={'nb_filter': nb_filter,
+                                   'kernel_dim1': 3,
+                                   'kernel_dim2': 3,
+                                   'kernel_dim3': 3,
+                                   'output_shape': (batch_size, nb_filter, dim1, dim2, dim3),
+                                   'border_mode': border_mode,
+                                   'subsample': subsample,
+                                   'dim_ordering': 'th'},
+                           input_shape=(nb_samples, stack_size, kernel_dim1, kernel_dim2, kernel_dim3),
+                           fixed_batch_size=True)
+
+                layer_test(convolutional.Deconvolution3D,
+                           kwargs={'nb_filter': nb_filter,
+                                   'kernel_dim1': 3,
+                                   'kernel_dim2': 3,
+                                   'kernel_dim3': 3,
+                                   'output_shape': (batch_size, nb_filter, dim1, dim2, dim3),
+                                   'border_mode': border_mode,
+                                   'dim_ordering': 'th',
+                                   'W_regularizer': 'l2',
+                                   'b_regularizer': 'l2',
+                                   'activity_regularizer': 'activity_l2',
+                                   'subsample': subsample},
+                           input_shape=(nb_samples, stack_size, kernel_dim1, kernel_dim2, kernel_dim3),
+                           fixed_batch_size=True)
+
+
+@keras_test
 def test_atrous_conv_2d():
     nb_samples = 2
     nb_filter = 2
