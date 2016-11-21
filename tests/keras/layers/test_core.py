@@ -135,6 +135,25 @@ def test_merge():
     mask_output = model.layers[-1]._output_mask(mask_input_placeholders)
     assert np.all(K.function(mask_input_placeholders, mask_output)(mask_inputs) == expected_mask_output)
 
+    # test with arguments
+    input_shapes = [(3, 2), (3, 2)]
+    inputs = [np.random.random(shape) for shape in input_shapes]
+
+    def fn_mode(tup, a, b):
+        x, y = tup
+        return x * a + y * b
+
+    input_a = Input(shape=input_shapes[0][1:])
+    input_b = Input(shape=input_shapes[1][1:])
+    merged = merge([input_a, input_b], mode=fn_mode, output_shape=lambda s: s[0], arguments={'a': 0.7, 'b': 0.3})
+    model = Model([input_a, input_b], merged)
+    output = model.predict(inputs)
+
+    config = model.get_config()
+    model = Model.from_config(config)
+
+    assert np.all(model.predict(inputs) == output)
+
 
 @keras_test
 def test_merge_mask_2d():
