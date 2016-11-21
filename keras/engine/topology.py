@@ -1342,7 +1342,7 @@ class Merge(Layer):
                 raise Exception('The Merge layer ' + self.name +
                                 ' has a callable `mode` argument, ' +
                                 'and we cannot infer its output shape because ' +
-                                'no `output_shape` argument was provided.' +
+                                'no `output_shape` argument was provided. ' +
                                 'Make sure to pass a shape tuple (or a callable) ' +
                                 '`output_shape` to Merge.')
         # Pre-defined merge modes.
