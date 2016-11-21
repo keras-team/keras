@@ -66,11 +66,11 @@ def test_merge():
     # test function with output_shape function
     def fn_mode(tup):
         x, y = tup
-        return K.concatenate([x, y])
+        return K.concatenate([x, y], axis=1)
 
     def fn_output_shape(tup):
         s1, s2 = tup
-        return s1[:-1] + (s1[-1] + s2[-1],)
+        return (s1[0], s1[1] + s2[1]) + s1[2:]
 
     input_a = Input(shape=input_shapes[0][1:])
     input_b = Input(shape=input_shapes[1][1:])
