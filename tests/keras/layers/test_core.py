@@ -15,7 +15,7 @@ def test_masking():
 
 @keras_test
 def test_merge():
-    from keras.layers import Input, merge, Merge
+    from keras.layers import Input, merge, Merge, Masking
     from keras.models import Model
 
     # test modes: 'sum', 'mul', 'concat', 'ave', 'cos', 'dot'.
@@ -54,6 +54,7 @@ def test_merge():
     merged = merge([input_a, input_b],
                    mode=lambda tup: K.concatenate([tup[0], tup[1]]),
                    output_shape=lambda tup: (tup[0][:-1],) + (tup[0][-1] + tup[1][-1],))
+    model = Model([input_a, input_b], merged)
     expected_output_shape = model.get_output_shape_for(input_shapes)
     actual_output_shape = model.predict(inputs).shape
     assert expected_output_shape == actual_output_shape
@@ -73,9 +74,10 @@ def test_merge():
 
     input_a = Input(shape=input_shapes[0][1:])
     input_b = Input(shape=input_shapes[1][1:])
-    merged = merge([input_a, input_b],
+    merged = merge([input_a, input_b ],
                    mode=fn_mode,
                    output_shape=fn_output_shape)
+    model = Model([input_a, input_b], merged)
     expected_output_shape = model.get_output_shape_for(input_shapes)
     actual_output_shape = model.predict(inputs).shape
     assert expected_output_shape == actual_output_shape
@@ -83,6 +85,50 @@ def test_merge():
     config = model.get_config()
     model = Model.from_config(config)
     model.compile('rmsprop', 'mse')
+
+    # test function with output_mask function
+    # time dimension is required for masking
+    input_shapes = [(4, 3, 2), (4, 3, 2)]
+    inputs = [np.random.random(shape) for shape in input_shapes]
+
+    def fn_output_mask(tup):
+      x_mask, y_mask = tup
+      return K.concatenate([x_mask, y_mask])
+
+    input_a = Input(shape=input_shapes[0][1:])
+    input_b = Input(shape=input_shapes[1][1:])
+    a = Masking()(input_a)
+    b = Masking()(input_b)
+    merged = merge([a, b], mode=fn_mode, output_shape=fn_output_shape, output_mask=fn_output_mask)
+    model = Model([input_a , input_b], merged)
+    expected_output_shape = model.get_output_shape_for(input_shapes)
+    actual_output_shape = model.predict(inputs).shape
+    assert expected_output_shape == actual_output_shape
+
+    config = model.get_config()
+    model = Model.from_config(config)
+    model.compile('rmsprop', 'mse')
+
+    assert model.layers[-1]._output_mask == fn_output_mask 
+
+    # test lambda with output_mask lambda
+    input_a = Input(shape=input_shapes[0][1:])
+    input_b = Input(shape=input_shapes[1][1:])
+    a = Masking()(input_a)
+    b = Masking()(input_b)
+    merged = merge([a, b], mode=lambda tup: K.concatenate([tup[0], tup[1]]),
+                  output_shape=lambda tup: (tup[0][:-1],) + (tup[0][-1] + tup[1][-1],),
+                  output_mask=lambda tup: K.concatenate([tup[0], tup[1]]))
+    model = Model([input_a , input_b], merged)
+    expected_output_shape = model.get_output_shape_for(input_shapes)
+    actual_output_shape = model.predict(inputs).shape
+    assert expected_output_shape == actual_output_shape
+
+    config = model.get_config()
+    model = Model.from_config(config)
+    model.compile('rmsprop', 'mse')
+
+    assert model.layers[-1]._output_mask == fn_output_mask 
 
 
 @keras_test
