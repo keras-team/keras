@@ -120,7 +120,7 @@ def test_merge():
     input_b = Input(shape=input_shapes[1][1:])
     a = Masking()(input_a)
     b = Masking()(input_b)
-    merged = merge([a, b], mode=lambda tup: K.concatenate([tup[0], tup[1]]),
+    merged = merge([a, b], mode=lambda tup: K.concatenate([tup[0], tup[1]], axis=1),
                    output_shape=lambda tup: (tup[0][0], tup[0][1] + tup[1][1]) + tup[0][2:],
                    output_mask=lambda tup: K.concatenate([tup[0], tup[1]]))
     model = Model([input_a, input_b], merged)
