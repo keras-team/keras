@@ -2,10 +2,10 @@ import pytest
 import numpy as np
 from numpy.testing import assert_allclose
 
-from keras.layers.core import Dense, Activation
+from keras.layers import Dense, Activation, Input
 from keras.utils.test_utils import layer_test, keras_test
 from keras.layers import normalization
-from keras.models import Sequential, Graph
+from keras.models import Sequential, Model
 from keras import backend as K
 
 input_1 = np.arange(10)
@@ -16,8 +16,11 @@ input_shapes = [np.ones((10, 10)), np.ones((10, 10, 10))]
 
 @keras_test
 def basic_batchnorm_test():
+    from keras import regularizers
     layer_test(normalization.BatchNormalization,
-               kwargs={'mode': 1},
+               kwargs={'mode': 1,
+                       'gamma_regularizer': regularizers.l2(0.01),
+                       'beta_regularizer': regularizers.l2(0.01)},
                input_shape=(3, 4, 2))
     layer_test(normalization.BatchNormalization,
                kwargs={'mode': 0},
@@ -73,6 +76,34 @@ def test_batchnorm_mode_1():
             assert_allclose(K.eval(K.std(out)), 1.0, atol=1e-1)
         else:
             assert_allclose(K.eval(K.std(out)), 0.0, atol=1e-1)
+
+
+@keras_test
+def test_shared_batchnorm():
+    '''Test that a BN layer can be shared
+    across different data streams.
+    '''
+    # Test single layer reuse
+    bn = normalization.BatchNormalization(input_shape=(10,), mode=0)
+    x1 = Input(shape=(10,))
+    bn(x1)
+
+    x2 = Input(shape=(10,))
+    y2 = bn(x2)
+
+    x = np.random.normal(loc=5.0, scale=10.0, size=(2, 10))
+    model = Model(x2, y2)
+    assert len(model.updates) == 2
+    model.compile('sgd', 'mse')
+    model.train_on_batch(x, x)
+
+    # Test model-level reuse
+    x3 = Input(shape=(10,))
+    y3 = model(x3)
+    new_model = Model(x3, y3)
+    assert len(model.updates) == 2
+    new_model.compile('sgd', 'mse')
+    new_model.train_on_batch(x, x)
 
 
 if __name__ == '__main__':

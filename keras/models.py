@@ -6,9 +6,10 @@ import os
 import numpy as np
 
 from . import backend as K
+from . import optimizers
 from .utils.io_utils import ask_to_proceed_with_overwrite
 from .engine.training import Model
-from .engine.topology import get_source_inputs, Node
+from .engine.topology import get_source_inputs, Node, Layer, Merge
 from .optimizers import optimizer_from_config
 from .legacy.models import Graph
 
@@ -56,40 +57,52 @@ def save_model(model, filepath, overwrite=True):
     model.save_weights_to_hdf5_group(model_weights_group)
 
     if hasattr(model, 'optimizer'):
-        f.attrs['training_config'] = json.dumps({
-            'optimizer_config': {
-                'class_name': model.optimizer.__class__.__name__,
-                'config': model.optimizer.get_config()
-            },
-            'loss': model.loss,
-            'metrics': model.metrics,
-            'sample_weight_mode': model.sample_weight_mode,
-            'loss_weights': model.loss_weights,
-        }, default=get_json_type).encode('utf8')
+        if isinstance(model.optimizer, optimizers.TFOptimizer):
+            warnings.warn(
+                'TensorFlow optimizers do not '
+                'make it possible to access '
+                'optimizer attributes or optimizer state '
+                'after instantiation. '
+                'As a result, we cannot save the optimizer '
+                'as part of the model save file.'
+                'You will have to compile your model again after loading it. '
+                'Prefer using a Keras optimizer instead '
+                '(see keras.io/optimizers).')
+        else:
+            f.attrs['training_config'] = json.dumps({
+                'optimizer_config': {
+                    'class_name': model.optimizer.__class__.__name__,
+                    'config': model.optimizer.get_config()
+                },
+                'loss': model.loss,
+                'metrics': model.metrics,
+                'sample_weight_mode': model.sample_weight_mode,
+                'loss_weights': model.loss_weights,
+            }, default=get_json_type).encode('utf8')
 
-        # save optimizer weights
-        symbolic_weights = getattr(model.optimizer, 'weights')
-        if symbolic_weights:
-            optimizer_weights_group = f.create_group('optimizer_weights')
-            weight_values = K.batch_get_value(symbolic_weights)
-            weight_names = []
-            for i, (w, val) in enumerate(zip(symbolic_weights, weight_values)):
-                if hasattr(w, 'name') and w.name:
-                    name = str(w.name)
-                else:
-                    name = 'param_' + str(i)
-                weight_names.append(name.encode('utf8'))
-            optimizer_weights_group.attrs['weight_names'] = weight_names
-            for name, val in zip(weight_names, weight_values):
-                param_dset = optimizer_weights_group.create_dataset(
-                    name,
-                    val.shape,
-                    dtype=val.dtype)
-                if not val.shape:
-                    # scalar
-                    param_dset[()] = val
-                else:
-                    param_dset[:] = val
+            # save optimizer weights
+            symbolic_weights = getattr(model.optimizer, 'weights')
+            if symbolic_weights:
+                optimizer_weights_group = f.create_group('optimizer_weights')
+                weight_values = K.batch_get_value(symbolic_weights)
+                weight_names = []
+                for i, (w, val) in enumerate(zip(symbolic_weights, weight_values)):
+                    if hasattr(w, 'name') and w.name:
+                        name = str(w.name)
+                    else:
+                        name = 'param_' + str(i)
+                    weight_names.append(name.encode('utf8'))
+                optimizer_weights_group.attrs['weight_names'] = weight_names
+                for name, val in zip(weight_names, weight_values):
+                    param_dset = optimizer_weights_group.create_dataset(
+                        name,
+                        val.shape,
+                        dtype=val.dtype)
+                    if not val.shape:
+                        # scalar
+                        param_dset[()] = val
+                    else:
+                        param_dset[:] = val
     f.flush()
     f.close()
 
@@ -157,7 +170,7 @@ def load_model(filepath, custom_objects={}):
     # set optimizer weights
     if 'optimizer_weights' in f:
         # build train function (to get weight updates)
-        if model.__class__.__name__ == 'Sequential':
+        if isinstance(model, Sequential):
             model.model._make_train_function()
         else:
             model._make_train_function()
@@ -238,6 +251,7 @@ class Sequential(Model):
         self.model = None  # internal Model instance
         self.inputs = []  # tensors
         self.outputs = []  # tensors (length 1)
+        self.trainable = True
 
         # model attributes
         self.inbound_nodes = []
@@ -259,6 +273,10 @@ class Sequential(Model):
         # Arguments
             layer: layer instance.
         '''
+        if not isinstance(layer, Layer):
+            raise ValueError('The added layer must be '
+                             'an instance of class Layer. '
+                             'Found: ' + str(layer))
         if not self.outputs:
             # first layer in model: check that it is an input layer
             if len(layer.inbound_nodes) == 0:
@@ -399,26 +417,27 @@ class Sequential(Model):
         if self._flattened_layers is not None:
             return self._flattened_layers
         layers = []
-        if self.layers[0].__class__.__name__ == 'Merge':
-            merge = self.layers[0]
-            for layer in merge.layers:
-                if hasattr(layer, 'flattened_layers'):
-                    for sublayer in layer.flattened_layers:
-                        if sublayer not in layers:
-                            layers.append(sublayer)
-                elif hasattr(layer, 'layers'):
-                    for sublayer in layer.layers:
-                        if sublayer not in layers:
-                            layers.append(sublayer)
-                else:
-                    if layer not in layers:
-                        layers.append(layer)
-        else:
-            if self.layers[0] not in layers:
-                layers.append(self.layers[0])
-        for layer in self.layers[1:]:
-            if layer not in layers:
-                layers.append(layer)
+        if self.layers:
+            if isinstance(self.layers[0], Merge):
+                merge = self.layers[0]
+                for layer in merge.layers:
+                    if hasattr(layer, 'flattened_layers'):
+                        for sublayer in layer.flattened_layers:
+                            if sublayer not in layers:
+                                layers.append(sublayer)
+                    elif hasattr(layer, 'layers'):
+                        for sublayer in layer.layers:
+                            if sublayer not in layers:
+                                layers.append(sublayer)
+                    else:
+                        if layer not in layers:
+                            layers.append(layer)
+            else:
+                if self.layers[0] not in layers:
+                    layers.append(self.layers[0])
+            for layer in self.layers[1:]:
+                if layer not in layers:
+                    layers.append(layer)
         self._flattened_layers = layers
         return layers
 
@@ -438,23 +457,31 @@ class Sequential(Model):
 
     @property
     def trainable_weights(self):
+        if not self.trainable:
+            return []
         # support for legacy behavior
         return self._gather_list_attr('trainable_weights')
 
     @property
     def non_trainable_weights(self):
         # support for legacy behavior
-        return self._gather_list_attr('non_trainable_weights')
+        weights = self._gather_list_attr('non_trainable_weights')
+        if not self.trainable:
+            trainable_weights = self._gather_list_attr('trainable_weights')
+            return trainable_weights + weights
+        return weights
 
     @property
     def updates(self):
-        # support for legacy behavior
-        return self._gather_list_attr('updates')
+        return self.model.updates
 
     @property
     def state_updates(self):
         # support for legacy behavior
-        return self._gather_list_attr('state_updates')
+        return self.model.state_updates
+
+    def get_updates_for(self, inputs):
+        return self.model.get_updates_for(inputs)
 
     @property
     def regularizers(self):
@@ -510,6 +537,7 @@ class Sequential(Model):
             metrics: list of metrics to be evaluated by the model
                 during training and testing.
                 Typically you will use `metrics=['accuracy']`.
+                See [metrics](/metrics).
             sample_weight_mode: if you need to do timestep-wise
                 sample weighting (2D weights), set this to "temporal".
                 "None" defaults to sample-wise weights (1D).
@@ -564,7 +592,8 @@ class Sequential(Model):
                 See [callbacks](/callbacks).
             validation_split: float (0. < x < 1).
                 Fraction of the data to use as held-out validation data.
-            validation_data: tuple (X, y) to be used as held-out
+            validation_data: tuple (x_val, y_val) or tuple
+                (x_val, y_val, val_sample_weights) to be used as held-out
                 validation data. Will override validation_split.
             shuffle: boolean or str (for 'batch').
                 Whether to shuffle the samples at each epoch.
@@ -778,7 +807,8 @@ class Sequential(Model):
     def fit_generator(self, generator, samples_per_epoch, nb_epoch,
                       verbose=1, callbacks=[],
                       validation_data=None, nb_val_samples=None,
-                      class_weight=None, max_q_size=10, nb_worker=1, pickle_safe=False, **kwargs):
+                      class_weight=None, max_q_size=10, nb_worker=1,
+                      pickle_safe=False, **kwargs):
         '''Fits the model on data generated batch-by-batch by
         a Python generator.
         The generator is run in parallel to the model, for efficiency.
@@ -811,7 +841,7 @@ class Sequential(Model):
             max_q_size: maximum size for the generator queue
             nb_worker: maximum number of processes to spin up
             pickle_safe: if True, use process based threading. Note that because
-                this implementation relies on multiprocessing, you should not pass non
+                this implementation relies on multiprocessing, you should not pass
                 non picklable arguments to the generator as they can't be passed
                 easily to children processes.
 
@@ -866,11 +896,13 @@ class Sequential(Model):
                                         nb_worker=nb_worker,
                                         pickle_safe=pickle_safe)
 
-    def evaluate_generator(self, generator, val_samples, max_q_size=10, nb_worker=1, pickle_safe=False, **kwargs):
+    def evaluate_generator(self, generator, val_samples,
+                           max_q_size=10, nb_worker=1,
+                           pickle_safe=False, **kwargs):
         '''Evaluates the model on a data generator. The generator should
         return the same kind of data as accepted by `test_on_batch`.
 
-        Arguments:
+        # Arguments
             generator:
                 generator yielding tuples (inputs, targets)
                 or (inputs, targets, sample_weights)
@@ -908,7 +940,8 @@ class Sequential(Model):
                                              nb_worker=nb_worker,
                                              pickle_safe=pickle_safe)
 
-    def predict_generator(self, generator, val_samples, max_q_size=10, nb_worker=1, pickle_safe=False):
+    def predict_generator(self, generator, val_samples,
+                          max_q_size=10, nb_worker=1, pickle_safe=False):
         '''Generates predictions for the input samples from a data generator.
         The generator should return the same kind of data as accepted by
         `predict_on_batch`.
@@ -942,7 +975,7 @@ class Sequential(Model):
         as a Python list.
         '''
         config = []
-        if self.layers[0].__class__.__name__ == 'Merge':
+        if isinstance(self.layers[0], Merge):
             assert hasattr(self.layers[0], 'layers')
             layers = []
             for layer in self.layers[0].layers:

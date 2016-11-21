@@ -5,7 +5,7 @@ import numpy as np
 np.random.seed(1337)
 
 from keras.utils.test_utils import get_test_data
-from keras.models import Sequential, Graph
+from keras.models import Sequential
 from keras.layers import Dense, Activation, RepeatVector, TimeDistributedDense, GRU
 from keras.utils import np_utils
 from keras.utils.test_utils import keras_test

@@ -48,7 +48,7 @@ for i, sentence in enumerate(sentences):
     y[i, char_indices[next_chars[i]]] = 1
 
 
-# build the model: 2 stacked LSTM
+# build the model: a single LSTM
 print('Build model...')
 model = Sequential()
 model.add(LSTM(128, input_shape=(maxlen, len(chars))))

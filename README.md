@@ -1,19 +1,21 @@
-# Keras: Deep Learning library for Theano and TensorFlow
+# Keras: Deep Learning library for TensorFlow and Theano
 
 [![Build Status](https://travis-ci.org/fchollet/keras.svg?branch=master)](https://travis-ci.org/fchollet/keras)
 [![PyPI version](https://badge.fury.io/py/keras.svg)](https://badge.fury.io/py/keras)
 [![license](https://img.shields.io/github/license/mashape/apistatus.svg?maxAge=2592000)](https://github.com/fchollet/keras/blob/master/LICENSE)
+[![Join the chat at https://gitter.im/Keras-io/Lobby](https://badges.gitter.im/Keras-io/Lobby.svg)](https://gitter.im/Keras-io/Lobby)
+
 
 ## You have just found Keras.
 
-Keras is a minimalist, highly modular neural networks library, written in Python and capable of running on top of either [TensorFlow](https://github.com/tensorflow/tensorflow) or [Theano](https://github.com/Theano/Theano). It was developed with a focus on enabling fast experimentation. Being able to go from idea to result with the least possible delay is key to doing good research.
+Keras is a high-level neural networks library, written in Python and capable of running on top of either [TensorFlow](https://github.com/tensorflow/tensorflow) or [Theano](https://github.com/Theano/Theano). It was developed with a focus on enabling fast experimentation. *Being able to go from idea to result with the least possible delay is key to doing good research.*
 
 Use Keras if you need a deep learning library that:
 
-- allows for easy and fast prototyping (through total modularity, minimalism, and extensibility).
-- supports both convolutional networks and recurrent networks, as well as combinations of the two.
-- supports arbitrary connectivity schemes (including multi-input and multi-output training).
-- runs seamlessly on CPU and GPU.
+- Allows for easy and fast prototyping (through total modularity, minimalism, and extensibility).
+- Supports both convolutional networks and recurrent networks, as well as combinations of the two.
+- Supports arbitrary connectivity schemes (including multi-input and multi-output training).
+- Runs seamlessly on CPU and GPU.
 
 Read the documentation at [Keras.io](http://keras.io).
 
@@ -114,39 +116,43 @@ Keras uses the following dependencies:
 - HDF5 and h5py (optional, required if you use model saving/loading functions)
 - Optional but recommended if you use CNNs: cuDNN.
 
-*When using the Theano backend:*
-
-- Theano
-    - [See installation instructions](http://deeplearning.net/software/theano/install.html#install).
 
 *When using the TensorFlow backend:*
 
 - TensorFlow
     - [See installation instructions](https://github.com/tensorflow/tensorflow#download-and-setup).
 
+*When using the Theano backend:*
+
+- Theano
+    - [See installation instructions](http://deeplearning.net/software/theano/install.html#install).
+
 To install Keras, `cd` to the Keras folder and run the install command:
-```
+```sh
 sudo python setup.py install
 ```
 
 You can also install Keras from PyPI:
-```
+```sh
 sudo pip install keras
 ```
 
 ------------------
 
 
-## Switching from Theano to TensorFlow
+## Switching from TensorFlow to Theano
 
-By default, Keras will use Theano as its tensor manipulation library. [Follow these instructions](http://keras.io/backend/) to configure the Keras backend.
+By default, Keras will use TensorFlow as its tensor manipulation library. [Follow these instructions](http://keras.io/backend/) to configure the Keras backend.
 
 ------------------
 
 
 ## Support
 
-You can ask questions and join the development discussion on the [Keras Google group](https://groups.google.com/forum/#!forum/keras-users).
+You can ask questions and join the development discussion:
+
+- On the [Keras Google group](https://groups.google.com/forum/#!forum/keras-users).
+- On the [Keras Gitter channel](https://gitter.im/Keras-io/Lobby).
 
 You can also post bug reports and feature requests in [Github issues](https://github.com/fchollet/keras/issues). Make sure to read [our guidelines](https://github.com/fchollet/keras/blob/master/CONTRIBUTING.md) first.
 
