@@ -1675,8 +1675,6 @@ class Model(Container):
                 nb_samples = len(list(x.values())[0])
             else:
                 nb_samples = len(x)
-            # for val_samples < batch_size in generator
-            nb_samples = min(nb_samples, val_samples)
 
             if type(outs) != list:
                 outs = [outs]
