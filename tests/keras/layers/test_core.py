@@ -113,7 +113,7 @@ def test_merge():
     expected_mask_output = np.concatenate(mask_inputs, axis=-1)
     mask_input_placeholders = [K.placeholder(shape=input_shape[:-1]) for input_shape in input_shapes]
     mask_output = model.layers[-1]._output_mask(mask_input_placeholders)
-    assert np.all(K.function(mask_input_placeholders, mask_output)(mask_inputs) == expected_mask_output)
+    assert np.all(K.function(mask_input_placeholders, [mask_output])(mask_inputs)[0] == expected_mask_output)
 
     # test lambda with output_mask lambda
     input_a = Input(shape=input_shapes[0][1:])
@@ -133,7 +133,7 @@ def test_merge():
     model.compile('rmsprop', 'mse')
 
     mask_output = model.layers[-1]._output_mask(mask_input_placeholders)
-    assert np.all(K.function(mask_input_placeholders, mask_output)(mask_inputs) == expected_mask_output)
+    assert np.all(K.function(mask_input_placeholders, [mask_output])(mask_inputs)[0] == expected_mask_output)
 
     # test with arguments
     input_shapes = [(3, 2), (3, 2)]
