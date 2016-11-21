@@ -1245,7 +1245,7 @@ class Merge(Layer):
             arguments = self.arguments
             arg_spec = inspect.getargspec(self.mode)
             if 'mask' in arg_spec.args:
-                    arguments['mask'] = mask
+                arguments['mask'] = mask
             return self.mode(inputs, **arguments)
 
         if self.mode == 'sum' or self.mode == 'ave':
@@ -1474,7 +1474,7 @@ class Merge(Layer):
 
         config['mode'] = mode
         config['output_shape'] = output_shape
-        congig['output_mask'] = output_mask
+        config['output_mask'] = output_mask
         return super(Merge, cls).from_config(config)
 
 
