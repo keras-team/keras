@@ -633,6 +633,9 @@ class Deconvolution2D(Convolution2D):
             dim_ordering = K.image_dim_ordering()
         if border_mode not in {'valid', 'same', 'full'}:
             raise ValueError('Invalid border mode for Deconvolution2D:', border_mode)
+        if len(output_shape) == 3:
+            # missing the batch size
+            output_shape = (None,) + tuple(output_shape)
 
         self.output_shape_ = output_shape
 
@@ -1389,6 +1392,9 @@ class Deconvolution3D(Convolution3D):
             dim_ordering = K.image_dim_ordering()
         if border_mode not in {'valid', 'same', 'full'}:
             raise ValueError('Invalid border mode for Deconvolution3D:', border_mode)
+        if len(output_shape) == 4:
+            # missing the batch size
+            output_shape = (None,) + tuple(output_shape)
 
         self.output_shape_ = output_shape
 

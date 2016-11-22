@@ -175,6 +175,19 @@ def test_deconvolution_2d():
                            input_shape=(nb_samples, stack_size, nb_row, nb_col),
                            fixed_batch_size=True)
 
+                layer_test(convolutional.Deconvolution2D,
+                           kwargs={'nb_filter': nb_filter,
+                                   'nb_row': 3,
+                                   'nb_col': 3,
+                                   'output_shape': (nb_filter, rows, cols),
+                                   'border_mode': border_mode,
+                                   'dim_ordering': 'th',
+                                   'W_regularizer': 'l2',
+                                   'b_regularizer': 'l2',
+                                   'activity_regularizer': 'activity_l2',
+                                   'subsample': subsample},
+                           input_shape=(nb_samples, stack_size, nb_row, nb_col))
+
 
 @keras_test
 def test_deconvolution_3d():
@@ -220,6 +233,20 @@ def test_deconvolution_3d():
                                    'subsample': subsample},
                            input_shape=(nb_samples, stack_size, kernel_dim1, kernel_dim2, kernel_dim3),
                            fixed_batch_size=True)
+
+                layer_test(convolutional.Deconvolution3D,
+                           kwargs={'nb_filter': nb_filter,
+                                   'kernel_dim1': 3,
+                                   'kernel_dim2': 3,
+                                   'kernel_dim3': 3,
+                                   'output_shape': (nb_filter, dim1, dim2, dim3),
+                                   'border_mode': border_mode,
+                                   'dim_ordering': 'th',
+                                   'W_regularizer': 'l2',
+                                   'b_regularizer': 'l2',
+                                   'activity_regularizer': 'activity_l2',
+                                   'subsample': subsample},
+                           input_shape=(nb_samples, stack_size, kernel_dim1, kernel_dim2, kernel_dim3))
 
 
 @keras_test
