@@ -305,7 +305,7 @@ class ImageDataGenerator(object):
                 if x.shape[2] == 1:
                     x -= x.mean()
                 else:
-                    x -= np.mean(x, axis=img_channel_index, keepdims=True)          
+                    x -= np.mean(x, axis=img_channel_index, keepdims=True)
                 
         if self.samplewise_std_normalization:
             if K.backend() == 'theano':
