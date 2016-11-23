@@ -881,6 +881,20 @@ class TestBackend(object):
             assert k_s_d.shape == k_d.shape
             assert_allclose(k_s_d, k_d, atol=1e-05)
 
+    def test_logsumexp(self):
+        shape = (3, 4)
+        arr = np.arange(np.prod(shape)).reshape(shape)
+        arr_th = KTH.variable(arr)
+        arr_tf = KTF.variable(arr)
+
+        th_rep = KTH.eval(KTH.logsumexp(arr_th))
+        tf_rep = KTF.eval(KTF.logsumexp(arr_tf))
+        assert_allclose(tf_rep, th_rep, atol=1e-05)
+
+        th_rep = KTH.eval(KTH.logsumexp(arr_th, axis=-1))
+        tf_rep = KTF.eval(KTF.logsumexp(arr_tf, axis=-1))
+        assert_allclose(tf_rep, th_rep, atol=1e-05)
+
 
 if __name__ == '__main__':
     pytest.main([__file__])

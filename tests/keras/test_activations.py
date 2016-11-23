@@ -40,6 +40,32 @@ def test_time_distributed_softmax():
     f([test_values])[0]
 
 
+def test_log_softmax():
+    '''
+    Test using a reference implementation of log_softmax
+    '''
+    def log_softmax(values):
+        m = np.max(values)
+        e = np.exp(values - m)
+        return np.log(e / np.sum(e))
+
+    x = K.placeholder(ndim=2)
+    f = K.function([x], [activations.log_softmax(x)])
+    test_values = get_standard_values()
+
+    result = f([test_values])[0]
+    expected = log_softmax(test_values)
+    assert_allclose(result, expected, rtol=1e-05)
+
+
+def test_time_distributed_log_softmax():
+    x = K.placeholder(shape=(1, 1, 5))
+    f = K.function([x], [activations.log_softmax(x)])
+    test_values = get_standard_values()
+    test_values = np.reshape(test_values, (1, 1, np.size(test_values)))
+    f([test_values])[0]
+
+
 def test_softplus():
     '''
     Test using a reference softplus implementation

@@ -334,6 +334,11 @@ def log(x):
     return T.log(x)
 
 
+def logsumexp(x, axis=None):
+    x_max = max(x, axis=axis, keepdims=True)
+    return log(sum(exp(x - x_max), axis=axis, keepdims=True)) + x_max
+
+
 def round(x):
     return T.round(x)
 
@@ -1055,6 +1060,13 @@ def softmax(x):
     return T.nnet.softmax(x)
 
 
+def log_softmax(x, axis=-1):
+    if x.ndim == 2 and axis in (-1, 1):
+        return T.nnet.logsoftmax(x)
+    else:
+        return x - logsumexp(x, axis=axis)
+
+
 def softplus(x):
     return T.nnet.softplus(x)
 
@@ -1072,6 +1084,10 @@ def categorical_crossentropy(output, target, from_logits=False):
     # avoid numerical instability with _EPSILON clipping
     output = T.clip(output, _EPSILON, 1.0 - _EPSILON)
     return T.nnet.categorical_crossentropy(output, target)
+
+
+def log_categorical_crossentropy(log_output, target):
+    return -sum(target * log_output, axis=-1)
 
 
 def sparse_categorical_crossentropy(output, target, from_logits=False):
