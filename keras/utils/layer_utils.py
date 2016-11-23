@@ -53,6 +53,8 @@ def print_summary(layers, relevant_nodes=None, line_length=100, positions=[.33, 
     def print_row(fields, positions):
         line = ''
         for i in range(len(fields)):
+            if i > 0:
+                line = line[:-1] + ' '
             line += str(fields[i])
             line = line[:positions[i]]
             line += ' ' * (positions[i] - len(line))
