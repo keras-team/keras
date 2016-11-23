@@ -1980,3 +1980,52 @@ def ctc_decode(y_pred, input_length, greedy=True, beam_width=100,
                      for st in decoded]
 
     return (decoded_dense, log_prob)
+
+
+# HIGH ORDER FUNCTIONS
+
+def map_fn(fn, elems, name=None):
+    '''Map the function fn over the elements elems and return the outputs.
+
+    # Arguments
+        fn: Callable that will be called upon each element in elems
+        elems: tensor
+        name: A string name for the map node in the graph
+
+    # Returns
+        Tensor with first dimension equal to the elems and second depending on
+        fn
+    '''
+    return tf.map_fn(fn, elems, name=name)
+
+
+def foldl(fn, elems, initializer=None, name=None):
+    '''Reduce elems using fn to combine them from left to right.
+
+    # Arguments
+        fn: Callable that will be called upon each element in elems and an
+            accumulator, for instance lambda acc, x: acc + x
+        elems: tensor
+        initializer: The first value used (elems[0] in case of None)
+        name: A string name for the foldl node in the graph
+
+    # Returns
+        Same type and shape as initializer
+    '''
+    return tf.foldl(fn, elems, initializer=initializer, name=name)
+
+
+def foldr(fn, elems, initializer=None, name=None):
+    '''Reduce elems using fn to combine them from right to left.
+
+    # Arguments
+        fn: Callable that will be called upon each element in elems and an
+            accumulator, for instance lambda acc, x: acc + x
+        elems: tensor
+        initializer: The first value used (elems[-1] in case of None)
+        name: A string name for the foldr node in the graph
+
+    # Returns
+        Same type and shape as initializer
+    '''
+    return tf.foldr(fn, elems, initializer=initializer, name=name)

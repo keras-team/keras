@@ -881,6 +881,35 @@ class TestBackend(object):
             assert k_s_d.shape == k_d.shape
             assert_allclose(k_s_d, k_d, atol=1e-05)
 
+    def test_map(self):
+        x = np.random.rand(10, 3).astype(np.float32)
+        for K in [KTF, KTH]:
+            kx = K.eval(K.map_fn(K.sum, x))
+
+            assert (10,) == kx.shape
+            assert_allclose(x.sum(axis=1), kx, atol=1e-05)
+
+    def test_foldl(self):
+        x = np.random.rand(10, 3).astype(np.float32)
+        for K in [KTF, KTH]:
+            kx = K.eval(K.foldl(lambda a, b: a+b, x))
+
+            assert (3,) == kx.shape
+            assert_allclose(x.sum(axis=0), kx, atol=1e-05)
+
+    def test_foldr(self):
+        # This test aims to make sure that we walk the array from right to left
+        # and checks it in the following way: multiplying left to right 1e-40
+        # cannot be held into a float32 so it causes an underflow while from
+        # right to left we have no such problem and the result is larger
+        x = np.array([1e-20, 1e-20, 10, 10, 10], dtype=np.float32)
+        for K in [KTF, KTH]:
+            p1 = K.eval(K.foldl(lambda a, b: a*b, x))
+            p2 = K.eval(K.foldr(lambda a, b: a*b, x))
+
+            assert p1 < p2
+            assert 9e-38 < p2 <= 1e-37
+
 
 if __name__ == '__main__':
     pytest.main([__file__])

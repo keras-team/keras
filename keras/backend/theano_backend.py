@@ -1851,3 +1851,68 @@ def ctc_batch_cost(y_true, y_pred, input_length, label_length):
 
     ret = ret.dimshuffle('x', 0)
     return ret
+
+
+# HIGH ORDER FUNCTIONS
+
+def map_fn(fn, elems, name=None):
+    '''Map the function fn over the elements elems and return the outputs.
+
+    # Arguments
+        fn: Callable that will be called upon each element in elems
+        elems: tensor, at least 2 dimensional
+        name: A string name for the map node in the graph
+
+    # Returns
+        Tensor with first dimension equal to the elems and second depending on
+        fn
+    '''
+    return theano.map(fn, elems, name=name)[0]
+
+
+def foldl(fn, elems, initializer=None, name=None):
+    '''Reduce elems using fn to combine them from left to right.
+
+    # Arguments
+        fn: Callable that will be called upon each element in elems and an
+            accumulator, for instance lambda acc, x: acc + x
+        elems: tensor
+        initializer: The first value used (elems[0] in case of None)
+        name: A string name for the foldl node in the graph
+
+    # Returns
+        Same type and shape as initializer
+    '''
+    if initializer is None:
+        initializer = elems[0]
+        elems = elems[1:]
+
+    # We need to change the order of the arguments because theano accepts x as
+    # first parameter and accumulator as second
+    fn2 = lambda x, acc: fn(acc, x)
+
+    return theano.foldl(fn2, elems, initializer, name=name)[0]
+
+
+def foldr(fn, elems, initializer=None, name=None):
+    '''Reduce elems using fn to combine them from right to left.
+
+    # Arguments
+        fn: Callable that will be called upon each element in elems and an
+            accumulator, for instance lambda acc, x: acc + x
+        elems: tensor
+        initializer: The first value used (elems[-1] in case of None)
+        name: A string name for the foldr node in the graph
+
+    # Returns
+        Same type and shape as initializer
+    '''
+    if initializer is None:
+        initializer = elems[-1]
+        elems = elems[:-1]
+
+    # We need to change the order of the arguments because theano accepts x as
+    # first parameter and accumulator as second
+    fn2 = lambda x, acc: fn(acc, x)
+
+    return theano.foldr(fn2, elems, initializer, name=name)[0]
