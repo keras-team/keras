@@ -184,7 +184,10 @@ def variable(value, dtype=_FLOATX, name=None):
 
 
 def _initialize_variables():
-    variables = tf.all_variables()
+    if hasattr(tf, 'global_variables'):
+        variables = tf.global_variables()
+    else:
+        variables = tf.all_variables()
     uninitialized_variables = []
     for v in variables:
         if not hasattr(v, '_keras_initialized') or not v._keras_initialized:
@@ -192,8 +195,10 @@ def _initialize_variables():
             v._keras_initialized = True
     if uninitialized_variables:
         sess = get_session()
-        sess.run(tf.initialize_variables(uninitialized_variables))
-
+        if hasattr(tf, 'variables_initializer'):
+			sess.run(tf.variables_initializer(uninitialized_variables))
+        else:
+			sess.run(tf.initialize_variables(uninitialized_variables))
 
 def placeholder(shape=None, ndim=None, dtype=_FLOATX, sparse=False, name=None):
     '''Instantiates a placeholder.
