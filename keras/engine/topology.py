@@ -9,6 +9,7 @@ import types as python_types
 import warnings
 import copy
 import os
+import inspect
 from six.moves import zip
 
 from .. import backend as K
@@ -1129,7 +1130,8 @@ class Merge(Layer):
     '''
     def __init__(self, layers=None, mode='sum', concat_axis=-1,
                  dot_axes=-1, output_shape=None, output_mask=None,
-                 node_indices=None, tensor_indices=None, name=None):
+                 arguments={}, node_indices=None, tensor_indices=None,
+                 name=None):
         self.layers = layers
         self.mode = mode
         self.concat_axis = concat_axis
@@ -1137,6 +1139,7 @@ class Merge(Layer):
         self._output_shape = output_shape
         self.node_indices = node_indices
         self._output_mask = output_mask
+        self.arguments = arguments
 
         # Layer parameters.
         self.inbound_nodes = []
@@ -1239,9 +1242,10 @@ class Merge(Layer):
                             '(at least 2). Got: ' + str(inputs))
         # Case: "mode" is a lambda or function.
         if hasattr(self.mode, '__call__'):
-            # TODO: consider making it possible to
-            # pass custom arguments to lambda.
-            arguments = {}
+            arguments = self.arguments
+            arg_spec = inspect.getargspec(self.mode)
+            if 'mask' in arg_spec.args:
+                arguments['mask'] = mask
             return self.mode(inputs, **arguments)
 
         if self.mode == 'sum' or self.mode == 'ave':
@@ -1338,7 +1342,7 @@ class Merge(Layer):
                 raise Exception('The Merge layer ' + self.name +
                                 ' has a callable `mode` argument, ' +
                                 'and we cannot infer its output shape because ' +
-                                'no `output_shape` argument was provided.' +
+                                'no `output_shape` argument was provided. ' +
                                 'Make sure to pass a shape tuple (or a callable) ' +
                                 '`output_shape` to Merge.')
         # Pre-defined merge modes.
@@ -1421,13 +1425,26 @@ class Merge(Layer):
             output_shape = self._output_shape
             output_shape_type = 'raw'
 
+        if isinstance(self._output_mask, python_types.LambdaType):
+            output_mask = func_dump(self._output_mask)
+            output_mask_type = 'lambda'
+        elif callable(self._output_mask):
+            output_mask = self._output_mask.__name__
+            output_mask_type = 'function'
+        else:
+            output_mask = self._output_mask
+            output_mask_type = 'raw'
+
         return {'name': self.name,
                 'mode': mode,
                 'mode_type': mode_type,
                 'concat_axis': self.concat_axis,
                 'dot_axes': self.dot_axes,
                 'output_shape': output_shape,
-                'output_shape_type': output_shape_type}
+                'output_shape_type': output_shape_type,
+                'output_mask': output_mask,
+                'output_mask_type': output_mask_type,
+                'arguments': self.arguments}
 
     @classmethod
     def from_config(cls, config):
@@ -1447,13 +1464,22 @@ class Merge(Layer):
         else:
             output_shape = config['output_shape']
 
+        output_mask_type = config.pop('output_mask_type')
+        if output_mask_type == 'function':
+            output_mask = globals()[config['output_mask']]
+        elif output_mask_type == 'lambda':
+            output_mask = func_load(config['output_mask'], globs=globals())
+        else:
+            output_mask = config['output_mask']
+
         config['mode'] = mode
         config['output_shape'] = output_shape
+        config['output_mask'] = output_mask
         return super(Merge, cls).from_config(config)
 
 
 def merge(inputs, mode='sum', concat_axis=-1,
-          dot_axes=-1, output_shape=None, output_mask=None, name=None):
+          dot_axes=-1, output_shape=None, output_mask=None, arguments={}, name=None):
     '''Functional merge, to apply to Keras tensors (NOT layers).
     Returns a Keras tensor.
 
@@ -1504,6 +1530,7 @@ def merge(inputs, mode='sum', concat_axis=-1,
                             dot_axes=dot_axes,
                             output_shape=output_shape,
                             output_mask=output_mask,
+                            arguments=arguments,
                             node_indices=node_indices,
                             tensor_indices=tensor_indices,
                             name=name)
@@ -1514,6 +1541,7 @@ def merge(inputs, mode='sum', concat_axis=-1,
                             dot_axes=dot_axes,
                             output_shape=output_shape,
                             output_mask=output_mask,
+                            arguments=arguments,
                             name=name)
         return merge_layer(inputs)
 
