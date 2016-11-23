@@ -168,7 +168,7 @@ def recall(y_true, y_pred):
     return recall
 
 
-def fbeta_score(y_true, y_pred, beta):
+def fbeta_score(y_true, y_pred, beta=1):
     '''Calculates the F score, the weighted harmonic mean of precision and recall.
 
     This is useful for multi-label classification, where input samples can be
