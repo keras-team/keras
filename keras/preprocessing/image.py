@@ -298,25 +298,25 @@ class ImageDataGenerator(object):
         if self.samplewise_center:
             if K.backend() == 'theano':
                 if x.shape[0] == 1:
-                    x -= x.mean() 
+                    x -= x.mean()
                 else:
                     x -= np.mean(x, axis=img_channel_index, keepdims=True)
             else:
                 if x.shape[2] == 1:
-                    x -= x.mean() 
+                    x -= x.mean()
                 else:
-                    x -= np.mean(x, axis=img_channel_index, keepdims=True)                
+                    x -= np.mean(x, axis=img_channel_index, keepdims=True)          
                 
         if self.samplewise_std_normalization:
             if K.backend() == 'theano':
                 if x.shape[0] == 1:
-                    x /= (x.std() + 1e-7)  # TODO, this should pull eps from keras.json
+                    x /= (x.std() + 1e-7) # TODO, this should pull eps from keras.json
                 else:
                     x /= (np.std(x, axis=img_channel_index, keepdims=True) + 1e-7)
             else:
                 if x.shape[2] == 1:
                     x /= (x.std() + 1e-7)  # TODO, this should pull eps from keras.json
-                else:               
+                else:
                     x /= (np.std(x, axis=img_channel_index, keepdims=True) + 1e-7)
 
         if self.featurewise_center:
