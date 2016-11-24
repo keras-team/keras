@@ -64,7 +64,6 @@ class MaxPooling1D(_Pooling1D):
             2 will halve the input.
             If None, it will default to `pool_length`.
         border_mode: 'valid' or 'same'.
-            Note: 'same' will only work with TensorFlow for the time being.
     '''
 
     def __init__(self, pool_length=2, stride=None,
@@ -87,7 +86,6 @@ class AveragePooling1D(_Pooling1D):
         stride: integer, or None. Stride value.
             If None, it will default to `pool_length`.
         border_mode: 'valid' or 'same'.
-            Note: 'same' will only work with TensorFlow for the time being.
 
     # Input shape
         3D tensor with shape: `(samples, steps, features)`.
@@ -179,7 +177,6 @@ class MaxPooling2D(_Pooling2D):
         strides: tuple of 2 integers, or None. Strides values.
             If None, it will default to `pool_size`.
         border_mode: 'valid' or 'same'.
-            Note: 'same' will only work with TensorFlow for the time being.
         dim_ordering: 'th' or 'tf'. In 'th' mode, the channels dimension
             (the depth) is at index 1, in 'tf' mode is it at index 3.
             It defaults to the `image_dim_ordering` value found in your
@@ -221,7 +218,6 @@ class AveragePooling2D(_Pooling2D):
         strides: tuple of 2 integers, or None. Strides values.
             If None, it will default to `pool_size`.
         border_mode: 'valid' or 'same'.
-            Note: 'same' will only work with TensorFlow for the time being.
         dim_ordering: 'th' or 'tf'. In 'th' mode, the channels dimension
             (the depth) is at index 1, in 'tf' mode is it at index 3.
             It defaults to the `image_dim_ordering` value found in your
