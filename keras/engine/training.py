@@ -702,6 +702,7 @@ class Model(Container):
         self.train_function = None
         self.test_function = None
         self.predict_function = None
+        self.sample_function = None
 
         self._collected_trainable_weights = collect_trainable_weights(self)
 
@@ -752,6 +753,23 @@ class Model(Container):
             # Does update the network states.
             kwargs = getattr(self, '_function_kwargs', {})
             self.predict_function = K.function(inputs,
+                                               self.outputs,
+                                               updates=self.state_updates,
+                                               **kwargs)
+
+    def _make_sample_function(self):
+        if not hasattr(self, 'sample_function'):
+            self.sample_function = None
+        if self.sample_function is None:
+            if self.uses_learning_phase and type(K.learning_phase()) is not int:
+                from theano import tensor as T
+                inputs = self.inputs + [K.learning_phase()]
+            else:
+                inputs = self.inputs
+            # returns network outputs. Does not update weights.
+            # Does update the network states.
+            kwargs = getattr(self, '_function_kwargs', {})
+            self.sample_function = K.function(inputs,
                                                self.outputs,
                                                updates=self.state_updates,
                                                **kwargs)
@@ -1201,6 +1219,48 @@ class Model(Container):
         return self._predict_loop(f, ins,
                                   batch_size=batch_size, verbose=verbose)
 
+    def sample(self, x, batch_size=32, verbose=0, repeat=1):
+        '''Generates output predictions for the input samples,
+        sampling
+
+        # Arguments
+            x: the input data, as a Numpy array
+                (or list of Numpy arrays if the model has multiple outputs).
+            batch_size: integer.
+            verbose: verbosity mode, 0 or 1.
+            repeat: number of times to repeat each sample.
+
+        # Returns
+            A Numpy array of predictions.
+        '''
+        # validate user data
+        x = standardize_input_data(x, self.input_names,
+                                   self.internal_input_shapes,
+                                   check_batch_dim=False)
+        if self.stateful:
+            if ((x[0].shape[0] * repeat) > batch_size and
+                            (x[0].shape[0] * repeat) % batch_size != 0):
+                raise Exception('In a stateful network, '
+                                'you should only pass inputs with '
+                                'a number of samples that can be '
+                                'divided by the batch size. Found: ' +
+                                str(x[0].shape[0]) + ' samples repeated' +
+                                str(repeat) + 'times.'
+                                'Batch size: ' + str(batch_size) + '.')
+
+        # repeat vector:
+        if repeat != 1:
+            x = [np.repeat(inp, repeat, axis=0) for inp in x]
+        # prepare inputs, delegate logic to _predict_loop
+        if self.uses_learning_phase and type(K.learning_phase()) is not int:
+            ins = x + [1.]
+        else:
+            ins = x
+        self._make_sample_function()
+        f = self.sample_function
+        return self._predict_loop(f, ins,
+                                  batch_size=batch_size, verbose=verbose)
+
     def train_on_batch(self, x, y,
                        sample_weight=None, class_weight=None):
         '''Runs a single gradient update on a single batch of data.
@@ -1295,6 +1355,23 @@ class Model(Container):
             ins = x
         self._make_predict_function()
         outputs = self.predict_function(ins)
+        if len(outputs) == 1:
+            return outputs[0]
+        return outputs
+
+    def sample_on_batch(self, x, repeat=1):
+        '''Returns sampled predictions for a single batch of samples.
+        '''
+        x = standardize_input_data(x, self.input_names,
+                                   self.internal_input_shapes)
+        if repeat != 1:
+            x = [np.repeat(inp, repeat, axis=0) for inp in x]
+        if self.uses_learning_phase and type(K.learning_phase()) is not int:
+            ins = x + [1.]
+        else:
+            ins = x
+        self._make_sample_function()
+        outputs = self.sample_function(ins)
         if len(outputs) == 1:
             return outputs[0]
         return outputs
