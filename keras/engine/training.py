@@ -770,9 +770,9 @@ class Model(Container):
             # Does update the network states.
             kwargs = getattr(self, '_function_kwargs', {})
             self.sample_function = K.function(inputs,
-                                               self.outputs,
-                                               updates=self.state_updates,
-                                               **kwargs)
+                                              self.outputs,
+                                              updates=self.state_updates,
+                                              **kwargs)
 
     def _fit_loop(self, f, ins, out_labels=[], batch_size=32,
                   nb_epoch=100, verbose=1, callbacks=[],
@@ -1239,7 +1239,7 @@ class Model(Container):
                                    check_batch_dim=False)
         if self.stateful:
             if ((x[0].shape[0] * repeat) > batch_size and
-                            (x[0].shape[0] * repeat) % batch_size != 0):
+                    (x[0].shape[0] * repeat) % batch_size != 0):
                 raise Exception('In a stateful network, '
                                 'you should only pass inputs with '
                                 'a number of samples that can be '
