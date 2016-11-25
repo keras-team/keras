@@ -704,7 +704,17 @@ class Model(Container):
         self.test_function = None
         self.predict_function = None
 
-        self._collected_trainable_weights = collect_trainable_weights(self)
+        # we igonre the trainable attribute of the model being compiled
+        # trainable attribute will have effect only when the model is nested
+        # inside another model.
+        if hasattr(self, 'sequential'):
+            model = self.sequential
+        else:
+            model = self
+        trainable = model.trainable
+        model.trainable = True
+        self._collected_trainable_weights = collect_trainable_weights(model)
+        model.trainable = trainable
 
     def _make_train_function(self):
         if not hasattr(self, 'train_function'):
