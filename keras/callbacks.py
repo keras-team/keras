@@ -1,6 +1,7 @@
 from __future__ import absolute_import
 from __future__ import print_function
 
+import os
 import csv
 
 import numpy as np
@@ -683,10 +684,14 @@ class CSVLogger(Callback):
         self.append = append
         self.writer = None
         self.keys = None
+        self.append_header = True
         super(CSVLogger, self).__init__()
 
     def on_train_begin(self, logs={}):
         if self.append:
+            if os.path.exists(self.filename):
+                with open(self.filename) as f:
+                    self.append_header = len(f.readline()) == 0
             self.csv_file = open(self.filename, 'a')
         else:
             self.csv_file = open(self.filename, 'w')
@@ -702,7 +707,8 @@ class CSVLogger(Callback):
         if not self.writer:
             self.keys = sorted(logs.keys())
             self.writer = csv.DictWriter(self.csv_file, fieldnames=['epoch'] + self.keys)
-            self.writer.writeheader()
+            if self.append_header:
+                self.writer.writeheader()
 
         row_dict = OrderedDict({'epoch': epoch})
         row_dict.update((key, handle_value(logs[key])) for key in self.keys)
