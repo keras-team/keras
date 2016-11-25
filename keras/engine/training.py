@@ -250,6 +250,8 @@ def collect_trainable_weights(layer):
         for sublayer in layer.flattened_layers:
             weights += collect_trainable_weights(sublayer)
     elif layer.__class__.__name__ == 'Model':
+        if hasattr(layer, 'sequential'):
+            return collect_trainable_weights(layer.sequential)
         for sublayer in layer.layers:
             weights += collect_trainable_weights(sublayer)
     elif layer.__class__.__name__ == 'Graph':
