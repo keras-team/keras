@@ -9,7 +9,7 @@ from keras import optimizers
 np.random.seed(1337)
 
 from keras import callbacks
-from keras.models import Graph, Sequential
+from keras.models import Sequential
 from keras.layers.core import Dense
 from keras.utils.test_utils import get_test_data
 from keras import backend as K

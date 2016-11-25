@@ -11,7 +11,6 @@ from .utils.io_utils import ask_to_proceed_with_overwrite
 from .engine.training import Model
 from .engine.topology import get_source_inputs, Node, Layer, Merge
 from .optimizers import optimizer_from_config
-from .legacy.models import Graph
 
 
 def save_model(model, filepath, overwrite=True):

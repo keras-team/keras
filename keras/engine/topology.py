@@ -903,7 +903,7 @@ class Layer(object):
         composing the weights of the layer.
         '''
         if not self.built:
-            if self.__class__.__name__ in {'Sequential', 'Graph'}:
+            if self.__class__.__name__ in {'Sequential'}:
                 self.build()
             else:
                 raise Exception('You tried to call `count_params` on ' +
