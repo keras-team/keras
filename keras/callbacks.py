@@ -675,17 +675,21 @@ class CSVLogger(Callback):
         separator: string used to separate elements in the csv file.
         append: True: append if file exists (useful for continuing
             training). False: overwrite existing file,
+        additional_columns: dict of additional static columns that will be
+            added to every line of csv.
     '''
 
-    def __init__(self, filename, separator=',', append=False):
+    def __init__(self, filename, separator=',', append=False, additional_columns={}):
         self.sep = separator
         self.filename = filename
         self.append = append
+        self.additional_columns = additional_columns
         self.writer = None
         self.keys = None
         super(CSVLogger, self).__init__()
 
     def on_train_begin(self, logs={}):
+        self.file_exists = os.path.isfile(self.filename)
         if self.append:
             self.csv_file = open(self.filename, 'a')
         else:
@@ -701,10 +705,13 @@ class CSVLogger(Callback):
 
         if not self.writer:
             self.keys = sorted(logs.keys())
-            self.writer = csv.DictWriter(self.csv_file, fieldnames=['epoch'] + self.keys)
-            self.writer.writeheader()
+            additional_columns_keys = list(self.additional_columns.keys())
+            self.writer = csv.DictWriter(self.csv_file, fieldnames=additional_columns_keys + ['epoch'] + self.keys)
+            if not self.file_exists:
+                self.writer.writeheader()
 
         row_dict = OrderedDict({'epoch': epoch})
+        row_dict.update(self.additional_columns)
         row_dict.update((key, handle_value(logs[key])) for key in self.keys)
         self.writer.writerow(row_dict)
         self.csv_file.flush()
