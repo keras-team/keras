@@ -160,7 +160,6 @@ if __name__ == '__main__':
         loss=['binary_crossentropy', 'sparse_categorical_crossentropy']
     )
 
-
     # get our mnist data, and force it to be of shape (..., 1, 28, 28) with
     # range [-1, 1]
     (X_train, y_train), (X_test, y_test) = mnist.load_data()
