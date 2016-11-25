@@ -238,35 +238,6 @@ def collect_metrics(metrics, output_names):
                         str(metrics))
 
 
-def collect_trainable_weights(layer):
-    '''Collects all `trainable_weights` attributes,
-    excluding any sublayers where `trainable` is set the `False`.
-    '''
-    trainable = getattr(layer, 'trainable', True)
-    if not trainable:
-        return []
-    weights = []
-    if layer.__class__.__name__ == 'Sequential':
-        for sublayer in layer.flattened_layers:
-            weights += collect_trainable_weights(sublayer)
-    elif layer.__class__.__name__ == 'Model':
-        for sublayer in layer.layers:
-            weights += collect_trainable_weights(sublayer)
-    else:
-        weights += layer.trainable_weights
-    # dedupe weights
-    weights = list(set(weights))
-    # TF variables have auto-generated the name, while Theano has auto-generated the auto_name variable.
-    # name in Theano is sometimes None.
-    # However, to work save_model() and load_model() properly, weights must be sorted by names.
-    if weights:
-        if K.backend() == 'theano':
-            weights.sort(key=lambda x: x.name if x.name else x.auto_name)
-        else:
-            weights.sort(key=lambda x: x.name)
-    return weights
-
-
 def batch_shuffle(index_array, batch_size):
     '''This shuffles an array in a batch-wise fashion.
     Useful for shuffling HDF5 arrays
@@ -701,7 +672,15 @@ class Model(Container):
         self.test_function = None
         self.predict_function = None
 
-        self._collected_trainable_weights = collect_trainable_weights(self)
+        # collected trainable weights and sort them deterministically.
+        trainable_weights = self.trainable_weights
+        # Sort weights by name
+        if trainable_weights:
+            if K.backend() == 'theano':
+                trainable_weights.sort(key=lambda x: x.name if x.name else x.auto_name)
+            else:
+                trainable_weights.sort(key=lambda x: x.name)
+        self._collected_trainable_weights = trainable_weights
 
     def _make_train_function(self):
         if not hasattr(self, 'train_function'):
