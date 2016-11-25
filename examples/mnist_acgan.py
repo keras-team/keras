@@ -70,10 +70,10 @@ def build_generator(latent_size):
     latent = Input(shape=(latent_size, ))
 
     # this will be our label
-    image_class = Input(shape=(1, 1), dtype='int32')
+    image_class = Input(shape=(1,), dtype='int32')
 
     # 10 classes in MNIST
-    cls = Flatten()(Embedding(10, latent_size, input_length=1,
+    cls = Flatten()(Embedding(10, latent_size,
                               init='glorot_normal')(image_class))
 
     # hadamard product between z-space and a class conditional embedding
@@ -145,7 +145,7 @@ if __name__ == '__main__':
                       loss='binary_crossentropy')
 
     latent = Input(shape=(latent_size, ))
-    image_class = Input(shape=(1, 1), dtype='int32')
+    image_class = Input(shape=(1,), dtype='int32')
 
     # get a fake image
     fake = generator([latent, image_class])
@@ -199,10 +199,10 @@ if __name__ == '__main__':
 
             # generate a batch of fake images, using the generated labels as a
             # conditioner. We reshape the sampled labels to be
-            # (batch_size, 1, 1) so that we can feed them into the embedding
+            # (batch_size, 1) so that we can feed them into the embedding
             # layer as a length one sequence
             generated_images = generator.predict(
-                [noise, sampled_labels.reshape((-1, 1, 1))], verbose=0)
+                [noise, sampled_labels.reshape((-1, 1))], verbose=0)
 
             X = np.concatenate((image_batch, generated_images))
             y = np.array([1] * batch_size + [0] * batch_size)
@@ -226,7 +226,7 @@ if __name__ == '__main__':
             trick = np.ones(2 * batch_size)
 
             epoch_gen_loss.append(combined.train_on_batch(
-                [noise, sampled_labels.reshape((-1, 1, 1))], [trick, sampled_labels]))
+                [noise, sampled_labels.reshape((-1, 1))], [trick, sampled_labels]))
 
             discriminator.trainable = True
 
@@ -240,7 +240,7 @@ if __name__ == '__main__':
         # sample some labels from p_c and generate images from them
         sampled_labels = np.random.randint(0, 10, nb_test)
         generated_images = generator.predict(
-            [noise, sampled_labels.reshape((-1, 1, 1))], verbose=False)
+            [noise, sampled_labels.reshape((-1, 1))], verbose=False)
 
         X = np.concatenate((X_test, generated_images))
         y = np.array([1] * nb_test + [0] * nb_test)
@@ -259,7 +259,7 @@ if __name__ == '__main__':
         trick = np.ones(2 * nb_test)
 
         generator_test_loss = combined.evaluate(
-            [noise, sampled_labels.reshape((-1, 1, 1))],
+            [noise, sampled_labels.reshape((-1, 1))],
             [trick, sampled_labels], verbose=False)
 
         generator_train_loss = np.mean(np.array(epoch_gen_loss), axis=0)
@@ -296,7 +296,7 @@ if __name__ == '__main__':
 
         sampled_labels = np.array([
             [i] * 10 for i in range(10)
-        ]).reshape(-1, 1, 1)
+        ]).reshape(-1, 1)
 
         # get a batch to display
         generated_images = generator.predict(
