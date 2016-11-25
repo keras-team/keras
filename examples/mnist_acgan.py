@@ -160,7 +160,6 @@ if __name__ == '__main__':
         loss=['binary_crossentropy', 'sparse_categorical_crossentropy']
     )
 
-    discriminator.trainable = True
 
     # get our mnist data, and force it to be of shape (..., 1, 28, 28) with
     # range [-1, 1]
@@ -217,18 +216,13 @@ if __name__ == '__main__':
             noise = np.random.uniform(-1, 1, (2 * batch_size, latent_size))
             sampled_labels = np.random.randint(0, 10, 2 * batch_size)
 
-            # we want to fix the discriminator and let the generator train to
-            # trick it
-            discriminator.trainable = False
-
+            # we want to to train the genrator to trick the discriminator
             # For the generator, we want all the {fake, not-fake} labels to say
             # not-fake
             trick = np.ones(2 * batch_size)
 
             epoch_gen_loss.append(combined.train_on_batch(
                 [noise, sampled_labels.reshape((-1, 1))], [trick, sampled_labels]))
-
-            discriminator.trainable = True
 
         print('\nTesting for epoch {}:'.format(epoch + 1))
 
