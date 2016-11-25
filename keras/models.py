@@ -385,6 +385,10 @@ class Sequential(Model):
         # actually create the model
         self.model = Model(self.inputs, self.outputs[0], name=self.name + '_model')
 
+        # information about nesting of containers is not availabe in the internal model instance (self.model)
+        # so we save a reference to the original Sequential model
+        self.model.sequential = self
+
         # mirror model attributes
         self.supports_masking = self.model.supports_masking
         self._output_mask_cache = self.model._output_mask_cache
