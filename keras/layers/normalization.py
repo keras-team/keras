@@ -81,24 +81,20 @@ class BatchNormalization(Layer):
         self.input_spec = [InputSpec(shape=input_shape)]
         shape = (input_shape[self.axis],)
 
-        self.gamma = self.gamma_init(shape, name='{}_gamma'.format(self.name))
-        self.beta = self.beta_init(shape, name='{}_beta'.format(self.name))
-        self.trainable_weights = [self.gamma, self.beta]
-
-        self.regularizers = []
-        if self.gamma_regularizer:
-            self.gamma_regularizer.set_param(self.gamma)
-            self.regularizers.append(self.gamma_regularizer)
-
-        if self.beta_regularizer:
-            self.beta_regularizer.set_param(self.beta)
-            self.regularizers.append(self.beta_regularizer)
-
-        self.running_mean = K.zeros(shape,
-                                    name='{}_running_mean'.format(self.name))
-        self.running_std = K.ones(shape,
-                                  name='{}_running_std'.format(self.name))
-        self.non_trainable_weights = [self.running_mean, self.running_std]
+        self.gamma = self.add_weight(shape,
+                                     initializer=self.gamma_init,
+                                     regularizer=self.gamma_regularizer,
+                                     name='{}_gamma'.format(self.name))
+        self.beta = self.add_weight(shape,
+                                    initializer=self.beta_init,
+                                    regularizer=self.beta_regularizer,
+                                    name='{}_beta'.format(self.name))
+        self.running_mean = self.add_weight(shape, initializer='zero',
+                                            name='{}_running_mean'.format(self.name),
+                                            trainable=False)
+        self.running_std = self.add_weight(shape, initializer='one',
+                                           name='{}_running_std'.format(self.name),
+                                           trainable=False)
 
         if self.initial_weights is not None:
             self.set_weights(self.initial_weights)
@@ -125,8 +121,8 @@ class BatchNormalization(Layer):
                     x, self.gamma, self.beta, reduction_axes,
                     epsilon=self.epsilon)
 
-                self.add_updates([K.moving_average_update(self.running_mean, mean, self.momentum),
-                                  K.moving_average_update(self.running_std, std, self.momentum)], x)
+                self.add_update([K.moving_average_update(self.running_mean, mean, self.momentum),
+                                 K.moving_average_update(self.running_std, std, self.momentum)], x)
 
                 if K.backend() == 'tensorflow' and sorted(reduction_axes) == range(K.ndim(x))[:-1]:
                     x_normed_running = K.batch_normalization(

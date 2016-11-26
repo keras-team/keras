@@ -57,7 +57,7 @@ def to_dense(tensor):
 
 
 def variable(value, dtype=_FLOATX, name=None):
-    '''Instantiate a tensor variable.
+    '''Instantiates a variable.
     '''
     if hasattr(value, 'tocoo'):
         _assert_sparse_module()

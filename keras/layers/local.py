@@ -110,31 +110,21 @@ class LocallyConnected1D(Layer):
     def build(self, input_shape):
         input_dim = input_shape[2]
         _, output_length, nb_filter = self.get_output_shape_for(input_shape)
-
         self.W_shape = (output_length, self.filter_length * input_dim, nb_filter)
-        self.W = self.init(self.W_shape, name='{}_W'.format(self.name))
+
+        self.W = self.add_weight(self.W_shape,
+                                 initializer=self.init,
+                                 name='{}_W'.format(self.name),
+                                 regularizer=self.W_regularizer,
+                                 constraint=self.W_constraint)
         if self.bias:
-            self.b = K.zeros((output_length, self.nb_filter), name='{}_b'.format(self.name))
-            self.trainable_weights = [self.W, self.b]
+            self.b = self.add_weight((output_length, self.nb_filter),
+                                     initializer='zero',
+                                     name='{}_b'.format(self.name),
+                                     regularizer=self.b_regularizer,
+                                     constraint=self.b_constraint)
         else:
-            self.trainable_weights = [self.W]
-
-        self.regularizers = []
-        if self.W_regularizer:
-            self.W_regularizer.set_param(self.W)
-            self.regularizers.append(self.W_regularizer)
-        if self.b_regularizer:
-            self.b_regularizer.set_param(self.b)
-            self.regularizers.append(self.b_regularizer)
-        if self.activity_regularizer:
-            self.activity_regularizer.set_layer(self)
-            self.regularizers.append(self.activity_regularizer)
-
-        self.constraints = {}
-        if self.W_constraint:
-            self.constraints[self.W] = self.W_constraint
-        if self.b_constraint:
-            self.constraints[self.b] = self.b_constraint
+            self.b = None
 
         if self.initial_weights is not None:
             self.set_weights(self.initial_weights)
@@ -306,30 +296,20 @@ class LocallyConnected2D(Layer):
         self.output_row = output_row
         self.output_col = output_col
         self.W_shape = (output_row * output_col, self.nb_row * self.nb_col * input_filter, nb_filter)
-        self.W = self.init(self.W_shape, name='{}_W'.format(self.name))
 
+        self.W = self.add_weight(self.W_shape,
+                                 initializer=self.init,
+                                 name='{}_W'.format(self.name),
+                                 regularizer=self.W_regularizer,
+                                 constraint=self.W_constraint)
         if self.bias:
-            self.b = K.zeros((output_row, output_col, nb_filter), name='{}_b'.format(self.name))
-            self.trainable_weights = [self.W, self.b]
+            self.b = self.add_weight((output_row, output_col, nb_filter),
+                                     initializer='zero',
+                                     name='{}_b'.format(self.name),
+                                     regularizer=self.b_regularizer,
+                                     constraint=self.b_constraint)
         else:
-            self.trainable_weights = [self.W]
-
-        self.regularizers = []
-        if self.W_regularizer:
-            self.W_regularizer.set_param(self.W)
-            self.regularizers.append(self.W_regularizer)
-        if self.bias and self.b_regularizer:
-            self.b_regularizer.set_param(self.b)
-            self.regularizers.append(self.b_regularizer)
-        if self.activity_regularizer:
-            self.activity_regularizer.set_layer(self)
-            self.regularizers.append(self.activity_regularizer)
-
-        self.constraints = {}
-        if self.W_constraint:
-            self.constraints[self.W] = self.W_constraint
-        if self.bias and self.b_constraint:
-            self.constraints[self.b] = self.b_constraint
+            self.b = None
 
         if self.initial_weights is not None:
             self.set_weights(self.initial_weights)

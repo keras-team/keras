@@ -201,6 +201,7 @@ def _initialize_variables():
         else:
             sess.run(tf.initialize_variables(uninitialized_variables))
 
+
 def placeholder(shape=None, ndim=None, dtype=_FLOATX, sparse=False, name=None):
     '''Instantiates a placeholder.
 

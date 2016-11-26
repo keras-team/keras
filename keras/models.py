@@ -494,6 +494,13 @@ class Sequential(Model):
         return self.model.get_updates_for(inputs)
 
     @property
+    def losses(self):
+        return self.model.losses
+
+    def get_losses_for(self, inputs):
+        return self.model.get_losses_for(inputs)
+
+    @property
     def regularizers(self):
         # support for legacy behavior
         return self._gather_list_attr('regularizers')
