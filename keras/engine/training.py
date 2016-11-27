@@ -7,6 +7,9 @@ import time
 import numpy as np
 import multiprocessing
 import threading
+
+import six
+
 try:
     import queue
 except ImportError:
@@ -183,13 +186,12 @@ def check_array_lengths(X, Y, W):
 
 
 def check_loss_and_target_compatibility(targets, losses, output_shapes):
-    assert len(targets) == len(losses) == len(output_shapes)
     key_losses = {'mean_square_error',
                   'binary_crossentropy',
                   'categorical_crossentropy'}
     for y, loss, shape in zip(targets, losses, output_shapes):
         if loss.__name__ == 'categorical_crossentropy':
-            if y.shape[1] == 1:
+            if y.shape[-1] == 1:
                 raise Exception('You are passing a target array of shape ' + str(y.shape) +
                                 ' while using as loss `categorical_crossentropy`. '
                                 '`categorical_crossentropy` expects '
@@ -205,13 +207,15 @@ def check_loss_and_target_compatibility(targets, losses, output_shapes):
                                 'Alternatively, you can use the loss function '
                                 '`sparse_categorical_crossentropy` instead, '
                                 'which does expect integer targets.')
-        if loss.__name__ in key_losses and shape[1] is not None and y.shape[1] != shape[1]:
-            raise Exception('A target array with shape ' + str(y.shape) +
-                            ' was passed for an output of shape ' + str(shape) +
-                            ' while using as loss `' + loss.__name__ + '`. '
-                            'This loss expects '
-                            'targets to have the same shape '
-                            'as the output.')
+        if loss.__name__ in key_losses:
+            for target_dim, out_dim in zip(y.shape[1:], shape[1:]):
+                if out_dim is not None and target_dim != out_dim:
+                    raise Exception('A target array with shape ' + str(y.shape) +
+                                    ' was passed for an output of shape ' + str(shape) +
+                                    ' while using as loss `' + loss.__name__ + '`. '
+                                    'This loss expects '
+                                    'targets to have the same shape '
+                                    'as the output.')
 
 
 def collect_metrics(metrics, output_names):
@@ -232,31 +236,6 @@ def collect_metrics(metrics, output_names):
         raise Exception('Type of `metrics` argument not understood. '
                         'Expected a list or dictionary, found: ' +
                         str(metrics))
-
-
-def collect_trainable_weights(layer):
-    '''Collects all `trainable_weights` attributes,
-    excluding any sublayers where `trainable` is set the `False`.
-    '''
-    trainable = getattr(layer, 'trainable', True)
-    if not trainable:
-        return []
-    weights = []
-    if layer.__class__.__name__ == 'Sequential':
-        for sublayer in layer.flattened_layers:
-            weights += collect_trainable_weights(sublayer)
-    elif layer.__class__.__name__ == 'Model':
-        for sublayer in layer.layers:
-            weights += collect_trainable_weights(sublayer)
-    elif layer.__class__.__name__ == 'Graph':
-        for sublayer in layer._graph_nodes.values():
-            weights += collect_trainable_weights(sublayer)
-    else:
-        weights += layer.trainable_weights
-    # dedupe weights
-    weights = list(set(weights))
-    weights.sort(key=lambda x: x.name)
-    return weights
 
 
 def batch_shuffle(index_array, batch_size):
@@ -421,11 +400,8 @@ def generator_queue(generator, max_q_size=10,
         def data_generator_task():
             while not _stop.is_set():
                 try:
-                    if q.qsize() < max_q_size:
-                        try:
-                            generator_output = next(generator)
-                        except ValueError:
-                            continue
+                    if pickle_safe or q.qsize() < max_q_size:
+                        generator_output = next(generator)
                         q.put(generator_output)
                     else:
                         time.sleep(wait_time)
@@ -453,7 +429,7 @@ def generator_queue(generator, max_q_size=10,
             q.close()
         raise
 
-    return q, _stop
+    return q, _stop, generator_threads
 
 
 class Model(Container):
@@ -605,7 +581,10 @@ class Model(Container):
         for i in range(len(self.outputs)):
             shape = self.internal_output_shapes[i]
             name = self.output_names[i]
-            self.targets.append(K.placeholder(ndim=len(shape), name=name + '_target'))
+            self.targets.append(K.placeholder(ndim=len(shape),
+                                name=name + '_target',
+                                sparse=K.is_sparse(self.outputs[i]),
+                                dtype=K.dtype(self.outputs[i])))
 
         # prepare metrics
         self.metrics = metrics
@@ -638,6 +617,15 @@ class Model(Container):
         # list of same size as output_names.
         # contains tuples (metrics for output, names of metrics)
         nested_metrics = collect_metrics(metrics, self.output_names)
+
+        def append_metric(layer_num, metric_name, metric_tensor):
+            """Helper function, used in loop below"""
+            if len(self.output_names) > 1:
+                metric_name = self.output_layers[layer_num].name + '_' + metric_name
+
+            self.metrics_names.append(metric_name)
+            self.metrics_tensors.append(metric_tensor)
+
         for i in range(len(self.outputs)):
             y_true = self.targets[i]
             y_pred = self.outputs[i]
@@ -647,27 +635,28 @@ class Model(Container):
                 if metric == 'accuracy' or metric == 'acc':
                     # custom handling of accuracy (because of class mode duality)
                     output_shape = self.internal_output_shapes[i]
+                    acc_fn = None
                     if output_shape[-1] == 1 or self.loss_functions[i] == objectives.binary_crossentropy:
                         # case: binary accuracy
-                        self.metrics_tensors.append(metrics_module.binary_accuracy(y_true, y_pred))
+                        acc_fn = metrics_module.binary_accuracy
                     elif self.loss_functions[i] == objectives.sparse_categorical_crossentropy:
                         # case: categorical accuracy with sparse targets
-                        self.metrics_tensors.append(
-                            metrics_module.sparse_categorical_accuracy(y_true, y_pred))
+                        acc_fn = metrics_module.sparse_categorical_accuracy
                     else:
-                        # case: categorical accuracy with dense targets
-                        self.metrics_tensors.append(metrics_module.categorical_accuracy(y_true, y_pred))
-                    if len(self.output_names) == 1:
-                        self.metrics_names.append('acc')
-                    else:
-                        self.metrics_names.append(self.output_layers[i].name + '_acc')
+                        acc_fn = metrics_module.categorical_accuracy
+
+                    append_metric(i, 'acc', acc_fn(y_true, y_pred))
                 else:
                     metric_fn = metrics_module.get(metric)
-                    self.metrics_tensors.append(metric_fn(y_true, y_pred))
-                    if len(self.output_names) == 1:
-                        self.metrics_names.append(metric_fn.__name__)
-                    else:
-                        self.metrics_names.append(self.output_layers[i].name + '_' + metric_fn.__name__)
+                    metric_result = metric_fn(y_true, y_pred)
+
+                    if not isinstance(metric_result, dict):
+                        metric_result = {
+                            metric_fn.__name__: metric_result
+                        }
+
+                    for name, tensor in six.iteritems(metric_result):
+                        append_metric(i, name, tensor)
 
         # prepare gradient updates and state updates
         self.optimizer = optimizers.get(optimizer)
@@ -683,6 +672,16 @@ class Model(Container):
         self.test_function = None
         self.predict_function = None
 
+        # collected trainable weights and sort them deterministically.
+        trainable_weights = self.trainable_weights
+        # Sort weights by name
+        if trainable_weights:
+            if K.backend() == 'theano':
+                trainable_weights.sort(key=lambda x: x.name if x.name else x.auto_name)
+            else:
+                trainable_weights.sort(key=lambda x: x.name)
+        self._collected_trainable_weights = trainable_weights
+
     def _make_train_function(self):
         if not hasattr(self, 'train_function'):
             raise Exception('You must compile your model before using it.')
@@ -692,9 +691,9 @@ class Model(Container):
             else:
                 inputs = self.inputs + self.targets + self.sample_weights
 
-            # get trainable weights
-            trainable_weights = collect_trainable_weights(self)
-            training_updates = self.optimizer.get_updates(trainable_weights, self.constraints, self.total_loss)
+            training_updates = self.optimizer.get_updates(self._collected_trainable_weights,
+                                                          self.constraints,
+                                                          self.total_loss)
             updates = self.updates + training_updates
 
             # returns loss and metrics. Updates weights at each call.
@@ -737,7 +736,7 @@ class Model(Container):
     def _fit_loop(self, f, ins, out_labels=[], batch_size=32,
                   nb_epoch=100, verbose=1, callbacks=[],
                   val_f=None, val_ins=None, shuffle=True,
-                  callback_metrics=[]):
+                  callback_metrics=[], initial_epoch=0):
         '''Abstract fit function for f(ins).
         Assume that f returns a list, labeled by out_labels.
 
@@ -757,6 +756,8 @@ class Model(Container):
                 passed to the callbacks. They should be the
                 concatenation of list the display names of the outputs of
                  `f` and the list of display names of the outputs of `f_val`.
+            initial_epoch: epoch at which to start training
+                (useful for resuming a previous training run)
 
         # Returns
             `History` object.
@@ -766,9 +767,9 @@ class Model(Container):
             do_validation = True
             if verbose:
                 print('Train on %d samples, validate on %d samples' %
-                      (len(ins[0]), len(val_ins[0])))
+                      (ins[0].shape[0], val_ins[0].shape[0]))
 
-        nb_train_sample = len(ins[0])
+        nb_train_sample = ins[0].shape[0]
         index_array = np.arange(nb_train_sample)
 
         self.history = cbks.History()
@@ -797,7 +798,7 @@ class Model(Container):
         callback_model.stop_training = False
         self.validation_data = val_ins
 
-        for epoch in range(nb_epoch):
+        for epoch in range(initial_epoch, nb_epoch):
             callbacks.on_epoch_begin(epoch)
             if shuffle == 'batch':
                 index_array = batch_shuffle(index_array, batch_size)
@@ -862,7 +863,7 @@ class Model(Container):
             or list of arrays of predictions
             (if the model has multiple outputs).
         '''
-        nb_sample = len(ins[0])
+        nb_sample = ins[0].shape[0]
         outs = []
         if verbose == 1:
             progbar = Progbar(target=nb_sample)
@@ -907,7 +908,7 @@ class Model(Container):
             and/or metrics). The attribute `model.metrics_names` will give you
             the display labels for the scalar outputs.
         '''
-        nb_sample = len(ins[0])
+        nb_sample = ins[0].shape[0]
         outs = []
         if verbose == 1:
             progbar = Progbar(target=nb_sample)
@@ -984,7 +985,7 @@ class Model(Container):
 
     def fit(self, x, y, batch_size=32, nb_epoch=10, verbose=1, callbacks=[],
             validation_split=0., validation_data=None, shuffle=True,
-            class_weight=None, sample_weight=None):
+            class_weight=None, sample_weight=None, initial_epoch=0):
         '''Trains the model for a fixed number of epochs (iterations on a dataset).
 
         # Arguments
@@ -1008,7 +1009,7 @@ class Model(Container):
                 on this data at the end of each epoch.
             validation_data: data on which to evaluate the loss and any model metrics
                 at the end of each epoch. The model will not be trained on this data.
-                This could be a tuple (x_val, y_val) or a tuple (val_x, val_y, val_sample_weights).
+                This could be a tuple (x_val, y_val) or a tuple (x_val, y_val, val_sample_weights).
             shuffle: boolean, whether to shuffle the training data before each epoch.
             class_weight: optional dictionary mapping class indices (integers) to
                 a weight (float) to apply to the model's loss for the samples
@@ -1021,6 +1022,8 @@ class Model(Container):
                 with shape (samples, sequence_length),
                 to apply a different weight to every timestep of every sample.
                 In this case you should make sure to specify sample_weight_mode="temporal" in compile().
+            initial_epoch: epoch at which to start training
+                (useful for resuming a previous training run)
 
 
         # Returns
@@ -1104,7 +1107,8 @@ class Model(Container):
                               batch_size=batch_size, nb_epoch=nb_epoch,
                               verbose=verbose, callbacks=callbacks,
                               val_f=val_f, val_ins=val_ins, shuffle=shuffle,
-                              callback_metrics=callback_metrics)
+                              callback_metrics=callback_metrics,
+                              initial_epoch=initial_epoch)
 
     def evaluate(self, x, y, batch_size=32, verbose=1, sample_weight=None):
         '''Returns the loss value and metrics values for the model
@@ -1280,7 +1284,8 @@ class Model(Container):
     def fit_generator(self, generator, samples_per_epoch, nb_epoch,
                       verbose=1, callbacks=[],
                       validation_data=None, nb_val_samples=None,
-                      class_weight={}, max_q_size=10, nb_worker=1, pickle_safe=False):
+                      class_weight={}, max_q_size=10, nb_worker=1, pickle_safe=False,
+                      initial_epoch=0):
         '''Fits the model on data generated batch-by-batch by
         a Python generator.
         The generator is run in parallel to the model, for efficiency.
@@ -1313,9 +1318,11 @@ class Model(Container):
             max_q_size: maximum size for the generator queue
             nb_worker: maximum number of processes to spin up when using process based threading
             pickle_safe: if True, use process based threading. Note that because
-                this implementation relies on multiprocessing, you should not pass non
+                this implementation relies on multiprocessing, you should not pass
                 non picklable arguments to the generator as they can't be passed
                 easily to children processes.
+            initial_epoch: epoch at which to start training
+                (useful for resuming a previous training run)
 
         # Returns
             A `History` object.
@@ -1338,7 +1345,7 @@ class Model(Container):
         ```
         '''
         wait_time = 0.01  # in seconds
-        epoch = 0
+        epoch = initial_epoch
 
         do_validation = bool(validation_data)
         self._make_train_function()
@@ -1394,8 +1401,8 @@ class Model(Container):
             self.validation_data = None
 
         # start generator thread storing batches into a queue
-        data_gen_queue, _stop = generator_queue(generator, max_q_size=max_q_size, nb_worker=nb_worker,
-                                                pickle_safe=pickle_safe)
+        data_gen_queue, _stop, generator_threads = generator_queue(generator, max_q_size=max_q_size, nb_worker=nb_worker,
+                                                                   pickle_safe=pickle_safe)
 
         callback_model.stop_training = False
         while epoch < nb_epoch:
@@ -1429,11 +1436,11 @@ class Model(Container):
                 # build batch logs
                 batch_logs = {}
                 if type(x) is list:
-                    batch_size = len(x[0])
+                    batch_size = x[0].shape[0]
                 elif type(x) is dict:
-                    batch_size = len(list(x.values())[0])
+                    batch_size = list(x.values())[0].shape[0]
                 else:
-                    batch_size = len(x)
+                    batch_size = x.shape[0]
                 batch_logs['batch'] = batch_index
                 batch_logs['size'] = batch_size
                 callbacks.on_batch_begin(batch_index, batch_logs)
@@ -1469,11 +1476,14 @@ class Model(Container):
                     if val_gen:
                         val_outs = self.evaluate_generator(validation_data,
                                                            nb_val_samples,
-                                                           max_q_size=max_q_size)
+                                                           max_q_size=max_q_size,
+                                                           nb_worker=nb_worker,
+                                                           pickle_safe=pickle_safe)
                     else:
                         # no need for try/except because
                         # data has already been validated
                         val_outs = self.evaluate(val_x, val_y,
+                                                 batch_size=batch_size,
                                                  sample_weight=val_sample_weights,
                                                  verbose=0)
                     if type(val_outs) is not list:
@@ -1489,6 +1499,10 @@ class Model(Container):
 
         _stop.set()
         if pickle_safe:
+            # Terminate all daemon processes
+            for p in generator_threads:
+                if p.is_alive():
+                    p.terminate()
             data_gen_queue.close()
         callbacks.on_train_end()
         return self.history
@@ -1507,7 +1521,7 @@ class Model(Container):
             max_q_size: maximum size for the generator queue
             nb_worker: maximum number of processes to spin up when using process based threading
             pickle_safe: if True, use process based threading. Note that because
-                this implementation relies on multiprocessing, you should not pass non
+                this implementation relies on multiprocessing, you should not pass
                 non picklable arguments to the generator as they can't be passed
                 easily to children processes.
 
@@ -1523,8 +1537,8 @@ class Model(Container):
         wait_time = 0.01
         all_outs = []
         weights = []
-        data_gen_queue, _stop = generator_queue(generator, max_q_size=max_q_size, nb_worker=nb_worker,
-                                                pickle_safe=pickle_safe)
+        data_gen_queue, _stop, generator_threads = generator_queue(generator, max_q_size=max_q_size, nb_worker=nb_worker,
+                                                                   pickle_safe=pickle_safe)
 
         while processed_samples < val_samples:
             generator_output = None
@@ -1569,6 +1583,10 @@ class Model(Container):
 
         _stop.set()
         if pickle_safe:
+            # Terminate all daemon processes
+            for p in generator_threads:
+                if p.is_alive():
+                    p.terminate()
             data_gen_queue.close()
         if type(outs) is not list:
             return np.average(np.asarray(all_outs),
@@ -1592,7 +1610,7 @@ class Model(Container):
             max_q_size: maximum size for the generator queue
             nb_worker: maximum number of processes to spin up when using process based threading
             pickle_safe: if True, use process based threading. Note that because
-                this implementation relies on multiprocessing, you should not pass non
+                this implementation relies on multiprocessing, you should not pass
                 non picklable arguments to the generator as they can't be passed
                 easily to children processes.
 
@@ -1604,8 +1622,8 @@ class Model(Container):
         processed_samples = 0
         wait_time = 0.01
         all_outs = []
-        data_gen_queue, _stop = generator_queue(generator, max_q_size=max_q_size, nb_worker=nb_worker,
-                                                pickle_safe=pickle_safe)
+        data_gen_queue, _stop, generator_threads = generator_queue(generator, max_q_size=max_q_size, nb_worker=nb_worker,
+                                                                   pickle_safe=pickle_safe)
 
         while processed_samples < val_samples:
             generator_output = None
@@ -1658,6 +1676,10 @@ class Model(Container):
 
         _stop.set()
         if pickle_safe:
+            # Terminate all daemon processes
+            for p in generator_threads:
+                if p.is_alive():
+                    p.terminate()
             data_gen_queue.close()
         if len(all_outs) == 1:
             return all_outs[0]

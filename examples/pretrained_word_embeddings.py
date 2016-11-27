@@ -22,6 +22,7 @@ from keras.utils.np_utils import to_categorical
 from keras.layers import Dense, Input, Flatten
 from keras.layers import Conv1D, MaxPooling1D, Embedding
 from keras.models import Model
+import sys
 
 BASE_DIR = ''
 GLOVE_DIR = BASE_DIR + '/glove.6B/'
@@ -61,7 +62,10 @@ for name in sorted(os.listdir(TEXT_DATA_DIR)):
         for fname in sorted(os.listdir(path)):
             if fname.isdigit():
                 fpath = os.path.join(path, fname)
-                f = open(fpath)
+                if sys.version_info < (3,):
+                    f = open(fpath)
+                else:
+                    f = open(fpath, encoding='latin-1')
                 texts.append(f.read())
                 f.close()
                 labels.append(label_id)

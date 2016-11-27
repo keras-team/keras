@@ -12,13 +12,10 @@ def time_distributed_dense(x, w, b=None, dropout=None,
     '''Apply y.w + b for every temporal slice y of x.
     '''
     if not input_dim:
-        # won't work with TensorFlow
         input_dim = K.shape(x)[2]
     if not timesteps:
-        # won't work with TensorFlow
         timesteps = K.shape(x)[1]
     if not output_dim:
-        # won't work with TensorFlow
         output_dim = K.shape(w)[1]
 
     if dropout is not None and 0. < dropout < 1.:
@@ -30,12 +27,15 @@ def time_distributed_dense(x, w, b=None, dropout=None,
 
     # collapse time dimension and batch dimension together
     x = K.reshape(x, (-1, input_dim))
-
     x = K.dot(x, w)
     if b:
         x = x + b
     # reshape to 3D tensor
-    x = K.reshape(x, (-1, timesteps, output_dim))
+    if K.backend() == 'tensorflow':
+        x = K.reshape(x, K.pack([-1, timesteps, output_dim]))
+        x.set_shape([None, None, output_dim])
+    else:
+        x = K.reshape(x, (-1, timesteps, output_dim))
     return x
 
 
@@ -120,14 +120,10 @@ class Recurrent(Layer):
         use an [Embedding](embeddings.md) layer with the `mask_zero` parameter
         set to `True`.
 
-    # TensorFlow warning
-        For the time being, when using the TensorFlow backend,
-        the number of timesteps used must be specified in your model.
-        Make sure to pass an `input_length` int argument to your
-        recurrent layer (if it comes first in your model),
-        or to pass a complete `input_shape` argument to the first layer
-        in your model otherwise.
-
+    # Note on performance
+        You are likely to see better performance with RNNs in Theano compared
+        to TensorFlow. Additionally, when using TensorFlow, it is often
+        preferable to set `unroll=True` for better performance.
 
     # Note on using statefulness in RNNs
         You can set RNN layers to be 'stateful', which means that the states
@@ -148,10 +144,6 @@ class Recurrent(Layer):
 
         To reset the states of your model, call `.reset_states()` on either
         a specific layer, or on your entire model.
-
-    # Note on using dropout with TensorFlow
-        When using the TensorFlow backend, specify a fixed batch size for your model
-        following the notes on statefulness RNNs.
     '''
     def __init__(self, weights=None,
                  return_sequences=False, go_backwards=False, stateful=False,
@@ -207,19 +199,18 @@ class Recurrent(Layer):
         # note that the .build() method of subclasses MUST define
         # self.input_spec with a complete input shape.
         input_shape = self.input_spec[0].shape
-        if K._BACKEND == 'tensorflow':
-            if not input_shape[1]:
-                raise Exception('When using TensorFlow, you should define '
-                                'explicitly the number of timesteps of '
-                                'your sequences.\n'
-                                'If your first layer is an Embedding, '
-                                'make sure to pass it an "input_length" '
-                                'argument. Otherwise, make sure '
-                                'the first layer has '
-                                'an "input_shape" or "batch_input_shape" '
-                                'argument, including the time axis. '
-                                'Found input shape at layer ' + self.name +
-                                ': ' + str(input_shape))
+        if self.unroll and input_shape[1] is None:
+            raise ValueError('Cannot unroll a RNN if the '
+                             'time dimension is undefined. \n'
+                             '- If using a Sequential model, '
+                             'specify the time dimension by passing '
+                             'an `input_shape` or `batch_input_shape` '
+                             'argument to your first layer. If your '
+                             'first layer is an Embedding, you can '
+                             'also use the `input_length` argument.\n'
+                             '- If using the functional API, specify '
+                             'the time dimension by passing a `shape` '
+                             'or `batch_shape` argument to your Input layer.')
         if self.stateful:
             initial_states = self.states
         else:
@@ -235,9 +226,10 @@ class Recurrent(Layer):
                                              unroll=self.unroll,
                                              input_length=input_shape[1])
         if self.stateful:
-            self.updates = []
+            updates = []
             for i in range(len(states)):
-                self.updates.append((self.states[i], states[i]))
+                updates.append((self.states[i], states[i]))
+            self.add_updates(updates, x)
 
         if self.return_sequences:
             return outputs
@@ -250,7 +242,7 @@ class Recurrent(Layer):
                   'stateful': self.stateful,
                   'unroll': self.unroll,
                   'consume_less': self.consume_less}
-        if self.stateful:
+        if self.stateful and self.input_spec[0].shape:
             config['batch_input_shape'] = self.input_spec[0].shape
         else:
             config['input_dim'] = self.input_dim
@@ -334,13 +326,22 @@ class SimpleRNN(Recurrent):
         if self.initial_weights is not None:
             self.set_weights(self.initial_weights)
             del self.initial_weights
+        self.built = True
 
     def reset_states(self):
         assert self.stateful, 'Layer must be stateful.'
         input_shape = self.input_spec[0].shape
         if not input_shape[0]:
-            raise Exception('If a RNN is stateful, a complete ' +
-                            'input_shape must be provided (including batch size).')
+            raise Exception('If a RNN is stateful, it needs to know '
+                            'its batch size. Specify the batch size '
+                            'of your input tensors: \n'
+                            '- If using a Sequential model, '
+                            'specify the batch size by passing '
+                            'a `batch_input_shape` '
+                            'argument to your first layer.\n'
+                            '- If using the functional API, specify '
+                            'the time dimension by passing a '
+                            '`batch_shape` argument to your Input layer.')
         if hasattr(self, 'states'):
             K.set_value(self.states[0],
                         np.zeros((input_shape[0], self.output_dim)))
@@ -375,7 +376,7 @@ class SimpleRNN(Recurrent):
         constants = []
         if 0 < self.dropout_U < 1:
             ones = K.ones_like(K.reshape(x[:, 0, 0], (-1, 1)))
-            ones = K.concatenate([ones] * self.output_dim, 1)
+            ones = K.tile(ones, (1, self.output_dim))
             B_U = K.in_train_phase(K.dropout(ones, self.dropout_U), ones)
             constants.append(B_U)
         else:
@@ -384,7 +385,7 @@ class SimpleRNN(Recurrent):
             input_shape = self.input_spec[0].shape
             input_dim = input_shape[-1]
             ones = K.ones_like(K.reshape(x[:, 0, 0], (-1, 1)))
-            ones = K.concatenate([ones] * input_dim, 1)
+            ones = K.tile(ones, (1, int(input_dim)))
             B_W = K.in_train_phase(K.dropout(ones, self.dropout_W), ones)
             constants.append(B_W)
         else:
@@ -516,6 +517,7 @@ class GRU(Recurrent):
         if self.initial_weights is not None:
             self.set_weights(self.initial_weights)
             del self.initial_weights
+        self.built = True
 
     def reset_states(self):
         assert self.stateful, 'Layer must be stateful.'
@@ -588,7 +590,7 @@ class GRU(Recurrent):
         constants = []
         if 0 < self.dropout_U < 1:
             ones = K.ones_like(K.reshape(x[:, 0, 0], (-1, 1)))
-            ones = K.concatenate([ones] * self.output_dim, 1)
+            ones = K.tile(ones, (1, self.output_dim))
             B_U = [K.in_train_phase(K.dropout(ones, self.dropout_U), ones) for _ in range(3)]
             constants.append(B_U)
         else:
@@ -598,7 +600,7 @@ class GRU(Recurrent):
             input_shape = self.input_spec[0].shape
             input_dim = input_shape[-1]
             ones = K.ones_like(K.reshape(x[:, 0, 0], (-1, 1)))
-            ones = K.concatenate([ones] * input_dim, 1)
+            ones = K.tile(ones, (1, int(input_dim)))
             B_W = [K.in_train_phase(K.dropout(ones, self.dropout_W), ones) for _ in range(3)]
             constants.append(B_W)
         else:
@@ -746,6 +748,7 @@ class LSTM(Recurrent):
         if self.initial_weights is not None:
             self.set_weights(self.initial_weights)
             del self.initial_weights
+        self.built = True
 
     def reset_states(self):
         assert self.stateful, 'Layer must be stateful.'
@@ -828,7 +831,7 @@ class LSTM(Recurrent):
         constants = []
         if 0 < self.dropout_U < 1:
             ones = K.ones_like(K.reshape(x[:, 0, 0], (-1, 1)))
-            ones = K.concatenate([ones] * self.output_dim, 1)
+            ones = K.tile(ones, (1, self.output_dim))
             B_U = [K.in_train_phase(K.dropout(ones, self.dropout_U), ones) for _ in range(4)]
             constants.append(B_U)
         else:
@@ -838,7 +841,7 @@ class LSTM(Recurrent):
             input_shape = self.input_spec[0].shape
             input_dim = input_shape[-1]
             ones = K.ones_like(K.reshape(x[:, 0, 0], (-1, 1)))
-            ones = K.concatenate([ones] * input_dim, 1)
+            ones = K.tile(ones, (1, int(input_dim)))
             B_W = [K.in_train_phase(K.dropout(ones, self.dropout_W), ones) for _ in range(4)]
             constants.append(B_W)
         else:

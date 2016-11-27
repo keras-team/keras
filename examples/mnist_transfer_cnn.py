@@ -22,7 +22,7 @@ from keras.models import Sequential
 from keras.layers import Dense, Dropout, Activation, Flatten
 from keras.layers import Convolution2D, MaxPooling2D
 from keras.utils import np_utils
-
+from keras import backend as K
 
 now = datetime.datetime.now
 
@@ -35,14 +35,19 @@ img_rows, img_cols = 28, 28
 # number of convolutional filters to use
 nb_filters = 32
 # size of pooling area for max pooling
-nb_pool = 2
+pool_size = 2
 # convolution kernel size
-nb_conv = 3
+kernel_size = 3
+
+if K.image_dim_ordering() == 'th':
+    input_shape = (1, img_rows, img_cols)
+else:
+    input_shape = (img_rows, img_cols, 1)
 
 
 def train_model(model, train, test, nb_classes):
-    X_train = train[0].reshape(train[0].shape[0], 1, img_rows, img_cols)
-    X_test = test[0].reshape(test[0].shape[0], 1, img_rows, img_cols)
+    X_train = train[0].reshape((train[0].shape[0],) + input_shape)
+    X_test = test[0].reshape((test[0].shape[0],) + input_shape)
     X_train = X_train.astype('float32')
     X_test = X_test.astype('float32')
     X_train /= 255
@@ -86,13 +91,13 @@ y_test_gte5 = y_test[y_test >= 5] - 5
 
 # define two groups of layers: feature (convolutions) and classification (dense)
 feature_layers = [
-    Convolution2D(nb_filters, nb_conv, nb_conv,
+    Convolution2D(nb_filters, kernel_size, kernel_size,
                   border_mode='valid',
-                  input_shape=(1, img_rows, img_cols)),
+                  input_shape=input_shape),
     Activation('relu'),
-    Convolution2D(nb_filters, nb_conv, nb_conv),
+    Convolution2D(nb_filters, kernel_size, kernel_size),
     Activation('relu'),
-    MaxPooling2D(pool_size=(nb_pool, nb_pool)),
+    MaxPooling2D(pool_size=(pool_size, pool_size)),
     Dropout(0.25),
     Flatten(),
 ]
@@ -105,9 +110,7 @@ classification_layers = [
 ]
 
 # create complete model
-model = Sequential()
-for l in feature_layers + classification_layers:
-    model.add(l)
+model = Sequential(feature_layers + classification_layers)
 
 # train model for 5-digit classification [0..4]
 train_model(model,

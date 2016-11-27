@@ -1,6 +1,7 @@
 from __future__ import absolute_import
 import numpy as np
 from . import backend as K
+from .utils.generic_utils import get_from_module
 
 
 def get_fans(shape, dim_ordering='th'):
@@ -20,7 +21,7 @@ def get_fans(shape, dim_ordering='th'):
             fan_in = shape[-2] * receptive_field_size
             fan_out = shape[-1] * receptive_field_size
         else:
-            raise Exception('Invalid dim_ordering: ' + dim_ordering)
+            raise ValueError('Invalid dim_ordering: ' + dim_ordering)
     else:
         # no specific assumptions
         fan_in = np.sqrt(np.prod(shape))
@@ -101,7 +102,6 @@ def one(shape, name=None):
     return K.ones(shape, name=name)
 
 
-from .utils.generic_utils import get_from_module
 def get(identifier, **kwargs):
     return get_from_module(identifier, globals(),
                            'initialization', kwargs=kwargs)

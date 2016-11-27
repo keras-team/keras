@@ -4,10 +4,11 @@ from numpy.testing import assert_allclose
 
 from keras.layers import Dense, Dropout
 from keras.engine.topology import merge, Input
-from keras.engine.training import Model
-from keras.models import Sequential, Graph
+from keras.engine.training import Model, check_loss_and_target_compatibility
+from keras.models import Sequential
 from keras import backend as K
 from keras.utils.test_utils import keras_test
+from keras.callbacks import LambdaCallback
 
 
 @keras_test
@@ -146,17 +147,48 @@ def test_model_methods():
                               [output_a_np, output_b_np])
     assert len(out) == 4
 
+    # test starting from non-zero initial epoch
+    trained_epochs = []
+
+    def on_epoch_begin(epoch, logs):
+        trained_epochs.append(epoch)
+    tracker_cb = LambdaCallback(on_epoch_begin=on_epoch_begin)
+    out = model.fit([input_a_np, input_b_np],
+                    [output_a_np, output_b_np], nb_epoch=5, batch_size=4,
+                    initial_epoch=2, callbacks=[tracker_cb])
+    assert trained_epochs == [2, 3, 4]
+
+    # test starting from non-zero initial epoch for generator too
+    trained_epochs = []
+
+    def gen_data(batch_sz):
+        while True:
+            yield ([np.random.random((batch_sz, 3)), np.random.random((batch_sz, 3))],
+                   [np.random.random((batch_sz, 4)), np.random.random((batch_sz, 3))])
+    out = model.fit_generator(gen_data(4), samples_per_epoch=10, nb_epoch=5,
+                              initial_epoch=2, callbacks=[tracker_cb])
+    assert trained_epochs == [2, 3, 4]
+
     # test with a custom metric function
     mse = lambda y_true, y_pred: K.mean(K.pow(y_true - y_pred, 2))
-    model.compile(optimizer, loss, metrics=[mse],
+
+    def mse_powers(y_true, y_pred):
+        m = mse(y_true, y_pred)
+        return {
+            'mse_squared': K.pow(m, 2),
+            'mse_cubed': K.pow(m, 3)
+        }
+
+    model.compile(optimizer, loss, metrics=[mse, mse_powers],
                   sample_weight_mode=None)
 
     out = model.train_on_batch([input_a_np, input_b_np],
                                [output_a_np, output_b_np])
-    assert len(out) == 5
+    out_len = 1 + 2 * 4  # total loss, per layer: loss + 3 metrics
+    assert len(out) == out_len
     out = model.test_on_batch([input_a_np, input_b_np],
                               [output_a_np, output_b_np])
-    assert len(out) == 5
+    assert len(out) == out_len
 
     input_a_np = np.random.random((10, 3))
     input_b_np = np.random.random((10, 3))
@@ -191,6 +223,31 @@ def test_trainable_argument():
     model.train_on_batch(x, y)
     out_2 = model.predict(x)
     assert_allclose(out, out_2)
+
+
+@keras_test
+def test_check_not_failing():
+    a = np.random.random((2, 1, 3))
+    check_loss_and_target_compatibility([a], [K.categorical_crossentropy], [a.shape])
+    check_loss_and_target_compatibility([a], [K.categorical_crossentropy], [(2, None, 3)])
+
+
+@keras_test
+def test_check_last_is_one():
+    a = np.random.random((2, 3, 1))
+    with pytest.raises(Exception) as exc:
+        check_loss_and_target_compatibility([a], [K.categorical_crossentropy], [a.shape])
+
+    assert "You are passing a target array" in str(exc)
+
+
+@keras_test
+def test_check_bad_shape():
+    a = np.random.random((2, 3, 5))
+    with pytest.raises(Exception) as exc:
+        check_loss_and_target_compatibility([a], [K.categorical_crossentropy], [(2, 3, 6)])
+
+    assert "targets to have the same shape" in str(exc)
 
 
 if __name__ == '__main__':

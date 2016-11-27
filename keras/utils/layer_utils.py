@@ -1,8 +1,9 @@
 from __future__ import print_function
 
 from .generic_utils import get_from_module
+from .np_utils import convert_kernel
 from ..layers import *
-from ..models import Model, Sequential, Graph
+from ..models import Model, Sequential
 from .. import backend as K
 
 
@@ -14,7 +15,7 @@ def layer_from_config(config, custom_objects={}):
             of custom (non-Keras) objects to class/functions
 
     # Returns
-        Layer instance (may be Model, Sequential, Graph, Layer...)
+        Layer instance (may be Model, Sequential, Layer...)
     '''
     # Insert custom layers into globals so they can
     # be accessed by `get_from_module`.
@@ -25,8 +26,6 @@ def layer_from_config(config, custom_objects={}):
 
     if class_name == 'Sequential':
         layer_class = Sequential
-    elif class_name == 'Graph':
-        layer_class = Graph
     elif class_name in ['Model', 'Container']:
         layer_class = Model
     else:
@@ -36,8 +35,14 @@ def layer_from_config(config, custom_objects={}):
 
 
 def print_summary(layers, relevant_nodes=None, line_length=100, positions=[.33, .55, .67, 1.]):
-    # line_length: total length of printed lines
-    # positions: relative or absolute positions of log elements in each line
+    '''Prints a summary of a layer
+
+    # Arguments
+        layers: list of layers to print summaries of
+        relevant_nodes: list of relevant nodes
+        line_length: total length of printed lines
+        positions: relative or absolute positions of log elements in each line
+    '''
     if positions[-1] <= 1:
         positions = [int(line_length * p) for p in positions]
     # header names for the different log elements
@@ -46,6 +51,8 @@ def print_summary(layers, relevant_nodes=None, line_length=100, positions=[.33, 
     def print_row(fields, positions):
         line = ''
         for i in range(len(fields)):
+            if i > 0:
+                line = line[:-1] + ' '
             line += str(fields[i])
             line = line[:positions[i]]
             line += ' ' * (positions[i] - len(line))
@@ -86,14 +93,45 @@ def print_summary(layers, relevant_nodes=None, line_length=100, positions=[.33, 
                 fields = ['', '', '', connections[i]]
                 print_row(fields, positions)
 
-    total_params = 0
     for i in range(len(layers)):
         print_layer_summary(layers[i])
         if i == len(layers) - 1:
             print('=' * line_length)
         else:
             print('_' * line_length)
-        total_params += layers[i].count_params()
 
-    print('Total params: %s' % total_params)
+    def count_total_params(layers, layer_set=None):
+        if layer_set is None:
+            layer_set = set()
+        total_params = 0
+        for layer in layers:
+            if layer in layer_set:
+                continue
+            layer_set.add(layer)
+            if type(layer) in (Model, Sequential):
+                total_params += count_total_params(layer.layers, layer_set)
+            else:
+                total_params += layer.count_params()
+        return total_params
+
+    print('Total params: %s' % count_total_params(layers))
     print('_' * line_length)
+
+
+def convert_all_kernels_in_model(model):
+    # Note: SeparableConvolution not included
+    # since only supported by TF.
+    conv_classes = {
+        'Convolution1D',
+        'Convolution2D',
+        'Convolution3D',
+        'AtrousConvolution2D',
+        'Deconvolution2D',
+    }
+    to_assign = []
+    for layer in model.layers:
+        if layer.__class__.__name__ in conv_classes:
+            original_w = K.get_value(layer.W)
+            converted_w = convert_kernel(original_w)
+            to_assign.append((layer.W, converted_w))
+    K.batch_set_value(to_assign)
