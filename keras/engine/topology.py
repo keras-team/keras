@@ -903,14 +903,14 @@ class Layer(object):
         composing the weights of the layer.
         '''
         if not self.built:
-            if self.__class__.__name__ in {'Sequential'}:
+            if self.__class__.__name__ == 'Sequential':
                 self.build()
             else:
                 raise Exception('You tried to call `count_params` on ' +
                                 self.name + ', but the layer isn\'t built. '
                                 'You can build it manually via: `' +
                                 self.name + '.build(batch_input_shape)`.')
-        return sum([K.count_params(p) for p in self.trainable_weights])
+        return sum([K.count_params(p) for p in self.weights])
 
 
 class InputLayer(Layer):
