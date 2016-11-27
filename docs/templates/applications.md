@@ -181,7 +181,7 @@ model = InceptionV3(input_tensor=input_tensor, weights='imagenet', include_top=T
 
 
 ```python
-keras.applications.xception.Xception(include_top=True, weights='imagenet', input_tensor=None)
+keras.applications.xception.Xception(include_top=True, weights='imagenet', input_tensor=None, input_shape=None)
 ```
 
 Xception V1 model, with weights pre-trained on ImageNet.
@@ -200,6 +200,12 @@ The default input size for this model is 299x299.
 - include_top: whether to include the fully-connected layer at the top of the network.
 - weights: one of `None` (random initialization) or "imagenet" (pre-training on ImageNet).
 - input_tensor: optional Keras tensor (i.e. output of `layers.Input()`) to use as image input for the model.
+- inputs_shape: optional shape tuple, only to be specified
+    if `include_top` is False (otherwise the input shape
+    has to be `(299, 299, 3)`.
+    It should have exactly 3 inputs channels,
+    and width and height should be no smaller than 71.
+    E.g. `(150, 150, 3)` would be one valid value.
 
 ### Returns
 
@@ -220,7 +226,7 @@ These weights are trained by ourselves and are released under the MIT license.
 ## VGG16
 
 ```python
-keras.applications.vgg16.VGG16(include_top=True, weights='imagenet', input_tensor=None)
+keras.applications.vgg16.VGG16(include_top=True, weights='imagenet', input_tensor=None, input_shape=None)
 ```
 
 VGG16 model, with weights pre-trained on ImageNet.
@@ -235,6 +241,13 @@ The default input size for this model is 224x224.
 - include_top: whether to include the 3 fully-connected layers at the top of the network.
 - weights: one of `None` (random initialization) or "imagenet" (pre-training on ImageNet).
 - input_tensor: optional Keras tensor (i.e. output of `layers.Input()`) to use as image input for the model.
+- inputs_shape: optional shape tuple, only to be specified
+    if `include_top` is False (otherwise the input shape
+    has to be `(224, 224, 3)` (with `tf` dim ordering)
+    or `(3, 224, 244)` (with `th` dim ordering).
+    It should have exactly 3 inputs channels,
+    and width and height should be no smaller than 48.
+    E.g. `(200, 200, 3)` would be one valid value.
 
 ### Returns
 
@@ -254,7 +267,7 @@ These weights are ported from the ones [released by VGG at Oxford](http://www.ro
 
 
 ```python
-keras.applications.vgg19.VGG19(include_top=True, weights='imagenet', input_tensor=None)
+keras.applications.vgg19.VGG19(include_top=True, weights='imagenet', input_tensor=None, input_shape=None)
 ```
 
 
@@ -270,6 +283,13 @@ The default input size for this model is 224x224.
 - include_top: whether to include the 3 fully-connected layers at the top of the network.
 - weights: one of `None` (random initialization) or "imagenet" (pre-training on ImageNet).
 - input_tensor: optional Keras tensor (i.e. output of `layers.Input()`) to use as image input for the model.
+- inputs_shape: optional shape tuple, only to be specified
+    if `include_top` is False (otherwise the input shape
+    has to be `(224, 224, 3)` (with `tf` dim ordering)
+    or `(3, 224, 244)` (with `th` dim ordering).
+    It should have exactly 3 inputs channels,
+    and width and height should be no smaller than 48.
+    E.g. `(200, 200, 3)` would be one valid value.
 
 ### Returns
 
@@ -290,7 +310,7 @@ These weights are ported from the ones [released by VGG at Oxford](http://www.ro
 
 
 ```python
-keras.applications.resnet50.ResNet50(include_top=True, weights='imagenet', input_tensor=None)
+keras.applications.resnet50.ResNet50(include_top=True, weights='imagenet', input_tensor=None, input_shape=None)
 ```
 
 
@@ -307,6 +327,13 @@ The default input size for this model is 224x224.
 - include_top: whether to include the fully-connected layer at the top of the network.
 - weights: one of `None` (random initialization) or "imagenet" (pre-training on ImageNet).
 - input_tensor: optional Keras tensor (i.e. output of `layers.Input()`) to use as image input for the model.
+- inputs_shape: optional shape tuple, only to be specified
+    if `include_top` is False (otherwise the input shape
+    has to be `(224, 224, 3)` (with `tf` dim ordering)
+    or `(3, 224, 244)` (with `th` dim ordering).
+    It should have exactly 3 inputs channels,
+    and width and height should be no smaller than 197.
+    E.g. `(200, 200, 3)` would be one valid value.
 
 ### Returns
 
@@ -326,7 +353,7 @@ These weights are ported from the ones [released by Kaiming He](https://github.c
 
 
 ```python
-keras.applications.inception_v3.InceptionV3(include_top=True, weights='imagenet', input_tensor=None)
+keras.applications.inception_v3.InceptionV3(include_top=True, weights='imagenet', input_tensor=None, input_shape=None)
 ```
 
 Inception V3 model, with weights pre-trained on ImageNet.
@@ -342,6 +369,13 @@ The default input size for this model is 299x299.
 - include_top: whether to include the fully-connected layer at the top of the network.
 - weights: one of `None` (random initialization) or "imagenet" (pre-training on ImageNet).
 - input_tensor: optional Keras tensor (i.e. output of `layers.Input()`) to use as image input for the model.
+- inputs_shape: optional shape tuple, only to be specified
+    if `include_top` is False (otherwise the input shape
+    has to be `(299, 299, 3)` (with `tf` dim ordering)
+    or `(3, 299, 299)` (with `th` dim ordering).
+    It should have exactly 3 inputs channels,
+    and width and height should be no smaller than 139.
+    E.g. `(150, 150, 3)` would be one valid value.
 
 ### Returns
 
