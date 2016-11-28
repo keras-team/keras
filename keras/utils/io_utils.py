@@ -86,7 +86,7 @@ def save_array(array, name):
     import tables
     f = tables.open_file(name, 'w')
     atom = tables.Atom.from_dtype(array.dtype)
-    ds = f.createCArray(f.root, 'data', atom, array.shape)
+    ds = f.create_carray(f.root, 'data', atom, array.shape)
     ds[:] = array
     f.close()
 
