@@ -103,8 +103,8 @@ x_decoded_mean_squash = decoder_mean_squash(x_decoded_relu)
 def vae_loss(x, x_decoded_mean):
     # NOTE: binary_crossentropy expects a batch_size by dim
     # for x and x_decoded_mean, so we MUST flatten these!
-    x = K.flatten(x)
-    x_decoded_mean = K.flatten(x_decoded_mean)
+    x = K.batch_flatten(x)
+    x_decoded_mean = K.batch_flatten(x_decoded_mean)
     xent_loss = img_rows * img_cols * objectives.binary_crossentropy(x, x_decoded_mean)
     kl_loss = - 0.5 * K.sum(1 + z_log_var - K.square(z_mean) - K.exp(z_log_var), axis=-1)
     return xent_loss + kl_loss
