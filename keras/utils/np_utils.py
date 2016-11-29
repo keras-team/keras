@@ -16,6 +16,7 @@ def to_categorical(y, nb_classes=None):
     # Returns
         A binary matrix representation of the input.
     '''
+    y = np.array(y, dtype='int')
     if not nb_classes:
         nb_classes = np.max(y)+1
     Y = np.zeros((len(y), nb_classes))
