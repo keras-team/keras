@@ -40,7 +40,9 @@ def clear_session():
     tf.reset_default_graph()
     reset_uids()
     _SESSION = None
-    phase = tf.placeholder(dtype='bool', name='keras_learning_phase')
+    phase = tf.placeholder_with_default(False, 
+                                        dtype='bool', 
+                                        name='keras_learning_phase')
     _GRAPH_LEARNING_PHASES[tf.get_default_graph()] = phase
 
 
