@@ -64,7 +64,7 @@ def learning_phase():
     '''
     graph = tf.get_default_graph()
     if graph not in _GRAPH_LEARNING_PHASES:
-        phase = tf.placeholder(dtype='bool',
+        phase = tf.placeholder_with_default(False, dtype='bool',
                                name='keras_learning_phase')
         _GRAPH_LEARNING_PHASES[graph] = phase
     return _GRAPH_LEARNING_PHASES[graph]
