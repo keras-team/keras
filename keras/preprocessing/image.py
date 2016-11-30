@@ -181,9 +181,9 @@ def load_img(path, grayscale=False, target_size=None):
 
 
 def list_pictures(directory, ext='jpg|jpeg|bmp|png'):
-    return [os.path.join(directory, f) for f in sorted(os.listdir(directory))
-            if os.path.isfile(os.path.join(directory, f)) and re.match('([\w]+\.(?:' + ext + '))', f)]
-
+    return [os.path.join(root, f)  
+        for root, dirs, files in os.walk(directory) for f in files 
+        if re.match('([\w]+\.(?:' + ext + '))', f)]
 
 class ImageDataGenerator(object):
     '''Generate minibatches with
@@ -280,14 +280,16 @@ class ImageDataGenerator(object):
                             target_size=(256, 256), color_mode='rgb',
                             classes=None, class_mode='categorical',
                             batch_size=32, shuffle=True, seed=None,
-                            save_to_dir=None, save_prefix='', save_format='jpeg'):
+                            save_to_dir=None, save_prefix='', save_format='jpeg',
+                            follow_links=False):
         return DirectoryIterator(
             directory, self,
             target_size=target_size, color_mode=color_mode,
             classes=classes, class_mode=class_mode,
             dim_ordering=self.dim_ordering,
             batch_size=batch_size, shuffle=shuffle, seed=seed,
-            save_to_dir=save_to_dir, save_prefix=save_prefix, save_format=save_format)
+            save_to_dir=save_to_dir, save_prefix=save_prefix, save_format=save_format,
+            follow_links=follow_links)
 
     def standardize(self, x):
         if self.rescale:
@@ -517,7 +519,8 @@ class DirectoryIterator(Iterator):
                  dim_ordering='default',
                  classes=None, class_mode='categorical',
                  batch_size=32, shuffle=True, seed=None,
-                 save_to_dir=None, save_prefix='', save_format='jpeg'):
+                 save_to_dir=None, save_prefix='', save_format='jpeg',
+                 follow_links=False):
         if dim_ordering == 'default':
             dim_ordering = K.image_dim_ordering()
         self.directory = directory
@@ -563,14 +566,15 @@ class DirectoryIterator(Iterator):
 
         for subdir in classes:
             subpath = os.path.join(directory, subdir)
-            for fname in sorted(os.listdir(subpath)):
-                is_valid = False
-                for extension in white_list_formats:
-                    if fname.lower().endswith('.' + extension):
-                        is_valid = True
-                        break
-                if is_valid:
-                    self.nb_sample += 1
+            for root, dirs, files in os.walk(subpath, followlinks=follow_links):
+                for fname in files:
+                    is_valid = False
+                    for extension in white_list_formats:
+                        if fname.lower().endswith('.' + extension):
+                            is_valid = True
+                            break
+                    if is_valid:
+                        self.nb_sample += 1
         print('Found %d images belonging to %d classes.' % (self.nb_sample, self.nb_class))
 
         # second, build an index of the images in the different class subfolders
