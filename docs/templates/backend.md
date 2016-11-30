@@ -32,6 +32,13 @@ The default configuration file looks like this:
 }
 ```
 
+ * `image_dim_ordering`: string, either `"tf"` or `"th"`. It specifies which convention of the order of dimensions Keras follows. 
+ For 2D data (e.g. image), `"tf"` means `(rows, cols, channels)` while `"th"` means `(channels, rows, cols)`. 
+ For 3D data, `"tf"` means `(conv_dim1, conv_dim2, conv_dim3, channels)` while `"th"` means `(channels, conv_dim1, conv_dim2, conv_dim3)`.
+ * `epsilon`: float, machine epsilon of Keras
+ * `floatx`: string, `"float16"`, `"float32"`, or `"float64"`. Default float type.
+ * `backend`: string, `"tensorflow"` or `"theano"`.
+
 Simply change the field `backend` to either `"theano"` or `"tensorflow"`, and Keras will use the new configuration next time you run any Keras code.
 
 You can also define the environment variable ``KERAS_BACKEND`` and this will
