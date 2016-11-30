@@ -181,9 +181,10 @@ def load_img(path, grayscale=False, target_size=None):
 
 
 def list_pictures(directory, ext='jpg|jpeg|bmp|png'):
-    return [os.path.join(root, f)  
-        for root, dirs, files in os.walk(directory) for f in files 
-        if re.match('([\w]+\.(?:' + ext + '))', f)]
+    return [os.path.join(root, f)
+            for root, dirs, files in os.walk(directory) for f in files
+            if re.match('([\w]+\.(?:' + ext + '))', f)]
+
 
 class ImageDataGenerator(object):
     '''Generate minibatches with
