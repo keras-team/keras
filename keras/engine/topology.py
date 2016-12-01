@@ -2610,7 +2610,7 @@ class Container(Layer):
                                         str(symbolic_weight.get_shape()) +
                                         ' but the saved weight has shape of ' +                                            
                                         str(weight_value.shape))
-                    weight_value_tuples += (symbolic_weight, weight_value)
+                    weight_value_tuples.append((symbolic_weight, weight_value))
 
             K.batch_set_value(weight_value_tuples)
 
