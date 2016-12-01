@@ -61,6 +61,7 @@ You can change these settings by editing `~/.keras/keras.json`.
 * `image_dim_ordering`: string, either `"tf"` or `"th"`. It specifies which convention of the order of dimensions Keras will follow. `keras.backend.image_dim_ordering()` returns it.
   - For 2D data (e.g. image), `"tf"` assumes `(rows, cols, channels)` while `"th"` assumes `(channels, rows, cols)`. 
   - For 3D data, `"tf"` assumes `(conv_dim1, conv_dim2, conv_dim3, channels)` while `"th"` assumes `(channels, conv_dim1, conv_dim2, conv_dim3)`.
+  
  * `epsilon`: float, machine epsilon of Keras
  * `floatx`: string, `"float16"`, `"float32"`, or `"float64"`. Default float type.
  * `backend`: string, `"tensorflow"` or `"theano"`.
