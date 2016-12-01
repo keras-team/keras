@@ -748,7 +748,7 @@ class ReduceLRExponentialDecay(Callback):
     def on_epoch_end(self, epoch, logs={}):
         if self.wait >= self.every_n_epochs:
             old_lr = K.get_value(self.model.optimizer.lr)
-            new_lr = old_lr * np.exp(-self.exponential_decay_factor * (epoch / every_n_epochs))
+            new_lr = old_lr * np.exp(-self.exponential_decay_factor * (epoch / self.every_n_epochs))
             K.set_value(self.model.optimizer.lr, new_lr)
             self.wait = 0
         else:
