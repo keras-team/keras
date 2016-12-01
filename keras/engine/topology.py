@@ -2601,7 +2601,17 @@ class Container(Layer):
                         assert shape[0] == layer.nb_filter and shape[2:] == (layer.filter_length, 1)
                         w = np.transpose(w, (2, 3, 1, 0))
                         weight_values[0] = w
-                weight_value_tuples += zip(symbolic_weights, weight_values)
+                
+                for symbolic_weight, weight_value in zip(symbolic_weights, weight_values):
+                    if weight_value.shape != symbolic_weight.get_shape():
+                        raise Exception('Layer #' + str(k) +
+                                        ' (named "' + layer.name +
+                                        '") expects weight of shape ' +
+                                        str(symbolic_weight.get_shape()) +
+                                        ' but the saved weight has shape of ' +                                            
+                                        str(weight_value.shape))
+                    weight_value_tuples += (symbolic_weight, weight_value)
+
             K.batch_set_value(weight_value_tuples)
 
     def load_weights_from_hdf5_group_by_name(self, f):
@@ -2649,7 +2659,15 @@ class Container(Layer):
                                         ' element(s).')
                     # Set values.
                     for i in range(len(weight_values)):
+                        if weight_values[i].shape != symbolic_weights[i].get_shape():
+                            raise Exception('Layer #' + str(k) +
+                                            ' (named "' + layer.name +
+                                            '") expects weight of shape ' +
+                                            str(symbolic_weights[i].get_shape()) +
+                                            ' but the saved weight has shape of ' +
+                                            str(weight_values[i].shape))
                         weight_value_tuples.append((symbolic_weights[i], weight_values[i]))
+                        
             K.batch_set_value(weight_value_tuples)
 
     def _updated_config(self):
