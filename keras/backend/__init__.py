@@ -24,10 +24,13 @@ if not os.path.exists(_keras_dir):
     os.makedirs(_keras_dir)
 
 # Set theano as default backend for Windows users since tensorflow is not available for Windows yet.
-if os.name == 'nt':
-    _BACKEND = 'theano'
-else:
-    _BACKEND = 'tensorflow'
+# if os.name == 'nt':
+#     _BACKEND = 'theano'
+# else:
+#     _BACKEND = 'tensorflow'
+
+# Edit: TF now works with Windows.
+
 
 _config_path = os.path.expanduser(os.path.join(_keras_dir, 'keras.json'))
 if os.path.exists(_config_path):
