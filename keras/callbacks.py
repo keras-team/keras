@@ -662,7 +662,7 @@ class CSVLogger(Callback):
             model.fit(X_train, Y_train, callbacks=[csv_logger])
         ```
 
-    Arguments
+    # Arguments
         filename: filename of the csv file, e.g. 'run/log.csv'.
         separator: string used to separate elements in the csv file.
         append: True: append if file exists (useful for continuing
