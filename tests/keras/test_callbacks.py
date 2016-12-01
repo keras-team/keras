@@ -329,6 +329,40 @@ def test_TensorBoard_with_ReduceLROnPlateau():
     assert os.path.exists(filepath)
     shutil.rmtree(filepath)
 
+def test_ReduceLRExponentialDecay():
+    (X_train, y_train), (X_test, y_test) = get_test_data(nb_train=train_samples,
+                                                         nb_test=test_samples,
+                                                         input_shape=(input_dim,),
+                                                         classification=True,
+                                                         nb_class=nb_class)
+    y_test = np_utils.to_categorical(y_test)
+    y_train = np_utils.to_categorical(y_train)
+
+    def make_model():
+        np.random.seed(1337)
+        model = Sequential()
+        model.add(Dense(nb_hidden, input_dim=input_dim, activation='relu'))
+        model.add(Dense(nb_class, activation='softmax'))
+
+        model.compile(loss='categorical_crossentropy',
+                      optimizer=optimizers.SGD(lr=0.1),
+                      metrics=['accuracy'])
+        return model
+
+    model = make_model()
+
+    # This should reduce the LR as epoch is greater than every_n_epochs
+    cbks = [callbacks.ReduceLRExponentialDecay(exponential_decay_factor=0.94, every_n_epochs=2)]
+    model.fit(X_train, y_train, batch_size=batch_size,
+              validation_data=(X_test, y_test), callbacks=cbks, nb_epoch=3, verbose=2)
+    assert np.allclose(float(K.get_value(model.optimizer.lr)), np.exp(-0.94) * 0.01, atol=K.epsilon())
+
+    # This won't reduce the LR as every_n_epochs is greater than number of epochs
+    model = make_model()
+    cbks = [callbacks.LRExponentialDecay(exponential_decay_factor=0.94, every_n_epochs=6)]
+    model.fit(X_train, y_train, batch_size=batch_size,
+              validation_data=(X_test, y_test), callbacks=cbks, nb_epoch=5, verbose=2)
+    assert np.allclose(float(K.get_value(model.optimizer.lr)), 0.1, atol=K.epsilon())
 
 if __name__ == '__main__':
     pytest.main([__file__])

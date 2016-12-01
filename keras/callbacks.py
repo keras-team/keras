@@ -719,6 +719,42 @@ class CSVLogger(Callback):
         self.csv_file.close()
 
 
+class ReduceLRExponentialDecay(Callback):
+    '''Exponentially decays the learning rate.
+
+    # Example
+        ```python
+            reduce_lr_exp = LRExponentialDecay(exponential_decay_factor=0.94, every_n_epochs=2)
+            model.fit(X_train, Y_train, callbacks=[reduce_lr_exp])
+        ```
+    # Arguments
+        exponential_decay_factor: hyperparameter of exponent by which learning rate will be reduced.
+        every_n_epochs: how often to reduce learning rate by exponential factor.
+    '''
+
+    def __init__(self, exponential_decay_factor=0.94, every_n_epochs=2):
+        super(Callback, self).__init__()
+        self.exponential_decay_factor=exponential_decay_factor
+        self.every_n_epochs=every_n_epochs
+        self.wait=0
+        self.reset()
+
+    def reset(self):
+        self.epoch_counter_curr=0
+
+    def on_train_begin(self, logs={}):
+        self.reset()
+
+    def on_epoch_end(self, epoch, logs={}):
+        if self.wait >= self.every_n_epochs:
+            old_lr = K.get_value(self.model.optimizer.lr)
+            new_lr = old_lr * np.exp(-self.exponential_decay_factor * (epoch / every_n_epochs))
+            K.set_value(self.model.optimizer.lr, new_lr)
+            self.wait = 0
+        else:
+            self.wait += 1
+
+
 class LambdaCallback(Callback):
     """Callback for creating simple, custom callbacks on-the-fly.
 
