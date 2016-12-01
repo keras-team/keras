@@ -355,7 +355,7 @@ def test_ReduceLRExponentialDecay():
     cbks = [callbacks.ReduceLRExponentialDecay(exponential_decay_factor=0.94, every_n_epochs=2)]
     model.fit(X_train, y_train, batch_size=batch_size,
               validation_data=(X_test, y_test), callbacks=cbks, nb_epoch=3, verbose=2)
-    assert np.allclose(float(K.get_value(model.optimizer.lr)), np.exp(-0.94) * 0.01, atol=K.epsilon())
+    assert np.allclose(float(K.get_value(model.optimizer.lr)), np.exp(-0.94) * 0.1, atol=K.epsilon())
 
     # This won't reduce the LR as every_n_epochs is greater than number of epochs
     model = make_model()
