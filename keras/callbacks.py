@@ -671,7 +671,7 @@ class CSVLogger(Callback):
             model.fit(X_train, Y_train, callbacks=[csv_logger])
         ```
 
-    Arguments
+    # Arguments
         filename: filename of the csv file, e.g. 'run/log.csv'.
         separator: string used to separate elements in the csv file.
         append: True: append if file exists (useful for continuing
@@ -723,7 +723,7 @@ class LambdaCallback(Callback):
     """Callback for creating simple, custom callbacks on-the-fly.
 
     This callback is constructed with anonymous functions that will be called
-    at the appropiate time. Note that the callbacks expects positional
+    at the appropriate time. Note that the callbacks expects positional
     arguments, as:
      - `on_epoch_begin` and `on_epoch_end` expect two positional arguments: `epoch`, `logs`
      - `on_batch_begin` and `on_batch_end` expect two positional arguments: `batch`, `logs`
