@@ -18,6 +18,7 @@ from ..layers import Convolution2D, MaxPooling2D, ZeroPadding2D, AveragePooling2
 from ..layers import BatchNormalization
 from ..models import Model
 from .. import backend as K
+from ..engine.topology import get_source_inputs
 from ..utils.layer_utils import convert_all_kernels_in_model
 from ..utils.data_utils import get_file
 from .imagenet_utils import decode_predictions, preprocess_input, _obtain_input_shape
@@ -194,7 +195,14 @@ def ResNet50(include_top=True, weights='imagenet',
         x = Flatten()(x)
         x = Dense(1000, activation='softmax', name='fc1000')(x)
 
-    model = Model(img_input, x)
+    # Ensure that the model takes into account
+    # any potential predecessors of `input_tensor`.
+    if input_tensor is not None:
+        inputs = get_source_inputs(input_tensor)
+    else:
+        inputs = img_input
+    # Create model.
+    model = Model(inputs, x)
 
     # load weights
     if weights == 'imagenet':

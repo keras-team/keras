@@ -2725,7 +2725,7 @@ def get_source_inputs(tensor, layer=None, node_index=None):
         node_index: Origin node index of the tensor.
     '''
     if not hasattr(tensor, '_keras_history'):
-        raise Exception('Tensor must be a Keras tensor. Found: ' + str(tensor))
+        return tensor
 
     if layer is None or node_index:
         layer, node_index, _ = tensor._keras_history
