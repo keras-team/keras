@@ -1008,7 +1008,7 @@ def in_train_phase(x, alt):
         return x
     elif _LEARNING_PHASE is 0:
         return alt
-    x = T.switch(_LEARNING_PHASE, x, alt)
+    x = theano.ifelse.ifelse(_LEARNING_PHASE, x, alt)
     x._uses_learning_phase = True
     return x
 
@@ -1018,7 +1018,7 @@ def in_test_phase(x, alt):
         return alt
     elif _LEARNING_PHASE is 0:
         return x
-    x = T.switch(_LEARNING_PHASE, alt, x)
+    x = theano.ifelse.ifelse(_LEARNING_PHASE, alt, x)
     x._uses_learning_phase = True
     return x
 
