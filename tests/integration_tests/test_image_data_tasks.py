@@ -7,6 +7,7 @@ from keras.models import Sequential
 from keras.layers.core import Dense, Flatten, Activation
 from keras.layers.convolutional import Convolution2D, MaxPooling2D
 from keras.utils.np_utils import to_categorical
+from keras.preprocessing.image import ImageDataGenerator
 
 
 @keras_test
@@ -43,6 +44,17 @@ def test_image_classification():
                         validation_data=(X_test, y_test),
                         verbose=0)
     assert(history.history['val_acc'][-1] > 0.85)
+
+
+@keras_test
+def test_image_data_generator():
+    generator = ImageDataGenerator()
+    directory_iterator = generator.flow_from_directory('./tests/integration_tests/images')
+    # tests/integration_tests/images contains 6 (public domain) images in 2 categories
+    assert(len(directory_iterator.class_indices)==2)
+    # 3 images in the each category, including 1 in a subfolder
+    assert(len(directory_iterator.classes)==6)
+    assert(len(directory_iterator.filenames)==6)
 
 
 if __name__ == '__main__':
