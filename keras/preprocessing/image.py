@@ -584,16 +584,17 @@ class DirectoryIterator(Iterator):
         i = 0
         for subdir in classes:
             subpath = os.path.join(directory, subdir)
-            for fname in sorted(os.listdir(subpath)):
-                is_valid = False
-                for extension in white_list_formats:
-                    if fname.lower().endswith('.' + extension):
-                        is_valid = True
-                        break
-                if is_valid:
-                    self.classes[i] = self.class_indices[subdir]
-                    self.filenames.append(os.path.join(subdir, fname))
-                    i += 1
+            for root, dirs, files in os.walk(subpath, followlinks=follow_links):
+                for fname in files:
+                    is_valid = False
+                    for extension in white_list_formats:
+                        if fname.lower().endswith('.' + extension):
+                            is_valid = True
+                            break
+                    if is_valid:
+                        self.classes[i] = self.class_indices[subdir]
+                        self.filenames.append(os.path.join(root, fname))
+                        i += 1
         super(DirectoryIterator, self).__init__(self.nb_sample, batch_size, shuffle, seed)
 
     def next(self):
