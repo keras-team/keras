@@ -47,7 +47,7 @@ def test_image_classification():
 
 
 @keras_test
-def test_image_data_generator():
+def test_directory_iterator():
     generator = ImageDataGenerator()
     directory_iterator = generator.flow_from_directory('./tests/integration_tests/images')
     # tests/integration_tests/images contains 6 (public domain) images in 2 categories
