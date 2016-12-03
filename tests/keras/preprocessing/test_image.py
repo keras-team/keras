@@ -51,7 +51,8 @@ class TestImage:
                 fill_mode='nearest',
                 cval=0.5,
                 horizontal_flip=True,
-                vertical_flip=True)
+                vertical_flip=True,
+                interpolation_order=1)
             generator.fit(images, augment=True)
 
             tmp_folder = tempfile.mkdtemp(prefix='test_images')
@@ -84,6 +85,7 @@ class TestImage:
                 channel_shift_range=0,
                 horizontal_flip=True,
                 vertical_flip=False,
+                interpolation_order=1,
                 dim_ordering=dim_ordering).flow(x, [1])
             for i in range(10):
                 potentially_flipped_x, _ = next(image_generator_th)

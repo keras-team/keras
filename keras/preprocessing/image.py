@@ -17,7 +17,7 @@ from .. import backend as K
 
 
 def random_rotation(x, rg, row_index=1, col_index=2, channel_index=0,
-                    fill_mode='nearest', cval=0.):
+                    fill_mode='nearest', cval=0., interpolation_order=0):
     theta = np.pi / 180 * np.random.uniform(-rg, rg)
     rotation_matrix = np.array([[np.cos(theta), -np.sin(theta), 0],
                                 [np.sin(theta), np.cos(theta), 0],
@@ -25,12 +25,12 @@ def random_rotation(x, rg, row_index=1, col_index=2, channel_index=0,
 
     h, w = x.shape[row_index], x.shape[col_index]
     transform_matrix = transform_matrix_offset_center(rotation_matrix, h, w)
-    x = apply_transform(x, transform_matrix, channel_index, fill_mode, cval)
+    x = apply_transform(x, transform_matrix, channel_index, fill_mode, cval, interpolation_order)
     return x
 
 
 def random_shift(x, wrg, hrg, row_index=1, col_index=2, channel_index=0,
-                 fill_mode='nearest', cval=0.):
+                 fill_mode='nearest', cval=0., interpolation_order=0):
     h, w = x.shape[row_index], x.shape[col_index]
     tx = np.random.uniform(-hrg, hrg) * h
     ty = np.random.uniform(-wrg, wrg) * w
@@ -39,12 +39,12 @@ def random_shift(x, wrg, hrg, row_index=1, col_index=2, channel_index=0,
                                    [0, 0, 1]])
 
     transform_matrix = translation_matrix  # no need to do offset
-    x = apply_transform(x, transform_matrix, channel_index, fill_mode, cval)
+    x = apply_transform(x, transform_matrix, channel_index, fill_mode, cval, interpolation_order)
     return x
 
 
 def random_shear(x, intensity, row_index=1, col_index=2, channel_index=0,
-                 fill_mode='nearest', cval=0.):
+                 fill_mode='nearest', cval=0., interpolation_order=0):
     shear = np.random.uniform(-intensity, intensity)
     shear_matrix = np.array([[1, -np.sin(shear), 0],
                              [0, np.cos(shear), 0],
@@ -52,12 +52,12 @@ def random_shear(x, intensity, row_index=1, col_index=2, channel_index=0,
 
     h, w = x.shape[row_index], x.shape[col_index]
     transform_matrix = transform_matrix_offset_center(shear_matrix, h, w)
-    x = apply_transform(x, transform_matrix, channel_index, fill_mode, cval)
+    x = apply_transform(x, transform_matrix, channel_index, fill_mode, cval, interpolation_order)
     return x
 
 
 def random_zoom(x, zoom_range, row_index=1, col_index=2, channel_index=0,
-                fill_mode='nearest', cval=0.):
+                fill_mode='nearest', cval=0., interpolation_order=0):
     if len(zoom_range) != 2:
         raise Exception('zoom_range should be a tuple or list of two floats. '
                         'Received arg: ', zoom_range)
@@ -72,7 +72,7 @@ def random_zoom(x, zoom_range, row_index=1, col_index=2, channel_index=0,
 
     h, w = x.shape[row_index], x.shape[col_index]
     transform_matrix = transform_matrix_offset_center(zoom_matrix, h, w)
-    x = apply_transform(x, transform_matrix, channel_index, fill_mode, cval)
+    x = apply_transform(x, transform_matrix, channel_index, fill_mode, cval, interpolation_order)
     return x
 
 
@@ -100,12 +100,12 @@ def transform_matrix_offset_center(matrix, x, y):
     return transform_matrix
 
 
-def apply_transform(x, transform_matrix, channel_index=0, fill_mode='nearest', cval=0.):
+def apply_transform(x, transform_matrix, channel_index=0, fill_mode='nearest', cval=0., interpolation_order=0):
     x = np.rollaxis(x, channel_index, 0)
     final_affine_matrix = transform_matrix[:2, :2]
     final_offset = transform_matrix[:2, 2]
     channel_images = [ndi.interpolation.affine_transform(x_channel, final_affine_matrix,
-                      final_offset, order=0, mode=fill_mode, cval=cval) for x_channel in x]
+                      final_offset, order=interpolation_order, mode=fill_mode, cval=cval) for x_channel in x]
     x = np.stack(channel_images, axis=0)
     x = np.rollaxis(x, 0, channel_index+1)
     return x
@@ -218,6 +218,11 @@ class ImageDataGenerator(object):
             It defaults to the `image_dim_ordering` value found in your
             Keras config file at `~/.keras/keras.json`.
             If you never set it, then it will be "th".
+        interpolation_order: The order of the spline interpolation, default is 0.
+            The order has to be in the range 0-5.
+            0 is nearest-neighbor interpolation.
+            1 is bilinear interpolation.
+            3 is bicubic spline interpolation.
     '''
     def __init__(self,
                  featurewise_center=False,
@@ -236,7 +241,8 @@ class ImageDataGenerator(object):
                  horizontal_flip=False,
                  vertical_flip=False,
                  rescale=None,
-                 dim_ordering='default'):
+                 dim_ordering='default',
+                 interpolation_order=0):
         if dim_ordering == 'default':
             dim_ordering = K.image_dim_ordering()
         self.__dict__.update(locals())
@@ -359,7 +365,7 @@ class ImageDataGenerator(object):
         h, w = x.shape[img_row_index], x.shape[img_col_index]
         transform_matrix = transform_matrix_offset_center(transform_matrix, h, w)
         x = apply_transform(x, transform_matrix, img_channel_index,
-                            fill_mode=self.fill_mode, cval=self.cval)
+                            fill_mode=self.fill_mode, cval=self.cval, interpolation_order=self.interpolation_order)
         if self.channel_shift_range != 0:
             x = random_channel_shift(x, self.channel_shift_range, img_channel_index)
 
