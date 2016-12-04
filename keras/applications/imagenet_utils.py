@@ -67,7 +67,7 @@ def _obtain_input_shape(input_shape, default_size, min_size, dim_ordering, inclu
             if input_shape is not None:
                 if len(input_shape) != 3:
                     raise ValueError('`input_shape` must be a tuple of three integers.')
-                if input_shape[1] != 3:
+                if input_shape[0] != 3:
                     raise ValueError('The input must have 3 channels; got '
                                      '`input_shape=' + str(input_shape) + '`')
                 if ((input_shape[1] is not None and input_shape[1] < min_size) or
