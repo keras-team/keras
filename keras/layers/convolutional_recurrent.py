@@ -225,7 +225,7 @@ class ConvLSTM2D(ConvRecurrent2D):
             nb_row: Number of rows in the convolution kernel.
             nb_col: Number of columns in the convolution kernel.
             border_mode: 'valid' or 'same'.
-            sub_sample: tuple of length 2. Factor by which to subsample output.
+            subsample: tuple of length 2. Factor by which to subsample output.
                 Also called strides elsewhere.
             dim_ordering: 'tf' if the feature are at the last dimension or 'th'
             stateful : Boolean (default False). If True, the last state
@@ -256,7 +256,7 @@ class ConvLSTM2D(ConvRecurrent2D):
                  forget_bias_init='one', activation='tanh',
                  inner_activation='hard_sigmoid',
                  dim_ordering='default',
-                 border_mode='valid', sub_sample=(1, 1),
+                 border_mode='valid', subsample=(1, 1),
                  W_regularizer=None, U_regularizer=None, b_regularizer=None,
                  dropout_W=0., dropout_U=0., **kwargs):
 
@@ -273,7 +273,7 @@ class ConvLSTM2D(ConvRecurrent2D):
         self.activation = activations.get(activation)
         self.inner_activation = activations.get(inner_activation)
         self.border_mode = border_mode
-        self.subsample = sub_sample
+        self.subsample = subsample
 
         if dim_ordering == 'th':
             warnings.warn('Be carefull if used with convolution3D layers:\n'
