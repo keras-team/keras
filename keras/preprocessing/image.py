@@ -190,10 +190,15 @@ class ImageDataGenerator(object):
     real-time data augmentation.
 
     # Arguments
-        featurewise_center: set input mean to 0 over the dataset.
-        samplewise_center: set each sample mean to 0.
-        featurewise_std_normalization: divide inputs by std of the dataset.
-        samplewise_std_normalization: divide each input by its std.
+        featurewise_center: set input mean to 0 over the dataset (entire batch)
+        samplewise_center: set input mean to 0 over the sample (individual image
+            in batch)
+        featurewise_std_normalization: divide inputs by std of the dataset 
+            (entire batch)
+        samplewise_std_normalization: divide each input by its std (individual 
+            image in batch)
+        channelwise: apply centering and std_normalization separately for each   
+                     channel 
         zca_whitening: apply ZCA whitening.
         rotation_range: degrees (0 to 180).
         width_shift_range: fraction of total width.
@@ -224,6 +229,7 @@ class ImageDataGenerator(object):
                  samplewise_center=False,
                  featurewise_std_normalization=False,
                  samplewise_std_normalization=False,
+                 channelwise=False, 
                  zca_whitening=False,
                  rotation_range=0.,
                  width_shift_range=0.,
@@ -294,10 +300,17 @@ class ImageDataGenerator(object):
             x *= self.rescale
         # x is a single image, so it doesn't have image number at index 0
         img_channel_index = self.channel_index - 1
+        img_row_index = self.row_index - 1
+        img_col_index = self.col_index - 1
+        if self.channelwise: 
+            standardize_axis = (img_row_index, img_col_index)
+        else: 
+            standardize_axis = img_channel_index
+
         if self.samplewise_center:
-            x -= np.mean(x, axis=img_channel_index, keepdims=True)
+            x -= np.mean(x, axis=standardize_axis, keepdims=True)
         if self.samplewise_std_normalization:
-            x /= (np.std(x, axis=img_channel_index, keepdims=True) + 1e-7)
+            x /= (np.std(x, axis=standardize_axis, keepdims=True) + 1e-7)
 
         if self.featurewise_center:
             x -= self.mean
@@ -401,13 +414,26 @@ class ImageDataGenerator(object):
                     aX[i + r * X.shape[0]] = self.random_transform(X[i])
             X = aX
 
+        if self.channelwise: 
+            standardize_axis = (0, self.row_index, self.col_index)
+            keep_dims = True
+        else: 
+            standardize_axis = 0 
+            keep_dims = False
+
         if self.featurewise_center:
-            self.mean = np.mean(X, axis=0)
+            self.mean = np.mean(X, axis=standardize_axis, keepdims=keep_dims)
             X -= self.mean
+            
+            if self.channelwise: 
+                self.mean = self.mean[0]
 
         if self.featurewise_std_normalization:
-            self.std = np.std(X, axis=0)
+            self.std = np.std(X, axis=standardize_axis, keepdims=keep_dims)
             X /= (self.std + 1e-7)
+            
+            if self.channelwise: 
+                self.std = self.std[0]
 
         if self.zca_whitening:
             flatX = np.reshape(X, (X.shape[0], X.shape[1] * X.shape[2] * X.shape[3]))
