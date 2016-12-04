@@ -1456,21 +1456,23 @@ class Merge(Layer):
         else:
             mode = config['mode']
 
-        output_shape_type = config.pop('output_shape_type')
+        output_shape_type = config.pop('output_shape_type', None)
         if output_shape_type == 'function':
             output_shape = globals()[config['output_shape']]
         elif output_shape_type == 'lambda':
-            output_shape = func_load(config['output_shape'], globs=globals())
+            output_shape = func_load(config['output_shape'],
+                                     globs=globals())
         else:
-            output_shape = config['output_shape']
+            output_shape = config.get('output_shape')
 
-        output_mask_type = config.pop('output_mask_type')
+        output_mask_type = config.pop('output_mask_type', None)
         if output_mask_type == 'function':
             output_mask = globals()[config['output_mask']]
         elif output_mask_type == 'lambda':
-            output_mask = func_load(config['output_mask'], globs=globals())
+            output_mask = func_load(config['output_mask'],
+                                    globs=globals())
         else:
-            output_mask = config['output_mask']
+            output_mask = config.get('output_mask')
 
         config['mode'] = mode
         config['output_shape'] = output_shape
@@ -1479,7 +1481,8 @@ class Merge(Layer):
 
 
 def merge(inputs, mode='sum', concat_axis=-1,
-          dot_axes=-1, output_shape=None, output_mask=None, arguments={}, name=None):
+          dot_axes=-1, output_shape=None, output_mask=None,
+          arguments={}, name=None):
     '''Functional merge, to apply to Keras tensors (NOT layers).
     Returns a Keras tensor.
 
