@@ -12,6 +12,7 @@ import scipy.ndimage as ndi
 from six.moves import range
 import os
 import threading
+import warnings
 
 from .. import backend as K
 
@@ -59,8 +60,8 @@ def random_shear(x, intensity, row_index=1, col_index=2, channel_index=0,
 def random_zoom(x, zoom_range, row_index=1, col_index=2, channel_index=0,
                 fill_mode='nearest', cval=0.):
     if len(zoom_range) != 2:
-        raise Exception('zoom_range should be a tuple or list of two floats. '
-                        'Received arg: ', zoom_range)
+        raise ValueError('zoom_range should be a tuple or list of two floats. '
+                         'Received arg: ', zoom_range)
 
     if zoom_range[0] == 1 and zoom_range[1] == 1:
         zx, zy = 1, 1
@@ -120,8 +121,19 @@ def flip_axis(x, axis):
 
 def array_to_img(x, dim_ordering='default', scale=True):
     from PIL import Image
+    x = np.asarray(x)
+    if x.ndim != 3:
+        raise ValueError('Expected image array to have rank 3 (single image). '
+                         'Got array with shape:', x.shape)
+
     if dim_ordering == 'default':
         dim_ordering = K.image_dim_ordering()
+    if dim_ordering not in {'th', 'tf'}:
+        raise ValueError('Invalid dim_ordering:', dim_ordering)
+
+    # Original Numpy array x has format (height, width, channel)
+    # or (channel, height, width)
+    # but target PIL image has format (width, height, channel)
     if dim_ordering == 'th':
         x = x.transpose(1, 2, 0)
     if scale:
@@ -137,15 +149,17 @@ def array_to_img(x, dim_ordering='default', scale=True):
         # grayscale
         return Image.fromarray(x[:, :, 0].astype('uint8'), 'L')
     else:
-        raise Exception('Unsupported channel number: ', x.shape[2])
+        raise ValueError('Unsupported channel number: ', x.shape[2])
 
 
 def img_to_array(img, dim_ordering='default'):
     if dim_ordering == 'default':
         dim_ordering = K.image_dim_ordering()
-    if dim_ordering not in ['th', 'tf']:
-        raise Exception('Unknown dim_ordering: ', dim_ordering)
-    # image has dim_ordering (height, width, channel)
+    if dim_ordering not in {'th', 'tf'}:
+        raise ValueError('Unknown dim_ordering: ', dim_ordering)
+    # Numpy array x has format (height, width, channel)
+    # or (channel, height, width)
+    # but original PIL image has format (width, height, channel)
     x = np.asarray(img, dtype='float32')
     if len(x.shape) == 3:
         if dim_ordering == 'th':
@@ -156,7 +170,7 @@ def img_to_array(img, dim_ordering='default'):
         else:
             x = x.reshape((x.shape[0], x.shape[1], 1))
     else:
-        raise Exception('Unsupported image shape: ', x.shape)
+        raise ValueError('Unsupported image shape: ', x.shape)
     return x
 
 
@@ -211,8 +225,8 @@ class ImageDataGenerator(object):
         horizontal_flip: whether to randomly flip images horizontally.
         vertical_flip: whether to randomly flip images vertically.
         rescale: rescaling factor. If None or 0, no rescaling is applied,
-            otherwise we multiply the data by the value provided (before applying
-            any other transformation).
+            otherwise we multiply the data by the value provided
+            (before applying any other transformation).
         dim_ordering: 'th' or 'tf'. In 'th' mode, the channels dimension
             (the depth) is at index 1, in 'tf' mode it is at index 3.
             It defaults to the `image_dim_ordering` value found in your
@@ -246,9 +260,9 @@ class ImageDataGenerator(object):
         self.rescale = rescale
 
         if dim_ordering not in {'tf', 'th'}:
-            raise Exception('dim_ordering should be "tf" (channel after row and '
-                            'column) or "th" (channel before row and column). '
-                            'Received arg: ', dim_ordering)
+            raise ValueError('dim_ordering should be "tf" (channel after row and '
+                             'column) or "th" (channel before row and column). '
+                             'Received arg: ', dim_ordering)
         self.dim_ordering = dim_ordering
         if dim_ordering == 'th':
             self.channel_index = 1
@@ -264,9 +278,9 @@ class ImageDataGenerator(object):
         elif len(zoom_range) == 2:
             self.zoom_range = [zoom_range[0], zoom_range[1]]
         else:
-            raise Exception('zoom_range should be a float or '
-                            'a tuple or list of two floats. '
-                            'Received arg: ', zoom_range)
+            raise ValueError('zoom_range should be a float or '
+                             'a tuple or list of two floats. '
+                             'Received arg: ', zoom_range)
 
     def flow(self, X, y=None, batch_size=32, shuffle=True, seed=None,
              save_to_dir=None, save_prefix='', save_format='jpeg'):
@@ -300,15 +314,31 @@ class ImageDataGenerator(object):
             x /= (np.std(x, axis=img_channel_index, keepdims=True) + 1e-7)
 
         if self.featurewise_center:
-            x -= self.mean
+            if self.mean is not None:
+                x -= self.mean
+            else:
+                warnings.warn('This ImageDataGenerator specifies '
+                              '`featurewise_center`, but it hasn\'t'
+                              'been fit on any training data. Fit it '
+                              'first by calling `.fit(numpy_data)`.')
         if self.featurewise_std_normalization:
-            x /= (self.std + 1e-7)
-
+            if self.std is not None:
+                x /= (self.std + 1e-7)
+            else:
+                warnings.warn('This ImageDataGenerator specifies '
+                              '`featurewise_std_normalization`, but it hasn\'t'
+                              'been fit on any training data. Fit it '
+                              'first by calling `.fit(numpy_data)`.')
         if self.zca_whitening:
-            flatx = np.reshape(x, (x.size))
-            whitex = np.dot(flatx, self.principal_components)
-            x = np.reshape(whitex, (x.shape[0], x.shape[1], x.shape[2]))
-
+            if self.principal_components is not None:
+                flatx = np.reshape(x, (x.size))
+                whitex = np.dot(flatx, self.principal_components)
+                x = np.reshape(whitex, (x.shape[0], x.shape[1], x.shape[2]))
+            else:
+                warnings.warn('This ImageDataGenerator specifies '
+                              '`zca_whitening`, but it hasn\'t'
+                              'been fit on any training data. Fit it '
+                              'first by calling `.fit(numpy_data)`.')
         return x
 
     def random_transform(self, x):
@@ -384,12 +414,28 @@ class ImageDataGenerator(object):
         and zca_whitening.
 
         # Arguments
-            X: Numpy array, the data to fit on.
-            augment: whether to fit on randomly augmented samples
-            rounds: if `augment`,
+            X: Numpy array, the data to fit on. Should have rank 4.
+                In case of grayscale data,
+                the channels axis should have value 1, and in case
+                of RGB data, it should have value 3.
+            augment: Whether to fit on randomly augmented samples
+            rounds: If `augment`,
                 how many augmentation passes to do over the data
             seed: random seed.
         '''
+        X = np.asarray(X)
+        if X.ndim != 4:
+            raise ValueError('Input to `.fit()` should have rank 4. '
+                             'Got array with shape: ' + str(X.shape))
+        if X.shape[self.channel_index] not in {1, 3}:
+            raise ValueError(
+                'Expected input to be images (as Numpy array) '
+                'following the dimension ordering convention "' + self.dim_ordering + '" '
+                '(channels on axis ' + str(self.channel_index) + '), i.e. expected '
+                'either 1 or 3 channels on axis ' + str(self.channel_index) + '. '
+                'However, it was passed an array with shape ' + str(X.shape) +
+                ' (' + str(X.shape[self.channel_index]) + ' channels).')
+
         if seed is not None:
             np.random.seed(seed)
 
@@ -402,12 +448,18 @@ class ImageDataGenerator(object):
             X = aX
 
         if self.featurewise_center:
-            self.mean = np.mean(X, axis=0)
+            self.mean = np.mean(X, axis=(0, self.row_index, self.col_index))
+            broadcast_shape = [1, 1, 1]
+            broadcast_shape[self.channel_index - 1] = X.shape[self.channel_index]
+            self.mean = np.reshape(self.mean, broadcast_shape)
             X -= self.mean
 
         if self.featurewise_std_normalization:
-            self.std = np.std(X, axis=0)
-            X /= (self.std + 1e-7)
+            self.std = np.std(X, axis=(0, self.row_index, self.col_index))
+            broadcast_shape = [1, 1, 1]
+            broadcast_shape[self.channel_index - 1] = X.shape[self.channel_index]
+            self.std = np.reshape(self.std, broadcast_shape)
+            X /= (self.std + K.epsilon())
 
         if self.zca_whitening:
             flatX = np.reshape(X, (X.shape[0], X.shape[1] * X.shape[2] * X.shape[3]))
@@ -468,13 +520,25 @@ class NumpyArrayIterator(Iterator):
                  dim_ordering='default',
                  save_to_dir=None, save_prefix='', save_format='jpeg'):
         if y is not None and len(X) != len(y):
-            raise Exception('X (images tensor) and y (labels) '
-                            'should have the same length. '
-                            'Found: X.shape = %s, y.shape = %s' % (np.asarray(X).shape, np.asarray(y).shape))
+            raise ValueError('X (images tensor) and y (labels) '
+                             'should have the same length. '
+                             'Found: X.shape = %s, y.shape = %s' % (np.asarray(X).shape, np.asarray(y).shape))
         if dim_ordering == 'default':
             dim_ordering = K.image_dim_ordering()
-        self.X = X
-        self.y = y
+        self.X = np.asarray(X)
+        if self.X.ndim != 4:
+            raise ValueError('Input data in `NumpyArrayIterator` '
+                             'should have rank 4. You passed an array '
+                             'with shape', self.X.shape)
+        channels_axis = 3 if dim_ordering == 'tf' else 1
+        if self.X.shape[channels_axis] not in {1, 3}:
+            raise ValueError('NumpyArrayIterator is set to use the '
+                             'dimension ordering convention "' + dim_ordering + '" '
+                             '(channels on axis ' + str(channels_axis) + '), i.e. expected '
+                             'either 1 or 3 channels on axis ' + str(channels_axis) + '. '
+                             'However, it was passed an array with shape ' + str(self.X.shape) +
+                             ' (' + str(self.X.shape[channels_axis]) + ' channels).')
+        self.y = np.asarray(y)
         self.image_data_generator = image_data_generator
         self.dim_ordering = dim_ordering
         self.save_to_dir = save_to_dir
@@ -600,7 +664,9 @@ class DirectoryIterator(Iterator):
         # build batch of image data
         for i, j in enumerate(index_array):
             fname = self.filenames[j]
-            img = load_img(os.path.join(self.directory, fname), grayscale=grayscale, target_size=self.target_size)
+            img = load_img(os.path.join(self.directory, fname),
+                           grayscale=grayscale,
+                           target_size=self.target_size)
             x = img_to_array(img, dim_ordering=self.dim_ordering)
             x = self.image_data_generator.random_transform(x)
             x = self.image_data_generator.standardize(x)
