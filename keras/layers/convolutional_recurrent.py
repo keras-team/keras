@@ -225,7 +225,7 @@ class ConvLSTM2D(ConvRecurrent2D):
             nb_row: Number of rows in the convolution kernel.
             nb_col: Number of columns in the convolution kernel.
             border_mode: 'valid' or 'same'.
-            sub_sample: tuple of length 2. Factor by which to subsample output.
+            subsample: tuple of length 2. Factor by which to subsample output.
                 Also called strides elsewhere.
             dim_ordering: 'tf' if the feature are at the last dimension or 'th'
             stateful : Boolean (default False). If True, the last state
