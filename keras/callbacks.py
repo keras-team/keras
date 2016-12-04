@@ -553,6 +553,7 @@ class TensorBoard(Callback):
             summary_value.tag = name
             self.writer.add_summary(summary, epoch)
         self.writer.flush()
+        self.writer.close()
 
 
 class ReduceLROnPlateau(Callback):
