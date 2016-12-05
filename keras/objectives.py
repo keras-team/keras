@@ -46,6 +46,28 @@ def sparse_categorical_crossentropy(y_true, y_pred):
 
 
 def binary_crossentropy(y_true, y_pred):
+    """Computes the binary cross-entropy between predictions y_pred and targets
+    y_true.
+
+    .. math:: L = -t \\log(p) - (1 - t) \\log(1 - p)
+
+    Parameters
+    ----------
+    y_true : Theano tensor
+        Targets in [0, 1], such as ground truth labels.
+    y_pred : Theano tensor
+        Predictions in (0, 1), such as sigmoidal output of a neural network.
+
+    Returns
+    -------
+    Theano tensor
+        An expression for the element-wise binary cross-entropy.
+
+    Notes
+    -----
+    This is the loss function of choice for binary classification problems
+    and sigmoid output units.
+    """
     return K.mean(K.binary_crossentropy(y_pred, y_true), axis=-1)
 
 
