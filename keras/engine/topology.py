@@ -1593,6 +1593,7 @@ class Container(Layer):
             prefix = self.__class__.__name__.lower()
             name = prefix + '_' + str(K.get_uid(prefix))
         self.name = name
+        self.iteration = self.Iteration()
 
         # Whether container weights are trainable.
         self.trainable = True
