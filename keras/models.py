@@ -137,7 +137,7 @@ def load_model(filepath, custom_objects={}):
     if model_config is None:
         raise ValueError('No model found in config file.')
     model_config = json.loads(model_config.decode('utf-8'))
-    model = model_from_config(model_config, custom_objects=custom_objects)
+    model = Model.from_config(model_config['config'], custom_objects=custom_objects)
 
     # set weights
     model.load_weights_from_hdf5_group(f['model_weights'])
@@ -179,14 +179,6 @@ def load_model(filepath, custom_objects={}):
         model.optimizer.set_weights(optimizer_weight_values)
     f.close()
     return model
-
-
-def model_from_config(config, custom_objects={}):
-    from keras.utils.layer_utils import layer_from_config
-    if isinstance(config, list):
-        raise Exception('`model_fom_config` expects a dictionary, not a list. '
-                        'Maybe you meant to use `Sequential.from_config(config)`?')
-    return layer_from_config(config, custom_objects=custom_objects)
 
 
 def model_from_yaml(yaml_string, custom_objects={}):
