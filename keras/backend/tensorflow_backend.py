@@ -845,6 +845,22 @@ def repeat(x, n):
     return tf.tile(x, pattern)
 
 
+def depth_to_space(x, scale, dim_ordering=_IMAGE_DIM_ORDERING, name=None):
+    '''Uses the phase shift algorithm [1] to trande channels/depth for spatial resolution
+
+    The input tensor `x` will be rearranged such that its rows and columns are
+    `scale` times as large.
+
+    - [1]: [Real-Time Single Image and Video Super-Resolution Using an Efficient Sub-Pixel Convolutional Neural Network](https://arxiv.org/abs/1609.05158)
+    '''
+    if dim_ordering == 'tf':
+        return tf.depth_to_space(x, scale, name=name)
+    else:
+        y = tf.transpose(x, (0, 2, 3, 1))
+        y = tf.depth_to_space(y, scale, name=name)
+        return tf.transpose(y, (0, 3, 1, 2))
+
+
 def tile(x, n):
     if not hasattr(n, 'shape') and not hasattr(n, '__len__') and not hasattr(n, '_shape'):
         n = [n]
