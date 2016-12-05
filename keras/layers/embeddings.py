@@ -73,7 +73,12 @@ class Embedding(Layer):
                  weights=None, dropout=0., **kwargs):
         self.input_dim = input_dim
         self.output_dim = output_dim
-        self.init = initializations.get(init)
+        #we can also init the word embedding use pre-trained embedding files
+        #in this way, the init parameters can be theano variable
+        if type(init) is str:
+            self.init = initializations.get(init)
+        else:
+            self.init = init
         self.input_length = input_length
         self.mask_zero = mask_zero
         self.dropout = dropout
