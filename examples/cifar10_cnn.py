@@ -9,6 +9,29 @@ It gets down to 0.65 test logloss in 25 epochs, and down to 0.55 after 50 epochs
 Note: the data was pickled with Python 2, and some encoding issues might prevent you
 from loading it in Python 3. You might have to load it in Python 2,
 save it in a different format, load it in Python 3 and repickle it.
+
+Diagram:
+
+         InputLayer (None, 3, 32, 32)
+      Convolution2D (None, 32, 32, 32)
+               Relu (None, 32, 32, 32)
+      Convolution2D (None, 32, 30, 30)
+               Relu (None, 32, 30, 30)
+       MaxPooling2D (None, 32, 15, 15)
+            Dropout (None, 32, 15, 15)
+      Convolution2D (None, 64, 15, 15)
+               Relu (None, 64, 15, 15)
+      Convolution2D (None, 64, 13, 13)
+               Relu (None, 64, 13, 13)
+       MaxPooling2D (None, 64, 6, 6)
+            Dropout (None, 64, 6, 6)
+            Flatten (None, 2304)
+              Dense (None, 512)
+               Relu (None, 512)
+            Dropout (None, 512)
+              Dense (None, 10)
+            Softmax (None, 10)
+
 '''
 
 from __future__ import print_function

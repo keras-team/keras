@@ -24,6 +24,15 @@ Four digits inverted:
 Five digits inverted:
 + One layer LSTM (128 HN), 550k training examples = 99% train/test accuracy in 30 epochs
 
+Diagram:
+
+      InputLayer (None, 7, 12)
+            LSTM (None, 128)
+    RepeatVector (None, 4, 128)
+            LSTM (None, 4, 128)
+ TimeDistributed (None, 4, 12)
+         Softmax (None, 4, 12)
+
 '''
 
 from __future__ import print_function

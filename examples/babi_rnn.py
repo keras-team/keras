@@ -54,6 +54,20 @@ these RNNs can achieve 100% accuracy on many tasks. Memory networks and neural
 networks that use attentional processes can efficiently search through this
 noise to find the relevant statements, improving performance substantially.
 This becomes especially obvious on QA2 and QA3, both far longer than QA1.
+
+Diagram:
+
+                                   InputLayer (None, 5)
+                                    Embedding (None, 5, 50)
+  InputLayer (None, 552)              Dropout (None, 5, 50)
+   Embedding (None, 552, 50)             LSTM (None, 50)
+     Dropout (None, 552, 50)     RepeatVector (None, 552, 50)
+             \______________________________/
+                            |
+                       Merge (None, 552, 50)
+                        LSTM (None, 50)
+                     Dropout (None, 50)
+                       Dense (None, 36)
 '''
 
 from __future__ import print_function
