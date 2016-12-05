@@ -2724,8 +2724,10 @@ class Container(Layer):
         def __init__(self):
             self.compilations = 0
             self.epochs = 0.0
+            
         def __repr__(self):
             return 'Compilations: {0}\t\tEpochs Seen: {1}'.format(self.compilations, self.epochs)
+            
         def __str__(self):
             return '{0}.{1}'.format(self.compilations, self.epochs)
 
