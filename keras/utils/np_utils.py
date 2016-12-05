@@ -18,7 +18,7 @@ def to_categorical(y, nb_classes=None):
     '''
     y = np.array(y, dtype='int')
     if not nb_classes:
-        nb_classes = np.max(y)+1
+        nb_classes = np.max(np.array(y))+1
     Y = np.zeros((len(y), nb_classes))
     for i in range(len(y)):
         Y[i, y[i]] = 1.
