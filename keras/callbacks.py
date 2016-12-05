@@ -142,6 +142,9 @@ class BaseLogger(Callback):
     def on_epoch_begin(self, epoch, logs={}):
         self.seen = 0
         self.totals = {}
+        
+        # Update iteration tracking (halfway)
+        self.model.iteration.epochs += 0.5
 
     def on_batch_end(self, batch, logs={}):
         batch_size = logs.get('size', 0)
@@ -154,6 +157,9 @@ class BaseLogger(Callback):
                 self.totals[k] = v * batch_size
 
     def on_epoch_end(self, epoch, logs={}):
+        # Update iteration tracking (halfway)
+        self.model.iteration.epochs += 0.5
+        
         for k in self.params['metrics']:
             if k in self.totals:
                 # make value available to next callbacks

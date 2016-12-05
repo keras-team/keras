@@ -262,6 +262,7 @@ class Sequential(Model):
             prefix = 'sequential_'
             name = prefix + str(K.get_uid(prefix))
         self.name = name
+        self.iteration = Model.Iteration()
 
         for layer in layers:
             self.add(layer)
@@ -405,6 +406,9 @@ class Sequential(Model):
         self.model.callback_model = self
 
         self.built = True
+        
+        # Update iteration tracking
+        self.iteration.compilations += 1
 
     @property
     def uses_learning_phase(self):
