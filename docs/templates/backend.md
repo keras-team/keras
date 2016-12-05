@@ -44,6 +44,29 @@ Using TensorFlow backend.
 
 ----
 
+## keras.json details
+
+
+```
+{
+    "image_dim_ordering": "tf",
+    "epsilon": 1e-07,
+    "floatx": "float32",
+    "backend": "tensorflow"
+}
+```
+
+You can change these settings by editing `~/.keras/keras.json`. 
+
+* `image_dim_ordering`: string, either `"tf"` or `"th"`. It specifies which dimension ordering convention Keras will follow. (`keras.backend.image_dim_ordering()` returns it.)
+  - For 2D data (e.g. image), `"tf"` assumes `(rows, cols, channels)` while `"th"` assumes `(channels, rows, cols)`. 
+  - For 3D data, `"tf"` assumes `(conv_dim1, conv_dim2, conv_dim3, channels)` while `"th"` assumes `(channels, conv_dim1, conv_dim2, conv_dim3)`.
+* `epsilon`: float, a numeric fuzzing constant used to avoid dividing by zero in some operations.
+* `floatx`: string, `"float16"`, `"float32"`, or `"float64"`. Default float precision.
+* `backend`: string, `"tensorflow"` or `"theano"`.
+
+----
+
 ## Using the abstract Keras backend to write new code
 
 If you want the Keras modules you write to be compatible with both Theano and TensorFlow, you have to write them via the abstract Keras backend API. Here's an intro.
