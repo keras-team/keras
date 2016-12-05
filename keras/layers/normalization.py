@@ -115,16 +115,11 @@ class BatchNormalization(Layer):
             broadcast_shape = [1] * len(input_shape)
             broadcast_shape[self.axis] = input_shape[self.axis]
 
-            if self.mode == 2:
-                x_normed, mean, std = K.normalize_batch_in_training(
-                    x, self.gamma, self.beta, reduction_axes,
-                    epsilon=self.epsilon)
-            else:
-                # mode 0
-                x_normed, mean, std = K.normalize_batch_in_training(
-                    x, self.gamma, self.beta, reduction_axes,
-                    epsilon=self.epsilon)
+            x_normed, mean, std = K.normalize_batch_in_training(
+                x, self.gamma, self.beta, reduction_axes,
+                epsilon=self.epsilon)
 
+            if self.mode == 0:
                 self.add_updates([K.moving_average_update(self.running_mean, mean, self.momentum),
                                   K.moving_average_update(self.running_std, std, self.momentum)], x)
 
