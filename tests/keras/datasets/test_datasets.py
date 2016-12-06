@@ -46,7 +46,7 @@ def test_conll2000():
     # to speed up frequent testing
     random.seed(time.time())
     if random.random() > 0.8:
-        (X_train, y_train), (X_test, y_test), (index2word, index2tag) = conll2000.load_data()
+        (X_words, train, y_train), (X_test, X_pos_train, y_test), (index2word, index2pos, index2chunk) = conll2000.load_data()
 
 
 if __name__ == '__main__':
