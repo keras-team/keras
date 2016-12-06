@@ -3089,6 +3089,107 @@ def ctc_decode(y_pred, input_length, greedy=True, beam_width=100,
     return (decoded_dense, log_prob)
 
 
+# LINEAR CONDITIONAL RANDOM FIELD
+
+def logsumexp(x, axis=0):
+    # return tf.reduce_logsumexp(x, axis=axis)
+    axis = _normalize_axis(axis, ndim(x))
+    xmax = tf.reduce_max(x, reduction_indices=axis, keep_dims=True)
+    xmax_ = tf.reduce_max(x, reduction_indices=axis)
+    return xmax_ + tf.log(tf.reduce_sum(tf.exp(x - xmax), reduction_indices=axis))
+
+
+def crf_inference(x, U, b):
+    batch_size = tf.shape(x)[0]
+    n_steps = tf.shape(x)[1]
+    n_classes = tf.shape(x)[2]
+
+    x_by_time = tf.transpose(x, perm=(1, 0, 2))
+
+    def _forward_step(prev, x_t):
+        alpha_tm1, gamma_tm1 = tf.unpack(prev)
+        B = tf.expand_dims(alpha_tm1, 2) + tf.expand_dims(x_t, 1) + tf.expand_dims(U, 0)
+        alpha_t = tf.reduce_max(B, 1)
+        gamma_t = tf.cast(tf.argmax(B, 1), tf.float32)
+        return tf.pack([alpha_t, gamma_t])
+
+    alpha_0 = x_by_time[0, :, :] + tf.expand_dims(b, 0)
+    gamma_0 = tf.zeros((batch_size, n_classes))
+    init = tf.pack([alpha_0, gamma_0])
+    results = tf.scan(_forward_step,
+                      x_by_time[1:, :, :],
+                      initializer=init,
+                      back_prop=False)
+    alpha, gamma = tf.unpack(tf.transpose(results, perm=(1, 0, 2, 3)))
+    gamma = tf.cast(gamma, tf.int32)
+    # alpha.shape = (n_steps-1, batch_size, n_classes)
+    # gamma.shape = (n_steps-1, batch_size, n_classes)
+
+    alpha_m1 = tf.squeeze(tf.slice(alpha, [n_steps-2, 0, 0], [1, -1, -1]), [0])
+    last_tag = tf.argmax(alpha_m1, 1)
+    # last_tag.shape = (batch_size, )
+
+    def _backward_step(beta_tm1, gamma_t):
+        gamma_t_flat = tf.reshape(gamma_t, [-1])
+        flat_indices = tf.range(batch_size) * n_classes + beta_tm1
+        beta_t = tf.gather(gamma_t_flat, flat_indices)
+        return beta_t
+
+    beta_0 = tf.cast(last_tag, tf.int32)
+    gamma_reverse = tf.reverse(gamma, [True, False, False])
+    beta_reverse = tf.scan(_backward_step,
+                           gamma_reverse,
+                           initializer=beta_0,
+                           back_prop=False)
+    beta = tf.concat(0, [tf.reverse(beta_reverse, [True, False]), tf.expand_dims(beta_0, 0)])
+    best_tag_seq = tf.transpose(beta, perm=(1, 0))
+    return best_tag_seq
+
+
+def crf_free_energy(x, U, b):
+    n_steps = tf.shape(x)[1]
+
+    def _forward_step(alpha_tm1, x_t):
+        B = tf.expand_dims(alpha_tm1, 2) + tf.expand_dims(x_t, 1) + tf.expand_dims(U, 0)
+        alpha_t = logsumexp(B, axis=1)
+        return alpha_t
+
+    x_by_time = tf.transpose(x, perm=(1, 0, 2))
+    alpha_0 = x_by_time[0, :, :] + tf.expand_dims(b, 0)
+
+    alpha = tf.scan(_forward_step,
+                    x_by_time[1:, :, :],
+                    initializer=alpha_0)
+
+    alpha_m1 = tf.squeeze(tf.slice(alpha, [n_steps-2, 0, 0], [1, -1, -1]), [0])
+
+    return logsumexp(alpha_m1, axis=1)
+
+
+def crf_path_energy(y, x, U, b):
+    n_steps = tf.shape(x)[1]
+    n_classes = tf.shape(x)[2]
+
+    y_one_hot = tf.one_hot(y, n_classes)
+    y_one_hot = tf.expand_dims(y_one_hot, 3)
+    x = tf.expand_dims(x, 2)
+    scores = tf.batch_matmul(x, y_one_hot)
+    scores = tf.squeeze(scores, [2, 3])
+    tag_path_energy = tf.reduce_sum(scores, 1)
+
+    y_0 = y[:, 0]
+    boundary_energy = tf.reshape(tf.gather(b, y_0), [-1])
+
+    y_t = tf.slice(y, [0, 0], [-1, n_steps-1])  # workaround for y[:, 0:-1]
+    y_tp1 = y[:, 1:]
+    U_flat = tf.reshape(U, [-1])
+    flat_indices = y_t*n_classes + y_tp1
+    U_y_t_tp1 = tf.gather(U_flat, flat_indices)
+    transition_energy = tf.reduce_sum(U_y_t_tp1, reduction_indices=[1])
+
+    return tag_path_energy + boundary_energy + transition_energy
+
+
 # HIGH ORDER FUNCTIONS
 
 def map_fn(fn, elems, name=None):

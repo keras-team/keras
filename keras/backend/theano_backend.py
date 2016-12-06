@@ -2059,6 +2059,96 @@ def ctc_batch_cost(y_true, y_pred, input_length, label_length):
     return ret
 
 
+# LINEAR CONDITIONAL RANDOM FIELD
+
+def logsumexp(x, axis=None):
+    xmax = max(x, axis=axis, keepdims=True)
+    xmax_ = max(x, axis=axis)
+    return xmax_ + log(sum(exp(x - xmax), axis=axis))
+
+
+def crf_inference(x, U, b):
+
+    def _forward_step(x_t, alpha_tm1, U):
+        B = alpha_tm1.dimshuffle(0, 1, 'x') + x_t.dimshuffle(0, 'x', 1) + U.dimshuffle('x', 0, 1)
+        alpha_t = T.max(B, axis=1)
+        gamma_t = T.argmax(B, axis=1)
+        return alpha_t, gamma_t
+
+    x_by_time = x.dimshuffle(1, 0, 2)
+
+    alpha0 = x_by_time[0] + b.dimshuffle('x', 0)
+    (alpha, gamma), _ = theano.scan(
+        fn=_forward_step,
+        outputs_info=(alpha0, None),
+        sequences=[x_by_time[1:]],
+        non_sequences=[U],
+        truncate_gradient=0,
+        strict=True
+    )
+
+    def _backward_step(gamma_t, beta_tm1):
+        batch_size = gamma_t.shape[0]
+        beta_t = gamma_t[T.arange(batch_size), beta_tm1]
+        return beta_t
+
+    last_tag = T.argmax(alpha[-1], axis=1)
+    beta_m1 = T.cast(last_tag, 'int32')
+    gamma_reverse = T.cast(gamma[::-1], 'int32')
+    beta, _ = theano.scan(
+        fn=_backward_step,
+        outputs_info=beta_m1,
+        sequences=gamma_reverse,
+        truncate_gradient=0,
+        strict=True
+    )
+    best_sequence = T.concatenate([beta[::-1], [beta_m1]], axis=0).dimshuffle(1, 0)
+    return best_sequence
+
+
+def crf_free_energy(x, U, b):
+    x_by_time = x.dimshuffle(1, 0, 2)
+
+    def _forward_step(x_t, alpha_tm1, U):
+        B = alpha_tm1.dimshuffle(0, 1, 'x') + x_t.dimshuffle(0, 'x', 1) + U.dimshuffle('x', 0, 1)
+        return logsumexp(B, axis=1)
+
+    alpha_0 = x_by_time[0] + b.dimshuffle('x', 0)
+    alpha, _ = theano.scan(
+        fn=_forward_step,
+        outputs_info=alpha_0,
+        sequences=[x_by_time[1:]],
+        non_sequences=[U],
+        strict=True
+    )
+
+    return logsumexp(alpha[-1], axis=1)
+
+
+def crf_path_energy(y, x, U, b):
+    batch_size = x.shape[0]
+    n_steps = x.shape[1]
+    n_classes = x.shape[2]
+
+    x_flat = T.reshape(x, [batch_size*n_steps, n_classes])
+    y_flat = T.reshape(y, [-1])
+    z = x_flat[T.arange(batch_size*n_steps), y_flat]
+    z = T.reshape(z, [batch_size, n_steps])
+    tag_path_energy = T.sum(z, axis=1)
+
+    y_0 = y[:, 0]
+    boundary_energy = T.reshape(b[y_0], [-1])
+
+    y_t = y[:, 0:-1]
+    y_tp1 = y[:, 1:]
+    U_flat = T.reshape(U, [-1])
+    flat_indices = y_t*n_classes + y_tp1
+    U_y_t_tp1 = U_flat[flat_indices]
+    transition_energy = T.sum(U_y_t_tp1, axis=1)
+
+    return tag_path_energy + boundary_energy + transition_energy
+
+
 # HIGH ORDER FUNCTIONS
 
 def map_fn(fn, elems, name=None):
