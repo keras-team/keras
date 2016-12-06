@@ -99,8 +99,6 @@ def load_data(word_preprocess=lambda x: x):
             For example, use `lambda w: w.lower()` when all words should be
             lowercased.
     '''
-
-
     X_words_train, X_pos_train, y_train = load_file('train.txt.gz', md5_hash='6969c2903a1f19a83569db643e43dcc8')
     X_words_test, X_pos_test, y_test = load_file('test.txt.gz', md5_hash='a916e1c2d83eb3004b38fc6fcd628939')
 
