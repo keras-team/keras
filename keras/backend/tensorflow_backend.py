@@ -373,8 +373,8 @@ def dot(x, y):
     (e.g. (2, 3).(4, 3, 5) = (2, 4, 5))
     '''
     if ndim(x) is not None and (ndim(x) > 2 or ndim(y) > 2):
-        x_shape = (-1,) + int_shape(x)[1:]
-        y_shape = int_shape(y)
+        x_shape = tf.unpack(tf.shape(x))
+        y_shape = tf.unpack(tf.shape(y))
         y_permute_dim = list(range(ndim(y)))
         y_permute_dim = [y_permute_dim.pop(-2)] + y_permute_dim
         xt = tf.reshape(x, [-1, x_shape[-1]])
