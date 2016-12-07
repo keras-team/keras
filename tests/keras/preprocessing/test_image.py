@@ -144,9 +144,9 @@ class TestImage:
                 im_class = count % num_classes
                 # rotate subfolders
                 classpaths = paths[im_class]
-                filename = os.path.join(classpaths[count % len(classpaths)], 'image-{}.jpg'.format(count))
+                filename = os.path.join('class-{}'.format(im_class), classpaths[count % len(classpaths)], 'image-{}.jpg'.format(count))
                 filenames.append(filename)
-                im.save(os.path.join(tmp_folder, 'class-{}'.format(im_class), filename))
+                im.save(os.path.join(tmp_folder, filename))
                 count += 1
 
         # create iterator
@@ -174,9 +174,9 @@ class TestImage:
             for im in test_images:
                 # rotate image class
                 im_class = count % num_classes
-                filename = 'image-{}.jpg'.format(count)
+                filename = os.path.join('class-{}'.format(im_class), 'image-{}.jpg'.format(count))
                 filenames.append(filename)
-                im.save(os.path.join(tmp_folder, 'class-{}'.format(im_class), filename))
+                im.save(os.path.join(tmp_folder, filename))
                 count += 1
 
         # create iterator
@@ -184,8 +184,8 @@ class TestImage:
         dir_iterator = generator.flow_from_directory(tmp_folder)
 
         # check number of classes and images
-        assert(len(dir_iterator.class_indices)==num_classes)
-        assert(len(dir_iterator.classes)==count)
+        assert(len(dir_iterator.class_indices) == num_classes)
+        assert(len(dir_iterator.classes) == count)
         assert(sorted(dir_iterator.filenames) == sorted(filenames))
         shutil.rmtree(tmp_folder)
 

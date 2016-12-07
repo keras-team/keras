@@ -651,7 +651,7 @@ class DirectoryIterator(Iterator):
         i = 0
         for subdir in classes:
             subpath = os.path.join(directory, subdir)
-            subpath_len = len(subpath) + 1  # assuming separator is 1 character
+            subpath_len = len(directory) + 1  # assuming separator is 1 character
             for root, dirs, files in _recursive_list(subpath):
                 for fname in files:
                     is_valid = False
