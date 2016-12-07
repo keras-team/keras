@@ -118,7 +118,6 @@ class TestImage:
         x = np.random.random((32, 3, 10, 10))
         generator.fit(x)
 
-
     def test_directory_iterator(self):
         num_classes = 2
         tmp_folder = tempfile.mkdtemp(prefix='test_images')
@@ -159,7 +158,6 @@ class TestImage:
         assert(len(dir_iterator.classes) == count)
         assert(sorted(dir_iterator.filenames) == sorted(filenames))
         shutil.rmtree(tmp_folder)
-
 
     def test_directory_iterator_backward_compatibility(self):
         num_classes = 2

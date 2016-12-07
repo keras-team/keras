@@ -629,7 +629,8 @@ class DirectoryIterator(Iterator):
         self.nb_class = len(classes)
         self.class_indices = dict(zip(classes, range(len(classes))))
 
-        recursive_list = lambda subpath: sorted(os.walk(subpath, followlinks=follow_links), key=lambda tpl: tpl[0])
+        def _recursive_list(lambda):
+            return sorted(os.walk(subpath, followlinks=follow_links), key=lambda tpl: tpl[0])
 
         for subdir in classes:
             subpath = os.path.join(directory, subdir)
