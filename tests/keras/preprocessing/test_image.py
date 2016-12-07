@@ -145,7 +145,7 @@ class TestImage:
                 im_class = count % num_classes
                 # rotate subfolders
                 classpaths = paths[im_class]
-                filename = os.path.join(classpaths[count % len(classpaths)], 'image-{}.jpg'.format(count))
+                filename = os.path.join('class-{}'.format(im_class), classpaths[count % len(classpaths)], 'image-{}.jpg'.format(count))
                 filenames.append(filename)
                 im.save(os.path.join(tmp_folder, filename))
                 count += 1
