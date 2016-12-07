@@ -629,9 +629,11 @@ class DirectoryIterator(Iterator):
         self.nb_class = len(classes)
         self.class_indices = dict(zip(classes, range(len(classes))))
 
+        recursive_list = lambda subpath: sorted(os.walk(subpath, followlinks=follow_links), key=lambda tpl: tpl[0])
+
         for subdir in classes:
             subpath = os.path.join(directory, subdir)
-            for root, dirs, files in os.walk(subpath, followlinks=follow_links):
+            for root, dirs, files in recursive_list(subpath):
                 for fname in files:
                     is_valid = False
                     for extension in white_list_formats:
@@ -648,7 +650,8 @@ class DirectoryIterator(Iterator):
         i = 0
         for subdir in classes:
             subpath = os.path.join(directory, subdir)
-            for root, dirs, files in os.walk(subpath, followlinks=follow_links):
+            subpath_len = len(subpath) + 1  # assuming separator is 1 character
+            for root, dirs, files in recursive_list(subpath):
                 for fname in files:
                     is_valid = False
                     for extension in white_list_formats:
@@ -657,7 +660,8 @@ class DirectoryIterator(Iterator):
                             break
                     if is_valid:
                         self.classes[i] = self.class_indices[subdir]
-                        self.filenames.append(os.path.join(root, fname))
+                        # add filename relative to subpath
+                        self.filenames.append(os.path.join(root, fname)[subpath_len:])
                         i += 1
         super(DirectoryIterator, self).__init__(self.nb_sample, batch_size, shuffle, seed)
 
