@@ -1,4 +1,4 @@
-FROM nvidia/cuda:7.5-cudnn5-devel
+FROM nvidia/cuda:8.0-cudnn5-devel
 
 ENV CONDA_DIR /opt/conda
 ENV PATH $CONDA_DIR/bin:$PATH
@@ -24,10 +24,10 @@ RUN useradd -m -s /bin/bash -N -u $NB_UID $NB_USER && \
 USER keras
 
 # Python
-ARG python_version=3.5.1
-ARG tensorflow_version=0.9.0rc0-cp35-cp35m
+ARG python_version=3.5.2
+ARG tensorflow_version=0.12.0rc0-cp35-cp35m
 RUN conda install -y python=${python_version} && \
-    pip install https://storage.googleapis.com/tensorflow/linux/gpu/tensorflow-${tensorflow_version}-linux_x86_64.whl && \
+    pip install https://storage.googleapis.com/tensorflow/linux/gpu/tensorflow_gpu-${tensorflow_version}-linux_x86_64.whl && \
     pip install git+git://github.com/Theano/Theano.git && \
     pip install ipdb pytest pytest-cov python-coveralls coverage==3.7.1 pytest-xdist pep8 pytest-pep8 pydot_ng && \
     conda install Pillow scikit-learn notebook pandas matplotlib nose pyyaml six h5py && \
