@@ -671,7 +671,7 @@ class DirectoryIterator(Iterator):
                         i += 1
                         # add filename relative to directory
                         absolute_path = os.path.join(root, fname)
-                        self.filenames.append(os.path.relpath(directory, absolute_path))
+                        self.filenames.append(os.path.relpath(absolute_path, directory))
         super(DirectoryIterator, self).__init__(self.nb_sample, batch_size, shuffle, seed)
 
     def next(self):
