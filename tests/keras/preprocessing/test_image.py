@@ -118,6 +118,77 @@ class TestImage:
         x = np.random.random((32, 3, 10, 10))
         generator.fit(x)
 
+    def test_directory_iterator(self):
+        num_classes = 2
+        tmp_folder = tempfile.mkdtemp(prefix='test_images')
+
+        # create folders and subfolders
+        paths = []
+        for cl in range(num_classes):
+            classpaths = [
+                '',
+                'subfolder-1',
+                'subfolder-2',
+                os.path.join('subfolder-1', 'sub-subfolder')
+            ]
+            for path in classpaths:
+                os.mkdir(os.path.join(tmp_folder, 'class-{}'.format(cl), path))
+            paths.append(classpaths)
+
+        # save the images in the paths
+        count = 0
+        filenames = []
+        for test_images in self.all_test_images:
+            for im in test_images:
+                # rotate image class
+                im_class = count % num_classes
+                # rotate subfolders
+                classpaths = paths[im_class]
+                filename = os.path.join('class-{}'.format(im_class), classpaths[count % len(classpaths)], 'image-{}.jpg'.format(count))
+                filenames.append(filename)
+                im.save(os.path.join(tmp_folder, filename))
+                count += 1
+
+        # create iterator
+        generator = image.ImageDataGenerator()
+        dir_iterator = generator.flow_from_directory(tmp_folder)
+
+        # check number of classes and images
+        assert(len(dir_iterator.class_indices) == num_classes)
+        assert(len(dir_iterator.classes) == count)
+        assert(sorted(dir_iterator.filenames) == sorted(filenames))
+        shutil.rmtree(tmp_folder)
+
+    def test_directory_iterator_backward_compatibility(self):
+        num_classes = 2
+        tmp_folder = tempfile.mkdtemp(prefix='test_images')
+
+        # create folders and subfolders
+        for cl in range(num_classes):
+            os.mkdir(os.path.join(tmp_folder, 'class-{}'.format(cl)))
+
+        # save the images in the paths
+        count = 0
+        filenames = []
+        for test_images in self.all_test_images:
+            for im in test_images:
+                # rotate image class
+                im_class = count % num_classes
+                filename = os.path.join('class-{}'.format(im_class), 'image-{}.jpg'.format(count))
+                filenames.append(filename)
+                im.save(os.path.join(tmp_folder, filename))
+                count += 1
+
+        # create iterator
+        generator = image.ImageDataGenerator()
+        dir_iterator = generator.flow_from_directory(tmp_folder)
+
+        # check number of classes and images
+        assert(len(dir_iterator.class_indices) == num_classes)
+        assert(len(dir_iterator.classes) == count)
+        assert(sorted(dir_iterator.filenames) == sorted(filenames))
+        shutil.rmtree(tmp_folder)
+
     def test_img_utils(self):
         height, width = 10, 8
 
