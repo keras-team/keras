@@ -114,8 +114,7 @@ class CRF(Layer):
                  in_init='orthogonal', chain_init='orthogonal',
                  in_activation='linear', chain_activation='linear',
                  W_regularizer=None, U_regularizer=None, b_regularizer=None,
-                 weights=None, input_dim=None, input_length=None, unroll=False,
-                **kwargs):
+                 weights=None, input_dim=None, input_length=None, unroll=False, **kwargs):
         self.supports_masking = True
         self.output_dim = output_dim
         assert learn_mode in ['join', 'marginal']
@@ -329,7 +328,7 @@ class CRF(Layer):
         '''Compute the loss, i.e., negative log likelihood (normalize by number of time steps)
            likelihood = 1/Z * exp(-E) ->  neg_log_like = - log(1/Z * exp(-E)) = logZ + E
         '''
-        unary = K.dot(X, self.W)  + self.b
+        unary = K.dot(X, self.W) + self.b
         energy = self.get_energy(y_true, unary, mask)
         logZ = self.get_logZ(unary, mask)
         nloglik = logZ + energy
@@ -338,7 +337,6 @@ class CRF(Layer):
         else:
             nloglik = nloglik / K.cast(K.shape(X)[1], K.floatx())
         return nloglik
-
 
     def step(self, in_energy_t, states, return_logZ=True):
         # not in the following  `prev_target_val` has shape = (B, F)
@@ -362,7 +360,6 @@ class CRF(Layer):
             min_energy = K.min(energy, 1)
             argmin_table = K.cast(K.argmin(energy, 1), K.floatx()) # cast for tf-version `K.rnn`
             return argmin_table, [min_energy, i+1]
-
 
     def recursion(self, unary, mask=None, go_backwards=False, return_sequences=True, return_logZ=True):
         '''Forward (alpha) or backward (beta) recursion
@@ -388,7 +385,7 @@ class CRF(Layer):
         in_energy = self.in_activation(unary)
         chain_energy = self.chain_activation(self.U)
         chain_energy = K.expand_dims(chain_energy, 0) # shape=(1, F, F): F=num of output features. 1st F is for t-1, 2nd F for t
-        prev_target_val = K.zeros_like(unary[:,0,:]) # shape=(B, F), dtype=float32
+        prev_target_val = K.zeros_like(unary[:, 0, :]) # shape=(B, F), dtype=float32
         has_mask = mask is not None
 
         if go_backwards:
@@ -444,7 +441,6 @@ class CRF(Layer):
         def gather_each_row(params, indices):
             n = K.shape(indices)[0]
             if K._BACKEND == 'theano':
-                #return params[arange, indices]
                 return params[T.arange(n), indices]
             else:
                 indices = K.transpose(K.pack([tf.range(n), indices]))
