@@ -227,6 +227,10 @@ class ImageDataGenerator(object):
         rescale: rescaling factor. If None or 0, no rescaling is applied,
             otherwise we multiply the data by the value provided
             (before applying any other transformation).
+        preprocessing_function: function that will be implied on each input.
+            The function will run before any other modification on it.
+            The function should take one argument: one image (Numpy tensor with rank 3),
+            and should output a Numpy tensor with the same shape.
         dim_ordering: 'th' or 'tf'. In 'th' mode, the channels dimension
             (the depth) is at index 1, in 'tf' mode it is at index 3.
             It defaults to the `image_dim_ordering` value found in your
@@ -250,6 +254,7 @@ class ImageDataGenerator(object):
                  horizontal_flip=False,
                  vertical_flip=False,
                  rescale=None,
+                 preprocessing_function=None,
                  dim_ordering='default'):
         if dim_ordering == 'default':
             dim_ordering = K.image_dim_ordering()
@@ -258,6 +263,7 @@ class ImageDataGenerator(object):
         self.std = None
         self.principal_components = None
         self.rescale = rescale
+        self.preprocessing_function = preprocessing_function
 
         if dim_ordering not in {'tf', 'th'}:
             raise ValueError('dim_ordering should be "tf" (channel after row and '
@@ -304,6 +310,8 @@ class ImageDataGenerator(object):
             save_to_dir=save_to_dir, save_prefix=save_prefix, save_format=save_format)
 
     def standardize(self, x):
+        if self.preprocessing_function:
+            x = self.preprocessing_function(x)
         if self.rescale:
             x *= self.rescale
         # x is a single image, so it doesn't have image number at index 0
