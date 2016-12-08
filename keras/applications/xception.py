@@ -25,6 +25,7 @@ import warnings
 from ..models import Model
 from ..layers import Dense, Input, BatchNormalization, Activation, merge
 from ..layers import Conv2D, SeparableConv2D, MaxPooling2D, GlobalAveragePooling2D
+from ..engine.topology import get_source_inputs
 from ..utils.data_utils import get_file
 from .. import backend as K
 from .imagenet_utils import decode_predictions, _obtain_input_shape
@@ -190,8 +191,14 @@ def Xception(include_top=True, weights='imagenet',
         x = GlobalAveragePooling2D(name='avg_pool')(x)
         x = Dense(1000, activation='softmax', name='predictions')(x)
 
-    # Create model
-    model = Model(img_input, x)
+    # Ensure that the model takes into account
+    # any potential predecessors of `input_tensor`.
+    if input_tensor is not None:
+        inputs = get_source_inputs(input_tensor)
+    else:
+        inputs = img_input
+    # Create model.
+    model = Model(inputs, x)
 
     # load weights
     if weights == 'imagenet':

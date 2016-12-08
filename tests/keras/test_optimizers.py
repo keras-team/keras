@@ -1,5 +1,7 @@
 from __future__ import print_function
 import pytest
+import numpy as np
+np.random.seed(1337)
 
 from keras.utils.test_utils import get_test_data
 from keras.optimizers import SGD, RMSprop, Adagrad, Adadelta, Adam, Adamax, Nadam
