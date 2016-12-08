@@ -648,7 +648,6 @@ class DirectoryIterator(Iterator):
         # second, build an index of the images in the different class subfolders
         self.filenames = []
         self.classes = np.zeros((self.nb_sample,), dtype='int32')
-        i = 0
         for subdir in classes:
             subpath = os.path.join(directory, subdir)
             for root, dirs, files in _recursive_list(subpath):
@@ -660,7 +659,6 @@ class DirectoryIterator(Iterator):
                             break
                     if is_valid:
                         self.classes[i] = self.class_indices[subdir]
-                        i += 1
                         # add filename relative to directory
                         absolute_path = os.path.join(root, fname)
                         self.filenames.append(os.path.relpath(directory, absolute_path)
