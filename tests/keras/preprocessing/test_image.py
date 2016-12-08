@@ -125,14 +125,15 @@ class TestImage:
         # create folders and subfolders
         paths = []
         for cl in range(num_classes):
+            class_directory = 'class-{}'.format(cl)
             classpaths = [
-                '',
-                'subfolder-1',
-                'subfolder-2',
-                os.path.join('subfolder-1', 'sub-subfolder')
+                class_directory,
+                os.path.join(class_directory, 'subfolder-1'),
+                os.path.join(class_directory, 'subfolder-2'),
+                os.path.join(class_directory, 'subfolder-1', 'sub-subfolder')
             ]
             for path in classpaths:
-                os.mkdir(os.path.join(tmp_folder, 'class-{}'.format(cl), path))
+                os.mkdir(os.path.join(tmp_folder, path))
             paths.append(classpaths)
 
         # save the images in the paths
@@ -144,7 +145,7 @@ class TestImage:
                 im_class = count % num_classes
                 # rotate subfolders
                 classpaths = paths[im_class]
-                filename = os.path.join('class-{}'.format(im_class), classpaths[count % len(classpaths)], 'image-{}.jpg'.format(count))
+                filename = os.path.join(classpaths[count % len(classpaths)], 'image-{}.jpg'.format(count))
                 filenames.append(filename)
                 im.save(os.path.join(tmp_folder, filename))
                 count += 1
