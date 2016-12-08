@@ -14,6 +14,9 @@ def epsilon():
     '''Returns the value of the fuzz
     factor used in numeric expressions.
 
+    # Return
+        Float (scalar)
+
     # Example
     ```python
         >>> keras.backend.epsilon()
@@ -31,12 +34,16 @@ def set_epsilon(e):
     # Argument
         e: float. New value of epsilon
 
+    # Return
+        `None`
+
     # Example
     ```python
-        >>> keras.backend.epsilon()
+        >>> from keras import backend as K
+        >>> K.epsilon()
         1e-07
-        >>> keras.backend.set_epsilon(1e-05)
-        >>> keras.backend.epsilon()
+        >>> K.set_epsilon(1e-05)
+        >>> K.epsilon()
         1e-05
     ```
     '''
@@ -47,6 +54,9 @@ def set_epsilon(e):
 def floatx():
     '''Returns the default float type, as a string
     (e.g. 'float16', 'float32', 'float64').
+
+    # Return
+        String, the current default float type
 
     # Example
     ```python
@@ -63,12 +73,16 @@ def set_floatx(floatx):
     # Argument
         floatx: string. 'float16', 'float32', or 'float64'.
 
+    # Return
+        `None`
+
     # Example
     ```python
-        >>> keras.backend.floatx()
+        >>> from keras import backend as K
+        >>> K.floatx()
         'float32'
-        >>> keras.backend.set_floatx('float16')
-        >>> keras.backend.floatx()
+        >>> K.set_floatx('float16')
+        >>> K.floatx()
         'float16'
     ```
     '''
@@ -85,16 +99,20 @@ def cast_to_floatx(x):
     # Argument
         x: Numpy array.
 
+    # Return
+        A Numpy array
+
     # Example
     ```python
-        >>> keras.backend.floatx()
+        >>> from keras import backend as K
+        >>> K.floatx()
         'float32'
-        >>> numpy.array([1.0, 2.0], dtype='float64')
-        array([ 1.,  2.])
         >>> arr = numpy.array([1.0, 2.0], dtype='float64')
         >>> arr.dtype
         dtype('float64')
-        >>> new_arr = keras.backend.cast_to_floatx(arr)
+        >>> new_arr = K.cast_to_floatx(arr)
+        >>> new_arr
+        array([ 1.,  2.], dtype=float32)
         >>> new_arr.dtype
         dtype('float32')
     ```
@@ -105,6 +123,9 @@ def cast_to_floatx(x):
 def image_dim_ordering():
     '''Returns the image dimension ordering
     convention ('th' or 'tf').
+
+    # Return
+        String, either `'th'` or `'tf'`
 
     # Example
     ```python
@@ -122,12 +143,16 @@ def set_image_dim_ordering(dim_ordering):
     # Argument
         dim_ordering: string. 'th' or 'tf'.
 
+    # Return
+        `None`
+
     # Example
     ```python
-        >>> keras.backend.image_dim_ordering()
+        >>> from keras import backend as K
+        >>> K.image_dim_ordering()
         'th'
-        >>> keras.backend.set_image_dim_ordering('tf')
-        >>> keras.backend.image_dim_ordering()
+        >>> K.set_image_dim_ordering('tf')
+        >>> K.image_dim_ordering()
         'tf'
     ```
     '''
@@ -138,13 +163,31 @@ def set_image_dim_ordering(dim_ordering):
 
 
 def get_uid(prefix=''):
-    ''''''
+    '''
+
+    # Argument
+        prefix: string
+
+    # Return
+        integer (scalar)
+
+    # Example
+    ```
+        >>> a = keras.backend.get_uid()
+        >>> type(a)
+        <type 'int'>
+    ```
+
+    '''
     _UID_PREFIXES[prefix] += 1
     return _UID_PREFIXES[prefix]
 
 
 def reset_uids():
-    ''''''
+    '''
+    # Return
+        `None`
+    '''
     global _UID_PREFIXES
     _UID_PREFIXES = defaultdict(int)
 
@@ -157,8 +200,12 @@ def is_keras_tensor(x):
     # Argument
         x: any type.
 
+    # Return
+        Boolean
+
     # Example
     ```python
+        >>> from keras import backend as K
         >>> np_var = numpy.array([1, 2])
         >>> K.is_keras_tensor(np_var)
         False
@@ -177,12 +224,25 @@ def is_keras_tensor(x):
 
 
 def set_legacy_weight_ordering(value):
-    ''''''
+    '''
+    # Return
+        `None`
+
+    '''
     global _LEGACY_WEIGHT_ORDERING
     assert value in {True, False}
     _LEGACY_WEIGHT_ORDERING = value
 
 
 def legacy_weight_ordering():
-    ''''''
+    '''
+    # Return
+        Boolean
+
+    # Example
+    ```python
+        >>> keras.backend.legacy_weight_ordering()
+        False
+    ```
+    '''
     return _LEGACY_WEIGHT_ORDERING
