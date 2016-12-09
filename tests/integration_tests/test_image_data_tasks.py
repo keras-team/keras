@@ -7,8 +7,6 @@ from keras.models import Sequential
 from keras.layers.core import Dense, Flatten, Activation
 from keras.layers.convolutional import Convolution2D, MaxPooling2D
 from keras.utils.np_utils import to_categorical
-from keras.preprocessing.image import ImageDataGenerator
-
 
 @keras_test
 def test_image_classification():
@@ -44,6 +42,7 @@ def test_image_classification():
                         validation_data=(X_test, y_test),
                         verbose=0)
     assert(history.history['val_acc'][-1] > 0.85)
+
 
 if __name__ == '__main__':
     pytest.main([__file__])
