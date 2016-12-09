@@ -9,32 +9,60 @@ from keras.backend import tensorflow_backend as KTF
 from keras.utils.np_utils import convert_kernel
 
 
-def check_single_tensor_operation(function_name, input_shape, **kwargs):
-    val = np.random.random(input_shape) - 0.5
-    xth = KTH.variable(val)
-    xtf = KTF.variable(val)
+def check_single_tensor_operation(function_name, input_shape, test_input_shape=None, **kwargs):
+    if all(s is not None for s in input_shape):
+        val = np.random.random(input_shape) - 0.5
+        xth = KTH.variable(val)
+        xtf = KTF.variable(val)
 
-    zth = KTH.eval(getattr(KTH, function_name)(xth, **kwargs))
-    ztf = KTF.eval(getattr(KTF, function_name)(xtf, **kwargs))
+        zth = KTH.eval(getattr(KTH, function_name)(xth, **kwargs))
+        ztf = KTF.eval(getattr(KTF, function_name)(xtf, **kwargs))
+    else:
+        val = np.random.random(test_input_shape) - 0.5
+        xth = KTH.placeholder(input_shape)
+        xtf = KTF.placeholder(input_shape)
+
+        fth = KTH.function([xth], [getattr(KTH, function_name)(xth, **kwargs)])
+        ftf = KTF.function([xtf], [getattr(KTF, function_name)(xtf, **kwargs)])
+
+        zth = fth([val])[0]
+        ztf = ftf([val])[0]
 
     assert zth.shape == ztf.shape
     assert_allclose(zth, ztf, atol=1e-05)
 
 
-def check_two_tensor_operation(function_name, x_input_shape,
-                               y_input_shape, **kwargs):
-    xval = np.random.random(x_input_shape) - 0.5
+def check_two_tensor_operation(function_name, x_input_shape, y_input_shape,
+                               test_x_input_shape=None, test_y_input_shape=None, **kwargs):
+    if all(s is not None for s in x_input_shape + y_input_shape):
+        xval = np.random.random(x_input_shape) - 0.5
 
-    xth = KTH.variable(xval)
-    xtf = KTF.variable(xval)
+        xth = KTH.variable(xval)
+        xtf = KTF.variable(xval)
 
-    yval = np.random.random(y_input_shape) - 0.5
+        yval = np.random.random(y_input_shape) - 0.5
 
-    yth = KTH.variable(yval)
-    ytf = KTF.variable(yval)
+        yth = KTH.variable(yval)
+        ytf = KTF.variable(yval)
 
-    zth = KTH.eval(getattr(KTH, function_name)(xth, yth, **kwargs))
-    ztf = KTF.eval(getattr(KTF, function_name)(xtf, ytf, **kwargs))
+        zth = KTH.eval(getattr(KTH, function_name)(xth, yth, **kwargs))
+        ztf = KTF.eval(getattr(KTF, function_name)(xtf, ytf, **kwargs))
+    else:
+        xval = np.random.random(test_x_input_shape) - 0.5
+
+        xth = KTH.placeholder(x_input_shape)
+        xtf = KTF.placeholder(x_input_shape)
+
+        yval = np.random.random(test_y_input_shape) - 0.5
+
+        yth = KTH.placeholder(y_input_shape)
+        ytf = KTF.placeholder(y_input_shape)
+
+        fth = KTH.function([xth, yth], [getattr(KTH, function_name)(xth, yth, **kwargs)])
+        ftf = KTF.function([xtf, ytf], [getattr(KTF, function_name)(xtf, ytf, **kwargs)])
+
+        zth = fth([xval, yval])[0]
+        ztf = ftf([xval, yval])[0]
 
     assert zth.shape == ztf.shape
     assert_allclose(zth, ztf, atol=1e-05)
@@ -67,10 +95,13 @@ class TestBackend(object):
     def test_linear_operations(self):
         check_two_tensor_operation('dot', (4, 2), (2, 4))
         check_two_tensor_operation('dot', (4, 2), (5, 2, 3))
+        check_two_tensor_operation('dot', (None, None, 3), (3, 5), (7, 2, 3), (3, 5))
+        check_two_tensor_operation('dot', (None, None, 3), (None, 3, None), (7, 2, 3), (5, 3, 9))
 
         check_two_tensor_operation('batch_dot', (4, 2, 3), (4, 5, 3),
                                    axes=(2, 2))
         check_single_tensor_operation('transpose', (4, 2))
+        check_single_tensor_operation('transpose', (None, 2), (4, 2))
         check_single_tensor_operation('reverse', (4, 3, 2), axes=1)
         check_single_tensor_operation('reverse', (4, 3, 2), axes=(1, 2))
 
