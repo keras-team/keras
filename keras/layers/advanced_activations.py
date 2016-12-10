@@ -262,3 +262,56 @@ class SReLU(Layer):
                   'a_right_init': self.a_right_init}
         base_config = super(SReLU, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
+
+
+class PELU(Layer):
+    '''Parametric Exponential Linear Unit
+    `f(x) = alpha * (exp(x / beta) - 1) for x < 0`,
+    `f(x) = alpha / beta * x for x >= 0`.
+
+    # Input shape
+        Arbitrary. Use the keyword argument `input_shape`
+        (tuple of integers, does not include the samples axis)
+        when using this layer as the first layer in a model.
+
+    # Output shape
+        Same shape as the input.
+
+    # Arguments
+        alpha_init: float. Initial value of the alpha weights.
+        beta_init: float. Initial values of the beta weights.
+        weights: initial weights, as a list of 2 numpy arrays.
+        
+    # References
+        - [Parametric Exponential Linear Unit for Deep Convolutional Neural Networks](https://arxiv.org/abs/1605.09332)
+    '''
+    def __init__(self, alpha_init=1.0, beta_init=1.0, weights=None, **kwargs):
+        self.supports_masking = True
+        self.alpha_init = K.cast_to_floatx(alpha_init)
+        self.beta_init = K.cast_to_floatx(beta_init)
+        self.initial_weights = weights
+        super(PELU, self).__init__(**kwargs)
+
+    def build(self, input_shape):
+        input_shape = input_shape[1:]
+        self.alphas = K.variable(self.alpha_init * np.ones(input_shape),
+                                 name='{}_alphas'.format(self.name))
+        self.betas = K.variable(self.beta_init * np.ones(input_shape),
+                                name='{}_betas'.format(self.name))
+        self.trainable_weights = [self.alphas, self.betas]
+
+        if self.initial_weights is not None:
+            self.set_weights(self.initial_weights)
+            del self.initial_weights
+
+    def call(self, x, mask=None):
+        pos = K.relu(x) * self.alphas / self.betas
+        neg = (x - abs(x)) * 0.5
+        neg = self.alphas * (K.exp(neg / self.betas) - 1)
+        return pos + neg
+
+    def get_config(self):
+        config = {'alpha_init': self.alpha_init,
+                  'beta_init': self.beta_init}
+        base_config = super(PELU, self).get_config()
+        return dict(list(base_config.items()) + list(config.items()))
