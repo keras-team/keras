@@ -550,6 +550,19 @@ def repeat(x, n):
     return T.extra_ops.repeat(x, n, axis=1)
 
 
+def arange(start, stop=None, step=1, dtype='int32'):
+    '''Creates a 1-D tensor containing a sequence of integers.
+
+    The function arguments use the same convention as
+    Theano's arange: if only one argument is provided,
+    it is in fact the "stop" argument.
+
+    The default type of the returned tensor is 'int32' to
+    match TensorFlow's default.
+    '''
+    return T.arange(start, stop=stop, step=step, dtype=dtype)
+
+
 def tile(x, n):
     return T.tile(x, n)
 
