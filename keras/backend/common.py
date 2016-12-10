@@ -15,7 +15,7 @@ def epsilon():
     factor used in numeric expressions.
 
     # Return
-        Float (scalar)
+        * Float (scalar)
 
     # Example
     ```python
@@ -31,10 +31,7 @@ def set_epsilon(e):
     factor used in numeric expressions.
 
     # Argument
-        e: float. New value of epsilon
-
-    # Return
-        `None`
+        * e: float. New value of epsilon
 
     # Example
     ```python
@@ -55,7 +52,7 @@ def floatx():
     (e.g. 'float16', 'float32', 'float64').
 
     # Return
-        String, the current default float type
+        * String, the current default float type
 
     # Example
     ```python
@@ -70,10 +67,7 @@ def set_floatx(floatx):
     '''Sets the default float type.
 
     # Argument
-        floatx: string. 'float16', 'float32', or 'float64'.
-
-    # Return
-        `None`
+        * floatx: string. 'float16', 'float32', or 'float64'.
 
     # Example
     ```python
@@ -95,10 +89,10 @@ def cast_to_floatx(x):
     '''Cast a Numpy array to floatx.
 
     # Argument
-        x: Numpy array.
+        * x: Numpy array.
 
     # Return
-        A Numpy array
+        * A Numpy array
 
     # Example
     ```python
@@ -123,7 +117,7 @@ def image_dim_ordering():
     convention ('th' or 'tf').
 
     # Return
-        String, either `'th'` or `'tf'`
+        * String, either `'th'` or `'tf'`
 
     # Example
     ```python
@@ -139,10 +133,7 @@ def set_image_dim_ordering(dim_ordering):
     ordering convention ('th' or 'tf').
 
     # Argument
-        dim_ordering: string. 'th' or 'tf'.
-
-    # Return
-        `None`
+        * dim_ordering: string. `'th'` or `'tf'`.
 
     # Example
     ```python
@@ -161,13 +152,13 @@ def set_image_dim_ordering(dim_ordering):
 
 
 def get_uid(prefix=''):
-    '''
+    '''It does not return any value.
 
     # Argument
-        prefix: string
+        * prefix: string
 
     # Return
-        integer (scalar)
+        * integer (scalar)
 
     # Example
     ```
@@ -182,25 +173,18 @@ def get_uid(prefix=''):
 
 
 def reset_uids():
-    '''
-    # Return
-        `None`
-    '''
-
     global _UID_PREFIXES
     _UID_PREFIXES = defaultdict(int)
 
 
 def is_keras_tensor(x):
-    '''Returns if `x` is a Keras tensor,
-    which is equivalent to `tf.placeholder()` or
-    `T.matrix()`, `T.tensor3()`.
+    '''Returns weather `x` is a Keras tensor.
 
     # Argument
-        x: any type.
+        * x: any type.
 
     # Return
-        Boolean
+        * Boolean
 
     # Example
     ```python
@@ -223,25 +207,10 @@ def is_keras_tensor(x):
 
 
 def set_legacy_weight_ordering(value):
-    '''
-    # Return
-        `None`
-
-    '''
     global _LEGACY_WEIGHT_ORDERING
     assert value in {True, False}
     _LEGACY_WEIGHT_ORDERING = value
 
 
 def legacy_weight_ordering():
-    '''
-    # Return
-        Boolean
-
-    # Example
-    ```python
-        >>> keras.backend.legacy_weight_ordering()
-        False
-    ```
-    '''
     return _LEGACY_WEIGHT_ORDERING
