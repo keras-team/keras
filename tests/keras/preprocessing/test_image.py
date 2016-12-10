@@ -77,11 +77,11 @@ class TestImage:
             x = np.random.random((32, 3, 10, 10))
             generator.fit(x)
         with pytest.raises(ValueError):
-            x = np.random.random((32, 10, 10, 4))
+            x = np.random.random((32, 10, 10, 5))
             generator.fit(x)
         # Test flow with invalid data
         with pytest.raises(ValueError):
-            x = np.random.random((32, 10, 10, 4))
+            x = np.random.random((32, 10, 10, 5))
             generator.flow(np.arange(x.shape[0]))
         with pytest.raises(ValueError):
             x = np.random.random((32, 10, 10))

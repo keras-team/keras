@@ -435,12 +435,12 @@ class ImageDataGenerator(object):
         if X.ndim != 4:
             raise ValueError('Input to `.fit()` should have rank 4. '
                              'Got array with shape: ' + str(X.shape))
-        if X.shape[self.channel_index] not in {1, 3}:
+        if X.shape[self.channel_index] not in {1, 3, 4}:
             raise ValueError(
                 'Expected input to be images (as Numpy array) '
                 'following the dimension ordering convention "' + self.dim_ordering + '" '
                 '(channels on axis ' + str(self.channel_index) + '), i.e. expected '
-                'either 1 or 3 channels on axis ' + str(self.channel_index) + '. '
+                'either 1, 3 or 4 channels on axis ' + str(self.channel_index) + '. '
                 'However, it was passed an array with shape ' + str(X.shape) +
                 ' (' + str(X.shape[self.channel_index]) + ' channels).')
 
@@ -539,11 +539,11 @@ class NumpyArrayIterator(Iterator):
                              'should have rank 4. You passed an array '
                              'with shape', self.X.shape)
         channels_axis = 3 if dim_ordering == 'tf' else 1
-        if self.X.shape[channels_axis] not in {1, 3}:
+        if self.X.shape[channels_axis] not in {1, 3, 4}:
             raise ValueError('NumpyArrayIterator is set to use the '
                              'dimension ordering convention "' + dim_ordering + '" '
                              '(channels on axis ' + str(channels_axis) + '), i.e. expected '
-                             'either 1 or 3 channels on axis ' + str(channels_axis) + '. '
+                             'either 1, 3 or 4 channels on axis ' + str(channels_axis) + '. '
                              'However, it was passed an array with shape ' + str(self.X.shape) +
                              ' (' + str(self.X.shape[channels_axis]) + ' channels).')
         self.y = np.asarray(y)
