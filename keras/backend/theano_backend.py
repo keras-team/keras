@@ -550,6 +550,19 @@ def repeat(x, n):
     return T.extra_ops.repeat(x, n, axis=1)
 
 
+def arange(start, stop=None, step=1, dtype='int32'):
+    '''Creates a 1-D tensor containing a sequence of integers.
+
+    The function arguments use the same convention as
+    Theano's arange: if only one argument is provided,
+    it is in fact the "stop" argument.
+
+    The default type of the returned tensor is 'int32' to
+    match TensorFlow's default.
+    '''
+    return T.arange(start, stop=stop, step=step, dtype=dtype)
+
+
 def tile(x, n):
     return T.tile(x, n)
 
@@ -1380,6 +1393,7 @@ def deconv2d(x, kernel, output_shape, strides=(1, 1),
     th_border_mode = _preprocess_border_mode(border_mode)
     np_kernel = kernel.eval()
     filter_shape = _preprocess_conv2d_filter_shape(dim_ordering, filter_shape)
+    filter_shape = tuple(filter_shape[i] for i in (1, 0, 2, 3))
 
     op = T.nnet.abstract_conv.AbstractConv2d_gradInputs(imshp=output_shape,
                                                         kshp=filter_shape,

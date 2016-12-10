@@ -845,6 +845,25 @@ def repeat(x, n):
     return tf.tile(x, pattern)
 
 
+def arange(start, stop=None, step=1, dtype='int32'):
+    '''Creates a 1-D tensor containing a sequence of integers.
+
+    The function arguments use the same convention as
+    Theano's arange: if only one argument is provided,
+    it is in fact the "stop" argument.
+
+    The default type of the returned tensor is 'int32' to
+    match TensorFlow's default.
+    '''
+    # Match the behavior of numpy and Theano by returning an empty seqence.
+    if stop is None and start < 0:
+        start = 0
+    result = tf.range(start, limit=stop, delta=step, name='arange')
+    if dtype != 'int32':
+        result = cast(result, dtype)
+    return result
+
+
 def tile(x, n):
     if not hasattr(n, 'shape') and not hasattr(n, '__len__') and not hasattr(n, '_shape'):
         n = [n]
