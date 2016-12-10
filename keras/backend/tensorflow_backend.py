@@ -73,6 +73,9 @@ def learning_phase():
 def set_learning_phase(value):
     '''Sets the learning phase to a fixed value,
     either 0 or 1 (integers).
+
+    # Return
+        `None`
     '''
     global _GRAPH_LEARNING_PHASES
     if value not in {0, 1}:
@@ -92,7 +95,11 @@ def get_session():
     we will create a new global session.
 
     Note that you can manually set the global session
-    via `K.set_session(sess)`.
+    via `keras.backend.set_session(sess)`.
+
+    # Return
+        a TF session
+
     '''
     global _SESSION
     if tf.get_default_session() is not None:
@@ -114,6 +121,9 @@ def get_session():
 
 def set_session(session):
     '''Sets the global TF session.
+
+    # Return
+        `None`
     '''
     global _SESSION
     _SESSION = session
@@ -150,10 +160,48 @@ def _to_tensor(x, dtype):
 
 
 def is_sparse(tensor):
+    '''Returns if a tensor is a sparse tensor.
+
+    # Arguments
+        tensor: a Keras tensor
+
+    # Return
+        Boolean
+
+    # Example
+    ```python
+        >>> a = keras.backend.placeholder((2, 2), sparse=False)
+        >>> print(keras.backend.is_sparse(a))
+        False
+        >>> b = keras.backend.placeholder((2, 2), sparse=True)
+        >>> print(keras.backend.is_sparse(b))
+        True
+    ```
+
+    '''
     return isinstance(tensor, tf.SparseTensor)
 
 
 def to_dense(tensor):
+    '''Convert a Keras tensor into a Keras dense tensor 
+    and return it.
+
+    # Argument
+        tensor: Keras tensor
+
+    # Return
+        A Keras dense tensor
+
+    # Example
+    ```python
+        >>> b = keras.backend.placeholder((2, 2), sparse=True)
+        >>> print(keras.backend.is_sparse(b))
+        True
+        >>> c = keras.backend.to_dense(b)
+        >>> print(keras.backend.is_sparse(c))
+        False
+    ```
+    '''
     if is_sparse(tensor):
         return tf.sparse_tensor_to_dense(tensor)
     else:
@@ -161,15 +209,29 @@ def to_dense(tensor):
 
 
 def variable(value, dtype=_FLOATX, name=None):
-    '''Instantiates a tensor.
+    '''Instantiates a Keras variable and return it.
 
     # Arguments
-        value: numpy array, initial value of the tensor.
-        dtype: tensor type.
-        name: optional name string for the tensor.
+        value: numpy array, initial value of the tensor
+        dtype: tensor type
+        name: optional name string for the tensor
 
-    # Returns
-        Tensor variable instance.
+    # Return
+        A Keras variable instance
+
+    # Example
+    ```python
+        >>> from keras import backend as K
+        >>> val = np.array([[1, 2], [3, 4]])
+        >>> var = K.variable(value=val, dtype='float64', name='example_variable')
+        >>> K.dtype(var)
+        'float64'
+        >>> print var
+        example_variable
+        >>> var.eval()
+        array([[ 1.,  2.],
+               [ 3.,  4.]])
+    ```
     '''
     if hasattr(value, 'tocoo'):
         sparse_coo = value.tocoo()
@@ -202,7 +264,7 @@ def _initialize_variables():
             sess.run(tf.initialize_variables(uninitialized_variables))
 
 def placeholder(shape=None, ndim=None, dtype=_FLOATX, sparse=False, name=None):
-    '''Instantiates a placeholder.
+    '''Instantiates a placeholder (tensor).
 
     # Arguments
         shape: shape of the placeholder
@@ -214,7 +276,16 @@ def placeholder(shape=None, ndim=None, dtype=_FLOATX, sparse=False, name=None):
         name: optional name string for the placeholder.
 
     # Returns
-        Placeholder tensor instance.
+        Keras tensor instance.
+
+    # Example
+    ```python
+        >>> input = keras.backend.placeholder(shape=(2, 4, 5))
+        >>> input._keras_shape
+        (2, 4, 5)
+        >>> input
+        <tf.Tensor 'Placeholder_4:0' shape=(2, 4, 5) dtype=float32>
+    ```
     '''
     if not shape:
         if ndim:
@@ -230,15 +301,59 @@ def placeholder(shape=None, ndim=None, dtype=_FLOATX, sparse=False, name=None):
 
 
 def shape(x):
-    '''Returns the symbolic shape of a tensor.
+    '''Returns the symbolic shape of a Keras tensor or variable.
+
+    # Argument
+        x: A Keras tensor or variable
+
+    # Return
+        A symbolic shape
+
+    # Example
+    ```
+        # TensorFlow example
+        >>> from keras import backend as K
+        >>> tf_session = K.get_session()
+        >>> val = np.array([[1, 2], [3, 4]])
+        >>> var = K.variable(value=val)
+        >>> input = keras.backend.placeholder(shape=(2, 4, 5))
+        >>> K.shape(var)
+        <tf.Tensor 'Shape_8:0' shape=(2,) dtype=int32>
+        >>> K.shape(input)
+        <tf.Tensor 'Shape_9:0' shape=(3,) dtype=int32>
+        # To get integer shape
+        >>> K.shape(var).eval(session=tf_session)
+        array([2, 2], dtype=int32)
+        >>> K.shape(input).eval(session=tf_session)
+        array([2, 4, 5], dtype=int32)
+        # or use K.int_shape(x)
+    ```
     '''
     return tf.shape(x)
 
 
 def int_shape(x):
-    '''Returns the shape of a tensor as a tuple of
+    '''Returns the shape of a Keras tensor or a Keras variable as a tuple of
     integers or None entries.
     Note that this function only works with TensorFlow.
+
+    # Argument
+        x: A Keras tensor or variable
+
+    # Return
+        A tuple of integers
+
+    # Example
+    ```python
+        >>> from keras import backend as K
+        >>> input = K.placeholder(shape=(2, 4, 5))
+        >>> K.int_shape(input)
+        (2, 4, 5)
+        >>> val = np.array([[1, 2], [3, 4]])
+        >>> var = K.variable(value=val)
+        >>> K.int_shape(var)
+        (2, 2)
+    ```
     '''
     shape = x.get_shape()
     return tuple([i.__int__() for i in shape])
@@ -246,6 +361,24 @@ def int_shape(x):
 
 def ndim(x):
     '''Returns the number of axes in a tensor, as an integer.
+
+    # Argument
+        x: Keras tensor or variable
+
+    # Return
+        integer (scalar), number of dimensions
+
+    # Example
+    ```python
+        >>> from keras import backend as K
+        >>> input = K.placeholder(shape=(2, 4, 5))
+        >>> val = np.array([[1, 2], [3, 4]])
+        >>> var = K.variable(value=val)
+        >>> K.ndim(input)
+        3
+        >>> K.ndim(var)
+        2
+    ```
     '''
     if is_sparse(x):
         return x._dims
@@ -257,20 +390,78 @@ def ndim(x):
 
 
 def dtype(x):
-    '''Returns the dtype of a tensor, as a string.
+    '''Returns the dtype of a Keras tensor or variable, as a string.
+
+    # Argument
+        x: Keras tensor or variable
+
+    # Return
+        String, dtype of `x`
+
+    # Example
+    ```python
+        >>> from keras import backend as K
+        # Keras tensor
+        >>> K.dtype(K.placeholder(shape=(2,4,5)))
+        'float32'
+        >>> K.dtype(K.placeholder(shape=(2,4,5), dtype='float32'))
+        'float32'
+        >>> K.dtype(K.placeholder(shape=(2,4,5), dtype='float64'))
+        'float64'
+        # Keras variable
+        >>> var = K.variable(np.array([[1, 2], [3, 4]]))
+        >>> K.dtype(var)
+        'float32_ref'
+        >>> var = K.variable(np.array([[1, 2], [3, 4]]), dtype='float32')
+        >>> K.dtype(var)
+        'float32_ref'
+    ```
     '''
     return x.dtype.name
 
 
 def eval(x):
-    '''Evaluates the value of a tensor.
+    '''Evaluates the value of a Keras variable.
     Returns a Numpy array.
+
+    # Argument
+        x: A Keras variable
+
+    # Return
+        A Numpy array
+
+    # Example
+    ```python
+        >>> from keras import backend as K
+        >>> var = K.variable(np.array([[1, 2], [3, 4]]), dtype='float32')
+        >>> K.eval(var)
+        array([[ 1.,  2.],
+               [ 3.,  4.]], dtype=float32)
+    ```
     '''
     return to_dense(x).eval(session=get_session())
 
 
 def zeros(shape, dtype=_FLOATX, name=None):
-    '''Instantiates an all-zeros tensor variable.
+    '''Instantiates an all-zeros Keras variable.
+
+    # Argument
+        shape: Tuple of integers, shape of returned Keras variable
+        dtype: String, data type of returned Keras variable
+        name: String, name of returned Keras variable
+
+    # Return
+        A Keras variable, filled with `0.0`
+
+    # Example
+    ```python
+        >>> from keras import backend as K
+        >>> var = K.zeros((3,4))
+        >>> K.eval(var)
+        array([[ 0.,  0.,  0.,  0.],
+               [ 0.,  0.,  0.,  0.],
+               [ 0.,  0.,  0.,  0.]], dtype=float32)
+    ```
     '''
     shape = tuple(map(int, shape))
     tf_dtype = _convert_string_dtype(dtype)
@@ -280,6 +471,24 @@ def zeros(shape, dtype=_FLOATX, name=None):
 
 def ones(shape, dtype=_FLOATX, name=None):
     '''Instantiates an all-ones tensor variable.
+    
+    # Argument
+        shape: Tuple of integers, shape of returned Keras variable
+        dtype: String, data type of returned Keras variable
+        name: String, name of returned Keras variable
+
+    # Return
+        A Keras variable, filled with `1.0`
+
+    # Example
+    ```python
+        >>> from keras import backend as K
+        >>> var = K.ones((3,4))
+        >>> K.eval(var)
+        array([[ 1.,  1.,  1.,  1.],
+               [ 1.,  1.,  1.,  1.],
+               [ 1.,  1.,  1.,  1.]], dtype=float32)
+    ```
     '''
     shape = tuple(map(int, shape))
     tf_dtype = _convert_string_dtype(dtype)
@@ -289,13 +498,47 @@ def ones(shape, dtype=_FLOATX, name=None):
 
 def eye(size, dtype=_FLOATX, name=None):
     '''Instantiate an identity matrix.
+
+    # Argument
+        size: Integer, number of rows/columns
+        dtype: String, data type of returned Keras variable
+        name: String, name of returned Keras variable
+
+    # Return
+        A Keras variable, an identity matrix
+
+    # Example
+    ```python
+        >>> from keras import backend as K
+        >>> K.eval(var)
+        array([[ 1.,  0.,  0.],
+               [ 0.,  1.,  0.],
+               [ 0.,  0.,  1.]], dtype=float32)
+    ```
+
     '''
     return variable(np.eye(size), dtype, name)
 
 
 def zeros_like(x, name=None):
-    '''Instantiates an all-zeros tensor
-    of the same shape as another tensor.
+    '''Instantiates an all-zeros Keras variable
+    of the same shape as another Keras variable.
+
+    # Argument
+        x: Keras variable
+
+    # Return
+        A Keras variable, filled with `0.0` 
+
+    # Example
+    ```python
+        >>> from keras import backend as K
+        >>> var = K.variable(np.random.random((2,3)))
+        >>> var_zeros = K.zeros_like(var)
+        >>> K.eval(var_zeros)
+        array([[ 0.,  0.,  0.],
+               [ 0.,  0.,  0.]], dtype=float32)
+    ```
     '''
     return tf.zeros_like(x, name=name)
 
@@ -303,6 +546,22 @@ def zeros_like(x, name=None):
 def ones_like(x, name=None):
     '''Instantiates an all-ones tensor
     of the same shape as another tensor.
+
+    # Argument
+        x: Keras variable
+
+    # Return
+        A Keras variable, filled with `1.0`
+
+    # Example
+    ```python
+        >>> from keras import backend as K
+        >>> var = K.variable(np.random.random((2,3)))
+        >>> var_ones = K.ones_like(var)
+        >>> K.eval(var_ones)
+        array([[ 1.,  1.,  1.],
+               [ 1.,  1.,  1.]], dtype=float32)
+    ```
     '''
     return tf.ones_like(x, name=name)
 
