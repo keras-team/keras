@@ -23,7 +23,6 @@ def epsilon():
         1e-07
     ```
     '''
-
     return _EPSILON
 
 
@@ -45,7 +44,7 @@ def set_epsilon(e):
         >>> K.set_epsilon(1e-05)
         >>> K.epsilon()
         1e-05
-    ```    
+    ```
     '''
     global _EPSILON
     _EPSILON = e
@@ -62,7 +61,7 @@ def floatx():
     ```python
         >>> keras.backend.floatx()
         'float32'
-    ```    
+    ```
     '''
     return _FLOATX
 
@@ -115,7 +114,8 @@ def cast_to_floatx(x):
         >>> new_arr.dtype
         dtype('float32')
     ```
-    '''    return np.asarray(x, dtype=_FLOATX)
+    '''
+    return np.asarray(x, dtype=_FLOATX)
 
 
 def image_dim_ordering():
@@ -176,7 +176,7 @@ def get_uid(prefix=''):
         <type 'int'>
     ```
 
-    '''    
+    '''
     _UID_PREFIXES[prefix] += 1
     return _UID_PREFIXES[prefix]
 
