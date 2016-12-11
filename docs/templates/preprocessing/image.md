@@ -77,8 +77,9 @@ Generate batches of tensor image data with real-time data augmentation. The data
             The generator loops indefinitely.
     - __flow_from_directory(directory)__: Takes the path to a directory, and generates batches of augmented/normalized data. Yields batches indefinitely, in an infinite loop.
         - __Arguments__:
-            - __directory__: path to the target directory. It should contain one subdirectory per class,
-                and the subdirectories should contain PNG or JPG images. See [this script](https://gist.github.com/fchollet/0830affa1f7f19fd47b06d4cf89ed44d) for more details.
+            - __directory__: path to the target directory. It should contain one subdirectory per class.
+                Any PNG, JPG or BNP images inside each of the subdirectories directory tree will be included in the generator.
+                See [this script](https://gist.github.com/fchollet/0830affa1f7f19fd47b06d4cf89ed44d) for more details.
             - __target_size__: tuple of integers, default: `(256, 256)`. The dimensions to which all images found will be resized.
             - __color_mode__: one of "grayscale", "rbg". Default: "rgb". Whether the images will be converted to have 1 or 3 color channels.
             - __classes__: optional list of class subdirectories (e.g. `['dogs', 'cats']`). Default: None. If not provided, the list of classes will be automatically inferred (and the order of the classes, which will map to the label indices, will be alphanumeric).
@@ -89,6 +90,7 @@ Generate batches of tensor image data with real-time data augmentation. The data
             - __save_to_dir__: None or str (default: None). This allows you to optimally specify a directory to which to save the augmented pictures being generated (useful for visualizing what you are doing).
             - __save_prefix__: str. Prefix to use for filenames of saved pictures (only relevant if `save_to_dir` is set).
             - __save_format__: one of "png", "jpeg" (only relevant if `save_to_dir` is set). Default: "jpeg".
+            - __follow_links__: whether to follow symlinks inside class subdirectories (default: False).
 
 
 - __Examples__:
