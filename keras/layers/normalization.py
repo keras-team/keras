@@ -60,7 +60,7 @@ class BatchNormalization(Layer):
     # References
         - [Batch Normalization: Accelerating Deep Network Training by Reducing Internal Covariate Shift](http://jmlr.org/proceedings/papers/v37/ioffe15.pdf)
     '''
-    def __init__(self, epsilon=1e-5, mode=0, axis=-1, momentum=0.99,
+    def __init__(self, epsilon=1e-5, mode=0, axis='default', momentum=0.99,
                  weights=None, beta_init='zero', gamma_init='one',
                  gamma_regularizer=None, beta_regularizer=None, **kwargs):
         self.supports_masking = True
@@ -68,6 +68,8 @@ class BatchNormalization(Layer):
         self.gamma_init = initializations.get(gamma_init)
         self.epsilon = epsilon
         self.mode = mode
+        if axis == 'default':
+            axis = 1 if K.image_dim_ordering() == "th" else -1
         self.axis = axis
         self.momentum = momentum
         self.gamma_regularizer = regularizers.get(gamma_regularizer)
