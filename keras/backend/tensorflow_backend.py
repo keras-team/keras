@@ -1207,7 +1207,7 @@ def rnn(step_function, inputs, initial_states,
             for _ in range(tmp):
                 mask = expand_dims(mask)
         assert mask.ndim == ndim
-        mask = mask.dimshuffle(axes)
+        mask = tf.transpose(mask, axes)
 
     if constants is None:
         constants = []
