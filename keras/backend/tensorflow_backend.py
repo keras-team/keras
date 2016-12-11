@@ -1206,7 +1206,7 @@ def rnn(step_function, inputs, initial_states,
             tmp = ndim - len(mask.get_shape())
             for _ in range(tmp):
                 mask = expand_dims(mask)
-        assert mask.ndim == ndim
+        assert len(mask.get_shape()) == ndim
         mask = tf.transpose(mask, axes)
 
     if constants is None:
