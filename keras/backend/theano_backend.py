@@ -433,6 +433,16 @@ def normalize_batch_in_training(x, gamma, beta,
 def batch_normalization(x, mean, var, beta, gamma, epsilon=0.0001):
     '''Apply batch normalization on x given mean, var, beta and gamma.
     '''
+    if mean.ndim == 1 and x.ndim > 1:
+        # in TensorFlow's batch_normalization, if the parameters are vectors
+        # the batch normalization should be applied along the rightmost axis.
+        # Theano expects the parameters to always have x.ndim dimensions.
+        shuffle_pattern = ['x'] * (x.ndim - 1) + [0]
+        mean = mean.dimshuffle(shuffle_pattern)
+        var = var.dimshuffle(shuffle_pattern)
+        beta = beta.dimshuffle(shuffle_pattern)
+        gamma = gamma.dimshuffle(shuffle_pattern)
+
     ndim = x.ndim
     dev = theano.config.device
     use_cudnn = ndim < 5 and (dev.startswith('cuda') or dev.startswith('gpu'))
