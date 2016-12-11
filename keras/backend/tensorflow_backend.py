@@ -1209,7 +1209,6 @@ def rnn(step_function, inputs, initial_states,
         assert mask.ndim == ndim
         mask = mask.dimshuffle(axes)
 
-
     if constants is None:
         constants = []
 
