@@ -5,15 +5,27 @@ import sys
 import six
 import marshal
 import types as python_types
+from functools import partial
 
 
 def get_from_module(identifier, module_params, module_name,
                     instantiate=False, kwargs=None):
     if isinstance(identifier, six.string_types):
-        res = module_params.get(identifier)
+        idx = identifier.find('(')
+        if -1 == idx:
+            res = module_params.get(identifier)
+        else:
+            func_name = identifier[:idx]
+            aux_kwargs = eval('dict' + identifier[idx:])
+            if not kwargs:
+                kwargs = {}
+            kwargs.update(aux_kwargs)
+            res = partial(module_params.get(func_name), **kwargs)
+
         if not res:
             raise Exception('Invalid ' + str(module_name) + ': ' +
                             str(identifier))
+
         if instantiate and not kwargs:
             return res()
         elif instantiate and kwargs:
@@ -23,11 +35,15 @@ def get_from_module(identifier, module_params, module_name,
     elif type(identifier) is dict:
         name = identifier.pop('name')
         res = module_params.get(name)
-        if res:
-            return res(**identifier)
-        else:
+
+        if not res:
             raise Exception('Invalid ' + str(module_name) + ': ' +
                             str(identifier))
+
+        if instantiate:
+            return res(**identifier)
+        else:
+            return partial(res, **identifier)
     return identifier
 
 
