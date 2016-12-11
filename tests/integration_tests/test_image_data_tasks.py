@@ -8,7 +8,6 @@ from keras.layers.core import Dense, Flatten, Activation
 from keras.layers.convolutional import Convolution2D, MaxPooling2D
 from keras.utils.np_utils import to_categorical
 
-
 @keras_test
 def test_image_classification():
     '''
