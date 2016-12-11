@@ -396,6 +396,41 @@ def normalize_batch_in_training(x, gamma, beta,
                                 reduction_axes, epsilon=1e-3):
     '''Computes mean and std for batch then apply batch_normalization on batch.
     '''
+    # TODO remove this if statement when Theano without
+    # T.nnet.bn.batch_normalization_train is deprecated
+    if not hasattr(T.nnet.bn, 'batch_normalization_train'):
+        return _old_normalize_batch_in_training(x, gamma, beta, reduction_axes, epsilon)
+
+    normed, mean, stdinv = T.nnet.bn.batch_normalization_train(
+        x, gamma, beta, reduction_axes, epsilon)
+
+    return normed, mean, T.inv(stdinv ** 2)
+
+
+def batch_normalization(x, mean, var, beta, gamma, epsilon=1e-3):
+    '''Apply batch normalization on x given mean, var, beta and gamma.
+    '''
+    # TODO remove this if statement when Theano without
+    # T.nnet.bn.batch_normalization_test is deprecated
+    if not hasattr(T.nnet.bn, 'batch_normalization_test'):
+        return _old_batch_normalization(x, mean, var, beta, gamma, epsilon)
+
+    if mean.ndim == 1:
+        # based on TensorFlow's default: normalize along rightmost dimension
+        reduction_axes = range(x.ndim - 1)
+    else:
+        reduction_axes = [i for i in range(x.ndim) if mean.broadcastable[i]]
+
+    return T.nnet.bn.batch_normalization_test(
+        x, gamma, beta, mean, var, reduction_axes, epsilon)
+
+
+# TODO remove this function when Theano without
+# T.nnet.bn.batch_normalization_train is deprecated
+def _old_normalize_batch_in_training(x, gamma, beta,
+                                     reduction_axes, epsilon=1e-3):
+    '''Computes mean and std for batch then apply batch_normalization on batch.
+    '''
     dev = theano.config.device
     use_cudnn = ndim(x) < 5 and reduction_axes == [0, 2, 3] and (dev.startswith('cuda') or dev.startswith('gpu'))
     if use_cudnn:
@@ -430,7 +465,9 @@ def normalize_batch_in_training(x, gamma, beta,
     return normed, mean, var
 
 
-def batch_normalization(x, mean, var, beta, gamma, epsilon=1e-3):
+# TODO remove this if statement when Theano without
+# T.nnet.bn.batch_normalization_test is deprecated
+def _old_batch_normalization(x, mean, var, beta, gamma, epsilon=1e-3):
     '''Apply batch normalization on x given mean, var, beta and gamma.
     '''
     if mean.ndim == 1 and x.ndim > 1:
