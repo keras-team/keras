@@ -15,12 +15,12 @@ def epsilon():
     factor used in numeric expressions.
 
     # Returns
-        * A float.
+        A float.
 
     # Example
     ```python
         >>> keras.backend.epsilon()
-        1e-07
+        1e-08
     ```
     '''
     return _EPSILON
@@ -37,7 +37,7 @@ def set_epsilon(e):
     ```python
         >>> from keras import backend as K
         >>> K.epsilon()
-        1e-07
+        1e-08
         >>> K.set_epsilon(1e-05)
         >>> K.epsilon()
         1e-05
