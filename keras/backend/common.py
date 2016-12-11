@@ -14,10 +14,10 @@ def epsilon():
     '''Returns the value of the fuzz
     factor used in numeric expressions.
 
-    # Return
+    # Returns
         * Float (scalar)
 
-    # Example
+    # Examples
     ```python
         >>> keras.backend.epsilon()
         1e-07
@@ -30,10 +30,10 @@ def set_epsilon(e):
     '''Sets the value of the fuzz
     factor used in numeric expressions.
 
-    # Argument
+    # Arguments
         * e: float. New value of epsilon
 
-    # Example
+    # Examples
     ```python
         >>> from keras import backend as K
         >>> K.epsilon()
@@ -51,10 +51,10 @@ def floatx():
     '''Returns the default float type, as a string
     (e.g. 'float16', 'float32', 'float64').
 
-    # Return
+    # Returns
         * String, the current default float type
 
-    # Example
+    # Examples
     ```python
         >>> keras.backend.floatx()
         'float32'
@@ -66,10 +66,10 @@ def floatx():
 def set_floatx(floatx):
     '''Sets the default float type.
 
-    # Argument
+    # Arguments
         * floatx: string. 'float16', 'float32', or 'float64'.
 
-    # Example
+    # Examples
     ```python
         >>> from keras import backend as K
         >>> K.floatx()
@@ -88,13 +88,13 @@ def set_floatx(floatx):
 def cast_to_floatx(x):
     '''Cast a Numpy array to floatx.
 
-    # Argument
+    # Arguments
         * x: Numpy array.
 
-    # Return
+    # Returns
         * A Numpy array
 
-    # Example
+    # Examples
     ```python
         >>> from keras import backend as K
         >>> K.floatx()
@@ -116,10 +116,10 @@ def image_dim_ordering():
     '''Returns the image dimension ordering
     convention ('th' or 'tf').
 
-    # Return
+    # Returns
         * String, either `'th'` or `'tf'`
 
-    # Example
+    # Examples
     ```python
         >>> keras.backend.image_dim_ordering()
         'th'
@@ -132,10 +132,10 @@ def set_image_dim_ordering(dim_ordering):
     '''Sets the value of the image dimension
     ordering convention ('th' or 'tf').
 
-    # Argument
+    # Arguments
         * dim_ordering: string. `'th'` or `'tf'`.
 
-    # Example
+    # Examples
     ```python
         >>> from keras import backend as K
         >>> K.image_dim_ordering()
@@ -152,15 +152,15 @@ def set_image_dim_ordering(dim_ordering):
 
 
 def get_uid(prefix=''):
-    '''It does not return any value.
+    '''Does not return any value.
 
-    # Argument
+    # Arguments
         * prefix: string
 
-    # Return
+    # Returns
         * integer (scalar)
 
-    # Example
+    # Examples
     ```
         >>> a = keras.backend.get_uid()
         >>> type(a)
@@ -180,13 +180,13 @@ def reset_uids():
 def is_keras_tensor(x):
     '''Returns weather `x` is a Keras tensor.
 
-    # Argument
+    # Arguments
         * x: any type.
 
-    # Return
+    # Returns
         * Boolean
 
-    # Example
+    # Examples
     ```python
         >>> from keras import backend as K
         >>> np_var = numpy.array([1, 2])
