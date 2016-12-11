@@ -1574,12 +1574,12 @@ def deconv2d(x, kernel, output_shape, strides=(1, 1),
     filter_shape = _preprocess_conv2d_filter_shape(dim_ordering, filter_shape)
     filter_shape = tuple(filter_shape[i] for i in (1, 0, 2, 3))
 
-    op = T.nnet.abstract_conv.AbstractConv2d_gradInputs(imshp=output_shape,
-                                                        kshp=filter_shape,
-                                                        subsample=strides,
-                                                        border_mode=th_border_mode,
-                                                        filter_flip=not flip_filters)
-    conv_out = op(kernel, x, output_shape[2:])
+    conv_out = T.nnet.abstract_conv.conv2d_grad_wrt_inputs(
+        x, kernel, output_shape,
+        filter_shape=filter_shape,
+        border_mode=th_border_mode,
+        subsample=strides,
+        filter_flip=not flip_filters)
 
     conv_out = _postprocess_conv2d_output(conv_out, x, border_mode,
                                           kernel_shape, strides, dim_ordering)
@@ -1690,12 +1690,12 @@ def deconv3d(x, kernel, output_shape, strides=(1, 1, 1),
     filter_shape = _preprocess_conv3d_filter_shape(dim_ordering, filter_shape)
     filter_shape = tuple(filter_shape[i] for i in (1, 0, 2, 3, 4))
 
-    op = T.nnet.abstract_conv.AbstractConv3d_gradInputs(imshp=output_shape,
-                                                        kshp=filter_shape,
-                                                        subsample=strides,
-                                                        border_mode=th_border_mode,
-                                                        filter_flip=not flip_filters)
-    conv_out = op(kernel, x, output_shape[2:])
+    conv_out = T.nnet.abstract_conv.conv3d_grad_wrt_inputs(
+        x, kernel, output_shape,
+        filter_shape=filter_shape,
+        border_mode=th_border_mode,
+        subsample=strides,
+        filter_flip=not flip_filters)
 
     conv_out = _postprocess_conv3d_output(conv_out, x, border_mode,
                                           kernel_shape, strides, dim_ordering)
