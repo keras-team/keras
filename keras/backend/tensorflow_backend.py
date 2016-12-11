@@ -1202,9 +1202,7 @@ def rnn(step_function, inputs, initial_states,
     if mask is not None:
         if mask.dtype != tf.bool:
             mask = tf.cast(mask, tf.bool)
-        if len(mask.get_shape()) == ndim - 1:
-            mask = expand_dims(mask)
-        mask = tf.transpose(mask, axes)
+        mask = tf.transpose(mask, axes[:len(mask.get_shape())])
 
     if constants is None:
         constants = []
