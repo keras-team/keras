@@ -10,6 +10,7 @@ class BatchNormalization(Layer):
 
     # Arguments
         epsilon: small float > 0. Fuzz parameter.
+            Theano expects epsilon >= 1e-5.
         mode: integer, 0, 1 or 2.
             - 0: feature-wise normalization.
                 Each feature map in the input will
@@ -60,7 +61,7 @@ class BatchNormalization(Layer):
     # References
         - [Batch Normalization: Accelerating Deep Network Training by Reducing Internal Covariate Shift](http://jmlr.org/proceedings/papers/v37/ioffe15.pdf)
     '''
-    def __init__(self, epsilon=1e-5, mode=0, axis=-1, momentum=0.99,
+    def __init__(self, epsilon=1e-3, mode=0, axis=-1, momentum=0.99,
                  weights=None, beta_init='zero', gamma_init='one',
                  gamma_regularizer=None, beta_regularizer=None, **kwargs):
         self.supports_masking = True

@@ -393,7 +393,7 @@ def cos(x):
 
 
 def normalize_batch_in_training(x, gamma, beta,
-                                reduction_axes, epsilon=0.0001):
+                                reduction_axes, epsilon=1e-3):
     '''Computes mean and std for batch then apply batch_normalization on batch.
     '''
     dev = theano.config.device
@@ -430,7 +430,7 @@ def normalize_batch_in_training(x, gamma, beta,
     return normed, mean, var
 
 
-def batch_normalization(x, mean, var, beta, gamma, epsilon=0.0001):
+def batch_normalization(x, mean, var, beta, gamma, epsilon=1e-3):
     '''Apply batch normalization on x given mean, var, beta and gamma.
     '''
     if mean.ndim == 1 and x.ndim > 1:
