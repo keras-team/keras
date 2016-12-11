@@ -1228,7 +1228,7 @@ def rnn(step_function, inputs, initial_states,
                 output, new_states = step_function(input, states + constants)
 
                 # tf.select needs its condition tensor
-                # to be the same shape as its two
+                # to be the same shape or compatible as its two
                 # result tensors, but in our case
                 # the condition (mask) tensor is
                 # (nsamples, 1), and A and B are (nsamples, ndimensions).
@@ -1237,8 +1237,7 @@ def rnn(step_function, inputs, initial_states,
                 # That's what the tile call does,
                 # it just repeats the mask along its second dimension
                 # n times.
-                tiled_mask_t = tf.tile(mask_t,
-                                       tf.pack([1, tf.shape(output)[1]]))
+                tiled_mask_t = mask_t
 
                 if len(successive_outputs) == 0:
                     prev_output = zeros_like(output)
@@ -1250,8 +1249,7 @@ def rnn(step_function, inputs, initial_states,
                 return_states = []
                 for state, new_state in zip(states, new_states):
                     # (see earlier comment for tile explanation)
-                    tiled_mask_t = tf.tile(mask_t,
-                                           tf.pack([1, tf.shape(new_state)[1]]))
+                    tiled_mask_t = mask_t
                     return_states.append(tf.select(tiled_mask_t,
                                                    new_state,
                                                    state))
