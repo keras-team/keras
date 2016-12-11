@@ -523,23 +523,18 @@ class Deconvolution2D(Convolution2D):
     # Examples
 
     ```python
+        # TH dim ordering.
         # apply a 3x3 transposed convolution
         # with stride 1x1 and 3 output filters on a 12x12 image:
         model = Sequential()
         model.add(Deconvolution2D(3, 3, 3, output_shape=(None, 3, 14, 14),
                                   border_mode='valid',
                                   input_shape=(3, 12, 12)))
-        # Note that you will have to change
-        # the output_shape depending on the backend used.
 
         # we can predict with the model and print the shape of the array.
         dummy_input = np.ones((32, 3, 12, 12))
-        # For TensorFlow dummy_input = np.ones((32, 12, 12, 3))
         preds = model.predict(dummy_input)
-        print(preds.shape)
-        # Theano GPU: (None, 3, 13, 13)
-        # Theano CPU: (None, 3, 14, 14)
-        # TensorFlow: (None, 14, 14, 3)
+        print(preds.shape)  # (None, 3, 14, 14)
 
         # apply a 3x3 transposed convolution
         # with stride 2x2 and 3 output filters on a 12x12 image:
@@ -552,12 +547,37 @@ class Deconvolution2D(Convolution2D):
 
         # we can predict with the model and print the shape of the array.
         dummy_input = np.ones((32, 3, 12, 12))
-        # For TensorFlow dummy_input = np.ones((32, 12, 12, 3))
         preds = model.predict(dummy_input)
-        print(preds.shape)
-        # Theano GPU: (None, 3, 25, 25)
-        # Theano CPU: (None, 3, 25, 25)
-        # TensorFlow: (None, 25, 25, 3)
+        print(preds.shape)  # (None, 3, 25, 25)
+    ```
+
+    ```python
+        # TF dim ordering.
+        # apply a 3x3 transposed convolution
+        # with stride 1x1 and 3 output filters on a 12x12 image:
+        model = Sequential()
+        model.add(Deconvolution2D(3, 3, 3, output_shape=(None, 14, 14, 3),
+                                  border_mode='valid',
+                                  input_shape=(12, 12, 3)))
+
+        # we can predict with the model and print the shape of the array.
+        dummy_input = np.ones((32, 12, 12, 3))
+        preds = model.predict(dummy_input)
+        print(preds.shape)  # (None, 14, 14, 3)
+
+        # apply a 3x3 transposed convolution
+        # with stride 2x2 and 3 output filters on a 12x12 image:
+        model = Sequential()
+        model.add(Deconvolution2D(3, 3, 3, output_shape=(None, 25, 25, 3),
+                                  subsample=(2, 2),
+                                  border_mode='valid',
+                                  input_shape=(12, 12, 3)))
+        model.summary()
+
+        # we can predict with the model and print the shape of the array.
+        dummy_input = np.ones((32, 12, 12, 3))
+        preds = model.predict(dummy_input)
+        print(preds.shape)  # (None, 25, 25, 3)
     ```
 
     # Arguments
@@ -1266,17 +1286,20 @@ class Convolution3D(Layer):
 
 
 class Deconvolution3D(Convolution3D):
-    '''Transposed convolution operator for filtering windows of three-dimensional inputs.
-    The need for transposed convolutions generally arises from the desire
-    to use a transformation going in the opposite direction of a normal convolution,
-    i.e., from something that has the shape of the output of some convolution
-    to something that has the shape of its input
-    while maintaining a connectivity pattern that is compatible with said convolution. [1]
+    """Transposed convolution operator for filtering windows of 3-D inputs.
+
+    The need for transposed convolutions generally arises from the desire to
+    use a transformation going in the opposite direction
+    of a normal convolution, i.e., from something that has the shape
+    of the output of some convolution to something that has the shape
+    of its input while maintaining a connectivity pattern
+    that is compatible with said convolution.
 
     When using this layer as the first layer in a model,
     provide the keyword argument `input_shape`
     (tuple of integers, does not include the sample axis),
-    e.g. `input_shape=(3, 128, 128, 128)` for a 128x128x128 voxel volume with three channels.
+    e.g. `input_shape=(3, 128, 128, 128)` for a 128x128x128 volume with
+    three channels.
 
     To pass the correct `output_shape` to this layer,
     one could use a test model to predict and observe the actual output shape.
@@ -1284,33 +1307,61 @@ class Deconvolution3D(Convolution3D):
     # Examples
 
     ```python
-        # apply a 3x3x3 transposed convolution with stride 1x1x1 and 3 output filters on a 12x12x12 volume:
+        # TH dim ordering.
+        # apply a 3x3x3 transposed convolution
+        # with stride 1x1x1 and 3 output filters on a 12x12x12 image:
         model = Sequential()
-        model.add(Deconvolution3D(3, 3, 3, 3, output_shape=(None, 3, 14, 14, 14), border_mode='valid', input_shape=(3, 12, 12, 12)))
-        # Note that you will have to change the output_shape depending on the backend used.
+        model.add(Deconvolution3D(3, 3, 3, 3, output_shape=(None, 3, 14, 14, 14),
+                                  border_mode='valid',
+                                  input_shape=(3, 12, 12, 12)))
 
         # we can predict with the model and print the shape of the array.
         dummy_input = np.ones((32, 3, 12, 12, 12))
-        # For TensorFlow dummy_input = np.ones((32, 12, 12, 12, 3))
         preds = model.predict(dummy_input)
-        print(preds.shape)
-        # Theano GPU: (None, 3, 13, 13, 13)
-        # Theano CPU: (None, 3, 14, 14, 14)
-        # TensorFlow: (None, 14, 14, 14, 3)
+        print(preds.shape)  # (None, 3, 14, 14, 14)
 
-        # apply a 3x3x3 transposed convolution with stride 2x2x2 and 3 output filters on a 12x12x12 volume:
+        # apply a 3x3x3 transposed convolution
+        # with stride 2x2x2 and 3 output filters on a 12x12x12 image:
         model = Sequential()
-        model.add(Deconvolution3D(3, 3, 3, 3, output_shape=(None, 3, 25, 25, 25), subsample=(2, 2, 2), border_mode='valid', input_shape=(3, 12, 12, 12)))
+        model.add(Deconvolution3D(3, 3, 3, 3, output_shape=(None, 3, 25, 25, 25),
+                                  subsample=(2, 2, 2),
+                                  border_mode='valid',
+                                  input_shape=(3, 12, 12, 12)))
         model.summary()
 
         # we can predict with the model and print the shape of the array.
         dummy_input = np.ones((32, 3, 12, 12, 12))
-        # For TensorFlow dummy_input = np.ones((32, 12, 12, 12, 3))
         preds = model.predict(dummy_input)
-        print(preds.shape)
-        # Theano GPU: (None, 3, 25, 25, 25)
-        # Theano CPU: (None, 3, 25, 25, 25)
-        # TensorFlow: (None, 25, 25, 3)
+        print(preds.shape)  # (None, 3, 25, 25, 25)
+    ```
+
+    ```python
+        # TF dim ordering.
+        # apply a 3x3x3 transposed convolution
+        # with stride 1x1x1 and 3 output filters on a 12x12x12 image:
+        model = Sequential()
+        model.add(Deconvolution3D(3, 3, 3, 3, output_shape=(None, 14, 14, 14, 3),
+                                  border_mode='valid',
+                                  input_shape=(12, 12, 12, 3)))
+
+        # we can predict with the model and print the shape of the array.
+        dummy_input = np.ones((32, 12, 12, 12, 3))
+        preds = model.predict(dummy_input)
+        print(preds.shape)  # (None, 14, 14, 14, 3)
+
+        # apply a 3x3x3 transposed convolution
+        # with stride 2x2x2 and 3 output filters on a 12x12x12 image:
+        model = Sequential()
+        model.add(Deconvolution3D(3, 3, 3, 3, output_shape=(None, 25, 25, 25, 3),
+                                  subsample=(2, 2, 2),
+                                  border_mode='valid',
+                                  input_shape=(12, 12, 12, 3)))
+        model.summary()
+
+        # we can predict with the model and print the shape of the array.
+        dummy_input = np.ones((32, 12, 12, 12, 3))
+        preds = model.predict(dummy_input)
+        print(preds.shape)  # (None, 25, 25, 25, 3)
     ```
 
     # Arguments
@@ -1319,19 +1370,11 @@ class Deconvolution3D(Convolution3D):
         kernel_dim2: Length of the second dimension in the transposed convolution kernel.
         kernel_dim3: Length of the third dimension in the transposed convolution kernel.
         output_shape: Output shape of the transposed convolution operation.
-            tuple of integers (nb_samples, nb_filter, conv_dim1, conv_dim2, conv_dim3)
-            Formula for calculation of the output shape [1], [2]:
-                o = s (i - 1) + a + k - 2p, \quad a \in \{0, \ldots, s - 1\}
-                where:
-                    i - input size (rows or cols),
-                    k - kernel size (nb_filter),
-                    s - stride (subsample for rows or cols respectively),
-                    p - padding size,
-                    a - user-specified quantity used to distinguish between
-                        the s different possible output sizes.
-             Because a is not specified explicitly and Theano and Tensorflow
-             use different values, it is better to use a dummy input and observe
-             the actual output shape of a layer as specified in the examples.
+            tuple of integers
+            `(nb_samples, nb_filter, conv_dim1, conv_dim2, conv_dim3)`.
+             It is better to use
+             a dummy input and observe the actual output shape of
+             a layer, as specified in the examples.
         init: name of initialization function for the weights of the layer
             (see [initializations](../initializations.md)), or alternatively,
             Theano function to use for weights initialization.
@@ -1343,7 +1386,8 @@ class Deconvolution3D(Convolution3D):
             If you don't specify anything, no activation is applied
             (ie. "linear" activation: a(x) = x).
         weights: list of numpy arrays to set as initial weights.
-        border_mode: 'valid', 'same' or 'full'. ('full' requires the Theano backend.)
+        border_mode: 'valid', 'same' or 'full'
+            ('full' requires the Theano backend).
         subsample: tuple of length 3. Factor by which to oversample output.
             Also called strides elsewhere.
         W_regularizer: instance of [WeightRegularizer](../regularizers.md)
@@ -1361,7 +1405,8 @@ class Deconvolution3D(Convolution3D):
             It defaults to the `image_dim_ordering` value found in your
             Keras config file at `~/.keras/keras.json`.
             If you never set it, then it will be "tf".
-        bias: whether to include a bias (i.e. make the layer affine rather than linear).
+        bias: whether to include a bias
+            (i.e. make the layer affine rather than linear).
 
     # Input shape
         5D tensor with shape:
@@ -1377,10 +1422,10 @@ class Deconvolution3D(Convolution3D):
         `new_conv_dim1`, `new_conv_dim2` and `new_conv_dim3` values might have changed due to padding.
 
     # References
-        [1] [A guide to convolution arithmetic for deep learning](https://arxiv.org/abs/1603.07285 "arXiv:1603.07285v1 [stat.ML]")
-        [2] [Transposed convolution arithmetic](http://deeplearning.net/software/theano_versions/dev/tutorial/conv_arithmetic.html#transposed-convolution-arithmetic)
-        [3] [Deconvolutional Networks](http://www.matthewzeiler.com/pubs/cvpr2010/cvpr2010.pdf)
-    '''
+        - [A guide to convolution arithmetic for deep learning](https://arxiv.org/abs/1603.07285v1)
+        - [Transposed convolution arithmetic](http://deeplearning.net/software/theano_versions/dev/tutorial/conv_arithmetic.html#transposed-convolution-arithmetic)
+        - [Deconvolutional Networks](http://www.matthewzeiler.com/pubs/cvpr2010/cvpr2010.pdf)
+    """
     def __init__(self, nb_filter, kernel_dim1, kernel_dim2, kernel_dim3,
                  output_shape, init='glorot_uniform', activation=None, weights=None,
                  border_mode='valid', subsample=(1, 1, 1),
