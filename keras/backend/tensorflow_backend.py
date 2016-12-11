@@ -93,6 +93,10 @@ def get_session():
 
     Note that you can manually set the global session
     via `K.set_session(sess)`.
+
+    # Returns
+        A TensorFlow session.
+
     '''
     global _SESSION
     if tf.get_default_session() is not None:
@@ -150,10 +154,48 @@ def _to_tensor(x, dtype):
 
 
 def is_sparse(tensor):
+    '''Returns whether a tensor is a sparse tensor.
+
+    # Arguments
+        tensor: a Keras tensor.
+
+    # Returns
+        Boolean.
+
+    # Example
+    ```python
+        >>> a = keras.backend.placeholder((2, 2), sparse=False)
+        >>> print(keras.backend.is_sparse(a))
+        False
+        >>> b = keras.backend.placeholder((2, 2), sparse=True)
+        >>> print(keras.backend.is_sparse(b))
+        True
+    ```
+
+    '''
     return isinstance(tensor, tf.SparseTensor)
 
 
 def to_dense(tensor):
+    '''Converts a Keras tensor into a Keras dense tensor
+    and returns it.
+
+    # Arguments
+        tensor: Keras tensor.
+
+    # Returns
+        A Keras dense tensor.
+
+    # Examples
+    ```python
+        >>> b = keras.backend.placeholder((2, 2), sparse=True)
+        >>> print(keras.backend.is_sparse(b))
+        True
+        >>> c = keras.backend.to_dense(b)
+        >>> print(keras.backend.is_sparse(c))
+        False
+    ```
+    '''
     if is_sparse(tensor):
         return tf.sparse_tensor_to_dense(tensor)
     else:
@@ -161,7 +203,7 @@ def to_dense(tensor):
 
 
 def variable(value, dtype=_FLOATX, name=None):
-    '''Instantiates a tensor.
+    '''Instantiates a tensor and returns it.
 
     # Arguments
         value: numpy array, initial value of the tensor.
@@ -169,14 +211,29 @@ def variable(value, dtype=_FLOATX, name=None):
         name: optional name string for the tensor.
 
     # Returns
-        Tensor variable instance.
+        A Keras variable instance.
+
+    # Examples
+    ```python
+        >>> from keras import backend as K
+        >>> val = np.array([[1, 2], [3, 4]])
+        >>> var = K.variable(value=val, dtype='float64', name='example_var')
+        >>> K.dtype(var)
+        'float64'
+        >>> print var
+        example_var
+        >>> var.eval()
+        array([[ 1.,  2.],
+               [ 3.,  4.]])
+    ```
     '''
     if hasattr(value, 'tocoo'):
         sparse_coo = value.tocoo()
         indices = np.concatenate((np.expand_dims(sparse_coo.row, 1),
                                   np.expand_dims(sparse_coo.col, 1)), 1)
         # SparseTensor doesn't need initialization
-        v = tf.SparseTensor(indices=indices, values=sparse_coo.data, shape=sparse_coo.shape)
+        v = tf.SparseTensor(indices=indices, values=sparse_coo.data,
+                            shape=sparse_coo.shape)
         v._dims = len(sparse_coo.shape)
         return v
     v = tf.Variable(value, dtype=_convert_string_dtype(dtype), name=name)
@@ -201,12 +258,13 @@ def _initialize_variables():
         else:
             sess.run(tf.initialize_variables(uninitialized_variables))
 
+
 def placeholder(shape=None, ndim=None, dtype=_FLOATX, sparse=False, name=None):
-    '''Instantiates a placeholder.
+    '''Instantiates a placeholder (Keras tensor) and returns it.
 
     # Arguments
         shape: shape of the placeholder
-            (integer tuple, may include None entries).
+            (integer tuple, may include `None` entries).
         ndim: number of axes of the tensor.
             At least one of {`shape`, `ndim`} must be specified.
             If both are specified, `shape` is used.
@@ -214,7 +272,16 @@ def placeholder(shape=None, ndim=None, dtype=_FLOATX, sparse=False, name=None):
         name: optional name string for the placeholder.
 
     # Returns
-        Placeholder tensor instance.
+        Keras tensor instance.
+
+    # Examples
+    ```python
+        >>> input = keras.backend.placeholder(shape=(2, 4, 5))
+        >>> input._keras_shape
+        (2, 4, 5)
+        >>> input
+        <tf.Tensor 'Placeholder_4:0' shape=(2, 4, 5) dtype=float32>
+    ```
     '''
     if not shape:
         if ndim:
@@ -230,15 +297,58 @@ def placeholder(shape=None, ndim=None, dtype=_FLOATX, sparse=False, name=None):
 
 
 def shape(x):
-    '''Returns the symbolic shape of a tensor.
+    '''Returns the symbolic shape of a Keras tensor or variable.
+
+    # Arguments
+        x: A Keras tensor or variable.
+
+    # Returns
+        A symbolic shape.
+
+    # Examples
+    ```
+        # TensorFlow example
+        >>> from keras import backend as K
+        >>> tf_session = K.get_session()
+        >>> val = np.array([[1, 2], [3, 4]])
+        >>> var = K.variable(value=val)
+        >>> input = keras.backend.placeholder(shape=(2, 4, 5))
+        >>> K.shape(var)
+        <tf.Tensor 'Shape_8:0' shape=(2,) dtype=int32>
+        >>> K.shape(input)
+        <tf.Tensor 'Shape_9:0' shape=(3,) dtype=int32>
+        # To get integer shape (Instead, you can use K.int_shape(x))
+        >>> K.shape(var).eval(session=tf_session)
+        array([2, 2], dtype=int32)
+        >>> K.shape(input).eval(session=tf_session)
+        array([2, 4, 5], dtype=int32)
+    ```
     '''
     return tf.shape(x)
 
 
 def int_shape(x):
-    '''Returns the shape of a tensor as a tuple of
+    '''Returns the shape of a Keras tensor or a Keras variable as a tuple of
     integers or None entries.
     Note that this function only works with TensorFlow.
+
+    # Arguments
+        x: A Keras tensor or variable.
+
+    # Returns
+        A tuple of integers.
+
+    # Examples
+    ```python
+        >>> from keras import backend as K
+        >>> input = K.placeholder(shape=(2, 4, 5))
+        >>> K.int_shape(input)
+        (2, 4, 5)
+        >>> val = np.array([[1, 2], [3, 4]])
+        >>> var = K.variable(value=val)
+        >>> K.int_shape(var)
+        (2, 2)
+    ```
     '''
     shape = x.get_shape()
     return tuple([i.__int__() for i in shape])
@@ -246,6 +356,24 @@ def int_shape(x):
 
 def ndim(x):
     '''Returns the number of axes in a tensor, as an integer.
+
+    # Arguments
+        x: Keras tensor or variable.
+
+    # Returns
+        integer (scalar), number of dimensions.
+
+    # Examples
+    ```python
+        >>> from keras import backend as K
+        >>> input = K.placeholder(shape=(2, 4, 5))
+        >>> val = np.array([[1, 2], [3, 4]])
+        >>> var = K.variable(value=val)
+        >>> K.ndim(input)
+        3
+        >>> K.ndim(var)
+        2
+    ```
     '''
     if is_sparse(x):
         return x._dims
@@ -257,20 +385,78 @@ def ndim(x):
 
 
 def dtype(x):
-    '''Returns the dtype of a tensor, as a string.
+    '''Returns the dtype of a Keras tensor or variable, as a string.
+
+    # Arguments
+        x: Keras tensor or variable.
+
+    # Returns
+        String, dtype of `x`.
+
+    # Examples
+    ```python
+        >>> from keras import backend as K
+        # Keras tensor
+        >>> K.dtype(K.placeholder(shape=(2,4,5)))
+        'float32'
+        >>> K.dtype(K.placeholder(shape=(2,4,5), dtype='float32'))
+        'float32'
+        >>> K.dtype(K.placeholder(shape=(2,4,5), dtype='float64'))
+        'float64'
+        # Keras variable
+        >>> var = K.variable(np.array([[1, 2], [3, 4]]))
+        >>> K.dtype(var)
+        'float32_ref'
+        >>> var = K.variable(np.array([[1, 2], [3, 4]]), dtype='float32')
+        >>> K.dtype(var)
+        'float32_ref'
+    ```
     '''
     return x.dtype.name
 
 
 def eval(x):
-    '''Evaluates the value of a tensor.
+    '''Evaluates the value of a Keras variable.
     Returns a Numpy array.
+
+    # Arguments
+        x: A Keras variable.
+
+    # Returns
+        A Numpy array.
+
+    # Examples
+    ```python
+        >>> from keras import backend as K
+        >>> var = K.variable(np.array([[1, 2], [3, 4]]), dtype='float32')
+        >>> K.eval(var)
+        array([[ 1.,  2.],
+               [ 3.,  4.]], dtype=float32)
+    ```
     '''
     return to_dense(x).eval(session=get_session())
 
 
 def zeros(shape, dtype=_FLOATX, name=None):
-    '''Instantiates an all-zeros tensor variable.
+    '''Instantiates an all-zeros Keras variable and returns it.
+
+    # Arguments
+        shape: Tuple of integers, shape of returned Keras variable
+        dtype: String, data type of returned Keras variable
+        name: String, name of returned Keras variable
+
+    # Returns
+        A Keras variable, filled with `0.0`
+
+    # Example
+    ```python
+        >>> from keras import backend as K
+        >>> var = K.zeros((3,4))
+        >>> K.eval(var)
+        array([[ 0.,  0.,  0.,  0.],
+               [ 0.,  0.,  0.,  0.],
+               [ 0.,  0.,  0.,  0.]], dtype=float32)
+    ```
     '''
     shape = tuple(map(int, shape))
     tf_dtype = _convert_string_dtype(dtype)
@@ -279,7 +465,25 @@ def zeros(shape, dtype=_FLOATX, name=None):
 
 
 def ones(shape, dtype=_FLOATX, name=None):
-    '''Instantiates an all-ones tensor variable.
+    '''Instantiates an all-ones tensor variable and returns it.
+
+    # Arguments
+        shape: Tuple of integers, shape of returned Keras variable.
+        dtype: String, data type of returned Keras variable.
+        name: String, name of returned Keras variable.
+
+    # Returns
+        A Keras variable, filled with `1.0`.
+
+    # Example
+    ```python
+        >>> from keras import backend as K
+        >>> var = K.ones((3,4))
+        >>> K.eval(var)
+        array([[ 1.,  1.,  1.,  1.],
+               [ 1.,  1.,  1.,  1.],
+               [ 1.,  1.,  1.,  1.]], dtype=float32)
+    ```
     '''
     shape = tuple(map(int, shape))
     tf_dtype = _convert_string_dtype(dtype)
@@ -288,27 +492,102 @@ def ones(shape, dtype=_FLOATX, name=None):
 
 
 def eye(size, dtype=_FLOATX, name=None):
-    '''Instantiate an identity matrix.
+    '''Instantiate an identity matrix and returns it.
+
+    # Arguments
+        size: Integer, number of rows/columns.
+        dtype: String, data type of returned Keras variable.
+        name: String, name of returned Keras variable.
+
+    # Returns
+        A Keras variable, an identity matrix.
+
+    # Example
+    ```python
+        >>> from keras import backend as K
+        >>> K.eval(var)
+        array([[ 1.,  0.,  0.],
+               [ 0.,  1.,  0.],
+               [ 0.,  0.,  1.]], dtype=float32)
+    ```
+
     '''
     return variable(np.eye(size), dtype, name)
 
 
 def zeros_like(x, name=None):
-    '''Instantiates an all-zeros tensor
-    of the same shape as another tensor.
+    '''Instantiates an all-zeros Keras variable
+    of the same shape as another Keras variable and returns it.
+
+    # Arguments
+        x: Keras variable.
+
+    # Returns
+        A Keras variable, filled with `0.0`.
+
+    # Example
+    ```python
+        >>> from keras import backend as K
+        >>> var = K.variable(np.random.random((2,3)))
+        >>> var_zeros = K.zeros_like(var)
+        >>> K.eval(var_zeros)
+        array([[ 0.,  0.,  0.],
+               [ 0.,  0.,  0.]], dtype=float32)
+    ```
     '''
     return tf.zeros_like(x, name=name)
 
 
 def ones_like(x, name=None):
-    '''Instantiates an all-ones tensor
-    of the same shape as another tensor.
+    '''Instantiates an all-ones Keras variable
+    of the same shape as another Keras variable and returns it.
+
+    # Arguments
+        x: Keras variable.
+
+    # Returns
+        A Keras variable, filled with `1.0`.
+
+    # Example
+    ```python
+        >>> from keras import backend as K
+        >>> var = K.variable(np.random.random((2,3)))
+        >>> var_ones = K.ones_like(var)
+        >>> K.eval(var_ones)
+        array([[ 1.,  1.,  1.],
+               [ 1.,  1.,  1.]], dtype=float32)
+    ```
     '''
     return tf.ones_like(x, name=name)
 
 
 def random_uniform_variable(shape, low, high, dtype=_FLOATX,
                             name=None, seed=None):
+    '''Instantiates an Keras variable filled with
+    drawn samples from a uniform distribution and returns it.
+
+    # Arguments
+        shape: Tuple of integers, shape of returned Keras variable.
+        low: Float, lower boundary of the output inteval.
+        high: Float, upper boundary of the output interval.
+        dtype: String, dtype of returned Keras variable.
+        name: String, name of returned Keras variable.
+        seed: Integer, random seed.
+
+    # Returns
+        A Keras variable, filled with drawn samples.
+
+    # Example
+    ```python
+        # TensorFlow example
+        >>> var = K.random_uniform_variable((2,3), 0, 1)
+        >>> var
+        <tensorflow.python.ops.variables.Variable object at 0x10ab40b10>
+        >>> K.eval(var)
+        array([[ 0.10940075,  0.10047495,  0.476143  ],
+               [ 0.66137183,  0.00869417,  0.89220798]], dtype=float32)
+    ```
+    '''
     shape = tuple(map(int, shape))
     tf_dtype = _convert_string_dtype(dtype)
     if seed is None:
@@ -321,6 +600,31 @@ def random_uniform_variable(shape, low, high, dtype=_FLOATX,
 
 def random_normal_variable(shape, mean, scale, dtype=_FLOATX,
                            name=None, seed=None):
+    '''Instantiates an Keras variable filled with
+    drawn samples from a normal distribution and returns it.
+
+    # Arguments
+        shape: Tuple of integers, shape of returned Keras variable.
+        mean: Float, mean of the normal distribution.
+        scale: Float, standard deviation of the normal distribution.
+        dtype: String, dtype of returned Keras variable.
+        name: String, name of returned Keras variable.
+        seed: Integer, random seed.
+
+    # Returns
+        A Keras variable, filled with drawn samples.
+
+    # Example
+    ```python
+        # TensorFlow example
+        >>> var = K.random_normal_variable((2,3), 0, 1)
+        >>> var
+        <tensorflow.python.ops.variables.Variable object at 0x10ab12dd0>
+        >>> K.eval(var)
+        array([[ 1.19591331,  0.68685907, -0.63814116],
+               [ 0.92629528,  0.28055015,  1.70484698]], dtype=float32)
+    ```
+    '''
     shape = tuple(map(int, shape))
     tf_dtype = _convert_string_dtype(dtype)
     if seed is None:
@@ -332,14 +636,55 @@ def random_normal_variable(shape, mean, scale, dtype=_FLOATX,
 
 
 def count_params(x):
-    '''Returns the number of scalars in a tensor.
+    '''Returns the number of scalars in a Keras variable.
+
+    # Arguments
+        x: Keras variable.
+
+    # Returns
+        Integer, the number of scalars in `x`.
+
+    # Example
+    ```python
+        >>> var = K.zeros((2,3))
+        >>> K.count_params(var)
+        6
+        >>> K.eval(var)
+        array([[ 0.,  0.,  0.],
+               [ 0.,  0.,  0.]], dtype=float32)
+    ```
     '''
     shape = x.get_shape()
     return np.prod([shape[i]._value for i in range(len(shape))])
 
 
 def cast(x, dtype):
-    '''Casts a tensor to a different dtype.
+    '''Casts a Keras variable to a different dtype.
+
+    # Arguments
+        x: Keras variable.
+        dtype: String, either (`'float16'`, `'float32'`, or `'float64'`).
+
+    # Returns
+        Keras variable with dtype of `dtype`.
+
+    # Example
+    ```python
+        >>> var = K.zeros((2,3), dtype='float32')
+        >>> K.eval(var)
+        array([[ 0.,  0.,  0.],
+               [ 0.,  0.,  0.]], dtype=float32)
+        >>> K.cast(var, 'float64')
+        <tf.Tensor 'Cast:0' shape=(2, 3) dtype=float64>
+        # It doesn't work in-place
+        >>> K.eval(var)
+        array([[ 0.,  0.,  0.],
+               [ 0.,  0.,  0.]], dtype=float32)
+        # You need to assign it
+        >>> var = K.cast(var, 'float64')
+        >>> K.dtype(var)
+        'float64'
+    ```
     '''
     return tf.cast(x, dtype)
 
@@ -367,10 +712,47 @@ def moving_average_update(variable, value, momentum):
 # LINEAR ALGEBRA
 
 def dot(x, y):
-    '''Multiplies 2 tensors.
+    '''Multiplies 2 tensors and/or variables.
     When attempting to multiply a ND tensor
     with a ND tensor, reproduces the Theano behavior
     (e.g. (2, 3).(4, 3, 5) = (2, 4, 5))
+
+    # Arguments
+        x: Keras variable.
+        y: Keras variable.
+
+    # Returns
+        Dot product of `x` and `y`.
+
+    # Examples
+    ```python
+        # dot product between Keras variables
+        >>> x = K.random_uniform_variable(shape=(2, 3), low=0, high=1)
+        >>> y = K.random_uniform_variable(shape=(3, 4), low=0, high=1)
+        >>> xy = K.dot(x, y)
+        >>> K.int_shape(xy)
+        (2, 4)
+        >>> K.eval(xy)
+        array([[ 0.36257121,  0.450986  ,  0.49147484,  0.20764332],
+               [ 0.45370784,  1.53120756,  1.37138271,  0.24922732]], dtype=float32)
+    ```
+
+    ```python
+        # dot product between Keras tensor and Keras variable
+        >>> input = K.placeholder((2, 3))
+        >>> y = K.random_uniform_variable(shape=(3, 4), low=0, high=1)
+        >>> xy = K.dot(x, y)
+        >>> K.int_shape(xy)
+        (2, 4)
+    ```
+
+    ```python
+        >>> x = K.random_uniform_variable(shape=(2, 3), low=0, high=1)
+        >>> y = K.ones((4, 3, 5))
+        >>> xy = K.dot(x, y)
+        >>> K.int_shape(xy)
+        (2, 4, 5)
+    ```
     '''
     if ndim(x) is not None and (ndim(x) > 2 or ndim(y) > 2):
         x_shape = (-1,) + int_shape(x)[1:]
@@ -379,7 +761,8 @@ def dot(x, y):
         y_permute_dim = [y_permute_dim.pop(-2)] + y_permute_dim
         xt = tf.reshape(x, [-1, x_shape[-1]])
         yt = tf.reshape(tf.transpose(y, perm=y_permute_dim), [y_shape[-2], -1])
-        return tf.reshape(tf.matmul(xt, yt), x_shape[:-1] + y_shape[:-2] + y_shape[-1:])
+        return tf.reshape(tf.matmul(xt, yt), 
+                          x_shape[:-1] + y_shape[:-2] + y_shape[-1:])
     if is_sparse(x):
         out = tf.sparse_tensor_dense_matmul(x, y)
     else:
@@ -390,40 +773,53 @@ def dot(x, y):
 def batch_dot(x, y, axes=None):
     '''Batchwise dot product.
 
-    batch_dot results in a tensor with less dimensions than the input.
-    If the number of dimensions is reduced to 1, we use `expand_dims` to
-    make sure that ndim is at least 2.
+    `batch_dot` is used to compute dot product of `x` and `y` when
+    `x` and `y` are data in batch, i.e. in a shape of
+    `(batch_size, :)`.
+    `batch_dot` results in a tensor or variable with less dimensions
+    than the input. If the number of dimensions is reduced to 1,
+    we use `expand_dims` to make sure that ndim is at least 2.
 
     # Arguments
-        x, y: tensors with ndim >= 2
-        axes: list (or single) int with target dimensions
+        x, y: Keras tensors or variables with `ndim >= 2`
+            (With TensorFlow backend, `batch_dot` only supports `ndim >= 3`)
+        axes: list of (or single) int with target dimensions.
+            The lengths of `axes[0]` and `axes[1]` should be the same.
 
     # Returns
-        A tensor with shape equal to the concatenation of x's shape
-        (less the dimension that was summed over) and y's shape
+        A tensor with shape equal to the concatenation of `x`'s shape
+        (less the dimension that was summed over) and `y`'s shape
         (less the batch dimension and the dimension that was summed over).
-        If the final rank is 1, we reshape it to (batch_size, 1).
+        If the final rank is 1, we reshape it to `(batch_size, 1)`.
 
     # Examples
-        Assume x = [[1, 2], [3, 4]]   and y = [[5, 6], [7, 8]]
-        batch_dot(x, y, axes=1) = [[17, 53]] which is the main diagonal
-        of x.dot(y.T), although we never have to calculate the off-diagonal
+        Assume `x = [[1, 2], [3, 4]]` and `y = [[5, 6], [7, 8]]`
+        `batch_dot(x, y, axes=1) = [[17, 53]]` which is the main diagonal
+        of `x.dot(y.T)`, although we never have to calculate the off-diagonal
         elements.
 
         Shape inference:
-        Let x's shape be (100, 20) and y's shape be (100, 30, 20).
-        If dot_axes is (1, 2), to find the output shape of resultant tensor,
+        Let `x`'s shape be `(100, 20)` and `y`'s shape be `(100, 30, 20)`.
+        If `axes` is (1, 2), to find the output shape of resultant tensor,
             loop through each dimension in x's shape and y's shape:
-        x.shape[0] : 100 : append to output shape
-        x.shape[1] : 20 : do not append to output shape,
-            dimension 1 of x has been summed over. (dot_axes[0] = 1)
-        y.shape[0] : 100 : do not append to output shape,
-            always ignore first dimension of y
-        y.shape[1] : 30 : append to output shape
-        y.shape[2] : 20 : do not append to output shape,
-            dimension 2 of y has been summed over. (dot_axes[1] = 2)
 
-        output_shape = (100, 30)
+        * `x.shape[0]` : 100 : append to output shape
+        * `x.shape[1]` : 20 : do not append to output shape,
+            dimension 1 of x has been summed over. (`dot_axes[0]` = 1)
+        * `y.shape[0]` : 100 : do not append to output shape,
+            always ignore first dimension of y
+        * `y.shape[1]` : 30 : append to output shape
+        * `y.shape[2]` : 20 : do not append to output shape,
+            dimension 2 of y has been summed over. (`dot_axes[1]` = 2)
+        output_shape = `(100, 30)`
+
+    ```python
+        >>> x_batch = K.ones(shape=(32, 20, 1))
+        >>> y_batch = K.ones(shape=(32, 30, 20))
+        >>> xy_batch_dot = K.batch_dot(x_batch, y_batch, axes=[1, 2])
+        >>> K.int_shape(xy_batch_dot)
+        (32, 1, 30)
+    ```
     '''
     if type(axes) == int:
         axes = (axes, axes)
@@ -440,7 +836,36 @@ def batch_dot(x, y, axes=None):
 
 
 def transpose(x):
-    '''Transposes a matrix.
+    '''Transposes a matrix and returns it.
+
+    # Arguments
+        x: Keras tensor or variable.
+
+    # Returns
+        Keras tensor or variable, transposed.
+
+    # Examples
+    ```python
+        >>> var = K.variable([[1, 2, 3], [4, 5, 6]])
+        >>> K.eval(var)
+        array([[ 1.,  2.,  3.],
+               [ 4.,  5.,  6.]], dtype=float32)
+        >>> var_transposed = K.transpose(var)
+        >>> K.eval(var_transposed)
+        array([[ 1.,  4.],
+               [ 2.,  5.],
+               [ 3.,  6.]], dtype=float32)
+    ```
+
+    ```python
+        >>> input = K.placeholder((2, 3))
+        >>> input
+        <tf.Tensor 'Placeholder_11:0' shape=(2, 3) dtype=float32>
+        >>> input_transposed = K.transpose(input)
+        >>> input_transposed
+        <tf.Tensor 'transpose_4:0' shape=(3, 2) dtype=float32>
+
+    ```
     '''
     return tf.transpose(x)
 
