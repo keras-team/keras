@@ -900,8 +900,10 @@ def rnn(step_function, inputs, initial_states,
         constants = []
 
     if mask is not None:
-        if mask.ndim == ndim-1:
-            mask = expand_dims(mask)
+        if mask.ndim < ndim:
+            tmp = ndim - mask.ndim
+            for _ in range(tmp):
+                mask = expand_dims(mask)
         assert mask.ndim == ndim
         mask = mask.dimshuffle(axes)
 
