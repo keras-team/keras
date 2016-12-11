@@ -1242,6 +1242,7 @@ def rnn(step_function, inputs, initial_states,
                 # That's what the tile call does,
                 # it just repeats the mask along its second dimension
                 # n times.
+                mask_t = tf.squeeze(mask_t)
                 tiled_mask_t = mask_t
 
                 if len(successive_outputs) == 0:
