@@ -361,7 +361,7 @@ def update_sub(x, decrement):
 
 def moving_average_update(variable, value, momentum):
     return moving_averages.assign_moving_average(
-        variable, value, momentum)
+        variable, value, momentum, zero_debias=False)
 
 
 # LINEAR ALGEBRA
