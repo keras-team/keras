@@ -279,8 +279,11 @@ def prod(x, axis=None, keepdims=False):
 
 
 def mean(x, axis=None, keepdims=False):
+    '''Mean of a tensor, alongside the specified axis.
+    '''
     dtype = None
-    if 'int' in x.dtype:
+    # bool is available since theano v0.9dev
+    if 'int' in x.dtype or x.dtype == 'bool':
         dtype = _FLOATX
     return T.mean(x, axis=axis, keepdims=keepdims, dtype=dtype)
 
@@ -1538,9 +1541,11 @@ def pool2d(x, pool_size, strides=(1, 1), border_mode='valid',
     if dim_ordering not in {'th', 'tf'}:
         raise Exception('Unknown dim_ordering ' + str(dim_ordering))
 
+    assert pool_size[0] >= 1 and pool_size[1] >= 1
+
     if border_mode == 'same':
-        w_pad = pool_size[0] - 2 if pool_size[0] % 2 == 1 else pool_size[0] - 1
-        h_pad = pool_size[1] - 2 if pool_size[1] % 2 == 1 else pool_size[1] - 1
+        w_pad = pool_size[0] - 2 if pool_size[0] > 2 and pool_size[0] % 2 == 1 else pool_size[0] - 1
+        h_pad = pool_size[1] - 2 if pool_size[1] > 2 and pool_size[1] % 2 == 1 else pool_size[1] - 1
         padding = (w_pad, h_pad)
     elif border_mode == 'valid':
         padding = (0, 0)
