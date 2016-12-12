@@ -702,7 +702,7 @@ def cos(x):
 
 
 def normalize_batch_in_training(x, gamma, beta,
-                                reduction_axes, epsilon=0.0001):
+                                reduction_axes, epsilon=1e-3):
     '''Compute mean and std for batch then apply batch_normalization on batch.
     '''
     mean, var = tf.nn.moments(x, reduction_axes,
@@ -731,7 +731,7 @@ def normalize_batch_in_training(x, gamma, beta,
     return normed, mean, var
 
 
-def batch_normalization(x, mean, var, beta, gamma, epsilon=0.0001):
+def batch_normalization(x, mean, var, beta, gamma, epsilon=1e-3):
     '''Apply batch normalization on x given mean, var, beta and gamma:
 
     output = (x - mean) / (sqrt(var) + epsilon) * gamma + beta
