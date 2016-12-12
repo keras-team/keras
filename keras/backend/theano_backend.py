@@ -279,8 +279,11 @@ def prod(x, axis=None, keepdims=False):
 
 
 def mean(x, axis=None, keepdims=False):
+    '''Mean of a tensor, alongside the specified axis.
+    '''
     dtype = None
-    if 'int' in x.dtype:
+    # bool is available since theano v0.9dev
+    if 'int' in x.dtype or x.dtype == 'bool':
         dtype = _FLOATX
     return T.mean(x, axis=axis, keepdims=keepdims, dtype=dtype)
 
