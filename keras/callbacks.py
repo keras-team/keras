@@ -246,17 +246,21 @@ class ModelCheckpoint(Callback):
         save_weights_only: if True, then only the model's weights will be
             saved (`model.save_weights(filepath)`), else the full model
             is saved (`model.save(filepath)`).
+        period: Interval in number of epochs between models being considered
+            for saving.
 
     '''
     def __init__(self, filepath, monitor='val_loss', verbose=0,
                  save_best_only=False, save_weights_only=False,
-                 mode='auto'):
+                 mode='auto', period=1):
         super(ModelCheckpoint, self).__init__()
         self.monitor = monitor
         self.verbose = verbose
         self.filepath = filepath
         self.save_best_only = save_best_only
         self.save_weights_only = save_weights_only
+        self.period = period
+        self.epochs_since_last_save = 0
 
         if mode not in ['auto', 'min', 'max']:
             warnings.warn('ModelCheckpoint mode %s is unknown, '
@@ -279,35 +283,38 @@ class ModelCheckpoint(Callback):
                 self.best = np.Inf
 
     def on_epoch_end(self, epoch, logs={}):
-        filepath = self.filepath.format(epoch=epoch, **logs)
-        if self.save_best_only:
-            current = logs.get(self.monitor)
-            if current is None:
-                warnings.warn('Can save best model only with %s available, '
-                              'skipping.' % (self.monitor), RuntimeWarning)
-            else:
-                if self.monitor_op(current, self.best):
-                    if self.verbose > 0:
-                        print('Epoch %05d: %s improved from %0.5f to %0.5f,'
-                              ' saving model to %s'
-                              % (epoch, self.monitor, self.best,
-                                 current, filepath))
-                    self.best = current
-                    if self.save_weights_only:
-                        self.model.save_weights(filepath, overwrite=True)
-                    else:
-                        self.model.save(filepath, overwrite=True)
+        self.epochs_since_last_save += 1
+        if self.epochs_since_last_save >= self.period:
+            self.epochs_since_last_save = 0
+            filepath = self.filepath.format(epoch=epoch, **logs)
+            if self.save_best_only:
+                current = logs.get(self.monitor)
+                if current is None:
+                    warnings.warn('Can save best model only with %s available, '
+                                  'skipping.' % (self.monitor), RuntimeWarning)
                 else:
-                    if self.verbose > 0:
-                        print('Epoch %05d: %s did not improve' %
-                              (epoch, self.monitor))
-        else:
-            if self.verbose > 0:
-                print('Epoch %05d: saving model to %s' % (epoch, filepath))
-            if self.save_weights_only:
-                self.model.save_weights(filepath, overwrite=True)
+                    if self.monitor_op(current, self.best):
+                        if self.verbose > 0:
+                            print('Epoch %05d: %s improved from %0.5f to %0.5f,'
+                                  ' saving model to %s'
+                                  % (epoch, self.monitor, self.best,
+                                     current, filepath))
+                        self.best = current
+                        if self.save_weights_only:
+                            self.model.save_weights(filepath, overwrite=True)
+                        else:
+                            self.model.save(filepath, overwrite=True)
+                    else:
+                        if self.verbose > 0:
+                            print('Epoch %05d: %s did not improve' %
+                                  (epoch, self.monitor))
             else:
-                self.model.save(filepath, overwrite=True)
+                if self.verbose > 0:
+                    print('Epoch %05d: saving model to %s' % (epoch, filepath))
+                if self.save_weights_only:
+                    self.model.save_weights(filepath, overwrite=True)
+                else:
+                    self.model.save(filepath, overwrite=True)
 
 
 class EarlyStopping(Callback):
