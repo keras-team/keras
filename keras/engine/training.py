@@ -32,7 +32,7 @@ def standardize_input_data(data, names, shapes=None,
     arrays (same order as `names`), while checking that the provided
     arrays have shapes that match the network's expectations.
     '''
-    if type(data) is dict:
+    if isinstance(data, dict):
         arrays = []
         for name in names:
             if name not in data:
@@ -40,7 +40,7 @@ def standardize_input_data(data, names, shapes=None,
                                 name + '". Need data for each key in: ' +
                                 str(data.keys()))
             arrays.append(data[name])
-    elif type(data) is list:
+    elif isinstance(data, list):
         if len(data) != len(names):
             if len(data) > 0 and hasattr(data[0], 'shape'):
                 raise Exception('Error when checking ' + exception_prefix +
@@ -116,13 +116,13 @@ def standardize_sample_or_class_weights(x_weight, output_names, weight_type):
     if x_weight is None or len(x_weight) == 0:
         return [None for _ in output_names]
     if len(output_names) == 1:
-        if type(x_weight) is list and len(x_weight) == 1:
+        if isinstance(x_weight, list) and len(x_weight) == 1:
             return x_weight
-        if type(x_weight) is dict and output_names[0] in x_weight:
+        if isinstance(x_weight, dict) and output_names[0] in x_weight:
             return [x_weight[output_names[0]]]
         else:
             return [x_weight]
-    if type(x_weight) is list:
+    if isinstance(x_weight, list):
         if len(x_weight) != len(output_names):
             raise Exception('Provided `' + weight_type + '` was a list of ' +
                             str(len(x_weight)) +
@@ -131,7 +131,7 @@ def standardize_sample_or_class_weights(x_weight, output_names, weight_type):
                             'You should provide one `' + weight_type + '`'
                             'array per model output.')
         return x_weight
-    if type(x_weight) is dict:
+    if isinstance(x_weight, dict):
         x_weights = []
         for name in output_names:
             x_weights.append(x_weight.get(name))
@@ -221,19 +221,19 @@ def check_loss_and_target_compatibility(targets, losses, output_shapes):
 def collect_metrics(metrics, output_names):
     if not metrics:
         return [[] for _ in output_names]
-    if type(metrics) is list:
+    if isinstance(metrics, list):
         # we then apply all metrics to all outputs.
         return [copy.copy(metrics) for _ in output_names]
-    elif type(metrics) is dict:
+    elif isinstance(metrics, dict):
         nested_metrics = []
         for name in output_names:
             output_metrics = metrics.get(name, [])
-            if type(output_metrics) is not list:
+            if not isinstance(output_metrics, list):
                 output_metrics = [output_metrics]
             nested_metrics.append(output_metrics)
         return nested_metrics
     else:
-        raise Exception('Type of `metrics` argument not understood. '
+        raise TypeError('Type of `metrics` argument not understood. '
                         'Expected a list or dictionary, found: ' +
                         str(metrics))
 
@@ -276,7 +276,7 @@ def slice_X(X, start=None, stop=None):
         stop: integer (stop index); should be None if
             `start` was a list.
     '''
-    if type(X) == list:
+    if isinstance(X, list):
         if hasattr(start, '__len__'):
             # hdf5 datasets only support list objects as indices
             if hasattr(start, 'shape'):
@@ -468,49 +468,50 @@ class Model(Container):
         # prepare loss weights
         if loss_weights is None:
             loss_weights_list = [1. for _ in range(len(self.outputs))]
-        elif type(loss_weights) is dict:
+        elif isinstance(loss_weights, dict):
             for name in loss_weights:
                 if name not in self.output_names:
-                    raise Exception('Unknown entry in loss_weights '
-                                    'dictionary: "' + name + '". '
-                                    'Only expected the following keys: ' +
-                                    str(self.output_names))
+                    raise ValueError('Unknown entry in loss_weights '
+                                     'dictionary: "' + name + '". '
+                                     'Only expected the following keys: ' +
+                                     str(self.output_names))
             loss_weights_list = []
             for name in self.output_names:
                 loss_weights_list.append(loss_weights.get(name, 1.))
-        elif type(loss_weights) is list:
+        elif isinstance(loss_weights, list):
             if len(loss_weights) != len(self.outputs):
-                raise Exception('When passing a list as loss_weights, '
-                                'it should have one entry per model outputs. '
-                                'The model has ' + str(len(self.outputs)) +
-                                ' outputs, but you passed loss_weights=' +
-                                str(loss_weights))
+                raise ValueError('When passing a list as loss_weights, '
+                                 'it should have one entry per model outputs. '
+                                 'The model has ' + str(len(self.outputs)) +
+                                 ' outputs, but you passed loss_weights=' +
+                                 str(loss_weights))
             loss_weights_list = loss_weights
         else:
-            raise Exception('Could not interpret loss_weights argument: ' +
-                            str(loss_weights))
+            raise TypeError('Could not interpret loss_weights argument: ' +
+                            str(loss_weights) +
+                            ' - expected a list of dicts.')
 
         # prepare loss functions
-        if type(loss) is dict:
+        if isinstance(loss, dict):
             for name in loss:
                 if name not in self.output_names:
-                    raise Exception('Unknown entry in loss '
-                                    'dictionary: "' + name + '". '
-                                    'Only expected the following keys: ' +
-                                    str(self.output_names))
+                    raise ValueError('Unknown entry in loss '
+                                     'dictionary: "' + name + '". '
+                                     'Only expected the following keys: ' +
+                                     str(self.output_names))
             loss_functions = []
             for name in self.output_names:
                 if name not in loss:
-                    raise Exception('Output "' + name +
-                                    '" missing from loss dictionary')
+                    raise ValueError('Output "' + name +
+                                     '" missing from loss dictionary.')
                 loss_functions.append(objectives.get(loss[name]))
-        elif type(loss) is list:
+        elif isinstance(loss, list):
             if len(loss) != len(self.outputs):
-                raise Exception('When passing a list as loss, '
-                                'it should have one entry per model outputs. '
-                                'The model has ' + str(len(self.outputs)) +
-                                ' outputs, but you passed loss=' +
-                                str(loss))
+                raise ValueError('When passing a list as loss, '
+                                 'it should have one entry per model outputs. '
+                                 'The model has ' + str(len(self.outputs)) +
+                                 ' outputs, but you passed loss=' +
+                                 str(loss))
             loss_functions = [objectives.get(l) for l in loss]
         else:
             loss_function = objectives.get(loss)
@@ -522,25 +523,25 @@ class Model(Container):
         masks = self.compute_mask(self.inputs, mask=None)
         if masks is None:
             masks = [None for _ in self.outputs]
-        if type(masks) is not list:
+        if not isinstance(masks, list):
             masks = [masks]
 
         # prepare sample weights
-        if type(sample_weight_mode) is dict:
+        if isinstance(sample_weight_mode, dict):
             for name in sample_weight_mode:
                 if name not in self.output_names:
-                    raise Exception('Unknown entry in '
-                                    'sample_weight_mode dictionary: "' +
-                                    name + '". '
-                                    'Only expected the following keys: ' +
-                                    str(self.output_names))
+                    raise ValueError('Unknown entry in '
+                                     'sample_weight_mode dictionary: "' +
+                                     name + '". '
+                                     'Only expected the following keys: ' +
+                                     str(self.output_names))
             sample_weights = []
             sample_weight_modes = []
             for name in self.output_names:
                 if name not in sample_weight_mode:
-                    raise Exception('Output "' + name +
-                                    '" missing from sample_weight_modes '
-                                    'dictionary')
+                    raise ValueError('Output "' + name +
+                                     '" missing from sample_weight_modes '
+                                     'dictionary')
                 if sample_weight_mode.get(name) == 'temporal':
                     weight = K.placeholder(ndim=2, name=name + '_sample_weights')
                     sample_weight_modes.append('temporal')
@@ -548,13 +549,13 @@ class Model(Container):
                     weight = K.placeholder(ndim=1, name=name + '_sample_weights')
                     sample_weight_modes.append(None)
                 sample_weights.append(weight)
-        elif type(sample_weight_mode) is list:
+        elif isinstance(sample_weight_mode, list):
             if len(sample_weight_mode) != len(self.outputs):
-                raise Exception('When passing a list as sample_weight_mode, ' +
-                                'it should have one entry per model outputs. '
-                                'The model has ' + str(len(self.outputs)) +
-                                ' outputs, but you passed sample_weight_mode=' +
-                                str(sample_weight_mode))
+                raise ValueError('When passing a list as sample_weight_mode, '
+                                 'it should have one entry per model outputs. '
+                                 'The model has ' + str(len(self.outputs)) +
+                                 ' outputs, but you passed sample_weight_mode=' +
+                                 str(sample_weight_mode))
             sample_weights = []
             sample_weight_modes = []
             for mode, name in zip(sample_weight_mode, self.output_names):
@@ -686,7 +687,7 @@ class Model(Container):
         if not hasattr(self, 'train_function'):
             raise Exception('You must compile your model before using it.')
         if self.train_function is None:
-            if self.uses_learning_phase and type(K.learning_phase()) is not int:
+            if self.uses_learning_phase and not isinstance(K.learning_phase(), int):
                 inputs = self.inputs + self.targets + self.sample_weights + [K.learning_phase()]
             else:
                 inputs = self.inputs + self.targets + self.sample_weights
@@ -706,7 +707,7 @@ class Model(Container):
         if not hasattr(self, 'test_function'):
             raise Exception('You must compile your model before using it.')
         if self.test_function is None:
-            if self.uses_learning_phase and type(K.learning_phase()) is not int:
+            if self.uses_learning_phase and not isinstance(K.learning_phase(), int):
                 inputs = self.inputs + self.targets + self.sample_weights + [K.learning_phase()]
             else:
                 inputs = self.inputs + self.targets + self.sample_weights
@@ -721,7 +722,7 @@ class Model(Container):
         if not hasattr(self, 'predict_function'):
             self.predict_function = None
         if self.predict_function is None:
-            if self.uses_learning_phase and type(K.learning_phase()) is not int:
+            if self.uses_learning_phase and not isinstance(K.learning_phase(), int):
                 inputs = self.inputs + [K.learning_phase()]
             else:
                 inputs = self.inputs
@@ -810,7 +811,7 @@ class Model(Container):
             for batch_index, (batch_start, batch_end) in enumerate(batches):
                 batch_ids = index_array[batch_start:batch_end]
                 try:
-                    if type(ins[-1]) is float:
+                    if isinstance(ins[-1], float):
                         # do not slice the training phase flag
                         ins_batch = slice_X(ins[:-1], batch_ids) + [ins[-1]]
                     else:
@@ -824,7 +825,7 @@ class Model(Container):
                 batch_logs['size'] = len(batch_ids)
                 callbacks.on_batch_begin(batch_index, batch_logs)
                 outs = f(ins_batch)
-                if type(outs) != list:
+                if not isinstance(outs, list):
                     outs = [outs]
                 for l, o in zip(out_labels, outs):
                     batch_logs[l] = o
@@ -838,7 +839,7 @@ class Model(Container):
                         val_outs = self._test_loop(val_f, val_ins,
                                                    batch_size=batch_size,
                                                    verbose=0)
-                        if type(val_outs) != list:
+                        if not isinstance(val_outs, list):
                             val_outs = [val_outs]
                         # same labels assumed
                         for l, o in zip(out_labels, val_outs):
@@ -871,14 +872,14 @@ class Model(Container):
         index_array = np.arange(nb_sample)
         for batch_index, (batch_start, batch_end) in enumerate(batches):
             batch_ids = index_array[batch_start:batch_end]
-            if type(ins[-1]) is float:
+            if isinstance(ins[-1], float):
                 # do not slice the training phase flag
                 ins_batch = slice_X(ins[:-1], batch_ids) + [ins[-1]]
             else:
                 ins_batch = slice_X(ins, batch_ids)
 
             batch_outs = f(ins_batch)
-            if type(batch_outs) != list:
+            if not isinstance(batch_outs, list):
                 batch_outs = [batch_outs]
             if batch_index == 0:
                 for batch_out in batch_outs:
@@ -916,14 +917,14 @@ class Model(Container):
         index_array = np.arange(nb_sample)
         for batch_index, (batch_start, batch_end) in enumerate(batches):
             batch_ids = index_array[batch_start:batch_end]
-            if type(ins[-1]) is float:
+            if isinstance(ins[-1], float):
                 # do not slice the training phase flag
                 ins_batch = slice_X(ins[:-1], batch_ids) + [ins[-1]]
             else:
                 ins_batch = slice_X(ins, batch_ids)
 
             batch_outs = f(ins_batch)
-            if type(batch_outs) == list:
+            if isinstance(batch_outs, list):
                 if batch_index == 0:
                     for batch_out in enumerate(batch_outs):
                         outs.append(0.)
@@ -1052,7 +1053,7 @@ class Model(Container):
                                                                            batch_size=batch_size)
             self._make_test_function()
             val_f = self.test_function
-            if self.uses_learning_phase and type(K.learning_phase()) is not int:
+            if self.uses_learning_phase and not isinstance(K.learning_phase(), int):
                 val_ins = val_x + val_y + val_sample_weights + [0.]
             else:
                 val_ins = val_x + val_y + val_sample_weights
@@ -1063,10 +1064,11 @@ class Model(Container):
             x, val_x = (slice_X(x, 0, split_at), slice_X(x, split_at))
             y, val_y = (slice_X(y, 0, split_at), slice_X(y, split_at))
             sample_weights, val_sample_weights = (
-                slice_X(sample_weights, 0, split_at), slice_X(sample_weights, split_at))
+                slice_X(sample_weights, 0, split_at),
+                slice_X(sample_weights, split_at))
             self._make_test_function()
             val_f = self.test_function
-            if self.uses_learning_phase and type(K.learning_phase()) is not int:
+            if self.uses_learning_phase and not isinstance(K.learning_phase(), int):
                 val_ins = val_x + val_y + val_sample_weights + [0.]
             else:
                 val_ins = val_x + val_y + val_sample_weights
@@ -1076,7 +1078,7 @@ class Model(Container):
             val_ins = None
 
         # prepare input arrays and training function
-        if self.uses_learning_phase and type(K.learning_phase()) is not int:
+        if self.uses_learning_phase and not isinstance(K.learning_phase(), int):
             ins = x + y + sample_weights + [1.]
         else:
             ins = x + y + sample_weights
@@ -1137,7 +1139,7 @@ class Model(Container):
                                                            check_batch_dim=False,
                                                            batch_size=batch_size)
         # prepare inputs, delegate logic to _test_loop
-        if self.uses_learning_phase and type(K.learning_phase()) is not int:
+        if self.uses_learning_phase and not isinstance(K.learning_phase, int):
             ins = x + y + sample_weights + [0.]
         else:
             ins = x + y + sample_weights
@@ -1174,7 +1176,7 @@ class Model(Container):
                                 'Batch size: ' + str(batch_size) + '.')
 
         # prepare inputs, delegate logic to _predict_loop
-        if self.uses_learning_phase and type(K.learning_phase()) is not int:
+        if self.uses_learning_phase and not isinstance(K.learning_phase, int):
             ins = x + [0.]
         else:
             ins = x
@@ -1218,7 +1220,7 @@ class Model(Container):
                                                            sample_weight=sample_weight,
                                                            class_weight=class_weight,
                                                            check_batch_dim=True)
-        if self.uses_learning_phase and type(K.learning_phase()) is not int:
+        if self.uses_learning_phase and not isinstance(K.learning_phase, int):
             ins = x + y + sample_weights + [1.]
         else:
             ins = x + y + sample_weights
@@ -1256,7 +1258,7 @@ class Model(Container):
         x, y, sample_weights = self._standardize_user_data(x, y,
                                                            sample_weight=sample_weight,
                                                            check_batch_dim=True)
-        if self.uses_learning_phase and type(K.learning_phase()) is not int:
+        if self.uses_learning_phase and not isinstance(K.learning_phase, int):
             ins = x + y + sample_weights + [0.]
         else:
             ins = x + y + sample_weights
@@ -1271,7 +1273,7 @@ class Model(Container):
         '''
         x = standardize_input_data(x, self.input_names,
                                    self.internal_input_shapes)
-        if self.uses_learning_phase and type(K.learning_phase()) is not int:
+        if self.uses_learning_phase and not isinstance(K.learning_phase, int):
             ins = x + [0.]
         else:
             ins = x
@@ -1435,9 +1437,9 @@ class Model(Container):
                                     'or (x, y). Found: ' + str(generator_output))
                 # build batch logs
                 batch_logs = {}
-                if type(x) is list:
+                if isinstance(x, list):
                     batch_size = x[0].shape[0]
-                elif type(x) is dict:
+                elif isinstance(x, dict):
                     batch_size = list(x.values())[0].shape[0]
                 else:
                     batch_size = x.shape[0]
@@ -1453,7 +1455,7 @@ class Model(Container):
                     _stop.set()
                     raise
 
-                if type(outs) != list:
+                if not isinstance(outs, list):
                     outs = [outs]
                 for l, o in zip(out_labels, outs):
                     batch_logs[l] = o
@@ -1486,7 +1488,7 @@ class Model(Container):
                                                  batch_size=batch_size,
                                                  sample_weight=val_sample_weights,
                                                  verbose=0)
-                    if type(val_outs) is not list:
+                    if not isinstance(val_outs, list):
                         val_outs = [val_outs]
                     # same labels assumed
                     for l, o in zip(out_labels, val_outs):
@@ -1570,9 +1572,9 @@ class Model(Container):
                 _stop.set()
                 raise
 
-            if type(x) is list:
+            if isinstance(x, list):
                 nb_samples = len(x[0])
-            elif type(x) is dict:
+            elif isinstance(x, dict):
                 nb_samples = len(list(x.values())[0])
             else:
                 nb_samples = len(x)
@@ -1588,7 +1590,7 @@ class Model(Container):
                 if p.is_alive():
                     p.terminate()
             data_gen_queue.close()
-        if type(outs) is not list:
+        if not isinstance(outs, list):
             return np.average(np.asarray(all_outs),
                               weights=weights)
         else:
@@ -1654,14 +1656,14 @@ class Model(Container):
                 _stop.set()
                 raise
 
-            if type(x) is list:
+            if isinstance(x, list):
                 nb_samples = len(x[0])
-            elif type(x) is dict:
+            elif isinstance(x, dict):
                 nb_samples = len(list(x.values())[0])
             else:
                 nb_samples = len(x)
 
-            if type(outs) != list:
+            if not isinstance(outs, list):
                 outs = [outs]
 
             if len(all_outs) == 0:
