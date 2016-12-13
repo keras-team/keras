@@ -1203,10 +1203,12 @@ def rnn(step_function, inputs, initial_states,
         if mask.dtype != tf.bool:
             mask = tf.cast(mask, tf.bool)
         if len(mask.get_shape()) < ndim:
-            tmp = ndim - len(mask.get_shape())
-            for _ in range(tmp):
+            diff_ndim = ndim - len(mask.get_shape())
+            for _ in range(diff_ndim):
                 mask = expand_dims(mask)
-        assert len(mask.get_shape()) == ndim
+        if len(mask.get_shape()) > ndim:
+            raise ValueError('The mask should not have a higher rank than x. '
+                             'Found rank of mask is ' + str(len(mask.get_shape())) + ' rank of x is ' + str(ndim))
         mask = tf.transpose(mask, axes)
 
     if constants is None:
@@ -1233,7 +1235,7 @@ def rnn(step_function, inputs, initial_states,
                 output, new_states = step_function(input, states + constants)
 
                 # tf.select needs its condition tensor
-                # to be the same shape or compatible as its two
+                # to be the same shape or a compatible vector shape as its two
                 # result tensors, but in our case
                 # the condition (mask) tensor is
                 # (nsamples, 1), and A and B are (nsamples, ndimensions).
@@ -1242,8 +1244,7 @@ def rnn(step_function, inputs, initial_states,
                 # That's what the tile call does,
                 # it just repeats the mask along its second dimension
                 # n times.
-                mask_t = tf.squeeze(mask_t)
-                tiled_mask_t = mask_t
+                tiled_mask_t = tf.squeeze(mask_t)
 
                 if len(successive_outputs) == 0:
                     prev_output = zeros_like(output)
@@ -1255,7 +1256,7 @@ def rnn(step_function, inputs, initial_states,
                 return_states = []
                 for state, new_state in zip(states, new_states):
                     # (see earlier comment for tile explanation)
-                    tiled_mask_t = mask_t
+                    tiled_mask_t = tf.squeeze(mask_t)
                     return_states.append(tf.select(tiled_mask_t,
                                                    new_state,
                                                    state))
