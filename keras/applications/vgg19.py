@@ -122,7 +122,7 @@ def VGG19(include_top=True, weights='imagenet',
     else:
         inputs = img_input
     # Create model.
-    model = Model(inputs, x)
+    model = Model(inputs, x, name='vgg19')
 
     # load weights
     if weights == 'imagenet':
