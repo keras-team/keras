@@ -429,15 +429,9 @@ def batch_dot(x, y, axes=None):
 
         output_shape = (100, 30)
     '''
-    if type(axes) == int:
-        axes = (axes, axes)
-    if axes is not None:
-        adj_x = None if axes[0] == ndim(x) - 1 else True
-        adj_y = True if axes[1] == ndim(y) - 1 else None
-    else:
-        adj_x = None
-        adj_y = None
-    out = tf.batch_matmul(x, y, adj_x=adj_x, adj_y=adj_y)
+
+    out = tf.reduce_sum(tf.mul(x, y), reduction_indices=axes)
+
     if ndim(out) == 1:
         out = expand_dims(out, 1)
     return out
