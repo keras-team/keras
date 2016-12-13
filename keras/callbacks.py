@@ -494,11 +494,14 @@ class TensorBoard(Callback):
 
         self.model = model
         self.sess = KTF.get_session()
+
+        summaries = []
+
         if self.histogram_freq and self.merged is None:
             for layer in self.model.layers:
 
                 for weight in layer.weights:
-                    tf.histogram_summary(weight.name, weight)
+                    summaries.append(tf.histogram_summary(weight.name, weight))
 
                     if self.write_images:
                         w_img = tf.squeeze(weight)
@@ -512,12 +515,14 @@ class TensorBoard(Callback):
 
                         w_img = tf.expand_dims(tf.expand_dims(w_img, 0), -1)
 
-                        tf.image_summary(weight.name, w_img)
+                        summaries.append(tf.image_summary(weight.name, w_img))
 
                 if hasattr(layer, 'output'):
-                    tf.histogram_summary('{}_out'.format(layer.name),
-                                         layer.output)
-        self.merged = tf.merge_all_summaries()
+                    summaries.append(
+                        tf.histogram_summary('{}_out'.format(layer.name),
+                        layer.output
+                    ))
+        self.merged = tf.merge_summary(summaries)
         if self.write_graph:
             if parse_version(tf.__version__) >= parse_version('0.8.0'):
                 self.writer = tf.train.SummaryWriter(self.log_dir,
