@@ -517,16 +517,16 @@ class TensorBoard(Callback):
                 if hasattr(layer, 'output'):
                     tf.histogram_summary('{}_out'.format(layer.name),
                                          layer.output)
-        self.merged = tf.merge_all_summaries()
+        self.merged = tf.summary.merge_all()
         if self.write_graph:
             if parse_version(tf.__version__) >= parse_version('0.8.0'):
-                self.writer = tf.train.SummaryWriter(self.log_dir,
-                                                     self.sess.graph)
+                self.writer = tf.summary.FileWriter(self.log_dir,
+                                                    self.sess.graph)
             else:
-                self.writer = tf.train.SummaryWriter(self.log_dir,
-                                                     self.sess.graph_def)
+                self.writer = tf.summary.FileWriter(self.log_dir,
+                                                    self.sess.graph_def)
         else:
-            self.writer = tf.train.SummaryWriter(self.log_dir)
+            self.writer = tf.summary.FileWriter(self.log_dir)
 
     def on_epoch_end(self, epoch, logs={}):
         import tensorflow as tf
