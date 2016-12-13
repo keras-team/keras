@@ -556,6 +556,8 @@ class TensorBoard(Callback):
             summary_value.tag = name
             self.writer.add_summary(summary, epoch)
         self.writer.flush()
+
+    def on_train_end(self, _):
         self.writer.close()
 
 
