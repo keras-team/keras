@@ -901,10 +901,12 @@ def rnn(step_function, inputs, initial_states,
 
     if mask is not None:
         if mask.ndim < ndim:
-            tmp = ndim - mask.ndim
-            for _ in range(tmp):
+            diff_ndim = ndim - mask.ndim
+            for _ in range(diff_ndim):
                 mask = expand_dims(mask)
-        assert mask.ndim == ndim
+        if mask.ndim > ndim:
+            raise ValueError('The mask should not have a higher rank than x. '
+                             'Found rank of mask is ' + str(mask.ndim) + ' rank of x is ' + str(ndim))
         mask = mask.dimshuffle(axes)
 
         if unroll:
