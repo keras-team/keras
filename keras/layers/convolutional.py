@@ -1538,7 +1538,7 @@ class ZeroPadding3D(Layer):
         padding: tuple of int (length 3)
             How many zeros to add at the beginning and end of
             the 3 padding dimensions (axis 3, 4 and 5).
-            Currentl only symmetric padding is supported.
+            Currently only symmetric padding is supported.
         dim_ordering: 'th' or 'tf'.
             In 'th' mode, the channels dimension (the depth)
             is at index 1, in 'tf' mode is it at index 4.

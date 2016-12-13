@@ -566,6 +566,11 @@ class Lambda(Layer):
                 else:
                     return K.int_shape(x)
             # otherwise, we default to the input shape
+            warnings.warn('`output_shape` argument not specified for layer {} '
+                          'and cannot be automatically inferred with the Theano backend. '
+                          'Defaulting to output shape `{}` (same as input shape). '
+                          'If the expected output shape is different, specify it via the `output_shape` argument.'
+                          .format(self.name, input_shape))
             return input_shape
         elif type(self._output_shape) in {tuple, list}:
             if type(input_shape) is list:

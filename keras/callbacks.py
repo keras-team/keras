@@ -401,11 +401,13 @@ class RemoteMonitor(Callback):
     def __init__(self,
                  root='http://localhost:9000',
                  path='/publish/epoch/end/',
-                 field='data'):
+                 field='data',
+                 headers={'Accept': 'application/json', 'Content-Type': 'application/json'}):
         super(RemoteMonitor, self).__init__()
         self.root = root
         self.path = path
         self.field = field
+        self.headers = headers
 
     def on_epoch_end(self, epoch, logs={}):
         import requests
@@ -415,7 +417,8 @@ class RemoteMonitor(Callback):
             send[k] = v
         try:
             requests.post(self.root + self.path,
-                          {self.field: json.dumps(send)})
+                          {self.field: json.dumps(send)},
+                          headers=self.headers)
         except:
             print('Warning: could not reach RemoteMonitor '
                   'root server at ' + str(self.root))
@@ -554,6 +557,9 @@ class TensorBoard(Callback):
             self.writer.add_summary(summary, epoch)
         self.writer.flush()
 
+    def on_train_end(self, _):
+        self.writer.close()
+
 
 class ReduceLROnPlateau(Callback):
     '''Reduce learning rate when a metric has stopped improving.
@@ -671,7 +677,7 @@ class CSVLogger(Callback):
             model.fit(X_train, Y_train, callbacks=[csv_logger])
         ```
 
-    Arguments
+    # Arguments
         filename: filename of the csv file, e.g. 'run/log.csv'.
         separator: string used to separate elements in the csv file.
         append: True: append if file exists (useful for continuing
@@ -723,7 +729,7 @@ class LambdaCallback(Callback):
     """Callback for creating simple, custom callbacks on-the-fly.
 
     This callback is constructed with anonymous functions that will be called
-    at the appropiate time. Note that the callbacks expects positional
+    at the appropriate time. Note that the callbacks expects positional
     arguments, as:
      - `on_epoch_begin` and `on_epoch_end` expect two positional arguments: `epoch`, `logs`
      - `on_batch_begin` and `on_batch_end` expect two positional arguments: `batch`, `logs`

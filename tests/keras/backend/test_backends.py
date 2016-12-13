@@ -1,4 +1,3 @@
-import sys
 import pytest
 from numpy.testing import assert_allclose
 import numpy as np
@@ -909,6 +908,27 @@ class TestBackend(object):
 
             assert p1 < p2
             assert 9e-38 < p2 <= 1e-37
+
+    def test_arange(self):
+        for test_value in (-20, 0, 1, 10):
+            t_a = KTF.arange(test_value)
+            a = KTF.eval(t_a)
+            assert(np.array_equal(a, np.arange(test_value)))
+            t_b = KTH.arange(test_value)
+            b = KTH.eval(t_b)
+            assert(np.array_equal(b, np.arange(test_value)))
+            assert(np.array_equal(a, b))
+            assert(KTF.dtype(t_a) == KTH.dtype(t_b), 'default dtypes are equal')
+        for start, stop, step in ((0, 5, 1), (-5, 5, 2), (0, 1, 2)):
+            a = KTF.eval(KTF.arange(start, stop, step))
+            assert(np.array_equal(a, np.arange(start, stop, step)))
+            b = KTH.eval(KTH.arange(start, stop, step))
+            assert(np.array_equal(b, np.arange(start, stop, step)))
+            assert(np.array_equal(a, b))
+        for dtype in ('int32', 'int64', 'float32', 'float64'):
+            for backend in (KTF, KTH):
+                t = backend.arange(10, dtype=dtype)
+                assert(backend.dtype(t) == dtype)
 
 
 if __name__ == '__main__':

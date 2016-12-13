@@ -84,11 +84,12 @@ def test_atrous_conv_1d():
 
 @keras_test
 def test_maxpooling_1d():
-    for stride in [1, 2]:
-        layer_test(convolutional.MaxPooling1D,
-                   kwargs={'stride': stride,
-                           'border_mode': 'valid'},
-                   input_shape=(3, 5, 4))
+    for border_mode in ['valid', 'same']:
+        for stride in [1, 2]:
+            layer_test(convolutional.MaxPooling1D,
+                       kwargs={'stride': stride,
+                               'border_mode': border_mode},
+                       input_shape=(3, 5, 4))
 
 
 @keras_test

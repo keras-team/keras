@@ -9,7 +9,7 @@ You can either pass the name of an existing metric, or pass a Theano/TensorFlow 
 
 #### Arguments
   - __y_true__: True labels. Theano/TensorFlow tensor.
-  -  __y_pred__: Predictions. Theano/TensorFlow tensor of the same shape as y_true.
+  - __y_pred__: Predictions. Theano/TensorFlow tensor of the same shape as y_true.
 
 #### Returns
   Single tensor value representing the mean of the output array across all

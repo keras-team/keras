@@ -23,10 +23,11 @@ import warnings
 from ..models import Model
 from ..layers import Flatten, Dense, Input, BatchNormalization, merge
 from ..layers import Convolution2D, MaxPooling2D, AveragePooling2D
+from ..engine.topology import get_source_inputs
 from ..utils.layer_utils import convert_all_kernels_in_model
 from ..utils.data_utils import get_file
 from .. import backend as K
-from .imagenet_utils import decode_predictions
+from .imagenet_utils import decode_predictions, _obtain_input_shape
 
 
 TH_WEIGHTS_PATH = 'https://github.com/fchollet/deep-learning-models/releases/download/v0.2/inception_v3_weights_th_dim_ordering_th_kernels.h5'
@@ -60,7 +61,7 @@ def conv2d_bn(x, nb_filter, nb_row, nb_col,
 
 
 def InceptionV3(include_top=True, weights='imagenet',
-                input_tensor=None):
+                input_tensor=None, input_shape=None):
     '''Instantiate the Inception v3 architecture,
     optionally loading weights pre-trained
     on ImageNet. Note that when using TensorFlow,
@@ -82,6 +83,13 @@ def InceptionV3(include_top=True, weights='imagenet',
             or "imagenet" (pre-training on ImageNet).
         input_tensor: optional Keras tensor (i.e. output of `layers.Input()`)
             to use as image input for the model.
+        inputs_shape: optional shape tuple, only to be specified
+            if `include_top` is False (otherwise the input shape
+            has to be `(299, 299, 3)` (with `tf` dim ordering)
+            or `(3, 299, 299)` (with `th` dim ordering).
+            It should have exactly 3 inputs channels,
+            and width and height should be no smaller than 139.
+            E.g. `(150, 150, 3)` would be one valid value.
 
     # Returns
         A Keras model instance.
@@ -91,16 +99,11 @@ def InceptionV3(include_top=True, weights='imagenet',
                          '`None` (random initialization) or `imagenet` '
                          '(pre-training on ImageNet).')
     # Determine proper input shape
-    if K.image_dim_ordering() == 'th':
-        if include_top:
-            input_shape = (3, 299, 299)
-        else:
-            input_shape = (3, None, None)
-    else:
-        if include_top:
-            input_shape = (299, 299, 3)
-        else:
-            input_shape = (None, None, 3)
+    input_shape = _obtain_input_shape(input_shape,
+                                      default_size=299,
+                                      min_size=139,
+                                      dim_ordering=K.image_dim_ordering(),
+                                      include_top=include_top)
 
     if input_tensor is None:
         img_input = Input(shape=input_shape)
@@ -261,8 +264,14 @@ def InceptionV3(include_top=True, weights='imagenet',
         x = Flatten(name='flatten')(x)
         x = Dense(1000, activation='softmax', name='predictions')(x)
 
-    # Create model
-    model = Model(img_input, x)
+    # Ensure that the model takes into account
+    # any potential predecessors of `input_tensor`.
+    if input_tensor is not None:
+        inputs = get_source_inputs(input_tensor)
+    else:
+        inputs = img_input
+    # Create model.
+    model = Model(inputs, x, name='inception_v3')
 
     # load weights
     if weights == 'imagenet':

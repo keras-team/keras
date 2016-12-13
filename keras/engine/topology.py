@@ -998,14 +998,14 @@ class Layer(object):
         composing the weights of the layer.
         '''
         if not self.built:
-            if self.__class__.__name__ in {'Sequential'}:
+            if self.__class__.__name__ == 'Sequential':
                 self.build()
             else:
                 raise Exception('You tried to call `count_params` on ' +
                                 self.name + ', but the layer isn\'t built. '
                                 'You can build it manually via: `' +
                                 self.name + '.build(batch_input_shape)`.')
-        return sum([K.count_params(p) for p in self.trainable_weights])
+        return sum([K.count_params(p) for p in self.weights])
 
 
 class InputLayer(Layer):
@@ -1549,21 +1549,23 @@ class Merge(Layer):
         else:
             mode = config['mode']
 
-        output_shape_type = config.pop('output_shape_type')
+        output_shape_type = config.pop('output_shape_type', None)
         if output_shape_type == 'function':
             output_shape = globals()[config['output_shape']]
         elif output_shape_type == 'lambda':
-            output_shape = func_load(config['output_shape'], globs=globals())
+            output_shape = func_load(config['output_shape'],
+                                     globs=globals())
         else:
-            output_shape = config['output_shape']
+            output_shape = config.get('output_shape')
 
-        output_mask_type = config.pop('output_mask_type')
+        output_mask_type = config.pop('output_mask_type', None)
         if output_mask_type == 'function':
             output_mask = globals()[config['output_mask']]
         elif output_mask_type == 'lambda':
-            output_mask = func_load(config['output_mask'], globs=globals())
+            output_mask = func_load(config['output_mask'],
+                                    globs=globals())
         else:
-            output_mask = config['output_mask']
+            output_mask = config.get('output_mask')
 
         config['mode'] = mode
         config['output_shape'] = output_shape
@@ -1572,7 +1574,8 @@ class Merge(Layer):
 
 
 def merge(inputs, mode='sum', concat_axis=-1,
-          dot_axes=-1, output_shape=None, output_mask=None, arguments={}, name=None):
+          dot_axes=-1, output_shape=None, output_mask=None,
+          arguments={}, name=None):
     '''Functional merge, to apply to Keras tensors (NOT layers).
     Returns a Keras tensor.
 
@@ -2846,7 +2849,7 @@ def get_source_inputs(tensor, layer=None, node_index=None):
         node_index: Origin node index of the tensor.
     '''
     if not hasattr(tensor, '_keras_history'):
-        raise Exception('Tensor must be a Keras tensor. Found: ' + str(tensor))
+        return tensor
 
     if layer is None or node_index:
         layer, node_index, _ = tensor._keras_history
