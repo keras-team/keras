@@ -198,7 +198,7 @@ def Xception(include_top=True, weights='imagenet',
     else:
         inputs = img_input
     # Create model.
-    model = Model(inputs, x)
+    model = Model(inputs, x, name='xception')
 
     # load weights
     if weights == 'imagenet':

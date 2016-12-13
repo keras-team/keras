@@ -135,7 +135,7 @@ def MusicTaggerCRNN(weights='msd', input_tensor=None,
     else:
         inputs = melgram_input
     # Create model.
-    model = Model(inputs, x)
+    model = Model(inputs, x, name='music_tagger_crnn')
 
     if weights is None:
         return model
