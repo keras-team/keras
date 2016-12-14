@@ -49,5 +49,11 @@ def test_srelu():
                input_shape=(2, 3, 4))
 
 
+def test_mpelu():
+    from keras.layers.advanced_activations import MPELU
+    layer_test(MPELU, kwargs={},
+               input_shape=(2, 3, 4))
+
+
 if __name__ == '__main__':
     pytest.main([__file__])
