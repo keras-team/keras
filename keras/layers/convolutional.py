@@ -395,7 +395,7 @@ class Convolution2D(Layer):
             stack_size = input_shape[3]
             self.W_shape = (self.nb_row, self.nb_col, stack_size, self.nb_filter)
         else:
-            raise Exception('Invalid dim_ordering: ' + self.dim_ordering)
+            raise ValueError('Invalid dim_ordering:', self.dim_ordering)
         self.W = self.add_weight(self.W_shape,
                                  initializer=self.init,
                                  name='{}_W'.format(self.name),
@@ -934,7 +934,7 @@ class SeparableConvolution2D(Layer):
             depthwise_shape = (self.nb_row, self.nb_col, stack_size, self.depth_multiplier)
             pointwise_shape = (1, 1, self.depth_multiplier * stack_size, self.nb_filter)
         else:
-            raise Exception('Invalid dim_ordering: ' + self.dim_ordering)
+            raise ValueError('Invalid dim_ordering:', self.dim_ordering)
 
         self.depthwise_kernel = self.add_weight(depthwise_shape,
                                                 initializer=self.init,

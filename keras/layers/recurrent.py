@@ -327,16 +327,16 @@ class SimpleRNN(Recurrent):
         assert self.stateful, 'Layer must be stateful.'
         input_shape = self.input_spec[0].shape
         if not input_shape[0]:
-            raise Exception('If a RNN is stateful, it needs to know '
-                            'its batch size. Specify the batch size '
-                            'of your input tensors: \n'
-                            '- If using a Sequential model, '
-                            'specify the batch size by passing '
-                            'a `batch_input_shape` '
-                            'argument to your first layer.\n'
-                            '- If using the functional API, specify '
-                            'the time dimension by passing a '
-                            '`batch_shape` argument to your Input layer.')
+            raise ValueError('If a RNN is stateful, it needs to know '
+                             'its batch size. Specify the batch size '
+                             'of your input tensors: \n'
+                             '- If using a Sequential model, '
+                             'specify the batch size by passing '
+                             'a `batch_input_shape` '
+                             'argument to your first layer.\n'
+                             '- If using the functional API, specify '
+                             'the time dimension by passing a '
+                             '`batch_shape` argument to your Input layer.')
         if hasattr(self, 'states'):
             K.set_value(self.states[0],
                         np.zeros((input_shape[0], self.output_dim)))
@@ -521,8 +521,8 @@ class GRU(Recurrent):
         assert self.stateful, 'Layer must be stateful.'
         input_shape = self.input_spec[0].shape
         if not input_shape[0]:
-            raise Exception('If a RNN is stateful, a complete ' +
-                            'input_shape must be provided (including batch size).')
+            raise ValueError('If a RNN is stateful, a complete ' +
+                             'input_shape must be provided (including batch size).')
         if hasattr(self, 'states'):
             K.set_value(self.states[0],
                         np.zeros((input_shape[0], self.output_dim)))
@@ -576,7 +576,7 @@ class GRU(Recurrent):
                 x_r = K.dot(x * B_W[1], self.W_r) + self.b_r
                 x_h = K.dot(x * B_W[2], self.W_h) + self.b_h
             else:
-                raise Exception('Unknown `consume_less` mode.')
+                raise ValueError('Unknown `consume_less` mode.')
             z = self.inner_activation(x_z + K.dot(h_tm1 * B_U[0], self.U_z))
             r = self.inner_activation(x_r + K.dot(h_tm1 * B_U[1], self.U_r))
 
@@ -773,8 +773,8 @@ class LSTM(Recurrent):
         assert self.stateful, 'Layer must be stateful.'
         input_shape = self.input_spec[0].shape
         if not input_shape[0]:
-            raise Exception('If a RNN is stateful, a complete ' +
-                            'input_shape must be provided (including batch size).')
+            raise ValueError('If a RNN is stateful, a complete ' +
+                             'input_shape must be provided (including batch size).')
         if hasattr(self, 'states'):
             K.set_value(self.states[0],
                         np.zeros((input_shape[0], self.output_dim)))
@@ -836,7 +836,7 @@ class LSTM(Recurrent):
                 x_c = K.dot(x * B_W[2], self.W_c) + self.b_c
                 x_o = K.dot(x * B_W[3], self.W_o) + self.b_o
             else:
-                raise Exception('Unknown `consume_less` mode.')
+                raise ValueError('Unknown `consume_less` mode.')
 
             i = self.inner_activation(x_i + K.dot(h_tm1 * B_U[0], self.U_i))
             f = self.inner_activation(x_f + K.dot(h_tm1 * B_U[1], self.U_f))

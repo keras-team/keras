@@ -69,8 +69,8 @@ def Xception(include_top=True, weights='imagenet',
                          '`None` (random initialization) or `imagenet` '
                          '(pre-training on ImageNet).')
     if K.backend() != 'tensorflow':
-        raise Exception('The Xception model is only available with '
-                        'the TensorFlow backend.')
+        raise RuntimeError('The Xception model is only available with '
+                           'the TensorFlow backend.')
     if K.image_dim_ordering() != 'tf':
         warnings.warn('The Xception model is only available for the '
                       'input dimension ordering "tf" '

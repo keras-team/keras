@@ -35,9 +35,9 @@ class EigenvalueRegularizer(Regularizer):
         self.k = k
 
     def __call__(self, x):
-        if K.ndim(x) > 2:
-            raise Exception('EigenvalueRegularizer '
-                            'is only available for tensors of rank 2.')
+        if K.ndim(x) != 2:
+            raise ValueError('EigenvalueRegularizer '
+                             'is only available for tensors of rank 2.')
         covariance = K.dot(K.transpose(x), x)
         dim1, dim2 = K.eval(K.shape(covariance))
 
