@@ -1049,6 +1049,7 @@ class Model(Container):
                 raise
             val_x, val_y, val_sample_weights = self._standardize_user_data(val_x, val_y,
                                                                            sample_weight=val_sample_weight,
+                                                           				   class_weight=class_weight,
                                                                            check_batch_dim=False,
                                                                            batch_size=batch_size)
             self._make_test_function()
