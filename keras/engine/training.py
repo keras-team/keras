@@ -238,6 +238,49 @@ def collect_metrics(metrics, output_names):
                         str(metrics))
 
 
+def collect_trainable_weights(layer):
+    '''Collects all `trainable_weights` attributes,
+    excluding any sublayers where `trainable` is set the `False`.
+    '''
+    trainable = getattr(layer, 'trainable', True)
+    if not trainable:
+        return []
+    weights = []
+    from keras.models import Sequential
+    try:
+        from keras.models import Graph
+    except ImportError:
+        warnings.warn('Error when trying to import the legacy model "Graph".')
+        # Dummy class Graph
+        
+        class Graph(object):
+            
+            pass
+        
+    if isinstance(layer, Sequential):
+        for sublayer in layer.flattened_layers:
+            weights += collect_trainable_weights(sublayer)
+    elif isinstance(layer, Model):
+        for sublayer in layer.layers:
+            weights += collect_trainable_weights(sublayer)
+    elif isinstance(layer, Graph):
+        for sublayer in layer._graph_nodes.values():
+            weights += collect_trainable_weights(sublayer)
+    else:
+        weights += layer.trainable_weights
+    # dedupe weights
+    weights = list(set(weights))
+    # TF variables have auto-generated the name, while Theano has auto-generated the auto_name variable.
+    # name in Theano is sometimes None.
+    # However, to work save_model() and load_model() properly, weights must be sorted by names.
+    if weights:
+        if K.backend() == 'theano':
+            weights.sort(key=lambda x: x.name if x.name else x.auto_name)
+        else:
+            weights.sort(key=lambda x: x.name)
+    return weights
+
+
 def batch_shuffle(index_array, batch_size):
     '''This shuffles an array in a batch-wise fashion.
     Useful for shuffling HDF5 arrays

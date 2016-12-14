@@ -1,4 +1,5 @@
 import os
+from keras.models import Sequential
 
 from ..layers.wrappers import Wrapper
 from ..models import Sequential
