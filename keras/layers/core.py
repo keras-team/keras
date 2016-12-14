@@ -659,10 +659,13 @@ class Dense(Layer):
         # after the first layer, you don't need to specify
         # the size of the input anymore:
         model.add(Dense(32))
+
+        # pass a tuple for multi-dimensional output
+        model.add(Dense((32, 32)))
     ```
 
     # Arguments
-        output_dim: int > 0.
+        output_dim: int > 0 or a tuple of ints all > 0.
         init: name of initialization function for the weights of the layer
             (see [initializations](../initializations.md)),
             or alternatively, Theano function to use for weights
@@ -687,15 +690,15 @@ class Dense(Layer):
         b_constraint: instance of the [constraints](../constraints.md) module,
             applied to the bias.
         bias: whether to include a bias (i.e. make the layer affine rather than linear).
-        input_dim: dimensionality of the input (integer).
+        input_dim: dimensionality of the input (integer or tuple of integers).
             This argument (or alternatively, the keyword argument `input_shape`)
             is required when using this layer as the first layer in a model.
 
     # Input shape
-        2D tensor with shape: `(nb_samples, input_dim)`.
+        tensor with shape: `(nb_samples, input_dim[0], ...)`.
 
     # Output shape
-        2D tensor with shape: `(nb_samples, output_dim)`.
+        tensor with shape: `(nb_samples, output_dim[0], ...)`.
     '''
     def __init__(self, output_dim, init='glorot_uniform',
                  activation=None, weights=None,
@@ -707,6 +710,11 @@ class Dense(Layer):
         self.output_dim = output_dim
         self.input_dim = input_dim
 
+        if isinstance(self.output_dim, int):
+            self.output_dim = (self.output_dim,)
+        if isinstance(self.input_dim, int):
+            self.input_dim = (self.input_dim,)
+
         self.W_regularizer = regularizers.get(W_regularizer)
         self.b_regularizer = regularizers.get(b_regularizer)
         self.activity_regularizer = regularizers.get(activity_regularizer)
@@ -716,22 +724,23 @@ class Dense(Layer):
 
         self.bias = bias
         self.initial_weights = weights
-        self.input_spec = [InputSpec(ndim=2)]
+        self.input_spec = [InputSpec(ndim='2+')]
 
         if self.input_dim:
-            kwargs['input_shape'] = (self.input_dim,)
+            kwargs['input_shape'] = tuple(self.input_dim)
         super(Dense, self).__init__(**kwargs)
 
     def build(self, input_shape):
-        assert len(input_shape) == 2
-        input_dim = input_shape[1]
+        assert len(input_shape) >= 2
+        input_dims = tuple(input_shape[1:])
+        output_dims = tuple(self.output_dim)
         self.input_spec = [InputSpec(dtype=K.floatx(),
-                                     shape=(None, input_dim))]
+                                     shape=(None,) + input_dims)]
 
-        self.W = self.init((input_dim, self.output_dim),
+        self.W = self.init(input_dims + output_dims,
                            name='{}_W'.format(self.name))
         if self.bias:
-            self.b = K.zeros((self.output_dim,),
+            self.b = K.zeros(output_dims,
                              name='{}_b'.format(self.name))
             self.trainable_weights = [self.W, self.b]
         else:
@@ -762,14 +771,17 @@ class Dense(Layer):
         self.built = True
 
     def call(self, x, mask=None):
-        output = K.dot(x, self.W)
+        if K.ndim(self.W) == 2:
+            output = K.dot(x, self.W)
+        else:
+            output = K.tensordot(x, self.W, K.ndim(x) - 1)
         if self.bias:
             output += self.b
         return self.activation(output)
 
     def get_output_shape_for(self, input_shape):
-        assert input_shape and len(input_shape) == 2
-        return (input_shape[0], self.output_dim)
+        assert input_shape and len(input_shape) >= 2
+        return (input_shape[0],) + tuple(self.output_dim)
 
     def get_config(self):
         config = {'output_dim': self.output_dim,

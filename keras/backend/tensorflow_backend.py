@@ -395,6 +395,35 @@ def dot(x, y):
     return out
 
 
+def tensordot(x, y, axes):
+    '''Computes a generalized dot product over the provided axes.
+
+    This implements a subset of the options available in Theano's
+    `theano.tensor.tensordot` function.
+
+    # Arguments
+        x, y: tensors with ndim >= 2
+        axes: single int with the number of axes to sum over.
+            This partial implementation only supports ndim(x) - 1.
+    '''
+    # This implements a subset of Theano's tensordot options.
+    assert isinstance(axes, int)
+    assert ndim(x) > axes
+    assert ndim(y) > axes
+    assert axes == ndim(x) - 1, "tensordot is only implemented for axes == ndim(x) - 1."
+    x_shape = int_shape(x)
+    y_shape = int_shape(y)
+    x_dims = x_shape[1:]
+    output_dims = y_shape[len(x_dims):]
+    x_1d = x if ndim(x) == 2 else tf.reshape(x, (-1, np.prod(x_dims)))
+    y_1d = y if ndim(y) == 2 else tf.reshape(y, (np.prod(x_dims), np.prod(output_dims)))
+    output_1d = dot(x_1d, y_1d)
+    if len(output_dims) == 1:
+        return output_1d
+    else:
+        return tf.reshape(output_1d, (-1,) + output_dims)
+
+
 def batch_dot(x, y, axes=None):
     '''Batchwise dot product.
 

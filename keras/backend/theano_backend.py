@@ -193,6 +193,10 @@ def dot(x, y):
         return T.dot(x, y)
 
 
+def tensordot(x, y, axes):
+    return T.tensordot(x, y, axes=axes)
+
+
 def batch_dot(x, y, axes=None):
     '''Batchwise dot product.
 

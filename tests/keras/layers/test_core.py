@@ -321,12 +321,39 @@ def test_dense():
     from keras import regularizers
     from keras import constraints
 
+    # 1D input and 1D output
     layer_test(core.Dense,
                kwargs={'output_dim': 3},
                input_shape=(3, 2))
 
+    # 1D input and 1D output with options
     layer_test(core.Dense,
                kwargs={'output_dim': 3,
+                       'W_regularizer': regularizers.l2(0.01),
+                       'b_regularizer': regularizers.l1(0.01),
+                       'activity_regularizer': regularizers.activity_l2(0.01),
+                       'W_constraint': constraints.MaxNorm(1),
+                       'b_constraint': constraints.MaxNorm(1)},
+               input_shape=(3, 2))
+
+    # 1D input and 2D output
+    layer_test(core.Dense,
+               kwargs={'output_dim': (3, 5)},
+               input_shape=(3, 2))
+
+    # 2D input and 1D output
+    layer_test(core.Dense,
+               kwargs={'output_dim': 3},
+               input_shape=(3, 2, 5))
+
+    # 2D input and 3D output
+    layer_test(core.Dense,
+               kwargs={'output_dim': (3, 5, 7)},
+               input_shape=(3, 2, 5))
+
+    # 2D input and 2D output with options
+    layer_test(core.Dense,
+               kwargs={'output_dim': (3, 5),
                        'W_regularizer': regularizers.l2(0.01),
                        'b_regularizer': regularizers.l1(0.01),
                        'activity_regularizer': regularizers.activity_l2(0.01),
