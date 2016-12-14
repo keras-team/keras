@@ -965,15 +965,18 @@ class InputLayer(Layer):
                              'batch_input_shape argument to '
                              'InputLayer, not both at the same time.')
         if input_tensor is not None:
-            # Attempt automatic input shape inference.
-            try:
-                batch_input_shape = K.int_shape(input_tensor)
-            except:
-                if not input_shape and not batch_input_shape:
-                    raise ValueError('InputLayer was provided an input_tensor argument, '
-                                     'but its input shape cannot be automatically inferred. '
-                                     'You should pass an input_shape or batch_input_shape '
-                                     'argument.')
+            if hasattr(input_tensor, '_keras_shape'):
+                batch_input_shape = input_tensor._keras_shape
+            else:
+                # Attempt automatic input shape inference.
+                try:
+                    batch_input_shape = K.int_shape(input_tensor)
+                except:
+                    if not input_shape and not batch_input_shape:
+                        raise ValueError('InputLayer was provided an input_tensor argument, '
+                                         'but its input shape cannot be automatically inferred. '
+                                         'You should pass an input_shape or batch_input_shape '
+                                         'argument.')
         if not batch_input_shape:
             if not input_shape:
                 raise ValueError('An Input layer should be passed either '
