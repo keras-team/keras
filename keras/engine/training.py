@@ -611,9 +611,10 @@ class Model(Container):
             else:
                 total_loss += loss_weight * output_loss
 
-        # add regularization penalties to the loss
-        for r in self.regularizers:
-            total_loss = r(total_loss)
+        # add regularization penalties
+        # and other layer-specific losses
+        for loss_tensor in self.losses:
+            total_loss += loss_tensor
 
         # list of same size as output_names.
         # contains tuples (metrics for output, names of metrics)

@@ -113,31 +113,20 @@ class Convolution1D(Layer):
     def build(self, input_shape):
         input_dim = input_shape[2]
         self.W_shape = (self.filter_length, 1, input_dim, self.nb_filter)
-        self.W = self.init(self.W_shape, name='{}_W'.format(self.name))
+
+        self.W = self.add_weight(self.W_shape,
+                                 initializer=self.init,
+                                 name='{}_W'.format(self.name),
+                                 regularizer=self.W_regularizer,
+                                 constraint=self.W_constraint)
         if self.bias:
-            self.b = K.zeros((self.nb_filter,), name='{}_b'.format(self.name))
-            self.trainable_weights = [self.W, self.b]
+            self.b = self.add_weight((self.nb_filter,),
+                                     initializer='zero',
+                                     name='{}_b'.format(self.name),
+                                     regularizer=self.b_regularizer,
+                                     constraint=self.b_constraint)
         else:
-            self.trainable_weights = [self.W]
-        self.regularizers = []
-
-        if self.W_regularizer:
-            self.W_regularizer.set_param(self.W)
-            self.regularizers.append(self.W_regularizer)
-
-        if self.bias and self.b_regularizer:
-            self.b_regularizer.set_param(self.b)
-            self.regularizers.append(self.b_regularizer)
-
-        if self.activity_regularizer:
-            self.activity_regularizer.set_layer(self)
-            self.regularizers.append(self.activity_regularizer)
-
-        self.constraints = {}
-        if self.W_constraint:
-            self.constraints[self.W] = self.W_constraint
-        if self.bias and self.b_constraint:
-            self.constraints[self.b] = self.b_constraint
+            self.b = None
 
         if self.initial_weights is not None:
             self.set_weights(self.initial_weights)
@@ -406,32 +395,20 @@ class Convolution2D(Layer):
             stack_size = input_shape[3]
             self.W_shape = (self.nb_row, self.nb_col, stack_size, self.nb_filter)
         else:
-            raise ValueError('Invalid dim_ordering:', self.dim_ordering)
-        self.W = self.init(self.W_shape, name='{}_W'.format(self.name))
+            raise Exception('Invalid dim_ordering: ' + self.dim_ordering)
+        self.W = self.add_weight(self.W_shape,
+                                 initializer=self.init,
+                                 name='{}_W'.format(self.name),
+                                 regularizer=self.W_regularizer,
+                                 constraint=self.W_constraint)
         if self.bias:
-            self.b = K.zeros((self.nb_filter,), name='{}_b'.format(self.name))
-            self.trainable_weights = [self.W, self.b]
+            self.b = self.add_weight((self.nb_filter,),
+                                     initializer='zero',
+                                     name='{}_b'.format(self.name),
+                                     regularizer=self.b_regularizer,
+                                     constraint=self.b_constraint)
         else:
-            self.trainable_weights = [self.W]
-        self.regularizers = []
-
-        if self.W_regularizer:
-            self.W_regularizer.set_param(self.W)
-            self.regularizers.append(self.W_regularizer)
-
-        if self.bias and self.b_regularizer:
-            self.b_regularizer.set_param(self.b)
-            self.regularizers.append(self.b_regularizer)
-
-        if self.activity_regularizer:
-            self.activity_regularizer.set_layer(self)
-            self.regularizers.append(self.activity_regularizer)
-
-        self.constraints = {}
-        if self.W_constraint:
-            self.constraints[self.W] = self.W_constraint
-        if self.bias and self.b_constraint:
-            self.constraints[self.b] = self.b_constraint
+            self.b = None
 
         if self.initial_weights is not None:
             self.set_weights(self.initial_weights)
@@ -957,40 +934,26 @@ class SeparableConvolution2D(Layer):
             depthwise_shape = (self.nb_row, self.nb_col, stack_size, self.depth_multiplier)
             pointwise_shape = (1, 1, self.depth_multiplier * stack_size, self.nb_filter)
         else:
-            raise ValueError('Invalid dim_ordering:', self.dim_ordering)
-        self.depthwise_kernel = self.init(depthwise_shape,
-                                          name='{}_depthwise_kernel'.format(self.name))
-        self.pointwise_kernel = self.init(pointwise_shape,
-                                          name='{}_pointwise_kernel'.format(self.name))
-        if self.bias:
-            self.b = K.zeros((self.nb_filter,), name='{}_b'.format(self.name))
-            self.trainable_weights = [self.depthwise_kernel,
-                                      self.pointwise_kernel,
-                                      self.b]
-        else:
-            self.trainable_weights = [self.depthwise_kernel,
-                                      self.pointwise_kernel]
-        self.regularizers = []
-        if self.depthwise_regularizer:
-            self.depthwise_regularizer.set_param(self.depthwise_kernel)
-            self.regularizers.append(self.depthwise_regularizer)
-        if self.pointwise_regularizer:
-            self.pointwise_regularizer.set_param(self.pointwise_kernel)
-            self.regularizers.append(self.pointwise_regularizer)
-        if self.bias and self.b_regularizer:
-            self.b_regularizer.set_param(self.b)
-            self.regularizers.append(self.b_regularizer)
-        if self.activity_regularizer:
-            self.activity_regularizer.set_layer(self)
-            self.regularizers.append(self.activity_regularizer)
+            raise Exception('Invalid dim_ordering: ' + self.dim_ordering)
 
-        self.constraints = {}
-        if self.depthwise_constraint:
-            self.constraints[self.depthwise_kernel] = self.depthwise_constraint
-        if self.pointwise_constraint:
-            self.constraints[self.pointwise_kernel] = self.pointwise_constraint
-        if self.bias and self.b_constraint:
-            self.constraints[self.b] = self.b_constraint
+        self.depthwise_kernel = self.add_weight(depthwise_shape,
+                                                initializer=self.init,
+                                                regularizer=self.depthwise_regularizer,
+                                                constraint=self.depthwise_constraint,
+                                                name='{}_depthwise_kernel'.format(self.name))
+        self.pointwise_kernel = self.add_weight(pointwise_shape,
+                                                initializer=self.init,
+                                                regularizer=self.pointwise_regularizer,
+                                                constraint=self.pointwise_constraint,
+                                                name='{}_pointwise_kernel'.format(self.name))
+        if self.bias:
+            self.b = self.add_weight((self.nb_filter,),
+                                     initializer='zero',
+                                     name='{}_b'.format(self.name),
+                                     regularizer=self.b_regularizer,
+                                     constraint=self.b_constraint)
+        else:
+            self.b = None
 
         if self.initial_weights is not None:
             self.set_weights(self.initial_weights)
@@ -1165,31 +1128,19 @@ class Convolution3D(Layer):
         else:
             raise ValueError('Invalid dim_ordering:', self.dim_ordering)
 
-        self.W = self.init(self.W_shape, name='{}_W'.format(self.name))
+        self.W = self.add_weight(self.W_shape,
+                                 initializer=self.init,
+                                 name='{}_W'.format(self.name),
+                                 regularizer=self.W_regularizer,
+                                 constraint=self.W_constraint)
         if self.bias:
-            self.b = K.zeros((self.nb_filter,), name='{}_b'.format(self.name))
-            self.trainable_weights = [self.W, self.b]
+            self.b = self.add_weight((self.nb_filter,),
+                                     initializer='zero',
+                                     name='{}_b'.format(self.name),
+                                     regularizer=self.b_regularizer,
+                                     constraint=self.b_constraint)
         else:
-            self.trainable_weights = [self.W]
-
-        self.regularizers = []
-        if self.W_regularizer:
-            self.W_regularizer.set_param(self.W)
-            self.regularizers.append(self.W_regularizer)
-
-        if self.bias and self.b_regularizer:
-            self.b_regularizer.set_param(self.b)
-            self.regularizers.append(self.b_regularizer)
-
-        if self.activity_regularizer:
-            self.activity_regularizer.set_layer(self)
-            self.regularizers.append(self.activity_regularizer)
-
-        self.constraints = {}
-        if self.W_constraint:
-            self.constraints[self.W] = self.W_constraint
-        if self.bias and self.b_constraint:
-            self.constraints[self.b] = self.b_constraint
+            self.b = None
 
         if self.initial_weights is not None:
             self.set_weights(self.initial_weights)

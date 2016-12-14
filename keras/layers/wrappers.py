@@ -17,7 +17,7 @@ class Wrapper(Layer):
         self.trainable_weights = getattr(self.layer, 'trainable_weights', [])
         self.non_trainable_weights = getattr(self.layer, 'non_trainable_weights', [])
         self.updates = getattr(self.layer, 'updates', [])
-        self.regularizers = getattr(self.layer, 'regularizers', [])
+        self.losses = getattr(self.layer, 'losses', [])
         self.constraints = getattr(self.layer, 'constraints', {})
 
         # properly attribute the current layer to
@@ -130,6 +130,11 @@ class TimeDistributed(Wrapper):
             # (nb_samples, timesteps, ...)
             output_shape = self.get_output_shape_for(input_shape)
             y = K.reshape(y, (-1, input_length) + output_shape[2:])
+
+        # Apply activity regularizer if any:
+        if hasattr(self.layer, 'activity_regularizer') and self.layer.activity_regularizer is not None:
+            regularization_loss = self.layer.activity_regularizer(y)
+            self.add_loss(regularization_loss, X)
         return y
 
 
@@ -246,9 +251,9 @@ class Bidirectional(Wrapper):
         return []
 
     @property
-    def regularizers(self):
-        if hasattr(self.forward_layer, 'regularizers'):
-            return self.forward_layer.regularizers + self.backward_layer.regularizers
+    def losses(self):
+        if hasattr(self.forward_layer, 'losses'):
+            return self.forward_layer.losses + self.backward_layer.losses
         return []
 
     @property

@@ -125,8 +125,8 @@ class SpatialDropout1D(Dropout):
         input_shape = K.shape(x)
         noise_shape = (input_shape[0], 1, input_shape[2])
         return noise_shape
-    
-    
+
+
 class SpatialDropout2D(Dropout):
     '''This version performs the same function as Dropout, however it drops
     entire 2D feature maps instead of individual elements. If adjacent pixels
@@ -728,33 +728,19 @@ class Dense(Layer):
         self.input_spec = [InputSpec(dtype=K.floatx(),
                                      shape=(None, input_dim))]
 
-        self.W = self.init((input_dim, self.output_dim),
-                           name='{}_W'.format(self.name))
+        self.W = self.add_weight((input_dim, self.output_dim),
+                                 initializer=self.init,
+                                 name='{}_W'.format(self.name),
+                                 regularizer=self.W_regularizer,
+                                 constraint=self.W_constraint)
         if self.bias:
-            self.b = K.zeros((self.output_dim,),
-                             name='{}_b'.format(self.name))
-            self.trainable_weights = [self.W, self.b]
+            self.b = self.add_weight((self.output_dim,),
+                                     initializer='zero',
+                                     name='{}_b'.format(self.name),
+                                     regularizer=self.b_regularizer,
+                                     constraint=self.b_constraint)
         else:
-            self.trainable_weights = [self.W]
-
-        self.regularizers = []
-        if self.W_regularizer:
-            self.W_regularizer.set_param(self.W)
-            self.regularizers.append(self.W_regularizer)
-
-        if self.bias and self.b_regularizer:
-            self.b_regularizer.set_param(self.b)
-            self.regularizers.append(self.b_regularizer)
-
-        if self.activity_regularizer:
-            self.activity_regularizer.set_layer(self)
-            self.regularizers.append(self.activity_regularizer)
-
-        self.constraints = {}
-        if self.W_constraint:
-            self.constraints[self.W] = self.W_constraint
-        if self.bias and self.b_constraint:
-            self.constraints[self.b] = self.b_constraint
+            self.b = None
 
         if self.initial_weights is not None:
             self.set_weights(self.initial_weights)
@@ -808,9 +794,8 @@ class ActivityRegularization(Layer):
         self.l2 = l2
 
         super(ActivityRegularization, self).__init__(**kwargs)
-        activity_regularizer = ActivityRegularizer(l1=l1, l2=l2)
-        activity_regularizer.set_layer(self)
-        self.regularizers = [activity_regularizer]
+        self.activity_regularizer = regularizers.L1L2Regularizer(l1=l1, l2=l2)
+        self.regularizers = [self.activity_regularizer]
 
     def get_config(self):
         config = {'l1': self.l1,
@@ -897,33 +882,19 @@ class MaxoutDense(Layer):
         self.input_spec = [InputSpec(dtype=K.floatx(),
                                      shape=(None, input_dim))]
 
-        self.W = self.init((self.nb_feature, input_dim, self.output_dim),
-                           name='{}_W'.format(self.name))
+        self.W = self.add_weight((self.nb_feature, input_dim, self.output_dim),
+                                 initializer=self.init,
+                                 name='{}_W'.format(self.name),
+                                 regularizer=self.W_regularizer,
+                                 constraint=self.W_constraint)
         if self.bias:
-            self.b = K.zeros((self.nb_feature, self.output_dim),
-                             name='{}_b'.format(self.name))
-            self.trainable_weights = [self.W, self.b]
+            self.b = self.add_weight((self.nb_feature, self.output_dim,),
+                                     initializer='zero',
+                                     name='{}_b'.format(self.name),
+                                     regularizer=self.b_regularizer,
+                                     constraint=self.b_constraint)
         else:
-            self.trainable_weights = [self.W]
-
-        self.regularizers = []
-        if self.W_regularizer:
-            self.W_regularizer.set_param(self.W)
-            self.regularizers.append(self.W_regularizer)
-
-        if self.bias and self.b_regularizer:
-            self.b_regularizer.set_param(self.b)
-            self.regularizers.append(self.b_regularizer)
-
-        if self.activity_regularizer:
-            self.activity_regularizer.set_layer(self)
-            self.regularizers.append(self.activity_regularizer)
-
-        self.constraints = {}
-        if self.W_constraint:
-            self.constraints[self.W] = self.W_constraint
-        if self.bias and self.b_constraint:
-            self.constraints[self.b] = self.b_constraint
+            self.b = None
 
         if self.initial_weights is not None:
             self.set_weights(self.initial_weights)
@@ -1030,38 +1001,25 @@ class Highway(Layer):
         self.input_spec = [InputSpec(dtype=K.floatx(),
                                      shape=(None, input_dim))]
 
-        self.W = self.init((input_dim, input_dim),
-                           name='{}_W'.format(self.name))
-        self.W_carry = self.init((input_dim, input_dim),
-                                 name='{}_W_carry'.format(self.name))
-
+        self.W = self.add_weight((input_dim, input_dim),
+                                 initializer=self.init,
+                                 name='{}_W'.format(self.name),
+                                 regularizer=self.W_regularizer,
+                                 constraint=self.W_constraint)
+        self.W_carry = self.add_weight((input_dim, input_dim),
+                                       initializer=self.init,
+                                       name='{}_W_carry'.format(self.name))
         if self.bias:
-            self.b = K.zeros((input_dim,), name='{}_b'.format(self.name))
-            # initialize with a vector of values `transform_bias`
-            self.b_carry = K.variable(np.ones((input_dim,)) * self.transform_bias,
-                                      name='{}_b_carry'.format(self.name))
-            self.trainable_weights = [self.W, self.b, self.W_carry, self.b_carry]
+            self.b = self.add_weight((input_dim,),
+                                     initializer='zero',
+                                     name='{}_b'.format(self.name),
+                                     regularizer=self.b_regularizer,
+                                     constraint=self.b_constraint)
+            self.b_carry = self.add_weight((input_dim,),
+                                           initializer='one',
+                                           name='{}_b_carry'.format(self.name))
         else:
-            self.trainable_weights = [self.W, self.W_carry]
-
-        self.regularizers = []
-        if self.W_regularizer:
-            self.W_regularizer.set_param(self.W)
-            self.regularizers.append(self.W_regularizer)
-
-        if self.bias and self.b_regularizer:
-            self.b_regularizer.set_param(self.b)
-            self.regularizers.append(self.b_regularizer)
-
-        if self.activity_regularizer:
-            self.activity_regularizer.set_layer(self)
-            self.regularizers.append(self.activity_regularizer)
-
-        self.constraints = {}
-        if self.W_constraint:
-            self.constraints[self.W] = self.W_constraint
-        if self.bias and self.b_constraint:
-            self.constraints[self.b] = self.b_constraint
+            self.b_carry = None
 
         if self.initial_weights is not None:
             self.set_weights(self.initial_weights)
@@ -1178,31 +1136,19 @@ class TimeDistributedDense(Layer):
                                      shape=(None,) + input_shape[1:])]
         input_dim = input_shape[2]
 
-        self.W = self.init((input_dim, self.output_dim),
-                           name='{}_W'.format(self.name))
+        self.W = self.add_weight((input_dim, self.output_dim),
+                                 initializer=self.init,
+                                 name='{}_W'.format(self.name),
+                                 regularizer=self.W_regularizer,
+                                 constraint=self.W_constraint)
         if self.bias:
-            self.b = K.zeros((self.output_dim,),
-                             name='{}_b'.format(self.name))
-            self.trainable_weights = [self.W, self.b]
-        self.regularizers = []
-
-        if self.W_regularizer:
-            self.W_regularizer.set_param(self.W)
-            self.regularizers.append(self.W_regularizer)
-
-        if self.bias and self.b_regularizer:
-            self.b_regularizer.set_param(self.b)
-            self.regularizers.append(self.b_regularizer)
-
-        if self.activity_regularizer:
-            self.activity_regularizer.set_layer(self)
-            self.regularizers.append(self.activity_regularizer)
-
-        self.constraints = {}
-        if self.W_constraint:
-            self.constraints[self.W] = self.W_constraint
-        if self.bias and self.b_constraint:
-            self.constraints[self.b] = self.b_constraint
+            self.b = self.add_weight((self.output_dim,),
+                                     initializer='zero',
+                                     name='{}_b'.format(self.name),
+                                     regularizer=self.b_regularizer,
+                                     constraint=self.b_constraint)
+        else:
+            self.b = None
 
         if self.initial_weights is not None:
             self.set_weights(self.initial_weights)
