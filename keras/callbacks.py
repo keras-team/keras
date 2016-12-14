@@ -480,8 +480,8 @@ class TensorBoard(Callback):
     def __init__(self, log_dir='./logs', histogram_freq=0, write_graph=True, write_images=False):
         super(TensorBoard, self).__init__()
         if K._BACKEND != 'tensorflow':
-            raise Exception('TensorBoard callback only works '
-                            'with the TensorFlow backend.')
+            raise RuntimeError('TensorBoard callback only works '
+                               'with the TensorFlow backend.')
         self.log_dir = log_dir
         self.histogram_freq = histogram_freq
         self.merged = None

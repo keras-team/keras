@@ -81,7 +81,7 @@ def set_floatx(floatx):
     '''
     global _FLOATX
     if floatx not in {'float16', 'float32', 'float64'}:
-        raise Exception('Unknown floatx type: ' + str(floatx))
+        raise ValueError('Unknown floatx type: ' + str(floatx))
     _FLOATX = str(floatx)
 
 
@@ -147,7 +147,7 @@ def set_image_dim_ordering(dim_ordering):
     '''
     global _IMAGE_DIM_ORDERING
     if dim_ordering not in {'tf', 'th'}:
-        raise Exception('Unknown dim_ordering:', dim_ordering)
+        raise ValueError('Unknown dim_ordering:', dim_ordering)
     _IMAGE_DIM_ORDERING = str(dim_ordering)
 
 
