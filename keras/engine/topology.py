@@ -23,7 +23,7 @@ def to_list(x):
     If a tensor is passed, we return
     a list of size 1 containing the tensor.
     '''
-    if type(x) is list:
+    if isinstance(x, list):
         return x
     return [x]
 
@@ -37,7 +37,7 @@ class InputSpec(object):
     a None shape is compatible with any shape.
     '''
     def __init__(self, dtype=None, shape=None, ndim=None):
-        if type(ndim) is str:
+        if isinstance(ndim, str):
             if '+' not in ndim:
                 raise ValueError('When passing a str "ndim", '
                                  'it should have the form "2+", "3+", etc.')
@@ -380,46 +380,47 @@ class Layer(object):
         '''
         if not self.input_spec:
             return True
-        assert type(self.input_spec) is list, ('input_spec must be a list of ' +
-                                               'InputSpec instances. Found: ' +
-                                               str(self.input_spec))
+        if not isinstance(self.input_spec, list):
+            raise TypeError('input_spec must be a list of '
+                            'InputSpec instances. Found: ' +
+                            str(self.input_spec))
         inputs = to_list(input)
         if len(self.input_spec) > 1:
             if len(inputs) != len(self.input_spec):
-                raise Exception('Layer ' + self.name + ' expects ' +
-                                str(len(self.input_spec)) + ' inputs, '
-                                'but it received ' + str(len(inputs)) +
-                                ' input tensors. Input received: ' +
-                                str(input))
+                raise ValueError('Layer ' + self.name + ' expects ' +
+                                 str(len(self.input_spec)) + ' inputs, '
+                                 'but it received ' + str(len(inputs)) +
+                                 ' input tensors. Input received: ' +
+                                 str(input))
         for input_index, (x, spec) in enumerate(zip(inputs, self.input_spec)):
             if spec is None:
                 continue
 
             # Check ndim.
             if spec.ndim is not None:
-                if type(spec.ndim) is str:
+                if isinstance(spec.ndim, str):
                     int_ndim = spec.ndim[:spec.ndim.find('+')]
                     ndim = int(int_ndim)
                     if K.ndim(x) < ndim:
-                        raise Exception('Input ' + str(input_index) +
-                                        ' is incompatible with layer ' +
-                                        self.name + ': expected ndim >= ' +
-                                        str(ndim) + ', found ndim=' +
-                                        str(K.ndim(x)))
+                        raise ValueError('Input ' + str(input_index) +
+                                         ' is incompatible with layer ' +
+                                         self.name + ': expected ndim >= ' +
+                                         str(ndim) + ', found ndim=' +
+                                         str(K.ndim(x)))
                 else:
                     if K.ndim(x) != spec.ndim:
-                        raise Exception('Input ' + str(input_index) +
-                                        ' is incompatible with layer ' +
-                                        self.name + ': expected ndim=' +
-                                        str(spec.ndim) + ', found ndim=' +
-                                        str(K.ndim(x)))
+                        raise ValueError('Input ' + str(input_index) +
+                                         ' is incompatible with layer ' +
+                                         self.name + ': expected ndim=' +
+                                         str(spec.ndim) + ', found ndim=' +
+                                         str(K.ndim(x)))
             if spec.dtype is not None:
                 if K.dtype(x) != spec.dtype:
-                    raise Exception('Input ' + str(input_index) +
-                                    ' is incompatible with layer ' +
-                                    self.name + ': expected dtype=' +
-                                    str(spec.dtype) + ', found dtype=' +
-                                    str(K.dtype(x)))
+                    raise ValueError('Input ' + str(input_index) +
+                                     ' is incompatible with layer ' +
+                                     self.name + ': expected dtype=' +
+                                     str(spec.dtype) + ', found dtype=' +
+                                     str(K.dtype(x)))
             if spec.shape is not None:
                 if hasattr(x, '_keras_shape'):
                     x_shape = x._keras_shape
@@ -431,11 +432,12 @@ class Layer(object):
                 for spec_dim, dim in zip(spec.shape, x_shape):
                     if spec_dim is not None:
                         if spec_dim != dim:
-                            raise Exception('Input ' + str(input_index) +
-                                            ' is incompatible with layer ' +
-                                            self.name + ': expected shape=' +
-                                            str(spec.shape) + ', found shape=' +
-                                            str(x_shape))
+                            raise ValueError(
+                                'Input ' + str(input_index) +
+                                ' is incompatible with layer ' +
+                                self.name + ': expected shape=' +
+                                str(spec.shape) + ', found shape=' +
+                                str(x_shape))
 
     def call(self, x, mask=None):
         '''This is where the layer's logic lives.
@@ -597,13 +599,17 @@ class Layer(object):
         '''
         if not hasattr(self, 'supports_masking') or not self.supports_masking:
             if input_mask is not None:
-                if type(input_mask) is list:
+                if isinstance(input_mask, list):
                     if any(input_mask):
-                        raise Exception('Layer ' + self.name + ' does not support masking, ' +
-                                        'but was passed an input_mask: ' + str(input_mask))
+                        raise ValueError('Layer ' + self.name +
+                                         ' does not support masking, ' +
+                                         'but was passed an input_mask: ' +
+                                         str(input_mask))
                 else:
-                    raise Exception('Layer ' + self.name + ' does not support masking, ' +
-                                    'but was passed an input_mask: ' + str(input_mask))
+                    raise ValueError('Layer ' + self.name +
+                                     ' does not support masking, ' +
+                                     'but was passed an input_mask: ' +
+                                     str(input_mask))
             # masking not explicitly supported: return None as mask
             return None
         # if masking is explictly supported, by default
@@ -1178,12 +1184,13 @@ class Merge(Layer):
         '''Validates user-passed arguments and raises exceptions
         as appropriate.
         '''
-        if not hasattr(mode, '__call__'):
+        if not callable(mode):
             if mode not in {'sum', 'mul', 'concat', 'ave', 'cos', 'dot', 'max'}:
-                raise Exception('Invalid merge mode: ' + str(mode))
-        if type(layers) not in {list, tuple} or len(layers) < 2:
-            raise Exception('A Merge should only be applied to a list of '
-                            'layers with at least 2 elements. Found: ' + str(layers))
+                raise ValueError('Invalid merge mode: ' + str(mode))
+        if not isinstance(layers, (list, tuple)) or len(layers) < 2:
+            raise TypeError('A Merge should only be applied to a list of '
+                            'layers with at least 2 elements. Found: ' +
+                            str(layers))
 
         if tensor_indices is None:
             tensor_indices = [None for _ in range(len(layers))]
@@ -1191,7 +1198,7 @@ class Merge(Layer):
         input_shapes = []
         for i, layer in enumerate(layers):
             layer_output_shape = layer.get_output_shape_at(node_indices[i])
-            if type(layer_output_shape) is list:
+            if isinstance(layer_output_shape, list):
                 # Case: the layer has multiple output tensors
                 # and we only need a specific one.
                 layer_output_shape = layer_output_shape[tensor_indices[i]]
@@ -1200,31 +1207,34 @@ class Merge(Layer):
         if mode in {'sum', 'mul', 'ave', 'cos', 'max'}:
             input_shapes_set = set(input_shapes)
             if len(input_shapes_set) > 1:
-                raise Exception('Only layers of same output shape can '
-                                'be merged using ' + mode + ' mode. ' +
-                                'Layer shapes: %s' % input_shapes)
+                raise ValueError('Only layers of same output shape can '
+                                 'be merged using ' + mode + ' mode. ' +
+                                 'Layer shapes: %s' % input_shapes)
         if mode in {'cos', 'dot'}:
             if len(layers) > 2:
-                raise Exception(mode + ' merge takes exactly 2 layers')
+                raise ValueError(mode + ' merge takes exactly 2 layers')
             shape1 = input_shapes[0]
             shape2 = input_shapes[1]
             n1 = len(shape1)
             n2 = len(shape2)
-            if type(dot_axes) == int:
+            if isinstance(dot_axes, int):
                 if dot_axes < 0:
                     self.dot_axes = [dot_axes % n1, dot_axes % n2]
                 else:
                     self.dot_axes = [dot_axes, ] * 2
-            if type(self.dot_axes) not in [list, tuple]:
-                raise Exception('Invalid type for dot_axes - should be a list.')
+            if not isinstance(self.dot_axes, (list, tuple)):
+                raise TypeError('Invalid type for dot_axes - '
+                                'should be a list.')
             if len(self.dot_axes) != 2:
-                raise Exception('Invalid format for dot_axes - should contain two elements.')
-            if type(self.dot_axes[0]) is not int or type(self.dot_axes[1]) is not int:
-                raise Exception('Invalid format for dot_axes - list elements should be "int".')
+                raise ValueError('Invalid format for dot_axes - '
+                                 'should contain two elements.')
+            if not isinstance(self.dot_axes[0], int) or not isinstance(self.dot_axes[1], int):
+                raise ValueError('Invalid format for dot_axes - '
+                                 'list elements should be "int".')
             if shape1[self.dot_axes[0]] != shape2[self.dot_axes[1]]:
-                raise Exception('Dimension incompatibility using dot mode: ' +
-                                '%s != %s. ' % (shape1[self.dot_axes[0]], shape2[self.dot_axes[1]]) +
-                                'Layer shapes: %s, %s' % (shape1, shape2))
+                raise ValueError('Dimension incompatibility using dot mode: '
+                                 '%s != %s. ' % (shape1[self.dot_axes[0]], shape2[self.dot_axes[1]]) +
+                                 'Layer shapes: %s, %s' % (shape1, shape2))
         elif mode == 'concat':
             reduced_inputs_shapes = [list(shape) for shape in input_shapes]
             shape_set = set()
@@ -1232,16 +1242,17 @@ class Merge(Layer):
                 del reduced_inputs_shapes[i][self.concat_axis]
                 shape_set.add(tuple(reduced_inputs_shapes[i]))
             if len(shape_set) > 1:
-                raise Exception('"concat" mode can only merge layers with matching ' +
-                                'output shapes except for the concat axis. ' +
-                                'Layer shapes: %s' % (input_shapes))
+                raise ValueError('"concat" mode can only merge '
+                                 'layers with matching '
+                                 'output shapes except for the concat axis. '
+                                 'Layer shapes: %s' % (input_shapes))
 
     def call(self, inputs, mask=None):
-        if type(inputs) is not list or len(inputs) <= 1:
-            raise Exception('Merge must be called on a list of tensors '
+        if not isinstance(inputs, list) or len(inputs) <= 1:
+            raise TypeError('Merge must be called on a list of tensors '
                             '(at least 2). Got: ' + str(inputs))
         # Case: "mode" is a lambda or function.
-        if hasattr(self.mode, '__call__'):
+        if callable(self.mode):
             arguments = self.arguments
             arg_spec = inspect.getargspec(self.mode)
             if 'mask' in arg_spec.args:
@@ -1285,7 +1296,7 @@ class Merge(Layer):
             output = K.expand_dims(output, 1)
             return output
         else:
-            raise Exception('Unknown merge mode.')
+            raise ValueError('Unknown merge mode.')
 
     def __call__(self, inputs, mask=None):
         '''We disable successive calls to __call__ for Merge layers.
@@ -1293,8 +1304,8 @@ class Merge(Layer):
         making it possible to __call__ a Merge instance many times
         (it is just a layer), it would make for a rather inelegant API.
         '''
-        if type(inputs) is not list:
-            raise Exception('Merge can only be called on a list of tensors, '
+        if not isinstance(inputs, list):
+            raise TypeError('Merge can only be called on a list of tensors, '
                             'not a single tensor. Received: ' + str(inputs))
         if self.built:
             raise Exception('A Merge layer cannot be used more than once, '
@@ -1329,22 +1340,25 @@ class Merge(Layer):
             return self.call(inputs, mask)
 
     def get_output_shape_for(self, input_shape):
-        assert type(input_shape) is list  # Must have multiple input shape tuples.
+        # Must have multiple input shape tuples.
+        assert isinstance(input_shape, list)
         # Case: callable self._output_shape.
-        if hasattr(self.mode, '__call__'):
-            if hasattr(self._output_shape, '__call__'):
+        if callable(self.mode):
+            if callable(self._output_shape):
                 output_shape = self._output_shape(input_shape)
                 return output_shape
             elif self._output_shape is not None:
                 return (input_shape[0][0],) + tuple(self._output_shape)
             else:
                 # TODO: consider shape auto-inference with TF.
-                raise Exception('The Merge layer ' + self.name +
-                                ' has a callable `mode` argument, ' +
-                                'and we cannot infer its output shape because ' +
-                                'no `output_shape` argument was provided. ' +
-                                'Make sure to pass a shape tuple (or a callable) ' +
-                                '`output_shape` to Merge.')
+                raise ValueError('The Merge layer ' + self.name +
+                                 ' has a callable `mode` argument, '
+                                 'and we cannot infer its output shape '
+                                 'because no `output_shape` '
+                                 'argument was provided. '
+                                 'Make sure to pass a shape tuple '
+                                 '(or callable) '
+                                 '`output_shape` to Merge.')
         # Pre-defined merge modes.
         input_shapes = input_shape
         if self.mode in ['sum', 'mul', 'ave', 'max']:
@@ -1395,14 +1409,14 @@ class Merge(Layer):
             return K.all(concatenated, axis=-1, keepdims=False)
         elif self.mode in ['cos', 'dot']:
             return None
-        elif hasattr(self.mode, '__call__'):
-            if hasattr(self._output_mask, '__call__'):
+        elif callable(self.mode):
+            if callable(self._output_mask):
                 return self._output_mask(mask)
             else:
                 return self._output_mask
         else:
             # This should have been caught earlier.
-            raise Exception('Invalid merge mode: {}'.format(self.mode))
+            raise ValueError('Invalid merge mode: {}'.format(self.mode))
 
     def get_config(self):
         if isinstance(self.mode, python_types.LambdaType):
@@ -1598,11 +1612,11 @@ class Container(Layer):
         self.trainable = True
 
         # Container-specific properties.
-        if type(input) in {list, tuple}:
+        if isinstance(input, (list, tuple)):
             self.inputs = list(input)  # Tensor or list of tensors.
         else:
             self.inputs = [input]
-        if type(output) in {list, tuple}:
+        if isinstance(output, (list, tuple)):
             self.outputs = list(output)
         else:
             self.outputs = [output]
@@ -2033,8 +2047,8 @@ class Container(Layer):
             if layer.input_spec is None:
                 specs.append(None)
             else:
-                if type(layer.input_spec) is not list:
-                    raise Exception('Layer ' + layer.name +
+                if not isinstance(layer.input_spec, list):
+                    raise TypeError('Layer ' + layer.name +
                                     ' has an input_spec attribute that '
                                     'is not a list. We expect a list. '
                                     'Found input_spec = ' +
@@ -2102,7 +2116,7 @@ class Container(Layer):
         cache_key = ','.join([str(x) for x in input_shapes])
         if cache_key in self._output_shape_cache:
             output_shapes = self._output_shape_cache[cache_key]
-            if type(output_shapes) is list and len(output_shapes) == 1:
+            if isinstance(output_shapes, list) and len(output_shapes) == 1:
                 return output_shapes[0]
             return output_shapes
         else:
@@ -2166,7 +2180,7 @@ class Container(Layer):
                 output_shapes.append(layers_to_output_shapes[key])
             # Store in cache.
             self._output_shape_cache[cache_key] = output_shapes
-            if type(output_shapes) is list and len(output_shapes) == 1:
+            if isinstance(output_shapes, list) and len(output_shapes) == 1:
                 return output_shapes[0]
             return output_shapes
 
@@ -2184,10 +2198,8 @@ class Container(Layer):
         # Returns
             Three lists: output_tensors, output_masks, output_shapes
         '''
-        assert type(inputs) is list
         if masks is None:
             masks = [None for _ in range(len(inputs))]
-        assert type(masks) is list
 
         # Dictionary mapping reference tensors to tuples (computed tensor, compute mask)
         # we assume a 1:1 mapping from tensor to mask
