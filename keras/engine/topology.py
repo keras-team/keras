@@ -2723,7 +2723,16 @@ class Container(Layer):
         else:
             flattened_layers = self.layers
 
+        if not self.trainable:
+            trainable_layers = [layer for layer in flattened_layers if layer.trainable]
+            for layer in trainable_layers:
+                layer.trainable = False
+
         print_summary(flattened_layers, getattr(self, 'container_nodes', None), line_length=line_length, positions=positions)
+
+        if not self.trainable:
+            for layer in trainable_layers:
+                layer.trainable = True
 
 
 def get_source_inputs(tensor, layer=None, node_index=None):
