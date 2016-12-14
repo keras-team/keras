@@ -246,8 +246,7 @@ class ModelCheckpoint(Callback):
         save_weights_only: if True, then only the model's weights will be
             saved (`model.save_weights(filepath)`), else the full model
             is saved (`model.save(filepath)`).
-        period: Interval in number of epochs between models being considered
-            for saving.
+        period: Interval (number of epochs) between checkpoints.
 
     '''
     def __init__(self, filepath, monitor='val_loss', verbose=0,
