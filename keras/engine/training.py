@@ -695,7 +695,7 @@ class Model(Container):
             training_updates = self.optimizer.get_updates(self._collected_trainable_weights,
                                                           self.constraints,
                                                           self.total_loss)
-            updates = self.updates + training_updates
+            updates = self.rnn_updates + self.updates + training_updates
 
             # returns loss and metrics. Updates weights at each call.
             self.train_function = K.function(inputs,
@@ -715,7 +715,7 @@ class Model(Container):
             # Does update the network states.
             self.test_function = K.function(inputs,
                                             [self.total_loss] + self.metrics_tensors,
-                                            updates=self.state_updates,
+                                            updates=self.rnn_updates + self.state_updates,
                                             **self._function_kwargs)
 
     def _make_predict_function(self):
@@ -731,7 +731,7 @@ class Model(Container):
             kwargs = getattr(self, '_function_kwargs', {})
             self.predict_function = K.function(inputs,
                                                self.outputs,
-                                               updates=self.state_updates,
+                                               updates=self.rnn_updates + self.state_updates,
                                                **kwargs)
 
     def _fit_loop(self, f, ins, out_labels=[], batch_size=32,

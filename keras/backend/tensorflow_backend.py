@@ -265,9 +265,17 @@ def dtype(x):
     return x.dtype.name
 
 
-def eval(x):
+def eval(x, updates=None):
     '''Evaluates the value of a tensor.
-    Returns a Numpy array.
+
+    # Arguments
+        x: tensor
+        updates: The updates of theano.scan().
+            This is passed to theano.function().
+            This is ignored in TensorFlow.
+
+    # Returns
+        A Numpy array.
     '''
     return to_dense(x).eval(session=get_session())
 
@@ -1201,7 +1209,7 @@ def rnn(step_function, inputs, initial_states,
             Must be specified if using unrolling with Theano.
 
     # Returns
-        A tuple (last_output, outputs, new_states).
+        A tuple (last_output, outputs, new_states, updates).
 
         last_output: the latest output of the rnn, of shape (samples, ...)
         outputs: tensor with shape (samples, time, ...) where each
@@ -1209,6 +1217,11 @@ def rnn(step_function, inputs, initial_states,
             at time t for sample s.
         new_states: list of tensors, latest states returned by
             the step function, of shape (samples, ...).
+        updates: The return value of theano.scan() updates.
+            Theano returns OrderedUpdates but it is converted to a Python list.
+            This must be passed to K.function() and K.eval().
+            If you are using inside a Layer, call Layer.add_rnn_updates().
+            TensorFlow always returns [].
     '''
     ndim = len(inputs.get_shape())
     if ndim < 3:
@@ -1364,7 +1377,7 @@ def rnn(step_function, inputs, initial_states,
 
     axes = [1, 0] + list(range(2, len(outputs.get_shape())))
     outputs = tf.transpose(outputs, axes)
-    return last_output, outputs, new_states
+    return last_output, outputs, new_states, []
 
 
 def _cond(condition, then_lambda, else_lambda):
