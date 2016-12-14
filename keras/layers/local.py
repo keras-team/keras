@@ -269,7 +269,7 @@ class LocallyConnected2D(Layer):
         self.border_mode = border_mode
         self.subsample = tuple(subsample)
         if dim_ordering not in {'tf', 'th'}:
-            raise ValueError('dim_ordering must be in {tf, th}.')
+            raise ValueError('`dim_ordering` must be in {tf, th}.')
         self.dim_ordering = dim_ordering
 
         self.W_regularizer = regularizers.get(W_regularizer)
