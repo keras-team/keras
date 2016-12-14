@@ -117,8 +117,8 @@ class BatchNormalization(Layer):
                 epsilon=self.epsilon)
 
             if self.mode == 0:
-                self.add_updates([K.moving_average_update(self.running_mean, mean, self.momentum),
-                                  K.moving_average_update(self.running_std, std, self.momentum)], x)
+                self.add_update([K.moving_average_update(self.running_mean, mean, self.momentum),
+                                 K.moving_average_update(self.running_std, std, self.momentum)], x)
 
                 if sorted(reduction_axes) == range(K.ndim(x))[:-1]:
                     x_normed_running = K.batch_normalization(
