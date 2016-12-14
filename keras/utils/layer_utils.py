@@ -34,7 +34,8 @@ def layer_from_config(config, custom_objects={}):
     return layer_class.from_config(config['config'])
 
 
-def print_summary(layers, relevant_nodes=None, line_length=100, positions=[.33, .55, .67, 1.]):
+def print_summary(layers, relevant_nodes=None,
+                  line_length=100, positions=[.33, .55, .67, 1.]):
     '''Prints a summary of a layer
 
     # Arguments

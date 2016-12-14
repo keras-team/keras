@@ -170,7 +170,7 @@ class SpatialDropout2D(Dropout):
         elif self.dim_ordering == 'tf':
             noise_shape = (input_shape[0], 1, 1, input_shape[3])
         else:
-            raise Exception('Invalid dim_ordering: ' + self.dim_ordering)
+            raise ValueError('Invalid dim_ordering:', self.dim_ordering)
         return noise_shape
 
 
@@ -218,7 +218,7 @@ class SpatialDropout3D(Dropout):
         elif self.dim_ordering == 'tf':
             noise_shape = (input_shape[0], 1, 1, 1, input_shape[4])
         else:
-            raise Exception('Invalid dim_ordering: ' + self.dim_ordering)
+            raise ValueError('Invalid dim_ordering:', self.dim_ordering)
         return noise_shape
 
 
@@ -428,12 +428,12 @@ class Flatten(Layer):
 
     def get_output_shape_for(self, input_shape):
         if not all(input_shape[1:]):
-            raise Exception('The shape of the input to "Flatten" '
-                            'is not fully defined '
-                            '(got ' + str(input_shape[1:]) + '. '
-                            'Make sure to pass a complete "input_shape" '
-                            'or "batch_input_shape" argument to the first '
-                            'layer in your model.')
+            raise ValueError('The shape of the input to "Flatten" '
+                             'is not fully defined '
+                             '(got ' + str(input_shape[1:]) + '. '
+                             'Make sure to pass a complete "input_shape" '
+                             'or "batch_input_shape" argument to the first '
+                             'layer in your model.')
         return (input_shape[0], np.prod(input_shape[1:]))
 
     def call(self, x, mask=None):
@@ -542,11 +542,11 @@ class Lambda(Layer):
 
         if output_shape is None:
             self._output_shape = None
-        elif type(output_shape) in {tuple, list}:
+        elif isinstance(output_shape, (tuple, list)):
             self._output_shape = tuple(output_shape)
         else:
-            if not hasattr(output_shape, '__call__'):
-                raise Exception('In Lambda, `output_shape` '
+            if not callable(output_shape):
+                raise TypeError('In Lambda, `output_shape` '
                                 'must be a list, a tuple, or a function.')
             self._output_shape = output_shape
         super(Lambda, self).__init__(**kwargs)
@@ -554,14 +554,14 @@ class Lambda(Layer):
     def get_output_shape_for(self, input_shape):
         if self._output_shape is None:
             # if TensorFlow, we can infer the output shape directly:
-            if K._BACKEND == 'tensorflow':
-                if type(input_shape) is list:
+            if K.backend() == 'tensorflow':
+                if isinstance(input_shape, list):
                     xs = [K.placeholder(shape=shape) for shape in input_shape]
                     x = self.call(xs)
                 else:
                     x = K.placeholder(shape=input_shape)
                     x = self.call(x)
-                if type(x) is list:
+                if isinstance(x, list):
                     return [K.int_shape(x_elem) for x_elem in x]
                 else:
                     return K.int_shape(x)
@@ -572,16 +572,16 @@ class Lambda(Layer):
                           'If the expected output shape is different, specify it via the `output_shape` argument.'
                           .format(self.name, input_shape))
             return input_shape
-        elif type(self._output_shape) in {tuple, list}:
-            if type(input_shape) is list:
+        elif isinstance(self._output_shape, (tuple, list)):
+            if isinstance(input_shape, list):
                 nb_samples = input_shape[0][0]
             else:
                 nb_samples = input_shape[0] if input_shape else None
             return (nb_samples,) + tuple(self._output_shape)
         else:
             shape = self._output_shape(input_shape)
-            if type(shape) not in {list, tuple}:
-                raise Exception('output_shape function must return a tuple')
+            if not isinstance(shape, (list, tuple)):
+                raise ValueError('output_shape function must return a tuple')
             return tuple(shape)
 
     def call(self, x, mask=None):
@@ -625,7 +625,7 @@ class Lambda(Layer):
         elif function_type == 'lambda':
             function = func_load(config['function'], globs=globals())
         else:
-            raise Exception('Unknown function type: ' + function_type)
+            raise TypeError('Unknown function type:', function_type)
 
         output_shape_type = config.pop('output_shape_type')
         if output_shape_type == 'function':
@@ -1167,7 +1167,7 @@ class TimeDistributedDense(Layer):
             if hasattr(K, 'int_shape'):
                 input_length = K.int_shape(x)[1]
                 if not input_length:
-                    raise Exception(
+                    raise ValueError(
                         'Layer ' + self.name +
                         ' requires to know the length of its input, '
                         'but it could not be inferred automatically. '
