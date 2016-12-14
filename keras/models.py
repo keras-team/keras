@@ -541,6 +541,10 @@ class Sequential(Model):
         return self.model.validation_data
 
     @property
+    def validation_gen(self):
+        return self.model.validation_gen
+
+    @property
     def training_data(self):
         return self.model.training_data
 

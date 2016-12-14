@@ -546,21 +546,65 @@ class TensorBoard(Callback):
     def on_epoch_end(self, epoch, logs={}):
         import tensorflow as tf
 
-        if self.model.validation_data and self.histogram_freq:
-            if epoch % self.histogram_freq == 0:
-                # TODO: implement batched calls to sess.run
-                # (current call will likely go OOM on GPU)
-                if self.model.uses_learning_phase:
-                    cut_v_data = len(self.model.inputs)
-                    val_data = self.model.validation_data[:cut_v_data] + [0]
-                    tensors = self.model.inputs + [K.learning_phase()]
-                else:
-                    val_data = self.model.validation_data
-                    tensors = self.model.inputs
-                feed_dict = dict(zip(tensors, val_data))
-                result = self.sess.run([self.merged], feed_dict=feed_dict)
-                summary_str = result[0]
+        def get_val_summary(validation_data):
+            if self.model.uses_learning_phase:
+                cut_v_data = len(self.model.inputs)
+                val_data = list(validation_data[:cut_v_data]) + [0]
+                tensors = self.model.inputs + [K.learning_phase()]
+            else:
+                val_data = validation_data
+                tensors = self.model.inputs
+            feed_dict = dict(zip(tensors, val_data))
+            result = self.sess.run([self.merged], feed_dict=feed_dict)
+            return result[0]
+
+        if self.histogram_freq and epoch % self.histogram_freq == 0:
+            if self.model.validation_data:
+                summary_str = get_val_summary(self.model.validation_data)
                 self.writer.add_summary(summary_str, epoch)
+            elif self.model.validation_gen:
+                val_gen = self.model.validation_gen.generator
+                nb_val_samples = self.model.validation_gen.nb_samples
+                # process nb_samples from validation data generator
+                sub_summaries = []
+                processed_samples = 0
+                while processed_samples < nb_val_samples:
+                    validation_data = next(val_gen)
+                    summary = tf.Summary.FromString(get_val_summary(validation_data))
+                    sub_summaries.append(summary)
+                    processed_samples += validation_data[0].shape[0]
+                # convert summaries to dict of lists
+                sub_summaries_dict = {}
+                for sub_summary in sub_summaries:
+                    for value in sub_summary.value:
+                        value_field = value.WhichOneof('value')
+                        value_ifo = sub_summaries_dict.setdefault(value.tag, {'value_field': None, 'values': []})
+                        if not value_ifo['value_field']:
+                            value_ifo['value_field'] = value_field
+                        else:
+                            assert value_ifo['value_field'] == value_field
+                        value_ifo['values'].append(getattr(value, value_field))
+                # aggregate summaries
+                summary = tf.Summary()
+                for name, value_ifo in sub_summaries_dict.items():
+                    summary_value = summary.value.add()
+                    summary_value.tag = name
+                    if value_ifo['value_field'] == 'histo':
+                        values = value_ifo['values']
+                        summary_value.histo.min = min([x.min for x in values])
+                        summary_value.histo.max = max([x.max for x in values])
+                        summary_value.histo.num = sum([x.num for x in values])
+                        summary_value.histo.sum = sum([x.sum for x in values])
+                        summary_value.histo.sum_squares = sum([x.sum_squares for x in values])
+                        # for histogram values, just take first batch for now
+                        # TODO: aggregate histograms over batches
+                        for lim in values[0].bucket_limit:
+                            summary_value.histo.bucket_limit.append(lim)
+                        for bucket in values[0].bucket:
+                            summary_value.histo.bucket.append(bucket)
+                    else:
+                        print('Warning: could not aggregate summary of type {}'.format(value_ifo['value_field']))
+                self.writer.add_summary(summary, epoch)
 
         for name, value in logs.items():
             if name in ['batch', 'size']:
