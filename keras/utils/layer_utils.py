@@ -101,22 +101,23 @@ def print_summary(layers, relevant_nodes=None,
         else:
             print('_' * line_length)
 
-    def count_total_params(layers, layer_set=None):
-        if layer_set is None:
-            layer_set = set()
-        total_params = 0
-        for layer in layers:
-            if layer in layer_set:
-                continue
-            layer_set.add(layer)
-            if type(layer) in (Model, Sequential):
-                total_params += count_total_params(layer.layers, layer_set)
-            else:
-                total_params += layer.count_params()
-        return total_params
-
     print('Total params: %s' % count_total_params(layers))
     print('_' * line_length)
+
+
+def count_total_params(layers, layer_set=None):
+    if layer_set is None:
+        layer_set = set()
+    total_params = 0
+    for layer in layers:
+        if layer in layer_set:
+            continue
+        layer_set.add(layer)
+        if type(layer) in (Model, Sequential):
+            total_params += count_total_params(layer.layers, layer_set)
+        else:
+            total_params += layer.count_params()
+    return total_params
 
 
 def convert_all_kernels_in_model(model):
