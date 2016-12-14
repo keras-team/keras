@@ -52,7 +52,7 @@ class EigenvalueRegularizer(Regularizer):
                          K.dot(K.transpose(main_eigenvect), main_eigenvect))
         # multiplied by the given regularization gain
         regularization = (main_eigenval ** 0.5) * self.k
-        return regularization
+        return K.sum(regularization)
 
 
 class L1L2Regularizer(Regularizer):
