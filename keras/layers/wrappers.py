@@ -34,6 +34,10 @@ class Wrapper(Layer):
     def set_weights(self, weights):
         self.layer.set_weights(weights)
 
+    @property
+    def requires_batch_size(self):
+        return self.layer.requires_batch_size
+
     def get_config(self):
         config = {'layer': {'class_name': self.layer.__class__.__name__,
                             'config': self.layer.get_config()}}
@@ -107,8 +111,11 @@ class TimeDistributed(Wrapper):
 
     def call(self, X, mask=None):
         input_shape = self.input_spec[0].shape
-        if input_shape[0]:
+        if self.layer.requires_batch_size:
             # batch size matters, use rnn-based implementation
+            if input_shape[0] is None:
+                raise ValueError("Batch size is unknown.")
+
             def step(x, states):
                 output = self.layer.call(x)
                 return output, []
