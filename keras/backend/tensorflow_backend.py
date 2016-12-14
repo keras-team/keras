@@ -1108,7 +1108,7 @@ class Function(object):
         with tf.control_dependencies(self.outputs):
             updates_ops = []
             for update in updates:
-                if type(update) is tuple:
+                if isinstance(update, tuple):
                     p, new_p = update
                     updates_ops.append(tf.assign(p, new_p))
                 else:
@@ -1117,7 +1117,8 @@ class Function(object):
             self.updates_op = tf.group(*updates_ops)
 
     def __call__(self, inputs):
-        assert type(inputs) in {list, tuple}
+        if not isinstance(inputs, (list, tuple)):
+            raise TypeError('`inputs` should be a list or tuple.')
         feed_dict = {}
         for tensor, value in zip(self.inputs, inputs):
             if is_sparse(tensor):
