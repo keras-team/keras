@@ -2105,9 +2105,12 @@ class Container(Layer):
 
     @property
     def regularizers(self):
-        warnings.warn('The `regularizers` property of layers/models is deprecated. '
+        warnings.warn('The `regularizers` attribute of layers/models '
+                      'is deprecated. '
                       'Regularization losses are now managed via the `losses` '
-                      'layer/model property.')
+                      'layer/model property.\n'
+                      'The `regularizers` attribute will be removed '
+                      'after 06/2017.')
         return []
 
     @property

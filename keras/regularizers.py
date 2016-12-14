@@ -13,10 +13,14 @@ class Regularizer(object):
         return {'name': self.__class__.__name__}
 
     def set_param(self, _):
-        warnings.warn('The `set_param` method on regularizers is deprecated.')
+        warnings.warn('The `set_param` method on regularizers is deprecated. '
+                      'It no longer does anything, '
+                      'and it will be removed after 06/2017.')
 
     def set_layer(self, _):
-        warnings.warn('The `set_layer` method on regularizers is deprecated.')
+        warnings.warn('The `set_layer` method on regularizers is deprecated. '
+                      'It no longer does anything, '
+                      'and it will be removed after 06/2017.')
 
 
 class EigenvalueRegularizer(Regularizer):
@@ -31,26 +35,24 @@ class EigenvalueRegularizer(Regularizer):
         self.k = k
 
     def __call__(self, x):
-        power = 9  # number of iterations of the power method
         if K.ndim(x) > 2:
-            raise Exception('Eigenvalue Decay regularizer '
-                            'is only available for dense '
-                            'and embedding layers.')
+            raise Exception('EigenvalueRegularizer '
+                            'is only available for tensors of rank 2.')
         covariance = K.dot(K.transpose(x), x)
-        dim1, dim2 = K.eval(K.shape(covariance))  # number of neurons in the layer
+        dim1, dim2 = K.eval(K.shape(covariance))
 
-        # power method for approximating the dominant eigenvector:
-        o = K.ones([dim1, 1])  # initial values for the dominant eigenvector
+        # Power method for approximating the dominant eigenvector:
+        power = 9  # Number of iterations of the power method.
+        o = K.ones([dim1, 1])  # Initial values for the dominant eigenvector.
         main_eigenvect = K.dot(covariance, o)
         for n in range(power - 1):
             main_eigenvect = K.dot(covariance, main_eigenvect)
-
         covariance_d = K.dot(covariance, main_eigenvect)
 
-        # the corresponding dominant eigenvalue:
+        # The corresponding dominant eigenvalue:
         main_eigenval = (K.dot(K.transpose(covariance_d), main_eigenvect) /
                          K.dot(K.transpose(main_eigenvect), main_eigenvect))
-        # multiplied by the given regularization gain
+        # Multiply by the given regularization gain.
         regularization = (main_eigenval ** 0.5) * self.k
         return K.sum(regularization)
 
