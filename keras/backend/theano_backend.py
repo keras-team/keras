@@ -493,16 +493,16 @@ def _old_batch_normalization(x, mean, var, beta, gamma, epsilon=1e-3):
                 shuffle_pattern = list(range(ndim))
                 shuffle_pattern[1] = shuffle_pattern[axis]
                 shuffle_pattern[axis] = 1
-                x = x.dimshuffle(shuffle_pattern)
-                mean = mean.dimshuffle(shuffle_pattern)
-                var = var.dimshuffle(shuffle_pattern)
-                beta = beta.dimshuffle(shuffle_pattern)
-                gamma = gamma.dimshuffle(shuffle_pattern)
-            normed = theano.sandbox.cuda.dnn.dnn_batch_normalization_test(x, gamma, beta, mean, var,
-                                                                          'spatial', epsilon)
-            if axis != 1:
-                normed = normed.dimshuffle(shuffle_pattern)
-            return normed
+                return theano.sandbox.cuda.dnn.dnn_batch_normalization_test(
+                    x.dimshuffle(shuffle_pattern),
+                    gamma.dimshuffle(shuffle_pattern),
+                    beta.dimshuffle(shuffle_pattern),
+                    mean.dimshuffle(shuffle_pattern),
+                    var.dimshuffle(shuffle_pattern),
+                    'spatial', epsilon).dimshuffle(shuffle_pattern)
+            else:
+                return theano.sandbox.cuda.dnn.dnn_batch_normalization_test(
+                    x, gamma, beta, mean, var, 'spatial', epsilon)
         except AttributeError:
             pass
         except ValueError:
