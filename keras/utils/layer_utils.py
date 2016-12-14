@@ -101,22 +101,31 @@ def print_summary(layers, relevant_nodes=None,
         else:
             print('_' * line_length)
 
-    def count_total_params(layers, layer_set=None):
-        if layer_set is None:
-            layer_set = set()
-        total_params = 0
-        for layer in layers:
-            if layer in layer_set:
-                continue
-            layer_set.add(layer)
-            if type(layer) in (Model, Sequential):
-                total_params += count_total_params(layer.layers, layer_set)
-            else:
-                total_params += layer.count_params()
-        return total_params
+    trainable_count, non_trainable_count = count_total_params(layers, layer_set=None)
 
-    print('Total params: %s' % count_total_params(layers))
+    print('Total params: {:,}'.format(trainable_count + non_trainable_count))
+    print('Trainable params: {:,}'.format(trainable_count))
+    print('Non-trainable params: {:,}'.format(non_trainable_count))
     print('_' * line_length)
+
+
+def count_total_params(layers, layer_set=None):
+    if layer_set is None:
+        layer_set = set()
+    trainable_count = 0
+    non_trainable_count = 0
+    for layer in layers:
+        if layer in layer_set:
+            continue
+        layer_set.add(layer)
+        if type(layer) in (Model, Sequential):
+            t, nt = count_total_params(layer.layers, layer_set)
+            trainable_count += t
+            non_trainable_count += nt
+        else:
+            trainable_count += sum([K.count_params(p) for p in layer.trainable_weights])
+            non_trainable_count += sum([K.count_params(p) for p in layer.non_trainable_weights])
+    return trainable_count, non_trainable_count
 
 
 def convert_all_kernels_in_model(model):
