@@ -1671,8 +1671,12 @@ class Model(Container):
                     shape = (val_samples,) + out.shape[1:]
                     all_outs.append(np.zeros(shape, dtype=K.floatx()))
 
+            # when val_samples is not multiple of batch_size in generator
+            if processed_samples + nb_samples > val_samples:
+                nb_samples = val_samples - processed_samples
+                
             for i, out in enumerate(outs):
-                all_outs[i][processed_samples:(processed_samples + nb_samples)] = out
+                all_outs[i][processed_samples:(processed_samples + nb_samples)] = out[:nb_samples]
 
             processed_samples += nb_samples
 
