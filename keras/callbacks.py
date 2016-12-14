@@ -250,13 +250,17 @@ class ModelCheckpoint(Callback):
     '''
     def __init__(self, filepath, monitor='val_loss', verbose=0,
                  save_best_only=False, save_weights_only=False,
-                 mode='auto'):
+                 mode='auto', freq_to_update_latest=1, freq_to_update_best=1):
         super(ModelCheckpoint, self).__init__()
+        self.last_epoch_update_best = -1
+        self.last_epoch_update_latest = -1
         self.monitor = monitor
         self.verbose = verbose
         self.filepath = filepath
         self.save_best_only = save_best_only
         self.save_weights_only = save_weights_only
+        self.freq_to_update_latest = freq_to_update_latest
+        self.freq_to_update_best = freq_to_update_best
 
         if mode not in ['auto', 'min', 'max']:
             warnings.warn('ModelCheckpoint mode %s is unknown, '
@@ -281,6 +285,8 @@ class ModelCheckpoint(Callback):
     def on_epoch_end(self, epoch, logs={}):
         filepath = self.filepath.format(epoch=epoch, **logs)
         if self.save_best_only:
+            if epoch - self.last_epoch_update_best < self.freq_to_update_best:
+                return
             current = logs.get(self.monitor)
             if current is None:
                 warnings.warn('Can save best model only with %s available, '
@@ -297,17 +303,21 @@ class ModelCheckpoint(Callback):
                         self.model.save_weights(filepath, overwrite=True)
                     else:
                         self.model.save(filepath, overwrite=True)
+                    self.last_epoch_update_best = epoch
                 else:
                     if self.verbose > 0:
                         print('Epoch %05d: %s did not improve' %
                               (epoch, self.monitor))
         else:
+            if epoch - self.last_epoch_update_latest < self.freq_to_update_latest:
+                return
             if self.verbose > 0:
                 print('Epoch %05d: saving model to %s' % (epoch, filepath))
             if self.save_weights_only:
                 self.model.save_weights(filepath, overwrite=True)
             else:
                 self.model.save(filepath, overwrite=True)
+            self.last_epoch_update_latest = epoch
 
 
 class EarlyStopping(Callback):
