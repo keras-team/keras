@@ -549,7 +549,10 @@ class NumpyArrayIterator(Iterator):
                              'either 1, 3 or 4 channels on axis ' + str(channels_axis) + '. '
                              'However, it was passed an array with shape ' + str(self.X.shape) +
                              ' (' + str(self.X.shape[channels_axis]) + ' channels).')
-        self.y = np.asarray(y)
+        if y is not None:
+            self.y = np.asarray(y)
+        else:
+            self.y = None
         self.image_data_generator = image_data_generator
         self.dim_ordering = dim_ordering
         self.save_to_dir = save_to_dir
