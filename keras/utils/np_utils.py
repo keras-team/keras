@@ -16,13 +16,32 @@ def to_categorical(y, nb_classes=None):
     # Returns
         A binary matrix representation of the input.
     '''
-    y = np.array(y, dtype='int')
+    y = np.asarray(y, dtype='int')
     if not nb_classes:
         nb_classes = np.max(y)+1
     Y = np.zeros((len(y), nb_classes))
-    for i in range(len(y)):
-        Y[i, y[i]] = 1.
+    Y[np.arange(len(y)), y] = 1.
     return Y
+
+
+def smooth_labels(y, smooth_factor):
+    '''Convert a matrix of one-hot row-vector labels into smoothed versions.
+
+    # Arguments
+        y: matrix of one-hot row-vector labels to be smoothed
+        smooth_factor: label smoothing factor (between 0 and 1)
+
+    # Returns
+        A matrix of smoothed labels.
+    '''
+    assert len(y.shape) == 2
+    if 0 <= smooth_factor <= 1:
+        # label smoothing ref: https://www.robots.ox.ac.uk/~vgg/rg/papers/reinception.pdf
+        y *= 1 - smooth_factor
+        y += smooth_factor / y.shape[1]
+    else:
+        raise Exception('Invalid label smoothing factor: ' + str(smooth_factor))
+    return y
 
 
 def normalize(a, axis=-1, order=2):
