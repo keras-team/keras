@@ -1699,6 +1699,7 @@ class Container(Layer):
             prefix = self.__class__.__name__.lower()
             name = prefix + '_' + str(K.get_uid(prefix))
         self.name = name
+        self.iteration = self.Iteration()
 
         # Whether container weights are trainable.
         self.trainable = True
@@ -2848,6 +2849,23 @@ class Container(Layer):
             flattened_layers = self.layers
 
         print_summary(flattened_layers, getattr(self, 'container_nodes', None), line_length=line_length, positions=positions)
+        
+    class Iteration:
+        '''Maintains metadata about the compilation and internal epoch
+            count for a model.
+        # Note
+            `Compilations` is automatically incremented during compilation.
+            `Epochs` is automatically incremented at the start and end of a training epoch.
+        '''
+        def __init__(self):
+            self.compilations = 0
+            self.epochs = 0.0
+            
+        def __repr__(self):
+            return 'Compilations: {0}\t\tEpochs Seen: {1}'.format(self.compilations, self.epochs)
+            
+        def __str__(self):
+            return '{0}.{1}'.format(self.compilations, self.epochs)
 
 
 def get_source_inputs(tensor, layer=None, node_index=None):
