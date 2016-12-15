@@ -23,7 +23,10 @@ example output
 from __future__ import print_function
 
 from collections import defaultdict
-import cPickle as pickle
+try:
+    import cPickle as pickle
+except ImportError:
+    import pickle
 from PIL import Image
 
 from six.moves import range
