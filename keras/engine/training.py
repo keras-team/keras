@@ -36,47 +36,47 @@ def standardize_input_data(data, names, shapes=None,
         arrays = []
         for name in names:
             if name not in data:
-                raise Exception('No data provided for "' +
-                                name + '". Need data for each key in: ' +
-                                str(data.keys()))
+                raise ValueError('No data provided for "' +
+                                 name + '". Need data for each key in: ' +
+                                 str(data.keys()))
             arrays.append(data[name])
     elif isinstance(data, list):
         if len(data) != len(names):
             if len(data) > 0 and hasattr(data[0], 'shape'):
-                raise Exception('Error when checking ' + exception_prefix +
-                                ': the list of Numpy arrays '
-                                'that you are passing to your model '
-                                'is not the size the model expected. '
-                                'Expected to see ' + str(len(names)) +
-                                ' arrays but instead got '
-                                'the following list of ' + str(len(data)) +
-                                ' arrays: ' + str(data)[:200] +
-                                '...')
+                raise ValueError('Error when checking ' + exception_prefix +
+                                 ': the list of Numpy arrays '
+                                 'that you are passing to your model '
+                                 'is not the size the model expected. '
+                                 'Expected to see ' + str(len(names)) +
+                                 ' arrays but instead got '
+                                 'the following list of ' + str(len(data)) +
+                                 ' arrays: ' + str(data)[:200] +
+                                 '...')
             else:
                 if len(names) == 1:
                     data = [np.asarray(data)]
                 else:
-                    raise Exception('Error when checking ' + exception_prefix +
-                                    ': you are passing a list as '
-                                    'input to your model, '
-                                    'but the model expects '
-                                    'a list of ' + str(len(names)) +
-                                    ' Numpy arrays instead. '
-                                    'The list you passed was: ' +
-                                    str(data)[:200])
+                    raise ValueError('Error when checking ' + exception_prefix +
+                                     ': you are passing a list as '
+                                     'input to your model, '
+                                     'but the model expects '
+                                     'a list of ' + str(len(names)) +
+                                     ' Numpy arrays instead. '
+                                     'The list you passed was: ' +
+                                     str(data)[:200])
         arrays = data
     else:
         if not hasattr(data, 'shape'):
-            raise Exception('Error when checking ' + exception_prefix +
+            raise TypeError('Error when checking ' + exception_prefix +
                             ': data should be a Numpy array, '
                             'or list/dict of Numpy arrays. '
                             'Found: ' + str(data)[:200] + '...')
         if len(names) != 1:
             # case: model expects multiple inputs but only received
             # a single Numpy array
-            raise Exception('The model expects ' + str(len(names)) +
-                            ' input arrays, but only received one array. '
-                            'Found: array with shape ' + str(data.shape))
+            raise ValueError('The model expects ' + str(len(names)) +
+                             ' input arrays, but only received one array. '
+                             'Found: array with shape ' + str(data.shape))
         arrays = [data]
 
     # make arrays at least 2D
@@ -93,22 +93,22 @@ def standardize_input_data(data, names, shapes=None,
                 continue
             array = arrays[i]
             if len(array.shape) != len(shapes[i]):
-                raise Exception('Error when checking ' + exception_prefix +
-                                ': expected ' + names[i] +
-                                ' to have ' + str(len(shapes[i])) +
-                                ' dimensions, but got array with shape ' +
-                                str(array.shape))
+                raise ValueError('Error when checking ' + exception_prefix +
+                                 ': expected ' + names[i] +
+                                 ' to have ' + str(len(shapes[i])) +
+                                 ' dimensions, but got array with shape ' +
+                                 str(array.shape))
             for j, (dim, ref_dim) in enumerate(zip(array.shape, shapes[i])):
                 if not j and not check_batch_dim:
                     # skip the first axis
                     continue
                 if ref_dim:
                     if ref_dim != dim:
-                        raise Exception('Error when checking ' + exception_prefix +
-                                        ': expected ' + names[i] +
-                                        ' to have shape ' + str(shapes[i]) +
-                                        ' but got array with shape ' +
-                                        str(array.shape))
+                        raise ValueError('Error when checking ' + exception_prefix +
+                                         ': expected ' + names[i] +
+                                         ' to have shape ' + str(shapes[i]) +
+                                         ' but got array with shape ' +
+                                         str(array.shape))
     return arrays
 
 
@@ -124,12 +124,12 @@ def standardize_sample_or_class_weights(x_weight, output_names, weight_type):
             return [x_weight]
     if isinstance(x_weight, list):
         if len(x_weight) != len(output_names):
-            raise Exception('Provided `' + weight_type + '` was a list of ' +
-                            str(len(x_weight)) +
-                            ' elements, but the model has ' +
-                            str(len(output_names)) + ' outputs. '
-                            'You should provide one `' + weight_type + '`'
-                            'array per model output.')
+            raise ValueError('Provided `' + weight_type + '` was a list of ' +
+                             str(len(x_weight)) +
+                             ' elements, but the model has ' +
+                             str(len(output_names)) + ' outputs. '
+                             'You should provide one `' + weight_type + '`'
+                             'array per model output.')
         return x_weight
     if isinstance(x_weight, dict):
         x_weights = []
@@ -137,7 +137,7 @@ def standardize_sample_or_class_weights(x_weight, output_names, weight_type):
             x_weights.append(x_weight.get(name))
         return x_weights
     else:
-        raise Exception('The model has multiple outputs, so `' +
+        raise TypeError('The model has multiple outputs, so `' +
                         weight_type + '` '
                         'should be either a list of a dict. '
                         'Provided `' + weight_type +
@@ -163,26 +163,26 @@ def check_array_lengths(X, Y, W):
     w_lengths = [w.shape[0] for w in W]
     set_x = set(x_lengths)
     if len(set_x) != 1:
-        raise Exception('All input arrays (x) should have '
-                        'the same number of samples.')
+        raise ValueError('All input arrays (x) should have '
+                         'the same number of samples.')
     set_y = set(y_lengths)
     if len(set_y) != 1:
-        raise Exception('All target arrays (y) should have '
-                        'the same number of samples.')
+        raise ValueError('All target arrays (y) should have '
+                         'the same number of samples.')
     set_w = set(w_lengths)
     if len(set_w) != 1:
-        raise Exception('All sample_weight arrays should have '
-                        'the same number of samples.')
+        raise ValueError('All sample_weight arrays should have '
+                         'the same number of samples.')
     if list(set_x)[0] != list(set_y)[0]:
-        raise Exception('Input arrays should have '
-                        'the same number of samples as target arrays. Found ' +
-                        str(list(set_x)[0]) + ' input samples and ' +
-                        str(list(set_y)[0]) + ' target samples.')
+        raise ValueError('Input arrays should have '
+                         'the same number of samples as target arrays. Found ' +
+                         str(list(set_x)[0]) + ' input samples and ' +
+                         str(list(set_y)[0]) + ' target samples.')
     if list(set_x)[0] != list(set_w)[0]:
-        raise Exception('Sample_weight arrays should have '
-                        'the same number of samples as input arrays. Found ' +
-                        str(list(set_x)[0]) + ' input samples and ' +
-                        str(list(set_w)[0]) + ' target samples.')
+        raise ValueError('Sample_weight arrays should have '
+                         'the same number of samples as input arrays. Found ' +
+                         str(list(set_x)[0]) + ' input samples and ' +
+                         str(list(set_w)[0]) + ' target samples.')
 
 
 def check_loss_and_target_compatibility(targets, losses, output_shapes):
@@ -192,30 +192,30 @@ def check_loss_and_target_compatibility(targets, losses, output_shapes):
     for y, loss, shape in zip(targets, losses, output_shapes):
         if loss.__name__ == 'categorical_crossentropy':
             if y.shape[-1] == 1:
-                raise Exception('You are passing a target array of shape ' + str(y.shape) +
-                                ' while using as loss `categorical_crossentropy`. '
-                                '`categorical_crossentropy` expects '
-                                'targets to be binary matrices (1s and 0s) '
-                                'of shape (samples, classes). '
-                                'If your targets are integer classes, '
-                                'you can convert them to the expected format via:\n'
-                                '```\n'
-                                'from keras.utils.np_utils import to_categorical\n'
-                                'y_binary = to_categorical(y_int)\n'
-                                '```\n'
-                                '\n'
-                                'Alternatively, you can use the loss function '
-                                '`sparse_categorical_crossentropy` instead, '
-                                'which does expect integer targets.')
+                raise ValueError('You are passing a target array of shape ' + str(y.shape) +
+                                 ' while using as loss `categorical_crossentropy`. '
+                                 '`categorical_crossentropy` expects '
+                                 'targets to be binary matrices (1s and 0s) '
+                                 'of shape (samples, classes). '
+                                 'If your targets are integer classes, '
+                                 'you can convert them to the expected format via:\n'
+                                 '```\n'
+                                 'from keras.utils.np_utils import to_categorical\n'
+                                 'y_binary = to_categorical(y_int)\n'
+                                 '```\n'
+                                 '\n'
+                                 'Alternatively, you can use the loss function '
+                                 '`sparse_categorical_crossentropy` instead, '
+                                 'which does expect integer targets.')
         if loss.__name__ in key_losses:
             for target_dim, out_dim in zip(y.shape[1:], shape[1:]):
                 if out_dim is not None and target_dim != out_dim:
-                    raise Exception('A target array with shape ' + str(y.shape) +
-                                    ' was passed for an output of shape ' + str(shape) +
-                                    ' while using as loss `' + loss.__name__ + '`. '
-                                    'This loss expects '
-                                    'targets to have the same shape '
-                                    'as the output.')
+                    raise ValueError('A target array with shape ' + str(y.shape) +
+                                     ' was passed for an output of shape ' + str(shape) +
+                                     ' while using as loss `' + loss.__name__ + '`. '
+                                     'This loss expects '
+                                     'targets to have the same shape '
+                                     'as the output.')
 
 
 def collect_metrics(metrics, output_names):
@@ -330,31 +330,31 @@ def standardize_weights(y, sample_weight=None, class_weight=None,
     '''
     if sample_weight_mode is not None:
         if sample_weight_mode != 'temporal':
-            raise Exception('"sample_weight_mode '
-                            'should be None or "temporal". '
-                            'Found: ' + str(sample_weight_mode))
+            raise ValueError('"sample_weight_mode '
+                             'should be None or "temporal". '
+                             'Found: ' + str(sample_weight_mode))
         if len(y.shape) < 3:
-            raise Exception('Found a sample_weight array for '
-                            'an input with shape ' +
-                            str(y.shape) + '. '
-                            'Timestep-wise sample weighting (use of '
-                            'sample_weight_mode="temporal") is restricted to '
-                            'outputs that are at least 3D, i.e. that have '
-                            'a time dimension.')
+            raise ValueError('Found a sample_weight array for '
+                             'an input with shape ' +
+                             str(y.shape) + '. '
+                             'Timestep-wise sample weighting (use of '
+                             'sample_weight_mode="temporal") is restricted to '
+                             'outputs that are at least 3D, i.e. that have '
+                             'a time dimension.')
         if sample_weight is not None and len(sample_weight.shape) != 2:
-            raise Exception('Found a sample_weight array with shape ' +
-                            str(sample_weight.shape) + '. '
-                            'In order to use timestep-wise sample weighting, '
-                            'you should pass a 2D sample_weight array.')
+            raise ValueError('Found a sample_weight array with shape ' +
+                             str(sample_weight.shape) + '. '
+                             'In order to use timestep-wise sample weighting, '
+                             'you should pass a 2D sample_weight array.')
     else:
         if sample_weight is not None and len(sample_weight.shape) != 1:
-            raise Exception('Found a sample_weight array with shape ' +
-                            str(sample_weight.shape) + '. '
-                            'In order to use timestep-wise sample weights, '
-                            'you should specify sample_weight_mode="temporal" '
-                            'in compile(). If you just mean to use '
-                            'sample-wise weights, make sure your '
-                            'sample_weight array is 1D.')
+            raise ValueError('Found a sample_weight array with shape ' +
+                             str(sample_weight.shape) + '. '
+                             'In order to use timestep-wise sample weights, '
+                             'you should specify sample_weight_mode="temporal" '
+                             'in compile(). If you just mean to use '
+                             'sample-wise weights, make sure your '
+                             'sample_weight array is 1D.')
 
     if sample_weight is not None:
         assert len(sample_weight.shape) <= len(y.shape)
@@ -363,8 +363,8 @@ def standardize_weights(y, sample_weight=None, class_weight=None,
         return sample_weight
     elif isinstance(class_weight, dict):
         if len(y.shape) > 2:
-            raise Exception('class_weight not supported for '
-                            '3+ dimensional targets.')
+            raise ValueError('class_weight not supported for '
+                             '3+ dimensional targets.')
         if y.shape[1] > 1:
             y_classes = y.argmax(axis=1)
         elif y.shape[1] == 1:
@@ -686,7 +686,7 @@ class Model(Container):
 
     def _make_train_function(self):
         if not hasattr(self, 'train_function'):
-            raise Exception('You must compile your model before using it.')
+            raise RuntimeError('You must compile your model before using it.')
         if self.train_function is None:
             if self.uses_learning_phase and not isinstance(K.learning_phase(), int):
                 inputs = self.inputs + self.targets + self.sample_weights + [K.learning_phase()]
@@ -706,7 +706,7 @@ class Model(Container):
 
     def _make_test_function(self):
         if not hasattr(self, 'test_function'):
-            raise Exception('You must compile your model before using it.')
+            raise RuntimeError('You must compile your model before using it.')
         if self.test_function is None:
             if self.uses_learning_phase and not isinstance(K.learning_phase(), int):
                 inputs = self.inputs + self.targets + self.sample_weights + [K.learning_phase()]
@@ -818,7 +818,7 @@ class Model(Container):
                     else:
                         ins_batch = slice_X(ins, batch_ids)
                 except TypeError:
-                    raise Exception('TypeError while preparing batch. '
+                    raise TypeError('TypeError while preparing batch. '
                                     'If using HDF5 input data, '
                                     'pass shuffle="batch".')
                 batch_logs = {}
@@ -948,8 +948,8 @@ class Model(Container):
                                sample_weight=None, class_weight=None,
                                check_batch_dim=True, batch_size=None):
         if not hasattr(self, 'optimizer'):
-            raise Exception('You must compile a model before training/testing.'
-                            ' Use `model.compile(optimizer, loss)`.')
+            raise RuntimeError('You must compile a model before training/testing.'
+                               ' Use `model.compile(optimizer, loss)`.')
 
         output_shapes = []
         for output_shape, loss_fn in zip(self.internal_output_shapes, self.loss_functions):
@@ -978,11 +978,11 @@ class Model(Container):
         check_loss_and_target_compatibility(y, self.loss_functions, self.internal_output_shapes)
         if self.stateful and batch_size:
             if x[0].shape[0] % batch_size != 0:
-                raise Exception('In a stateful network, '
-                                'you should only pass inputs with '
-                                'a number of samples that can be '
-                                'divided by the batch size. Found: ' +
-                                str(x[0].shape[0]) + ' samples')
+                raise ValueError('In a stateful network, '
+                                 'you should only pass inputs with '
+                                 'a number of samples that can be '
+                                 'divided by the batch size. Found: ' +
+                                 str(x[0].shape[0]) + ' samples')
         return x, y, sample_weights
 
     def fit(self, x, y, batch_size=32, nb_epoch=10, verbose=1, callbacks=[],
@@ -1169,12 +1169,12 @@ class Model(Container):
                                    check_batch_dim=False)
         if self.stateful:
             if x[0].shape[0] > batch_size and x[0].shape[0] % batch_size != 0:
-                raise Exception('In a stateful network, '
-                                'you should only pass inputs with '
-                                'a number of samples that can be '
-                                'divided by the batch size. Found: ' +
-                                str(x[0].shape[0]) + ' samples. '
-                                'Batch size: ' + str(batch_size) + '.')
+                raise ValueError('In a stateful network, '
+                                 'you should only pass inputs with '
+                                 'a number of samples that can be '
+                                 'divided by the batch size. Found: ' +
+                                 str(x[0].shape[0]) + ' samples. '
+                                 'Batch size: ' + str(batch_size) + '.')
 
         # prepare inputs, delegate logic to _predict_loop
         if self.uses_learning_phase and not isinstance(K.learning_phase, int):
@@ -1360,8 +1360,8 @@ class Model(Container):
         val_gen = (hasattr(validation_data, 'next') or
                    hasattr(validation_data, '__next__'))
         if val_gen and not nb_val_samples:
-            raise Exception('When using a generator for validation data, '
-                            'you must specify a value for "nb_val_samples".')
+            raise ValueError('When using a generator for validation data, '
+                             'you must specify a value for "nb_val_samples".')
 
         out_labels = self.metrics_names
         callback_metrics = out_labels + ['val_' + n for n in out_labels]
@@ -1395,9 +1395,9 @@ class Model(Container):
             elif len(validation_data) == 3:
                 val_x, val_y, val_sample_weight = validation_data
             else:
-                raise Exception('validation_data should be a tuple '
-                                '(val_x, val_y, val_sample_weight) '
-                                'or (val_x, val_y). Found: ' + str(validation_data))
+                raise ValueError('validation_data should be a tuple '
+                                 '(val_x, val_y, val_sample_weight) '
+                                 'or (val_x, val_y). Found: ' + str(validation_data))
             val_x, val_y, val_sample_weights = self._standardize_user_data(val_x, val_y, val_sample_weight)
             self.validation_data = val_x + [val_y, val_sample_weights]
         else:
@@ -1423,9 +1423,9 @@ class Model(Container):
 
                 if not hasattr(generator_output, '__len__'):
                     _stop.set()
-                    raise Exception('output of generator should be a tuple '
-                                    '(x, y, sample_weight) '
-                                    'or (x, y). Found: ' + str(generator_output))
+                    raise ValueError('output of generator should be a tuple '
+                                     '(x, y, sample_weight) '
+                                     'or (x, y). Found: ' + str(generator_output))
                 if len(generator_output) == 2:
                     x, y = generator_output
                     sample_weight = None
@@ -1433,9 +1433,9 @@ class Model(Container):
                     x, y, sample_weight = generator_output
                 else:
                     _stop.set()
-                    raise Exception('output of generator should be a tuple '
-                                    '(x, y, sample_weight) '
-                                    'or (x, y). Found: ' + str(generator_output))
+                    raise ValueError('output of generator should be a tuple '
+                                     '(x, y, sample_weight) '
+                                     'or (x, y). Found: ' + str(generator_output))
                 # build batch logs
                 batch_logs = {}
                 if isinstance(x, list):
@@ -1554,9 +1554,9 @@ class Model(Container):
 
             if not hasattr(generator_output, '__len__'):
                 _stop.set()
-                raise Exception('output of generator should be a tuple '
-                                '(x, y, sample_weight) '
-                                'or (x, y). Found: ' + str(generator_output))
+                raise ValueError('output of generator should be a tuple '
+                                 '(x, y, sample_weight) '
+                                 'or (x, y). Found: ' + str(generator_output))
             if len(generator_output) == 2:
                 x, y = generator_output
                 sample_weight = None
@@ -1564,9 +1564,9 @@ class Model(Container):
                 x, y, sample_weight = generator_output
             else:
                 _stop.set()
-                raise Exception('output of generator should be a tuple '
-                                '(x, y, sample_weight) '
-                                'or (x, y). Found: ' + str(generator_output))
+                raise ValueError('output of generator should be a tuple '
+                                 '(x, y, sample_weight) '
+                                 'or (x, y). Found: ' + str(generator_output))
             try:
                 outs = self.test_on_batch(x, y, sample_weight=sample_weight)
             except:
@@ -1645,9 +1645,9 @@ class Model(Container):
                     x, y, sample_weight = generator_output
                 else:
                     _stop.set()
-                    raise Exception('output of generator should be a tuple '
-                                    '(x, y, sample_weight) '
-                                    'or (x, y). Found: ' + str(generator_output))
+                    raise ValueError('output of generator should be a tuple '
+                                     '(x, y, sample_weight) '
+                                     'or (x, y). Found: ' + str(generator_output))
             else:
                 x = generator_output
 

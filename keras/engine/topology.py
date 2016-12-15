@@ -168,22 +168,22 @@ class Node(object):
             output_shapes = to_list(outbound_layer.get_output_shape_for(input_shapes))
 
         if not output_tensors or output_tensors[0] is None:
-            raise Exception('The `call` method of layer "' +
+            raise TypeError('The `call` method of layer "' +
                             outbound_layer.name +
                             '" should return a tensor. Found: ' +
                             str(output_tensors[0]))
         if len(output_tensors) != len(output_shapes):
-            raise Exception('The `get_output_shape_for` method of layer "' +
-                            outbound_layer.name +
-                            '"" should return one shape tuple per '
-                            'output tensor of the layer. Found: ' +
-                            str(output_shapes))
+            raise ValueError('The `get_output_shape_for` method of layer "' +
+                             outbound_layer.name +
+                             '"" should return one shape tuple per '
+                             'output tensor of the layer. Found: ' +
+                             str(output_shapes))
         if len(output_tensors) != len(output_masks):
-            raise Exception('The `compute_mask` method of layer "' +
-                            outbound_layer.name +
-                            '" should return one mask tensor per '
-                            'output tensor of the layer. Found: ' +
-                            str(output_masks))
+            raise ValueError('The `compute_mask` method of layer "' +
+                             outbound_layer.name +
+                             '" should return one mask tensor per '
+                             'output tensor of the layer. Found: ' +
+                             str(output_masks))
 
         for i in range(len(output_tensors)):
             output_tensors[i]._keras_shape = output_shapes[i]
@@ -652,12 +652,12 @@ class Layer(object):
                 if isinstance(input_mask, list):
                     if any(input_mask):
                         raise ValueError('Layer ' + self.name +
-                                         ' does not support masking, ' +
+                                         ' does not support masking, '
                                          'but was passed an input_mask: ' +
                                          str(input_mask))
                 else:
                     raise ValueError('Layer ' + self.name +
-                                     ' does not support masking, ' +
+                                     ' does not support masking, '
                                      'but was passed an input_mask: ' +
                                      str(input_mask))
             # masking not explicitly supported: return None as mask
@@ -687,13 +687,13 @@ class Layer(object):
             attr_name: Human-readable attribute name, for error messages.
         '''
         if not self.inbound_nodes:
-            raise Exception('The layer has never been called ' +
-                            'and thus has no defined ' + attr_name + '.')
+            raise RuntimeError('The layer has never been called '
+                               'and thus has no defined ' + attr_name + '.')
         if not len(self.inbound_nodes) > node_index:
-            raise Exception('Asked to get ' + attr_name +
-                            ' at node ' + str(node_index) +
-                            ', but the layer has only ' +
-                            str(len(self.inbound_nodes)) + ' inbound nodes.')
+            raise ValueError('Asked to get ' + attr_name +
+                             ' at node ' + str(node_index) +
+                             ', but the layer has only ' +
+                             str(len(self.inbound_nodes)) + ' inbound nodes.')
         values = getattr(self.inbound_nodes[node_index], attr)
         if len(values) == 1:
             return values[0]
@@ -749,14 +749,14 @@ class Layer(object):
         to one incoming layer).
         '''
         if len(self.inbound_nodes) > 1:
-            raise Exception('Layer ' + self.name +
-                            ' has multiple inbound nodes, ' +
-                            'hence the notion of "layer input" '
-                            'is ill-defined. '
-                            'Use `get_input_at(node_index)` instead.')
+            raise AttributeError('Layer ' + self.name +
+                                 ' has multiple inbound nodes, '
+                                 'hence the notion of "layer input" '
+                                 'is ill-defined. '
+                                 'Use `get_input_at(node_index)` instead.')
         elif not self.inbound_nodes:
-            raise Exception('Layer ' + self.name +
-                            ' is not connected, no input to return.')
+            raise AttributeError('Layer ' + self.name +
+                                 ' is not connected, no input to return.')
         return self._get_node_attribute_at_index(0, 'input_tensors',
                                                  'input')
 
@@ -767,14 +767,14 @@ class Layer(object):
         to one incoming layer).
         '''
         if len(self.inbound_nodes) == 0:
-            raise Exception('Layer ' + self.name +
-                            ' has no inbound nodes.')
+            raise AttributeError('Layer ' + self.name +
+                                 ' has no inbound nodes.')
         if len(self.inbound_nodes) > 1:
-            raise Exception('Layer ' + self.name +
-                            ' has multiple inbound nodes, ' +
-                            'hence the notion of "layer output" '
-                            'is ill-defined. '
-                            'Use `get_output_at(node_index)` instead.')
+            raise AttributeError('Layer ' + self.name +
+                                 ' has multiple inbound nodes, '
+                                 'hence the notion of "layer output" '
+                                 'is ill-defined. '
+                                 'Use `get_output_at(node_index)` instead.')
         return self._get_node_attribute_at_index(0, 'output_tensors',
                                                  'output')
 
@@ -785,11 +785,11 @@ class Layer(object):
         to one incoming layer).
         '''
         if len(self.inbound_nodes) != 1:
-            raise Exception('Layer ' + self.name +
-                            ' has multiple inbound nodes, ' +
-                            'hence the notion of "layer input mask" '
-                            'is ill-defined. '
-                            'Use `get_input_mask_at(node_index)` instead.')
+            raise AttributeError('Layer ' + self.name +
+                                 ' has multiple inbound nodes, ' +
+                                 'hence the notion of "layer input mask" '
+                                 'is ill-defined. '
+                                 'Use `get_input_mask_at(node_index)` instead.')
         return self._get_node_attribute_at_index(0, 'input_masks',
                                                  'input mask')
 
@@ -800,11 +800,11 @@ class Layer(object):
         to one incoming layer).
         '''
         if len(self.inbound_nodes) != 1:
-            raise Exception('Layer ' + self.name +
-                            ' has multiple inbound nodes, ' +
-                            'hence the notion of "layer output mask" '
-                            'is ill-defined. '
-                            'Use `get_output_mask_at(node_index)` instead.')
+            raise AttributeError('Layer ' + self.name +
+                                 ' has multiple inbound nodes, '
+                                 'hence the notion of "layer output mask" '
+                                 'is ill-defined. '
+                                 'Use `get_output_mask_at(node_index)` instead.')
         return self._get_node_attribute_at_index(0, 'output_masks',
                                                  'output mask')
 
@@ -815,8 +815,8 @@ class Layer(object):
         or if all inbound nodes have the same input shape.
         '''
         if not self.inbound_nodes:
-            raise Exception('The layer has never been called ' +
-                            'and thus has no defined input shape.')
+            raise AttributeError('The layer has never been called '
+                                 'and thus has no defined input shape.')
         all_input_shapes = set([str(node.input_shapes) for node in self.inbound_nodes])
         if len(all_input_shapes) == 1:
             input_shapes = self.inbound_nodes[0].input_shapes
@@ -825,12 +825,12 @@ class Layer(object):
             else:
                 return input_shapes
         else:
-            raise Exception('The layer "' + str(self.name) +
-                            ' has multiple inbound nodes, ' +
-                            'with different input shapes. Hence ' +
-                            'the notion of "input shape" is ' +
-                            'ill-defined for the layer. ' +
-                            'Use `get_input_shape_at(node_index)` instead.')
+            raise AttributeError('The layer "' + str(self.name) +
+                                 ' has multiple inbound nodes, '
+                                 'with different input shapes. Hence '
+                                 'the notion of "input shape" is '
+                                 'ill-defined for the layer. '
+                                 'Use `get_input_shape_at(node_index)` instead.')
 
     @property
     def output_shape(self):
@@ -839,8 +839,8 @@ class Layer(object):
         or if all inbound nodes have the same output shape.
         '''
         if not self.inbound_nodes:
-            raise Exception('The layer has never been called ' +
-                            'and thus has no defined output shape.')
+            raise AttributeError('The layer has never been called '
+                                 'and thus has no defined output shape.')
         all_output_shapes = set([str(node.output_shapes) for node in self.inbound_nodes])
         if len(all_output_shapes) == 1:
             output_shapes = self.inbound_nodes[0].output_shapes
@@ -849,12 +849,12 @@ class Layer(object):
             else:
                 return output_shapes
         else:
-            raise Exception('The layer "' + str(self.name) +
-                            ' has multiple inbound nodes, ' +
-                            'with different output shapes. Hence ' +
-                            'the notion of "output shape" is ' +
-                            'ill-defined for the layer. ' +
-                            'Use `get_output_shape_at(node_index)` instead.')
+            raise AttributeError('The layer "' + str(self.name) +
+                                 ' has multiple inbound nodes, '
+                                 'with different output shapes. Hence '
+                                 'the notion of "output shape" is '
+                                 'ill-defined for the layer. '
+                                 'Use `get_output_shape_at(node_index)` instead.')
 
     def add_loss(self, losses, inputs=None):
         if losses is None:
@@ -1007,10 +1007,10 @@ class Layer(object):
             if self.__class__.__name__ == 'Sequential':
                 self.build()
             else:
-                raise Exception('You tried to call `count_params` on ' +
-                                self.name + ', but the layer isn\'t built. '
-                                'You can build it manually via: `' +
-                                self.name + '.build(batch_input_shape)`.')
+                raise RuntimeError('You tried to call `count_params` on ' +
+                                   self.name + ', but the layer isn\'t built. '
+                                   'You can build it manually via: `' +
+                                   self.name + '.build(batch_input_shape)`.')
         return sum([K.count_params(p) for p in self.weights])
 
 
@@ -1401,10 +1401,10 @@ class Merge(Layer):
             raise TypeError('Merge can only be called on a list of tensors, '
                             'not a single tensor. Received: ' + str(inputs))
         if self.built:
-            raise Exception('A Merge layer cannot be used more than once, '
-                            'please use ' +
-                            'the "merge" function instead: ' +
-                            '`merged_tensor = merge([tensor_1, tensor2])`.')
+            raise RuntimeError('A Merge layer cannot be used more than once, '
+                               'please use '
+                               'the "merge" function instead: '
+                               '`merged_tensor = merge([tensor_1, tensor2])`.')
 
         all_keras_tensors = True
         for x in inputs:
@@ -1716,9 +1716,9 @@ class Container(Layer):
         # Check for redundancy in inputs.
         inputs_set = set(self.inputs)
         if len(inputs_set) != len(self.inputs):
-            raise Exception('The list of inputs passed to the model '
-                            'is redundant. All inputs should only appear once.'
-                            ' Found: ' + str(self.inputs))
+            raise ValueError('The list of inputs passed to the model '
+                             'is redundant. All inputs should only appear once.'
+                             ' Found: ' + str(self.inputs))
 
         # List of initial layers (1 to 1 mapping with self.inputs,
         # hence the same layer might appear twice)
@@ -1752,7 +1752,7 @@ class Container(Layer):
             # Check that x is a Keras tensor.
             if not hasattr(x, '_keras_history'):
                 cls_name = self.__class__.__name__
-                raise Exception('Input tensors to a ' + cls_name + ' ' +
+                raise TypeError('Input tensors to a ' + cls_name + ' ' +
                                 'must be Keras tensors. Found: ' + str(x) +
                                 ' (missing Keras metadata).')
             # Check that x is an input tensor.
@@ -1775,7 +1775,7 @@ class Container(Layer):
         for x in self.outputs:
             if not hasattr(x, '_keras_history'):
                 cls_name = self.__class__.__name__
-                raise Exception('Output tensors to a ' + cls_name + ' must be '
+                raise TypeError('Output tensors to a ' + cls_name + ' must be '
                                 'Keras tensors. Found: ' + str(x))
         # Build self.output_layers:
         for x in self.outputs:
@@ -1947,7 +1947,7 @@ class Container(Layer):
                 if layer:
                     for x in node.input_tensors:
                         if x not in computable_tensors:
-                            raise Exception(
+                            raise RuntimeError(
                                 'Graph disconnected: '
                                 'cannot obtain value for tensor ' +
                                 str(x) + ' at layer "' + layer.name + '". '
@@ -1967,10 +1967,10 @@ class Container(Layer):
         all_names = [layer.name for layer in self.layers]
         for name in all_names:
             if all_names.count(name) != 1:
-                raise Exception('The name "' + name + '" is used ' +
-                                str(all_names.count(name)) +
-                                ' times in the model. ' +
-                                'All layer names should be unique.')
+                raise RuntimeError('The name "' + name + '" is used ' +
+                                   str(all_names.count(name)) +
+                                   ' times in the model. '
+                                   'All layer names should be unique.')
 
         # Layer parameters.
         # The new container starts with a single inbound node
@@ -2015,9 +2015,9 @@ class Container(Layer):
         # without the container being notified of it.
         if index is not None:
             if len(self.layers) <= index:
-                raise Exception('Was asked to retrieve layer at index ' +
-                                str(index) + ' but model only has ' +
-                                str(len(self.layers)) + ' layers.')
+                raise ValueError('Was asked to retrieve layer at index ' +
+                                 str(index) + ' but model only has ' +
+                                 str(len(self.layers)) + ' layers.')
             else:
                 return self.layers[index]
         else:
@@ -2027,7 +2027,7 @@ class Container(Layer):
             if layer.name == name:
                 return layer
         if not layer:
-            raise Exception('No such layer: ' + name)
+            raise ValueError('No such layer: ' + name)
 
     @property
     def updates(self):
@@ -2098,8 +2098,8 @@ class Container(Layer):
         for layer in self.layers:
             for key, value in layer.constraints.items():
                 if key in cons and cons[key] != value:
-                    raise Exception('Received multiple constraints '
-                                    'for one weight tensor: ' + str(key))
+                    raise ValueError('Received multiple constraints '
+                                     'for one weight tensor: ' + str(key))
                 cons[key] = value
         return cons
 
@@ -2226,9 +2226,9 @@ class Container(Layer):
     def get_output_shape_for(self, input_shape):
         input_shapes = to_list(input_shape)
         if len(input_shapes) != len(self.input_layers):
-            raise Exception('Invalid input_shape argument ' +
-                            str(input_shape) + ': model has ' +
-                            str(len(self.input_layers)) + ' tensor inputs.')
+            raise ValueError('Invalid input_shape argument ' +
+                             str(input_shape) + ': model has ' +
+                             str(len(self.input_layers)) + ' tensor inputs.')
 
         cache_key = ','.join([str(x) for x in input_shapes])
         if cache_key in self._output_shape_cache:
@@ -2678,10 +2678,10 @@ class Container(Layer):
             # Legacy format.
             nb_layers = f.attrs['nb_layers']
             if nb_layers != len(flattened_layers):
-                raise Exception('You are trying to load a weight file '
-                                'containing ' + str(nb_layers) +
-                                ' layers into a model with ' +
-                                str(len(flattened_layers)) + ' layers.')
+                raise ValueError('You are trying to load a weight file '
+                                 'containing ' + str(nb_layers) +
+                                 ' layers into a model with ' +
+                                 str(len(flattened_layers)) + ' layers.')
 
             for k in range(nb_layers):
                 g = f['layer_{}'.format(k)]
@@ -2705,10 +2705,10 @@ class Container(Layer):
                     filtered_layer_names.append(name)
             layer_names = filtered_layer_names
             if len(layer_names) != len(flattened_layers):
-                raise Exception('You are trying to load a weight file '
-                                'containing ' + str(len(layer_names)) +
-                                ' layers into a model with ' +
-                                str(len(flattened_layers)) + ' layers.')
+                raise ValueError('You are trying to load a weight file '
+                                 'containing ' + str(len(layer_names)) +
+                                 ' layers into a model with ' +
+                                 str(len(flattened_layers)) + ' layers.')
 
             # We batch weight value assignments in a single backend call
             # which provides a speedup in TensorFlow.
@@ -2720,16 +2720,16 @@ class Container(Layer):
                 layer = flattened_layers[k]
                 symbolic_weights = layer.weights
                 if len(weight_values) != len(symbolic_weights):
-                    raise Exception('Layer #' + str(k) +
-                                    ' (named "' + layer.name +
-                                    '" in the current model) was found to '
-                                    'correspond to layer ' + name +
-                                    ' in the save file. '
-                                    'However the new layer ' + layer.name +
-                                    ' expects ' + str(len(symbolic_weights)) +
-                                    ' weights, but the saved weights have ' +
-                                    str(len(weight_values)) +
-                                    ' elements.')
+                    raise ValueError('Layer #' + str(k) +
+                                     ' (named "' + layer.name +
+                                     '" in the current model) was found to '
+                                     'correspond to layer ' + name +
+                                     ' in the save file. '
+                                     'However the new layer ' + layer.name +
+                                     ' expects ' + str(len(symbolic_weights)) +
+                                     ' weights, but the saved weights have ' +
+                                     str(len(weight_values)) +
+                                     ' elements.')
                 if layer.__class__.__name__ == 'Convolution1D':
                     # This is for backwards compatibility with
                     # the old Conv1D weights format.
@@ -2755,9 +2755,9 @@ class Container(Layer):
             flattened_layers = self.layers
 
         if 'nb_layers' in f.attrs:
-                raise Exception('The weight file you are trying to load is' +
-                                ' in a legacy format that does not support' +
-                                ' name-based weight loading.')
+                raise ValueError('The weight file you are trying to load is'
+                                 ' in a legacy format that does not support'
+                                 ' name-based weight loading.')
         else:
             # New file format.
             layer_names = [n.decode('utf8') for n in f.attrs['layer_names']]
@@ -2779,13 +2779,13 @@ class Container(Layer):
                 for layer in index.get(name, []):
                     symbolic_weights = layer.weights
                     if len(weight_values) != len(symbolic_weights):
-                        raise Exception('Layer #' + str(k) +
-                                        ' (named "' + layer.name +
-                                        '") expects ' +
-                                        str(len(symbolic_weights)) +
-                                        ' weight(s), but the saved weights' +
-                                        ' have ' + str(len(weight_values)) +
-                                        ' element(s).')
+                        raise ValueError('Layer #' + str(k) +
+                                         ' (named "' + layer.name +
+                                         '") expects ' +
+                                         str(len(symbolic_weights)) +
+                                         ' weight(s), but the saved weights' +
+                                         ' have ' + str(len(weight_values)) +
+                                         ' element(s).')
                     # Set values.
                     for i in range(len(weight_values)):
                         weight_value_tuples.append((symbolic_weights[i], weight_values[i]))
