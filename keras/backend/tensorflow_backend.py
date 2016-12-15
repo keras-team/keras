@@ -932,9 +932,6 @@ def reverse(x, axes):
     return tf.reverse(x, dims)
 
 
-def pattern_broadcast(x, broatcastable):
-    return x
-
 # VALUE MANIPULATION
 
 
