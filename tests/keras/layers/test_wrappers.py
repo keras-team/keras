@@ -77,6 +77,15 @@ def test_TimeDistributed():
 
 
 @keras_test
+def test_regularizers():
+    model = Sequential()
+    model.add(wrappers.TimeDistributed(core.Dense(2, W_regularizer='l1'), input_shape=(3, 4)))
+    model.add(core.Activation('relu'))
+    model.compile(optimizer='rmsprop', loss='mse')
+    assert len(model.losses) == 1
+
+
+@keras_test
 def test_Bidirectional():
     rnn = recurrent.SimpleRNN
     nb_sample = 2

@@ -86,7 +86,7 @@ def convert_kernel(kernel, dim_ordering='default'):
                 for j in range(h):
                     new_kernel[i, j, :, :] = kernel[w - i - 1, h - j - 1, :, :]
         else:
-            raise Exception('Invalid dim_ordering: ' + str(dim_ordering))
+            raise ValueError('Invalid dim_ordering:', dim_ordering)
     elif kernel.ndim == 5:
         # conv 3d
         # TH kernel shape: (out_depth, input_depth, kernel_dim1, kernel_dim2, kernel_dim3)
@@ -114,7 +114,7 @@ def convert_kernel(kernel, dim_ordering='default'):
                                                            z - k - 1,
                                                            :, :]
         else:
-            raise Exception('Invalid dim_ordering: ' + str(dim_ordering))
+            raise ValueError('Invalid dim_ordering:', dim_ordering)
     else:
         raise ValueError('Invalid kernel shape:', kernel.shape)
     return new_kernel

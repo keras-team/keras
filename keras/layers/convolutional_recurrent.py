@@ -105,7 +105,7 @@ class ConvRecurrent2D(Layer):
             rows = input_shape[2]
             cols = input_shape[3]
         else:
-            raise Exception('Invalid dim_ordering: ' + self.dim_ordering)
+            raise ValueError('Invalid dim_ordering:', self.dim_ordering)
 
         rows = conv_output_length(rows, self.nb_row,
                                   self.border_mode, self.subsample[0])
@@ -119,15 +119,11 @@ class ConvRecurrent2D(Layer):
             elif self.dim_ordering == 'tf':
                 return (input_shape[0], input_shape[1],
                         rows, cols, self.nb_filter)
-            else:
-                raise Exception('Invalid dim_ordering: ' + self.dim_ordering)
         else:
             if self.dim_ordering == 'th':
                 return (input_shape[0], self.nb_filter, rows, cols)
             elif self.dim_ordering == 'tf':
                 return (input_shape[0], rows, cols, self.nb_filter)
-            else:
-                raise Exception('Invalid dim_ordering: ' + self.dim_ordering)
 
     def step(self, x, states):
         raise NotImplementedError
@@ -310,7 +306,7 @@ class ConvLSTM2D(ConvRecurrent2D):
             self.W_shape = (self.nb_row, self.nb_col,
                             stack_size, self.nb_filter)
         else:
-            raise Exception('Invalid dim_ordering: ' + self.dim_ordering)
+            raise ValueError('Invalid dim_ordering:', self.dim_ordering)
 
         if self.dim_ordering == 'th':
             self.W_shape1 = (self.nb_filter, self.nb_filter,
@@ -318,8 +314,6 @@ class ConvLSTM2D(ConvRecurrent2D):
         elif self.dim_ordering == 'tf':
             self.W_shape1 = (self.nb_row, self.nb_col,
                              self.nb_filter, self.nb_filter)
-        else:
-            raise Exception('Invalid dim_ordering: ' + self.dim_ordering)
 
         if self.stateful:
             self.reset_states()
@@ -378,9 +372,9 @@ class ConvLSTM2D(ConvRecurrent2D):
         input_shape = self.input_spec[0].shape
         output_shape = self.get_output_shape_for(input_shape)
         if not input_shape[0]:
-            raise Exception('If a RNN is stateful, a complete ' +
-                            'input_shape must be provided ' +
-                            '(including batch size).')
+            raise ValueError('If a RNN is stateful, a complete ' +
+                             'input_shape must be provided ' +
+                             '(including batch size).')
 
         if self.return_sequences:
             out_row, out_col, out_filter = output_shape[2:]
@@ -417,7 +411,7 @@ class ConvLSTM2D(ConvRecurrent2D):
             elif self.dim_ordering == 'tf':
                 conv_out = conv_out + K.reshape(b, (1, 1, 1, self.nb_filter))
             else:
-                raise Exception('Invalid dim_ordering: ' + self.dim_ordering)
+                raise ValueError('Invalid dim_ordering:', self.dim_ordering)
 
         return conv_out
 

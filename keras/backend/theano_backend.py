@@ -57,7 +57,7 @@ def to_dense(tensor):
 
 
 def variable(value, dtype=_FLOATX, name=None):
-    '''Instantiate a tensor variable.
+    '''Instantiates a variable.
     '''
     if hasattr(value, 'tocoo'):
         _assert_sparse_module()
@@ -71,7 +71,7 @@ def placeholder(shape=None, ndim=None, dtype=_FLOATX, sparse=False, name=None):
     '''Instantiate an input data placeholder variable.
     '''
     if shape is None and ndim is None:
-        raise Exception('Specify either a shape or ndim value.')
+        raise ValueError('Specify either a shape or ndim value.')
     if shape is not None:
         ndim = len(shape)
     else:
@@ -231,7 +231,7 @@ def batch_dot(x, y, axes=None):
 
         output_shape = (100, 30)
     '''
-    if type(axes) == int:
+    if isinstance(axes, int):
         axes = (axes, axes)
     if axes is None:
         # behaves like tf.batch_matmul as default
@@ -279,8 +279,11 @@ def prod(x, axis=None, keepdims=False):
 
 
 def mean(x, axis=None, keepdims=False):
+    '''Mean of a tensor, alongside the specified axis.
+    '''
     dtype = None
-    if 'int' in x.dtype:
+    # bool is available since theano v0.9dev
+    if 'int' in x.dtype or x.dtype == 'bool':
         dtype = _FLOATX
     return T.mean(x, axis=axis, keepdims=keepdims, dtype=dtype)
 
@@ -393,7 +396,42 @@ def cos(x):
 
 
 def normalize_batch_in_training(x, gamma, beta,
-                                reduction_axes, epsilon=0.0001):
+                                reduction_axes, epsilon=1e-3):
+    '''Computes mean and std for batch then apply batch_normalization on batch.
+    '''
+    # TODO remove this if statement when Theano without
+    # T.nnet.bn.batch_normalization_train is deprecated
+    if not hasattr(T.nnet.bn, 'batch_normalization_train'):
+        return _old_normalize_batch_in_training(x, gamma, beta, reduction_axes, epsilon)
+
+    normed, mean, stdinv = T.nnet.bn.batch_normalization_train(
+        x, gamma, beta, reduction_axes, epsilon)
+
+    return normed, mean, T.inv(stdinv ** 2)
+
+
+def batch_normalization(x, mean, var, beta, gamma, epsilon=1e-3):
+    '''Apply batch normalization on x given mean, var, beta and gamma.
+    '''
+    # TODO remove this if statement when Theano without
+    # T.nnet.bn.batch_normalization_test is deprecated
+    if not hasattr(T.nnet.bn, 'batch_normalization_test'):
+        return _old_batch_normalization(x, mean, var, beta, gamma, epsilon)
+
+    if mean.ndim == 1:
+        # based on TensorFlow's default: normalize along rightmost dimension
+        reduction_axes = range(x.ndim - 1)
+    else:
+        reduction_axes = [i for i in range(x.ndim) if mean.broadcastable[i]]
+
+    return T.nnet.bn.batch_normalization_test(
+        x, gamma, beta, mean, var, reduction_axes, epsilon)
+
+
+# TODO remove this function when Theano without
+# T.nnet.bn.batch_normalization_train is deprecated
+def _old_normalize_batch_in_training(x, gamma, beta,
+                                     reduction_axes, epsilon=1e-3):
     '''Computes mean and std for batch then apply batch_normalization on batch.
     '''
     dev = theano.config.device
@@ -430,9 +468,21 @@ def normalize_batch_in_training(x, gamma, beta,
     return normed, mean, var
 
 
-def batch_normalization(x, mean, var, beta, gamma, epsilon=0.0001):
+# TODO remove this if statement when Theano without
+# T.nnet.bn.batch_normalization_test is deprecated
+def _old_batch_normalization(x, mean, var, beta, gamma, epsilon=1e-3):
     '''Apply batch normalization on x given mean, var, beta and gamma.
     '''
+    if mean.ndim == 1 and x.ndim > 1:
+        # in TensorFlow's batch_normalization, if the parameters are vectors
+        # the batch normalization should be applied along the rightmost axis.
+        # Theano expects the parameters to always have x.ndim dimensions.
+        shuffle_pattern = ['x'] * (x.ndim - 1) + [0]
+        mean = mean.dimshuffle(shuffle_pattern)
+        var = var.dimshuffle(shuffle_pattern)
+        beta = beta.dimshuffle(shuffle_pattern)
+        gamma = gamma.dimshuffle(shuffle_pattern)
+
     ndim = x.ndim
     dev = theano.config.device
     use_cudnn = ndim < 5 and (dev.startswith('cuda') or dev.startswith('gpu'))
@@ -443,16 +493,16 @@ def batch_normalization(x, mean, var, beta, gamma, epsilon=0.0001):
                 shuffle_pattern = list(range(ndim))
                 shuffle_pattern[1] = shuffle_pattern[axis]
                 shuffle_pattern[axis] = 1
-                x = x.dimshuffle(shuffle_pattern)
-                mean = mean.dimshuffle(shuffle_pattern)
-                var = var.dimshuffle(shuffle_pattern)
-                beta = beta.dimshuffle(shuffle_pattern)
-                gamma = gamma.dimshuffle(shuffle_pattern)
-            normed = theano.sandbox.cuda.dnn.dnn_batch_normalization_test(x, gamma, beta, mean, var,
-                                                                          'spatial', epsilon)
-            if axis != 1:
-                normed = normed.dimshuffle(shuffle_pattern)
-            return normed
+                return theano.sandbox.cuda.dnn.dnn_batch_normalization_test(
+                    x.dimshuffle(shuffle_pattern),
+                    gamma.dimshuffle(shuffle_pattern),
+                    beta.dimshuffle(shuffle_pattern),
+                    mean.dimshuffle(shuffle_pattern),
+                    var.dimshuffle(shuffle_pattern),
+                    'spatial', epsilon).dimshuffle(shuffle_pattern)
+            else:
+                return theano.sandbox.cuda.dnn.dnn_batch_normalization_test(
+                    x, gamma, beta, mean, var, 'spatial', epsilon)
         except AttributeError:
             pass
         except ValueError:
@@ -471,7 +521,7 @@ def concatenate(tensors, axis=-1):
         elif axis == 1:
             return th_sparse_module.basic.hstack(tensors, format='csr')
         else:
-            raise Exception('Invalid concat axis for sparse matrix: ' + axis)
+            raise ValueError('Invalid concat axis for sparse matrix:', axis)
     else:
         return T.concatenate([to_dense(x) for x in tensors], axis=axis)
 
@@ -515,7 +565,7 @@ def resize_images(X, height_factor, width_factor, dim_ordering):
         output = repeat_elements(output, width_factor, axis=2)
         return output
     else:
-        raise Exception('Invalid dim_ordering: ' + dim_ordering)
+        raise ValueError('Invalid dim_ordering:', dim_ordering)
 
 
 def resize_volumes(X, depth_factor, height_factor, width_factor, dim_ordering):
@@ -536,7 +586,7 @@ def resize_volumes(X, depth_factor, height_factor, width_factor, dim_ordering):
         output = repeat_elements(output, width_factor, axis=3)
         return output
     else:
-        raise Exception('Invalid dim_ordering: ' + dim_ordering)
+        raise ValueError('Invalid dim_ordering:', dim_ordering)
 
 
 def repeat(x, n):
@@ -662,7 +712,7 @@ def spatial_2d_padding(x, padding=(1, 1), dim_ordering='default'):
                    slice(padding[1], input_shape[2] + padding[1]),
                    slice(None))
     else:
-        raise Exception('Invalid dim_ordering: ' + dim_ordering)
+        raise ValueError('Invalid dim_ordering:', dim_ordering)
     return T.set_subtensor(output[indices], x)
 
 
@@ -702,7 +752,7 @@ def asymmetric_spatial_2d_padding(x, top_pad=1, bottom_pad=1,
                    slice(left_pad, input_shape[2] + left_pad),
                    slice(None))
     else:
-        raise Exception('Invalid dim_ordering: ' + dim_ordering)
+        raise ValueError('Invalid dim_ordering:', dim_ordering)
     return T.set_subtensor(output[indices], x)
 
 
@@ -742,7 +792,7 @@ def spatial_3d_padding(x, padding=(1, 1, 1), dim_ordering='default'):
                    slice(padding[2], input_shape[3] + padding[2]),
                    slice(None))
     else:
-        raise Exception('Invalid dim_ordering: ' + dim_ordering)
+        raise ValueError('Invalid dim_ordering:', dim_ordering)
     return T.set_subtensor(output[indices], x)
 
 
@@ -765,7 +815,7 @@ def one_hot(indices, nb_classes):
 def reverse(x, axes):
     '''Reverse a tensor along the the specified axes
     '''
-    if type(axes) == int:
+    if isinstance(axes, int):
         axes = [axes]
     slices = [slice(None, None, -1) if i in axes else slice(None, None, None) for i in range(x.ndim)]
     return x[slices]
@@ -776,8 +826,8 @@ def reverse(x, axes):
 
 def get_value(x):
     if not hasattr(x, 'get_value'):
-        raise Exception("'get_value() can only be called on a variable. " +
-                        "If you have an expression instead, use eval().")
+        raise TypeError('get_value() can only be called on a variable. '
+                        'If you have an expression instead, use eval().')
     return x.get_value()
 
 
@@ -820,7 +870,7 @@ class Function(object):
                                         **kwargs)
 
     def __call__(self, inputs):
-        assert type(inputs) in {list, tuple}
+        assert isinstance(inputs, (list, tuple))
         return self.function(*inputs)
 
 
@@ -829,7 +879,7 @@ def function(inputs, outputs, updates=[], **kwargs):
         function_args = inspect.getargspec(theano.function)[0]
         for key in kwargs.keys():
             if key not in function_args:
-                msg = "Invalid argument '%s' passed to K.function" % key
+                msg = 'Invalid argument "%s" passed to K.function' % key
                 raise ValueError(msg)
     return Function(inputs, outputs, updates=updates, **kwargs)
 
@@ -890,8 +940,9 @@ def rnn(step_function, inputs, initial_states,
 
     if unroll:
         if input_length is None:
-            raise Exception('When specifying `unroll=True`, an `input_length` '
-                            'must be provided to `rnn`.')
+            raise ValueError('When specifying `unroll=True`, '
+                             'an `input_length` '
+                             'must be provided to `rnn`.')
 
     axes = [1, 0] + list(range(2, ndim))
     inputs = inputs.dimshuffle(axes)
@@ -957,7 +1008,7 @@ def rnn(step_function, inputs, initial_states,
                 go_backwards=go_backwards)
 
             # deal with Theano API inconsistency
-            if type(results) is list:
+            if isinstance(results, list):
                 outputs = results[0]
                 states = results[1:]
             else:
@@ -994,7 +1045,7 @@ def rnn(step_function, inputs, initial_states,
                 go_backwards=go_backwards)
 
             # deal with Theano API inconsistency
-            if type(results) is list:
+            if isinstance(results, list):
                 outputs = results[0]
                 states = results[1:]
             else:
@@ -1039,10 +1090,13 @@ def in_test_phase(x, alt):
 # NN OPERATIONS
 
 def _assert_has_capability(module, func):
-    assert hasattr(module, func), ('It looks like like your version of '
-                                   'Theano is out of date. '
-                                   'Install the latest version with:\n'
-                                   'pip install git+git://github.com/Theano/Theano.git --upgrade --no-deps')
+    if not hasattr(module, func):
+        raise EnvironmentError(
+            'It looks like like your version of '
+            'Theano is out of date. '
+            'Install the latest version with:\n'
+            'pip install git+git://github.com/Theano/Theano.git '
+            '--upgrade --no-deps')
 
 
 def elu(x, alpha=1.0):
@@ -1127,7 +1181,7 @@ def dropout(x, level, noise_shape=None, seed=None):
         seed: random seed to ensure determinism.
     '''
     if level < 0. or level >= 1:
-        raise Exception('Dropout level must be in interval [0, 1[.')
+        raise ValueError('Dropout level must be in interval [0, 1[.')
     if seed is None:
         seed = np.random.randint(1, 10e6)
 
@@ -1217,7 +1271,7 @@ def _preprocess_border_mode(border_mode):
     elif border_mode == 'full':
         th_border_mode = 'full'
     else:
-        raise Exception('Border mode not supported: ' + str(border_mode))
+        raise ValueError('Border mode not supported:', str(border_mode))
     return th_border_mode
 
 
@@ -1337,7 +1391,7 @@ def conv2d(x, kernel, strides=(1, 1), border_mode='valid',
     if dim_ordering == 'default':
         dim_ordering = image_dim_ordering()
     if dim_ordering not in {'th', 'tf'}:
-        raise Exception('Unknown dim_ordering ' + str(dim_ordering))
+        raise ValueError('Unknown dim_ordering ', dim_ordering)
 
     x = _preprocess_conv2d_input(x, dim_ordering)
     kernel = _preprocess_conv2d_kernel(kernel, dim_ordering)
@@ -1385,7 +1439,7 @@ def deconv2d(x, kernel, output_shape, strides=(1, 1),
     if dim_ordering == 'default':
         dim_ordering = image_dim_ordering()
     if dim_ordering not in {'th', 'tf'}:
-        raise Exception('Unknown dim_ordering ' + str(dim_ordering))
+        raise ValueError('Unknown dim_ordering ' + dim_ordering)
 
     x = _preprocess_conv2d_input(x, dim_ordering)
     kernel = _preprocess_conv2d_kernel(kernel, dim_ordering)
@@ -1436,13 +1490,13 @@ def conv3d(x, kernel, strides=(1, 1, 1),
     if dim_ordering == 'default':
         dim_ordering = image_dim_ordering()
     if dim_ordering not in {'th', 'tf'}:
-        raise Exception('Unknown dim_ordering ' + str(dim_ordering))
+        raise ValueError('Unknown dim_ordering:', dim_ordering)
 
     # TODO: remove this if statement when Theano without AbstractConv3d is deprecated
     if not hasattr(T.nnet, 'conv3d'):
         if filter_dilation != (1, 1, 1):
-            raise Exception('conv3d with filter dilation requires Theano '
-                            '0.9.0dev3 or newer.')
+            raise ValueError('conv3d with filter dilation requires Theano '
+                             '0.9.0dev3 or newer.')
 
         return _old_theano_conv3d(x, kernel, strides, border_mode,
                                   dim_ordering, volume_shape, filter_shape)
@@ -1477,10 +1531,9 @@ def _old_theano_conv3d(x, kernel, strides=(1, 1, 1),
     if dim_ordering == 'default':
         dim_ordering = image_dim_ordering()
     if dim_ordering not in {'th', 'tf'}:
-        raise Exception('Unknown dim_ordering ' + str(dim_ordering))
-
+        raise ValueError('Unknown dim_ordering:', dim_ordering)
     if border_mode not in {'same', 'valid'}:
-        raise Exception('Invalid border mode: ' + str(border_mode))
+        raise ValueError('Invalid border mode:', border_mode)
 
     if dim_ordering == 'tf':
         # TF uses the last dimension as channel dimension,
@@ -1536,19 +1589,21 @@ def pool2d(x, pool_size, strides=(1, 1), border_mode='valid',
     if dim_ordering == 'default':
         dim_ordering = image_dim_ordering()
     if dim_ordering not in {'th', 'tf'}:
-        raise Exception('Unknown dim_ordering ' + str(dim_ordering))
+        raise ValueError('Unknown dim_ordering:', dim_ordering)
+
+    assert pool_size[0] >= 1 and pool_size[1] >= 1
 
     if border_mode == 'same':
-        w_pad = pool_size[0] - 2 if pool_size[0] % 2 == 1 else pool_size[0] - 1
-        h_pad = pool_size[1] - 2 if pool_size[1] % 2 == 1 else pool_size[1] - 1
+        w_pad = pool_size[0] - 2 if pool_size[0] > 2 and pool_size[0] % 2 == 1 else pool_size[0] - 1
+        h_pad = pool_size[1] - 2 if pool_size[1] > 2 and pool_size[1] % 2 == 1 else pool_size[1] - 1
         padding = (w_pad, h_pad)
     elif border_mode == 'valid':
         padding = (0, 0)
     else:
-        raise Exception('Invalid border mode: ' + str(border_mode))
+        raise ValueError('Invalid border mode:', border_mode)
 
     if dim_ordering not in {'th', 'tf'}:
-        raise Exception('Unknown dim_ordering ' + str(dim_ordering))
+        raise ValueError('Unknown dim_ordering:', dim_ordering)
 
     if dim_ordering == 'tf':
         x = x.dimshuffle((0, 3, 1, 2))
@@ -1582,7 +1637,7 @@ def pool2d(x, pool_size, strides=(1, 1), border_mode='valid',
                                     padding=padding,
                                     mode='average_exc_pad')
     else:
-        raise Exception('Invalid pooling mode: ' + str(pool_mode))
+        raise ValueError('Invalid pooling mode:', pool_mode)
 
     if border_mode == 'same':
         expected_width = (x.shape[2] + strides[0] - 1) // strides[0]
@@ -1602,7 +1657,7 @@ def pool3d(x, pool_size, strides=(1, 1, 1), border_mode='valid',
     if dim_ordering == 'default':
         dim_ordering = image_dim_ordering()
     if dim_ordering not in {'th', 'tf'}:
-        raise Exception('Unknown dim_ordering ' + str(dim_ordering))
+        raise ValueError('Unknown dim_ordering:', dim_ordering)
 
     # TODO: remove this if statement when Theano without pool_3d is deprecated
     #       (pool_3d was introduced after 0.9.0dev3)
@@ -1618,10 +1673,9 @@ def pool3d(x, pool_size, strides=(1, 1, 1), border_mode='valid',
     elif border_mode == 'valid':
         padding = (0, 0, 0)
     else:
-        raise Exception('Invalid border mode: ' + str(border_mode))
-
+        raise ValueError('Invalid border mode:', border_mode)
     if dim_ordering not in {'th', 'tf'}:
-        raise Exception('Unknown dim_ordering ' + str(dim_ordering))
+        raise ValueError('Unknown dim_ordering:', dim_ordering)
 
     if dim_ordering == 'tf':
         x = x.dimshuffle((0, 4, 1, 2, 3))
@@ -1655,7 +1709,7 @@ def pool3d(x, pool_size, strides=(1, 1, 1), border_mode='valid',
                                     padding=padding,
                                     mode='average_exc_pad')
     else:
-        raise Exception('Invalid pooling mode: ' + str(pool_mode))
+        raise ValueError('Invalid pooling mode:', pool_mode)
 
     if border_mode == 'same':
         expected_width = (x.shape[2] + strides[0] - 1) // strides[0]
@@ -1679,19 +1733,19 @@ def _old_theano_pool3d(x, pool_size, strides=(1, 1, 1), border_mode='valid',
     if dim_ordering == 'default':
         dim_ordering = image_dim_ordering()
     if dim_ordering not in {'th', 'tf'}:
-        raise Exception('Unknown dim_ordering ' + str(dim_ordering))
+        raise ValueError('Unknown dim_ordering:', dim_ordering)
 
     if border_mode == 'same':
         # TODO: add implementation for border_mode="same"
-        raise Exception('border_mode="same" not supported with Theano.')
+        raise ValueError('border_mode="same" not supported with Theano.')
     elif border_mode == 'valid':
         ignore_border = True
         padding = (0, 0)
     else:
-        raise Exception('Invalid border mode: ' + str(border_mode))
+        raise ValueError('Invalid border mode:', border_mode)
 
     if dim_ordering not in {'th', 'tf'}:
-        raise Exception('Unknown dim_ordering ' + str(dim_ordering))
+        raise ValueError('Unknown dim_ordering:', dim_ordering)
 
     if dim_ordering == 'tf':
         x = x.dimshuffle((0, 4, 1, 2, 3))
@@ -1730,7 +1784,7 @@ def _old_theano_pool3d(x, pool_size, strides=(1, 1, 1), border_mode='valid',
                                 padding=padding,
                                 mode='average_exc_pad')
     else:
-        raise Exception('Invalid pooling mode: ' + str(pool_mode))
+        raise ValueError('Invalid pooling mode:', pool_mode)
 
     if dim_ordering == 'tf':
         pool_out = pool_out.dimshuffle((0, 2, 3, 4, 1))

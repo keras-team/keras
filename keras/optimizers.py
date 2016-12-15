@@ -49,7 +49,7 @@ class Optimizer(object):
         allowed_kwargs = {'clipnorm', 'clipvalue'}
         for k in kwargs:
             if k not in allowed_kwargs:
-                raise Exception('Unexpected keyword argument '
+                raise TypeError('Unexpected keyword argument '
                                 'passed to optimizer: ' + str(k))
         self.__dict__.update(kwargs)
         self.updates = []
@@ -85,10 +85,10 @@ class Optimizer(object):
         param_values = K.batch_get_value(params)
         for pv, p, w in zip(param_values, params, weights):
             if pv.shape != w.shape:
-                raise Exception('Optimizer weight shape ' +
-                                str(pv.shape) +
-                                ' not compatible with '
-                                'provided weight shape ' + str(w.shape))
+                raise ValueError('Optimizer weight shape ' +
+                                 str(pv.shape) +
+                                 ' not compatible with '
+                                 'provided weight shape ' + str(w.shape))
             weight_value_tuples.append((p, w))
         K.batch_set_value(weight_value_tuples)
 

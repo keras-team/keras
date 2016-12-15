@@ -12,22 +12,22 @@ def get_from_module(identifier, module_params, module_name,
     if isinstance(identifier, six.string_types):
         res = module_params.get(identifier)
         if not res:
-            raise Exception('Invalid ' + str(module_name) + ': ' +
-                            str(identifier))
+            raise ValueError('Invalid ' + str(module_name) + ': ' +
+                             str(identifier))
         if instantiate and not kwargs:
             return res()
         elif instantiate and kwargs:
             return res(**kwargs)
         else:
             return res
-    elif type(identifier) is dict:
+    elif isinstance(identifier, dict):
         name = identifier.pop('name')
         res = module_params.get(name)
         if res:
             return res(**identifier)
         else:
-            raise Exception('Invalid ' + str(module_name) + ': ' +
-                            str(identifier))
+            raise ValueError('Invalid ' + str(module_name) + ': ' +
+                             str(identifier))
     return identifier
 
 
@@ -51,32 +51,22 @@ def func_load(code, defaults=None, closure=None, globs=None):
     if isinstance(code, (tuple, list)):  # unpack previous dump
         code, defaults, closure = code
     code = marshal.loads(code.encode('raw_unicode_escape'))
-    if closure is not None:
-        closure = func_reconstruct_closure(closure)
     if globs is None:
         globs = globals()
-    return python_types.FunctionType(code, globs, name=code.co_name, argdefs=defaults, closure=closure)
-
-
-def func_reconstruct_closure(values):
-    '''Deserialization helper that reconstructs a closure.'''
-    nums = range(len(values))
-    src = ["def func(arg):"]
-    src += ["  _%d = arg[%d]" % (n, n) for n in nums]
-    src += ["  return lambda:(%s)" % ','.join(["_%d" % n for n in nums]), ""]
-    src = '\n'.join(src)
-    try:
-        exec(src, globals())
-    except:
-        raise SyntaxError(src)
-    return func(values).__closure__
+    return python_types.FunctionType(code, globs,
+                                     name=code.co_name,
+                                     argdefs=defaults,
+                                     closure=closure)
 
 
 class Progbar(object):
+
     def __init__(self, target, width=30, verbose=1, interval=0.01):
-        '''
-            @param target: total number of steps expected
-            @param interval: minimum visual progress update interval (in seconds)
+        '''Dislays a progress bar.
+
+        # Arguments:
+            target: Total number of steps expected.
+            interval: Minimum visual progress update interval (in seconds).
         '''
         self.width = width
         self.target = target
@@ -90,15 +80,18 @@ class Progbar(object):
         self.verbose = verbose
 
     def update(self, current, values=[], force=False):
-        '''
-            @param current: index of current step
-            @param values: list of tuples (name, value_for_last_step).
-            The progress bar will display averages for these values.
-            @param force: force visual progress update
+        '''Updates the progress bar.
+
+        # Arguments
+            current: Index of current step.
+            values: List of tuples (name, value_for_last_step).
+                The progress bar will display averages for these values.
+            force: Whether to force visual progress update.
         '''
         for k, v in values:
             if k not in self.sum_values:
-                self.sum_values[k] = [v * (current - self.seen_so_far), current - self.seen_so_far]
+                self.sum_values[k] = [v * (current - self.seen_so_far),
+                                      current - self.seen_so_far]
                 self.unique_values.append(k)
             else:
                 self.sum_values[k][0] += v * (current - self.seen_so_far)
@@ -111,8 +104,8 @@ class Progbar(object):
                 return
 
             prev_total_width = self.total_width
-            sys.stdout.write("\b" * prev_total_width)
-            sys.stdout.write("\r")
+            sys.stdout.write('\b' * prev_total_width)
+            sys.stdout.write('\r')
 
             numdigits = int(np.floor(np.log10(self.target))) + 1
             barstr = '%%%dd/%%%dd [' % (numdigits, numdigits)
@@ -142,7 +135,7 @@ class Progbar(object):
                 info += ' - %ds' % (now - self.start)
             for k in self.unique_values:
                 info += ' - %s:' % k
-                if type(self.sum_values[k]) is list:
+                if isinstance(self.sum_values[k], list):
                     avg = self.sum_values[k][0] / max(1, self.sum_values[k][1])
                     if abs(avg) > 1e-3:
                         info += ' %.4f' % avg
@@ -153,13 +146,13 @@ class Progbar(object):
 
             self.total_width += len(info)
             if prev_total_width > self.total_width:
-                info += ((prev_total_width - self.total_width) * " ")
+                info += ((prev_total_width - self.total_width) * ' ')
 
             sys.stdout.write(info)
             sys.stdout.flush()
 
             if current >= self.target:
-                sys.stdout.write("\n")
+                sys.stdout.write('\n')
 
         if self.verbose == 2:
             if current >= self.target:

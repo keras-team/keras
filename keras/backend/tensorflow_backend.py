@@ -232,7 +232,8 @@ def variable(value, dtype=_FLOATX, name=None):
         indices = np.concatenate((np.expand_dims(sparse_coo.row, 1),
                                   np.expand_dims(sparse_coo.col, 1)), 1)
         # SparseTensor doesn't need initialization
-        v = tf.SparseTensor(indices=indices, values=sparse_coo.data,
+        v = tf.SparseTensor(indices=indices,
+                            values=sparse_coo.data,
                             shape=sparse_coo.shape)
         v._dims = len(sparse_coo.shape)
         return v
@@ -705,8 +706,12 @@ def update_sub(x, decrement):
 
 
 def moving_average_update(variable, value, momentum):
-    return moving_averages.assign_moving_average(
-        variable, value, momentum)
+    try:
+        return moving_averages.assign_moving_average(
+            variable, value, momentum, zero_debias=False)
+    except TypeError:
+        return moving_averages.assign_moving_average(
+            variable, value, momentum)
 
 
 # LINEAR ALGEBRA
@@ -821,7 +826,7 @@ def batch_dot(x, y, axes=None):
         (32, 1, 30)
     ```
     '''
-    if type(axes) == int:
+    if isinstance(axes, int):
         axes = (axes, axes)
     if axes is not None:
         adj_x = None if axes[0] == ndim(x) - 1 else True
@@ -887,9 +892,9 @@ def gather(reference, indices):
 # ELEMENT-WISE OPERATIONS
 
 def _normalize_axis(axis, ndim):
-    if type(axis) is tuple:
+    if isinstance(axis, tuple):
         axis = list(axis)
-    if type(axis) is list:
+    if isinstance(axis, list):
         for i, a in enumerate(axis):
             if a is not None and a < 0:
                 axis[i] = a % ndim
@@ -1123,7 +1128,7 @@ def cos(x):
 
 
 def normalize_batch_in_training(x, gamma, beta,
-                                reduction_axes, epsilon=0.0001):
+                                reduction_axes, epsilon=1e-3):
     '''Compute mean and std for batch then apply batch_normalization on batch.
     '''
     mean, var = tf.nn.moments(x, reduction_axes,
@@ -1152,7 +1157,7 @@ def normalize_batch_in_training(x, gamma, beta,
     return normed, mean, var
 
 
-def batch_normalization(x, mean, var, beta, gamma, epsilon=0.0001):
+def batch_normalization(x, mean, var, beta, gamma, epsilon=1e-3):
     '''Apply batch normalization on x given mean, var, beta and gamma:
 
     output = (x - mean) / (sqrt(var) + epsilon) * gamma + beta
@@ -1220,7 +1225,7 @@ def resize_images(X, height_factor, width_factor, dim_ordering):
                     original_shape[2] * width_factor if original_shape[2] is not None else None, None))
         return X
     else:
-        raise Exception('Invalid dim_ordering: ' + dim_ordering)
+        raise ValueError('Invalid dim_ordering:', dim_ordering)
 
 
 def resize_volumes(X, depth_factor, height_factor, width_factor, dim_ordering):
@@ -1241,7 +1246,7 @@ def resize_volumes(X, depth_factor, height_factor, width_factor, dim_ordering):
         output = repeat_elements(output, width_factor, axis=3)
         return output
     else:
-        raise Exception('Invalid dim_ordering: ' + dim_ordering)
+        raise ValueError('Invalid dim_ordering:', dim_ordering)
 
 
 def repeat_elements(x, rep, axis):
@@ -1290,7 +1295,7 @@ def arange(start, stop=None, step=1, dtype='int32'):
 
 
 def tile(x, n):
-    if not hasattr(n, 'shape') and not hasattr(n, '__len__') and not hasattr(n, '_shape'):
+    if isinstance(n, int):
         n = [n]
     return tf.tile(x, n)
 
@@ -1425,7 +1430,7 @@ def one_hot(indices, nb_classes):
 def reverse(x, axes):
     '''Reverse a tensor along the the specified axes
     '''
-    if type(axes) == int:
+    if isinstance(axes, int):
         axes = [axes]
     dims = [True if i in axes else False for i in range(len(x.get_shape()._dims))]
     return tf.reverse(x, dims)
@@ -1485,7 +1490,8 @@ def batch_set_value(tuples):
                 assign_placeholder = x._assign_placeholder
                 assign_op = x._assign_op
             else:
-                assign_placeholder = tf.placeholder(tf_dtype, shape=value.shape)
+                assign_placeholder = tf.placeholder(tf_dtype,
+                                                    shape=value.shape)
                 assign_op = x.assign(assign_placeholder)
                 x._assign_placeholder = assign_placeholder
                 x._assign_op = assign_op
@@ -1510,15 +1516,21 @@ def print_tensor(x, message=''):
 class Function(object):
 
     def __init__(self, inputs, outputs, updates=[]):
-        assert type(inputs) in {list, tuple}, 'Input to a TensorFlow backend function should be a list or tuple.'
-        assert type(outputs) in {list, tuple}, 'Output to a TensorFlow backend function should be a list or tuple.'
-        assert type(updates) in {list, tuple}, 'Updates in a TensorFlow backend function should be a list or tuple.'
+        if not isinstance(inputs, (list, tuple)):
+            raise TypeError('`inputs` to a TensorFlow backend function '
+                            'should be a list or tuple.')
+        if not isinstance(outputs, (list, tuple)):
+            raise TypeError('`outputs` of a TensorFlow backend function '
+                            'should be a list or tuple.')
+        if not isinstance(updates, (list, tuple)):
+            raise TypeError('`updates` in a TensorFlow backend function '
+                            'should be a list or tuple.')
         self.inputs = list(inputs)
         self.outputs = list(outputs)
         with tf.control_dependencies(self.outputs):
             updates_ops = []
             for update in updates:
-                if type(update) is tuple:
+                if isinstance(update, tuple):
                     p, new_p = update
                     updates_ops.append(tf.assign(p, new_p))
                 else:
@@ -1527,7 +1539,8 @@ class Function(object):
             self.updates_op = tf.group(*updates_ops)
 
     def __call__(self, inputs):
-        assert type(inputs) in {list, tuple}
+        if not isinstance(inputs, (list, tuple)):
+            raise TypeError('`inputs` should be a list or tuple.')
         feed_dict = {}
         for tensor, value in zip(self.inputs, inputs):
             if is_sparse(tensor):
@@ -1537,7 +1550,8 @@ class Function(object):
                 value = (indices, sparse_coo.data, sparse_coo.shape)
             feed_dict[tensor] = value
         session = get_session()
-        updated = session.run(self.outputs + [self.updates_op], feed_dict=feed_dict)
+        updated = session.run(self.outputs + [self.updates_op],
+                              feed_dict=feed_dict)
         return updated[:len(self.outputs)]
 
 
@@ -2073,7 +2087,7 @@ def _preprocess_border_mode(border_mode):
     elif border_mode == 'valid':
         padding = 'VALID'
     else:
-        raise Exception('Invalid border mode: ' + str(border_mode))
+        raise ValueError('Invalid border mode:', border_mode)
     return padding
 
 
@@ -2275,7 +2289,7 @@ def pool2d(x, pool_size, strides=(1, 1),
     elif pool_mode == 'avg':
         x = tf.nn.avg_pool(x, pool_size, strides, padding=padding)
     else:
-        raise Exception('Invalid pooling mode: ' + str(pool_mode))
+        raise ValueError('Invalid pooling mode:', pool_mode)
 
     return _postprocess_conv2d_output(x, dim_ordering)
 
@@ -2307,7 +2321,7 @@ def pool3d(x, pool_size, strides=(1, 1, 1), border_mode='valid',
     elif pool_mode == 'avg':
         x = tf.nn.avg_pool3d(x, pool_size, strides, padding=padding)
     else:
-        raise Exception('Invalid pooling mode: ' + str(pool_mode))
+        raise ValueError('Invalid pooling mode:', pool_mode)
 
     return _postprocess_conv3d_output(x, dim_ordering)
 
@@ -2335,11 +2349,13 @@ def random_binomial(shape, p=0.0, dtype=_FLOATX, seed=None):
                      tf.ones(shape, dtype=dtype),
                      tf.zeros(shape, dtype=dtype))
 
+
 # CTC
 # tensorflow has a native implemenation, but it uses sparse tensors
 # and therefore requires a wrapper for Keras. The functions below convert
 # dense to sparse tensors and also wraps up the beam search code that is
 # in tensorflow's CTC implementation
+
 
 def ctc_label_dense_to_sparse(labels, label_lengths):
     # undocumented feature soon to be made public
