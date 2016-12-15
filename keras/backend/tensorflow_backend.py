@@ -376,10 +376,15 @@ def dot(x, y):
         x_shape = (-1,) + int_shape(x)[1:]
         y_shape = int_shape(y)
         y_permute_dim = list(range(ndim(y)))
-        y_permute_dim = [y_permute_dim.pop(-2)] + y_permute_dim
         xt = tf.reshape(x, [-1, x_shape[-1]])
-        yt = tf.reshape(tf.transpose(y, perm=y_permute_dim), [y_shape[-2], -1])
-        return tf.reshape(tf.matmul(xt, yt), x_shape[:-1] + y_shape[:-2] + y_shape[-1:])
+        if ndim(y) >= 2:
+            y_permute_dim = [y_permute_dim.pop(-2)] + y_permute_dim
+            yt = tf.reshape(tf.transpose(y, perm=y_permute_dim), [y_shape[-2], -1])
+            return tf.reshape(tf.matmul(xt, yt), x_shape[:-1] + y_shape[:-2] + y_shape[-1:])
+        # when ndim(y) is 1, for replicating the behavior in theano (e.g. (2, 3, 4).(4,) = (2, 3))
+        else:
+            yt = expand_dims(y)
+            return tf.reshape(tf.matmul(xt, yt), x_shape[:-1])
     if is_sparse(x):
         out = tf.sparse_tensor_dense_matmul(x, y)
     else:
