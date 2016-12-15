@@ -56,14 +56,15 @@ def standardize_input_data(data, names, shapes=None,
                 if len(names) == 1:
                     data = [np.asarray(data)]
                 else:
-                    raise ValueError('Error when checking ' + exception_prefix +
-                                     ': you are passing a list as '
-                                     'input to your model, '
-                                     'but the model expects '
-                                     'a list of ' + str(len(names)) +
-                                     ' Numpy arrays instead. '
-                                     'The list you passed was: ' +
-                                     str(data)[:200])
+                    raise ValueError(
+                        'Error when checking ' + exception_prefix +
+                        ': you are passing a list as '
+                        'input to your model, '
+                        'but the model expects '
+                        'a list of ' + str(len(names)) +
+                        ' Numpy arrays instead. '
+                        'The list you passed was: ' +
+                        str(data)[:200])
         arrays = data
     else:
         if not hasattr(data, 'shape'):
@@ -104,11 +105,12 @@ def standardize_input_data(data, names, shapes=None,
                     continue
                 if ref_dim:
                     if ref_dim != dim:
-                        raise ValueError('Error when checking ' + exception_prefix +
-                                         ': expected ' + names[i] +
-                                         ' to have shape ' + str(shapes[i]) +
-                                         ' but got array with shape ' +
-                                         str(array.shape))
+                        raise ValueError(
+                            'Error when checking ' + exception_prefix +
+                            ': expected ' + names[i] +
+                            ' to have shape ' + str(shapes[i]) +
+                            ' but got array with shape ' +
+                            str(array.shape))
     return arrays
 
 
@@ -175,9 +177,9 @@ def check_array_lengths(X, Y, W):
                          'the same number of samples.')
     if list(set_x)[0] != list(set_y)[0]:
         raise ValueError('Input arrays should have '
-                         'the same number of samples as target arrays. Found ' +
-                         str(list(set_x)[0]) + ' input samples and ' +
-                         str(list(set_y)[0]) + ' target samples.')
+                         'the same number of samples as target arrays. '
+                         'Found ' + str(list(set_x)[0]) + ' input samples '
+                         'and ' + str(list(set_y)[0]) + ' target samples.')
     if list(set_x)[0] != list(set_w)[0]:
         raise ValueError('Sample_weight arrays should have '
                          'the same number of samples as input arrays. Found ' +
@@ -192,30 +194,32 @@ def check_loss_and_target_compatibility(targets, losses, output_shapes):
     for y, loss, shape in zip(targets, losses, output_shapes):
         if loss.__name__ == 'categorical_crossentropy':
             if y.shape[-1] == 1:
-                raise ValueError('You are passing a target array of shape ' + str(y.shape) +
-                                 ' while using as loss `categorical_crossentropy`. '
-                                 '`categorical_crossentropy` expects '
-                                 'targets to be binary matrices (1s and 0s) '
-                                 'of shape (samples, classes). '
-                                 'If your targets are integer classes, '
-                                 'you can convert them to the expected format via:\n'
-                                 '```\n'
-                                 'from keras.utils.np_utils import to_categorical\n'
-                                 'y_binary = to_categorical(y_int)\n'
-                                 '```\n'
-                                 '\n'
-                                 'Alternatively, you can use the loss function '
-                                 '`sparse_categorical_crossentropy` instead, '
-                                 'which does expect integer targets.')
+                raise ValueError(
+                    'You are passing a target array of shape ' + str(y.shape) +
+                    ' while using as loss `categorical_crossentropy`. '
+                    '`categorical_crossentropy` expects '
+                    'targets to be binary matrices (1s and 0s) '
+                    'of shape (samples, classes). '
+                    'If your targets are integer classes, '
+                    'you can convert them to the expected format via:\n'
+                    '```\n'
+                    'from keras.utils.np_utils import to_categorical\n'
+                    'y_binary = to_categorical(y_int)\n'
+                    '```\n'
+                    '\n'
+                    'Alternatively, you can use the loss function '
+                    '`sparse_categorical_crossentropy` instead, '
+                    'which does expect integer targets.')
         if loss.__name__ in key_losses:
             for target_dim, out_dim in zip(y.shape[1:], shape[1:]):
                 if out_dim is not None and target_dim != out_dim:
-                    raise ValueError('A target array with shape ' + str(y.shape) +
-                                     ' was passed for an output of shape ' + str(shape) +
-                                     ' while using as loss `' + loss.__name__ + '`. '
-                                     'This loss expects '
-                                     'targets to have the same shape '
-                                     'as the output.')
+                    raise ValueError(
+                        'A target array with shape ' + str(y.shape) +
+                        ' was passed for an output of shape ' + str(shape) +
+                        ' while using as loss `' + loss.__name__ + '`. '
+                        'This loss expects '
+                        'targets to have the same shape '
+                        'as the output.')
 
 
 def collect_metrics(metrics, output_names):
@@ -351,7 +355,8 @@ def standardize_weights(y, sample_weight=None, class_weight=None,
             raise ValueError('Found a sample_weight array with shape ' +
                              str(sample_weight.shape) + '. '
                              'In order to use timestep-wise sample weights, '
-                             'you should specify sample_weight_mode="temporal" '
+                             'you should specify '
+                             'sample_weight_mode="temporal" '
                              'in compile(). If you just mean to use '
                              'sample-wise weights, make sure your '
                              'sample_weight array is 1D.')
@@ -411,7 +416,8 @@ def generator_queue(generator, max_q_size=10,
 
         for i in range(nb_worker):
             if pickle_safe:
-                # Reset random seed else all children processes share the same seed
+                # Reset random seed else all children processes
+                # share the same seed
                 np.random.seed()
                 thread = multiprocessing.Process(target=data_generator_task)
             else:
@@ -543,10 +549,12 @@ class Model(Container):
                                      '" missing from sample_weight_modes '
                                      'dictionary')
                 if sample_weight_mode.get(name) == 'temporal':
-                    weight = K.placeholder(ndim=2, name=name + '_sample_weights')
+                    weight = K.placeholder(ndim=2,
+                                           name=name + '_sample_weights')
                     sample_weight_modes.append('temporal')
                 else:
-                    weight = K.placeholder(ndim=1, name=name + '_sample_weights')
+                    weight = K.placeholder(ndim=1,
+                                           name=name + '_sample_weights')
                     sample_weight_modes.append(None)
                 sample_weights.append(weight)
         elif isinstance(sample_weight_mode, list):
@@ -554,25 +562,31 @@ class Model(Container):
                 raise ValueError('When passing a list as sample_weight_mode, '
                                  'it should have one entry per model outputs. '
                                  'The model has ' + str(len(self.outputs)) +
-                                 ' outputs, but you passed sample_weight_mode=' +
+                                 ' outputs, but you passed '
+                                 'sample_weight_mode=' +
                                  str(sample_weight_mode))
             sample_weights = []
             sample_weight_modes = []
             for mode, name in zip(sample_weight_mode, self.output_names):
                 if mode == 'temporal':
-                    weight = K.placeholder(ndim=2, name=name + '_sample_weights')
+                    weight = K.placeholder(ndim=2,
+                                           name=name + '_sample_weights')
                     sample_weight_modes.append('temporal')
                 else:
-                    weight = K.placeholder(ndim=1, name=name + '_sample_weights')
+                    weight = K.placeholder(ndim=1,
+                                           name=name + '_sample_weights')
                     sample_weight_modes.append(None)
                 sample_weights.append(weight)
         else:
             if sample_weight_mode == 'temporal':
-                sample_weights = [K.placeholder(ndim=2, name=name + '_sample_weights')
+                sample_weights = [K.placeholder(ndim=2,
+                                                name=name + '_sample_weights')
                                   for name in self.output_names]
-                sample_weight_modes = ['temporal' for name in self.output_names]
+                sample_weight_modes = ['temporal'
+                                       for name in self.output_names]
             else:
-                sample_weights = [K.placeholder(ndim=1, name=name + '_sample_weights')
+                sample_weights = [K.placeholder(ndim=1,
+                                                name=name + '_sample_weights')
                                   for name in self.output_names]
                 sample_weight_modes = [None for name in self.output_names]
         self.sample_weight_modes = sample_weight_modes
@@ -635,7 +649,8 @@ class Model(Container):
 
             for metric in output_metrics:
                 if metric == 'accuracy' or metric == 'acc':
-                    # custom handling of accuracy (because of class mode duality)
+                    # custom handling of accuracy
+                    # (because of class mode duality)
                     output_shape = self.internal_output_shapes[i]
                     acc_fn = None
                     if output_shape[-1] == 1 or self.loss_functions[i] == objectives.binary_crossentropy:
@@ -948,8 +963,9 @@ class Model(Container):
                                sample_weight=None, class_weight=None,
                                check_batch_dim=True, batch_size=None):
         if not hasattr(self, 'optimizer'):
-            raise RuntimeError('You must compile a model before training/testing.'
-                               ' Use `model.compile(optimizer, loss)`.')
+            raise RuntimeError('You must compile a model before '
+                               'training/testing. '
+                               'Use `model.compile(optimizer, loss)`.')
 
         output_shapes = []
         for output_shape, loss_fn in zip(self.internal_output_shapes, self.loss_functions):
@@ -993,27 +1009,37 @@ class Model(Container):
         # Arguments
             x: Numpy array of training data,
                 or list of Numpy arrays if the model has multiple inputs.
-                If all inputs in the model are named, you can also pass a dictionary
+                If all inputs in the model are named,
+                you can also pass a dictionary
                 mapping input names to Numpy arrays.
             y: Numpy array of target data,
                 or list of Numpy arrays if the model has multiple outputs.
-                If all outputs in the model are named, you can also pass a dictionary
+                If all outputs in the model are named,
+                you can also pass a dictionary
                 mapping output names to Numpy arrays.
             batch_size: integer. Number of samples per gradient update.
-            nb_epoch: integer, the number of times to iterate over the training data arrays.
-            verbose: 0, 1, or 2. Verbosity mode. 0 = silent, 1 = verbose, 2 = one log line per epoch.
+            nb_epoch: integer, the number of times to iterate
+                over the training data arrays.
+                verbose: 0, 1, or 2. Verbosity mode.
+                0 = silent, 1 = verbose, 2 = one log line per epoch.
             callbacks: list of callbacks to be called during training.
                 See [callbacks](/callbacks).
             validation_split: float between 0 and 1:
                 fraction of the training data to be used as validation data.
                 The model will set apart this fraction of the training data,
-                will not train on it, and will evaluate the loss and any model metrics
+                will not train on it, and will evaluate
+                the loss and any model metrics
                 on this data at the end of each epoch.
-            validation_data: data on which to evaluate the loss and any model metrics
-                at the end of each epoch. The model will not be trained on this data.
-                This could be a tuple (x_val, y_val) or a tuple (x_val, y_val, val_sample_weights).
-            shuffle: boolean, whether to shuffle the training data before each epoch.
-            class_weight: optional dictionary mapping class indices (integers) to
+            validation_data: data on which to evaluate
+                the loss and any model metrics
+                at the end of each epoch. The model will not
+                be trained on this data.
+                This could be a tuple (x_val, y_val)
+                or a tuple (x_val, y_val, val_sample_weights).
+            shuffle: boolean, whether to shuffle the training data
+                before each epoch.
+            class_weight: optional dictionary mapping
+                class indices (integers) to
                 a weight (float) to apply to the model's loss for the samples
                 from this class during training.
                 This can be useful to tell the model to "pay more attention" to
@@ -1023,7 +1049,8 @@ class Model(Container):
                 In the case of temporal data, you can pass a 2D array
                 with shape (samples, sequence_length),
                 to apply a different weight to every timestep of every sample.
-                In this case you should make sure to specify sample_weight_mode="temporal" in compile().
+                In this case you should make sure to specify
+                sample_weight_mode="temporal" in compile().
             initial_epoch: epoch at which to start training
                 (useful for resuming a previous training run)
 
@@ -1033,11 +1060,12 @@ class Model(Container):
             all information collected during training.
         '''
         # validate user data
-        x, y, sample_weights = self._standardize_user_data(x, y,
-                                                           sample_weight=sample_weight,
-                                                           class_weight=class_weight,
-                                                           check_batch_dim=False,
-                                                           batch_size=batch_size)
+        x, y, sample_weights = self._standardize_user_data(
+            x, y,
+            sample_weight=sample_weight,
+            class_weight=class_weight,
+            check_batch_dim=False,
+            batch_size=batch_size)
         # prepare validation data
         if validation_data:
             do_validation = True
@@ -1048,10 +1076,11 @@ class Model(Container):
                 val_x, val_y, val_sample_weight = validation_data
             else:
                 raise
-            val_x, val_y, val_sample_weights = self._standardize_user_data(val_x, val_y,
-                                                                           sample_weight=val_sample_weight,
-                                                                           check_batch_dim=False,
-                                                                           batch_size=batch_size)
+            val_x, val_y, val_sample_weights = self._standardize_user_data(
+                val_x, val_y,
+                sample_weight=val_sample_weight,
+                check_batch_dim=False,
+                batch_size=batch_size)
             self._make_test_function()
             val_f = self.test_function
             if self.uses_learning_phase and not isinstance(K.learning_phase(), int):
@@ -1120,11 +1149,13 @@ class Model(Container):
         # Arguments
             x: Numpy array of test data,
                 or list of Numpy arrays if the model has multiple inputs.
-                If all inputs in the model are named, you can also pass a dictionary
+                If all inputs in the model are named,
+                you can also pass a dictionary
                 mapping input names to Numpy arrays.
             y: Numpy array of target data,
                 or list of Numpy arrays if the model has multiple outputs.
-                If all outputs in the model are named, you can also pass a dictionary
+                If all outputs in the model are named,
+                you can also pass a dictionary
                 mapping output names to Numpy arrays.
             batch_size: integer. Number of samples per gradient update.
 
@@ -1135,10 +1166,11 @@ class Model(Container):
             the display labels for the scalar outputs.
         '''
         # validate user data
-        x, y, sample_weights = self._standardize_user_data(x, y,
-                                                           sample_weight=sample_weight,
-                                                           check_batch_dim=False,
-                                                           batch_size=batch_size)
+        x, y, sample_weights = self._standardize_user_data(
+            x, y,
+            sample_weight=sample_weight,
+            check_batch_dim=False,
+            batch_size=batch_size)
         # prepare inputs, delegate logic to _test_loop
         if self.uses_learning_phase and not isinstance(K.learning_phase, int):
             ins = x + y + sample_weights + [0.]
@@ -1193,34 +1225,40 @@ class Model(Container):
         # Arguments
             x: Numpy array of training data,
                 or list of Numpy arrays if the model has multiple inputs.
-                If all inputs in the model are named, you can also pass a dictionary
+                If all inputs in the model are named,
+                you can also pass a dictionary
                 mapping input names to Numpy arrays.
             y: Numpy array of target data,
                 or list of Numpy arrays if the model has multiple outputs.
-                If all outputs in the model are named, you can also pass a dictionary
+                If all outputs in the model are named,
+                you can also pass a dictionary
                 mapping output names to Numpy arrays.
             sample_weight: optional array of the same length as x, containing
                 weights to apply to the model's loss for each sample.
                 In the case of temporal data, you can pass a 2D array
                 with shape (samples, sequence_length),
                 to apply a different weight to every timestep of every sample.
-                In this case you should make sure to specify sample_weight_mode="temporal" in compile().
-            class_weight: optional dictionary mapping class indices (integers) to
+                In this case you should make sure to specify
+                sample_weight_mode="temporal" in compile().
+            class_weight: optional dictionary mapping
+                lass indices (integers) to
                 a weight (float) to apply to the model's loss for the samples
                 from this class during training.
                 This can be useful to tell the model to "pay more attention" to
                 samples from an under-represented class.
 
         # Returns
-            Scalar training loss (if the model has a single output and no metrics)
+            Scalar training loss
+            (if the model has a single output and no metrics)
             or list of scalars (if the model has multiple outputs
             and/or metrics). The attribute `model.metrics_names` will give you
             the display labels for the scalar outputs.
         '''
-        x, y, sample_weights = self._standardize_user_data(x, y,
-                                                           sample_weight=sample_weight,
-                                                           class_weight=class_weight,
-                                                           check_batch_dim=True)
+        x, y, sample_weights = self._standardize_user_data(
+            x, y,
+            sample_weight=sample_weight,
+            class_weight=class_weight,
+            check_batch_dim=True)
         if self.uses_learning_phase and not isinstance(K.learning_phase, int):
             ins = x + y + sample_weights + [1.]
         else:
@@ -1237,18 +1275,21 @@ class Model(Container):
         # Arguments
             x: Numpy array of test data,
                 or list of Numpy arrays if the model has multiple inputs.
-                If all inputs in the model are named, you can also pass a dictionary
+                If all inputs in the model are named,
+                you can also pass a dictionary
                 mapping input names to Numpy arrays.
             y: Numpy array of target data,
                 or list of Numpy arrays if the model has multiple outputs.
-                If all outputs in the model are named, you can also pass a dictionary
+                If all outputs in the model are named,
+                you can also pass a dictionary
                 mapping output names to Numpy arrays.
             sample_weight: optional array of the same length as x, containing
                 weights to apply to the model's loss for each sample.
                 In the case of temporal data, you can pass a 2D array
                 with shape (samples, sequence_length),
                 to apply a different weight to every timestep of every sample.
-                In this case you should make sure to specify sample_weight_mode="temporal" in compile().
+                In this case you should make sure to specify
+                sample_weight_mode="temporal" in compile().
 
         # Returns
             Scalar test loss (if the model has a single output and no metrics)
@@ -1256,9 +1297,10 @@ class Model(Container):
             and/or metrics). The attribute `model.metrics_names` will give you
             the display labels for the scalar outputs.
         '''
-        x, y, sample_weights = self._standardize_user_data(x, y,
-                                                           sample_weight=sample_weight,
-                                                           check_batch_dim=True)
+        x, y, sample_weights = self._standardize_user_data(
+            x, y,
+            sample_weight=sample_weight,
+            check_batch_dim=True)
         if self.uses_learning_phase and not isinstance(K.learning_phase, int):
             ins = x + y + sample_weights + [0.]
         else:
@@ -1287,7 +1329,8 @@ class Model(Container):
     def fit_generator(self, generator, samples_per_epoch, nb_epoch,
                       verbose=1, callbacks=[],
                       validation_data=None, nb_val_samples=None,
-                      class_weight={}, max_q_size=10, nb_worker=1, pickle_safe=False,
+                      class_weight={},
+                      max_q_size=10, nb_worker=1, pickle_safe=False,
                       initial_epoch=0):
         '''Fits the model on data generated batch-by-batch by
         a Python generator.
@@ -1319,10 +1362,14 @@ class Model(Container):
             class_weight: dictionary mapping class indices to a weight
                 for the class.
             max_q_size: maximum size for the generator queue
-            nb_worker: maximum number of processes to spin up when using process based threading
-            pickle_safe: if True, use process based threading. Note that because
-                this implementation relies on multiprocessing, you should not pass
-                non picklable arguments to the generator as they can't be passed
+            nb_worker: maximum number of processes to spin up
+                when using process based threading
+            pickle_safe: if True, use process based threading.
+                Note that because
+                this implementation relies on multiprocessing,
+                you should not pass
+                non picklable arguments to the generator
+                as they can't be passed
                 easily to children processes.
             initial_epoch: epoch at which to start training
                 (useful for resuming a previous training run)
@@ -1397,15 +1444,20 @@ class Model(Container):
             else:
                 raise ValueError('validation_data should be a tuple '
                                  '(val_x, val_y, val_sample_weight) '
-                                 'or (val_x, val_y). Found: ' + str(validation_data))
-            val_x, val_y, val_sample_weights = self._standardize_user_data(val_x, val_y, val_sample_weight)
+                                 'or (val_x, val_y). Found: ' +
+                                 str(validation_data))
+            val_x, val_y, val_sample_weights = self._standardize_user_data(
+                val_x, val_y, val_sample_weight)
             self.validation_data = val_x + [val_y, val_sample_weights]
         else:
             self.validation_data = None
 
         # start generator thread storing batches into a queue
-        data_gen_queue, _stop, generator_threads = generator_queue(generator, max_q_size=max_q_size, nb_worker=nb_worker,
-                                                                   pickle_safe=pickle_safe)
+        data_gen_queue, _stop, generator_threads = generator_queue(
+            generator,
+            max_q_size=max_q_size,
+            nb_worker=nb_worker,
+            pickle_safe=pickle_safe)
 
         callback_model.stop_training = False
         while epoch < nb_epoch:
@@ -1425,7 +1477,8 @@ class Model(Container):
                     _stop.set()
                     raise ValueError('output of generator should be a tuple '
                                      '(x, y, sample_weight) '
-                                     'or (x, y). Found: ' + str(generator_output))
+                                     'or (x, y). Found: ' +
+                                     str(generator_output))
                 if len(generator_output) == 2:
                     x, y = generator_output
                     sample_weight = None
@@ -1435,7 +1488,8 @@ class Model(Container):
                     _stop.set()
                     raise ValueError('output of generator should be a tuple '
                                      '(x, y, sample_weight) '
-                                     'or (x, y). Found: ' + str(generator_output))
+                                     'or (x, y). Found: ' +
+                                     str(generator_output))
                 # build batch logs
                 batch_logs = {}
                 if isinstance(x, list):
@@ -1477,18 +1531,20 @@ class Model(Container):
                                   'to avoid this warning.')
                 if samples_seen >= samples_per_epoch and do_validation:
                     if val_gen:
-                        val_outs = self.evaluate_generator(validation_data,
-                                                           nb_val_samples,
-                                                           max_q_size=max_q_size,
-                                                           nb_worker=nb_worker,
-                                                           pickle_safe=pickle_safe)
+                        val_outs = self.evaluate_generator(
+                            validation_data,
+                            nb_val_samples,
+                            max_q_size=max_q_size,
+                            nb_worker=nb_worker,
+                            pickle_safe=pickle_safe)
                     else:
                         # no need for try/except because
                         # data has already been validated
-                        val_outs = self.evaluate(val_x, val_y,
-                                                 batch_size=batch_size,
-                                                 sample_weight=val_sample_weights,
-                                                 verbose=0)
+                        val_outs = self.evaluate(
+                            val_x, val_y,
+                            batch_size=batch_size,
+                            sample_weight=val_sample_weights,
+                            verbose=0)
                     if not isinstance(val_outs, list):
                         val_outs = [val_outs]
                     # same labels assumed
@@ -1510,7 +1566,8 @@ class Model(Container):
         callbacks.on_train_end()
         return self.history
 
-    def evaluate_generator(self, generator, val_samples, max_q_size=10, nb_worker=1, pickle_safe=False):
+    def evaluate_generator(self, generator, val_samples,
+                           max_q_size=10, nb_worker=1, pickle_safe=False):
         '''Evaluates the model on a data generator. The generator should
         return the same kind of data as accepted by `test_on_batch`.
 
@@ -1522,10 +1579,14 @@ class Model(Container):
                 total number of samples to generate from `generator`
                 before returning.
             max_q_size: maximum size for the generator queue
-            nb_worker: maximum number of processes to spin up when using process based threading
-            pickle_safe: if True, use process based threading. Note that because
-                this implementation relies on multiprocessing, you should not pass
-                non picklable arguments to the generator as they can't be passed
+            nb_worker: maximum number of processes to spin up
+                when using process based threading
+            pickle_safe: if True, use process based threading.
+                Note that because
+                this implementation relies on multiprocessing,
+                you should not pass
+                non picklable arguments to the generator
+                as they can't be passed
                 easily to children processes.
 
         # Returns
@@ -1540,8 +1601,11 @@ class Model(Container):
         wait_time = 0.01
         all_outs = []
         weights = []
-        data_gen_queue, _stop, generator_threads = generator_queue(generator, max_q_size=max_q_size, nb_worker=nb_worker,
-                                                                   pickle_safe=pickle_safe)
+        data_gen_queue, _stop, generator_threads = generator_queue(
+            generator,
+            max_q_size=max_q_size,
+            nb_worker=nb_worker,
+            pickle_safe=pickle_safe)
 
         while processed_samples < val_samples:
             generator_output = None
@@ -1601,7 +1665,8 @@ class Model(Container):
                                            weights=weights))
             return averages
 
-    def predict_generator(self, generator, val_samples, max_q_size=10, nb_worker=1, pickle_safe=False):
+    def predict_generator(self, generator, val_samples,
+                          max_q_size=10, nb_worker=1, pickle_safe=False):
         '''Generates predictions for the input samples from a data generator.
         The generator should return the same kind of data as accepted by
         `predict_on_batch`.
@@ -1611,10 +1676,14 @@ class Model(Container):
             val_samples: total number of samples to generate from `generator`
                 before returning.
             max_q_size: maximum size for the generator queue
-            nb_worker: maximum number of processes to spin up when using process based threading
-            pickle_safe: if True, use process based threading. Note that because
-                this implementation relies on multiprocessing, you should not pass
-                non picklable arguments to the generator as they can't be passed
+            nb_worker: maximum number of processes to spin up
+                when using process based threading
+            pickle_safe: if True, use process based threading.
+                Note that because
+                this implementation relies on multiprocessing,
+                you should not pass
+                non picklable arguments to the generator
+                as they can't be passed
                 easily to children processes.
 
         # Returns
@@ -1625,8 +1694,11 @@ class Model(Container):
         processed_samples = 0
         wait_time = 0.01
         all_outs = []
-        data_gen_queue, _stop, generator_threads = generator_queue(generator, max_q_size=max_q_size, nb_worker=nb_worker,
-                                                                   pickle_safe=pickle_safe)
+        data_gen_queue, _stop, generator_threads = generator_queue(
+            generator,
+            max_q_size=max_q_size,
+            nb_worker=nb_worker,
+            pickle_safe=pickle_safe)
 
         while processed_samples < val_samples:
             generator_output = None
@@ -1647,7 +1719,8 @@ class Model(Container):
                     _stop.set()
                     raise ValueError('output of generator should be a tuple '
                                      '(x, y, sample_weight) '
-                                     'or (x, y). Found: ' + str(generator_output))
+                                     'or (x, y). Found: ' +
+                                     str(generator_output))
             else:
                 x = generator_output
 
@@ -1674,7 +1747,6 @@ class Model(Container):
 
             for i, out in enumerate(outs):
                 all_outs[i][processed_samples:(processed_samples + nb_samples)] = out
-
             processed_samples += nb_samples
 
         _stop.set()
