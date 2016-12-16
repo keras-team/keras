@@ -1079,6 +1079,6 @@ class PhasedLSTM(Recurrent):
                   'b_regularizer': self.b_regularizer.get_config() if self.b_regularizer else None,
                   'dropout_W': self.dropout_W,
                   'dropout_U': self.dropout_U,
-                  'alpha': self.alpha,}
+                  'alpha': self.alpha}
         base_config = super(PhasedLSTM, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
