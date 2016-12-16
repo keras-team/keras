@@ -1750,7 +1750,7 @@ class Cropping2D(Layer):
 
 
 class Cropping3D(Layer):
-    '''Cropping layer for 3D data (e.g. spatial or saptio-temporal).
+    '''Cropping layer for 3D data (e.g. spatial or spatio-temporal).
 
     # Arguments
         cropping: tuple of tuple of int (length 3)
