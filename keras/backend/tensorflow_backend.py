@@ -244,11 +244,11 @@ def variable(value, dtype=_FLOATX, name=None):
         v._uses_learning_phase = False
         return v
     v = tf.Variable(value, dtype=_convert_string_dtype(dtype), name=name)
-    if isinstance(value, np.array):
-        v._keras_shape = value.shape
-    elif hasattr(value, 'get_shape'):
-        v._keras_shape = tuple(map(int, value.get_shape()))
-    v._uses_learning_phase = False
+    # if isinstance(value, np.array):
+    #     v._keras_shape = value.shape
+    # elif hasattr(value, 'get_shape'):
+    #     v._keras_shape = tuple(map(int, value.get_shape()))
+    # v._uses_learning_phase = False
     return v
 
 
