@@ -20,7 +20,7 @@ def test_prelu():
 @keras_test
 def test_prelu_share():
     from keras.layers.advanced_activations import PReLU
-    layer_test(PReLU, kwargs={'param_share_axes': 1},
+    layer_test(PReLU, kwargs={'shared_axes': 1},
                input_shape=(2, 3, 4))
 
 
@@ -45,7 +45,7 @@ def test_parametric_softplus():
 def test_parametric_softplus_share():
     from keras.layers.advanced_activations import ParametricSoftplus
     layer_test(ParametricSoftplus,
-               kwargs={'param_share_axes': 1,
+               kwargs={'shared_axes': 1,
                        'alpha_init': 1.,
                        'beta_init': -1},
                input_shape=(2, 3, 4))
@@ -68,7 +68,7 @@ def test_srelu():
 @keras_test
 def test_srelu_share():
     from keras.layers.advanced_activations import SReLU
-    layer_test(SReLU, kwargs={'param_share_axes': 1},
+    layer_test(SReLU, kwargs={'shared_axes': 1},
                input_shape=(2, 3, 4))
 
 
