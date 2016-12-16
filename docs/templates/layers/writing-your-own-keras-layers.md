@@ -32,4 +32,4 @@ class MyLayer(Layer):
         return (input_shape[0], self.output_dim)
 ```
 
-The existing Keras layers provide ample examples of how to implement almost anything. Never hesitate to read the source code!
+The existing Keras layers provide examples of how to implement almost anything. Never hesitate to read the source code!
