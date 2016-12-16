@@ -129,11 +129,11 @@ def eye(size, dtype=_FLOATX, name=None):
     return variable(np.eye(size), dtype, name)
 
 
-def ones_like(x,name=None):
+def ones_like(x, name=None):
     return T.ones_like(x)
 
 
-def zeros_like(x,name=None):
+def zeros_like(x, name=None):
     return T.zeros_like(x)
 
 
