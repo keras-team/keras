@@ -625,43 +625,43 @@ class TestBackend(object):
         mean = 0.
         std = 1.
         rand = KTF.eval(KTF.random_normal((1000, 1000), mean=mean, std=std))
-        assert(rand.shape == (1000, 1000))
-        assert(np.abs(np.mean(rand) - mean) < 0.01)
-        assert(np.abs(np.std(rand) - std) < 0.01)
+        assert rand.shape == (1000, 1000)
+        assert np.abs(np.mean(rand) - mean) < 0.01
+        assert np.abs(np.std(rand) - std) < 0.01
 
         rand = KTH.eval(KTH.random_normal((1000, 1000), mean=mean, std=std))
-        assert(rand.shape == (1000, 1000))
-        assert(np.abs(np.mean(rand) - mean) < 0.01)
-        assert(np.abs(np.std(rand) - std) < 0.01)
+        assert rand.shape == (1000, 1000)
+        assert np.abs(np.mean(rand) - mean) < 0.01
+        assert np.abs(np.std(rand) - std) < 0.01
 
     def test_random_uniform(self):
-        min = -1.
-        max = 1.
-        rand = KTF.eval(KTF.random_uniform((1000, 1000), min, max))
-        assert(rand.shape == (1000, 1000))
-        assert(np.abs(np.mean(rand)) < 0.01)
-        assert(np.max(rand) <= max)
-        assert(np.min(rand) >= min)
+        min_val = -1.
+        max_val = 1.
+        rand = KTF.eval(KTF.random_uniform((1000, 1000), min_val, max_val))
+        assert rand.shape == (1000, 1000)
+        assert np.abs(np.mean(rand)) < 0.01
+        assert np.max(rand) <= max_val
+        assert np.min(rand) >= min_val
 
-        rand = KTH.eval(KTH.random_uniform((1000, 1000), min, max))
-        assert(rand.shape == (1000, 1000))
-        assert(np.abs(np.mean(rand)) < 0.01)
-        assert(np.max(rand) <= max)
-        assert(np.min(rand) >= min)
+        rand = KTH.eval(KTH.random_uniform((1000, 1000), min_val, max_val))
+        assert rand.shape == (1000, 1000)
+        assert np.abs(np.mean(rand)) < 0.01
+        assert np.max(rand) <= max_val
+        assert np.min(rand) >= min_val
 
     def test_random_binomial(self):
         p = 0.5
         rand = KTF.eval(KTF.random_binomial((1000, 1000), p))
-        assert(rand.shape == (1000, 1000))
-        assert(np.abs(np.mean(rand) - p) < 0.01)
-        assert(np.max(rand) == 1)
-        assert(np.min(rand) == 0)
+        assert rand.shape == (1000, 1000)
+        assert np.abs(np.mean(rand) - p) < 0.01
+        assert np.max(rand) == 1
+        assert np.min(rand) == 0
 
         rand = KTH.eval(KTH.random_binomial((1000, 1000), p))
-        assert(rand.shape == (1000, 1000))
-        assert(np.abs(np.mean(rand) - p) < 0.01)
-        assert(np.max(rand) == 1)
-        assert(np.min(rand) == 0)
+        assert rand.shape == (1000, 1000)
+        assert np.abs(np.mean(rand) - p) < 0.01
+        assert np.max(rand) == 1
+        assert np.min(rand) == 0
 
     def test_ctc(self):
         # simplified version of TensorFlow's test
@@ -913,22 +913,22 @@ class TestBackend(object):
         for test_value in (-20, 0, 1, 10):
             t_a = KTF.arange(test_value)
             a = KTF.eval(t_a)
-            assert(np.array_equal(a, np.arange(test_value)))
+            assert np.array_equal(a, np.arange(test_value))
             t_b = KTH.arange(test_value)
             b = KTH.eval(t_b)
-            assert(np.array_equal(b, np.arange(test_value)))
-            assert(np.array_equal(a, b))
-            assert(KTF.dtype(t_a) == KTH.dtype(t_b), 'default dtypes are equal')
+            assert np.array_equal(b, np.arange(test_value))
+            assert np.array_equal(a, b)
+            assert KTF.dtype(t_a) == KTH.dtype(t_b)
         for start, stop, step in ((0, 5, 1), (-5, 5, 2), (0, 1, 2)):
             a = KTF.eval(KTF.arange(start, stop, step))
-            assert(np.array_equal(a, np.arange(start, stop, step)))
+            assert np.array_equal(a, np.arange(start, stop, step))
             b = KTH.eval(KTH.arange(start, stop, step))
-            assert(np.array_equal(b, np.arange(start, stop, step)))
-            assert(np.array_equal(a, b))
+            assert np.array_equal(b, np.arange(start, stop, step))
+            assert np.array_equal(a, b)
         for dtype in ('int32', 'int64', 'float32', 'float64'):
             for backend in (KTF, KTH):
                 t = backend.arange(10, dtype=dtype)
-                assert(backend.dtype(t) == dtype)
+                assert backend.dtype(t) == dtype
 
 
 if __name__ == '__main__':

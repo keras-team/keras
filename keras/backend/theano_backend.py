@@ -796,7 +796,7 @@ def spatial_3d_padding(x, padding=(1, 1, 1), dim_ordering='default'):
     return T.set_subtensor(output[indices], x)
 
 
-def pack(x):
+def stack(x):
     return T.stack(*x)
 
 

@@ -32,7 +32,7 @@ def time_distributed_dense(x, w, b=None, dropout=None,
         x = x + b
     # reshape to 3D tensor
     if K.backend() == 'tensorflow':
-        x = K.reshape(x, K.pack([-1, timesteps, output_dim]))
+        x = K.reshape(x, K.stack([-1, timesteps, output_dim]))
         x.set_shape([None, None, output_dim])
     else:
         x = K.reshape(x, (-1, timesteps, output_dim))
