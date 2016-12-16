@@ -864,6 +864,11 @@ def print_tensor(x, message=''):
 class Function(object):
 
     def __init__(self, inputs, outputs, updates=[], **kwargs):
+        unique_variables_to_update = {}
+        for v, nv in updates:
+            if v not in unique_variables_to_update:
+                unique_variables_to_update[v] = nv
+        updates = unique_variables_to_update.items()
         self.function = theano.function(inputs, outputs, updates=updates,
                                         allow_input_downcast=True,
                                         on_unused_input='ignore',
