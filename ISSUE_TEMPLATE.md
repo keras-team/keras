@@ -1,4 +1,4 @@
-Please make sure that the boxes below are checked before you submit your issue. If your issue is an implementation question rather than a bug in Keras, please consider asking your question on the [Google Group](https://groups.google.com/forum/#!forum/keras-users) or [join the Keras Slack channel](https://keras-slack-autojoin.herokuapp.com/) rather than filing a GitHub issue.
+Please make sure that the boxes below are checked before you submit your issue. If your issue is an implementation question rather than a bug in Keras, instead of filing a GitHub issue, please ask your question on [StackOverflow](http://stackoverflow.com/questions/tagged/keras), consider [joining the Keras Slack channel](https://keras-slack-autojoin.herokuapp.com/), or check out the [Keras Google Group](https://groups.google.com/forum/#!forum/keras-users).
 
 Thank you!
 
