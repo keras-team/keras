@@ -1171,7 +1171,7 @@ def normalize_batch_in_training(x, gamma, beta,
                 target_shape.append(1)
             else:
                 target_shape.append(tf.shape(x)[axis])
-        target_shape = tf.stack(target_shape)
+        target_shape = stack(target_shape)
 
         broadcast_mean = tf.reshape(mean, target_shape)
         broadcast_var = tf.reshape(var, target_shape)
@@ -1303,7 +1303,7 @@ def repeat(x, n):
     '''
     assert ndim(x) == 2
     x = tf.expand_dims(x, 1)
-    pattern = tf.stack([1, n, 1])
+    pattern = stack([1, n, 1])
     return tf.tile(x, pattern)
 
 
@@ -1340,7 +1340,7 @@ def batch_flatten(x):
     '''Turn a n-D tensor into a 2D tensor where
     the first dimension is conserved.
     '''
-    x = tf.reshape(x, tf.stack([-1, prod(shape(x)[1:])]))
+    x = tf.reshape(x, stack([-1, prod(shape(x)[1:])]))
     return x
 
 
@@ -1448,7 +1448,10 @@ def spatial_3d_padding(x, padding=(1, 1, 1), dim_ordering='default'):
 
 
 def stack(x):
-    return tf.stack(x)
+    try:
+        return tf.stack(x)
+    except AttributeError:
+        return tf.pack(x)
 
 
 def one_hot(indices, nb_classes):
@@ -1692,12 +1695,12 @@ def rnn(step_function, inputs, initial_states,
         successive_states = []
         successive_outputs = []
 
-        input_list = tf.unstack(inputs)
+        input_list = tf.unpack(inputs)
         if go_backwards:
             input_list.reverse()
 
         if mask is not None:
-            mask_list = tf.unstack(mask)
+            mask_list = tf.unpack(mask)
             if go_backwards:
                 mask_list.reverse()
 
@@ -1715,7 +1718,7 @@ def rnn(step_function, inputs, initial_states,
                 # it just repeats the mask along its second dimension
                 # n times.
                 tiled_mask_t = tf.tile(mask_t,
-                                       tf.stack([1, tf.shape(output)[1]]))
+                                       stack([1, tf.shape(output)[1]]))
 
                 if len(successive_outputs) == 0:
                     prev_output = zeros_like(output)
@@ -1728,7 +1731,7 @@ def rnn(step_function, inputs, initial_states,
                 for state, new_state in zip(states, new_states):
                     # (see earlier comment for tile explanation)
                     tiled_mask_t = tf.tile(mask_t,
-                                           tf.stack([1, tf.shape(new_state)[1]]))
+                                           stack([1, tf.shape(new_state)[1]]))
                     return_states.append(tf.where(tiled_mask_t,
                                                   new_state,
                                                   state))
@@ -1737,7 +1740,7 @@ def rnn(step_function, inputs, initial_states,
                 successive_states.append(states)
                 last_output = successive_outputs[-1]
                 new_states = successive_states[-1]
-                outputs = tf.stack(successive_outputs)
+                outputs = stack(successive_outputs)
         else:
             for input in input_list:
                 output, states = step_function(input, states + constants)
@@ -1745,7 +1748,7 @@ def rnn(step_function, inputs, initial_states,
                 successive_states.append(states)
             last_output = successive_outputs[-1]
             new_states = successive_states[-1]
-            outputs = tf.stack(successive_outputs)
+            outputs = stack(successive_outputs)
 
     else:
         if go_backwards:
@@ -1791,7 +1794,7 @@ def rnn(step_function, inputs, initial_states,
                 for state, new_state in zip(states, new_states):
                     new_state.set_shape(state.get_shape())
                 tiled_mask_t = tf.tile(mask_t,
-                                       tf.stack([1, tf.shape(output)[1]]))
+                                       stack([1, tf.shape(output)[1]]))
                 output = tf.where(tiled_mask_t, output, states[0])
                 new_states = [tf.where(tiled_mask_t, new_states[i], states[i]) for i in range(len(states))]
                 output_ta_t = output_ta_t.write(time, output)
@@ -2382,8 +2385,8 @@ def random_binomial(shape, p=0.0, dtype=_FLOATX, seed=None):
     if seed is None:
         seed = np.random.randint(10e6)
     return tf.where(tf.random_uniform(shape, dtype=dtype, seed=seed) <= p,
-                     tf.ones(shape, dtype=dtype),
-                     tf.zeros(shape, dtype=dtype))
+                    tf.ones(shape, dtype=dtype),
+                    tf.zeros(shape, dtype=dtype))
 
 
 # CTC
@@ -2397,8 +2400,8 @@ def ctc_label_dense_to_sparse(labels, label_lengths):
     # undocumented feature soon to be made public
     from tensorflow.python.ops import functional_ops
     label_shape = tf.shape(labels)
-    num_batches_tns = tf.stack([label_shape[0]])
-    max_num_labels_tns = tf.stack([label_shape[1]])
+    num_batches_tns = stack([label_shape[0]])
+    max_num_labels_tns = stack([label_shape[1]])
 
     def range_less_than(previous_state, current_input):
         return tf.expand_dims(tf.range(label_shape[1]), 0) < tf.fill(max_num_labels_tns, current_input)
