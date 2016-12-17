@@ -831,6 +831,9 @@ def reverse(x, axes):
     return x[slices]
 
 
+def pattern_broadcast(x, broatcastable):
+    return T.patternbroadcast(x, broatcastable)
+
 # VALUE MANIPULATION
 
 
