@@ -12,7 +12,7 @@ import numpy as np
 import os
 import copy
 import warnings
-from .common import _FLOATX, _EPSILON, image_dim_ordering, reset_uids
+from .common import floatx, _EPSILON, image_dim_ordering, reset_uids
 py_all = all
 
 # INTERNAL UTILS
@@ -207,7 +207,7 @@ def to_dense(tensor):
         return tensor
 
 
-def variable(value, dtype=_FLOATX, name=None):
+def variable(value, dtype=None, name=None):
     '''Instantiates a variable and returns it.
 
     # Arguments
@@ -232,6 +232,8 @@ def variable(value, dtype=_FLOATX, name=None):
                [ 3.,  4.]])
     ```
     '''
+    if dtype is None:
+        dtype = floatx()
     if hasattr(value, 'tocoo'):
         sparse_coo = value.tocoo()
         indices = np.concatenate((np.expand_dims(sparse_coo.row, 1),
@@ -271,7 +273,7 @@ def _initialize_variables():
             sess.run(tf.initialize_variables(uninitialized_variables))
 
 
-def placeholder(shape=None, ndim=None, dtype=_FLOATX, sparse=False, name=None):
+def placeholder(shape=None, ndim=None, dtype=None, sparse=False, name=None):
     '''Instantiates a placeholder tensor and returns it.
 
     # Arguments
@@ -296,6 +298,8 @@ def placeholder(shape=None, ndim=None, dtype=_FLOATX, sparse=False, name=None):
         <tf.Tensor 'Placeholder_4:0' shape=(2, 4, 5) dtype=float32>
     ```
     '''
+    if dtype is None:
+        dtype = floatx()
     if not shape:
         if ndim:
             shape = tuple([None for _ in range(ndim)])
@@ -448,7 +452,7 @@ def eval(x):
     return to_dense(x).eval(session=get_session())
 
 
-def zeros(shape, dtype=_FLOATX, name=None):
+def zeros(shape, dtype=None, name=None):
     '''Instantiates an all-zeros variable and returns it.
 
     # Arguments
@@ -469,13 +473,15 @@ def zeros(shape, dtype=_FLOATX, name=None):
                [ 0.,  0.,  0.,  0.]], dtype=float32)
     ```
     '''
+    if dtype is None:
+        dtype = floatx()
     shape = tuple(map(int, shape))
     tf_dtype = _convert_string_dtype(dtype)
     return variable(tf.constant_initializer(0., dtype=tf_dtype)(shape),
                     dtype, name)
 
 
-def ones(shape, dtype=_FLOATX, name=None):
+def ones(shape, dtype=None, name=None):
     '''Instantiates an all-ones tensor variable and returns it.
 
     # Arguments
@@ -498,13 +504,15 @@ def ones(shape, dtype=_FLOATX, name=None):
                [ 1.,  1.,  1.,  1.]], dtype=float32)
     ```
     '''
+    if dtype is None:
+        dtype = floatx()
     shape = tuple(map(int, shape))
     tf_dtype = _convert_string_dtype(dtype)
     return variable(tf.constant_initializer(1., dtype=tf_dtype)(shape),
                     dtype, name)
 
 
-def eye(size, dtype=_FLOATX, name=None):
+def eye(size, dtype=None, name=None):
     '''Instantiate an identity matrix and returns it.
 
     # Arguments
@@ -577,7 +585,7 @@ def ones_like(x, name=None):
     return tf.ones_like(x, name=name)
 
 
-def random_uniform_variable(shape, low, high, dtype=_FLOATX,
+def random_uniform_variable(shape, low, high, dtype=None,
                             name=None, seed=None):
     '''Instantiates an Keras variable filled with
     samples drawn from a uniform distribution and returns it.
@@ -609,6 +617,8 @@ def random_uniform_variable(shape, low, high, dtype=_FLOATX,
                [ 0.66137183,  0.00869417,  0.89220798]], dtype=float32)
     ```
     '''
+    if dtype is None:
+        dtype = floatx()
     shape = tuple(map(int, shape))
     tf_dtype = _convert_string_dtype(dtype)
     if seed is None:
@@ -619,7 +629,7 @@ def random_uniform_variable(shape, low, high, dtype=_FLOATX,
     return variable(value, dtype=dtype, name=name)
 
 
-def random_normal_variable(shape, mean, scale, dtype=_FLOATX,
+def random_normal_variable(shape, mean, scale, dtype=None,
                            name=None, seed=None):
     '''Instantiates an Keras variable filled with
     samples drawn from a normal distribution and returns it.
@@ -651,6 +661,8 @@ def random_normal_variable(shape, mean, scale, dtype=_FLOATX,
                [ 0.92629528,  0.28055015,  1.70484698]], dtype=float32)
     ```
     '''
+    if dtype is None:
+        dtype = floatx()
     shape = tuple(map(int, shape))
     tf_dtype = _convert_string_dtype(dtype)
     if seed is None:
@@ -963,7 +975,7 @@ def var(x, axis=None, keepdims=False):
     '''
     axis = _normalize_axis(axis, ndim(x))
     if x.dtype.base_dtype == tf.bool:
-        x = tf.cast(x, _FLOATX)
+        x = tf.cast(x, floatx())
     m = tf.reduce_mean(x, reduction_indices=axis, keep_dims=True)
     devs_squared = tf.square(x - m)
     return tf.reduce_mean(devs_squared,
@@ -982,7 +994,7 @@ def mean(x, axis=None, keepdims=False):
     '''
     axis = _normalize_axis(axis, ndim(x))
     if x.dtype.base_dtype == tf.bool:
-        x = tf.cast(x, _FLOATX)
+        x = tf.cast(x, floatx())
     return tf.reduce_mean(x, reduction_indices=axis, keep_dims=keepdims)
 
 
@@ -2073,7 +2085,7 @@ def _preprocess_deconv_output_shape(shape, dim_ordering):
 
 
 def _preprocess_conv2d_input(x, dim_ordering):
-    if _FLOATX == 'float64':
+    if dtype(x) == 'float64':
         x = tf.cast(x, 'float32')
     if dim_ordering == 'th':
         # TF uses the last dimension as channel dimension,
@@ -2085,7 +2097,7 @@ def _preprocess_conv2d_input(x, dim_ordering):
 
 
 def _preprocess_conv3d_input(x, dim_ordering):
-    if _FLOATX == 'float64':
+    if dtype(x) == 'float64':
         x = tf.cast(x, 'float32')
     if dim_ordering == 'th':
         # TF uses the last dimension as channel dimension,
@@ -2097,7 +2109,7 @@ def _preprocess_conv3d_input(x, dim_ordering):
 
 
 def _preprocess_conv2d_kernel(kernel, dim_ordering):
-    if _FLOATX == 'float64':
+    if dtype(kernel) == 'float64':
         kernel = tf.cast(kernel, 'float32')
     if dim_ordering == 'th':
         # TF uses the last dimension as channel dimension,
@@ -2109,7 +2121,7 @@ def _preprocess_conv2d_kernel(kernel, dim_ordering):
 
 
 def _preprocess_conv3d_kernel(kernel, dim_ordering):
-    if _FLOATX == 'float64':
+    if dtype(kernel) == 'float64':
         kernel = tf.cast(kernel, 'float32')
     if dim_ordering == 'th':
         # TF uses the last dimension as channel dimension,
@@ -2134,7 +2146,7 @@ def _postprocess_conv2d_output(x, dim_ordering):
     if dim_ordering == 'th':
         x = tf.transpose(x, (0, 3, 1, 2))
 
-    if _FLOATX == 'float64':
+    if floatx() == 'float64':
         x = tf.cast(x, 'float64')
     return x
 
@@ -2143,7 +2155,7 @@ def _postprocess_conv3d_output(x, dim_ordering):
     if dim_ordering == 'th':
         x = tf.transpose(x, (0, 4, 1, 2, 3))
 
-    if _FLOATX == 'float64':
+    if floatx() == 'float64':
         x = tf.cast(x, 'float64')
     return x
 
@@ -2158,13 +2170,14 @@ def conv1d(x, kernel, stride=1, border_mode='valid',
         border_mode: string, "same" or "valid".
     '''
     # pre-process dtype
-    if _FLOATX == 'float64':
+    x_dtype = dtype(x)
+    if x_dtype == 'float64':
         x = tf.cast(x, 'float32')
         kernel = tf.cast(kernel, 'float32')
     padding = _preprocess_border_mode(border_mode)
     x = tf.nn.conv1d(x, kernel, stride, padding=padding)
     # post-process dtype
-    if _FLOATX == 'float64':
+    if x_dtype == 'float64':
         x = tf.cast(x, 'float64')
     return x
 
@@ -2367,21 +2380,27 @@ def pool3d(x, pool_size, strides=(1, 1, 1), border_mode='valid',
 
 # RANDOMNESS
 
-def random_normal(shape, mean=0.0, std=1.0, dtype=_FLOATX, seed=None):
+def random_normal(shape, mean=0.0, std=1.0, dtype=None, seed=None):
+    if dtype is None:
+        dtype = floatx()
     if seed is None:
         seed = np.random.randint(10e6)
     return tf.random_normal(shape, mean=mean, stddev=std,
                             dtype=dtype, seed=seed)
 
 
-def random_uniform(shape, low=0.0, high=1.0, dtype=_FLOATX, seed=None):
+def random_uniform(shape, low=0.0, high=1.0, dtype=None, seed=None):
+    if dtype is None:
+        dtype = floatx()
     if seed is None:
         seed = np.random.randint(10e6)
     return tf.random_uniform(shape, minval=low, maxval=high,
                              dtype=dtype, seed=seed)
 
 
-def random_binomial(shape, p=0.0, dtype=_FLOATX, seed=None):
+def random_binomial(shape, p=0.0, dtype=None, seed=None):
+    if dtype is None:
+        dtype = floatx()
     if seed is None:
         seed = np.random.randint(10e6)
     return tf.select(tf.random_uniform(shape, dtype=dtype, seed=seed) <= p,

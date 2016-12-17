@@ -3,9 +3,17 @@ from numpy.testing import assert_allclose
 import numpy as np
 import scipy.sparse as sparse
 
-from keras.backend import theano_backend as KTH
+from keras import backend as K
+from keras.backend import theano_backend as KTH, floatx, set_floatx, variable
 from keras.backend import tensorflow_backend as KTF
 from keras.utils.np_utils import convert_kernel
+
+
+def check_dtype(var, dtype):
+    if K._BACKEND == 'theano':
+        assert var.dtype == dtype
+    else:
+        assert var.dtype.name == '%s_ref' % dtype
 
 
 def check_single_tensor_operation(function_name, input_shape, **kwargs):
@@ -930,6 +938,46 @@ class TestBackend(object):
                 t = backend.arange(10, dtype=dtype)
                 assert backend.dtype(t) == dtype
 
+    def test_setfloatx_incorrect_values(self):
+        # Keep track of the old value
+        old_floatx = floatx()
+        # Try some incorrect values
+        initial = floatx()
+        for value in ['', 'beerfloat', 123]:
+            with pytest.raises(Exception):
+                set_floatx(value)
+        assert floatx() == initial
+        # Restore old value
+        set_floatx(old_floatx)
+
+    def test_setfloatx_correct_values(self):
+        # Keep track of the old value
+        old_floatx = floatx()
+        # Check correct values
+        for value in ['float16', 'float32', 'float64']:
+            set_floatx(value)
+            assert floatx() == value
+        # Restore old value
+        set_floatx(old_floatx)
+
+    def test_set_floatx(self):
+        """
+        Make sure that changes to the global floatx are effectively
+        taken into account by the backend.
+        """
+        # Keep track of the old value
+        old_floatx = floatx()
+
+        set_floatx('float16')
+        var = variable([10])
+        check_dtype(var, 'float16')
+
+        set_floatx('float64')
+        var = variable([10])
+        check_dtype(var, 'float64')
+
+        # Restore old value
+        set_floatx(old_floatx)
 
 if __name__ == '__main__':
     pytest.main([__file__])
