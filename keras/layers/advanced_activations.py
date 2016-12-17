@@ -52,13 +52,14 @@ class PReLU(Layer):
     # Arguments
         init: initialization function for the weights.
         weights: initial weights, as a list of a single Numpy array.
-        shared_axes: the axes along with to share parameters for
-                     the activation function. For example if the
-                     incoming feature maps from a 2D convolution
-                     has dimensions 16x32x32 and you wish to share
-                     parameters across space so that each feature
-                     maps only has one set of parameters, set
-                     shared_axes = [1, 2]
+        shared_axes: the axes along which to share learnable
+            parameters for the activation function.
+            For example, if the incoming feature maps
+            are from a 2D convolution
+            with output shape `(batch, height, width, channels)`,
+            and you wish to share parameters across space
+            so that each filter only has one set of parameters,
+            set `shared_axes=[1, 2]`.
 
     # References
         - [Delving Deep into Rectifiers: Surpassing Human-Level Performance on ImageNet Classification](http://arxiv.org/pdf/1502.01852v1.pdf)
@@ -152,13 +153,14 @@ class ParametricSoftplus(Layer):
         alpha_init: float. Initial value of the alpha weights.
         beta_init: float. Initial values of the beta weights.
         weights: initial weights, as a list of 2 numpy arrays.
-        shared_axes: the axes along with to share parameters for
-                     the activation function. For example if the
-                     incoming feature maps from a 2D convolution
-                     has dimensions 16x32x32 and you wish to share
-                     parameters across space so that each feature
-                     maps only has one set of parameters, set
-                     shared_axes = [1, 2]
+        shared_axes: the axes along which to share learnable
+            parameters for the activation function.
+            For example, if the incoming feature maps
+            are from a 2D convolution
+            with output shape `(batch, height, width, channels)`,
+            and you wish to share parameters across space
+            so that each filter only has one set of parameters,
+            set `shared_axes=[1, 2]`.
 
     # References
         - [Inferring Nonlinear Neuronal Computation Based on Physiologically Plausible Inputs](http://journals.plos.org/ploscompbiol/article?id=10.1371/journal.pcbi.1003143)
@@ -255,13 +257,14 @@ class SReLU(Layer):
         a_left_init: initialization function for the left part slope
         t_right_init: initialization function for the right part intercept
         a_right_init: initialization function for the right part slope
-        shared_axes: the axes along with to share parameters for
-                     the activation function. For example if the
-                     incoming feature maps from a 2D convolution
-                     has dimensions 16x32x32 and you wish to share
-                     parameters across space so that each feature
-                     maps only has one set of parameters, set
-                     shared_axes = [1, 2]
+        shared_axes: the axes along which to share learnable
+            parameters for the activation function.
+            For example, if the incoming feature maps
+            are from a 2D convolution
+            with output shape `(batch, height, width, channels)`,
+            and you wish to share parameters across space
+            so that each filter only has one set of parameters,
+            set `shared_axes=[1, 2]`.
 
     # References
         - [Deep Learning with S-shaped Rectified Linear Activation Units](http://arxiv.org/abs/1512.07030)
