@@ -498,6 +498,7 @@ class Model(Container):
                             ' - expected a list of dicts.')
 
         # prepare loss functions
+        non_squashed_activations = set(['softplus', 'softsign', 'relu', 'tanh', 'linear'])
         if isinstance(loss, dict):
             for name in loss:
                 if name not in self.output_names:
@@ -506,11 +507,16 @@ class Model(Container):
                                      'Only expected the following keys: ' +
                                      str(self.output_names))
             loss_functions = []
-            for name in self.output_names:
+            for output_layer in self.output_layers:
+                name = output_layer.name
                 if name not in loss:
                     raise ValueError('Output "' + name +
                                      '" missing from loss dictionary.')
-                loss_functions.append(objectives.get(loss[name]))
+                activation = output_layer.activation.__name__
+                if "crossentropy" in loss[name] and activation in non_squashed_activations:
+                    loss_functions.append(objectives.get_crossentropy_loss_function(loss[name], from_logits=True))
+                else:
+                    loss_functions.append(objectives.get(loss[name]))
         elif isinstance(loss, list):
             if len(loss) != len(self.outputs):
                 raise ValueError('When passing a list as loss, '
@@ -518,10 +524,22 @@ class Model(Container):
                                  'The model has ' + str(len(self.outputs)) +
                                  ' outputs, but you passed loss=' +
                                  str(loss))
-            loss_functions = [objectives.get(l) for l in loss]
+            loss_functions = []
+            for i, l in enumerate(loss):
+                activation = self.output_layers[i].activation.__name__
+                if "crossentropy" in l and activation in non_squashed_activations:
+                    loss_functions.append(objectives.get_crossentropy_loss_function(l, from_logits=True))
+                else:
+                    loss_functions.append(objectives.get(l))
         else:
             loss_function = objectives.get(loss)
-            loss_functions = [loss_function for _ in range(len(self.outputs))]
+            loss_functions = []
+            for output_layer in self.output_layers:
+                activation = output_layer.activation.__name__
+                if "crossentropy" in loss and activation in non_squashed_activations:
+                    loss_functions.append(objectives.get_crossentropy_loss_function(loss, from_logits=True))
+                else:
+                    loss_functions.append(loss_function)
         self.loss_functions = loss_functions
         weighted_losses = [weighted_objective(fn) for fn in loss_functions]
 
