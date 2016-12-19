@@ -1508,7 +1508,7 @@ def tile(x, n):
 
     # Arguments
         x: A tensor or variable
-        n: A list of integer. The length must be the same as the number of 
+        n: A list of integer. The length must be the same as the number of
             dimensions in `x`.
 
     # Returns
@@ -2570,7 +2570,7 @@ def atrous_conv2d(x, kernel, rate=1,
     # Arguments
         x: input tensor.
         kernel: kernel tensor.
-        rate: integer > 0, the sample stride. 
+        rate: integer > 0, the sample stride.
         output_shape: 1D int tensor for the output shape.
         strides: strides tuple.
         border_mode: string, `"same"` or `"valid"`.
@@ -2716,7 +2716,7 @@ def random_normal(shape, mean=0.0, std=1.0, dtype=None, seed=None):
     # Arguments
         shape: A tuple of integers, the shape of tensor to create.
         mean: A float, mean of the normal distribution to draw samples.
-        std: A float, standard deviation of the normal distribution 
+        std: A float, standard deviation of the normal distribution
             to draw samples.
         dtype: String, dtype of returned tensor.
         seed: Integer, random seed.
@@ -2734,9 +2734,9 @@ def random_uniform(shape, low=0.0, high=1.0, dtype=None, seed=None):
 
     # Arguments
         shape: A tuple of integers, the shape of tensor to create.
-        low: A float, lower boundary of the uniform distribution 
+        low: A float, lower boundary of the uniform distribution
             to draw samples.
-        higi: A float, upper boundary of the uniform distribution 
+        high: A float, upper boundary of the uniform distribution
             to draw samples.
         dtype: String, dtype of returned tensor.
         seed: Integer, random seed.
