@@ -1,4 +1,5 @@
 from __future__ import print_function
+import inspect
 
 from .generic_utils import get_from_module
 from .np_utils import convert_kernel
@@ -31,7 +32,12 @@ def layer_from_config(config, custom_objects={}):
     else:
         layer_class = get_from_module(class_name, globals(), 'layer',
                                       instantiate=False)
-    return layer_class.from_config(config['config'])
+
+    arg_spec = inspect.getargspec(layer_class.from_config)
+    if 'custom_objects' in arg_spec.args:
+        return layer_class.from_config(config['config'], custom_objects=custom_objects)
+    else:
+        return layer_class.from_config(config['config'])
 
 
 def print_summary(layers, relevant_nodes=None,

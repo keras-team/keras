@@ -5,7 +5,7 @@ import numpy as np
 from numpy.testing import assert_allclose
 
 from keras.models import Model, Sequential
-from keras.layers import Dense, Dropout, RepeatVector, TimeDistributed
+from keras.layers import Dense, Dropout, Lambda, RepeatVector, TimeDistributed
 from keras.layers import Input
 from keras import optimizers
 from keras import objectives
@@ -230,6 +230,36 @@ def test_loading_weights_by_name_2():
     assert_allclose(old_weights[1][1], morty[1], atol=1e-05)
     assert_allclose(np.zeros_like(jerry[1]), jerry[1])  # biases init to 0
     assert_allclose(np.zeros_like(jessica[1]), jessica[1])  # biases init to 0
+
+
+# a function to be called from the Lambda layer
+def square_fn(x):
+    return x * x
+
+
+@keras_test
+def test_saving_lambda_custom_objects():
+    input = Input(shape=(3,))
+    x = Lambda(lambda x: square_fn(x), output_shape=(3,))(input)
+    output = Dense(3)(x)
+
+    model = Model(input, output)
+    model.compile(loss=objectives.MSE,
+                  optimizer=optimizers.RMSprop(lr=0.0001),
+                  metrics=[metrics.categorical_accuracy])
+    x = np.random.random((1, 3))
+    y = np.random.random((1, 3))
+    model.train_on_batch(x, y)
+
+    out = model.predict(x)
+    _, fname = tempfile.mkstemp('.h5')
+    save_model(model, fname)
+
+    model = load_model(fname, custom_objects={'square_fn': square_fn})
+    os.remove(fname)
+
+    out2 = model.predict(x)
+    assert_allclose(out, out2, atol=1e-05)
 
 
 if __name__ == '__main__':

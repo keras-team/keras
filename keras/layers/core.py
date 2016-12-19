@@ -622,20 +622,27 @@ class Lambda(Layer):
         return dict(list(base_config.items()) + list(config.items()))
 
     @classmethod
-    def from_config(cls, config):
+    def from_config(cls, config, custom_objects={}):
+        # Insert custom objects into globals.
+        if custom_objects:
+            globs = globals().copy()
+            globs.update(custom_objects)
+        else:
+            globs = globals()
+
         function_type = config.pop('function_type')
         if function_type == 'function':
-            function = globals()[config['function']]
+            function = globs[config['function']]
         elif function_type == 'lambda':
-            function = func_load(config['function'], globs=globals())
+            function = func_load(config['function'], globs=globs)
         else:
             raise TypeError('Unknown function type:', function_type)
 
         output_shape_type = config.pop('output_shape_type')
         if output_shape_type == 'function':
-            output_shape = globals()[config['output_shape']]
+            output_shape = globs[config['output_shape']]
         elif output_shape_type == 'lambda':
-            output_shape = func_load(config['output_shape'], globs=globals())
+            output_shape = func_load(config['output_shape'], globs=globs)
         else:
             output_shape = config['output_shape']
 
