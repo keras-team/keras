@@ -1649,8 +1649,7 @@ class Cropping1D(Layer):
                 input_shape[2])
 
     def call(self, x, mask=None):
-        input_shape = self.input_spec[0].shape
-        return x[:, self.cropping[0]:input_shape[1]-self.cropping[1], :]
+        return x[:, self.cropping[0]:-self.cropping[1], :]
 
     def get_config(self):
         config = {'cropping': self.cropping}
@@ -1731,16 +1730,15 @@ class Cropping2D(Layer):
             raise ValueError('Invalid dim_ordering:', self.dim_ordering)
 
     def call(self, x, mask=None):
-        input_shape = self.input_spec[0].shape
         if self.dim_ordering == 'th':
             return x[:,
                      :,
-                     self.cropping[0][0]:input_shape[2]-self.cropping[0][1],
-                     self.cropping[1][0]:input_shape[3]-self.cropping[1][1]]
+                     self.cropping[0][0]:-self.cropping[0][1],
+                     self.cropping[1][0]:-self.cropping[1][1]]
         elif self.dim_ordering == 'tf':
             return x[:,
-                     self.cropping[0][0]:input_shape[1]-self.cropping[0][1],
-                     self.cropping[1][0]:input_shape[2]-self.cropping[1][1],
+                     self.cropping[0][0]:-self.cropping[0][1],
+                     self.cropping[1][0]:-self.cropping[1][1],
                      :]
 
     def get_config(self):
@@ -1819,18 +1817,17 @@ class Cropping3D(Layer):
             raise ValueError('Invalid dim_ordering:', self.dim_ordering)
 
     def call(self, x, mask=None):
-        input_shape = self.input_spec[0].shape
         if self.dim_ordering == 'th':
             return x[:,
                      :,
-                     self.cropping[0][0]:input_shape[2]-self.cropping[0][1],
-                     self.cropping[1][0]:input_shape[3]-self.cropping[1][1],
-                     self.cropping[2][0]:input_shape[4]-self.cropping[2][1]]
+                     self.cropping[0][0]:-self.cropping[0][1],
+                     self.cropping[1][0]:-self.cropping[1][1],
+                     self.cropping[2][0]:-self.cropping[2][1]]
         elif self.dim_ordering == 'tf':
             return x[:,
-                     self.cropping[0][0]:input_shape[1]-self.cropping[0][1],
-                     self.cropping[1][0]:input_shape[2]-self.cropping[1][1],
-                     self.cropping[2][0]:input_shape[3]-self.cropping[2][1],
+                     self.cropping[0][0]:-self.cropping[0][1],
+                     self.cropping[1][0]:-self.cropping[1][1],
+                     self.cropping[2][0]:-self.cropping[2][1],
                      :]
 
     def get_config(self):
