@@ -77,9 +77,35 @@ def random_zoom(x, zoom_range, row_index=1, col_index=2, channel_index=0,
     return x
 
 
+def barrel_inverse_transform(output_coords, h, w, alpha):
+    i, j = output_coords[0], output_coords[1]
+    norm_i = (i - h / 2) / ((1 + alpha / 2) * (h / 2))
+    norm_j = (j - w / 2) / ((1 + alpha / 2) * (w / 2))
+    r = norm_i * norm_i + norm_j * norm_j
+    x1 = norm_i / (1.0 - alpha * r + 0.001)
+    y1 = norm_j / (1.0 - alpha * r + 0.001)
+    r1 = x1 * x1 + y1 * y1
+    x2 = norm_i / (1.0 - alpha * r1 + 0.001)
+    y2 = norm_j / (1.0 - alpha * r1 + 0.001)
+    x2 /= (1 + alpha)
+    y2 /= (1 + alpha)
+    # Undo the normalization of indices
+    n_i1 = x2 * h / 2 + h / 2
+    n_j1 = y2 * w / 2 + w / 2
+    return (n_i1, n_j1, output_coords[2])
+
+
 def random_barrel_transform(x, intensity):
-    # TODO
-    pass
+    """
+    Use inverse transform to compute the corresponding input pixel
+    for every output pixel.
+    """
+    # Alpha defines the intensity of transformation
+    alpha = np.random.uniform(intensity * 0.15, intensity * 0.25)
+    h, w = len(x), len(x[0])
+    x = ndi.geometric_transform(x, barrel_inverse_transform,
+                                extra_arguments=(h, w, alpha))
+    return x
 
 
 def random_channel_shift(x, intensity, channel_index=0):
