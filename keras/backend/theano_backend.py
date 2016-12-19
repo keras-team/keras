@@ -57,16 +57,27 @@ def to_dense(tensor):
 
 
 def variable(value, dtype=None, name=None):
-    '''Instantiates a variable.
+    '''Instantiates a variable and returns it.
+
+    # Arguments
+        value: Numpy array, initial value of the tensor.
+        dtype: Tensor type.
+        name: Optional name string for the tensor.
+
+    # Returns
+        A variable instance (with Keras metadata included).
     '''
     if dtype is None:
         dtype = floatx()
     if hasattr(value, 'tocoo'):
         _assert_sparse_module()
-        return th_sparse_module.as_sparse_variable(value)
+        variable = th_sparse_module.as_sparse_variable(value)
     else:
         value = np.asarray(value, dtype=dtype)
-        return theano.shared(value=value, name=name, strict=False)
+        variable = theano.shared(value=value, name=name, strict=False)
+    variable._keras_shape = value.shape
+    variable._uses_learning_phase = False
+    return variable
 
 
 def placeholder(shape=None, ndim=None, dtype=None, sparse=False, name=None):
@@ -99,6 +110,22 @@ def shape(x):
     Theano backend (Theano tensor type) and TF backend (TF TensorShape).
     '''
     return x.shape
+
+
+def int_shape(x):
+    '''Returns the shape of a Keras tensor or a Keras variable as a tuple of
+    integers or None entries.
+
+    # Arguments
+        x: Tensor or variable.
+
+    # Returns
+        A tuple of integers (or None entries).
+    '''
+    if hasattr(x, '_keras_shape'):
+        return x._keras_shape
+    else:
+        raise Exception('Not a Keras tensor:', x)
 
 
 def ndim(x):
