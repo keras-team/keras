@@ -520,9 +520,12 @@ class TensorBoard(Callback):
 
                         tf.image_summary(weight.name, w_img)
 
-                if hasattr(layer, 'output'):
-                    tf.histogram_summary('{}_out'.format(layer.name),
-                                         layer.output)
+                if hasattr(layer, 'get_output_at'):
+                    # theres potentially more than one output node, collect summaries for all of them
+                    for i in range(len(layer.inbound_nodes)):
+                        tf.histogram_summary('{}_out_{}'.format(layer.name, i),
+                                             layer.get_output_at(i))
+
         if parse_version(tf.__version__) >= parse_version('0.12.0'):
             self.merged = tf.summary.merge_all()
         else:
