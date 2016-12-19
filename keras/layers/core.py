@@ -96,6 +96,39 @@ class Dropout(Layer):
         return dict(list(base_config.items()) + list(config.items()))
 
 
+class Clip(Layer):
+    """Clips the input, which can help with numerical stability issues.
+
+    ```python
+        model = Sequential()
+        model.add(Dense(1, input_dim=3, activation='sigmoid'))
+        model.add(Clip())
+
+        model = Sequential()
+        model.add(Masking(input_shape=(3, 4)))
+        model.add(LSTM(output_dim=5, return_sequences=True, unroll=False))
+        model.add(Clip())
+    ```
+
+    # Arguments
+        min_value: float of the minimum acceptable value for an input.
+        max_value: float of the maximum acceptable value for an input.
+    """
+    def __init__(self, min_value=10e-8, max_value=1 - 10e-8, **kwargs):
+        self.min_value = min_value
+        self.max_value = max_value
+        self.supports_masking = True
+        super(Clip, self).__init__(**kwargs)
+
+    def call(self, x, mask=None):
+        return K.clip(x, self.min_value, self.max_value)
+
+    def get_config(self):
+        config = {'min_value': self.min_value, 'max_value': self.max_value}
+        base_config = super(Clip, self).get_config()
+        return dict(list(base_config.items()) + list(config.items()))
+
+
 class SpatialDropout1D(Dropout):
     '''This version performs the same function as Dropout, however it drops
     entire 1D feature maps instead of individual elements. If adjacent frames
