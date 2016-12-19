@@ -526,6 +526,13 @@ class Model(Container):
                             ' - expected a list of dicts.')
 
         # prepare loss functions
+        output_layers = self.output_layers
+        # for situations where the output of a model is the output of a different
+        # model
+        if hasattr(output_layers[0], "output_layers"):
+            output_layers = output_layers[0]
+            while hasattr(output_layers, "output_layers"):
+                output_layers = output_layers.output_layers
         if isinstance(loss, dict):
             for name in loss:
                 if name not in self.output_names:
@@ -534,9 +541,7 @@ class Model(Container):
                                      'Only expected the following keys: ' +
                                      str(self.output_names))
             loss_functions = []
-            for output_layer in self.output_layers:
-                while hasattr(output_layer, "output_layers"):
-                    output_layer = output_layer.output_layers[0]
+            for output_layer in output_layers:
                 name = output_layer.name
                 if name not in loss:
                     raise ValueError('Output "' + name +
@@ -549,17 +554,9 @@ class Model(Container):
                                  'The model has ' + str(len(self.outputs)) +
                                  ' outputs, but you passed loss=' +
                                  str(loss))
-            loss_functions = []
-            for i, output_layer in enumerate(self.output_layers):
-                while hasattr(output_layer, "output_layers"):
-                    output_layer = output_layer.output_layers[0]
-                loss_functions.append(get_appropriate_loss_function(output_layer, loss[i]))
+            loss_functions = [get_appropriate_loss_function(output_layer, loss[i]) for i, output_layer in enumerate(output_layers)]
         else:
-            loss_functions = []
-            for output_layer in self.output_layers:
-                while hasattr(output_layer, "output_layers"):
-                    output_layer = output_layer.output_layers[0]
-                loss_functions.append(get_appropriate_loss_function(output_layer, loss))
+            loss_functions = [get_appropriate_loss_function(output_layer, loss) for output_layer in output_layers]
         self.loss_functions = loss_functions
         weighted_losses = [weighted_objective(fn) for fn in loss_functions]
 
