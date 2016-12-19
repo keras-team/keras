@@ -535,6 +535,8 @@ class Model(Container):
                                      str(self.output_names))
             loss_functions = []
             for output_layer in self.output_layers:
+                while hasattr(output_layer, "output_layers"):
+                    output_layer = output_layer.output_layers[0]
                 name = output_layer.name
                 if name not in loss:
                     raise ValueError('Output "' + name +
@@ -547,9 +549,17 @@ class Model(Container):
                                  'The model has ' + str(len(self.outputs)) +
                                  ' outputs, but you passed loss=' +
                                  str(loss))
-            loss_functions = [get_appropriate_loss_function(output_layer, loss[i]) for i, output_layer in enumerate(self.output_layers)]
+            loss_functions = []
+            for i, output_layer in enumerate(self.output_layers):
+                while hasattr(output_layer, "output_layers"):
+                    output_layer = output_layer.output_layers[0]
+                loss_functions.append(get_appropriate_loss_function(output_layer, loss[i]))
         else:
-            loss_functions = [get_appropriate_loss_function(output_layer, loss) for output_layer in self.output_layers]
+            loss_functions = []
+            for output_layer in self.output_layers:
+                while hasattr(output_layer, "output_layers"):
+                    output_layer = output_layer.output_layers[0]
+                loss_functions.append(get_appropriate_loss_function(output_layer, loss))
         self.loss_functions = loss_functions
         weighted_losses = [weighted_objective(fn) for fn in loss_functions]
 
