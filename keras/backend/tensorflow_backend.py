@@ -352,7 +352,7 @@ def int_shape(x):
         x: Tensor or variable.
 
     # Returns
-        A tuple of integers.
+        A tuple of integers (or None entries).
 
     # Examples
     ```python
