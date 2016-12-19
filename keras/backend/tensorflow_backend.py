@@ -831,12 +831,12 @@ def batch_dot(x, y, axes=None):
 
         * `x.shape[0]` : 100 : append to output shape
         * `x.shape[1]` : 20 : do not append to output shape,
-            dimension 1 of x has been summed over. (`dot_axes[0]` = 1)
+            dimension 1 of `x` has been summed over. (`dot_axes[0]` = 1)
         * `y.shape[0]` : 100 : do not append to output shape,
             always ignore first dimension of `y`
         * `y.shape[1]` : 30 : append to output shape
         * `y.shape[2]` : 20 : do not append to output shape,
-            dimension 2 of y has been summed over. (`dot_axes[1]` = 2)
+            dimension 2 of `y` has been summed over. (`dot_axes[1]` = 2)
         `output_shape` = `(100, 30)`
 
     ```python
@@ -2270,7 +2270,7 @@ def hard_sigmoid(x):
     '''Segment-wise linear approximation of sigmoid.
     Faster than sigmoid.
     Returns `0.` if `x < -2.5`, `1.` if `x > 2.5`.
-    In `-2.5 < x < 2.5`, returns `0.2 * x + 0.5`.
+    In `-2.5 <= x <= 2.5`, returns `0.2 * x + 0.5`.
 
     # Arguments
         x: A tensor or variable.
