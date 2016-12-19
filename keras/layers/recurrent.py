@@ -198,7 +198,7 @@ class Recurrent(Layer):
         # input shape: (nb_samples, time (padded with zeros), input_dim)
         # note that the .build() method of subclasses MUST define
         # self.input_spec with a complete input shape.
-        input_shape = self.input_spec[0].shape
+        input_shape = K.int_shape(x)
         if self.unroll and input_shape[1] is None:
             raise ValueError('Cannot unroll a RNN if the '
                              'time dimension is undefined. \n'
@@ -345,7 +345,7 @@ class SimpleRNN(Recurrent):
 
     def preprocess_input(self, x):
         if self.consume_less == 'cpu':
-            input_shape = self.input_spec[0].shape
+            input_shape = K.int_shape(x)
             input_dim = input_shape[2]
             timesteps = input_shape[1]
             return time_distributed_dense(x, self.W, self.b, self.dropout_W,
@@ -377,7 +377,7 @@ class SimpleRNN(Recurrent):
         else:
             constants.append(K.cast_to_floatx(1.))
         if self.consume_less == 'cpu' and 0 < self.dropout_W < 1:
-            input_shape = self.input_spec[0].shape
+            input_shape = K.int_shape(x)
             input_dim = input_shape[-1]
             ones = K.ones_like(K.reshape(x[:, 0, 0], (-1, 1)))
             ones = K.tile(ones, (1, int(input_dim)))
@@ -531,7 +531,7 @@ class GRU(Recurrent):
 
     def preprocess_input(self, x):
         if self.consume_less == 'cpu':
-            input_shape = self.input_spec[0].shape
+            input_shape = K.int_shape(x)
             input_dim = input_shape[2]
             timesteps = input_shape[1]
 
@@ -595,7 +595,7 @@ class GRU(Recurrent):
             constants.append([K.cast_to_floatx(1.) for _ in range(3)])
 
         if 0 < self.dropout_W < 1:
-            input_shape = self.input_spec[0].shape
+            input_shape = K.int_shape(x)
             input_dim = input_shape[-1]
             ones = K.ones_like(K.reshape(x[:, 0, 0], (-1, 1)))
             ones = K.tile(ones, (1, int(input_dim)))
@@ -790,7 +790,7 @@ class LSTM(Recurrent):
                 dropout = self.dropout_W
             else:
                 dropout = 0
-            input_shape = self.input_spec[0].shape
+            input_shape = K.int_shape(x)
             input_dim = input_shape[2]
             timesteps = input_shape[1]
 
@@ -857,7 +857,7 @@ class LSTM(Recurrent):
             constants.append([K.cast_to_floatx(1.) for _ in range(4)])
 
         if 0 < self.dropout_W < 1:
-            input_shape = self.input_spec[0].shape
+            input_shape = K.int_shape(x)
             input_dim = input_shape[-1]
             ones = K.ones_like(K.reshape(x[:, 0, 0], (-1, 1)))
             ones = K.tile(ones, (1, int(input_dim)))
