@@ -331,6 +331,10 @@ def test_dense():
 
     layer_test(core.Dense,
                kwargs={'output_dim': 3},
+               input_shape=(None, None, 2))
+
+    layer_test(core.Dense,
+               kwargs={'output_dim': 3},
                input_shape=(3, 4, 5, 2))
 
     layer_test(core.Dense,

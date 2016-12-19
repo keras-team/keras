@@ -45,7 +45,12 @@ def layer_test(layer_cls, kwargs={}, input_shape=None, input_dtype=None,
         assert input_shape
         if not input_dtype:
             input_dtype = K.floatx()
-        input_data = (10 * np.random.random(input_shape)).astype(input_dtype)
+        input_data_shape = list(input_shape)
+        for i, e in enumerate(input_data_shape):
+            if e is None:
+                input_data_shape[i] = np.random.randint(1, 4)
+        input_data = (10 * np.random.random(input_data_shape))
+        input_data = input_data.astype(input_dtype)
     elif input_shape is None:
         input_shape = input_data.shape
 
@@ -78,7 +83,10 @@ def layer_test(layer_cls, kwargs={}, input_shape=None, input_dtype=None,
     expected_output_shape = layer.get_output_shape_for(input_shape)
     actual_output = model.predict(input_data)
     actual_output_shape = actual_output.shape
-    assert expected_output_shape == actual_output_shape
+    for expected_dim, actual_dim in zip(expected_output_shape,
+                                        actual_output_shape):
+        if expected_dim is not None:
+            assert expected_dim == actual_dim
     if expected_output is not None:
         assert_allclose(actual_output, expected_output, rtol=1e-3)
 
@@ -97,7 +105,10 @@ def layer_test(layer_cls, kwargs={}, input_shape=None, input_dtype=None,
     model.compile('rmsprop', 'mse')
     actual_output = model.predict(input_data)
     actual_output_shape = actual_output.shape
-    assert expected_output_shape == actual_output_shape
+    for expected_dim, actual_dim in zip(expected_output_shape,
+                                        actual_output_shape):
+        if expected_dim is not None:
+            assert expected_dim == actual_dim
     if expected_output is not None:
         assert_allclose(actual_output, expected_output, rtol=1e-3)
 
