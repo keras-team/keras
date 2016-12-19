@@ -584,7 +584,7 @@ def test_sequential_regression():
     branch_1_2.add(Dense(16, input_shape=(16,), name='dense_1_2-1'))
 
     model = Sequential([Merge([branch_1_2, branch_3], mode='concat')], name='final')
-    model.add(Dense(16, name='dense_final'))
+    model.add(Dense(16, name='dense_final', activation='softmax'))
     model.compile(optimizer='rmsprop',
                   loss='categorical_crossentropy',
                   metrics=['accuracy'])

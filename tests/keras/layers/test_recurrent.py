@@ -3,7 +3,7 @@ import numpy as np
 from numpy.testing import assert_allclose
 
 from keras.utils.test_utils import layer_test
-from keras.layers import recurrent, embeddings
+from keras.layers import recurrent, embeddings, Dense, TimeDistributed
 from keras.models import Sequential
 from keras.layers.core import Masking
 from keras import regularizers
@@ -153,12 +153,14 @@ def test_masking_layer():
     model = Sequential()
     model.add(Masking(input_shape=(3, 4)))
     model.add(recurrent.LSTM(output_dim=5, return_sequences=True, unroll=False))
+    model.add(TimeDistributed(Dense(output_dim = 5, activation='softmax')))
     model.compile(loss='categorical_crossentropy', optimizer='adam')
     model.fit(I, V, nb_epoch=1, batch_size=100, verbose=1)
 
     model = Sequential()
     model.add(Masking(input_shape=(3, 4)))
     model.add(recurrent.LSTM(output_dim=5, return_sequences=True, unroll=True))
+    model.add(TimeDistributed(Dense(output_dim = 5, activation='softmax')))
     model.compile(loss='categorical_crossentropy', optimizer='adam')
     model.fit(I, V, nb_epoch=1, batch_size=100, verbose=1)
 
