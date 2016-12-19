@@ -486,9 +486,7 @@ def ones(shape, dtype=None, name=None):
 
     # Arguments
         shape: Tuple of integers, shape of returned Keras variable.
-
         dtype: String, data type of returned Keras variable.
-
         name: String, name of returned Keras variable.
 
     # Returns
@@ -517,9 +515,7 @@ def eye(size, dtype=None, name=None):
 
     # Arguments
         size: Integer, number of rows/columns.
-
         dtype: String, data type of returned Keras variable.
-
         name: String, name of returned Keras variable.
 
     # Returns
@@ -592,15 +588,10 @@ def random_uniform_variable(shape, low, high, dtype=None,
 
     # Arguments
         shape: Tuple of integers, shape of returned Keras variable.
-
         low: Float, lower boundary of the output inteval.
-
         high: Float, upper boundary of the output interval.
-
         dtype: String, dtype of returned Keras variable.
-
         name: String, name of returned Keras variable.
-
         seed: Integer, random seed.
 
     # Returns
@@ -636,15 +627,10 @@ def random_normal_variable(shape, mean, scale, dtype=None,
 
     # Arguments
         shape: Tuple of integers, shape of returned Keras variable.
-
         mean: Float, mean of the normal distribution.
-
         scale: Float, standard deviation of the normal distribution.
-
         dtype: String, dtype of returned Keras variable.
-
         name: String, name of returned Keras variable.
-
         seed: Integer, random seed.
 
     # Returns
