@@ -326,6 +326,14 @@ def test_dense():
                input_shape=(3, 2))
 
     layer_test(core.Dense,
+               kwargs={'output_dim': 3},
+               input_shape=(3, 4, 2))
+
+    layer_test(core.Dense,
+               kwargs={'output_dim': 3},
+               input_shape=(3, 4, 5, 2))
+
+    layer_test(core.Dense,
                kwargs={'output_dim': 3,
                        'W_regularizer': regularizers.l2(0.01),
                        'b_regularizer': regularizers.l1(0.01),
