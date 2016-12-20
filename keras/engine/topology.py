@@ -1171,7 +1171,7 @@ def Input(shape=None, batch_shape=None,
         sparse: A boolean specifying whether the placeholder
             to be created is sparse.
 
-    # Example usage
+    # Example
 
         ```python
         # this is a logistic regression in Keras
@@ -1204,7 +1204,7 @@ class Merge(Layer):
     '''A `Merge` layer can be used to merge a list of tensors
     into a single tensor, following some merge `mode`.
 
-    # Example usage
+    # Example
 
     ```python
     model1 = Sequential()
@@ -1214,7 +1214,7 @@ class Merge(Layer):
     model2.add(Dense(32, input_dim=32))
 
     merged_model = Sequential()
-    merged_model.add(Merge([model1, model2], mode='concat', concat_axis=1)
+    merged_model.add(Merge([model1, model2], mode='concat', concat_axis=1))
     ```
 
     # Arguments
@@ -1619,7 +1619,7 @@ def merge(inputs, mode='sum', concat_axis=-1,
     '''Functional merge, to apply to Keras tensors (NOT layers).
     Returns a Keras tensor.
 
-    # Example usage:
+    # Example
 
     ```python
     tensor_a = Input(shape=(32,))
@@ -2606,7 +2606,7 @@ class Container(Layer):
         is a compiled model ready to be used (unless the saved model
         was never compiled in the first place).
 
-        # Example usage
+        # Example
 
         ```python
         from keras.models import load_model

@@ -539,9 +539,9 @@ class Lambda(Layer):
     # Output shape
         Specified by `output_shape` argument.
     '''
-    def __init__(self, function, output_shape=None, arguments={}, **kwargs):
+    def __init__(self, function, output_shape=None, arguments=None, **kwargs):
         self.function = function
-        self.arguments = arguments
+        self.arguments = arguments if arguments else {}
         self.supports_masking = False
 
         if output_shape is None:
@@ -793,8 +793,8 @@ class Dense(Layer):
 
 
 class ActivityRegularization(Layer):
-    '''Layer that passes through its input unchanged, but applies an update
-    to the cost function based on the activity.
+    '''Layer that returns its input unchanged, but applies an update
+    to the cost function based on the activity of the input.
 
     # Arguments
         l1: L1 regularization factor (positive float).
