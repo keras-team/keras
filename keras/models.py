@@ -926,7 +926,7 @@ class Sequential(Model):
                                         class_weight=class_weight,
                                         max_q_size=max_q_size,
                                         nb_worker=nb_worker,
-                                        pickle_safe=pickle_safe
+                                        pickle_safe=pickle_safe,
                                         initial_epoch=initial_epoch)
 
     def evaluate_generator(self, generator, val_samples,
