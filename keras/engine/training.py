@@ -95,7 +95,7 @@ def standardize_input_data(data, names, shapes=None,
                                 ': expected ' + names[i] +
                                 ' to have ' + str(len(shapes[i])) +
                                 ' dimensions, but got array with shape ' +
-                                str(array.shape))
+                                str(array.shape) + ':\n' + str(array))
             for j, (dim, ref_dim) in enumerate(zip(array.shape, shapes[i])):
                 if not j and not check_batch_dim:
                     # skip the first axis
