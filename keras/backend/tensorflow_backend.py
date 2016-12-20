@@ -949,11 +949,11 @@ def max(x, axis=None, keepdims=False):
 
     # Arguments
         x: A tensor or variable.
-        axis: A list of integer. Axes to find maximum values.
+        axis: An integer, the axis to find maximum values.
         keepdims: A boolean, whether to keep the dimensions or not.
             If `keepdims` is `False`, the rank of the tensor is reduced
-            by 1 for each entry in `axis`. If `keep_dims` is `True`,
-            the reduced dimensions are retained with length 1.
+            by 1. If `keepdims` is `True`,
+            the reduced dimension is retained with length 1.
 
     # Returns
         A tensor with maximum values of `x`.
@@ -967,11 +967,11 @@ def min(x, axis=None, keepdims=False):
 
     # Arguments
         x: A tensor or variable.
-        axis: A list of integer. Axes to find minimum values.
+        axis: An integer, the axis to find minimum values.
         keepdims: A boolean, whether to keep the dimensions or not.
             If `keepdims` is `False`, the rank of the tensor is reduced
-            by 1 for each entry in `axis`. If `keep_dims` is `True`,
-            the reduced dimensions are retained with length 1.
+            by 1. If `keepdims` is `True`,
+            the reduced dimension is retained with length 1.
 
     # Returns
         A tensor with miminum values of `x`.
@@ -985,11 +985,11 @@ def sum(x, axis=None, keepdims=False):
 
     # Arguments
         x: A tensor or variable.
-        axis: A list of integer. Axes to sum over.
+        axis: An integer, the axis to sum over.
         keepdims: A boolean, whether to keep the dimensions or not.
             If `keepdims` is `False`, the rank of the tensor is reduced
-            by 1 for each entry in `axis`. If `keep_dims` is `True`,
-            the reduced dimensions are retained with length 1.
+            by 1. If `keepdims` is `True`,
+            the reduced dimension is retained with length 1.
 
     # Returns
         A tensor with sum of `x`.
@@ -1003,11 +1003,11 @@ def prod(x, axis=None, keepdims=False):
 
     # Arguments
         x: A tensor or variable.
-        axis: A list of integer. Axes to compute the product
+        axis: An integer, the axis to compute the product.
         keepdims: A boolean, whether to keep the dimensions or not.
             If `keepdims` is `False`, the rank of the tensor is reduced
-            by 1 for each entry in `axis`. If `keep_dims` is `True`,
-            the reduced dimensions are retained with length 1.
+            by 1. If `keepdims` is `True`,
+            the reduced dimension is retained with length 1.
 
     # Returns
         A tensor with the product of elements of `x`.
@@ -1021,11 +1021,11 @@ def var(x, axis=None, keepdims=False):
 
     # Arguments
         x: A tensor or variable.
-        axis: A list of integer. Axes to compute the variance.
+        axis: An integer, the axis to compute the variance.
         keepdims: A boolean, whether to keep the dimensions or not.
             If `keepdims` is `False`, the rank of the tensor is reduced
-            by 1 for each entry in `axis`. If `keep_dims` is `True`,
-            the reduced dimensions are retained with length 1.
+            by 1. If `keepdims` is `True`,
+            the reduced dimension is retained with length 1.
 
     # Returns
         A tensor with the variance of elements of `x`.
@@ -1045,11 +1045,11 @@ def std(x, axis=None, keepdims=False):
 
     # Arguments
         x: A tensor or variable.
-        axis: A list of integer. Axes to compute the standard deviation.
+        axis: An integer, the axis to compute the standard deviation.
         keepdims: A boolean, whether to keep the dimensions or not.
             If `keepdims` is `False`, the rank of the tensor is reduced
-            by 1 for each entry in `axis`. If `keep_dims` is `True`,
-            the reduced dimensions are retained with length 1.
+            by 1. If `keepdims` is `True`,
+            the reduced dimension is retained with length 1.
 
     # Returns
         A tensor with the standard deviation of elements of `x`.
