@@ -1254,7 +1254,7 @@ class Merge(Layer):
     '''
     def __init__(self, layers=None, mode='sum', concat_axis=-1,
                  dot_axes=-1, output_shape=None, output_mask=None,
-                 arguments={}, node_indices=None, tensor_indices=None,
+                 arguments=None, node_indices=None, tensor_indices=None,
                  name=None):
         self.layers = layers
         self.mode = mode
@@ -1263,7 +1263,7 @@ class Merge(Layer):
         self._output_shape = output_shape
         self.node_indices = node_indices
         self._output_mask = output_mask
-        self.arguments = arguments
+        self.arguments = arguments if arguments else {}
 
         # Layer parameters.
         self.inbound_nodes = []
@@ -1615,7 +1615,7 @@ class Merge(Layer):
 
 def merge(inputs, mode='sum', concat_axis=-1,
           dot_axes=-1, output_shape=None, output_mask=None,
-          arguments={}, name=None):
+          arguments=None, name=None):
     '''Functional merge, to apply to Keras tensors (NOT layers).
     Returns a Keras tensor.
 
@@ -2534,7 +2534,7 @@ class Container(Layer):
         return copy.deepcopy(config)
 
     @classmethod
-    def from_config(cls, config, custom_objects={}):
+    def from_config(cls, config, custom_objects=None):
         '''Instantiates a Model from its config (output of `get_config()`).
         '''
         from keras.utils.layer_utils import layer_from_config

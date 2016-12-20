@@ -106,7 +106,9 @@ def save_model(model, filepath, overwrite=True):
     f.close()
 
 
-def load_model(filepath, custom_objects={}):
+def load_model(filepath, custom_objects=None):
+    if not custom_objects:
+        custom_objects = {}
 
     def deserialize(obj):
         if isinstance(obj, list):
@@ -181,7 +183,7 @@ def load_model(filepath, custom_objects={}):
     return model
 
 
-def model_from_config(config, custom_objects={}):
+def model_from_config(config, custom_objects=None):
     from keras.utils.layer_utils import layer_from_config
     if isinstance(config, list):
         raise TypeError('`model_fom_config` expects a dictionary, not a list. '
@@ -190,7 +192,7 @@ def model_from_config(config, custom_objects={}):
     return layer_from_config(config, custom_objects=custom_objects)
 
 
-def model_from_yaml(yaml_string, custom_objects={}):
+def model_from_yaml(yaml_string, custom_objects=None):
     '''Parses a yaml model configuration file
     and returns a model instance.
     '''
@@ -200,7 +202,7 @@ def model_from_yaml(yaml_string, custom_objects={}):
     return layer_from_config(config, custom_objects=custom_objects)
 
 
-def model_from_json(json_string, custom_objects={}):
+def model_from_json(json_string, custom_objects=None):
     '''Parses a JSON model configuration file
     and returns a model instance.
     '''
@@ -246,7 +248,7 @@ class Sequential(Model):
             model.add(Dense(32))
         ```
     '''
-    def __init__(self, layers=[], name=None):
+    def __init__(self, layers=None, name=None):
         self.layers = []  # stack of layers
         self.model = None  # internal Model instance
         self.inputs = []  # tensors
@@ -264,8 +266,9 @@ class Sequential(Model):
             name = prefix + str(K.get_uid(prefix))
         self.name = name
 
-        for layer in layers:
-            self.add(layer)
+        if layers:
+            for layer in layers:
+                self.add(layer)
 
     def add(self, layer):
         '''Adds a layer instance on top of the layer stack.
@@ -545,7 +548,7 @@ class Sequential(Model):
         return self.model.training_data
 
     def compile(self, optimizer, loss,
-                metrics=[],
+                metrics=None,
                 sample_weight_mode=None,
                 **kwargs):
         '''Configures the learning process.
@@ -595,7 +598,7 @@ class Sequential(Model):
         self.metrics_names = self.model.metrics_names
         self.sample_weight_mode = self.model.sample_weight_mode
 
-    def fit(self, x, y, batch_size=32, nb_epoch=10, verbose=1, callbacks=[],
+    def fit(self, x, y, batch_size=32, nb_epoch=10, verbose=1, callbacks=None,
             validation_split=0., validation_data=None, shuffle=True,
             class_weight=None, sample_weight=None, **kwargs):
         '''Trains the model for a fixed number of epochs.
@@ -830,7 +833,7 @@ class Sequential(Model):
             return (proba > 0.5).astype('int32')
 
     def fit_generator(self, generator, samples_per_epoch, nb_epoch,
-                      verbose=1, callbacks=[],
+                      verbose=1, callbacks=None,
                       validation_data=None, nb_val_samples=None,
                       class_weight=None, max_q_size=10, nb_worker=1,
                       pickle_safe=False, **kwargs):

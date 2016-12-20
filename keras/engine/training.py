@@ -440,7 +440,7 @@ def generator_queue(generator, max_q_size=10,
 
 class Model(Container):
 
-    def compile(self, optimizer, loss, metrics=[], loss_weights=None,
+    def compile(self, optimizer, loss, metrics=None, loss_weights=None,
                 sample_weight_mode=None, **kwargs):
         '''Configures the model for training.
 
@@ -750,10 +750,10 @@ class Model(Container):
                                                updates=self.state_updates,
                                                **kwargs)
 
-    def _fit_loop(self, f, ins, out_labels=[], batch_size=32,
-                  nb_epoch=100, verbose=1, callbacks=[],
+    def _fit_loop(self, f, ins, out_labels=None, batch_size=32,
+                  nb_epoch=100, verbose=1, callbacks=None,
                   val_f=None, val_ins=None, shuffle=True,
-                  callback_metrics=[], initial_epoch=0):
+                  callback_metrics=None, initial_epoch=0):
         '''Abstract fit function for f(ins).
         Assume that f returns a list, labeled by out_labels.
 
@@ -790,10 +790,11 @@ class Model(Container):
         index_array = np.arange(nb_train_sample)
 
         self.history = cbks.History()
-        callbacks = [cbks.BaseLogger()] + callbacks + [self.history]
+        callbacks = [cbks.BaseLogger()] + (callbacks or []) + [self.history]
         if verbose:
             callbacks += [cbks.ProgbarLogger()]
         callbacks = cbks.CallbackList(callbacks)
+        out_labels = out_labels or []
 
         # it's possible to callback a different model than self
         # (used by Sequential models)
@@ -809,7 +810,7 @@ class Model(Container):
             'nb_sample': nb_train_sample,
             'verbose': verbose,
             'do_validation': do_validation,
-            'metrics': callback_metrics,
+            'metrics': callback_metrics or [],
         })
         callbacks.on_train_begin()
         callback_model.stop_training = False
@@ -1001,7 +1002,7 @@ class Model(Container):
                                  str(x[0].shape[0]) + ' samples')
         return x, y, sample_weights
 
-    def fit(self, x, y, batch_size=32, nb_epoch=10, verbose=1, callbacks=[],
+    def fit(self, x, y, batch_size=32, nb_epoch=10, verbose=1, callbacks=None,
             validation_split=0., validation_data=None, shuffle=True,
             class_weight=None, sample_weight=None, initial_epoch=0):
         '''Trains the model for a fixed number of epochs (iterations on a dataset).
@@ -1327,9 +1328,9 @@ class Model(Container):
         return outputs
 
     def fit_generator(self, generator, samples_per_epoch, nb_epoch,
-                      verbose=1, callbacks=[],
+                      verbose=1, callbacks=None,
                       validation_data=None, nb_val_samples=None,
-                      class_weight={},
+                      class_weight=None,
                       max_q_size=10, nb_worker=1, pickle_safe=False,
                       initial_epoch=0):
         '''Fits the model on data generated batch-by-batch by
@@ -1415,7 +1416,7 @@ class Model(Container):
 
         # prepare callbacks
         self.history = cbks.History()
-        callbacks = [cbks.BaseLogger()] + callbacks + [self.history]
+        callbacks = [cbks.BaseLogger()] + (callbacks or []) + [self.history]
         if verbose:
             callbacks += [cbks.ProgbarLogger()]
         callbacks = cbks.CallbackList(callbacks)
