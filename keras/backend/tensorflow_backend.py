@@ -1356,6 +1356,19 @@ def softmax(x):
     '''
     return tf.nn.softmax(x)
 
+def softmax_3d(x):
+    '''Softmax on the last axis of a 2d or 3d tensor.
+    '''
+    nd = ndim(x)
+    if nd == 2:
+        return softmax(x)
+    elif nd == 3:
+        e = exp(x - max(x, axis=-1, keepdims=True))
+        s = sum(e, axis=-1, keepdims=True)
+        return e / s
+    else:
+        raise Exception('Cannot apply softmax to a tensor that is not 2D or 3D. ' +
+                        'Here, ndim=' + str(nd))
 
 def softplus(x):
     '''Softplus of a tensor.

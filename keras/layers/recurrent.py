@@ -2,9 +2,6 @@
 from __future__ import absolute_import
 import numpy as np
 np.set_printoptions(threshold=np.inf)
-import types
-import theano
-import theano.tensor as T
 
 from .. import backend as K
 from .. import activations, initializations, regularizers

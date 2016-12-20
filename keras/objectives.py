@@ -35,11 +35,6 @@ def categorical_crossentropy(y_true, y_pred):
     '''
     return K.categorical_crossentropy(y_pred, y_true)
 
-def ecoc_crossentropy(y_true, y_pred):
-    '''
-        Loss for ecoc classifiers.
-    '''
-    return K.sum(y_true - y_true * y_pred) / K.sum(y_true)
 
 def sparse_categorical_crossentropy(y_true, y_pred):
     '''expects an array of integer classes.
@@ -51,6 +46,13 @@ def sparse_categorical_crossentropy(y_true, y_pred):
 
 def binary_crossentropy(y_true, y_pred):
     return K.mean(K.binary_crossentropy(y_pred, y_true), axis=-1)
+
+
+def ecoc_crossentropy(y_true, y_pred):
+    '''
+        Loss for ecoc classifiers.
+    '''
+    return K.sum(y_true - y_true * y_pred) / K.sum(y_true)
 
 
 def kullback_leibler_divergence(y_true, y_pred):
