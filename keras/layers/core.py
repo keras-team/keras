@@ -622,7 +622,7 @@ class Lambda(Layer):
         return dict(list(base_config.items()) + list(config.items()))
 
     @classmethod
-    def from_config(cls, config, custom_objects={}):
+    def from_config(cls, config, custom_objects=None):
         # Insert custom objects into globals.
         if custom_objects:
             globs = globals().copy()
@@ -966,7 +966,6 @@ class Highway(Layer):
             or alternatively, Theano function to use for weights
             initialization. This parameter is only relevant
             if you don't pass a `weights` argument.
-        transform_bias: value for the bias to take on initially (default -2)
         activation: name of activation function to use
             (see [activations](../activations.md)),
             or alternatively, elementwise Theano function.
@@ -1002,7 +1001,6 @@ class Highway(Layer):
     '''
     def __init__(self,
                  init='glorot_uniform',
-                 transform_bias=-2,
                  activation=None,
                  weights=None,
                  W_regularizer=None,
@@ -1013,8 +1011,11 @@ class Highway(Layer):
                  bias=True,
                  input_dim=None,
                  **kwargs):
+        if 'transform_bias' in kwargs:
+            kwargs.pop('transform_bias')
+            warnings.warn('`transform_bias` argument is deprecated and '
+                          'will be removed after 5/2017.')
         self.init = initializations.get(init)
-        self.transform_bias = transform_bias
         self.activation = activations.get(activation)
 
         self.W_regularizer = regularizers.get(W_regularizer)
@@ -1078,7 +1079,6 @@ class Highway(Layer):
 
     def get_config(self):
         config = {'init': self.init.__name__,
-                  'transform_bias': self.transform_bias,
                   'activation': self.activation.__name__,
                   'W_regularizer': self.W_regularizer.get_config() if self.W_regularizer else None,
                   'b_regularizer': self.b_regularizer.get_config() if self.b_regularizer else None,
