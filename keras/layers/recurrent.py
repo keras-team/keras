@@ -601,7 +601,6 @@ class GRU(Recurrent):
         return dict(list(base_config.items()) + list(config.items()))
 
 
-
 class GRUCond(GRU):
     '''Gated Recurrent Unit - Cho et al. 2014. with the previously generated word fed to the current timestep.
     You should give two inputs to this layer:
@@ -668,9 +667,12 @@ class GRUCond(GRU):
 
 
     # References
-        - [On the Properties of Neural Machine Translation: Encoder–Decoder Approaches](http://www.aclweb.org/anthology/W14-4012)
-        - [Empirical Evaluation of Gated Recurrent Neural Networks on Sequence Modeling](http://arxiv.org/pdf/1412.3555v1.pdf)
-        - [A Theoretically Grounded Application of Dropout in Recurrent Neural Networks](http://arxiv.org/abs/1512.05287)
+        - [On the Properties of Neural Machine Translation:
+            Encoder–Decoder Approaches](http://www.aclweb.org/anthology/W14-4012)
+        - [Empirical Evaluation of Gated Recurrent Neural Networks
+            on Sequence Modeling:(http://arxiv.org/pdf/1412.3555v1.pdf)
+        - [A Theoretically Grounded Application of Dropout
+            in Recurrent Neural Networks](http://arxiv.org/abs/1512.05287)
     '''
     def __init__(self, output_dim,
                  init='glorot_uniform', inner_init='orthogonal',
@@ -803,10 +805,8 @@ class GRUCond(GRU):
                K.zeros((input_shape[0], self.output_dim)),
                K.zeros((input_shape[0], input_shape[3]))]
 
-
     def preprocess_input(self, x, B_V):
             return K.dot(x * B_V[0], self.V) + self.b
-
 
     def get_output_shape_for(self, input_shape):
         if self.return_sequences:
@@ -819,7 +819,6 @@ class GRUCond(GRU):
             main_out = [main_out, states_dim]
 
         return main_out
-
 
     def call(self, x, mask=None):
         # input shape: (nb_samples, time (padded with zeros), input_dim)
@@ -955,11 +954,11 @@ class GRUCond(GRU):
     def get_initial_states(self, x):
         # build an all-zero tensor of shape (samples, output_dim)
         if self.init_state is None:
-        # build an all-zero tensor of shape (samples, output_dim)
+            #  build an all-zero tensor of shape (samples, output_dim)
             initial_state = K.zeros_like(x)  # (samples, timesteps, input_dim)
             initial_state = K.sum(initial_state, axis=(1, 2))  # (samples,)
             initial_state = K.expand_dims(initial_state)  # (samples, 1)
-            initial_state = K.tile(initial_state, [1, self.output_dim]) # (samples, output_dim)
+            initial_state = K.tile(initial_state, [1, self.output_dim])  # (samples, output_dim)
         else:
             initial_state = self.init_state
         initial_states = [initial_state]
@@ -982,7 +981,6 @@ class GRUCond(GRU):
                   }
         base_config = super(GRUCond, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
-
 
 
 class AttGRUCond(GRU):
@@ -1056,9 +1054,12 @@ class AttGRUCond(GRU):
 
 
     # References
-        - [On the Properties of Neural Machine Translation: Encoder–Decoder Approaches](http://www.aclweb.org/anthology/W14-4012)
-        - [Empirical Evaluation of Gated Recurrent Neural Networks on Sequence Modeling](http://arxiv.org/pdf/1412.3555v1.pdf)
-        - [A Theoretically Grounded Application of Dropout in Recurrent Neural Networks](http://arxiv.org/abs/1512.05287)
+        - [On the Properties of Neural Machine Translation:
+            Encoder–Decoder Approaches](http://www.aclweb.org/anthology/W14-4012)
+        - [Empirical Evaluation of Gated Recurrent Neural Networks on
+            Sequence Modeling](http://arxiv.org/pdf/1412.3555v1.pdf)
+        - [A Theoretically Grounded Application of Dropout in
+            Recurrent Neural Networks](http://arxiv.org/abs/1512.05287)
     '''
     def __init__(self, output_dim, return_extra_variables=False, return_states=False,
                  init='glorot_uniform', inner_init='orthogonal',
@@ -1086,7 +1087,7 @@ class AttGRUCond(GRU):
         self.dropout_W, self.dropout_U, self.dropout_V  = dropout_W, dropout_U, dropout_V
         self.dropout_wa, self.dropout_Wa, self.dropout_Ua = dropout_wa, dropout_Wa, dropout_Ua
 
-        if self.dropout_W or self.dropout_U or  self.dropout_V or self.dropout_wa or self.dropout_Wa or self.dropout_Ua:
+        if self.dropout_W or self.dropout_U or self.dropout_V or self.dropout_wa or self.dropout_Wa or self.dropout_Ua:
             self.uses_learning_phase = True
         super(AttGRUCond, self).__init__(output_dim, **kwargs)
 
@@ -1230,10 +1231,8 @@ class AttGRUCond(GRU):
                K.zeros((input_shape[0], self.output_dim)),
                K.zeros((input_shape[0], input_shape[3]))]
 
-
     def preprocess_input(self, x, B_V):
             return K.dot(x * B_V[0], self.V) + self.b
-
 
     def get_output_shape_for(self, input_shape):
         if self.return_sequences:
@@ -1263,10 +1262,10 @@ class AttGRUCond(GRU):
         input_shape = self.input_spec[0].shape
         state_below = x[0]
         self.context = x[1]
-        if self.num_inputs == 2: # input: [state_below, context]
+        if self.num_inputs == 2:  # input: [state_below, context]
             self.init_state = None
             self.init_memory = None
-        elif self.num_inputs == 3: # input: [state_below, context, init_hidden_state]
+        elif self.num_inputs == 3:  # input: [state_below, context, init_hidden_state]
             self.init_state = x[2]
             self.init_memory = None
         if K._BACKEND == 'tensorflow':
@@ -1499,12 +1498,9 @@ class AttGRUCond(GRU):
                   'dropout_V': self.dropout_V,
                   'dropout_wa': self.dropout_wa,
                   'dropout_Wa': self.dropout_Wa,
-                  'dropout_Ua': self.dropout_Ua,
-                  }
+                  'dropout_Ua': self.dropout_Ua}
         base_config = super(AttGRUCond, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
-
-
 
 
 class LSTM(Recurrent):
@@ -2163,6 +2159,391 @@ class LSTMCond(LSTM):
                   "V_regularizer": self.V_regularizer.get_config() if self.U_regularizer else None,
                   "U_regularizer": self.U_regularizer.get_config() if self.U_regularizer else None,
                   "b_regularizer": self.b_regularizer.get_config() if self.b_regularizer else None,
+                  "dropout_W": self.dropout_W,
+                  "dropout_U": self.dropout_U,
+                  "dropout_V": self.dropout_V}
+        base_config = super(LSTMCond, self).get_config()
+        return dict(list(base_config.items()) + list(config.items()))
+
+
+
+class LSTMCond2Inputs(LSTMCond):
+    '''Conditional LSTM: The previously generated word is fed to the current timestep
+
+    # Arguments
+        output_dim: dimension of the internal projections and the final output.
+        init: weight initialization function.
+            Can be the name of an existing function (str),
+            or a Theano function (see: [initializations](../initializations.md)).
+        inner_init: initialization function of the inner cells.
+        return_states: boolean indicating if we want the intermediate states (hidden_state and memory) as additional outputs
+        forget_bias_init: initialization function for the bias of the forget gate.
+            [Jozefowicz et al.](http://www.jmlr.org/proceedings/papers/v37/jozefowicz15.pdf)
+            recommend initializing with ones.
+        activation: activation function.
+            Can be the name of an existing function (str),
+            or a Theano function (see: [activations](../activations.md)).
+        inner_activation: activation function for the inner cells.
+        W_regularizer: instance of [WeightRegularizer](../regularizers.md)
+            (eg. L1 or L2 regularization), applied to the input weights matrices.
+        U_regularizer: instance of [WeightRegularizer](../regularizers.md)
+            (eg. L1 or L2 regularization), applied to the recurrent weights matrices.
+        b_regularizer: instance of [WeightRegularizer](../regularizers.md),
+            applied to the bias.
+        dropout_W: float between 0 and 1. Fraction of the input units to drop for input gates.
+        dropout_U: float between 0 and 1. Fraction of the input units to drop for recurrent connections.
+
+    # References
+        - [Long short-term memory](http://deeplearning.cs.cmu.edu/pdfs/Hochreiter97_lstm.pdf) (original 1997 paper)
+        - [Learning to forget: Continual prediction with LSTM](http://www.mitpressjournals.org/doi/pdf/10.1162/089976600300015015)
+        - [Supervised sequence labelling with recurrent neural networks](http://www.cs.toronto.edu/~graves/preprint.pdf)
+        - [A Theoretically Grounded Application of Dropout in Recurrent Neural Networks](http://arxiv.org/abs/1512.05287)
+    '''
+    def __init__(self, output_dim,
+                 init='glorot_uniform', inner_init='orthogonal',
+                 return_states=False,
+                 forget_bias_init='one', activation='tanh',
+                 inner_activation='hard_sigmoid', consume_less='gpu',
+                 W_regularizer=None, V_regularizer=None, U_regularizer=None, T_regularizer=None, b_regularizer=None,
+                 dropout_T=0., dropout_W=0., dropout_U=0., dropout_V=0., **kwargs):
+        self.output_dim = output_dim
+        self.init = initializations.get(init)
+        self.inner_init = initializations.get(inner_init)
+        self.return_states = return_states
+        self.forget_bias_init = initializations.get(forget_bias_init)
+        self.activation = activations.get(activation)
+        self.inner_activation = activations.get(inner_activation)
+        self.consume_less = consume_less
+        self.T_regularizer = T_regularizer
+        self.W_regularizer = W_regularizer
+        self.V_regularizer = V_regularizer
+        self.U_regularizer = U_regularizer
+        self.b_regularizer = b_regularizer
+
+        self.dropout_T, self.dropout_W, self.dropout_U, self.dropout_V = dropout_T, dropout_W, dropout_U, dropout_V
+        if self.dropout_T or self.dropout_W or self.dropout_U or self.dropout_V:
+            self.uses_learning_phase = True
+
+        super(LSTMCond2Inputs, self).__init__(output_dim, **kwargs)
+
+    def build(self, input_shape):
+        assert len(input_shape) >= 3 or'You should pass two inputs to LSTMCond ' \
+                                       '(previous_embedded_words, context1 and context2) and ' \
+                                       'two optional inputs (init_state and init_memory)'
+
+        if len(input_shape) == 3:
+            self.input_spec = [InputSpec(shape=input_shape[0]),
+                               InputSpec(shape=input_shape[1]),
+                               InputSpec(shape=input_shape[2])]
+            self.num_inputs = 3
+        elif len(input_shape) == 5:
+            self.input_spec = [InputSpec(shape=input_shape[0]),
+                               InputSpec(shape=input_shape[1]),
+                               InputSpec(shape=input_shape[2]),
+                               InputSpec(shape=input_shape[3]),
+                               InputSpec(shape=input_shape[4])]
+            self.num_inputs = 5
+        self.input_dim = input_shape[0][2]
+
+        if self.input_spec[1].ndim == 3:
+            self.context1_dim = input_shape[1][2]
+            self.static_ctx1 = False
+            assert input_shape[1][1] == input_shape[0][1], 'When using a 3D ctx in LSTMCond, it has to have the same ' \
+                                                          'number of timesteps (dimension 1) as the input. Currently,' \
+                                                          'the number of input timesteps is: ' \
+                                                           + str(input_shape[0][1]) + \
+                                                          ', while the number of ctx timesteps is ' \
+                                                           + str(input_shape[1][1]) + ' (complete shapes: '\
+                                                           + str(input_shape[0]) + ', ' + str(input_shape[1]) + ')'
+        else:
+            self.context1_dim = input_shape[1][1]
+            self.static_ctx1 = True
+
+        if self.input_spec[2].ndim == 3:
+            self.context2_dim = input_shape[2][2]
+            self.static_ctx2 = False
+            assert input_shape[2][1] == input_shape[0][1], 'When using a 3D ctx in LSTMCond, it has to have the same ' \
+                                                          'number of timesteps (dimension 1) as the input. Currently,' \
+                                                          'the number of input timesteps is: ' \
+                                                           + str(input_shape[0][1]) + \
+                                                          ', while the number of ctx timesteps is ' \
+                                                           + str(input_shape[2][1]) + ' (complete shapes: '\
+                                                           + str(input_shape[0]) + ', ' + str(input_shape[1]) + ')'
+        else:
+            self.context2_dim = input_shape[2][1]
+            self.static_ctx2 = True
+        if self.stateful:
+            self.reset_states()
+        else:
+            # initial states: 2 all-zero tensors of shape (output_dim)
+            self.states = [None, None] # [h, c]
+
+        if self.consume_less == 'gpu':
+
+            self.T = self.init((self.context1_dim, 4 * self.output_dim),
+                               name='{}_T'.format(self.name))
+            self.W = self.init((self.context2_dim, 4 * self.output_dim),
+                               name='{}_W'.format(self.name))
+            self.U = self.inner_init((self.output_dim, 4 * self.output_dim),
+                                     name='{}_U'.format(self.name))
+            self.V = self.init((self.input_dim, 4 * self.output_dim),
+                                     name='{}_V'.format(self.name))
+            self.b = K.variable(np.hstack((np.zeros(self.output_dim),
+                                           K.get_value(self.forget_bias_init(self.output_dim)),
+                                           np.zeros(self.output_dim),
+                                           np.zeros(self.output_dim))),
+                                name='{}_b'.format(self.name))
+            self.trainable_weights = [self.T,
+                                      self.W,
+                                      self.U,
+                                      self.V,
+                                      self.b]
+
+        else:
+            self.T_i = self.init((self.context1_dim, self.output_dim), name='{}_T_i'.format(self.name))
+            self.V_i = self.init((self.input_dim, self.output_dim), name='{}_V_i'.format(self.name))
+            self.W_i = self.init((self.context2_dim, self.output_dim), name='{}_W_i'.format(self.name))
+            self.U_i = self.inner_init((self.output_dim, self.output_dim), name='{}_U_i'.format(self.name))
+            self.b_i = K.zeros((self.output_dim,), name='{}_b_i'.format(self.name))
+
+            self.T_f = self.init((self.context1_dim, self.output_dim), name='{}_T_f'.format(self.name))
+            self.V_f = self.init((self.input_dim, self.output_dim), name='{}_V_f'.format(self.name))
+            self.W_f = self.init((self.context2_dim, self.output_dim), name='{}_W_f'.format(self.name))
+            self.U_f = self.inner_init((self.output_dim, self.output_dim),name='{}_U_f'.format(self.name))
+            self.b_f = self.forget_bias_init((self.output_dim,), name='{}_b_f'.format(self.name))
+
+            self.T_c = self.init((self.context1_dim, self.output_dim), name='{}_T_c'.format(self.name))
+            self.V_c = self.init((self.input_dim, self.output_dim),name='{}_V_c'.format(self.name))
+            self.W_c = self.init((self.context2_dim, self.output_dim), name='{}_W_c'.format(self.name))
+            self.U_c = self.inner_init((self.output_dim, self.output_dim),name='{}_U_c'.format(self.name))
+            self.b_c = K.zeros((self.output_dim,), name='{}_b_c'.format(self.name))
+
+            self.T_o = self.init((self.context1_dim, self.output_dim), name='{}_T_o'.format(self.name))
+            self.V_o = self.init((self.input_dim, self.output_dim), name='{}_V_o'.format(self.name))
+            self.W_o = self.init((self.context2_dim, self.output_dim), name='{}_W_o'.format(self.name))
+            self.U_o = self.inner_init((self.output_dim, self.output_dim),name='{}_U_o'.format(self.name))
+            self.b_o = K.zeros((self.output_dim,), name='{}_b_o'.format(self.name))
+
+            self.T_x = self.init((self.output_dim, self.context1_dim), name='{}_T_x'.format(self.name))
+            self.V_x = self.init((self.output_dim, self.input_dim), name='{}_V_x'.format(self.name))
+            self.W_x = self.init((self.output_dim, self.context2_dim), name='{}_W_x'.format(self.name))
+            self.b_x = K.zeros((self.context_dim,), name='{}_b_x'.format(self.name))
+            self.trainable_weights = [self.T_i, self.V_i, self.W_i, self.U_i, self.b_i,
+                                      self.T_c, self.V_c, self.W_c, self.U_c, self.b_c,
+                                      self.T_f, self.V_f, self.W_f, self.U_f, self.b_f,
+                                      self.T_o, self.V_o, self.W_o, self.U_o, self.b_o,
+                                      self.T_x, self.V_x, self.W_x, self.b_x
+                                      ]
+            self.T = K.concatenate([self.T_i, self.T_f, self.T_c, self.T_o])
+            self.W = K.concatenate([self.W_i, self.W_f, self.W_c, self.W_o])
+            self.U = K.concatenate([self.U_i, self.U_f, self.U_c, self.U_o])
+            self.V = K.concatenate([self.V_i, self.V_f, self.V_c, self.V_o])
+            self.b = K.concatenate([self.b_i, self.b_f, self.b_c, self.b_o])
+
+        self.regularizers = []
+
+        if self.T_regularizer:
+            self.T_regularizer.set_param(self.T)
+            self.regularizers.append(self.T_regularizer)
+        if self.W_regularizer:
+            self.W_regularizer.set_param(self.W)
+            self.regularizers.append(self.W_regularizer)
+        if self.U_regularizer:
+            self.U_regularizer.set_param(self.U)
+            self.regularizers.append(self.U_regularizer)
+        if self.V_regularizer:
+            self.V_regularizer.set_param(self.V)
+            self.regularizers.append(self.V_regularizer)
+        if self.b_regularizer:
+            self.b_regularizer.set_param(self.b)
+            self.regularizers.append(self.b_regularizer)
+
+        if self.initial_weights is not None:
+            self.set_weights(self.initial_weights)
+            del self.initial_weights
+
+    def preprocess_input(self, x, context1, context2, dropouts):
+        if self.static_ctx1 and self.static_ctx2:
+            return K.dot(x * dropouts[0][0], self.V)
+        elif self.static_ctx1:
+            return K.dot(context2 * dropouts[0][0], self.W) + \
+                   K.dot(x * dropouts[1][0], self.V)
+        elif self.static_ctx2:
+            return K.dot(context1 * dropouts[0][0], self.T) + \
+                   K.dot(x * dropouts[1][0], self.V)
+        else:
+            return K.dot(context1 * dropouts[0][0], self.T) + \
+                   K.dot(context2 * dropouts[1][0], self.W) + \
+                   K.dot(x * dropouts[2][0], self.V)
+
+    def call(self, x, mask=None):
+        # input shape: (nb_samples, time (padded with zeros), input_dim)
+        # note that the .build() method of subclasses MUST define
+        # self.input_spec with a complete input shape.
+
+        input_shape = self.input_spec[0].shape
+        state_below = x[0]
+        self.context1 = x[1]
+        self.context2 = x[2]
+        if self.num_inputs == 3: # input: [state_below, context]
+            self.init_state = None
+            self.init_memory = None
+        elif self.num_inputs == 4: # input: [state_below, context, init_generic]
+            self.init_state = x[3]
+            self.init_memory = x[3]
+        elif self.num_inputs == 5: # input: [state_below, context, init_state, init_memory]
+            self.init_state = x[3]
+            self.init_memory = x[4]
+        if K._BACKEND == 'tensorflow':
+
+            if not input_shape[1]:
+                raise Exception('When using TensorFlow, you should define '
+                                'explicitly the number of timesteps of '
+                                'your sequences.\n'
+                                'If your first layer is an Embedding, '
+                                'make sure to pass it an "input_length" '
+                                'argument. Otherwise, make sure '
+                                'the first layer has '
+                                'an "input_shape" or "batch_input_shape" '
+                                'argument, including the time axis. '
+                                'Found input shape at layer ' + self.name +
+                                ': ' + str(input_shape))
+        if self.stateful:
+            initial_states = self.states
+        else:
+            initial_states = self.get_initial_states(state_below)
+        constants, dropouts = self.get_constants(state_below)
+        preprocessed_input = self.preprocess_input(state_below, self.context1, self.context2, dropouts)
+
+        last_output, outputs, states = K.rnn(self.step, preprocessed_input,
+                                             initial_states,
+                                             go_backwards=self.go_backwards,
+                                             mask=mask[0],
+                                             constants=constants,
+                                             unroll=self.unroll,
+                                             input_length=state_below.shape[1])
+        if self.stateful:
+            self.updates = []
+            for i in range(len(states)):
+                self.updates.append((self.states[i], states[i]))
+        if self.return_sequences:
+            ret = outputs
+        else:
+            ret = last_output
+
+        # intermediate states as additional outputs
+        if self.return_states:
+            ret = [ret, states[0], states[1]]
+
+        return ret
+
+    def step(self, x, states):
+
+        h_tm1 = states[0]  # State
+        c_tm1 = states[1]  # Memory
+        B_U = states[2]    # Dropout U
+
+        if self.static_ctx1 and self.static_ctx2:
+            B_T = states[3]    # Dropout T
+            B_W = states[4]    # Dropout W
+            context1 = states[5]
+            context2 = states[6]
+            z = x + K.dot(context1 * B_T[0], self.T) + K.dot(context2 * B_W[0], self.W) \
+                + K.dot(h_tm1 * B_U[0], self.U) + self.b
+        elif self.static_ctx1:
+            B_T = states[3]    # Dropout T
+            context1 = states[4]
+            z = x + K.dot(context1 * B_T[0], self.T) + K.dot(h_tm1 * B_U[0], self.U) + self.b
+        elif self.static_ctx2:
+            B_W = states[3]    # Dropout W
+            context2 = states[4]
+            z = x + K.dot(context2 * B_W[0], self.W) + K.dot(h_tm1 * B_U[0], self.U) + self.b
+        else:
+            z = x + K.dot(h_tm1 * B_U[0], self.U) + self.b
+        z0 = z[:, :self.output_dim]
+        z1 = z[:, self.output_dim: 2 * self.output_dim]
+        z2 = z[:, 2 * self.output_dim: 3 * self.output_dim]
+        z3 = z[:, 3 * self.output_dim:]
+
+        i = self.inner_activation(z0)
+        f = self.inner_activation(z1)
+        c = f * c_tm1 + i * self.activation(z2)
+        o = self.inner_activation(z3)
+        h = o * self.activation(c)
+        return h, [h, c]
+
+
+    def get_constants(self, x):
+        constants = []
+        dropouts = []
+        # States[2]
+        if 0 < self.dropout_U < 1:
+            ones = K.ones_like(K.reshape(x[:, 0, 0], (-1, 1)))
+            ones = K.concatenate([ones] * self.output_dim, 1)
+            B_U = [K.in_train_phase(K.dropout(ones, self.dropout_U), ones) for _ in range(4)]
+            constants.append(B_U)
+        else:
+            constants.append([K.cast_to_floatx(1.) for _ in range(4)])
+
+        # States[3]
+        if 0 < self.dropout_T < 1:
+            input_shape = self.input_spec[1][0].shape
+            input_dim = input_shape[-1]
+            ones = K.ones_like(K.reshape(x[:, 0, 0], (-1, 1)))
+            ones = K.concatenate([ones] * input_dim, 1)
+            B_T = [K.in_train_phase(K.dropout(ones, self.dropout_T), ones) for _ in range(4)]
+            constants.append(B_T)
+        else:
+            B_T = [K.cast_to_floatx(1.) for _ in range(4)]
+        if self.static_ctx1:
+            constants.append(B_T)
+        else:
+            dropouts.append(B_T)
+
+        # States[4]
+        if 0 < self.dropout_W < 1:
+            input_shape = self.input_spec[2][0].shape
+            input_dim = input_shape[-1]
+            ones = K.ones_like(K.reshape(x[:, 0, 0], (-1, 1)))
+            ones = K.concatenate([ones] * input_dim, 1)
+            B_W = [K.in_train_phase(K.dropout(ones, self.dropout_W), ones) for _ in range(4)]
+            constants.append(B_W)
+        else:
+            B_W = [K.cast_to_floatx(1.) for _ in range(4)]
+        if self.static_ctx2:
+            constants.append(B_W)
+        else:
+            dropouts.append(B_W)
+
+        # States[5]
+        if 0 < self.dropout_V < 1:
+            input_dim = self.input_dim
+            ones = K.ones_like(K.reshape(x[:, :, 0], (-1, x.shape[1], 1))) # (bs, timesteps, 1)
+            ones = K.concatenate([ones] * input_dim, axis=2)
+            B_V = [K.in_train_phase(K.dropout(ones, self.dropout_V), ones) for _ in range(4)]
+        else:
+            B_V = [K.cast_to_floatx(1.) for _ in range(4)]
+        dropouts.append(B_V)
+        if self.static_ctx1:
+            constants.append(self.context1)
+        if self.static_ctx2:
+            constants.append(self.context2)
+
+        return constants, dropouts
+
+    def get_config(self):
+        config = {"output_dim": self.output_dim,
+                  "init": self.init.__name__,
+                  "inner_init": self.inner_init.__name__,
+                  "forget_bias_init": self.forget_bias_init.__name__,
+                  "activation": self.activation.__name__,
+                  "inner_activation": self.inner_activation.__name__,
+                  "T_regularizer": self.T_regularizer.get_config() if self.T_regularizer else None,
+                  "W_regularizer": self.W_regularizer.get_config() if self.W_regularizer else None,
+                  "V_regularizer": self.V_regularizer.get_config() if self.U_regularizer else None,
+                  "U_regularizer": self.U_regularizer.get_config() if self.U_regularizer else None,
+                  "b_regularizer": self.b_regularizer.get_config() if self.b_regularizer else None,
+                  "dropout_T": self.dropout_T,
                   "dropout_W": self.dropout_W,
                   "dropout_U": self.dropout_U,
                   "dropout_V": self.dropout_V}
