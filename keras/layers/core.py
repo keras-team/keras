@@ -1250,6 +1250,9 @@ class MaskedMean(Layer):
     def get_output_shape_for(self, input_shape):
         return (input_shape[0], input_shape[2])
 
+    def get_config(self):
+        base_config = super(MaskedMean, self).get_config()
+        return dict(list(base_config.items()))
 
 class WeightedSum(Layer):
     ''' Applies a weighted sum over a set of vectors input[0] and their respective weights input[1].
