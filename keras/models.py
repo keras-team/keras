@@ -597,7 +597,7 @@ class Sequential(Model):
 
     def fit(self, x, y, batch_size=32, nb_epoch=10, verbose=1, callbacks=[],
             validation_split=0., validation_data=None, shuffle=True,
-            class_weight=None, sample_weight=None, **kwargs):
+            class_weight=None, sample_weight=None, initial_epoch=0, **kwargs):
         '''Trains the model for a fixed number of epochs.
 
         # Arguments
@@ -632,6 +632,8 @@ class Sequential(Model):
                 to apply a different weight to every timestep of every sample.
                 In this case you should make sure to specify
                 sample_weight_mode="temporal" in compile().
+            initial_epoch: epoch at which to start training
+                (useful for resuming a previous training run)
 
         # Returns
             A `History` object. Its `History.history` attribute is
@@ -661,7 +663,8 @@ class Sequential(Model):
                               validation_data=validation_data,
                               shuffle=shuffle,
                               class_weight=class_weight,
-                              sample_weight=sample_weight)
+                              sample_weight=sample_weight,
+                              initial_epoch=initial_epoch)
 
     def evaluate(self, x, y, batch_size=32, verbose=1,
                  sample_weight=None, **kwargs):
@@ -833,7 +836,7 @@ class Sequential(Model):
                       verbose=1, callbacks=[],
                       validation_data=None, nb_val_samples=None,
                       class_weight=None, max_q_size=10, nb_worker=1,
-                      pickle_safe=False, **kwargs):
+                      pickle_safe=False, initial_epoch=0, **kwargs):
         '''Fits the model on data generated batch-by-batch by
         a Python generator.
         The generator is run in parallel to the model, for efficiency.
@@ -869,6 +872,8 @@ class Sequential(Model):
                 this implementation relies on multiprocessing, you should not pass
                 non picklable arguments to the generator as they can't be passed
                 easily to children processes.
+            initial_epoch: epoch at which to start training
+                (useful for resuming a previous training run)
 
         # Returns
             A `History` object.
@@ -921,7 +926,8 @@ class Sequential(Model):
                                         class_weight=class_weight,
                                         max_q_size=max_q_size,
                                         nb_worker=nb_worker,
-                                        pickle_safe=pickle_safe)
+                                        pickle_safe=pickle_safe
+                                        initial_epoch=initial_epoch)
 
     def evaluate_generator(self, generator, val_samples,
                            max_q_size=10, nb_worker=1,
