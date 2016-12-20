@@ -88,9 +88,9 @@ style_weight = args.style_weight
 content_weight = args.content_weight
 
 # dimensions of the generated picture.
+width, height = load_img(base_image_path).size
 img_nrows = 400
-img_ncols = 400
-assert img_ncols == img_nrows, 'Due to the use of the Gram matrix, width and height must match.'
+img_ncols = int(width * img_nrows / height)
 
 # util function to open, resize and format pictures into appropriate tensors
 def preprocess_image(image_path):
