@@ -18,6 +18,7 @@ from ..layers.convolutional import MaxPooling2D, ZeroPadding2D
 from ..layers.normalization import BatchNormalization
 from ..layers.advanced_activations import ELU
 from ..layers.recurrent import GRU
+from ..engine.topology import get_source_inputs
 from ..utils.data_utils import get_file
 from ..utils.layer_utils import convert_all_kernels_in_model
 from .audio_conv_utils import decode_predictions, preprocess_input
@@ -127,8 +128,15 @@ def MusicTaggerCRNN(weights='msd', input_tensor=None,
     if include_top:
         x = Dense(50, activation='sigmoid', name='output')(x)
 
-    # Create model
-    model = Model(melgram_input, x)
+    # Ensure that the model takes into account
+    # any potential predecessors of `input_tensor`.
+    if input_tensor is not None:
+        inputs = get_source_inputs(input_tensor)
+    else:
+        inputs = melgram_input
+    # Create model.
+    model = Model(inputs, x, name='music_tagger_crnn')
+
     if weights is None:
         return model
     else:

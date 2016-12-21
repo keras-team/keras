@@ -25,9 +25,10 @@ import warnings
 from ..models import Model
 from ..layers import Dense, Input, BatchNormalization, Activation, merge
 from ..layers import Conv2D, SeparableConv2D, MaxPooling2D, GlobalAveragePooling2D
+from ..engine.topology import get_source_inputs
 from ..utils.data_utils import get_file
 from .. import backend as K
-from .imagenet_utils import decode_predictions
+from .imagenet_utils import decode_predictions, _obtain_input_shape
 
 
 TF_WEIGHTS_PATH = 'https://github.com/fchollet/deep-learning-models/releases/download/v0.4/xception_weights_tf_dim_ordering_tf_kernels.h5'
@@ -35,7 +36,7 @@ TF_WEIGHTS_PATH_NO_TOP = 'https://github.com/fchollet/deep-learning-models/relea
 
 
 def Xception(include_top=True, weights='imagenet',
-             input_tensor=None):
+             input_tensor=None, input_shape=None):
     '''Instantiate the Xception architecture,
     optionally loading weights pre-trained
     on ImageNet. This model is available for TensorFlow only,
@@ -53,6 +54,12 @@ def Xception(include_top=True, weights='imagenet',
             or "imagenet" (pre-training on ImageNet).
         input_tensor: optional Keras tensor (i.e. output of `layers.Input()`)
             to use as image input for the model.
+        inputs_shape: optional shape tuple, only to be specified
+            if `include_top` is False (otherwise the input shape
+            has to be `(299, 299, 3)`.
+            It should have exactly 3 inputs channels,
+            and width and height should be no smaller than 71.
+            E.g. `(150, 150, 3)` would be one valid value.
 
     # Returns
         A Keras model instance.
@@ -62,8 +69,8 @@ def Xception(include_top=True, weights='imagenet',
                          '`None` (random initialization) or `imagenet` '
                          '(pre-training on ImageNet).')
     if K.backend() != 'tensorflow':
-        raise Exception('The Xception model is only available with '
-                        'the TensorFlow backend.')
+        raise RuntimeError('The Xception model is only available with '
+                           'the TensorFlow backend.')
     if K.image_dim_ordering() != 'tf':
         warnings.warn('The Xception model is only available for the '
                       'input dimension ordering "tf" '
@@ -80,10 +87,11 @@ def Xception(include_top=True, weights='imagenet',
         old_dim_ordering = None
 
     # Determine proper input shape
-    if include_top:
-        input_shape = (299, 299, 3)
-    else:
-        input_shape = (None, None, 3)
+    input_shape = _obtain_input_shape(input_shape,
+                                      default_size=299,
+                                      min_size=71,
+                                      dim_ordering=K.image_dim_ordering(),
+                                      include_top=include_top)
 
     if input_tensor is None:
         img_input = Input(shape=input_shape)
@@ -183,8 +191,14 @@ def Xception(include_top=True, weights='imagenet',
         x = GlobalAveragePooling2D(name='avg_pool')(x)
         x = Dense(1000, activation='softmax', name='predictions')(x)
 
-    # Create model
-    model = Model(img_input, x)
+    # Ensure that the model takes into account
+    # any potential predecessors of `input_tensor`.
+    if input_tensor is not None:
+        inputs = get_source_inputs(input_tensor)
+    else:
+        inputs = img_input
+    # Create model.
+    model = Model(inputs, x, name='xception')
 
     # load weights
     if weights == 'imagenet':

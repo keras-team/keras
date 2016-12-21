@@ -242,14 +242,14 @@ class KerasClassifier(BaseWrapper):
             y = to_categorical(y)
 
         outputs = self.model.evaluate(X, y, **kwargs)
-        if type(outputs) is not list:
+        if not isinstance(outputs, list):
             outputs = [outputs]
         for name, output in zip(self.model.metrics_names, outputs):
             if name == 'acc':
                 return output
-        raise Exception('The model is not configured to compute accuracy. '
-                        'You should pass `metrics=["accuracy"]` to '
-                        'the `model.compile()` method.')
+        raise ValueError('The model is not configured to compute accuracy. '
+                         'You should pass `metrics=["accuracy"]` to '
+                         'the `model.compile()` method.')
 
 
 class KerasRegressor(BaseWrapper):
@@ -290,6 +290,6 @@ class KerasRegressor(BaseWrapper):
         '''
         kwargs = self.filter_sk_params(Sequential.evaluate, kwargs)
         loss = self.model.evaluate(X, y, **kwargs)
-        if type(loss) is list:
+        if isinstance(loss, list):
             return loss[0]
         return loss

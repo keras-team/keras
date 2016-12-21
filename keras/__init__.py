@@ -15,4 +15,4 @@ from . import objectives
 from . import optimizers
 from . import regularizers
 
-__version__ = '1.1.1'
+__version__ = '1.2.0'

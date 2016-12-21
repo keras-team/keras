@@ -8,17 +8,17 @@ import os
 
 def load_data(label_mode='fine'):
     if label_mode not in ['fine', 'coarse']:
-        raise Exception('label_mode must be one of "fine" "coarse".')
+        raise ValueError('label_mode must be one of "fine" "coarse".')
 
-    dirname = "cifar-100-python"
-    origin = "http://www.cs.toronto.edu/~kriz/cifar-100-python.tar.gz"
+    dirname = 'cifar-100-python'
+    origin = 'http://www.cs.toronto.edu/~kriz/cifar-100-python.tar.gz'
     path = get_file(dirname, origin=origin, untar=True)
 
     fpath = os.path.join(path, 'train')
-    X_train, y_train = load_batch(fpath, label_key=label_mode+'_labels')
+    X_train, y_train = load_batch(fpath, label_key=label_mode + '_labels')
 
     fpath = os.path.join(path, 'test')
-    X_test, y_test = load_batch(fpath, label_key=label_mode+'_labels')
+    X_test, y_test = load_batch(fpath, label_key=label_mode + '_labels')
 
     y_train = np.reshape(y_train, (len(y_train), 1))
     y_test = np.reshape(y_test, (len(y_test), 1))

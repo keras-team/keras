@@ -17,7 +17,7 @@ class Wrapper(Layer):
         self.trainable_weights = getattr(self.layer, 'trainable_weights', [])
         self.non_trainable_weights = getattr(self.layer, 'non_trainable_weights', [])
         self.updates = getattr(self.layer, 'updates', [])
-        self.regularizers = getattr(self.layer, 'regularizers', [])
+        self.losses = getattr(self.layer, 'losses', [])
         self.constraints = getattr(self.layer, 'constraints', {})
 
         # properly attribute the current layer to
@@ -106,7 +106,7 @@ class TimeDistributed(Wrapper):
         return (child_output_shape[0], timesteps) + child_output_shape[1:]
 
     def call(self, X, mask=None):
-        input_shape = self.input_spec[0].shape
+        input_shape = K.int_shape(X)
         if input_shape[0]:
             # batch size matters, use rnn-based implementation
             def step(x, states):
@@ -125,11 +125,16 @@ class TimeDistributed(Wrapper):
             input_length = input_shape[1]
             if not input_length:
                 input_length = K.shape(X)[1]
-            X = K.reshape(X, (-1, ) + input_shape[2:])  # (nb_samples * timesteps, ...)
+            X = K.reshape(X, (-1,) + input_shape[2:])  # (nb_samples * timesteps, ...)
             y = self.layer.call(X)  # (nb_samples * timesteps, ...)
             # (nb_samples, timesteps, ...)
             output_shape = self.get_output_shape_for(input_shape)
             y = K.reshape(y, (-1, input_length) + output_shape[2:])
+
+        # Apply activity regularizer if any:
+        if hasattr(self.layer, 'activity_regularizer') and self.layer.activity_regularizer is not None:
+            regularization_loss = self.layer.activity_regularizer(y)
+            self.add_loss(regularization_loss, X)
         return y
 
 
@@ -246,9 +251,9 @@ class Bidirectional(Wrapper):
         return []
 
     @property
-    def regularizers(self):
-        if hasattr(self.forward_layer, 'regularizers'):
-            return self.forward_layer.regularizers + self.backward_layer.regularizers
+    def losses(self):
+        if hasattr(self.forward_layer, 'losses'):
+            return self.forward_layer.losses + self.backward_layer.losses
         return []
 
     @property
