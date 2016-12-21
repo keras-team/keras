@@ -31,7 +31,7 @@ pip install editdistance
 Created by Mike Henry
 https://github.com/mbhenry/
 '''
-import osls
+import os
 import itertools
 import re
 import datetime
@@ -253,30 +253,27 @@ class TextImageGenerator(keras.callbacks.Callback):
         input_length = np.zeros([size, 1])
         label_length = np.zeros([size, 1])
         source_str = []
-        try:
-            for i in range(0, size):
-                # Mix in some blank inputs.  This seems to be important for
-                # achieving translational invariance
-                if train and i > size - 4:
-                    if K.image_dim_ordering() == 'th':
-                        X_data[i, 0, 0:self.img_w, :] = self.paint_func('')[0, :, :].T
-                    else:
-                        X_data[i, 0:self.img_w, :, 0] = self.paint_func('',)[0, :, :].T
-                    labels[i, 0] = self.blank_label
-                    input_length[i] = self.img_w // self.downsample_factor - 2
-                    label_length[i] = 1
-                    source_str.append('')
+        for i in range(0, size):
+            # Mix in some blank inputs.  This seems to be important for
+            # achieving translational invariance
+            if train and i > size - 4:
+                if K.image_dim_ordering() == 'th':
+                    X_data[i, 0, 0:self.img_w, :] = self.paint_func('')[0, :, :].T
                 else:
-                    if K.image_dim_ordering() == 'th':
-                        X_data[i, 0, 0:self.img_w, :] = self.paint_func(self.X_text[index + i])[0, :, :].T
-                    else:
-                        X_data[i, 0:self.img_w, :, 0] = self.paint_func(self.X_text[index + i])[0, :, :].T
-                    labels[i, :] = self.Y_data[index + i]
-                    input_length[i] = self.img_w // self.downsample_factor - 2
-                    label_length[i] = self.Y_len[index + i]
-                    source_str.append(self.X_text[index + i])
-        except IndexError as e:
-            embed()
+                    X_data[i, 0:self.img_w, :, 0] = self.paint_func('',)[0, :, :].T
+                labels[i, 0] = self.blank_label
+                input_length[i] = self.img_w // self.downsample_factor - 2
+                label_length[i] = 1
+                source_str.append('')
+            else:
+                if K.image_dim_ordering() == 'th':
+                    X_data[i, 0, 0:self.img_w, :] = self.paint_func(self.X_text[index + i])[0, :, :].T
+                else:
+                    X_data[i, 0:self.img_w, :, 0] = self.paint_func(self.X_text[index + i])[0, :, :].T
+                labels[i, :] = self.Y_data[index + i]
+                input_length[i] = self.img_w // self.downsample_factor - 2
+                label_length[i] = self.Y_len[index + i]
+                source_str.append(self.X_text[index + i])
         inputs = {'the_input': X_data,
                   'the_labels': labels,
                   'input_length': input_length,
