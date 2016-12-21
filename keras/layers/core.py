@@ -1362,8 +1362,11 @@ class WeightedMerge(Layer):
             input_shape = [input_shape]
         s = input_shape[0]
         for i in range(1,len(input_shape)):
-            assert input_shape[i] == s, 'The shapes of some input tensors do not match ' \
-                                        '('+str(input_shape[i])+' vs '+str(s)+').'
+            for s1,s2 in zip(input_shape[i], s):
+                assert s1 == s2 or s1 is None or s2 is None, 'The shapes of some input tensors do not match ' \
+                                                             '(' + str(input_shape[i]) + ' vs ' + str(s) + ').'
+            #assert input_shape[i] == s, 'The shapes of some input tensors do not match ' \
+            #                        '('+str(input_shape[i])+' vs '+str(s)+').'
 
         self.lambdas = self.init((len(input_shape),), name='{}_lambdas'.format(self.name))
         self.trainable_weights = [self.lambdas]
