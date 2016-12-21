@@ -1324,6 +1324,100 @@ class WeightedSum(Layer):
         return dict(list(base_config.items()) + list(config.items()))
 
 
+class WeightedMerge(Layer):
+    ''' Applies a weighted merge over a set of tensors.
+        This layer learns a set of lambda weights for applying a weighted sum
+        for merging the input tensors.
+
+    # Parameters
+        :param mode: merge mode used. Possible values are 'sum' (default) or 'mul'.
+
+    # Input shape
+        List of tensors of any dimensions but with the same shape.
+
+    # Output shape
+        Tensor with the same number of dimensions as the input tensors.
+    '''
+    def __init__(self, mode='sum', init='glorot_uniform', lambdas_regularizer=None, weights=None, **kwargs):
+        #self.out_shape = out_shape
+        self._valid_modes = ['sum', 'mul']
+
+        if mode not in self._valid_modes:
+            raise NotImplementedError("Merge mode of type '"+ mode +"' is not valid. Valid modes are: "+str(self._valid_modes))
+        self.mode = mode
+
+        self.init = initializations.get(init)
+        self.lambdas_regularizer = regularizers.get(lambdas_regularizer)
+        self.initial_weights = weights
+
+        self.supports_masking = True
+        super(WeightedMerge, self).__init__(**kwargs)
+
+    def build(self, input_shape):
+
+        if not isinstance(input_shape, list):
+            input_shape = [input_shape]
+        s = input_shape[0]
+        for i in range(1,len(input_shape)):
+            assert input_shape[i] == s, 'The shapes of some input tensors do not match ' \
+                                        '('+str(input_shape[i])+' vs '+str(s)+').'
+
+        self.lambdas = self.init((len(input_shape),), name='{}_lambdas'.format(self.name))
+        self.trainable_weights = [self.lambdas]
+        self.regularizers = []
+
+        if self.lambdas_regularizer:
+            self.lambdas_regularizer.set_param(self.lambdas)
+            self.regularizers.append(self.lambdas_regularizer)
+
+        if self.initial_weights is not None:
+            self.set_weights(self.initial_weights)
+            del self.initial_weights
+
+    def call(self, x, mask=None):
+        if not isinstance(x, list):
+            x = [x]
+
+        # sum inputs after weighting by the learnt lambda weights
+        s = x[0] * self.lambdas[0]
+        for i in range(1, len(x)):
+            if self.mode == 'sum':
+                s += x[i] * self.lambdas[i]
+            elif self.mode == 'mul':
+                s *= x[i] * self.lambdas[i]
+
+        return s
+
+        """
+        s = x[0][:,:,:self.out_shape[0],:self.out_shape[1]] * self.lambdas[0]
+        for i in range(1, len(x)):
+            s += x[i][:,:,:self.out_shape[0],:self.out_shape[1]] * self.lambdas[i]
+        return s
+        """
+
+    def get_output_shape_for(self, input_shape):
+        #return tuple(list(input_shape[0][:2]) + self.out_shape)
+
+        if not isinstance(input_shape, list):
+            input_shape = [input_shape]
+        return tuple(input_shape[0])
+
+    def compute_mask(self, input, input_mask=None):
+        if not isinstance(input_mask, list):
+            input_mask = [input_mask]
+        if not any(input_mask):
+            return None
+        else:
+            return input_mask[0]
+
+    def get_config(self):
+        config = {'mode': self.mode,
+                  'init': self.init.__name__,
+                  'lambdas_regularizer': self.lambdas_regularizer.get_config() if self.lambdas_regularizer else None}
+        base_config = super(WeightedMerge, self).get_config()
+        return dict(list(base_config.items()) + list(config.items()))
+
+
 class SetSubtensor(Layer):
     """
     This layer performs a set_subtensor operation over two layers

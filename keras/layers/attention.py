@@ -45,27 +45,181 @@ class Attention(Layer):
 
     # Formulation
 
-        The resulting attention vector 'phi' at time 't' is formed by applying a weighted sum over
-        the set of inputs 'x_i' contained in 'X':
+    '''
+    def __init__(self, nb_attention,
+                 init='glorot_uniform', inner_init='orthogonal',
+                 forget_bias_init='one', activation='tanh',
+                 inner_activation='hard_sigmoid',
+                 dropout_Wa=0.,
+                 Wa_regularizer=None, ba_regularizer=None,
+                 **kwargs):
+        self.nb_attention = nb_attention
+        self.init = initializations.get(init)
+        self.inner_init = initializations.get(inner_init)
+        self.forget_bias_init = initializations.get(forget_bias_init)
+        self.activation = activations.get(activation)
+        self.inner_activation = activations.get(inner_activation)
 
-            phi(X, t) = ∑_i alpha_i(t) * x_i,
+        # attention model learnable params
+        self.Wa_regularizer = regularizers.get(Wa_regularizer)
+        self.ba_regularizer = regularizers.get(ba_regularizer)
+        self.dropout_Wa = dropout_Wa
 
-        where each 'alpha_i' at time 't' is a weighting vector over all the input dimension that
-        accomplishes the following condition:
+        if self.dropout_Wa:
+            self.uses_learning_phase = True
+        super(Attention, self).__init__(**kwargs)
+        self.input_spec = [InputSpec(ndim=3)]
 
-            ∑_i alpha_i = 1
 
-        and is dynamically adapted at each timestep w.r.t. the following formula:
+    def build(self, input_shape):
+        self.input_spec = [InputSpec(shape=input_shape, ndim=3)]
+        self.input_dim = input_shape[-1]
 
-            alpha_i(t) = exp{e_i(t)} /  ∑_j exp{e_j(t)}
 
-        where each 'e_i' at time 't' is calculated as:
+        # Initialize Att model params (following the same format for any option of self.consume_less)
+        self.Wa = self.init((self.input_dim, self.nb_attention),
+                           name='{}_Wa'.format(self.name))
 
-            e_i(t) = wa' * tanh( W * x_i   +  b ),
+        self.ba = K.variable((np.zeros(self.nb_attention)),
+                            name='{}_ba'.format(self.name))
 
-        where the following are learnable with the respectively named sizes:
-                w                W               b
-            [input_dim] [input_dim, input_dim] [input_dim]
+        self.trainable_weights = [self.Wa, self.ba]
+
+        self.regularizers = []
+        # Att regularizers
+        if self.Wa_regularizer:
+            self.Wa_regularizer.set_param(self.Wa)
+            self.regularizers.append(self.Wa_regularizer)
+        if self.ba_regularizer:
+            self.ba_regularizer.set_param(self.ba)
+            self.regularizers.append(self.ba_regularizer)
+
+        #if self.initial_weights is not None:
+        #    self.set_weights(self.initial_weights)
+        #    del self.initial_weights
+
+    def preprocess_input(self, x):
+        return x
+
+    def call(self, x, mask=None):
+        # input shape must be:
+        #   (nb_samples, temporal_or_spatial_dimensions, input_dim)
+        # note that the .build() method of subclasses MUST define
+        # self.input_spec with a complete input shape.
+        input_shape = self.input_spec[0].shape
+        assert len(input_shape) == 3, 'Input shape must be: (nb_samples, temporal_or_spatial_dimensions, input_dim)'
+
+        if K._BACKEND == 'tensorflow':
+            if not input_shape[1]:
+                raise Exception('When using TensorFlow, you should define '
+                                'explicitly the number of temporal_or_spatial_dimensions of '
+                                'your sequences.\n'
+                                'If your first layer is an Embedding, '
+                                'make sure to pass it an "input_length" '
+                                'argument. Otherwise, make sure '
+                                'the first layer has '
+                                'an "input_shape" or "batch_input_shape" '
+                                'argument, including the time axis. '
+                                'Found input shape at layer ' + self.name +
+                                ': ' + str(input_shape))
+
+        constants = self.get_constants(x)
+        preprocessed_input = self.preprocess_input(x)
+
+        attention = self.attention_step(preprocessed_input, constants)
+
+        return attention
+
+
+    def attention_step(self, x, constants):
+
+        # Att model dropouts
+        B_Wa = constants[0]
+
+        # AttModel (see Formulation in class header)
+        #e = K.dot(K.tanh(K.dot(x * B_W, self.W) + self.b) * B_w, self.w)
+
+        # Attention spatial weights 'alpha'
+        #e = K.permute_dimensions(e, (0,2,1))
+        #alpha = K.softmax_3d(e)
+        #alpha = K.permute_dimensions(alpha, (0,2,1))
+
+        # Attention class weights 'beta'
+        #beta = K.sigmoid(K.dot(alpha * B_Wa, self.Wa) + self.ba)
+        beta = K.sigmoid(K.dot(x * B_Wa, self.Wa) + self.ba)
+
+        # TODO: complete formulas in class description
+
+        return beta
+
+
+    def get_constants(self, x):
+        constants = []
+
+        # AttModel
+
+        if 0 < self.dropout_Wa < 1:
+            input_shape = self.input_spec[0].shape
+            input_dim = input_shape[-1]
+            ones = K.ones_like(K.reshape(x[:, :, 0, 0], (-1, input_shape[1], 1)))
+            ones = K.concatenate([ones] * input_dim, 2)
+            B_Wa = K.in_train_phase(K.dropout(ones, self.dropout_Wa), ones)
+            constants.append(B_Wa)
+        else:
+            constants.append([K.cast_to_floatx(1.)])
+
+        return constants
+
+
+    def get_output_shape_for(self, input_shape):
+        return tuple(list(input_shape[:2])+[self.nb_attention])
+
+
+    def get_config(self):
+        config = {'nb_attention': self.nb_attention,
+                  'init': self.init.__name__,
+                  'inner_init': self.inner_init.__name__,
+                  'forget_bias_init': self.forget_bias_init.__name__,
+                  'activation': self.activation.__name__,
+                  'inner_activation': self.inner_activation.__name__,
+                  'Wa_regularizer': self.Wa_regularizer.get_config() if self.Wa_regularizer else None,
+                  'ba_regularizer': self.ba_regularizer.get_config() if self.ba_regularizer else None,
+                  'dropout_Wa': self.dropout_Wa}
+        base_config = super(Attention, self).get_config()
+        return dict(list(base_config.items()) + list(config.items()))
+
+
+
+class AttentionComplex(Layer):
+    ''' Attention layer that does not depend on temporal information. The output information
+        provided are the attention vectors 'alpha' over the input data.
+
+    # Arguments
+        nb_attention: number of attention mechanisms applied over the input vectors
+        init: weight initialization function.
+            Can be the name of an existing function (str),
+            or a Theano function (see: [initializations](../initializations.md)).
+        inner_init: initialization function of the inner cells.
+        forget_bias_init: initialization function for the bias of the forget gate.
+            [Jozefowicz et al.](http://www.jmlr.org/proceedings/papers/v37/jozefowicz15.pdf)
+            recommend initializing with ones.
+        activation: activation function.
+            Can be the name of an existing function (str),
+            or a Theano function (see: [activations](../activations.md)).
+        inner_activation: activation function for the inner cells.
+        w_a_regularizer: instance of [WeightRegularizer](../regularizers.md)
+            (eg. L1 or L2 regularization), applied to the input weights matrices.
+        W_a_regularizer: instance of [WeightRegularizer](../regularizers.md)
+            (eg. L1 or L2 regularization), applied to the input weights matrices.
+        U_a_regularizer: instance of [WeightRegularizer](../regularizers.md)
+            (eg. L1 or L2 regularization), applied to the recurrent weights matrices.
+        b_a_regularizer: instance of [WeightRegularizer](../regularizers.md),
+            applied to the bias.
+        dropout_w_a: float between 0 and 1.
+        dropout_W_a: float between 0 and 1.
+        dropout_U_a: float between 0 and 1.
+
+    # Formulation
 
     '''
     def __init__(self, nb_attention,
@@ -193,6 +347,7 @@ class Attention(Layer):
 
         # Attention class weights 'beta'
         beta = K.sigmoid(K.dot(alpha * B_Wa, self.Wa) + self.ba)
+        #beta = K.softmax_3d(K.dot(alpha * B_Wa, self.Wa) + self.ba)
 
         # Sum over the in_timesteps dimension resulting in [batch_size, input_dim]
         #x_att = (x * alpha[:,:,None]).sum(axis=1)
@@ -228,7 +383,6 @@ class Attention(Layer):
 
         if 0 < self.dropout_Wa < 1:
             input_shape = self.input_spec[0].shape
-            input_dim = input_shape[-1]
             ones = K.ones_like(K.reshape(x[:, :, 0, 0], (-1, input_shape[1], 1)))
             ones = K.concatenate([ones] * self.nb_attention, 2)
             B_Wa = K.in_train_phase(K.dropout(ones, self.dropout_Wa), ones)
