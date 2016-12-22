@@ -2544,7 +2544,7 @@ class Container(Layer):
         return copy.deepcopy(config)
 
     @classmethod
-    def from_config(cls, config, custom_objects={}):
+    def from_config(cls, config, custom_objects=None):
         '''Instantiates a Model from its config (output of `get_config()`).
         '''
         from keras.utils.layer_utils import layer_from_config
@@ -2580,6 +2580,10 @@ class Container(Layer):
                         layer(input_tensors[0])
                     else:
                         layer(input_tensors)
+
+        for layer_data in config['layers']:
+            process_layer(layer_data)
+
         name = config.get('name')
         input_tensors = []
         output_tensors = []
