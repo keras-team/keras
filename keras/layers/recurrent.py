@@ -2544,7 +2544,7 @@ class LSTMCond2Inputs(LSTMCond):
                   "dropout_W": self.dropout_W,
                   "dropout_U": self.dropout_U,
                   "dropout_V": self.dropout_V}
-        base_config = super(LSTMCond, self).get_config()
+        base_config = super(LSTMCond2Inputs, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
 
