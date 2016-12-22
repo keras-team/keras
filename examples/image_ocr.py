@@ -477,7 +477,7 @@ def train(num_epochs, img_w, start_epoch, run_name):
     # the loss calc occurs elsewhere, so use a dummy lambda func for the loss
     model.compile(loss={'ctc': lambda y_true, y_pred: y_pred}, optimizer=sgd)
     if start_epoch > 0:
-        weight_file = os.path.join(OUTPUT_DIR, os.path.join(run_name, 'weights%0d.h5' % (start_epoch - 1)))
+        weight_file = os.path.join(OUTPUT_DIR, os.path.join(run_name, 'weights%02d.h5' % (start_epoch - 1)))
         model.load_weights(weight_file)
     # captures output of softmax so we can decode the output during visualization
     test_func = K.function([input_data], [y_pred])
