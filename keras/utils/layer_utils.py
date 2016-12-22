@@ -36,7 +36,8 @@ def layer_from_config(config, custom_objects=None):
 
     arg_spec = inspect.getargspec(layer_class.from_config)
     if 'custom_objects' in arg_spec.args:
-        return layer_class.from_config(config['config'], custom_objects=custom_objects)
+        return layer_class.from_config(config['config'],
+                                       custom_objects=custom_objects)
     else:
         return layer_class.from_config(config['config'])
 

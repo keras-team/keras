@@ -299,10 +299,10 @@ class Layer(object):
 
         # These properties will be set upon call of self.build(),
         # which itself will be called upon self.add_inbound_node if necessary.
-        if not hasattr(self, 'trainable_weights'):
-            self.trainable_weights = []
-        if not hasattr(self, 'non_trainable_weights'):
-            self.non_trainable_weights = []
+        if not hasattr(self, '_trainable_weights'):
+            self._trainable_weights = []
+        if not hasattr(self, '_non_trainable_weights'):
+            self._non_trainable_weights = []
         if not hasattr(self, 'losses'):
             self.losses = []
         if not hasattr(self, 'constraints'):
@@ -418,9 +418,9 @@ class Layer(object):
         if constraint is not None:
             self.constraints[weight] = constraint
         if trainable:
-            self.trainable_weights.append(weight)
+            self._trainable_weights.append(weight)
         else:
-            self.non_trainable_weights.append(weight)
+            self._non_trainable_weights.append(weight)
         return weight
 
     def assert_input_compatibility(self, input):
@@ -1053,16 +1053,11 @@ class InputLayer(Layer):
         self.uses_learning_phase = False
         self.trainable = False
         self.built = True
-        self.trainable_weights = []
-        self.non_trainable_weights = []
-
+        self._trainable_weights = []
+        self._non_trainable_weights = []
         self.inbound_nodes = []
         self.outbound_nodes = []
-
-        self.trainable_weights = []
-        self.non_trainable_weights = []
         self.constraints = {}
-
         self.sparse = sparse
 
         if not name:
@@ -1269,8 +1264,8 @@ class Merge(Layer):
         self.inbound_nodes = []
         self.outbound_nodes = []
         self.constraints = {}
-        self.trainable_weights = []
-        self.non_trainable_weights = []
+        self._trainable_weights = []
+        self._non_trainable_weights = []
         self.supports_masking = True
         self.uses_learning_phase = False
         self.input_spec = None  # Compatible with anything.

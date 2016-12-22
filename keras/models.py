@@ -153,7 +153,8 @@ def load_model(filepath, custom_objects=None):
         return model
     training_config = json.loads(training_config.decode('utf-8'))
     optimizer_config = training_config['optimizer_config']
-    optimizer = optimizer_from_config(optimizer_config, custom_objects=custom_objects)
+    optimizer = optimizer_from_config(optimizer_config,
+                                      custom_objects=custom_objects)
 
     # recover loss functions and metrics
     loss = deserialize(training_config['loss'])
