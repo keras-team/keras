@@ -754,12 +754,13 @@ class Dense(Layer):
     def __init__(self, output_dim, init='glorot_uniform',
                  activation=None, weights=None,
                  W_regularizer=None, b_regularizer=None, activity_regularizer=None,
-                 W_constraint=None, b_constraint=None, input_dim=None,
+                 W_constraint=None, b_constraint=None, bias=True, input_dim=None,
                  W_learning_rate_multiplier=None, b_learning_rate_multiplier=None,**kwargs):
         self.init = initializations.get(init)
         self.activation = activations.get(activation)
         self.output_dim = output_dim
         self.input_dim = input_dim
+        self.bias = bias
 
         self.W_regularizer = regularizers.get(W_regularizer)
         self.b_regularizer = regularizers.get(b_regularizer)
@@ -938,6 +939,7 @@ class MaxoutDense(Layer):
         self.output_dim = output_dim
         self.nb_feature = nb_feature
         self.init = initializations.get(init)
+        self.bias = bias
 
         self.W_regularizer = regularizers.get(W_regularizer)
         self.b_regularizer = regularizers.get(b_regularizer)
@@ -1072,6 +1074,7 @@ class Highway(Layer):
         self.initial_weights = weights
         self.input_spec = [InputSpec(ndim=2)]
 
+        self.bias = bias
         self.input_dim = input_dim
         if self.input_dim:
             kwargs['input_shape'] = (self.input_dim,)
@@ -1204,6 +1207,7 @@ class TimeDistributedDense(Layer):
         self.input_spec = [InputSpec(ndim=3)]
         self.supports_masking = True
 
+        self.bias = bias
         self.input_dim = input_dim
         self.input_length = input_length
         if self.input_dim:
