@@ -2585,7 +2585,7 @@ class Container(Layer):
         output_tensors = []
         for layer_data in config['input_layers']:
             layer_name, node_index, tensor_index = layer_data
-            assert layer_name in created_layers
+            assert layer_name in created_layers, 'Error loading layer '+str(layer_name)
             layer = created_layers[layer_name]
             layer_output_tensors = layer.inbound_nodes[node_index].output_tensors
             input_tensors.append(layer_output_tensors[tensor_index])
