@@ -244,8 +244,8 @@ class TextImageGenerator(keras.callbacks.Callback):
     # each time an image is requested from train/val/test, a new random
     # painting of the text is performed
     def get_batch(self, index, size, train):
-        #width and height are backwards from typical Keras convention
-        #because width is the time dimension when it gets fed into the RNN
+        # width and height are backwards from typical Keras convention
+        # because width is the time dimension when it gets fed into the RNN
         if K.image_dim_ordering() == 'th':
             X_data = np.ones([size, 1, self.img_w, self.img_h])
         else:
@@ -458,7 +458,7 @@ def train(num_epochs, img_w, start_epoch, run_name):
 
     # transforms RNN output to character activations:
     inner = Dense(img_gen.get_output_size(), init='he_normal',
-                                  name='dense2')(merge([gru_2, gru_2b], mode='concat'))
+                  name='dense2')(merge([gru_2, gru_2b], mode='concat'))
     y_pred = Activation('softmax', name='softmax')(inner)
     Model(input=[input_data], output=y_pred).summary()
 
