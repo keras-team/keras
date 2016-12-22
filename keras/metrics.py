@@ -2,79 +2,79 @@ from . import backend as K
 from .utils.generic_utils import get_from_module
 
 
-def binary_accuracy(y_true, y_pred):
-    return K.mean(K.equal(y_true, K.round(y_pred)))
+def binary_accuracy(y_true, y_pred, axis=None):
+    return K.mean(K.equal(y_true, K.round(y_pred)), axis=axis)
 
 
-def categorical_accuracy(y_true, y_pred):
+def categorical_accuracy(y_true, y_pred, axis=None):
     return K.mean(K.equal(K.argmax(y_true, axis=-1),
-                          K.argmax(y_pred, axis=-1)))
+                          K.argmax(y_pred, axis=-1)), axis=axis)
 
 
-def sparse_categorical_accuracy(y_true, y_pred):
+def sparse_categorical_accuracy(y_true, y_pred, axis=None):
     return K.mean(K.equal(K.max(y_true, axis=-1),
-                          K.cast(K.argmax(y_pred, axis=-1), K.floatx())))
+                          K.cast(K.argmax(y_pred, axis=-1), K.floatx())), axis=axis)
 
 
-def top_k_categorical_accuracy(y_true, y_pred, k=5):
-    return K.mean(K.in_top_k(y_pred, K.argmax(y_true, axis=-1), k))
+def top_k_categorical_accuracy(y_true, y_pred, k=5, axis=None):
+    return K.mean(K.in_top_k(y_pred, K.argmax(y_true, axis=-1), k), axis=axis)
 
 
-def mean_squared_error(y_true, y_pred):
-    return K.mean(K.square(y_pred - y_true))
+def mean_squared_error(y_true, y_pred, axis=None):
+    return K.mean(K.square(y_pred - y_true), axis=axis)
 
 
-def mean_absolute_error(y_true, y_pred):
-    return K.mean(K.abs(y_pred - y_true))
+def mean_absolute_error(y_true, y_pred, axis=None):
+    return K.mean(K.abs(y_pred - y_true), axis=axis)
 
 
-def mean_absolute_percentage_error(y_true, y_pred):
+def mean_absolute_percentage_error(y_true, y_pred, axis=None):
     diff = K.abs((y_true - y_pred) / K.clip(K.abs(y_true),
                                             K.epsilon(),
                                             None))
-    return 100. * K.mean(diff)
+    return 100. * K.mean(diff, axis=axis)
 
 
-def mean_squared_logarithmic_error(y_true, y_pred):
+def mean_squared_logarithmic_error(y_true, y_pred, axis=None):
     first_log = K.log(K.clip(y_pred, K.epsilon(), None) + 1.)
     second_log = K.log(K.clip(y_true, K.epsilon(), None) + 1.)
-    return K.mean(K.square(first_log - second_log))
+    return K.mean(K.square(first_log - second_log), axis=axis)
 
 
-def hinge(y_true, y_pred):
-    return K.mean(K.maximum(1. - y_true * y_pred, 0.))
+def hinge(y_true, y_pred, axis=None):
+    return K.mean(K.maximum(1. - y_true * y_pred, 0.), axis=axis)
 
 
-def squared_hinge(y_true, y_pred):
-    return K.mean(K.square(K.maximum(1. - y_true * y_pred, 0.)))
+def squared_hinge(y_true, y_pred, axis=None):
+    return K.mean(K.square(K.maximum(1. - y_true * y_pred, 0.)), axis=axis)
 
 
-def categorical_crossentropy(y_true, y_pred):
-    return K.mean(K.categorical_crossentropy(y_pred, y_true))
+def categorical_crossentropy(y_true, y_pred, axis=None):
+    return K.mean(K.categorical_crossentropy(y_pred, y_true), axis=axis)
 
 
-def sparse_categorical_crossentropy(y_true, y_pred):
-    return K.mean(K.sparse_categorical_crossentropy(y_pred, y_true))
+def sparse_categorical_crossentropy(y_true, y_pred, axis=None):
+    return K.mean(K.sparse_categorical_crossentropy(y_pred, y_true), axis=axis)
 
 
-def binary_crossentropy(y_true, y_pred):
-    return K.mean(K.binary_crossentropy(y_pred, y_true))
+def binary_crossentropy(y_true, y_pred, axis=None):
+    return K.mean(K.binary_crossentropy(y_pred, y_true), axis=axis)
 
 
-def kullback_leibler_divergence(y_true, y_pred):
+def kullback_leibler_divergence(y_true, y_pred, axis=None):
     y_true = K.clip(y_true, K.epsilon(), 1)
     y_pred = K.clip(y_pred, K.epsilon(), 1)
-    return K.mean(K.sum(y_true * K.log(y_true / y_pred), axis=-1))
+    return K.mean(K.sum(y_true * K.log(y_true / y_pred), axis=-1), axis=axis)
 
 
-def poisson(y_true, y_pred):
-    return K.mean(y_pred - y_true * K.log(y_pred + K.epsilon()))
+def poisson(y_true, y_pred, axis=None):
+    return K.mean(y_pred - y_true * K.log(y_pred + K.epsilon()), axis=axis)
 
 
-def cosine_proximity(y_true, y_pred):
+def cosine_proximity(y_true, y_pred, axis=None):
     y_true = K.l2_normalize(y_true, axis=-1)
     y_pred = K.l2_normalize(y_pred, axis=-1)
-    return -K.mean(y_true * y_pred)
+    return -K.mean(y_true * y_pred, axis=axis)
 
 
 def matthews_correlation(y_true, y_pred):

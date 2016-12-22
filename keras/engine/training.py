@@ -238,14 +238,16 @@ def collect_metrics(metrics, output_names):
         return [[] for _ in output_names]
     if isinstance(metrics, list):
         # we then apply all metrics to all outputs.
-        return [copy.copy(metrics) for _ in output_names]
+        masked_metrics = [masked_metric(metrics_module.get(metric)) for metric in metrics]
+        return [copy.copy(masked_metrics) for _ in output_names]
     elif isinstance(metrics, dict):
         nested_metrics = []
         for name in output_names:
             output_metrics = metrics.get(name, [])
             if not isinstance(output_metrics, list):
                 output_metrics = [output_metrics]
-            nested_metrics.append(output_metrics)
+            masked_metrics = [masked_metrics(metrics.module.get(metric)) for metric in metrics]
+            nested_metrics.append(masked_metrics)
         return nested_metrics
     else:
         raise TypeError('Type of `metrics` argument not understood. '
@@ -336,6 +338,46 @@ def weighted_objective(fn):
             score_array /= K.mean(K.cast(K.not_equal(weights, 0), K.floatx()))
         return K.mean(score_array)
     return weighted
+
+
+def masked_metric(fn):
+    '''Transforms a metric function `fn(y_true, y_pred)`
+    into a masked metric function
+    `fn(y_true, y_pred, weights, mask)`.
+    '''
+    def masked(y_true, y_pred, mask=None):
+        if mask is not None:
+            if fn.__name__ in ['matthews_correlation']:
+                warnings.warn("Masking not implemented for %" % fn.__name__)
+                return fn(y_true, y_pred)
+
+            elif fn.__name__ in ['sparse_categorical_accuracy', 'top_k_categorical_accuracy', 'categorical_accuracy', 'categorical_crossentropy', 'sparse_categorical_crossentropy']:
+                axis = ()
+
+            elif fn.__name__ in ['precision', 'recall', 'fbeta_score', 'fmeasure']:
+                mask_reshape = K.expand_dims(mask, -1)
+                return fn(y_true * mask_reshape, y_pred * mask_reshape)
+
+            else:
+                axis = -1
+
+            score_array = fn(y_true, y_pred, axis=axis)
+            # cast the mask to floatX to avoid float64 upcasting in theaso
+            mask = K.cast(mask, K.floatx())
+            # apply mask to score array
+            # mask should have same shape as score array
+            score_array *= mask
+            # metric should be proportional to number of
+            # unmasked samples
+            score_array /= K.mean(mask)
+
+            # average such that scalar metric is return
+            return K.mean(score_array)
+
+        else:
+            return fn(y_true, y_pred)
+
+    return masked
 
 
 def standardize_weights(y, sample_weight=None, class_weight=None,
@@ -611,7 +653,60 @@ class Model(Container):
                                               dtype=K.dtype(self.outputs[i])))
 
         # prepare metrics
+        def get_masked_metric_function(metric_name):
+            # helper function to get metric functions from metric module
+            if metric_name == 'accuracy' or metric_name == 'acc':
+                # custom handling of accuracy
+                # (because of class mode duality)
+                output_shape = self.internal_output_shapes[i]
+                metric_fn = None
+                if output_shape[-1] == 1 or self.loss_functions[i] == objectives.binary_crossentropy:
+                    # case: binary accuracy
+                    metric_fn = metrics_module.binary_accuracy
+                elif self.loss_functions[i] == objectives.sparse_categorical_crossentropy:
+                    # case: categorical accuracy with sparse targets
+                    metric_fn = metrics_module.sparse_categorical_accuracy
+                else:
+                    metric_fn = metrics_module.categorical_accuracy
+                name = 'acc'
+            else:
+                metric_fn = metrics_module.get(metric_name)
+                name = metric_fn.__name__
+            return masked_metric(metric_fn), name
+
+        # create nested list with metrics
+        if not metrics:
+            metric_functions = [[] for _ in self.output_names]
+            names = [[] for _ in self.output_names]
+        elif isinstance(metrics, list):
+            # we then apply all metrics to all outputs.
+            metrics_and_names = [get_masked_metric_function(metric) for metric in metrics]
+            masked_metrics = [metric_and_name[0] for metric_and_name in metrics_and_names]
+            metric_names = [metric_and_name[1] for metric_and_name in metrics_and_names]
+
+            # create nested list
+            metric_functions = [copy.copy(masked_metrics) for _ in self.output_names]
+            names = [copy.copy(metric_names) for _ in self.output_names]
+        elif isinstance(metrics, dict):
+            metric_functions = []
+            names = []
+            for name in self.output_names:
+                output_metrics = metrics.get(name, [])
+                if not isinstance(output_metrics, list):
+                    output_metrics = [output_metrics]
+                metrics_and_names = [get_masked_metric_function(metric) for metric in output_metrics]
+                masked_metrics = [metric_and_name[0] for metric_and_name in metrics_and_names]
+                metric_names = [metric_and_name[1] for metric_and_name in metrics_and_names]
+                # append to nested list
+                metric_functions.append(masked_metrics)
+                names.append(metric_names)
+        else:
+            raise TypeError('Type of `metrics` argument not understood. '
+                            'Expected a list or dictionary, found: ' +
+                            str(metrics))
+
         self.metrics = metrics
+        self.metric_functions = metric_functions
         self.metrics_names = ['loss']
         self.metrics_tensors = []
 
@@ -639,10 +734,6 @@ class Model(Container):
         for loss_tensor in self.losses:
             total_loss += loss_tensor
 
-        # list of same size as output_names.
-        # contains tuples (metrics for output, names of metrics)
-        nested_metrics = collect_metrics(metrics, self.output_names)
-
         def append_metric(layer_num, metric_name, metric_tensor):
             """Helper function, used in loop below"""
             if len(self.output_names) > 1:
@@ -654,35 +745,20 @@ class Model(Container):
         for i in range(len(self.outputs)):
             y_true = self.targets[i]
             y_pred = self.outputs[i]
-            output_metrics = nested_metrics[i]
+            output_metrics = self.metric_functions[i]
+            output_names = names[i]
 
-            for metric in output_metrics:
-                if metric == 'accuracy' or metric == 'acc':
-                    # custom handling of accuracy
-                    # (because of class mode duality)
-                    output_shape = self.internal_output_shapes[i]
-                    acc_fn = None
-                    if output_shape[-1] == 1 or self.loss_functions[i] == objectives.binary_crossentropy:
-                        # case: binary accuracy
-                        acc_fn = metrics_module.binary_accuracy
-                    elif self.loss_functions[i] == objectives.sparse_categorical_crossentropy:
-                        # case: categorical accuracy with sparse targets
-                        acc_fn = metrics_module.sparse_categorical_accuracy
-                    else:
-                        acc_fn = metrics_module.categorical_accuracy
+            for metric_fn, name in zip(output_metrics, output_names):
 
-                    append_metric(i, 'acc', acc_fn(y_true, y_pred))
-                else:
-                    metric_fn = metrics_module.get(metric)
-                    metric_result = metric_fn(y_true, y_pred)
+                metric_result = metric_fn(y_true, y_pred, mask)
+                if not isinstance(metric_result, dict):
+                    metric_result = {
+                        name: metric_result
+                        # metric_fn.__name__: metric_result
+                    }
 
-                    if not isinstance(metric_result, dict):
-                        metric_result = {
-                            metric_fn.__name__: metric_result
-                        }
-
-                    for name, tensor in six.iteritems(metric_result):
-                        append_metric(i, name, tensor)
+                for name, tensor in six.iteritems(metric_result):
+                    append_metric(i, name, tensor)
 
         # prepare gradient updates and state updates
         self.optimizer = optimizers.get(optimizer)
