@@ -38,6 +38,7 @@ pages:
   - Text Preprocessing: preprocessing/text.md
   - Image Preprocessing: preprocessing/image.md
 - Objectives: objectives.md
+- Metrics: metrics.md
 - Optimizers: optimizers.md
 - Activations: activations.md
 - Callbacks: callbacks.md
@@ -50,8 +51,10 @@ pages:
 - Visualization: visualization.md
 - Scikit-learn API: scikit-learn-api.md
 - Utils:
-  - I/O Utils: io_utils.md
-
+  - Data Utils: utils/data_utils.md
+  - I/O Utils: utils/io_utils.md
+  - Layer Utils: utils/layer_utils.md
+  - Numpy Utils: utils/np_utils.md
 
 
 

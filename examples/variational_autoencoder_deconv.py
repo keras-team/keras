@@ -5,6 +5,7 @@ Reference: "Auto-Encoding Variational Bayes" https://arxiv.org/abs/1312.6114
 '''
 import numpy as np
 import matplotlib.pyplot as plt
+from scipy.stats import norm
 
 from keras.layers import Input, Dense, Lambda, Flatten, Reshape
 from keras.layers import Convolution2D, Deconvolution2D
@@ -27,7 +28,7 @@ else:
     original_img_size = (img_rows, img_cols, img_chns)
 latent_dim = 2
 intermediate_dim = 128
-epsilon_std = 0.01
+epsilon_std = 1.0
 nb_epoch = 5
 
 x = Input(batch_shape=(batch_size,) + original_img_size)
@@ -153,9 +154,10 @@ generator = Model(decoder_input, _x_decoded_mean_squash)
 n = 15  # figure with 15x15 digits
 digit_size = 28
 figure = np.zeros((digit_size * n, digit_size * n))
-# we will sample n points within [-15, 15] standard deviations
-grid_x = np.linspace(-15, 15, n)
-grid_y = np.linspace(-15, 15, n)
+# linearly spaced coordinates on the unit square were transformed through the inverse CDF (ppf) of the Gaussian
+# to produce values of the latent variables z, since the prior of the latent space is Gaussian
+grid_x = norm.ppf(np.linspace(0.05, 0.95, n))
+grid_y = norm.ppf(np.linspace(0.05, 0.95, n))
 
 for i, yi in enumerate(grid_x):
     for j, xi in enumerate(grid_y):
@@ -167,5 +169,5 @@ for i, yi in enumerate(grid_x):
                j * digit_size: (j + 1) * digit_size] = digit
 
 plt.figure(figsize=(10, 10))
-plt.imshow(figure)
+plt.imshow(figure, cmap='Greys_r')
 plt.show()

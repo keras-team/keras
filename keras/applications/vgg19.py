@@ -14,10 +14,11 @@ import warnings
 from ..models import Model
 from ..layers import Flatten, Dense, Input
 from ..layers import Convolution2D, MaxPooling2D
+from ..engine.topology import get_source_inputs
 from ..utils.layer_utils import convert_all_kernels_in_model
 from ..utils.data_utils import get_file
 from .. import backend as K
-from .imagenet_utils import decode_predictions, preprocess_input
+from .imagenet_utils import decode_predictions, preprocess_input, _obtain_input_shape
 
 
 TH_WEIGHTS_PATH = 'https://github.com/fchollet/deep-learning-models/releases/download/v0.1/vgg19_weights_th_dim_ordering_th_kernels.h5'
@@ -28,7 +29,7 @@ TF_WEIGHTS_PATH_NO_TOP = 'https://github.com/fchollet/deep-learning-models/relea
 
 def VGG19(include_top=True, weights='imagenet',
           input_tensor=None,
-          layers_lr=1.0, trainable=True):
+          layers_lr=1.0, trainable=True, input_shape=None):
     '''Instantiate the VGG19 architecture,
     optionally loading weights pre-trained
     on ImageNet. Note that when using TensorFlow,
@@ -50,6 +51,14 @@ def VGG19(include_top=True, weights='imagenet',
             to use as image input for the model.
         layers_lr: common lr multiplier for all layers in the network.
             You can externally add new layers to the model with different learning rates.
+        trainable: set to False for freezing model training.
+        inputs_shape: optional shape tuple, only to be specified
+            if `include_top` is False (otherwise the input shape
+            has to be `(224, 224, 3)` (with `tf` dim ordering)
+            or `(3, 224, 244)` (with `th` dim ordering).
+            It should have exactly 3 inputs channels,
+            and width and height should be no smaller than 48.
+            E.g. `(200, 200, 3)` would be one valid value.
 
     # Returns
         A Keras model instance.
@@ -59,16 +68,11 @@ def VGG19(include_top=True, weights='imagenet',
                          '`None` (random initialization) or `imagenet` '
                          '(pre-training on ImageNet).')
     # Determine proper input shape
-    if K.image_dim_ordering() == 'th':
-        if include_top:
-            input_shape = (3, 224, 224)
-        else:
-            input_shape = (3, None, None)
-    else:
-        if include_top:
-            input_shape = (224, 224, 3)
-        else:
-            input_shape = (None, None, 3)
+    input_shape = _obtain_input_shape(input_shape,
+                                      default_size=224,
+                                      min_size=48,
+                                      dim_ordering=K.image_dim_ordering(),
+                                      include_top=include_top)
 
     if input_tensor is None:
         img_input = Input(shape=input_shape)
@@ -153,8 +157,14 @@ def VGG19(include_top=True, weights='imagenet',
                   W_learning_rate_multiplier=layers_lr, b_learning_rate_multiplier=layers_lr,
                       trainable=trainable)(x)
 
-    # Create model
-    model = Model(img_input, x)
+    # Ensure that the model takes into account
+    # any potential predecessors of `input_tensor`.
+    if input_tensor is not None:
+        inputs = get_source_inputs(input_tensor)
+    else:
+        inputs = img_input
+    # Create model.
+    model = Model(inputs, x, name='vgg19')
 
     # load weights
     if weights == 'imagenet':

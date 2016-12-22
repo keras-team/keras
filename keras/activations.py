@@ -1,5 +1,6 @@
 from __future__ import absolute_import
 from . import backend as K
+from .utils.generic_utils import get_from_module
 
 
 def softmax(x):
@@ -11,12 +12,14 @@ def softmax(x):
         s = K.sum(e, axis=-1, keepdims=True)
         return e / s
     else:
-        raise Exception('Cannot apply softmax to a tensor that is not 2D or 3D. ' +
-                        'Here, ndim=' + str(ndim))
+        raise ValueError('Cannot apply softmax to a tensor '
+                         'that is not 2D or 3D. '
+                         'Here, ndim=' + str(ndim))
 
 
 def elu(x, alpha=1.0):
     return K.elu(x, alpha)
+
 
 def softplus(x):
     return K.softplus(x)
@@ -43,13 +46,9 @@ def hard_sigmoid(x):
 
 
 def linear(x):
-    '''
-    The function returns the variable that is passed in, so all types work.
-    '''
     return x
 
 
-from .utils.generic_utils import get_from_module
 def get(identifier):
     if identifier is None:
         return linear

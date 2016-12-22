@@ -6,7 +6,7 @@ import numpy as np
 np.random.seed(1337)
 
 from keras import backend as K
-from keras.models import Graph, Sequential
+from keras.models import Sequential
 from keras.layers.core import Dense, Activation, Merge, Lambda
 from keras.utils import np_utils
 from keras.utils.test_utils import get_test_data, keras_test

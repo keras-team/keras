@@ -6,8 +6,8 @@ Bags of Tricks for Efficient Text Classification
 https://arxiv.org/abs/1607.01759
 
 Results on IMDB datasets with uni and bi-gram embeddings:
-    Uni-gram: 0.8813 test accuracy after 5 epochs. 15s/epoch on i7 cpu.
-    Bi-gram : 0.9056 test accuracy after 5 epochs. 5s/epoch on GTX 1080 gpu.
+    Uni-gram: 0.8813 test accuracy after 5 epochs. 8s/epoch on i7 cpu.
+    Bi-gram : 0.9056 test accuracy after 5 epochs. 2s/epoch on GTX 980M gpu.
 '''
 
 from __future__ import print_function
@@ -16,9 +16,9 @@ np.random.seed(1337)  # for reproducibility
 
 from keras.preprocessing import sequence
 from keras.models import Sequential
-from keras.layers import Dense, Flatten
+from keras.layers import Dense
 from keras.layers import Embedding
-from keras.layers import AveragePooling1D
+from keras.layers import GlobalAveragePooling1D
 from keras.datasets import imdb
 
 
@@ -119,12 +119,9 @@ model.add(Embedding(max_features,
                     embedding_dims,
                     input_length=maxlen))
 
-# we add a AveragePooling1D, which will average the embeddings
+# we add a GlobalAveragePooling1D, which will average the embeddings
 # of all words in the document
-model.add(AveragePooling1D(pool_length=model.output_shape[1]))
-
-# We flatten the output of the AveragePooling1D layer
-model.add(Flatten())
+model.add(GlobalAveragePooling1D())
 
 # We project onto a single unit output layer, and squash it with a sigmoid:
 model.add(Dense(1, activation='sigmoid'))

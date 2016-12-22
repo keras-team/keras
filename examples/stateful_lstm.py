@@ -54,7 +54,6 @@ model.add(LSTM(50,
                return_sequences=True,
                stateful=True))
 model.add(LSTM(50,
-               batch_input_shape=(batch_size, tsteps, 1),
                return_sequences=False,
                stateful=True))
 model.add(Dense(1))

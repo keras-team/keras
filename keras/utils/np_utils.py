@@ -7,9 +7,16 @@ from .. import backend as K
 
 
 def to_categorical(y, nb_classes=None):
-    '''Convert class vector (integers from 0 to nb_classes)
-    to binary class matrix, for use with categorical_crossentropy.
+    '''Convert class vector (integers from 0 to nb_classes) to binary class matrix, for use with categorical_crossentropy.
+
+    # Arguments
+        y: class vector to be converted into a matrix
+        nb_classes: total number of classes
+
+    # Returns
+        A binary matrix representation of the input.
     '''
+    y = np.array(y, dtype='int')
     if not nb_classes:
         nb_classes = np.max(y)+1
     Y = np.zeros((len(y), nb_classes))
@@ -79,7 +86,7 @@ def convert_kernel(kernel, dim_ordering='default'):
                 for j in range(h):
                     new_kernel[i, j, :, :] = kernel[w - i - 1, h - j - 1, :, :]
         else:
-            raise Exception('Invalid dim_ordering: ' + str(dim_ordering))
+            raise ValueError('Invalid dim_ordering:', dim_ordering)
     elif kernel.ndim == 5:
         # conv 3d
         # TH kernel shape: (out_depth, input_depth, kernel_dim1, kernel_dim2, kernel_dim3)
@@ -107,7 +114,7 @@ def convert_kernel(kernel, dim_ordering='default'):
                                                            z - k - 1,
                                                            :, :]
         else:
-            raise Exception('Invalid dim_ordering: ' + str(dim_ordering))
+            raise ValueError('Invalid dim_ordering:', dim_ordering)
     else:
         raise ValueError('Invalid kernel shape:', kernel.shape)
     return new_kernel
@@ -116,21 +123,25 @@ def convert_kernel(kernel, dim_ordering='default'):
 def conv_output_length(input_length, filter_size, border_mode, stride, dilation=1):
     if input_length is None:
         return None
-    assert border_mode in {'same', 'valid'}
+    assert border_mode in {'same', 'valid', 'full'}
     dilated_filter_size = filter_size + (filter_size - 1) * (dilation - 1)
     if border_mode == 'same':
         output_length = input_length
     elif border_mode == 'valid':
         output_length = input_length - dilated_filter_size + 1
+    elif border_mode == 'full':
+        output_length = input_length + dilated_filter_size - 1
     return (output_length + stride - 1) // stride
 
 
 def conv_input_length(output_length, filter_size, border_mode, stride):
     if output_length is None:
         return None
-    assert border_mode in {'same', 'valid'}
+    assert border_mode in {'same', 'valid', 'full'}
     if border_mode == 'same':
         pad = filter_size // 2
     elif border_mode == 'valid':
         pad = 0
+    elif border_mode == 'full':
+        pad = filter_size - 1
     return (output_length - 1) * stride - 2 * pad + filter_size

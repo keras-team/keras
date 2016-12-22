@@ -1,5 +1,8 @@
 import os
 
+from ..layers.wrappers import Wrapper
+from ..models import Sequential
+
 try:
     # pydot-ng is a fork of pydot that is better maintained
     import pydot_ng as pydot
@@ -17,23 +20,32 @@ def model_to_dot(model, show_shapes=False, show_layer_names=True):
     dot.set('concentrate', True)
     dot.set_node_defaults(shape='record')
 
-    if model.__class__.__name__ == 'Sequential':
+    if isinstance(model, Sequential):
         if not model.built:
             model.build()
         model = model.model
     layers = model.layers
 
-    # first, populate the nodes of the graph
+    # Create graph nodes.
     for layer in layers:
         layer_id = str(id(layer))
-        if show_layer_names:
-            label = str(layer.name) + ' (' + layer.__class__.__name__ + ')'
-        else:
-            label = layer.__class__.__name__
 
+        # Append a wrapped layer's label to node's label, if it exists.
+        layer_name = layer.name
+        class_name = layer.__class__.__name__
+        if isinstance(layer, Wrapper):
+            layer_name = '{}({})'.format(layer_name, layer.layer.name)
+            child_class_name = layer.layer.__class__.__name__
+            class_name = '{}({})'.format(class_name, child_class_name)
+
+        # Create node's label.
+        if show_layer_names:
+            label = '{}: {}'.format(layer_name, class_name)
+        else:
+            label = class_name
+
+        # Rebuild the label as a table including input/output shapes.
         if show_shapes:
-            # Build the label that will actually contain a table with the
-            # input/output
             try:
                 outputlabels = str(layer.output_shape)
             except:
@@ -50,13 +62,12 @@ def model_to_dot(model, show_shapes=False, show_layer_names=True):
         node = pydot.Node(layer_id, label=label)
         dot.add_node(node)
 
-    # second, add the edges
+    # Connect nodes with edges.
     for layer in layers:
         layer_id = str(id(layer))
         for i, node in enumerate(layer.inbound_nodes):
             node_key = layer.name + '_ib-' + str(i)
             if node_key in model.container_nodes:
-                # add edges
                 for inbound_layer in node.inbound_layers:
                     inbound_layer_id = str(id(inbound_layer))
                     layer_id = str(id(layer))

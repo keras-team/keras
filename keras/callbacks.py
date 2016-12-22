@@ -1,6 +1,7 @@
 from __future__ import absolute_import
 from __future__ import print_function
 
+import os
 import csv
 
 import numpy as np
@@ -245,17 +246,20 @@ class ModelCheckpoint(Callback):
         save_weights_only: if True, then only the model's weights will be
             saved (`model.save_weights(filepath)`), else the full model
             is saved (`model.save(filepath)`).
+        period: Interval (number of epochs) between checkpoints.
 
     '''
     def __init__(self, filepath, monitor='val_loss', verbose=0,
                  save_best_only=False, save_weights_only=False,
-                 mode='auto'):
+                 mode='auto', period=1):
         super(ModelCheckpoint, self).__init__()
         self.monitor = monitor
         self.verbose = verbose
         self.filepath = filepath
         self.save_best_only = save_best_only
         self.save_weights_only = save_weights_only
+        self.period = period
+        self.epochs_since_last_save = 0
 
         if mode not in ['auto', 'min', 'max']:
             warnings.warn('ModelCheckpoint mode %s is unknown, '
@@ -278,35 +282,38 @@ class ModelCheckpoint(Callback):
                 self.best = np.Inf
 
     def on_epoch_end(self, epoch, logs={}):
-        filepath = self.filepath.format(epoch=epoch, **logs)
-        if self.save_best_only:
-            current = logs.get(self.monitor)
-            if current is None:
-                warnings.warn('Can save best model only with %s available, '
-                              'skipping.' % (self.monitor), RuntimeWarning)
-            else:
-                if self.monitor_op(current, self.best):
-                    if self.verbose > 0:
-                        print('Epoch %05d: %s improved from %0.5f to %0.5f,'
-                              ' saving model to %s'
-                              % (epoch, self.monitor, self.best,
-                                 current, filepath))
-                    self.best = current
-                    if self.save_weights_only:
-                        self.model.save_weights(filepath, overwrite=True)
-                    else:
-                        self.model.save(filepath, overwrite=True)
+        self.epochs_since_last_save += 1
+        if self.epochs_since_last_save >= self.period:
+            self.epochs_since_last_save = 0
+            filepath = self.filepath.format(epoch=epoch, **logs)
+            if self.save_best_only:
+                current = logs.get(self.monitor)
+                if current is None:
+                    warnings.warn('Can save best model only with %s available, '
+                                  'skipping.' % (self.monitor), RuntimeWarning)
                 else:
-                    if self.verbose > 0:
-                        print('Epoch %05d: %s did not improve' %
-                              (epoch, self.monitor))
-        else:
-            if self.verbose > 0:
-                print('Epoch %05d: saving model to %s' % (epoch, filepath))
-            if self.save_weights_only:
-                self.model.save_weights(filepath, overwrite=True)
+                    if self.monitor_op(current, self.best):
+                        if self.verbose > 0:
+                            print('Epoch %05d: %s improved from %0.5f to %0.5f,'
+                                  ' saving model to %s'
+                                  % (epoch, self.monitor, self.best,
+                                     current, filepath))
+                        self.best = current
+                        if self.save_weights_only:
+                            self.model.save_weights(filepath, overwrite=True)
+                        else:
+                            self.model.save(filepath, overwrite=True)
+                    else:
+                        if self.verbose > 0:
+                            print('Epoch %05d: %s did not improve' %
+                                  (epoch, self.monitor))
             else:
-                self.model.save(filepath, overwrite=True)
+                if self.verbose > 0:
+                    print('Epoch %05d: saving model to %s' % (epoch, filepath))
+                if self.save_weights_only:
+                    self.model.save_weights(filepath, overwrite=True)
+                else:
+                    self.model.save(filepath, overwrite=True)
 
 
 class EarlyStopping(Callback):
@@ -314,6 +321,10 @@ class EarlyStopping(Callback):
 
     # Arguments
         monitor: quantity to be monitored.
+        min_delta: minimum change in the monitored quantity
+            to qualify as an improvement, i.e. an absolute
+            change of less than min_delta, will count as no
+            improvement.
         patience: number of epochs with no improvement
             after which training will be stopped.
         verbose: verbosity mode.
@@ -325,13 +336,15 @@ class EarlyStopping(Callback):
             mode, the direction is automatically inferred
             from the name of the monitored quantity.
     '''
-    def __init__(self, monitor='val_loss', patience=0, verbose=0, mode='auto'):
+    def __init__(self, monitor='val_loss', min_delta=0, patience=0, verbose=0, mode='auto'):
         super(EarlyStopping, self).__init__()
 
         self.monitor = monitor
         self.patience = patience
         self.verbose = verbose
+        self.min_delta = min_delta
         self.wait = 0
+        self.stopped_epoch = 0
 
         if mode not in ['auto', 'min', 'max']:
             warnings.warn('EarlyStopping mode %s is unknown, '
@@ -349,6 +362,11 @@ class EarlyStopping(Callback):
             else:
                 self.monitor_op = np.less
 
+        if self.monitor_op == np.greater:
+            self.min_delta *= 1
+        else:
+            self.min_delta *= -1
+
     def on_train_begin(self, logs={}):
         self.wait = 0       # Allow instances to be re-used
         self.best = np.Inf if self.monitor_op == np.less else -np.Inf
@@ -359,15 +377,18 @@ class EarlyStopping(Callback):
             warnings.warn('Early stopping requires %s available!' %
                           (self.monitor), RuntimeWarning)
 
-        if self.monitor_op(current, self.best):
+        if self.monitor_op(current - self.min_delta, self.best):
             self.best = current
             self.wait = 0
         else:
             if self.wait >= self.patience:
-                if self.verbose > 0:
-                    print('Epoch %05d: early stopping' % (epoch))
+                self.stopped_epoch = epoch
                 self.model.stop_training = True
             self.wait += 1
+
+    def on_train_end(self, logs={}):
+        if self.stopped_epoch > 0 and self.verbose > 0:
+            print('Epoch %05d: early stopping' % (self.stopped_epoch))
 
 
 class RemoteMonitor(Callback):
@@ -386,11 +407,13 @@ class RemoteMonitor(Callback):
     def __init__(self,
                  root='http://localhost:9000',
                  path='/publish/epoch/end/',
-                 field='data'):
+                 field='data',
+                 headers={'Accept': 'application/json', 'Content-Type': 'application/json'}):
         super(RemoteMonitor, self).__init__()
         self.root = root
         self.path = path
         self.field = field
+        self.headers = headers
 
     def on_epoch_end(self, epoch, logs={}):
         import requests
@@ -400,7 +423,8 @@ class RemoteMonitor(Callback):
             send[k] = v
         try:
             requests.post(self.root + self.path,
-                          {self.field: json.dumps(send)})
+                          {self.field: json.dumps(send)},
+                          headers=self.headers)
         except:
             print('Warning: could not reach RemoteMonitor '
                   'root server at ' + str(self.root))
@@ -422,7 +446,11 @@ class LearningRateScheduler(Callback):
         assert hasattr(self.model.optimizer, 'lr'), \
             'Optimizer must have a "lr" attribute.'
         lr = self.schedule(epoch)
-        assert type(lr) == float, 'The output of the "schedule" function should be float.'
+
+        if not isinstance(lr, (float, np.float32, np.float64)):
+            raise ValueError('The output of the "schedule" function '
+                             'should be float.')
+
         K.set_value(self.model.optimizer.lr, lr)
 
 
@@ -458,8 +486,8 @@ class TensorBoard(Callback):
     def __init__(self, log_dir='./logs', histogram_freq=0, write_graph=True, write_images=False):
         super(TensorBoard, self).__init__()
         if K._BACKEND != 'tensorflow':
-            raise Exception('TensorBoard callback only works '
-                            'with the TensorFlow backend.')
+            raise RuntimeError('TensorBoard callback only works '
+                               'with the TensorFlow backend.')
         self.log_dir = log_dir
         self.histogram_freq = histogram_freq
         self.merged = None
@@ -495,16 +523,25 @@ class TensorBoard(Callback):
                 if hasattr(layer, 'output'):
                     tf.histogram_summary('{}_out'.format(layer.name),
                                          layer.output)
-        self.merged = tf.merge_all_summaries()
+        if parse_version(tf.__version__) >= parse_version('0.12.0'):
+            self.merged = tf.summary.merge_all()
+        else:
+            self.merged = tf.merge_all_summaries()
         if self.write_graph:
-            if parse_version(tf.__version__) >= parse_version('0.8.0'):
+            if parse_version(tf.__version__) >= parse_version('0.12.0'):
+                self.writer = tf.summary.FileWriter(self.log_dir,
+                                                    self.sess.graph)
+            elif parse_version(tf.__version__) >= parse_version('0.8.0'):
                 self.writer = tf.train.SummaryWriter(self.log_dir,
                                                      self.sess.graph)
             else:
                 self.writer = tf.train.SummaryWriter(self.log_dir,
                                                      self.sess.graph_def)
         else:
-            self.writer = tf.train.SummaryWriter(self.log_dir)
+            if parse_version(tf.__version__) >= parse_version('0.12.0'):
+                self.writer = tf.summary.FileWriter(self.log_dir)
+            else:
+                self.writer = tf.train.SummaryWriter(self.log_dir)
 
     def on_epoch_end(self, epoch, logs={}):
         import tensorflow as tf
@@ -530,10 +567,13 @@ class TensorBoard(Callback):
                 continue
             summary = tf.Summary()
             summary_value = summary.value.add()
-            summary_value.simple_value = value
+            summary_value.simple_value = value.item()
             summary_value.tag = name
             self.writer.add_summary(summary, epoch)
         self.writer.flush()
+
+    def on_train_end(self, _):
+        self.writer.close()
 
 
 class ReduceLROnPlateau(Callback):
@@ -617,14 +657,14 @@ class ReduceLROnPlateau(Callback):
             warnings.warn('Learning Rate Plateau Reducing requires %s available!' %
                           self.monitor, RuntimeWarning)
         else:
-            if self.cooldown_counter > 0:
+            if self.in_cooldown():
                 self.cooldown_counter -= 1
                 self.wait = 0
 
             if self.monitor_op(current, self.best):
                 self.best = current
                 self.wait = 0
-            elif self.cooldown_counter <= 0:
+            elif not self.in_cooldown():
                 if self.wait >= self.patience:
                     old_lr = float(K.get_value(self.model.optimizer.lr))
                     if old_lr > self.min_lr + self.lr_epsilon:
@@ -634,7 +674,11 @@ class ReduceLROnPlateau(Callback):
                         if self.verbose > 0:
                             print('\nEpoch %05d: reducing learning rate to %s.' % (epoch, new_lr))
                         self.cooldown_counter = self.cooldown
+                        self.wait = 0
                 self.wait += 1
+
+    def in_cooldown(self):
+        return self.cooldown_counter > 0
 
 
 class CSVLogger(Callback):
@@ -648,7 +692,7 @@ class CSVLogger(Callback):
             model.fit(X_train, Y_train, callbacks=[csv_logger])
         ```
 
-    Arguments
+    # Arguments
         filename: filename of the csv file, e.g. 'run/log.csv'.
         separator: string used to separate elements in the csv file.
         append: True: append if file exists (useful for continuing
@@ -661,10 +705,14 @@ class CSVLogger(Callback):
         self.append = append
         self.writer = None
         self.keys = None
+        self.append_header = True
         super(CSVLogger, self).__init__()
 
     def on_train_begin(self, logs={}):
         if self.append:
+            if os.path.exists(self.filename):
+                with open(self.filename) as f:
+                    self.append_header = len(f.readline()) == 0
             self.csv_file = open(self.filename, 'a')
         else:
             self.csv_file = open(self.filename, 'w')
@@ -680,7 +728,8 @@ class CSVLogger(Callback):
         if not self.writer:
             self.keys = sorted(logs.keys())
             self.writer = csv.DictWriter(self.csv_file, fieldnames=['epoch'] + self.keys)
-            self.writer.writeheader()
+            if self.append_header:
+                self.writer.writeheader()
 
         row_dict = OrderedDict({'epoch': epoch})
         row_dict.update((key, handle_value(logs[key])) for key in self.keys)
@@ -695,7 +744,7 @@ class LambdaCallback(Callback):
     """Callback for creating simple, custom callbacks on-the-fly.
 
     This callback is constructed with anonymous functions that will be called
-    at the appropiate time. Note that the callbacks expects positional
+    at the appropriate time. Note that the callbacks expects positional
     arguments, as:
      - `on_epoch_begin` and `on_epoch_end` expect two positional arguments: `epoch`, `logs`
      - `on_batch_begin` and `on_batch_end` expect two positional arguments: `batch`, `logs`

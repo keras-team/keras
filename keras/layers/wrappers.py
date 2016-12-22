@@ -17,7 +17,7 @@ class Wrapper(Layer):
         self.trainable_weights = getattr(self.layer, 'trainable_weights', [])
         self.non_trainable_weights = getattr(self.layer, 'non_trainable_weights', [])
         self.updates = getattr(self.layer, 'updates', [])
-        self.regularizers = getattr(self.layer, 'regularizers', [])
+        self.losses = getattr(self.layer, 'losses', [])
         self.constraints = getattr(self.layer, 'constraints', {})
 
         # properly attribute the current layer to
@@ -175,7 +175,7 @@ class TimeDistributed(Wrapper):
                 return K.prod(input_mask, axis=0)
 
     def call(self, X, mask=None):
-        input_shape = self.input_spec[0].shape
+        input_shape = K.int_shape(X)
         #if input_shape[0]:
 
         input_shapes = [input_spec.shape for input_spec in self.input_spec]
@@ -190,23 +190,11 @@ class TimeDistributed(Wrapper):
             def step(x, states):
                 output = self.layer.call(x)
                 return output, []
-            input_length = input_shape[1]
-            if K.backend() == 'tensorflow' and len(input_shape) > 3:
-                if input_length is None:
-                    raise Exception('When using TensorFlow, you should define '
-                                    'explicitly the number of timesteps of '
-                                    'your sequences.\n'
-                                    'If your first layer is an Embedding, '
-                                    'make sure to pass it an "input_length" '
-                                    'argument. Otherwise, make sure '
-                                    'the first layer has '
-                                    'an "input_shape" or "batch_input_shape" '
-                                    'argument, including the time axis.')
-                unroll = True
-            else:
-                unroll = False
-            last_output, outputs, states = K.rnn(step, X,
-                                                 initial_states=[], input_length=input_length, unroll=unroll)
+
+            _, outputs, _ = K.rnn(step, X,
+                                  initial_states=[],
+                                  input_length=input_shape[1],
+                                  unroll=False)
             y = outputs
         else:
             # no batch size specified, therefore the layer will be able
@@ -233,6 +221,11 @@ class TimeDistributed(Wrapper):
             # (nb_samples, timesteps, ...)
             output_shape = self.get_output_shape_for(input_shape)
             y = K.reshape(y, (-1, max_length) + output_shape[2:])
+
+        # Apply activity regularizer if any:
+        if hasattr(self.layer, 'activity_regularizer') and self.layer.activity_regularizer is not None:
+            regularization_loss = self.layer.activity_regularizer(y)
+            self.add_loss(regularization_loss, X)
         return y
 
 
@@ -349,9 +342,9 @@ class Bidirectional(Wrapper):
         return []
 
     @property
-    def regularizers(self):
-        if hasattr(self.forward_layer, 'regularizers'):
-            return self.forward_layer.regularizers + self.backward_layer.regularizers
+    def losses(self):
+        if hasattr(self.forward_layer, 'losses'):
+            return self.forward_layer.losses + self.backward_layer.losses
         return []
 
     @property

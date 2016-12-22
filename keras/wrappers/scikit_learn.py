@@ -66,7 +66,7 @@ class BaseWrapper(object):
                             Sequential.predict_classes, Sequential.evaluate]
         if self.build_fn is None:
             legal_params_fns.append(self.__call__)
-        elif not isinstance(self.build_fn, types.FunctionType):
+        elif not isinstance(self.build_fn, types.FunctionType) and not isinstance(self.build_fn, types.MethodType):
             legal_params_fns.append(self.build_fn.__call__)
         else:
             legal_params_fns.append(self.build_fn)
@@ -130,7 +130,7 @@ class BaseWrapper(object):
 
         if self.build_fn is None:
             self.model = self.__call__(**self.filter_sk_params(self.__call__))
-        elif not isinstance(self.build_fn, types.FunctionType):
+        elif not isinstance(self.build_fn, types.FunctionType) and not isinstance(self.build_fn, types.MethodType):
             self.model = self.build_fn(
                 **self.filter_sk_params(self.build_fn.__call__))
         else:
@@ -242,14 +242,14 @@ class KerasClassifier(BaseWrapper):
             y = to_categorical(y)
 
         outputs = self.model.evaluate(X, y, **kwargs)
-        if type(outputs) is not list:
+        if not isinstance(outputs, list):
             outputs = [outputs]
         for name, output in zip(self.model.metrics_names, outputs):
             if name == 'acc':
                 return output
-        raise Exception('The model is not configured to compute accuracy. '
-                        'You should pass `metrics=["accuracy"]` to '
-                        'the `model.compile()` method.')
+        raise ValueError('The model is not configured to compute accuracy. '
+                         'You should pass `metrics=["accuracy"]` to '
+                         'the `model.compile()` method.')
 
 
 class KerasRegressor(BaseWrapper):
@@ -290,6 +290,6 @@ class KerasRegressor(BaseWrapper):
         '''
         kwargs = self.filter_sk_params(Sequential.evaluate, kwargs)
         loss = self.model.evaluate(X, y, **kwargs)
-        if type(loss) is list:
+        if isinstance(loss, list):
             return loss[0]
         return loss
