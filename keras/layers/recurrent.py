@@ -1109,11 +1109,11 @@ class AttGRUCond(Recurrent):
         self.inner_init = initializations.get(inner_init)
         self.activation = activations.get(activation)
         self.inner_activation = activations.get(inner_activation)
-        self.W_regularizer = regularizers.get(W_regularizer)
-        self.U_regularizer = regularizers.get(U_regularizer)
-        self.V_regularizer = regularizers.get(V_regularizer)
-        self.b_regularizer = regularizers.get(b_regularizer)
-        # attention model learnable params
+        self.W_regularizer =  regularizers.get(W_regularizer)
+        self.U_regularizer =  regularizers.get(U_regularizer)
+        self.V_regularizer =  regularizers.get(V_regularizer)
+        self.b_regularizer =  regularizers.get(b_regularizer)
+        # Attention model regularizers
         self.wa_regularizer = regularizers.get(wa_regularizer)
         self.Wa_regularizer = regularizers.get(Wa_regularizer)
         self.Ua_regularizer = regularizers.get(Ua_regularizer)
@@ -1255,37 +1255,10 @@ class AttGRUCond(Recurrent):
             self.U = K.concatenate([self.U_z, self.U_r, self.U_h])
             self.b = K.concatenate([self.b_z, self.b_r, self.b_h])
 
-        self.regularizers = []
-        # Att regularizers
-        if self.wa_regularizer:
-            self.wa_regularizer.set_param(self.wa)
-            self.regularizers.append(self.wa_regularizer)
-        if self.Wa_regularizer:
-            self.Wa_regularizer.set_param(self.Wa)
-            self.regularizers.append(self.Wa_regularizer)
-        if self.Ua_regularizer:
-            self.Ua_regularizer.set_param(self.Ua)
-            self.regularizers.append(self.Ua_regularizer)
-        if self.ba_regularizer:
-            self.ba_regularizer.set_param(self.ba)
-            self.regularizers.append(self.ba_regularizer)
-        # GRU regularizers
-        if self.V_regularizer:
-            self.V_regularizer.set_param(self.V)
-            self.regularizers.append(self.V_regularizer)
-        if self.W_regularizer:
-            self.W_regularizer.set_param(self.W)
-            self.regularizers.append(self.W_regularizer)
-        if self.U_regularizer:
-            self.U_regularizer.set_param(self.U)
-            self.regularizers.append(self.U_regularizer)
-        if self.b_regularizer:
-            self.b_regularizer.set_param(self.b)
-            self.regularizers.append(self.b_regularizer)
-
         if self.initial_weights is not None:
             self.set_weights(self.initial_weights)
             del self.initial_weights
+        self.built = True
 
     def reset_states(self):
         assert self.stateful, 'Layer must be stateful.'
