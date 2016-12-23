@@ -1743,8 +1743,8 @@ def rnn(step_function, inputs, initial_states,
                     tiled_mask_t = tf.tile(mask_t,
                                            stack([1, tf.shape(new_state)[1]]))
                     return_states.append(tf.where(tiled_mask_t,
-                                                   new_state,
-                                                   state))
+                                                  new_state,
+                                                  state))
                 states = return_states
                 successive_outputs.append(output)
                 successive_states.append(states)
@@ -2402,8 +2402,8 @@ def random_binomial(shape, p=0.0, dtype=None, seed=None):
     if seed is None:
         seed = np.random.randint(10e6)
     return tf.where(tf.random_uniform(shape, dtype=dtype, seed=seed) <= p,
-                     tf.ones(shape, dtype=dtype),
-                     tf.zeros(shape, dtype=dtype))
+                    tf.ones(shape, dtype=dtype),
+                    tf.zeros(shape, dtype=dtype))
 
 
 # CTC
