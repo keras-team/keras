@@ -76,7 +76,7 @@ def test_sequential_model_saving_2():
 
 
 @keras_test
-def test_fuctional_model_saving():
+def test_functional_model_saving():
     input = Input(shape=(3,))
     x = Dense(2)(input)
     output = Dense(3)(x)
