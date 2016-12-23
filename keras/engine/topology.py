@@ -365,7 +365,7 @@ class Layer(object):
 
     @property
     def regularizers(self):
-        warnings.warn('The `regularizers` property of '
+        warnings.warn('Layer ' + self.name + ': The `regularizers` property of '
                       'layers/models is deprecated. '
                       'Regularization losses are now managed via the `losses` '
                       'layer/model property.')
@@ -373,7 +373,7 @@ class Layer(object):
 
     @regularizers.setter
     def regularizers(self, _):
-        warnings.warn('The `regularizers` property of layers/models '
+        warnings.warn('Layer ' + self.name + ': The `regularizers` property of layers/models '
                       'is deprecated. '
                       'Regularization losses are now managed via the `losses` '
                       'layer/model property.')
