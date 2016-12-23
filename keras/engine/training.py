@@ -816,41 +816,59 @@ class Model(Container):
         callback_model.stop_training = False
         self.validation_data = val_ins
 
+        #print('Backtrace {file}:{line}'.format(file='training.py', line=819))
         for epoch in range(initial_epoch, nb_epoch):
+            #print('Backtrace {file}:{line}'.format(file='training.py', line=821))
             callbacks.on_epoch_begin(epoch)
+            #print('Backtrace {file}:{line}'.format(file='training.py', line=823))
             if shuffle == 'batch':
+                #print('Backtrace {file}:{line}'.format(file='training.py', line=825))
                 index_array = batch_shuffle(index_array, batch_size)
             elif shuffle:
+                #print('Backtrace {file}:{line}'.format(file='training.py', line=828))
                 np.random.shuffle(index_array)
 
+            #print('Backtrace {file}:{line}'.format(file='training.py', line=831))
             batches = make_batches(nb_train_sample, batch_size)
+            #print('Backtrace {file}:{line}'.format(file='training.py', line=833))
             epoch_logs = {}
             for batch_index, (batch_start, batch_end) in enumerate(batches):
+                #print('Backtrace {file}:{line}'.format(file='training.py', line=836))
                 batch_ids = index_array[batch_start:batch_end]
                 try:
                     if isinstance(ins[-1], float):
                         # do not slice the training phase flag
+                        #print('Backtrace {file}:{line}'.format(file='training.py', line=842))
                         ins_batch = slice_X(ins[:-1], batch_ids) + [ins[-1]]
                     else:
+                        #print('Backtrace {file}:{line}'.format(file='training.py', line=845))
                         ins_batch = slice_X(ins, batch_ids)
                 except TypeError:
+                    #print('Backtrace {file}:{line}'.format(file='training.py', line=848))
                     raise TypeError('TypeError while preparing batch. '
                                     'If using HDF5 input data, '
                                     'pass shuffle="batch".')
+                #print('Backtrace {file}:{line}'.format(file='training.py', line=852))
                 batch_logs = {}
                 batch_logs['batch'] = batch_index
                 batch_logs['size'] = len(batch_ids)
+                #print('Backtrace {file}:{line}'.format(file='training.py', line=858))
                 callbacks.on_batch_begin(batch_index, batch_logs)
+                #print('Backtrace {file}:{line}'.format(file='training.py', line=8600000))
                 outs = f(ins_batch)
+                #print('Backtrace {file}:{line}'.format(file='training.py', line=862))
                 if not isinstance(outs, list):
                     outs = [outs]
+                #print('Backtrace {file}:{line}'.format(file='training.py', line=866))
                 for l, o in zip(out_labels, outs):
                     batch_logs[l] = o
 
+                #print('Backtrace {file}:{line}'.format(file='training.py', line=871))
                 callbacks.on_batch_end(batch_index, batch_logs)
 
                 if batch_index == len(batches) - 1:  # last batch
                     # validation
+                    #print('Backtrace {file}:{line}'.format(file='training.py', line=877))
                     if do_validation:
                         # replace with self._evaluate
                         val_outs = self._test_loop(val_f, val_ins,
@@ -864,7 +882,9 @@ class Model(Container):
             callbacks.on_epoch_end(epoch, epoch_logs)
             if callback_model.stop_training:
                 break
+        #print('Backtrace {file}:{line}'.format(file='training.py', line=898))
         callbacks.on_train_end()
+        #print('Backtrace {file}:{line}'.format(file='training.py', line=900))
         return self.history
 
     def _predict_loop(self, f, ins, batch_size=32, verbose=0):
