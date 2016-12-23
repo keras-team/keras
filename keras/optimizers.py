@@ -1,7 +1,10 @@
 from __future__ import absolute_import
+from __future__ import division
+
+from six.moves import zip
+
 from . import backend as K
 from .utils.generic_utils import get_from_module
-from six.moves import zip
 
 
 def clip_norm(g, c, n):

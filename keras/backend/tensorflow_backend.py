@@ -1717,7 +1717,7 @@ def rnn(step_function, inputs, initial_states,
             for input, mask_t in zip(input_list, mask_list):
                 output, new_states = step_function(input, states + constants)
 
-                # tf.select needs its condition tensor
+                # tf.where needs its condition tensor
                 # to be the same shape as its two
                 # result tensors, but in our case
                 # the condition (mask) tensor is
@@ -1735,14 +1735,14 @@ def rnn(step_function, inputs, initial_states,
                 else:
                     prev_output = successive_outputs[-1]
 
-                output = tf.select(tiled_mask_t, output, prev_output)
+                output = tf.where(tiled_mask_t, output, prev_output)
 
                 return_states = []
                 for state, new_state in zip(states, new_states):
                     # (see earlier comment for tile explanation)
                     tiled_mask_t = tf.tile(mask_t,
                                            stack([1, tf.shape(new_state)[1]]))
-                    return_states.append(tf.select(tiled_mask_t,
+                    return_states.append(tf.where(tiled_mask_t,
                                                    new_state,
                                                    state))
                 states = return_states
@@ -1805,8 +1805,8 @@ def rnn(step_function, inputs, initial_states,
                     new_state.set_shape(state.get_shape())
                 tiled_mask_t = tf.tile(mask_t,
                                        stack([1, tf.shape(output)[1]]))
-                output = tf.select(tiled_mask_t, output, states[0])
-                new_states = [tf.select(tiled_mask_t, new_states[i], states[i]) for i in range(len(states))]
+                output = tf.where(tiled_mask_t, output, states[0])
+                new_states = [tf.where(tiled_mask_t, new_states[i], states[i]) for i in range(len(states))]
                 output_ta_t = output_ta_t.write(time, output)
                 return (time + 1, output_ta_t) + tuple(new_states)
         else:
@@ -1931,7 +1931,7 @@ def elu(x, alpha=1.):
     if alpha == 1:
         return res
     else:
-        return tf.select(x > 0, res, alpha * res)
+        return tf.where(x > 0, res, alpha * res)
 
 
 def softmax(x):
@@ -2401,7 +2401,7 @@ def random_binomial(shape, p=0.0, dtype=None, seed=None):
         dtype = floatx()
     if seed is None:
         seed = np.random.randint(10e6)
-    return tf.select(tf.random_uniform(shape, dtype=dtype, seed=seed) <= p,
+    return tf.where(tf.random_uniform(shape, dtype=dtype, seed=seed) <= p,
                      tf.ones(shape, dtype=dtype),
                      tf.zeros(shape, dtype=dtype))
 
