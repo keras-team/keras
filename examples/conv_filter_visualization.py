@@ -106,7 +106,7 @@ for filter_index in range(0, 200):
     end_time = time.time()
     print('Filter %d processed in %ds' % (filter_index, end_time - start_time))
 
-# we will stich the best 64 filters on a 8 x 8 grid.
+# we will stitch the best 64 filters on a 8 x 8 grid.
 n = 8
 
 # the filters that have the highest loss are assumed to be better-looking.

@@ -396,7 +396,7 @@ def test_recursion():
     with pytest.raises(Exception) as e:
         invalid_model = Model([j], [m, n])
 
-    # redudant outputs
+    # redundant outputs
     j = Input(shape=(32,), name='input_j')
     k = Input(shape=(32,), name='input_k')
     m, n = model([j, k])
@@ -580,7 +580,7 @@ def test_sequential_regression():
 
     branch_1_2 = Sequential([Merge([branch_1, branch_2], mode='concat')], name='branch_1_2')
     branch_1_2.add(Dense(16, name='dense_1_2-0'))
-    # test whether impromtu input_shape breaks the model
+    # test whether impromptu input_shape breaks the model
     branch_1_2.add(Dense(16, input_shape=(16,), name='dense_1_2-1'))
 
     model = Sequential([Merge([branch_1_2, branch_3], mode='concat')], name='final')

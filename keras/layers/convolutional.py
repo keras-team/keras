@@ -1753,7 +1753,7 @@ class Cropping3D(Layer):
     # Arguments
         cropping: tuple of tuple of int (length 3)
             How many units should be trimmed off at the beginning and end of
-            the 3 cropping dimensions (kernel_dim1, kernel_dim2, kernerl_dim3).
+            the 3 cropping dimensions (kernel_dim1, kernel_dim2, kernel_dim3).
         dim_ordering: 'th' or 'tf'.
             In 'th' mode, the channels dimension (the depth)
             is at index 1, in 'tf' mode is it at index 4.

@@ -1253,7 +1253,7 @@ def in_top_k(predictions, targets, k):
     '''Returns whether the `targets` are in the top `k` `predictions`
 
     # Arguments
-        predictions: A tensor of shape batch_size x classess and type float32.
+        predictions: A tensor of shape batch_size x classes and type float32.
         targets: A tensor of shape batch_size and type int32 or int64.
         k: An int, number of top elements to consider.
 
@@ -1431,7 +1431,7 @@ def conv2d(x, kernel, strides=(1, 1), border_mode='valid',
         border_mode: string, "same" or "valid".
         dim_ordering: "tf" or "th".
             Whether to use Theano or TensorFlow dimension ordering
-        in inputs/kernels/ouputs.
+        in inputs/kernels/outputs.
     '''
     if dim_ordering == 'default':
         dim_ordering = image_dim_ordering()
@@ -1478,7 +1478,7 @@ def deconv2d(x, kernel, output_shape, strides=(1, 1),
         border_mode: string, "same" or "valid".
         dim_ordering: "tf" or "th".
             Whether to use Theano or TensorFlow dimension ordering
-        in inputs/kernels/ouputs.
+        in inputs/kernels/outputs.
     '''
     flip_filters = False
     if dim_ordering == 'default':
@@ -1530,7 +1530,7 @@ def conv3d(x, kernel, strides=(1, 1, 1),
         border_mode: string, "same" or "valid".
         dim_ordering: "tf" or "th".
             Whether to use Theano or TensorFlow dimension ordering
-        in inputs/kernels/ouputs.
+        in inputs/kernels/outputs.
     '''
     if dim_ordering == 'default':
         dim_ordering = image_dim_ordering()

@@ -588,7 +588,7 @@ def random_uniform_variable(shape, low, high, dtype=None,
 
     # Arguments
         shape: Tuple of integers, shape of returned Keras variable.
-        low: Float, lower boundary of the output inteval.
+        low: Float, lower boundary of the output interval.
         high: Float, upper boundary of the output interval.
         dtype: String, dtype of returned Keras variable.
         name: String, name of returned Keras variable.
@@ -1327,7 +1327,7 @@ def arange(start, stop=None, step=1, dtype='int32'):
     The default type of the returned tensor is 'int32' to
     match TensorFlow's default.
     '''
-    # Match the behavior of numpy and Theano by returning an empty seqence.
+    # Match the behavior of numpy and Theano by returning an empty sequence.
     if stop is None and start < 0:
         start = 0
     result = tf.range(start, limit=stop, delta=step, name='arange')
@@ -2047,7 +2047,7 @@ def dropout(x, level, noise_shape=None, seed=None):
     if seed is None:
         seed = np.random.randint(10e6)
     # the dummy 1. works around a TF bug
-    # (float32_ref vs. float32 incomptability)
+    # (float32_ref vs. float32 incompatibility)
     return tf.nn.dropout(x * 1., retain_prob, noise_shape, seed=seed)
 
 
@@ -2063,7 +2063,7 @@ def in_top_k(predictions, targets, k):
     '''Returns whether the `targets` are in the top `k` `predictions`
 
     # Arguments
-        predictions: A tensor of shape batch_size x classess and type float32.
+        predictions: A tensor of shape batch_size x classes and type float32.
         targets: A tensor of shape batch_size and type int32 or int64.
         k: An int, number of top elements to consider.
 
@@ -2191,7 +2191,7 @@ def conv2d(x, kernel, strides=(1, 1), border_mode='valid',
         border_mode: string, "same" or "valid".
         dim_ordering: "tf" or "th".
             Whether to use Theano or TensorFlow dimension ordering
-            for inputs/kernels/ouputs.
+            for inputs/kernels/outputs.
     '''
     if dim_ordering == 'default':
         dim_ordering = image_dim_ordering()
@@ -2225,7 +2225,7 @@ def deconv2d(x, kernel, output_shape, strides=(1, 1),
         border_mode: string, "same" or "valid".
         dim_ordering: "tf" or "th".
             Whether to use Theano or TensorFlow dimension ordering
-            for inputs/kernels/ouputs.
+            for inputs/kernels/outputs.
     '''
     if dim_ordering == 'default':
         dim_ordering = image_dim_ordering()
@@ -2295,7 +2295,7 @@ def conv3d(x, kernel, strides=(1, 1, 1),
         border_mode: string, "same" or "valid".
         dim_ordering: "tf" or "th".
             Whether to use Theano or TensorFlow dimension ordering
-            for inputs/kernels/ouputs.
+            for inputs/kernels/outputs.
     '''
     if dim_ordering == 'default':
         dim_ordering = image_dim_ordering()
@@ -2407,7 +2407,7 @@ def random_binomial(shape, p=0.0, dtype=None, seed=None):
 
 
 # CTC
-# tensorflow has a native implemenation, but it uses sparse tensors
+# tensorflow has a native implementation, but it uses sparse tensors
 # and therefore requires a wrapper for Keras. The functions below convert
 # dense to sparse tensors and also wraps up the beam search code that is
 # in tensorflow's CTC implementation

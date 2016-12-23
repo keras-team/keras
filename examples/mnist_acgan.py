@@ -69,7 +69,7 @@ def build_generator(latent_size):
     cnn.add(Convolution2D(1, 2, 2, border_mode='same',
                           activation='tanh', init='glorot_normal'))
 
-    # this is the z space commonly refered to in GAN papers
+    # this is the z space commonly referred to in GAN papers
     latent = Input(shape=(latent_size, ))
 
     # this will be our label
@@ -218,7 +218,7 @@ if __name__ == '__main__':
             noise = np.random.uniform(-1, 1, (2 * batch_size, latent_size))
             sampled_labels = np.random.randint(0, 10, 2 * batch_size)
 
-            # we want to train the genrator to trick the discriminator
+            # we want to train the generator to trick the discriminator
             # For the generator, we want all the {fake, not-fake} labels to say
             # not-fake
             trick = np.ones(2 * batch_size)
