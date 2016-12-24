@@ -481,6 +481,23 @@ class TestBackend(object):
         assert_allclose(tf_last_output, th_last_output, atol=1e-04)
         assert_allclose(tf_outputs, th_outputs, atol=1e-04)
 
+    def test_extract(self):
+        for input_shape in [(1,3,40,40), (1,3,10,10)]:
+            for kernel_shape in [2,5]:
+                xval = np.random.random(input_shape)
+
+                kernel = [kernel_shape,kernel_shape]
+                strides = [kernel_shape,kernel_shape]
+                xth = KTH.variable(xval)
+                xtf = KTF.variable(xval)
+                ztf = KTF.eval(KTF.extract_image_patches(xtf, kernel, strides, dim_ordering='th', border_mode="valid"))
+                print("TF {}".format(ztf.shape))
+                zth = KTH.eval(KTH.extract_image_patches(xth, kernel,strides, dim_ordering='th',border_mode="valid"))
+
+
+                assert zth.shape == ztf.shape
+                assert_allclose(zth, ztf, atol=1e-02)
+
     def test_switch(self):
         val = np.random.random()
         xth = KTH.variable(val)
