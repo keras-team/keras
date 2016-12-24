@@ -1,8 +1,8 @@
 import tensorflow as tf
-
-from tensorflow.python.training import moving_averages
-from tensorflow.python.ops import tensor_array_ops
 from tensorflow.python.ops import control_flow_ops
+from tensorflow.python.ops import tensor_array_ops
+from tensorflow.python.training import moving_averages
+
 try:
     from tensorflow.python.ops import ctc_ops as ctc
 except ImportError:
@@ -13,6 +13,7 @@ import os
 import copy
 import warnings
 from .common import floatx, _EPSILON, image_dim_ordering, reset_uids
+
 py_all = all
 
 # INTERNAL UTILS
@@ -1227,7 +1228,8 @@ def reshape(x, shape):
     '''
     return tf.reshape(x, shape)
 
-def extract_image_patches(X, ksizes, ssizes, border_mode = "same", dim_ordering = "tf"):
+
+def extract_image_patches(X, ksizes, ssizes, border_mode="same", dim_ordering="tf"):
     '''
     Extract the patches from an image
     Parameters
@@ -1249,13 +1251,14 @@ def extract_image_patches(X, ksizes, ssizes, border_mode = "same", dim_ordering 
     padding = _preprocess_border_mode(border_mode)
     if dim_ordering == "th":
         X = permute_dimensions(X, [0, 2, 3, 1])
-    bs_i,w_i,h_i,ch_i = int_shape(X)
+    bs_i, w_i, h_i, ch_i = int_shape(X)
     patches = tf.extract_image_patches(X, kernel, strides, [1, 1, 1, 1], padding)
-    #Reshaping to fit Theano
-    bs,w,h,ch = int_shape(patches)
-    patches = tf.reshape(tf.transpose(tf.reshape(patches,[bs,w,h,-1,ch_i]),[0,1,2,4,3]),[bs,w,h,ch_i,ksizes[0],ksizes[1]])
+    # Reshaping to fit Theano
+    bs, w, h, ch = int_shape(patches)
+    patches = tf.reshape(tf.transpose(tf.reshape(patches, [bs, w, h, -1, ch_i]), [0, 1, 2, 4, 3]),
+                         [bs, w, h, ch_i, ksizes[0], ksizes[1]])
     if dim_ordering == "tf":
-        patches = permute_dimensions(patches, [0,1,2, 4,5,3])
+        patches = permute_dimensions(patches, [0, 1, 2, 4, 5, 3])
     return patches
 
 
@@ -1284,7 +1287,7 @@ def resize_images(X, height_factor, width_factor, dim_ordering):
         X = tf.image.resize_nearest_neighbor(X, new_shape)
         X = permute_dimensions(X, [0, 3, 1, 2])
         X.set_shape((None, None, original_shape[2] * height_factor if original_shape[2] is not None else None,
-                    original_shape[3] * width_factor if original_shape[3] is not None else None))
+                     original_shape[3] * width_factor if original_shape[3] is not None else None))
         return X
     elif dim_ordering == 'tf':
         original_shape = int_shape(X)
@@ -1292,7 +1295,7 @@ def resize_images(X, height_factor, width_factor, dim_ordering):
         new_shape *= tf.constant(np.array([height_factor, width_factor]).astype('int32'))
         X = tf.image.resize_nearest_neighbor(X, new_shape)
         X.set_shape((None, original_shape[1] * height_factor if original_shape[1] is not None else None,
-                    original_shape[2] * width_factor if original_shape[2] is not None else None, None))
+                     original_shape[2] * width_factor if original_shape[2] is not None else None, None))
         return X
     else:
         raise ValueError('Invalid dim_ordering:', dim_ordering)
@@ -1594,7 +1597,6 @@ def print_tensor(x, message=''):
 # GRAPH MANIPULATION
 
 class Function(object):
-
     def __init__(self, inputs, outputs, updates=[]):
         if not isinstance(inputs, (list, tuple)):
             raise TypeError('`inputs` to a TensorFlow backend function '
@@ -2474,7 +2476,6 @@ def ctc_label_dense_to_sparse(labels, label_lengths):
 
 
 def ctc_batch_cost(y_true, y_pred, input_length, label_length):
-
     '''Runs CTC loss algorithm on each batch element.
 
     # Arguments
