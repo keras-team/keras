@@ -1463,7 +1463,7 @@ def extract_image_patches(X, ksizes, ssizes, border_mode = "same", dim_ordering 
     padding = _preprocess_border_mode(border_mode)
     if dim_ordering == "th":
         X = permute_dimensions(X, [0, 2, 3, 1])
-    bs_i, w_i, h_i, ch_i = int_shape(X)
+    bs_i,w_i,h_i,ch_i = int_shape(X)
     patches = tf.extract_image_patches(X, kernel, strides, [1, 1, 1, 1], padding)
     # Reshaping to fit Theano
     bs, w, h, ch = int_shape(patches)
