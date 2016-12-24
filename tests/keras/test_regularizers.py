@@ -3,15 +3,12 @@ import numpy as np
 np.random.seed(1337)
 
 from keras.models import Sequential
-from keras.layers import Merge
 from keras.layers import Dense
 from keras.layers import Activation
-from keras.layers import Flatten
-from keras.layers import ActivityRegularization
-from keras.layers import Embedding
 from keras.datasets import mnist
 from keras.utils import np_utils
 from keras import regularizers
+import keras.backend as K
 
 nb_classes = 10
 batch_size = 128
@@ -71,6 +68,31 @@ def test_W_reg():
         model.fit(X_train, Y_train, batch_size=batch_size,
                   nb_epoch=nb_epoch, verbose=0)
         model.evaluate(X_test[test_ids, :], Y_test[test_ids, :], verbose=0)
+
+def test_L1L2Regularizer_serialization():
+    def clone_reg(reg):
+        model = create_model(weight_reg=reg)
+        config = model.get_config()
+        newmodel = Sequential.from_config(config)
+        return newmodel.layers[-2].W_regularizer
+
+    l1 = 1e-3
+    l2 = 1e-4
+
+    def test_use_variables_false(new_reg):
+        assert(not new_reg.use_variables)
+        assert(abs(l1-new_reg.l1) < 1e-9)
+        assert(abs(l2-new_reg.l2) < 1e-9)
+
+    def test_use_variables_true(new_reg):
+        assert(new_reg.use_variables)
+        assert(abs(l1-K.get_value(new_reg.l1)) < 1e-9)
+        assert(abs(l2-K.get_value(new_reg.l2)) < 1e-9)
+
+    regs = [regularizers.L1L2Regularizer(l1=l1, l2=l2), regularizers.L1L2Regularizer(l1=l1, l2=l2, use_variables=True)]
+    tests = [test_use_variables_false, test_use_variables_true]
+    for reg, test in zip(regs, tests):
+        test(clone_reg(reg))
 
 
 def test_A_reg():

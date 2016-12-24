@@ -77,8 +77,9 @@ class L1L2Regularizer(Regularizer):
 
     def get_config(self):
         return {'name': self.__class__.__name__,
-                'l1': float(self.l1),
-                'l2': float(self.l2)}
+                'l1': float(K.get_value(self.l1)) if self.use_variables else float(self.l1),
+                'l2': float(K.get_value(self.l2)) if self.use_variables else float(self.l2),
+                'use_variables': self.use_variables}
 
 
 # Aliases.
