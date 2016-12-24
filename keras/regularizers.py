@@ -59,15 +59,19 @@ class EigenvalueRegularizer(Regularizer):
 
 class L1L2Regularizer(Regularizer):
 
-    def __init__(self, l1=0., l2=0.):
+    def __init__(self, l1=0., l2=0., use_variables=False):
         self.l1 = K.cast_to_floatx(l1)
         self.l2 = K.cast_to_floatx(l2)
+        if use_variables:
+            self.l1 = K.variable(self.l1)
+            self.l2 = K.variable(self.l2)
+        self.use_variables=use_variables
 
     def __call__(self, x):
         regularization = 0
-        if self.l1:
+        if self.use_variables or self.l1:
             regularization += K.sum(self.l1 * K.abs(x))
-        if self.l2:
+        if self.use_variables or self.l2:
             regularization += K.sum(self.l2 * K.square(x))
         return regularization
 
