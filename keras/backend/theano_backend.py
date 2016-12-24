@@ -1,10 +1,10 @@
 import theano
 from theano import tensor as T
 from theano.printing import Print
+from theano.sandbox.neighbours import images2neibs
 from theano.sandbox.rng_mrg import MRG_RandomStreams as RandomStreams
 from theano.tensor.nnet import conv3d2d
 from theano.tensor.signal import pool
-from theano.sandbox.neighbours import images2neibs
 
 try:
     import theano.sparse as th_sparse_module
@@ -597,6 +597,22 @@ def reshape(x, shape):
 
 
 def extract_image_patches(X, ksizes, strides, border_mode="valid", dim_ordering="th"):
+    '''
+    Extract the patches from an image
+    Parameters
+    ----------
+    X : The input image
+    ksizes : 2-d tuple with the kernel size
+    ssizes : 2-d tuple with the strides size
+    border_mode : 'same' or 'valid'
+    dim_ordering : 'tf' or 'th'
+
+    Returns
+    -------
+    The (k_w,k_h) patches extracted
+    TF ==> (batch_size,w,h,k_w,k_h,c)
+    TH ==> (batch_size,w,h,c,k_w,k_h)
+    '''
     patch_size = ksizes[1]
     if border_mode == "same":
         border_mode = "ignore_border"
