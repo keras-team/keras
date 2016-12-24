@@ -1,9 +1,11 @@
 import theano
 from theano import tensor as T
-from theano.sandbox.rng_mrg import MRG_RandomStreams as RandomStreams
-from theano.tensor.signal import pool
-from theano.tensor.nnet import conv3d2d
 from theano.printing import Print
+from theano.sandbox.rng_mrg import MRG_RandomStreams as RandomStreams
+from theano.tensor.nnet import conv3d2d
+from theano.tensor.signal import pool
+from theano.sandbox.neighbours import images2neibs
+
 try:
     import theano.sparse as th_sparse_module
 except ImportError:
@@ -15,8 +17,8 @@ except ImportError:
 import inspect
 import numpy as np
 from .common import _FLOATX, floatx, _EPSILON, image_dim_ordering
-py_all = all
 
+py_all = all
 
 # INTERNAL UTILS
 theano.config.floatX = _FLOATX
@@ -594,6 +596,30 @@ def reshape(x, shape):
     return y
 
 
+def extract_image_patches(X, ksizes, strides, border_mode="valid", dim_ordering="th"):
+    patch_size = ksizes[1]
+    if border_mode == "same":
+        border_mode = "ignore_border"
+    if dim_ordering == "tf":
+        X = permute_dimensions(X, [0, 2, 3, 1])
+    # Thanks to https://github.com/awentzonline for the help!
+    batch, c, w, h = shape(X)
+    xs = shape(X)
+    num_rows = 1 + (xs[-2] - patch_size) // strides[1]
+    num_cols = 1 + (xs[-1] - patch_size) // strides[1]
+    num_channels = xs[-3]
+    patches = images2neibs(X, ksizes, strides, border_mode)
+    # Theano is sorting by channel
+    patches = reshape(patches, (batch, num_channels, shape(patches)[0] // num_channels, patch_size, patch_size))
+    patches = permute_dimensions(patches, (0, 2, 1, 3, 4))
+    # arrange in a 2d-grid (rows, cols, channels, px, py)
+    patches = reshape(patches, (batch, num_rows, num_cols, num_channels, patch_size, patch_size))
+
+    if dim_ordering == "tf":
+        patches = permute_dimensions(patches, [0, 1, 2, 4, 5, 3])
+    return patches
+
+
 def permute_dimensions(x, pattern):
     """Transpose dimensions.
 
@@ -901,6 +927,7 @@ def reverse(x, axes):
 def pattern_broadcast(x, broatcastable):
     return T.patternbroadcast(x, broatcastable)
 
+
 # VALUE MANIPULATION
 
 
@@ -942,7 +969,6 @@ def print_tensor(x, message=''):
 # GRAPH MANIPULATION
 
 class Function(object):
-
     def __init__(self, inputs, outputs, updates=[], **kwargs):
         unique_variables_to_update = {}
         for v, nv in updates:
@@ -1322,7 +1348,8 @@ def in_top_k(predictions, targets, k):
         targets_i is within top-k values of predictions_i
     """
     predictions_top_k = T.argsort(predictions)[:, -k:]
-    result, _ = theano.map(lambda prediction, target: any(equal(prediction, target)), sequences=[predictions_top_k, targets])
+    result, _ = theano.map(lambda prediction, target: any(equal(prediction, target)),
+                           sequences=[predictions_top_k, targets])
     return result
 
 
@@ -1387,6 +1414,7 @@ def _preprocess_conv2d_image_shape(dim_ordering, image_shape):
             return int(value)
         except TypeError:
             return None
+
     if dim_ordering == 'tf':
         if image_shape:
             image_shape = (image_shape[0], image_shape[3],
@@ -1403,6 +1431,7 @@ def _preprocess_conv3d_volume_shape(dim_ordering, volume_shape):
             return int(value)
         except TypeError:
             return None
+
     if dim_ordering == 'tf':
         if volume_shape:
             volume_shape = (volume_shape[0], volume_shape[4],
@@ -1419,6 +1448,7 @@ def _preprocess_conv2d_filter_shape(dim_ordering, filter_shape):
             return int(value)
         except TypeError:
             return None
+
     if dim_ordering == 'tf':
         if filter_shape:
             filter_shape = (filter_shape[3], filter_shape[2],
@@ -1435,6 +1465,7 @@ def _preprocess_conv3d_filter_shape(dim_ordering, filter_shape):
             return int(value)
         except TypeError:
             return None
+
     if dim_ordering == 'tf':
         if filter_shape:
             filter_shape = (filter_shape[4], filter_shape[3],
@@ -1665,7 +1696,7 @@ def _old_theano_conv3d(x, kernel, strides=(1, 1, 1),
                             filter_shape[0], filter_shape[1], filter_shape[2])
 
     if border_mode == 'same':
-        assert(strides == (1, 1, 1))
+        assert (strides == (1, 1, 1))
         pad_dim1 = (kernel.shape[2] - 1)
         pad_dim2 = (kernel.shape[3] - 1)
         pad_dim3 = (kernel.shape[4] - 1)
@@ -1757,8 +1788,8 @@ def pool2d(x, pool_size, strides=(1, 1), border_mode='valid',
         expected_height = (x.shape[3] + strides[1] - 1) // strides[1]
 
         pool_out = pool_out[:, :,
-                            : expected_width,
-                            : expected_height]
+                   : expected_width,
+                   : expected_height]
 
     if dim_ordering == 'tf':
         pool_out = pool_out.dimshuffle((0, 2, 3, 1))
@@ -1830,9 +1861,9 @@ def pool3d(x, pool_size, strides=(1, 1, 1), border_mode='valid',
         expected_depth = (x.shape[4] + strides[2] - 1) // strides[2]
 
         pool_out = pool_out[:, :,
-                            : expected_width,
-                            : expected_height,
-                            : expected_depth]
+                   : expected_width,
+                   : expected_height,
+                   : expected_depth]
 
     if dim_ordering == 'tf':
         pool_out = pool_out.dimshuffle((0, 2, 3, 4, 1))
@@ -1932,6 +1963,7 @@ def random_binomial(shape, p=0.0, dtype=None, seed=None):
         seed = np.random.randint(1, 10e6)
     rng = RandomStreams(seed=seed)
     return rng.binomial(shape, p=p, dtype=dtype)
+
 
 # Theano implementation of CTC
 # Used with permission from Shawn Tan
