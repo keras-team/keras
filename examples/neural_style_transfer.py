@@ -8,6 +8,13 @@ e.g.:
 ```
 python neural_style_transfer.py img/tuebingen.jpg img/starry_night.jpg results/my_result
 ```
+Optional parameters:
+```
+--iter, To specify the number of iterations the style transfer takes place (Default is 10)
+--content_weight, The weight given to the content loss (Default is 0.025)
+--style_weight, The weight given to the style loss (Default is 1.0)
+--tv_weight, The weight given to the total variation loss (Default is 1.0)
+```
 
 It is preferable to run this script on GPU, for speed.
 
@@ -60,21 +67,30 @@ parser.add_argument('style_reference_image_path', metavar='ref', type=str,
                     help='Path to the style reference image.')
 parser.add_argument('result_prefix', metavar='res_prefix', type=str,
                     help='Prefix for the saved results.')
+parser.add_argument('--iter', type=int, default=10, required=False,
+                    help='Number of iterations to run.')
+parser.add_argument('--content_weight', type=float, default=0.025, required=False,
+                    help='Content weight.')
+parser.add_argument('--style_weight', type=float, default=1.0, required=False,
+                    help='Style weight.')
+parser.add_argument('--tv_weight', type=float, default=1.0, required=False,
+                    help='Total Variation weight.')
 
 args = parser.parse_args()
 base_image_path = args.base_image_path
 style_reference_image_path = args.style_reference_image_path
 result_prefix = args.result_prefix
+iterations = args.iter
 
 # these are the weights of the different loss components
-total_variation_weight = 1.
-style_weight = 1.
-content_weight = 0.025
+total_variation_weight = args.tv_weight
+style_weight = args.style_weight
+content_weight = args.content_weight
 
 # dimensions of the generated picture.
+width, height = load_img(base_image_path).size
 img_nrows = 400
-img_ncols = 400
-assert img_ncols == img_nrows, 'Due to the use of the Gram matrix, width and height must match.'
+img_ncols = int(width * img_nrows / height)
 
 # util function to open, resize and format pictures into appropriate tensors
 def preprocess_image(image_path):
@@ -246,7 +262,7 @@ if K.image_dim_ordering() == 'th':
 else:
     x = np.random.uniform(0, 255, (1, img_nrows, img_ncols, 3)) - 128.
 
-for i in range(10):
+for i in range(iterations):
     print('Start of iteration', i)
     start_time = time.time()
     x, min_val, info = fmin_l_bfgs_b(evaluator.loss, x.flatten(),

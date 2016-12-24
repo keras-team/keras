@@ -352,7 +352,7 @@ def int_shape(x):
         x: Tensor or variable.
 
     # Returns
-        A tuple of integers.
+        A tuple of integers (or None entries).
 
     # Examples
     ```python
@@ -486,9 +486,7 @@ def ones(shape, dtype=None, name=None):
 
     # Arguments
         shape: Tuple of integers, shape of returned Keras variable.
-
         dtype: String, data type of returned Keras variable.
-
         name: String, name of returned Keras variable.
 
     # Returns
@@ -517,9 +515,7 @@ def eye(size, dtype=None, name=None):
 
     # Arguments
         size: Integer, number of rows/columns.
-
         dtype: String, data type of returned Keras variable.
-
         name: String, name of returned Keras variable.
 
     # Returns
@@ -592,15 +588,10 @@ def random_uniform_variable(shape, low, high, dtype=None,
 
     # Arguments
         shape: Tuple of integers, shape of returned Keras variable.
-
         low: Float, lower boundary of the output inteval.
-
         high: Float, upper boundary of the output interval.
-
         dtype: String, dtype of returned Keras variable.
-
         name: String, name of returned Keras variable.
-
         seed: Integer, random seed.
 
     # Returns
@@ -636,15 +627,10 @@ def random_normal_variable(shape, mean, scale, dtype=None,
 
     # Arguments
         shape: Tuple of integers, shape of returned Keras variable.
-
         mean: Float, mean of the normal distribution.
-
         scale: Float, standard deviation of the normal distribution.
-
         dtype: String, dtype of returned Keras variable.
-
         name: String, name of returned Keras variable.
-
         seed: Integer, random seed.
 
     # Returns
@@ -782,7 +768,7 @@ def dot(x, y):
         >>> y = K.placeholder(shape=(3, 4))
         >>> xy = K.dot(x, y)
         >>> xy
-        <tf.Tensor 'MatMul_9:0' shape=(2, 4) dtype=float32>
+        <tf.Tensor 'MatMul_9:0' shape=(32, 28, 4) dtype=float32>
     ```
 
     ```python
@@ -795,8 +781,20 @@ def dot(x, y):
     ```
     '''
     if ndim(x) is not None and (ndim(x) > 2 or ndim(y) > 2):
-        x_shape = (-1,) + int_shape(x)[1:]
-        y_shape = int_shape(y)
+        x_shape = []
+        for i, s in zip(int_shape(x), tf.unpack(tf.shape(x))):
+            if s is None:
+                x_shape.append(i)
+            else:
+                x_shape.append(s)
+        x_shape = tuple(x_shape)
+        y_shape = []
+        for i, s in zip(int_shape(y), tf.unpack(tf.shape(y))):
+            if s is None:
+                y_shape.append(i)
+            else:
+                y_shape.append(s)
+        y_shape = tuple(y_shape)
         y_permute_dim = list(range(ndim(y)))
         y_permute_dim = [y_permute_dim.pop(-2)] + y_permute_dim
         xt = tf.reshape(x, [-1, x_shape[-1]])
