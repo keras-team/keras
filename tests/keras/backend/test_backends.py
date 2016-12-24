@@ -497,10 +497,7 @@ class TestBackend(object):
                 xth = KTH.variable(xval)
                 xtf = KTF.variable(xval)
                 ztf = KTF.eval(KTF.extract_image_patches(xtf, kernel, strides, dim_ordering='th', border_mode="valid"))
-                print("TF {}".format(ztf.shape))
                 zth = KTH.eval(KTH.extract_image_patches(xth, kernel,strides, dim_ordering='th',border_mode="valid"))
-
-
                 assert zth.shape == ztf.shape
                 assert_allclose(zth, ztf, atol=1e-02)
 
