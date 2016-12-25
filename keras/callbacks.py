@@ -2,6 +2,7 @@ from __future__ import absolute_import
 from __future__ import print_function
 
 import os
+import sys
 import csv
 
 import numpy as np
@@ -160,6 +161,22 @@ class BaseLogger(Callback):
                 logs[k] = self.totals[k] / self.seen
 
 
+class TerminateOnNaN(Callback):
+    '''Callback that terminates training when a nan loss
+    is encountered.
+
+    This call back is automatically applied to
+    every Keras model
+    '''
+    def on_batch_end(self, batch, logs={}):
+        # terminate training immediately if nan loss encountered in a batch
+        try:
+            assert np.isnan(logs.get('loss')) is False
+        except AssertionError:
+            print('Batch %05d: nan encountered, terminating training' % (batch))
+            self.model.stop_training = True
+
+
 class ProgbarLogger(Callback):
     '''Callback that prints metrics to stdout.
     '''
@@ -198,6 +215,8 @@ class ProgbarLogger(Callback):
         if self.verbose:
             self.progbar.update(self.seen, self.log_values, force=True)
 
+    def on_train_end(self, logs={}):
+        sys.stdout.flush()
 
 class History(Callback):
     '''Callback that records events
