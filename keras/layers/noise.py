@@ -36,6 +36,13 @@ class GaussianNoise(Layer):
                                       std=self.sigma)
         return K.in_train_phase(noise_x, x)
 
+    # Often we want to progressively add random noise to teh input of an
+    # NN in order to train it for unseen data and yet keep the prediction 
+    # in the allowed data manifold. Having to set the noise sigma in the 
+    # very beginnin and only once is thus not desirable.
+    def set_covariance(self, covar):
+	self.sigma = covar
+
     def get_config(self):
         config = {'sigma': self.sigma}
         base_config = super(GaussianNoise, self).get_config()
