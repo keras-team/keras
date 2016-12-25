@@ -8,7 +8,11 @@ from keras import backend as K
 FC_SHAPE = (100, 100)
 
 # 4D convolution in th order. This shape has the same effective shape as FC_SHAPE
-CONV_SHAPE = (25, 25, 2, 2)
+if K.image_dim_ordering() == 'th':
+    CONV_SHAPE = (25, 25, 2, 2)
+else:
+    CONV_SHAPE = (2, 2, 25, 25)
+
 
 # The equivalent shape of both test fixtures
 SHAPE = (100, 100)
