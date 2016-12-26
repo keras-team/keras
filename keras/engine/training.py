@@ -790,7 +790,7 @@ class Model(Container):
         index_array = np.arange(nb_train_sample)
 
         self.history = cbks.History()
-        callbacks = [cbks.BaseLogger()] + (callbacks or []) + [self.history] + [cbks.TerminateOnNaN()]
+        callbacks = [cbks.BaseLogger()] + (callbacks or []) + [self.history]
         if verbose:
             callbacks += [cbks.ProgbarLogger()]
         callbacks = cbks.CallbackList(callbacks)
@@ -1422,7 +1422,7 @@ class Model(Container):
 
         # prepare callbacks
         self.history = cbks.History()
-        callbacks = [cbks.BaseLogger()] + (callbacks or []) + [self.history] + [cbks.TerminateOnNaN()]
+        callbacks = [cbks.BaseLogger()] + (callbacks or []) + [self.history]
         if verbose:
             callbacks += [cbks.ProgbarLogger()]
         callbacks = cbks.CallbackList(callbacks)
