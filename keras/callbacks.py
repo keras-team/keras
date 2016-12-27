@@ -413,8 +413,8 @@ class ModelCheckpoint(Callback):
                     self.model.save(filepath, overwrite=True)
 
 
-class EarlyStopping(Callback):
-    """Stop training when a monitored quantity has stopped improving.
+class ImprovementBasedAction(Callback):
+    '''Perform action when a monitored quantity has stopped improving.
 
     # Arguments
         monitor: quantity to be monitored.
@@ -432,22 +432,19 @@ class EarlyStopping(Callback):
             monitored has stopped increasing; in `auto`
             mode, the direction is automatically inferred
             from the name of the monitored quantity.
-    """
-
-    def __init__(self, monitor='val_loss',
-                 min_delta=0, patience=0, verbose=0, mode='auto'):
-        super(EarlyStopping, self).__init__()
+    '''
+    def __init__(self, monitor='val_loss', min_delta=0, patience=0, verbose=0, mode='auto'):
+        super(ImprovementBasedAction, self).__init__()
 
         self.monitor = monitor
         self.patience = patience
         self.verbose = verbose
         self.min_delta = min_delta
         self.wait = 0
-        self.stopped_epoch = 0
 
         if mode not in ['auto', 'min', 'max']:
-            warnings.warn('EarlyStopping mode %s is unknown, '
-                          'fallback to auto mode.' % (self.mode),
+            warnings.warn('%s mode %s is unknown, '
+                          'fallback to auto mode.' % (self.__class__.__name__, mode),
                           RuntimeWarning)
             mode = 'auto'
 
@@ -473,21 +470,88 @@ class EarlyStopping(Callback):
     def on_epoch_end(self, epoch, logs=None):
         current = logs.get(self.monitor)
         if current is None:
-            warnings.warn('Early stopping requires %s available!' %
-                          (self.monitor), RuntimeWarning)
+            warnings.warn('%s requires %s available!' %
+                          (self.__class__.__name__, self.monitor), RuntimeWarning)
 
         if self.monitor_op(current - self.min_delta, self.best):
             self.best = current
             self.wait = 0
         else:
             if self.wait >= self.patience:
-                self.stopped_epoch = epoch
-                self.model.stop_training = True
+                self.action(epoch, logs={})
             self.wait += 1
 
-    def on_train_end(self, logs=None):
+    def action(self, epoch, logs={}):
+        pass
+
+
+class EarlyStopping(ImprovementBasedAction):
+    '''Stop training when a monitored quantity has stopped improving.
+
+    # Arguments
+        monitor: quantity to be monitored.
+        min_delta: minimum change in the monitored quantity
+            to qualify as an improvement, i.e. an absolute
+            change of less than min_delta, will count as no
+            improvement.
+        patience: number of epochs with no improvement
+            after which training will be stopped.
+        verbose: verbosity mode.
+        mode: one of {auto, min, max}. In `min` mode,
+            training will stop when the quantity
+            monitored has stopped decreasing; in `max`
+            mode it will stop when the quantity
+            monitored has stopped increasing; in `auto`
+            mode, the direction is automatically inferred
+            from the name of the monitored quantity.
+    '''
+    def __init__(self, **kwargs):
+        super(EarlyStopping, self).__init__(**kwargs)
+        self.stopped_epoch = 0
+
+    def action(self, epoch, logs={}):
+        self.stopped_epoch = epoch
+        self.model.stop_training = True
+
+    def on_train_end(self, logs={}):
         if self.stopped_epoch > 0 and self.verbose > 0:
             print('Epoch %05d: early stopping' % (self.stopped_epoch))
+
+
+class ImprovementBasedLRScheduler(ImprovementBasedAction):
+    '''Update learning rate when a monitored quantity has stopped improving.
+
+    # Arguments
+        schedule: a function that takes an epoch index as input
+            (integer, indexed from 0) and returns a new
+            learning rate as output (float).
+        monitor: quantity to be monitored.
+        min_delta: minimum change in the monitored quantity
+            to qualify as an improvement, i.e. an absolute
+            change of less than min_delta, will count as no
+            improvement.
+        patience: number of epochs with no improvement
+            after which training will be stopped.
+        verbose: verbosity mode.
+        mode: one of {auto, min, max}. In `min` mode,
+            training will stop when the quantity
+            monitored has stopped decreasing; in `max`
+            mode it will stop when the quantity
+            monitored has stopped increasing; in `auto`
+            mode, the direction is automatically inferred
+            from the name of the monitored quantity.
+    '''
+    def __init__(self, schedule, **kwargs):
+        super(ImprovementBasedLRScheduler, self).__init__(**kwargs)
+        self.schedule = schedule
+
+    def action(self, epoch, logs={}):
+        assert hasattr(self.model.optimizer, 'lr'), \
+            'Optimizer must have a "lr" attribute.'
+        lr = self.schedule(epoch)
+        assert type(lr) == float, 'The output of the "schedule" function should be float.'
+        K.set_value(self.model.optimizer.lr, lr)
+        print('Epoch %05d: Updating learning rate to %.2E' % (epoch,lr))
 
 
 class RemoteMonitor(Callback):
