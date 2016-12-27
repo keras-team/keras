@@ -9,7 +9,20 @@ from keras.utils.test_utils import layer_test
 from keras import regularizers
 
 
-def test_recurrent_convolutional():
+def rnn_test(f):
+    """
+    All the recurrent convolution layers share the same interface,
+    so we can run through them with a single function.
+    """
+    f = keras_test(f)
+    return pytest.mark.parametrize("layer_class", [
+        convolutional_recurrent.ConvLSTM2D,
+        convolutional_recurrent.ConvGRU2D
+    ])(f)
+
+
+@rnn_test
+def test_recurrent_convolutional(layer_class):
     nb_row = 3
     nb_col = 3
     nb_filter = 5
@@ -31,7 +44,7 @@ def test_recurrent_convolutional():
 
         for return_sequences in [True, False]:
             # test for ouptput shape:
-            output = layer_test(convolutional_recurrent.ConvLSTM2D,
+            output = layer_test(layer_class,
                                 kwargs={'dim_ordering': dim_ordering,
                                         'return_sequences': return_sequences,
                                         'nb_filter': nb_filter,
@@ -66,7 +79,7 @@ def test_recurrent_convolutional():
                       'stateful': True,
                       'batch_input_shape': input.shape,
                       'border_mode': "same"}
-            layer = convolutional_recurrent.ConvLSTM2D(**kwargs)
+            layer = layer_class(**kwargs)
 
             model.add(layer)
             model.compile(optimizer='sgd', loss='mse')
@@ -109,13 +122,13 @@ def test_recurrent_convolutional():
                       'b_regularizer': 'l2',
                       'border_mode': "same"}
 
-            layer = convolutional_recurrent.ConvLSTM2D(**kwargs)
+            layer = layer_class(**kwargs)
             layer.build(input.shape)
             output = layer(K.variable(np.ones(input.shape)))
             K.eval(output)
 
             # check dropout
-            layer_test(convolutional_recurrent.ConvLSTM2D,
+            layer_test(layer_class,
                        kwargs={'dim_ordering': dim_ordering,
                                'return_sequences': return_sequences,
                                'nb_filter': nb_filter,
