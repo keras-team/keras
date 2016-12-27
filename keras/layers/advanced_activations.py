@@ -79,8 +79,8 @@ class PReLU(Layer):
         self.param_broadcast = [False] * len(param_shape)
         if self.shared_axes[0] is not None:
             for i in self.shared_axes:
-                param_shape[i] = 1
-                self.param_broadcast[i] = True
+                param_shape[i-1] = 1
+                self.param_broadcast[i-1] = True
 
         self.alphas = self.init(param_shape,
                                 name='{}_alphas'.format(self.name))
@@ -182,8 +182,8 @@ class ParametricSoftplus(Layer):
         self.param_broadcast = [False] * len(param_shape)
         if self.shared_axes[0] is not None:
             for i in self.shared_axes:
-                param_shape[i] = 1
-                self.param_broadcast[i] = True
+                param_shape[i-1] = 1
+                self.param_broadcast[i-1] = True
 
         self.alphas = K.variable(self.alpha_init * np.ones(param_shape),
                                  name='{}_alphas'.format(self.name))
@@ -287,8 +287,8 @@ class SReLU(Layer):
         self.param_broadcast = [False] * len(param_shape)
         if self.shared_axes[0] is not None:
             for i in self.shared_axes:
-                param_shape[i] = 1
-                self.param_broadcast[i] = True
+                param_shape[i-1] = 1
+                self.param_broadcast[i-1] = True
 
         t_left_init = initializations.get(self.t_left_init)
         a_left_init = initializations.get(self.a_left_init)
