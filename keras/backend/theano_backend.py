@@ -66,7 +66,6 @@ def is_explicit_shape(shape):
     return False
 
 
-
 def variable(value, dtype=None, name=None):
     '''Instantiates a variable and returns it.
 
