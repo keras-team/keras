@@ -1649,7 +1649,10 @@ class Cropping1D(Layer):
                 input_shape[2])
 
     def call(self, x, mask=None):
-        return x[:, self.cropping[0]:-self.cropping[1], :]
+        if self.cropping[1] == 0:
+            return x[:, self.cropping[0]:, :]
+        else:
+            return x[:, self.cropping[0]:-self.cropping[1], :]
 
     def get_config(self):
         config = {'cropping': self.cropping}
