@@ -454,7 +454,7 @@ class ImprovementBasedLRScheduler(ImprovementBasedAction):
         lr = self.schedule(epoch)
         assert type(lr) == float, 'The output of the "schedule" function should be float.'
         K.set_value(self.model.optimizer.lr, lr)
-        print('Epoch %05d: Updating learning rate to %.2E' % (epoch,lr))
+        print('Epoch %05d: Updating learning rate to %.2E' % (epoch, lr))
 
 
 class RemoteMonitor(Callback):
