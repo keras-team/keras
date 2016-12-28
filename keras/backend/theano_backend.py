@@ -582,6 +582,10 @@ def reshape(x, shape):
     y = T.reshape(x, shape)
     if is_explicit_shape(shape):
         y._keras_shape = shape
+        if hasattr(x, '_uses_learning_phase'):
+            y._uses_learning_phase = x._uses_learning_phase
+        else:
+            y._uses_learning_phase = False
     return y
 
 
