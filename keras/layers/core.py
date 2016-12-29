@@ -411,6 +411,46 @@ class Permute(Layer):
         return dict(list(base_config.items()) + list(config.items()))
 
 
+
+class PermuteGeneral(Layer):
+    '''Permutes the dimensions of the input according to a given pattern.
+    This is just like the layer Permute, but DOES INCLUDE the batch dimension.
+
+    # Arguments
+        dims: Tuple of integers. Permutation pattern, INCLUDING the
+            samples dimension. Indexing starts at 0.
+            For instance, `(1, 0, 2)` permutes the batch and first dimension of the input.
+
+    # Input shape
+        Arbitrary. Use the keyword argument `input_shape`
+        (tuple of integers, does not include the samples axis)
+        when using this layer as the first layer in a model.
+
+    # Output shape
+        Same as the input shape, but with the dimensions re-ordered according
+        to the specified pattern.
+    '''
+    def __init__(self, dims, **kwargs):
+        self.dims = tuple(dims)
+        self.supports_masking = True
+        super(PermuteGeneral, self).__init__(**kwargs)
+
+    def get_output_shape_for(self, input_shape):
+        input_shape = list(input_shape)
+        output_shape = copy.copy(input_shape)
+        for i, dim in enumerate(self.dims):
+            output_shape[i] = input_shape[dim]
+        return tuple(output_shape)
+
+    def call(self, x, mask=None):
+        return K.permute_dimensions(x, self.dims)
+
+    def get_config(self):
+        config = {'dims': self.dims}
+        base_config = super(PermuteGeneral, self).get_config()
+        return dict(list(base_config.items()) + list(config.items()))
+
+
 class Flatten(Layer):
     '''Flattens the input. Does not affect the batch size.
 
