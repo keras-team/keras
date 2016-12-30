@@ -11,8 +11,8 @@ def sparse_chain_crf_loss(y, x, U, b):
     transition params U and label bias b, it computes the loss function
     of a Linear Chain Conditional Random Field.
     '''
-    energy = K.crf_path_energy(y, x, U, b)
-    energy -= K.crf_free_energy(x, U, b)
+    energy = path_energy(y, x, U, b)
+    energy -= free_energy(x, U, b)
     return -energy
 
 
@@ -24,6 +24,78 @@ def chain_crf_loss(y, x, U, b):
     y_sparse = K.argmax(y, -1)
     y_sparse = K.cast(y_sparse, 'int32')
     return sparse_chain_crf_loss(y_sparse, x, U, b)
+
+
+def viterbi_decode(x, U, b):
+
+    def _forward_step(x_t, states):
+        gamma_tm1, alpha_tm1, U_shared = states
+        B = K.expand_dims(alpha_tm1, 2) + K.expand_dims(x_t, 1) + K.expand_dims(U_shared, 0)
+        alpha_t = K.max(B, axis=1)
+        gamma_t = K.cast(K.argmax(B, axis=1), K.floatx())
+        return gamma_t, [gamma_t, alpha_t]
+
+    inputs = x[:, 1:, :]
+    constants = [U]
+
+    alpha_0 = x[:, 0, :] + K.expand_dims(b, 0)
+    gamma_0 = K.zeros_like(alpha_0)
+    initial_states = [gamma_0, alpha_0]
+    _, gamma, states = K.rnn(_forward_step, inputs, initial_states, constants=constants)
+    gamma = K.cast(gamma, 'int32')
+    last_alpha = states[1]
+
+    def _backward_step(gamma_t, states):
+        beta_tm1 = states[0]
+        beta_t = K.batch_gather(gamma_t, beta_tm1)
+        return beta_t, [beta_t]
+
+    beta_m1 = K.cast(K.argmax(last_alpha, axis=1), 'int32')
+    initial_states = [beta_m1]
+    _, beta, _ = K.rnn(_backward_step, gamma, initial_states, go_backwards=True)
+    beta = K.reverse(beta, 1)
+    beta = K.permute_dimensions(beta, [1, 0])
+    best_sequence = K.concatenate([beta, K.expand_dims(beta_m1, 0)], axis=0)
+    best_sequence = K.permute_dimensions(best_sequence, [1, 0])
+    return best_sequence
+
+
+def free_energy(x, U, b):
+
+    def _forward_step(x_t, states):
+        alpha_tm1, U_shared = states
+        B = K.expand_dims(alpha_tm1, 2) + K.expand_dims(x_t, 1) + K.expand_dims(U_shared, 0)
+        alpha_t = K.logsumexp(B, axis=1)
+        return alpha_t, [alpha_t]
+
+    inputs = x[:, 1:, :]
+    constants = [U]
+
+    alpha_0 = x[:, 0, :] + K.expand_dims(b, 0)
+    initial_states = [alpha_0]
+    _, alpha, _ = K.rnn(_forward_step, inputs, initial_states, constants=constants)
+    last_alpha = alpha[:, -1, :]
+    return K.logsumexp(last_alpha, axis=1)
+
+
+def path_energy(y, x, U, b):
+    n_classes = K.shape(x)[2]
+    y_one_hot = K.one_hot(y, n_classes)
+
+    tag_path_energy = K.sum(x * y_one_hot, 2)
+    tag_path_energy = K.sum(tag_path_energy, 1)
+
+    y_0 = y[:, 0]
+    boundary_energy = K.reshape(K.gather(b, y_0), [-1])
+
+    y_t = y[:, 0:-1]
+    y_tp1 = y[:, 1:]
+    U_flat = K.reshape(U, [-1])
+    flat_indices = y_t*n_classes + y_tp1
+    U_y_t_tp1 = K.gather(U_flat, flat_indices)
+    transition_energy = K.sum(U_y_t_tp1, axis=1)
+
+    return tag_path_energy + boundary_energy + transition_energy
 
 
 class ChainCRF(Layer):
@@ -119,8 +191,9 @@ class ChainCRF(Layer):
         self.built = True
 
     def call(self, x, mask=None):
-        y_pred = K.crf_inference(x, self.U, self.b)
-        y_pred_one_hot = K.one_hot(y_pred, self.input_spec[0].shape[2])
+        y_pred = viterbi_decode(x, self.U, self.b)
+        nb_classes = self.input_spec[0].shape[2]
+        y_pred_one_hot = K.one_hot(y_pred, nb_classes)
         return K.in_train_phase(x, y_pred_one_hot)
 
     def loss(self, y_true, y_pred):

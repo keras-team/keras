@@ -25,7 +25,7 @@ def test_fn_sparse_chain_crf_loss():
     b = K.variable(b_np)
 
     assert_allclose(K.eval(crf.sparse_chain_crf_loss(y, x, U, b)),
-                    K.eval(-(K.crf_path_energy(y, x, U, b) - K.crf_free_energy(x, U, b))),
+                    K.eval(-(crf.path_energy(y, x, U, b) - crf.free_energy(x, U, b))),
                     rtol=1e-06)
 
 
@@ -48,6 +48,101 @@ def test_fn_chain_crf_loss():
     assert_allclose(K.eval(crf.chain_crf_loss(y, x, U, b)),
                     K.eval(crf.sparse_chain_crf_loss(y_sparse, x, U, b)),
                     rtol=1e-06)
+
+
+@keras_test
+def test_free_energy():
+
+    def np_free_energy_single(x, U, b):
+        maxlen = x.shape[0]
+        n_classes = U.shape[0]
+        all_paths = np.array(list(itertools.product(*([list(range(n_classes))] * maxlen))))
+        t = np.arange(maxlen)
+
+        scores = [x[t, y[t]].sum() + b[y[0]] + U[y[t[1:]-1], y[t[1:]]].sum() for y in all_paths]
+        scores = np.asarray(scores)
+        return np.log(np.sum(np.exp(scores), axis=0))
+
+    batch_size, maxlen, n_classes = 2, 5, 3
+
+    x_np = np.random.uniform(size=(batch_size, maxlen, n_classes))
+    U_np = np.random.uniform(size=(n_classes, n_classes))
+    b_np = np.random.uniform(size=(n_classes))
+
+    expected = np.asarray([np_free_energy_single(x_np[k], U_np, b_np) for k in range(batch_size)])
+
+    x = K.placeholder(shape=(None, None, n_classes))
+    U = K.placeholder(shape=(n_classes, n_classes))
+    b = K.placeholder(shape=(n_classes, ))
+    fn = K.function([x, U, b], [crf.free_energy(x, U, b)])
+
+    assert_allclose(fn([x_np, U_np, b_np])[0], expected, rtol=1e-05)
+
+    # Check that gradients are computable
+    df = K.gradients(K.mean(crf.free_energy(x, U, b), axis=0), [x, U, b])
+    assert len(df) == 3
+
+
+@keras_test
+def test_path_energy():
+
+    def np_path_energy_single(y, x, U, b):
+        n_steps = x.shape[0]
+        t = np.arange(n_steps)
+        tag_path_energy = x[t, y[t]].sum()
+        boundary_energy = b[y[0]]
+        transition_energy = U[y[t[1:]-1], y[t[1:]]].sum()
+        return tag_path_energy + boundary_energy + transition_energy
+
+    batch_size, maxlen, n_classes = 2, 5, 3
+
+    y_np = np.random.randint(n_classes, size=(batch_size, maxlen)).astype(np.int32)
+    x_np = np.random.uniform(size=(batch_size, maxlen, n_classes))
+    U_np = np.random.uniform(size=(n_classes, n_classes))
+    b_np = np.random.uniform(size=(n_classes))
+
+    expected = np.asarray([np_path_energy_single(y_np[k], x_np[k], U_np, b_np) for k in range(batch_size)])
+
+    y = K.placeholder(shape=(None, maxlen), dtype='int32')
+    x = K.placeholder(shape=(None, maxlen, n_classes))
+    U = K.placeholder(shape=(n_classes, n_classes))
+    b = K.placeholder(shape=(n_classes, ))
+    fn = K.function([y, x, U, b], [crf.path_energy(y, x, U, b)])
+
+    assert_allclose(fn([y_np, x_np, U_np, b_np])[0], expected, rtol=1e-05)
+
+    # Check that gradients are computable
+    df = K.gradients(K.mean(crf.path_energy(y, x, U, b), axis=0), [x, U, b])
+    assert len(df) == 3
+
+
+@keras_test
+def test_viterbi_decode():
+
+    def np_decode_single(x, U, b):
+        maxlen = x.shape[0]
+        n_classes = U.shape[0]
+        all_paths = np.array(list(itertools.product(*([list(range(n_classes))] * maxlen))))
+        t = np.arange(maxlen)
+
+        scores = [x[t, y[t]].sum() + b[y[0]] + U[y[t[1:]-1], y[t[1:]]].sum() for y in all_paths]
+        scores = np.asarray(scores)
+        best_path_index = np.argmax(scores, axis=0)
+        return all_paths[best_path_index]
+
+    batch_size, maxlen, n_classes = 2, 7, 3
+
+    x_np = np.random.uniform(size=(batch_size, maxlen, n_classes))
+    A_np = np.random.uniform(size=(n_classes, n_classes))
+    b_np = np.random.uniform(size=(n_classes))
+
+    expected = np.asarray([np_decode_single(x_np[k], A_np, b_np) for k in range(batch_size)])
+
+    x = K.variable(x_np)
+    U = K.variable(A_np)
+    b = K.variable(b_np)
+    actual = K.eval(crf.viterbi_decode(x, U, b))
+    assert_allclose(actual, expected, rtol=1e-05)
 
 
 @keras_test
@@ -106,6 +201,7 @@ def test_chain_crf_call():
     fn_outputs_train = fn([x_np, 1])
     assert_allclose(fn_outputs_train[0], x_np)
     fn_outputs_test = fn([x_np, 0])
+    assert fn_outputs_test[0].shape == x_np.shape
 
 
 @keras_test
@@ -123,7 +219,8 @@ def test_chain_crf_loss():
 
     fn_loss_train = fn([y_np, x_np, 1])[0]
     assert fn_loss_train.shape == (batch_size, )
-    fn_loss_test = fn([y_np, x_np, 0])
+    fn_loss_test = fn([y_np, x_np, 0])[0]
+    assert fn_loss_test.shape == (batch_size, )
 
 
 if __name__ == '__main__':

@@ -2,7 +2,6 @@ import pytest
 from numpy.testing import assert_allclose
 import numpy as np
 import scipy.sparse as sparse
-import itertools
 
 from keras import backend as K
 from keras.backend import theano_backend as KTH, floatx, set_floatx, variable
@@ -910,106 +909,36 @@ class TestBackend(object):
         (np.array([0.1, 0.2, 0.3]), 0),
         (np.array([[0.1, 0.2, 0.3], [1, 2, 3]]), 0),
         (np.array([[0.1, 0.2, 0.3], [1, 2, 3]]), 1),
+        (np.array([[0.1, 0.2, 0.3], [1, 2, 3]]), -1),
         (np.array([[0.1, 0.2, 0.3]]), 0),
         (np.array([[0.1, 0.2, 0.3]]), 1),
         (np.array([[0.1], [0.2]]), 0),
         (np.array([[0.1], [0.2]]), 1),
+        (np.array([[0.1], [0.2]]), -1),
     ])
-    def test_crf_logsumexp(self, x_np, axis):
-        for K in [KTH, KTF]:
-            x = K.variable(x_np)
-            assert_allclose(K.eval(K.logsumexp(x, axis=axis)),
-                            np.log(np.sum(np.exp(x_np), axis=axis)),
-                            rtol=1e-5)
-
-    @pytest.mark.parametrize('K', [KTH, KTF])
-    def test_crf_free_energy(self, K):
-
-        def np_free_energy_single(x, U, b):
-            maxlen = x.shape[0]
-            n_classes = U.shape[0]
-            all_paths = np.array(list(itertools.product(*([list(range(n_classes))] * maxlen))))
-            t = np.arange(maxlen)
-
-            scores = [x[t, y[t]].sum() + b[y[0]] + U[y[t[1:]-1], y[t[1:]]].sum() for y in all_paths]
-            scores = np.asarray(scores)
-            return np.log(np.sum(np.exp(scores), axis=0))
-
-        batch_size, maxlen, n_classes = 2, 5, 3
-
-        x_np = np.random.uniform(size=(batch_size, maxlen, n_classes))
-        U_np = np.random.uniform(size=(n_classes, n_classes))
-        b_np = np.random.uniform(size=(n_classes))
-
-        expected = np.asarray([np_free_energy_single(x_np[k], U_np, b_np) for k in range(batch_size)])
-
-        x = K.placeholder(shape=(None, None, n_classes))
-        U = K.placeholder(shape=(n_classes, n_classes))
-        b = K.placeholder(shape=(n_classes, ))
-        fn = K.function([x, U, b], [K.crf_free_energy(x, U, b)])
-
-        assert_allclose(fn([x_np, U_np, b_np])[0], expected, rtol=1e-05)
-
-        # Check that gradients are computable
-        df = K.gradients(K.mean(K.crf_free_energy(x, U, b), axis=0), [x, U, b])
-
-    @pytest.mark.parametrize('K', [KTH, KTF])
-    def test_crf_path_energy(self, K):
-
-        def np_path_energy_single(y, x, U, b):
-            n_steps = x.shape[0]
-            t = np.arange(n_steps)
-            tag_path_energy = x[t, y[t]].sum()
-            boundary_energy = b[y[0]]
-            transition_energy = U[y[t[1:]-1], y[t[1:]]].sum()
-            return tag_path_energy + boundary_energy + transition_energy
-
-        batch_size, maxlen, n_classes = 2, 5, 3
-
-        y_np = np.random.randint(n_classes, size=(batch_size, maxlen)).astype(np.int32)
-        x_np = np.random.uniform(size=(batch_size, maxlen, n_classes))
-        U_np = np.random.uniform(size=(n_classes, n_classes))
-        b_np = np.random.uniform(size=(n_classes))
-
-        expected = np.asarray([np_path_energy_single(y_np[k], x_np[k], U_np, b_np) for k in range(batch_size)])
-
-        y = K.placeholder(shape=(None, maxlen), dtype='int32')
-        x = K.placeholder(shape=(None, maxlen, n_classes))
-        U = K.placeholder(shape=(n_classes, n_classes))
-        b = K.placeholder(shape=(n_classes, ))
-        fn = K.function([y, x, U, b], [K.crf_path_energy(y, x, U, b)])
-
-        assert_allclose(fn([y_np, x_np, U_np, b_np])[0], expected, rtol=1e-05)
-
-        # Check that gradients are computable
-        df = K.gradients(K.mean(K.crf_path_energy(y, x, U, b), axis=0), [x, U, b])
-
-    @pytest.mark.parametrize('K', [KTH, KTF])
-    def test_crf_inference(self, K):
-
-        def np_inference_single(x, U, b):
-            maxlen = x.shape[0]
-            n_classes = U.shape[0]
-            all_paths = np.array(list(itertools.product(*([list(range(n_classes))] * maxlen))))
-            t = np.arange(maxlen)
-
-            scores = [x[t, y[t]].sum() + b[y[0]] + U[y[t[1:]-1], y[t[1:]]].sum() for y in all_paths]
-            scores = np.asarray(scores)
-            best_path_index = np.argmax(scores, axis=0)
-            return all_paths[best_path_index]
-
-        batch_size, maxlen, n_classes = 2, 7, 3
-
-        x_np = np.random.uniform(size=(batch_size, maxlen, n_classes))
-        A_np = np.random.uniform(size=(n_classes, n_classes))
-        b_np = np.random.uniform(size=(n_classes))
-
-        expected = np.asarray([np_inference_single(x_np[k], A_np, b_np) for k in range(batch_size)])
-
+    @pytest.mark.parametrize('K', [KTH, KTF], ids=["KTH", "KTF"])
+    def test_logsumexp(self, x_np, axis, K):
         x = K.variable(x_np)
-        U = K.variable(A_np)
-        b = K.variable(b_np)
-        assert_allclose(K.eval(K.crf_inference(x, U, b)), expected, rtol=1e-05)
+        assert_allclose(K.eval(K.logsumexp(x, axis=axis)),
+                        np.log(np.sum(np.exp(x_np), axis=axis)),
+                        rtol=1e-5)
+
+    @pytest.mark.parametrize('x_np, indices_np', [
+        (np.array([[3, 5, 7], [11, 13, 17]]), np.array([2, 1])),
+        (np.array([[[2, 3], [4, 5], [6, 7]],
+                   [[10, 11], [12, 13], [16, 17]]]), np.array([2, 1])),
+    ])
+    @pytest.mark.parametrize('K', [KTH, KTF], ids=["KTH", "KTF"])
+    def test_batch_gather(self, x_np, indices_np, K):
+        x = K.variable(x_np)
+        indices = K.variable(indices_np, dtype='int32')
+        batch_size = x_np.shape[0]
+        actual = K.eval(K.batch_gather(x, indices))
+        expected = x_np[np.arange(batch_size), indices_np]
+        print(x_np.shape, expected.shape)
+        assert_allclose(actual,
+                        expected,
+                        rtol=1e-5)
 
     def test_map(self):
         x = np.random.rand(10, 3).astype(np.float32)
