@@ -1002,6 +1002,7 @@ class GRUCond(Recurrent):
 
     def get_config(self):
         config = {'output_dim': self.output_dim,
+                  'return_states': self.return_states,
                   'init': self.init.__name__,
                   'inner_init': self.inner_init.__name__,
                   'activation': self.activation.__name__,
@@ -1376,14 +1377,6 @@ class AttGRUCond(Recurrent):
 
         return ret
 
-    def get_alignments(self, pctx_, h_tm1):
-        # AttModel (see Formulation in class header)
-        p_state_ = K.dot(h_tm1, self.Wa)
-        pctx_ = K.tanh(pctx_ +  p_state_[:, None, :])
-        e = K.dot(pctx_, self.wa) + self.ca
-        alphas_shape = e.shape
-        return K.softmax(e.reshape([alphas_shape[0], alphas_shape[1]]))
-
     def step(self, x, states):
         h_tm1 = states[0]  # previous memory
         non_used_x_att = states[1]  # Placeholder for returning extra variables
@@ -1525,6 +1518,7 @@ class AttGRUCond(Recurrent):
     def get_config(self):
         config = {'output_dim': self.output_dim,
                   'return_extra_variables': self.return_extra_variables,
+                  'return_states': self.return_states,
                   'init': self.init.__name__,
                   'inner_init': self.inner_init.__name__,
                   'activation': self.activation.__name__,
@@ -2223,6 +2217,7 @@ class LSTMCond(Recurrent):
 
     def get_config(self):
         config = {"output_dim": self.output_dim,
+                  "return_states": self.return_states ,
                   "init": self.init.__name__,
                   "inner_init": self.inner_init.__name__,
                   "forget_bias_init": self.forget_bias_init.__name__,
@@ -2738,6 +2733,7 @@ class LSTMCond2Inputs(Recurrent):
 
     def get_config(self):
         config = {"output_dim": self.output_dim,
+                  "return_states": self.return_states,
                   "init": self.init.__name__,
                   "inner_init": self.inner_init.__name__,
                   "forget_bias_init": self.forget_bias_init.__name__,
@@ -3714,6 +3710,7 @@ class AttLSTMCond(Recurrent):
     def get_config(self):
         config = {'output_dim': self.output_dim,
                   'return_extra_variables': self.return_extra_variables,
+                  'return_states': self.return_states,
                   'init': self.init.__name__,
                   'inner_init': self.inner_init.__name__,
                   'forget_bias_init': self.forget_bias_init.__name__,
