@@ -217,7 +217,7 @@ def ResNet50(include_top=True, weights='imagenet',
                                         TH_WEIGHTS_PATH_NO_TOP,
                                         cache_subdir='models',
                                         md5_hash='f64f049c92468c9affcd44b0976cdafe')
-            model.load_weights(weights_path)
+            model.load_weights(weights_path, by_name=True)
             if K.backend() == 'tensorflow':
                 warnings.warn('You are using the TensorFlow backend, yet you '
                               'are using the Theano '
@@ -239,7 +239,7 @@ def ResNet50(include_top=True, weights='imagenet',
                                         TF_WEIGHTS_PATH_NO_TOP,
                                         cache_subdir='models',
                                         md5_hash='a268eb855778b3df3c7506639542a6af')
-            model.load_weights(weights_path)
+            model.load_weights(weights_path, by_name=True)
             if K.backend() == 'theano':
                 convert_all_kernels_in_model(model)
     return model
