@@ -135,7 +135,7 @@ def VGG19(include_top=True, weights='imagenet',
                 weights_path = get_file('vgg19_weights_th_dim_ordering_th_kernels_notop.h5',
                                         TH_WEIGHTS_PATH_NO_TOP,
                                         cache_subdir='models')
-            model.load_weights(weights_path)
+            model.load_weights(weights_path, by_name=True)
             if K.backend() == 'tensorflow':
                 warnings.warn('You are using the TensorFlow backend, yet you '
                               'are using the Theano '
@@ -155,7 +155,7 @@ def VGG19(include_top=True, weights='imagenet',
                 weights_path = get_file('vgg19_weights_tf_dim_ordering_tf_kernels_notop.h5',
                                         TF_WEIGHTS_PATH_NO_TOP,
                                         cache_subdir='models')
-            model.load_weights(weights_path)
+            model.load_weights(weights_path, by_name=True)
             if K.backend() == 'theano':
                 convert_all_kernels_in_model(model)
     return model
