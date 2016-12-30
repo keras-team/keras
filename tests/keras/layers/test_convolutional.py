@@ -719,7 +719,7 @@ def test_cropping_3d():
     assert_allclose(np_output, expected_out)
     # another correctness test (no cropping)
     cropping = ((0, 0), (0, 0), (0, 0))
-    layer = convolutional.Cropping2D(cropping=cropping,
+    layer = convolutional.Cropping3D(cropping=cropping,
                                      dim_ordering=dim_ordering)
     layer.build(input.shape)
     output = layer(K.variable(input))
