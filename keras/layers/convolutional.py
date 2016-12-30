@@ -1736,12 +1736,12 @@ class Cropping2D(Layer):
         if self.dim_ordering == 'th':
             return x[:,
                      :,
-                     self.cropping[0][0]:-self.cropping[0][1],
-                     self.cropping[1][0]:-self.cropping[1][1]]
+                     self.cropping[0][0]:(-self.cropping[0][1] if self.cropping[0][1] > 0 else x.shape[2]),
+                     self.cropping[1][0]:(-self.cropping[1][1] if self.cropping[1][1] > 0 else x.shape[3])]
         elif self.dim_ordering == 'tf':
             return x[:,
-                     self.cropping[0][0]:-self.cropping[0][1],
-                     self.cropping[1][0]:-self.cropping[1][1],
+                     self.cropping[0][0]:(-self.cropping[0][1] if self.cropping[0][1] > 0 else x.shape[1]),
+                     self.cropping[1][0]:(-self.cropping[1][1] if self.cropping[1][1] > 0 else x.shape[2]),
                      :]
 
     def get_config(self):
@@ -1823,14 +1823,14 @@ class Cropping3D(Layer):
         if self.dim_ordering == 'th':
             return x[:,
                      :,
-                     self.cropping[0][0]:-self.cropping[0][1],
-                     self.cropping[1][0]:-self.cropping[1][1],
-                     self.cropping[2][0]:-self.cropping[2][1]]
+                     self.cropping[0][0]:(-self.cropping[0][1] if self.cropping[0][1] > 0 else x.shape[2]),
+                     self.cropping[1][0]:(-self.cropping[1][1] if self.cropping[1][1] > 0 else x.shape[3]),
+                     self.cropping[2][0]:(-self.cropping[2][1] if self.cropping[2][1] > 0 else x.shape[4])]
         elif self.dim_ordering == 'tf':
             return x[:,
-                     self.cropping[0][0]:-self.cropping[0][1],
-                     self.cropping[1][0]:-self.cropping[1][1],
-                     self.cropping[2][0]:-self.cropping[2][1],
+                     self.cropping[0][0]:(-self.cropping[0][1] if self.cropping[0][1] > 0 else x.shape[1]),
+                     self.cropping[1][0]:(-self.cropping[1][1] if self.cropping[1][1] > 0 else x.shape[2]),
+                     self.cropping[2][0]:(-self.cropping[2][1] if self.cropping[2][1] > 0 else x.shape[3]),
                      :]
 
     def get_config(self):
