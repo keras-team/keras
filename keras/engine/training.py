@@ -751,7 +751,7 @@ class Model(Container):
                                                **kwargs)
 
     def _fit_loop(self, f, ins, out_labels=None, batch_size=32,
-                  nb_epoch=100, verbose=1, callbacks=None,
+                  nb_epoch=100, verbose=1, callbacks=None, notebook=False,
                   val_f=None, val_ins=None, shuffle=True,
                   callback_metrics=None, initial_epoch=0):
         '''Abstract fit function for f(ins).
@@ -792,7 +792,7 @@ class Model(Container):
         self.history = cbks.History()
         callbacks = [cbks.BaseLogger()] + (callbacks or []) + [self.history]
         if verbose:
-            callbacks += [cbks.ProgbarLogger()]
+            callbacks += [cbks.ProgbarLogger(notebook=notebook)]
         callbacks = cbks.CallbackList(callbacks)
         out_labels = out_labels or []
 
@@ -867,7 +867,7 @@ class Model(Container):
         callbacks.on_train_end()
         return self.history
 
-    def _predict_loop(self, f, ins, batch_size=32, verbose=0):
+    def _predict_loop(self, f, ins, batch_size=32, verbose=0, notebook=False):
         '''Abstract method to loop over some data in batches.
 
         # Arguments
@@ -884,7 +884,7 @@ class Model(Container):
         nb_sample = ins[0].shape[0]
         outs = []
         if verbose == 1:
-            progbar = Progbar(target=nb_sample)
+            progbar = Progbar(target=nb_sample, notebook=notebook)
         batches = make_batches(nb_sample, batch_size)
         index_array = np.arange(nb_sample)
         for batch_index, (batch_start, batch_end) in enumerate(batches):
@@ -911,7 +911,7 @@ class Model(Container):
             return outs[0]
         return outs
 
-    def _test_loop(self, f, ins, batch_size=32, verbose=0):
+    def _test_loop(self, f, ins, batch_size=32, verbose=0, notebook=False):
         '''Abstract method to loop over some data in batches.
 
         # Arguments
@@ -929,7 +929,7 @@ class Model(Container):
         nb_sample = ins[0].shape[0]
         outs = []
         if verbose == 1:
-            progbar = Progbar(target=nb_sample)
+            progbar = Progbar(target=nb_sample, notebook=notebook)
         batches = make_batches(nb_sample, batch_size)
         index_array = np.arange(nb_sample)
         for batch_index, (batch_start, batch_end) in enumerate(batches):
@@ -1004,7 +1004,7 @@ class Model(Container):
 
     def fit(self, x, y, batch_size=32, nb_epoch=10, verbose=1, callbacks=None,
             validation_split=0., validation_data=None, shuffle=True,
-            class_weight=None, sample_weight=None, initial_epoch=0):
+            class_weight=None, sample_weight=None, initial_epoch=0, notebook=False):
         '''Trains the model for a fixed number of epochs (iterations on a dataset).
 
         # Arguments
@@ -1138,12 +1138,12 @@ class Model(Container):
         # delegate logic to _fit_loop
         return self._fit_loop(f, ins, out_labels=out_labels,
                               batch_size=batch_size, nb_epoch=nb_epoch,
-                              verbose=verbose, callbacks=callbacks,
+                              verbose=verbose, callbacks=callbacks, notebook=notebook,
                               val_f=val_f, val_ins=val_ins, shuffle=shuffle,
                               callback_metrics=callback_metrics,
                               initial_epoch=initial_epoch)
 
-    def evaluate(self, x, y, batch_size=32, verbose=1, sample_weight=None):
+    def evaluate(self, x, y, batch_size=32, verbose=1, sample_weight=None, notebook=False):
         '''Returns the loss value and metrics values for the model
         in test mode. Computation is done in batches.
 
@@ -1183,7 +1183,7 @@ class Model(Container):
                                batch_size=batch_size,
                                verbose=verbose)
 
-    def predict(self, x, batch_size=32, verbose=0):
+    def predict(self, x, batch_size=32, verbose=0, notebook=False):
         '''Generates output predictions for the input samples,
         processing the samples in a batched way.
 
@@ -1217,7 +1217,7 @@ class Model(Container):
         self._make_predict_function()
         f = self.predict_function
         return self._predict_loop(f, ins,
-                                  batch_size=batch_size, verbose=verbose)
+                                  batch_size=batch_size, verbose=verbose, notebook=notebook)
 
     def train_on_batch(self, x, y,
                        sample_weight=None, class_weight=None):
@@ -1328,7 +1328,7 @@ class Model(Container):
         return outputs
 
     def fit_generator(self, generator, samples_per_epoch, nb_epoch,
-                      verbose=1, callbacks=None,
+                      verbose=1, callbacks=None, notebook=False,
                       validation_data=None, nb_val_samples=None,
                       class_weight=None,
                       max_q_size=10, nb_worker=1, pickle_safe=False,
@@ -1418,7 +1418,7 @@ class Model(Container):
         self.history = cbks.History()
         callbacks = [cbks.BaseLogger()] + (callbacks or []) + [self.history]
         if verbose:
-            callbacks += [cbks.ProgbarLogger()]
+            callbacks += [cbks.ProgbarLogger(notebook=notebook)]
         callbacks = cbks.CallbackList(callbacks)
 
         # it's possible to callback a different model than self:
