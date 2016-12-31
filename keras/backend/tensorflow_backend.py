@@ -1990,7 +1990,7 @@ def sparse_categorical_crossentropy(output, target, from_logits=False):
         cast(flatten(target), 'int64'))
     if len(output_shape) == 3:
         # if our output includes timesteps we need to reshape
-        return tf.reshape(res, [-1, int(output_shape[-2])])
+        return tf.reshape(res, tf.shape(output)[:-1])
     else:
         return res
 
