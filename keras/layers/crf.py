@@ -16,12 +16,12 @@ class CRF(Layer):
 
     An linear chain CRF is defined to maximize the following likelihood function:
 
-    \[ L(W, U, b; y_1, ..., y_n) := (1 / Z) sum_{y_1, ..., y_n} exp(-sum_{k=1^n}(f(x_k' W y_k + b) + g(y_1' U y_2))), \]
+    $$ L(W, U, b; y_1, ..., y_n) := \frac{1}{Z} \sum_{y_1, ..., y_n} \exp(-a_1' y_1 - a_n' y_n
+        - \sum_{k=1^n}(((x_k' W + b) y_k) + y_1' U y_2)), $$
 
     where:
-        `Z`: normalization constant
-        `x_k`, `y_k`:  inputs and outputs
-        `f`, `g`: activation functions (non-linear term)
+        $Z$: normalization constant
+        $x_k, y_k$:  inputs and outputs
 
     This implementation has two modes for optimization:
     1. (`join mode`) optimized by maximizing join likelihood, which is optimal in theory of statistics.
@@ -36,8 +36,7 @@ class CRF(Layer):
     reasonably close, while if *marginal mode* is used for training, marginal output usually performs
     much better. The default behavior is set according to this observation.
 
-    In addition, this implementation supports masking, specification of activation functions and accepts
-    either one-hot or sparse target.
+    In addition, this implementation supports masking and accepts either one-hot or sparse target.
 
 
     # Examples
@@ -74,14 +73,16 @@ class CRF(Layer):
             gives one-hot representation of the best path at test (prediction) time,
             while the latter is recommended and chosen as default when `learn_mode = 'marginal'`,
             which produces marginal probabilities for each time step.
-        sparse_target: Boolen (default False) indicating if provided labels are one-hot or
+        sparse_target: boolen (default False) indicating if provided labels are one-hot or
             indices (with shape 1 at dim 3).
         in_init, chain_init:
-            initialization for input weight matrix and chain connecting matrix (W, U above).
+            Initialization for input weight matrix and chain connecting matrix (W, U above).
         in_activation, chain_activation:
-            activation for input and chain energy (f, g above). Both default to linear.
+            Transforms for input and chain energy (f, g above). Both default to linear
+            Indeed, these functions are used as range regulations.
+            E.g., a `tanh` forces the input or chain energy to be bounded within [-1, 1].
         W_regularizer, U_regularizer, b_regularizer:
-            instances of [WeightRegularizer](../regularizers.md)
+            Instances of [WeightRegularizer](../regularizers.md)
             (eg. L1 or L2 regularization), applied to the input weights matrix,
             chain connecting matrix and input bias.
         weights: list of Numpy arrays to set as initial weights.
@@ -110,7 +111,8 @@ class CRF(Layer):
     '''
 
     def __init__(self, output_dim,
-                 learn_mode='join', test_mode=None, sparse_target=False,
+                 learn_mode='join', test_mode=None,
+                 boundary_energy=False, sparse_target=False,
                  in_init='orthogonal', chain_init='orthogonal',
                  in_activation='linear', chain_activation='linear',
                  W_regularizer=None, U_regularizer=None, b_regularizer=None,
@@ -124,6 +126,7 @@ class CRF(Layer):
             self.test_mode = 'viterbi' if learn_mode == 'join' else 'marginal'
         else:
             assert test_mode in ['viterbi', 'marginal']
+        self.boundary_energy = boundary_energy
         self.sparse_target = sparse_target
         self.in_init = initializations.get(in_init)
         self.chain_init = initializations.get(chain_init)
@@ -151,6 +154,10 @@ class CRF(Layer):
         self.U = self.chain_init((self.output_dim, self.output_dim), name='{}_U'.format(self.name))
         self.b = K.zeros((self.output_dim,), name='{}_b'.format(self.name))
         self.trainable_weights = [self.W, self.U, self.b]
+        if self.boundary_energy:
+            self.a1 = K.zeros((self.output_dim,), name='{}_a1'.format(self.name))
+            self.an = K.zeros((self.output_dim,), name='{}_an'.format(self.name))
+            self.trainable_weights += [self.a1, self.an]
 
         self.regularizers = []
         if self.W_regularizer:
@@ -182,11 +189,11 @@ class CRF(Layer):
             train_output = K.zeros_like(K.dot(X, self.W))
             out = K.in_train_phase(train_output, test_output)
         else:
-            train_output = self.get_marginal_prob(X, mask)
             if self.test_mode == 'viterbi':
+                train_output = self.get_marginal_prob(X, mask)
                 out = K.in_train_phase(train_output, test_output)
             else:
-                out = train_output
+                out = test_output
         return out
 
     def get_output_shape_for(self, input_shape):
@@ -236,7 +243,7 @@ class CRF(Layer):
 
     @property
     def accuracy(self):
-        if self.learn_mode == 'join':
+        if self.test_mode == 'viterbi':
             return self.viterbi_acc
         else:
             return self.marginal_acc
@@ -249,8 +256,11 @@ class CRF(Layer):
         else:
             y_true = K.argmax(y_true, -1)
         judge = K.cast(K.equal(y_pred, y_true), K.floatx())
-        mask = K.cast(mask, K.floatx())
-        return K.sum(judge * mask) / K.sum(mask)
+        if mask is None:
+            return K.mean(judge)
+        else:
+            mask = K.cast(mask, K.floatx())
+            return K.sum(judge * mask) / K.sum(mask)
 
     @property
     def viterbi_acc(self):
@@ -265,10 +275,9 @@ class CRF(Layer):
     @property
     def marginal_acc(self):
         def acc(y_true, y_pred):
+            X = self.inbound_nodes[0].input_tensors[0]
             mask = self.inbound_nodes[0].input_masks[0]
-            if self.learn_mode == 'join':
-                X = self.inbound_nodes[0].input_tensors[0]
-                y_pred = self.get_marginal_prob(X, mask)
+            y_pred = self.get_marginal_prob(X, mask)
             return self._get_accuracy(y_true, y_pred, mask, self.sparse_target)
         acc.func_name = 'marginal_acc'
         return acc
@@ -287,50 +296,63 @@ class CRF(Layer):
         prob_x = exp_x / K.sum(exp_x, axis=axis, keepdims=True)
         return prob_x
 
-    def get_logZ(self, unary, mask):
+    @staticmethod
+    def shift_left(x, offset=1):
+        assert offset > 0
+        return K.concatenate([x[:, offset:], K.zeros_like(x[:, :offset])], axis=1)
+
+    @staticmethod
+    def shift_right(x, offset=1):
+        assert offset > 0
+        return K.concatenate([K.zeros_like(x[:, :offset]), x[:, :-offset]], axis=1)
+
+    def add_boundary_energy(self, energy, mask, start, end):
+        start = K.expand_dims(K.expand_dims(self.chain_activation(start), 0), 0)
+        end = K.expand_dims(K.expand_dims(self.chain_activation(end), 0), 0)
+        if mask is None:
+            energy = K.concatenate([energy[:, :1, :] + start, energy[:, 1:, :]], axis=1)
+            energy = K.concatenate([energy[:, :-1, :], energy[:, -1:, :] + end], axis=1)
+        else:
+            mask = K.expand_dims(K.cast(mask, K.floatx()))
+            start_mask = K.cast(K.greater(mask, self.shift_right(mask)), K.floatx())
+            end_mask = K.cast(K.greater(self.shift_left(mask), mask), K.floatx())
+            energy = energy + start_mask * start
+            energy = energy + end_mask * end
+        return energy
+
+    def get_logZ(self, in_energy, mask):
         '''Compute logarithm of the normalization constance Z, where
         Z = sum exp(-E) -> logZ = log sum exp(-E) =: -nlogZ
-        # Arguments
-            y_true: true output as one-hot vectors
-            y_unary: X.dot(W)
-            mask: input mask of shape=(batch_size, input_length) or None
-        :return: a 1-D tensor, where an entry = a sample
         '''
         # should have logZ[:, i] == logZ[:, j] for any i, j
-        logZ = self.recursion(unary, mask, return_sequences=False)
+        logZ = self.recursion(in_energy, mask, return_sequences=False)
         return logZ[:, 0]
 
-    def get_energy(self, y_true, unary, mask):
-        '''Energy = u1' y1 + y1' W y2 + u2' y2 + y2' W y3 + u3' y3
-
-        # Arguments
-            y_true: true output as one-hot vectors
-            y_unary: `K.dot(X, W)
-            mask: input mask of shape=(batch_size, input_length), or None
+    def get_energy(self, y_true, in_energy, mask):
+        '''Energy = a1' y1 + u1' y1 + y1' U y2 + u2' y2 + y2' U y3 + u3' y3 + an' y3
         '''
-        in_energy = K.sum(unary*y_true, 2) # (B, T)
-        in_energy = self.in_activation(in_energy)
+        in_energy = K.sum(in_energy * y_true, 2) # (B, T)
         chain_energy = K.sum(K.dot(y_true[:, :-1, :], self.U) * y_true[:, 1:, :], 2)  # (B, T-1)
         chain_energy = self.chain_activation(chain_energy)
-        mask = K.cast(mask, K.floatx())
 
         if mask is not None:
-            Wm = mask[:, :-1]*mask[:, 1:] # (B, T-1), mask[:,:-1]*mask[:,1:] makes it work with any padding
+            mask = K.cast(mask, K.floatx())
+            chain_mask = mask[:, :-1] * mask[:, 1:] # (B, T-1), mask[:,:-1]*mask[:,1:] makes it work with any padding
             in_energy = in_energy * mask
-            chain_energy = chain_energy * Wm
+            chain_energy = chain_energy * chain_mask
+        total_energy = K.sum(in_energy, -1) + K.sum(chain_energy, -1) # (B, )
 
-        in_energy = K.sum(in_energy, -1) # (B,)
-        chain_energy = K.sum(chain_energy, -1) # (B,)
-
-        return in_energy + chain_energy
+        return total_energy
 
     def get_nloglik(self, y_true, X, mask):
         '''Compute the loss, i.e., negative log likelihood (normalize by number of time steps)
            likelihood = 1/Z * exp(-E) ->  neg_log_like = - log(1/Z * exp(-E)) = logZ + E
         '''
-        unary = K.dot(X, self.W) + self.b
-        energy = self.get_energy(y_true, unary, mask)
-        logZ = self.get_logZ(unary, mask)
+        in_energy = self.in_activation(K.dot(X, self.W) + self.b)
+        if self.boundary_energy:
+            in_energy = self.add_boundary_energy(in_energy, mask, self.a1, self.an)
+        energy = self.get_energy(y_true, in_energy, mask)
+        logZ = self.get_logZ(in_energy, mask)
         nloglik = logZ + energy
         if mask is not None:
             nloglik = nloglik / K.sum(K.cast(mask, K.floatx()), 1)
@@ -350,53 +372,49 @@ class CRF(Layer):
             else:
                 m = tf.slice(states[3], [0, t], [-1, 2])
             in_energy_t = in_energy_t * K.expand_dims(m[:, 0])
-            chain_energy = chain_energy * K.expand_dims(K.expand_dims(m[:, 1]))  # (1, F, F)*(B, 1, 1) -> (B, F, F)
+            chain_energy = chain_energy * K.expand_dims(K.expand_dims(m[:, 0] * m[:, 1]))  # (1, F, F)*(B, 1, 1) -> (B, F, F)
         if return_logZ:
-            energy = chain_energy + K.expand_dims(in_energy_t - prev_target_val, 2) # shapes: (B, F) + (B, F) -> (B, F, 1)
-            new_target_val = self.log_sum_exp(-energy, 1)
-            return new_target_val, [new_target_val, i+1]
+            energy = chain_energy + K.expand_dims(in_energy_t - prev_target_val, 2) # shapes: (1, B, F) + (B, F, 1) -> (B, F, F)
+            new_target_val = self.log_sum_exp(-energy, 1) # shapes: (B, F)
+            return new_target_val, [new_target_val, i + 1]
         else:
             energy = chain_energy + K.expand_dims(in_energy_t + prev_target_val, 2)
             min_energy = K.min(energy, 1)
             argmin_table = K.cast(K.argmin(energy, 1), K.floatx()) # cast for tf-version `K.rnn`
-            return argmin_table, [min_energy, i+1]
+            return argmin_table, [min_energy, i + 1]
 
-    def recursion(self, unary, mask=None, go_backwards=False, return_sequences=True, return_logZ=True):
+    def recursion(self, in_energy, mask=None, go_backwards=False, return_sequences=True, return_logZ=True):
         '''Forward (alpha) or backward (beta) recursion
 
-        If `return_logZ=True`, compute the logZ, the normalization constance:
+        If `return_logZ = True`, compute the logZ, the normalization constance:
 
-        \[ Z = sum_{y1, y2, y3} exp(-E) # energy
-          = sum_{y1, y2, y3} exp(-(f(u1' y1) + g(y1' W y2) + f(u2' y2) + g(y2' W y3) + f(u3' y3)))
-          = sum_{y2, y3} (exp(-(f(u2' y2) + g(y2' W y3) + f(u3' y3))) sum_{y1} exp(-(f(u1' y1') + g(y1' W y2)))) \]
+        \[ Z = \sum_{y1, y2, y3} exp(-E) # energy
+          = \sum_{y1, y2, y3} exp(-(u1' y1 + y1' W y2 + u2' y2 + y2' W y3 + u3' y3))
+          = sum_{y2, y3} (exp(-(u2' y2 + y2' W y3 + u3' y3)) sum_{y1} exp(-(u1' y1' + y1' W y2))) \]
 
         Denote:
-            \[ S(y2) := sum_{y1} exp(-(f(u1' y1') + g(y1' W y2))), \]
-            \[ Z = sum_{y2, y3} exp(log S(y2) - (f(u2' y2) + g(y2' W y3) + f(u3' y3))) \]
-            \[ logS(y2) = log S(y2) = log_sum_exp(-(f(u1' y1') + g(y1' W y2))) \]
+            \[ S(y2) := sum_{y1} exp(-(u1' y1 + y1' W y2)), \]
+            \[ Z = sum_{y2, y3} exp(log S(y2) - (u2' y2 + y2' W y3 + u3' y3)) \]
+            \[ logS(y2) = log S(y2) = log_sum_exp(-(u1' y1' + y1' W y2)) \]
         Note that:
               yi's are one-hot vectors
-              f: unary activation function
-              g: chain activation function
-        Note: since y1, y2 are one-hot, f(u1' y1) = f(u1)' y1, g(y1' W y2) = y1' g(W) y2
+              u1, u3: boundary energies have been merged
 
-        If `return_logZ=False`, compute the Viterbi's best path lookup table.
+        If `return_logZ = False`, compute the Viterbi's best path lookup table.
         '''
-        in_energy = self.in_activation(unary)
         chain_energy = self.chain_activation(self.U)
         chain_energy = K.expand_dims(chain_energy, 0) # shape=(1, F, F): F=num of output features. 1st F is for t-1, 2nd F for t
-        prev_target_val = K.zeros_like(unary[:, 0, :]) # shape=(B, F), dtype=float32
-        has_mask = mask is not None
+        prev_target_val = K.zeros_like(in_energy[:, 0, :]) # shape=(B, F), dtype=float32
 
         if go_backwards:
-            unary = K.reverse(unary, 1)
-            if has_mask:
+            in_energy = K.reverse(in_energy, 1)
+            if mask is not None:
                 mask = K.reverse(mask, 1)
 
         initial_states = [prev_target_val, K.zeros_like(prev_target_val[:, :1])]
         constants = [chain_energy]
 
-        if has_mask:
+        if mask is not None:
             mask2 = K.cast(K.concatenate([mask, K.zeros_like(mask[:, :1])], axis=1), K.floatx())
             constants.append(mask2)
 
@@ -413,25 +431,29 @@ class CRF(Layer):
         else:
             return target_val_last
 
-    def forward_recursion(self, unary, mask=None):
-        return self.recursion(unary, mask)
+    def forward_recursion(self, in_energy, mask=None):
+        return self.recursion(in_energy, mask)
 
-    def backward_recursion(self, unary, mask=None):
-        return self.recursion(unary, mask, go_backwards=True)
+    def backward_recursion(self, in_energy, mask=None):
+        return self.recursion(in_energy, mask, go_backwards=True)
 
     def get_marginal_prob(self, X, mask=None):
-        unary = K.dot(X, self.W) + self.b
-        alpha = self.forward_recursion(unary, mask)
-        alpha = K.concatenate([K.zeros_like(alpha[:, :1, :]), alpha[:, :-1, :]], axis=1)
-        beta = self.backward_recursion(unary, mask)
-        beta = K.concatenate([beta[:, 1:, :], K.zeros_like(beta[:, :1, :])], axis=1)
-        margin = -(alpha + beta + unary)
+        in_energy = self.in_activation(K.dot(X, self.W) + self.b)
+        if self.boundary_energy:
+            in_energy = self.add_boundary_energy(in_energy, mask, self.a1, self.an)
+        alpha = self.forward_recursion(in_energy, mask)
+        beta = self.backward_recursion(in_energy, mask)
+        if mask is not None:
+            in_energy = in_energy * K.expand_dims(K.cast(mask, K.floatx()))
+        margin = -(self.shift_right(alpha) + in_energy + self.shift_left(beta))
         return self.softmaxNd(margin)
 
     def viterbi_decoding(self, X, mask=None):
-        unary = K.dot(X, self.W) + self.b
+        in_energy = self.in_activation(K.dot(X, self.W) + self.b)
+        if self.boundary_energy:
+            in_energy = self.add_boundary_energy(in_energy, mask, self.a1, self.an)
 
-        argmin_tables = self.recursion(unary, mask, return_logZ=False)
+        argmin_tables = self.recursion(in_energy, mask, return_logZ=False)
         argmin_tables = K.cast(argmin_tables, 'int32')
 
         # backward to find best path, `initial_best_idx` can be any, as all elements in the last argmin_table are the same
@@ -443,16 +465,16 @@ class CRF(Layer):
             if K._BACKEND == 'theano':
                 return params[T.arange(n), indices]
             else:
-                indices = K.transpose(K.pack([tf.range(n), indices]))
+                indices = K.transpose(tf.pack([tf.range(n), indices]))
                 return tf.gather_nd(params, indices)
 
         def find_path(argmin_table, best_idx):
             next_best_idx = gather_each_row(argmin_table, best_idx[0][:, 0])
             next_best_idx = K.expand_dims(next_best_idx)
             return next_best_idx, [next_best_idx]
-
         _, best_paths, _ = K.rnn(find_path, argmin_tables, initial_best_idx, input_length=self.input_length, unroll=self.unroll)
         best_paths = K.reverse(best_paths, 1)
+
         if K.ndim(best_paths) == 3:
             # due to inconsistent of theano (drop after scan) and tensorflow on broadcast dim
             best_paths = K.squeeze(best_paths, 2)
