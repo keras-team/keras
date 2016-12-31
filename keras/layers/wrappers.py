@@ -1,3 +1,4 @@
+import copy
 from ..engine import Layer, InputSpec
 from .. import backend as K
 
@@ -158,7 +159,7 @@ class Bidirectional(Wrapper):
             raise ValueError('Invalid merge mode. '
                              'Merge mode should be one of '
                              '{"sum", "mul", "ave", "concat", None}')
-        self.forward_layer = layer
+        self.forward_layer = copy.copy(layer)
         config = layer.get_config()
         config['go_backwards'] = not config['go_backwards']
         self.backward_layer = layer.__class__.from_config(config)
