@@ -422,50 +422,46 @@ class ImprovementBasedAction(Callback):
             to qualify as an improvement, i.e. an absolute
             change of less than min_delta, will count as no
             improvement.
+        epsilon: threshold for comparing current value of
+            monitored quality to the previous value.
         patience: number of epochs with no improvement
-            after which training will be stopped.
+            after which action will be taken.
         verbose: verbosity mode.
         mode: one of {auto, min, max}. In `min` mode,
-            training will stop when the quantity
+            action will be taken when the quantity
             monitored has stopped decreasing; in `max`
-            mode it will stop when the quantity
+            mode it will be taken when the quantity
             monitored has stopped increasing; in `auto`
             mode, the direction is automatically inferred
             from the name of the monitored quantity.
     '''
-    def __init__(self, monitor='val_loss', min_delta=0, patience=0, verbose=0, mode='auto'):
+    def __init__(self, monitor='val_loss', min_delta=0, epsilon=1e-5,
+                 patience=0, verbose=0, mode='auto'):
         super(ImprovementBasedAction, self).__init__()
 
         self.monitor = monitor
         self.patience = patience
         self.verbose = verbose
+        self.mode = mode
         self.min_delta = min_delta
+        self.epsilon = epsilon
         self.wait = 0
 
         if mode not in ['auto', 'min', 'max']:
             warnings.warn('%s mode %s is unknown, '
-                          'fallback to auto mode.' % (self.__class__.__name__, mode),
+                          'fallback to auto mode.' % (self.__class__.__name__, self.mode),
                           RuntimeWarning)
             mode = 'auto'
 
-        if mode == 'min':
-            self.monitor_op = np.less
-        elif mode == 'max':
-            self.monitor_op = np.greater
+        if mode == 'min' or (self.mode == 'auto' and 'acc' not in self.monitor):
+            self.monitor_op = lambda a, b: np.less(a, b - self.epsilon)
+            self.best = np.Inf
         else:
-            if 'acc' in self.monitor or self.monitor.startswith('fmeasure'):
-                self.monitor_op = np.greater
-            else:
-                self.monitor_op = np.less
+            self.monitor_op = lambda a, b: np.greater(a, b + self.epsilon)
+            self.best = -np.Inf
 
-        if self.monitor_op == np.greater:
-            self.min_delta *= 1
-        else:
-            self.min_delta *= -1
-
-    def on_train_begin(self, logs=None):
-        self.wait = 0  # Allow instances to be re-used
-        self.best = np.Inf if self.monitor_op == np.less else -np.Inf
+    def on_train_begin(self, logs={}):
+        self.wait = 0
 
     def on_epoch_end(self, epoch, logs=None):
         current = logs.get(self.monitor)
@@ -478,7 +474,7 @@ class ImprovementBasedAction(Callback):
             self.wait = 0
         else:
             if self.wait >= self.patience:
-                self.action(epoch, logs={})
+                self.action(epoch, logs)
             self.wait += 1
 
     def action(self, epoch, logs={}):
@@ -494,6 +490,8 @@ class EarlyStopping(ImprovementBasedAction):
             to qualify as an improvement, i.e. an absolute
             change of less than min_delta, will count as no
             improvement.
+        epsilon: threshold for comparing current value of
+            monitored quality to the previous value.
         patience: number of epochs with no improvement
             after which training will be stopped.
         verbose: verbosity mode.
@@ -518,20 +516,24 @@ class EarlyStopping(ImprovementBasedAction):
             print('Epoch %05d: early stopping' % (self.stopped_epoch))
 
 
-class ImprovementBasedLRScheduler(ImprovementBasedAction):
+class ReduceLROnPlateau(ImprovementBasedAction):
     '''Update learning rate when a monitored quantity has stopped improving.
 
     # Arguments
-        schedule: a function that takes an epoch index as input
-            (integer, indexed from 0) and returns a new
-            learning rate as output (float).
+        factor: factor to decrease learning rate by after no improvement.
+        cooldown: number of epochs to wait before restarting
+            count to reduce learning rate after learning rate
+            has already been reduced.
+        min_lr: lower bound on learning rate
         monitor: quantity to be monitored.
         min_delta: minimum change in the monitored quantity
             to qualify as an improvement, i.e. an absolute
             change of less than min_delta, will count as no
             improvement.
+        epsilon: threshold for comparing current value of
+            monitored quality to the previous value.
         patience: number of epochs with no improvement
-            after which training will be stopped.
+            after which learning rate will be updated.
         verbose: verbosity mode.
         mode: one of {auto, min, max}. In `min` mode,
             training will stop when the quantity
@@ -541,17 +543,32 @@ class ImprovementBasedLRScheduler(ImprovementBasedAction):
             mode, the direction is automatically inferred
             from the name of the monitored quantity.
     '''
-    def __init__(self, schedule, **kwargs):
-        super(ImprovementBasedLRScheduler, self).__init__(**kwargs)
-        self.schedule = schedule
+    def __init__(self, factor=0.1, cooldown=0, min_lr=0, **kwargs):
+        super(ReduceLROnPlateau, self).__init__(**kwargs)
+        self.factor = factor
+        self.cooldown = cooldown
+        self.cooldown_counter = 0
+        self.min_lr = min_lr
+
+    def on_epoch_end(self, epoch, logs={}):
+        logs['lr'] = K.get_value(self.model.optimizer.lr)
+        if self.cooldown_counter > 0:
+            self.cooldown_counter -= 1
+        else:
+            super(ReduceLROnPlateau, self).on_epoch_end(epoch, logs)
+            if self.wait > self.patience:
+                self.cooldown_counter = self.cooldown
 
     def action(self, epoch, logs={}):
         assert hasattr(self.model.optimizer, 'lr'), \
             'Optimizer must have a "lr" attribute.'
-        lr = self.schedule(epoch)
-        assert type(lr) == float, 'The output of the "schedule" function should be float.'
-        K.set_value(self.model.optimizer.lr, lr)
-        print('Epoch %05d: Updating learning rate to %.2E' % (epoch, lr))
+        lr = K.get_value(self.model.optimizer.lr) * self.factor
+        if lr > self.min_lr:
+            K.set_value(self.model.optimizer.lr, lr)
+            if self.verbose > 0:
+                print('Epoch %05d: updating learning rate to %.2E' % (epoch, K.get_value(self.model.optimizer.lr)))
+        else:
+            pass
 
 
 class RemoteMonitor(Callback):
@@ -789,6 +806,7 @@ class TensorBoard(Callback):
         self.writer.close()
 
 
+<<<<<<< 664412ae86c04966ac0f10ed81c96d1b7bccfecf
 class ReduceLROnPlateau(Callback):
     """Reduce learning rate when a metric has stopped improving.
 
@@ -900,6 +918,8 @@ class ReduceLROnPlateau(Callback):
         return self.cooldown_counter > 0
 
 
+=======
+>>>>>>> Bug fixes, update ImprovementBasedLRScheduler to replace ReduceLROnPlateau
 class CSVLogger(Callback):
     """Callback that streams epoch results to a csv file.
 
