@@ -867,10 +867,7 @@ def batch_dot(x, y, axes=None):
     else:
         adj_x = None
         adj_y = None
-    try:
-        out = tf.batch_matmul(x, y, adj_a=adj_x, adj_b=adj_y)
-    except TypeError:
-        out = tf.batch_matmul(x, y, adj_x=adj_x, adj_y=adj_y)
+    out = tf.matmul(x, y, adjoint_a=adj_x, adjoint_b=adj_y)
     if ndim(out) == 1:
         out = expand_dims(out, 1)
     return out
