@@ -36,29 +36,27 @@ class CRF(Layer):
     reasonably close, while if *marginal mode* is used for training, marginal output usually performs
     much better. The default behavior is set according to this observation.
 
-    In addition, this implementation supports masking and accepts either one-hot or sparse target.
+    In addition, this implementation supports masking and accepts either onehot or sparse target.
 
 
     # Examples
 
     ```python
-        X = Input((sent_len,), dtype='int32', name='input_x')
-        Embed = Embedding(3001, embed_dim, mask_zero=True)(X)
+        model = Sequential()
+        model.add(Embedding(3001, 300, mask_zero=True)(X)
 
         # use learn_mode = 'join', test_mode = 'viterbi'
         crf = CRF(10)
-
-        Y = crf(Embed)
-        model = Model(X, Y)
+        model.add(crf(Embed))
 
         # crf.accuracy is default to Viterbi acc if using join-mode (default).
         # One can add crf.marginal_acc if interested, but may slow down learning
         model.compile('adam', loss=crf.loss_function, metrics=[crf.accuracy])
 
-        # y_label can be either one-hot representation or label indices (with shape 1 at dim 3)
-        model.fit(x, y_label, batch_size=100, nb_epoch=5)
+        # y can be either onehot representation or label indices (with shape 1 at dim 3)
+        model.fit(x, y)
 
-        # prediction give one-hot representation of Viterbi best path
+        # prediction give onehot representation of Viterbi best path
         y_hat = model.predict(x_test)
     ```
 
@@ -73,6 +71,8 @@ class CRF(Layer):
             gives one-hot representation of the best path at test (prediction) time,
             while the latter is recommended and chosen as default when `learn_mode = 'marginal'`,
             which produces marginal probabilities for each time step.
+        boundary_energy: boolen (default True) inidicating if trainable start-end chain energies
+            should be added to model.
         sparse_target: boolen (default False) indicating if provided labels are one-hot or
             indices (with shape 1 at dim 3).
         in_init, chain_init:
@@ -119,13 +119,13 @@ class CRF(Layer):
                  weights=None, input_dim=None, input_length=None, unroll=False, **kwargs):
         self.supports_masking = True
         self.output_dim = output_dim
-        assert learn_mode in ['join', 'marginal']
-        self.learn_mode = learn_mode
-        self.test_mode = test_mode
-        if test_mode is None:
-            self.test_mode = 'viterbi' if learn_mode == 'join' else 'marginal'
+        self.learn_mode = learn_mode.lower()
+        self.test_mode = test_mode.lower()
+        assert self.learn_mode in ['join', 'marginal']
+        if self.test_mode is None:
+            self.test_mode = 'viterbi' if self.learn_mode == 'join' else 'marginal'
         else:
-            assert test_mode in ['viterbi', 'marginal']
+            assert self.test_mode in ['viterbi', 'marginal']
         self.boundary_energy = boundary_energy
         self.sparse_target = sparse_target
         self.in_init = initializations.get(in_init)
