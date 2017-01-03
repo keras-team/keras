@@ -783,14 +783,14 @@ def dot(x, y):
     if ndim(x) is not None and (ndim(x) > 2 or ndim(y) > 2):
         x_shape = []
         for i, s in zip(int_shape(x), tf.unpack(tf.shape(x))):
-            if s is None:
+            if i is not None:
                 x_shape.append(i)
             else:
                 x_shape.append(s)
         x_shape = tuple(x_shape)
         y_shape = []
         for i, s in zip(int_shape(y), tf.unpack(tf.shape(y))):
-            if s is None:
+            if i is not None:
                 y_shape.append(i)
             else:
                 y_shape.append(s)
