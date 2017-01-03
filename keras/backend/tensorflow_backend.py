@@ -1850,24 +1850,26 @@ def _cond(condition, then_lambda, else_lambda):
 
 
 def switch(condition, then_expression, else_expression):
-    '''Switches between two operations
-    depending on a scalar value (int or bool).
+    '''Switches between two operations depending on `condition`.
     Note that both `then_expression` and `else_expression`
     should be symbolic tensors of the *same shape*.
 
     # Arguments
-        condition: scalar tensor.
+        condition: scalar tensor or tensor of the same shape with then_expression.
         then_expression: TensorFlow operation.
         else_expression: TensorFlow operation.
     '''
-    x_shape = copy.copy(then_expression.get_shape())
-    if condition.dtype != tf.bool:
-        condition = tf.cast(condition, 'bool')
-    x = _cond(condition,
-              lambda: then_expression,
-              lambda: else_expression)
-    x.set_shape(x_shape)
-    return x
+    if ndim(condition) == 0:
+        x_shape = copy.copy(then_expression.get_shape())
+        if condition.dtype != tf.bool:
+            condition = tf.cast(condition, 'bool')
+        x = _cond(condition,
+                  lambda: then_expression,
+                  lambda: else_expression)
+        x.set_shape(x_shape)
+        return x
+    else:
+        return tf.where(condition, then_expression, else_expression)
 
 
 def in_train_phase(x, alt):

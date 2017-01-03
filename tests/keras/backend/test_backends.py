@@ -482,7 +482,22 @@ class TestBackend(object):
         assert_allclose(tf_outputs, th_outputs, atol=1e-04)
 
     def test_switch(self):
+        # scalar
         val = np.random.random()
+        xth = KTH.variable(val)
+        xth = KTH.switch(xth >= 0.5, xth * 0.1, xth * 0.2)
+
+        xtf = KTF.variable(val)
+        xtf = KTF.switch(xtf >= 0.5, xtf * 0.1, xtf * 0.2)
+
+        zth = KTH.eval(xth)
+        ztf = KTF.eval(xtf)
+
+        assert zth.shape == ztf.shape
+        assert_allclose(zth, ztf, atol=1e-05)
+
+        # tensor
+        val = np.random.random((2, 3, 4))
         xth = KTH.variable(val)
         xth = KTH.switch(xth >= 0.5, xth * 0.1, xth * 0.2)
 
