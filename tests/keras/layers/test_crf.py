@@ -10,7 +10,6 @@ embedding_num = 12
 
 @keras_test
 def test_CRF():
-
     # data
     x = np.random.randint(1, embedding_num, nb_samples * timesteps).reshape((nb_samples, timesteps))
     x[0, -4:] = 0 # right padding
@@ -43,8 +42,8 @@ def test_CRF():
 
     # test `viterbi_acc
     _, v_acc, _ = model.evaluate(x, y)
-    np_acc = (y_pred[x > 0] == y[x > 0]).mean()
-    assert_allclose([v_acc], [np_acc], atol=1e-6)
+    np_acc = (y_pred[x > 0] == y[:, :, 0][x > 0]).astype('float32').mean()
+    assert np.abs(v_acc - np_acc) < 1e-4
 
     # test config
     model.get_config()

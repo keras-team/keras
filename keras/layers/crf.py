@@ -119,9 +119,9 @@ class CRF(Layer):
                  weights=None, input_dim=None, input_length=None, unroll=False, **kwargs):
         self.supports_masking = True
         self.output_dim = output_dim
-        self.learn_mode = learn_mode.lower()
-        self.test_mode = test_mode.lower()
+        self.learn_mode = learn_mode
         assert self.learn_mode in ['join', 'marginal']
+        self.test_mode = test_mode
         if self.test_mode is None:
             self.test_mode = 'viterbi' if self.learn_mode == 'join' else 'marginal'
         else:
