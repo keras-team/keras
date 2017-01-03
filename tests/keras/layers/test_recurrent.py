@@ -132,6 +132,12 @@ def test_regularizer(layer_class):
     layer.build(shape)
     output = layer(K.variable(np.ones(shape)))
     K.eval(output)
+    if layer_class == recurrent.SimpleRNN:
+        assert len(layer.losses) == 3
+    if layer_class == recurrent.GRU:
+        assert len(layer.losses) == 9
+    if layer_class == recurrent.LSTM:
+        assert len(layer.losses) == 12
 
 
 @keras_test

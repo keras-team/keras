@@ -10,7 +10,8 @@ import sys
 def load_data(path='imdb_full.pkl', nb_words=None, skip_top=0,
               maxlen=None, seed=113,
               start_char=1, oov_char=2, index_from=3):
-    '''
+    '''Loads IMDB dataset.
+
     # Arguments
         path: where to store the data (in `/.keras/dataset`)
         nb_words: max number of words to include. Words are ranked
@@ -72,9 +73,9 @@ def load_data(path='imdb_full.pkl', nb_words=None, skip_top=0,
         X = new_X
         labels = new_labels
     if not X:
-        raise Exception('After filtering for sequences shorter than maxlen=' +
-                        str(maxlen) + ', no sequence was kept. '
-                        'Increase maxlen.')
+        raise ValueError('After filtering for sequences shorter than maxlen=' +
+                         str(maxlen) + ', no sequence was kept. '
+                         'Increase maxlen.')
     if not nb_words:
         nb_words = max([max(x) for x in X])
 

@@ -2,7 +2,6 @@ from __future__ import absolute_import
 from . import backend as K
 from .utils.generic_utils import get_from_module
 from six.moves import zip
-import warnings
 
 
 def clip_norm(g, c, n):
@@ -11,7 +10,7 @@ def clip_norm(g, c, n):
     return g
 
 
-def optimizer_from_config(config, custom_objects={}):
+def optimizer_from_config(config, custom_objects=None):
     all_classes = {
         'sgd': SGD,
         'rmsprop': RMSprop,
@@ -23,7 +22,7 @@ def optimizer_from_config(config, custom_objects={}):
         'tfoptimizer': TFOptimizer,
     }
     class_name = config['class_name']
-    if class_name in custom_objects:
+    if custom_objects and class_name in custom_objects:
         cls = custom_objects[class_name]
     else:
         if class_name.lower() not in all_classes:
@@ -49,7 +48,7 @@ class Optimizer(object):
         allowed_kwargs = {'clipnorm', 'clipvalue'}
         for k in kwargs:
             if k not in allowed_kwargs:
-                raise Exception('Unexpected keyword argument '
+                raise TypeError('Unexpected keyword argument '
                                 'passed to optimizer: ' + str(k))
         self.__dict__.update(kwargs)
         self.updates = []
@@ -85,10 +84,10 @@ class Optimizer(object):
         param_values = K.batch_get_value(params)
         for pv, p, w in zip(param_values, params, weights):
             if pv.shape != w.shape:
-                raise Exception('Optimizer weight shape ' +
-                                str(pv.shape) +
-                                ' not compatible with '
-                                'provided weight shape ' + str(w.shape))
+                raise ValueError('Optimizer weight shape ' +
+                                 str(pv.shape) +
+                                 ' not compatible with '
+                                 'provided weight shape ' + str(w.shape))
             weight_value_tuples.append((p, w))
         K.batch_set_value(weight_value_tuples)
 

@@ -68,56 +68,19 @@ def convert_kernel(kernel, dim_ordering='default'):
     '''
     if dim_ordering == 'default':
         dim_ordering = K.image_dim_ordering()
-    new_kernel = np.copy(kernel)
-    if kernel.ndim == 4:
-        # conv 2d
-        # TH kernel shape: (depth, input_depth, rows, cols)
-        # TF kernel shape: (rows, cols, input_depth, depth)
-        if dim_ordering == 'th':
-            w = kernel.shape[2]
-            h = kernel.shape[3]
-            for i in range(w):
-                for j in range(h):
-                    new_kernel[:, :, i, j] = kernel[:, :, w - i - 1, h - j - 1]
-        elif dim_ordering == 'tf':
-            w = kernel.shape[0]
-            h = kernel.shape[1]
-            for i in range(w):
-                for j in range(h):
-                    new_kernel[i, j, :, :] = kernel[w - i - 1, h - j - 1, :, :]
-        else:
-            raise Exception('Invalid dim_ordering: ' + str(dim_ordering))
-    elif kernel.ndim == 5:
-        # conv 3d
-        # TH kernel shape: (out_depth, input_depth, kernel_dim1, kernel_dim2, kernel_dim3)
-        # TF kernel shape: (kernel_dim1, kernel_dim2, kernel_dim3, input_depth, out_depth)
-        if dim_ordering == 'th':
-            w = kernel.shape[2]
-            h = kernel.shape[3]
-            z = kernel.shape[4]
-            for i in range(w):
-                for j in range(h):
-                    for k in range(z):
-                        new_kernel[:, :, i, j, k] = kernel[:, :,
-                                                           w - i - 1,
-                                                           h - j - 1,
-                                                           z - k - 1]
-        elif dim_ordering == 'tf':
-            w = kernel.shape[0]
-            h = kernel.shape[1]
-            z = kernel.shape[2]
-            for i in range(w):
-                for j in range(h):
-                    for k in range(z):
-                        new_kernel[i, j, k, :, :] = kernel[w - i - 1,
-                                                           h - j - 1,
-                                                           z - k - 1,
-                                                           :, :]
-        else:
-            raise Exception('Invalid dim_ordering: ' + str(dim_ordering))
-    else:
+    if not 4 <= kernel.ndim <= 5:
         raise ValueError('Invalid kernel shape:', kernel.shape)
-    return new_kernel
+
+    slices = [slice(None, None, -1) for i in range(kernel.ndim)]
+    no_flip = (slice(None, None), slice(None, None))
+    if dim_ordering == 'th':  # (out_depth, input_depth, ...)
+        slices[:2] = no_flip
+    elif dim_ordering == 'tf':  # (..., input_depth, out_depth)
+        slices[-2:] = no_flip
+    else:
+        raise ValueError('Invalid dim_ordering:', dim_ordering)
+
+    return np.copy(kernel[slices])
 
 
 def conv_output_length(input_length, filter_size, border_mode, stride, dilation=1):

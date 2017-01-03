@@ -81,8 +81,8 @@ class LocallyConnected1D(Layer):
                  W_constraint=None, b_constraint=None,
                  bias=True, input_dim=None, input_length=None, **kwargs):
         if border_mode != 'valid':
-            raise Exception('Invalid border mode for LocallyConnected1D '
-                            '(only "valid" is supported):', border_mode)
+            raise ValueError('Invalid border mode for LocallyConnected1D '
+                             '(only "valid" is supported):', border_mode)
         self.nb_filter = nb_filter
         self.filter_length = filter_length
         self.init = initializations.get(init, dim_ordering='th')
@@ -110,31 +110,22 @@ class LocallyConnected1D(Layer):
     def build(self, input_shape):
         input_dim = input_shape[2]
         _, output_length, nb_filter = self.get_output_shape_for(input_shape)
-
-        self.W_shape = (output_length, self.filter_length * input_dim, nb_filter)
-        self.W = self.init(self.W_shape, name='{}_W'.format(self.name))
+        self.W_shape = (output_length,
+                        self.filter_length * input_dim,
+                        nb_filter)
+        self.W = self.add_weight(self.W_shape,
+                                 initializer=self.init,
+                                 name='{}_W'.format(self.name),
+                                 regularizer=self.W_regularizer,
+                                 constraint=self.W_constraint)
         if self.bias:
-            self.b = K.zeros((output_length, self.nb_filter), name='{}_b'.format(self.name))
-            self.trainable_weights = [self.W, self.b]
+            self.b = self.add_weight((output_length, self.nb_filter),
+                                     initializer='zero',
+                                     name='{}_b'.format(self.name),
+                                     regularizer=self.b_regularizer,
+                                     constraint=self.b_constraint)
         else:
-            self.trainable_weights = [self.W]
-
-        self.regularizers = []
-        if self.W_regularizer:
-            self.W_regularizer.set_param(self.W)
-            self.regularizers.append(self.W_regularizer)
-        if self.b_regularizer:
-            self.b_regularizer.set_param(self.b)
-            self.regularizers.append(self.b_regularizer)
-        if self.activity_regularizer:
-            self.activity_regularizer.set_layer(self)
-            self.regularizers.append(self.activity_regularizer)
-
-        self.constraints = {}
-        if self.W_constraint:
-            self.constraints[self.W] = self.W_constraint
-        if self.b_constraint:
-            self.constraints[self.b] = self.b_constraint
+            self.b = None
 
         if self.initial_weights is not None:
             self.set_weights(self.initial_weights)
@@ -267,8 +258,8 @@ class LocallyConnected2D(Layer):
         if dim_ordering == 'default':
             dim_ordering = K.image_dim_ordering()
         if border_mode != 'valid':
-            raise Exception('Invalid border mode for LocallyConnected2D '
-                            '(only "valid" is supported):', border_mode)
+            raise ValueError('Invalid border mode for LocallyConnected2D '
+                             '(only "valid" is supported):', border_mode)
         self.nb_filter = nb_filter
         self.nb_row = nb_row
         self.nb_col = nb_col
@@ -277,7 +268,8 @@ class LocallyConnected2D(Layer):
 
         self.border_mode = border_mode
         self.subsample = tuple(subsample)
-        assert dim_ordering in {'tf', 'th'}, 'dim_ordering must be in {tf, th}'
+        if dim_ordering not in {'tf', 'th'}:
+            raise ValueError('`dim_ordering` must be in {tf, th}.')
         self.dim_ordering = dim_ordering
 
         self.W_regularizer = regularizers.get(W_regularizer)
@@ -301,35 +293,26 @@ class LocallyConnected2D(Layer):
             _, output_row, output_col, nb_filter = output_shape
             input_filter = input_shape[3]
         else:
-            raise Exception('Invalid dim_ordering: ' + self.dim_ordering)
+            raise ValueError('Invalid dim_ordering:', self.dim_ordering)
 
         self.output_row = output_row
         self.output_col = output_col
-        self.W_shape = (output_row * output_col, self.nb_row * self.nb_col * input_filter, nb_filter)
-        self.W = self.init(self.W_shape, name='{}_W'.format(self.name))
-
+        self.W_shape = (output_row * output_col,
+                        self.nb_row * self.nb_col * input_filter,
+                        nb_filter)
+        self.W = self.add_weight(self.W_shape,
+                                 initializer=self.init,
+                                 name='{}_W'.format(self.name),
+                                 regularizer=self.W_regularizer,
+                                 constraint=self.W_constraint)
         if self.bias:
-            self.b = K.zeros((output_row, output_col, nb_filter), name='{}_b'.format(self.name))
-            self.trainable_weights = [self.W, self.b]
+            self.b = self.add_weight((output_row, output_col, nb_filter),
+                                     initializer='zero',
+                                     name='{}_b'.format(self.name),
+                                     regularizer=self.b_regularizer,
+                                     constraint=self.b_constraint)
         else:
-            self.trainable_weights = [self.W]
-
-        self.regularizers = []
-        if self.W_regularizer:
-            self.W_regularizer.set_param(self.W)
-            self.regularizers.append(self.W_regularizer)
-        if self.bias and self.b_regularizer:
-            self.b_regularizer.set_param(self.b)
-            self.regularizers.append(self.b_regularizer)
-        if self.activity_regularizer:
-            self.activity_regularizer.set_layer(self)
-            self.regularizers.append(self.activity_regularizer)
-
-        self.constraints = {}
-        if self.W_constraint:
-            self.constraints[self.W] = self.W_constraint
-        if self.bias and self.b_constraint:
-            self.constraints[self.b] = self.b_constraint
+            self.b = None
 
         if self.initial_weights is not None:
             self.set_weights(self.initial_weights)
@@ -344,7 +327,7 @@ class LocallyConnected2D(Layer):
             rows = input_shape[1]
             cols = input_shape[2]
         else:
-            raise Exception('Invalid dim_ordering: ' + self.dim_ordering)
+            raise ValueError('Invalid dim_ordering:', self.dim_ordering)
 
         rows = conv_output_length(rows, self.nb_row,
                                   self.border_mode, self.subsample[0])
@@ -355,8 +338,6 @@ class LocallyConnected2D(Layer):
             return (input_shape[0], self.nb_filter, rows, cols)
         elif self.dim_ordering == 'tf':
             return (input_shape[0], rows, cols, self.nb_filter)
-        else:
-            raise Exception('Invalid dim_ordering: ' + self.dim_ordering)
 
     def call(self, x, mask=None):
         stride_row, stride_col = self.subsample
@@ -401,15 +382,13 @@ class LocallyConnected2D(Layer):
             output = K.reshape(output, (self.output_row, self.output_col, -1, nb_filter))
             output = K.permute_dimensions(output, (2, 0, 1, 3))
         else:
-            raise Exception('Invalid dim_ordering: ' + self.dim_ordering)
+            raise ValueError('Invalid dim_ordering:', self.dim_ordering)
 
         if self.bias:
             if self.dim_ordering == 'th':
                 output += K.reshape(self.b, (1, nb_filter, self.output_row, self.output_col))
             elif self.dim_ordering == 'tf':
                 output += K.reshape(self.b, (1, self.output_row, self.output_col, nb_filter))
-            else:
-                raise Exception('Invalid dim_ordering: ' + self.dim_ordering)
 
         output = self.activation(output)
         return output

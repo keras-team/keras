@@ -77,11 +77,11 @@ class TestImage:
             x = np.random.random((32, 3, 10, 10))
             generator.fit(x)
         with pytest.raises(ValueError):
-            x = np.random.random((32, 10, 10, 4))
+            x = np.random.random((32, 10, 10, 5))
             generator.fit(x)
         # Test flow with invalid data
         with pytest.raises(ValueError):
-            x = np.random.random((32, 10, 10, 4))
+            x = np.random.random((32, 10, 10, 5))
             generator.flow(np.arange(x.shape[0]))
         with pytest.raises(ValueError):
             x = np.random.random((32, 10, 10))
@@ -117,6 +117,48 @@ class TestImage:
         # Test RBG
         x = np.random.random((32, 3, 10, 10))
         generator.fit(x)
+
+    def test_directory_iterator(self):
+        num_classes = 2
+        tmp_folder = tempfile.mkdtemp(prefix='test_images')
+
+        # create folders and subfolders
+        paths = []
+        for cl in range(num_classes):
+            class_directory = 'class-{}'.format(cl)
+            classpaths = [
+                class_directory,
+                os.path.join(class_directory, 'subfolder-1'),
+                os.path.join(class_directory, 'subfolder-2'),
+                os.path.join(class_directory, 'subfolder-1', 'sub-subfolder')
+            ]
+            for path in classpaths:
+                os.mkdir(os.path.join(tmp_folder, path))
+            paths.append(classpaths)
+
+        # save the images in the paths
+        count = 0
+        filenames = []
+        for test_images in self.all_test_images:
+            for im in test_images:
+                # rotate image class
+                im_class = count % num_classes
+                # rotate subfolders
+                classpaths = paths[im_class]
+                filename = os.path.join(classpaths[count % len(classpaths)], 'image-{}.jpg'.format(count))
+                filenames.append(filename)
+                im.save(os.path.join(tmp_folder, filename))
+                count += 1
+
+        # create iterator
+        generator = image.ImageDataGenerator()
+        dir_iterator = generator.flow_from_directory(tmp_folder)
+
+        # check number of classes and images
+        assert(len(dir_iterator.class_indices) == num_classes)
+        assert(len(dir_iterator.classes) == count)
+        assert(sorted(dir_iterator.filenames) == sorted(filenames))
+        shutil.rmtree(tmp_folder)
 
     def test_img_utils(self):
         height, width = 10, 8

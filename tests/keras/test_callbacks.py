@@ -79,6 +79,22 @@ def test_ModelCheckpoint():
     assert os.path.exists(filepath)
     os.remove(filepath)
 
+    # case 5
+    save_best_only = False
+    period = 2
+    mode = 'auto'
+    filepath = 'checkpoint.{epoch:02d}.h5'
+    cbks = [callbacks.ModelCheckpoint(filepath, monitor=monitor,
+                                      save_best_only=save_best_only, mode=mode,
+                                      period=period)]
+    model.fit(X_train, y_train, batch_size=batch_size,
+              validation_data=(X_test, y_test), callbacks=cbks, nb_epoch=4)
+    assert os.path.exists(filepath.format(epoch=1))
+    assert os.path.exists(filepath.format(epoch=3))
+    assert not os.path.exists(filepath.format(epoch=0))
+    assert not os.path.exists(filepath.format(epoch=2))
+    os.remove(filepath.format(epoch=1))
+    os.remove(filepath.format(epoch=3))
 
 def test_EarlyStopping():
     (X_train, y_train), (X_test, y_test) = get_test_data(nb_train=train_samples,

@@ -12,7 +12,7 @@ import numpy as np
 import os
 import copy
 import warnings
-from .common import _FLOATX, _EPSILON, image_dim_ordering, reset_uids
+from .common import floatx, _EPSILON, image_dim_ordering, reset_uids
 py_all = all
 
 # INTERNAL UTILS
@@ -45,11 +45,16 @@ def clear_session():
 
 
 def manual_variable_initialization(value):
-    '''Returns a boolean:
-    whether variables should be initialized
+    '''Sets the manual variable initialization flag.
+
+    This boolean flag determines whether
+    variables should be initialized
     as they are instantiated (default), or if
     the user should handle the initialization
-    (e.g. via tf.initialize_all_variables()).
+    (e.g. via `tf.initialize_all_variables()`).
+
+    # Arguments
+        value: Python boolean.
     '''
     global _MANUAL_VAR_INIT
     _MANUAL_VAR_INIT = value
@@ -93,6 +98,9 @@ def get_session():
 
     Note that you can manually set the global session
     via `K.set_session(sess)`.
+
+    # Returns
+        A TensorFlow session.
     '''
     global _SESSION
     if tf.get_default_session() is not None:
@@ -150,36 +158,99 @@ def _to_tensor(x, dtype):
 
 
 def is_sparse(tensor):
+    '''Returns whether a tensor is a sparse tensor.
+
+    # Arguments
+        tensor: A tensor instance.
+
+    # Returns
+        A boolean.
+
+    # Example
+    ```python
+        >>> from keras import backend as K
+        >>> a = K.placeholder((2, 2), sparse=False)
+        >>> print(K.is_sparse(a))
+        False
+        >>> b = K.placeholder((2, 2), sparse=True)
+        >>> print(K.is_sparse(b))
+        True
+    ```
+    '''
     return isinstance(tensor, tf.SparseTensor)
 
 
 def to_dense(tensor):
+    '''Converts a sparse tensor into a dense tensor
+    and returns it.
+
+    # Arguments
+        tensor: A tensor instance (potentially sparse).
+
+    # Returns
+        A dense tensor.
+
+    # Examples
+    ```python
+        >>> from keras import backend as K
+        >>> b = K.placeholder((2, 2), sparse=True)
+        >>> print(K.is_sparse(b))
+        True
+        >>> c = K.to_dense(b)
+        >>> print(K.is_sparse(c))
+        False
+    ```
+    '''
     if is_sparse(tensor):
         return tf.sparse_tensor_to_dense(tensor)
     else:
         return tensor
 
 
-def variable(value, dtype=_FLOATX, name=None):
-    '''Instantiates a tensor.
+def variable(value, dtype=None, name=None):
+    '''Instantiates a variable and returns it.
 
     # Arguments
-        value: numpy array, initial value of the tensor.
-        dtype: tensor type.
-        name: optional name string for the tensor.
+        value: Numpy array, initial value of the tensor.
+        dtype: Tensor type.
+        name: Optional name string for the tensor.
 
     # Returns
-        Tensor variable instance.
+        A variable instance (with Keras metadata included).
+
+    # Examples
+    ```python
+        >>> from keras import backend as K
+        >>> val = np.array([[1, 2], [3, 4]])
+        >>> kvar = K.variable(value=val, dtype='float64', name='example_var')
+        >>> K.dtype(kvar)
+        'float64'
+        >>> print(kvar)
+        example_var
+        >>> kvar.eval()
+        array([[ 1.,  2.],
+               [ 3.,  4.]])
+    ```
     '''
+    if dtype is None:
+        dtype = floatx()
     if hasattr(value, 'tocoo'):
         sparse_coo = value.tocoo()
         indices = np.concatenate((np.expand_dims(sparse_coo.row, 1),
                                   np.expand_dims(sparse_coo.col, 1)), 1)
-        # SparseTensor doesn't need initialization
-        v = tf.SparseTensor(indices=indices, values=sparse_coo.data, shape=sparse_coo.shape)
+        v = tf.SparseTensor(indices=indices,
+                            values=sparse_coo.data,
+                            shape=sparse_coo.shape)
         v._dims = len(sparse_coo.shape)
+        v._keras_shape = sparse_coo.shape
+        v._uses_learning_phase = False
         return v
     v = tf.Variable(value, dtype=_convert_string_dtype(dtype), name=name)
+    if isinstance(value, np.ndarray):
+        v._keras_shape = value.shape
+    elif hasattr(value, 'get_shape'):
+        v._keras_shape = tuple(map(int, value.get_shape()))
+    v._uses_learning_phase = False
     return v
 
 
@@ -201,21 +272,34 @@ def _initialize_variables():
         else:
             sess.run(tf.initialize_variables(uninitialized_variables))
 
-def placeholder(shape=None, ndim=None, dtype=_FLOATX, sparse=False, name=None):
-    '''Instantiates a placeholder.
+
+def placeholder(shape=None, ndim=None, dtype=None, sparse=False, name=None):
+    '''Instantiates a placeholder tensor and returns it.
 
     # Arguments
-        shape: shape of the placeholder
-            (integer tuple, may include None entries).
-        ndim: number of axes of the tensor.
+        shape: Shape of the placeholder
+            (integer tuple, may include `None` entries).
+        ndim: Number of axes of the tensor.
             At least one of {`shape`, `ndim`} must be specified.
             If both are specified, `shape` is used.
-        dtype: placeholder type.
-        name: optional name string for the placeholder.
+        dtype: Placeholder type.
+        name: Optional name string for the placeholder.
 
     # Returns
-        Placeholder tensor instance.
+        Tensor instance (with Keras metadata included).
+
+    # Examples
+    ```python
+        >>> from keras import backend as K
+        >>> input_ph = K.placeholder(shape=(2, 4, 5))
+        >>> input_ph._keras_shape
+        (2, 4, 5)
+        >>> input_ph
+        <tf.Tensor 'Placeholder_4:0' shape=(2, 4, 5) dtype=float32>
+    ```
     '''
+    if dtype is None:
+        dtype = floatx()
     if not shape:
         if ndim:
             shape = tuple([None for _ in range(ndim)])
@@ -230,15 +314,57 @@ def placeholder(shape=None, ndim=None, dtype=_FLOATX, sparse=False, name=None):
 
 
 def shape(x):
-    '''Returns the symbolic shape of a tensor.
+    '''Returns the symbolic shape of a tensor or variable.
+
+    # Arguments
+        x: A tensor or variable.
+
+    # Returns
+        A symbolic shape (which is itself a tensor).
+
+    # Examples
+    ```
+        # TensorFlow example
+        >>> from keras import backend as K
+        >>> tf_session = K.get_session()
+        >>> val = np.array([[1, 2], [3, 4]])
+        >>> kvar = K.variable(value=val)
+        >>> input = keras.backend.placeholder(shape=(2, 4, 5))
+        >>> K.shape(kvar)
+        <tf.Tensor 'Shape_8:0' shape=(2,) dtype=int32>
+        >>> K.shape(input)
+        <tf.Tensor 'Shape_9:0' shape=(3,) dtype=int32>
+        # To get integer shape (Instead, you can use K.int_shape(x))
+        >>> K.shape(kvar).eval(session=tf_session)
+        array([2, 2], dtype=int32)
+        >>> K.shape(input).eval(session=tf_session)
+        array([2, 4, 5], dtype=int32)
+    ```
     '''
     return tf.shape(x)
 
 
 def int_shape(x):
-    '''Returns the shape of a tensor as a tuple of
+    '''Returns the shape of a Keras tensor or a Keras variable as a tuple of
     integers or None entries.
-    Note that this function only works with TensorFlow.
+
+    # Arguments
+        x: Tensor or variable.
+
+    # Returns
+        A tuple of integers (or None entries).
+
+    # Examples
+    ```python
+        >>> from keras import backend as K
+        >>> input = K.placeholder(shape=(2, 4, 5))
+        >>> K.int_shape(input)
+        (2, 4, 5)
+        >>> val = np.array([[1, 2], [3, 4]])
+        >>> kvar = K.variable(value=val)
+        >>> K.int_shape(kvar)
+        (2, 2)
+    ```
     '''
     shape = x.get_shape()
     return tuple([i.__int__() for i in shape])
@@ -246,6 +372,24 @@ def int_shape(x):
 
 def ndim(x):
     '''Returns the number of axes in a tensor, as an integer.
+
+    # Arguments
+        x: Tensor or variable.
+
+    # Returns
+        Integer (scalar), number of axes.
+
+    # Examples
+    ```python
+        >>> from keras import backend as K
+        >>> input = K.placeholder(shape=(2, 4, 5))
+        >>> val = np.array([[1, 2], [3, 4]])
+        >>> kvar = K.variable(value=val)
+        >>> K.ndim(input)
+        3
+        >>> K.ndim(kvar)
+        2
+    ```
     '''
     if is_sparse(x):
         return x._dims
@@ -257,58 +401,215 @@ def ndim(x):
 
 
 def dtype(x):
-    '''Returns the dtype of a tensor, as a string.
+    '''Returns the dtype of a Keras tensor or variable, as a string.
+
+    # Arguments
+        x: Tensor or variable.
+
+    # Returns
+        String, dtype of `x`.
+
+    # Examples
+    ```python
+        >>> from keras import backend as K
+        >>> K.dtype(K.placeholder(shape=(2,4,5)))
+        'float32'
+        >>> K.dtype(K.placeholder(shape=(2,4,5), dtype='float32'))
+        'float32'
+        >>> K.dtype(K.placeholder(shape=(2,4,5), dtype='float64'))
+        'float64'
+        # Keras variable
+        >>> kvar = K.variable(np.array([[1, 2], [3, 4]]))
+        >>> K.dtype(kvar)
+        'float32_ref'
+        >>> kvar = K.variable(np.array([[1, 2], [3, 4]]), dtype='float32')
+        >>> K.dtype(kvar)
+        'float32_ref'
+    ```
     '''
     return x.dtype.name
 
 
 def eval(x):
-    '''Evaluates the value of a tensor.
+    '''Evaluates the value of a variable.
     Returns a Numpy array.
+
+    # Arguments
+        x: A variable.
+
+    # Returns
+        A Numpy array.
+
+    # Examples
+    ```python
+        >>> from keras import backend as K
+        >>> kvar = K.variable(np.array([[1, 2], [3, 4]]), dtype='float32')
+        >>> K.eval(kvar)
+        array([[ 1.,  2.],
+               [ 3.,  4.]], dtype=float32)
+    ```
     '''
     return to_dense(x).eval(session=get_session())
 
 
-def zeros(shape, dtype=_FLOATX, name=None):
-    '''Instantiates an all-zeros tensor variable.
+def zeros(shape, dtype=None, name=None):
+    '''Instantiates an all-zeros variable and returns it.
+
+    # Arguments
+        shape: Tuple of integers, shape of returned Keras variable
+        dtype: String, data type of returned Keras variable
+        name: String, name of returned Keras variable
+
+    # Returns
+        A variable (including Keras metadata), filled with `0.0`.
+
+    # Example
+    ```python
+        >>> from keras import backend as K
+        >>> kvar = K.zeros((3,4))
+        >>> K.eval(kvar)
+        array([[ 0.,  0.,  0.,  0.],
+               [ 0.,  0.,  0.,  0.],
+               [ 0.,  0.,  0.,  0.]], dtype=float32)
+    ```
     '''
+    if dtype is None:
+        dtype = floatx()
     shape = tuple(map(int, shape))
     tf_dtype = _convert_string_dtype(dtype)
     return variable(tf.constant_initializer(0., dtype=tf_dtype)(shape),
                     dtype, name)
 
 
-def ones(shape, dtype=_FLOATX, name=None):
-    '''Instantiates an all-ones tensor variable.
+def ones(shape, dtype=None, name=None):
+    '''Instantiates an all-ones tensor variable and returns it.
+
+    # Arguments
+        shape: Tuple of integers, shape of returned Keras variable.
+        dtype: String, data type of returned Keras variable.
+        name: String, name of returned Keras variable.
+
+    # Returns
+        A Keras variable, filled with `1.0`.
+
+    # Example
+    ```python
+        >>> from keras import backend as K
+        >>> kvar = K.ones((3,4))
+        >>> K.eval(kvar)
+        array([[ 1.,  1.,  1.,  1.],
+               [ 1.,  1.,  1.,  1.],
+               [ 1.,  1.,  1.,  1.]], dtype=float32)
+    ```
     '''
+    if dtype is None:
+        dtype = floatx()
     shape = tuple(map(int, shape))
     tf_dtype = _convert_string_dtype(dtype)
     return variable(tf.constant_initializer(1., dtype=tf_dtype)(shape),
                     dtype, name)
 
 
-def eye(size, dtype=_FLOATX, name=None):
-    '''Instantiate an identity matrix.
+def eye(size, dtype=None, name=None):
+    '''Instantiate an identity matrix and returns it.
+
+    # Arguments
+        size: Integer, number of rows/columns.
+        dtype: String, data type of returned Keras variable.
+        name: String, name of returned Keras variable.
+
+    # Returns
+        A Keras variable, an identity matrix.
+
+    # Example
+    ```python
+        >>> from keras import backend as K
+        >>> kvar = K.eye(3)
+        >>> K.eval(kvar)
+        array([[ 1.,  0.,  0.],
+               [ 0.,  1.,  0.],
+               [ 0.,  0.,  1.]], dtype=float32)
+    ```
+
     '''
     return variable(np.eye(size), dtype, name)
 
 
 def zeros_like(x, name=None):
-    '''Instantiates an all-zeros tensor
-    of the same shape as another tensor.
+    '''Instantiates an all-zeros Keras variable
+    of the same shape as another Keras variable or tensor and returns it.
+
+    # Arguments
+        x: Keras variable or Keras tensor.
+
+    # Returns
+        A Keras variable, filled with `0.0`.
+
+    # Example
+    ```python
+        >>> from keras import backend as K
+        >>> kvar = K.variable(np.random.random((2,3)))
+        >>> kvar_zeros = K.zeros_like(kvar)
+        >>> K.eval(kvar_zeros)
+        array([[ 0.,  0.,  0.],
+               [ 0.,  0.,  0.]], dtype=float32)
+    ```
     '''
     return tf.zeros_like(x, name=name)
 
 
 def ones_like(x, name=None):
-    '''Instantiates an all-ones tensor
-    of the same shape as another tensor.
+    '''Instantiates an all-ones Keras variable
+    of the same shape as another Keras variable or tensor and returns it.
+
+    # Arguments
+        x: Keras variable or tensor.
+
+    # Returns
+        A Keras variable, filled with `1.0`.
+
+    # Example
+    ```python
+        >>> from keras import backend as K
+        >>> kvar = K.variable(np.random.random((2,3)))
+        >>> kvar_ones = K.ones_like(kvar)
+        >>> K.eval(kvar_ones)
+        array([[ 1.,  1.,  1.],
+               [ 1.,  1.,  1.]], dtype=float32)
+    ```
     '''
     return tf.ones_like(x, name=name)
 
 
-def random_uniform_variable(shape, low, high, dtype=_FLOATX,
+def random_uniform_variable(shape, low, high, dtype=None,
                             name=None, seed=None):
+    '''Instantiates an Keras variable filled with
+    samples drawn from a uniform distribution and returns it.
+
+    # Arguments
+        shape: Tuple of integers, shape of returned Keras variable.
+        low: Float, lower boundary of the output inteval.
+        high: Float, upper boundary of the output interval.
+        dtype: String, dtype of returned Keras variable.
+        name: String, name of returned Keras variable.
+        seed: Integer, random seed.
+
+    # Returns
+        A Keras variable, filled with drawn samples.
+
+    # Example
+    ```python
+        # TensorFlow example
+        >>> kvar = K.random_uniform_variable((2,3), 0, 1)
+        >>> kvar
+        <tensorflow.python.ops.variables.Variable object at 0x10ab40b10>
+        >>> K.eval(kvar)
+        array([[ 0.10940075,  0.10047495,  0.476143  ],
+               [ 0.66137183,  0.00869417,  0.89220798]], dtype=float32)
+    ```
+    '''
+    if dtype is None:
+        dtype = floatx()
     shape = tuple(map(int, shape))
     tf_dtype = _convert_string_dtype(dtype)
     if seed is None:
@@ -319,8 +620,35 @@ def random_uniform_variable(shape, low, high, dtype=_FLOATX,
     return variable(value, dtype=dtype, name=name)
 
 
-def random_normal_variable(shape, mean, scale, dtype=_FLOATX,
+def random_normal_variable(shape, mean, scale, dtype=None,
                            name=None, seed=None):
+    '''Instantiates an Keras variable filled with
+    samples drawn from a normal distribution and returns it.
+
+    # Arguments
+        shape: Tuple of integers, shape of returned Keras variable.
+        mean: Float, mean of the normal distribution.
+        scale: Float, standard deviation of the normal distribution.
+        dtype: String, dtype of returned Keras variable.
+        name: String, name of returned Keras variable.
+        seed: Integer, random seed.
+
+    # Returns
+        A Keras variable, filled with drawn samples.
+
+    # Example
+    ```python
+        # TensorFlow example
+        >>> kvar = K.random_normal_variable((2,3), 0, 1)
+        >>> kvar
+        <tensorflow.python.ops.variables.Variable object at 0x10ab12dd0>
+        >>> K.eval(kvar)
+        array([[ 1.19591331,  0.68685907, -0.63814116],
+               [ 0.92629528,  0.28055015,  1.70484698]], dtype=float32)
+    ```
+    '''
+    if dtype is None:
+        dtype = floatx()
     shape = tuple(map(int, shape))
     tf_dtype = _convert_string_dtype(dtype)
     if seed is None:
@@ -332,14 +660,55 @@ def random_normal_variable(shape, mean, scale, dtype=_FLOATX,
 
 
 def count_params(x):
-    '''Returns the number of scalars in a tensor.
+    '''Returns the number of scalars in a Keras variable.
+
+    # Arguments
+        x: Keras variable.
+
+    # Returns
+        Integer, the number of scalars in `x`.
+
+    # Example
+    ```python
+        >>> kvar = K.zeros((2,3))
+        >>> K.count_params(kvar)
+        6
+        >>> K.eval(kvar)
+        array([[ 0.,  0.,  0.],
+               [ 0.,  0.,  0.]], dtype=float32)
+    ```
     '''
     shape = x.get_shape()
     return np.prod([shape[i]._value for i in range(len(shape))])
 
 
 def cast(x, dtype):
-    '''Casts a tensor to a different dtype.
+    '''Casts a tensor to a different dtype and returns it.
+
+    You can cast a Keras variable but it still returns a Keras tensor.
+
+    # Arguments
+        x: Keras tensor (or variable).
+        dtype: String, either (`'float16'`, `'float32'`, or `'float64'`).
+
+    # Returns
+        Keras tensor with dtype `dtype`.
+
+    # Example
+    ```python
+        >>> from keras import backend as K
+        >>> input = K.placeholder((2, 3), dtype='float32')
+        >>> input
+        <tf.Tensor 'Placeholder_2:0' shape=(2, 3) dtype=float32>
+        # It doesn't work in-place as below.
+        >>> K.cast(input, dtype='float16')
+        <tf.Tensor 'Cast_1:0' shape=(2, 3) dtype=float16>
+        >>> input
+        <tf.Tensor 'Placeholder_2:0' shape=(2, 3) dtype=float32>
+        # you need to assign it.
+        >>> input = K.cast(input, dtype='float16')
+        >>> input
+        <tf.Tensor 'Cast_2:0' shape=(2, 3) dtype=float16>    ```
     '''
     return tf.cast(x, dtype)
 
@@ -360,26 +729,78 @@ def update_sub(x, decrement):
 
 
 def moving_average_update(variable, value, momentum):
-    return moving_averages.assign_moving_average(
-        variable, value, momentum)
+    try:
+        return moving_averages.assign_moving_average(
+            variable, value, momentum, zero_debias=False)
+    except TypeError:
+        return moving_averages.assign_moving_average(
+            variable, value, momentum)
 
 
 # LINEAR ALGEBRA
 
 def dot(x, y):
-    '''Multiplies 2 tensors.
+    '''Multiplies 2 tensors (and/or variables) and returns a *tensor*.
     When attempting to multiply a ND tensor
-    with a ND tensor, reproduces the Theano behavior
+    with a ND tensor, it reproduces the Theano behavior.
     (e.g. (2, 3).(4, 3, 5) = (2, 4, 5))
+
+    # Arguments
+        x: Tensor or variable.
+        y: Tensor or variable.
+
+    # Returns
+        A tensor, dot product of `x` and `y`.
+
+    # Examples
+    ```python
+        # dot product between tensors
+        >>> x = K.placeholder(shape=(2, 3))
+        >>> y = K.placeholder(shape=(3, 4))
+        >>> xy = K.dot(x, y)
+        >>> xy
+        <tf.Tensor 'MatMul_9:0' shape=(2, 4) dtype=float32>
+    ```
+
+    ```python
+        # dot product between tensors
+        >>> x = K.placeholder(shape=(32, 28, 3))
+        >>> y = K.placeholder(shape=(3, 4))
+        >>> xy = K.dot(x, y)
+        >>> xy
+        <tf.Tensor 'MatMul_9:0' shape=(32, 28, 4) dtype=float32>
+    ```
+
+    ```python
+        # Theano-like behavior example
+        >>> x = K.random_uniform_variable(shape=(2, 3), low=0, high=1)
+        >>> y = K.ones((4, 3, 5))
+        >>> xy = K.dot(x, y)
+        >>> K.int_shape(xy)
+        (2, 4, 5)
+    ```
     '''
     if ndim(x) is not None and (ndim(x) > 2 or ndim(y) > 2):
-        x_shape = (-1,) + int_shape(x)[1:]
-        y_shape = int_shape(y)
+        x_shape = []
+        for i, s in zip(int_shape(x), tf.unpack(tf.shape(x))):
+            if i is not None:
+                x_shape.append(i)
+            else:
+                x_shape.append(s)
+        x_shape = tuple(x_shape)
+        y_shape = []
+        for i, s in zip(int_shape(y), tf.unpack(tf.shape(y))):
+            if i is not None:
+                y_shape.append(i)
+            else:
+                y_shape.append(s)
+        y_shape = tuple(y_shape)
         y_permute_dim = list(range(ndim(y)))
         y_permute_dim = [y_permute_dim.pop(-2)] + y_permute_dim
         xt = tf.reshape(x, [-1, x_shape[-1]])
         yt = tf.reshape(tf.transpose(y, perm=y_permute_dim), [y_shape[-2], -1])
-        return tf.reshape(tf.matmul(xt, yt), x_shape[:-1] + y_shape[:-2] + y_shape[-1:])
+        return tf.reshape(tf.matmul(xt, yt),
+                          x_shape[:-1] + y_shape[:-2] + y_shape[-1:])
     if is_sparse(x):
         out = tf.sparse_tensor_dense_matmul(x, y)
     else:
@@ -390,42 +811,55 @@ def dot(x, y):
 def batch_dot(x, y, axes=None):
     '''Batchwise dot product.
 
-    batch_dot results in a tensor with less dimensions than the input.
-    If the number of dimensions is reduced to 1, we use `expand_dims` to
-    make sure that ndim is at least 2.
+    `batch_dot` is used to compute dot product of `x` and `y` when
+    `x` and `y` are data in batch, i.e. in a shape of
+    `(batch_size, :)`.
+    `batch_dot` results in a tensor or variable with less dimensions
+    than the input. If the number of dimensions is reduced to 1,
+    we use `expand_dims` to make sure that ndim is at least 2.
 
     # Arguments
-        x, y: tensors with ndim >= 2
-        axes: list (or single) int with target dimensions
+        x, y: Keras tensors or variables with `ndim >= 2`
+            (With TensorFlow backend, `batch_dot()` only supports `ndim >= 3`)
+        axes: list of (or single) int with target dimensions.
+            The lengths of `axes[0]` and `axes[1]` should be the same.
 
     # Returns
-        A tensor with shape equal to the concatenation of x's shape
-        (less the dimension that was summed over) and y's shape
+        A tensor with shape equal to the concatenation of `x`'s shape
+        (less the dimension that was summed over) and `y`'s shape
         (less the batch dimension and the dimension that was summed over).
-        If the final rank is 1, we reshape it to (batch_size, 1).
+        If the final rank is 1, we reshape it to `(batch_size, 1)`.
 
     # Examples
-        Assume x = [[1, 2], [3, 4]]   and y = [[5, 6], [7, 8]]
-        batch_dot(x, y, axes=1) = [[17, 53]] which is the main diagonal
-        of x.dot(y.T), although we never have to calculate the off-diagonal
+        Assume `x = [[1, 2], [3, 4]]` and `y = [[5, 6], [7, 8]]`
+        `batch_dot(x, y, axes=1) = [[17, 53]]` which is the main diagonal
+        of `x.dot(y.T)`, although we never have to calculate the off-diagonal
         elements.
 
         Shape inference:
-        Let x's shape be (100, 20) and y's shape be (100, 30, 20).
-        If dot_axes is (1, 2), to find the output shape of resultant tensor,
+        Let `x`'s shape be `(100, 20)` and `y`'s shape be `(100, 30, 20)`.
+        If `axes` is (1, 2), to find the output shape of resultant tensor,
             loop through each dimension in x's shape and y's shape:
-        x.shape[0] : 100 : append to output shape
-        x.shape[1] : 20 : do not append to output shape,
-            dimension 1 of x has been summed over. (dot_axes[0] = 1)
-        y.shape[0] : 100 : do not append to output shape,
-            always ignore first dimension of y
-        y.shape[1] : 30 : append to output shape
-        y.shape[2] : 20 : do not append to output shape,
-            dimension 2 of y has been summed over. (dot_axes[1] = 2)
 
-        output_shape = (100, 30)
+        * `x.shape[0]` : 100 : append to output shape
+        * `x.shape[1]` : 20 : do not append to output shape,
+            dimension 1 of x has been summed over. (`dot_axes[0]` = 1)
+        * `y.shape[0]` : 100 : do not append to output shape,
+            always ignore first dimension of y
+        * `y.shape[1]` : 30 : append to output shape
+        * `y.shape[2]` : 20 : do not append to output shape,
+            dimension 2 of y has been summed over. (`dot_axes[1]` = 2)
+        output_shape = `(100, 30)`
+
+    ```python
+        >>> x_batch = K.ones(shape=(32, 20, 1))
+        >>> y_batch = K.ones(shape=(32, 30, 20))
+        >>> xy_batch_dot = K.batch_dot(x_batch, y_batch, axes=[1, 2])
+        >>> K.int_shape(xy_batch_dot)
+        (32, 1, 30)
+    ```
     '''
-    if type(axes) == int:
+    if isinstance(axes, int):
         axes = (axes, axes)
     if axes is not None:
         adj_x = None if axes[0] == ndim(x) - 1 else True
@@ -433,28 +867,60 @@ def batch_dot(x, y, axes=None):
     else:
         adj_x = None
         adj_y = None
-    out = tf.batch_matmul(x, y, adj_x=adj_x, adj_y=adj_y)
+    try:
+        out = tf.batch_matmul(x, y, adj_a=adj_x, adj_b=adj_y)
+    except TypeError:
+        out = tf.batch_matmul(x, y, adj_x=adj_x, adj_y=adj_y)
     if ndim(out) == 1:
         out = expand_dims(out, 1)
     return out
 
 
 def transpose(x):
-    '''Transposes a matrix.
+    '''Transposes a tensor and returns it.
+
+    # Arguments
+        x: Tensor or variable.
+
+    # Returns
+        A tensor.
+
+    # Examples
+    ```python
+        >>> var = K.variable([[1, 2, 3], [4, 5, 6]])
+        >>> K.eval(var)
+        array([[ 1.,  2.,  3.],
+               [ 4.,  5.,  6.]], dtype=float32)
+        >>> var_transposed = K.transpose(var)
+        >>> K.eval(var_transposed)
+        array([[ 1.,  4.],
+               [ 2.,  5.],
+               [ 3.,  6.]], dtype=float32)
+    ```
+
+    ```python
+        >>> input = K.placeholder((2, 3))
+        >>> input
+        <tf.Tensor 'Placeholder_11:0' shape=(2, 3) dtype=float32>
+        >>> input_transposed = K.transpose(input)
+        >>> input_transposed
+        <tf.Tensor 'transpose_4:0' shape=(3, 2) dtype=float32>
+
+    ```
     '''
     return tf.transpose(x)
 
 
 def gather(reference, indices):
-    '''Retrieves the vectors of indices `indices`
-    in the 2D tensor `reference`.
+    '''Retrieves the elements of indices `indices`
+    in the tensor `reference`.
 
     # Arguments
-        reference: a 2D tensor.
-        indices: an int tensor of indices.
+        reference: A tensor.
+        indices: An integer tensor of indices.
 
     # Returns
-        A 3D tensor of same type as `reference`.
+        A tensor of same type as `reference`.
     '''
     return tf.gather(reference, indices)
 
@@ -462,9 +928,9 @@ def gather(reference, indices):
 # ELEMENT-WISE OPERATIONS
 
 def _normalize_axis(axis, ndim):
-    if type(axis) is tuple:
+    if isinstance(axis, tuple):
         axis = list(axis)
-    if type(axis) is list:
+    if isinstance(axis, list):
         for i, a in enumerate(axis):
             if a is not None and a < 0:
                 axis[i] = a % ndim
@@ -507,7 +973,7 @@ def var(x, axis=None, keepdims=False):
     '''
     axis = _normalize_axis(axis, ndim(x))
     if x.dtype.base_dtype == tf.bool:
-        x = tf.cast(x, _FLOATX)
+        x = tf.cast(x, floatx())
     m = tf.reduce_mean(x, reduction_indices=axis, keep_dims=True)
     devs_squared = tf.square(x - m)
     return tf.reduce_mean(devs_squared,
@@ -526,7 +992,7 @@ def mean(x, axis=None, keepdims=False):
     '''
     axis = _normalize_axis(axis, ndim(x))
     if x.dtype.base_dtype == tf.bool:
-        x = tf.cast(x, _FLOATX)
+        x = tf.cast(x, floatx())
     return tf.reduce_mean(x, reduction_indices=axis, keep_dims=keepdims)
 
 
@@ -698,8 +1164,8 @@ def cos(x):
 
 
 def normalize_batch_in_training(x, gamma, beta,
-                                reduction_axes, epsilon=0.0001):
-    '''Compute mean and std for batch then apply batch_normalization on batch.
+                                reduction_axes, epsilon=1e-3):
+    '''Computes mean and std for batch then apply batch_normalization on batch.
     '''
     mean, var = tf.nn.moments(x, reduction_axes,
                               shift=None, name=None, keep_dims=False)
@@ -715,7 +1181,7 @@ def normalize_batch_in_training(x, gamma, beta,
                 target_shape.append(1)
             else:
                 target_shape.append(tf.shape(x)[axis])
-        target_shape = tf.pack(target_shape)
+        target_shape = stack(target_shape)
 
         broadcast_mean = tf.reshape(mean, target_shape)
         broadcast_var = tf.reshape(var, target_shape)
@@ -727,8 +1193,8 @@ def normalize_batch_in_training(x, gamma, beta,
     return normed, mean, var
 
 
-def batch_normalization(x, mean, var, beta, gamma, epsilon=0.0001):
-    '''Apply batch normalization on x given mean, var, beta and gamma:
+def batch_normalization(x, mean, var, beta, gamma, epsilon=1e-3):
+    '''Applies batch normalization on x given mean, var, beta and gamma:
 
     output = (x - mean) / (sqrt(var) + epsilon) * gamma + beta
     '''
@@ -738,7 +1204,7 @@ def batch_normalization(x, mean, var, beta, gamma, epsilon=0.0001):
 # SHAPE OPERATIONS
 
 def concatenate(tensors, axis=-1):
-    '''Concantes a list of tensors alongside the specified axis.
+    '''Concatenates a list of tensors alongside the specified axis.
     '''
     if axis < 0:
         dims = ndim(tensors[0])
@@ -750,7 +1216,10 @@ def concatenate(tensors, axis=-1):
     if py_all([is_sparse(x) for x in tensors]):
         return tf.sparse_concat(axis, tensors)
     else:
-        return tf.concat(axis, [to_dense(x) for x in tensors])
+        try:
+            return tf.concat_v2([to_dense(x) for x in tensors], axis)
+        except AttributeError:
+            return tf.concat(axis, [to_dense(x) for x in tensors])
 
 
 def reshape(x, shape):
@@ -795,11 +1264,11 @@ def resize_images(X, height_factor, width_factor, dim_ordering):
                     original_shape[2] * width_factor if original_shape[2] is not None else None, None))
         return X
     else:
-        raise Exception('Invalid dim_ordering: ' + dim_ordering)
+        raise ValueError('Invalid dim_ordering:', dim_ordering)
 
 
 def resize_volumes(X, depth_factor, height_factor, width_factor, dim_ordering):
-    '''Resize the volume contained in a 5D tensor of shape
+    '''Resizes the volume contained in a 5D tensor of shape
     - [batch, channels, depth, height, width] (for 'th' dim_ordering)
     - [batch, depth, height, width, channels] (for 'tf' dim_ordering)
     by a factor of (depth_factor, height_factor, width_factor).
@@ -816,7 +1285,7 @@ def resize_volumes(X, depth_factor, height_factor, width_factor, dim_ordering):
         output = repeat_elements(output, width_factor, axis=3)
         return output
     else:
-        raise Exception('Invalid dim_ordering: ' + dim_ordering)
+        raise ValueError('Invalid dim_ordering:', dim_ordering)
 
 
 def repeat_elements(x, rep, axis):
@@ -827,10 +1296,13 @@ def repeat_elements(x, rep, axis):
     '''
     x_shape = x.get_shape().as_list()
     # slices along the repeat axis
-    splits = tf.split(axis, x_shape[axis], x)
+    try:
+        splits = tf.split(value=x, num_or_size_splits=x_shape[axis], axis=axis)
+    except TypeError:
+        splits = tf.split(value=x, num_split=x_shape[axis], split_dim=axis)
     # repeat each slice the given number of reps
     x_rep = [s for s in splits for i in range(rep)]
-    return tf.concat(axis, x_rep)
+    return concatenate(x_rep, axis)
 
 
 def repeat(x, n):
@@ -841,12 +1313,31 @@ def repeat(x, n):
     '''
     assert ndim(x) == 2
     x = tf.expand_dims(x, 1)
-    pattern = tf.pack([1, n, 1])
+    pattern = stack([1, n, 1])
     return tf.tile(x, pattern)
 
 
+def arange(start, stop=None, step=1, dtype='int32'):
+    '''Creates a 1-D tensor containing a sequence of integers.
+
+    The function arguments use the same convention as
+    Theano's arange: if only one argument is provided,
+    it is in fact the "stop" argument.
+
+    The default type of the returned tensor is 'int32' to
+    match TensorFlow's default.
+    '''
+    # Match the behavior of numpy and Theano by returning an empty seqence.
+    if stop is None and start < 0:
+        start = 0
+    result = tf.range(start, limit=stop, delta=step, name='arange')
+    if dtype != 'int32':
+        result = cast(result, dtype)
+    return result
+
+
 def tile(x, n):
-    if not hasattr(n, 'shape') and not hasattr(n, '__len__') and not hasattr(n, '_shape'):
+    if isinstance(n, int):
         n = [n]
     return tf.tile(x, n)
 
@@ -859,7 +1350,7 @@ def batch_flatten(x):
     '''Turn a n-D tensor into a 2D tensor where
     the first dimension is conserved.
     '''
-    x = tf.reshape(x, tf.pack([-1, prod(shape(x)[1:])]))
+    x = tf.reshape(x, stack([-1, prod(shape(x)[1:])]))
     return x
 
 
@@ -966,8 +1457,11 @@ def spatial_3d_padding(x, padding=(1, 1, 1), dim_ordering='default'):
     return tf.pad(x, pattern)
 
 
-def pack(x):
-    return tf.pack(x)
+def stack(x):
+    try:
+        return tf.stack(x)
+    except AttributeError:
+        return tf.pack(x)
 
 
 def one_hot(indices, nb_classes):
@@ -981,10 +1475,14 @@ def one_hot(indices, nb_classes):
 def reverse(x, axes):
     '''Reverse a tensor along the the specified axes
     '''
-    if type(axes) == int:
+    if isinstance(axes, int):
         axes = [axes]
-    dims = [True if i in axes else False for i in range(len(x.get_shape()._dims))]
-    return tf.reverse(x, dims)
+    try:
+        return tf.reverse_v2(x, axes)
+    except AttributeError:
+        # Older TF versions.
+        dims = [True if i in axes else False for i in range(len(x.get_shape()._dims))]
+        return tf.reverse(x, dims)
 
 
 # VALUE MANIPULATION
@@ -1041,7 +1539,8 @@ def batch_set_value(tuples):
                 assign_placeholder = x._assign_placeholder
                 assign_op = x._assign_op
             else:
-                assign_placeholder = tf.placeholder(tf_dtype, shape=value.shape)
+                assign_placeholder = tf.placeholder(tf_dtype,
+                                                    shape=value.shape)
                 assign_op = x.assign(assign_placeholder)
                 x._assign_placeholder = assign_placeholder
                 x._assign_op = assign_op
@@ -1066,15 +1565,21 @@ def print_tensor(x, message=''):
 class Function(object):
 
     def __init__(self, inputs, outputs, updates=[]):
-        assert type(inputs) in {list, tuple}, 'Input to a TensorFlow backend function should be a list or tuple.'
-        assert type(outputs) in {list, tuple}, 'Output to a TensorFlow backend function should be a list or tuple.'
-        assert type(updates) in {list, tuple}, 'Updates in a TensorFlow backend function should be a list or tuple.'
+        if not isinstance(inputs, (list, tuple)):
+            raise TypeError('`inputs` to a TensorFlow backend function '
+                            'should be a list or tuple.')
+        if not isinstance(outputs, (list, tuple)):
+            raise TypeError('`outputs` of a TensorFlow backend function '
+                            'should be a list or tuple.')
+        if not isinstance(updates, (list, tuple)):
+            raise TypeError('`updates` in a TensorFlow backend function '
+                            'should be a list or tuple.')
         self.inputs = list(inputs)
         self.outputs = list(outputs)
         with tf.control_dependencies(self.outputs):
             updates_ops = []
             for update in updates:
-                if type(update) is tuple:
+                if isinstance(update, tuple):
                     p, new_p = update
                     updates_ops.append(tf.assign(p, new_p))
                 else:
@@ -1083,7 +1588,8 @@ class Function(object):
             self.updates_op = tf.group(*updates_ops)
 
     def __call__(self, inputs):
-        assert type(inputs) in {list, tuple}
+        if not isinstance(inputs, (list, tuple)):
+            raise TypeError('`inputs` should be a list or tuple.')
         feed_dict = {}
         for tensor, value in zip(self.inputs, inputs):
             if is_sparse(tensor):
@@ -1093,7 +1599,8 @@ class Function(object):
                 value = (indices, sparse_coo.data, sparse_coo.shape)
             feed_dict[tensor] = value
         session = get_session()
-        updated = session.run(self.outputs + [self.updates_op], feed_dict=feed_dict)
+        updated = session.run(self.outputs + [self.updates_op],
+                              feed_dict=feed_dict)
         return updated[:len(self.outputs)]
 
 
@@ -1221,7 +1728,7 @@ def rnn(step_function, inputs, initial_states,
                 # it just repeats the mask along its second dimension
                 # n times.
                 tiled_mask_t = tf.tile(mask_t,
-                                       tf.pack([1, tf.shape(output)[1]]))
+                                       stack([1, tf.shape(output)[1]]))
 
                 if len(successive_outputs) == 0:
                     prev_output = zeros_like(output)
@@ -1234,7 +1741,7 @@ def rnn(step_function, inputs, initial_states,
                 for state, new_state in zip(states, new_states):
                     # (see earlier comment for tile explanation)
                     tiled_mask_t = tf.tile(mask_t,
-                                           tf.pack([1, tf.shape(new_state)[1]]))
+                                           stack([1, tf.shape(new_state)[1]]))
                     return_states.append(tf.select(tiled_mask_t,
                                                    new_state,
                                                    state))
@@ -1243,7 +1750,7 @@ def rnn(step_function, inputs, initial_states,
                 successive_states.append(states)
                 last_output = successive_outputs[-1]
                 new_states = successive_states[-1]
-                outputs = tf.pack(successive_outputs)
+                outputs = stack(successive_outputs)
         else:
             for input in input_list:
                 output, states = step_function(input, states + constants)
@@ -1251,11 +1758,11 @@ def rnn(step_function, inputs, initial_states,
                 successive_states.append(states)
             last_output = successive_outputs[-1]
             new_states = successive_states[-1]
-            outputs = tf.pack(successive_outputs)
+            outputs = stack(successive_outputs)
 
     else:
         if go_backwards:
-            inputs = tf.reverse(inputs, [True] + [False] * (ndim - 1))
+            inputs = reverse(inputs, 0)
 
         states = tuple(initial_states)
 
@@ -1280,7 +1787,7 @@ def rnn(step_function, inputs, initial_states,
                                  'as its first state at time `t` '
                                  'the output at time `t-1`).')
             if go_backwards:
-                mask = tf.reverse(mask, [True] + [False] * (ndim - 1))
+                mask = reverse(mask, 0)
 
             mask_ta = tensor_array_ops.TensorArray(
                 dtype=tf.bool,
@@ -1297,7 +1804,7 @@ def rnn(step_function, inputs, initial_states,
                 for state, new_state in zip(states, new_states):
                     new_state.set_shape(state.get_shape())
                 tiled_mask_t = tf.tile(mask_t,
-                                       tf.pack([1, tf.shape(output)[1]]))
+                                       stack([1, tf.shape(output)[1]]))
                 output = tf.select(tiled_mask_t, output, states[0])
                 new_states = [tf.select(tiled_mask_t, new_states[i], states[i]) for i in range(len(states))]
                 output_ta_t = output_ta_t.write(time, output)
@@ -1483,7 +1990,7 @@ def sparse_categorical_crossentropy(output, target, from_logits=False):
         cast(flatten(target), 'int64'))
     if len(output_shape) == 3:
         # if our output includes timesteps we need to reshape
-        return tf.reshape(res, [-1, int(output_shape[-2])])
+        return tf.reshape(res, tf.shape(output)[:-1])
     else:
         return res
 
@@ -1576,7 +2083,7 @@ def _preprocess_deconv_output_shape(shape, dim_ordering):
 
 
 def _preprocess_conv2d_input(x, dim_ordering):
-    if _FLOATX == 'float64':
+    if dtype(x) == 'float64':
         x = tf.cast(x, 'float32')
     if dim_ordering == 'th':
         # TF uses the last dimension as channel dimension,
@@ -1588,7 +2095,7 @@ def _preprocess_conv2d_input(x, dim_ordering):
 
 
 def _preprocess_conv3d_input(x, dim_ordering):
-    if _FLOATX == 'float64':
+    if dtype(x) == 'float64':
         x = tf.cast(x, 'float32')
     if dim_ordering == 'th':
         # TF uses the last dimension as channel dimension,
@@ -1600,7 +2107,7 @@ def _preprocess_conv3d_input(x, dim_ordering):
 
 
 def _preprocess_conv2d_kernel(kernel, dim_ordering):
-    if _FLOATX == 'float64':
+    if dtype(kernel) == 'float64':
         kernel = tf.cast(kernel, 'float32')
     if dim_ordering == 'th':
         # TF uses the last dimension as channel dimension,
@@ -1612,7 +2119,7 @@ def _preprocess_conv2d_kernel(kernel, dim_ordering):
 
 
 def _preprocess_conv3d_kernel(kernel, dim_ordering):
-    if _FLOATX == 'float64':
+    if dtype(kernel) == 'float64':
         kernel = tf.cast(kernel, 'float32')
     if dim_ordering == 'th':
         # TF uses the last dimension as channel dimension,
@@ -1629,7 +2136,7 @@ def _preprocess_border_mode(border_mode):
     elif border_mode == 'valid':
         padding = 'VALID'
     else:
-        raise Exception('Invalid border mode: ' + str(border_mode))
+        raise ValueError('Invalid border mode:', border_mode)
     return padding
 
 
@@ -1637,7 +2144,7 @@ def _postprocess_conv2d_output(x, dim_ordering):
     if dim_ordering == 'th':
         x = tf.transpose(x, (0, 3, 1, 2))
 
-    if _FLOATX == 'float64':
+    if floatx() == 'float64':
         x = tf.cast(x, 'float64')
     return x
 
@@ -1646,7 +2153,7 @@ def _postprocess_conv3d_output(x, dim_ordering):
     if dim_ordering == 'th':
         x = tf.transpose(x, (0, 4, 1, 2, 3))
 
-    if _FLOATX == 'float64':
+    if floatx() == 'float64':
         x = tf.cast(x, 'float64')
     return x
 
@@ -1661,13 +2168,14 @@ def conv1d(x, kernel, stride=1, border_mode='valid',
         border_mode: string, "same" or "valid".
     '''
     # pre-process dtype
-    if _FLOATX == 'float64':
+    x_dtype = dtype(x)
+    if x_dtype == 'float64':
         x = tf.cast(x, 'float32')
         kernel = tf.cast(kernel, 'float32')
     padding = _preprocess_border_mode(border_mode)
     x = tf.nn.conv1d(x, kernel, stride, padding=padding)
     # post-process dtype
-    if _FLOATX == 'float64':
+    if x_dtype == 'float64':
         x = tf.cast(x, 'float64')
     return x
 
@@ -1831,7 +2339,7 @@ def pool2d(x, pool_size, strides=(1, 1),
     elif pool_mode == 'avg':
         x = tf.nn.avg_pool(x, pool_size, strides, padding=padding)
     else:
-        raise Exception('Invalid pooling mode: ' + str(pool_mode))
+        raise ValueError('Invalid pooling mode:', pool_mode)
 
     return _postprocess_conv2d_output(x, dim_ordering)
 
@@ -1863,33 +2371,40 @@ def pool3d(x, pool_size, strides=(1, 1, 1), border_mode='valid',
     elif pool_mode == 'avg':
         x = tf.nn.avg_pool3d(x, pool_size, strides, padding=padding)
     else:
-        raise Exception('Invalid pooling mode: ' + str(pool_mode))
+        raise ValueError('Invalid pooling mode:', pool_mode)
 
     return _postprocess_conv3d_output(x, dim_ordering)
 
 
 # RANDOMNESS
 
-def random_normal(shape, mean=0.0, std=1.0, dtype=_FLOATX, seed=None):
+def random_normal(shape, mean=0.0, std=1.0, dtype=None, seed=None):
+    if dtype is None:
+        dtype = floatx()
     if seed is None:
         seed = np.random.randint(10e6)
     return tf.random_normal(shape, mean=mean, stddev=std,
                             dtype=dtype, seed=seed)
 
 
-def random_uniform(shape, low=0.0, high=1.0, dtype=_FLOATX, seed=None):
+def random_uniform(shape, low=0.0, high=1.0, dtype=None, seed=None):
+    if dtype is None:
+        dtype = floatx()
     if seed is None:
         seed = np.random.randint(10e6)
     return tf.random_uniform(shape, minval=low, maxval=high,
                              dtype=dtype, seed=seed)
 
 
-def random_binomial(shape, p=0.0, dtype=_FLOATX, seed=None):
+def random_binomial(shape, p=0.0, dtype=None, seed=None):
+    if dtype is None:
+        dtype = floatx()
     if seed is None:
         seed = np.random.randint(10e6)
     return tf.select(tf.random_uniform(shape, dtype=dtype, seed=seed) <= p,
                      tf.ones(shape, dtype=dtype),
                      tf.zeros(shape, dtype=dtype))
+
 
 # CTC
 # tensorflow has a native implemenation, but it uses sparse tensors
@@ -1897,12 +2412,13 @@ def random_binomial(shape, p=0.0, dtype=_FLOATX, seed=None):
 # dense to sparse tensors and also wraps up the beam search code that is
 # in tensorflow's CTC implementation
 
+
 def ctc_label_dense_to_sparse(labels, label_lengths):
     # undocumented feature soon to be made public
     from tensorflow.python.ops import functional_ops
     label_shape = tf.shape(labels)
-    num_batches_tns = tf.pack([label_shape[0]])
-    max_num_labels_tns = tf.pack([label_shape[1]])
+    num_batches_tns = stack([label_shape[0]])
+    max_num_labels_tns = stack([label_shape[1]])
 
     def range_less_than(previous_state, current_input):
         return tf.expand_dims(tf.range(label_shape[1]), 0) < tf.fill(max_num_labels_tns, current_input)
@@ -1917,9 +2433,9 @@ def ctc_label_dense_to_sparse(labels, label_lengths):
     label_ind = tf.boolean_mask(label_array, dense_mask)
 
     batch_array = tf.transpose(tf.reshape(tf.tile(tf.range(0, label_shape[0]),
-                                                  max_num_labels_tns), tf.reverse(label_shape, [True])))
+                                                  max_num_labels_tns), reverse(label_shape, 0)))
     batch_ind = tf.boolean_mask(batch_array, dense_mask)
-    indices = tf.transpose(tf.reshape(tf.concat(0, [batch_ind, label_ind]), [2, -1]))
+    indices = tf.transpose(tf.reshape(concatenate([batch_ind, label_ind], axis=0), [2, -1]))
 
     vals_sparse = tf.gather_nd(labels, indices)
 

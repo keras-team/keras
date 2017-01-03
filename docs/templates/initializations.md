@@ -17,6 +17,7 @@ model.add(Dense(64, init='uniform'))
 - __identity__: Use with square 2D layers (`shape[0] == shape[1]`).
 - __orthogonal__: Use with square 2D layers (`shape[0] == shape[1]`).
 - __zero__
+- __one__
 - __glorot_normal__: Gaussian initialization scaled by fan_in + fan_out (Glorot 2010)
 - __glorot_uniform__
 - __he_normal__: Gaussian initialization scaled by fan_in (He et al., 2014)

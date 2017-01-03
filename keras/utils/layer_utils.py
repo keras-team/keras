@@ -1,4 +1,5 @@
 from __future__ import print_function
+import inspect
 
 from .generic_utils import get_from_module
 from .np_utils import convert_kernel
@@ -7,7 +8,7 @@ from ..models import Model, Sequential
 from .. import backend as K
 
 
-def layer_from_config(config, custom_objects={}):
+def layer_from_config(config, custom_objects=None):
     '''
     # Arguments
         config: dict of the form {'class_name': str, 'config': dict}
@@ -19,8 +20,9 @@ def layer_from_config(config, custom_objects={}):
     '''
     # Insert custom layers into globals so they can
     # be accessed by `get_from_module`.
-    for cls_key in custom_objects:
-        globals()[cls_key] = custom_objects[cls_key]
+    if custom_objects:
+        for cls_key in custom_objects:
+            globals()[cls_key] = custom_objects[cls_key]
 
     class_name = config['class_name']
 
@@ -31,10 +33,17 @@ def layer_from_config(config, custom_objects={}):
     else:
         layer_class = get_from_module(class_name, globals(), 'layer',
                                       instantiate=False)
-    return layer_class.from_config(config['config'])
+
+    arg_spec = inspect.getargspec(layer_class.from_config)
+    if 'custom_objects' in arg_spec.args:
+        return layer_class.from_config(config['config'],
+                                       custom_objects=custom_objects)
+    else:
+        return layer_class.from_config(config['config'])
 
 
-def print_summary(layers, relevant_nodes=None, line_length=100, positions=[.33, .55, .67, 1.]):
+def print_summary(layers, relevant_nodes=None,
+                  line_length=100, positions=[.33, .55, .67, 1.]):
     '''Prints a summary of a layer
 
     # Arguments
@@ -100,22 +109,31 @@ def print_summary(layers, relevant_nodes=None, line_length=100, positions=[.33, 
         else:
             print('_' * line_length)
 
-    def count_total_params(layers, layer_set=None):
-        if layer_set is None:
-            layer_set = set()
-        total_params = 0
-        for layer in layers:
-            if layer in layer_set:
-                continue
-            layer_set.add(layer)
-            if type(layer) in (Model, Sequential):
-                total_params += count_total_params(layer.layers, layer_set)
-            else:
-                total_params += layer.count_params()
-        return total_params
+    trainable_count, non_trainable_count = count_total_params(layers, layer_set=None)
 
-    print('Total params: %s' % count_total_params(layers))
+    print('Total params: {:,}'.format(trainable_count + non_trainable_count))
+    print('Trainable params: {:,}'.format(trainable_count))
+    print('Non-trainable params: {:,}'.format(non_trainable_count))
     print('_' * line_length)
+
+
+def count_total_params(layers, layer_set=None):
+    if layer_set is None:
+        layer_set = set()
+    trainable_count = 0
+    non_trainable_count = 0
+    for layer in layers:
+        if layer in layer_set:
+            continue
+        layer_set.add(layer)
+        if type(layer) in (Model, Sequential):
+            t, nt = count_total_params(layer.layers, layer_set)
+            trainable_count += t
+            non_trainable_count += nt
+        else:
+            trainable_count += sum([K.count_params(p) for p in layer.trainable_weights])
+            non_trainable_count += sum([K.count_params(p) for p in layer.non_trainable_weights])
+    return trainable_count, non_trainable_count
 
 
 def convert_all_kernels_in_model(model):
