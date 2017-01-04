@@ -200,7 +200,7 @@ The default input size for this model is 299x299.
 - include_top: whether to include the fully-connected layer at the top of the network.
 - weights: one of `None` (random initialization) or "imagenet" (pre-training on ImageNet).
 - input_tensor: optional Keras tensor (i.e. output of `layers.Input()`) to use as image input for the model.
-- inputs_shape: optional shape tuple, only to be specified
+- input_shape: optional shape tuple, only to be specified
     if `include_top` is False (otherwise the input shape
     has to be `(299, 299, 3)`.
     It should have exactly 3 inputs channels,
@@ -241,7 +241,7 @@ The default input size for this model is 224x224.
 - include_top: whether to include the 3 fully-connected layers at the top of the network.
 - weights: one of `None` (random initialization) or "imagenet" (pre-training on ImageNet).
 - input_tensor: optional Keras tensor (i.e. output of `layers.Input()`) to use as image input for the model.
-- inputs_shape: optional shape tuple, only to be specified
+- input_shape: optional shape tuple, only to be specified
     if `include_top` is False (otherwise the input shape
     has to be `(224, 224, 3)` (with `tf` dim ordering)
     or `(3, 224, 244)` (with `th` dim ordering).
@@ -283,7 +283,7 @@ The default input size for this model is 224x224.
 - include_top: whether to include the 3 fully-connected layers at the top of the network.
 - weights: one of `None` (random initialization) or "imagenet" (pre-training on ImageNet).
 - input_tensor: optional Keras tensor (i.e. output of `layers.Input()`) to use as image input for the model.
-- inputs_shape: optional shape tuple, only to be specified
+- input_shape: optional shape tuple, only to be specified
     if `include_top` is False (otherwise the input shape
     has to be `(224, 224, 3)` (with `tf` dim ordering)
     or `(3, 224, 244)` (with `th` dim ordering).
@@ -327,7 +327,7 @@ The default input size for this model is 224x224.
 - include_top: whether to include the fully-connected layer at the top of the network.
 - weights: one of `None` (random initialization) or "imagenet" (pre-training on ImageNet).
 - input_tensor: optional Keras tensor (i.e. output of `layers.Input()`) to use as image input for the model.
-- inputs_shape: optional shape tuple, only to be specified
+- input_shape: optional shape tuple, only to be specified
     if `include_top` is False (otherwise the input shape
     has to be `(224, 224, 3)` (with `tf` dim ordering)
     or `(3, 224, 244)` (with `th` dim ordering).
@@ -369,7 +369,7 @@ The default input size for this model is 299x299.
 - include_top: whether to include the fully-connected layer at the top of the network.
 - weights: one of `None` (random initialization) or "imagenet" (pre-training on ImageNet).
 - input_tensor: optional Keras tensor (i.e. output of `layers.Input()`) to use as image input for the model.
-- inputs_shape: optional shape tuple, only to be specified
+- input_shape: optional shape tuple, only to be specified
     if `include_top` is False (otherwise the input shape
     has to be `(299, 299, 3)` (with `tf` dim ordering)
     or `(3, 299, 299)` (with `th` dim ordering).
