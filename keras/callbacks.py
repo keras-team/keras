@@ -316,7 +316,75 @@ class ModelCheckpoint(Callback):
                     self.model.save(filepath, overwrite=True)
 
 
-class EarlyStopping(Callback):
+class ImprovementBasedAction(Callback):
+    '''Perform action when a monitored quantity has stopped improving.
+
+    # Arguments
+        monitor: quantity to be monitored.
+        min_delta: minimum change in the monitored quantity
+            to qualify as an improvement, i.e. an absolute
+            change of less than min_delta, will count as no
+            improvement.
+        epsilon: threshold for comparing current value of
+            monitored quality to the previous value.
+        patience: number of epochs with no improvement
+            after which action will be taken.
+        verbose: verbosity mode.
+        mode: one of {auto, min, max}. In `min` mode,
+            action will be taken when the quantity
+            monitored has stopped decreasing; in `max`
+            mode it will be taken when the quantity
+            monitored has stopped increasing; in `auto`
+            mode, the direction is automatically inferred
+            from the name of the monitored quantity.
+    '''
+    def __init__(self, monitor='val_loss', min_delta=0, epsilon=1e-5,
+                 patience=0, verbose=0, mode='auto'):
+        super(ImprovementBasedAction, self).__init__()
+
+        self.monitor = monitor
+        self.patience = patience
+        self.verbose = verbose
+        self.mode = mode
+        self.min_delta = min_delta
+        self.epsilon = epsilon
+        self.wait = 0
+
+        if mode not in ['auto', 'min', 'max']:
+            warnings.warn('%s mode %s is unknown, '
+                          'fallback to auto mode.' % (self.__class__.__name__, self.mode),
+                          RuntimeWarning)
+            mode = 'auto'
+
+        if mode == 'min' or (self.mode == 'auto' and 'acc' not in self.monitor):
+            self.monitor_op = lambda a, b: np.less(a, b - self.epsilon)
+            self.best = np.Inf
+        else:
+            self.monitor_op = lambda a, b: np.greater(a, b + self.epsilon)
+            self.best = -np.Inf
+
+    def on_train_begin(self, logs={}):
+        self.wait = 0
+
+    def on_epoch_end(self, epoch, logs={}):
+        current = logs.get(self.monitor)
+        if current is None:
+            warnings.warn('%s requires %s available!' %
+                          (self.__class__.__name__, self.monitor), RuntimeWarning)
+
+        if self.monitor_op(current - self.min_delta, self.best):
+            self.best = current
+            self.wait = 0
+        else:
+            if self.wait >= self.patience:
+                self.action(epoch, logs)
+            self.wait += 1
+
+    def action(self, epoch, logs={}):
+        pass
+
+
+class EarlyStopping(ImprovementBasedAction):
     '''Stop training when a monitored quantity has stopped improving.
 
     # Arguments
@@ -325,6 +393,8 @@ class EarlyStopping(Callback):
             to qualify as an improvement, i.e. an absolute
             change of less than min_delta, will count as no
             improvement.
+        epsilon: threshold for comparing current value of
+            monitored quality to the previous value.
         patience: number of epochs with no improvement
             after which training will be stopped.
         verbose: verbosity mode.
@@ -336,59 +406,72 @@ class EarlyStopping(Callback):
             mode, the direction is automatically inferred
             from the name of the monitored quantity.
     '''
-    def __init__(self, monitor='val_loss', min_delta=0, patience=0, verbose=0, mode='auto'):
-        super(EarlyStopping, self).__init__()
-
-        self.monitor = monitor
-        self.patience = patience
-        self.verbose = verbose
-        self.min_delta = min_delta
-        self.wait = 0
+    def __init__(self, **kwargs):
+        super(EarlyStopping, self).__init__(**kwargs)
         self.stopped_epoch = 0
 
-        if mode not in ['auto', 'min', 'max']:
-            warnings.warn('EarlyStopping mode %s is unknown, '
-                          'fallback to auto mode.' % (self.mode),
-                          RuntimeWarning)
-            mode = 'auto'
-
-        if mode == 'min':
-            self.monitor_op = np.less
-        elif mode == 'max':
-            self.monitor_op = np.greater
-        else:
-            if 'acc' in self.monitor:
-                self.monitor_op = np.greater
-            else:
-                self.monitor_op = np.less
-
-        if self.monitor_op == np.greater:
-            self.min_delta *= 1
-        else:
-            self.min_delta *= -1
-
-    def on_train_begin(self, logs={}):
-        self.wait = 0       # Allow instances to be re-used
-        self.best = np.Inf if self.monitor_op == np.less else -np.Inf
-
-    def on_epoch_end(self, epoch, logs={}):
-        current = logs.get(self.monitor)
-        if current is None:
-            warnings.warn('Early stopping requires %s available!' %
-                          (self.monitor), RuntimeWarning)
-
-        if self.monitor_op(current - self.min_delta, self.best):
-            self.best = current
-            self.wait = 0
-        else:
-            if self.wait >= self.patience:
-                self.stopped_epoch = epoch
-                self.model.stop_training = True
-            self.wait += 1
+    def action(self, epoch, logs={}):
+        self.stopped_epoch = epoch
+        self.model.stop_training = True
 
     def on_train_end(self, logs={}):
         if self.stopped_epoch > 0 and self.verbose > 0:
             print('Epoch %05d: early stopping' % (self.stopped_epoch))
+
+
+class ReduceLROnPlateau(ImprovementBasedAction):
+    '''Update learning rate when a monitored quantity has stopped improving.
+
+    # Arguments
+        factor: factor to decrease learning rate by after no improvement.
+        cooldown: number of epochs to wait before restarting
+            count to reduce learning rate after learning rate
+            has already been reduced.
+        min_lr: lower bound on learning rate
+        monitor: quantity to be monitored.
+        min_delta: minimum change in the monitored quantity
+            to qualify as an improvement, i.e. an absolute
+            change of less than min_delta, will count as no
+            improvement.
+        epsilon: threshold for comparing current value of
+            monitored quality to the previous value.
+        patience: number of epochs with no improvement
+            after which learning rate will be updated.
+        verbose: verbosity mode.
+        mode: one of {auto, min, max}. In `min` mode,
+            training will stop when the quantity
+            monitored has stopped decreasing; in `max`
+            mode it will stop when the quantity
+            monitored has stopped increasing; in `auto`
+            mode, the direction is automatically inferred
+            from the name of the monitored quantity.
+    '''
+    def __init__(self, factor=0.1, cooldown=0, min_lr=0, **kwargs):
+        super(ReduceLROnPlateau, self).__init__(**kwargs)
+        self.factor = factor
+        self.cooldown = cooldown
+        self.cooldown_counter = 0
+        self.min_lr = min_lr
+
+    def on_epoch_end(self, epoch, logs={}):
+        logs['lr'] = K.get_value(self.model.optimizer.lr)
+        if self.cooldown_counter > 0:
+            self.cooldown_counter -= 1
+        else:
+            super(ReduceLROnPlateau, self).on_epoch_end(epoch, logs)
+            if self.wait > self.patience:
+                self.cooldown_counter = self.cooldown
+
+    def action(self, epoch, logs={}):
+        assert hasattr(self.model.optimizer, 'lr'), \
+            'Optimizer must have a "lr" attribute.'
+        lr = K.get_value(self.model.optimizer.lr) * self.factor
+        if lr > self.min_lr:
+            K.set_value(self.model.optimizer.lr, lr)
+            if self.verbose > 0:
+                print('Epoch %05d: updating learning rate to %.2E' % (epoch, K.get_value(self.model.optimizer.lr)))
+        else:
+            pass
 
 
 class RemoteMonitor(Callback):
@@ -574,111 +657,6 @@ class TensorBoard(Callback):
 
     def on_train_end(self, _):
         self.writer.close()
-
-
-class ReduceLROnPlateau(Callback):
-    '''Reduce learning rate when a metric has stopped improving.
-
-    Models often benefit from reducing the learning rate by a factor
-    of 2-10 once learning stagnates. This callback monitors a
-    quantity and if no improvement is seen for a 'patience' number
-    of epochs, the learning rate is reduced.
-
-    # Example
-        ```python
-            reduce_lr = ReduceLROnPlateau(monitor='val_loss', factor=0.2,
-                                          patience=5, min_lr=0.001)
-            model.fit(X_train, Y_train, callbacks=[reduce_lr])
-        ```
-
-    # Arguments
-        monitor: quantity to be monitored.
-        factor: factor by which the learning rate will
-            be reduced. new_lr = lr * factor
-        patience: number of epochs with no improvement
-            after which learning rate will be reduced.
-        verbose: int. 0: quiet, 1: update messages.
-        mode: one of {auto, min, max}. In `min` mode,
-            lr will be reduced when the quantity
-            monitored has stopped decreasing; in `max`
-            mode it will be reduced when the quantity
-            monitored has stopped increasing; in `auto`
-            mode, the direction is automatically inferred
-            from the name of the monitored quantity.
-        epsilon: threshold for measuring the new optimum,
-            to only focus on significant changes.
-        cooldown: number of epochs to wait before resuming
-            normal operation after lr has been reduced.
-        min_lr: lower bound on the learning rate.
-    '''
-
-    def __init__(self, monitor='val_loss', factor=0.1, patience=10,
-                 verbose=0, mode='auto', epsilon=1e-4, cooldown=0, min_lr=0):
-        super(Callback, self).__init__()
-
-        self.monitor = monitor
-        if factor >= 1.0:
-            raise ValueError('ReduceLROnPlateau does not support a factor >= 1.0.')
-        self.factor = factor
-        self.min_lr = min_lr
-        self.epsilon = epsilon
-        self.patience = patience
-        self.verbose = verbose
-        self.cooldown = cooldown
-        self.cooldown_counter = 0  # Cooldown counter.
-        self.wait = 0
-        self.best = 0
-        self.mode = mode
-        self.monitor_op = None
-        self.reset()
-
-    def reset(self):
-        if self.mode not in ['auto', 'min', 'max']:
-            warnings.warn('Learning Rate Plateau Reducing mode %s is unknown, '
-                          'fallback to auto mode.' % (self.mode), RuntimeWarning)
-            self.mode = 'auto'
-        if self.mode == 'min' or (self.mode == 'auto' and 'acc' not in self.monitor):
-            self.monitor_op = lambda a, b: np.less(a, b - self.epsilon)
-            self.best = np.Inf
-        else:
-            self.monitor_op = lambda a, b: np.greater(a, b + self.epsilon)
-            self.best = -np.Inf
-        self.cooldown_counter = 0
-        self.wait = 0
-        self.lr_epsilon = self.min_lr * 1e-4
-
-    def on_train_begin(self, logs={}):
-        self.reset()
-
-    def on_epoch_end(self, epoch, logs={}):
-        logs['lr'] = K.get_value(self.model.optimizer.lr)
-        current = logs.get(self.monitor)
-        if current is None:
-            warnings.warn('Learning Rate Plateau Reducing requires %s available!' %
-                          self.monitor, RuntimeWarning)
-        else:
-            if self.in_cooldown():
-                self.cooldown_counter -= 1
-                self.wait = 0
-
-            if self.monitor_op(current, self.best):
-                self.best = current
-                self.wait = 0
-            elif not self.in_cooldown():
-                if self.wait >= self.patience:
-                    old_lr = float(K.get_value(self.model.optimizer.lr))
-                    if old_lr > self.min_lr + self.lr_epsilon:
-                        new_lr = old_lr * self.factor
-                        new_lr = max(new_lr, self.min_lr)
-                        K.set_value(self.model.optimizer.lr, new_lr)
-                        if self.verbose > 0:
-                            print('\nEpoch %05d: reducing learning rate to %s.' % (epoch, new_lr))
-                        self.cooldown_counter = self.cooldown
-                        self.wait = 0
-                self.wait += 1
-
-    def in_cooldown(self):
-        return self.cooldown_counter > 0
 
 
 class CSVLogger(Callback):
