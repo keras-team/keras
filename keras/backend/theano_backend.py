@@ -481,7 +481,7 @@ def _old_normalize_batch_in_training(x, gamma, beta,
                 x, broadcast_gamma, broadcast_beta, 'spatial', epsilon)
             var = T.inv(stdinv ** 2)
             return normed, T.flatten(mean), T.flatten(var)
-        except Exception:
+        except AttributeError:
             pass
 
     var = x.var(reduction_axes)
@@ -540,7 +540,9 @@ def _old_batch_normalization(x, mean, var, beta, gamma, epsilon=1e-3):
             else:
                 return theano.sandbox.cuda.dnn.dnn_batch_normalization_test(
                     x, gamma, beta, mean, var, 'spatial', epsilon)
-        except Exception:
+        except AttributeError:
+            pass
+        except ValueError:
             pass
     return T.nnet.bn.batch_normalization(x, gamma, beta, mean, sqrt(var + epsilon),
                                          mode='high_mem')
