@@ -1097,6 +1097,12 @@ def clip(x, min_value, max_value):
     return tf.clip_by_value(x, min_value, max_value)
 
 
+def clip_norm(g, c, n):
+    if c > 0:
+        g = switch(n >= c, tf.scalar_mul(c / n, g), g)
+    return g
+
+
 def equal(x, y):
     '''Element-wise equality between two tensors.
     Returns a bool tensor.
@@ -1860,13 +1866,19 @@ def switch(condition, then_expression, else_expression):
         then_expression: TensorFlow operation.
         else_expression: TensorFlow operation.
     '''
-    x_shape = copy.copy(then_expression.get_shape())
+    if hasattr(then_expression, 'get_shape'):
+        x_shape = copy.copy(then_expression.get_shape())
+    elif hasattr(then_expression, 'dense_shape'):
+        x_shape = copy.copy(then_expression.dense_shape)
     if condition.dtype != tf.bool:
         condition = tf.cast(condition, 'bool')
     x = _cond(condition,
               lambda: then_expression,
               lambda: else_expression)
-    x.set_shape(x_shape)
+    if hasattr(then_expression, 'get_shape'):
+        x.set_shape(x_shape)
+    elif hasattr(then_expression, 'dense_shape'):
+        x._dense_shape = x_shape
     return x
 
 

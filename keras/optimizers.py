@@ -4,12 +4,6 @@ from .utils.generic_utils import get_from_module
 from six.moves import zip
 
 
-def clip_norm(g, c, n):
-    if c > 0:
-        g = K.switch(n >= c, g * c / n, g)
-    return g
-
-
 def optimizer_from_config(config, custom_objects=None):
     all_classes = {
         'sgd': SGD,
@@ -61,7 +55,7 @@ class Optimizer(object):
         grads = K.gradients(loss, params)
         if hasattr(self, 'clipnorm') and self.clipnorm > 0:
             norm = K.sqrt(sum([K.sum(K.square(g)) for g in grads]))
-            grads = [clip_norm(g, self.clipnorm, norm) for g in grads]
+            grads = [K.clip_norm(g, self.clipnorm, norm) for g in grads]
         if hasattr(self, 'clipvalue') and self.clipvalue > 0:
             grads = [K.clip(g, -self.clipvalue, self.clipvalue) for g in grads]
         return grads
