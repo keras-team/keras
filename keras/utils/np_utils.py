@@ -3,12 +3,20 @@ import numpy as np
 import scipy as sp
 from six.moves import range
 from six.moves import zip
+from .. import backend as K
 
 
 def to_categorical(y, nb_classes=None):
-    '''Convert class vector (integers from 0 to nb_classes)
-    to binary class matrix, for use with categorical_crossentropy.
+    '''Convert class vector (integers from 0 to nb_classes) to binary class matrix, for use with categorical_crossentropy.
+
+    # Arguments
+        y: class vector to be converted into a matrix
+        nb_classes: total number of classes
+
+    # Returns
+        A binary matrix representation of the input.
     '''
+    y = np.array(y, dtype='int')
     if not nb_classes:
         nb_classes = np.max(y)+1
     Y = np.zeros((len(y), nb_classes))
@@ -52,25 +60,51 @@ def categorical_probas_to_classes(p):
     return np.argmax(p, axis=1)
 
 
-def convert_kernel(kernel, dim_ordering='th'):
-    '''Converts a kernel matrix (numpy array)
+def convert_kernel(kernel, dim_ordering='default'):
+    '''Converts a kernel matrix (Numpy array)
     from Theano format to TensorFlow format
     (or reciprocally, since the transformation
     is its own inverse).
     '''
-    new_kernel = np.copy(kernel)
-    if dim_ordering == 'th':
-        w = kernel.shape[2]
-        h = kernel.shape[3]
-        for i in range(w):
-            for j in range(h):
-                new_kernel[:, :, i, j] = kernel[:, :, w - i - 1, h - j - 1]
-    elif dim_ordering == 'tf':
-        w = kernel.shape[0]
-        h = kernel.shape[1]
-        for i in range(w):
-            for j in range(h):
-                new_kernel[i, j, :, :] = kernel[w - i - 1, h - j - 1, :, :]
+    if dim_ordering == 'default':
+        dim_ordering = K.image_dim_ordering()
+    if not 4 <= kernel.ndim <= 5:
+        raise ValueError('Invalid kernel shape:', kernel.shape)
+
+    slices = [slice(None, None, -1) for i in range(kernel.ndim)]
+    no_flip = (slice(None, None), slice(None, None))
+    if dim_ordering == 'th':  # (out_depth, input_depth, ...)
+        slices[:2] = no_flip
+    elif dim_ordering == 'tf':  # (..., input_depth, out_depth)
+        slices[-2:] = no_flip
     else:
-        raise Exception('Invalid dim_ordering: ' + str(dim_ordering))
-    return new_kernel
+        raise ValueError('Invalid dim_ordering:', dim_ordering)
+
+    return np.copy(kernel[slices])
+
+
+def conv_output_length(input_length, filter_size, border_mode, stride, dilation=1):
+    if input_length is None:
+        return None
+    assert border_mode in {'same', 'valid', 'full'}
+    dilated_filter_size = filter_size + (filter_size - 1) * (dilation - 1)
+    if border_mode == 'same':
+        output_length = input_length
+    elif border_mode == 'valid':
+        output_length = input_length - dilated_filter_size + 1
+    elif border_mode == 'full':
+        output_length = input_length + dilated_filter_size - 1
+    return (output_length + stride - 1) // stride
+
+
+def conv_input_length(output_length, filter_size, border_mode, stride):
+    if output_length is None:
+        return None
+    assert border_mode in {'same', 'valid', 'full'}
+    if border_mode == 'same':
+        pad = filter_size // 2
+    elif border_mode == 'valid':
+        pad = 0
+    elif border_mode == 'full':
+        pad = filter_size - 1
+    return (output_length - 1) * stride - 2 * pad + filter_size

@@ -75,7 +75,7 @@ The model will also be supervised via two loss functions. Using the main loss fu
 
 Here's what our model looks like:
 
-<img src="http://s3.amazonaws.com/keras.io/img/multi-input-multi-output-graph.png" alt="multi-input-multi-output-graph" style="width: 400px;"/>
+<img src="https://s3.amazonaws.com/keras.io/img/multi-input-multi-output-graph.png" alt="multi-input-multi-output-graph" style="width: 400px;"/>
 
 Let's implement it with the functional API.
 
@@ -102,7 +102,7 @@ lstm_out = LSTM(32)(x)
 Here we insert the auxiliary loss, allowing the LSTM and Embedding layer to be trained smoothly even though the main loss will be much higher in the model.
 
 ```python
-auxiliary_loss = Dense(1, activation='sigmoid', name='aux_output')(lstm_out)
+auxiliary_output = Dense(1, activation='sigmoid', name='aux_output')(lstm_out)
 ```
 
 At this point, we feed into the model our auxiliary input data by concatenating it with the LSTM output:
@@ -117,13 +117,13 @@ x = Dense(64, activation='relu')(x)
 x = Dense(64, activation='relu')(x)
 
 # and finally we add the main logistic regression layer
-main_loss = Dense(1, activation='sigmoid', name='main_output')(x)
+main_output = Dense(1, activation='sigmoid', name='main_output')(x)
 ```
 
 This defines a model with two inputs and two outputs:
 
 ```python
-model = Model(input=[main_input, auxiliary_input], output=[main_loss, auxiliary_loss])
+model = Model(input=[main_input, auxiliary_input], output=[main_output, auxiliary_output])
 ```
 
 We compile the model and assign a weight of 0.2 to the auxiliary loss.
@@ -166,7 +166,7 @@ Let's consider a dataset of tweets. We want to build a model that can tell wheth
 
 One way to achieve this is to build a model that encodes two tweets into two vectors, concatenates the vectors and adds a logistic regression of top, outputting a probability that the two tweets share the same author. The model would then be trained on positive tweet pairs and negative tweet pairs.
 
-Because the problem is symetric, the mechanism that encodes the first tweet should be reused (weights and all) to encode the second tweet. Here we use a shared LSTM layer to encode the tweets.
+Because the problem is symmetric, the mechanism that encodes the first tweet should be reused (weights and all) to encode the second tweet. Here we use a shared LSTM layer to encode the tweets.
 
 Let's build this with the functional API. We will take as input for a tweet a binary matrix of shape `(140, 256)`, i.e. a sequence of 140 vectors of size 256, where each dimension in the 256-dimensional vector encodes the presence/absence of a character (out of an alphabet of 256 frequent characters).
 
@@ -309,8 +309,8 @@ from keras.layers import merge, Convolution2D, Input
 
 # input tensor for a 3-channel 256x256 image
 x = Input(shape=(3, 256, 256))
-# 3x3 conv with 16 output channels
-y = Convolution2D(16, 3, 3, border_mode='same')
+# 3x3 conv with 3 output channels (same as input channels)
+y = Convolution2D(3, 3, 3, border_mode='same')(x)
 # this returns x + y.
 z = merge([x, y], mode='sum')
 ```

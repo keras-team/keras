@@ -1,6 +1,7 @@
 from __future__ import absolute_import
 import numpy as np
 from . import backend as K
+from .utils.generic_utils import get_from_module
 
 
 def get_fans(shape, dim_ordering='th'):
@@ -12,13 +13,15 @@ def get_fans(shape, dim_ordering='th'):
         # TH kernel shape: (depth, input_depth, ...)
         # TF kernel shape: (..., input_depth, depth)
         if dim_ordering == 'th':
-            fan_in = np.prod(shape[1:])
-            fan_out = shape[0]
+            receptive_field_size = np.prod(shape[2:])
+            fan_in = shape[1] * receptive_field_size
+            fan_out = shape[0] * receptive_field_size
         elif dim_ordering == 'tf':
-            fan_in = np.prod(shape[:-1])
-            fan_out = shape[-1]
+            receptive_field_size = np.prod(shape[:2])
+            fan_in = shape[-2] * receptive_field_size
+            fan_out = shape[-1] * receptive_field_size
         else:
-            raise Exception('Invalid dim_ordering: ' + dim_ordering)
+            raise ValueError('Invalid dim_ordering: ' + dim_ordering)
     else:
         # no specific assumptions
         fan_in = np.sqrt(np.prod(shape))
@@ -27,13 +30,11 @@ def get_fans(shape, dim_ordering='th'):
 
 
 def uniform(shape, scale=0.05, name=None):
-    return K.variable(np.random.uniform(low=-scale, high=scale, size=shape),
-                      name=name)
+    return K.random_uniform_variable(shape, -scale, scale, name=name)
 
 
 def normal(shape, scale=0.05, name=None):
-    return K.variable(np.random.normal(loc=0.0, scale=scale, size=shape),
-                      name=name)
+    return K.random_normal_variable(shape, 0.0, scale, name=name)
 
 
 def lecun_uniform(shape, name=None, dim_ordering='th'):
@@ -87,8 +88,8 @@ def orthogonal(shape, scale=1.1, name=None):
 
 def identity(shape, scale=1, name=None):
     if len(shape) != 2 or shape[0] != shape[1]:
-        raise Exception('Identity matrix initialization can only be used '
-                        'for 2D square matrices.')
+        raise ValueError('Identity matrix initialization can only be used '
+                         'for 2D square matrices.')
     else:
         return K.variable(scale * np.identity(shape[0]), name=name)
 
@@ -101,7 +102,6 @@ def one(shape, name=None):
     return K.ones(shape, name=name)
 
 
-from .utils.generic_utils import get_from_module
 def get(identifier, **kwargs):
     return get_from_module(identifier, globals(),
                            'initialization', kwargs=kwargs)

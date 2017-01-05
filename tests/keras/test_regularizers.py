@@ -51,6 +51,15 @@ def create_model(weight_reg=None, activity_reg=None):
     return model
 
 
+def test_Eigenvalue_reg():
+    (X_train, Y_train), (X_test, Y_test), test_ids = get_data()
+    reg = regularizers.EigenvalueRegularizer(0.01)
+    model = create_model(weight_reg=reg)
+    model.compile(loss='categorical_crossentropy', optimizer='rmsprop')
+    model.fit(X_train, Y_train, batch_size=batch_size, nb_epoch=nb_epoch, verbose=0)
+    model.evaluate(X_test[test_ids, :], Y_test[test_ids, :], verbose=0)
+
+
 def test_W_reg():
     (X_train, Y_train), (X_test, Y_test), test_ids = get_data()
     for reg in [regularizers.l1(),
@@ -58,6 +67,7 @@ def test_W_reg():
                 regularizers.l1l2()]:
         model = create_model(weight_reg=reg)
         model.compile(loss='categorical_crossentropy', optimizer='rmsprop')
+        assert len(model.losses) == 1
         model.fit(X_train, Y_train, batch_size=batch_size,
                   nb_epoch=nb_epoch, verbose=0)
         model.evaluate(X_test[test_ids, :], Y_test[test_ids, :], verbose=0)
@@ -68,6 +78,7 @@ def test_A_reg():
     for reg in [regularizers.activity_l1(), regularizers.activity_l2()]:
         model = create_model(activity_reg=reg)
         model.compile(loss='categorical_crossentropy', optimizer='rmsprop')
+        assert len(model.losses) == 1
         model.fit(X_train, Y_train, batch_size=batch_size,
                   nb_epoch=nb_epoch, verbose=0)
         model.evaluate(X_test[test_ids, :], Y_test[test_ids, :], verbose=0)

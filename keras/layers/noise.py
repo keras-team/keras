@@ -1,10 +1,11 @@
 from __future__ import absolute_import
 from ..engine import Layer
 from .. import backend as K
+import numpy as np
 
 
 class GaussianNoise(Layer):
-    '''Apply to the input an additive zero-centred gaussian noise with
+    '''Apply to the input an additive zero-centered Gaussian noise with
     standard deviation `sigma`. This is useful to mitigate overfitting
     (you could see it as a kind of random data augmentation).
     Gaussian Noise (GS) is a natural choice as corruption process
@@ -42,7 +43,7 @@ class GaussianNoise(Layer):
 
 
 class GaussianDropout(Layer):
-    '''Apply to the input an multiplicative one-centred gaussian noise
+    '''Apply to the input an multiplicative one-centered Gaussian noise
     with standard deviation `sqrt(p/(1-p))`.
 
     As it is a regularization layer, it is only active at training time.
@@ -71,7 +72,7 @@ class GaussianDropout(Layer):
     def call(self, x, mask=None):
         if 0 < self.p < 1:
             noise_x = x * K.random_normal(shape=K.shape(x), mean=1.0,
-                                          std=K.sqrt(self.p / (1.0 - self.p)))
+                                          std=np.sqrt(self.p / (1.0 - self.p)))
             return K.in_train_phase(noise_x, x)
         return x
 

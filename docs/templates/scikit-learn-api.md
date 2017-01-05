@@ -1,12 +1,12 @@
-# Wrappers for the Sciki-Learn API
+# Wrappers for the Scikit-Learn API
 
-You can use `Sequential` Keras models (single-input only) as part of your Scikit-Learn workflow via the wrappers found at `keras.wrappers.sklearn.py`.
+You can use `Sequential` Keras models (single-input only) as part of your Scikit-Learn workflow via the wrappers found at `keras.wrappers.scikit_learn.py`.
 
 There are two wrappers available:
 
-`keras.wrappers.sklearn.KerasClassifier(build_fn=None, **sk_params)`, which implements the sklearn classifier interface,
+`keras.wrappers.scikit_learn.KerasClassifier(build_fn=None, **sk_params)`, which implements the Scikit-Learn classifier interface,
 
-`keras.wrappers.sklearn.KerasRegressor(build_fn=None, **sk_params)`, which implements the sklearn regressor interface.
+`keras.wrappers.scikit_learn.KerasRegressor(build_fn=None, **sk_params)`, which implements the Scikit-Learn regressor interface.
 
 ### Arguments
 
@@ -25,7 +25,7 @@ present class will then be treated as the default build_fn.
 
 `sk_params` takes both model parameters and fitting parameters. Legal model
 parameters are the arguments of `build_fn`. Note that like all other
-estimators in scikit-learn, 'build_fn' should provide defalult values for
+estimators in scikit-learn, 'build_fn' should provide default values for
 its arguments, so that you could create the estimator without passing any
 values to `sk_params`.
 

@@ -12,6 +12,7 @@ allobj = [objectives.mean_squared_error,
           objectives.squared_hinge,
           objectives.hinge, objectives.categorical_crossentropy,
           objectives.binary_crossentropy,
+          objectives.kullback_leibler_divergence,
           objectives.poisson,
           objectives.cosine_proximity]
 

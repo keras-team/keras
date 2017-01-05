@@ -29,8 +29,7 @@ Five digits inverted:
 from __future__ import print_function
 from keras.models import Sequential
 from keras.engine.training import slice_X
-from keras.layers.core import Activation, TimeDistributedDense, RepeatVector
-from keras.layers import recurrent
+from keras.layers import Activation, TimeDistributed, Dense, RepeatVector, recurrent
 import numpy as np
 from six.moves import range
 
@@ -40,7 +39,7 @@ class CharacterTable(object):
     Given a set of characters:
     + Encode them to a one hot integer representation
     + Decode the one hot integer representation to their character output
-    + Decode a vector of probabilties to their character output
+    + Decode a vector of probabilities to their character output
     '''
     def __init__(self, chars, maxlen):
         self.chars = sorted(set(chars))
@@ -140,7 +139,7 @@ for _ in range(LAYERS):
     model.add(RNN(HIDDEN_SIZE, return_sequences=True))
 
 # For each of step of the output sequence, decide which character should be chosen
-model.add(TimeDistributedDense(len(chars)))
+model.add(TimeDistributed(Dense(len(chars))))
 model.add(Activation('softmax'))
 
 model.compile(loss='categorical_crossentropy',

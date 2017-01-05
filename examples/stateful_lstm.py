@@ -5,8 +5,7 @@ from __future__ import print_function
 import numpy as np
 import matplotlib.pyplot as plt
 from keras.models import Sequential
-from keras.layers.core import Dense
-from keras.layers.recurrent import LSTM
+from keras.layers import Dense, LSTM
 
 
 # since we are using stateful rnn tsteps can be set to 1
@@ -17,7 +16,7 @@ epochs = 25
 lahead = 1
 
 
-def gen_cosine_amp(amp=100, period=25, x0=0, xn=50000, step=1, k=0.0001):
+def gen_cosine_amp(amp=100, period=1000, x0=0, xn=50000, step=1, k=0.0001):
     """Generates an absolute cosine time series with the amplitude
     exponentially decreasing
 
@@ -32,7 +31,7 @@ def gen_cosine_amp(amp=100, period=25, x0=0, xn=50000, step=1, k=0.0001):
     cos = np.zeros(((xn - x0) * step, 1, 1))
     for i in range(len(cos)):
         idx = x0 + i * step
-        cos[i, 0, 0] = amp * np.cos(idx / (2 * np.pi * period))
+        cos[i, 0, 0] = amp * np.cos(2 * np.pi * idx / period)
         cos[i, 0, 0] = cos[i, 0, 0] * np.exp(-k * idx)
     return cos
 
@@ -55,7 +54,6 @@ model.add(LSTM(50,
                return_sequences=True,
                stateful=True))
 model.add(LSTM(50,
-               batch_input_shape=(batch_size, tsteps, 1),
                return_sequences=False,
                stateful=True))
 model.add(Dense(1))
@@ -75,7 +73,7 @@ for i in range(epochs):
 print('Predicting')
 predicted_output = model.predict(cos, batch_size=batch_size)
 
-print('Ploting Results')
+print('Plotting Results')
 plt.subplot(2, 1, 1)
 plt.plot(expected_output)
 plt.title('Expected')
