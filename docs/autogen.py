@@ -312,7 +312,7 @@ def get_function_signature(function, method=True):
     for a in args:
         st += str(a) + ', '
     for a, v in kwargs:
-        if type(v) == str:
+        if isinstance(v, str):
             v = '\'' + v + '\''
         st += str(a) + '=' + str(v) + ', '
     if kwargs or args:

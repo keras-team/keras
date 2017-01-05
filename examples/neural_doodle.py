@@ -301,7 +301,7 @@ loss_grads = K.gradients(loss, target_image)
 
 # Evaluator class for computing efficiency
 outputs = [loss]
-if type(loss_grads) in {list, tuple}:
+if isinstance(loss_grads, (list, tuple)):
     outputs += loss_grads
 else:
     outputs.append(loss_grads)

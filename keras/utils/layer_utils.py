@@ -126,7 +126,7 @@ def count_total_params(layers, layer_set=None):
         if layer in layer_set:
             continue
         layer_set.add(layer)
-        if type(layer) in (Model, Sequential):
+        if isinstance(layer, (Model, Sequential)):
             t, nt = count_total_params(layer.layers, layer_set)
             trainable_count += t
             non_trainable_count += nt

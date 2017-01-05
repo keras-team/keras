@@ -140,7 +140,7 @@ loss += settings['dream_l2'] * K.sum(K.square(dream)) / np.prod(img_size)
 grads = K.gradients(loss, dream)
 
 outputs = [loss]
-if type(grads) in {list, tuple}:
+if isinstance(grads, (list, tuple)):
     outputs += grads
 else:
     outputs.append(grads)
