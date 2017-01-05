@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-'''An implementation of sequence to sequence learning for performing addition
+"""An implementation of sequence to sequence learning for performing addition
 Input: "535+61"
 Output: "596"
 Padding is handled by using a repeated sentinel character (space)
@@ -24,40 +24,39 @@ Four digits inverted:
 Five digits inverted:
 + One layer LSTM (128 HN), 550k training examples = 99% train/test accuracy in 30 epochs
 
-'''
+"""
 
 from __future__ import print_function
 from keras.models import Sequential
 from keras.engine.training import slice_X
 from keras.layers import Activation, TimeDistributed, Dense, RepeatVector, recurrent
 import numpy as np
-from six.moves import range
 
 
 class CharacterTable(object):
-    '''
+    """
     Given a set of characters:
     + Encode them to a one hot integer representation
     + Decode the one hot integer representation to their character output
     + Decode a vector of probabilities to their character output
-    '''
+    """
     def __init__(self, chars, maxlen):
         self.chars = sorted(set(chars))
         self.char_indices = dict((c, i) for i, c in enumerate(self.chars))
         self.indices_char = dict((i, c) for i, c in enumerate(self.chars))
         self.maxlen = maxlen
 
-    def encode(self, C, maxlen=None):
+    def encode(self, c, maxlen=None):
         maxlen = maxlen if maxlen else self.maxlen
-        X = np.zeros((maxlen, len(self.chars)))
-        for i, c in enumerate(C):
-            X[i, self.char_indices[c]] = 1
-        return X
+        x = np.zeros((maxlen, len(self.chars)))
+        for i, c in enumerate(c):
+            x[i, self.char_indices[c]] = 1
+        return x
 
-    def decode(self, X, calc_argmax=True):
+    def decode(self, x, calc_argmax=True):
         if calc_argmax:
-            X = X.argmax(axis=-1)
-        return ''.join(self.indices_char[x] for x in X)
+            x = x.argmax(axis=-1)
+        return ''.join(self.indices_char[x] for x in x)
 
 
 class colors:
@@ -84,7 +83,10 @@ expected = []
 seen = set()
 print('Generating data...')
 while len(questions) < TRAINING_SIZE:
-    f = lambda: int(''.join(np.random.choice(list('0123456789')) for i in range(np.random.randint(1, DIGITS + 1))))
+
+    def f():
+        return int(''.join(np.random.choice(list('0123456789')) for i in range(np.random.randint(1, DIGITS + 1))))
+
     a, b = f(), f()
     # Skip any addition questions we've already seen
     # Also skip any such that X+Y == Y+X (hence the sorting)
