@@ -19,7 +19,6 @@ img_height = 128
 # (see model definition at keras/applications/vgg16.py)
 layer_name = 'block5_conv1'
 
-
 # util function to convert a tensor into a valid image
 def deprocess_image(x):
     # normalize tensor: center on 0., ensure std is 0.1
@@ -37,7 +36,6 @@ def deprocess_image(x):
         x = x.transpose((1, 2, 0))
     x = np.clip(x, 0, 255).astype('uint8')
     return x
-
 
 # build the VGG16 network with ImageNet weights
 model = vgg16.VGG16(weights='imagenet', include_top=False)
@@ -127,11 +125,8 @@ stitched_filters = np.zeros((width, height, 3))
 for i in range(n):
     for j in range(n):
         img, loss = kept_filters[i * n + j]
-        stitched_filters[
-            (img_width + margin) * i: (img_width + margin) * i + img_width,
-            (img_height + margin) * j: (img_height + margin) * j + img_height,
-            :
-        ] = img
+        stitched_filters[(img_width + margin) * i: (img_width + margin) * i + img_width,
+                         (img_height + margin) * j: (img_height + margin) * j + img_height, :] = img
 
 # save the result to disk
 imsave('stitched_filters_%dx%d.png' % (n, n), stitched_filters)
