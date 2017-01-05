@@ -71,7 +71,7 @@ class PReLU(Layer):
         self.supports_masking = True
         self.init = initializations.get(init)
         self.initial_weights = weights
-        if type(shared_axes) is not list and type(shared_axes) is not tuple:
+        if not isinstance(shared_axes, list) and not isinstance(shared_axes, tuple):
             self.shared_axes = [shared_axes]
         else:
             self.shared_axes = list(shared_axes)
@@ -174,7 +174,7 @@ class ParametricSoftplus(Layer):
         self.alpha_init = K.cast_to_floatx(alpha_init)
         self.beta_init = K.cast_to_floatx(beta_init)
         self.initial_weights = weights
-        if type(shared_axes) is not list and type(shared_axes) is not tuple:
+        if not isinstance(shared_axes, list) and not isinstance(shared_axes, tuple):
             self.shared_axes = [shared_axes]
         else:
             self.shared_axes = list(shared_axes)
@@ -279,7 +279,7 @@ class SReLU(Layer):
         self.a_left_init = a_left_init
         self.t_right_init = t_right_init
         self.a_right_init = a_right_init
-        if type(shared_axes) is not list and type(shared_axes) is not tuple:
+        if not isinstance(shared_axes, list) and not isinstance(shared_axes, tuple):
             self.shared_axes = [shared_axes]
         else:
             self.shared_axes = list(shared_axes)
