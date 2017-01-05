@@ -437,15 +437,6 @@ def maximum(x, y):
 def minimum(x, y):
     return T.minimum(x, y)
 
-
-def sin(x):
-    return T.sin(x)
-
-
-def cos(x):
-    return T.cos(x)
-
-
 def normalize_batch_in_training(x, gamma, beta,
                                 reduction_axes, epsilon=1e-3):
     '''Computes mean and std for batch then apply batch_normalization on batch.
@@ -2073,3 +2064,8 @@ def foldr(fn, elems, initializer=None, name=None):
     fn2 = lambda x, acc: fn(acc, x)
 
     return theano.foldr(fn2, elems, initializer, name=name)[0]
+
+# aliases for pass-through to backend
+cos, sin, tan = lambda x: theano.tensor.cos(x), lambda x: theano.tensor.sin(x), lambda x: theano.tensor.tan(x)
+acos, asin, atan = lambda x: theano.tensor.arccos(x), lambda x: theano.tensor.arcsin(x), \
+                   lambda x: theano.tensor.arctan(x)
