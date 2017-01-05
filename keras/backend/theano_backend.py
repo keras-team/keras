@@ -406,12 +406,6 @@ def clip(x, min_value, max_value):
     return T.clip(x, min_value, max_value)
 
 
-def clip_norm(g, c, n):
-    if c > 0:
-        g = switch(n >= c, g * c / n, g)
-    return g
-
-
 def equal(x, y):
     return T.eq(x, y)
 
