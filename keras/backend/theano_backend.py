@@ -71,10 +71,13 @@ def variable(value, dtype=None, name=None):
         dtype = floatx()
     if hasattr(value, 'tocoo'):
         _assert_sparse_module()
-        return th_sparse_module.as_sparse_variable(value)
+        variable = th_sparse_module.as_sparse_variable(value)
     else:
         value = np.asarray(value, dtype=dtype)
-        return theano.shared(value=value, name=name, strict=False)
+        variable = theano.shared(value=value, name=name, strict=False)
+    variable._keras_shape = value.shape
+    variable._uses_learning_phase = False
+    return variable
 
 
 def placeholder(shape=None, ndim=None, dtype=None, sparse=False, name=None):
