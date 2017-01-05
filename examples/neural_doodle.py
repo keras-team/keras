@@ -47,7 +47,7 @@ from scipy.optimize import fmin_l_bfgs_b
 from scipy.misc import imread, imsave
 
 from keras import backend as K
-from keras.layers import Input, Convolution2D, MaxPooling2D, AveragePooling2D
+from keras.layers import Input, AveragePooling2D
 from keras.models import Model
 from keras.preprocessing.image import load_img, img_to_array
 from keras.applications import vgg19
