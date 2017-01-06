@@ -39,4 +39,4 @@ model.add(Activation(tanh))
 
 ## On Advanced Activations
 
-Activations that are more complex than a simple Theano/TensorFlow function (eg. learnable activations, configurable activations, etc.) are available as [Advanced Activation layers](layers/advanced-activations.md), and can be found in the module `keras.layers.advanced_activations`. These include PReLU and LeakyReLU.
+Activations that are more complex than a simple Theano/TensorFlow function (eg. learnable activations, configurable activations, etc.) are available as [Advanced Activation layers](layers/advanced-activations.md), and can be found in the module `keras.layers.advanced_activations`. These include PReLU, LeakyReLU and RReU.
