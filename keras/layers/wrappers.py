@@ -134,7 +134,7 @@ class TimeDistributed(Wrapper):
 class Bidirectional(Wrapper):
     ''' Bidirectional wrapper for RNNs.
 
-    # Arguments:
+    # Arguments
         layer: `Recurrent` instance.
         merge_mode: Mode by which outputs of the
             forward and backward RNNs will be combined.
@@ -142,7 +142,7 @@ class Bidirectional(Wrapper):
             If None, the outputs will not be combined,
             they will be returned as a list.
 
-    # Examples:
+    # Examples
 
     ```python
         model = Sequential()
