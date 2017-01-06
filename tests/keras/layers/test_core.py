@@ -259,6 +259,10 @@ def test_reshape():
                kwargs={'target_shape': (-1, 1)},
                input_shape=(3, 2, 4))
 
+    layer_test(core.Reshape,
+               kwargs={'target_shape': (1, -1)},
+               input_shape=(3, 2, 4))
+
 
 @keras_test
 def test_permute():

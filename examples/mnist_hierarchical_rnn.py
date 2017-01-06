@@ -27,7 +27,7 @@ After 5 epochs: train acc: 0.9858, val acc: 0.9864
 from __future__ import print_function
 
 from keras.datasets import mnist
-from keras.models import Sequential, Model
+from keras.models import Model
 from keras.layers import Input, Dense, TimeDistributed
 from keras.layers import LSTM
 from keras.utils import np_utils

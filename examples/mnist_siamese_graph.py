@@ -19,7 +19,7 @@ import random
 from keras.datasets import mnist
 from keras.models import Sequential, Model
 from keras.layers import Dense, Dropout, Input, Lambda
-from keras.optimizers import SGD, RMSprop
+from keras.optimizers import RMSprop
 from keras import backend as K
 
 
