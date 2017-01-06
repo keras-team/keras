@@ -1744,6 +1744,8 @@ class Model(Container):
                         break
                     else:
                         time.sleep(wait_time)
+            else:
+                generator_output = next(generator)
 
             if isinstance(generator_output, tuple):
                 if len(generator_output) == 2:
