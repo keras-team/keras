@@ -1363,6 +1363,9 @@ class Model(Container):
             class_weight: dictionary mapping class indices to a weight
                 for the class.
             max_q_size: maximum size for the generator queue
+                In case the generator depends on the current state of the
+                model and/or you cannot run the generator in parallel to the
+                model, set max_q_size to 0.
             nb_worker: maximum number of processes to spin up
                 when using process based threading
             pickle_safe: if True, use process based threading.
@@ -1591,6 +1594,9 @@ class Model(Container):
                 total number of samples to generate from `generator`
                 before returning.
             max_q_size: maximum size for the generator queue
+                In case the generator depends on the current state of the
+                model and/or you cannot run the generator in parallel to the
+                model, set max_q_size to 0.
             nb_worker: maximum number of processes to spin up
                 when using process based threading
             pickle_safe: if True, use process based threading.
@@ -1699,6 +1705,9 @@ class Model(Container):
             val_samples: total number of samples to generate from `generator`
                 before returning.
             max_q_size: maximum size for the generator queue
+                In case the generator depends on the current state of the
+                model and/or you cannot run the generator in parallel to the
+                model, set max_q_size to 0.
             nb_worker: maximum number of processes to spin up
                 when using process based threading
             pickle_safe: if True, use process based threading.
