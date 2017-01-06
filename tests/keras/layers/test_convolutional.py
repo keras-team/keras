@@ -666,6 +666,15 @@ def test_cropping_2d():
                              cropping[1][0]: -cropping[1][1],
                              :]
     assert_allclose(np_output, expected_out)
+    # another correctness test (no cropping)
+    cropping = ((0, 0), (0, 0))
+    layer = convolutional.Cropping2D(cropping=cropping,
+                                     dim_ordering=dim_ordering)
+    layer.build(input.shape)
+    output = layer(K.variable(input))
+    np_output = K.eval(output)
+    # compare with input
+    assert_allclose(np_output, input)
 
 
 def test_cropping_3d():
@@ -709,6 +718,15 @@ def test_cropping_3d():
                              cropping[2][0]: -cropping[2][1],
                              :]
     assert_allclose(np_output, expected_out)
+    # another correctness test (no cropping)
+    cropping = ((0, 0), (0, 0), (0, 0))
+    layer = convolutional.Cropping3D(cropping=cropping,
+                                     dim_ordering=dim_ordering)
+    layer.build(input.shape)
+    output = layer(K.variable(input))
+    np_output = K.eval(output)
+    # compare with input
+    assert_allclose(np_output, input)
 
 if __name__ == '__main__':
     pytest.main([__file__])
