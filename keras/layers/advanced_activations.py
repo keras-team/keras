@@ -20,6 +20,9 @@ class LeakyReLU(Layer):
 
     # Arguments
         alpha: float >= 0. Negative slope coefficient.
+
+    # References
+        - [Rectifier Nonlinearities Improve Neural Network Acoustic Models](https://web.stanford.edu/~awni/papers/relu_hybrid_icml2013_final.pdf)
     '''
     def __init__(self, alpha=0.3, **kwargs):
         self.supports_masking = True
