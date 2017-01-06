@@ -217,6 +217,12 @@ class TestBackend(object):
         check_single_tensor_operation('pow', (4, 2), a=3)
         check_single_tensor_operation('clip', (4, 2), min_value=0.4,
                                       max_value=0.6)
+        check_single_tensor_operation('sin', (4, 2))
+        check_single_tensor_operation('cos', (4, 2))
+        check_single_tensor_operation('tan', (4, 2))
+        check_single_tensor_operation('arcsin', (4, 2))
+        check_single_tensor_operation('arccos', (4, 2))
+        check_single_tensor_operation('arctan', (4, 2))
 
         # two-tensor ops
         check_two_tensor_operation('equal', (4, 2), (4, 2))

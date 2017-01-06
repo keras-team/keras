@@ -1163,6 +1163,30 @@ def cos(x):
     return tf.cos(x)
 
 
+def tan(x):
+    '''Computes tan of x element-wise.
+    '''
+    return tf.tan(x)
+
+
+def arccos(x):
+    '''Computes arccos of x element-wise.
+    '''
+    return tf.acos(x)
+
+
+def arcsin(x):
+    '''Computes arcsin of x element-wise.
+    '''
+    return tf.asin(x)
+
+
+def arctan(x):
+    '''Computes arctan of x element-wise.
+    '''
+    return tf.atan(x)
+
+
 def normalize_batch_in_training(x, gamma, beta,
                                 reduction_axes, epsilon=1e-3):
     '''Computes mean and std for batch then apply batch_normalization on batch.

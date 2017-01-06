@@ -439,11 +439,39 @@ def minimum(x, y):
 
 
 def sin(x):
+    '''Computes sin of x element-wise.
+    '''
     return T.sin(x)
 
 
 def cos(x):
+    '''Computes cos of x element-wise.
+    '''
     return T.cos(x)
+
+
+def tan(x):
+    '''Computes tan of x element-wise.
+    '''
+    return T.tan(x)
+
+
+def arcsin(x):
+    '''Computes arcsin of x element-wise.
+    '''
+    return T.arcsin(x)
+
+
+def arccos(x):
+    '''Computes arccos of x element-wise.
+    '''
+    return T.arccos(x)
+
+
+def arctan(x):
+    '''Computes arctan of x element-wise.
+    '''
+    return T.arctan(x)
 
 
 def normalize_batch_in_training(x, gamma, beta,
