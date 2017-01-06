@@ -1453,12 +1453,13 @@ class Model(Container):
         else:
             self.validation_data = None
 
-        # start generator thread storing batches into a queue
-        data_gen_queue, _stop, generator_threads = generator_queue(
-            generator,
-            max_q_size=max_q_size,
-            nb_worker=nb_worker,
-            pickle_safe=pickle_safe)
+        if max_q_size > 0:
+            # start generator thread storing batches into a queue
+            data_gen_queue, _stop, generator_threads = generator_queue(
+                generator,
+                max_q_size=max_q_size,
+                nb_worker=nb_worker,
+                pickle_safe=pickle_safe)
 
         callback_model.stop_training = False
         while epoch < nb_epoch:
@@ -1466,16 +1467,22 @@ class Model(Container):
             samples_seen = 0
             batch_index = 0
             while samples_seen < samples_per_epoch:
-                generator_output = None
-                while not _stop.is_set():
-                    if not data_gen_queue.empty():
-                        generator_output = data_gen_queue.get()
-                        break
-                    else:
-                        time.sleep(wait_time)
+
+                if max_q_size > 0:
+                    generator_output = None
+                    while not _stop.is_set():
+                        if not data_gen_queue.empty():
+                            generator_output = data_gen_queue.get()
+                            break
+                        else:
+                            time.sleep(wait_time)
+
+                else:
+                    generator_output = next(generator)
 
                 if not hasattr(generator_output, '__len__'):
-                    _stop.set()
+                    if max_q_size > 0:
+                        _stop.set()
                     raise ValueError('output of generator should be a tuple '
                                      '(x, y, sample_weight) '
                                      'or (x, y). Found: ' +
@@ -1486,11 +1493,13 @@ class Model(Container):
                 elif len(generator_output) == 3:
                     x, y, sample_weight = generator_output
                 else:
-                    _stop.set()
+                    if max_q_size > 0:
+                        _stop.set()
                     raise ValueError('output of generator should be a tuple '
                                      '(x, y, sample_weight) '
                                      'or (x, y). Found: ' +
                                      str(generator_output))
+
                 # build batch logs
                 batch_logs = {}
                 if isinstance(x, list):
@@ -1557,13 +1566,15 @@ class Model(Container):
             if callback_model.stop_training:
                 break
 
-        _stop.set()
-        if pickle_safe:
-            # Terminate all daemon processes
-            for p in generator_threads:
-                if p.is_alive():
-                    p.terminate()
-            data_gen_queue.close()
+        if max_q_size > 0:
+            _stop.set()
+            if pickle_safe:
+                # Terminate all daemon processes
+                for p in generator_threads:
+                    if p.is_alive():
+                        p.terminate()
+                data_gen_queue.close()
+
         callbacks.on_train_end()
         return self.history
 
@@ -1602,23 +1613,30 @@ class Model(Container):
         wait_time = 0.01
         all_outs = []
         weights = []
-        data_gen_queue, _stop, generator_threads = generator_queue(
-            generator,
-            max_q_size=max_q_size,
-            nb_worker=nb_worker,
-            pickle_safe=pickle_safe)
+
+        if max_q_size > 0:
+            data_gen_queue, _stop, generator_threads = generator_queue(
+                generator,
+                max_q_size=max_q_size,
+                nb_worker=nb_worker,
+                pickle_safe=pickle_safe)
 
         while processed_samples < val_samples:
-            generator_output = None
-            while not _stop.is_set():
-                if not data_gen_queue.empty():
-                    generator_output = data_gen_queue.get()
-                    break
-                else:
-                    time.sleep(wait_time)
+
+            if max_q_size > 0:
+                generator_output = None
+                while not _stop.is_set():
+                    if not data_gen_queue.empty():
+                        generator_output = data_gen_queue.get()
+                        break
+                    else:
+                        time.sleep(wait_time)
+            else:
+                generator_output = next(generator)
 
             if not hasattr(generator_output, '__len__'):
-                _stop.set()
+                if max_q_size > 0:
+                    _stop.set()
                 raise ValueError('output of generator should be a tuple '
                                  '(x, y, sample_weight) '
                                  'or (x, y). Found: ' + str(generator_output))
@@ -1628,14 +1646,16 @@ class Model(Container):
             elif len(generator_output) == 3:
                 x, y, sample_weight = generator_output
             else:
-                _stop.set()
+                if max_q_size > 0:
+                    _stop.set()
                 raise ValueError('output of generator should be a tuple '
                                  '(x, y, sample_weight) '
                                  'or (x, y). Found: ' + str(generator_output))
             try:
                 outs = self.test_on_batch(x, y, sample_weight=sample_weight)
             except:
-                _stop.set()
+                if max_q_size > 0:
+                    _stop.set()
                 raise
 
             if isinstance(x, list):
@@ -1649,13 +1669,15 @@ class Model(Container):
             processed_samples += nb_samples
             weights.append(nb_samples)
 
-        _stop.set()
-        if pickle_safe:
-            # Terminate all daemon processes
-            for p in generator_threads:
-                if p.is_alive():
-                    p.terminate()
-            data_gen_queue.close()
+        if max_q_size > 0:
+            _stop.set()
+            if pickle_safe:
+                # Terminate all daemon processes
+                for p in generator_threads:
+                    if p.is_alive():
+                        p.terminate()
+                data_gen_queue.close()
+
         if not isinstance(outs, list):
             return np.average(np.asarray(all_outs),
                               weights=weights)
@@ -1695,20 +1717,24 @@ class Model(Container):
         processed_samples = 0
         wait_time = 0.01
         all_outs = []
-        data_gen_queue, _stop, generator_threads = generator_queue(
-            generator,
-            max_q_size=max_q_size,
-            nb_worker=nb_worker,
-            pickle_safe=pickle_safe)
+
+        if max_q_size > 0:
+            data_gen_queue, _stop, generator_threads = generator_queue(
+                generator,
+                max_q_size=max_q_size,
+                nb_worker=nb_worker,
+                pickle_safe=pickle_safe)
 
         while processed_samples < val_samples:
-            generator_output = None
-            while not _stop.is_set():
-                if not data_gen_queue.empty():
-                    generator_output = data_gen_queue.get()
-                    break
-                else:
-                    time.sleep(wait_time)
+
+            if max_q_size > 0:
+                generator_output = None
+                while not _stop.is_set():
+                    if not data_gen_queue.empty():
+                        generator_output = data_gen_queue.get()
+                        break
+                    else:
+                        time.sleep(wait_time)
 
             if isinstance(generator_output, tuple):
                 if len(generator_output) == 2:
@@ -1717,7 +1743,8 @@ class Model(Container):
                 elif len(generator_output) == 3:
                     x, y, sample_weight = generator_output
                 else:
-                    _stop.set()
+                    if max_q_size > 0:
+                        _stop.set()
                     raise ValueError('output of generator should be a tuple '
                                      '(x, y, sample_weight) '
                                      'or (x, y). Found: ' +
@@ -1728,7 +1755,8 @@ class Model(Container):
             try:
                 outs = self.predict_on_batch(x)
             except:
-                _stop.set()
+                if max_q_size > 0:
+                    _stop.set()
                 raise
 
             if isinstance(x, list):
@@ -1750,13 +1778,16 @@ class Model(Container):
                 all_outs[i][processed_samples:(processed_samples + nb_samples)] = out
             processed_samples += nb_samples
 
-        _stop.set()
-        if pickle_safe:
-            # Terminate all daemon processes
-            for p in generator_threads:
-                if p.is_alive():
-                    p.terminate()
-            data_gen_queue.close()
+        if max_q_size > 0:
+            _stop.set()
+            if pickle_safe:
+                # Terminate all daemon processes
+                for p in generator_threads:
+                    if p.is_alive():
+                        p.terminate()
+                data_gen_queue.close()
+
         if len(all_outs) == 1:
             return all_outs[0]
+
         return all_outs
