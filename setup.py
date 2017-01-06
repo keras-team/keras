@@ -18,7 +18,7 @@ setup(name='Keras',
                     'pytest-cov',
                     'pytest-pep8',
                     'pytest-xdist',
-                    'python-coveralls'
+                    'python-coveralls',
                     'coverage==3.7.1'],
       },
       packages=find_packages())
