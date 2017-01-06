@@ -14,5 +14,11 @@ setup(name='Keras',
       extras_require={
           'h5py': ['h5py'],
           'visualize': ['pydot-ng'],
+          'tests': ['pytest',
+                    'pytest-cov',
+                    'pytest-pep8',
+                    'pytest-xdist',
+                    'python-coveralls'
+                    'coverage==3.7.1'],
       },
       packages=find_packages())
