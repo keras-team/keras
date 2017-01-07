@@ -18,7 +18,7 @@ from ..engine.topology import get_source_inputs
 from ..utils.layer_utils import convert_all_kernels_in_model
 from ..utils.data_utils import get_file
 from .. import backend as K
-from .imagenet_utils import decode_predictions, preprocess_input, _obtain_input_shape
+from .imagenet_utils import _obtain_input_shape
 
 
 TH_WEIGHTS_PATH = 'https://github.com/fchollet/deep-learning-models/releases/download/v0.1/vgg19_weights_th_dim_ordering_th_kernels.h5'

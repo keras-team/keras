@@ -28,7 +28,7 @@ from ..layers import Conv2D, SeparableConv2D, MaxPooling2D, GlobalAveragePooling
 from ..engine.topology import get_source_inputs
 from ..utils.data_utils import get_file
 from .. import backend as K
-from .imagenet_utils import decode_predictions, _obtain_input_shape
+from .imagenet_utils import _obtain_input_shape
 
 
 TF_WEIGHTS_PATH = 'https://github.com/fchollet/deep-learning-models/releases/download/v0.4/xception_weights_tf_dim_ordering_tf_kernels.h5'

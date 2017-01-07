@@ -12,7 +12,6 @@ import warnings
 from .. import backend as K
 from .. import activations, initializations, regularizers, constraints
 from ..engine import InputSpec, Layer, Merge
-from ..regularizers import ActivityRegularizer
 from ..utils.generic_utils import func_dump, func_load
 
 

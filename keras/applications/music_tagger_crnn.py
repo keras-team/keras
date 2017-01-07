@@ -10,9 +10,8 @@ from __future__ import print_function
 from __future__ import absolute_import
 
 from .. import backend as K
-from ..layers import Input, Dense
+from ..layers import Input, Dense, Reshape, Permute
 from ..models import Model
-from ..layers import Dense, Dropout, Reshape, Permute
 from ..layers.convolutional import Convolution2D
 from ..layers.convolutional import MaxPooling2D, ZeroPadding2D
 from ..layers.normalization import BatchNormalization
@@ -21,7 +20,6 @@ from ..layers.recurrent import GRU
 from ..engine.topology import get_source_inputs
 from ..utils.data_utils import get_file
 from ..utils.layer_utils import convert_all_kernels_in_model
-from .audio_conv_utils import decode_predictions, preprocess_input
 
 TH_WEIGHTS_PATH = 'https://github.com/fchollet/deep-learning-models/releases/download/v0.3/music_tagger_crnn_weights_tf_kernels_th_dim_ordering.h5'
 TF_WEIGHTS_PATH = 'https://github.com/fchollet/deep-learning-models/releases/download/v0.3/music_tagger_crnn_weights_tf_kernels_tf_dim_ordering.h5'
