@@ -1701,11 +1701,11 @@ def rnn(step_function, inputs, initial_states,
     if constants is None:
         constants = []
 
+    # TODO: remove later.
+    if hasattr(tf, 'select'):
+        tf.where = tf.select
+        
     if unroll:
-        # TODO: remove later.
-        if hasattr(tf, 'select'):
-            tf.where = tf.select
-
         if not inputs.get_shape()[0]:
             raise ValueError('Unrolling requires a '
                              'fixed number of timesteps.')
