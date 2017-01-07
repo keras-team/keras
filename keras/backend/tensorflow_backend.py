@@ -1196,7 +1196,7 @@ def normalize_batch_in_training(x, gamma, beta,
 def batch_normalization(x, mean, var, beta, gamma, epsilon=1e-3):
     '''Applies batch normalization on x given mean, var, beta and gamma:
 
-    output = (x - mean) / (sqrt(var) + epsilon) * gamma + beta
+    output = (x - mean) / sqrt(var + epsilon) * gamma + beta
     '''
     return tf.nn.batch_normalization(x, mean, var, beta, gamma, epsilon)
 
