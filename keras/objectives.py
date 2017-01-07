@@ -64,6 +64,11 @@ def cosine_proximity(y_true, y_pred):
     y_pred = K.l2_normalize(y_pred, axis=-1)
     return -K.mean(y_true * y_pred, axis=-1)
 
+# This allows some of the outputs to be undefined (by setting to 0) without affecting the objective function.
+def non_zero_mean_squared_error(y_true, y_pred):
+    total = theano.tensor.sum(theano.tensor.square(abs(theano.tensor.sgn(y_true))*(y_pred - y_true)), axis=-1)
+    count = theano.tensor.sum(abs(theano.tensor.sgn(y_true)))
+    return total/count
 
 # aliases
 mse = MSE = mean_squared_error
