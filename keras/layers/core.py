@@ -280,6 +280,10 @@ class Reshape(Layer):
         # as intermediate layer in a Sequential model
         model.add(Reshape((6, 2)))
         # now: model.output_shape == (None, 6, 2)
+
+        # also supports shape inference using `-1` as dimension
+        model.add(Reshape((-1, 2, 2)))
+        # now: model.output_shape == (None, 3, 2, 2)
     ```
     '''
     def __init__(self, target_shape, **kwargs):
@@ -350,7 +354,7 @@ class Reshape(Layer):
             elif hasattr(K, 'int_shape'):
                 input_shape = K.int_shape(x)
             if input_shape is not None:
-                target_shape = self.get_output_shape_for(input_shape)
+                target_shape = self.get_output_shape_for(input_shape)[1:]
         return K.reshape(x, (-1,) + target_shape)
 
     def get_config(self):

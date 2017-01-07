@@ -83,7 +83,7 @@ def InceptionV3(include_top=True, weights='imagenet',
             or "imagenet" (pre-training on ImageNet).
         input_tensor: optional Keras tensor (i.e. output of `layers.Input()`)
             to use as image input for the model.
-        inputs_shape: optional shape tuple, only to be specified
+        input_shape: optional shape tuple, only to be specified
             if `include_top` is False (otherwise the input shape
             has to be `(299, 299, 3)` (with `tf` dim ordering)
             or `(3, 299, 299)` (with `th` dim ordering).

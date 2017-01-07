@@ -56,6 +56,16 @@ def to_dense(tensor):
         return tensor
 
 
+def is_explicit_shape(shape):
+    if hasattr(shape, '__iter__'):
+        for x in shape:
+            if x is not None:
+                if not isinstance(x, int):
+                    return False
+        return True
+    return False
+
+
 def variable(value, dtype=None, name=None):
     '''Instantiates a variable and returns it.
 
@@ -224,6 +234,7 @@ Assumed overridden:
 
 
 def dot(x, y):
+    # TODO: `keras_shape` inference.
     if is_sparse(x):
         return th_sparse_module.basic.structured_dot(x, y)
     else:
@@ -268,6 +279,7 @@ def batch_dot(x, y, axes=None):
 
         output_shape = (100, 30)
     '''
+    # TODO: `keras_shape` inference.
     if isinstance(axes, int):
         axes = (axes, axes)
     if axes is None:
@@ -280,6 +292,7 @@ def batch_dot(x, y, axes=None):
 
 
 def transpose(x):
+    # TODO: `keras_shape` inference.
     return T.transpose(x)
 
 
@@ -289,6 +302,7 @@ def gather(reference, indices):
 
     Return: a tensor of same type as reference.
     '''
+    # TODO: `keras_shape` inference.
     return reference[indices]
 
 
@@ -479,6 +493,9 @@ def _old_normalize_batch_in_training(x, gamma, beta,
         try:
             normed, mean, stdinv = theano.sandbox.cuda.dnn.dnn_batch_normalization_train(
                 x, broadcast_gamma, broadcast_beta, 'spatial', epsilon)
+            normed = theano.tensor.as_tensor_variable(normed)
+            mean = theano.tensor.as_tensor_variable(mean)
+            stdinv = theano.tensor.as_tensor_variable(stdinv)
             var = T.inv(stdinv ** 2)
             return normed, T.flatten(mean), T.flatten(var)
         except AttributeError:
@@ -530,7 +547,7 @@ def _old_batch_normalization(x, mean, var, beta, gamma, epsilon=1e-3):
                 shuffle_pattern = list(range(ndim))
                 shuffle_pattern[1] = shuffle_pattern[axis]
                 shuffle_pattern[axis] = 1
-                return theano.sandbox.cuda.dnn.dnn_batch_normalization_test(
+                result = theano.sandbox.cuda.dnn.dnn_batch_normalization_test(
                     x.dimshuffle(shuffle_pattern),
                     gamma.dimshuffle(shuffle_pattern),
                     beta.dimshuffle(shuffle_pattern),
@@ -538,8 +555,9 @@ def _old_batch_normalization(x, mean, var, beta, gamma, epsilon=1e-3):
                     var.dimshuffle(shuffle_pattern),
                     'spatial', epsilon).dimshuffle(shuffle_pattern)
             else:
-                return theano.sandbox.cuda.dnn.dnn_batch_normalization_test(
+                result = theano.sandbox.cuda.dnn.dnn_batch_normalization_test(
                     x, gamma, beta, mean, var, 'spatial', epsilon)
+            return theano.tensor.as_tensor_variable(result)
         except AttributeError:
             pass
         except ValueError:
@@ -564,7 +582,14 @@ def concatenate(tensors, axis=-1):
 
 
 def reshape(x, shape):
-    return T.reshape(x, shape)
+    y = T.reshape(x, shape)
+    if is_explicit_shape(shape):
+        y._keras_shape = shape
+        if hasattr(x, '_uses_learning_phase'):
+            y._uses_learning_phase = x._uses_learning_phase
+        else:
+            y._uses_learning_phase = False
+    return y
 
 
 def permute_dimensions(x, pattern):
@@ -573,6 +598,7 @@ def permute_dimensions(x, pattern):
     pattern should be a tuple or list of
     dimension indices, e.g. [0, 2, 1].
     '''
+    # TODO: `keras_shape` inference.
     pattern = tuple(pattern)
     return x.dimshuffle(pattern)
 
@@ -583,6 +609,7 @@ def repeat_elements(x, rep, axis):
     If x has shape (s1, s2, s3) and axis=1, the output
     will have shape (s1, s2 * rep, s3).
     '''
+    # TODO: `keras_shape` inference.
     return T.repeat(x, rep, axis=axis)
 
 
@@ -593,6 +620,7 @@ def resize_images(X, height_factor, width_factor, dim_ordering):
     by a factor of (height_factor, width_factor). Both factors should be
     positive integers.
     '''
+    # TODO: `keras_shape` inference.
     if dim_ordering == 'th':
         output = repeat_elements(X, height_factor, axis=2)
         output = repeat_elements(output, width_factor, axis=3)
@@ -612,6 +640,7 @@ def resize_volumes(X, depth_factor, height_factor, width_factor, dim_ordering):
     by a factor of (depth_factor, height_factor, width_factor).
     Both factors should be positive integers.
     '''
+    # TODO: `keras_shape` inference.
     if dim_ordering == 'th':
         output = repeat_elements(X, depth_factor, axis=2)
         output = repeat_elements(output, height_factor, axis=3)
@@ -632,6 +661,7 @@ def repeat(x, n):
     If x has shape (samples, dim) and n=2,
     the output will have shape (samples, 2, dim).
     '''
+    # TODO: `keras_shape` inference.
     assert x.ndim == 2
     x = x.dimshuffle((0, 'x', 1))
     return T.extra_ops.repeat(x, n, axis=1)
@@ -651,10 +681,12 @@ def arange(start, stop=None, step=1, dtype='int32'):
 
 
 def tile(x, n):
+    # TODO: `keras_shape` inference.
     return T.tile(x, n)
 
 
 def flatten(x):
+    # TODO: `keras_shape` inference.
     return T.flatten(x)
 
 
@@ -662,6 +694,7 @@ def batch_flatten(x):
     '''Turn a n-D tensor into a 2D tensor where
     the first dimension is conserved.
     '''
+    # TODO: `keras_shape` inference.
     x = T.reshape(x, (x.shape[0], T.prod(x.shape) // x.shape[0]))
     return x
 
@@ -669,6 +702,7 @@ def batch_flatten(x):
 def expand_dims(x, dim=-1):
     '''Add a 1-sized dimension at index "dim".
     '''
+    # TODO: `keras_shape` inference.
     pattern = [i for i in range(x.type.ndim)]
     if dim < 0:
         if x.type.ndim == 0:
@@ -682,6 +716,7 @@ def expand_dims(x, dim=-1):
 def squeeze(x, axis):
     '''Remove a 1-dimension from the tensor at index "axis".
     '''
+    # TODO: `keras_shape` inference.
     shape = list(x.shape)
     shape.pop(axis)
     return T.reshape(x, tuple(shape))
@@ -694,6 +729,7 @@ def temporal_padding(x, padding=1):
     Apologies for the inane API, but Theano makes this
     really hard.
     '''
+    # TODO: `keras_shape` inference.
     input_shape = x.shape
     output_shape = (input_shape[0],
                     input_shape[1] + 2 * padding,
@@ -709,6 +745,7 @@ def asymmetric_temporal_padding(x, left_pad=1, right_pad=1):
     Apologies for the inane API, but Theano makes this
     really hard.
     '''
+    # TODO: `keras_shape` inference.
     input_shape = x.shape
     output_shape = (input_shape[0],
                     input_shape[1] + left_pad + right_pad,
@@ -721,6 +758,7 @@ def spatial_2d_padding(x, padding=(1, 1), dim_ordering='default'):
     '''Pad the 2nd and 3rd dimensions of a 4D tensor
     with "padding[0]" and "padding[1]" (resp.) zeros left and right.
     '''
+    # TODO: `keras_shape` inference.
     if dim_ordering == 'default':
         dim_ordering = image_dim_ordering()
     if dim_ordering not in {'th', 'tf'}:

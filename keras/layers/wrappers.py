@@ -20,13 +20,6 @@ class Wrapper(Layer):
         self.losses = getattr(self.layer, 'losses', [])
         self.constraints = getattr(self.layer, 'constraints', {})
 
-        # properly attribute the current layer to
-        # regularizers that need access to it
-        # (e.g. ActivityRegularizer).
-        for regularizer in self.regularizers:
-            if hasattr(regularizer, 'set_layer'):
-                regularizer.set_layer(self)
-
     def get_weights(self):
         weights = self.layer.get_weights()
         return weights
@@ -141,7 +134,7 @@ class TimeDistributed(Wrapper):
 class Bidirectional(Wrapper):
     ''' Bidirectional wrapper for RNNs.
 
-    # Arguments:
+    # Arguments
         layer: `Recurrent` instance.
         merge_mode: Mode by which outputs of the
             forward and backward RNNs will be combined.
@@ -149,7 +142,7 @@ class Bidirectional(Wrapper):
             If None, the outputs will not be combined,
             they will be returned as a list.
 
-    # Examples:
+    # Examples
 
     ```python
         model = Sequential()

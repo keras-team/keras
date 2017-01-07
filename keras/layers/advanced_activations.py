@@ -20,6 +20,9 @@ class LeakyReLU(Layer):
 
     # Arguments
         alpha: float >= 0. Negative slope coefficient.
+
+    # References
+        - [Rectifier Nonlinearities Improve Neural Network Acoustic Models](https://web.stanford.edu/~awni/papers/relu_hybrid_icml2013_final.pdf)
     '''
     def __init__(self, alpha=0.3, **kwargs):
         self.supports_masking = True
@@ -79,8 +82,8 @@ class PReLU(Layer):
         self.param_broadcast = [False] * len(param_shape)
         if self.shared_axes[0] is not None:
             for i in self.shared_axes:
-                param_shape[i] = 1
-                self.param_broadcast[i] = True
+                param_shape[i - 1] = 1
+                self.param_broadcast[i - 1] = True
 
         self.alphas = self.init(param_shape,
                                 name='{}_alphas'.format(self.name))
@@ -182,8 +185,8 @@ class ParametricSoftplus(Layer):
         self.param_broadcast = [False] * len(param_shape)
         if self.shared_axes[0] is not None:
             for i in self.shared_axes:
-                param_shape[i] = 1
-                self.param_broadcast[i] = True
+                param_shape[i - 1] = 1
+                self.param_broadcast[i - 1] = True
 
         self.alphas = K.variable(self.alpha_init * np.ones(param_shape),
                                  name='{}_alphas'.format(self.name))
@@ -287,8 +290,8 @@ class SReLU(Layer):
         self.param_broadcast = [False] * len(param_shape)
         if self.shared_axes[0] is not None:
             for i in self.shared_axes:
-                param_shape[i] = 1
-                self.param_broadcast[i] = True
+                param_shape[i - 1] = 1
+                self.param_broadcast[i - 1] = True
 
         t_left_init = initializations.get(self.t_left_init)
         a_left_init = initializations.get(self.a_left_init)
