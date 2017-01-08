@@ -545,11 +545,10 @@ class TensorBoard(Callback):
 
     def on_epoch_end(self, epoch, logs={}):
         import tensorflow as tf
+        from keras.engine.training import slice_X
 
         if self.model.validation_data and self.histogram_freq:
             if epoch % self.histogram_freq == 0:
-                # TODO: implement batched calls to sess.run
-                # (current call will likely go OOM on GPU)
                 if self.model.uses_learning_phase:
                     cut_v_data = len(self.model.inputs)
                     val_data = self.model.validation_data[:cut_v_data] + [0]
@@ -557,7 +556,18 @@ class TensorBoard(Callback):
                 else:
                     val_data = self.model.validation_data
                     tensors = self.model.inputs
-                feed_dict = dict(zip(tensors, val_data))
+                # Sample one batch of validation data to avoid OOM on GPU
+                if 'batch_size' in self.params:
+                    index_array = np.arange(len(val_data[0]))
+                    batch_ids = np.random.choice(index_array, self.params['batch_size'])
+                    if self.model.uses_learning_phase:
+                        ins_batch = slice_X(val_data[:-1], batch_ids) + [val_data[-1]]
+                    else:
+                        ins_batch = slice_X(val_data, batch_ids)
+                else:
+                    # Generators yield one batch at a time and don't provide batch_size
+                    ins_batch = val_data
+                feed_dict = dict(zip(tensors, ins_batch))
                 result = self.sess.run([self.merged], feed_dict=feed_dict)
                 summary_str = result[0]
                 self.writer.add_summary(summary_str, epoch)
