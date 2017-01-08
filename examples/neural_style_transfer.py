@@ -208,7 +208,7 @@ loss += total_variation_weight * total_variation_loss(combination_image)
 grads = K.gradients(loss, combination_image)
 
 outputs = [loss]
-if type(grads) in {list, tuple}:
+if isinstance(grads, (list, tuple)):
     outputs += grads
 else:
     outputs.append(grads)
