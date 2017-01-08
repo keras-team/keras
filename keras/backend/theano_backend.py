@@ -1422,11 +1422,11 @@ def _preprocess_conv3d_filter_shape(dim_ordering, filter_shape):
     return filter_shape
 
 
-def _postprocess_conv2d_output(conv_out, x, border_mode, np_kernel_shape, strides, dim_ordering):
+def _postprocess_conv2d_output(conv_out, x, border_mode, np_kernel, strides, dim_ordering):
     if border_mode == 'same':
-        if np_kernel_shape[2] % 2 == 0:
+        if np_kernel.shape[2] % 2 == 0:
             conv_out = conv_out[:, :, :(x.shape[2] + strides[0] - 1) // strides[0], :]
-        if np_kernel_shape[3] % 2 == 0:
+        if np_kernel.shape[3] % 2 == 0:
             conv_out = conv_out[:, :, :, :(x.shape[3] + strides[1] - 1) // strides[1]]
     if dim_ordering == 'tf':
         conv_out = conv_out.dimshuffle((0, 2, 3, 1))
@@ -1479,7 +1479,10 @@ def conv2d(x, kernel, strides=(1, 1), border_mode='valid',
     x = _preprocess_conv2d_input(x, dim_ordering)
     kernel = _preprocess_conv2d_kernel(kernel, dim_ordering)
     th_border_mode = _preprocess_border_mode(border_mode)
-    np_kernel_shape = kernel._keras_shape
+    if hasattr(kernel, '_keras_shape'):
+        np_kernel = np.zeros((0, 0) + kernel._keras_shape[-2:])
+    else:
+        np_kernel = kernel.eval()
     image_shape = _preprocess_conv2d_image_shape(dim_ordering, image_shape)
     filter_shape = _preprocess_conv2d_filter_shape(dim_ordering, filter_shape)
 
@@ -1498,9 +1501,8 @@ def conv2d(x, kernel, strides=(1, 1), border_mode='valid',
                                  filter_shape=filter_shape,
                                  filter_dilation=filter_dilation)
 
-    conv_out = _postprocess_conv2d_output(conv_out, x, border_mode,
-                                          np_kernel_shape, strides,
-                                          dim_ordering)
+    conv_out = _postprocess_conv2d_output(conv_out, x, border_mode, np_kernel,
+                                          strides, dim_ordering)
     return conv_out
 
 
@@ -1529,7 +1531,10 @@ def deconv2d(x, kernel, output_shape, strides=(1, 1),
     kernel = _preprocess_conv2d_kernel(kernel, dim_ordering)
     kernel = kernel.dimshuffle((1, 0, 2, 3))
     th_border_mode = _preprocess_border_mode(border_mode)
-    np_kernel_shape = kernel._keras_shape
+    if hasattr(kernel, '_keras_shape'):
+        np_kernel = np.zeros((0, 0) + kernel._keras_shape[-2:])
+    else:
+        np_kernel = kernel.eval()
     filter_shape = _preprocess_conv2d_filter_shape(dim_ordering, filter_shape)
     filter_shape = tuple(filter_shape[i] for i in (1, 0, 2, 3))
 
@@ -1540,9 +1545,8 @@ def deconv2d(x, kernel, output_shape, strides=(1, 1),
                                                         filter_flip=not flip_filters)
     conv_out = op(kernel, x, output_shape[2:])
 
-    conv_out = _postprocess_conv2d_output(conv_out, x, border_mode,
-                                          np_kernel_shape, strides,
-                                          dim_ordering)
+    conv_out = _postprocess_conv2d_output(conv_out, x, border_mode, np_kernel,
+                                          strides, dim_ordering)
     return conv_out
 
 
