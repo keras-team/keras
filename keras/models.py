@@ -599,7 +599,7 @@ class Sequential(Model):
         self.metrics_names = self.model.metrics_names
         self.sample_weight_mode = self.model.sample_weight_mode
 
-    def fit(self, x, y, batch_size=32, nb_epoch=10, verbose=1, callbacks=None,
+    def fit(self, x, y, batch_size=32, nb_epoch=10, verbose=1, callbacks=None, notebook=False,
             validation_split=0., validation_data=None, shuffle=True,
             class_weight=None, sample_weight=None, initial_epoch=0, **kwargs):
         '''Trains the model for a fixed number of epochs.
@@ -663,6 +663,7 @@ class Sequential(Model):
                               nb_epoch=nb_epoch,
                               verbose=verbose,
                               callbacks=callbacks,
+                              notebook=notebook,
                               validation_split=validation_split,
                               validation_data=validation_data,
                               shuffle=shuffle,
@@ -671,7 +672,7 @@ class Sequential(Model):
                               initial_epoch=initial_epoch)
 
     def evaluate(self, x, y, batch_size=32, verbose=1,
-                 sample_weight=None, **kwargs):
+                 sample_weight=None, notebook=False, **kwargs):
         '''Computes the loss on some input data, batch by batch.
 
         # Arguments
@@ -704,9 +705,10 @@ class Sequential(Model):
         return self.model.evaluate(x, y,
                                    batch_size=batch_size,
                                    verbose=verbose,
+                                   notebook=notebook,
                                    sample_weight=sample_weight)
 
-    def predict(self, x, batch_size=32, verbose=0):
+    def predict(self, x, batch_size=32, verbose=0, notebook=False):
         '''Generates output predictions for the input samples,
         processing the samples in a batched way.
 
@@ -720,7 +722,7 @@ class Sequential(Model):
         '''
         if self.model is None:
             self.build()
-        return self.model.predict(x, batch_size=batch_size, verbose=verbose)
+        return self.model.predict(x, batch_size=batch_size, verbose=verbose, notebook=notebook)
 
     def predict_on_batch(self, x):
         '''Returns predictions for a single batch of samples.
@@ -796,7 +798,7 @@ class Sequential(Model):
         return self.model.test_on_batch(x, y,
                                         sample_weight=sample_weight)
 
-    def predict_proba(self, x, batch_size=32, verbose=1):
+    def predict_proba(self, x, batch_size=32, verbose=1, notebook=False):
         '''Generates class probability predictions for the input samples
         batch by batch.
 
@@ -809,7 +811,7 @@ class Sequential(Model):
         # Returns
             A Numpy array of probability predictions.
         '''
-        preds = self.predict(x, batch_size, verbose)
+        preds = self.predict(x, batch_size, verbose, notebook=notebook)
         if preds.min() < 0. or preds.max() > 1.:
             warnings.warn('Network returning invalid probability values. '
                           'The last layer might not normalize predictions '
@@ -817,7 +819,7 @@ class Sequential(Model):
                           '(like softmax or sigmoid would).')
         return preds
 
-    def predict_classes(self, x, batch_size=32, verbose=1):
+    def predict_classes(self, x, batch_size=32, verbose=1, notebook=False):
         '''Generate class predictions for the input samples
         batch by batch.
 
@@ -830,14 +832,14 @@ class Sequential(Model):
         # Returns
             A numpy array of class predictions.
         '''
-        proba = self.predict(x, batch_size=batch_size, verbose=verbose)
+        proba = self.predict(x, batch_size=batch_size, verbose=verbose, notebook=notebook)
         if proba.shape[-1] > 1:
             return proba.argmax(axis=-1)
         else:
             return (proba > 0.5).astype('int32')
 
     def fit_generator(self, generator, samples_per_epoch, nb_epoch,
-                      verbose=1, callbacks=None,
+                      verbose=1, callbacks=None, notebook=False,
                       validation_data=None, nb_val_samples=None,
                       class_weight=None, max_q_size=10, nb_worker=1,
                       pickle_safe=False, initial_epoch=0, **kwargs):
@@ -925,6 +927,7 @@ class Sequential(Model):
                                         nb_epoch,
                                         verbose=verbose,
                                         callbacks=callbacks,
+                                        notebook=notebook,
                                         validation_data=validation_data,
                                         nb_val_samples=nb_val_samples,
                                         class_weight=class_weight,

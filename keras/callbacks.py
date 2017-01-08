@@ -163,15 +163,29 @@ class BaseLogger(Callback):
 class ProgbarLogger(Callback):
     '''Callback that prints metrics to stdout.
     '''
+    def __init__(self, notebook=False):
+        super(Callback, self).__init__()
+        self.notebook = notebook
+        self.info = None
+
     def on_train_begin(self, logs={}):
         self.verbose = self.params['verbose']
         self.nb_epoch = self.params['nb_epoch']
 
     def on_epoch_begin(self, epoch, logs={}):
         if self.verbose:
-            print('Epoch %d/%d' % (epoch + 1, self.nb_epoch))
+            if not self.notebook:
+                print('Epoch %d/%d' % (epoch + 1, self.nb_epoch))
+            else:
+                if self.info is None:
+                    from ipywidgets import IntProgress, HTML, VBox
+                    from IPython.display import display
+                    self.info = HTML()
+                    display(self.info)
+                self.info.value = ('Epoch %d/%d' % (epoch + 1, self.nb_epoch))
             self.progbar = Progbar(target=self.params['nb_sample'],
-                                   verbose=self.verbose)
+                                   verbose=self.verbose,
+                                   notebook=self.notebook)
         self.seen = 0
 
     def on_batch_begin(self, batch, logs={}):

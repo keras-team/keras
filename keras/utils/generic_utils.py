@@ -6,7 +6,6 @@ import six
 import marshal
 import types as python_types
 
-
 def get_from_module(identifier, module_params, module_name,
                     instantiate=False, kwargs=None):
     if isinstance(identifier, six.string_types):
@@ -61,7 +60,7 @@ def func_load(code, defaults=None, closure=None, globs=None):
 
 class Progbar(object):
 
-    def __init__(self, target, width=30, verbose=1, interval=0.01):
+    def __init__(self, target, width=30, verbose=1, interval=0.01, notebook=False):
         '''Dislays a progress bar.
 
         # Arguments:
@@ -78,6 +77,8 @@ class Progbar(object):
         self.total_width = 0
         self.seen_so_far = 0
         self.verbose = verbose
+        self.notebook = notebook
+        self.progress = None
 
     def update(self, current, values=[], force=False):
         '''Updates the progress bar.
@@ -103,10 +104,6 @@ class Progbar(object):
             if not force and (now - self.last_update) < self.interval:
                 return
 
-            prev_total_width = self.total_width
-            sys.stdout.write('\b' * prev_total_width)
-            sys.stdout.write('\r')
-
             numdigits = int(np.floor(np.log10(self.target))) + 1
             barstr = '%%%dd/%%%dd [' % (numdigits, numdigits)
             bar = barstr % (current, self.target)
@@ -120,8 +117,6 @@ class Progbar(object):
                     bar += '='
             bar += ('.' * (self.width - prog_width))
             bar += ']'
-            sys.stdout.write(bar)
-            self.total_width = len(bar)
 
             if current:
                 time_per_unit = (now - self.start) / current
@@ -144,15 +139,7 @@ class Progbar(object):
                 else:
                     info += ' %s' % self.sum_values[k]
 
-            self.total_width += len(info)
-            if prev_total_width > self.total_width:
-                info += ((prev_total_width - self.total_width) * ' ')
-
-            sys.stdout.write(info)
-            sys.stdout.flush()
-
-            if current >= self.target:
-                sys.stdout.write('\n')
+            self.show(bar, info, current >= self.target)
 
         if self.verbose == 2:
             if current >= self.target:
@@ -164,13 +151,38 @@ class Progbar(object):
                         info += ' %.4f' % avg
                     else:
                         info += ' %.4e' % avg
-                sys.stdout.write(info + "\n")
+                self.show('', info, True)
 
         self.last_update = now
 
     def add(self, n, values=[]):
         self.update(self.seen_so_far + n, values)
 
+    def show(self, bar, info, newline):
+        if not self.notebook:
+            prev_total_width = self.total_width
+            sys.stdout.write('\b' * prev_total_width)
+            sys.stdout.write('\r')
+
+            sys.stdout.write(bar)
+            self.total_width = len(bar)
+
+            self.total_width += len(info)
+            if prev_total_width > self.total_width:
+                info += ((prev_total_width - self.total_width) * ' ')
+
+            sys.stdout.write(info)
+            sys.stdout.flush()
+
+            if newline:
+                sys.stdout.write('\n')
+        else:
+            from ipywidgets import HTML
+            from IPython.display import display
+            if self.progress is None:
+                self.progress = HTML()
+                display(self.progress)
+            self.progress.value = bar + info
 
 def display_table(rows, positions):
 
