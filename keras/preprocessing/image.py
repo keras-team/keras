@@ -478,6 +478,50 @@ class ImageDataGenerator(object):
             U, S, V = linalg.svd(sigma)
             self.principal_components = np.dot(np.dot(U, np.diag(1. / np.sqrt(S + 10e-7))), U.T)
 
+    def transform(self,x, train_mode):
+        '''
+        Transforms single image.
+        Required for featurewise_center, featurewise_std_normalization
+        and zca_whitening.
+
+        # Arguments
+            X: Numpy array, the data to fit on.
+            augment: whether to fit on randomly augmented samples
+            rounds: if `augment`,
+                how many augmentation passes to do over the data
+            seed: random seed.
+
+        Arguments:
+            x: image(Numpy array) to transform
+            train_mode: True if random augmentation should be applied, False - steps needed to be applied on tst and train data(aka normalisation)
+
+        Returns: transformed image
+        '''
+        if train_mode:
+            x = self.random_transform(x)
+        return self.standardize(x)
+
+    def batch_transform(self,X, train_mode):
+        '''
+        Transform all images in X
+        '''
+        X = [self.transform(x, train_mode) for x in X]
+        return np.stack(X)
+
+    def generator(self,X, y, train_mode, batch_size=32, shuffle=True):
+        '''
+        Alternative to flow, but class can have multiple generators
+        '''
+        LEN = len(X)
+        while True:
+            if shuffle:
+                perm = np.random.permutation(LEN)
+                X = X[perm]
+                y = y[perm]
+            for i in xrange(0,LEN, batch_size):
+                right = min(LEN, i+batch_size)
+                yield (self.batch_transform(X[i:right], train_mode), y[i:right])
+
 
 class Iterator(object):
 
