@@ -16,7 +16,9 @@ from pkg_resources import parse_version
 
 
 class CallbackList(object):
-    def __init__(self, callbacks=[], queue_length=10):
+
+    def __init__(self, callbacks=None, queue_length=10):
+        callbacks = callbacks or []
         self.callbacks = [c for c in callbacks]
         self.queue_length = queue_length
 
@@ -31,31 +33,36 @@ class CallbackList(object):
         for callback in self.callbacks:
             callback._set_model(model)
 
-    def on_epoch_begin(self, epoch, logs={}):
+    def on_epoch_begin(self, epoch, logs=None):
+        logs = logs or {}
         for callback in self.callbacks:
             callback.on_epoch_begin(epoch, logs)
         self._delta_t_batch = 0.
         self._delta_ts_batch_begin = deque([], maxlen=self.queue_length)
         self._delta_ts_batch_end = deque([], maxlen=self.queue_length)
 
-    def on_epoch_end(self, epoch, logs={}):
+    def on_epoch_end(self, epoch, logs=None):
+        logs = logs or {}
         for callback in self.callbacks:
             callback.on_epoch_end(epoch, logs)
 
-    def on_batch_begin(self, batch, logs={}):
+    def on_batch_begin(self, batch, logs=None):
+        logs = logs or {}
         t_before_callbacks = time.time()
         for callback in self.callbacks:
             callback.on_batch_begin(batch, logs)
         self._delta_ts_batch_begin.append(time.time() - t_before_callbacks)
         delta_t_median = np.median(self._delta_ts_batch_begin)
-        if self._delta_t_batch > 0. and delta_t_median > 0.95 * \
-           self._delta_t_batch and delta_t_median > 0.1:
+        if (self._delta_t_batch > 0. and
+           delta_t_median > 0.95 * self._delta_t_batch and
+           delta_t_median > 0.1):
             warnings.warn('Method on_batch_begin() is slow compared '
                           'to the batch update (%f). Check your callbacks.'
                           % delta_t_median)
         self._t_enter_batch = time.time()
 
-    def on_batch_end(self, batch, logs={}):
+    def on_batch_end(self, batch, logs=None):
+        logs = logs or {}
         if not hasattr(self, '_t_enter_batch'):
             self._t_enter_batch = time.time()
         self._delta_t_batch = time.time() - self._t_enter_batch
@@ -64,16 +71,19 @@ class CallbackList(object):
             callback.on_batch_end(batch, logs)
         self._delta_ts_batch_end.append(time.time() - t_before_callbacks)
         delta_t_median = np.median(self._delta_ts_batch_end)
-        if self._delta_t_batch > 0. and (delta_t_median > 0.95 * self._delta_t_batch and delta_t_median > 0.1):
+        if (self._delta_t_batch > 0. and
+           (delta_t_median > 0.95 * self._delta_t_batch and delta_t_median > 0.1)):
             warnings.warn('Method on_batch_end() is slow compared '
                           'to the batch update (%f). Check your callbacks.'
                           % delta_t_median)
 
-    def on_train_begin(self, logs={}):
+    def on_train_begin(self, logs=None):
+        logs = logs or {}
         for callback in self.callbacks:
             callback.on_train_begin(logs)
 
-    def on_train_end(self, logs={}):
+    def on_train_end(self, logs=None):
+        logs = logs or {}
         for callback in self.callbacks:
             callback.on_train_end(logs)
 
@@ -113,22 +123,22 @@ class Callback(object):
     def _set_model(self, model):
         self.model = model
 
-    def on_epoch_begin(self, epoch, logs={}):
+    def on_epoch_begin(self, epoch, logs=None):
         pass
 
-    def on_epoch_end(self, epoch, logs={}):
+    def on_epoch_end(self, epoch, logs=None):
         pass
 
-    def on_batch_begin(self, batch, logs={}):
+    def on_batch_begin(self, batch, logs=None):
         pass
 
-    def on_batch_end(self, batch, logs={}):
+    def on_batch_end(self, batch, logs=None):
         pass
 
-    def on_train_begin(self, logs={}):
+    def on_train_begin(self, logs=None):
         pass
 
-    def on_train_end(self, logs={}):
+    def on_train_end(self, logs=None):
         pass
 
 
@@ -139,11 +149,12 @@ class BaseLogger(Callback):
     This callback is automatically applied to
     every Keras model.
     '''
-    def on_epoch_begin(self, epoch, logs={}):
+    def on_epoch_begin(self, epoch, logs=None):
         self.seen = 0
         self.totals = {}
 
-    def on_batch_end(self, batch, logs={}):
+    def on_batch_end(self, batch, logs=None):
+        logs = logs or {}
         batch_size = logs.get('size', 0)
         self.seen += batch_size
 
@@ -153,32 +164,34 @@ class BaseLogger(Callback):
             else:
                 self.totals[k] = v * batch_size
 
-    def on_epoch_end(self, epoch, logs={}):
-        for k in self.params['metrics']:
-            if k in self.totals:
-                # make value available to next callbacks
-                logs[k] = self.totals[k] / self.seen
+    def on_epoch_end(self, epoch, logs=None):
+        if logs is not None:
+            for k in self.params['metrics']:
+                if k in self.totals:
+                    # Make value available to next callbacks.
+                    logs[k] = self.totals[k] / self.seen
 
 
 class ProgbarLogger(Callback):
     '''Callback that prints metrics to stdout.
     '''
-    def on_train_begin(self, logs={}):
+    def on_train_begin(self, logs=None):
         self.verbose = self.params['verbose']
         self.nb_epoch = self.params['nb_epoch']
 
-    def on_epoch_begin(self, epoch, logs={}):
+    def on_epoch_begin(self, epoch, logs=None):
         if self.verbose:
             print('Epoch %d/%d' % (epoch + 1, self.nb_epoch))
             self.progbar = Progbar(target=self.params['nb_sample'],
                                    verbose=self.verbose)
         self.seen = 0
 
-    def on_batch_begin(self, batch, logs={}):
+    def on_batch_begin(self, batch, logs=None):
         if self.seen < self.params['nb_sample']:
             self.log_values = []
 
-    def on_batch_end(self, batch, logs={}):
+    def on_batch_end(self, batch, logs=None):
+        logs = logs or {}
         batch_size = logs.get('size', 0)
         self.seen += batch_size
 
@@ -186,12 +199,13 @@ class ProgbarLogger(Callback):
             if k in logs:
                 self.log_values.append((k, logs[k]))
 
-        # skip progbar update for the last batch;
-        # will be handled by on_epoch_end
+        # Skip progbar update for the last batch;
+        # will be handled by on_epoch_end.
         if self.verbose and self.seen < self.params['nb_sample']:
             self.progbar.update(self.seen, self.log_values)
 
-    def on_epoch_end(self, epoch, logs={}):
+    def on_epoch_end(self, epoch, logs=None):
+        logs = logs or {}
         for k in self.params['metrics']:
             if k in logs:
                 self.log_values.append((k, logs[k]))
@@ -207,11 +221,12 @@ class History(Callback):
     every Keras model. The `History` object
     gets returned by the `fit` method of models.
     '''
-    def on_train_begin(self, logs={}):
+    def on_train_begin(self, logs=None):
         self.epoch = []
         self.history = {}
 
-    def on_epoch_end(self, epoch, logs={}):
+    def on_epoch_end(self, epoch, logs=None):
+        logs = logs or {}
         self.epoch.append(epoch)
         for k, v in logs.items():
             self.history.setdefault(k, []).append(v)
@@ -281,7 +296,8 @@ class ModelCheckpoint(Callback):
                 self.monitor_op = np.less
                 self.best = np.Inf
 
-    def on_epoch_end(self, epoch, logs={}):
+    def on_epoch_end(self, epoch, logs=None):
+        logs = logs or {}
         self.epochs_since_last_save += 1
         if self.epochs_since_last_save >= self.period:
             self.epochs_since_last_save = 0
@@ -336,7 +352,8 @@ class EarlyStopping(Callback):
             mode, the direction is automatically inferred
             from the name of the monitored quantity.
     '''
-    def __init__(self, monitor='val_loss', min_delta=0, patience=0, verbose=0, mode='auto'):
+    def __init__(self, monitor='val_loss',
+                 min_delta=0, patience=0, verbose=0, mode='auto'):
         super(EarlyStopping, self).__init__()
 
         self.monitor = monitor
@@ -367,11 +384,11 @@ class EarlyStopping(Callback):
         else:
             self.min_delta *= -1
 
-    def on_train_begin(self, logs={}):
+    def on_train_begin(self, logs=None):
         self.wait = 0       # Allow instances to be re-used
         self.best = np.Inf if self.monitor_op == np.less else -np.Inf
 
-    def on_epoch_end(self, epoch, logs={}):
+    def on_epoch_end(self, epoch, logs=None):
         current = logs.get(self.monitor)
         if current is None:
             warnings.warn('Early stopping requires %s available!' %
@@ -386,7 +403,7 @@ class EarlyStopping(Callback):
                 self.model.stop_training = True
             self.wait += 1
 
-    def on_train_end(self, logs={}):
+    def on_train_end(self, logs=None):
         if self.stopped_epoch > 0 and self.verbose > 0:
             print('Epoch %05d: early stopping' % (self.stopped_epoch))
 
@@ -408,15 +425,17 @@ class RemoteMonitor(Callback):
                  root='http://localhost:9000',
                  path='/publish/epoch/end/',
                  field='data',
-                 headers={'Accept': 'application/json', 'Content-Type': 'application/json'}):
+                 headers={'Accept': 'application/json',
+                          'Content-Type': 'application/json'}):
         super(RemoteMonitor, self).__init__()
         self.root = root
         self.path = path
         self.field = field
         self.headers = headers
 
-    def on_epoch_end(self, epoch, logs={}):
+    def on_epoch_end(self, epoch, logs=None):
         import requests
+        logs = logs or {}
         send = {}
         send['epoch'] = epoch
         for k, v in logs.items():
@@ -442,15 +461,13 @@ class LearningRateScheduler(Callback):
         super(LearningRateScheduler, self).__init__()
         self.schedule = schedule
 
-    def on_epoch_begin(self, epoch, logs={}):
-        assert hasattr(self.model.optimizer, 'lr'), \
-            'Optimizer must have a "lr" attribute.'
+    def on_epoch_begin(self, epoch, logs=None):
+        if not hasattr(self.model.optimizer, 'lr'):
+            raise ValueError('Optimizer must have a "lr" attribute.')
         lr = self.schedule(epoch)
-
         if not isinstance(lr, (float, np.float32, np.float64)):
             raise ValueError('The output of the "schedule" function '
                              'should be float.')
-
         K.set_value(self.model.optimizer.lr, lr)
 
 
@@ -483,7 +500,10 @@ class TensorBoard(Callback):
             write_graph is set to True.
     '''
 
-    def __init__(self, log_dir='./logs', histogram_freq=0, write_graph=True, write_images=False):
+    def __init__(self, log_dir='./logs',
+                 histogram_freq=0,
+                 write_graph=True,
+                 write_images=False):
         super(TensorBoard, self).__init__()
         if K._BACKEND != 'tensorflow':
             raise RuntimeError('TensorBoard callback only works '
@@ -543,8 +563,9 @@ class TensorBoard(Callback):
             else:
                 self.writer = tf.train.SummaryWriter(self.log_dir)
 
-    def on_epoch_end(self, epoch, logs={}):
+    def on_epoch_end(self, epoch, logs=None):
         import tensorflow as tf
+        logs = logs or {}
 
         if self.model.validation_data and self.histogram_freq:
             if epoch % self.histogram_freq == 0:
@@ -618,7 +639,8 @@ class ReduceLROnPlateau(Callback):
 
         self.monitor = monitor
         if factor >= 1.0:
-            raise ValueError('ReduceLROnPlateau does not support a factor >= 1.0.')
+            raise ValueError('ReduceLROnPlateau '
+                             'does not support a factor >= 1.0.')
         self.factor = factor
         self.min_lr = min_lr
         self.epsilon = epsilon
@@ -635,7 +657,8 @@ class ReduceLROnPlateau(Callback):
     def reset(self):
         if self.mode not in ['auto', 'min', 'max']:
             warnings.warn('Learning Rate Plateau Reducing mode %s is unknown, '
-                          'fallback to auto mode.' % (self.mode), RuntimeWarning)
+                          'fallback to auto mode.' % (self.mode),
+                          RuntimeWarning)
             self.mode = 'auto'
         if self.mode == 'min' or (self.mode == 'auto' and 'acc' not in self.monitor):
             self.monitor_op = lambda a, b: np.less(a, b - self.epsilon)
@@ -647,10 +670,11 @@ class ReduceLROnPlateau(Callback):
         self.wait = 0
         self.lr_epsilon = self.min_lr * 1e-4
 
-    def on_train_begin(self, logs={}):
+    def on_train_begin(self, logs=None):
         self.reset()
 
-    def on_epoch_end(self, epoch, logs={}):
+    def on_epoch_end(self, epoch, logs=None):
+        logs = logs or {}
         logs['lr'] = K.get_value(self.model.optimizer.lr)
         current = logs.get(self.monitor)
         if current is None:
@@ -708,7 +732,7 @@ class CSVLogger(Callback):
         self.append_header = True
         super(CSVLogger, self).__init__()
 
-    def on_train_begin(self, logs={}):
+    def on_train_begin(self, logs=None):
         if self.append:
             if os.path.exists(self.filename):
                 with open(self.filename) as f:
@@ -717,7 +741,9 @@ class CSVLogger(Callback):
         else:
             self.csv_file = open(self.filename, 'w')
 
-    def on_epoch_end(self, epoch, logs={}):
+    def on_epoch_end(self, epoch, logs=None):
+        logs = logs or {}
+
         def handle_value(k):
             is_zero_dim_ndarray = isinstance(k, np.ndarray) and k.ndim == 0
             if isinstance(k, Iterable) and not is_zero_dim_ndarray:
@@ -727,7 +753,8 @@ class CSVLogger(Callback):
 
         if not self.writer:
             self.keys = sorted(logs.keys())
-            self.writer = csv.DictWriter(self.csv_file, fieldnames=['epoch'] + self.keys)
+            self.writer = csv.DictWriter(self.csv_file,
+                                         fieldnames=['epoch'] + self.keys)
             if self.append_header:
                 self.writer.writeheader()
 
@@ -774,7 +801,6 @@ class LambdaCallback(Callback):
 
         model.fit(..., callbacks=[batch_print_callback, plot_loss_callback, cleanup_callback])
         ```
-
     """
 
     def __init__(self,
