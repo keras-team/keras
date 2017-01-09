@@ -28,7 +28,7 @@ def test_tag_sequence():
     history = model.fit(X_train, y_train, nb_epoch=1, batch_size=32,
                         validation_data=(X_test, y_test))
 
-    assert(history.history['val_acc'][-1] >= 0.94)
+    assert(history.history['val_acc'][-1] >= 0.95)
 
 
 @keras_test
@@ -50,7 +50,7 @@ def test_sparse_tag_sequence():
     history = model.fit(X_train, y_train, nb_epoch=1, batch_size=32,
                         validation_data=(X_test, y_test))
 
-    assert(history.history['val_sparse_categorical_accuracy'][-1] >= 0.94)
+    assert(history.history['val_sparse_categorical_accuracy'][-1] >= 0.95)
 
 
 @keras_test
@@ -80,7 +80,8 @@ def test_generate_transition_matrix():
         print('y_pred', y_pred[i])
     U_pred = K.get_value(crf.U)
     print('U:\n', U_pred)
-    print('b:\n', K.get_value(crf.b))
+    print('b_start:\n', K.get_value(crf.b_start))
+    print('b_end:\n', K.get_value(crf.b_end))
 
     U_pred = np.exp(U_pred)
     U_pred /= np.sum(U_pred, axis=1, keepdims=True)

@@ -6,96 +6,169 @@ from .. import initializations, regularizers, constraints
 from ..engine import Layer, InputSpec
 
 
-def sparse_chain_crf_loss(y, x, U, b):
-    '''Given the true sparsely encoded tag sequences y, observations x,
-    transition params U and label bias b, it computes the loss function
-    of a Linear Chain Conditional Random Field.
-    '''
-    energy = path_energy(y, x, U, b)
-    energy -= free_energy(x, U, b)
-    return -energy
+def path_energy(y, x, U, b_start=None, b_end=None, mask=None):
+    '''Calculates the energy of a tag path y for a given input x (with mask),
+    transition energies U and boundary energies b_start, b_end.'''
+    x = add_boundary_energy(x, b_start, b_end, mask)
+    return path_energy0(y, x, U, mask)
 
 
-def chain_crf_loss(y, x, U, b):
-    '''Given the true tag sequences y as one-hot encoded vectors,
-    observations x, transition params U and label bias b, it computes the loss
-    function of a Linear Chain Conditional Random Field.
-    '''
-    y_sparse = K.argmax(y, -1)
-    y_sparse = K.cast(y_sparse, 'int32')
-    return sparse_chain_crf_loss(y_sparse, x, U, b)
-
-
-def viterbi_decode(x, U, b):
-
-    def _forward_step(x_t, states):
-        gamma_tm1, alpha_tm1, U_shared = states
-        B = K.expand_dims(alpha_tm1, 2) + K.expand_dims(x_t, 1) + K.expand_dims(U_shared, 0)
-        alpha_t = K.max(B, axis=1)
-        gamma_t = K.cast(K.argmax(B, axis=1), K.floatx())
-        return gamma_t, [gamma_t, alpha_t]
-
-    inputs = x[:, 1:, :]
-    constants = [U]
-
-    alpha_0 = x[:, 0, :] + K.expand_dims(b, 0)
-    gamma_0 = K.zeros_like(alpha_0)
-    initial_states = [gamma_0, alpha_0]
-    _, gamma, states = K.rnn(_forward_step, inputs, initial_states, constants=constants)
-    gamma = K.cast(gamma, 'int32')
-    last_alpha = states[1]
-
-    def _backward_step(gamma_t, states):
-        beta_tm1 = states[0]
-        beta_t = K.batch_gather(gamma_t, beta_tm1)
-        return beta_t, [beta_t]
-
-    beta_m1 = K.cast(K.argmax(last_alpha, axis=1), 'int32')
-    initial_states = [beta_m1]
-    _, beta, _ = K.rnn(_backward_step, gamma, initial_states, go_backwards=True)
-    beta = K.reverse(beta, 1)
-    beta = K.permute_dimensions(beta, [1, 0])
-    best_sequence = K.concatenate([beta, K.expand_dims(beta_m1, 0)], axis=0)
-    best_sequence = K.permute_dimensions(best_sequence, [1, 0])
-    return best_sequence
-
-
-def free_energy(x, U, b):
-
-    def _forward_step(x_t, states):
-        alpha_tm1, U_shared = states
-        B = K.expand_dims(alpha_tm1, 2) + K.expand_dims(x_t, 1) + K.expand_dims(U_shared, 0)
-        alpha_t = K.logsumexp(B, axis=1)
-        return alpha_t, [alpha_t]
-
-    inputs = x[:, 1:, :]
-    constants = [U]
-
-    alpha_0 = x[:, 0, :] + K.expand_dims(b, 0)
-    initial_states = [alpha_0]
-    _, alpha, _ = K.rnn(_forward_step, inputs, initial_states, constants=constants)
-    last_alpha = alpha[:, -1, :]
-    return K.logsumexp(last_alpha, axis=1)
-
-
-def path_energy(y, x, U, b):
+def path_energy0(y, x, U, mask=None):
+    '''Path energy without boundary potential handling.'''
     n_classes = K.shape(x)[2]
     y_one_hot = K.one_hot(y, n_classes)
 
-    tag_path_energy = K.sum(x * y_one_hot, 2)
-    tag_path_energy = K.sum(tag_path_energy, 1)
+    # Tag path energy
+    energy = K.sum(x * y_one_hot, 2)
+    energy = K.sum(energy, 1)
 
-    y_0 = y[:, 0]
-    boundary_energy = K.reshape(K.gather(b, y_0), [-1])
-
-    y_t = y[:, 0:-1]
+    # Transition energy
+    y_t = y[:, :-1]
     y_tp1 = y[:, 1:]
     U_flat = K.reshape(U, [-1])
+    # Convert 2-dim indices (y_t, y_tp1) of U to 1-dim indices of U_flat:
     flat_indices = y_t*n_classes + y_tp1
     U_y_t_tp1 = K.gather(U_flat, flat_indices)
-    transition_energy = K.sum(U_y_t_tp1, axis=1)
 
-    return tag_path_energy + boundary_energy + transition_energy
+    if mask is not None:
+        mask = K.cast(mask, K.floatx())
+        y_t_mask = mask[:, :-1]
+        y_tp1_mask = mask[:, 1:]
+        U_y_t_tp1 *= y_t_mask * y_tp1_mask
+
+    energy += K.sum(U_y_t_tp1, axis=1)
+
+    return energy
+
+
+def sparse_chain_crf_loss(y, x, U, b_start=None, b_end=None, mask=None):
+    '''Given the true sparsely encoded tag sequence y, input x (with mask),
+    transition energies U, boundary energies b_start and b_end, it computes
+    the loss function of a Linear Chain Conditional Random Field:
+
+    loss(y, x) = NNL(P(y|x)), where P(y|x) = exp(E(y, x)) / Z.
+    So, loss(y, x) = - E(y, x) + log(Z)
+
+    Here, E(y, x) is the tag path energy, and Z is the normalization constant.
+    The values log(Z) is also called free energy.
+    '''
+    x = add_boundary_energy(x, b_start, b_end, mask)
+    energy = path_energy0(y, x, U, mask)
+    energy -= free_energy0(x, U, mask)
+    return -energy
+
+
+def chain_crf_loss(y, x, U, b_start=None, b_end=None, mask=None):
+    '''Variant of sparse_chain_crf_loss but with one-hot encoded tags y.'''
+    y_sparse = K.argmax(y, -1)
+    y_sparse = K.cast(y_sparse, 'int32')
+    return sparse_chain_crf_loss(y_sparse, x, U, b_start, b_end, mask)
+
+
+def add_boundary_energy(x, b_start=None, b_end=None, mask=None):
+    '''Given the observations x, it adds the start boundary energy b_start (resp.
+    end boundary energy b_end on the start (resp. end) elements and multiplies
+    the mask.'''
+    if mask is None:
+        if b_start is not None:
+            x = K.concatenate([x[:, :1, :] + b_start, x[:, 1:, :]], axis=1)
+        if b_end is not None:
+            x = K.concatenate([x[:, :-1, :], x[:, -1:, :] + b_end], axis=1)
+    else:
+        mask = K.cast(mask, K.floatx())
+        mask = K.expand_dims(mask, 2)
+        x *= mask
+        if b_start is not None:
+            mask_r = K.concatenate([K.zeros_like(mask[:, :1]), mask[:, :-1]], axis=1)
+            start_mask = K.cast(K.greater(mask, mask_r), K.floatx())
+            x = x + start_mask * b_start
+        if b_end is not None:
+            mask_l = K.concatenate([mask[:, 1:], K.zeros_like(mask[:, -1:])], axis=1)
+            end_mask = K.cast(K.greater(mask, mask_l), K.floatx())
+            x = x + end_mask * b_end
+    return x
+
+
+def viterbi_decode(x, U, b_start=None, b_end=None, mask=None):
+    '''Computes the best tag sequence y for a given input x, i.e. the one that
+    maximizes the value of path_energy.'''
+    x = add_boundary_energy(x, b_start, b_end, mask)
+
+    alpha_0 = x[:, 0, :]
+    gamma_0 = K.zeros_like(alpha_0)
+    initial_states = [gamma_0, alpha_0]
+    _, gamma = _forward(x,
+                        lambda B: [K.cast(K.argmax(B, axis=1), K.floatx()), K.max(B, axis=1)],
+                        initial_states,
+                        U,
+                        mask)
+    y = _backward(gamma, mask)
+    return y
+
+
+def free_energy(x, U, b_start=None, b_end=None, mask=None):
+    '''Computes efficiently the sum of all path energies for input x, when
+    runs over all possible tag sequences.'''
+    x = add_boundary_energy(x, b_start, b_end, mask)
+    return free_energy0(x, U, mask)
+
+
+def free_energy0(x, U, mask=None):
+    '''Free energy without boundary potential handling.'''
+    initial_states = [x[:, 0, :]]
+    last_alpha, _ = _forward(x,
+                             lambda B: [K.logsumexp(B, axis=1)],
+                             initial_states,
+                             U,
+                             mask)
+    return last_alpha[:, 0]
+
+
+def _forward(x, reduce_step, initial_states, U, mask=None):
+    '''Forward recurrence of the linear chain crf.'''
+
+    def _forward_step(energy_matrix_t, states):
+        alpha_tm1 = states[-1]
+        new_states = reduce_step(K.expand_dims(alpha_tm1, 2) + energy_matrix_t)
+        return new_states[0], new_states
+
+    U_shared = K.expand_dims(K.expand_dims(U, 0), 0)
+
+    if mask is not None:
+        mask = K.cast(mask, K.floatx())
+        mask_U = K.expand_dims(K.expand_dims(mask[:, :-1] * mask[:, 1:], 2), 3)
+        U_shared = U_shared * mask_U
+
+    inputs = K.expand_dims(x[:, 1:, :], 2) + U_shared
+    inputs = K.concatenate([inputs, K.zeros_like(inputs[:, -1:, :, :])], axis=1)
+
+    last, values, _ = K.rnn(_forward_step, inputs, initial_states)
+    return last, values
+
+
+def _backward(gamma, mask):
+    '''Backward recurrence of the linear chain crf.'''
+    gamma = K.cast(gamma, 'int32')
+
+    def _backward_step(gamma_t, states):
+        y_tm1 = states[0]
+        y_t = K.batch_gather(gamma_t, y_tm1)
+        return y_t, [y_t]
+
+    initial_states = [K.zeros_like(gamma[:, 0, 0])]
+    _, y_rev, _ = K.rnn(_backward_step,
+                        gamma,
+                        initial_states,
+                        go_backwards=True)
+    y = K.reverse(y_rev, 1)
+
+    if mask is not None:
+        mask = K.cast(mask, dtype='int32')
+        # mask output
+        y *= mask
+        # set masked values to -1
+        y += -(1-mask)
+    return y
 
 
 class ChainCRF(Layer):
@@ -105,16 +178,25 @@ class ChainCRF(Layer):
     the global tag sequence scores. While training it acts as
     the identity function that passes the inputs to the subsequently
     used loss function. While testing it applies Viterbi decoding
-    and the best scoring tag sequence as one-hot encoded vectors.
+    and returns the best scoring tag sequence as one-hot encoded vectors.
 
     # Arguments
-        init: weight initialization function.
+        init: weight initialization function for chain energies U.
             Can be the name of an existing function (str),
             or a Theano function (see: [initializations](../initializations.md)).
         U_regularizer: instance of [WeightRegularizer](../regularizers.md)
             (eg. L1 or L2 regularization), applied to the transition weight matrix.
-        b_regularizer: instance of [WeightRegularizer](../regularizers.md),
-            applied to the bias.
+        b_start_regularizer: instance of [WeightRegularizer](../regularizers.md),
+            applied to the start bias b.
+        b_end_regularizer: instance of [WeightRegularizer](../regularizers.md)
+            module, applied to the end bias b.
+        b_start_constraint: instance of the [constraints](../constraints.md)
+            module, applied to the start bias b.
+        b_end_regularizer: instance of the [constraints](../constraints.md)
+            module, applied to the end bias b.
+        weights: list of Numpy arrays for initializing [U, b_start, b_end].
+            Thus it should be a list of 3 elements of shape
+            [(n_classes, n_classes), (n_classes, ), (n_classes, )]
 
     # Input shape
         3D tensor with shape `(nb_samples, timesteps, nb_classes)`, where
@@ -124,7 +206,7 @@ class ChainCRF(Layer):
         Same shape as input.
 
     # Masking
-        Masing is currently not supported.
+        This layer supports masking for input sequences of variable length.
 
     # Example
 
@@ -143,24 +225,34 @@ class ChainCRF(Layer):
     ```
     '''
     def __init__(self, init='glorot_uniform',
-                 U_regularizer=None, b_regularizer=None,
-                 U_constraint=None, b_constraint=None,
+                 U_regularizer=None, b_start_regularizer=None, b_end_regularizer=None,
+                 U_constraint=None, b_start_constraint=None, b_end_constraint=None,
+                 weights=None,
                  **kwargs):
-        self.supports_masking = False
+        self.supports_masking = True
         self.uses_learning_phase = True
         self.input_spec = [InputSpec(ndim=3)]
         self.init = initializations.get(init)
 
         self.U_regularizer = regularizers.get(U_regularizer)
-        self.b_regularizer = regularizers.get(b_regularizer)
+        self.b_start_regularizer = regularizers.get(b_start_regularizer)
+        self.b_end_regularizer = regularizers.get(b_end_regularizer)
         self.U_constraint = constraints.get(U_constraint)
-        self.b_constraint = constraints.get(b_constraint)
+        self.b_start_constraint = constraints.get(b_start_constraint)
+        self.b_end_constraint = constraints.get(b_end_constraint)
+
+        self.initial_weights = weights
 
         super(ChainCRF, self).__init__(**kwargs)
 
     def get_output_shape_for(self, input_shape):
         assert input_shape and len(input_shape) == 3
         return (input_shape[0], input_shape[1], input_shape[2])
+
+    def compute_mask(self, input, mask=None):
+        if mask is not None:
+            return K.any(mask, axis=1)
+        return mask
 
     def build(self, input_shape):
         assert len(input_shape) == 3
@@ -172,26 +264,37 @@ class ChainCRF(Layer):
                                      shape=(None, n_steps, n_classes))]
         self.U = self.init((n_classes, n_classes),
                            name='{}_U'.format(self.name))
-        self.b = K.zeros((n_classes, ), name='{}_b'.format(self.name))
-        self.trainable_weights = [self.U, self.b]
+        self.b_start = K.zeros((n_classes, ), name='{}_b_start'.format(self.name))
+        self.b_end = K.zeros((n_classes, ), name='{}_b_start'.format(self.name))
+        self.trainable_weights = [self.U, self.b_start, self.b_end]
 
         self.regularizers = []
         if self.U_regularizer:
             self.U_regularizer.set_param(self.U)
             self.regularizers.append(self.U_regularizer)
-        if self.b_regularizer:
-            self.b_regularizer.set_param(self.b)
-            self.regularizers.append(self.b_regularizer)
+        if self.b_start_regularizer:
+            self.b_start_regularizer.set_param(self.b_start)
+            self.regularizers.append(self.b_start_regularizer)
+        if self.b_end_regularizer:
+            self.b_end_regularizer.set_param(self.b_end)
+            self.regularizers.append(self.b_end_regularizer)
 
         self.constraints = {}
         if self.U_constraint:
             self.constraints[self.U] = self.U_constraint
-        if self.b_constraint:
-            self.constraints[self.b] = self.b_constraint
+        if self.b_start_constraint:
+            self.constraints[self.b_start] = self.b_start_constraint
+        if self.b_end_constraint:
+            self.constraints[self.b_end] = self.b_end_constraint
+
+        if self.initial_weights is not None:
+            self.set_weights(self.initial_weights)
+            del self.initial_weights
+
         self.built = True
 
     def call(self, x, mask=None):
-        y_pred = viterbi_decode(x, self.U, self.b)
+        y_pred = viterbi_decode(x, self.U, self.b_start, self.b_end, mask)
         nb_classes = self.input_spec[0].shape[2]
         y_pred_one_hot = K.one_hot(y_pred, nb_classes)
         return K.in_train_phase(x, y_pred_one_hot)
@@ -199,7 +302,11 @@ class ChainCRF(Layer):
     def loss(self, y_true, y_pred):
         '''Linear Chain Conditional Random Field loss function.
         '''
-        return chain_crf_loss(y_true, y_pred, self.U, self.b)
+        mask = None
+        # Since mask is not given, we need to fetch it from previous layer
+        if self.inbound_nodes:
+            mask = self.inbound_nodes[0].input_masks[0]
+        return chain_crf_loss(y_true, y_pred, self.U, self.b_start, self.b_end, mask)
 
     def sparse_loss(self, y_true, y_pred):
         '''Linear Chain Conditional Random Field loss function with sparse
@@ -207,14 +314,16 @@ class ChainCRF(Layer):
         '''
         y_true = K.cast(y_true, 'int32')
         y_true = K.squeeze(y_true, 2)
-        return sparse_chain_crf_loss(y_true, y_pred, self.U, self.b)
+        return sparse_chain_crf_loss(y_true, y_pred, self.U, self.b_start, self.b_end)
 
     def get_config(self):
         config = {'init': self.init.__name__,
                   'U_regularizer': self.U_regularizer.get_config() if self.U_regularizer else None,
-                  'b_regularizer': self.b_regularizer.get_config() if self.b_regularizer else None,
+                  'b_start_regularizer': self.b_start_regularizer.get_config() if self.b_start_regularizer else None,
+                  'b_end_regularizer': self.b_end_regularizer.get_config() if self.b_end_regularizer else None,
                   'U_constraint': self.U_constraint.get_config() if self.U_constraint else None,
-                  'b_constraint': self.b_constraint.get_config() if self.b_constraint else None,
+                  'b_start_constraint': self.b_start_constraint.get_config() if self.b_start_constraint else None,
+                  'b_end_constraint': self.b_end_constraint.get_config() if self.b_end_constraint else None,
                   }
         base_config = super(ChainCRF, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
