@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import
+import functools
 
 from .. import backend as K
 from .. import activations, initializations, regularizers, constraints
@@ -87,7 +88,7 @@ class Convolution1D(Layer):
             raise ValueError('Invalid border mode for Convolution1D:', border_mode)
         self.nb_filter = nb_filter
         self.filter_length = filter_length
-        self.init = initializations.get(init, dim_ordering='th')
+        self.init = initializations.get(init)
         self.activation = activations.get(activation)
         self.border_mode = border_mode
         self.subsample_length = subsample_length
@@ -115,7 +116,8 @@ class Convolution1D(Layer):
         self.W_shape = (self.filter_length, 1, input_dim, self.nb_filter)
 
         self.W = self.add_weight(self.W_shape,
-                                 initializer=self.init,
+                                 initializer=functools.partial(self.init,
+                                                               dim_ordering='th'),
                                  name='{}_W'.format(self.name),
                                  regularizer=self.W_regularizer,
                                  constraint=self.W_constraint)
@@ -367,7 +369,7 @@ class Convolution2D(Layer):
         self.nb_filter = nb_filter
         self.nb_row = nb_row
         self.nb_col = nb_col
-        self.init = initializations.get(init, dim_ordering=dim_ordering)
+        self.init = initializations.get(init)
         self.activation = activations.get(activation)
         self.border_mode = border_mode
         self.subsample = tuple(subsample)
@@ -397,7 +399,8 @@ class Convolution2D(Layer):
         else:
             raise ValueError('Invalid dim_ordering:', self.dim_ordering)
         self.W = self.add_weight(self.W_shape,
-                                 initializer=self.init,
+                                 initializer=functools.partial(self.init,
+                                                               dim_ordering=self.dim_ordering),
                                  name='{}_W'.format(self.name),
                                  regularizer=self.W_regularizer,
                                  constraint=self.W_constraint)
@@ -899,7 +902,7 @@ class SeparableConvolution2D(Layer):
         self.nb_filter = nb_filter
         self.nb_row = nb_row
         self.nb_col = nb_col
-        self.init = initializations.get(init, dim_ordering=dim_ordering)
+        self.init = initializations.get(init)
         self.activation = activations.get(activation)
         if border_mode not in {'valid', 'same'}:
             raise ValueError('border_mode must be in {valid, same}.')
@@ -937,12 +940,14 @@ class SeparableConvolution2D(Layer):
             raise ValueError('Invalid dim_ordering:', self.dim_ordering)
 
         self.depthwise_kernel = self.add_weight(depthwise_shape,
-                                                initializer=self.init,
+                                                initializer=functools.partial(self.init,
+                                                                              dim_ordering=self.dim_ordering),
                                                 regularizer=self.depthwise_regularizer,
                                                 constraint=self.depthwise_constraint,
                                                 name='{}_depthwise_kernel'.format(self.name))
         self.pointwise_kernel = self.add_weight(pointwise_shape,
-                                                initializer=self.init,
+                                                initializer=functools.partial(self.init,
+                                                                              dim_ordering=self.dim_ordering),
                                                 regularizer=self.pointwise_regularizer,
                                                 constraint=self.pointwise_constraint,
                                                 name='{}_pointwise_kernel'.format(self.name))
@@ -1093,7 +1098,7 @@ class Convolution3D(Layer):
         self.kernel_dim1 = kernel_dim1
         self.kernel_dim2 = kernel_dim2
         self.kernel_dim3 = kernel_dim3
-        self.init = initializations.get(init, dim_ordering=dim_ordering)
+        self.init = initializations.get(init)
         self.activation = activations.get(activation)
         self.border_mode = border_mode
         self.subsample = tuple(subsample)
@@ -1129,7 +1134,8 @@ class Convolution3D(Layer):
             raise ValueError('Invalid dim_ordering:', self.dim_ordering)
 
         self.W = self.add_weight(self.W_shape,
-                                 initializer=self.init,
+                                 initializer=functools.partial(self.init,
+                                                               dim_ordering=self.dim_ordering),
                                  name='{}_W'.format(self.name),
                                  regularizer=self.W_regularizer,
                                  constraint=self.W_constraint)

@@ -783,14 +783,14 @@ def dot(x, y):
     if ndim(x) is not None and (ndim(x) > 2 or ndim(y) > 2):
         x_shape = []
         for i, s in zip(int_shape(x), tf.unpack(tf.shape(x))):
-            if s is None:
+            if i is not None:
                 x_shape.append(i)
             else:
                 x_shape.append(s)
         x_shape = tuple(x_shape)
         y_shape = []
         for i, s in zip(int_shape(y), tf.unpack(tf.shape(y))):
-            if s is None:
+            if i is not None:
                 y_shape.append(i)
             else:
                 y_shape.append(s)
@@ -1196,7 +1196,7 @@ def normalize_batch_in_training(x, gamma, beta,
 def batch_normalization(x, mean, var, beta, gamma, epsilon=1e-3):
     '''Applies batch normalization on x given mean, var, beta and gamma:
 
-    output = (x - mean) / (sqrt(var) + epsilon) * gamma + beta
+    output = (x - mean) / sqrt(var + epsilon) * gamma + beta
     '''
     return tf.nn.batch_normalization(x, mean, var, beta, gamma, epsilon)
 
@@ -1253,7 +1253,7 @@ def resize_images(X, height_factor, width_factor, dim_ordering):
         X = tf.image.resize_nearest_neighbor(X, new_shape)
         X = permute_dimensions(X, [0, 3, 1, 2])
         X.set_shape((None, None, original_shape[2] * height_factor if original_shape[2] is not None else None,
-                    original_shape[3] * width_factor if original_shape[3] is not None else None))
+                     original_shape[3] * width_factor if original_shape[3] is not None else None))
         return X
     elif dim_ordering == 'tf':
         original_shape = int_shape(X)
@@ -1261,7 +1261,7 @@ def resize_images(X, height_factor, width_factor, dim_ordering):
         new_shape *= tf.constant(np.array([height_factor, width_factor]).astype('int32'))
         X = tf.image.resize_nearest_neighbor(X, new_shape)
         X.set_shape((None, original_shape[1] * height_factor if original_shape[1] is not None else None,
-                    original_shape[2] * width_factor if original_shape[2] is not None else None, None))
+                     original_shape[2] * width_factor if original_shape[2] is not None else None, None))
         return X
     else:
         raise ValueError('Invalid dim_ordering:', dim_ordering)
@@ -2076,9 +2076,12 @@ def in_top_k(predictions, targets, k):
 
 # CONVOLUTIONS
 
-def _preprocess_deconv_output_shape(shape, dim_ordering):
+def _preprocess_deconv_output_shape(x, shape, dim_ordering):
     if dim_ordering == 'th':
         shape = (shape[0], shape[2], shape[3], shape[1])
+
+    if shape[0] is None:
+        shape = (tf.shape(x)[0], ) + shape[1:]
     return shape
 
 
@@ -2233,7 +2236,7 @@ def deconv2d(x, kernel, output_shape, strides=(1, 1),
         raise ValueError('Unknown dim_ordering ' + str(dim_ordering))
 
     x = _preprocess_conv2d_input(x, dim_ordering)
-    output_shape = _preprocess_deconv_output_shape(output_shape, dim_ordering)
+    output_shape = _preprocess_deconv_output_shape(x, output_shape, dim_ordering)
     kernel = _preprocess_conv2d_kernel(kernel, dim_ordering)
     kernel = tf.transpose(kernel, (0, 1, 3, 2))
     padding = _preprocess_border_mode(border_mode)
@@ -2443,7 +2446,6 @@ def ctc_label_dense_to_sparse(labels, label_lengths):
 
 
 def ctc_batch_cost(y_true, y_pred, input_length, label_length):
-
     '''Runs CTC loss algorithm on each batch element.
 
     # Arguments

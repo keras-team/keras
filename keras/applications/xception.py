@@ -54,7 +54,7 @@ def Xception(include_top=True, weights='imagenet',
             or "imagenet" (pre-training on ImageNet).
         input_tensor: optional Keras tensor (i.e. output of `layers.Input()`)
             to use as image input for the model.
-        inputs_shape: optional shape tuple, only to be specified
+        input_shape: optional shape tuple, only to be specified
             if `include_top` is False (otherwise the input shape
             has to be `(299, 299, 3)`.
             It should have exactly 3 inputs channels,

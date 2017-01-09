@@ -47,6 +47,20 @@ def test_batchnorm_mode_0_or_2():
 
 
 @keras_test
+def test_batchnorm_mode_0_or_2_twice():
+    # This is a regression test for issue #4881 with the old
+    # batch normalization functions in the Theano backend.
+    model = Sequential()
+    model.add(normalization.BatchNormalization(mode=0, input_shape=(10, 5, 5), axis=1))
+    model.add(normalization.BatchNormalization(mode=0, input_shape=(10, 5, 5), axis=1))
+    model.compile(loss='mse', optimizer='sgd')
+
+    X = np.random.normal(loc=5.0, scale=10.0, size=(20, 10, 5, 5))
+    model.fit(X, X, nb_epoch=1, verbose=0)
+    model.predict(X)
+
+
+@keras_test
 def test_batchnorm_mode_0_convnet():
     model = Sequential()
     norm_m0 = normalization.BatchNormalization(mode=0, axis=1, input_shape=(3, 4, 4), momentum=0.8)

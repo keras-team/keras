@@ -13,6 +13,7 @@ CONV_SHAPE = (25, 25, 2, 2)
 # The equivalent shape of both test fixtures
 SHAPE = (100, 100)
 
+
 def _runner(init, shape, target_mean=None, target_std=None,
             target_max=None, target_min=None):
     variable = init(shape)
