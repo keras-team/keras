@@ -128,7 +128,7 @@ class Recurrent(Layer):
     # Note on using statefulness in RNNs
         You can set RNN layers to be 'stateful', which means that the states
         computed for the samples in one batch will be reused as initial states
-        for the samples in the next batch. This assumes a one-to-one mapping 
+        for the samples in the next batch. This assumes a one-to-one mapping
         between samples in different successive batches.
 
         To enable statefulness:
