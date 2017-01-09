@@ -8,7 +8,7 @@ document vector is considered to preserve both the word-level and
 sentence-level structure of the context.
 
 # References
-    - [A Hierarchical Neural Autoencoder for Paragraphs and Documents](https://web.stanford.edu/~jurafsky/pubs/P15-1107.pdf)
+    - [A Hierarchical Neural Autoencoder for Paragraphs and Documents](https://arxiv.org/abs/1506.01057)
         Encodes paragraphs and documents with HRNN.
         Results have shown that HRNN outperforms standard
         RNNs and may play some role in more sophisticated generation tasks like

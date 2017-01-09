@@ -65,7 +65,7 @@ class PReLU(Layer):
             set `shared_axes=[1, 2]`.
 
     # References
-        - [Delving Deep into Rectifiers: Surpassing Human-Level Performance on ImageNet Classification](http://arxiv.org/pdf/1502.01852v1.pdf)
+        - [Delving Deep into Rectifiers: Surpassing Human-Level Performance on ImageNet Classification](https://arxiv.org/abs/1502.01852)
     '''
     def __init__(self, init='zero', weights=None, shared_axes=None, **kwargs):
         self.supports_masking = True
@@ -124,7 +124,7 @@ class ELU(Layer):
         alpha: scale for the negative factor.
 
     # References
-        - [Fast and Accurate Deep Network Learning by Exponential Linear Units (ELUs)](http://arxiv.org/pdf/1511.07289v1.pdf)
+        - [Fast and Accurate Deep Network Learning by Exponential Linear Units (ELUs)](https://arxiv.org/abs/1511.07289v1)
     '''
     def __init__(self, alpha=1.0, **kwargs):
         self.supports_masking = True
@@ -228,7 +228,7 @@ class ThresholdedReLU(Layer):
         theta: float >= 0. Threshold location of activation.
 
     # References
-        - [Zero-Bias Autoencoders and the Benefits of Co-Adapting Features](http://arxiv.org/pdf/1402.3337.pdf)
+        - [Zero-Bias Autoencoders and the Benefits of Co-Adapting Features](http://arxiv.org/abs/1402.3337)
     '''
     def __init__(self, theta=1.0, **kwargs):
         self.supports_masking = True

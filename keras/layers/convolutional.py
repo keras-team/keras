@@ -583,7 +583,7 @@ class Deconvolution2D(Convolution2D):
         `rows` and `cols` values might have changed due to padding.
 
     # References
-        [1] [A guide to convolution arithmetic for deep learning](https://arxiv.org/abs/1603.07285 "arXiv:1603.07285v1 [stat.ML]")
+        [1] [A guide to convolution arithmetic for deep learning](https://arxiv.org/abs/1603.07285v1)
         [2] [Transposed convolution arithmetic](http://deeplearning.net/software/theano_versions/dev/tutorial/conv_arithmetic.html#transposed-convolution-arithmetic)
         [3] [Deconvolutional Networks](http://www.matthewzeiler.com/pubs/cvpr2010/cvpr2010.pdf)
     '''

@@ -59,7 +59,7 @@ class BatchNormalization(Layer):
         Same shape as input.
 
     # References
-        - [Batch Normalization: Accelerating Deep Network Training by Reducing Internal Covariate Shift](http://jmlr.org/proceedings/papers/v37/ioffe15.pdf)
+        - [Batch Normalization: Accelerating Deep Network Training by Reducing Internal Covariate Shift](https://arxiv.org/abs/1502.03167)
     '''
     def __init__(self, epsilon=1e-3, mode=0, axis=-1, momentum=0.99,
                  weights=None, beta_init='zero', gamma_init='one',

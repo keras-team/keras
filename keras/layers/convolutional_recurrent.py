@@ -243,7 +243,7 @@ class ConvLSTM2D(ConvRecurrent2D):
 
     # References
         - [Convolutional LSTM Network: A Machine Learning Approach for
-        Precipitation Nowcasting](http://arxiv.org/pdf/1506.04214v1.pdf)
+        Precipitation Nowcasting](http://arxiv.org/abs/1506.04214v1)
         The current implementation does not include the feedback loop on the
         cells output
     '''

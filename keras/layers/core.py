@@ -116,7 +116,7 @@ class SpatialDropout1D(Dropout):
         Same as input
 
     # References
-        - [Efficient Object Localization Using Convolutional Networks](https://arxiv.org/pdf/1411.4280.pdf)
+        - [Efficient Object Localization Using Convolutional Networks](https://arxiv.org/abs/1411.4280)
     '''
     def __init__(self, p, **kwargs):
         super(SpatialDropout1D, self).__init__(p, **kwargs)
@@ -154,7 +154,7 @@ class SpatialDropout2D(Dropout):
         Same as input
 
     # References
-        - [Efficient Object Localization Using Convolutional Networks](https://arxiv.org/pdf/1411.4280.pdf)
+        - [Efficient Object Localization Using Convolutional Networks](https://arxiv.org/abs/1411.4280)
     '''
     def __init__(self, p, dim_ordering='default', **kwargs):
         if dim_ordering == 'default':
@@ -202,7 +202,7 @@ class SpatialDropout3D(Dropout):
         Same as input
 
     # References
-        - [Efficient Object Localization Using Convolutional Networks](https://arxiv.org/pdf/1411.4280.pdf)
+        - [Efficient Object Localization Using Convolutional Networks](https://arxiv.org/abs/1411.4280)
     '''
     def __init__(self, p, dim_ordering='default', **kwargs):
         if dim_ordering == 'default':
@@ -875,7 +875,7 @@ class MaxoutDense(Layer):
         2D tensor with shape: `(nb_samples, output_dim)`.
 
     # References
-        - [Maxout Networks](http://arxiv.org/pdf/1302.4389.pdf)
+        - [Maxout Networks](http://arxiv.org/abs/1302.4389)
     '''
     def __init__(self, output_dim,
                  nb_feature=4,
@@ -1001,7 +1001,7 @@ class Highway(Layer):
         2D tensor with shape: `(nb_samples, input_dim)`.
 
     # References
-        - [Highway Networks](http://arxiv.org/pdf/1505.00387v2.pdf)
+        - [Highway Networks](http://arxiv.org/abs/1505.00387v2)
     '''
     def __init__(self,
                  init='glorot_uniform',
