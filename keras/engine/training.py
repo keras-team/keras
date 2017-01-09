@@ -397,9 +397,11 @@ def generator_queue(generator, max_q_size=10,
     if pickle_safe:
         q = multiprocessing.Queue(maxsize=max_q_size)
         _stop = multiprocessing.Event()
+        lock = multiprocessing.Lock()
     else:
         q = queue.Queue()
         _stop = threading.Event()
+        lock = threading.Lock()
 
     try:
         def data_generator_task():
