@@ -13,7 +13,9 @@ def mean_absolute_error(y_true, y_pred):
 
 
 def mean_absolute_percentage_error(y_true, y_pred):
-    diff = K.abs((y_true - y_pred) / K.clip(K.abs(y_true), K.epsilon(), np.inf))
+    diff = K.abs((y_true - y_pred) / K.clip(K.abs(y_true),
+                                            K.epsilon(),
+                                            np.inf))
     return 100. * K.mean(diff, axis=-1)
 
 
@@ -38,7 +40,8 @@ def categorical_crossentropy(y_true, y_pred):
 
 
 def sparse_categorical_crossentropy(y_true, y_pred):
-    '''expects an array of integer classes.
+    '''Expects an array of integer classes.
+
     Note: labels shape must have the same number of dimensions as output shape.
     If you get a shape error, add a length-1 dimension to labels.
     '''
@@ -65,7 +68,8 @@ def cosine_proximity(y_true, y_pred):
     return -K.mean(y_true * y_pred, axis=-1)
 
 
-# aliases
+# Aliases.
+
 mse = MSE = mean_squared_error
 mae = MAE = mean_absolute_error
 mape = MAPE = mean_absolute_percentage_error

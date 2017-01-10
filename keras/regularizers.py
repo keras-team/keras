@@ -24,13 +24,14 @@ class Regularizer(object):
 
 
 class EigenvalueRegularizer(Regularizer):
-    '''This takes a constant that controls
-    the regularization by Eigenvalue Decay on the
-    current layer and outputs the regularized
-    loss (evaluated on the training data) and
-    the original loss (evaluated on the
-    validation data).
-    '''
+    """Regularizer based on the eignvalues of a weight matrix.
+
+    Only available for tensors of rank 2.
+
+    # Arguments
+        k: Float; modulates the amount of regularization to apply.
+    """
+
     def __init__(self, k):
         self.k = k
 
@@ -58,6 +59,12 @@ class EigenvalueRegularizer(Regularizer):
 
 
 class L1L2Regularizer(Regularizer):
+    """Regularizer for L1 and L2 regularization.
+
+    # Arguments
+        l1: Float; L1 regularization factor.
+        l2: Float; L2 regularization factor.
+    """
 
     def __init__(self, l1=0., l2=0.):
         self.l1 = K.cast_to_floatx(l1)
