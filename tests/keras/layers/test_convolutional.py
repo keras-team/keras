@@ -9,7 +9,7 @@ from keras.layers import convolutional, pooling
 
 
 # TensorFlow does not support full convolution.
-if K._BACKEND == 'theano':
+if K.backend() == 'theano':
     _convolution_border_modes = ['valid', 'same', 'full']
 else:
     _convolution_border_modes = ['valid', 'same']
@@ -214,7 +214,7 @@ def test_atrous_conv_2d():
                            input_shape=(nb_samples, nb_row, nb_col, stack_size))
 
 
-@pytest.mark.skipif(K._BACKEND != 'tensorflow', reason="Requires TF backend")
+@pytest.mark.skipif(K.backend() != 'tensorflow', reason='Requires TF backend')
 @keras_test
 def test_separable_conv_2d():
     nb_samples = 2
