@@ -4,7 +4,8 @@ from . import backend as K
 from .utils.generic_utils import get_from_module
 
 
-def get_fans(shape, dim_ordering='th'):
+def get_fans(shape):
+    dim_ordering = K.image_dim_ordering()
     if len(shape) == 2:
         fan_in = shape[0]
         fan_out = shape[1]
@@ -37,39 +38,39 @@ def normal(shape, scale=0.05, name=None):
     return K.random_normal_variable(shape, 0.0, scale, name=name)
 
 
-def lecun_uniform(shape, name=None, dim_ordering='th'):
+def lecun_uniform(shape, name=None):
     ''' Reference: LeCun 98, Efficient Backprop
         http://yann.lecun.com/exdb/publis/pdf/lecun-98b.pdf
     '''
-    fan_in, fan_out = get_fans(shape, dim_ordering=dim_ordering)
+    fan_in, fan_out = get_fans(shape)
     scale = np.sqrt(3. / fan_in)
     return uniform(shape, scale, name=name)
 
 
-def glorot_normal(shape, name=None, dim_ordering='th'):
+def glorot_normal(shape, name=None):
     ''' Reference: Glorot & Bengio, AISTATS 2010
     '''
-    fan_in, fan_out = get_fans(shape, dim_ordering=dim_ordering)
+    fan_in, fan_out = get_fans(shape)
     s = np.sqrt(2. / (fan_in + fan_out))
     return normal(shape, s, name=name)
 
 
-def glorot_uniform(shape, name=None, dim_ordering='th'):
-    fan_in, fan_out = get_fans(shape, dim_ordering=dim_ordering)
+def glorot_uniform(shape, name=None):
+    fan_in, fan_out = get_fans(shape)
     s = np.sqrt(6. / (fan_in + fan_out))
     return uniform(shape, s, name=name)
 
 
-def he_normal(shape, name=None, dim_ordering='th'):
+def he_normal(shape, name=None):
     ''' Reference:  He et al., http://arxiv.org/abs/1502.01852
     '''
-    fan_in, fan_out = get_fans(shape, dim_ordering=dim_ordering)
+    fan_in, fan_out = get_fans(shape)
     s = np.sqrt(2. / fan_in)
     return normal(shape, s, name=name)
 
 
-def he_uniform(shape, name=None, dim_ordering='th'):
-    fan_in, fan_out = get_fans(shape, dim_ordering=dim_ordering)
+def he_uniform(shape, name=None):
+    fan_in, fan_out = get_fans(shape)
     s = np.sqrt(6. / fan_in)
     return uniform(shape, s, name=name)
 
