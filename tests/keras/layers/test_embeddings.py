@@ -16,13 +16,13 @@ def test_embedding():
                expected_output_dtype=K.floatx())
 
 
-if K.backend() == 'tensorflow':
-    @keras_test
-    def test_emedding_with_clipnorm():
-        model = Sequential()
-        model.add(Embedding(input_dim = 1, output_dim = 1))
-        model.compile(optimizer = Adam(clipnorm = 1.0), loss = 'mse')
-        model.fit(np.array([[0]]), np.array([[[0.5]]]), nb_epoch = 1)
+@pytest.mark.skipif(K.backend() != 'tensorflow', reason='Requires TF backend')
+@keras_test
+def test_embedding_with_clipnorm():
+    model = Sequential()
+    model.add(Embedding(input_dim=1, output_dim=1))
+    model.compile(optimizer=Adam(clipnorm=1.0), loss='mse')
+    model.fit(np.array([[0]]), np.array([[[0.5]]]), nb_epoch=1)
 
 
 if __name__ == '__main__':
