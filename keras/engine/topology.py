@@ -2677,7 +2677,7 @@ class Container(Layer):
                 else:
                     param_dset[:] = val
 
-    def load_weights(self, filepath, by_name=False):
+    def load_weights(self, filepath, by_name=False, warn_skip=True):
         '''Loads all layer weights from a HDF5 save file.
 
         If `by_name` is False (default) weights are loaded
@@ -2691,13 +2691,18 @@ class Container(Layer):
         only if they share the same name. This is useful
         for fine-tuning or transfer-learning models where
         some of the layers have changed.
+
+        If `warn_skip` is True, warnings will be printed if any
+        weights are ignored when loading using `by_name=True`.
+        This argument has no effect when `by_name=False`.
+        Defaults to True.
         '''
         import h5py
         f = h5py.File(filepath, mode='r')
         if 'layer_names' not in f.attrs and 'model_weights' in f:
             f = f['model_weights']
         if by_name:
-            self.load_weights_from_hdf5_group_by_name(f)
+            self.load_weights_from_hdf5_group_by_name(f, warn_skip)
         else:
             self.load_weights_from_hdf5_group(f)
 
@@ -2787,10 +2792,12 @@ class Container(Layer):
                 weight_value_tuples += zip(symbolic_weights, weight_values)
             K.batch_set_value(weight_value_tuples)
 
-    def load_weights_from_hdf5_group_by_name(self, f):
+    def load_weights_from_hdf5_group_by_name(self, f, warn_skip):
         ''' Name-based weight loading
         (instead of topological weight loading).
         Layers that have no matching name are skipped.
+        If `warn_skip` is True, warnings will be printed if any
+        weights are skipped. Defaults to True.
         '''
         if hasattr(self, 'flattened_layers'):
             # Support for legacy Sequential/Merge behavior.
@@ -2819,8 +2826,10 @@ class Container(Layer):
                 g = f[name]
                 weight_names = [n.decode('utf8') for n in g.attrs['weight_names']]
                 weight_values = [g[weight_name] for weight_name in weight_names]
+                found_match = False
 
                 for layer in index.get(name, []):
+                    found_match = True
                     symbolic_weights = layer.weights
                     if len(weight_values) != len(symbolic_weights):
                         raise ValueError('Layer #' + str(k) +
@@ -2834,6 +2843,12 @@ class Container(Layer):
                     for i in range(len(weight_values)):
                         weight_value_tuples.append((symbolic_weights[i],
                                                     weight_values[i]))
+
+                if warn_skip == True and found_match == False:
+                    warnings.warn('Unable to find a matching layer in the ' +
+                                  'network architecture for weights ' +
+                                  'associated with name: ' + name +
+                                  '. These weights are skipped.')
             K.batch_set_value(weight_value_tuples)
 
     def _updated_config(self):
