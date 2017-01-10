@@ -1145,7 +1145,14 @@ def rnn(step_function, inputs, initial_states,
 
 
 def switch(condition, then_expression, else_expression):
-    '''condition: scalar tensor.
+    '''Switches between two operations depending on `condition`.
+    Note that both `then_expression` and `else_expression`
+    should be symbolic tensors of the *same shape*.
+
+    # Arguments
+        condition: scalar tensor or tensor of the same shape with then_expression.
+        then_expression: symbolic tensor.
+        else_expression: symbolic tensor.
     '''
     return T.switch(condition, then_expression, else_expression)
 
