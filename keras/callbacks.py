@@ -34,13 +34,13 @@ class CallbackList(object):
     def append(self, callback):
         self.callbacks.append(callback)
 
-    def _set_params(self, params):
+    def set_params(self, params):
         for callback in self.callbacks:
-            callback._set_params(params)
+            callback.set_params(params)
 
-    def _set_model(self, model):
+    def set_model(self, model):
         for callback in self.callbacks:
-            callback._set_model(model)
+            callback.set_model(model)
 
     def on_epoch_begin(self, epoch, logs=None):
         logs = logs or {}
@@ -127,10 +127,10 @@ class Callback(object):
     def __init__(self):
         pass
 
-    def _set_params(self, params):
+    def set_params(self, params):
         self.params = params
 
-    def _set_model(self, model):
+    def set_model(self, model):
         self.model = model
 
     def on_epoch_begin(self, epoch, logs=None):
@@ -533,7 +533,7 @@ class TensorBoard(Callback):
         self.write_graph = write_graph
         self.write_images = write_images
 
-    def _set_model(self, model):
+    def set_model(self, model):
         import tensorflow as tf
         import keras.backend.tensorflow_backend as KTF
 
