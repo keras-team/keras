@@ -25,13 +25,24 @@ from .. import callbacks as cbks
 
 
 def standardize_input_data(data, names, shapes=None,
-                           check_batch_dim=True,
+                           check_batch_axis=True,
                            exception_prefix=''):
-    '''Users may pass data as a list of arrays, dictionary of arrays,
+    """Normalize inputs and targets provided by users.
+
+    Users may pass data as a list of arrays, dictionary of arrays,
     or as a single array. We normalize this to an ordered list of
     arrays (same order as `names`), while checking that the provided
     arrays have shapes that match the network's expectations.
-    '''
+
+    # Arguments
+        data: User-provided input data (polymorphic).
+        names: List of expected array names.
+        shapes: Optional list of expected array shapes.
+        check_batch_axis: Boolean; whether to check that
+            the batch axis of the arrays matches the expected
+            value found in `shapes`.
+        exception_prefix: String prefix used for exception formatting.
+    """
     if isinstance(data, dict):
         arrays = []
         for name in names:
@@ -100,7 +111,7 @@ def standardize_input_data(data, names, shapes=None,
                                  ' dimensions, but got array with shape ' +
                                  str(array.shape))
             for j, (dim, ref_dim) in enumerate(zip(array.shape, shapes[i])):
-                if not j and not check_batch_dim:
+                if not j and not check_batch_axis:
                     # skip the first axis
                     continue
                 if ref_dim:
@@ -159,10 +170,10 @@ def standardize_sample_weights(sample_weight, output_names):
                                                'sample_weight')
 
 
-def check_array_lengths(X, Y, W):
-    x_lengths = [x.shape[0] for x in X]
-    y_lengths = [y.shape[0] for y in Y]
-    w_lengths = [w.shape[0] for w in W]
+def check_array_lengths(inputs, targets, weights):
+    x_lengths = [x.shape[0] for x in inputs]
+    y_lengths = [y.shape[0] for y in targets]
+    w_lengths = [w.shape[0] for w in weights]
     set_x = set(x_lengths)
     if len(set_x) != 1:
         raise ValueError('All input arrays (x) should have '
@@ -243,10 +254,10 @@ def collect_metrics(metrics, output_names):
 
 
 def batch_shuffle(index_array, batch_size):
-    '''This shuffles an array in a batch-wise fashion.
+    """This shuffles an array in a batch-wise fashion.
     Useful for shuffling HDF5 arrays
     (where one cannot access arbitrary indices).
-    '''
+    """
     batch_count = int(len(index_array) / batch_size)
     # to reshape we need to be cleanly divisible by batch size
     # we stash extra items and reappend them after shuffling
@@ -259,27 +270,27 @@ def batch_shuffle(index_array, batch_size):
 
 
 def make_batches(size, batch_size):
-    '''Returns a list of batch indices (tuples of indices).
-    '''
+    """Returns a list of batch indices (tuples of indices).
+    """
     nb_batch = int(np.ceil(size / float(batch_size)))
     return [(i * batch_size, min(size, (i + 1) * batch_size))
             for i in range(0, nb_batch)]
 
 
 def slice_X(X, start=None, stop=None):
-    '''This takes an array-like, or a list of
+    """This takes an array-like, or a list of
     array-likes, and outputs:
         - X[start:stop] if X is an array-like
         - [x[start:stop] for x in X] if X in a list
 
     Can also work on list/array of indices: `slice_X(x, indices)`
 
-    # Arguments:
+    # Arguments
         start: can be an integer index (start index)
             or a list/array of indices
         stop: integer (stop index); should be None if
             `start` was a list.
-    '''
+    """
     if isinstance(X, list):
         if hasattr(start, '__len__'):
             # hdf5 datasets only support list objects as indices
@@ -298,10 +309,10 @@ def slice_X(X, start=None, stop=None):
 
 
 def weighted_objective(fn):
-    '''Transforms an objective function `fn(y_true, y_pred)`
+    """Transforms an objective function `fn(y_true, y_pred)`
     into a sample-weighted, cost-masked objective function
     `fn(y_true, y_pred, weights, mask)`.
-    '''
+    """
     def weighted(y_true, y_pred, weights, mask=None):
         # score_array has ndim >= 2
         score_array = fn(y_true, y_pred)
@@ -329,9 +340,9 @@ def weighted_objective(fn):
 
 def standardize_weights(y, sample_weight=None, class_weight=None,
                         sample_weight_mode=None):
-    '''Performs weight input validation and standardization
+    """Performs weight input validation and standardization
     to a single sample-wise (or timestep-wise) weight array.
-    '''
+    """
     if sample_weight_mode is not None:
         if sample_weight_mode != 'temporal':
             raise ValueError('"sample_weight_mode '
@@ -387,12 +398,10 @@ def standardize_weights(y, sample_weight=None, class_weight=None,
 
 def generator_queue(generator, max_q_size=10,
                     wait_time=0.05, nb_worker=1, pickle_safe=False):
-    '''Builds a queue out of a data generator.
+    """Builds a queue out of a data generator.
     If pickle_safe, use a multiprocessing approach. Else, use threading.
     Used in `fit_generator`, `evaluate_generator`, `predict_generator`.
-
-    '''
-
+    """
     generator_threads = []
     if pickle_safe:
         q = multiprocessing.Queue(maxsize=max_q_size)
@@ -442,7 +451,7 @@ class Model(Container):
 
     def compile(self, optimizer, loss, metrics=None, loss_weights=None,
                 sample_weight_mode=None, **kwargs):
-        '''Configures the model for training.
+        """Configures the model for training.
 
         # Arguments
             optimizer: str (name of optimizer) or optimizer object.
@@ -465,7 +474,7 @@ class Model(Container):
                 dictionary or a list of modes.
             kwargs: when using the Theano backend, these arguments
                 are passed into K.function. Ignored for Tensorflow backend.
-        '''
+        """
         self.optimizer = optimizers.get(optimizer)
         self.sample_weight_mode = sample_weight_mode
         self.loss = loss
@@ -754,7 +763,7 @@ class Model(Container):
                   nb_epoch=100, verbose=1, callbacks=None,
                   val_f=None, val_ins=None, shuffle=True,
                   callback_metrics=None, initial_epoch=0):
-        '''Abstract fit function for f(ins).
+        """Abstract fit function for f(ins).
         Assume that f returns a list, labeled by out_labels.
 
         # Arguments
@@ -778,7 +787,7 @@ class Model(Container):
 
         # Returns
             `History` object.
-        '''
+        """
         do_validation = False
         if val_f and val_ins:
             do_validation = True
@@ -803,8 +812,8 @@ class Model(Container):
         else:
             callback_model = self
 
-        callbacks._set_model(callback_model)
-        callbacks._set_params({
+        callbacks.set_model(callback_model)
+        callbacks.set_params({
             'batch_size': batch_size,
             'nb_epoch': nb_epoch,
             'nb_sample': nb_train_sample,
@@ -868,7 +877,7 @@ class Model(Container):
         return self.history
 
     def _predict_loop(self, f, ins, batch_size=32, verbose=0):
-        '''Abstract method to loop over some data in batches.
+        """Abstract method to loop over some data in batches.
 
         # Arguments
             f: Keras function returning a list of tensors.
@@ -880,7 +889,7 @@ class Model(Container):
             Array of predictions (if the model has a single output)
             or list of arrays of predictions
             (if the model has multiple outputs).
-        '''
+        """
         nb_sample = ins[0].shape[0]
         outs = []
         if verbose == 1:
@@ -912,7 +921,7 @@ class Model(Container):
         return outs
 
     def _test_loop(self, f, ins, batch_size=32, verbose=0):
-        '''Abstract method to loop over some data in batches.
+        """Abstract method to loop over some data in batches.
 
         # Arguments
             f: Keras function returning a list of tensors.
@@ -925,7 +934,7 @@ class Model(Container):
             or list of scalars (if the model has multiple outputs
             and/or metrics). The attribute `model.metrics_names` will give you
             the display labels for the scalar outputs.
-        '''
+        """
         nb_sample = ins[0].shape[0]
         outs = []
         if verbose == 1:
@@ -962,7 +971,7 @@ class Model(Container):
 
     def _standardize_user_data(self, x, y,
                                sample_weight=None, class_weight=None,
-                               check_batch_dim=True, batch_size=None):
+                               check_batch_axis=True, batch_size=None):
         if not hasattr(self, 'optimizer'):
             raise RuntimeError('You must compile a model before '
                                'training/testing. '
@@ -978,11 +987,11 @@ class Model(Container):
                 output_shapes.append(output_shape)
         x = standardize_input_data(x, self.input_names,
                                    self.internal_input_shapes,
-                                   check_batch_dim=False,
+                                   check_batch_axis=False,
                                    exception_prefix='model input')
         y = standardize_input_data(y, self.output_names,
                                    output_shapes,
-                                   check_batch_dim=False,
+                                   check_batch_axis=False,
                                    exception_prefix='model target')
         sample_weights = standardize_sample_weights(sample_weight,
                                                     self.output_names)
@@ -1005,7 +1014,7 @@ class Model(Container):
     def fit(self, x, y, batch_size=32, nb_epoch=10, verbose=1, callbacks=None,
             validation_split=0., validation_data=None, shuffle=True,
             class_weight=None, sample_weight=None, initial_epoch=0):
-        '''Trains the model for a fixed number of epochs (iterations on a dataset).
+        """Trains the model for a fixed number of epochs (iterations on a dataset).
 
         # Arguments
             x: Numpy array of training data,
@@ -1059,13 +1068,13 @@ class Model(Container):
         # Returns
             A `History` instance. Its `history` attribute contains
             all information collected during training.
-        '''
+        """
         # validate user data
         x, y, sample_weights = self._standardize_user_data(
             x, y,
             sample_weight=sample_weight,
             class_weight=class_weight,
-            check_batch_dim=False,
+            check_batch_axis=False,
             batch_size=batch_size)
         # prepare validation data
         if validation_data:
@@ -1080,7 +1089,7 @@ class Model(Container):
             val_x, val_y, val_sample_weights = self._standardize_user_data(
                 val_x, val_y,
                 sample_weight=val_sample_weight,
-                check_batch_dim=False,
+                check_batch_axis=False,
                 batch_size=batch_size)
             self._make_test_function()
             val_f = self.test_function
@@ -1144,7 +1153,7 @@ class Model(Container):
                               initial_epoch=initial_epoch)
 
     def evaluate(self, x, y, batch_size=32, verbose=1, sample_weight=None):
-        '''Returns the loss value and metrics values for the model
+        """Returns the loss value and metrics values for the model
         in test mode. Computation is done in batches.
 
         # Arguments
@@ -1165,12 +1174,12 @@ class Model(Container):
             or list of scalars (if the model has multiple outputs
             and/or metrics). The attribute `model.metrics_names` will give you
             the display labels for the scalar outputs.
-        '''
+        """
         # validate user data
         x, y, sample_weights = self._standardize_user_data(
             x, y,
             sample_weight=sample_weight,
-            check_batch_dim=False,
+            check_batch_axis=False,
             batch_size=batch_size)
         # prepare inputs, delegate logic to _test_loop
         if self.uses_learning_phase and not isinstance(K.learning_phase, int):
@@ -1184,7 +1193,7 @@ class Model(Container):
                                verbose=verbose)
 
     def predict(self, x, batch_size=32, verbose=0):
-        '''Generates output predictions for the input samples,
+        """Generates output predictions for the input samples,
         processing the samples in a batched way.
 
         # Arguments
@@ -1195,11 +1204,11 @@ class Model(Container):
 
         # Returns
             A Numpy array of predictions.
-        '''
+        """
         # validate user data
         x = standardize_input_data(x, self.input_names,
                                    self.internal_input_shapes,
-                                   check_batch_dim=False)
+                                   check_batch_axis=False)
         if self.stateful:
             if x[0].shape[0] > batch_size and x[0].shape[0] % batch_size != 0:
                 raise ValueError('In a stateful network, '
@@ -1221,7 +1230,7 @@ class Model(Container):
 
     def train_on_batch(self, x, y,
                        sample_weight=None, class_weight=None):
-        '''Runs a single gradient update on a single batch of data.
+        """Runs a single gradient update on a single batch of data.
 
         # Arguments
             x: Numpy array of training data,
@@ -1254,12 +1263,12 @@ class Model(Container):
             or list of scalars (if the model has multiple outputs
             and/or metrics). The attribute `model.metrics_names` will give you
             the display labels for the scalar outputs.
-        '''
+        """
         x, y, sample_weights = self._standardize_user_data(
             x, y,
             sample_weight=sample_weight,
             class_weight=class_weight,
-            check_batch_dim=True)
+            check_batch_axis=True)
         if self.uses_learning_phase and not isinstance(K.learning_phase, int):
             ins = x + y + sample_weights + [1.]
         else:
@@ -1271,7 +1280,7 @@ class Model(Container):
         return outputs
 
     def test_on_batch(self, x, y, sample_weight=None):
-        '''Test the model on a single batch of samples.
+        """Test the model on a single batch of samples.
 
         # Arguments
             x: Numpy array of test data,
@@ -1297,11 +1306,11 @@ class Model(Container):
             or list of scalars (if the model has multiple outputs
             and/or metrics). The attribute `model.metrics_names` will give you
             the display labels for the scalar outputs.
-        '''
+        """
         x, y, sample_weights = self._standardize_user_data(
             x, y,
             sample_weight=sample_weight,
-            check_batch_dim=True)
+            check_batch_axis=True)
         if self.uses_learning_phase and not isinstance(K.learning_phase, int):
             ins = x + y + sample_weights + [0.]
         else:
@@ -1313,8 +1322,8 @@ class Model(Container):
         return outputs
 
     def predict_on_batch(self, x):
-        '''Returns predictions for a single batch of samples.
-        '''
+        """Returns predictions for a single batch of samples.
+        """
         x = standardize_input_data(x, self.input_names,
                                    self.internal_input_shapes)
         if self.uses_learning_phase and not isinstance(K.learning_phase, int):
@@ -1333,7 +1342,7 @@ class Model(Container):
                       class_weight=None,
                       max_q_size=10, nb_worker=1, pickle_safe=False,
                       initial_epoch=0):
-        '''Fits the model on data generated batch-by-batch by
+        """Fits the model on data generated batch-by-batch by
         a Python generator.
         The generator is run in parallel to the model, for efficiency.
         For instance, this allows you to do real-time data augmentation
@@ -1394,7 +1403,7 @@ class Model(Container):
             model.fit_generator(generate_arrays_from_file('/my_file.txt'),
                                 samples_per_epoch=10000, nb_epoch=10)
         ```
-        '''
+        """
         wait_time = 0.01  # in seconds
         epoch = initial_epoch
 
@@ -1426,8 +1435,8 @@ class Model(Container):
             callback_model = self.callback_model
         else:
             callback_model = self
-        callbacks._set_model(callback_model)
-        callbacks._set_params({
+        callbacks.set_model(callback_model)
+        callbacks.set_params({
             'nb_epoch': nb_epoch,
             'nb_sample': samples_per_epoch,
             'verbose': verbose,
@@ -1569,7 +1578,7 @@ class Model(Container):
 
     def evaluate_generator(self, generator, val_samples,
                            max_q_size=10, nb_worker=1, pickle_safe=False):
-        '''Evaluates the model on a data generator. The generator should
+        """Evaluates the model on a data generator. The generator should
         return the same kind of data as accepted by `test_on_batch`.
 
         Arguments:
@@ -1595,7 +1604,7 @@ class Model(Container):
             or list of scalars (if the model has multiple outputs
             and/or metrics). The attribute `model.metrics_names` will give you
             the display labels for the scalar outputs.
-        '''
+        """
         self._make_test_function()
 
         processed_samples = 0
@@ -1668,7 +1677,7 @@ class Model(Container):
 
     def predict_generator(self, generator, val_samples,
                           max_q_size=10, nb_worker=1, pickle_safe=False):
-        '''Generates predictions for the input samples from a data generator.
+        """Generates predictions for the input samples from a data generator.
         The generator should return the same kind of data as accepted by
         `predict_on_batch`.
 
@@ -1689,7 +1698,7 @@ class Model(Container):
 
         # Returns
             Numpy array(s) of predictions.
-        '''
+        """
         self._make_predict_function()
 
         processed_samples = 0

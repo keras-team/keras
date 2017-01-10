@@ -38,23 +38,23 @@ def normal(shape, scale=0.05, name=None):
 
 
 def lecun_uniform(shape, name=None, dim_ordering='th'):
-    '''LeCun uniform variance scaling initializer.
+    """LeCun uniform variance scaling initializer.
 
     # Reference
         LeCun 98, Efficient Backprop
         http://yann.lecun.com/exdb/publis/pdf/lecun-98b.pdf
-    '''
+    """
     fan_in, fan_out = get_fans(shape, dim_ordering=dim_ordering)
     scale = np.sqrt(3. / fan_in)
     return uniform(shape, scale, name=name)
 
 
 def glorot_normal(shape, name=None, dim_ordering='th'):
-    '''Glorot normal variance scaling initializer.
+    """Glorot normal variance scaling initializer.
 
     # Reference
         Glorot & Bengio, AISTATS 2010
-    '''
+    """
     fan_in, fan_out = get_fans(shape, dim_ordering=dim_ordering)
     s = np.sqrt(2. / (fan_in + fan_out))
     return normal(shape, s, name=name)
@@ -67,30 +67,30 @@ def glorot_uniform(shape, name=None, dim_ordering='th'):
 
 
 def he_normal(shape, name=None, dim_ordering='th'):
-    '''He normal variance scaling initializer.
+    """He normal variance scaling initializer.
 
     # Reference
         He et al., http://arxiv.org/abs/1502.01852
-    '''
+    """
     fan_in, fan_out = get_fans(shape, dim_ordering=dim_ordering)
     s = np.sqrt(2. / fan_in)
     return normal(shape, s, name=name)
 
 
 def he_uniform(shape, name=None, dim_ordering='th'):
-    '''He uniform variance scaling initializer.
-    '''
+    """He uniform variance scaling initializer.
+    """
     fan_in, fan_out = get_fans(shape, dim_ordering=dim_ordering)
     s = np.sqrt(6. / fan_in)
     return uniform(shape, s, name=name)
 
 
 def orthogonal(shape, scale=1.1, name=None):
-    '''Orthogonal initializer.
+    """Orthogonal initializer.
 
     # Reference
         Saxe et al., http://arxiv.org/abs/1312.6120
-    '''
+    """
     flat_shape = (shape[0], np.prod(shape[1:]))
     a = np.random.normal(0.0, 1.0, flat_shape)
     u, _, v = np.linalg.svd(a, full_matrices=False)

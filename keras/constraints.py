@@ -43,7 +43,7 @@ class MaxNorm(Constraint):
     def __call__(self, p):
         norms = K.sqrt(K.sum(K.square(p), axis=self.axis, keepdims=True))
         desired = K.clip(norms, 0, self.m)
-        p = p * (desired / (K.epsilon() + norms))
+        p *= (desired / (K.epsilon() + norms))
         return p
 
     def get_config(self):
