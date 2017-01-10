@@ -17,13 +17,13 @@ def to_categorical(y, nb_classes=None):
     # Returns
         A binary matrix representation of the input.
     """
-    y = np.array(y, dtype='int')
+    y = np.array(y, dtype='int').ravel()
     if not nb_classes:
         nb_classes = np.max(y)+1
-    Y = np.zeros((len(y), nb_classes))
-    for i in range(len(y)):
-        Y[i, y[i]] = 1.
-    return Y
+    n = y.shape[0]
+    categorical = np.zeros((n, nb_classes))
+    categorical[np.arange(n), y] = 1
+    return categorical
 
 
 def normalize(a, axis=-1, order=2):
