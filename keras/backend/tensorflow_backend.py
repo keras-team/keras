@@ -1150,19 +1150,6 @@ def minimum(x, y):
     '''
     return tf.minimum(x, y)
 
-
-def sin(x):
-    '''Computes sin of x element-wise.
-    '''
-    return tf.sin(x)
-
-
-def cos(x):
-    '''Computes cos of x element-wise.
-    '''
-    return tf.cos(x)
-
-
 def normalize_batch_in_training(x, gamma, beta,
                                 reduction_axes, epsilon=1e-3):
     '''Computes mean and std for batch then apply batch_normalization on batch.
@@ -2562,3 +2549,7 @@ def foldr(fn, elems, initializer=None, name=None):
         Same type and shape as initializer
     '''
     return tf.foldr(fn, elems, initializer=initializer, name=name)
+
+# aliases for pass-through to backend
+cos, sin, tan = lambda x: tf.cos(x), lambda x: tf.sin(x), lambda(x): tf.tan(x)
+acos, asin, atan = lambda x: tf.acos(x), lambda x: tf.asin(x), lambda(x): tf.atan(x)

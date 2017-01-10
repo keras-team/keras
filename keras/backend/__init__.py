@@ -74,3 +74,10 @@ def backend():
     for determining the current backend.
     '''
     return _BACKEND
+
+sin.func_name, sin.func_doc = "sin", "Computes sin of x element-wise.\n"
+cos.func_name, cos.func_doc = "cos", "Computes cos of x element-wise.\n"
+tan.func_name, tan.func_doc = "tan", "Computes tan of x element-wise.\n"
+asin.func_name, asin.func_doc = "asin", "Computes asin of x element-wise.\n"
+acos.func_name, acos.func_doc = "acos", "Computes acos of x element-wise.\n"
+atan.func_name, atan.func_doc = "atan", "Computes atan of x element-wise.\n"
