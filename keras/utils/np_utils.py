@@ -7,7 +7,8 @@ from .. import backend as K
 
 
 def to_categorical(y, nb_classes=None):
-    '''Convert class vector (integers from 0 to nb_classes) to binary class matrix, for use with categorical_crossentropy.
+    """Converts class vector (integers from 0 to nb_classes)
+    to binary class matrix, for use with categorical_crossentropy.
 
     # Arguments
         y: class vector to be converted into a matrix
@@ -15,7 +16,7 @@ def to_categorical(y, nb_classes=None):
 
     # Returns
         A binary matrix representation of the input.
-    '''
+    """
     y = np.array(y, dtype='int')
     if not nb_classes:
         nb_classes = np.max(y)+1
@@ -36,7 +37,7 @@ def binary_logloss(p, y):
     p = sp.maximum(epsilon, p)
     p = sp.minimum(1-epsilon, p)
     res = sum(y * sp.log(p) + sp.subtract(1, y) * sp.log(sp.subtract(1, p)))
-    res *= -1.0/len(y)
+    res *= -1.0 / len(y)
     return res
 
 
@@ -61,11 +62,11 @@ def categorical_probas_to_classes(p):
 
 
 def convert_kernel(kernel, dim_ordering='default'):
-    '''Converts a kernel matrix (Numpy array)
+    """Converts a kernel matrix (Numpy array)
     from Theano format to TensorFlow format
     (or reciprocally, since the transformation
     is its own inverse).
-    '''
+    """
     if dim_ordering == 'default':
         dim_ordering = K.image_dim_ordering()
     if not 4 <= kernel.ndim <= 5:
@@ -83,7 +84,8 @@ def convert_kernel(kernel, dim_ordering='default'):
     return np.copy(kernel[slices])
 
 
-def conv_output_length(input_length, filter_size, border_mode, stride, dilation=1):
+def conv_output_length(input_length, filter_size,
+                       border_mode, stride, dilation=1):
     if input_length is None:
         return None
     assert border_mode in {'same', 'valid', 'full'}

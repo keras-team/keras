@@ -5,7 +5,7 @@ import numpy as np
 
 
 class LeakyReLU(Layer):
-    '''Special version of a Rectified Linear Unit
+    """Special version of a Rectified Linear Unit
     that allows a small gradient when the unit is not active:
     `f(x) = alpha * x for x < 0`,
     `f(x) = x for x >= 0`.
@@ -23,7 +23,8 @@ class LeakyReLU(Layer):
 
     # References
         - [Rectifier Nonlinearities Improve Neural Network Acoustic Models](https://web.stanford.edu/~awni/papers/relu_hybrid_icml2013_final.pdf)
-    '''
+    """
+
     def __init__(self, alpha=0.3, **kwargs):
         self.supports_masking = True
         self.alpha = alpha
@@ -39,7 +40,7 @@ class LeakyReLU(Layer):
 
 
 class PReLU(Layer):
-    '''Parametric Rectified Linear Unit:
+    """Parametric Rectified Linear Unit:
     `f(x) = alphas * x for x < 0`,
     `f(x) = x for x >= 0`,
     where `alphas` is a learned array with the same shape as x.
@@ -66,7 +67,8 @@ class PReLU(Layer):
 
     # References
         - [Delving Deep into Rectifiers: Surpassing Human-Level Performance on ImageNet Classification](https://arxiv.org/abs/1502.01852)
-    '''
+    """
+
     def __init__(self, init='zero', weights=None, shared_axes=None, **kwargs):
         self.supports_masking = True
         self.init = initializations.get(init)
@@ -96,7 +98,8 @@ class PReLU(Layer):
     def call(self, x, mask=None):
         pos = K.relu(x)
         if K.backend() == 'theano':
-            neg = K.pattern_broadcast(self.alphas, self.param_broadcast) * (x - abs(x)) * 0.5
+            neg = (K.pattern_broadcast(self.alphas, self.param_broadcast) *
+                   (x - abs(x)) * 0.5)
         else:
             neg = self.alphas * (x - abs(x)) * 0.5
         return pos + neg
@@ -108,7 +111,7 @@ class PReLU(Layer):
 
 
 class ELU(Layer):
-    '''Exponential Linear Unit:
+    """Exponential Linear Unit:
     `f(x) =  alpha * (exp(x) - 1.) for x < 0`,
     `f(x) = x for x >= 0`.
 
@@ -125,7 +128,8 @@ class ELU(Layer):
 
     # References
         - [Fast and Accurate Deep Network Learning by Exponential Linear Units (ELUs)](https://arxiv.org/abs/1511.07289v1)
-    '''
+    """
+
     def __init__(self, alpha=1.0, **kwargs):
         self.supports_masking = True
         self.alpha = K.cast_to_floatx(alpha)
@@ -141,7 +145,7 @@ class ELU(Layer):
 
 
 class ParametricSoftplus(Layer):
-    '''Parametric Softplus:
+    """Parametric Softplus:
     `f(x) = alpha * log(1 + exp(beta * x))`
 
     # Input shape
@@ -167,7 +171,8 @@ class ParametricSoftplus(Layer):
 
     # References
         - [Inferring Nonlinear Neuronal Computation Based on Physiologically Plausible Inputs](http://journals.plos.org/ploscompbiol/article?id=10.1371/journal.pcbi.1003143)
-    '''
+    """
+
     def __init__(self, alpha_init=0.2, beta_init=5.0,
                  weights=None, shared_axes=None, **kwargs):
         self.supports_masking = True
@@ -200,7 +205,9 @@ class ParametricSoftplus(Layer):
 
     def call(self, x, mask=None):
         if K.backend() == 'theano':
-            return K.softplus(K.pattern_broadcast(self.betas, self.param_broadcast) * x) * K.pattern_broadcast(self.alphas, self.param_broadcast)
+            return (K.softplus(K.pattern_broadcast(self.betas,
+                                                   self.param_broadcast) * x) *
+                    K.pattern_broadcast(self.alphas, self.param_broadcast))
         else:
             return K.softplus(self.betas * x) * self.alphas
 
@@ -212,7 +219,7 @@ class ParametricSoftplus(Layer):
 
 
 class ThresholdedReLU(Layer):
-    '''Thresholded Rectified Linear Unit:
+    """Thresholded Rectified Linear Unit:
     `f(x) = x for x > theta`,
     `f(x) = 0 otherwise`.
 
@@ -229,7 +236,8 @@ class ThresholdedReLU(Layer):
 
     # References
         - [Zero-Bias Autoencoders and the Benefits of Co-Adapting Features](http://arxiv.org/abs/1402.3337)
-    '''
+    """
+
     def __init__(self, theta=1.0, **kwargs):
         self.supports_masking = True
         self.theta = K.cast_to_floatx(theta)
@@ -245,7 +253,7 @@ class ThresholdedReLU(Layer):
 
 
 class SReLU(Layer):
-    '''S-shaped Rectified Linear Unit:
+    """S-shaped Rectified Linear Unit:
     `f(x) = t^r + a^r(x - t^r) for x >= t^r`,
     `f(x) = x for t^r > x > t^l`,
     `f(x) = t^l + a^l(x - t^l) for x <= t^l`.
@@ -274,9 +282,11 @@ class SReLU(Layer):
 
     # References
         - [Deep Learning with S-shaped Rectified Linear Activation Units](http://arxiv.org/abs/1512.07030)
-    '''
+    """
+
     def __init__(self, t_left_init='zero', a_left_init='glorot_uniform',
-                 t_right_init='glorot_uniform', a_right_init='one', shared_axes=None, **kwargs):
+                 t_right_init='glorot_uniform', a_right_init='one',
+                 shared_axes=None, **kwargs):
         self.supports_masking = True
         self.t_left_init = t_left_init
         self.a_left_init = a_left_init
@@ -319,7 +329,8 @@ class SReLU(Layer):
             t_left = K.pattern_broadcast(self.t_left, self.param_broadcast)
             a_left = K.pattern_broadcast(self.a_left, self.param_broadcast)
             a_right = K.pattern_broadcast(self.a_right, self.param_broadcast)
-            t_right_actual = K.pattern_broadcast(self.t_right_actual, self.param_broadcast)
+            t_right_actual = K.pattern_broadcast(self.t_right_actual,
+                                                 self.param_broadcast)
         else:
             t_left = self.t_left
             a_left = self.a_left

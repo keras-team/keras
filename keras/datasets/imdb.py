@@ -10,7 +10,7 @@ import sys
 def load_data(path='imdb_full.pkl', nb_words=None, skip_top=0,
               maxlen=None, seed=113,
               start_char=1, oov_char=2, index_from=3):
-    '''Loads IMDB dataset.
+    """Loads IMDB dataset.
 
     # Arguments
         path: where to store the data (in `/.keras/dataset`)
@@ -32,7 +32,7 @@ def load_data(path='imdb_full.pkl', nb_words=None, skip_top=0,
     because they're not making the `nb_words` cut here.
     Words that were not seen in the trining set but are in the test set
     have simply been skipped.
-    '''
+    """
     path = get_file(path,
                     origin='https://s3.amazonaws.com/text-datasets/imdb_full.pkl',
                     md5_hash='d091312047c43cf9e4e38fef92437263')

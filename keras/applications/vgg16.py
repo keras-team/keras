@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
-'''VGG16 model for Keras.
+"""VGG16 model for Keras.
 
-# Reference:
+# Reference
 
 - [Very Deep Convolutional Networks for Large-Scale Image Recognition](https://arxiv.org/abs/1409.1556)
 
-'''
+"""
 from __future__ import print_function
 from __future__ import absolute_import
 
@@ -29,7 +29,7 @@ TF_WEIGHTS_PATH_NO_TOP = 'https://github.com/fchollet/deep-learning-models/relea
 
 def VGG16(include_top=True, weights='imagenet',
           input_tensor=None, input_shape=None):
-    '''Instantiate the VGG16 architecture,
+    """Instantiate the VGG16 architecture,
     optionally loading weights pre-trained
     on ImageNet. Note that when using TensorFlow,
     for best performance you should set
@@ -58,7 +58,7 @@ def VGG16(include_top=True, weights='imagenet',
 
     # Returns
         A Keras model instance.
-    '''
+    """
     if weights not in {'imagenet', None}:
         raise ValueError('The `weights` argument should be either '
                          '`None` (random initialization) or `imagenet` '

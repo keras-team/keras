@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
-'''MusicTaggerCRNN model for Keras.
+"""MusicTaggerCRNN model for Keras.
 
 # Reference:
 
 - [Music-auto_tagging-keras](https://github.com/keunwoochoi/music-auto_tagging-keras)
 
-'''
+"""
 from __future__ import print_function
 from __future__ import absolute_import
 
@@ -29,7 +29,7 @@ TF_WEIGHTS_PATH = 'https://github.com/fchollet/deep-learning-models/releases/dow
 
 def MusicTaggerCRNN(weights='msd', input_tensor=None,
                     include_top=True):
-    '''Instantiate the MusicTaggerCRNN architecture,
+    """Instantiate the MusicTaggerCRNN architecture,
     optionally loading weights pre-trained
     on Million Song Dataset. Note that when using TensorFlow,
     for best performance you should set
@@ -58,7 +58,7 @@ def MusicTaggerCRNN(weights='msd', input_tensor=None,
 
     # Returns
         A Keras model instance.
-    '''
+    """
     if weights not in {'msd', None}:
         raise ValueError('The `weights` argument should be either '
                          '`None` (random initialization) or `msd` '

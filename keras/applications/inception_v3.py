@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-'''Inception V3 model for Keras.
+"""Inception V3 model for Keras.
 
 Note that the ImageNet weights provided are from a model that had not fully converged.
 Inception v3 should be able to reach 6.9% top-5 error, but our model
@@ -10,11 +10,11 @@ Also, do note that the input image format for this model is different than for
 the VGG16 and ResNet models (299x299 instead of 224x224), and that the input preprocessing function
 is also different (same as Xception).
 
-# Reference:
+# Reference
 
 - [Rethinking the Inception Architecture for Computer Vision](http://arxiv.org/abs/1512.00567)
 
-'''
+"""
 from __future__ import print_function
 from __future__ import absolute_import
 
@@ -39,8 +39,8 @@ TF_WEIGHTS_PATH_NO_TOP = 'https://github.com/fchollet/deep-learning-models/relea
 def conv2d_bn(x, nb_filter, nb_row, nb_col,
               border_mode='same', subsample=(1, 1),
               name=None):
-    '''Utility function to apply conv + BN.
-    '''
+    """Utility function to apply conv + BN.
+    """
     if name is not None:
         bn_name = name + '_bn'
         conv_name = name + '_conv'
@@ -62,7 +62,7 @@ def conv2d_bn(x, nb_filter, nb_row, nb_col,
 
 def InceptionV3(include_top=True, weights='imagenet',
                 input_tensor=None, input_shape=None):
-    '''Instantiate the Inception v3 architecture,
+    """Instantiate the Inception v3 architecture,
     optionally loading weights pre-trained
     on ImageNet. Note that when using TensorFlow,
     for best performance you should set
@@ -93,7 +93,7 @@ def InceptionV3(include_top=True, weights='imagenet',
 
     # Returns
         A Keras model instance.
-    '''
+    """
     if weights not in {'imagenet', None}:
         raise ValueError('The `weights` argument should be either '
                          '`None` (random initialization) or `imagenet` '

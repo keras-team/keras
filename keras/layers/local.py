@@ -8,7 +8,7 @@ from ..utils.np_utils import conv_output_length
 
 
 class LocallyConnected1D(Layer):
-    '''The `LocallyConnected1D` layer works similarly to
+    """The `LocallyConnected1D` layer works similarly to
     the `Convolution1D` layer, except that weights are unshared,
     that is, a different set of filters is applied at each different patch
     of the input.
@@ -73,7 +73,8 @@ class LocallyConnected1D(Layer):
     # Output shape
         3D tensor with shape: `(samples, new_steps, nb_filter)`.
         `steps` value might have changed due to padding.
-    '''
+    """
+
     def __init__(self, nb_filter, filter_length,
                  init='glorot_uniform', activation=None, weights=None,
                  border_mode='valid', subsample_length=1,
@@ -178,7 +179,7 @@ class LocallyConnected1D(Layer):
 
 
 class LocallyConnected2D(Layer):
-    '''The `LocallyConnected2D` layer works similarly
+    """The `LocallyConnected2D` layer works similarly
     to the `Convolution2D` layer, except that weights are unshared,
     that is, a different set of filters is applied at each
     different patch of the input.
@@ -247,7 +248,8 @@ class LocallyConnected2D(Layer):
         or 4D tensor with shape:
         `(samples, new_rows, new_cols, nb_filter)` if dim_ordering='tf'.
         `rows` and `cols` values might have changed due to padding.
-    '''
+    """
+
     def __init__(self, nb_filter, nb_row, nb_col,
                  init='glorot_uniform', activation=None, weights=None,
                  border_mode='valid', subsample=(1, 1),

@@ -8,7 +8,7 @@ import warnings
 
 
 class ConvRecurrent2D(Layer):
-    '''Abstract base class for convolutional recurrent layers.
+    """Abstract base class for convolutional recurrent layers.
     Do not use in a model -- it's not a functional layer!
 
     ConvLSTM2D
@@ -73,7 +73,7 @@ class ConvRecurrent2D(Layer):
 
         To reset the states of your model, call `.reset_states()` on either
         a specific layer, or on your entire model.
-    '''
+    """
 
     def __init__(self, weights=None, nb_row=None, nb_col=None, nb_filter=None,
                  return_sequences=False, go_backwards=False, stateful=False,
@@ -187,7 +187,7 @@ class ConvRecurrent2D(Layer):
 
 
 class ConvLSTM2D(ConvRecurrent2D):
-    '''Convolutional LSTM.
+    """Convolutional LSTM.
 
     # Input shape
         - if dim_ordering='th'
@@ -246,7 +246,8 @@ class ConvLSTM2D(ConvRecurrent2D):
         Precipitation Nowcasting](http://arxiv.org/abs/1506.04214v1)
         The current implementation does not include the feedback loop on the
         cells output
-    '''
+    """
+
     def __init__(self, nb_filter, nb_row, nb_col,
                  init='glorot_uniform', inner_init='orthogonal',
                  forget_bias_init='one', activation='tanh',

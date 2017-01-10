@@ -6,7 +6,7 @@ from collections import defaultdict
 
 
 class HDF5Matrix():
-    '''Representation of HDF5 dataset which can be used instead of a
+    """Representation of HDF5 dataset which can be used instead of a
     Numpy array.
 
     # Example
@@ -29,7 +29,7 @@ class HDF5Matrix():
         end: int, end of desired slice of the specified dataset
         normalizer: function to be called on data when retrieved
 
-    '''
+    """
     refs = defaultdict(int)
 
     def __init__(self, datapath, dataset, start=0, end=None, normalizer=None):

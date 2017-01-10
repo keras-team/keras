@@ -104,7 +104,7 @@ class Optimizer(object):
     def get_weights(self):
         """Returns the current value of the weights of the optimizer.
 
-        # Returns:
+        # Returns
             A list of numpy arrays.
         """
         return K.batch_get_value(self.weights)
@@ -250,6 +250,7 @@ class Adagrad(Optimizer):
     # Arguments
         lr: float >= 0. Learning rate.
         epsilon: float >= 0.
+        decay: float >= 0. Learning rate decay over each update.
 
     # References
         - [Adaptive Subgradient Methods for Online Learning and Stochastic Optimization](http://www.jmlr.org/papers/volume12/duchi11a/duchi11a.pdf)
@@ -304,6 +305,7 @@ class Adadelta(Optimizer):
             It is recommended to leave it at the default value.
         rho: float >= 0.
         epsilon: float >= 0. Fuzz factor.
+        decay: float >= 0. Learning rate decay over each update.
 
     # References
         - [Adadelta - an adaptive learning rate method](http://arxiv.org/abs/1212.5701)
@@ -367,8 +369,10 @@ class Adam(Optimizer):
 
     # Arguments
         lr: float >= 0. Learning rate.
-        beta_1/beta_2: floats, 0 < beta < 1. Generally close to 1.
+        beta_1: float, 0 < beta < 1. Generally close to 1.
+        beta_2: float, 0 < beta < 1. Generally close to 1.
         epsilon: float >= 0. Fuzz factor.
+        decay: float >= 0. Learning rate decay over each update.
 
     # References
         - [Adam - A Method for Stochastic Optimization](http://arxiv.org/abs/1412.6980v8)
@@ -437,6 +441,7 @@ class Adamax(Optimizer):
         lr: float >= 0. Learning rate.
         beta_1/beta_2: floats, 0 < beta < 1. Generally close to 1.
         epsilon: float >= 0. Fuzz factor.
+        decay: float >= 0. Learning rate decay over each update.
 
     # References
         - [Adam - A Method for Stochastic Optimization](http://arxiv.org/abs/1412.6980v8)

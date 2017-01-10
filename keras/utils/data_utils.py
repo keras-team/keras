@@ -40,7 +40,7 @@ else:
 
 def get_file(fname, origin, untar=False,
              md5_hash=None, cache_subdir='datasets'):
-    '''Downloads a file from a URL if it not already in the cache.
+    """Downloads a file from a URL if it not already in the cache.
 
     Passing the MD5 hash will verify the file after download as well as if it is already present in the cache.
 
@@ -53,7 +53,7 @@ def get_file(fname, origin, untar=False,
 
     # Returns
         Path to the downloaded file
-    '''
+    """
     datadir_base = os.path.expanduser(os.path.join('~', '.keras'))
     if not os.access(datadir_base, os.W_OK):
         datadir_base = os.path.join('/tmp', '.keras')
@@ -124,7 +124,7 @@ def get_file(fname, origin, untar=False,
 
 
 def validate_file(fpath, md5_hash):
-    '''Validates a file against a MD5 hash
+    """Validates a file against a MD5 hash
 
     # Arguments
         fpath: path to the file being validated
@@ -132,7 +132,7 @@ def validate_file(fpath, md5_hash):
 
     # Returns
         Whether the file is valid
-    '''
+    """
     hasher = hashlib.md5()
     with open(fpath, 'rb') as f:
         buf = f.read()

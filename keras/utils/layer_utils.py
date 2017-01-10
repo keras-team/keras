@@ -9,7 +9,8 @@ from .. import backend as K
 
 
 def layer_from_config(config, custom_objects=None):
-    '''
+    """Instantiate a layer from a config dictionary.
+
     # Arguments
         config: dict of the form {'class_name': str, 'config': dict}
         custom_objects: dict mapping class names (or function names)
@@ -17,7 +18,7 @@ def layer_from_config(config, custom_objects=None):
 
     # Returns
         Layer instance (may be Model, Sequential, Layer...)
-    '''
+    """
     # Insert custom layers into globals so they can
     # be accessed by `get_from_module`.
     if custom_objects:
@@ -44,14 +45,14 @@ def layer_from_config(config, custom_objects=None):
 
 def print_summary(layers, relevant_nodes=None,
                   line_length=100, positions=[.33, .55, .67, 1.]):
-    '''Prints a summary of a layer
+    """Prints a summary of a layer.
 
     # Arguments
         layers: list of layers to print summaries of
         relevant_nodes: list of relevant nodes
         line_length: total length of printed lines
         positions: relative or absolute positions of log elements in each line
-    '''
+    """
     if positions[-1] <= 1:
         positions = [int(line_length * p) for p in positions]
     # header names for the different log elements

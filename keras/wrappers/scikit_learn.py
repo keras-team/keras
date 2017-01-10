@@ -9,7 +9,7 @@ from ..models import Sequential
 
 
 class BaseWrapper(object):
-    '''Base class for the Keras scikit-learn wrapper.
+    """Base class for the Keras scikit-learn wrapper.
 
     Warning: This class should not be used directly.
     Use descendant classes instead.
@@ -47,7 +47,7 @@ class BaseWrapper(object):
     those you could pass to `sk_params`, including fitting parameters.
     In other words, you could use `grid_search` to search for the best
     `batch_size` or `nb_epoch` as well as the model parameters.
-    '''
+    """
 
     def __init__(self, build_fn=None, **sk_params):
         self.build_fn = build_fn
@@ -55,13 +55,13 @@ class BaseWrapper(object):
         self.check_params(sk_params)
 
     def check_params(self, params):
-        '''Check for user typos in "params" keys to avoid
+        """Check for user typos in "params" keys to avoid
         unwanted usage of default values
 
         # Arguments
             params: dictionary
                 The parameters to be checked
-        '''
+        """
         legal_params_fns = [Sequential.fit, Sequential.predict,
                             Sequential.predict_classes, Sequential.evaluate]
         if self.build_fn is None:
@@ -81,7 +81,7 @@ class BaseWrapper(object):
                 raise ValueError('{} is not a legal parameter'.format(params_name))
 
     def get_params(self, deep=True):
-        '''Get parameters for this estimator.
+        """Get parameters for this estimator.
 
         # Arguments
             deep: boolean, optional
@@ -91,13 +91,13 @@ class BaseWrapper(object):
         # Returns
             params : dict
                 Dictionary of parameter names mapped to their values.
-        '''
+        """
         res = copy.deepcopy(self.sk_params)
         res.update({'build_fn': self.build_fn})
         return res
 
     def set_params(self, **params):
-        '''Set the parameters of this estimator.
+        """Set the parameters of this estimator.
 
         # Arguments
         params: dict
@@ -105,13 +105,13 @@ class BaseWrapper(object):
 
         # Returns
             self
-        '''
+        """
         self.check_params(params)
         self.sk_params.update(params)
         return self
 
     def fit(self, X, y, **kwargs):
-        '''Construct a new model with build_fn and fit the model according
+        """Construct a new model with build_fn and fit the model according
         to the given training data.
 
         # Arguments
@@ -126,7 +126,7 @@ class BaseWrapper(object):
         # Returns
             history : object
                 details about the training history at each epoch.
-        '''
+        """
 
         if self.build_fn is None:
             self.model = self.__call__(**self.filter_sk_params(self.__call__))
@@ -150,7 +150,7 @@ class BaseWrapper(object):
         return history
 
     def filter_sk_params(self, fn, override={}):
-        '''Filter sk_params and return those in fn's arguments
+        """Filter sk_params and return those in fn's arguments
 
         # Arguments
             fn : arbitrary function
@@ -159,7 +159,7 @@ class BaseWrapper(object):
         # Returns
             res : dictionary dictionary containing variables
                 in both sk_params and fn's arguments.
-        '''
+        """
         res = {}
         fn_args = inspect.getargspec(fn)[0]
         for name, value in self.sk_params.items():
@@ -170,11 +170,11 @@ class BaseWrapper(object):
 
 
 class KerasClassifier(BaseWrapper):
-    '''Implementation of the scikit-learn classifier API for Keras.
-    '''
+    """Implementation of the scikit-learn classifier API for Keras.
+    """
 
     def predict(self, X, **kwargs):
-        '''Returns the class predictions for the given test data.
+        """Returns the class predictions for the given test data.
 
         # Arguments
             X: array-like, shape `(n_samples, n_features)`
@@ -186,12 +186,12 @@ class KerasClassifier(BaseWrapper):
         # Returns
             preds: array-like, shape `(n_samples,)`
                 Class predictions.
-        '''
+        """
         kwargs = self.filter_sk_params(Sequential.predict_classes, kwargs)
         return self.model.predict_classes(X, **kwargs)
 
     def predict_proba(self, X, **kwargs):
-        '''Returns class probability estimates for the given test data.
+        """Returns class probability estimates for the given test data.
 
         # Arguments
             X: array-like, shape `(n_samples, n_features)`
@@ -207,7 +207,7 @@ class KerasClassifier(BaseWrapper):
                 tp match the scikit-learn API,
                 will return an array of shape '(n_samples, 2)'
                 (instead of `(n_sample, 1)` as in Keras).
-        '''
+        """
         kwargs = self.filter_sk_params(Sequential.predict_proba, kwargs)
         probs = self.model.predict_proba(X, **kwargs)
 
@@ -218,7 +218,7 @@ class KerasClassifier(BaseWrapper):
         return probs
 
     def score(self, X, y, **kwargs):
-        '''Returns the mean accuracy on the given test data and labels.
+        """Returns the mean accuracy on the given test data and labels.
 
         # Arguments
             X: array-like, shape `(n_samples, n_features)`
@@ -232,7 +232,7 @@ class KerasClassifier(BaseWrapper):
         # Returns
             score: float
                 Mean accuracy of predictions on X wrt. y.
-        '''
+        """
         kwargs = self.filter_sk_params(Sequential.evaluate, kwargs)
 
         loss_name = self.model.loss
@@ -253,11 +253,11 @@ class KerasClassifier(BaseWrapper):
 
 
 class KerasRegressor(BaseWrapper):
-    '''Implementation of the scikit-learn regressor API for Keras.
-    '''
+    """Implementation of the scikit-learn regressor API for Keras.
+    """
 
     def predict(self, X, **kwargs):
-        '''Returns predictions for the given test data.
+        """Returns predictions for the given test data.
 
         # Arguments
             X: array-like, shape `(n_samples, n_features)`
@@ -268,12 +268,12 @@ class KerasRegressor(BaseWrapper):
         # Returns
             preds: array-like, shape `(n_samples,)`
                 Predictions.
-        '''
+        """
         kwargs = self.filter_sk_params(Sequential.predict, kwargs)
         return np.squeeze(self.model.predict(X, **kwargs))
 
     def score(self, X, y, **kwargs):
-        '''Returns the mean loss on the given test data and labels.
+        """Returns the mean loss on the given test data and labels.
 
         # Arguments
             X: array-like, shape `(n_samples, n_features)`
@@ -287,7 +287,7 @@ class KerasRegressor(BaseWrapper):
         # Returns
             score: float
                 Mean accuracy of predictions on X wrt. y.
-        '''
+        """
         kwargs = self.filter_sk_params(Sequential.evaluate, kwargs)
         loss = self.model.evaluate(X, y, **kwargs)
         if isinstance(loss, list):

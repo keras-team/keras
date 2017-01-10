@@ -1,7 +1,7 @@
-'''Fairly basic set of tools for real-time data augmentation on image data.
+"""Fairly basic set of tools for real-time data augmentation on image data.
 Can easily be extended to include new transformations,
 new preprocessing methods, etc...
-'''
+"""
 from __future__ import absolute_import
 from __future__ import print_function
 
@@ -175,14 +175,14 @@ def img_to_array(img, dim_ordering='default'):
 
 
 def load_img(path, grayscale=False, target_size=None):
-    '''Load an image into PIL format.
+    """Load an image into PIL format.
 
     # Arguments
         path: path to image file
         grayscale: boolean
         target_size: None (default to original size)
             or (img_height, img_width)
-    '''
+    """
     from PIL import Image
     img = Image.open(path)
     if grayscale:
@@ -201,7 +201,7 @@ def list_pictures(directory, ext='jpg|jpeg|bmp|png'):
 
 
 class ImageDataGenerator(object):
-    '''Generate minibatches with
+    """Generate minibatches with
     real-time data augmentation.
 
     # Arguments
@@ -237,7 +237,7 @@ class ImageDataGenerator(object):
             It defaults to the `image_dim_ordering` value found in your
             Keras config file at `~/.keras/keras.json`.
             If you never set it, then it will be "th".
-    '''
+    """
     def __init__(self,
                  featurewise_center=False,
                  samplewise_center=False,
@@ -421,7 +421,7 @@ class ImageDataGenerator(object):
             augment=False,
             rounds=1,
             seed=None):
-        '''Required for featurewise_center, featurewise_std_normalization
+        """Required for featurewise_center, featurewise_std_normalization
         and zca_whitening.
 
         # Arguments
@@ -433,7 +433,7 @@ class ImageDataGenerator(object):
             rounds: If `augment`,
                 how many augmentation passes to do over the data
             seed: random seed.
-        '''
+        """
         X = np.asarray(X)
         if X.ndim != 4:
             raise ValueError('Input to `.fit()` should have rank 4. '

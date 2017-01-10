@@ -34,17 +34,17 @@ def hinge(y_true, y_pred):
 
 
 def categorical_crossentropy(y_true, y_pred):
-    '''Expects a binary class matrix instead of a vector of scalar classes.
-    '''
+    """Expects a binary class matrix instead of a vector of scalar classes.
+    """
     return K.categorical_crossentropy(y_pred, y_true)
 
 
 def sparse_categorical_crossentropy(y_true, y_pred):
-    '''Expects an array of integer classes.
+    """Expects an array of integer classes.
 
     Note: labels shape must have the same number of dimensions as output shape.
     If you get a shape error, add a length-1 dimension to labels.
-    '''
+    """
     return K.sparse_categorical_crossentropy(y_pred, y_true)
 
 

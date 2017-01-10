@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-'''Xception V1 model for Keras.
+"""Xception V1 model for Keras.
 
 On ImageNet, this model gets to a top-1 validation accuracy of 0.790
 and a top-5 validation accuracy of 0.945.
@@ -12,11 +12,11 @@ is also different (same as Inception V3).
 Also do note that this model is only available for the TensorFlow backend,
 due to its reliance on `SeparableConvolution` layers.
 
-# Reference:
+# Reference
 
 - [Xception: Deep Learning with Depthwise Separable Convolutions](https://arxiv.org/abs/1610.02357)
 
-'''
+"""
 from __future__ import print_function
 from __future__ import absolute_import
 
@@ -37,7 +37,7 @@ TF_WEIGHTS_PATH_NO_TOP = 'https://github.com/fchollet/deep-learning-models/relea
 
 def Xception(include_top=True, weights='imagenet',
              input_tensor=None, input_shape=None):
-    '''Instantiate the Xception architecture,
+    """Instantiate the Xception architecture,
     optionally loading weights pre-trained
     on ImageNet. This model is available for TensorFlow only,
     and can only be used with inputs following the TensorFlow
@@ -63,7 +63,7 @@ def Xception(include_top=True, weights='imagenet',
 
     # Returns
         A Keras model instance.
-    '''
+    """
     if weights not in {'imagenet', None}:
         raise ValueError('The `weights` argument should be either '
                          '`None` (random initialization) or `imagenet` '

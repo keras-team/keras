@@ -7,7 +7,7 @@ from six.moves import range
 
 def pad_sequences(sequences, maxlen=None, dtype='int32',
                   padding='pre', truncating='pre', value=0.):
-    '''Pads each sequence to the same length:
+    """Pads each sequence to the same length:
     the length of the longest sequence.
 
     If maxlen is provided, any sequence longer
@@ -28,7 +28,7 @@ def pad_sequences(sequences, maxlen=None, dtype='int32',
 
     # Returns
         x: numpy array with dimensions (number_of_sequences, maxlen)
-    '''
+    """
     lengths = [len(s) for s in sequences]
 
     nb_samples = len(sequences)
@@ -70,7 +70,7 @@ def pad_sequences(sequences, maxlen=None, dtype='int32',
 
 
 def make_sampling_table(size, sampling_factor=1e-5):
-    '''This generates an array where the ith element
+    """This generates an array where the ith element
     is the probability that a word of rank i would be sampled,
     according to the sampling distribution used in word2vec.
 
@@ -84,7 +84,7 @@ def make_sampling_table(size, sampling_factor=1e-5):
 
     # Arguments
         size: int, number of possible words to sample.
-    '''
+    """
     gamma = 0.577
     rank = np.array(list(range(size)))
     rank[0] = 1
@@ -97,7 +97,7 @@ def make_sampling_table(size, sampling_factor=1e-5):
 def skipgrams(sequence, vocabulary_size,
               window_size=4, negative_samples=1., shuffle=True,
               categorical=False, sampling_table=None):
-    '''Take a sequence (list of indexes of words),
+    """Take a sequence (list of indexes of words),
     returns couples of [word_index, other_word index] and labels (1s or 0s),
     where label = 1 if 'other_word' belongs to the context of 'word',
     and label=0 if 'other_word' is randomly sampled
@@ -119,7 +119,7 @@ def skipgrams(sequence, vocabulary_size,
     # Notes
         By convention, index 0 in the vocabulary is
         a non-word and will be skipped.
-    '''
+    """
     couples = []
     labels = []
     for i, wi in enumerate(sequence):

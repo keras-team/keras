@@ -25,8 +25,8 @@ def librosa_exists():
 
 
 def preprocess_input(audio_path, dim_ordering='default'):
-    '''Reads an audio file and outputs a Mel-spectrogram.
-    '''
+    """Reads an audio file and outputs a Mel-spectrogram.
+    """
     if dim_ordering == 'default':
         dim_ordering = K.image_dim_ordering()
     assert dim_ordering in {'tf', 'th'}
@@ -70,13 +70,13 @@ def preprocess_input(audio_path, dim_ordering='default'):
 
 
 def decode_predictions(preds, top_n=5):
-    '''Decode the output of a music tagger model.
+    """Decode the output of a music tagger model.
 
     # Arguments
         preds: 2-dimensional numpy array
         top_n: integer in [0, 50], number of items to show
 
-    '''
+    """
     assert len(preds.shape) == 2 and preds.shape[1] == 50
     results = []
     for pred in preds:

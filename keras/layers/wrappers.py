@@ -10,10 +10,10 @@ class Wrapper(Layer):
         super(Wrapper, self).__init__(**kwargs)
 
     def build(self, input_shape=None):
-        '''Assumes that self.layer is already set.
+        """Assumes that self.layer is already set.
         Should be called at the end of .build() in the
         children classes.
-        '''
+        """
         self.trainable_weights = getattr(self.layer, 'trainable_weights', [])
         self.non_trainable_weights = getattr(self.layer, 'non_trainable_weights', [])
         self.updates = getattr(self.layer, 'updates', [])
@@ -79,6 +79,7 @@ class TimeDistributed(Wrapper):
     # Arguments
         layer: a layer instance.
     """
+
     def __init__(self, layer, **kwargs):
         self.supports_masking = True
         super(TimeDistributed, self).__init__(layer, **kwargs)
@@ -132,7 +133,7 @@ class TimeDistributed(Wrapper):
 
 
 class Bidirectional(Wrapper):
-    ''' Bidirectional wrapper for RNNs.
+    """ Bidirectional wrapper for RNNs.
 
     # Arguments
         layer: `Recurrent` instance.
@@ -152,7 +153,8 @@ class Bidirectional(Wrapper):
         model.add(Activation('softmax'))
         model.compile(loss='categorical_crossentropy', optimizer='rmsprop')
     ```
-    '''
+    """
+
     def __init__(self, layer, merge_mode='concat', weights=None, **kwargs):
         if merge_mode not in ['sum', 'mul', 'ave', 'concat', None]:
             raise ValueError('Invalid merge mode. '

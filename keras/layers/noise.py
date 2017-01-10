@@ -5,7 +5,7 @@ import numpy as np
 
 
 class GaussianNoise(Layer):
-    '''Apply to the input an additive zero-centered Gaussian noise with
+    """Apply to the input an additive zero-centered Gaussian noise with
     standard deviation `sigma`. This is useful to mitigate overfitting
     (you could see it as a kind of random data augmentation).
     Gaussian Noise (GS) is a natural choice as corruption process
@@ -23,7 +23,8 @@ class GaussianNoise(Layer):
 
     # Output shape
         Same shape as input.
-    '''
+    """
+
     def __init__(self, sigma, **kwargs):
         self.supports_masking = True
         self.sigma = sigma
@@ -43,7 +44,7 @@ class GaussianNoise(Layer):
 
 
 class GaussianDropout(Layer):
-    '''Apply to the input an multiplicative one-centered Gaussian noise
+    """Apply to the input an multiplicative one-centered Gaussian noise
     with standard deviation `sqrt(p/(1-p))`.
 
     As it is a regularization layer, it is only active at training time.
@@ -60,8 +61,9 @@ class GaussianDropout(Layer):
         Same shape as input.
 
     # References
-        [Dropout: A Simple Way to Prevent Neural Networks from Overfitting Srivastava, Hinton, et al. 2014](http://www.cs.toronto.edu/~rsalakhu/papers/srivastava14a.pdf)
-    '''
+        - [Dropout: A Simple Way to Prevent Neural Networks from Overfitting Srivastava, Hinton, et al. 2014](http://www.cs.toronto.edu/~rsalakhu/papers/srivastava14a.pdf)
+    """
+
     def __init__(self, p, **kwargs):
         self.supports_masking = True
         self.p = p

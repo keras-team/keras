@@ -13,7 +13,7 @@ from .pooling import MaxPooling1D, MaxPooling2D, MaxPooling3D
 
 
 class Convolution1D(Layer):
-    '''Convolution operator for filtering neighborhoods of one-dimensional inputs.
+    """Convolution operator for filtering neighborhoods of one-dimensional inputs.
     When using this layer as the first layer in a model,
     either provide the keyword argument `input_dim`
     (int, e.g. 128 for sequences of 128-dimensional vectors),
@@ -76,7 +76,8 @@ class Convolution1D(Layer):
     # Output shape
         3D tensor with shape: `(samples, new_steps, nb_filter)`.
         `steps` value might have changed due to padding.
-    '''
+    """
+
     def __init__(self, nb_filter, filter_length,
                  init='glorot_uniform', activation=None, weights=None,
                  border_mode='valid', subsample_length=1,
@@ -173,7 +174,7 @@ class Convolution1D(Layer):
 
 
 class AtrousConvolution1D(Convolution1D):
-    '''Atrous Convolution operator for filtering neighborhoods of one-dimensional inputs.
+    """Atrous Convolution operator for filtering neighborhoods of one-dimensional inputs.
     A.k.a dilated convolution or convolution with holes.
     When using this layer as the first layer in a model,
     either provide the keyword argument `input_dim`
@@ -239,7 +240,8 @@ class AtrousConvolution1D(Convolution1D):
     # Output shape
         3D tensor with shape: `(samples, new_steps, nb_filter)`.
         `steps` value might have changed due to padding.
-    '''
+    """
+
     def __init__(self, nb_filter, filter_length,
                  init='glorot_uniform', activation=None, weights=None,
                  border_mode='valid', subsample_length=1, atrous_rate=1,
@@ -288,7 +290,7 @@ class AtrousConvolution1D(Convolution1D):
 
 
 class Convolution2D(Layer):
-    '''Convolution operator for filtering windows of two-dimensional inputs.
+    """Convolution operator for filtering windows of two-dimensional inputs.
     When using this layer as the first layer in a model,
     provide the keyword argument `input_shape`
     (tuple of integers, does not include the sample axis),
@@ -355,7 +357,8 @@ class Convolution2D(Layer):
         or 4D tensor with shape:
         `(samples, new_rows, new_cols, nb_filter)` if dim_ordering='tf'.
         `rows` and `cols` values might have changed due to padding.
-    '''
+    """
+
     def __init__(self, nb_filter, nb_row, nb_col,
                  init='glorot_uniform', activation=None, weights=None,
                  border_mode='valid', subsample=(1, 1), dim_ordering='default',
@@ -473,7 +476,7 @@ class Convolution2D(Layer):
 
 
 class Deconvolution2D(Convolution2D):
-    '''Transposed convolution operator for filtering windows of two-dimensional inputs.
+    """Transposed convolution operator for filtering windows of two-dimensional inputs.
     The need for transposed convolutions generally arises from the desire
     to use a transformation going in the opposite direction of a normal convolution,
     i.e., from something that has the shape of the output of some convolution
@@ -583,10 +586,11 @@ class Deconvolution2D(Convolution2D):
         `rows` and `cols` values might have changed due to padding.
 
     # References
-        [1] [A guide to convolution arithmetic for deep learning](https://arxiv.org/abs/1603.07285v1)
-        [2] [Transposed convolution arithmetic](http://deeplearning.net/software/theano_versions/dev/tutorial/conv_arithmetic.html#transposed-convolution-arithmetic)
-        [3] [Deconvolutional Networks](http://www.matthewzeiler.com/pubs/cvpr2010/cvpr2010.pdf)
-    '''
+        - [A guide to convolution arithmetic for deep learning](https://arxiv.org/abs/1603.07285v1)
+        - [Transposed convolution arithmetic](http://deeplearning.net/software/theano_versions/dev/tutorial/conv_arithmetic.html#transposed-convolution-arithmetic)
+        - [Deconvolutional Networks](http://www.matthewzeiler.com/pubs/cvpr2010/cvpr2010.pdf)
+    """
+
     def __init__(self, nb_filter, nb_row, nb_col, output_shape,
                  init='glorot_uniform', activation=None, weights=None,
                  border_mode='valid', subsample=(1, 1),
@@ -654,7 +658,7 @@ class Deconvolution2D(Convolution2D):
 
 
 class AtrousConvolution2D(Convolution2D):
-    '''Atrous Convolution operator for filtering windows of two-dimensional inputs.
+    """Atrous Convolution operator for filtering windows of two-dimensional inputs.
     A.k.a dilated convolution or convolution with holes.
     When using this layer as the first layer in a model,
     provide the keyword argument `input_shape`
@@ -723,7 +727,8 @@ class AtrousConvolution2D(Convolution2D):
 
     # References
         - [Multi-Scale Context Aggregation by Dilated Convolutions](https://arxiv.org/abs/1511.07122)
-    '''
+    """
+
     def __init__(self, nb_filter, nb_row, nb_col,
                  init='glorot_uniform', activation=None, weights=None,
                  border_mode='valid', subsample=(1, 1),
@@ -799,7 +804,7 @@ class AtrousConvolution2D(Convolution2D):
 
 
 class SeparableConvolution2D(Layer):
-    '''Separable convolution operator for 2D inputs.
+    """Separable convolution operator for 2D inputs.
 
     Separable convolutions consist in first performing
     a depthwise spatial convolution
@@ -876,7 +881,8 @@ class SeparableConvolution2D(Layer):
         or 4D tensor with shape:
         `(samples, new_rows, new_cols, nb_filter)` if dim_ordering='tf'.
         `rows` and `cols` values might have changed due to padding.
-    '''
+    """
+
     def __init__(self, nb_filter, nb_row, nb_col,
                  init='glorot_uniform', activation=None, weights=None,
                  border_mode='valid', subsample=(1, 1),
@@ -1026,7 +1032,7 @@ class SeparableConvolution2D(Layer):
 
 
 class Convolution3D(Layer):
-    '''Convolution operator for filtering windows of three-dimensional inputs.
+    """Convolution operator for filtering windows of three-dimensional inputs.
     When using this layer as the first layer in a model,
     provide the keyword argument `input_shape`
     (tuple of integers, does not include the sample axis),
@@ -1081,7 +1087,7 @@ class Convolution3D(Layer):
         or 5D tensor with shape:
         `(samples, new_conv_dim1, new_conv_dim2, new_conv_dim3, nb_filter)` if dim_ordering='tf'.
         `new_conv_dim1`, `new_conv_dim2` and `new_conv_dim3` values might have changed due to padding.
-    '''
+    """
 
     def __init__(self, nb_filter, kernel_dim1, kernel_dim2, kernel_dim3,
                  init='glorot_uniform', activation=None, weights=None,
@@ -1217,7 +1223,7 @@ class Convolution3D(Layer):
 
 
 class UpSampling1D(Layer):
-    '''Repeat each temporal step `length` times along the time axis.
+    """Repeat each temporal step `length` times along the time axis.
 
     # Arguments
         length: integer. Upsampling factor.
@@ -1227,7 +1233,7 @@ class UpSampling1D(Layer):
 
     # Output shape
         3D tensor with shape: `(samples, upsampled_steps, features)`.
-    '''
+    """
 
     def __init__(self, length=2, **kwargs):
         self.length = length
@@ -1249,7 +1255,7 @@ class UpSampling1D(Layer):
 
 
 class UpSampling2D(Layer):
-    '''Repeat the rows and columns of the data
+    """Repeat the rows and columns of the data
     by size[0] and size[1] respectively.
 
     # Arguments
@@ -1272,7 +1278,7 @@ class UpSampling2D(Layer):
         `(samples, channels, upsampled_rows, upsampled_cols)` if dim_ordering='th'
         or 4D tensor with shape:
         `(samples, upsampled_rows, upsampled_cols, channels)` if dim_ordering='tf'.
-    '''
+    """
 
     def __init__(self, size=(2, 2), dim_ordering='default', **kwargs):
         if dim_ordering == 'default':
@@ -1313,7 +1319,7 @@ class UpSampling2D(Layer):
 
 
 class UpSampling3D(Layer):
-    '''Repeat the first, second and third dimension of the data
+    """Repeat the first, second and third dimension of the data
     by size[0], size[1] and size[2] respectively.
 
     # Arguments
@@ -1336,7 +1342,7 @@ class UpSampling3D(Layer):
         `(samples, channels, upsampled_dim1, upsampled_dim2, upsampled_dim3)` if dim_ordering='th'
         or 5D tensor with shape:
         `(samples, upsampled_dim1, upsampled_dim2, upsampled_dim3, channels)` if dim_ordering='tf'.
-    '''
+    """
 
     def __init__(self, size=(2, 2, 2), dim_ordering='default', **kwargs):
         if dim_ordering == 'default':
@@ -1381,7 +1387,7 @@ class UpSampling3D(Layer):
 
 
 class ZeroPadding1D(Layer):
-    '''Zero-padding layer for 1D input (e.g. temporal sequence).
+    """Zero-padding layer for 1D input (e.g. temporal sequence).
 
     # Arguments
         padding: int, or tuple of int (length 2), or dictionary.
@@ -1400,7 +1406,7 @@ class ZeroPadding1D(Layer):
 
     # Output shape
         3D tensor with shape (samples, padded_axis, features)
-    '''
+    """
 
     def __init__(self, padding=1, **kwargs):
         super(ZeroPadding1D, self).__init__(**kwargs)
@@ -1444,7 +1450,7 @@ class ZeroPadding1D(Layer):
 
 
 class ZeroPadding2D(Layer):
-    '''Zero-padding layer for 2D input (e.g. picture).
+    """Zero-padding layer for 2D input (e.g. picture).
 
     # Arguments
         padding: tuple of int (length 2), or tuple of int (length 4), or dictionary.
@@ -1476,7 +1482,7 @@ class ZeroPadding2D(Layer):
         `(samples, channels, padded_rows, padded_cols)` if dim_ordering='th'
         or 4D tensor with shape:
         `(samples, padded_rows, padded_cols, channels)` if dim_ordering='tf'.
-    '''
+    """
 
     def __init__(self,
                  padding=(1, 1),
@@ -1553,7 +1559,7 @@ class ZeroPadding2D(Layer):
 
 
 class ZeroPadding3D(Layer):
-    '''Zero-padding layer for 3D data (spatial or spatio-temporal).
+    """Zero-padding layer for 3D data (spatial or spatio-temporal).
 
     # Arguments
         padding: tuple of int (length 3)
@@ -1574,7 +1580,7 @@ class ZeroPadding3D(Layer):
     # Output shape
         5D tensor with shape:
         (samples, depth, first_padded_axis, second_padded_axis, third_axis_to_pad)
-    '''
+    """
 
     def __init__(self, padding=(1, 1, 1), dim_ordering='default', **kwargs):
         super(ZeroPadding3D, self).__init__(**kwargs)
@@ -1619,7 +1625,7 @@ class ZeroPadding3D(Layer):
 
 
 class Cropping1D(Layer):
-    '''Cropping layer for 1D input (e.g. temporal sequence).
+    """Cropping layer for 1D input (e.g. temporal sequence).
     It crops along the time dimension (axis 1).
 
     # Arguments
@@ -1632,7 +1638,7 @@ class Cropping1D(Layer):
 
     # Output shape
         3D tensor with shape (samples, cropped_axis, features)
-    '''
+    """
 
     def __init__(self, cropping=(1, 1), **kwargs):
         super(Cropping1D, self).__init__(**kwargs)
@@ -1667,7 +1673,7 @@ class Cropping1D(Layer):
 
 
 class Cropping2D(Layer):
-    '''Cropping layer for 2D input (e.g. picture).
+    """Cropping layer for 2D input (e.g. picture).
     It crops along spatial dimensions, i.e. width and height.
 
     # Arguments
@@ -1701,8 +1707,7 @@ class Cropping2D(Layer):
         # now model.output_shape == (None, 64, 20, 16)
 
     ```
-
-    '''
+    """
 
     def __init__(self, cropping=((0, 0), (0, 0)), dim_ordering='default', **kwargs):
         super(Cropping2D, self).__init__(**kwargs)
@@ -1757,7 +1762,7 @@ class Cropping2D(Layer):
 
 
 class Cropping3D(Layer):
-    '''Cropping layer for 3D data (e.g. spatial or spatio-temporal).
+    """Cropping layer for 3D data (e.g. spatial or spatio-temporal).
 
     # Arguments
         cropping: tuple of tuple of int (length 3)
@@ -1778,7 +1783,7 @@ class Cropping3D(Layer):
         5D tensor with shape:
         (samples, depth, first_cropped_axis, second_cropped_axis, third_cropped_axis)
 
-    '''
+    """
 
     def __init__(self, cropping=((1, 1), (1, 1), (1, 1)),
                  dim_ordering='default', **kwargs):

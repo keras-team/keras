@@ -7,9 +7,8 @@ from ..utils.np_utils import conv_output_length
 
 
 class _Pooling1D(Layer):
-    '''Abstract class for different pooling 1D layers.
-    '''
-    input_dim = 3
+    """Abstract class for different pooling 1D layers.
+    """
 
     def __init__(self, pool_length=2, stride=None,
                  border_mode='valid', **kwargs):
@@ -51,7 +50,7 @@ class _Pooling1D(Layer):
 
 
 class MaxPooling1D(_Pooling1D):
-    '''Max pooling operation for temporal data.
+    """Max pooling operation for temporal data.
 
     # Input shape
         3D tensor with shape: `(samples, steps, features)`.
@@ -65,7 +64,7 @@ class MaxPooling1D(_Pooling1D):
             2 will halve the input.
             If None, it will default to `pool_length`.
         border_mode: 'valid' or 'same'.
-    '''
+    """
 
     def __init__(self, pool_length=2, stride=None,
                  border_mode='valid', **kwargs):
@@ -80,7 +79,7 @@ class MaxPooling1D(_Pooling1D):
 
 
 class AveragePooling1D(_Pooling1D):
-    '''Average pooling for temporal data.
+    """Average pooling for temporal data.
 
     # Arguments
         pool_length: factor by which to downscale. 2 will halve the input.
@@ -93,7 +92,7 @@ class AveragePooling1D(_Pooling1D):
 
     # Output shape
         3D tensor with shape: `(samples, downsampled_steps, features)`.
-    '''
+    """
 
     def __init__(self, pool_length=2, stride=None,
                  border_mode='valid', **kwargs):
@@ -108,8 +107,8 @@ class AveragePooling1D(_Pooling1D):
 
 
 class _Pooling2D(Layer):
-    '''Abstract class for different pooling 2D layers.
-    '''
+    """Abstract class for different pooling 2D layers.
+    """
 
     def __init__(self, pool_size=(2, 2), strides=None, border_mode='valid',
                  dim_ordering='default', **kwargs):
@@ -170,7 +169,7 @@ class _Pooling2D(Layer):
 
 
 class MaxPooling2D(_Pooling2D):
-    '''Max pooling operation for spatial data.
+    """Max pooling operation for spatial data.
 
     # Arguments
         pool_size: tuple of 2 integers,
@@ -196,7 +195,7 @@ class MaxPooling2D(_Pooling2D):
         `(nb_samples, channels, pooled_rows, pooled_cols)` if dim_ordering='th'
         or 4D tensor with shape:
         `(samples, pooled_rows, pooled_cols, channels)` if dim_ordering='tf'.
-    '''
+    """
 
     def __init__(self, pool_size=(2, 2), strides=None, border_mode='valid',
                  dim_ordering='default', **kwargs):
@@ -212,7 +211,7 @@ class MaxPooling2D(_Pooling2D):
 
 
 class AveragePooling2D(_Pooling2D):
-    '''Average pooling operation for spatial data.
+    """Average pooling operation for spatial data.
 
     # Arguments
         pool_size: tuple of 2 integers,
@@ -238,7 +237,7 @@ class AveragePooling2D(_Pooling2D):
         `(nb_samples, channels, pooled_rows, pooled_cols)` if dim_ordering='th'
         or 4D tensor with shape:
         `(samples, pooled_rows, pooled_cols, channels)` if dim_ordering='tf'.
-    '''
+    """
 
     def __init__(self, pool_size=(2, 2), strides=None, border_mode='valid',
                  dim_ordering='default', **kwargs):
@@ -253,8 +252,8 @@ class AveragePooling2D(_Pooling2D):
 
 
 class _Pooling3D(Layer):
-    '''Abstract class for different pooling 3D layers.
-    '''
+    """Abstract class for different pooling 3D layers.
+    """
 
     def __init__(self, pool_size=(2, 2, 2), strides=None, border_mode='valid',
                  dim_ordering='default', **kwargs):
@@ -321,7 +320,7 @@ class _Pooling3D(Layer):
 
 
 class MaxPooling3D(_Pooling3D):
-    '''Max pooling operation for 3D data (spatial or spatio-temporal).
+    """Max pooling operation for 3D data (spatial or spatio-temporal).
 
     # Arguments
         pool_size: tuple of 3 integers,
@@ -346,7 +345,7 @@ class MaxPooling3D(_Pooling3D):
         `(nb_samples, channels, pooled_dim1, pooled_dim2, pooled_dim3)` if dim_ordering='th'
         or 5D tensor with shape:
         `(samples, pooled_dim1, pooled_dim2, pooled_dim3, channels)` if dim_ordering='tf'.
-    '''
+    """
 
     def __init__(self, pool_size=(2, 2, 2), strides=None, border_mode='valid',
                  dim_ordering='default', **kwargs):
@@ -361,7 +360,7 @@ class MaxPooling3D(_Pooling3D):
 
 
 class AveragePooling3D(_Pooling3D):
-    '''Average pooling operation for 3D data (spatial or spatio-temporal).
+    """Average pooling operation for 3D data (spatial or spatio-temporal).
 
     # Arguments
         pool_size: tuple of 3 integers,
@@ -386,7 +385,7 @@ class AveragePooling3D(_Pooling3D):
         `(nb_samples, channels, pooled_dim1, pooled_dim2, pooled_dim3)` if dim_ordering='th'
         or 5D tensor with shape:
         `(samples, pooled_dim1, pooled_dim2, pooled_dim3, channels)` if dim_ordering='tf'.
-    '''
+    """
 
     def __init__(self, pool_size=(2, 2, 2), strides=None, border_mode='valid',
                  dim_ordering='default', **kwargs):
@@ -415,28 +414,28 @@ class _GlobalPooling1D(Layer):
 
 
 class GlobalAveragePooling1D(_GlobalPooling1D):
-    '''Global average pooling operation for temporal data.
+    """Global average pooling operation for temporal data.
 
     # Input shape
         3D tensor with shape: `(samples, steps, features)`.
 
     # Output shape
         2D tensor with shape: `(samples, features)`.
-    '''
+    """
 
     def call(self, x, mask=None):
         return K.mean(x, axis=1)
 
 
 class GlobalMaxPooling1D(_GlobalPooling1D):
-    '''Global max pooling operation for temporal data.
+    """Global max pooling operation for temporal data.
 
     # Input shape
         3D tensor with shape: `(samples, steps, features)`.
 
     # Output shape
         2D tensor with shape: `(samples, features)`.
-    '''
+    """
 
     def call(self, x, mask=None):
         return K.max(x, axis=1)
@@ -467,7 +466,7 @@ class _GlobalPooling2D(Layer):
 
 
 class GlobalAveragePooling2D(_GlobalPooling2D):
-    '''Global average pooling operation for spatial data.
+    """Global average pooling operation for spatial data.
 
     # Arguments
         dim_ordering: 'th' or 'tf'. In 'th' mode, the channels dimension
@@ -485,7 +484,7 @@ class GlobalAveragePooling2D(_GlobalPooling2D):
     # Output shape
         2D tensor with shape:
         `(nb_samples, channels)`
-    '''
+    """
 
     def call(self, x, mask=None):
         if self.dim_ordering == 'tf':
@@ -495,7 +494,7 @@ class GlobalAveragePooling2D(_GlobalPooling2D):
 
 
 class GlobalMaxPooling2D(_GlobalPooling2D):
-    '''Global max pooling operation for spatial data.
+    """Global max pooling operation for spatial data.
 
     # Arguments
         dim_ordering: 'th' or 'tf'. In 'th' mode, the channels dimension
@@ -513,7 +512,7 @@ class GlobalMaxPooling2D(_GlobalPooling2D):
     # Output shape
         2D tensor with shape:
         `(nb_samples, channels)`
-    '''
+    """
 
     def call(self, x, mask=None):
         if self.dim_ordering == 'tf':
@@ -547,7 +546,7 @@ class _GlobalPooling3D(Layer):
 
 
 class GlobalAveragePooling3D(_GlobalPooling3D):
-    '''Global Average pooling operation for 3D data.
+    """Global Average pooling operation for 3D data.
 
     # Arguments
         dim_ordering: 'th' or 'tf'. In 'th' mode, the channels dimension
@@ -565,7 +564,7 @@ class GlobalAveragePooling3D(_GlobalPooling3D):
     # Output shape
         2D tensor with shape:
         `(nb_samples, channels)`
-    '''
+    """
 
     def call(self, x, mask=None):
         if self.dim_ordering == 'tf':
@@ -575,7 +574,7 @@ class GlobalAveragePooling3D(_GlobalPooling3D):
 
 
 class GlobalMaxPooling3D(_GlobalPooling3D):
-    '''Global Max pooling operation for 3D data.
+    """Global Max pooling operation for 3D data.
 
     # Arguments
         dim_ordering: 'th' or 'tf'. In 'th' mode, the channels dimension
@@ -593,7 +592,7 @@ class GlobalMaxPooling3D(_GlobalPooling3D):
     # Output shape
         2D tensor with shape:
         `(nb_samples, channels)`
-    '''
+    """
 
     def call(self, x, mask=None):
         if self.dim_ordering == 'tf':
