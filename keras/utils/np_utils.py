@@ -6,12 +6,13 @@ from six.moves import zip
 from .. import backend as K
 
 
-def to_categorical(y, nb_classes=None):
+def to_categorical(y, nb_classes=None, smooth=0):
     '''Convert class vector (integers from 0 to nb_classes) to binary class matrix, for use with categorical_crossentropy.
 
     # Arguments
         y: class vector to be converted into a matrix
         nb_classes: total number of classes
+        smooth: label smoothing factor (between 0 and 1)
 
     # Returns
         A binary matrix representation of the input.
@@ -19,9 +20,16 @@ def to_categorical(y, nb_classes=None):
     y = np.array(y, dtype='int')
     if not nb_classes:
         nb_classes = np.max(y)+1
+
     Y = np.zeros((len(y), nb_classes))
-    for i in range(len(y)):
-        Y[i, y[i]] = 1.
+    if smooth == 0:
+        Y[np.arange(len(y)), y] = 1.
+    elif 0 < smooth < 1:
+        # label smoothing ref: https://www.robots.ox.ac.uk/~vgg/rg/papers/reinception.pdf
+        Y += smooth/nb_classes
+        Y[np.arange(len(y)), y] += 1.-smooth
+    else:
+        raise Exception('Invalid label smoothing factor: ' + str(smooth))
     return Y
 
 
