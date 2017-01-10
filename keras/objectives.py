@@ -31,22 +31,29 @@ def hinge(y_true, y_pred):
     return K.mean(K.maximum(1. - y_true * y_pred, 0.), axis=-1)
 
 
-def categorical_crossentropy(y_true, y_pred):
+def get_crossentropy_loss_function(loss, from_logits=False):
+    def correct_loss(y_true, y_pred):
+        return get(loss)(y_true, y_pred, from_logits=from_logits)
+
+    return correct_loss
+
+
+def categorical_crossentropy(y_true, y_pred, from_logits=False):
     '''Expects a binary class matrix instead of a vector of scalar classes.
     '''
-    return K.categorical_crossentropy(y_pred, y_true)
+    return K.categorical_crossentropy(y_pred, y_true, from_logits)
 
 
-def sparse_categorical_crossentropy(y_true, y_pred):
+def sparse_categorical_crossentropy(y_true, y_pred, from_logits=False):
     '''expects an array of integer classes.
     Note: labels shape must have the same number of dimensions as output shape.
     If you get a shape error, add a length-1 dimension to labels.
     '''
-    return K.sparse_categorical_crossentropy(y_pred, y_true)
+    return K.sparse_categorical_crossentropy(y_pred, y_true, from_logits)
 
 
-def binary_crossentropy(y_true, y_pred):
-    return K.mean(K.binary_crossentropy(y_pred, y_true), axis=-1)
+def binary_crossentropy(y_true, y_pred, from_logits=False):
+    return K.mean(K.binary_crossentropy(y_pred, y_true, from_logits), axis=-1)
 
 
 def kullback_leibler_divergence(y_true, y_pred):
