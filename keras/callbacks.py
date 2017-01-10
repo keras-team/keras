@@ -18,6 +18,13 @@ from pkg_resources import parse_version
 
 
 class CallbackList(object):
+    """Container abstracting a list of callbacks.
+
+    # Arguments
+        callbacks: List of `Callback` instances.
+        queue_length: Queue length for keeping
+            running statistics over callback execution time.
+    """
 
     def __init__(self, callbacks=None, queue_length=10):
         callbacks = callbacks or []
@@ -146,11 +153,9 @@ class Callback(object):
 
 
 class BaseLogger(Callback):
-    """Callback that accumulates epoch averages of
-    the metrics being monitored.
+    """Callback that accumulates epoch averages of metrics.
 
-    This callback is automatically applied to
-    every Keras model.
+    This callback is automatically applied to every Keras model.
     """
 
     def on_epoch_begin(self, epoch, logs=None):
@@ -219,8 +224,7 @@ class ProgbarLogger(Callback):
 
 
 class History(Callback):
-    """Callback that records events
-    into a `History` object.
+    """Callback that records events into a `History` object.
 
     This callback is automatically applied to
     every Keras model. The `History` object
@@ -424,19 +428,24 @@ class RemoteMonitor(Callback):
     JSON-encoded dictionary of event data.
 
     # Arguments
-        root: Root url of the target server.
-        path: Path relative to `root` to which the events will be sent.
-        field: JSON field under which the data will be stored.
-        headers: Optional custom HTTP headers.
+        root: String; root url of the target server.
+        path: String; path relative to `root` to which the events will be sent.
+        field: String; JSON field under which the data will be stored.
+        headers: Dictionary; optional custom HTTP headers.
+            Defaults to:
+            `{'Accept': 'application/json',
+              'Content-Type': 'application/json'}`
     """
 
     def __init__(self,
                  root='http://localhost:9000',
                  path='/publish/epoch/end/',
                  field='data',
-                 headers={'Accept': 'application/json',
-                          'Content-Type': 'application/json'}):
+                 headers=None):
         super(RemoteMonitor, self).__init__()
+        if headers is None:
+            headers = {'Accept': 'application/json',
+                       'Content-Type': 'application/json'}
         self.root = root
         self.path = path
         self.field = field
@@ -482,7 +491,7 @@ class LearningRateScheduler(Callback):
 
 
 class TensorBoard(Callback):
-    """ Tensorboard basic visualizations.
+    """Tensorboard basic visualizations.
 
     This callback writes a log for TensorBoard, which allows
     you to visualize dynamic graphs of your training and test
@@ -515,7 +524,7 @@ class TensorBoard(Callback):
                  write_graph=True,
                  write_images=False):
         super(TensorBoard, self).__init__()
-        if K._BACKEND != 'tensorflow':
+        if K.backend() != 'tensorflow':
             raise RuntimeError('TensorBoard callback only works '
                                'with the TensorFlow backend.')
         self.log_dir = log_dir
@@ -718,6 +727,7 @@ class ReduceLROnPlateau(Callback):
 
 class CSVLogger(Callback):
     """Callback that streams epoch results to a csv file.
+
     Supports all values that can be represented as a string,
     including 1D iterables such as np.ndarray.
 
