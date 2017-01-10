@@ -1150,6 +1150,10 @@ def switch(condition, then_expression, else_expression):
     return T.switch(condition, then_expression, else_expression)
 
 
+def select(condition, then_expression, else_expression):
+    return T.switch(condition, then_expression, else_expression)
+
+
 def in_train_phase(x, alt):
     if _LEARNING_PHASE is 1:
         return x

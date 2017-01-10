@@ -1089,6 +1089,8 @@ def pow(x, a):
 
 def clip(x, min_value, max_value):
     '''Element-wise value clipping.
+
+    If max_value < min_value then min_value "wins" and the output is always min_value
     '''
     if max_value < min_value:
         max_value = min_value
@@ -1868,6 +1870,19 @@ def switch(condition, then_expression, else_expression):
               lambda: else_expression)
     x.set_shape(x_shape)
     return x
+
+
+def select(condition, then_expression, else_expression):
+    """TensorFlow API: tf.select(condition, t, e, name=None)
+
+    `condition`, `then_expression` & `else_expression`
+    must all 3 be tensors of the same shape
+    """
+    # tf.expand_dims(condition, 0)
+    condition = tf.cast(tf.ones_like(then_expression) * tf.to_float(condition), dtype=bool)
+    condition.set_shape(copy.copy(then_expression.get_shape()))
+    # condition = tf.tile(condition, tf.pack([1, tf.shape(then_expression)[1]]))
+    return tf.select(condition, then_expression, else_expression)
 
 
 def in_train_phase(x, alt):
