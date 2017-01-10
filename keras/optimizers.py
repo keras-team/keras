@@ -121,10 +121,10 @@ class SGD(Optimizer):
         nesterov: boolean. Whether to apply Nesterov momentum.
     '''
     def __init__(self, lr=0.01, momentum=0., decay=0.,
-                 nesterov=False, **kwargs):
+                 nesterov=False, iteration_no=0, **kwargs):
         super(SGD, self).__init__(**kwargs)
         self.__dict__.update(locals())
-        self.iterations = K.variable(0.)
+        self.iterations = K.variable(float(iteration_no))
         self.lr = K.variable(lr)
         self.momentum = K.variable(momentum)
         self.decay = K.variable(decay)
@@ -185,7 +185,7 @@ class RMSprop(Optimizer):
         epsilon: float >= 0. Fuzz factor.
         decay: float >= 0. Learning rate decay over each update.
     '''
-    def __init__(self, lr=0.001, rho=0.9, epsilon=1e-8, decay=0.,
+    def __init__(self, lr=0.001, rho=0.9, epsilon=1e-8, decay=0., iteration_no=0,
                  **kwargs):
         super(RMSprop, self).__init__(**kwargs)
         self.__dict__.update(locals())
@@ -193,7 +193,7 @@ class RMSprop(Optimizer):
         self.rho = K.variable(rho)
         self.decay = K.variable(decay)
         self.inital_decay = decay
-        self.iterations = K.variable(0.)
+        self.iterations = K.variable(float(iteration_no))
 
     def get_updates(self, params, constraints, loss):
         grads = self.get_gradients(loss, params)
@@ -242,13 +242,13 @@ class Adagrad(Optimizer):
     # References
         - [Adaptive Subgradient Methods for Online Learning and Stochastic Optimization](http://www.jmlr.org/papers/volume12/duchi11a/duchi11a.pdf)
     '''
-    def __init__(self, lr=0.01, epsilon=1e-8, decay=0., **kwargs):
+    def __init__(self, lr=0.01, epsilon=1e-8, decay=0., iteration_no=0, **kwargs):
         super(Adagrad, self).__init__(**kwargs)
         self.__dict__.update(locals())
         self.lr = K.variable(lr)
         self.decay = K.variable(decay)
         self.inital_decay = decay
-        self.iterations = K.variable(0.)
+        self.iterations = K.variable(float(iteration_no))
 
     def get_updates(self, params, constraints, loss):
         grads = self.get_gradients(loss, params)
@@ -296,14 +296,14 @@ class Adadelta(Optimizer):
     # References
         - [Adadelta - an adaptive learning rate method](http://arxiv.org/abs/1212.5701)
     '''
-    def __init__(self, lr=1.0, rho=0.95, epsilon=1e-8, decay=0.,
+    def __init__(self, lr=1.0, rho=0.95, epsilon=1e-8, decay=0., iteration_no=0,
                  **kwargs):
         super(Adadelta, self).__init__(**kwargs)
         self.__dict__.update(locals())
         self.lr = K.variable(lr)
         self.decay = K.variable(decay)
         self.inital_decay = decay
-        self.iterations = K.variable(0.)
+        self.iterations = K.variable(float(iteration_no))
 
     def get_updates(self, params, constraints, loss):
         grads = self.get_gradients(loss, params)
@@ -361,10 +361,10 @@ class Adam(Optimizer):
         - [Adam - A Method for Stochastic Optimization](http://arxiv.org/abs/1412.6980v8)
     '''
     def __init__(self, lr=0.001, beta_1=0.9, beta_2=0.999,
-                 epsilon=1e-8, decay=0., **kwargs):
+                 epsilon=1e-8, decay=0., iteration_no=0, **kwargs):
         super(Adam, self).__init__(**kwargs)
         self.__dict__.update(locals())
-        self.iterations = K.variable(0)
+        self.iterations = K.variable(float(iteration_no))
         self.lr = K.variable(lr)
         self.beta_1 = K.variable(beta_1)
         self.beta_2 = K.variable(beta_2)
@@ -428,10 +428,10 @@ class Adamax(Optimizer):
         - [Adam - A Method for Stochastic Optimization](http://arxiv.org/abs/1412.6980v8)
     '''
     def __init__(self, lr=0.002, beta_1=0.9, beta_2=0.999,
-                 epsilon=1e-8, decay=0., **kwargs):
+                 epsilon=1e-8, decay=0., iteration_no=0, **kwargs):
         super(Adamax, self).__init__(**kwargs)
         self.__dict__.update(locals())
-        self.iterations = K.variable(0.)
+        self.iterations = K.variable(float(iteration_no))
         self.lr = K.variable(lr)
         self.beta_1 = K.variable(beta_1)
         self.beta_2 = K.variable(beta_2)
@@ -502,10 +502,10 @@ class Nadam(Optimizer):
         - [On the importance of initialization and momentum in deep learning](http://www.cs.toronto.edu/~fritz/absps/momentum.pdf)
     '''
     def __init__(self, lr=0.002, beta_1=0.9, beta_2=0.999,
-                 epsilon=1e-8, schedule_decay=0.004, **kwargs):
+                 epsilon=1e-8, schedule_decay=0.004, iteration_no=0, **kwargs):
         super(Nadam, self).__init__(**kwargs)
         self.__dict__.update(locals())
-        self.iterations = K.variable(0.)
+        self.iterations = K.variable(float(iteration_no))
         self.m_schedule = K.variable(1.)
         self.lr = K.variable(lr)
         self.beta_1 = K.variable(beta_1)
@@ -567,7 +567,7 @@ class TFOptimizer(Optimizer):
 
     def __init__(self, optimizer):
         self.optimizer = optimizer
-        self.iterations = K.variable(0.)
+        self.iterations = K.variable(float(iteration_no))
         self.updates = []
 
     def get_updates(self, params, constraints, loss):
