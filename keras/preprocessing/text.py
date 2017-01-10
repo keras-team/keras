@@ -10,6 +10,7 @@ import sys
 import numpy as np
 from six.moves import range
 from six.moves import zip
+from collections import Counter
 
 if sys.version_info < (3,):
     maketrans = string.maketrans
@@ -81,44 +82,29 @@ class Tokenizer(object):
             texts: can be a list of strings,
                 or a generator of strings (for memory-efficiency)
         '''
-        self.document_count = 0
+        self.word_counter = Counter()
         for text in texts:
             self.document_count += 1
             seq = text if self.char_level else text_to_word_sequence(text, self.filters, self.lower, self.split)
-            for w in seq:
-                if w in self.word_counts:
-                    self.word_counts[w] += 1
-                else:
-                    self.word_counts[w] = 1
-            for w in set(seq):
-                if w in self.word_docs:
-                    self.word_docs[w] += 1
-                else:
-                    self.word_docs[w] = 1
+            self.word_counter.update(seq)
 
-        wcounts = list(self.word_counts.items())
-        wcounts.sort(key=lambda x: x[1], reverse=True)
-        sorted_voc = [wc[0] for wc in wcounts]
-        # note that index 0 is reserved, never assigned to an existing word
-        self.word_index = dict(list(zip(sorted_voc, list(range(1, len(sorted_voc) + 1)))))
-
-        self.index_docs = {}
-        for w, c in list(self.word_docs.items()):
-            self.index_docs[self.word_index[w]] = c
+        words = [w[0] for w in self.word_counter.most_common()]
+        
+        self.word_index = dict(list(zip(words, list(range(1, len(words) + 1)))))
 
     def fit_on_sequences(self, sequences):
         '''Required before using sequences_to_matrix
         (if fit_on_texts was never called)
         '''
-        self.document_count = len(sequences)
-        self.index_docs = {}
+        self.word_counter = Counter()
+
         for seq in sequences:
-            seq = set(seq)
-            for i in seq:
-                if i not in self.index_docs:
-                    self.index_docs[i] = 1
-                else:
-                    self.index_docs[i] += 1
+            self.document_count += 1
+            self.word_counter.update(seq)
+
+        words = [w[0] for w in self.word_counter.most_common()]
+
+        self.word_index = dict(list(zip(words, list(range(1, len(words) + 1)))))
 
     def texts_to_sequences(self, texts):
         '''Transforms each text in texts in a sequence of integers.
@@ -211,7 +197,7 @@ class Tokenizer(object):
                     # Use weighting scheme 2 in
                     #   https://en.wikipedia.org/wiki/Tf%E2%80%93idf
                     tf = 1 + np.log(c)
-                    idf = np.log(1 + self.document_count / (1 + self.index_docs.get(j, 0)))
+                    idf = np.log(1 + self.document_count / (1 + self.word_counter.get(j, 0)))
                     X[i][j] = tf * idf
                 else:
                     raise ValueError('Unknown vectorization mode:', mode)
