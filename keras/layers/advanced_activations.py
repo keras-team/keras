@@ -142,7 +142,7 @@ class ELU(Layer):
 
 class ParametricSoftplus(Layer):
     '''Parametric Softplus:
-    `alpha * log(1 + exp(beta * x))`
+    `f(x) = alpha * log(1 + exp(beta * x))`
 
     # Input shape
         Arbitrary. Use the keyword argument `input_shape`
@@ -213,7 +213,7 @@ class ParametricSoftplus(Layer):
 
 class ThresholdedReLU(Layer):
     '''Thresholded Rectified Linear Unit:
-    `f(x) = x for x > theta`
+    `f(x) = x for x > theta`,
     `f(x) = 0 otherwise`.
 
     # Input shape
@@ -245,7 +245,10 @@ class ThresholdedReLU(Layer):
 
 
 class SReLU(Layer):
-    '''S-shaped Rectified Linear Unit.
+    '''S-shaped Rectified Linear Unit:
+    `f(x) = t^r + a^r(x - t^r) for x >= t^r`,
+    `f(x) = x for t^r > x > t^l`,
+    `f(x) = t^l + a^l(x - t^l) for x <= t^l`.
 
     # Input shape
         Arbitrary. Use the keyword argument `input_shape`
