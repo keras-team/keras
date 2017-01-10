@@ -30,7 +30,7 @@ def test_recurrent_convolutional():
                                    input_channel)
 
         for return_sequences in [True, False]:
-            # test for ouptput shape:
+            # test for output shape:
             output = layer_test(convolutional_recurrent.ConvLSTM2D,
                                 kwargs={'dim_ordering': dim_ordering,
                                         'return_sequences': return_sequences,

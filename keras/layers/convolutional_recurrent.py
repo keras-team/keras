@@ -30,7 +30,7 @@ class ConvRecurrent2D(Layer):
         return_sequences: Boolean. Whether to return the last output
             in the output sequence, or the full sequence.
         go_backwards: Boolean (default False).
-            If True, rocess the input sequence backwards.
+            If True, process the input sequence backwards.
         stateful: Boolean (default False). If True, the last state
             for each sample at index i in a batch will be used as initial
             state for the sample of index i in the following batch.
@@ -272,7 +272,7 @@ class ConvLSTM2D(ConvRecurrent2D):
         self.subsample = subsample
 
         if dim_ordering == 'th':
-            warnings.warn('Be carefull if used with convolution3D layers:\n'
+            warnings.warn('Be careful if used with convolution3D layers:\n'
                           'th in convolution 3D corresponds to '
                           '(samples, channels, conv_dim1, conv_dim2,'
                           'conv_dim3)\n'

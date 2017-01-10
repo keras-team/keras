@@ -671,7 +671,7 @@ class Layer(object):
                                      str(input_mask))
             # masking not explicitly supported: return None as mask
             return None
-        # if masking is explictly supported, by default
+        # if masking is explicitly supported, by default
         # carry over the input mask
         return input_mask
 

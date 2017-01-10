@@ -17,7 +17,7 @@ def load_data(path='imdb_full.pkl', nb_words=None, skip_top=0,
         nb_words: max number of words to include. Words are ranked
             by how often they occur (in the training set) and only
             the most frequent words are kept
-        skip_top: skip the top N most frequently occuring words
+        skip_top: skip the top N most frequently occurring words
             (which may not be informative).
         maxlen: truncate sequences after this length.
         seed: random seed for sample shuffling.
@@ -30,7 +30,7 @@ def load_data(path='imdb_full.pkl', nb_words=None, skip_top=0,
     Note that the 'out of vocabulary' character is only used for
     words that were present in the training set but are not included
     because they're not making the `nb_words` cut here.
-    Words that were not seen in the trining set but are in the test set
+    Words that were not seen in the training set but are in the test set
     have simply been skipped.
     '''
     path = get_file(path,

@@ -62,7 +62,7 @@ def func_load(code, defaults=None, closure=None, globs=None):
 class Progbar(object):
 
     def __init__(self, target, width=30, verbose=1, interval=0.01):
-        '''Dislays a progress bar.
+        '''Displays a progress bar.
 
         # Arguments:
             target: Total number of steps expected.
