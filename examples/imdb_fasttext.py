@@ -54,9 +54,9 @@ def add_ngram(sequences, token_indice, ngram_range=2):
     new_sequences = []
     for input_list in sequences:
         new_list = input_list[:]
-        for i in range(len(new_list)-ngram_range+1):
-            for ngram_value in range(2, ngram_range+1):
-                ngram = tuple(new_list[i:i+ngram_value])
+        for i in range(len(new_list) - ngram_range + 1):
+            for ngram_value in range(2, ngram_range + 1):
+                ngram = tuple(new_list[i:i + ngram_value])
                 if ngram in token_indice:
                     new_list.append(token_indice[ngram])
         new_sequences.append(new_list)
@@ -84,7 +84,7 @@ if ngram_range > 1:
     # Create set of unique n-gram from the training set.
     ngram_set = set()
     for input_list in X_train:
-        for i in range(2, ngram_range+1):
+        for i in range(2, ngram_range + 1):
             set_of_ngram = create_ngram_set(input_list, ngram_value=i)
             ngram_set.update(set_of_ngram)
 
@@ -92,7 +92,7 @@ if ngram_range > 1:
     # Integer values are greater than max_features in order
     # to avoid collision with existing features.
     start_index = max_features + 1
-    token_indice = {v: k+start_index for k, v in enumerate(ngram_set)}
+    token_indice = {v: k + start_index for k, v in enumerate(ngram_set)}
     indice_token = {token_indice[k]: k for k in token_indice}
 
     # max_features is the highest integer that could be found in the dataset.

@@ -34,6 +34,7 @@ X_test /= 255
 y_train = np_utils.to_categorical(y_train, nb_classes)
 y_test = np_utils.to_categorical(y_test, nb_classes)
 
+
 def make_model(dense_layer_sizes, nb_filters, nb_conv, nb_pool):
     '''Creates model comprised of 2 convolutional layers followed by dense layers
 

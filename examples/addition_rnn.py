@@ -41,6 +41,7 @@ class CharacterTable(object):
     + Decode the one hot integer representation to their character output
     + Decode a vector of probabilities to their character output
     '''
+
     def __init__(self, chars, maxlen):
         self.chars = sorted(set(chars))
         self.char_indices = dict((c, i) for i, c in enumerate(self.chars))

@@ -50,7 +50,7 @@ def create_pairs(x, digit_indices):
     n = min([len(digit_indices[d]) for d in range(10)]) - 1
     for d in range(10):
         for i in range(n):
-            z1, z2 = digit_indices[d][i], digit_indices[d][i+1]
+            z1, z2 = digit_indices[d][i], digit_indices[d][i + 1]
             pairs += [[x[z1], x[z2]]]
             inc = random.randrange(1, 10)
             dn = (d + inc) % 10

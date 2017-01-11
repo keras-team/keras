@@ -20,6 +20,8 @@ img_height = 128
 layer_name = 'block5_conv1'
 
 # util function to convert a tensor into a valid image
+
+
 def deprocess_image(x):
     # normalize tensor: center on 0., ensure std is 0.1
     x -= x.mean()

@@ -126,7 +126,9 @@ class Optimizer(object):
 
 
 class SGD(Optimizer):
-    """Stochastic gradient descent, with support for momentum,
+    """Stochastic gradient descent optimizer.
+
+    Includes support for momentum,
     learning rate decay, and Nesterov momentum.
 
     # Arguments
