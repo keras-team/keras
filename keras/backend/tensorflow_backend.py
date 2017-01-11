@@ -1860,13 +1860,21 @@ def switch(condition, then_expression, else_expression):
         then_expression: TensorFlow operation.
         else_expression: TensorFlow operation.
     """
-    x_shape = copy.copy(then_expression.get_shape())
     if condition.dtype != tf.bool:
         condition = tf.cast(condition, 'bool')
+    if not callable(then_expression):
+        def then_expression_fn():
+            return then_expression
+    else:
+        then_expression_fn = then_expression
+    if not callable(else_expression):
+        def else_expression_fn():
+            return else_expression
+    else:
+        else_expression_fn = else_expression
     x = _cond(condition,
-              lambda: then_expression,
-              lambda: else_expression)
-    x.set_shape(x_shape)
+              then_expression_fn,
+              else_expression_fn)
     return x
 
 
@@ -1970,7 +1978,11 @@ def categorical_crossentropy(output, target, from_logits=False):
         return - tf.reduce_sum(target * tf.log(output),
                                reduction_indices=len(output.get_shape()) - 1)
     else:
-        return tf.nn.softmax_cross_entropy_with_logits(output, target)
+        try:
+            return tf.nn.softmax_cross_entropy_with_logits(labels=target,
+                                                           logits=output)
+        except TypeError:
+            return tf.nn.softmax_cross_entropy_with_logits(output, target)
 
 
 def sparse_categorical_crossentropy(output, target, from_logits=False):
@@ -1985,9 +1997,15 @@ def sparse_categorical_crossentropy(output, target, from_logits=False):
         output = tf.log(output)
 
     output_shape = output.get_shape()
-    res = tf.nn.sparse_softmax_cross_entropy_with_logits(
-        tf.reshape(output, [-1, int(output_shape[-1])]),
-        cast(flatten(target), 'int64'))
+    targets = cast(flatten(target), 'int64')
+    logits = tf.reshape(output, [-1, int(output_shape[-1])])
+    try:
+        res = tf.nn.sparse_softmax_cross_entropy_with_logits(
+            labels=targets,
+            logits=logits)
+    except TypeError:
+        res = tf.nn.sparse_softmax_cross_entropy_with_logits(
+            logits, targets)
     if len(output_shape) == 3:
         # if our output includes timesteps we need to reshape
         return tf.reshape(res, tf.shape(output)[:-1])
@@ -2005,7 +2023,11 @@ def binary_crossentropy(output, target, from_logits=False):
         epsilon = _to_tensor(_EPSILON, output.dtype.base_dtype)
         output = tf.clip_by_value(output, epsilon, 1 - epsilon)
         output = tf.log(output / (1 - output))
-    return tf.nn.sigmoid_cross_entropy_with_logits(output, target)
+    try:
+        return tf.nn.sigmoid_cross_entropy_with_logits(labels=target,
+                                                       logits=output)
+    except TypeError:
+        return tf.nn.sigmoid_cross_entropy_with_logits(output, target)
 
 
 def sigmoid(x):
