@@ -1248,7 +1248,7 @@ def clip(x, min_value, max_value):
     # Returns
         A tensor.
     """
-    if max_value < min_value:
+    if max_value is not None and max_value < min_value:
         max_value = min_value
     min_value = _to_tensor(min_value, x.dtype.base_dtype)
     max_value = _to_tensor(max_value, x.dtype.base_dtype)
