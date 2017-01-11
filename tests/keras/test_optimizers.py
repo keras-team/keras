@@ -74,5 +74,15 @@ def test_nadam():
     _test_optimizer(Nadam())
 
 
+def test_clipnorm():
+    sgd = SGD(lr=0.01, momentum=0.9, clipnorm=0.5)
+    _test_optimizer(sgd)
+
+
+def test_clipvalue():
+    sgd = SGD(lr=0.01, momentum=0.9, clipvalue=0.5)
+    _test_optimizer(sgd)
+
+
 if __name__ == '__main__':
     pytest.main([__file__])
