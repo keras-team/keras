@@ -83,3 +83,43 @@ def plot(model, to_file='model.png', show_shapes=False, show_layer_names=True):
     else:
         format = format[1:]
     dot.write(to_file, format=format)
+
+
+def figures(history, figure_name="plots"):
+    import matplotlib.pyplot as plt
+
+    hist = history.history
+    epoch = history.epoch
+    acc = hist['acc']
+    loss = hist['loss']
+    val_loss = hist['val_loss']
+    val_acc = hist['val_acc']
+
+    plt.figure(1)
+
+    plt.subplot(221)
+    plt.plot(epoch, acc)
+    plt.title("Training accuracy vs Epoch")
+    plt.xlabel("Epoch")
+    plt.ylabel("Accuracy")
+
+    plt.subplot(222)
+    plt.plot(epoch, loss)
+    plt.title("Training loss vs Epoch")
+    plt.xlabel("Epoch")
+    plt.ylabel("Loss")
+
+    plt.subplot(223)
+    plt.plot(epoch, val_acc)
+    plt.title("Validation Acc vs Epoch")
+    plt.xlabel("Epoch")
+    plt.ylabel("Validation Accuracy")
+
+    plt.subplot(224)
+    plt.plot(epoch, val_loss)
+    plt.title("Validation loss vs Epoch")
+    plt.xlabel("Epoch")
+    plt.ylabel("Validation Loss")
+
+    plt.tight_layout()
+    plt.savefig(figure_name)
