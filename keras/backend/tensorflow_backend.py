@@ -839,17 +839,17 @@ def batch_dot(x, y, axes=None):
         Shape inference:
         Let `x`'s shape be `(100, 20)` and `y`'s shape be `(100, 30, 20)`.
         If `axes` is (1, 2), to find the output shape of resultant tensor,
-            loop through each dimension in x's shape and y's shape:
+            loop through each dimension in `x`'s shape and `y`'s shape:
 
         * `x.shape[0]` : 100 : append to output shape
         * `x.shape[1]` : 20 : do not append to output shape,
-            dimension 1 of x has been summed over. (`dot_axes[0]` = 1)
+            dimension 1 of `x` has been summed over. (`dot_axes[0]` = 1)
         * `y.shape[0]` : 100 : do not append to output shape,
-            always ignore first dimension of y
+            always ignore first dimension of `y`
         * `y.shape[1]` : 30 : append to output shape
         * `y.shape[2]` : 20 : do not append to output shape,
-            dimension 2 of y has been summed over. (`dot_axes[1]` = 2)
-        output_shape = `(100, 30)`
+            dimension 2 of `y` has been summed over. (`dot_axes[1]` = 2)
+        `output_shape` = `(100, 30)`
 
     ```python
         >>> x_batch = K.ones(shape=(32, 20, 1))
@@ -946,6 +946,17 @@ def _normalize_axis(axis, ndim):
 
 def max(x, axis=None, keepdims=False):
     """Maximum value in a tensor.
+
+    # Arguments
+        x: A tensor or variable.
+        axis: An integer, the axis to find maximum values.
+        keepdims: A boolean, whether to keep the dimensions or not.
+            If `keepdims` is `False`, the rank of the tensor is reduced
+            by 1. If `keepdims` is `True`,
+            the reduced dimension is retained with length 1.
+
+    # Returns
+        A tensor with maximum values of `x`.
     """
     axis = _normalize_axis(axis, ndim(x))
     return tf.reduce_max(x, reduction_indices=axis, keep_dims=keepdims)
@@ -953,6 +964,17 @@ def max(x, axis=None, keepdims=False):
 
 def min(x, axis=None, keepdims=False):
     """Minimum value in a tensor.
+
+    # Arguments
+        x: A tensor or variable.
+        axis: An integer, the axis to find minimum values.
+        keepdims: A boolean, whether to keep the dimensions or not.
+            If `keepdims` is `False`, the rank of the tensor is reduced
+            by 1. If `keepdims` is `True`,
+            the reduced dimension is retained with length 1.
+
+    # Returns
+        A tensor with miminum values of `x`.
     """
     axis = _normalize_axis(axis, ndim(x))
     return tf.reduce_min(x, reduction_indices=axis, keep_dims=keepdims)
@@ -960,6 +982,17 @@ def min(x, axis=None, keepdims=False):
 
 def sum(x, axis=None, keepdims=False):
     """Sum of the values in a tensor, alongside the specified axis.
+
+    # Arguments
+        x: A tensor or variable.
+        axis: An integer, the axis to sum over.
+        keepdims: A boolean, whether to keep the dimensions or not.
+            If `keepdims` is `False`, the rank of the tensor is reduced
+            by 1. If `keepdims` is `True`,
+            the reduced dimension is retained with length 1.
+
+    # Returns
+        A tensor with sum of `x`.
     """
     axis = _normalize_axis(axis, ndim(x))
     return tf.reduce_sum(x, reduction_indices=axis, keep_dims=keepdims)
@@ -967,6 +1000,17 @@ def sum(x, axis=None, keepdims=False):
 
 def prod(x, axis=None, keepdims=False):
     """Multiplies the values in a tensor, alongside the specified axis.
+
+    # Arguments
+        x: A tensor or variable.
+        axis: An integer, the axis to compute the product.
+        keepdims: A boolean, whether to keep the dimensions or not.
+            If `keepdims` is `False`, the rank of the tensor is reduced
+            by 1. If `keepdims` is `True`,
+            the reduced dimension is retained with length 1.
+
+    # Returns
+        A tensor with the product of elements of `x`.
     """
     axis = _normalize_axis(axis, ndim(x))
     return tf.reduce_prod(x, reduction_indices=axis, keep_dims=keepdims)
@@ -974,6 +1018,17 @@ def prod(x, axis=None, keepdims=False):
 
 def var(x, axis=None, keepdims=False):
     """Variance of a tensor, alongside the specified axis.
+
+    # Arguments
+        x: A tensor or variable.
+        axis: An integer, the axis to compute the variance.
+        keepdims: A boolean, whether to keep the dimensions or not.
+            If `keepdims` is `False`, the rank of the tensor is reduced
+            by 1. If `keepdims` is `True`,
+            the reduced dimension is retained with length 1.
+
+    # Returns
+        A tensor with the variance of elements of `x`.
     """
     axis = _normalize_axis(axis, ndim(x))
     if x.dtype.base_dtype == tf.bool:
@@ -987,12 +1042,34 @@ def var(x, axis=None, keepdims=False):
 
 def std(x, axis=None, keepdims=False):
     """Standard deviation of a tensor, alongside the specified axis.
+
+    # Arguments
+        x: A tensor or variable.
+        axis: An integer, the axis to compute the standard deviation.
+        keepdims: A boolean, whether to keep the dimensions or not.
+            If `keepdims` is `False`, the rank of the tensor is reduced
+            by 1. If `keepdims` is `True`,
+            the reduced dimension is retained with length 1.
+
+    # Returns
+        A tensor with the standard deviation of elements of `x`.
     """
     return tf.sqrt(var(x, axis=axis, keepdims=keepdims))
 
 
 def mean(x, axis=None, keepdims=False):
     """Mean of a tensor, alongside the specified axis.
+
+    # Arguments
+        x: A tensor or variable.
+        axis: A list of integer. Axes to compute the mean.
+        keepdims: A boolean, whether to keep the dimensions or not.
+            If `keepdims` is `False`, the rank of the tensor is reduced
+            by 1 for each entry in `axis`. If `keep_dims` is `True`,
+            the reduced dimensions are retained with length 1.
+
+    # Returns
+        A tensor with the mean of elements of `x`.
     """
     axis = _normalize_axis(axis, ndim(x))
     if x.dtype.base_dtype == tf.bool:
@@ -1003,7 +1080,8 @@ def mean(x, axis=None, keepdims=False):
 def any(x, axis=None, keepdims=False):
     """Bitwise reduction (logical OR).
 
-    Returns an uint8 tensor (0s and 1s).
+    # Returns
+        A uint8 tensor (0s and 1s).
     """
     axis = _normalize_axis(axis, ndim(x))
     x = tf.cast(x, tf.bool)
@@ -1014,7 +1092,8 @@ def any(x, axis=None, keepdims=False):
 def all(x, axis=None, keepdims=False):
     """Bitwise reduction (logical AND).
 
-    Returns an uint8 tensor
+    # Returns
+        A uint8 tensor (0s and 1s).
     """
     axis = _normalize_axis(axis, ndim(x))
     x = tf.cast(x, tf.bool)
@@ -1025,6 +1104,9 @@ def all(x, axis=None, keepdims=False):
 def argmax(x, axis=-1):
     """Returns the index of the maximum value
     along a tensor axis.
+
+    # Returns
+        A tensor.
     """
     if axis < 0:
         axis = axis % len(x.get_shape())
@@ -1034,6 +1116,9 @@ def argmax(x, axis=-1):
 def argmin(x, axis=-1):
     """Returns the index of the minimum value
     along a tensor axis.
+
+    # Returns
+        A tensor.
     """
     if axis < 0:
         axis = axis % len(x.get_shape())
@@ -1042,18 +1127,27 @@ def argmin(x, axis=-1):
 
 def square(x):
     """Element-wise square.
+
+    # Returns
+        A tensor.
     """
     return tf.square(x)
 
 
 def abs(x):
     """Element-wise absolute value.
+
+    # Returns
+        A tensor.
     """
     return tf.abs(x)
 
 
 def sqrt(x):
     """Element-wise square root.
+
+    # Returns
+        A tensor.
     """
     zero = _to_tensor(0., x.dtype.base_dtype)
     inf = _to_tensor(np.inf, x.dtype.base_dtype)
@@ -1063,36 +1157,54 @@ def sqrt(x):
 
 def exp(x):
     """Element-wise exponential.
+
+    # Returns
+        A tensor.
     """
     return tf.exp(x)
 
 
 def log(x):
     """Element-wise log.
+
+    # Returns
+        A tensor.
     """
     return tf.log(x)
 
 
 def round(x):
     """Element-wise rounding to the closest integer.
+
+    # Returns
+        A tensor.
     """
     return tf.round(x)
 
 
 def sign(x):
     """Element-wise sign.
+
+    # Returns
+        A tensor.
     """
     return tf.sign(x)
 
 
 def pow(x, a):
     """Element-wise exponentiation.
+
+    # Returns
+        A tensor.
     """
     return tf.pow(x, a)
 
 
 def clip(x, min_value, max_value):
     """Element-wise value clipping.
+
+    # Returns
+        A tensor.
     """
     if max_value < min_value:
         max_value = min_value
@@ -1103,66 +1215,90 @@ def clip(x, min_value, max_value):
 
 def equal(x, y):
     """Element-wise equality between two tensors.
-    Returns a bool tensor.
+
+    # Returns
+        A bool tensor.
     """
     return tf.equal(x, y)
 
 
 def not_equal(x, y):
     """Element-wise inequality between two tensors.
-    Returns a bool tensor.
+
+    # Returns
+        A bool tensor.
     """
     return tf.not_equal(x, y)
 
 
 def greater(x, y):
     """Element-wise truth value of (x > y).
-    Returns a bool tensor.
+
+    # Returns
+        A bool tensor.
     """
     return tf.greater(x, y)
 
 
 def greater_equal(x, y):
     """Element-wise truth value of (x >= y).
-    Returns a bool tensor.
+
+    # Returns
+        A bool tensor.
     """
     return tf.greater_equal(x, y)
 
 
 def lesser(x, y):
     """Element-wise truth value of (x < y).
-    Returns a bool tensor.
+
+    # Returns
+        A bool tensor.
     """
     return tf.less(x, y)
 
 
 def lesser_equal(x, y):
     """Element-wise truth value of (x <= y).
-    Returns a bool tensor.
+
+    # Returns
+        A bool tensor.
     """
     return tf.less_equal(x, y)
 
 
 def maximum(x, y):
     """Element-wise maximum of two tensors.
+
+    # Returns
+        A tensor.
     """
     return tf.maximum(x, y)
 
 
 def minimum(x, y):
     """Element-wise minimum of two tensors.
+
+    # Returns
+        A tensor.
     """
     return tf.minimum(x, y)
 
 
 def sin(x):
     """Computes sin of x element-wise.
+
+    # Returns
+        A tensor.
     """
     return tf.sin(x)
 
 
 def cos(x):
     """Computes cos of x element-wise.
+
+    # Returns
+        A tensor.
     """
     return tf.cos(x)
 
@@ -1170,6 +1306,9 @@ def cos(x):
 def normalize_batch_in_training(x, gamma, beta,
                                 reduction_axes, epsilon=1e-3):
     """Computes mean and std for batch then apply batch_normalization on batch.
+
+    # Returns
+        A tuple length of 3, `(normalized_tensor, mean, variance)`.
     """
     mean, var = tf.nn.moments(x, reduction_axes,
                               shift=None, name=None, keep_dims=False)
@@ -1200,7 +1339,10 @@ def normalize_batch_in_training(x, gamma, beta,
 def batch_normalization(x, mean, var, beta, gamma, epsilon=1e-3):
     """Applies batch normalization on x given mean, var, beta and gamma:
 
-    output = (x - mean) / sqrt(var + epsilon) * gamma + beta
+    output = (x - mean) / (sqrt(var) + epsilon) * gamma + beta
+
+    # Returns
+        A tensor.
     """
     return tf.nn.batch_normalization(x, mean, var, beta, gamma, epsilon)
 
@@ -1209,6 +1351,9 @@ def batch_normalization(x, mean, var, beta, gamma, epsilon=1e-3):
 
 def concatenate(tensors, axis=-1):
     """Concatenates a list of tensors alongside the specified axis.
+
+    # Returns
+        A tensor.
     """
     if axis < 0:
         dims = ndim(tensors[0])
@@ -1228,6 +1373,9 @@ def concatenate(tensors, axis=-1):
 
 def reshape(x, shape):
     """Reshapes a tensor to the specified shape.
+
+    # Returns
+        A tensor.
     """
     return tf.reshape(x, shape)
 
@@ -1238,16 +1386,22 @@ def permute_dimensions(x, pattern):
     # Arguments
         pattern: should be a tuple of
             dimension indices, e.g. (0, 2, 1).
+
+    # Returns
+        A tensor.
     """
     return tf.transpose(x, perm=pattern)
 
 
 def resize_images(X, height_factor, width_factor, dim_ordering):
     """Resizes the images contained in a 4D tensor of shape
-    - [batch, channels, height, width] (for 'th' dim_ordering)
-    - [batch, height, width, channels] (for 'tf' dim_ordering)
-    by a factor of (height_factor, width_factor). Both factors should be
+    - `[batch, channels, height, width]` (for 'th' dim_ordering)
+    - `[batch, height, width, channels]` (for 'tf' dim_ordering)
+    by a factor of `(height_factor, width_factor)`. Both factors should be
     positive integers.
+
+    # Returns
+        A tensor.
     """
     if dim_ordering == 'th':
         original_shape = int_shape(X)
@@ -1273,10 +1427,13 @@ def resize_images(X, height_factor, width_factor, dim_ordering):
 
 def resize_volumes(X, depth_factor, height_factor, width_factor, dim_ordering):
     """Resizes the volume contained in a 5D tensor of shape
-    - [batch, channels, depth, height, width] (for 'th' dim_ordering)
-    - [batch, depth, height, width, channels] (for 'tf' dim_ordering)
-    by a factor of (depth_factor, height_factor, width_factor).
+    - `[batch, channels, depth, height, width]` (for 'th' dim_ordering)
+    - `[batch, depth, height, width, channels]` (for 'tf' dim_ordering)
+    by a factor of `(depth_factor, height_factor, width_factor)`.
     All three factors should be positive integers.
+
+    # Returns
+        A tensor.
     """
     if dim_ordering == 'th':
         output = repeat_elements(X, depth_factor, axis=2)
@@ -1293,10 +1450,13 @@ def resize_volumes(X, depth_factor, height_factor, width_factor, dim_ordering):
 
 
 def repeat_elements(x, rep, axis):
-    """Repeats the elements of a tensor along an axis, like np.repeat
+    """Repeats the elements of a tensor along an axis, like `np.repeat`.
 
-    If x has shape (s1, s2, s3) and axis=1, the output
-    will have shape (s1, s2 * rep, s3)
+    If `x` has shape `(s1, s2, s3)` and `axis` is `1`, the output
+    will have shape `(s1, s2 * rep, s3)`.
+
+    # Returns
+        A tensor.
     """
     x_shape = x.get_shape().as_list()
     # slices along the repeat axis
@@ -1310,10 +1470,13 @@ def repeat_elements(x, rep, axis):
 
 
 def repeat(x, n):
-    """Repeats a 2D tensor:
+    """Repeats a 2D tensor.
 
-    if x has shape (samples, dim) and n=2,
-    the output will have shape (samples, 2, dim)
+    if `x` has shape (samples, dim) and `n` is `2`,
+    the output will have shape `(samples, 2, dim)`.
+
+    # Returns
+        A tensor.
     """
     assert ndim(x) == 2
     x = tf.expand_dims(x, 1)
@@ -1328,7 +1491,7 @@ def arange(start, stop=None, step=1, dtype='int32'):
     Theano's arange: if only one argument is provided,
     it is in fact the "stop" argument.
 
-    The default type of the returned tensor is 'int32' to
+    The default type of the returned tensor is `'int32'` to
     match TensorFlow's default.
     """
     # Match the behavior of numpy and Theano by returning an empty seqence.
@@ -1341,18 +1504,38 @@ def arange(start, stop=None, step=1, dtype='int32'):
 
 
 def tile(x, n):
+    """Creates a tensor by tiling `x` by `n`.
+
+    # Arguments
+        x: A tensor or variable
+        n: A list of integer. The length must be the same as the number of
+            dimensions in `x`.
+
+    # Returns
+        A tiled tensor.
+    """
     if isinstance(n, int):
         n = [n]
     return tf.tile(x, n)
 
 
 def flatten(x):
+    """Flatten a tensor.
+
+    # Returns
+        A tensor, reshaped into 1-D
+    """
     return tf.reshape(x, [-1])
 
 
 def batch_flatten(x):
     """Turn a n-D tensor into a 2D tensor where
     the first dimension is conserved.
+
+    In other words, it flattens each data samples of a batch.
+
+    # Returns
+        A tensor.
     """
     x = tf.reshape(x, stack([-1, prod(shape(x)[1:])]))
     return x
@@ -1360,12 +1543,18 @@ def batch_flatten(x):
 
 def expand_dims(x, dim=-1):
     """Adds a 1-sized dimension at index "dim".
+
+    # Returns
+        A tensor with expended dimensions.
     """
     return tf.expand_dims(x, dim)
 
 
 def squeeze(x, axis):
     """Removes a 1-dimension from the tensor at index "axis".
+
+    # Returns
+        A tensor with the same data as `x` but reduced dimensions.
     """
     return tf.squeeze(x, [axis])
 
@@ -1373,6 +1562,9 @@ def squeeze(x, axis):
 def temporal_padding(x, padding=1):
     """Pads the middle dimension of a 3D tensor
     with "padding" zeros left and right.
+
+    # Returns
+        A padded 3D tensor.
     """
     pattern = [[0, 0], [padding, padding], [0, 0]]
     return tf.pad(x, pattern)
@@ -1381,6 +1573,9 @@ def temporal_padding(x, padding=1):
 def asymmetric_temporal_padding(x, left_pad=1, right_pad=1):
     """Pad the middle dimension of a 3D tensor
     with "left_pad" zeros left and "right_pad" right.
+
+    # Returns
+        A padded 3D tensor.
     """
     pattern = [[0, 0], [left_pad, right_pad], [0, 0]]
     return tf.pad(x, pattern)
@@ -1389,6 +1584,9 @@ def asymmetric_temporal_padding(x, left_pad=1, right_pad=1):
 def spatial_2d_padding(x, padding=(1, 1), dim_ordering='default'):
     """Pads the 2nd and 3rd dimensions of a 4D tensor
     with "padding[0]" and "padding[1]" (resp.) zeros left and right.
+
+    # Returns
+        A padded 4D tensor.
     """
     if dim_ordering == 'default':
         dim_ordering = image_dim_ordering()
@@ -1411,6 +1609,9 @@ def asymmetric_spatial_2d_padding(x, top_pad=1, bottom_pad=1,
     """Pad the rows and columns of a 4D tensor
     with "top_pad", "bottom_pad", "left_pad", "right_pad" (resp.) zeros
     rows on top, bottom; cols on left, right.
+
+    # Returns
+        A padded 4D tensor.
     """
     if dim_ordering == 'default':
         dim_ordering = image_dim_ordering()
@@ -1436,6 +1637,9 @@ def spatial_3d_padding(x, padding=(1, 1, 1), dim_ordering='default'):
 
     For 'tf' dim_ordering, the 2nd, 3rd and 4th dimension will be padded.
     For 'th' dim_ordering, the 3rd, 4th and 5th dimension will be padded.
+
+    # Returns
+        A padded 5D tensor.
     """
     if dim_ordering == 'default':
         dim_ordering = image_dim_ordering()
@@ -1462,6 +1666,11 @@ def spatial_3d_padding(x, padding=(1, 1, 1), dim_ordering='default'):
 
 
 def stack(x):
+    """Stacks a list of rank `R` tensors into a rank `R+1` tensor.
+
+    # Returns
+        A tensor.
+    """
     try:
         return tf.stack(x)
     except AttributeError:
@@ -1469,15 +1678,21 @@ def stack(x):
 
 
 def one_hot(indices, nb_classes):
-    """Input: nD integer tensor of shape (batch_size, dim1, dim2, ... dim(n-1))
+    """Input: nD integer tensor of shape `(batch_size, dim1, dim2, ... dim(n-1))`
     Output: (n + 1)D one hot representation of the input
-    with shape (batch_size, dim1, dim2, ... dim(n-1), nb_classes)
+    with shape `(batch_size, dim1, dim2, ... dim(n-1), nb_classes)`
+
+    # Returns
+        The one-hot tensor.
     """
     return tf.one_hot(indices, depth=nb_classes, axis=-1)
 
 
 def reverse(x, axes):
     """Reverse a tensor along the the specified axes
+
+    # Returns
+        A tensor.
     """
     if isinstance(axes, int):
         axes = [axes]
@@ -1493,15 +1708,19 @@ def reverse(x, axes):
 
 
 def get_value(x):
-    """Returns the value of a tensor variable,
-    as a Numpy array.
+    """Returns the value of a variable/
+
+    # Returns
+        A Numpy array.
     """
     return x.eval(session=get_session())
 
 
 def batch_get_value(xs):
-    """Returns the value of more than one tensor variable,
-    as a list of Numpy arrays.
+    """Returns the value of more than one tensor variable.
+
+    # Returns
+        A list of Numpy arrays.
     """
     if xs:
         return get_session().run(xs)
@@ -1510,8 +1729,9 @@ def batch_get_value(xs):
 
 
 def set_value(x, value):
-    """Sets the value of a tensor variable,
-    from a Numpy array.
+    """Sets the value of a variable,
+    from a Numpy array. It returns `None`.
+
     """
     value = np.asarray(value)
     tf_dtype = _convert_string_dtype(x.dtype.name.split('_')[0])
@@ -1528,6 +1748,7 @@ def set_value(x, value):
 
 def batch_set_value(tuples):
     """Sets the values of many tensor variables at once.
+    It returns `None`.
 
     # Arguments
         tuples: a list of tuples `(tensor, value)`.
@@ -1554,6 +1775,14 @@ def batch_set_value(tuples):
 
 
 def get_variable_shape(x):
+    """Returns shape of a variable.
+
+    # Arguments
+        A variable.
+
+    # Returns
+        A tuple of integers.
+    """
     return int_shape(x)
 
 
@@ -1647,16 +1876,16 @@ def rnn(step_function, inputs, initial_states,
     """Iterates over the time dimension of a tensor.
 
     # Arguments
-        inputs: tensor of temporal data of shape (samples, time, ...)
+        inputs: tensor of temporal data of shape `(samples, time, ...)`
             (at least 3D).
         step_function:
             Parameters:
-                input: tensor with shape (samples, ...) (no time dimension),
+                input: tensor with shape `(samples, ...)` (no time dimension),
                     representing input for the batch of samples at a certain
                     time step.
                 states: list of tensors.
             Returns:
-                output: tensor with shape (samples, output_dim)
+                output: tensor with shape `(samples, output_dim)`
                     (no time dimension).
                 new_states: list of tensors, same length and shapes
                     as 'states'. The first state in the list must be the
@@ -1667,7 +1896,7 @@ def rnn(step_function, inputs, initial_states,
             the step function.
         go_backwards: boolean. If True, do the iteration over
             the time dimension in reverse order.
-        mask: binary tensor with shape (samples, time, 1),
+        mask: binary tensor with shape `(samples, time, 1)`,
             with a zero for every element that is masked.
         constants: a list of constant values passed at each step.
         unroll: with TensorFlow the RNN is always unrolled, but with Theano you
@@ -1676,14 +1905,14 @@ def rnn(step_function, inputs, initial_states,
             Must be specified if using unrolling with Theano.
 
     # Returns
-        A tuple (last_output, outputs, new_states).
+        A tuple, `(last_output, outputs, new_states)`.
 
-        last_output: the latest output of the rnn, of shape (samples, ...)
-        outputs: tensor with shape (samples, time, ...) where each
-            entry outputs[s, t] is the output of the step function
-            at time t for sample s.
-        new_states: list of tensors, latest states returned by
-            the step function, of shape (samples, ...).
+            last_output: the latest output of the rnn, of shape `(samples, ...)`
+            outputs: tensor with shape `(samples, time, ...)` where each
+                entry `outputs[s, t]` is the output of the step function
+                at time `t` for sample `s`.
+            new_states: list of tensors, latest states returned by
+                the step function, of shape `(samples, ...)`.
     """
     ndim = len(inputs.get_shape())
     if ndim < 3:
@@ -1859,7 +2088,7 @@ def _cond(condition, then_lambda, else_lambda):
 
 def switch(condition, then_expression, else_expression):
     """Switches between two operations
-    depending on a scalar value (int or bool).
+    depending on a scalar value (`int` or `bool`).
     Note that both `then_expression` and `else_expression`
     should be symbolic tensors of the *same shape*.
 
@@ -1889,6 +2118,9 @@ def switch(condition, then_expression, else_expression):
 def in_train_phase(x, alt):
     """Selects `x` in train phase, and `alt` otherwise.
     Note that `alt` should have the *same shape* as `x`.
+
+    # Returns
+        Either `x` or `alt` based on `K.learning_phase`.
     """
     if learning_phase() is 1:
         return x
@@ -1903,6 +2135,9 @@ def in_train_phase(x, alt):
 def in_test_phase(x, alt):
     """Selects `x` in test phase, and `alt` otherwise.
     Note that `alt` should have the *same shape* as `x`.
+
+    # Returns
+        Either `x` or `alt` based on `K.learning_phase`.
     """
     if learning_phase() is 1:
         return alt
@@ -1917,11 +2152,16 @@ def in_test_phase(x, alt):
 # NN OPERATIONS
 
 def relu(x, alpha=0., max_value=None):
-    """Rectified linear unit
+    """Rectified linear unit.
+    With default values, it returns element-wise `max(x, 0)`.
 
     # Arguments
-        alpha: slope of negative section.
-        max_value: saturation threshold.
+        x: A tensor or variable.
+        alpha: A scalar, slope of negative section (default=`0.`).
+        max_value: Saturation threshold.
+
+    # Returns
+        A tensor
     """
     if alpha != 0.:
         negative_part = tf.nn.relu(-x)
@@ -1940,8 +2180,8 @@ def elu(x, alpha=1.):
     """Exponential linear unit.
 
     # Arguments
-        x: Tensor to compute the activation function for.
-        alpha: scalar
+        x: A tenor or variable to compute the activation function for.
+        alpha: A scalar, slope of positive section.
     """
     res = tf.nn.elu(x)
     if alpha == 1:
@@ -1952,18 +2192,36 @@ def elu(x, alpha=1.):
 
 def softmax(x):
     """Softmax of a tensor.
+
+    # Arguments
+        x: A tensor or variable.
+
+    # Returns
+        A tensor.
     """
     return tf.nn.softmax(x)
 
 
 def softplus(x):
     """Softplus of a tensor.
+
+    # Arguments
+        x: A tensor or variable.
+
+    # Returns
+        A tensor.
     """
     return tf.nn.softplus(x)
 
 
 def softsign(x):
     """Softsign of a tensor.
+
+    # Arguments
+        x: A tensor or variable.
+
+    # Returns
+        A tensor.
     """
     return tf.nn.softsign(x)
 
@@ -2040,6 +2298,12 @@ def binary_crossentropy(output, target, from_logits=False):
 
 def sigmoid(x):
     """Element-wise sigmoid.
+
+    # Arguments
+        x: A tensor or variable.
+
+    # Returns
+        A tensor.
     """
     return tf.nn.sigmoid(x)
 
@@ -2047,6 +2311,14 @@ def sigmoid(x):
 def hard_sigmoid(x):
     """Segment-wise linear approximation of sigmoid.
     Faster than sigmoid.
+    Returns `0.` if `x < -2.5`, `1.` if `x > 2.5`.
+    In `-2.5 <= x <= 2.5`, returns `0.2 * x + 0.5`.
+
+    # Arguments
+        x: A tensor or variable.
+
+    # Returns
+        A tensor.
     """
     x = (0.2 * x) + 0.5
     zero = _to_tensor(0., x.dtype.base_dtype)
@@ -2057,6 +2329,12 @@ def hard_sigmoid(x):
 
 def tanh(x):
     """Element-wise tanh.
+
+    # Arguments
+        x: A tensor or variable.
+
+    # Returns
+        A tensor.
     """
     return tf.nn.tanh(x)
 
@@ -2093,13 +2371,13 @@ def in_top_k(predictions, targets, k):
     """Returns whether the `targets` are in the top `k` `predictions`
 
     # Arguments
-        predictions: A tensor of shape batch_size x classess and type float32.
-        targets: A tensor of shape batch_size and type int32 or int64.
-        k: An int, number of top elements to consider.
+        predictions: A tensor of shape `batch_size` x classes and type `float32`.
+        targets: A tensor of shape batch_size and type `int32` or `int64`.
+        k: An `int`, number of top elements to consider.
 
     # Returns
-        A tensor of shape batch_size and type bool. output_i is True if
-        targets_i is within top-k values of predictions_i
+        A tensor of shape `batch_size` and type `bool`. `output_i` is `True` if
+        `targets_i` is within top-k values of `predictions_i`
     """
     return tf.nn.in_top_k(predictions, targets, k)
 
@@ -2198,7 +2476,10 @@ def conv1d(x, kernel, stride=1, border_mode='valid',
     # Arguments
         kernel: kernel tensor.
         strides: stride integer.
-        border_mode: string, "same" or "valid".
+        border_mode: string, `"same"` or `"valid"`.
+
+    # Returns
+        A tensor, result of 1D convolution.
     """
     # pre-process dtype
     x_dtype = dtype(x)
@@ -2221,10 +2502,13 @@ def conv2d(x, kernel, strides=(1, 1), border_mode='valid',
     # Arguments
         kernel: kernel tensor.
         strides: strides tuple.
-        border_mode: string, "same" or "valid".
-        dim_ordering: "tf" or "th".
+        border_mode: string, `"same"` or `"valid"`.
+        dim_ordering: `"tf"` or `"th"`.
             Whether to use Theano or TensorFlow dimension ordering
             for inputs/kernels/ouputs.
+
+    # Returns
+        A tensor, result of 2D convolution.
     """
     if dim_ordering == 'default':
         dim_ordering = image_dim_ordering()
@@ -2255,8 +2539,8 @@ def deconv2d(x, kernel, output_shape, strides=(1, 1),
         kernel: kernel tensor.
         output_shape: 1D int tensor for the output shape.
         strides: strides tuple.
-        border_mode: string, "same" or "valid".
-        dim_ordering: "tf" or "th".
+        border_mode: string, `"same"` or `"valid"`.
+        dim_ordering: `"tf"` or `"th"`.
             Whether to use Theano or TensorFlow dimension ordering
             for inputs/kernels/ouputs.
     """
@@ -2281,6 +2565,19 @@ def atrous_conv2d(x, kernel, rate=1,
                   border_mode='valid',
                   dim_ordering='default',
                   image_shape=None, filter_shape=None):
+    """Atrous 2D convolution. Also as known as dilated convolution.
+
+    # Arguments
+        x: input tensor.
+        kernel: kernel tensor.
+        rate: integer > 0, the sample stride.
+        output_shape: 1D int tensor for the output shape.
+        strides: strides tuple.
+        border_mode: string, `"same"` or `"valid"`.
+        dim_ordering: `"tf"` or `"th"`.
+            Whether to use Theano or TensorFlow dimension ordering
+            for inputs/kernels/ouputs.
+    """
     if dim_ordering == 'default':
         dim_ordering = image_dim_ordering()
     if dim_ordering not in {'th', 'tf'}:
@@ -2299,6 +2596,8 @@ def atrous_conv2d(x, kernel, rate=1,
 
 def separable_conv2d(x, depthwise_kernel, pointwise_kernel, strides=(1, 1),
                      border_mode='valid', dim_ordering='default'):
+    """2-D convolution with separable filters.
+    """
     if dim_ordering == 'default':
         dim_ordering = image_dim_ordering()
     if dim_ordering not in {'th', 'tf'}:
@@ -2325,8 +2624,8 @@ def conv3d(x, kernel, strides=(1, 1, 1),
     # Arguments
         kernel: kernel tensor.
         strides: strides tuple.
-        border_mode: string, "same" or "valid".
-        dim_ordering: "tf" or "th".
+        border_mode: string, `"same"` or `"valid"`.
+        dim_ordering: `"tf"` or `"th"`.
             Whether to use Theano or TensorFlow dimension ordering
             for inputs/kernels/ouputs.
     """
@@ -2352,9 +2651,9 @@ def pool2d(x, pool_size, strides=(1, 1),
     # Arguments
         pool_size: tuple of 2 integers.
         strides: tuple of 2 integers.
-        border_mode: one of "valid", "same".
-        dim_ordering: one of "th", "tf".
-        pool_mode: one of "max", "avg".
+        border_mode: one of `"valid"`, `"same"`.
+        dim_ordering: one of `"th"`, `"tf"`.
+        pool_mode: one of `"max"`, `"avg"`.
     """
     if dim_ordering == 'default':
         dim_ordering = image_dim_ordering()
@@ -2384,9 +2683,9 @@ def pool3d(x, pool_size, strides=(1, 1, 1), border_mode='valid',
     # Arguments
         pool_size: tuple of 3 integers.
         strides: tuple of 3 integers.
-        border_mode: one of "valid", "same".
-        dim_ordering: one of "th", "tf".
-        pool_mode: one of "max", "avg".
+        border_mode: one of `"valid"`, `"same"`.
+        dim_ordering: one of `"th"`, `"tf"`.
+        pool_mode: one of `"max"`, `"avg"`.
     """
     if dim_ordering == 'default':
         dim_ordering = image_dim_ordering()
@@ -2412,6 +2711,16 @@ def pool3d(x, pool_size, strides=(1, 1, 1), border_mode='valid',
 # RANDOMNESS
 
 def random_normal(shape, mean=0.0, std=1.0, dtype=None, seed=None):
+    """Returns a tensor with normal distribution
+
+    # Arguments
+        shape: A tuple of integers, the shape of tensor to create.
+        mean: A float, mean of the normal distribution to draw samples.
+        std: A float, standard deviation of the normal distribution
+            to draw samples.
+        dtype: String, dtype of returned tensor.
+        seed: Integer, random seed.
+    """
     if dtype is None:
         dtype = floatx()
     if seed is None:
@@ -2421,6 +2730,17 @@ def random_normal(shape, mean=0.0, std=1.0, dtype=None, seed=None):
 
 
 def random_uniform(shape, low=0.0, high=1.0, dtype=None, seed=None):
+    """Returns a tensor with uniform distribution
+
+    # Arguments
+        shape: A tuple of integers, the shape of tensor to create.
+        low: A float, lower boundary of the uniform distribution
+            to draw samples.
+        high: A float, upper boundary of the uniform distribution
+            to draw samples.
+        dtype: String, dtype of returned tensor.
+        seed: Integer, random seed.
+    """
     if dtype is None:
         dtype = floatx()
     if seed is None:
@@ -2430,6 +2750,14 @@ def random_uniform(shape, low=0.0, high=1.0, dtype=None, seed=None):
 
 
 def random_binomial(shape, p=0.0, dtype=None, seed=None):
+    """Returns a tensor with binomlai distribution
+
+    # Arguments
+        shape: A tuple of integers, the shape of tensor to create.
+        p: A float, `0. <= p <= 1`, probability of binomlai distribution.
+        dtype: String, dtype of returned tensor.
+        seed: Integer, random seed.
+    """
     if dtype is None:
         dtype = floatx()
     if seed is None:
@@ -2479,13 +2807,13 @@ def ctc_batch_cost(y_true, y_pred, input_length, label_length):
     """Runs CTC loss algorithm on each batch element.
 
     # Arguments
-        y_true: tensor (samples, max_string_length) containing the truth labels
-        y_pred: tensor (samples, time_steps, num_categories) containing the prediction,
-                or output of the softmax
-        input_length: tensor (samples,1) containing the sequence length for
-                each batch item in y_pred
-        label_length: tensor (samples,1) containing the sequence length for
-                each batch item in y_true
+        y_true: tensor `(samples, max_string_length)` containing the truth labels.
+        y_pred: tensor `(samples, time_steps, num_categories)` containing the prediction,
+                or output of the softmax.
+        input_length: tensor `(samples, 1)` containing the sequence length for
+                each batch item in `y_pred`.
+        label_length: tensor `(samples, 1)` containing the sequence length for
+                each batch item in `y_true`.
 
     # Returns
         Tensor with shape (samples,1) containing the
@@ -2509,22 +2837,22 @@ def ctc_decode(y_pred, input_length, greedy=True, beam_width=100,
        search.
 
     # Arguments
-        y_pred: tensor (samples, time_steps, num_categories) containing the prediction,
-                or output of the softmax
-        input_length: tensor (samples,) containing the sequence length for
-                each batch item in y_pred
-        greedy: perform much faster best-path search if true.  This does
+        y_pred: tensor `(samples, time_steps, num_categories)` containing the prediction,
+                or output of the softmax.
+        input_length: tensor `(samples, )` containing the sequence length for
+                each batch item in `y_pred`.
+        greedy: perform much faster best-path search if `true`. This does
                 not use a dictionary
-        beam_width: if greedy is false: a beam search decoder will be used
+        beam_width: if `greedy` is `false`: a beam search decoder will be used
                 with a beam of this width
-        top_paths: if greedy is false: how many of the most probable paths will be returned
+        top_paths: if `greedy` is `false`: how many of the most probable paths will be returned
 
     # Returns
         Tuple:
-            List: if greedy is true, returns a list of one element that contains
-                the decoded sequence. If false, returns the `top_paths` most probable
-                decoded sequences. Important: blank labels are returned as -1
-            Tensor (top_paths,) that contains the log probability of each decoded sequence
+            List: if `greedy` is `true`, returns a list of one element that contains
+                the decoded sequence. If `false`, returns the `top_paths` most probable
+                decoded sequences. Important: blank labels are returned as `-1`.
+            Tensor `(top_paths, )` that contains the log probability of each decoded sequence
     """
     y_pred = tf.log(tf.transpose(y_pred, perm=[1, 0, 2]) + 1e-8)
     input_length = tf.to_int32(input_length)
@@ -2567,9 +2895,9 @@ def foldl(fn, elems, initializer=None, name=None):
 
     # Arguments
         fn: Callable that will be called upon each element in elems and an
-            accumulator, for instance lambda acc, x: acc + x
+            accumulator, for instance `lambda acc, x: acc + x`
         elems: tensor
-        initializer: The first value used (elems[0] in case of None)
+        initializer: The first value used (`elems[0]` in case of None)
         name: A string name for the foldl node in the graph
 
     # Returns
@@ -2583,9 +2911,9 @@ def foldr(fn, elems, initializer=None, name=None):
 
     # Arguments
         fn: Callable that will be called upon each element in elems and an
-            accumulator, for instance lambda acc, x: acc + x
+            accumulator, for instance `lambda acc, x: acc + x`
         elems: tensor
-        initializer: The first value used (elems[-1] in case of None)
+        initializer: The first value used (`elems[-1]` in case of None)
         name: A string name for the foldr node in the graph
 
     # Returns
