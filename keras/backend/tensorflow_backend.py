@@ -1080,6 +1080,11 @@ def mean(x, axis=None, keepdims=False):
 def any(x, axis=None, keepdims=False):
     """Bitwise reduction (logical OR).
 
+    # Arguments
+        x: input tensor.
+        axis: axis along which to perform the reduction.
+        keepdims: whether the drop or broadcast the reduction axes.
+
     # Returns
         A uint8 tensor (0s and 1s).
     """
@@ -1092,6 +1097,11 @@ def any(x, axis=None, keepdims=False):
 def all(x, axis=None, keepdims=False):
     """Bitwise reduction (logical AND).
 
+    # Arguments
+        x: input tensor.
+        axis: axis along which to perform the reduction.
+        keepdims: whether the drop or broadcast the reduction axes.
+
     # Returns
         A uint8 tensor (0s and 1s).
     """
@@ -1102,8 +1112,12 @@ def all(x, axis=None, keepdims=False):
 
 
 def argmax(x, axis=-1):
-    """Returns the index of the maximum value
-    along a tensor axis.
+    """Returns the index of the maximum value along an axis.
+
+    # Arguments
+        x: input tensor.
+        axis: axis along which to perform the reduction.
+        keepdims: whether the drop or broadcast the reduction axes.
 
     # Returns
         A tensor.
@@ -1114,8 +1128,12 @@ def argmax(x, axis=-1):
 
 
 def argmin(x, axis=-1):
-    """Returns the index of the minimum value
-    along a tensor axis.
+    """Returns the index of the minimum value along an axis.
+
+    # Arguments
+        x: input tensor.
+        axis: axis along which to perform the reduction.
+        keepdims: whether the drop or broadcast the reduction axes.
 
     # Returns
         A tensor.
@@ -1128,6 +1146,9 @@ def argmin(x, axis=-1):
 def square(x):
     """Element-wise square.
 
+    # Arguments
+        x: input tensor.
+
     # Returns
         A tensor.
     """
@@ -1137,6 +1158,9 @@ def square(x):
 def abs(x):
     """Element-wise absolute value.
 
+    # Arguments
+        x: input tensor.
+
     # Returns
         A tensor.
     """
@@ -1145,6 +1169,9 @@ def abs(x):
 
 def sqrt(x):
     """Element-wise square root.
+
+    # Arguments
+        x: input tensor.
 
     # Returns
         A tensor.
@@ -1158,6 +1185,9 @@ def sqrt(x):
 def exp(x):
     """Element-wise exponential.
 
+    # Arguments
+        x: input tensor.
+
     # Returns
         A tensor.
     """
@@ -1166,6 +1196,9 @@ def exp(x):
 
 def log(x):
     """Element-wise log.
+
+    # Arguments
+        x: input tensor.
 
     # Returns
         A tensor.
@@ -1176,6 +1209,9 @@ def log(x):
 def round(x):
     """Element-wise rounding to the closest integer.
 
+    # Arguments
+        x: input tensor.
+
     # Returns
         A tensor.
     """
@@ -1185,6 +1221,9 @@ def round(x):
 def sign(x):
     """Element-wise sign.
 
+    # Arguments
+        x: input tensor.
+
     # Returns
         A tensor.
     """
@@ -1193,6 +1232,9 @@ def sign(x):
 
 def pow(x, a):
     """Element-wise exponentiation.
+
+    # Arguments
+        x: input tensor.
 
     # Returns
         A tensor.
@@ -1296,6 +1338,9 @@ def sin(x):
 
 def cos(x):
     """Computes cos of x element-wise.
+
+    # Arguments
+        x: input tensor.
 
     # Returns
         A tensor.
@@ -1668,6 +1713,9 @@ def spatial_3d_padding(x, padding=(1, 1, 1), dim_ordering='default'):
 def stack(x):
     """Stacks a list of rank `R` tensors into a rank `R+1` tensor.
 
+    # Arguments
+        x: input tensor.
+
     # Returns
         A tensor.
     """
@@ -1708,7 +1756,10 @@ def reverse(x, axes):
 
 
 def get_value(x):
-    """Returns the value of a variable/
+    """Returns the value of a variable.
+
+    # Arguments
+        x: input variable.
 
     # Returns
         A Numpy array.
@@ -1718,6 +1769,9 @@ def get_value(x):
 
 def batch_get_value(xs):
     """Returns the value of more than one tensor variable.
+
+    # Arguments
+        x: list of variables.
 
     # Returns
         A list of Numpy arrays.
@@ -1731,7 +1785,6 @@ def batch_get_value(xs):
 def set_value(x, value):
     """Sets the value of a variable,
     from a Numpy array. It returns `None`.
-
     """
     value = np.asarray(value)
     tf_dtype = _convert_string_dtype(x.dtype.name.split('_')[0])
@@ -2094,8 +2147,11 @@ def switch(condition, then_expression, else_expression):
 
     # Arguments
         condition: scalar tensor.
-        then_expression: TensorFlow operation.
-        else_expression: TensorFlow operation.
+        then_expression: either a tensor, or a callable that returns a tensor.
+        else_expression: either a tensor, or a callable that returns a tensor.
+
+    # Returns
+        The selected tensor.
     """
     if condition.dtype != tf.bool:
         condition = tf.cast(condition, 'bool')
@@ -2161,7 +2217,7 @@ def relu(x, alpha=0., max_value=None):
         max_value: Saturation threshold.
 
     # Returns
-        A tensor
+        A tensor.
     """
     if alpha != 0.:
         negative_part = tf.nn.relu(-x)
@@ -2182,6 +2238,9 @@ def elu(x, alpha=1.):
     # Arguments
         x: A tenor or variable to compute the activation function for.
         alpha: A scalar, slope of positive section.
+
+    # Returns
+        A tensor.
     """
     res = tf.nn.elu(x)
     if alpha == 1:
@@ -2281,6 +2340,16 @@ def sparse_categorical_crossentropy(output, target, from_logits=False):
 
 def binary_crossentropy(output, target, from_logits=False):
     """Binary crossentropy between an output tensor and a target tensor.
+
+    # Arguments
+        output: A tensor.
+        target: A tensor with the same shape as `output`.
+        from_logits: Whether `output` is expected to be a logits tensor.
+            By default, we consider that `output`
+            encodes a probability distribution.
+
+    # Returns
+        A tensor.
     """
     # Note: tf.nn.softmax_cross_entropy_with_logits
     # expects logits, Keras expects probabilities.
@@ -2340,8 +2409,7 @@ def tanh(x):
 
 
 def dropout(x, level, noise_shape=None, seed=None):
-    """Sets entries in `x` to zero at random,
-    while scaling the entire tensor.
+    """Sets entries in `x` to zero at random, while scaling the entire tensor.
 
     # Arguments
         x: tensor
@@ -2350,6 +2418,9 @@ def dropout(x, level, noise_shape=None, seed=None):
         noise_shape: shape for randomly generated keep/drop flags,
             must be broadcastable to the shape of `x`
         seed: random seed to ensure determinism.
+
+    # Returns
+        A tensor.
     """
     retain_prob = 1. - level
     if seed is None:
@@ -2361,6 +2432,13 @@ def dropout(x, level, noise_shape=None, seed=None):
 
 def l2_normalize(x, axis):
     """Normalizes a tensor wrt the L2 norm alongside the specified axis.
+
+    # Arguments
+        x: input tensor.
+        axis: axis along which to perform normalization.
+
+    # Returns
+        A tensor.
     """
     if axis < 0:
         axis = axis % len(x.get_shape())
@@ -2543,6 +2621,9 @@ def deconv2d(x, kernel, output_shape, strides=(1, 1),
         dim_ordering: `"tf"` or `"th"`.
             Whether to use Theano or TensorFlow dimension ordering
             for inputs/kernels/ouputs.
+
+    # Returns
+        A tensor, result of transposed 2D convolution.
     """
     if dim_ordering == 'default':
         dim_ordering = image_dim_ordering()
@@ -2577,6 +2658,9 @@ def atrous_conv2d(x, kernel, rate=1,
         dim_ordering: `"tf"` or `"th"`.
             Whether to use Theano or TensorFlow dimension ordering
             for inputs/kernels/ouputs.
+
+    # Returns
+        A tensor, result of atrous transposed 2D convolution.
     """
     if dim_ordering == 'default':
         dim_ordering = image_dim_ordering()
@@ -2628,6 +2712,9 @@ def conv3d(x, kernel, strides=(1, 1, 1),
         dim_ordering: `"tf"` or `"th"`.
             Whether to use Theano or TensorFlow dimension ordering
             for inputs/kernels/ouputs.
+
+    # Returns
+        A tensor, result of 3D convolution.
     """
     if dim_ordering == 'default':
         dim_ordering = image_dim_ordering()
@@ -2654,6 +2741,9 @@ def pool2d(x, pool_size, strides=(1, 1),
         border_mode: one of `"valid"`, `"same"`.
         dim_ordering: one of `"th"`, `"tf"`.
         pool_mode: one of `"max"`, `"avg"`.
+
+    # Returns
+        A tensor, result of 2D pooling.
     """
     if dim_ordering == 'default':
         dim_ordering = image_dim_ordering()
@@ -2686,6 +2776,9 @@ def pool3d(x, pool_size, strides=(1, 1, 1), border_mode='valid',
         border_mode: one of `"valid"`, `"same"`.
         dim_ordering: one of `"th"`, `"tf"`.
         pool_mode: one of `"max"`, `"avg"`.
+
+    # Returns
+        A tensor, result of 3D pooling.
     """
     if dim_ordering == 'default':
         dim_ordering = image_dim_ordering()
@@ -2720,6 +2813,9 @@ def random_normal(shape, mean=0.0, std=1.0, dtype=None, seed=None):
             to draw samples.
         dtype: String, dtype of returned tensor.
         seed: Integer, random seed.
+
+    # Returns
+        A tensor.
     """
     if dtype is None:
         dtype = floatx()
@@ -2740,6 +2836,9 @@ def random_uniform(shape, low=0.0, high=1.0, dtype=None, seed=None):
             to draw samples.
         dtype: String, dtype of returned tensor.
         seed: Integer, random seed.
+
+    # Returns
+        A tensor.
     """
     if dtype is None:
         dtype = floatx()
@@ -2757,6 +2856,9 @@ def random_binomial(shape, p=0.0, dtype=None, seed=None):
         p: A float, `0. <= p <= 1`, probability of binomlai distribution.
         dtype: String, dtype of returned tensor.
         seed: Integer, random seed.
+
+    # Returns
+        A tensor.
     """
     if dtype is None:
         dtype = floatx()

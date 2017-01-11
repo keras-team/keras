@@ -1,7 +1,9 @@
 from __future__ import absolute_import
+
 import copy
 import inspect
 import types
+
 import numpy as np
 
 from ..utils.np_utils import to_categorical
