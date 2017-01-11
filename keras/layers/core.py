@@ -17,8 +17,7 @@ from ..utils.generic_utils import func_dump, func_load
 
 
 class Masking(Layer):
-    """Masks an input sequence by using a mask value to
-    identify timesteps to be skipped.
+    """Masks a sequence by using a mask value to skip timesteps.
 
     For each timestep in the input tensor (dimension #1 in the tensor),
     if all values in the input tensor at that timestep
@@ -99,7 +98,9 @@ class Dropout(Layer):
 
 
 class SpatialDropout1D(Dropout):
-    """This version performs the same function as Dropout, however it drops
+    """Spatial 1D version of Dropout.
+
+    This version performs the same function as Dropout, however it drops
     entire 1D feature maps instead of individual elements. If adjacent frames
     within feature maps are strongly correlated (as is normally the case in
     early convolution layers) then regular dropout will not regularize the
@@ -131,7 +132,9 @@ class SpatialDropout1D(Dropout):
 
 
 class SpatialDropout2D(Dropout):
-    """This version performs the same function as Dropout, however it drops
+    """Spatial 2D version of Dropout.
+
+    This version performs the same function as Dropout, however it drops
     entire 2D feature maps instead of individual elements. If adjacent pixels
     within feature maps are strongly correlated (as is normally the case in
     early convolution layers) then regular dropout will not regularize the
@@ -179,7 +182,9 @@ class SpatialDropout2D(Dropout):
 
 
 class SpatialDropout3D(Dropout):
-    """This version performs the same function as Dropout, however it drops
+    """Spatial 3D version of Dropout.
+
+    This version performs the same function as Dropout, however it drops
     entire 3D feature maps instead of individual elements. If adjacent voxels
     within feature maps are strongly correlated (as is normally the case in
     early convolution layers) then regular dropout will not regularize the
@@ -499,8 +504,7 @@ class RepeatVector(Layer):
 
 
 class Lambda(Layer):
-    """Used for evaluating an arbitrary Theano / TensorFlow expression
-    on the output of the previous layer.
+    """Used for evaluating an arbitrary expressions on an input.
 
     # Examples
 
@@ -667,7 +671,7 @@ class Lambda(Layer):
 
 
 class Dense(Layer):
-    """Just your regular fully connected NN layer.
+    """Just your regular densely-connected NN layer.
 
     # Example
 
@@ -809,8 +813,7 @@ class Dense(Layer):
 
 
 class ActivityRegularization(Layer):
-    """Layer that returns its input unchanged, but applies an update
-    to the cost function based on the activity of the input.
+    """Layer that applies an update to the cost function based input activity.
 
     # Arguments
         l1: L1 regularization factor (positive float).
@@ -975,8 +978,9 @@ class MaxoutDense(Layer):
 
 
 class Highway(Layer):
-    """Densely connected highway network,
-    a natural extension of LSTMs to feedforward networks.
+    """Densely connected highway network.
+
+    Highway layers are a natural extension of LSTMs to feedforward networks.
 
     # Arguments
         init: name of initialization function for the weights of the layer
@@ -1112,6 +1116,7 @@ class Highway(Layer):
 
 class TimeDistributedDense(Layer):
     """Apply a same Dense layer for each dimension[1] (time_dimension) input.
+
     Especially useful after a recurrent network with 'return_sequence=True'.
 
     Note: this layer is deprecated, prefer using the `TimeDistributed` wrapper:
