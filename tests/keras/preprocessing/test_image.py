@@ -15,7 +15,7 @@ class TestImage:
         gray_images = []
         for n in range(8):
             bias = np.random.rand(img_w, img_h, 1) * 64
-            variance = np.random.rand(img_w, img_h, 1) * (255-64)
+            variance = np.random.rand(img_w, img_h, 1) * (255 - 64)
             imarray = np.random.rand(img_w, img_h, 3) * variance + bias
             im = Image.fromarray(imarray.astype('uint8')).convert('RGB')
             rgb_images.append(im)
