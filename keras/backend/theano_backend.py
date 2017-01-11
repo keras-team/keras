@@ -1147,6 +1147,10 @@ def rnn(step_function, inputs, initial_states,
 def switch(condition, then_expression, else_expression):
     """condition: scalar tensor.
     """
+    if callable(then_expression):
+        then_expression = then_expression()
+    if callable(else_expression):
+        else_expression = else_expression()
     return T.switch(condition, then_expression, else_expression)
 
 
@@ -1155,6 +1159,10 @@ def in_train_phase(x, alt):
         return x
     elif _LEARNING_PHASE is 0:
         return alt
+    if callable(x):
+        x = x()
+    if callable(alt):
+        alt = alt()
     x = theano.ifelse.ifelse(_LEARNING_PHASE, x, alt)
     x._uses_learning_phase = True
     return x
@@ -1165,6 +1173,10 @@ def in_test_phase(x, alt):
         return alt
     elif _LEARNING_PHASE is 0:
         return x
+    if callable(x):
+        x = x()
+    if callable(alt):
+        alt = alt()
     x = theano.ifelse.ifelse(_LEARNING_PHASE, alt, x)
     x._uses_learning_phase = True
     return x
@@ -1267,6 +1279,8 @@ def dropout(x, level, noise_shape=None, seed=None):
         raise ValueError('Dropout level must be in interval [0, 1[.')
     if seed is None:
         seed = np.random.randint(1, 10e6)
+    if isinstance(noise_shape, list):
+        noise_shape = tuple(noise_shape)
 
     rng = RandomStreams(seed=seed)
     retain_prob = 1. - level
@@ -1275,8 +1289,8 @@ def dropout(x, level, noise_shape=None, seed=None):
         random_tensor = rng.binomial(x.shape, p=retain_prob, dtype=x.dtype)
     else:
         random_tensor = rng.binomial(noise_shape, p=retain_prob, dtype=x.dtype)
-        random_tensor = T.patternbroadcast(random_tensor, [dim == 1 for dim in noise_shape])
-
+        random_tensor = T.patternbroadcast(random_tensor,
+                                           [dim == 1 for dim in noise_shape])
     x *= random_tensor
     x /= retain_prob
     return x
