@@ -25,7 +25,16 @@ def base_filter():
 
 
 def text_to_word_sequence(text, filters=base_filter(), lower=True, split=" "):
-    """prune: sequence of characters to filter out
+    """Converts a text to a sequence of word indices.
+
+    # Arguments
+        text: Input text (string).
+        filters: Sequence of characters to filter out.
+        lower: Whether to convert the input to lowercase.
+        split: Sentence split marker (string).
+
+    # Returns
+        A list of integer word indices.
     """
     if lower:
         text = text.lower()
@@ -35,37 +44,42 @@ def text_to_word_sequence(text, filters=base_filter(), lower=True, split=" "):
 
 
 def one_hot(text, n, filters=base_filter(), lower=True, split=" "):
-    seq = text_to_word_sequence(text, filters=filters, lower=lower, split=split)
+    seq = text_to_word_sequence(text,
+                                filters=filters,
+                                lower=lower,
+                                split=split)
     return [(abs(hash(w)) % (n - 1) + 1) for w in seq]
 
 
 class Tokenizer(object):
+    """Text tokenization utility class.
+
+    This class allows to vectorize a text corpus, by turning each
+    text into either a sequence of integers (each integer being the index
+    of a token in a dictionary) or into a vector where the coefficient
+    for each token could be binary, based on word count, based on tf-idf...
+
+    # Arguments
+        nb_words: the maximum number of words to keep, based
+            on word frequency. Only the most common `nb_words` words will
+            be kept.
+        filters: a string where each element is a character that will be
+            filtered from the texts. The default is all punctuation, plus
+            tabs and line breaks, minus the `'` character.
+        lower: boolean. Whether to convert the texts to lowercase.
+        split: character or string to use for token splitting.
+        char_level: if True, every character will be treated as a word.
+
+    By default, all punctuation is removed, turning the texts into
+    space-separated sequences of words
+    (words maybe include the `'` character). These sequences are then
+    split into lists of tokens. They will then be indexed or vectorized.
+
+    `0` is a reserved index that won't be assigned to any word.
+    """
 
     def __init__(self, nb_words=None, filters=base_filter(),
                  lower=True, split=' ', char_level=False):
-        """The class allows to vectorize a text corpus, by turning each
-        text into either a sequence of integers (each integer being the index
-        of a token in a dictionary) or into a vector where the coefficient
-        for each token could be binary, based on word count, based on tf-idf...
-
-        # Arguments
-            nb_words: the maximum number of words to keep, based
-                on word frequency. Only the most common `nb_words` words will
-                be kept.
-            filters: a string where each element is a character that will be
-                filtered from the texts. The default is all punctuation, plus
-                tabs and line breaks, minus the `'` character.
-            lower: boolean. Whether to convert the texts to lowercase.
-            split: character or string to use for token splitting.
-            char_level: if True, every character will be treated as a word.
-
-        By default, all punctuation is removed, turning the texts into
-        space-separated sequences of words
-        (words maybe include the `'` character). These sequences are then
-        split into lists of tokens. They will then be indexed or vectorized.
-
-        `0` is a reserved index that won't be assigned to any word.
-        """
         self.word_counts = {}
         self.word_docs = {}
         self.filters = filters
@@ -76,7 +90,9 @@ class Tokenizer(object):
         self.char_level = char_level
 
     def fit_on_texts(self, texts):
-        """Required before using texts_to_sequences or texts_to_matrix
+        """Updates internal vocabulary based on a list of texts.
+
+        Required before using `texts_to_sequences` or `texts_to_matrix`.
 
         # Arguments
             texts: can be a list of strings,
@@ -85,7 +101,10 @@ class Tokenizer(object):
         self.document_count = 0
         for text in texts:
             self.document_count += 1
-            seq = text if self.char_level else text_to_word_sequence(text, self.filters, self.lower, self.split)
+            seq = text if self.char_level else text_to_word_sequence(text,
+                                                                     self.filters,
+                                                                     self.lower,
+                                                                     self.split)
             for w in seq:
                 if w in self.word_counts:
                     self.word_counts[w] += 1
@@ -108,8 +127,14 @@ class Tokenizer(object):
             self.index_docs[self.word_index[w]] = c
 
     def fit_on_sequences(self, sequences):
-        """Required before using sequences_to_matrix
-        (if fit_on_texts was never called)
+        """Updates internal vocabulary based on a list of sequences.
+
+        Required before using `sequences_to_matrix`
+        (if `fit_on_texts` was never called).
+
+        # Arguments
+            sequences: A list of sequence.
+                A "sequence" is a list of integer word indices.
         """
         self.document_count = len(sequences)
         self.index_docs = {}
@@ -123,10 +148,15 @@ class Tokenizer(object):
 
     def texts_to_sequences(self, texts):
         """Transforms each text in texts in a sequence of integers.
+
         Only top "nb_words" most frequent words will be taken into account.
         Only words known by the tokenizer will be taken into account.
 
-        Returns a list of sequences.
+        # Arguments
+            texts: A list of texts (strings).
+
+        # Returns
+            A list of sequences.
         """
         res = []
         for vect in self.texts_to_sequences_generator(texts):
@@ -138,14 +168,18 @@ class Tokenizer(object):
         Only top "nb_words" most frequent words will be taken into account.
         Only words known by the tokenizer will be taken into account.
 
-        Yields individual sequences.
+        # Arguments
+            texts: A list of texts (strings).
 
-        # Arguments:
-            texts: list of strings.
+        # Yields
+            Yields individual sequences.
         """
         nb_words = self.nb_words
         for text in texts:
-            seq = text if self.char_level else text_to_word_sequence(text, self.filters, self.lower, self.split)
+            seq = text if self.char_level else text_to_word_sequence(text,
+                                                                     self.filters,
+                                                                     self.lower,
+                                                                     self.split)
             vect = []
             for w in seq:
                 i = self.word_index.get(w)
@@ -160,9 +194,12 @@ class Tokenizer(object):
         """Convert a list of texts to a Numpy matrix,
         according to some vectorization mode.
 
-        # Arguments:
+        # Arguments
             texts: list of strings.
-            modes: one of "binary", "count", "tfidf", "freq"
+            modes: one of "binary", "count", "tfidf", "freq".
+
+        # Returns
+            A Numpy matrix.
         """
         sequences = self.texts_to_sequences(texts)
         return self.sequences_to_matrix(sequences, mode=mode)
@@ -171,10 +208,13 @@ class Tokenizer(object):
         """Converts a list of sequences into a Numpy matrix,
         according to some vectorization mode.
 
-        # Arguments:
+        # Arguments
             sequences: list of sequences
                 (a sequence is a list of integer word indices).
             modes: one of "binary", "count", "tfidf", "freq"
+
+        # Returns
+            A Numpy matrix.
         """
         if not self.nb_words:
             if self.word_index:
@@ -210,7 +250,7 @@ class Tokenizer(object):
                     X[i][j] = 1
                 elif mode == 'tfidf':
                     # Use weighting scheme 2 in
-                    #   https://en.wikipedia.org/wiki/Tf%E2%80%93idf
+                    # https://en.wikipedia.org/wiki/Tf%E2%80%93idf
                     tf = 1 + np.log(c)
                     idf = np.log(1 + self.document_count / (1 + self.index_docs.get(j, 0)))
                     X[i][j] = tf * idf
