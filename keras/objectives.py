@@ -1,5 +1,5 @@
 from __future__ import absolute_import
-import numpy as np
+
 from . import backend as K
 from .utils.generic_utils import get_from_module
 
@@ -15,13 +15,13 @@ def mean_absolute_error(y_true, y_pred):
 def mean_absolute_percentage_error(y_true, y_pred):
     diff = K.abs((y_true - y_pred) / K.clip(K.abs(y_true),
                                             K.epsilon(),
-                                            np.inf))
+                                            None))
     return 100. * K.mean(diff, axis=-1)
 
 
 def mean_squared_logarithmic_error(y_true, y_pred):
-    first_log = K.log(K.clip(y_pred, K.epsilon(), np.inf) + 1.)
-    second_log = K.log(K.clip(y_true, K.epsilon(), np.inf) + 1.)
+    first_log = K.log(K.clip(y_pred, K.epsilon(), None) + 1.)
+    second_log = K.log(K.clip(y_true, K.epsilon(), None) + 1.)
     return K.mean(K.square(first_log - second_log), axis=-1)
 
 
