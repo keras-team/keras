@@ -88,7 +88,7 @@ def make_sampling_table(size, sampling_factor=1e-5):
     gamma = 0.577
     rank = np.array(list(range(size)))
     rank[0] = 1
-    inv_fq = rank * (np.log(rank) + gamma) + 0.5 - 1./(12.*rank)
+    inv_fq = rank * (np.log(rank) + gamma) + 0.5 - 1. / (12. * rank)
     f = sampling_factor * inv_fq
 
     return np.minimum(1., f / np.sqrt(f))
@@ -129,8 +129,8 @@ def skipgrams(sequence, vocabulary_size,
             if sampling_table[wi] < random.random():
                 continue
 
-        window_start = max(0, i-window_size)
-        window_end = min(len(sequence), i+window_size+1)
+        window_start = max(0, i - window_size)
+        window_end = min(len(sequence), i + window_size + 1)
         for j in range(window_start, window_end):
             if j != i:
                 wj = sequence[j]
@@ -147,11 +147,11 @@ def skipgrams(sequence, vocabulary_size,
         words = [c[0] for c in couples]
         random.shuffle(words)
 
-        couples += [[words[i %len(words)], random.randint(1, vocabulary_size-1)] for i in range(nb_negative_samples)]
+        couples += [[words[i % len(words)], random.randint(1, vocabulary_size - 1)] for i in range(nb_negative_samples)]
         if categorical:
-            labels += [[1, 0]]*nb_negative_samples
+            labels += [[1, 0]] * nb_negative_samples
         else:
-            labels += [0]*nb_negative_samples
+            labels += [0] * nb_negative_samples
 
     if shuffle:
         seed = random.randint(0, 10e6)

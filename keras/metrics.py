@@ -19,7 +19,7 @@ def categorical_accuracy(y_true, y_pred):
     multiclass classification problems.
     """
     return K.mean(K.equal(K.argmax(y_true, axis=-1),
-                  K.argmax(y_pred, axis=-1)))
+                          K.argmax(y_pred, axis=-1)))
 
 
 def sparse_categorical_accuracy(y_true, y_pred):

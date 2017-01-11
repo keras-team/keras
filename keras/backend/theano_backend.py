@@ -1034,7 +1034,7 @@ def rnn(step_function, inputs, initial_states,
         constants = []
 
     if mask is not None:
-        if mask.ndim == ndim-1:
+        if mask.ndim == ndim - 1:
             mask = expand_dims(mask)
         assert mask.ndim == ndim
         mask = mask.dimshuffle(axes)
@@ -1922,6 +1922,7 @@ def random_binomial(shape, p=0.0, dtype=None, seed=None):
 # https://github.com/shawntan/
 # Note that tensorflow's native CTC code is significantly
 # faster than this
+
 
 def ctc_interleave_blanks(Y):
     Y_ = T.alloc(-1, Y.shape[0] * 2 + 1)

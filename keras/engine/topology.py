@@ -42,6 +42,7 @@ class InputSpec(object):
     A None entry in a shape is compatible with any dimension,
     a None shape is compatible with any shape.
     """
+
     def __init__(self, dtype=None, shape=None, ndim=None):
         if isinstance(ndim, str):
             if '+' not in ndim:
@@ -99,6 +100,7 @@ class Node(object):
         A.outbound_nodes
         B.inbound_nodes
     """
+
     def __init__(self, outbound_layer,
                  inbound_layers, node_indices, tensor_indices,
                  input_tensors, output_tensors,
@@ -282,6 +284,7 @@ class Layer(object):
         create_input_layer()
         assert_input_compatibility()
     """
+
     def __init__(self, **kwargs):
         # These properties should have been set
         # by the child class, as appropriate.
@@ -1052,6 +1055,7 @@ class InputLayer(Layer):
             is meant to be sparse.
         name: Name of the layer (string).
     """
+
     def __init__(self, input_shape=None, batch_input_shape=None,
                  input_dtype=None, input_tensor=None, sparse=False, name=None):
         self.input_spec = None
@@ -1253,6 +1257,7 @@ class Merge(Layer):
             if merge mode is a lambda/function). If the latter case, it should
             take as input a list of masks and return a single mask.
     """
+
     def __init__(self, layers=None, mode='sum', concat_axis=-1,
                  dot_axes=-1, output_shape=None, output_mask=None,
                  arguments=None, node_indices=None, tensor_indices=None,
@@ -1722,6 +1727,7 @@ class Container(Layer):
     # Class Methods
         from_config
     """
+
     def __init__(self, input, output, name=None):
         # Handle name argument.
         if not name:
@@ -2799,9 +2805,9 @@ class Container(Layer):
             flattened_layers = self.layers
 
         if 'nb_layers' in f.attrs:
-                raise ValueError('The weight file you are trying to load is'
-                                 ' in a legacy format that does not support'
-                                 ' name-based weight loading.')
+            raise ValueError('The weight file you are trying to load is'
+                             ' in a legacy format that does not support'
+                             ' name-based weight loading.')
         else:
             # New file format.
             layer_names = [n.decode('utf8') for n in f.attrs['layer_names']]

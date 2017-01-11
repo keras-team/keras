@@ -29,7 +29,7 @@ def text_to_word_sequence(text, filters=base_filter(), lower=True, split=" "):
     """
     if lower:
         text = text.lower()
-    text = text.translate(maketrans(filters, split*len(filters)))
+    text = text.translate(maketrans(filters, split * len(filters)))
     seq = text.split(split)
     return [_f for _f in seq if _f]
 
@@ -40,6 +40,7 @@ def one_hot(text, n, filters=base_filter(), lower=True, split=" "):
 
 
 class Tokenizer(object):
+
     def __init__(self, nb_words=None, filters=base_filter(),
                  lower=True, split=' ', char_level=False):
         """The class allows to vectorize a text corpus, by turning each

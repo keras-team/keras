@@ -1933,7 +1933,7 @@ def rnn(step_function, inputs, initial_states,
     # TODO: remove later.
     if hasattr(tf, 'select'):
         tf.where = tf.select
-        
+
     if unroll:
         if not inputs.get_shape()[0]:
             raise ValueError('Unrolling requires a '

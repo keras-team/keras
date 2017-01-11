@@ -249,6 +249,7 @@ class Sequential(Model):
             model.add(Dense(32))
         ```
     """
+
     def __init__(self, layers=None, name=None):
         self.layers = []  # stack of layers
         self.model = None  # internal Model instance

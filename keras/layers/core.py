@@ -428,7 +428,7 @@ class Permute(Layer):
         output_shape = copy.copy(input_shape)
         for i, dim in enumerate(self.dims):
             target_dim = input_shape[dim]
-            output_shape[i+1] = target_dim
+            output_shape[i + 1] = target_dim
         return tuple(output_shape)
 
     def call(self, x, mask=None):

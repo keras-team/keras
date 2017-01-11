@@ -54,7 +54,7 @@ class HDF5Matrix():
     def __getitem__(self, key):
         if isinstance(key, slice):
             if key.stop + self.start <= self.end:
-                idx = slice(key.start+self.start, key.stop + self.start)
+                idx = slice(key.start + self.start, key.stop + self.start)
             else:
                 raise IndexError
         elif isinstance(key, int):

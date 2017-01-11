@@ -83,8 +83,8 @@ class UnitNorm(Constraint):
 
     def __call__(self, p):
         return p / (K.epsilon() + K.sqrt(K.sum(K.square(p),
-                                         axis=self.axis,
-                                         keepdims=True)))
+                                               axis=self.axis,
+                                               keepdims=True)))
 
     def get_config(self):
         return {'name': self.__class__.__name__,
