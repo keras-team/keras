@@ -10,7 +10,6 @@ except ImportError:
 
 import numpy as np
 import os
-import copy
 import warnings
 from .common import floatx, _EPSILON, image_dim_ordering, reset_uids
 py_all = all
@@ -1250,6 +1249,8 @@ def clip(x, min_value, max_value):
     """
     if max_value is not None and max_value < min_value:
         max_value = min_value
+    if max_value is None:
+        max_value = np.inf
     min_value = _to_tensor(min_value, x.dtype.base_dtype)
     max_value = _to_tensor(max_value, x.dtype.base_dtype)
     return tf.clip_by_value(x, min_value, max_value)
