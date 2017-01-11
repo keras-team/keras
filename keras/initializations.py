@@ -102,7 +102,7 @@ def norm_weight(shape, scale=0.01, ortho=True, name=None):
     """
     Random weights drawn from a Gaussian
     """
-    assert len(shape)==2, 'shape must have length 2'
+    assert len(shape)>0, 'shape must have length > 0. Currently, it has length == ' + str(len(shape))
     if shape[0] == shape[1] and ortho:
         W = ortho_weight(shape)
     else:

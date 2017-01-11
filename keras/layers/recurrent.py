@@ -2133,17 +2133,11 @@ class LSTMCond(Recurrent):
                 initial_states = [initial_state for _ in range(2)]
             else:
                 initial_memory = self.init_memory
-                #reducer = K.ones((self.output_dim, self.output_dim))
-                #initial_memory = K.dot(initial_memory, reducer)  # (samples, output_dim)
                 initial_states = [initial_state, initial_memory]
         else:
             initial_state = self.init_state
-            #reducer = K.ones((self.output_dim, self.output_dim))
-            #initial_state = K.dot(initial_state, reducer)  # (samples, output_dim)
             if self.init_memory is not None: # We have state and memory
                 initial_memory = self.init_memory
-                #reducer = K.ones((self.output_dim, self.output_dim))
-                #initial_memory = K.dot(initial_memory, reducer)  # (samples, output_dim)
                 initial_states = [initial_state, initial_memory]
             else:
                 initial_states = [initial_state for _ in range(2)]
@@ -3289,7 +3283,7 @@ class AttLSTMCond(Recurrent):
                                InputSpec(shape=input_shape[2]), InputSpec(shape=input_shape[3])]
             self.num_inputs = 4
         self.input_dim = input_shape[0][2]
-        self.context_steps = input_shape[1][1] #if input_shape[0][1] is not None else self.max_ctx_len
+        self.context_steps = input_shape[1][1]
         self.context_dim = input_shape[1][2]
         if self.stateful:
             self.reset_states()
@@ -3583,7 +3577,7 @@ class AttLSTMCond(Recurrent):
 
         # Attention model (see Formulation in class header)
         p_state_ = K.dot(h_tm1 * B_Wa[0], self.Wa)
-        pctx_ = K.tanh(pctx_ +  p_state_[:, None, :])
+        pctx_ = K.tanh(pctx_ + p_state_[:, None, :])
         e = K.dot(pctx_ * B_wa[0], self.wa) + self.ca
         alphas_shape = e.shape
         alphas = K.softmax(e.reshape([alphas_shape[0], alphas_shape[1]]))
@@ -3621,7 +3615,7 @@ class AttLSTMCond(Recurrent):
 
         # States[5]
         if 0 < self.dropout_W < 1:
-            input_shape = self.input_spec[0][0].shape
+            input_shape = self.input_spec[1].shape
             input_dim = input_shape[-1]
             ones = K.ones_like(K.reshape(x[:, 0, 0], (-1, 1)))
             ones = K.concatenate([ones] * input_dim, 1)
