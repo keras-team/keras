@@ -9,11 +9,13 @@ from .. import backend as K
 
 
 def to_categorical(y, nb_classes=None):
-    """Converts a class vector (integers from 0 to nb_classes)
-    to binary class matrix, for use with categorical_crossentropy.
+    """Converts a class vector (integers) to binary class matrix.
+
+    E.g. for use with categorical_crossentropy.
 
     # Arguments
-        y: class vector to be converted into a matrix.
+        y: class vector to be converted into a matrix
+            (integers from 0 to nb_classes).
         nb_classes: total number of classes.
 
     # Returns
@@ -43,9 +45,9 @@ def binary_logloss(p, y):
     return res
 
 
-def multiclass_logloss(P, Y):
-    npreds = [P[i][Y[i] - 1] for i in range(len(Y))]
-    score = -(1. / len(Y)) * np.sum(np.log(npreds))
+def multiclass_logloss(p, y):
+    npreds = [p[i][y[i] - 1] for i in range(len(y))]
+    score = -(1. / len(y)) * np.sum(np.log(npreds))
     return score
 
 
@@ -64,10 +66,19 @@ def categorical_probas_to_classes(p):
 
 
 def convert_kernel(kernel, dim_ordering=None):
-    """Converts a kernel matrix (Numpy array)
-    from Theano format to TensorFlow format
-    (or reciprocally, since the transformation
-    is its own inverse).
+    """Converts a Numpy kernel matrix from Theano format to TensorFlow format.
+
+    Also works reciprocally, since the transformation is its own inverse.
+
+    # Arguments
+        kerne: Numpy array (4D or 5D).
+        dim_ordering: the data format.
+
+    # Returns
+        The converted kernel.
+
+    # Raises
+        ValueError: in case of invalid kernel shape or invalid dim_ordering.
     """
     if dim_ordering is None:
         dim_ordering = K.image_dim_ordering()
@@ -88,6 +99,18 @@ def convert_kernel(kernel, dim_ordering=None):
 
 def conv_output_length(input_length, filter_size,
                        border_mode, stride, dilation=1):
+    """Determines output length of a convolution given input length.
+
+    # Arguments
+        input_length: integer.
+        filter_size: integer.
+        border_mode: one of "same", "valid", "full".
+        stride: integer.
+        dilation: dilation rate, integer.
+
+    # Returns
+        The output length (integer).
+    """
     if input_length is None:
         return None
     assert border_mode in {'same', 'valid', 'full'}
@@ -102,6 +125,17 @@ def conv_output_length(input_length, filter_size,
 
 
 def conv_input_length(output_length, filter_size, border_mode, stride):
+    """Determines input length of a convolution given output length.
+
+    # Arguments
+        output_length: integer.
+        filter_size: integer.
+        border_mode: one of "same", "valid", "full".
+        stride: integer.
+
+    # Returns
+        The input length (integer).
+    """
     if output_length is None:
         return None
     assert border_mode in {'same', 'valid', 'full'}

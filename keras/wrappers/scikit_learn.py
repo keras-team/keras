@@ -84,13 +84,8 @@ class BaseWrapper(object):
             if params_name not in legal_params:
                 raise ValueError('{} is not a legal parameter'.format(params_name))
 
-    def get_params(self, deep=True):
+    def get_params(self, _):
         """Gets parameters for this estimator.
-
-        # Arguments
-            deep: boolean, optional
-                If True, will return the parameters for this estimator and
-                contained sub-objects that are estimators.
 
         # Returns
             params : dict
@@ -122,7 +117,7 @@ class BaseWrapper(object):
                 and n_features is the number of features.
             y : array-like, shape `(n_samples,)` or `(n_samples, n_outputs)`
                 True labels for X.
-            kwargs: dictionary arguments
+            **kwargs: dictionary arguments
                 Legal arguments are the arguments of `Sequential.fit`
 
         # Returns

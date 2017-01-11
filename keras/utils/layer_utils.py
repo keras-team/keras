@@ -73,9 +73,14 @@ def print_summary(layers, relevant_nodes=None,
     print('=' * line_length)
 
     def print_layer_summary(layer):
+        """Prints a summary for a single layer.
+
+        # Arguments
+            layer: target layer.
+        """
         try:
             output_shape = layer.output_shape
-        except:
+        except AttributeError:
             output_shape = 'multiple'
         connections = []
         for node_index, node in enumerate(layer.inbound_nodes):
@@ -119,6 +124,16 @@ def print_summary(layers, relevant_nodes=None,
 
 
 def count_total_params(layers, layer_set=None):
+    """Counts the number of parameters in a list of layers.
+
+    # Arguments
+        layers: list of layers.
+        layer_set: set of layers already seen
+            (so that we don't count their weights twice).
+
+    # Returns
+        A tuple (count of trainable weights, count of non-trainable weights.)
+    """
     if layer_set is None:
         layer_set = set()
     trainable_count = 0
@@ -138,6 +153,13 @@ def count_total_params(layers, layer_set=None):
 
 
 def convert_all_kernels_in_model(model):
+    """Converts all convolution kernels in a model from Theano to TensorFlow.
+
+    Also works from TensorFlow to Theano.
+
+    # Arguments
+        model: target model for the conversion.
+    """
     # Note: SeparableConvolution not included
     # since only supported by TF.
     conv_classes = {
