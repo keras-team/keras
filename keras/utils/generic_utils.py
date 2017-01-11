@@ -212,17 +212,3 @@ class Progbar(object):
 
     def add(self, n, values=None):
         self.update(self.seen_so_far + n, values)
-
-
-def display_table(rows, positions):
-
-    def display_row(objects, positions):
-        line = ''
-        for i in range(len(objects)):
-            line += str(objects[i])
-            line = line[:positions[i]]
-            line += ' ' * (positions[i] - len(line))
-        print(line)
-
-    for objects in rows:
-        display_row(objects, positions)
