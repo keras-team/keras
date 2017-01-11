@@ -406,7 +406,7 @@ class Layer(object):
                    constraint=None):
         """Adds a weight variable to the layer.
 
-        # Arguments:
+        # Arguments
             shape: The shape tuple of the weight.
             initializer: An Initializer instance (callable).
             trainable: A boolean, whether the weight should

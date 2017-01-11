@@ -36,7 +36,7 @@ def make_tuple(*args):
 
 
 def func_dump(func):
-    """Serialize user defined function.
+    """Serializes user defined function.
     """
     code = marshal.dumps(func.__code__).decode('raw_unicode_escape')
     defaults = func.__defaults__
@@ -48,7 +48,8 @@ def func_dump(func):
 
 
 def func_load(code, defaults=None, closure=None, globs=None):
-    """Deserialize user defined function."""
+    """Deserializes user defined function.
+    """
     if isinstance(code, (tuple, list)):  # unpack previous dump
         code, defaults, closure = code
     code = marshal.loads(code.encode('raw_unicode_escape'))
@@ -61,14 +62,14 @@ def func_load(code, defaults=None, closure=None, globs=None):
 
 
 class Progbar(object):
+    """Displays a progress bar.
+
+    # Arguments
+        target: Total number of steps expected.
+        interval: Minimum visual progress update interval (in seconds).
+    """
 
     def __init__(self, target, width=30, verbose=1, interval=0.01):
-        """Dislays a progress bar.
-
-        # Arguments:
-            target: Total number of steps expected.
-            interval: Minimum visual progress update interval (in seconds).
-        """
         self.width = width
         self.target = target
         self.sum_values = {}
