@@ -64,7 +64,9 @@ class Masking(Layer):
 
 
 class Dropout(Layer):
-    """Applies Dropout to the input. Dropout consists in randomly setting
+    """Applies Dropout to the input.
+
+    Dropout consists in randomly setting
     a fraction `p` of input units to 0 at each update during training time,
     which helps prevent overfitting.
 
@@ -554,7 +556,8 @@ class Lambda(Layer):
             If a tuple, it only specifies the first dimension onward;
                  sample dimension is assumed either the same as the input:
                  `output_shape = (input_shape[0], ) + output_shape`
-                 or, the input is `None` and the sample dimension is also `None`:
+                 or, the input is `None` and
+                 the sample dimension is also `None`:
                  `output_shape = (None, ) + output_shape`
             If a function, it specifies the entire shape as a function of the
             input shape: `output_shape = f(input_shape)`
@@ -602,9 +605,12 @@ class Lambda(Layer):
                     return K.int_shape(x)
             # Otherwise, we default to the input shape.
             warnings.warn('`output_shape` argument not specified for layer {} '
-                          'and cannot be automatically inferred with the Theano backend. '
-                          'Defaulting to output shape `{}` (same as input shape). '
-                          'If the expected output shape is different, specify it via the `output_shape` argument.'
+                          'and cannot be automatically inferred '
+                          'with the Theano backend. '
+                          'Defaulting to output shape `{}` '
+                          '(same as input shape). '
+                          'If the expected output shape is different, '
+                          'specify it via the `output_shape` argument.'
                           .format(self.name, input_shape))
             return input_shape
         elif isinstance(self._output_shape, (tuple, list)):
@@ -1249,12 +1255,13 @@ class TimeDistributedDense(Layer):
             if hasattr(K, 'int_shape'):
                 input_length = K.int_shape(x)[1]
                 if not input_length:
-                    raise ValueError(
-                        'Layer ' + self.name +
-                        ' requires to know the length of its input, '
-                        'but it could not be inferred automatically. '
-                        'Specify it manually by passing an input_shape '
-                        'argument to the first layer in your model.')
+                    raise ValueError('Layer ' + self.name +
+                                     ' requires to know the length '
+                                     'of its input, but it could not '
+                                     'be inferred automatically. '
+                                     'Specify it manually by passing '
+                                     'an input_shape argument to '
+                                     'the first layer in your model.')
             else:
                 input_length = K.shape(x)[1]
 
