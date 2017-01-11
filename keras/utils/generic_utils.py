@@ -1,5 +1,8 @@
+"""Python utilities required by Keras."""
 from __future__ import absolute_import
+
 import numpy as np
+
 import time
 import sys
 import six
@@ -9,6 +12,27 @@ import types as python_types
 
 def get_from_module(identifier, module_params, module_name,
                     instantiate=False, kwargs=None):
+    """Retrieves a class of function member of a module.
+
+    # Arguments
+        identifier: the object to retrieve. It could be specified
+            by name (as a string), or by dict. In any other case,
+            `identifier` itself will be returned without any changes.
+        module_params: the members of a module
+            (e.g. the output of `globals()`).
+        module_name: string; the name of the target module. Only used
+            to format error messages.
+        instantiate: whether to instantiate the returned object
+            (if it's a class).
+        kwargs: a dictionary of keyword arguments to pass to the
+            class constructor if `instantiate` is `True`.
+
+    # Returns
+        The target object.
+
+    # Raises
+        ValueError: if the identifier cannot be found.
+    """
     if isinstance(identifier, six.string_types):
         res = module_params.get(identifier)
         if not res:
@@ -36,7 +60,13 @@ def make_tuple(*args):
 
 
 def func_dump(func):
-    """Serializes user defined function.
+    """Serializes a user defined function.
+
+    # Arguments
+        func: the function to serialize.
+
+    # Returns
+        A tuple `(code, defaults, closure)`.
     """
     code = marshal.dumps(func.__code__).decode('raw_unicode_escape')
     defaults = func.__defaults__
@@ -48,7 +78,16 @@ def func_dump(func):
 
 
 def func_load(code, defaults=None, closure=None, globs=None):
-    """Deserializes user defined function.
+    """Deserializes a user defined function.
+
+    # Arguments
+        code: bytecode of the function.
+        defaults: defaults of the function.
+        closure: closure of the function.
+        globs: dictionary of global objects.
+
+    # Returns
+        A function object.
     """
     if isinstance(code, (tuple, list)):  # unpack previous dump
         code, defaults, closure = code
@@ -81,7 +120,7 @@ class Progbar(object):
         self.seen_so_far = 0
         self.verbose = verbose
 
-    def update(self, current, values=[], force=False):
+    def update(self, current, values=None, force=False):
         """Updates the progress bar.
 
         # Arguments
@@ -90,6 +129,7 @@ class Progbar(object):
                 The progress bar will display averages for these values.
             force: Whether to force visual progress update.
         """
+        values = values or []
         for k, v in values:
             if k not in self.sum_values:
                 self.sum_values[k] = [v * (current - self.seen_so_far),
@@ -170,7 +210,7 @@ class Progbar(object):
 
         self.last_update = now
 
-    def add(self, n, values=[]):
+    def add(self, n, values=None):
         self.update(self.seen_so_far + n, values)
 
 

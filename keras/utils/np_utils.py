@@ -1,4 +1,6 @@
+"""Numpy-related utilities."""
 from __future__ import absolute_import
+
 import numpy as np
 import scipy as sp
 from six.moves import range
@@ -7,12 +9,12 @@ from .. import backend as K
 
 
 def to_categorical(y, nb_classes=None):
-    """Converts class vector (integers from 0 to nb_classes)
+    """Converts a class vector (integers from 0 to nb_classes)
     to binary class matrix, for use with categorical_crossentropy.
 
     # Arguments
-        y: class vector to be converted into a matrix
-        nb_classes: total number of classes
+        y: class vector to be converted into a matrix.
+        nb_classes: total number of classes.
 
     # Returns
         A binary matrix representation of the input.
@@ -61,13 +63,13 @@ def categorical_probas_to_classes(p):
     return np.argmax(p, axis=1)
 
 
-def convert_kernel(kernel, dim_ordering='default'):
+def convert_kernel(kernel, dim_ordering=None):
     """Converts a kernel matrix (Numpy array)
     from Theano format to TensorFlow format
     (or reciprocally, since the transformation
     is its own inverse).
     """
-    if dim_ordering == 'default':
+    if dim_ordering is None:
         dim_ordering = K.image_dim_ordering()
     if not 4 <= kernel.ndim <= 5:
         raise ValueError('Invalid kernel shape:', kernel.shape)

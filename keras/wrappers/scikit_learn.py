@@ -57,16 +57,13 @@ class BaseWrapper(object):
         self.check_params(sk_params)
 
     def check_params(self, params):
-        """Checks for user typos in "params" keys to avoid
-        unwanted usage of default values
+        """Checks for user typos in "params".
 
         # Arguments
-            params: dictionary
-                The parameters to be checked
+            params: dictionary; the parameters to be checked
 
         # Raises
-            ValueError: if any member of `params` is not a valid
-                argument.
+            ValueError: if any member of `params` is not a valid argument.
         """
         legal_params_fns = [Sequential.fit, Sequential.predict,
                             Sequential.predict_classes, Sequential.evaluate]
@@ -107,8 +104,7 @@ class BaseWrapper(object):
         """Sets the parameters of this estimator.
 
         # Arguments
-        params: dict
-            Dictionary of parameter names mapped to their values.
+            **params: Dictionary of parameter names mapped to their values.
 
         # Returns
             self
@@ -118,8 +114,7 @@ class BaseWrapper(object):
         return self
 
     def fit(self, x, y, **kwargs):
-        """Constructs a new model with build_fn and fit the model according
-        to the given training data.
+        """Constructs a new model with `build_fn` & fit the model to `(x, y)`.
 
         # Arguments
             x : array-like, shape `(n_samples, n_features)`
@@ -157,7 +152,7 @@ class BaseWrapper(object):
         return history
 
     def filter_sk_params(self, fn, override=None):
-        """Filters sk_params and return those in fn's arguments
+        """Filters `sk_params` and return those in `fn`'s arguments.
 
         # Arguments
             fn : arbitrary function
@@ -188,7 +183,7 @@ class KerasClassifier(BaseWrapper):
             x: array-like, shape `(n_samples, n_features)`
                 Test samples where n_samples in the number of samples
                 and n_features is the number of features.
-            kwargs: dictionary arguments
+            **kwargs: dictionary arguments
                 Legal arguments are the arguments
                 of `Sequential.predict_classes`.
 
@@ -206,7 +201,7 @@ class KerasClassifier(BaseWrapper):
             x: array-like, shape `(n_samples, n_features)`
                 Test samples where n_samples in the number of samples
                 and n_features is the number of features.
-            kwargs: dictionary arguments
+            **kwargs: dictionary arguments
                 Legal arguments are the arguments
                 of `Sequential.predict_classes`.
 
@@ -236,7 +231,7 @@ class KerasClassifier(BaseWrapper):
                 and n_features is the number of features.
             y: array-like, shape `(n_samples,)` or `(n_samples, n_outputs)`
                 True labels for x.
-            kwargs: dictionary arguments
+            **kwargs: dictionary arguments
                 Legal arguments are the arguments of `Sequential.evaluate`.
 
         # Returns
@@ -275,11 +270,12 @@ class KerasRegressor(BaseWrapper):
         """Returns predictions for the given test data.
 
         # Arguments
-            X: array-like, shape `(n_samples, n_features)`
+            x: array-like, shape `(n_samples, n_features)`
                 Test samples where n_samples in the number of samples
                 and n_features is the number of features.
             **kwargs: dictionary arguments
                 Legal arguments are the arguments of `Sequential.predict`.
+
         # Returns
             preds: array-like, shape `(n_samples,)`
                 Predictions.
@@ -296,7 +292,7 @@ class KerasRegressor(BaseWrapper):
                 and n_features is the number of features.
             y: array-like, shape `(n_samples,)`
                 True labels for X.
-            kwargs: dictionary arguments
+            **kwargs: dictionary arguments
                 Legal arguments are the arguments of `Sequential.evaluate`.
 
         # Returns
