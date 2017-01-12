@@ -1,5 +1,6 @@
-from __future__ import absolute_import
 # -*- coding: utf-8 -*-
+from __future__ import absolute_import
+
 import numpy as np
 import random
 from six.moves import range
@@ -7,8 +8,7 @@ from six.moves import range
 
 def pad_sequences(sequences, maxlen=None, dtype='int32',
                   padding='pre', truncating='pre', value=0.):
-    """Pads each sequence to the same length:
-    the length of the longest sequence.
+    """Pads each sequence to the same length (length of the longest sequence).
 
     If maxlen is provided, any sequence longer
     than maxlen is truncated to maxlen.
@@ -28,6 +28,10 @@ def pad_sequences(sequences, maxlen=None, dtype='int32',
 
     # Returns
         x: numpy array with dimensions (number_of_sequences, maxlen)
+
+    # Raises
+        ValueError, in case of invalid values for `truncating`, `padding`,
+            or in case of invalid shape for a `sequences` entry.
     """
     lengths = [len(s) for s in sequences]
 
@@ -39,13 +43,13 @@ def pad_sequences(sequences, maxlen=None, dtype='int32',
     # checking for consistency in the main loop below.
     sample_shape = tuple()
     for s in sequences:
-        if len(s) > 0:
+        if s:
             sample_shape = np.asarray(s).shape[1:]
             break
 
     x = (np.ones((nb_samples, maxlen) + sample_shape) * value).astype(dtype)
     for idx, s in enumerate(sequences):
-        if len(s) == 0:
+        if not s:
             continue  # empty list was found
         if truncating == 'pre':
             trunc = s[-maxlen:]
@@ -70,7 +74,9 @@ def pad_sequences(sequences, maxlen=None, dtype='int32',
 
 
 def make_sampling_table(size, sampling_factor=1e-5):
-    """This generates an array where the ith element
+    """Generates a word rank-based probabilistic sampling table.
+
+    This generates an array where the ith element
     is the probability that a word of rank i would be sampled,
     according to the sampling distribution used in word2vec.
 
@@ -84,6 +90,11 @@ def make_sampling_table(size, sampling_factor=1e-5):
 
     # Arguments
         size: int, number of possible words to sample.
+        sample_factor: the sampling factor in the word2vec formula.
+
+    # Returns
+        A 1D Numpy array of length `size` where the ith entry
+        is the probability that a word of rank i should be sampled.
     """
     gamma = 0.577
     rank = np.array(list(range(size)))
@@ -97,12 +108,20 @@ def make_sampling_table(size, sampling_factor=1e-5):
 def skipgrams(sequence, vocabulary_size,
               window_size=4, negative_samples=1., shuffle=True,
               categorical=False, sampling_table=None):
-    """Take a sequence (list of indexes of words),
+    """Generates skipgram word pairs.
+
+    Takes a sequence (list of indexes of words),
     returns couples of [word_index, other_word index] and labels (1s or 0s),
     where label = 1 if 'other_word' belongs to the context of 'word',
     and label=0 if 'other_word' is randomly sampled
 
     # Arguments
+        sequence: a word sequence (sentence), encoded as a list
+            of word indices (integers). If using a `sampling_table`,
+            word indices are expected to match the rank
+            of the words in a reference dataset (e.g. 10 would encode
+            the 10-th most frequently occuring token).
+            Note that index 0 is expected to be a non-word and will be skipped.
         vocabulary_size: int. maximum possible word index + 1
         window_size: int. actually half-window.
             The window of a word wi will be [i-window_size, i+window_size+1]
@@ -111,12 +130,16 @@ def skipgrams(sequence, vocabulary_size,
         categorical: bool. if False, labels will be
             integers (eg. [0, 1, 1 .. ]),
             if True labels will be categorical eg. [[1,0],[0,1],[0,1] .. ]
+        shuffle: whether to shuffle the word couples before returning them.
+        categorical: whether to use categorical encoding for the labels.
+        sampling_table: 1D array of size `vocabulary_size` where the entry i
+            encodes the probabibily to sample a word of rank i.
 
     # Returns
         couples, labels: where `couples` are int pairs and
             `labels` are either 0 or 1.
 
-    # Notes
+    # Note
         By convention, index 0 in the vocabulary is
         a non-word and will be skipped.
     """
@@ -147,7 +170,8 @@ def skipgrams(sequence, vocabulary_size,
         words = [c[0] for c in couples]
         random.shuffle(words)
 
-        couples += [[words[i % len(words)], random.randint(1, vocabulary_size - 1)] for i in range(nb_negative_samples)]
+        couples += [[words[i % len(words)],
+                    random.randint(1, vocabulary_size - 1)] for i in range(nb_negative_samples)]
         if categorical:
             labels += [[1, 0]] * nb_negative_samples
         else:

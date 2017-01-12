@@ -198,7 +198,7 @@ class Tokenizer(object):
 
         # Arguments
             texts: list of strings.
-            modes: one of "binary", "count", "tfidf", "freq".
+            mode: one of "binary", "count", "tfidf", "freq".
 
         # Returns
             A Numpy matrix.
@@ -212,10 +212,14 @@ class Tokenizer(object):
         # Arguments
             sequences: list of sequences
                 (a sequence is a list of integer word indices).
-            modes: one of "binary", "count", "tfidf", "freq"
+            mode: one of "binary", "count", "tfidf", "freq"
 
         # Returns
             A Numpy matrix.
+
+        # Raises
+            ValueError: In case of invalid `mode` argument,
+                or if the Tokenizer requires to be fit to sample data.
         """
         if not self.nb_words:
             if self.word_index:
