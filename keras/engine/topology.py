@@ -662,7 +662,7 @@ class Layer(object):
         if not hasattr(self, 'supports_masking') or not self.supports_masking:
             if input_mask is not None:
                 if isinstance(input_mask, list):
-                    if any(input_mask):
+                    if any(mask is not None for mask in input_mask):
                         raise ValueError('Layer ' + self.name +
                                          ' does not support masking, '
                                          'but was passed an input_mask: ' +
