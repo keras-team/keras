@@ -305,7 +305,7 @@ def load_img(path, grayscale=False, target_size=None):
 
 def list_pictures(directory, ext='jpg|jpeg|bmp|png'):
     return [os.path.join(root, f)
-            for root, dirs, files in os.walk(directory) for f in files
+            for root, _, files in os.walk(directory) for f in files
             if re.match('([\w]+\.(?:' + ext + '))', f)]
 
 
@@ -613,7 +613,7 @@ class ImageDataGenerator(object):
         if self.zca_whitening:
             flat_x = np.reshape(x, (x.shape[0], x.shape[1] * x.shape[2] * x.shape[3]))
             sigma = np.dot(flat_x.T, flat_x) / flat_x.shape[0]
-            u, s, v = linalg.svd(sigma)
+            u, s, _ = linalg.svd(sigma)
             self.principal_components = np.dot(np.dot(u, np.diag(1. / np.sqrt(s + 10e-7))), u.T)
 
 
@@ -785,7 +785,7 @@ class DirectoryIterator(Iterator):
 
         for subdir in classes:
             subpath = os.path.join(directory, subdir)
-            for root, dirs, files in _recursive_list(subpath):
+            for root, _, files in _recursive_list(subpath):
                 for fname in files:
                     is_valid = False
                     for extension in white_list_formats:
