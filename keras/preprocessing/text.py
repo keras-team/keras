@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
-"""These preprocessing utilities would greatly benefit
-from a fast Cython rewrite.
+"""Utilities for text input preprocessing.
+
+May benefit from a fast Cython rewrite.
 """
 from __future__ import absolute_import
 from __future__ import division
@@ -17,14 +18,9 @@ else:
     maketrans = str.maketrans
 
 
-def base_filter():
-    f = string.punctuation
-    f = f.replace("'", '')
-    f += '\t\n'
-    return f
-
-
-def text_to_word_sequence(text, filters=base_filter(), lower=True, split=" "):
+def text_to_word_sequence(text,
+                          filters='!"#$%&()*+,-./:;<=>?@[\\]^_`{|}~\t\n',
+                          lower=True, split=" "):
     """Converts a text to a sequence of word indices.
 
     # Arguments
@@ -40,7 +36,7 @@ def text_to_word_sequence(text, filters=base_filter(), lower=True, split=" "):
         text = text.lower()
     text = text.translate(maketrans(filters, split * len(filters)))
     seq = text.split(split)
-    return [_f for _f in seq if _f]
+    return [i for i in seq if i]
 
 
 def one_hot(text, n, filters=base_filter(), lower=True, split=" "):
@@ -78,8 +74,11 @@ class Tokenizer(object):
     `0` is a reserved index that won't be assigned to any word.
     """
 
-    def __init__(self, nb_words=None, filters=base_filter(),
-                 lower=True, split=' ', char_level=False):
+    def __init__(self, nb_words=None,
+                 filters='!"#$%&()*+,-./:;<=>?@[\\]^_`{|}~\t\n',
+                 lower=True,
+                 split=' ',
+                 char_level=False):
         self.word_counts = {}
         self.word_docs = {}
         self.filters = filters
@@ -165,6 +164,7 @@ class Tokenizer(object):
 
     def texts_to_sequences_generator(self, texts):
         """Transforms each text in texts in a sequence of integers.
+
         Only top "nb_words" most frequent words will be taken into account.
         Only words known by the tokenizer will be taken into account.
 
@@ -191,8 +191,7 @@ class Tokenizer(object):
             yield vect
 
     def texts_to_matrix(self, texts, mode='binary'):
-        """Convert a list of texts to a Numpy matrix,
-        according to some vectorization mode.
+        """Convert a list of texts to a Numpy matrix.
 
         # Arguments
             texts: list of strings.
@@ -205,8 +204,7 @@ class Tokenizer(object):
         return self.sequences_to_matrix(sequences, mode=mode)
 
     def sequences_to_matrix(self, sequences, mode='binary'):
-        """Converts a list of sequences into a Numpy matrix,
-        according to some vectorization mode.
+        """Converts a list of sequences into a Numpy matrix.
 
         # Arguments
             sequences: list of sequences
@@ -229,7 +227,7 @@ class Tokenizer(object):
             raise ValueError('Fit the Tokenizer on some data '
                              'before using tfidf mode.')
 
-        X = np.zeros((len(sequences), nb_words))
+        x = np.zeros((len(sequences), nb_words))
         for i, seq in enumerate(sequences):
             if not seq:
                 continue
@@ -243,17 +241,18 @@ class Tokenizer(object):
                     counts[j] += 1
             for j, c in list(counts.items()):
                 if mode == 'count':
-                    X[i][j] = c
+                    x[i][j] = c
                 elif mode == 'freq':
-                    X[i][j] = c / len(seq)
+                    x[i][j] = c / len(seq)
                 elif mode == 'binary':
-                    X[i][j] = 1
+                    x[i][j] = 1
                 elif mode == 'tfidf':
                     # Use weighting scheme 2 in
                     # https://en.wikipedia.org/wiki/Tf%E2%80%93idf
                     tf = 1 + np.log(c)
-                    idf = np.log(1 + self.document_count / (1 + self.index_docs.get(j, 0)))
-                    X[i][j] = tf * idf
+                    idf = np.log(1 + self.document_count /
+                                 (1 + self.index_docs.get(j, 0)))
+                    x[i][j] = tf * idf
                 else:
                     raise ValueError('Unknown vectorization mode:', mode)
-        return X
+        return x

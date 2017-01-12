@@ -71,7 +71,7 @@ def convert_kernel(kernel, dim_ordering=None):
     Also works reciprocally, since the transformation is its own inverse.
 
     # Arguments
-        kerne: Numpy array (4D or 5D).
+        kernel: Numpy array (4D or 5D).
         dim_ordering: the data format.
 
     # Returns
@@ -85,7 +85,7 @@ def convert_kernel(kernel, dim_ordering=None):
     if not 4 <= kernel.ndim <= 5:
         raise ValueError('Invalid kernel shape:', kernel.shape)
 
-    slices = [slice(None, None, -1) for i in range(kernel.ndim)]
+    slices = [slice(None, None, -1) for _ in range(kernel.ndim)]
     no_flip = (slice(None, None), slice(None, None))
     if dim_ordering == 'th':  # (out_depth, input_depth, ...)
         slices[:2] = no_flip

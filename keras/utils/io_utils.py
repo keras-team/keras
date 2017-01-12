@@ -17,7 +17,7 @@ except ImportError:
     tables = None
 
 
-class HDF5Matrix():
+class HDF5Matrix(object):
     """Representation of HDF5 dataset to be used instead of a Numpy array.
 
     # Example
