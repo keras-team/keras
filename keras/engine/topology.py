@@ -2889,7 +2889,7 @@ class Container(Layer):
         import yaml
         return yaml.dump(self._updated_config(), **kwargs)
 
-    def summary(self, line_length=100, positions=[.33, .55, .67, 1.]):
+    def summary(self, line_length=100, positions=[.33, .55, .67, 1.], printf=print):
         from keras.utils.layer_utils import print_summary
 
         if hasattr(self, 'flattened_layers'):
@@ -2900,7 +2900,8 @@ class Container(Layer):
         print_summary(flattened_layers,
                       getattr(self, 'container_nodes', None),
                       line_length=line_length,
-                      positions=positions)
+                      positions=positions,
+                      printf=printf)
 
 
 def get_source_inputs(tensor, layer=None, node_index=None):
