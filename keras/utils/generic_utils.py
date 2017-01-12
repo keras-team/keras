@@ -9,10 +9,21 @@ import six
 import marshal
 import types as python_types
 
+global_custom_objects = {}
+
+
+def get_custom_objects():
+    """Retrieves a live reference to the global dictionary of custom objects
+
+    # Returns
+        dictionary of names to classes
+    """
+    return global_custom_objects
+
 
 def get_from_module(identifier, module_params, module_name,
                     instantiate=False, kwargs=None):
-    """Retrieves a class of function member of a module.
+    """Retrieves a class of function member of a module. First checks global_custom_objects then the requested module.
 
     # Arguments
         identifier: the object to retrieve. It could be specified
@@ -34,7 +45,11 @@ def get_from_module(identifier, module_params, module_name,
         ValueError: if the identifier cannot be found.
     """
     if isinstance(identifier, six.string_types):
-        res = module_params.get(identifier)
+        res = None
+        if identifier in global_custom_objects:
+            res = global_custom_objects[identifier]
+        if not res:
+            res = module_params.get(identifier)
         if not res:
             raise ValueError('Invalid ' + str(module_name) + ': ' +
                              str(identifier))
@@ -46,7 +61,11 @@ def get_from_module(identifier, module_params, module_name,
             return res
     elif isinstance(identifier, dict):
         name = identifier.pop('name')
-        res = module_params.get(name)
+        res = None
+        if name in global_custom_objects:
+            res = global_custom_objects[name]
+        if not res:
+            res = module_params.get(name)
         if res:
             return res(**identifier)
         else:
