@@ -299,7 +299,7 @@ class ModelCheckpoint(Callback):
             self.monitor_op = np.greater
             self.best = -np.Inf
         else:
-            if self.monitor.startswith(('acc', 'fmeasure')):
+            if 'acc' in self.monitor or self.monitor.startswith('fmeasure'):
                 self.monitor_op = np.greater
                 self.best = -np.Inf
             else:
@@ -385,7 +385,7 @@ class EarlyStopping(Callback):
         elif mode == 'max':
             self.monitor_op = np.greater
         else:
-            if self.monitor.startswith(('acc', 'fmeasure')):
+            if 'acc' in self.monitor or self.monitor.startswith('fmeasure'):
                 self.monitor_op = np.greater
             else:
                 self.monitor_op = np.less
