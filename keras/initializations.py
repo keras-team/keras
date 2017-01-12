@@ -29,11 +29,11 @@ def get_fans(shape, dim_ordering='th'):
     return fan_in, fan_out
 
 
-def uniform(shape, scale=0.05, name=None):
+def uniform(shape, scale=0.05, name=None, dim_ordering='th'):
     return K.random_uniform_variable(shape, -scale, scale, name=name)
 
 
-def normal(shape, scale=0.05, name=None):
+def normal(shape, scale=0.05, name=None, dim_ordering='th'):
     return K.random_normal_variable(shape, 0.0, scale, name=name)
 
 
@@ -85,7 +85,7 @@ def he_uniform(shape, name=None, dim_ordering='th'):
     return uniform(shape, s, name=name)
 
 
-def orthogonal(shape, scale=1.1, name=None):
+def orthogonal(shape, scale=1.1, name=None, dim_ordering='th'):
     """Orthogonal initializer.
 
     # References
@@ -100,7 +100,7 @@ def orthogonal(shape, scale=1.1, name=None):
     return K.variable(scale * q[:shape[0], :shape[1]], name=name)
 
 
-def identity(shape, scale=1, name=None):
+def identity(shape, scale=1, name=None, dim_ordering='th'):
     if len(shape) != 2 or shape[0] != shape[1]:
         raise ValueError('Identity matrix initialization can only be used '
                          'for 2D square matrices.')
@@ -108,11 +108,11 @@ def identity(shape, scale=1, name=None):
         return K.variable(scale * np.identity(shape[0]), name=name)
 
 
-def zero(shape, name=None):
+def zero(shape, name=None, dim_ordering='th'):
     return K.zeros(shape, name=name)
 
 
-def one(shape, name=None):
+def one(shape, name=None, dim_ordering='th'):
     return K.ones(shape, name=name)
 
 
