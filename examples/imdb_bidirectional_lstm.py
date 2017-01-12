@@ -1,6 +1,6 @@
 '''Train a Bidirectional LSTM on the IMDB sentiment classification task.
 
-Output after 4 epochs on CPU: ~0.8146
+Output after 4 epochs on CPU: ~0.8146 (first epoch val acc = 0.8494)
 Time per epoch on CPU (Core i7): ~150s.
 '''
 

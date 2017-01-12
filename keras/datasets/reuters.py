@@ -40,10 +40,10 @@ def load_data(path='reuters.pkl', nb_words=None, skip_top=0,
     X, labels = cPickle.load(f)
     f.close()
 
-    np.random.seed(seed)
-    np.random.shuffle(X)
-    np.random.seed(seed)
-    np.random.shuffle(labels)
+    rs = np.random.RandomState(seed)
+    rs.shuffle(X)
+    rs.seed(seed)
+    rs.shuffle(labels)
 
     if start_char is not None:
         X = [[start_char] + [w + index_from for w in x] for x in X]

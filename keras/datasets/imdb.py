@@ -45,15 +45,15 @@ def load_data(path='imdb_full.pkl', nb_words=None, skip_top=0,
     (x_train, labels_train), (x_test, labels_test) = cPickle.load(f)
     f.close()
 
-    np.random.seed(seed)
-    np.random.shuffle(x_train)
-    np.random.seed(seed)
-    np.random.shuffle(labels_train)
+    rs = np.random.RandomState(seed)
+    rs.shuffle(x_train)
+    rs.seed(seed)
+    rs.shuffle(labels_train)
 
-    np.random.seed(seed * 2)
-    np.random.shuffle(x_test)
-    np.random.seed(seed * 2)
-    np.random.shuffle(labels_test)
+    rs.seed(seed * 2)
+    rs.shuffle(x_test)
+    rs.seed(seed * 2)
+    rs.shuffle(labels_test)
 
     X = x_train + x_test
     labels = labels_train + labels_test
