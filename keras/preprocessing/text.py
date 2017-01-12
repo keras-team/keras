@@ -39,7 +39,10 @@ def text_to_word_sequence(text,
     return [i for i in seq if i]
 
 
-def one_hot(text, n, filters=base_filter(), lower=True, split=" "):
+def one_hot(text, n,
+            filters='!"#$%&()*+,-./:;<=>?@[\\]^_`{|}~\t\n',
+            lower=True,
+            split=' '):
     seq = text_to_word_sequence(text,
                                 filters=filters,
                                 lower=lower,
