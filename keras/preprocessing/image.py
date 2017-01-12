@@ -664,7 +664,7 @@ class DirectoryIterator(Iterator):
         for subdir in classes:
             subpath = os.path.join(directory, subdir)
             for root, dirs, files in _recursive_list(subpath):
-                for fname in files:
+                for fname in sorted(files):
                     is_valid = False
                     for extension in white_list_formats:
                         if fname.lower().endswith('.' + extension):
