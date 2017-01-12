@@ -160,6 +160,21 @@ class TestImage:
         assert(sorted(dir_iterator.filenames) == sorted(filenames))
         shutil.rmtree(tmp_folder)
 
+    def test_load_img(self):
+        td = tempfile.mkdtemp(prefix='test_images')
+        fn = os.path.join(td, 'test_load_image.jpg')
+        Image.new(mode='RGB', size=(10, 10), color=(255, 255, 255)).save(fn)
+
+        i1 = image.load_img(fn, target_size=(5, 7), keep_aspect_ratio=True)
+        i2 = image.load_img(fn, target_size=(10, 5), keep_aspect_ratio=True,
+                            cval=0, grayscale=True)
+
+        assert i1.size == (7, 5)
+        assert i2.size == (5, 10)
+        i2arr = np.array(i2)
+        assert i2arr.shape == (10, 5)
+        assert 120 < np.mean(i2arr) < 140
+
     def test_img_utils(self):
         height, width = 10, 8
 

@@ -174,7 +174,8 @@ def img_to_array(img, dim_ordering='default'):
     return x
 
 
-def load_img(path, grayscale=False, target_size=None):
+def load_img(path, grayscale=False, target_size=None,
+             keep_aspect_ratio=False, cval=0):
     """Load an image into PIL format.
 
     # Arguments
@@ -182,6 +183,11 @@ def load_img(path, grayscale=False, target_size=None):
         grayscale: boolean
         target_size: None (default to original size)
             or (img_height, img_width)
+        keep_aspect_ratio: if `True`, the resized image will have the
+            same aspect ratio as the original, centered and padded
+            with `cval` to respect `target_size`
+        cval: integer in [0, 255]. value to pad the output image with if
+            `keep_aspect_ratio` is `True`
     """
     from PIL import Image
     img = Image.open(path)
@@ -190,7 +196,19 @@ def load_img(path, grayscale=False, target_size=None):
     else:  # Ensure 3 channel even when loaded image is grayscale
         img = img.convert('RGB')
     if target_size:
-        img = img.resize((target_size[1], target_size[0]))
+        size = (target_size[1], target_size[0])
+        if not keep_aspect_ratio:
+            img = img.resize(size)
+        else:
+            # PIL doesn't seem to like floats in new despite the docs...
+            img.thumbnail(size, Image.ANTIALIAS)
+            bcg = Image.new(('L' if grayscale else 'RGB'), size,
+                            (cval if grayscale else (cval, cval, cval)))
+            bcg.paste(img,
+                      ((size[0] - img.size[0]) // 2,
+                       (size[1] - img.size[1]) // 2))
+            return bcg
+
     return img
 
 
@@ -303,10 +321,12 @@ class ImageDataGenerator(object):
                             classes=None, class_mode='categorical',
                             batch_size=32, shuffle=True, seed=None,
                             save_to_dir=None, save_prefix='', save_format='jpeg',
-                            follow_links=False):
+                            follow_links=False,
+                            keep_aspect_ratio=False, cval=0):
         return DirectoryIterator(
             directory, self,
-            target_size=target_size, color_mode=color_mode,
+            target_size=target_size, keep_aspect_ratio=keep_aspect_ratio,
+            cval=cval, color_mode=color_mode,
             classes=classes, class_mode=class_mode,
             dim_ordering=self.dim_ordering,
             batch_size=batch_size, shuffle=shuffle, seed=seed,
@@ -592,8 +612,8 @@ class NumpyArrayIterator(Iterator):
 class DirectoryIterator(Iterator):
 
     def __init__(self, directory, image_data_generator,
-                 target_size=(256, 256), color_mode='rgb',
-                 dim_ordering='default',
+                 target_size=(256, 256), keep_aspect_ratio=False, cval=0,
+                 color_mode='rgb', dim_ordering='default',
                  classes=None, class_mode='categorical',
                  batch_size=32, shuffle=True, seed=None,
                  save_to_dir=None, save_prefix='', save_format='jpeg',
@@ -603,6 +623,12 @@ class DirectoryIterator(Iterator):
         self.directory = directory
         self.image_data_generator = image_data_generator
         self.target_size = tuple(target_size)
+        self.keep_aspect_ratio = keep_aspect_ratio
+        if not (0 <= cval < 255):
+            raise ValueError('cval {} not valid, must be in [0, 255]'
+                             .format(cval))
+        self.cval = cval
+
         if color_mode not in {'rgb', 'grayscale'}:
             raise ValueError('Invalid color mode:', color_mode,
                              '; expected "rgb" or "grayscale".')
@@ -689,7 +715,9 @@ class DirectoryIterator(Iterator):
             fname = self.filenames[j]
             img = load_img(os.path.join(self.directory, fname),
                            grayscale=grayscale,
-                           target_size=self.target_size)
+                           target_size=self.target_size,
+                           keep_aspect_ratio=self.keep_aspect_ratio,
+                           cval=self.cval)
             x = img_to_array(img, dim_ordering=self.dim_ordering)
             x = self.image_data_generator.random_transform(x)
             x = self.image_data_generator.standardize(x)
