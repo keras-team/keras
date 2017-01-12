@@ -1344,6 +1344,28 @@ class MaskedMean(Layer):
         base_config = super(MaskedMean, self).get_config()
         return dict(list(base_config.items()))
 
+
+class MaskLayer(Layer):
+    """
+    Applies to the input layer its mask
+    """
+    def __init__(self, **kwargs):
+        self.support_mask = True
+        super(MaskLayer, self).__init__(**kwargs)
+
+    def call(self, x, mask=None):
+        return mask[:, :, None] * x
+
+    def compute_mask(self, input_shape, input_mask=None):
+        return input_mask
+
+    def get_output_shape_for(self, input_shape):
+        return input_shape
+
+    def get_config(self):
+        base_config = super(MaskLayer, self).get_config()
+        return dict(list(base_config.items()))
+
 class WeightedSum(Layer):
     ''' Applies a weighted sum over a set of vectors input[0] and their respective weights input[1].
         First, the weights are tiled for matching the length of the input vectors on dim=1.
