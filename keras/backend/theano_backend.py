@@ -1540,6 +1540,9 @@ def deconv2d(x, kernel, output_shape, strides=(1, 1),
     if dim_ordering not in {'th', 'tf'}:
         raise ValueError('Unknown dim_ordering ' + dim_ordering)
 
+    if dim_ordering == 'tf':
+        output_shape = (output_shape[0], output_shape[3], output_shape[1], output_shape[2])
+
     x = _preprocess_conv2d_input(x, dim_ordering)
     kernel = _preprocess_conv2d_kernel(kernel, dim_ordering)
     kernel = kernel.dimshuffle((1, 0, 2, 3))
