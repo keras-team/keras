@@ -18,6 +18,7 @@ keras.preprocessing.image.ImageDataGenerator(featurewise_center=False,
     horizontal_flip=False,
     vertical_flip=False,
     rescale=None,
+    hsv_augmentation=None,
     dim_ordering=K.image_dim_ordering())
 ```
 
@@ -42,6 +43,8 @@ Generate batches of tensor image data with real-time data augmentation. The data
     - __rescale__: rescaling factor. Defaults to None. If None or 0, no rescaling is applied,
             otherwise we multiply the data by the value provided (before applying
             any other transformation).
+    - __hsv_augmentation__: Tuple of parameters (hue_shift, saturation_scale, saturation shift,
+                            value_scale, value_shift) to use for HSV data augmentation.
     - __dim_ordering__: One of {"th", "tf"}.
         "tf" mode means that the images should have shape `(samples, height, width, channels)`,
         "th" mode means that the images should have shape `(samples, channels, height, width)`.
