@@ -403,6 +403,8 @@ def pow(x, a):
 def clip(x, min_value, max_value):
     if max_value is not None and max_value < min_value:
         max_value = min_value
+    if max_value is None:
+        max_value = np.inf
     return T.clip(x, min_value, max_value)
 
 
