@@ -92,7 +92,7 @@ class LocallyConnected1D(Layer):
                              '(only "valid" is supported):', border_mode)
         self.nb_filter = nb_filter
         self.filter_length = filter_length
-        self.init = initializations.get(init, dim_ordering='th')
+        self.init = initializations.get(init, data_format='channels_first')
         self.activation = activations.get(activation)
 
         self.border_mode = border_mode
@@ -240,47 +240,47 @@ class LocallyConnected2D(Layer):
             (eg. maxnorm, nonneg), applied to the main weights matrix.
         b_constraint: instance of the [constraints](../constraints.md) module,
             applied to the bias.
-        dim_ordering: 'th' or 'tf'. In 'th' mode, the channels dimension
-            (the depth) is at index 1, in 'tf' mode is it at index 3.
+        data_format: 'channels_first' or 'channels_last'. In 'channels_first' mode, the channels dimension
+            (the depth) is at index 1, in 'channels_last' mode is it at index 3.
         bias: whether to include a bias (i.e. make the layer affine rather than linear).
 
     # Input shape
         4D tensor with shape:
-        `(samples, channels, rows, cols)` if dim_ordering='th'
+        `(samples, channels, rows, cols)` if data_format='channels_first'
         or 4D tensor with shape:
-        `(samples, rows, cols, channels)` if dim_ordering='tf'.
+        `(samples, rows, cols, channels)` if data_format='channels_last'.
 
     # Output shape
         4D tensor with shape:
-        `(samples, nb_filter, new_rows, new_cols)` if dim_ordering='th'
+        `(samples, nb_filter, new_rows, new_cols)` if data_format='channels_first'
         or 4D tensor with shape:
-        `(samples, new_rows, new_cols, nb_filter)` if dim_ordering='tf'.
+        `(samples, new_rows, new_cols, nb_filter)` if data_format='channels_last'.
         `rows` and `cols` values might have changed due to padding.
     """
 
     def __init__(self, nb_filter, nb_row, nb_col,
                  init='glorot_uniform', activation=None, weights=None,
                  border_mode='valid', subsample=(1, 1),
-                 dim_ordering='default',
+                 data_format='default',
                  W_regularizer=None, b_regularizer=None, activity_regularizer=None,
                  W_constraint=None, b_constraint=None,
                  bias=True, **kwargs):
-        if dim_ordering == 'default':
-            dim_ordering = K.image_dim_ordering()
+        if data_format == 'default':
+            data_format = K.image_data_format()
         if border_mode != 'valid':
             raise ValueError('Invalid border mode for LocallyConnected2D '
                              '(only "valid" is supported):', border_mode)
         self.nb_filter = nb_filter
         self.nb_row = nb_row
         self.nb_col = nb_col
-        self.init = initializations.get(init, dim_ordering=dim_ordering)
+        self.init = initializations.get(init, data_format=data_format)
         self.activation = activations.get(activation)
 
         self.border_mode = border_mode
         self.subsample = tuple(subsample)
-        if dim_ordering not in {'tf', 'th'}:
-            raise ValueError('`dim_ordering` must be in {tf, th}.')
-        self.dim_ordering = dim_ordering
+        if data_format not in {'channels_last', 'channels_first'}:
+            raise ValueError('`data_format` must be in {"channels_last", "channels_first"}.')
+        self.data_format = data_format
 
         self.W_regularizer = regularizers.get(W_regularizer)
         self.b_regularizer = regularizers.get(b_regularizer)
@@ -296,14 +296,14 @@ class LocallyConnected2D(Layer):
 
     def build(self, input_shape):
         output_shape = self.get_output_shape_for(input_shape)
-        if self.dim_ordering == 'th':
+        if self.data_format == 'channels_first':
             _, nb_filter, output_row, output_col = output_shape
             input_filter = input_shape[1]
-        elif self.dim_ordering == 'tf':
+        elif self.data_format == 'channels_last':
             _, output_row, output_col, nb_filter = output_shape
             input_filter = input_shape[3]
         else:
-            raise ValueError('Invalid dim_ordering:', self.dim_ordering)
+            raise ValueError('Invalid data_format:', self.data_format)
 
         self.output_row = output_row
         self.output_col = output_col
@@ -330,30 +330,30 @@ class LocallyConnected2D(Layer):
         self.built = True
 
     def get_output_shape_for(self, input_shape):
-        if self.dim_ordering == 'th':
+        if self.data_format == 'channels_first':
             rows = input_shape[2]
             cols = input_shape[3]
-        elif self.dim_ordering == 'tf':
+        elif self.data_format == 'channels_last':
             rows = input_shape[1]
             cols = input_shape[2]
         else:
-            raise ValueError('Invalid dim_ordering:', self.dim_ordering)
+            raise ValueError('Invalid data_format:', self.data_format)
 
         rows = conv_output_length(rows, self.nb_row,
                                   self.border_mode, self.subsample[0])
         cols = conv_output_length(cols, self.nb_col,
                                   self.border_mode, self.subsample[1])
 
-        if self.dim_ordering == 'th':
+        if self.data_format == 'channels_first':
             return (input_shape[0], self.nb_filter, rows, cols)
-        elif self.dim_ordering == 'tf':
+        elif self.data_format == 'channels_last':
             return (input_shape[0], rows, cols, self.nb_filter)
 
     def call(self, x, mask=None):
         stride_row, stride_col = self.subsample
         _, feature_dim, nb_filter = self.W_shape
 
-        if self.dim_ordering == 'th':
+        if self.data_format == 'channels_first':
             if K.backend() == 'theano':
                 output = []
                 for i in range(self.output_row):
@@ -378,7 +378,7 @@ class LocallyConnected2D(Layer):
                 output = K.batch_dot(x_aggregate, self.W)
             output = K.reshape(output, (self.output_row, self.output_col, -1, nb_filter))
             output = K.permute_dimensions(output, (2, 3, 0, 1))
-        elif self.dim_ordering == 'tf':
+        elif self.data_format == 'channels_last':
             xs = []
             for i in range(self.output_row):
                 for j in range(self.output_col):
@@ -392,12 +392,12 @@ class LocallyConnected2D(Layer):
             output = K.reshape(output, (self.output_row, self.output_col, -1, nb_filter))
             output = K.permute_dimensions(output, (2, 0, 1, 3))
         else:
-            raise ValueError('Invalid dim_ordering:', self.dim_ordering)
+            raise ValueError('Invalid data_format:', self.data_format)
 
         if self.bias:
-            if self.dim_ordering == 'th':
+            if self.data_format == 'channels_first':
                 output += K.reshape(self.b, (1, nb_filter, self.output_row, self.output_col))
-            elif self.dim_ordering == 'tf':
+            elif self.data_format == 'channels_last':
                 output += K.reshape(self.b, (1, self.output_row, self.output_col, nb_filter))
 
         output = self.activation(output)
@@ -411,7 +411,7 @@ class LocallyConnected2D(Layer):
                   'activation': self.activation.__name__,
                   'border_mode': self.border_mode,
                   'subsample': self.subsample,
-                  'dim_ordering': self.dim_ordering,
+                  'data_format': self.data_format,
                   'W_regularizer': self.W_regularizer.get_config() if self.W_regularizer else None,
                   'b_regularizer': self.b_regularizer.get_config() if self.b_regularizer else None,
                   'activity_regularizer': self.activity_regularizer.get_config() if self.activity_regularizer else None,

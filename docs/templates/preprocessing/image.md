@@ -18,7 +18,7 @@ keras.preprocessing.image.ImageDataGenerator(featurewise_center=False,
     horizontal_flip=False,
     vertical_flip=False,
     rescale=None,
-    dim_ordering=K.image_dim_ordering())
+    data_format=K.image_data_format())
 ```
 
 Generate batches of tensor image data with real-time data augmentation. The data will be looped over (in batches) indefinitely.
@@ -42,12 +42,12 @@ Generate batches of tensor image data with real-time data augmentation. The data
     - __rescale__: rescaling factor. Defaults to None. If None or 0, no rescaling is applied,
             otherwise we multiply the data by the value provided (before applying
             any other transformation).
-    - __dim_ordering__: One of {"th", "tf"}.
-        "tf" mode means that the images should have shape `(samples, height, width, channels)`,
-        "th" mode means that the images should have shape `(samples, channels, height, width)`.
-        It defaults to the `image_dim_ordering` value found in your
+    - _data_format_: One of {"channels_first", "channels_last"}.
+        "channels_last" mode means that the images should have shape `(samples, height, width, channels)`,
+        "channels_first" mode means that the images should have shape `(samples, channels, height, width)`.
+        It defaults to the `image_data_format` value found in your
         Keras config file at `~/.keras/keras.json`.
-        If you never set it, then it will be "tf".
+        If you never set it, then it will be "channels_last".
 
 - __Methods__:
     - __fit(X)__: Compute the internal data stats related to the data-dependent transformations, based on an array of sample data.

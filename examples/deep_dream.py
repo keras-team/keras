@@ -74,7 +74,7 @@ def preprocess_image(image_path):
 
 
 def deprocess_image(x):
-    if K.image_dim_ordering() == 'th':
+    if K.image_data_format() == 'channels_first':
         x = x.reshape((3, img_width, img_height))
         x = x.transpose((1, 2, 0))
     else:
@@ -88,7 +88,7 @@ def deprocess_image(x):
     x = np.clip(x, 0, 255).astype('uint8')
     return x
 
-if K.image_dim_ordering() == 'th':
+if K.image_data_format() == 'channels_first':
     img_size = (3, img_width, img_height)
 else:
     img_size = (img_width, img_height, 3)
@@ -109,7 +109,7 @@ layer_dict = dict([(layer.name, layer) for layer in model.layers])
 
 def continuity_loss(x):
     assert K.ndim(x) == 4
-    if K.image_dim_ordering() == 'th':
+    if K.image_data_format() == 'channels_first':
         a = K.square(x[:, :, :img_width - 1, :img_height - 1] -
                      x[:, :, 1:, :img_height - 1])
         b = K.square(x[:, :, :img_width - 1, :img_height - 1] -
@@ -130,7 +130,7 @@ for layer_name in settings['features']:
     x = layer_dict[layer_name].output
     shape = layer_dict[layer_name].output_shape
     # we avoid border artifacts by only involving non-border pixels in the loss
-    if K.image_dim_ordering() == 'th':
+    if K.image_data_format() == 'channels_first':
         loss -= coeff * K.sum(K.square(x[:, :, 2: shape[2] - 2, 2: shape[3] - 2])) / np.prod(shape[1:])
     else:
         loss -= coeff * K.sum(K.square(x[:, 2: shape[1] - 2, 2: shape[2] - 2, :])) / np.prod(shape[1:])

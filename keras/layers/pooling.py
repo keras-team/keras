@@ -31,7 +31,7 @@ class _Pooling1D(Layer):
         return (input_shape[0], length, input_shape[2])
 
     def _pooling_function(self, inputs, pool_size, strides,
-                          border_mode, dim_ordering):
+                          border_mode, data_format):
         raise NotImplementedError
 
     def call(self, x, mask=None):
@@ -39,7 +39,7 @@ class _Pooling1D(Layer):
         output = self._pooling_function(inputs=x, pool_size=self.pool_size,
                                         strides=self.st,
                                         border_mode=self.border_mode,
-                                        dim_ordering='tf')
+                                        data_format='channels_last')
         return K.squeeze(output, 2)  # remove dummy last dimension
 
     def get_config(self):
@@ -73,9 +73,9 @@ class MaxPooling1D(_Pooling1D):
                                            border_mode, **kwargs)
 
     def _pooling_function(self, inputs, pool_size, strides,
-                          border_mode, dim_ordering):
+                          border_mode, data_format):
         output = K.pool2d(inputs, pool_size, strides,
-                          border_mode, dim_ordering, pool_mode='max')
+                          border_mode, data_format, pool_mode='max')
         return output
 
 
@@ -101,9 +101,9 @@ class AveragePooling1D(_Pooling1D):
                                                border_mode, **kwargs)
 
     def _pooling_function(self, inputs, pool_size, strides,
-                          border_mode, dim_ordering):
+                          border_mode, data_format):
         output = K.pool2d(inputs, pool_size, strides,
-                          border_mode, dim_ordering, pool_mode='avg')
+                          border_mode, data_format, pool_mode='avg')
         return output
 
 
@@ -112,10 +112,10 @@ class _Pooling2D(Layer):
     """
 
     def __init__(self, pool_size=(2, 2), strides=None, border_mode='valid',
-                 dim_ordering='default', **kwargs):
+                 data_format='default', **kwargs):
         super(_Pooling2D, self).__init__(**kwargs)
-        if dim_ordering == 'default':
-            dim_ordering = K.image_dim_ordering()
+        if data_format == 'default':
+            data_format = K.image_data_format()
         self.pool_size = tuple(pool_size)
         if strides is None:
             strides = self.pool_size
@@ -123,33 +123,33 @@ class _Pooling2D(Layer):
         if border_mode not in {'valid', 'same'}:
             raise ValueError('`border_mode` must be in {valid, same}.')
         self.border_mode = border_mode
-        if dim_ordering not in {'tf', 'th'}:
-            raise ValueError('`dim_ordering` must be in {tf, th}.')
-        self.dim_ordering = dim_ordering
+        if data_format not in {'channels_last', 'channels_first'}:
+            raise ValueError('`data_format` must be in {"channels_last", "channels_first"}.')
+        self.data_format = data_format
         self.input_spec = [InputSpec(ndim=4)]
 
     def get_output_shape_for(self, input_shape):
-        if self.dim_ordering == 'th':
+        if self.data_format == 'channels_first':
             rows = input_shape[2]
             cols = input_shape[3]
-        elif self.dim_ordering == 'tf':
+        elif self.data_format == 'channels_last':
             rows = input_shape[1]
             cols = input_shape[2]
         else:
-            raise ValueError('Invalid dim_ordering:', self.dim_ordering)
+            raise ValueError('Invalid data_format:', self.data_format)
 
         rows = conv_output_length(rows, self.pool_size[0],
                                   self.border_mode, self.strides[0])
         cols = conv_output_length(cols, self.pool_size[1],
                                   self.border_mode, self.strides[1])
 
-        if self.dim_ordering == 'th':
+        if self.data_format == 'channels_first':
             return (input_shape[0], input_shape[1], rows, cols)
-        elif self.dim_ordering == 'tf':
+        elif self.data_format == 'channels_last':
             return (input_shape[0], rows, cols, input_shape[3])
 
     def _pooling_function(self, inputs, pool_size, strides,
-                          border_mode, dim_ordering):
+                          border_mode, data_format):
         raise NotImplementedError
 
     def call(self, x, mask=None):
@@ -157,14 +157,14 @@ class _Pooling2D(Layer):
                                         pool_size=self.pool_size,
                                         strides=self.strides,
                                         border_mode=self.border_mode,
-                                        dim_ordering=self.dim_ordering)
+                                        data_format=self.data_format)
         return output
 
     def get_config(self):
         config = {'pool_size': self.pool_size,
                   'border_mode': self.border_mode,
                   'strides': self.strides,
-                  'dim_ordering': self.dim_ordering}
+                  'data_format': self.data_format}
         base_config = super(_Pooling2D, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
@@ -179,34 +179,34 @@ class MaxPooling2D(_Pooling2D):
         strides: tuple of 2 integers, or None. Strides values.
             If None, it will default to `pool_size`.
         border_mode: 'valid' or 'same'.
-        dim_ordering: 'th' or 'tf'. In 'th' mode, the channels dimension
-            (the depth) is at index 1, in 'tf' mode is it at index 3.
-            It defaults to the `image_dim_ordering` value found in your
+        data_format: 'channels_first' or 'channels_last'. In 'channels_first' mode, the channels dimension
+            (the depth) is at index 1, in 'channels_last' mode is it at index 3.
+            It defaults to the `image_data_format` value found in your
             Keras config file at `~/.keras/keras.json`.
-            If you never set it, then it will be "tf".
+            If you never set it, then it will be "channels_last".
 
     # Input shape
         4D tensor with shape:
-        `(samples, channels, rows, cols)` if dim_ordering='th'
+        `(samples, channels, rows, cols)` if data_format='channels_first'
         or 4D tensor with shape:
-        `(samples, rows, cols, channels)` if dim_ordering='tf'.
+        `(samples, rows, cols, channels)` if data_format='channels_last'.
 
     # Output shape
         4D tensor with shape:
-        `(nb_samples, channels, pooled_rows, pooled_cols)` if dim_ordering='th'
+        `(nb_samples, channels, pooled_rows, pooled_cols)` if data_format='channels_first'
         or 4D tensor with shape:
-        `(samples, pooled_rows, pooled_cols, channels)` if dim_ordering='tf'.
+        `(samples, pooled_rows, pooled_cols, channels)` if data_format='channels_last'.
     """
 
     def __init__(self, pool_size=(2, 2), strides=None, border_mode='valid',
-                 dim_ordering='default', **kwargs):
+                 data_format='default', **kwargs):
         super(MaxPooling2D, self).__init__(pool_size, strides, border_mode,
-                                           dim_ordering, **kwargs)
+                                           data_format, **kwargs)
 
     def _pooling_function(self, inputs, pool_size, strides,
-                          border_mode, dim_ordering):
+                          border_mode, data_format):
         output = K.pool2d(inputs, pool_size, strides,
-                          border_mode, dim_ordering,
+                          border_mode, data_format,
                           pool_mode='max')
         return output
 
@@ -221,34 +221,34 @@ class AveragePooling2D(_Pooling2D):
         strides: tuple of 2 integers, or None. Strides values.
             If None, it will default to `pool_size`.
         border_mode: 'valid' or 'same'.
-        dim_ordering: 'th' or 'tf'. In 'th' mode, the channels dimension
-            (the depth) is at index 1, in 'tf' mode is it at index 3.
-            It defaults to the `image_dim_ordering` value found in your
+        data_format: 'channels_first' or 'channels_last'. In 'channels_first' mode, the channels dimension
+            (the depth) is at index 1, in 'channels_last' mode is it at index 3.
+            It defaults to the `image_data_format` value found in your
             Keras config file at `~/.keras/keras.json`.
-            If you never set it, then it will be "tf".
+            If you never set it, then it will be "channels_last".
 
     # Input shape
         4D tensor with shape:
-        `(samples, channels, rows, cols)` if dim_ordering='th'
+        `(samples, channels, rows, cols)` if data_format='channels_first'
         or 4D tensor with shape:
-        `(samples, rows, cols, channels)` if dim_ordering='tf'.
+        `(samples, rows, cols, channels)` if data_format='channels_last'.
 
     # Output shape
         4D tensor with shape:
-        `(nb_samples, channels, pooled_rows, pooled_cols)` if dim_ordering='th'
+        `(nb_samples, channels, pooled_rows, pooled_cols)` if data_format='channels_first'
         or 4D tensor with shape:
-        `(samples, pooled_rows, pooled_cols, channels)` if dim_ordering='tf'.
+        `(samples, pooled_rows, pooled_cols, channels)` if data_format='channels_last'.
     """
 
     def __init__(self, pool_size=(2, 2), strides=None, border_mode='valid',
-                 dim_ordering='default', **kwargs):
+                 data_format='default', **kwargs):
         super(AveragePooling2D, self).__init__(pool_size, strides, border_mode,
-                                               dim_ordering, **kwargs)
+                                               data_format, **kwargs)
 
     def _pooling_function(self, inputs, pool_size, strides,
-                          border_mode, dim_ordering):
+                          border_mode, data_format):
         output = K.pool2d(inputs, pool_size, strides,
-                          border_mode, dim_ordering, pool_mode='avg')
+                          border_mode, data_format, pool_mode='avg')
         return output
 
 
@@ -257,10 +257,10 @@ class _Pooling3D(Layer):
     """
 
     def __init__(self, pool_size=(2, 2, 2), strides=None, border_mode='valid',
-                 dim_ordering='default', **kwargs):
+                 data_format='default', **kwargs):
         super(_Pooling3D, self).__init__(**kwargs)
-        if dim_ordering == 'default':
-            dim_ordering = K.image_dim_ordering()
+        if data_format == 'default':
+            data_format = K.image_data_format()
         self.pool_size = tuple(pool_size)
         if strides is None:
             strides = self.pool_size
@@ -268,22 +268,22 @@ class _Pooling3D(Layer):
         if border_mode not in {'valid', 'same'}:
             raise ValueError('`border_mode` must be in {valid, same}.')
         self.border_mode = border_mode
-        if dim_ordering not in {'tf', 'th'}:
-            raise ValueError('`dim_ordering` must be in {tf, th}.')
-        self.dim_ordering = dim_ordering
+        if data_format not in {'channels_last', 'channels_first'}:
+            raise ValueError('`data_format` must be in {"channels_last", "channels_first"}.')
+        self.data_format = data_format
         self.input_spec = [InputSpec(ndim=5)]
 
     def get_output_shape_for(self, input_shape):
-        if self.dim_ordering == 'th':
+        if self.data_format == 'channels_first':
             len_dim1 = input_shape[2]
             len_dim2 = input_shape[3]
             len_dim3 = input_shape[4]
-        elif self.dim_ordering == 'tf':
+        elif self.data_format == 'channels_last':
             len_dim1 = input_shape[1]
             len_dim2 = input_shape[2]
             len_dim3 = input_shape[3]
         else:
-            raise ValueError('Invalid dim_ordering:', self.dim_ordering)
+            raise ValueError('Invalid data_format:', self.data_format)
 
         len_dim1 = conv_output_length(len_dim1, self.pool_size[0],
                                       self.border_mode, self.strides[0])
@@ -291,31 +291,31 @@ class _Pooling3D(Layer):
                                       self.border_mode, self.strides[1])
         len_dim3 = conv_output_length(len_dim3, self.pool_size[2],
                                       self.border_mode, self.strides[2])
-        if self.dim_ordering == 'th':
+        if self.data_format == 'channels_first':
             return (input_shape[0],
                     input_shape[1],
                     len_dim1, len_dim2, len_dim3)
-        elif self.dim_ordering == 'tf':
+        elif self.data_format == 'channels_last':
             return (input_shape[0],
                     len_dim1, len_dim2, len_dim3,
                     input_shape[4])
 
     def _pooling_function(self, inputs, pool_size, strides,
-                          border_mode, dim_ordering):
+                          border_mode, data_format):
         raise NotImplementedError
 
     def call(self, x, mask=None):
         output = self._pooling_function(inputs=x, pool_size=self.pool_size,
                                         strides=self.strides,
                                         border_mode=self.border_mode,
-                                        dim_ordering=self.dim_ordering)
+                                        data_format=self.data_format)
         return output
 
     def get_config(self):
         config = {'pool_size': self.pool_size,
                   'border_mode': self.border_mode,
                   'strides': self.strides,
-                  'dim_ordering': self.dim_ordering}
+                  'data_format': self.data_format}
         base_config = super(_Pooling3D, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
@@ -329,34 +329,34 @@ class MaxPooling3D(_Pooling3D):
             (2, 2, 2) will halve the size of the 3D input in each dimension.
         strides: tuple of 3 integers, or None. Strides values.
         border_mode: 'valid' or 'same'.
-        dim_ordering: 'th' or 'tf'. In 'th' mode, the channels dimension
-            (the depth) is at index 1, in 'tf' mode is it at index 4.
-            It defaults to the `image_dim_ordering` value found in your
+        data_format: 'channels_first' or 'channels_last'. In 'channels_first' mode, the channels dimension
+            (the depth) is at index 1, in 'channels_last' mode is it at index 4.
+            It defaults to the `image_data_format` value found in your
             Keras config file at `~/.keras/keras.json`.
-            If you never set it, then it will be "tf".
+            If you never set it, then it will be "channels_last".
 
     # Input shape
         5D tensor with shape:
-        `(samples, channels, len_pool_dim1, len_pool_dim2, len_pool_dim3)` if dim_ordering='th'
+        `(samples, channels, len_pool_dim1, len_pool_dim2, len_pool_dim3)` if data_format='channels_first'
         or 5D tensor with shape:
-        `(samples, len_pool_dim1, len_pool_dim2, len_pool_dim3, channels)` if dim_ordering='tf'.
+        `(samples, len_pool_dim1, len_pool_dim2, len_pool_dim3, channels)` if data_format='channels_last'.
 
     # Output shape
         5D tensor with shape:
-        `(nb_samples, channels, pooled_dim1, pooled_dim2, pooled_dim3)` if dim_ordering='th'
+        `(nb_samples, channels, pooled_dim1, pooled_dim2, pooled_dim3)` if data_format='channels_first'
         or 5D tensor with shape:
-        `(samples, pooled_dim1, pooled_dim2, pooled_dim3, channels)` if dim_ordering='tf'.
+        `(samples, pooled_dim1, pooled_dim2, pooled_dim3, channels)` if data_format='channels_last'.
     """
 
     def __init__(self, pool_size=(2, 2, 2), strides=None, border_mode='valid',
-                 dim_ordering='default', **kwargs):
+                 data_format='default', **kwargs):
         super(MaxPooling3D, self).__init__(pool_size, strides, border_mode,
-                                           dim_ordering, **kwargs)
+                                           data_format, **kwargs)
 
     def _pooling_function(self, inputs, pool_size, strides,
-                          border_mode, dim_ordering):
+                          border_mode, data_format):
         output = K.pool3d(inputs, pool_size, strides,
-                          border_mode, dim_ordering, pool_mode='max')
+                          border_mode, data_format, pool_mode='max')
         return output
 
 
@@ -369,34 +369,34 @@ class AveragePooling3D(_Pooling3D):
             (2, 2, 2) will halve the size of the 3D input in each dimension.
         strides: tuple of 3 integers, or None. Strides values.
         border_mode: 'valid' or 'same'.
-        dim_ordering: 'th' or 'tf'. In 'th' mode, the channels dimension
-            (the depth) is at index 1, in 'tf' mode is it at index 4.
-            It defaults to the `image_dim_ordering` value found in your
+        data_format: 'channels_first' or 'channels_last'. In 'channels_first' mode, the channels dimension
+            (the depth) is at index 1, in 'channels_last' mode is it at index 4.
+            It defaults to the `image_data_format` value found in your
             Keras config file at `~/.keras/keras.json`.
-            If you never set it, then it will be "tf".
+            If you never set it, then it will be "channels_last".
 
     # Input shape
         5D tensor with shape:
-        `(samples, channels, len_pool_dim1, len_pool_dim2, len_pool_dim3)` if dim_ordering='th'
+        `(samples, channels, len_pool_dim1, len_pool_dim2, len_pool_dim3)` if data_format='channels_first'
         or 5D tensor with shape:
-        `(samples, len_pool_dim1, len_pool_dim2, len_pool_dim3, channels)` if dim_ordering='tf'.
+        `(samples, len_pool_dim1, len_pool_dim2, len_pool_dim3, channels)` if data_format='channels_last'.
 
     # Output shape
         5D tensor with shape:
-        `(nb_samples, channels, pooled_dim1, pooled_dim2, pooled_dim3)` if dim_ordering='th'
+        `(nb_samples, channels, pooled_dim1, pooled_dim2, pooled_dim3)` if data_format='channels_first'
         or 5D tensor with shape:
-        `(samples, pooled_dim1, pooled_dim2, pooled_dim3, channels)` if dim_ordering='tf'.
+        `(samples, pooled_dim1, pooled_dim2, pooled_dim3, channels)` if data_format='channels_last'.
     """
 
     def __init__(self, pool_size=(2, 2, 2), strides=None, border_mode='valid',
-                 dim_ordering='default', **kwargs):
+                 data_format='default', **kwargs):
         super(AveragePooling3D, self).__init__(pool_size, strides, border_mode,
-                                               dim_ordering, **kwargs)
+                                               data_format, **kwargs)
 
     def _pooling_function(self, inputs, pool_size, strides,
-                          border_mode, dim_ordering):
+                          border_mode, data_format):
         output = K.pool3d(inputs, pool_size, strides,
-                          border_mode, dim_ordering,
+                          border_mode, data_format,
                           pool_mode='avg')
         return output
 
@@ -448,15 +448,15 @@ class _GlobalPooling2D(Layer):
     """Abstract class for different global pooling 2D layers.
     """
 
-    def __init__(self, dim_ordering='default', **kwargs):
+    def __init__(self, data_format='default', **kwargs):
         super(_GlobalPooling2D, self).__init__(**kwargs)
-        if dim_ordering == 'default':
-            dim_ordering = K.image_dim_ordering()
-        self.dim_ordering = dim_ordering
+        if data_format == 'default':
+            data_format = K.image_data_format()
+        self.data_format = data_format
         self.input_spec = [InputSpec(ndim=4)]
 
     def get_output_shape_for(self, input_shape):
-        if self.dim_ordering == 'tf':
+        if self.data_format == 'channels_last':
             return (input_shape[0], input_shape[3])
         else:
             return (input_shape[0], input_shape[1])
@@ -465,7 +465,7 @@ class _GlobalPooling2D(Layer):
         raise NotImplementedError
 
     def get_config(self):
-        config = {'dim_ordering': self.dim_ordering}
+        config = {'data_format': self.data_format}
         base_config = super(_GlobalPooling2D, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
@@ -474,17 +474,17 @@ class GlobalAveragePooling2D(_GlobalPooling2D):
     """Global average pooling operation for spatial data.
 
     # Arguments
-        dim_ordering: 'th' or 'tf'. In 'th' mode, the channels dimension
-            (the depth) is at index 1, in 'tf' mode is it at index 3.
-            It defaults to the `image_dim_ordering` value found in your
+        data_format: 'channels_first' or 'channels_last'. In 'channels_first' mode, the channels dimension
+            (the depth) is at index 1, in 'channels_last' mode is it at index 3.
+            It defaults to the `image_data_format` value found in your
             Keras config file at `~/.keras/keras.json`.
-            If you never set it, then it will be "tf".
+            If you never set it, then it will be "channels_last".
 
     # Input shape
         4D tensor with shape:
-        `(samples, channels, rows, cols)` if dim_ordering='th'
+        `(samples, channels, rows, cols)` if data_format='channels_first'
         or 4D tensor with shape:
-        `(samples, rows, cols, channels)` if dim_ordering='tf'.
+        `(samples, rows, cols, channels)` if data_format='channels_last'.
 
     # Output shape
         2D tensor with shape:
@@ -492,7 +492,7 @@ class GlobalAveragePooling2D(_GlobalPooling2D):
     """
 
     def call(self, x, mask=None):
-        if self.dim_ordering == 'tf':
+        if self.data_format == 'channels_last':
             return K.mean(x, axis=[1, 2])
         else:
             return K.mean(x, axis=[2, 3])
@@ -502,17 +502,17 @@ class GlobalMaxPooling2D(_GlobalPooling2D):
     """Global max pooling operation for spatial data.
 
     # Arguments
-        dim_ordering: 'th' or 'tf'. In 'th' mode, the channels dimension
-            (the depth) is at index 1, in 'tf' mode is it at index 3.
-            It defaults to the `image_dim_ordering` value found in your
+        data_format: 'channels_first' or 'channels_last'. In 'channels_first' mode, the channels dimension
+            (the depth) is at index 1, in 'channels_last' mode is it at index 3.
+            It defaults to the `image_data_format` value found in your
             Keras config file at `~/.keras/keras.json`.
-            If you never set it, then it will be "tf".
+            If you never set it, then it will be "channels_last".
 
     # Input shape
         4D tensor with shape:
-        `(samples, channels, rows, cols)` if dim_ordering='th'
+        `(samples, channels, rows, cols)` if data_format='channels_first'
         or 4D tensor with shape:
-        `(samples, rows, cols, channels)` if dim_ordering='tf'.
+        `(samples, rows, cols, channels)` if data_format='channels_last'.
 
     # Output shape
         2D tensor with shape:
@@ -520,7 +520,7 @@ class GlobalMaxPooling2D(_GlobalPooling2D):
     """
 
     def call(self, x, mask=None):
-        if self.dim_ordering == 'tf':
+        if self.data_format == 'channels_last':
             return K.max(x, axis=[1, 2])
         else:
             return K.max(x, axis=[2, 3])
@@ -530,15 +530,15 @@ class _GlobalPooling3D(Layer):
     """Abstract class for different global pooling 3D layers.
     """
 
-    def __init__(self, dim_ordering='default', **kwargs):
+    def __init__(self, data_format='default', **kwargs):
         super(_GlobalPooling3D, self).__init__(**kwargs)
-        if dim_ordering == 'default':
-            dim_ordering = K.image_dim_ordering()
-        self.dim_ordering = dim_ordering
+        if data_format == 'default':
+            data_format = K.image_data_format()
+        self.data_format = data_format
         self.input_spec = [InputSpec(ndim=5)]
 
     def get_output_shape_for(self, input_shape):
-        if self.dim_ordering == 'tf':
+        if self.data_format == 'channels_last':
             return (input_shape[0], input_shape[4])
         else:
             return (input_shape[0], input_shape[1])
@@ -547,7 +547,7 @@ class _GlobalPooling3D(Layer):
         raise NotImplementedError
 
     def get_config(self):
-        config = {'dim_ordering': self.dim_ordering}
+        config = {'data_format': self.data_format}
         base_config = super(_GlobalPooling3D, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
@@ -556,17 +556,17 @@ class GlobalAveragePooling3D(_GlobalPooling3D):
     """Global Average pooling operation for 3D data.
 
     # Arguments
-        dim_ordering: 'th' or 'tf'. In 'th' mode, the channels dimension
-            (the depth) is at index 1, in 'tf' mode is it at index 4.
-            It defaults to the `image_dim_ordering` value found in your
+        data_format: 'channels_first' or 'channels_last'. In 'channels_first' mode, the channels dimension
+            (the depth) is at index 1, in 'channels_last' mode is it at index 4.
+            It defaults to the `image_data_format` value found in your
             Keras config file at `~/.keras/keras.json`.
-            If you never set it, then it will be "tf".
+            If you never set it, then it will be "channels_last".
 
     # Input shape
         5D tensor with shape:
-        `(samples, channels, len_pool_dim1, len_pool_dim2, len_pool_dim3)` if dim_ordering='th'
+        `(samples, channels, len_pool_dim1, len_pool_dim2, len_pool_dim3)` if data_format='channels_first'
         or 5D tensor with shape:
-        `(samples, len_pool_dim1, len_pool_dim2, len_pool_dim3, channels)` if dim_ordering='tf'.
+        `(samples, len_pool_dim1, len_pool_dim2, len_pool_dim3, channels)` if data_format='channels_last'.
 
     # Output shape
         2D tensor with shape:
@@ -574,7 +574,7 @@ class GlobalAveragePooling3D(_GlobalPooling3D):
     """
 
     def call(self, x, mask=None):
-        if self.dim_ordering == 'tf':
+        if self.data_format == 'channels_last':
             return K.mean(x, axis=[1, 2, 3])
         else:
             return K.mean(x, axis=[2, 3, 4])
@@ -584,17 +584,17 @@ class GlobalMaxPooling3D(_GlobalPooling3D):
     """Global Max pooling operation for 3D data.
 
     # Arguments
-        dim_ordering: 'th' or 'tf'. In 'th' mode, the channels dimension
-            (the depth) is at index 1, in 'tf' mode is it at index 4.
-            It defaults to the `image_dim_ordering` value found in your
+        data_format: 'channels_first' or 'channels_last'. In 'channels_first' mode, the channels dimension
+            (the depth) is at index 1, in 'channels_last' mode is it at index 4.
+            It defaults to the `image_data_format` value found in your
             Keras config file at `~/.keras/keras.json`.
-            If you never set it, then it will be "tf".
+            If you never set it, then it will be "channels_last".
 
     # Input shape
         5D tensor with shape:
-        `(samples, channels, len_pool_dim1, len_pool_dim2, len_pool_dim3)` if dim_ordering='th'
+        `(samples, channels, len_pool_dim1, len_pool_dim2, len_pool_dim3)` if data_format='channels_first'
         or 5D tensor with shape:
-        `(samples, len_pool_dim1, len_pool_dim2, len_pool_dim3, channels)` if dim_ordering='tf'.
+        `(samples, len_pool_dim1, len_pool_dim2, len_pool_dim3, channels)` if data_format='channels_last'.
 
     # Output shape
         2D tensor with shape:
@@ -602,7 +602,7 @@ class GlobalMaxPooling3D(_GlobalPooling3D):
     """
 
     def call(self, x, mask=None):
-        if self.dim_ordering == 'tf':
+        if self.data_format == 'channels_last':
             return K.max(x, axis=[1, 2, 3])
         else:
             return K.max(x, axis=[2, 3, 4])

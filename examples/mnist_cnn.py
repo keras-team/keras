@@ -32,7 +32,7 @@ kernel_size = (3, 3)
 # the data, shuffled and split between train and test sets
 (X_train, y_train), (X_test, y_test) = mnist.load_data()
 
-if K.image_dim_ordering() == 'th':
+if K.image_data_format() == 'channels_first':
     X_train = X_train.reshape(X_train.shape[0], 1, img_rows, img_cols)
     X_test = X_test.reshape(X_test.shape[0], 1, img_rows, img_cols)
     input_shape = (1, img_rows, img_cols)

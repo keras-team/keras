@@ -43,7 +43,7 @@ import numpy as np
 
 np.random.seed(1337)
 
-K.set_image_dim_ordering('th')
+K.set_image_data_format('channels_first')
 
 
 def build_generator(latent_size):

@@ -163,17 +163,17 @@ class SpatialDropout2D(Dropout):
 
     # Arguments
         p: float between 0 and 1. Fraction of the input units to drop.
-        dim_ordering: 'th' or 'tf'. In 'th' mode, the channels dimension
-            (the depth) is at index 1, in 'tf' mode is it at index 3.
-            It defaults to the `image_dim_ordering` value found in your
+        data_format: 'channels_first' or 'channels_last'. In 'channels_first' mode, the channels dimension
+            (the depth) is at index 1, in 'channels_last' mode is it at index 3.
+            It defaults to the `image_data_format` value found in your
             Keras config file at `~/.keras/keras.json`.
-            If you never set it, then it will be "tf".
+            If you never set it, then it will be "channels_last".
 
     # Input shape
         4D tensor with shape:
-        `(samples, channels, rows, cols)` if dim_ordering='th'
+        `(samples, channels, rows, cols)` if data_format='channels_first'
         or 4D tensor with shape:
-        `(samples, rows, cols, channels)` if dim_ordering='tf'.
+        `(samples, rows, cols, channels)` if data_format='channels_last'.
 
     # Output shape
         Same as input
@@ -182,21 +182,21 @@ class SpatialDropout2D(Dropout):
         - [Efficient Object Localization Using Convolutional Networks](https://arxiv.org/abs/1411.4280)
     """
 
-    def __init__(self, p, dim_ordering='default', **kwargs):
-        if dim_ordering == 'default':
-            dim_ordering = K.image_dim_ordering()
-        assert dim_ordering in {'tf', 'th'}, 'dim_ordering must be in {tf, th}'
-        self.dim_ordering = dim_ordering
+    def __init__(self, p, data_format='default', **kwargs):
+        if data_format == 'default':
+            data_format = K.image_data_format()
+        assert data_format in {'channels_last', 'channels_first'}, 'data_format must be in {"channels_last", "channels_first"}'
+        self.data_format = data_format
         super(SpatialDropout2D, self).__init__(p, **kwargs)
 
     def _get_noise_shape(self, x):
         input_shape = K.shape(x)
-        if self.dim_ordering == 'th':
+        if self.data_format == 'channels_first':
             noise_shape = (input_shape[0], input_shape[1], 1, 1)
-        elif self.dim_ordering == 'tf':
+        elif self.data_format == 'channels_last':
             noise_shape = (input_shape[0], 1, 1, input_shape[3])
         else:
-            raise ValueError('Invalid dim_ordering:', self.dim_ordering)
+            raise ValueError('Invalid data_format:', self.data_format)
         return noise_shape
 
 
@@ -213,18 +213,18 @@ class SpatialDropout3D(Dropout):
 
     # Arguments
         p: float between 0 and 1. Fraction of the input units to drop.
-        dim_ordering: 'th' or 'tf'.
-            In 'th' mode, the channels dimension (the depth)
-            is at index 1, in 'tf' mode is it at index 4.
-            It defaults to the `image_dim_ordering` value found in your
+        data_format: 'channels_first' or 'channels_last'.
+            In 'channels_first' mode, the channels dimension (the depth)
+            is at index 1, in 'channels_last' mode is it at index 4.
+            It defaults to the `image_data_format` value found in your
             Keras config file at `~/.keras/keras.json`.
-            If you never set it, then it will be "tf".
+            If you never set it, then it will be "channels_last".
 
     # Input shape
         5D tensor with shape:
-        `(samples, channels, dim1, dim2, dim3)` if dim_ordering='th'
+        `(samples, channels, dim1, dim2, dim3)` if data_format='channels_first'
         or 5D tensor with shape:
-        `(samples, dim1, dim2, dim3, channels)` if dim_ordering='tf'.
+        `(samples, dim1, dim2, dim3, channels)` if data_format='channels_last'.
 
     # Output shape
         Same as input
@@ -233,21 +233,21 @@ class SpatialDropout3D(Dropout):
         - [Efficient Object Localization Using Convolutional Networks](https://arxiv.org/abs/1411.4280)
     """
 
-    def __init__(self, p, dim_ordering='default', **kwargs):
-        if dim_ordering == 'default':
-            dim_ordering = K.image_dim_ordering()
-        assert dim_ordering in {'tf', 'th'}, 'dim_ordering must be in {tf, th}'
-        self.dim_ordering = dim_ordering
+    def __init__(self, p, data_format='default', **kwargs):
+        if data_format == 'default':
+            data_format = K.image_data_format()
+        assert data_format in {'channels_last', 'channels_first'}, 'data_format must be in {"channels_last", "channels_first"}'
+        self.data_format = data_format
         super(SpatialDropout3D, self).__init__(p, **kwargs)
 
     def _get_noise_shape(self, x):
         input_shape = K.shape(x)
-        if self.dim_ordering == 'th':
+        if self.data_format == 'channels_first':
             noise_shape = (input_shape[0], input_shape[1], 1, 1, 1)
-        elif self.dim_ordering == 'tf':
+        elif self.data_format == 'channels_last':
             noise_shape = (input_shape[0], 1, 1, 1, input_shape[4])
         else:
-            raise ValueError('Invalid dim_ordering:', self.dim_ordering)
+            raise ValueError('Invalid data_format:', self.data_format)
         return noise_shape
 
 

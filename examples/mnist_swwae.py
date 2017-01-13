@@ -82,8 +82,8 @@ if K.backend() == 'tensorflow':
                        'of a gradient, which isn\'t '
                        'supported for all TF ops.')
 
-# This example assume 'th' dim ordering.
-K.set_image_dim_ordering('th')
+# This example assume 'channels_first' data format.
+K.set_image_data_format('channels_first')
 
 # input image dimensions
 img_rows, img_cols = 28, 28

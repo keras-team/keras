@@ -131,7 +131,7 @@ class Convolution1D(Layer):
 
         self.W = self.add_weight(self.W_shape,
                                  initializer=functools.partial(self.init,
-                                                               dim_ordering='th'),
+                                                               data_format='channels_first'),
                                  name='{}_W'.format(self.name),
                                  regularizer=self.W_regularizer,
                                  constraint=self.W_constraint)
@@ -160,7 +160,7 @@ class Convolution1D(Layer):
         x = K.expand_dims(x, 2)  # add a dummy dimension
         output = K.conv2d(x, self.W, strides=self.subsample,
                           border_mode=self.border_mode,
-                          dim_ordering='tf')
+                          data_format='channels_last')
         output = K.squeeze(output, 2)  # remove the dummy dimension
         if self.bias:
             output += K.reshape(self.b, (1, 1, self.nb_filter))
@@ -297,7 +297,7 @@ class AtrousConvolution1D(Convolution1D):
         x = K.expand_dims(x, 2)  # add a dummy dimension
         output = K.conv2d(x, self.W, strides=self.subsample,
                           border_mode=self.border_mode,
-                          dim_ordering='tf',
+                          data_format='channels_last',
                           filter_dilation=(self.atrous_rate, self.atrous_rate))
         output = K.squeeze(output, 2)  # remove the dummy dimension
         if self.bias:
@@ -363,37 +363,37 @@ class Convolution2D(Layer):
             (eg. maxnorm, nonneg), applied to the main weights matrix.
         b_constraint: instance of the [constraints](../constraints.md) module,
             applied to the bias.
-        dim_ordering: 'th' or 'tf'. In 'th' mode, the channels dimension
-            (the depth) is at index 1, in 'tf' mode is it at index 3.
-            It defaults to the `image_dim_ordering` value found in your
+        data_format: 'channels_first' or 'channels_last'. In 'channels_first' mode, the channels dimension
+            (the depth) is at index 1, in 'channels_last' mode is it at index 3.
+            It defaults to the `image_data_format` value found in your
             Keras config file at `~/.keras/keras.json`.
-            If you never set it, then it will be "tf".
+            If you never set it, then it will be "channels_last".
         bias: whether to include a bias
             (i.e. make the layer affine rather than linear).
 
     # Input shape
         4D tensor with shape:
-        `(samples, channels, rows, cols)` if dim_ordering='th'
+        `(samples, channels, rows, cols)` if data_format='channels_first'
         or 4D tensor with shape:
-        `(samples, rows, cols, channels)` if dim_ordering='tf'.
+        `(samples, rows, cols, channels)` if data_format='channels_last'.
 
     # Output shape
         4D tensor with shape:
-        `(samples, nb_filter, new_rows, new_cols)` if dim_ordering='th'
+        `(samples, nb_filter, new_rows, new_cols)` if data_format='channels_first'
         or 4D tensor with shape:
-        `(samples, new_rows, new_cols, nb_filter)` if dim_ordering='tf'.
+        `(samples, new_rows, new_cols, nb_filter)` if data_format='channels_last'.
         `rows` and `cols` values might have changed due to padding.
     """
 
     def __init__(self, nb_filter, nb_row, nb_col,
                  init='glorot_uniform', activation=None, weights=None,
-                 border_mode='valid', subsample=(1, 1), dim_ordering='default',
+                 border_mode='valid', subsample=(1, 1), data_format='default',
                  W_regularizer=None, b_regularizer=None,
                  activity_regularizer=None,
                  W_constraint=None, b_constraint=None,
                  bias=True, **kwargs):
-        if dim_ordering == 'default':
-            dim_ordering = K.image_dim_ordering()
+        if data_format == 'default':
+            data_format = K.image_data_format()
         if border_mode not in {'valid', 'same', 'full'}:
             raise ValueError('Invalid border mode for Convolution2D:', border_mode)
         self.nb_filter = nb_filter
@@ -403,9 +403,9 @@ class Convolution2D(Layer):
         self.activation = activations.get(activation)
         self.border_mode = border_mode
         self.subsample = tuple(subsample)
-        if dim_ordering not in {'tf', 'th'}:
-            raise ValueError('dim_ordering must be in {tf, th}.')
-        self.dim_ordering = dim_ordering
+        if data_format not in {'channels_last', 'channels_first'}:
+            raise ValueError('data_format must be in {"channels_last", "channels_first"}.')
+        self.data_format = data_format
 
         self.W_regularizer = regularizers.get(W_regularizer)
         self.b_regularizer = regularizers.get(b_regularizer)
@@ -420,17 +420,17 @@ class Convolution2D(Layer):
         super(Convolution2D, self).__init__(**kwargs)
 
     def build(self, input_shape):
-        if self.dim_ordering == 'th':
+        if self.data_format == 'channels_first':
             stack_size = input_shape[1]
             self.W_shape = (self.nb_filter, stack_size, self.nb_row, self.nb_col)
-        elif self.dim_ordering == 'tf':
+        elif self.data_format == 'channels_last':
             stack_size = input_shape[3]
             self.W_shape = (self.nb_row, self.nb_col, stack_size, self.nb_filter)
         else:
-            raise ValueError('Invalid dim_ordering:', self.dim_ordering)
+            raise ValueError('Invalid data_format:', self.data_format)
         self.W = self.add_weight(self.W_shape,
                                  initializer=functools.partial(self.init,
-                                                               dim_ordering=self.dim_ordering),
+                                                               data_format=self.data_format),
                                  name='{}_W'.format(self.name),
                                  regularizer=self.W_regularizer,
                                  constraint=self.W_constraint)
@@ -449,37 +449,37 @@ class Convolution2D(Layer):
         self.built = True
 
     def get_output_shape_for(self, input_shape):
-        if self.dim_ordering == 'th':
+        if self.data_format == 'channels_first':
             rows = input_shape[2]
             cols = input_shape[3]
-        elif self.dim_ordering == 'tf':
+        elif self.data_format == 'channels_last':
             rows = input_shape[1]
             cols = input_shape[2]
         else:
-            raise ValueError('Invalid dim_ordering:', self.dim_ordering)
+            raise ValueError('Invalid data_format:', self.data_format)
 
         rows = conv_output_length(rows, self.nb_row,
                                   self.border_mode, self.subsample[0])
         cols = conv_output_length(cols, self.nb_col,
                                   self.border_mode, self.subsample[1])
 
-        if self.dim_ordering == 'th':
+        if self.data_format == 'channels_first':
             return (input_shape[0], self.nb_filter, rows, cols)
-        elif self.dim_ordering == 'tf':
+        elif self.data_format == 'channels_last':
             return (input_shape[0], rows, cols, self.nb_filter)
 
     def call(self, x, mask=None):
         output = K.conv2d(x, self.W, strides=self.subsample,
                           border_mode=self.border_mode,
-                          dim_ordering=self.dim_ordering,
+                          data_format=self.data_format,
                           filter_shape=self.W_shape)
         if self.bias:
-            if self.dim_ordering == 'th':
+            if self.data_format == 'channels_first':
                 output += K.reshape(self.b, (1, self.nb_filter, 1, 1))
-            elif self.dim_ordering == 'tf':
+            elif self.data_format == 'channels_last':
                 output += K.reshape(self.b, (1, 1, 1, self.nb_filter))
             else:
-                raise ValueError('Invalid dim_ordering:', self.dim_ordering)
+                raise ValueError('Invalid data_format:', self.data_format)
         output = self.activation(output)
         return output
 
@@ -491,7 +491,7 @@ class Convolution2D(Layer):
                   'activation': self.activation.__name__,
                   'border_mode': self.border_mode,
                   'subsample': self.subsample,
-                  'dim_ordering': self.dim_ordering,
+                  'data_format': self.data_format,
                   'W_regularizer': self.W_regularizer.get_config() if self.W_regularizer else None,
                   'b_regularizer': self.b_regularizer.get_config() if self.b_regularizer else None,
                   'activity_regularizer': self.activity_regularizer.get_config() if self.activity_regularizer else None,
@@ -595,25 +595,25 @@ class Deconvolution2D(Convolution2D):
             (eg. maxnorm, nonneg), applied to the main weights matrix.
         b_constraint: instance of the [constraints](../constraints.md) module,
             applied to the bias.
-        dim_ordering: 'th' or 'tf'. In 'th' mode, the channels dimension
-            (the depth) is at index 1, in 'tf' mode is it at index 3.
-            It defaults to the `image_dim_ordering` value found in your
+        data_format: 'channels_first' or 'channels_last'. In 'channels_first' mode, the channels dimension
+            (the depth) is at index 1, in 'channels_last' mode is it at index 3.
+            It defaults to the `image_data_format` value found in your
             Keras config file at `~/.keras/keras.json`.
-            If you never set it, then it will be "tf".
+            If you never set it, then it will be "channels_last".
         bias: whether to include a bias
             (i.e. make the layer affine rather than linear).
 
     # Input shape
         4D tensor with shape:
-        `(samples, channels, rows, cols)` if dim_ordering='th'
+        `(samples, channels, rows, cols)` if data_format='channels_first'
         or 4D tensor with shape:
-        `(samples, rows, cols, channels)` if dim_ordering='tf'.
+        `(samples, rows, cols, channels)` if data_format='channels_last'.
 
     # Output shape
         4D tensor with shape:
-        `(samples, nb_filter, new_rows, new_cols)` if dim_ordering='th'
+        `(samples, nb_filter, new_rows, new_cols)` if data_format='channels_first'
         or 4D tensor with shape:
-        `(samples, new_rows, new_cols, nb_filter)` if dim_ordering='tf'.
+        `(samples, new_rows, new_cols, nb_filter)` if data_format='channels_last'.
         `rows` and `cols` values might have changed due to padding.
 
     # References
@@ -625,12 +625,12 @@ class Deconvolution2D(Convolution2D):
     def __init__(self, nb_filter, nb_row, nb_col, output_shape,
                  init='glorot_uniform', activation=None, weights=None,
                  border_mode='valid', subsample=(1, 1),
-                 dim_ordering='default',
+                 data_format='default',
                  W_regularizer=None, b_regularizer=None, activity_regularizer=None,
                  W_constraint=None, b_constraint=None,
                  bias=True, **kwargs):
-        if dim_ordering == 'default':
-            dim_ordering = K.image_dim_ordering()
+        if data_format == 'default':
+            data_format = K.image_data_format()
         if border_mode not in {'valid', 'same', 'full'}:
             raise ValueError('Invalid border mode for Deconvolution2D:', border_mode)
 
@@ -642,7 +642,7 @@ class Deconvolution2D(Convolution2D):
                                               weights=weights,
                                               border_mode=border_mode,
                                               subsample=subsample,
-                                              dim_ordering=dim_ordering,
+                                              data_format=data_format,
                                               W_regularizer=W_regularizer,
                                               b_regularizer=b_regularizer,
                                               activity_regularizer=activity_regularizer,
@@ -652,33 +652,33 @@ class Deconvolution2D(Convolution2D):
                                               **kwargs)
 
     def get_output_shape_for(self, input_shape):
-        if self.dim_ordering == 'th':
+        if self.data_format == 'channels_first':
             rows = self.output_shape_[2]
             cols = self.output_shape_[3]
-        elif self.dim_ordering == 'tf':
+        elif self.data_format == 'channels_last':
             rows = self.output_shape_[1]
             cols = self.output_shape_[2]
         else:
-            raise ValueError('Invalid dim_ordering:', self.dim_ordering)
+            raise ValueError('Invalid data_format:', self.data_format)
 
-        if self.dim_ordering == 'th':
+        if self.data_format == 'channels_first':
             return (input_shape[0], self.nb_filter, rows, cols)
-        elif self.dim_ordering == 'tf':
+        elif self.data_format == 'channels_last':
             return (input_shape[0], rows, cols, self.nb_filter)
 
     def call(self, x, mask=None):
         output = K.deconv2d(x, self.W, self.output_shape_,
                             strides=self.subsample,
                             border_mode=self.border_mode,
-                            dim_ordering=self.dim_ordering,
+                            data_format=self.data_format,
                             filter_shape=self.W_shape)
         if self.bias:
-            if self.dim_ordering == 'th':
+            if self.data_format == 'channels_first':
                 output += K.reshape(self.b, (1, self.nb_filter, 1, 1))
-            elif self.dim_ordering == 'tf':
+            elif self.data_format == 'channels_last':
                 output += K.reshape(self.b, (1, 1, 1, self.nb_filter))
             else:
-                raise ValueError('Invalid dim_ordering:', self.dim_ordering)
+                raise ValueError('Invalid data_format:', self.data_format)
         output = self.activation(output)
         return output
 
@@ -742,25 +742,25 @@ class AtrousConvolution2D(Convolution2D):
             (eg. maxnorm, nonneg), applied to the main weights matrix.
         b_constraint: instance of the [constraints](../constraints.md) module,
             applied to the bias.
-        dim_ordering: 'th' or 'tf'. In 'th' mode, the channels dimension
-            (the depth) is at index 1, in 'tf' mode is it at index 3.
-            It defaults to the `image_dim_ordering` value found in your
+        data_format: 'channels_first' or 'channels_last'. In 'channels_first' mode, the channels dimension
+            (the depth) is at index 1, in 'channels_last' mode is it at index 3.
+            It defaults to the `image_data_format` value found in your
             Keras config file at `~/.keras/keras.json`.
-            If you never set it, then it will be "tf".
+            If you never set it, then it will be "channels_last".
         bias: whether to include a bias
             (i.e. make the layer affine rather than linear).
 
     # Input shape
         4D tensor with shape:
-        `(samples, channels, rows, cols)` if dim_ordering='th'
+        `(samples, channels, rows, cols)` if data_format='channels_first'
         or 4D tensor with shape:
-        `(samples, rows, cols, channels)` if dim_ordering='tf'.
+        `(samples, rows, cols, channels)` if data_format='channels_last'.
 
     # Output shape
         4D tensor with shape:
-        `(samples, nb_filter, new_rows, new_cols)` if dim_ordering='th'
+        `(samples, nb_filter, new_rows, new_cols)` if data_format='channels_first'
         or 4D tensor with shape:
-        `(samples, new_rows, new_cols, nb_filter)` if dim_ordering='tf'.
+        `(samples, new_rows, new_cols, nb_filter)` if data_format='channels_last'.
         `rows` and `cols` values might have changed due to padding.
 
     # References
@@ -770,13 +770,13 @@ class AtrousConvolution2D(Convolution2D):
     def __init__(self, nb_filter, nb_row, nb_col,
                  init='glorot_uniform', activation=None, weights=None,
                  border_mode='valid', subsample=(1, 1),
-                 atrous_rate=(1, 1), dim_ordering='default',
+                 atrous_rate=(1, 1), data_format='default',
                  W_regularizer=None, b_regularizer=None,
                  activity_regularizer=None,
                  W_constraint=None, b_constraint=None,
                  bias=True, **kwargs):
-        if dim_ordering == 'default':
-            dim_ordering = K.image_dim_ordering()
+        if data_format == 'default':
+            data_format = K.image_data_format()
 
         if border_mode not in {'valid', 'same', 'full'}:
             raise ValueError('Invalid border mode for AtrousConv2D:', border_mode)
@@ -789,7 +789,7 @@ class AtrousConvolution2D(Convolution2D):
                                                   weights=weights,
                                                   border_mode=border_mode,
                                                   subsample=subsample,
-                                                  dim_ordering=dim_ordering,
+                                                  data_format=data_format,
                                                   W_regularizer=W_regularizer,
                                                   b_regularizer=b_regularizer,
                                                   activity_regularizer=activity_regularizer,
@@ -799,14 +799,14 @@ class AtrousConvolution2D(Convolution2D):
                                                   **kwargs)
 
     def get_output_shape_for(self, input_shape):
-        if self.dim_ordering == 'th':
+        if self.data_format == 'channels_first':
             rows = input_shape[2]
             cols = input_shape[3]
-        elif self.dim_ordering == 'tf':
+        elif self.data_format == 'channels_last':
             rows = input_shape[1]
             cols = input_shape[2]
         else:
-            raise ValueError('Invalid dim_ordering:', self.dim_ordering)
+            raise ValueError('Invalid data_format:', self.data_format)
 
         rows = conv_output_length(rows, self.nb_row, self.border_mode,
                                   self.subsample[0],
@@ -815,24 +815,24 @@ class AtrousConvolution2D(Convolution2D):
                                   self.subsample[1],
                                   dilation=self.atrous_rate[1])
 
-        if self.dim_ordering == 'th':
+        if self.data_format == 'channels_first':
             return (input_shape[0], self.nb_filter, rows, cols)
-        elif self.dim_ordering == 'tf':
+        elif self.data_format == 'channels_last':
             return (input_shape[0], rows, cols, self.nb_filter)
 
     def call(self, x, mask=None):
         output = K.conv2d(x, self.W, strides=self.subsample,
                           border_mode=self.border_mode,
-                          dim_ordering=self.dim_ordering,
+                          data_format=self.data_format,
                           filter_shape=self.W_shape,
                           filter_dilation=self.atrous_rate)
         if self.bias:
-            if self.dim_ordering == 'th':
+            if self.data_format == 'channels_first':
                 output += K.reshape(self.b, (1, self.nb_filter, 1, 1))
-            elif self.dim_ordering == 'tf':
+            elif self.data_format == 'channels_last':
                 output += K.reshape(self.b, (1, 1, 1, self.nb_filter))
             else:
-                raise ValueError('Invalid dim_ordering:', self.dim_ordering)
+                raise ValueError('Invalid data_format:', self.data_format)
         output = self.activation(output)
         return output
 
@@ -900,32 +900,32 @@ class SeparableConvolution2D(Layer):
             (eg. maxnorm, nonneg), applied to the pointwise weights matrix.
         b_constraint: instance of the [constraints](../constraints.md) module,
             applied to the bias.
-        dim_ordering: 'th' or 'tf'. In 'th' mode, the channels dimension
-            (the depth) is at index 1, in 'tf' mode is it at index 3.
-            It defaults to the `image_dim_ordering` value found in your
+        data_format: 'channels_first' or 'channels_last'. In 'channels_first' mode, the channels dimension
+            (the depth) is at index 1, in 'channels_last' mode is it at index 3.
+            It defaults to the `image_data_format` value found in your
             Keras config file at `~/.keras/keras.json`.
-            If you never set it, then it will be "tf".
+            If you never set it, then it will be "channels_last".
         bias: whether to include a bias
             (i.e. make the layer affine rather than linear).
 
     # Input shape
         4D tensor with shape:
-        `(samples, channels, rows, cols)` if dim_ordering='th'
+        `(samples, channels, rows, cols)` if data_format='channels_first'
         or 4D tensor with shape:
-        `(samples, rows, cols, channels)` if dim_ordering='tf'.
+        `(samples, rows, cols, channels)` if data_format='channels_last'.
 
     # Output shape
         4D tensor with shape:
-        `(samples, nb_filter, new_rows, new_cols)` if dim_ordering='th'
+        `(samples, nb_filter, new_rows, new_cols)` if data_format='channels_first'
         or 4D tensor with shape:
-        `(samples, new_rows, new_cols, nb_filter)` if dim_ordering='tf'.
+        `(samples, new_rows, new_cols, nb_filter)` if data_format='channels_last'.
         `rows` and `cols` values might have changed due to padding.
     """
 
     def __init__(self, nb_filter, nb_row, nb_col,
                  init='glorot_uniform', activation=None, weights=None,
                  border_mode='valid', subsample=(1, 1),
-                 depth_multiplier=1, dim_ordering='default',
+                 depth_multiplier=1, data_format='default',
                  depthwise_regularizer=None, pointwise_regularizer=None,
                  b_regularizer=None, activity_regularizer=None,
                  depthwise_constraint=None, pointwise_constraint=None,
@@ -936,8 +936,8 @@ class SeparableConvolution2D(Layer):
             raise RuntimeError('SeparableConv2D is only available '
                                'with TensorFlow for the time being.')
 
-        if dim_ordering == 'default':
-            dim_ordering = K.image_dim_ordering()
+        if data_format == 'default':
+            data_format = K.image_data_format()
 
         if border_mode not in {'valid', 'same'}:
             raise ValueError('Invalid border mode for SeparableConv2D:', border_mode)
@@ -954,9 +954,9 @@ class SeparableConvolution2D(Layer):
         self.border_mode = border_mode
         self.subsample = tuple(subsample)
         self.depth_multiplier = depth_multiplier
-        if dim_ordering not in {'tf', 'th'}:
-            raise ValueError('dim_ordering must be in {tf, th}.')
-        self.dim_ordering = dim_ordering
+        if data_format not in {'channels_last', 'channels_first'}:
+            raise ValueError('data_format must be in {"channels_last", "channels_first"}.')
+        self.data_format = data_format
 
         self.depthwise_regularizer = regularizers.get(depthwise_regularizer)
         self.pointwise_regularizer = regularizers.get(pointwise_regularizer)
@@ -973,26 +973,26 @@ class SeparableConvolution2D(Layer):
         super(SeparableConvolution2D, self).__init__(**kwargs)
 
     def build(self, input_shape):
-        if self.dim_ordering == 'th':
+        if self.data_format == 'channels_first':
             stack_size = input_shape[1]
             depthwise_shape = (self.depth_multiplier, stack_size, self.nb_row, self.nb_col)
             pointwise_shape = (self.nb_filter, self.depth_multiplier * stack_size, 1, 1)
-        elif self.dim_ordering == 'tf':
+        elif self.data_format == 'channels_last':
             stack_size = input_shape[3]
             depthwise_shape = (self.nb_row, self.nb_col, stack_size, self.depth_multiplier)
             pointwise_shape = (1, 1, self.depth_multiplier * stack_size, self.nb_filter)
         else:
-            raise ValueError('Invalid dim_ordering:', self.dim_ordering)
+            raise ValueError('Invalid data_format:', self.data_format)
 
         self.depthwise_kernel = self.add_weight(depthwise_shape,
                                                 initializer=functools.partial(self.init,
-                                                                              dim_ordering=self.dim_ordering),
+                                                                              data_format=self.data_format),
                                                 regularizer=self.depthwise_regularizer,
                                                 constraint=self.depthwise_constraint,
                                                 name='{}_depthwise_kernel'.format(self.name))
         self.pointwise_kernel = self.add_weight(pointwise_shape,
                                                 initializer=functools.partial(self.init,
-                                                                              dim_ordering=self.dim_ordering),
+                                                                              data_format=self.data_format),
                                                 regularizer=self.pointwise_regularizer,
                                                 constraint=self.pointwise_constraint,
                                                 name='{}_pointwise_kernel'.format(self.name))
@@ -1011,40 +1011,40 @@ class SeparableConvolution2D(Layer):
         self.built = True
 
     def get_output_shape_for(self, input_shape):
-        if self.dim_ordering == 'th':
+        if self.data_format == 'channels_first':
             rows = input_shape[2]
             cols = input_shape[3]
-        elif self.dim_ordering == 'tf':
+        elif self.data_format == 'channels_last':
             rows = input_shape[1]
             cols = input_shape[2]
         else:
-            raise ValueError('Invalid dim_ordering:', self.dim_ordering)
+            raise ValueError('Invalid data_format:', self.data_format)
 
         rows = conv_output_length(rows, self.nb_row,
                                   self.border_mode, self.subsample[0])
         cols = conv_output_length(cols, self.nb_col,
                                   self.border_mode, self.subsample[1])
 
-        if self.dim_ordering == 'th':
+        if self.data_format == 'channels_first':
             return (input_shape[0], self.nb_filter, rows, cols)
-        elif self.dim_ordering == 'tf':
+        elif self.data_format == 'channels_last':
             return (input_shape[0], rows, cols, self.nb_filter)
         else:
-            raise ValueError('Invalid dim_ordering:', self.dim_ordering)
+            raise ValueError('Invalid data_format:', self.data_format)
 
     def call(self, x, mask=None):
         output = K.separable_conv2d(x, self.depthwise_kernel,
                                     self.pointwise_kernel,
                                     strides=self.subsample,
                                     border_mode=self.border_mode,
-                                    dim_ordering=self.dim_ordering)
+                                    data_format=self.data_format)
         if self.bias:
-            if self.dim_ordering == 'th':
+            if self.data_format == 'channels_first':
                 output += K.reshape(self.b, (1, self.nb_filter, 1, 1))
-            elif self.dim_ordering == 'tf':
+            elif self.data_format == 'channels_last':
                 output += K.reshape(self.b, (1, 1, 1, self.nb_filter))
             else:
-                raise ValueError('Invalid dim_ordering:', self.dim_ordering)
+                raise ValueError('Invalid data_format:', self.data_format)
         output = self.activation(output)
         return output
 
@@ -1057,7 +1057,7 @@ class SeparableConvolution2D(Layer):
                   'border_mode': self.border_mode,
                   'subsample': self.subsample,
                   'depth_multiplier': self.depth_multiplier,
-                  'dim_ordering': self.dim_ordering,
+                  'data_format': self.data_format,
                   'depthwise_regularizer': self.depthwise_regularizer.get_config() if self.depthwise_regularizer else None,
                   'pointwise_regularizer': self.depthwise_regularizer.get_config() if self.depthwise_regularizer else None,
                   'b_regularizer': self.b_regularizer.get_config() if self.b_regularizer else None,
@@ -1110,36 +1110,36 @@ class Convolution3D(Layer):
             (eg. maxnorm, nonneg), applied to the main weights matrix.
         b_constraint: instance of the [constraints](../constraints.md) module,
             applied to the bias.
-        dim_ordering: 'th' or 'tf'. In 'th' mode, the channels dimension
-            (the depth) is at index 1, in 'tf' mode is it at index 4.
-            It defaults to the `image_dim_ordering` value found in your
+        data_format: 'channels_first' or 'channels_last'. In 'channels_first' mode, the channels dimension
+            (the depth) is at index 1, in 'channels_last' mode is it at index 4.
+            It defaults to the `image_data_format` value found in your
             Keras config file at `~/.keras/keras.json`.
-            If you never set it, then it will be "tf".
+            If you never set it, then it will be "channels_last".
         bias: whether to include a bias
             (i.e. make the layer affine rather than linear).
 
     # Input shape
         5D tensor with shape:
-        `(samples, channels, conv_dim1, conv_dim2, conv_dim3)` if dim_ordering='th'
+        `(samples, channels, conv_dim1, conv_dim2, conv_dim3)` if data_format='channels_first'
         or 5D tensor with shape:
-        `(samples, conv_dim1, conv_dim2, conv_dim3, channels)` if dim_ordering='tf'.
+        `(samples, conv_dim1, conv_dim2, conv_dim3, channels)` if data_format='channels_last'.
 
     # Output shape
         5D tensor with shape:
-        `(samples, nb_filter, new_conv_dim1, new_conv_dim2, new_conv_dim3)` if dim_ordering='th'
+        `(samples, nb_filter, new_conv_dim1, new_conv_dim2, new_conv_dim3)` if data_format='channels_first'
         or 5D tensor with shape:
-        `(samples, new_conv_dim1, new_conv_dim2, new_conv_dim3, nb_filter)` if dim_ordering='tf'.
+        `(samples, new_conv_dim1, new_conv_dim2, new_conv_dim3, nb_filter)` if data_format='channels_last'.
         `new_conv_dim1`, `new_conv_dim2` and `new_conv_dim3` values might have changed due to padding.
     """
 
     def __init__(self, nb_filter, kernel_dim1, kernel_dim2, kernel_dim3,
                  init='glorot_uniform', activation=None, weights=None,
-                 border_mode='valid', subsample=(1, 1, 1), dim_ordering='default',
+                 border_mode='valid', subsample=(1, 1, 1), data_format='default',
                  W_regularizer=None, b_regularizer=None, activity_regularizer=None,
                  W_constraint=None, b_constraint=None,
                  bias=True, **kwargs):
-        if dim_ordering == 'default':
-            dim_ordering = K.image_dim_ordering()
+        if data_format == 'default':
+            data_format = K.image_data_format()
 
         if border_mode not in {'valid', 'same', 'full'}:
             raise ValueError('Invalid border mode for Convolution3D:', border_mode)
@@ -1151,9 +1151,9 @@ class Convolution3D(Layer):
         self.activation = activations.get(activation)
         self.border_mode = border_mode
         self.subsample = tuple(subsample)
-        if dim_ordering not in {'tf', 'th'}:
-            raise ValueError('dim_ordering must be in {tf, th}.')
-        self.dim_ordering = dim_ordering
+        if data_format not in {'channels_last', 'channels_first'}:
+            raise ValueError('data_format must be in {"channels_last", "channels_first"}.')
+        self.data_format = data_format
 
         self.W_regularizer = regularizers.get(W_regularizer)
         self.b_regularizer = regularizers.get(b_regularizer)
@@ -1171,20 +1171,20 @@ class Convolution3D(Layer):
         assert len(input_shape) == 5
         self.input_spec = [InputSpec(shape=input_shape)]
 
-        if self.dim_ordering == 'th':
+        if self.data_format == 'channels_first':
             stack_size = input_shape[1]
             self.W_shape = (self.nb_filter, stack_size,
                             self.kernel_dim1, self.kernel_dim2, self.kernel_dim3)
-        elif self.dim_ordering == 'tf':
+        elif self.data_format == 'channels_last':
             stack_size = input_shape[4]
             self.W_shape = (self.kernel_dim1, self.kernel_dim2, self.kernel_dim3,
                             stack_size, self.nb_filter)
         else:
-            raise ValueError('Invalid dim_ordering:', self.dim_ordering)
+            raise ValueError('Invalid data_format:', self.data_format)
 
         self.W = self.add_weight(self.W_shape,
                                  initializer=functools.partial(self.init,
-                                                               dim_ordering=self.dim_ordering),
+                                                               data_format=self.data_format),
                                  name='{}_W'.format(self.name),
                                  regularizer=self.W_regularizer,
                                  constraint=self.W_constraint)
@@ -1203,16 +1203,16 @@ class Convolution3D(Layer):
         self.built = True
 
     def get_output_shape_for(self, input_shape):
-        if self.dim_ordering == 'th':
+        if self.data_format == 'channels_first':
             conv_dim1 = input_shape[2]
             conv_dim2 = input_shape[3]
             conv_dim3 = input_shape[4]
-        elif self.dim_ordering == 'tf':
+        elif self.data_format == 'channels_last':
             conv_dim1 = input_shape[1]
             conv_dim2 = input_shape[2]
             conv_dim3 = input_shape[3]
         else:
-            raise ValueError('Invalid dim_ordering:', self.dim_ordering)
+            raise ValueError('Invalid data_format:', self.data_format)
 
         conv_dim1 = conv_output_length(conv_dim1, self.kernel_dim1,
                                        self.border_mode, self.subsample[0])
@@ -1221,27 +1221,27 @@ class Convolution3D(Layer):
         conv_dim3 = conv_output_length(conv_dim3, self.kernel_dim3,
                                        self.border_mode, self.subsample[2])
 
-        if self.dim_ordering == 'th':
+        if self.data_format == 'channels_first':
             return (input_shape[0], self.nb_filter, conv_dim1, conv_dim2, conv_dim3)
-        elif self.dim_ordering == 'tf':
+        elif self.data_format == 'channels_last':
             return (input_shape[0], conv_dim1, conv_dim2, conv_dim3, self.nb_filter)
         else:
-            raise ValueError('Invalid dim_ordering:', self.dim_ordering)
+            raise ValueError('Invalid data_format:', self.data_format)
 
     def call(self, x, mask=None):
         input_shape = self.input_spec[0].shape
         output = K.conv3d(x, self.W, strides=self.subsample,
                           border_mode=self.border_mode,
-                          dim_ordering=self.dim_ordering,
+                          data_format=self.data_format,
                           volume_shape=input_shape,
                           filter_shape=self.W_shape)
         if self.bias:
-            if self.dim_ordering == 'th':
+            if self.data_format == 'channels_first':
                 output += K.reshape(self.b, (1, self.nb_filter, 1, 1, 1))
-            elif self.dim_ordering == 'tf':
+            elif self.data_format == 'channels_last':
                 output += K.reshape(self.b, (1, 1, 1, 1, self.nb_filter))
             else:
-                raise ValueError('Invalid dim_ordering:', self.dim_ordering)
+                raise ValueError('Invalid data_format:', self.data_format)
         output = self.activation(output)
         return output
 
@@ -1250,7 +1250,7 @@ class Convolution3D(Layer):
                   'kernel_dim1': self.kernel_dim1,
                   'kernel_dim2': self.kernel_dim2,
                   'kernel_dim3': self.kernel_dim3,
-                  'dim_ordering': self.dim_ordering,
+                  'data_format': self.data_format,
                   'init': self.init.__name__,
                   'activation': self.activation.__name__,
                   'border_mode': self.border_mode,
@@ -1307,45 +1307,45 @@ class UpSampling2D(Layer):
 
     # Arguments
         size: tuple of 2 integers. The upsampling factors for rows and columns.
-        dim_ordering: 'th' or 'tf'.
-            In 'th' mode, the channels dimension (the depth)
-            is at index 1, in 'tf' mode is it at index 3.
-            It defaults to the `image_dim_ordering` value found in your
+        data_format: 'channels_first' or 'channels_last'.
+            In 'channels_first' mode, the channels dimension (the depth)
+            is at index 1, in 'channels_last' mode is it at index 3.
+            It defaults to the `image_data_format` value found in your
             Keras config file at `~/.keras/keras.json`.
-            If you never set it, then it will be "tf".
+            If you never set it, then it will be "channels_last".
 
     # Input shape
         4D tensor with shape:
-        `(samples, channels, rows, cols)` if dim_ordering='th'
+        `(samples, channels, rows, cols)` if data_format='channels_first'
         or 4D tensor with shape:
-        `(samples, rows, cols, channels)` if dim_ordering='tf'.
+        `(samples, rows, cols, channels)` if data_format='channels_last'.
 
     # Output shape
         4D tensor with shape:
-        `(samples, channels, upsampled_rows, upsampled_cols)` if dim_ordering='th'
+        `(samples, channels, upsampled_rows, upsampled_cols)` if data_format='channels_first'
         or 4D tensor with shape:
-        `(samples, upsampled_rows, upsampled_cols, channels)` if dim_ordering='tf'.
+        `(samples, upsampled_rows, upsampled_cols, channels)` if data_format='channels_last'.
     """
 
-    def __init__(self, size=(2, 2), dim_ordering='default', **kwargs):
-        if dim_ordering == 'default':
-            dim_ordering = K.image_dim_ordering()
+    def __init__(self, size=(2, 2), data_format='default', **kwargs):
+        if data_format == 'default':
+            data_format = K.image_data_format()
         self.size = tuple(size)
-        if dim_ordering not in {'tf', 'th'}:
-            raise ValueError('dim_ordering must be in {tf, th}.')
-        self.dim_ordering = dim_ordering
+        if data_format not in {'channels_last', 'channels_first'}:
+            raise ValueError('data_format must be in {"channels_last", "channels_first"}.')
+        self.data_format = data_format
         self.input_spec = [InputSpec(ndim=4)]
         super(UpSampling2D, self).__init__(**kwargs)
 
     def get_output_shape_for(self, input_shape):
-        if self.dim_ordering == 'th':
+        if self.data_format == 'channels_first':
             width = self.size[0] * input_shape[2] if input_shape[2] is not None else None
             height = self.size[1] * input_shape[3] if input_shape[3] is not None else None
             return (input_shape[0],
                     input_shape[1],
                     width,
                     height)
-        elif self.dim_ordering == 'tf':
+        elif self.data_format == 'channels_last':
             width = self.size[0] * input_shape[1] if input_shape[1] is not None else None
             height = self.size[1] * input_shape[2] if input_shape[2] is not None else None
             return (input_shape[0],
@@ -1353,11 +1353,11 @@ class UpSampling2D(Layer):
                     height,
                     input_shape[3])
         else:
-            raise ValueError('Invalid dim_ordering:', self.dim_ordering)
+            raise ValueError('Invalid data_format:', self.data_format)
 
     def call(self, x, mask=None):
         return K.resize_images(x, self.size[0], self.size[1],
-                               self.dim_ordering)
+                               self.data_format)
 
     def get_config(self):
         config = {'size': self.size}
@@ -1373,38 +1373,38 @@ class UpSampling3D(Layer):
 
     # Arguments
         size: tuple of 3 integers. The upsampling factors for dim1, dim2 and dim3.
-        dim_ordering: 'th' or 'tf'.
-            In 'th' mode, the channels dimension (the depth)
-            is at index 1, in 'tf' mode is it at index 4.
-            It defaults to the `image_dim_ordering` value found in your
+        data_format: 'channels_first' or 'channels_last'.
+            In 'channels_first' mode, the channels dimension (the depth)
+            is at index 1, in 'channels_last' mode is it at index 4.
+            It defaults to the `image_data_format` value found in your
             Keras config file at `~/.keras/keras.json`.
-            If you never set it, then it will be "tf".
+            If you never set it, then it will be "channels_last".
 
     # Input shape
         5D tensor with shape:
-        `(samples, channels, dim1, dim2, dim3)` if dim_ordering='th'
+        `(samples, channels, dim1, dim2, dim3)` if data_format='channels_first'
         or 5D tensor with shape:
-        `(samples, dim1, dim2, dim3, channels)` if dim_ordering='tf'.
+        `(samples, dim1, dim2, dim3, channels)` if data_format='channels_last'.
 
     # Output shape
         5D tensor with shape:
-        `(samples, channels, upsampled_dim1, upsampled_dim2, upsampled_dim3)` if dim_ordering='th'
+        `(samples, channels, upsampled_dim1, upsampled_dim2, upsampled_dim3)` if data_format='channels_first'
         or 5D tensor with shape:
-        `(samples, upsampled_dim1, upsampled_dim2, upsampled_dim3, channels)` if dim_ordering='tf'.
+        `(samples, upsampled_dim1, upsampled_dim2, upsampled_dim3, channels)` if data_format='channels_last'.
     """
 
-    def __init__(self, size=(2, 2, 2), dim_ordering='default', **kwargs):
-        if dim_ordering == 'default':
-            dim_ordering = K.image_dim_ordering()
+    def __init__(self, size=(2, 2, 2), data_format='default', **kwargs):
+        if data_format == 'default':
+            data_format = K.image_data_format()
         self.size = tuple(size)
-        if dim_ordering not in {'tf', 'th'}:
-            raise ValueError('dim_ordering must be in {tf, th}.')
-        self.dim_ordering = dim_ordering
+        if data_format not in {'channels_last', 'channels_first'}:
+            raise ValueError('data_format must be in {"channels_last", "channels_first"}.')
+        self.data_format = data_format
         self.input_spec = [InputSpec(ndim=5)]
         super(UpSampling3D, self).__init__(**kwargs)
 
     def get_output_shape_for(self, input_shape):
-        if self.dim_ordering == 'th':
+        if self.data_format == 'channels_first':
             dim1 = self.size[0] * input_shape[2] if input_shape[2] is not None else None
             dim2 = self.size[1] * input_shape[3] if input_shape[3] is not None else None
             dim3 = self.size[2] * input_shape[4] if input_shape[4] is not None else None
@@ -1413,7 +1413,7 @@ class UpSampling3D(Layer):
                     dim1,
                     dim2,
                     dim3)
-        elif self.dim_ordering == 'tf':
+        elif self.data_format == 'channels_last':
             dim1 = self.size[0] * input_shape[1] if input_shape[1] is not None else None
             dim2 = self.size[1] * input_shape[2] if input_shape[2] is not None else None
             dim3 = self.size[2] * input_shape[3] if input_shape[3] is not None else None
@@ -1423,11 +1423,11 @@ class UpSampling3D(Layer):
                     dim3,
                     input_shape[4])
         else:
-            raise ValueError('Invalid dim_ordering:', self.dim_ordering)
+            raise ValueError('Invalid data_format:', self.data_format)
 
     def call(self, x, mask=None):
         return K.resize_volumes(x, self.size[0], self.size[1], self.size[2],
-                                self.dim_ordering)
+                                self.data_format)
 
     def get_config(self):
         config = {'size': self.size}
@@ -1513,33 +1513,33 @@ class ZeroPadding2D(Layer):
             - If dictionary: should contain the keys
             {'top_pad', 'bottom_pad', 'left_pad', 'right_pad'}.
             If any key is missing, default value of 0 will be used for the missing key.
-        dim_ordering: 'th' or 'tf'.
-            In 'th' mode, the channels dimension (the depth)
-            is at index 1, in 'tf' mode is it at index 3.
-            It defaults to the `image_dim_ordering` value found in your
+        data_format: 'channels_first' or 'channels_last'.
+            In 'channels_first' mode, the channels dimension (the depth)
+            is at index 1, in 'channels_last' mode is it at index 3.
+            It defaults to the `image_data_format` value found in your
             Keras config file at `~/.keras/keras.json`.
-            If you never set it, then it will be "tf".
+            If you never set it, then it will be "channels_last".
 
     # Input shape
         4D tensor with shape:
-        `(samples, channels, rows, cols)` if dim_ordering='th'
+        `(samples, channels, rows, cols)` if data_format='channels_first'
         or 4D tensor with shape:
-        `(samples, rows, cols, channels)` if dim_ordering='tf'.
+        `(samples, rows, cols, channels)` if data_format='channels_last'.
 
     # Output shape
         4D tensor with shape:
-        `(samples, channels, padded_rows, padded_cols)` if dim_ordering='th'
+        `(samples, channels, padded_rows, padded_cols)` if data_format='channels_first'
         or 4D tensor with shape:
-        `(samples, padded_rows, padded_cols, channels)` if dim_ordering='tf'.
+        `(samples, padded_rows, padded_cols, channels)` if data_format='channels_last'.
     """
 
     def __init__(self,
                  padding=(1, 1),
-                 dim_ordering='default',
+                 data_format='default',
                  **kwargs):
         super(ZeroPadding2D, self).__init__(**kwargs)
-        if dim_ordering == 'default':
-            dim_ordering = K.image_dim_ordering()
+        if data_format == 'default':
+            data_format = K.image_data_format()
 
         self.padding = padding
         if isinstance(padding, dict):
@@ -1570,20 +1570,20 @@ class ZeroPadding2D(Layer):
                                 'of length 2 or 4, or dict. '
                                 'Found: ' + str(padding))
 
-        if dim_ordering not in {'tf', 'th'}:
-            raise ValueError('dim_ordering must be in {tf, th}.')
-        self.dim_ordering = dim_ordering
+        if data_format not in {'channels_last', 'channels_first'}:
+            raise ValueError('data_format must be in {"channels_last", "channels_first"}.')
+        self.data_format = data_format
         self.input_spec = [InputSpec(ndim=4)]
 
     def get_output_shape_for(self, input_shape):
-        if self.dim_ordering == 'th':
+        if self.data_format == 'channels_first':
             rows = input_shape[2] + self.top_pad + self.bottom_pad if input_shape[2] is not None else None
             cols = input_shape[3] + self.left_pad + self.right_pad if input_shape[3] is not None else None
             return (input_shape[0],
                     input_shape[1],
                     rows,
                     cols)
-        elif self.dim_ordering == 'tf':
+        elif self.data_format == 'channels_last':
             rows = input_shape[1] + self.top_pad + self.bottom_pad if input_shape[1] is not None else None
             cols = input_shape[2] + self.left_pad + self.right_pad if input_shape[2] is not None else None
             return (input_shape[0],
@@ -1591,7 +1591,7 @@ class ZeroPadding2D(Layer):
                     cols,
                     input_shape[3])
         else:
-            raise ValueError('Invalid dim_ordering:', self.dim_ordering)
+            raise ValueError('Invalid data_format:', self.data_format)
 
     def call(self, x, mask=None):
         return K.asymmetric_spatial_2d_padding(x,
@@ -1599,7 +1599,7 @@ class ZeroPadding2D(Layer):
                                                bottom_pad=self.bottom_pad,
                                                left_pad=self.left_pad,
                                                right_pad=self.right_pad,
-                                               dim_ordering=self.dim_ordering)
+                                               data_format=self.data_format)
 
     def get_config(self):
         config = {'padding': self.padding}
@@ -1615,12 +1615,12 @@ class ZeroPadding3D(Layer):
             How many zeros to add at the beginning and end of
             the 3 padding dimensions (axis 3, 4 and 5).
             Currently only symmetric padding is supported.
-        dim_ordering: 'th' or 'tf'.
-            In 'th' mode, the channels dimension (the depth)
-            is at index 1, in 'tf' mode is it at index 4.
-            It defaults to the `image_dim_ordering` value found in your
+        data_format: 'channels_first' or 'channels_last'.
+            In 'channels_first' mode, the channels dimension (the depth)
+            is at index 1, in 'channels_last' mode is it at index 4.
+            It defaults to the `image_data_format` value found in your
             Keras config file at `~/.keras/keras.json`.
-            If you never set it, then it will be "tf".
+            If you never set it, then it will be "channels_last".
 
     # Input shape
         5D tensor with shape:
@@ -1631,18 +1631,18 @@ class ZeroPadding3D(Layer):
         `(samples, depth, first_padded_axis, second_padded_axis, third_axis_to_pad)`
     """
 
-    def __init__(self, padding=(1, 1, 1), dim_ordering='default', **kwargs):
+    def __init__(self, padding=(1, 1, 1), data_format='default', **kwargs):
         super(ZeroPadding3D, self).__init__(**kwargs)
-        if dim_ordering == 'default':
-            dim_ordering = K.image_dim_ordering()
+        if data_format == 'default':
+            data_format = K.image_data_format()
         self.padding = tuple(padding)
-        if dim_ordering not in {'tf', 'th'}:
-            raise ValueError('dim_ordering must be in {tf, th}.')
-        self.dim_ordering = dim_ordering
+        if data_format not in {'channels_last', 'channels_first'}:
+            raise ValueError('data_format must be in {"channels_last", "channels_first"}.')
+        self.data_format = data_format
         self.input_spec = [InputSpec(ndim=5)]
 
     def get_output_shape_for(self, input_shape):
-        if self.dim_ordering == 'th':
+        if self.data_format == 'channels_first':
             dim1 = input_shape[2] + 2 * self.padding[0] if input_shape[2] is not None else None
             dim2 = input_shape[3] + 2 * self.padding[1] if input_shape[3] is not None else None
             dim3 = input_shape[4] + 2 * self.padding[2] if input_shape[4] is not None else None
@@ -1651,7 +1651,7 @@ class ZeroPadding3D(Layer):
                     dim1,
                     dim2,
                     dim3)
-        elif self.dim_ordering == 'tf':
+        elif self.data_format == 'channels_last':
             dim1 = input_shape[1] + 2 * self.padding[0] if input_shape[1] is not None else None
             dim2 = input_shape[2] + 2 * self.padding[1] if input_shape[2] is not None else None
             dim3 = input_shape[3] + 2 * self.padding[2] if input_shape[3] is not None else None
@@ -1661,11 +1661,11 @@ class ZeroPadding3D(Layer):
                     dim3,
                     input_shape[4])
         else:
-            raise ValueError('Invalid dim_ordering:', self.dim_ordering)
+            raise ValueError('Invalid data_format:', self.data_format)
 
     def call(self, x, mask=None):
         return K.spatial_3d_padding(x, padding=self.padding,
-                                    dim_ordering=self.dim_ordering)
+                                    data_format=self.data_format)
 
     def get_config(self):
         config = {'padding': self.padding}
@@ -1731,12 +1731,12 @@ class Cropping2D(Layer):
         cropping: tuple of tuple of int (length 2)
             How many units should be trimmed off at the beginning and end of
             the 2 cropping dimensions (width, height).
-        dim_ordering: 'th' or 'tf'.
-            In 'th' mode, the channels dimension (the depth)
-            is at index 1, in 'tf' mode is it at index 3.
-            It defaults to the `image_dim_ordering` value found in your
+        data_format: 'channels_first' or 'channels_last'.
+            In 'channels_first' mode, the channels dimension (the depth)
+            is at index 1, in 'channels_last' mode is it at index 3.
+            It defaults to the `image_data_format` value found in your
             Keras config file at `~/.keras/keras.json`.
-            If you never set it, then it will be "tf".
+            If you never set it, then it will be "channels_last".
 
     # Input shape
         4D tensor with shape:
@@ -1760,10 +1760,10 @@ class Cropping2D(Layer):
     ```
     """
 
-    def __init__(self, cropping=((0, 0), (0, 0)), dim_ordering='default', **kwargs):
+    def __init__(self, cropping=((0, 0), (0, 0)), data_format='default', **kwargs):
         super(Cropping2D, self).__init__(**kwargs)
-        if dim_ordering == 'default':
-            dim_ordering = K.image_dim_ordering()
+        if data_format == 'default':
+            data_format = K.image_data_format()
         self.cropping = tuple(cropping)
         if len(self.cropping) != 2:
             raise ValueError('`cropping` must be a tuple length of 2.')
@@ -1771,9 +1771,9 @@ class Cropping2D(Layer):
             raise ValueError('`cropping[0]` must be a tuple length of 2.')
         if len(self.cropping[1]) != 2:
             raise ValueError('`cropping[1]` must be a tuple length of 2.')
-        if dim_ordering not in {'tf', 'th'}:
-            raise ValueError('dim_ordering must be in {tf, th}.')
-        self.dim_ordering = dim_ordering
+        if data_format not in {'channels_last', 'channels_first'}:
+            raise ValueError('data_format must be in {"channels_last", "channels_first"}.')
+        self.data_format = data_format
         self.input_spec = [InputSpec(ndim=4)]
 
     def build(self, input_shape):
@@ -1781,21 +1781,21 @@ class Cropping2D(Layer):
         self.built = True
 
     def get_output_shape_for(self, input_shape):
-        if self.dim_ordering == 'th':
+        if self.data_format == 'channels_first':
             return (input_shape[0],
                     input_shape[1],
                     input_shape[2] - self.cropping[0][0] - self.cropping[0][1],
                     input_shape[3] - self.cropping[1][0] - self.cropping[1][1])
-        elif self.dim_ordering == 'tf':
+        elif self.data_format == 'channels_last':
             return (input_shape[0],
                     input_shape[1] - self.cropping[0][0] - self.cropping[0][1],
                     input_shape[2] - self.cropping[1][0] - self.cropping[1][1],
                     input_shape[3])
         else:
-            raise ValueError('Invalid dim_ordering:', self.dim_ordering)
+            raise ValueError('Invalid data_format:', self.data_format)
 
     def call(self, x, mask=None):
-        if self.dim_ordering == 'th':
+        if self.data_format == 'channels_first':
             if self.cropping[0][1] == self.cropping[1][1] == 0:
                 return x[:,
                          :,
@@ -1815,7 +1815,7 @@ class Cropping2D(Layer):
                      :,
                      self.cropping[0][0]:-self.cropping[0][1],
                      self.cropping[1][0]:-self.cropping[1][1]]
-        elif self.dim_ordering == 'tf':
+        elif self.data_format == 'channels_last':
             if self.cropping[0][1] == self.cropping[1][1] == 0:
                 return x[:,
                          self.cropping[0][0]:,
@@ -1849,12 +1849,12 @@ class Cropping3D(Layer):
         cropping: tuple of tuple of int (length 3)
             How many units should be trimmed off at the beginning and end of
             the 3 cropping dimensions (kernel_dim1, kernel_dim2, kernerl_dim3).
-        dim_ordering: 'th' or 'tf'.
-            In 'th' mode, the channels dimension (the depth)
-            is at index 1, in 'tf' mode is it at index 4.
-            It defaults to the `image_dim_ordering` value found in your
+        data_format: 'channels_first' or 'channels_last'.
+            In 'channels_first' mode, the channels dimension (the depth)
+            is at index 1, in 'channels_last' mode is it at index 4.
+            It defaults to the `image_data_format` value found in your
             Keras config file at `~/.keras/keras.json`.
-            If you never set it, then it will be "tf".
+            If you never set it, then it will be "channels_last".
 
     # Input shape
         5D tensor with shape:
@@ -1867,10 +1867,10 @@ class Cropping3D(Layer):
     """
 
     def __init__(self, cropping=((1, 1), (1, 1), (1, 1)),
-                 dim_ordering='default', **kwargs):
+                 data_format='default', **kwargs):
         super(Cropping3D, self).__init__(**kwargs)
-        if dim_ordering == 'default':
-            dim_ordering = K.image_dim_ordering()
+        if data_format == 'default':
+            data_format = K.image_data_format()
         self.cropping = tuple(cropping)
         if len(self.cropping) != 3:
             raise ValueError('`cropping` must be a tuple length of 3.')
@@ -1880,9 +1880,9 @@ class Cropping3D(Layer):
             raise ValueError('`cropping[1]` must be a tuple length of 2.')
         if len(self.cropping[2]) != 2:
             raise ValueError('`cropping[2]` must be a tuple length of 2.')
-        if dim_ordering not in {'tf', 'th'}:
-            raise ValueError('dim_ordering must be in {tf, th}.')
-        self.dim_ordering = dim_ordering
+        if data_format not in {'channels_last', 'channels_first'}:
+            raise ValueError('data_format must be in {"channels_last", "channels_first"}.')
+        self.data_format = data_format
         self.input_spec = [InputSpec(ndim=5)]
 
     def build(self, input_shape):
@@ -1890,7 +1890,7 @@ class Cropping3D(Layer):
         self.built = True
 
     def get_output_shape_for(self, input_shape):
-        if self.dim_ordering == 'th':
+        if self.data_format == 'channels_first':
             dim1 = input_shape[2] - self.cropping[0][0] - self.cropping[0][1] if input_shape[2] is not None else None
             dim2 = input_shape[3] - self.cropping[1][0] - self.cropping[1][1] if input_shape[3] is not None else None
             dim3 = input_shape[4] - self.cropping[2][0] - self.cropping[2][1] if input_shape[4] is not None else None
@@ -1899,7 +1899,7 @@ class Cropping3D(Layer):
                     dim1,
                     dim2,
                     dim3)
-        elif self.dim_ordering == 'tf':
+        elif self.data_format == 'channels_last':
             dim1 = input_shape[1] - self.cropping[0][0] - self.cropping[0][1] if input_shape[1] is not None else None
             dim2 = input_shape[2] - self.cropping[1][0] - self.cropping[1][1] if input_shape[2] is not None else None
             dim3 = input_shape[3] - self.cropping[2][0] - self.cropping[2][1] if input_shape[3] is not None else None
@@ -1909,10 +1909,10 @@ class Cropping3D(Layer):
                     dim3,
                     input_shape[4])
         else:
-            raise ValueError('Invalid dim_ordering:', self.dim_ordering)
+            raise ValueError('Invalid data_format:', self.data_format)
 
     def call(self, x, mask=None):
-        if self.dim_ordering == 'th':
+        if self.data_format == 'channels_first':
             if self.cropping[0][1] == self.cropping[1][1] == self.cropping[2][1] == 0:
                 return x[:,
                          :,
@@ -1960,7 +1960,7 @@ class Cropping3D(Layer):
                      self.cropping[0][0]:-self.cropping[0][1],
                      self.cropping[1][0]:-self.cropping[1][1],
                      self.cropping[2][0]:-self.cropping[2][1]]
-        elif self.dim_ordering == 'tf':
+        elif self.data_format == 'channels_last':
             if self.cropping[0][1] == self.cropping[1][1] == self.cropping[2][1] == 0:
                 return x[:,
                          self.cropping[0][0]:,

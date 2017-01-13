@@ -47,7 +47,7 @@ def conv2d_bn(x, nb_filter, nb_row, nb_col,
     else:
         bn_name = None
         conv_name = None
-    if K.image_dim_ordering() == 'th':
+    if K.image_data_format() == 'channels_first':
         bn_axis = 1
     else:
         bn_axis = 3
@@ -67,11 +67,11 @@ def InceptionV3(include_top=True, weights='imagenet',
     optionally loading weights pre-trained
     on ImageNet. Note that when using TensorFlow,
     for best performance you should set
-    `image_dim_ordering="tf"` in your Keras config
+    `image_data_format="channels_last"` in your Keras config
     at ~/.keras/keras.json.
 
     The model and the weights are compatible with both
-    TensorFlow and Theano. The dimension ordering
+    TensorFlow and Theano. The data format
     convention used by the model is the one
     specified in your Keras config file.
 
@@ -86,8 +86,8 @@ def InceptionV3(include_top=True, weights='imagenet',
             to use as image input for the model.
         input_shape: optional shape tuple, only to be specified
             if `include_top` is False (otherwise the input shape
-            has to be `(299, 299, 3)` (with `tf` dim ordering)
-            or `(3, 299, 299)` (with `th` dim ordering).
+            has to be `(299, 299, 3)` (with `channels_last` data format)
+            or `(3, 299, 299)` (with `channels_first` data format).
             It should have exactly 3 inputs channels,
             and width and height should be no smaller than 139.
             E.g. `(150, 150, 3)` would be one valid value.
@@ -111,7 +111,7 @@ def InceptionV3(include_top=True, weights='imagenet',
     input_shape = _obtain_input_shape(input_shape,
                                       default_size=299,
                                       min_size=139,
-                                      dim_ordering=K.image_dim_ordering(),
+                                      data_format=K.image_data_format(),
                                       include_top=include_top)
 
     if input_tensor is None:
@@ -122,7 +122,7 @@ def InceptionV3(include_top=True, weights='imagenet',
         else:
             img_input = input_tensor
 
-    if K.image_dim_ordering() == 'th':
+    if K.image_data_format() == 'channels_first':
         channel_axis = 1
     else:
         channel_axis = 3
@@ -284,7 +284,7 @@ def InceptionV3(include_top=True, weights='imagenet',
 
     # load weights
     if weights == 'imagenet':
-        if K.image_dim_ordering() == 'th':
+        if K.image_data_format() == 'channels_first':
             if include_top:
                 weights_path = get_file('inception_v3_weights_th_dim_ordering_th_kernels.h5',
                                         TH_WEIGHTS_PATH,
@@ -299,10 +299,10 @@ def InceptionV3(include_top=True, weights='imagenet',
             if K.backend() == 'tensorflow':
                 warnings.warn('You are using the TensorFlow backend, yet you '
                               'are using the Theano '
-                              'image dimension ordering convention '
-                              '(`image_dim_ordering="th"`). '
+                              'image data format convention '
+                              '(`image_data_format="channels_first"`). '
                               'For best performance, set '
-                              '`image_dim_ordering="tf"` in '
+                              '`image_data_format="channels_last"` in '
                               'your Keras config '
                               'at ~/.keras/keras.json.')
                 convert_all_kernels_in_model(model)

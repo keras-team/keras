@@ -64,34 +64,34 @@ def categorical_probas_to_classes(p):
     return np.argmax(p, axis=1)
 
 
-def convert_kernel(kernel, dim_ordering=None):
+def convert_kernel(kernel, data_format=None):
     """Converts a Numpy kernel matrix from Theano format to TensorFlow format.
 
     Also works reciprocally, since the transformation is its own inverse.
 
     # Arguments
         kernel: Numpy array (4D or 5D).
-        dim_ordering: the data format.
+        data_format: the data format.
 
     # Returns
         The converted kernel.
 
     # Raises
-        ValueError: in case of invalid kernel shape or invalid dim_ordering.
+        ValueError: in case of invalid kernel shape or invalid data_format.
     """
-    if dim_ordering is None:
-        dim_ordering = K.image_dim_ordering()
+    if data_format is None:
+        data_format = K.image_data_format()
     if not 4 <= kernel.ndim <= 5:
         raise ValueError('Invalid kernel shape:', kernel.shape)
 
     slices = [slice(None, None, -1) for _ in range(kernel.ndim)]
     no_flip = (slice(None, None), slice(None, None))
-    if dim_ordering == 'th':  # (out_depth, input_depth, ...)
+    if data_format == 'channels_first':  # (out_depth, input_depth, ...)
         slices[:2] = no_flip
-    elif dim_ordering == 'tf':  # (..., input_depth, out_depth)
+    elif data_format == 'channels_last':  # (..., input_depth, out_depth)
         slices[-2:] = no_flip
     else:
-        raise ValueError('Invalid dim_ordering:', dim_ordering)
+        raise ValueError('Invalid data_format:', data_format)
 
     return np.copy(kernel[slices])
 

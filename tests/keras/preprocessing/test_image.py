@@ -68,7 +68,7 @@ class TestImage:
             featurewise_std_normalization=True,
             samplewise_std_normalization=True,
             zca_whitening=True,
-            dim_ordering='tf')
+            data_format='channels_last')
         # Test fit with invalid data
         with pytest.raises(ValueError):
             x = np.random.random((3, 10, 10))
@@ -97,7 +97,7 @@ class TestImage:
             featurewise_std_normalization=True,
             samplewise_std_normalization=True,
             zca_whitening=True,
-            dim_ordering='tf')
+            data_format='channels_last')
         # Test grayscale
         x = np.random.random((32, 10, 10, 1))
         generator.fit(x)
@@ -110,7 +110,7 @@ class TestImage:
             featurewise_std_normalization=True,
             samplewise_std_normalization=True,
             zca_whitening=True,
-            dim_ordering='th')
+            data_format='channels_first')
         # Test grayscale
         x = np.random.random((32, 1, 10, 10))
         generator.fit(x)
@@ -163,30 +163,30 @@ class TestImage:
     def test_img_utils(self):
         height, width = 10, 8
 
-        # Test th dim ordering
+        # Test th data format
         x = np.random.random((3, height, width))
-        img = image.array_to_img(x, dim_ordering='th')
+        img = image.array_to_img(x, data_format='channels_first')
         assert img.size == (width, height)
-        x = image.img_to_array(img, dim_ordering='th')
+        x = image.img_to_array(img, data_format='channels_first')
         assert x.shape == (3, height, width)
         # Test 2D
         x = np.random.random((1, height, width))
-        img = image.array_to_img(x, dim_ordering='th')
+        img = image.array_to_img(x, data_format='channels_first')
         assert img.size == (width, height)
-        x = image.img_to_array(img, dim_ordering='th')
+        x = image.img_to_array(img, data_format='channels_first')
         assert x.shape == (1, height, width)
 
-        # Test tf dim ordering
+        # Test tf data format
         x = np.random.random((height, width, 3))
-        img = image.array_to_img(x, dim_ordering='tf')
+        img = image.array_to_img(x, data_format='channels_last')
         assert img.size == (width, height)
-        x = image.img_to_array(img, dim_ordering='tf')
+        x = image.img_to_array(img, data_format='channels_last')
         assert x.shape == (height, width, 3)
         # Test 2D
         x = np.random.random((height, width, 1))
-        img = image.array_to_img(x, dim_ordering='tf')
+        img = image.array_to_img(x, data_format='channels_last')
         assert img.size == (width, height)
-        x = image.img_to_array(img, dim_ordering='tf')
+        x = image.img_to_array(img, data_format='channels_last')
         assert x.shape == (height, width, 1)
 
 

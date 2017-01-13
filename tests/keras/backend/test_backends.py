@@ -536,11 +536,11 @@ class TestBackend(object):
 
                 kernel_val = np.random.random(kernel_shape) - 0.5
 
-                kernel_th = KTH.variable(convert_kernel(kernel_val, dim_ordering='th'))
+                kernel_th = KTH.variable(convert_kernel(kernel_val, data_format='channels_first'))
                 kernel_tf = KTF.variable(kernel_val)
 
-                zth = KTH.eval(KTH.conv2d(xth, kernel_th, dim_ordering='th'))
-                ztf = KTF.eval(KTF.conv2d(xtf, kernel_tf, dim_ordering='th'))
+                zth = KTH.eval(KTH.conv2d(xth, kernel_th, data_format='channels_first'))
+                ztf = KTF.eval(KTF.conv2d(xtf, kernel_tf, data_format='channels_first'))
 
                 assert zth.shape == ztf.shape
                 assert_allclose(zth, ztf, atol=1e-05)
@@ -555,11 +555,11 @@ class TestBackend(object):
 
         kernel_val = np.random.random(kernel_shape) - 0.5
 
-        kernel_th = KTH.variable(convert_kernel(kernel_val, dim_ordering='tf'))
+        kernel_th = KTH.variable(convert_kernel(kernel_val, data_format='channels_last'))
         kernel_tf = KTF.variable(kernel_val)
 
-        zth = KTH.eval(KTH.conv2d(xth, kernel_th, dim_ordering='tf'))
-        ztf = KTF.eval(KTF.conv2d(xtf, kernel_tf, dim_ordering='tf'))
+        zth = KTH.eval(KTH.conv2d(xth, kernel_th, data_format='channels_last'))
+        ztf = KTF.eval(KTF.conv2d(xtf, kernel_tf, data_format='channels_last'))
 
         assert zth.shape == ztf.shape
         assert_allclose(zth, ztf, atol=1e-05)
@@ -570,7 +570,7 @@ class TestBackend(object):
         # TH kernel shape: (depth, input_depth, x, y, z)
         # TF kernel shape: (x, y, z, input_depth, depth)
 
-        # test in dim_ordering = th
+        # test in data_format = th
         for input_shape in [(2, 3, 4, 5, 4), (2, 3, 5, 4, 6)]:
             for kernel_shape in [(4, 3, 2, 2, 2), (4, 3, 3, 2, 4)]:
                 xval = np.random.random(input_shape)
@@ -580,16 +580,16 @@ class TestBackend(object):
 
                 kernel_val = np.random.random(kernel_shape) - 0.5
 
-                kernel_th = KTH.variable(convert_kernel(kernel_val, dim_ordering='th'))
+                kernel_th = KTH.variable(convert_kernel(kernel_val, data_format='channels_first'))
                 kernel_tf = KTF.variable(kernel_val)
 
-                zth = KTH.eval(KTH.conv3d(xth, kernel_th, dim_ordering='th'))
-                ztf = KTF.eval(KTF.conv3d(xtf, kernel_tf, dim_ordering='th'))
+                zth = KTH.eval(KTH.conv3d(xth, kernel_th, data_format='channels_first'))
+                ztf = KTF.eval(KTF.conv3d(xtf, kernel_tf, data_format='channels_first'))
 
                 assert zth.shape == ztf.shape
                 assert_allclose(zth, ztf, atol=1e-05)
 
-        # test in dim_ordering = tf
+        # test in data_format = tf
         input_shape = (1, 2, 2, 2, 1)
         kernel_shape = (2, 2, 2, 1, 1)
 
@@ -600,11 +600,11 @@ class TestBackend(object):
 
         kernel_val = np.random.random(kernel_shape) - 0.5
 
-        kernel_th = KTH.variable(convert_kernel(kernel_val, dim_ordering='tf'))
+        kernel_th = KTH.variable(convert_kernel(kernel_val, data_format='channels_last'))
         kernel_tf = KTF.variable(kernel_val)
 
-        zth = KTH.eval(KTH.conv3d(xth, kernel_th, dim_ordering='tf'))
-        ztf = KTF.eval(KTF.conv3d(xtf, kernel_tf, dim_ordering='tf'))
+        zth = KTH.eval(KTH.conv3d(xth, kernel_th, data_format='channels_last'))
+        ztf = KTF.eval(KTF.conv3d(xtf, kernel_tf, data_format='channels_last'))
 
         assert zth.shape == ztf.shape
         assert_allclose(zth, ztf, atol=1e-05)

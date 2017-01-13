@@ -157,7 +157,7 @@ def test_deconvolution_2d():
                                    'output_shape': (batch_size, nb_filter, rows, cols),
                                    'border_mode': border_mode,
                                    'subsample': subsample,
-                                   'dim_ordering': 'th'},
+                                   'data_format': 'channels_first'},
                            input_shape=(nb_samples, stack_size, nb_row, nb_col),
                            fixed_batch_size=True)
 
@@ -167,7 +167,7 @@ def test_deconvolution_2d():
                                    'nb_col': 3,
                                    'output_shape': (batch_size, nb_filter, rows, cols),
                                    'border_mode': border_mode,
-                                   'dim_ordering': 'th',
+                                   'data_format': 'channels_first',
                                    'W_regularizer': 'l2',
                                    'b_regularizer': 'l2',
                                    'activity_regularizer': 'activity_l2',
@@ -265,32 +265,32 @@ def test_globalpooling_1d():
 @keras_test
 def test_globalpooling_2d():
     layer_test(pooling.GlobalMaxPooling2D,
-               kwargs={'dim_ordering': 'th'},
+               kwargs={'data_format': 'channels_first'},
                input_shape=(3, 4, 5, 6))
     layer_test(pooling.GlobalMaxPooling2D,
-               kwargs={'dim_ordering': 'tf'},
+               kwargs={'data_format': 'channels_last'},
                input_shape=(3, 5, 6, 4))
     layer_test(pooling.GlobalAveragePooling2D,
-               kwargs={'dim_ordering': 'th'},
+               kwargs={'data_format': 'channels_first'},
                input_shape=(3, 4, 5, 6))
     layer_test(pooling.GlobalAveragePooling2D,
-               kwargs={'dim_ordering': 'tf'},
+               kwargs={'data_format': 'channels_last'},
                input_shape=(3, 5, 6, 4))
 
 
 @keras_test
 def test_globalpooling_3d():
     layer_test(pooling.GlobalMaxPooling3D,
-               kwargs={'dim_ordering': 'th'},
+               kwargs={'data_format': 'channels_first'},
                input_shape=(3, 4, 3, 4, 3))
     layer_test(pooling.GlobalMaxPooling3D,
-               kwargs={'dim_ordering': 'tf'},
+               kwargs={'data_format': 'channels_last'},
                input_shape=(3, 4, 3, 4, 3))
     layer_test(pooling.GlobalAveragePooling3D,
-               kwargs={'dim_ordering': 'th'},
+               kwargs={'data_format': 'channels_first'},
                input_shape=(3, 4, 3, 4, 3))
     layer_test(pooling.GlobalAveragePooling3D,
-               kwargs={'dim_ordering': 'tf'},
+               kwargs={'data_format': 'channels_last'},
                input_shape=(3, 4, 3, 4, 3))
 
 
@@ -432,12 +432,12 @@ def test_zero_padding_2d():
     stack_size = 2
     input_nb_row = 4
     input_nb_col = 5
-    dim_ordering = K.image_dim_ordering()
-    assert dim_ordering in {'tf', 'th'}, 'dim_ordering must be in {tf, th}'
+    data_format = K.image_data_format()
+    assert data_format in {'channels_last', 'channels_first'}, 'data_format must be in {"channels_last", "channels_first"}'
 
-    if dim_ordering == 'tf':
+    if data_format == 'channels_last':
         input = np.ones((nb_samples, input_nb_row, input_nb_col, stack_size))
-    elif dim_ordering == 'th':
+    elif data_format == 'channels_first':
         input = np.ones((nb_samples, stack_size, input_nb_row, input_nb_col))
 
     # basic test
@@ -456,12 +456,12 @@ def test_zero_padding_2d():
     layer.build(input.shape)
     output = layer(K.variable(input))
     np_output = K.eval(output)
-    if dim_ordering == 'tf':
+    if data_format == 'channels_last':
         for offset in [0, 1, -1, -2]:
             assert_allclose(np_output[:, offset, :, :], 0.)
             assert_allclose(np_output[:, :, offset, :], 0.)
         assert_allclose(np_output[:, 2:-2, 2:-2, :], 1.)
-    elif dim_ordering == 'th':
+    elif data_format == 'channels_first':
         for offset in [0, 1, -1, -2]:
             assert_allclose(np_output[:, :, offset, :], 0.)
             assert_allclose(np_output[:, :, :, offset], 0.)
@@ -471,7 +471,7 @@ def test_zero_padding_2d():
     layer.build(input.shape)
     output = layer(K.variable(input))
     np_output = K.eval(output)
-    if dim_ordering == 'tf':
+    if data_format == 'channels_last':
         for top_offset in [0]:
             assert_allclose(np_output[:, top_offset, :, :], 0.)
         for bottom_offset in [-1, -2]:
@@ -481,7 +481,7 @@ def test_zero_padding_2d():
         for right_offset in [-1, -2, -3, -4]:
             assert_allclose(np_output[:, :, right_offset, :], 0.)
         assert_allclose(np_output[:, 1:-2, 3:-4, :], 1.)
-    elif dim_ordering == 'th':
+    elif data_format == 'channels_first':
         for top_offset in [0]:
             assert_allclose(np_output[:, :, top_offset, :], 0.)
         for bottom_offset in [-1, -2]:
@@ -537,8 +537,8 @@ def test_upsampling_2d():
     input_nb_row = 11
     input_nb_col = 12
 
-    for dim_ordering in ['th', 'tf']:
-        if dim_ordering == 'th':
+    for data_format in ['channels_first', 'channels_last']:
+        if data_format == 'channels_first':
             input = np.random.rand(nb_samples, stack_size, input_nb_row,
                                    input_nb_col)
         else:  # tf
@@ -549,11 +549,11 @@ def test_upsampling_2d():
             for length_col in [2, 3, 9]:
                 layer = convolutional.UpSampling2D(
                     size=(length_row, length_col),
-                    dim_ordering=dim_ordering)
+                    data_format=data_format)
                 layer.build(input.shape)
                 output = layer(K.variable(input))
                 np_output = K.eval(output)
-                if dim_ordering == 'th':
+                if data_format == 'channels_first':
                     assert np_output.shape[2] == length_row * input_nb_row
                     assert np_output.shape[3] == length_col * input_nb_col
                 else:  # tf
@@ -561,7 +561,7 @@ def test_upsampling_2d():
                     assert np_output.shape[2] == length_col * input_nb_col
 
                 # compare with numpy
-                if dim_ordering == 'th':
+                if data_format == 'channels_first':
                     expected_out = np.repeat(input, length_row, axis=2)
                     expected_out = np.repeat(expected_out, length_col, axis=3)
                 else:  # tf
@@ -578,8 +578,8 @@ def test_upsampling_3d():
     input_len_dim2 = 11
     input_len_dim3 = 12
 
-    for dim_ordering in ['th', 'tf']:
-        if dim_ordering == 'th':
+    for data_format in ['channels_first', 'channels_last']:
+        if data_format == 'channels_first':
             input = np.random.rand(nb_samples, stack_size, input_len_dim1, input_len_dim2,
                                    input_len_dim3)
         else:  # tf
@@ -590,11 +590,11 @@ def test_upsampling_3d():
                 for length_dim3 in [2, 3, 9]:
                     layer = convolutional.UpSampling3D(
                         size=(length_dim1, length_dim2, length_dim3),
-                        dim_ordering=dim_ordering)
+                        data_format=data_format)
                     layer.build(input.shape)
                     output = layer(K.variable(input))
                     np_output = K.eval(output)
-                    if dim_ordering == 'th':
+                    if data_format == 'channels_first':
                         assert np_output.shape[2] == length_dim1 * input_len_dim1
                         assert np_output.shape[3] == length_dim2 * input_len_dim2
                         assert np_output.shape[4] == length_dim3 * input_len_dim3
@@ -604,7 +604,7 @@ def test_upsampling_3d():
                         assert np_output.shape[3] == length_dim3 * input_len_dim3
 
                     # compare with numpy
-                    if dim_ordering == 'th':
+                    if data_format == 'channels_first':
                         expected_out = np.repeat(input, length_dim1, axis=2)
                         expected_out = np.repeat(expected_out, length_dim2, axis=3)
                         expected_out = np.repeat(expected_out, length_dim3, axis=4)
@@ -634,9 +634,9 @@ def test_cropping_2d():
     input_len_dim1 = 8
     input_len_dim2 = 8
     cropping = ((2, 2), (3, 3))
-    dim_ordering = K.image_dim_ordering()
+    data_format = K.image_data_format()
 
-    if dim_ordering == 'th':
+    if data_format == 'channels_first':
         input = np.random.rand(nb_samples, stack_size,
                                input_len_dim1, input_len_dim2)
     else:
@@ -646,16 +646,16 @@ def test_cropping_2d():
     # basic test
     layer_test(convolutional.Cropping2D,
                kwargs={'cropping': cropping,
-                       'dim_ordering': dim_ordering},
+                       'data_format': data_format},
                input_shape=input.shape)
     # correctness test
     layer = convolutional.Cropping2D(cropping=cropping,
-                                     dim_ordering=dim_ordering)
+                                     data_format=data_format)
     layer.build(input.shape)
     output = layer(K.variable(input))
     np_output = K.eval(output)
     # compare with numpy
-    if dim_ordering == 'th':
+    if data_format == 'channels_first':
         expected_out = input[:,
                              :,
                              cropping[0][0]: -cropping[0][1],
@@ -669,7 +669,7 @@ def test_cropping_2d():
     # another correctness test (no cropping)
     cropping = ((0, 0), (0, 0))
     layer = convolutional.Cropping2D(cropping=cropping,
-                                     dim_ordering=dim_ordering)
+                                     data_format=data_format)
     layer.build(input.shape)
     output = layer(K.variable(input))
     np_output = K.eval(output)
@@ -684,9 +684,9 @@ def test_cropping_3d():
     input_len_dim2 = 8
     input_len_dim3 = 8
     cropping = ((2, 2), (3, 3), (2, 3))
-    dim_ordering = K.image_dim_ordering()
+    data_format = K.image_data_format()
 
-    if dim_ordering == 'th':
+    if data_format == 'channels_first':
         input = np.random.rand(nb_samples, stack_size,
                                input_len_dim1, input_len_dim2, input_len_dim3)
     else:
@@ -696,16 +696,16 @@ def test_cropping_3d():
     # basic test
     layer_test(convolutional.Cropping3D,
                kwargs={'cropping': cropping,
-                       'dim_ordering': dim_ordering},
+                       'data_format': data_format},
                input_shape=input.shape)
     # correctness test
     layer = convolutional.Cropping3D(cropping=cropping,
-                                     dim_ordering=dim_ordering)
+                                     data_format=data_format)
     layer.build(input.shape)
     output = layer(K.variable(input))
     np_output = K.eval(output)
     # compare with numpy
-    if dim_ordering == 'th':
+    if data_format == 'channels_first':
         expected_out = input[:,
                              :,
                              cropping[0][0]: -cropping[0][1],
@@ -721,7 +721,7 @@ def test_cropping_3d():
     # another correctness test (no cropping)
     cropping = ((0, 0), (0, 0), (0, 0))
     layer = convolutional.Cropping3D(cropping=cropping,
-                                     dim_ordering=dim_ordering)
+                                     data_format=data_format)
     layer.build(input.shape)
     output = layer(K.variable(input))
     np_output = K.eval(output)

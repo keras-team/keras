@@ -41,7 +41,7 @@ def identity_block(input_tensor, kernel_size, filters, stage, block):
         block: 'a','b'..., current block label, used for generating layer names
     """
     nb_filter1, nb_filter2, nb_filter3 = filters
-    if K.image_dim_ordering() == 'tf':
+    if K.image_data_format() == 'channels_last':
         bn_axis = 3
     else:
         bn_axis = 1
@@ -79,7 +79,7 @@ def conv_block(input_tensor, kernel_size, filters, stage, block, strides=(2, 2))
     And the shortcut should have subsample=(2,2) as well
     """
     nb_filter1, nb_filter2, nb_filter3 = filters
-    if K.image_dim_ordering() == 'tf':
+    if K.image_data_format() == 'channels_last':
         bn_axis = 3
     else:
         bn_axis = 1
@@ -115,11 +115,11 @@ def ResNet50(include_top=True, weights='imagenet',
     optionally loading weights pre-trained
     on ImageNet. Note that when using TensorFlow,
     for best performance you should set
-    `image_dim_ordering="tf"` in your Keras config
+    `image_data_format="channels_last"` in your Keras config
     at ~/.keras/keras.json.
 
     The model and the weights are compatible with both
-    TensorFlow and Theano. The dimension ordering
+    TensorFlow and Theano. The data format
     convention used by the model is the one
     specified in your Keras config file.
 
@@ -132,8 +132,8 @@ def ResNet50(include_top=True, weights='imagenet',
             to use as image input for the model.
         input_shape: optional shape tuple, only to be specified
             if `include_top` is False (otherwise the input shape
-            has to be `(224, 224, 3)` (with `tf` dim ordering)
-            or `(3, 224, 244)` (with `th` dim ordering).
+            has to be `(224, 224, 3)` (with `channels_last` data format)
+            or `(3, 224, 244)` (with `channels_first` data format).
             It should have exactly 3 inputs channels,
             and width and height should be no smaller than 197.
             E.g. `(200, 200, 3)` would be one valid value.
@@ -157,7 +157,7 @@ def ResNet50(include_top=True, weights='imagenet',
     input_shape = _obtain_input_shape(input_shape,
                                       default_size=224,
                                       min_size=197,
-                                      dim_ordering=K.image_dim_ordering(),
+                                      data_format=K.image_data_format(),
                                       include_top=include_top)
 
     if input_tensor is None:
@@ -167,7 +167,7 @@ def ResNet50(include_top=True, weights='imagenet',
             img_input = Input(tensor=input_tensor, shape=input_shape)
         else:
             img_input = input_tensor
-    if K.image_dim_ordering() == 'tf':
+    if K.image_data_format() == 'channels_last':
         bn_axis = 3
     else:
         bn_axis = 1
@@ -215,7 +215,7 @@ def ResNet50(include_top=True, weights='imagenet',
 
     # load weights
     if weights == 'imagenet':
-        if K.image_dim_ordering() == 'th':
+        if K.image_data_format() == 'channels_first':
             if include_top:
                 weights_path = get_file('resnet50_weights_th_dim_ordering_th_kernels.h5',
                                         TH_WEIGHTS_PATH,
@@ -230,10 +230,10 @@ def ResNet50(include_top=True, weights='imagenet',
             if K.backend() == 'tensorflow':
                 warnings.warn('You are using the TensorFlow backend, yet you '
                               'are using the Theano '
-                              'image dimension ordering convention '
-                              '(`image_dim_ordering="th"`). '
+                              'image data format convention '
+                              '(`image_data_format="channels_first"`). '
                               'For best performance, set '
-                              '`image_dim_ordering="tf"` in '
+                              '`image_data_format="channels_last"` in '
                               'your Keras config '
                               'at ~/.keras/keras.json.')
                 convert_all_kernels_in_model(model)

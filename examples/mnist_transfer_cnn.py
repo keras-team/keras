@@ -39,7 +39,7 @@ pool_size = 2
 # convolution kernel size
 kernel_size = 3
 
-if K.image_dim_ordering() == 'th':
+if K.image_data_format() == 'channels_first':
     input_shape = (1, img_rows, img_cols)
 else:
     input_shape = (img_rows, img_cols, 1)

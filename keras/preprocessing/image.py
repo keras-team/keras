@@ -191,12 +191,12 @@ def flip_axis(x, axis):
     return x
 
 
-def array_to_img(x, dim_ordering='default', scale=True):
+def array_to_img(x, data_format='default', scale=True):
     """Converts a 3D Numpy array to a PIL Image instance.
 
     # Arguments
         x: Input Numpy array.
-        dim_ordering: Image data format.
+        data_format: Image data format.
         scale: Whether to rescale image values
             to be within [0, 255].
 
@@ -205,7 +205,7 @@ def array_to_img(x, dim_ordering='default', scale=True):
 
     # Raises
         ImportError: if PIL is not available.
-        ValueError: if invalid `x` or `dim_ordering` is passed.
+        ValueError: if invalid `x` or `data_format` is passed.
     """
     if pil_image is None:
         raise ImportError('Could not import PIL.Image. '
@@ -215,15 +215,15 @@ def array_to_img(x, dim_ordering='default', scale=True):
         raise ValueError('Expected image array to have rank 3 (single image). '
                          'Got array with shape:', x.shape)
 
-    if dim_ordering == 'default':
-        dim_ordering = K.image_dim_ordering()
-    if dim_ordering not in {'th', 'tf'}:
-        raise ValueError('Invalid dim_ordering:', dim_ordering)
+    if data_format == 'default':
+        data_format = K.image_data_format()
+    if data_format not in {'channels_first', 'channels_last'}:
+        raise ValueError('Invalid data_format:', data_format)
 
     # Original Numpy array x has format (height, width, channel)
     # or (channel, height, width)
     # but target PIL image has format (width, height, channel)
-    if dim_ordering == 'th':
+    if data_format == 'channels_first':
         x = x.transpose(1, 2, 0)
     if scale:
         x += max(-np.min(x), 0)
@@ -241,32 +241,32 @@ def array_to_img(x, dim_ordering='default', scale=True):
         raise ValueError('Unsupported channel number: ', x.shape[2])
 
 
-def img_to_array(img, dim_ordering='default'):
+def img_to_array(img, data_format='default'):
     """Converts a PIL Image instance to a Numpy array.
 
     # Arguments
         img: PIL Image instance.
-        dim_ordering: Image data format.
+        data_format: Image data format.
 
     # Returns
         A 3D Numpy array (float32).
 
     # Raises
-        ValueError: if invalid `img` or `dim_ordering` is passed.
+        ValueError: if invalid `img` or `data_format` is passed.
     """
-    if dim_ordering == 'default':
-        dim_ordering = K.image_dim_ordering()
-    if dim_ordering not in {'th', 'tf'}:
-        raise ValueError('Unknown dim_ordering: ', dim_ordering)
+    if data_format == 'default':
+        data_format = K.image_data_format()
+    if data_format not in {'channels_first', 'channels_last'}:
+        raise ValueError('Unknown data_format: ', data_format)
     # Numpy array x has format (height, width, channel)
     # or (channel, height, width)
     # but original PIL image has format (width, height, channel)
     x = np.asarray(img, dtype='float32')
     if len(x.shape) == 3:
-        if dim_ordering == 'th':
+        if data_format == 'channels_first':
             x = x.transpose(2, 0, 1)
     elif len(x.shape) == 2:
-        if dim_ordering == 'th':
+        if data_format == 'channels_first':
             x = x.reshape((1, x.shape[0], x.shape[1]))
         else:
             x = x.reshape((x.shape[0], x.shape[1], 1))
@@ -341,11 +341,11 @@ class ImageDataGenerator(object):
             The function should take one argument:
             one image (Numpy tensor with rank 3),
             and should output a Numpy tensor with the same shape.
-        dim_ordering: 'th' or 'tf'. In 'th' mode, the channels dimension
-            (the depth) is at index 1, in 'tf' mode it is at index 3.
-            It defaults to the `image_dim_ordering` value found in your
+        data_format: 'channels_first' or 'channels_last'. In 'channels_first' mode, the channels dimension
+            (the depth) is at index 1, in 'channels_last' mode it is at index 3.
+            It defaults to the `image_data_format` value found in your
             Keras config file at `~/.keras/keras.json`.
-            If you never set it, then it will be "tf".
+            If you never set it, then it will be "channels_last".
     """
 
     def __init__(self,
@@ -366,9 +366,9 @@ class ImageDataGenerator(object):
                  vertical_flip=False,
                  rescale=None,
                  preprocessing_function=None,
-                 dim_ordering='default'):
-        if dim_ordering == 'default':
-            dim_ordering = K.image_dim_ordering()
+                 data_format='default'):
+        if data_format == 'default':
+            data_format = K.image_data_format()
         self.featurewise_center = featurewise_center
         self.samplewise_center = samplewise_center
         self.featurewise_std_normalization = featurewise_std_normalization
@@ -387,16 +387,16 @@ class ImageDataGenerator(object):
         self.rescale = rescale
         self.preprocessing_function = preprocessing_function
 
-        if dim_ordering not in {'tf', 'th'}:
-            raise ValueError('dim_ordering should be "tf" (channel after row and '
-                             'column) or "th" (channel before row and column). '
-                             'Received arg: ', dim_ordering)
-        self.dim_ordering = dim_ordering
-        if dim_ordering == 'th':
+        if data_format not in {'channels_last', 'channels_first'}:
+            raise ValueError('data_format should be "channels_last" (channel after row and '
+                             'column) or "channels_first" (channel before row and column). '
+                             'Received arg: ', data_format)
+        self.data_format = data_format
+        if data_format == 'channels_first':
             self.channel_axis = 1
             self.row_axis = 2
             self.col_axis = 3
-        if dim_ordering == 'tf':
+        if data_format == 'channels_last':
             self.channel_axis = 3
             self.row_axis = 1
             self.col_axis = 2
@@ -421,7 +421,7 @@ class ImageDataGenerator(object):
             batch_size=batch_size,
             shuffle=shuffle,
             seed=seed,
-            dim_ordering=self.dim_ordering,
+            data_format=self.data_format,
             save_to_dir=save_to_dir,
             save_prefix=save_prefix,
             save_format=save_format)
@@ -438,7 +438,7 @@ class ImageDataGenerator(object):
             directory, self,
             target_size=target_size, color_mode=color_mode,
             classes=classes, class_mode=class_mode,
-            dim_ordering=self.dim_ordering,
+            data_format=self.data_format,
             batch_size=batch_size, shuffle=shuffle, seed=seed,
             save_to_dir=save_to_dir,
             save_prefix=save_prefix,
@@ -579,7 +579,7 @@ class ImageDataGenerator(object):
         if x.shape[self.channel_axis] not in {1, 3, 4}:
             raise ValueError(
                 'Expected input to be images (as Numpy array) '
-                'following the dimension ordering convention "' + self.dim_ordering + '" '
+                'following the data format convention "' + self.data_format + '" '
                 '(channels on axis ' + str(self.channel_axis) + '), i.e. expected '
                 'either 1, 3 or 4 channels on axis ' + str(self.channel_axis) + '. '
                 'However, it was passed an array with shape ' + str(x.shape) +
@@ -666,24 +666,24 @@ class NumpyArrayIterator(Iterator):
 
     def __init__(self, x, y, image_data_generator,
                  batch_size=32, shuffle=False, seed=None,
-                 dim_ordering='default',
+                 data_format='default',
                  save_to_dir=None, save_prefix='', save_format='jpeg'):
         if y is not None and len(x) != len(y):
             raise ValueError('X (images tensor) and y (labels) '
                              'should have the same length. '
                              'Found: X.shape = %s, y.shape = %s' %
                              (np.asarray(x).shape, np.asarray(y).shape))
-        if dim_ordering == 'default':
-            dim_ordering = K.image_dim_ordering()
+        if data_format == 'default':
+            data_format = K.image_data_format()
         self.x = np.asarray(x)
         if self.x.ndim != 4:
             raise ValueError('Input data in `NumpyArrayIterator` '
                              'should have rank 4. You passed an array '
                              'with shape', self.x.shape)
-        channels_axis = 3 if dim_ordering == 'tf' else 1
+        channels_axis = 3 if data_format == 'channels_last' else 1
         if self.x.shape[channels_axis] not in {1, 3, 4}:
             raise ValueError('NumpyArrayIterator is set to use the '
-                             'dimension ordering convention "' + dim_ordering + '" '
+                             'data format convention "' + data_format + '" '
                              '(channels on axis ' + str(channels_axis) + '), i.e. expected '
                              'either 1, 3 or 4 channels on axis ' + str(channels_axis) + '. '
                              'However, it was passed an array with shape ' + str(self.x.shape) +
@@ -693,7 +693,7 @@ class NumpyArrayIterator(Iterator):
         else:
             self.y = None
         self.image_data_generator = image_data_generator
-        self.dim_ordering = dim_ordering
+        self.data_format = data_format
         self.save_to_dir = save_to_dir
         self.save_prefix = save_prefix
         self.save_format = save_format
@@ -716,7 +716,7 @@ class NumpyArrayIterator(Iterator):
             batch_x[i] = x
         if self.save_to_dir:
             for i in range(current_batch_size):
-                img = array_to_img(batch_x[i], self.dim_ordering, scale=True)
+                img = array_to_img(batch_x[i], self.data_format, scale=True)
                 fname = '{prefix}_{index}_{hash}.{format}'.format(prefix=self.save_prefix,
                                                                   index=current_index + i,
                                                                   hash=np.random.randint(1e4),
@@ -732,13 +732,13 @@ class DirectoryIterator(Iterator):
 
     def __init__(self, directory, image_data_generator,
                  target_size=(256, 256), color_mode='rgb',
-                 dim_ordering='default',
+                 data_format='default',
                  classes=None, class_mode='categorical',
                  batch_size=32, shuffle=True, seed=None,
                  save_to_dir=None, save_prefix='', save_format='jpeg',
                  follow_links=False):
-        if dim_ordering == 'default':
-            dim_ordering = K.image_dim_ordering()
+        if data_format == 'default':
+            data_format = K.image_data_format()
         self.directory = directory
         self.image_data_generator = image_data_generator
         self.target_size = tuple(target_size)
@@ -746,14 +746,14 @@ class DirectoryIterator(Iterator):
             raise ValueError('Invalid color mode:', color_mode,
                              '; expected "rgb" or "grayscale".')
         self.color_mode = color_mode
-        self.dim_ordering = dim_ordering
+        self.data_format = data_format
         if self.color_mode == 'rgb':
-            if self.dim_ordering == 'tf':
+            if self.data_format == 'channels_last':
                 self.image_shape = self.target_size + (3,)
             else:
                 self.image_shape = (3,) + self.target_size
         else:
-            if self.dim_ordering == 'tf':
+            if self.data_format == 'channels_last':
                 self.image_shape = self.target_size + (1,)
             else:
                 self.image_shape = (1,) + self.target_size
@@ -830,14 +830,14 @@ class DirectoryIterator(Iterator):
             img = load_img(os.path.join(self.directory, fname),
                            grayscale=grayscale,
                            target_size=self.target_size)
-            x = img_to_array(img, dim_ordering=self.dim_ordering)
+            x = img_to_array(img, data_format=self.data_format)
             x = self.image_data_generator.random_transform(x)
             x = self.image_data_generator.standardize(x)
             batch_x[i] = x
         # optionally save augmented images to disk for debugging purposes
         if self.save_to_dir:
             for i in range(current_batch_size):
-                img = array_to_img(batch_x[i], self.dim_ordering, scale=True)
+                img = array_to_img(batch_x[i], self.data_format, scale=True)
                 fname = '{prefix}_{index}_{hash}.{format}'.format(prefix=self.save_prefix,
                                                                   index=current_index + i,
                                                                   hash=np.random.randint(1e4),

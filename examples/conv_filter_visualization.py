@@ -34,7 +34,7 @@ def deprocess_image(x):
 
     # convert to RGB array
     x *= 255
-    if K.image_dim_ordering() == 'th':
+    if K.image_data_format() == 'channels_first':
         x = x.transpose((1, 2, 0))
     x = np.clip(x, 0, 255).astype('uint8')
     return x
@@ -67,7 +67,7 @@ for filter_index in range(0, 200):
     # we build a loss function that maximizes the activation
     # of the nth filter of the layer considered
     layer_output = layer_dict[layer_name].output
-    if K.image_dim_ordering() == 'th':
+    if K.image_data_format() == 'channels_first':
         loss = K.mean(layer_output[:, filter_index, :, :])
     else:
         loss = K.mean(layer_output[:, :, :, filter_index])
@@ -85,7 +85,7 @@ for filter_index in range(0, 200):
     step = 1.
 
     # we start from a gray image with some random noise
-    if K.image_dim_ordering() == 'th':
+    if K.image_data_format() == 'channels_first':
         input_img_data = np.random.random((1, 3, img_width, img_height))
     else:
         input_img_data = np.random.random((1, img_width, img_height, 3))

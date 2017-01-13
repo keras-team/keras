@@ -44,7 +44,7 @@ Experiments
     when a Dropout layer is used.
 
 Results
-- Tested with 'Theano' backend and 'th' image_dim_ordering.
+- Tested with 'Theano' backend and 'channels_first' image_data_format.
 - Running on GPU GeForce GTX 980M
 - Performance Comparisons - validation loss values during first 3 epochs:
 (1) teacher_model:             0.075    0.041    0.041

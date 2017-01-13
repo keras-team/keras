@@ -235,7 +235,7 @@ class TextImageGenerator(keras.callbacks.Callback):
     def get_batch(self, index, size, train):
         # width and height are backwards from typical Keras convention
         # because width is the time dimension when it gets fed into the RNN
-        if K.image_dim_ordering() == 'th':
+        if K.image_data_format() == 'channels_first':
             X_data = np.ones([size, 1, self.img_w, self.img_h])
         else:
             X_data = np.ones([size, self.img_w, self.img_h, 1])
@@ -248,7 +248,7 @@ class TextImageGenerator(keras.callbacks.Callback):
             # Mix in some blank inputs.  This seems to be important for
             # achieving translational invariance
             if train and i > size - 4:
-                if K.image_dim_ordering() == 'th':
+                if K.image_data_format() == 'channels_first':
                     X_data[i, 0, 0:self.img_w, :] = self.paint_func('')[0, :, :].T
                 else:
                     X_data[i, 0:self.img_w, :, 0] = self.paint_func('',)[0, :, :].T
@@ -257,7 +257,7 @@ class TextImageGenerator(keras.callbacks.Callback):
                 label_length[i] = 1
                 source_str.append('')
             else:
-                if K.image_dim_ordering() == 'th':
+                if K.image_data_format() == 'channels_first':
                     X_data[i, 0, 0:self.img_w, :] = self.paint_func(self.X_text[index + i])[0, :, :].T
                 else:
                     X_data[i, 0:self.img_w, :, 0] = self.paint_func(self.X_text[index + i])[0, :, :].T
@@ -383,7 +383,7 @@ class VizCallback(keras.callbacks.Callback):
             cols = 1
         for i in range(self.num_display_words):
             pylab.subplot(self.num_display_words // cols, cols, i + 1)
-            if K.image_dim_ordering() == 'th':
+            if K.image_data_format() == 'channels_first':
                 the_input = word_batch['the_input'][i, 0, :, :]
             else:
                 the_input = word_batch['the_input'][i, :, :, 0]
@@ -409,7 +409,7 @@ def train(run_name, start_epoch, stop_epoch, img_w):
     time_dense_size = 32
     rnn_size = 512
 
-    if K.image_dim_ordering() == 'th':
+    if K.image_data_format() == 'channels_first':
         input_shape = (1, img_w, img_h)
     else:
         input_shape = (img_w, img_h, 1)

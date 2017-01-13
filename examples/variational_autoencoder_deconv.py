@@ -22,7 +22,7 @@ nb_filters = 64
 nb_conv = 3
 
 batch_size = 100
-if K.image_dim_ordering() == 'th':
+if K.image_data_format() == 'channels_first':
     original_img_size = (img_chns, img_rows, img_cols)
 else:
     original_img_size = (img_rows, img_cols, img_chns)
@@ -63,7 +63,7 @@ z = Lambda(sampling, output_shape=(latent_dim,))([z_mean, z_log_var])
 decoder_hid = Dense(intermediate_dim, activation='relu')
 decoder_upsample = Dense(nb_filters * 14 * 14, activation='relu')
 
-if K.image_dim_ordering() == 'th':
+if K.image_data_format() == 'channels_first':
     output_shape = (batch_size, nb_filters, 14, 14)
 else:
     output_shape = (batch_size, 14, 14, nb_filters)
@@ -79,7 +79,7 @@ decoder_deconv_2 = Deconvolution2D(nb_filters, nb_conv, nb_conv,
                                    border_mode='same',
                                    subsample=(1, 1),
                                    activation='relu')
-if K.image_dim_ordering() == 'th':
+if K.image_data_format() == 'channels_first':
     output_shape = (batch_size, nb_filters, 29, 29)
 else:
     output_shape = (batch_size, 29, 29, nb_filters)

@@ -11,7 +11,7 @@ except ImportError:
 import numpy as np
 import os
 import warnings
-from .common import floatx, _EPSILON, image_dim_ordering, reset_uids
+from .common import floatx, _EPSILON, image_data_format, reset_uids
 py_all = all
 
 # INTERNAL UTILS
@@ -1439,17 +1439,17 @@ def permute_dimensions(x, pattern):
     return tf.transpose(x, perm=pattern)
 
 
-def resize_images(X, height_factor, width_factor, dim_ordering):
+def resize_images(X, height_factor, width_factor, data_format):
     """Resizes the images contained in a 4D tensor of shape
-    - `[batch, channels, height, width]` (for 'th' dim_ordering)
-    - `[batch, height, width, channels]` (for 'tf' dim_ordering)
+    - `[batch, channels, height, width]` (for 'channels_first' data_format)
+    - `[batch, height, width, channels]` (for 'channels_last' data_format)
     by a factor of `(height_factor, width_factor)`. Both factors should be
     positive integers.
 
     # Returns
         A tensor.
     """
-    if dim_ordering == 'th':
+    if data_format == 'channels_first':
         original_shape = int_shape(X)
         new_shape = tf.shape(X)[2:]
         new_shape *= tf.constant(np.array([height_factor, width_factor]).astype('int32'))
@@ -1459,7 +1459,7 @@ def resize_images(X, height_factor, width_factor, dim_ordering):
         X.set_shape((None, None, original_shape[2] * height_factor if original_shape[2] is not None else None,
                      original_shape[3] * width_factor if original_shape[3] is not None else None))
         return X
-    elif dim_ordering == 'tf':
+    elif data_format == 'channels_last':
         original_shape = int_shape(X)
         new_shape = tf.shape(X)[1:3]
         new_shape *= tf.constant(np.array([height_factor, width_factor]).astype('int32'))
@@ -1468,31 +1468,31 @@ def resize_images(X, height_factor, width_factor, dim_ordering):
                      original_shape[2] * width_factor if original_shape[2] is not None else None, None))
         return X
     else:
-        raise ValueError('Invalid dim_ordering:', dim_ordering)
+        raise ValueError('Invalid data_format:', data_format)
 
 
-def resize_volumes(X, depth_factor, height_factor, width_factor, dim_ordering):
+def resize_volumes(X, depth_factor, height_factor, width_factor, data_format):
     """Resizes the volume contained in a 5D tensor of shape
-    - `[batch, channels, depth, height, width]` (for 'th' dim_ordering)
-    - `[batch, depth, height, width, channels]` (for 'tf' dim_ordering)
+    - `[batch, channels, depth, height, width]` (for 'channels_first' data_format)
+    - `[batch, depth, height, width, channels]` (for 'channels_last' data_format)
     by a factor of `(depth_factor, height_factor, width_factor)`.
     All three factors should be positive integers.
 
     # Returns
         A tensor.
     """
-    if dim_ordering == 'th':
+    if data_format == 'channels_first':
         output = repeat_elements(X, depth_factor, axis=2)
         output = repeat_elements(output, height_factor, axis=3)
         output = repeat_elements(output, width_factor, axis=4)
         return output
-    elif dim_ordering == 'tf':
+    elif data_format == 'channels_last':
         output = repeat_elements(X, depth_factor, axis=1)
         output = repeat_elements(output, height_factor, axis=2)
         output = repeat_elements(output, width_factor, axis=3)
         return output
     else:
-        raise ValueError('Invalid dim_ordering:', dim_ordering)
+        raise ValueError('Invalid data_format:', data_format)
 
 
 def repeat_elements(x, rep, axis):
@@ -1627,19 +1627,19 @@ def asymmetric_temporal_padding(x, left_pad=1, right_pad=1):
     return tf.pad(x, pattern)
 
 
-def spatial_2d_padding(x, padding=(1, 1), dim_ordering='default'):
+def spatial_2d_padding(x, padding=(1, 1), data_format='default'):
     """Pads the 2nd and 3rd dimensions of a 4D tensor
     with "padding[0]" and "padding[1]" (resp.) zeros left and right.
 
     # Returns
         A padded 4D tensor.
     """
-    if dim_ordering == 'default':
-        dim_ordering = image_dim_ordering()
-    if dim_ordering not in {'th', 'tf'}:
-        raise ValueError('Unknown dim_ordering ' + str(dim_ordering))
+    if data_format == 'default':
+        data_format = image_data_format()
+    if data_format not in {'channels_first', 'channels_last'}:
+        raise ValueError('Unknown data_format ' + str(data_format))
 
-    if dim_ordering == 'th':
+    if data_format == 'channels_first':
         pattern = [[0, 0], [0, 0],
                    [padding[0], padding[0]], [padding[1], padding[1]]]
     else:
@@ -1651,7 +1651,7 @@ def spatial_2d_padding(x, padding=(1, 1), dim_ordering='default'):
 
 def asymmetric_spatial_2d_padding(x, top_pad=1, bottom_pad=1,
                                   left_pad=1, right_pad=1,
-                                  dim_ordering='default'):
+                                  data_format='default'):
     """Pad the rows and columns of a 4D tensor
     with "top_pad", "bottom_pad", "left_pad", "right_pad" (resp.) zeros
     rows on top, bottom; cols on left, right.
@@ -1659,12 +1659,12 @@ def asymmetric_spatial_2d_padding(x, top_pad=1, bottom_pad=1,
     # Returns
         A padded 4D tensor.
     """
-    if dim_ordering == 'default':
-        dim_ordering = image_dim_ordering()
-    if dim_ordering not in {'th', 'tf'}:
-        raise ValueError('Unknown dim_ordering ' + str(dim_ordering))
+    if data_format == 'default':
+        data_format = image_data_format()
+    if data_format not in {'channels_first', 'channels_last'}:
+        raise ValueError('Unknown data_format ' + str(data_format))
 
-    if dim_ordering == 'th':
+    if data_format == 'channels_first':
         pattern = [[0, 0],
                    [0, 0],
                    [top_pad, bottom_pad],
@@ -1677,22 +1677,22 @@ def asymmetric_spatial_2d_padding(x, top_pad=1, bottom_pad=1,
     return tf.pad(x, pattern)
 
 
-def spatial_3d_padding(x, padding=(1, 1, 1), dim_ordering='default'):
+def spatial_3d_padding(x, padding=(1, 1, 1), data_format='default'):
     """Pads 5D tensor with zeros for the depth, height, width dimension with
     "padding[0]", "padding[1]" and "padding[2]" (resp.) zeros left and right
 
-    For 'tf' dim_ordering, the 2nd, 3rd and 4th dimension will be padded.
-    For 'th' dim_ordering, the 3rd, 4th and 5th dimension will be padded.
+    For 'channels_last' data_format, the 2nd, 3rd and 4th dimension will be padded.
+    For 'channels_first' data_format, the 3rd, 4th and 5th dimension will be padded.
 
     # Returns
         A padded 5D tensor.
     """
-    if dim_ordering == 'default':
-        dim_ordering = image_dim_ordering()
-    if dim_ordering not in {'th', 'tf'}:
-        raise ValueError('Unknown dim_ordering ' + str(dim_ordering))
+    if data_format == 'default':
+        data_format = image_data_format()
+    if data_format not in {'channels_first', 'channels_last'}:
+        raise ValueError('Unknown data_format ' + str(data_format))
 
-    if dim_ordering == 'th':
+    if data_format == 'channels_first':
         pattern = [
             [0, 0],
             [0, 0],
@@ -2463,8 +2463,8 @@ def in_top_k(predictions, targets, k):
 
 # CONVOLUTIONS
 
-def _preprocess_deconv_output_shape(x, shape, dim_ordering):
-    if dim_ordering == 'th':
+def _preprocess_deconv_output_shape(x, shape, data_format):
+    if data_format == 'channels_first':
         shape = (shape[0], shape[2], shape[3], shape[1])
 
     if shape[0] is None:
@@ -2472,10 +2472,10 @@ def _preprocess_deconv_output_shape(x, shape, dim_ordering):
     return shape
 
 
-def _preprocess_conv2d_input(x, dim_ordering):
+def _preprocess_conv2d_input(x, data_format):
     if dtype(x) == 'float64':
         x = tf.cast(x, 'float32')
-    if dim_ordering == 'th':
+    if data_format == 'channels_first':
         # TF uses the last dimension as channel dimension,
         # instead of the 2nd one.
         # TH input shape: (samples, input_depth, rows, cols)
@@ -2484,10 +2484,10 @@ def _preprocess_conv2d_input(x, dim_ordering):
     return x
 
 
-def _preprocess_conv3d_input(x, dim_ordering):
+def _preprocess_conv3d_input(x, data_format):
     if dtype(x) == 'float64':
         x = tf.cast(x, 'float32')
-    if dim_ordering == 'th':
+    if data_format == 'channels_first':
         # TF uses the last dimension as channel dimension,
         # instead of the 2nd one.
         # TH input shape: (samples, input_depth, conv_dim1, conv_dim2, conv_dim3)
@@ -2496,10 +2496,10 @@ def _preprocess_conv3d_input(x, dim_ordering):
     return x
 
 
-def _preprocess_conv2d_kernel(kernel, dim_ordering):
+def _preprocess_conv2d_kernel(kernel, data_format):
     if dtype(kernel) == 'float64':
         kernel = tf.cast(kernel, 'float32')
-    if dim_ordering == 'th':
+    if data_format == 'channels_first':
         # TF uses the last dimension as channel dimension,
         # instead of the 2nd one.
         # TH kernel shape: (depth, input_depth, rows, cols)
@@ -2508,10 +2508,10 @@ def _preprocess_conv2d_kernel(kernel, dim_ordering):
     return kernel
 
 
-def _preprocess_conv3d_kernel(kernel, dim_ordering):
+def _preprocess_conv3d_kernel(kernel, data_format):
     if dtype(kernel) == 'float64':
         kernel = tf.cast(kernel, 'float32')
-    if dim_ordering == 'th':
+    if data_format == 'channels_first':
         # TF uses the last dimension as channel dimension,
         # instead of the 2nd one.
         # TH kernel shape: (out_depth, input_depth, kernel_dim1, kernel_dim2, kernel_dim3)
@@ -2530,8 +2530,8 @@ def _preprocess_border_mode(border_mode):
     return padding
 
 
-def _postprocess_conv2d_output(x, dim_ordering):
-    if dim_ordering == 'th':
+def _postprocess_conv2d_output(x, data_format):
+    if data_format == 'channels_first':
         x = tf.transpose(x, (0, 3, 1, 2))
 
     if floatx() == 'float64':
@@ -2539,8 +2539,8 @@ def _postprocess_conv2d_output(x, dim_ordering):
     return x
 
 
-def _postprocess_conv3d_output(x, dim_ordering):
-    if dim_ordering == 'th':
+def _postprocess_conv3d_output(x, data_format):
+    if data_format == 'channels_first':
         x = tf.transpose(x, (0, 4, 1, 2, 3))
 
     if floatx() == 'float64':
@@ -2574,7 +2574,7 @@ def conv1d(x, kernel, stride=1, border_mode='valid',
 
 
 def conv2d(x, kernel, strides=(1, 1), border_mode='valid',
-           dim_ordering='default',
+           data_format='default',
            image_shape=None, filter_shape=None, filter_dilation=(1, 1)):
     """2D convolution.
 
@@ -2582,20 +2582,20 @@ def conv2d(x, kernel, strides=(1, 1), border_mode='valid',
         kernel: kernel tensor.
         strides: strides tuple.
         border_mode: string, `"same"` or `"valid"`.
-        dim_ordering: `"tf"` or `"th"`.
-            Whether to use Theano or TensorFlow dimension ordering
+        data_format: `"channels_last"` or `"channels_first"`.
+            Whether to use Theano or TensorFlow data format
             for inputs/kernels/ouputs.
 
     # Returns
         A tensor, result of 2D convolution.
     """
-    if dim_ordering == 'default':
-        dim_ordering = image_dim_ordering()
-    if dim_ordering not in {'th', 'tf'}:
-        raise ValueError('Unknown dim_ordering ' + str(dim_ordering))
+    if data_format == 'default':
+        data_format = image_data_format()
+    if data_format not in {'channels_first', 'channels_last'}:
+        raise ValueError('Unknown data_format ' + str(data_format))
 
-    x = _preprocess_conv2d_input(x, dim_ordering)
-    kernel = _preprocess_conv2d_kernel(kernel, dim_ordering)
+    x = _preprocess_conv2d_input(x, data_format)
+    kernel = _preprocess_conv2d_kernel(kernel, data_format)
     padding = _preprocess_border_mode(border_mode)
     if filter_dilation == (1, 1):
         strides = (1,) + strides + (1,)
@@ -2604,12 +2604,12 @@ def conv2d(x, kernel, strides=(1, 1), border_mode='valid',
         assert filter_dilation[0] == filter_dilation[1]
         assert strides == (1, 1), 'Invalid strides for dilated convolution'
         x = tf.nn.atrous_conv2d(x, kernel, filter_dilation[0], padding=padding)
-    return _postprocess_conv2d_output(x, dim_ordering)
+    return _postprocess_conv2d_output(x, data_format)
 
 
 def deconv2d(x, kernel, output_shape, strides=(1, 1),
              border_mode='valid',
-             dim_ordering='default',
+             data_format='default',
              image_shape=None, filter_shape=None):
     """2D deconvolution (i.e. transposed convolution).
 
@@ -2619,33 +2619,33 @@ def deconv2d(x, kernel, output_shape, strides=(1, 1),
         output_shape: 1D int tensor for the output shape.
         strides: strides tuple.
         border_mode: string, `"same"` or `"valid"`.
-        dim_ordering: `"tf"` or `"th"`.
-            Whether to use Theano or TensorFlow dimension ordering
+        data_format: `"channels_last"` or `"channels_first"`.
+            Whether to use Theano or TensorFlow data format
             for inputs/kernels/ouputs.
 
     # Returns
         A tensor, result of transposed 2D convolution.
     """
-    if dim_ordering == 'default':
-        dim_ordering = image_dim_ordering()
-    if dim_ordering not in {'th', 'tf'}:
-        raise ValueError('Unknown dim_ordering ' + str(dim_ordering))
+    if data_format == 'default':
+        data_format = image_data_format()
+    if data_format not in {'channels_first', 'channels_last'}:
+        raise ValueError('Unknown data_format ' + str(data_format))
 
-    x = _preprocess_conv2d_input(x, dim_ordering)
-    output_shape = _preprocess_deconv_output_shape(x, output_shape, dim_ordering)
-    kernel = _preprocess_conv2d_kernel(kernel, dim_ordering)
+    x = _preprocess_conv2d_input(x, data_format)
+    output_shape = _preprocess_deconv_output_shape(x, output_shape, data_format)
+    kernel = _preprocess_conv2d_kernel(kernel, data_format)
     kernel = tf.transpose(kernel, (0, 1, 3, 2))
     padding = _preprocess_border_mode(border_mode)
     strides = (1,) + strides + (1,)
 
     x = tf.nn.conv2d_transpose(x, kernel, output_shape, strides,
                                padding=padding)
-    return _postprocess_conv2d_output(x, dim_ordering)
+    return _postprocess_conv2d_output(x, data_format)
 
 
 def atrous_conv2d(x, kernel, rate=1,
                   border_mode='valid',
-                  dim_ordering='default',
+                  data_format='default',
                   image_shape=None, filter_shape=None):
     """Atrous 2D convolution. Also as known as dilated convolution.
 
@@ -2656,53 +2656,53 @@ def atrous_conv2d(x, kernel, rate=1,
         output_shape: 1D int tensor for the output shape.
         strides: strides tuple.
         border_mode: string, `"same"` or `"valid"`.
-        dim_ordering: `"tf"` or `"th"`.
-            Whether to use Theano or TensorFlow dimension ordering
+        data_format: `"channels_last"` or `"channels_first"`.
+            Whether to use Theano or TensorFlow data format
             for inputs/kernels/ouputs.
 
     # Returns
         A tensor, result of atrous transposed 2D convolution.
     """
-    if dim_ordering == 'default':
-        dim_ordering = image_dim_ordering()
-    if dim_ordering not in {'th', 'tf'}:
-        raise ValueError('Unknown dim_ordering ' + str(dim_ordering))
+    if data_format == 'default':
+        data_format = image_data_format()
+    if data_format not in {'channels_first', 'channels_last'}:
+        raise ValueError('Unknown data_format ' + str(data_format))
     if rate == 1:
         return conv2d(x, kernel, strides=(1, 1), border_mode=border_mode,
-                      dim_ordering=dim_ordering)
+                      data_format=data_format)
 
-    x = _preprocess_conv2d_input(x, dim_ordering)
-    kernel = _preprocess_conv2d_kernel(kernel, dim_ordering)
+    x = _preprocess_conv2d_input(x, data_format)
+    kernel = _preprocess_conv2d_kernel(kernel, data_format)
     padding = _preprocess_border_mode(border_mode)
 
     x = tf.nn.atrous_conv2d(x, kernel, rate, padding)
-    return _postprocess_conv2d_output(x, dim_ordering)
+    return _postprocess_conv2d_output(x, data_format)
 
 
 def separable_conv2d(x, depthwise_kernel, pointwise_kernel, strides=(1, 1),
-                     border_mode='valid', dim_ordering='default'):
+                     border_mode='valid', data_format='default'):
     """2-D convolution with separable filters.
     """
-    if dim_ordering == 'default':
-        dim_ordering = image_dim_ordering()
-    if dim_ordering not in {'th', 'tf'}:
-        raise ValueError('Unknown dim_ordering ' + str(dim_ordering))
+    if data_format == 'default':
+        data_format = image_data_format()
+    if data_format not in {'channels_first', 'channels_last'}:
+        raise ValueError('Unknown data_format ' + str(data_format))
 
-    x = _preprocess_conv2d_input(x, dim_ordering)
+    x = _preprocess_conv2d_input(x, data_format)
     depthwise_kernel = _preprocess_conv2d_kernel(depthwise_kernel,
-                                                 dim_ordering)
+                                                 data_format)
     pointwise_kernel = _preprocess_conv2d_kernel(pointwise_kernel,
-                                                 dim_ordering)
+                                                 data_format)
     padding = _preprocess_border_mode(border_mode)
     strides = (1,) + strides + (1,)
 
     x = tf.nn.separable_conv2d(x, depthwise_kernel, pointwise_kernel,
                                strides, padding)
-    return _postprocess_conv2d_output(x, dim_ordering)
+    return _postprocess_conv2d_output(x, data_format)
 
 
 def conv3d(x, kernel, strides=(1, 1, 1),
-           border_mode='valid', dim_ordering='default',
+           border_mode='valid', data_format='default',
            volume_shape=None, filter_shape=None):
     """3D convolution.
 
@@ -2710,29 +2710,29 @@ def conv3d(x, kernel, strides=(1, 1, 1),
         kernel: kernel tensor.
         strides: strides tuple.
         border_mode: string, `"same"` or `"valid"`.
-        dim_ordering: `"tf"` or `"th"`.
-            Whether to use Theano or TensorFlow dimension ordering
+        data_format: `"channels_last"` or `"channels_first"`.
+            Whether to use Theano or TensorFlow data format
             for inputs/kernels/ouputs.
 
     # Returns
         A tensor, result of 3D convolution.
     """
-    if dim_ordering == 'default':
-        dim_ordering = image_dim_ordering()
-    if dim_ordering not in {'th', 'tf'}:
-        raise ValueError('Unknown dim_ordering ' + str(dim_ordering))
+    if data_format == 'default':
+        data_format = image_data_format()
+    if data_format not in {'channels_first', 'channels_last'}:
+        raise ValueError('Unknown data_format ' + str(data_format))
 
-    x = _preprocess_conv3d_input(x, dim_ordering)
-    kernel = _preprocess_conv3d_kernel(kernel, dim_ordering)
+    x = _preprocess_conv3d_input(x, data_format)
+    kernel = _preprocess_conv3d_kernel(kernel, data_format)
     padding = _preprocess_border_mode(border_mode)
     strides = (1,) + strides + (1,)
 
     x = tf.nn.conv3d(x, kernel, strides, padding)
-    return _postprocess_conv3d_output(x, dim_ordering)
+    return _postprocess_conv3d_output(x, data_format)
 
 
 def pool2d(x, pool_size, strides=(1, 1),
-           border_mode='valid', dim_ordering='default',
+           border_mode='valid', data_format='default',
            pool_mode='max'):
     """2D Pooling.
 
@@ -2740,22 +2740,22 @@ def pool2d(x, pool_size, strides=(1, 1),
         pool_size: tuple of 2 integers.
         strides: tuple of 2 integers.
         border_mode: one of `"valid"`, `"same"`.
-        dim_ordering: one of `"th"`, `"tf"`.
+        data_format: one of `"channels_first"`, `"channels_last"`.
         pool_mode: one of `"max"`, `"avg"`.
 
     # Returns
         A tensor, result of 2D pooling.
     """
-    if dim_ordering == 'default':
-        dim_ordering = image_dim_ordering()
-    if dim_ordering not in {'th', 'tf'}:
-        raise ValueError('Unknown dim_ordering ' + str(dim_ordering))
+    if data_format == 'default':
+        data_format = image_data_format()
+    if data_format not in {'channels_first', 'channels_last'}:
+        raise ValueError('Unknown data_format ' + str(data_format))
 
     padding = _preprocess_border_mode(border_mode)
     strides = (1,) + strides + (1,)
     pool_size = (1,) + pool_size + (1,)
 
-    x = _preprocess_conv2d_input(x, dim_ordering)
+    x = _preprocess_conv2d_input(x, data_format)
 
     if pool_mode == 'max':
         x = tf.nn.max_pool(x, pool_size, strides, padding=padding)
@@ -2764,33 +2764,33 @@ def pool2d(x, pool_size, strides=(1, 1),
     else:
         raise ValueError('Invalid pooling mode:', pool_mode)
 
-    return _postprocess_conv2d_output(x, dim_ordering)
+    return _postprocess_conv2d_output(x, data_format)
 
 
 def pool3d(x, pool_size, strides=(1, 1, 1), border_mode='valid',
-           dim_ordering='default', pool_mode='max'):
+           data_format='default', pool_mode='max'):
     """3D Pooling.
 
     # Arguments
         pool_size: tuple of 3 integers.
         strides: tuple of 3 integers.
         border_mode: one of `"valid"`, `"same"`.
-        dim_ordering: one of `"th"`, `"tf"`.
+        data_format: one of `"channels_first"`, `"channels_last"`.
         pool_mode: one of `"max"`, `"avg"`.
 
     # Returns
         A tensor, result of 3D pooling.
     """
-    if dim_ordering == 'default':
-        dim_ordering = image_dim_ordering()
-    if dim_ordering not in {'th', 'tf'}:
-        raise ValueError('Unknown dim_ordering ' + str(dim_ordering))
+    if data_format == 'default':
+        data_format = image_data_format()
+    if data_format not in {'channels_first', 'channels_last'}:
+        raise ValueError('Unknown data_format ' + str(data_format))
 
     padding = _preprocess_border_mode(border_mode)
     strides = (1,) + strides + (1,)
     pool_size = (1,) + pool_size + (1,)
 
-    x = _preprocess_conv3d_input(x, dim_ordering)
+    x = _preprocess_conv3d_input(x, data_format)
 
     if pool_mode == 'max':
         x = tf.nn.max_pool3d(x, pool_size, strides, padding=padding)
@@ -2799,7 +2799,7 @@ def pool3d(x, pool_size, strides=(1, 1, 1), border_mode='valid',
     else:
         raise ValueError('Invalid pooling mode:', pool_mode)
 
-    return _postprocess_conv3d_output(x, dim_ordering)
+    return _postprocess_conv3d_output(x, data_format)
 
 
 # RANDOMNESS

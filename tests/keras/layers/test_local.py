@@ -56,7 +56,7 @@ def test_locallyconnected_2d():
                                'b_regularizer': 'l2',
                                'activity_regularizer': 'activity_l2',
                                'subsample': subsample,
-                               'dim_ordering': 'tf'},
+                               'data_format': 'channels_last'},
                        input_shape=(nb_samples, nb_row, nb_col, stack_size))
 
             layer_test(local.LocallyConnected2D,
@@ -68,7 +68,7 @@ def test_locallyconnected_2d():
                                'b_regularizer': 'l2',
                                'activity_regularizer': 'activity_l2',
                                'subsample': subsample,
-                               'dim_ordering': 'th'},
+                               'data_format': 'channels_first'},
                        input_shape=(nb_samples, stack_size, nb_row, nb_col))
 
 

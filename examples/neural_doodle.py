@@ -103,7 +103,7 @@ def preprocess_image(image_path):
 
 
 def deprocess_image(x):
-    if K.image_dim_ordering() == 'th':
+    if K.image_data_format() == 'channels_first':
         x = x.reshape((3, img_nrows, img_ncols))
         x = x.transpose((1, 2, 0))
     else:
@@ -132,7 +132,7 @@ def kmeans(xs, k):
 def load_mask_labels():
     '''Load both target and style masks.
     A mask image (nr x nc) with m labels/colors will be loaded
-    as a 4D boolean tensor: (1, m, nr, nc) for 'th' or (1, nr, nc, m) for 'tf'
+    as a 4D boolean tensor: (1, m, nr, nc) for 'channels_first' or (1, nr, nc, m) for 'channels_last'
     '''
     target_mask_img = load_img(target_mask_path,
                                target_size=(img_nrows, img_ncols))
@@ -140,7 +140,7 @@ def load_mask_labels():
     style_mask_img = load_img(style_mask_path,
                               target_size=(img_nrows, img_ncols))
     style_mask_img = img_to_array(style_mask_img)
-    if K.image_dim_ordering() == 'th':
+    if K.image_data_format() == 'channels_first':
         mask_vecs = np.vstack([style_mask_img.reshape((3, -1)).T,
                                target_mask_img.reshape((3, -1)).T])
     else:
@@ -153,7 +153,7 @@ def load_mask_labels():
     target_mask_label = labels[img_nrows *
                                img_ncols:].reshape((img_nrows, img_ncols))
 
-    stack_axis = 0 if K.image_dim_ordering() == 'th' else -1
+    stack_axis = 0 if K.image_data_format() == 'channels_first' else -1
     style_mask = np.stack([style_mask_label == r for r in xrange(nb_labels)],
                           axis=stack_axis)
     target_mask = np.stack([target_mask_label == r for r in xrange(nb_labels)],
@@ -163,7 +163,7 @@ def load_mask_labels():
             np.expand_dims(target_mask, axis=0))
 
 # Create tensor variables for images
-if K.image_dim_ordering() == 'th':
+if K.image_data_format() == 'channels_first':
     shape = (1, nb_colors, img_nrows, img_ncols)
 else:
     shape = (1, img_nrows, img_ncols, nb_colors)
@@ -228,7 +228,7 @@ def region_style_loss(style_image, target_image, style_mask, target_mask):
     '''
     assert 3 == K.ndim(style_image) == K.ndim(target_image)
     assert 2 == K.ndim(style_mask) == K.ndim(target_mask)
-    if K.image_dim_ordering() == 'th':
+    if K.image_data_format() == 'channels_first':
         masked_style = style_image * style_mask
         masked_target = target_image * target_mask
         nb_channels = K.shape(style_image)[0]
@@ -251,7 +251,7 @@ def style_loss(style_image, target_image, style_masks, target_masks):
     assert 3 == K.ndim(style_masks) == K.ndim(target_masks)
     loss = K.variable(0)
     for i in xrange(nb_labels):
-        if K.image_dim_ordering() == 'th':
+        if K.image_data_format() == 'channels_first':
             style_mask = style_masks[i, :, :]
             target_mask = target_masks[i, :, :]
         else:
@@ -268,7 +268,7 @@ def content_loss(content_image, target_image):
 
 def total_variation_loss(x):
     assert 4 == K.ndim(x)
-    if K.image_dim_ordering() == 'th':
+    if K.image_data_format() == 'channels_first':
         a = K.square(x[:, :, :img_nrows - 1, :img_ncols - 1] -
                      x[:, :, 1:, :img_ncols - 1])
         b = K.square(x[:, :, :img_nrows - 1, :img_ncols - 1] -
@@ -310,7 +310,7 @@ f_outputs = K.function([target_image], outputs)
 
 
 def eval_loss_and_grads(x):
-    if K.image_dim_ordering() == 'th':
+    if K.image_data_format() == 'channels_first':
         x = x.reshape((1, 3, img_nrows, img_ncols))
     else:
         x = x.reshape((1, img_nrows, img_ncols, 3))
@@ -346,7 +346,7 @@ class Evaluator(object):
 evaluator = Evaluator()
 
 # Generate images by iterative optimization
-if K.image_dim_ordering() == 'th':
+if K.image_data_format() == 'channels_first':
     x = np.random.uniform(0, 255, (1, 3, img_nrows, img_ncols)) - 128.
 else:
     x = np.random.uniform(0, 255, (1, img_nrows, img_ncols, 3)) - 128.

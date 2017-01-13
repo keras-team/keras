@@ -33,7 +33,7 @@ seq.add(BatchNormalization())
 
 seq.add(Convolution3D(nb_filter=1, kernel_dim1=1, kernel_dim2=3,
                       kernel_dim3=3, activation='sigmoid',
-                      border_mode='same', dim_ordering='tf'))
+                      border_mode='same', data_format='channels_last'))
 
 seq.compile(loss='binary_crossentropy', optimizer='adadelta')
 

@@ -4,7 +4,7 @@ from . import backend as K
 from .utils.generic_utils import get_from_module
 
 
-def get_fans(shape, dim_ordering='th'):
+def get_fans(shape, data_format='channels_first'):
     if len(shape) == 2:
         fan_in = shape[0]
         fan_out = shape[1]
@@ -12,16 +12,16 @@ def get_fans(shape, dim_ordering='th'):
         # Assuming convolution kernels (2D or 3D).
         # TH kernel shape: (depth, input_depth, ...)
         # TF kernel shape: (..., input_depth, depth)
-        if dim_ordering == 'th':
+        if data_format == 'channels_first':
             receptive_field_size = np.prod(shape[2:])
             fan_in = shape[1] * receptive_field_size
             fan_out = shape[0] * receptive_field_size
-        elif dim_ordering == 'tf':
+        elif data_format == 'channels_last':
             receptive_field_size = np.prod(shape[:2])
             fan_in = shape[-2] * receptive_field_size
             fan_out = shape[-1] * receptive_field_size
         else:
-            raise ValueError('Invalid dim_ordering: ' + dim_ordering)
+            raise ValueError('Invalid data_format: ' + data_format)
     else:
         # No specific assumptions.
         fan_in = np.sqrt(np.prod(shape))
@@ -29,63 +29,63 @@ def get_fans(shape, dim_ordering='th'):
     return fan_in, fan_out
 
 
-def uniform(shape, scale=0.05, name=None, dim_ordering='th'):
+def uniform(shape, scale=0.05, name=None, data_format='channels_first'):
     return K.random_uniform_variable(shape, -scale, scale, name=name)
 
 
-def normal(shape, scale=0.05, name=None, dim_ordering='th'):
+def normal(shape, scale=0.05, name=None, data_format='channels_first'):
     return K.random_normal_variable(shape, 0.0, scale, name=name)
 
 
-def lecun_uniform(shape, name=None, dim_ordering='th'):
+def lecun_uniform(shape, name=None, data_format='channels_first'):
     """LeCun uniform variance scaling initializer.
 
     # References
         LeCun 98, Efficient Backprop,
         http://yann.lecun.com/exdb/publis/pdf/lecun-98b.pdf
     """
-    fan_in, fan_out = get_fans(shape, dim_ordering=dim_ordering)
+    fan_in, fan_out = get_fans(shape, data_format=data_format)
     scale = np.sqrt(3. / fan_in)
     return uniform(shape, scale, name=name)
 
 
-def glorot_normal(shape, name=None, dim_ordering='th'):
+def glorot_normal(shape, name=None, data_format='channels_first'):
     """Glorot normal variance scaling initializer.
 
     # References
         Glorot & Bengio, AISTATS 2010
     """
-    fan_in, fan_out = get_fans(shape, dim_ordering=dim_ordering)
+    fan_in, fan_out = get_fans(shape, data_format=data_format)
     s = np.sqrt(2. / (fan_in + fan_out))
     return normal(shape, s, name=name)
 
 
-def glorot_uniform(shape, name=None, dim_ordering='th'):
-    fan_in, fan_out = get_fans(shape, dim_ordering=dim_ordering)
+def glorot_uniform(shape, name=None, data_format='channels_first'):
+    fan_in, fan_out = get_fans(shape, data_format=data_format)
     s = np.sqrt(6. / (fan_in + fan_out))
     return uniform(shape, s, name=name)
 
 
-def he_normal(shape, name=None, dim_ordering='th'):
+def he_normal(shape, name=None, data_format='channels_first'):
     """He normal variance scaling initializer.
 
     # References
         He et al., http://arxiv.org/abs/1502.01852
     """
-    fan_in, fan_out = get_fans(shape, dim_ordering=dim_ordering)
+    fan_in, fan_out = get_fans(shape, data_format=data_format)
     s = np.sqrt(2. / fan_in)
     return normal(shape, s, name=name)
 
 
-def he_uniform(shape, name=None, dim_ordering='th'):
+def he_uniform(shape, name=None, data_format='channels_first'):
     """He uniform variance scaling initializer.
     """
-    fan_in, fan_out = get_fans(shape, dim_ordering=dim_ordering)
+    fan_in, fan_out = get_fans(shape, data_format=data_format)
     s = np.sqrt(6. / fan_in)
     return uniform(shape, s, name=name)
 
 
-def orthogonal(shape, scale=1.1, name=None, dim_ordering='th'):
+def orthogonal(shape, scale=1.1, name=None, data_format='channels_first'):
     """Orthogonal initializer.
 
     # References
@@ -100,7 +100,7 @@ def orthogonal(shape, scale=1.1, name=None, dim_ordering='th'):
     return K.variable(scale * q[:shape[0], :shape[1]], name=name)
 
 
-def identity(shape, scale=1, name=None, dim_ordering='th'):
+def identity(shape, scale=1, name=None, data_format='channels_first'):
     if len(shape) != 2 or shape[0] != shape[1]:
         raise ValueError('Identity matrix initialization can only be used '
                          'for 2D square matrices.')
@@ -108,11 +108,11 @@ def identity(shape, scale=1, name=None, dim_ordering='th'):
         return K.variable(scale * np.identity(shape[0]), name=name)
 
 
-def zero(shape, name=None, dim_ordering='th'):
+def zero(shape, name=None, data_format='channels_first'):
     return K.zeros(shape, name=name)
 
 
-def one(shape, name=None, dim_ordering='th'):
+def one(shape, name=None, data_format='channels_first'):
     return K.ones(shape, name=name)
 
 

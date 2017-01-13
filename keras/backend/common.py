@@ -6,7 +6,7 @@ from collections import defaultdict
 _FLOATX = 'float32'
 _EPSILON = 10e-8
 _UID_PREFIXES = defaultdict(int)
-_IMAGE_DIM_ORDERING = 'tf'
+_IMAGE_DATA_FORMAT = 'channels_last'
 _LEGACY_WEIGHT_ORDERING = False
 
 
@@ -112,43 +112,43 @@ def cast_to_floatx(x):
     return np.asarray(x, dtype=_FLOATX)
 
 
-def image_dim_ordering():
-    """Returns the default image dimension ordering
-    convention ('th' or 'tf').
+def image_data_format():
+    """Returns the default image data format
+    convention ('channels_first' or 'channels_last').
 
     # Returns
-        A string, either `'th'` or `'tf'`
+        A string, either `'channels_first'` or `'channels_last'`
 
     # Example
     ```python
-        >>> keras.backend.image_dim_ordering()
-        'th'
+        >>> keras.backend.image_data_format()
+        'channels_first'
     ```
     """
-    return _IMAGE_DIM_ORDERING
+    return _IMAGE_DATA_FORMAT
 
 
-def set_image_dim_ordering(dim_ordering):
+def set_image_data_format(data_format):
     """Sets the value of the image dimension
-    ordering convention ('th' or 'tf').
+    ordering convention ('channels_first' or 'channels_last').
 
     # Arguments
-        dim_ordering: string. `'th'` or `'tf'`.
+        data_format: string. `'channels_first'` or `'channels_last'`.
 
     # Example
     ```python
         >>> from keras import backend as K
-        >>> K.image_dim_ordering()
-        'th'
-        >>> K.set_image_dim_ordering('tf')
-        >>> K.image_dim_ordering()
-        'tf'
+        >>> K.image_data_format()
+        'channels_first'
+        >>> K.set_image_data_format('channels_last')
+        >>> K.image_data_format()
+        'channels_last'
     ```
     """
-    global _IMAGE_DIM_ORDERING
-    if dim_ordering not in {'tf', 'th'}:
-        raise ValueError('Unknown dim_ordering:', dim_ordering)
-    _IMAGE_DIM_ORDERING = str(dim_ordering)
+    global _IMAGE_DATA_FORMAT
+    if data_format not in {'channels_last', 'channels_first'}:
+        raise ValueError('Unknown data_format:', data_format)
+    _IMAGE_DATA_FORMAT = str(data_format)
 
 
 def get_uid(prefix=''):

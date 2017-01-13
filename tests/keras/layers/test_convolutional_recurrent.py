@@ -18,9 +18,9 @@ def test_recurrent_convolutional():
     input_nb_row = 5
     input_nb_col = 5
     sequence_len = 2
-    for dim_ordering in ['th', 'tf']:
+    for data_format in ['channels_first', 'channels_last']:
 
-        if dim_ordering == 'th':
+        if data_format == 'channels_first':
             input = np.random.rand(nb_samples, sequence_len,
                                    input_channel,
                                    input_nb_row, input_nb_col)
@@ -32,7 +32,7 @@ def test_recurrent_convolutional():
         for return_sequences in [True, False]:
             # test for ouptput shape:
             output = layer_test(convolutional_recurrent.ConvLSTM2D,
-                                kwargs={'dim_ordering': dim_ordering,
+                                kwargs={'data_format': data_format,
                                         'return_sequences': return_sequences,
                                         'nb_filter': nb_filter,
                                         'nb_row': nb_row,
@@ -42,7 +42,7 @@ def test_recurrent_convolutional():
 
             output_shape = [nb_samples, input_nb_row, input_nb_col]
 
-            if dim_ordering == 'th':
+            if data_format == 'channels_first':
                 output_shape.insert(1, nb_filter)
             else:
                 output_shape.insert(3, nb_filter)
@@ -53,12 +53,12 @@ def test_recurrent_convolutional():
             assert output.shape == tuple(output_shape)
 
             # No need to check statefulness for both
-            if dim_ordering == 'th' or return_sequences:
+            if data_format == 'channels_first' or return_sequences:
                 continue
 
             # Tests for statefulness
             model = Sequential()
-            kwargs = {'dim_ordering': dim_ordering,
+            kwargs = {'data_format': data_format,
                       'return_sequences': return_sequences,
                       'nb_filter': nb_filter,
                       'nb_row': nb_row,
@@ -97,7 +97,7 @@ def test_recurrent_convolutional():
             assert(out4.max() != out5.max())
 
             # check regularizers
-            kwargs = {'dim_ordering': dim_ordering,
+            kwargs = {'data_format': data_format,
                       'return_sequences': return_sequences,
                       'nb_filter': nb_filter,
                       'nb_row': nb_row,
@@ -116,7 +116,7 @@ def test_recurrent_convolutional():
 
             # check dropout
             layer_test(convolutional_recurrent.ConvLSTM2D,
-                       kwargs={'dim_ordering': dim_ordering,
+                       kwargs={'data_format': data_format,
                                'return_sequences': return_sequences,
                                'nb_filter': nb_filter,
                                'nb_row': nb_row,

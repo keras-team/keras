@@ -20,12 +20,12 @@ TAGS = ['rock', 'pop', 'alternative', 'indie', 'electronic',
         'sad', 'House', 'happy']
 
 
-def preprocess_input(audio_path, dim_ordering='default'):
+def preprocess_input(audio_path, data_format='default'):
     """Reads an audio file and outputs a Mel-spectrogram.
 
     # Arguments
         audio_path: path to the target audio file.
-        dim_ordering: data format for the output spectrogram image.
+        data_format: data format for the output spectrogram image.
 
     # Returns
         3D Numpy tensor encoding the Mel-spectrogram.
@@ -33,9 +33,9 @@ def preprocess_input(audio_path, dim_ordering='default'):
     # Raises
         ImportError: if librosa is not available.
     """
-    if dim_ordering == 'default':
-        dim_ordering = K.image_dim_ordering()
-    assert dim_ordering in {'tf', 'th'}
+    if data_format == 'default':
+        data_format = K.image_data_format()
+    assert data_format in {'channels_last', 'channels_first'}
 
     if librosa is None:
         raise ImportError('Librosa is required to process audio files. '
@@ -66,9 +66,9 @@ def preprocess_input(audio_path, dim_ordering='default'):
                       n_fft=n_fft, n_mels=n_mels) ** 2,
               ref_power=1.0)
 
-    if dim_ordering == 'th':
+    if data_format == 'channels_first':
         x = np.expand_dims(x, axis=0)
-    elif dim_ordering == 'tf':
+    elif data_format == 'channels_last':
         x = np.expand_dims(x, axis=3)
     return x
 
