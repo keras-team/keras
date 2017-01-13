@@ -42,17 +42,10 @@ def mean_squared_logarithmic_error(y_true, y_pred):
 
 
 def hinge(y_true, y_pred):
-    """Hinge loss metric.
-
-    Computes the hinge loss, which is defined as
-    `max(1 - y_true * y_pred, 0)`.
-    """
     return K.mean(K.maximum(1. - y_true * y_pred, 0.))
 
 
 def squared_hinge(y_true, y_pred):
-    """Computes the squared value of the hinge loss.
-    """
     return K.mean(K.square(K.maximum(1. - y_true * y_pred, 0.)))
 
 
