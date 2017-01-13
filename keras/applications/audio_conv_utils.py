@@ -29,6 +29,9 @@ def preprocess_input(audio_path, dim_ordering='default'):
 
     # Returns
         3D Numpy tensor encoding the Mel-spectrogram.
+
+    # Raises
+        ImportError: if librosa is not available.
     """
     if dim_ordering == 'default':
         dim_ordering = K.image_dim_ordering()

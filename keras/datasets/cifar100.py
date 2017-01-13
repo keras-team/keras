@@ -14,6 +14,9 @@ def load_data(label_mode='fine'):
 
     # Returns
         Tuple of Numpy arrays: `(x_train, y_train), (x_test, y_test)`.
+
+    # Raises
+        ValueError: in case of invalid `label_mode`.
     """
     if label_mode not in ['fine', 'coarse']:
         raise ValueError('label_mode must be one of "fine" "coarse".')

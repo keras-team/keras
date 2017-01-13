@@ -13,7 +13,7 @@ def load_data(path='reuters.pkl', nb_words=None, skip_top=0,
     """Loads the Reuters newswire classification dataset.
 
     # Arguments
-        path: where to store the data (in `/.keras/dataset`)
+        path: where to cache the data (relative to `~/.keras/dataset`).
         nb_words: max number of words to include. Words are ranked
             by how often they occur (in the training set) and only
             the most frequent words are kept
@@ -76,7 +76,7 @@ def load_data(path='reuters.pkl', nb_words=None, skip_top=0,
         for x in xs:
             nx = []
             for w in x:
-                if (w >= nb_words or w < skip_top):
+                if w >= nb_words or w < skip_top:
                     nx.append(w)
             new_xs.append(nx)
         xs = new_xs
@@ -91,6 +91,11 @@ def load_data(path='reuters.pkl', nb_words=None, skip_top=0,
 
 
 def get_word_index(path='reuters_word_index.pkl'):
+    """Retrieves the dictionary mapping word indices back to words.
+
+    # Arguments
+        path: where to cache the data (relative to `~/.keras/dataset`).
+    """
     path = get_file(path, origin='https://s3.amazonaws.com/text-datasets/reuters_word_index.pkl')
     f = open(path, 'rb')
 
