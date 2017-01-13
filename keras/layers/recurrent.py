@@ -1099,7 +1099,7 @@ class AttGRUCond(Recurrent):
     '''
     def __init__(self, output_dim, return_extra_variables=False, return_states=False,
                  init='glorot_uniform', inner_init='orthogonal',
-                 activation='tanh', inner_activation='hard_sigmoid',
+                 activation='tanh', inner_activation='hard_sigmoid', mask_value=0.,
                  W_regularizer=None, U_regularizer=None, V_regularizer=None, b_regularizer=None,
                  wa_regularizer=None, Wa_regularizer=None, Ua_regularizer=None, ba_regularizer=None, ca_regularizer=None,
                  dropout_W=0., dropout_U=0., dropout_V=0., dropout_wa=0., dropout_Wa=0., dropout_Ua=0., **kwargs):
@@ -1120,6 +1120,7 @@ class AttGRUCond(Recurrent):
         self.Ua_regularizer = regularizers.get(Ua_regularizer)
         self.ba_regularizer = regularizers.get(ba_regularizer)
         self.ca_regularizer = regularizers.get(ca_regularizer)
+        self.mask_value = mask_value
 
         self.dropout_W, self.dropout_U, self.dropout_V  = dropout_W, dropout_U, dropout_V
         self.dropout_wa, self.dropout_Wa, self.dropout_Ua = dropout_wa, dropout_Wa, dropout_Ua
@@ -1392,6 +1393,7 @@ class AttGRUCond(Recurrent):
         pctx_ = states[7]       # Projected context (i.e. context * Ua + ba)
         context = states[8]     # Original context
         mask_input = states[9]  # Context mask
+
         if mask_input.ndim > 1: # Mask the context (only if necessary)
             pctx_ = mask_input[:, :, None] * pctx_
             context = mask_input[:, :, None] * context    # Masked context
@@ -1400,6 +1402,8 @@ class AttGRUCond(Recurrent):
         p_state_ = K.dot(h_tm1 * B_Wa[0], self.Wa)
         pctx_ = K.tanh(pctx_ +  p_state_[:, None, :])
         e = K.dot(pctx_ * B_wa[0], self.wa) + self.ca
+        if mask_input.ndim > 1: # Mask the context (only if necessary)
+            e = mask_input * e
         alphas_shape = e.shape
         alphas = K.softmax(e.reshape([alphas_shape[0], alphas_shape[1]]))
         ctx_ = (context * alphas[:, :, None]).sum(axis=1) # sum over the in_timesteps dimension resulting in [batch_size, input_dim]
@@ -1419,6 +1423,7 @@ class AttGRUCond(Recurrent):
             x_h = matrix_x[:, 2 * self.output_dim:]
             inner_h = K.dot(r * h_tm1 * B_U[0], self.U[:, 2 * self.output_dim:])
             hh = self.activation(x_h + inner_h)
+
         h = z * h_tm1 + (1 - z) * hh
 
         return h, [h, ctx_, alphas]
@@ -1490,7 +1495,7 @@ class AttGRUCond(Recurrent):
 
         # States[9]
         if mask_input is None:
-            mask_input = K.variable([])
+            mask_input = K.not_equal(K.sum(self.context, axis=2), self.mask_value)
         constants.append(mask_input)
 
         return constants, B_V
@@ -1523,6 +1528,7 @@ class AttGRUCond(Recurrent):
                   'inner_init': self.inner_init.__name__,
                   'activation': self.activation.__name__,
                   'inner_activation': self.inner_activation.__name__,
+                  'mask_value': self.mask_value,
                   'W_regularizer': self.W_regularizer.get_config() if self.W_regularizer else None,
                   'U_regularizer': self.U_regularizer.get_config() if self.U_regularizer else None,
                   'V_regularizer': self.V_regularizer.get_config() if self.U_regularizer else None,
@@ -3237,7 +3243,7 @@ class AttLSTMCond(Recurrent):
     '''
     def __init__(self, output_dim, return_extra_variables=False, return_states=False,
                  init='glorot_uniform', inner_init='orthogonal',
-                 forget_bias_init='one', activation='tanh', inner_activation='sigmoid',
+                 forget_bias_init='one', activation='tanh', inner_activation='sigmoid', mask_value=0.,
                  W_regularizer=None, U_regularizer=None, V_regularizer=None, b_regularizer=None,
                  wa_regularizer=None, Wa_regularizer=None, Ua_regularizer=None, ba_regularizer=None, ca_regularizer=None,
                  dropout_W=0., dropout_U=0., dropout_V=0., dropout_wa=0., dropout_Wa=0., dropout_Ua=0.,
@@ -3260,6 +3266,7 @@ class AttLSTMCond(Recurrent):
         self.Ua_regularizer = regularizers.get(Ua_regularizer)
         self.ba_regularizer = regularizers.get(ba_regularizer)
         self.ca_regularizer = regularizers.get(ca_regularizer)
+        self.mask_value = mask_value
 
         # Dropouts
         self.dropout_W, self.dropout_U, self.dropout_V = dropout_W, dropout_U, dropout_V
@@ -3579,6 +3586,8 @@ class AttLSTMCond(Recurrent):
         p_state_ = K.dot(h_tm1 * B_Wa[0], self.Wa)
         pctx_ = K.tanh(pctx_ + p_state_[:, None, :])
         e = K.dot(pctx_ * B_wa[0], self.wa) + self.ca
+        if mask_input.ndim > 1: # Mask the context (only if necessary)
+            e = mask_input * e
         alphas_shape = e.shape
         alphas = K.softmax(e.reshape([alphas_shape[0], alphas_shape[1]]))
         # sum over the in_timesteps dimension resulting in [batch_size, input_dim]
@@ -3669,7 +3678,7 @@ class AttLSTMCond(Recurrent):
 
         # States[10]
         if mask_input is None:
-            mask_input = K.variable([])
+            mask_input = K.not_equal(K.sum(self.context, axis=2), self.mask_value)
         constants.append(mask_input)
 
         return constants, B_V
@@ -3710,6 +3719,7 @@ class AttLSTMCond(Recurrent):
                   'forget_bias_init': self.forget_bias_init.__name__,
                   'activation': self.activation.__name__,
                   'inner_activation': self.inner_activation.__name__,
+                  'mask_value': self.mask_value,
                   'W_regularizer': self.W_regularizer.get_config() if self.W_regularizer else None,
                   'U_regularizer': self.U_regularizer.get_config() if self.U_regularizer else None,
                   'V_regularizer': self.V_regularizer.get_config() if self.U_regularizer else None,
