@@ -3,8 +3,11 @@ from __future__ import absolute_import
 import numpy as np
 
 from .. import backend as K
-from .. import activations, initializations, regularizers
-from ..engine import Layer, InputSpec
+from .. import activations
+from .. import initializations
+from .. import regularizers
+from ..engine import Layer
+from ..engine import InputSpec
 
 
 def time_distributed_dense(x, w, b=None, dropout=None,

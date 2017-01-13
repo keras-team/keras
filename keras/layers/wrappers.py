@@ -1,4 +1,5 @@
-from ..engine import Layer, InputSpec
+from ..engine import Layer
+from ..engine import InputSpec
 from .. import backend as K
 
 

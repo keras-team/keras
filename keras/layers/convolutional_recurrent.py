@@ -1,8 +1,11 @@
 from .. import backend as K
-from .. import activations, initializations, regularizers
+from .. import activations
+from .. import initializations
+from .. import regularizers
 
 import numpy as np
-from ..engine import Layer, InputSpec
+from ..engine import Layer
+from ..engine import InputSpec
 from ..utils.np_utils import conv_output_length
 import warnings
 

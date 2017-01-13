@@ -3,13 +3,22 @@ from __future__ import absolute_import
 import functools
 
 from .. import backend as K
-from .. import activations, initializations, regularizers, constraints
-from ..engine import Layer, InputSpec
-from ..utils.np_utils import conv_output_length, conv_input_length
+from .. import activations
+from .. import initializations
+from .. import regularizers
+from .. import constraints
+from ..engine import Layer
+from ..engine import InputSpec
+from ..utils.np_utils import conv_output_length
+from ..utils.np_utils import conv_input_length
 
 # imports for backwards namespace compatibility
-from .pooling import AveragePooling1D, AveragePooling2D, AveragePooling3D
-from .pooling import MaxPooling1D, MaxPooling2D, MaxPooling3D
+from .pooling import AveragePooling1D
+from .pooling import AveragePooling2D
+from .pooling import AveragePooling3D
+from .pooling import MaxPooling1D
+from .pooling import MaxPooling2D
+from .pooling import MaxPooling3D
 
 
 class Convolution1D(Layer):
