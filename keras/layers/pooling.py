@@ -29,7 +29,7 @@ class _Pooling1D(Layer):
                                     self.border_mode, self.stride)
         return (input_shape[0], length, input_shape[2])
 
-    def _pooling_function(self, back_end, inputs, pool_size, strides,
+    def _pooling_function(self, inputs, pool_size, strides,
                           border_mode, dim_ordering):
         raise NotImplementedError
 
@@ -401,6 +401,8 @@ class AveragePooling3D(_Pooling3D):
 
 
 class _GlobalPooling1D(Layer):
+    """Abstract class for different global pooling 1D layers.
+    """
 
     def __init__(self, **kwargs):
         super(_GlobalPooling1D, self).__init__(**kwargs)
@@ -442,6 +444,8 @@ class GlobalMaxPooling1D(_GlobalPooling1D):
 
 
 class _GlobalPooling2D(Layer):
+    """Abstract class for different global pooling 2D layers.
+    """
 
     def __init__(self, dim_ordering='default', **kwargs):
         super(_GlobalPooling2D, self).__init__(**kwargs)
@@ -522,6 +526,8 @@ class GlobalMaxPooling2D(_GlobalPooling2D):
 
 
 class _GlobalPooling3D(Layer):
+    """Abstract class for different global pooling 3D layers.
+    """
 
     def __init__(self, dim_ordering='default', **kwargs):
         super(_GlobalPooling3D, self).__init__(**kwargs)

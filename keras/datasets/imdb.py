@@ -115,6 +115,9 @@ def get_word_index(path='imdb_word_index.pkl'):
 
     # Arguments
         path: where to cache the data (relative to `~/.keras/dataset`).
+
+    # Returns
+        The word index dictionary.
     """
     path = get_file(path,
                     origin='https://s3.amazonaws.com/text-datasets/imdb_word_index.pkl',

@@ -38,8 +38,8 @@ def preprocess_input(audio_path, dim_ordering='default'):
     assert dim_ordering in {'tf', 'th'}
 
     if librosa is None:
-        raise ImportError('Librosa is required to process audio files.\n' +
-                          'Install it via `pip install librosa` \nor visit ' +
+        raise ImportError('Librosa is required to process audio files. '
+                          'Install it via `pip install librosa` or visit '
                           'http://librosa.github.io/librosa/ for details.')
 
     # mel-spectrogram parameters

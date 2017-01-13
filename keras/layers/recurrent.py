@@ -9,7 +9,20 @@ from ..engine import Layer, InputSpec
 
 def time_distributed_dense(x, w, b=None, dropout=None,
                            input_dim=None, output_dim=None, timesteps=None):
-    """Apply y.w + b for every temporal slice y of x.
+    """Apply `y . w + b` for every temporal slice y of x.
+
+    # Arguments
+        x: input tensor.
+        w: weight matrix.
+        b: optional bias vector.
+        dropout: wether to apply dropout (same dropout mask
+            for every temporal slice of the input).
+        input_dim: integer; optional dimensionality of the input.
+        output_dim: integer; optional dimensionality of the output.
+        timesteps: integer; optional number of timesteps.
+
+    # Returns
+        Output tensor.
     """
     if not input_dim:
         input_dim = K.shape(x)[2]
@@ -29,7 +42,7 @@ def time_distributed_dense(x, w, b=None, dropout=None,
     x = K.reshape(x, (-1, input_dim))
     x = K.dot(x, w)
     if b:
-        x = x + b
+        x += b
     # reshape to 3D tensor
     if K.backend() == 'tensorflow':
         x = K.reshape(x, K.stack([-1, timesteps, output_dim]))
@@ -524,8 +537,9 @@ class GRU(Recurrent):
         assert self.stateful, 'Layer must be stateful.'
         input_shape = self.input_spec[0].shape
         if not input_shape[0]:
-            raise ValueError('If a RNN is stateful, a complete ' +
-                             'input_shape must be provided (including batch size).')
+            raise ValueError('If a RNN is stateful, a complete '
+                             'input_shape must be provided '
+                             '(including batch size).')
         if hasattr(self, 'states'):
             K.set_value(self.states[0],
                         np.zeros((input_shape[0], self.output_dim)))
