@@ -28,7 +28,7 @@ TF_WEIGHTS_PATH = 'https://github.com/fchollet/deep-learning-models/releases/dow
 
 
 def MusicTaggerCRNN(weights='msd', input_tensor=None,
-                    include_top=True):
+                    include_top=True, classes=50):
     """Instantiate the MusicTaggerCRNN architecture,
     optionally loading weights pre-trained
     on Million Song Dataset. Note that when using TensorFlow,
@@ -54,7 +54,9 @@ def MusicTaggerCRNN(weights='msd', input_tensor=None,
         include_top: whether to include the 1 fully-connected
             layer (output layer) at the top of the network.
             If False, the network outputs 32-dim features.
-
+        classes: optional number of classes to classify images
+            into, only to be specified if `include_top` is True, and
+            if no `weights` argument is specified.
 
     # Returns
         A Keras model instance.
@@ -64,6 +66,9 @@ def MusicTaggerCRNN(weights='msd', input_tensor=None,
                          '`None` (random initialization) or `msd` '
                          '(pre-training on Million Song Dataset).')
 
+    if weights == 'msd' and include_top and classes != 50:
+        raise ValueError('If using `weights` as msd with `include_top`'
+                         ' as true, `classes` should be 50')
     # Determine proper input shape
     if K.image_dim_ordering() == 'th':
         input_shape = (1, 96, 1366)
@@ -126,7 +131,7 @@ def MusicTaggerCRNN(weights='msd', input_tensor=None,
     x = GRU(32, return_sequences=False, name='gru2')(x)
 
     if include_top:
-        x = Dense(50, activation='sigmoid', name='output')(x)
+        x = Dense(classes, activation='sigmoid', name='output')(x)
 
     # Ensure that the model takes into account
     # any potential predecessors of `input_tensor`.
