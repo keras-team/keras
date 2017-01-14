@@ -2,7 +2,7 @@
 
 For simple, stateless custom operations, you are probably better off using `layers.core.Lambda` layers. But for any custom operation that has trainable weights, you should implement your own layer.
 
-Here is the skeleton of a Keras layer, **as of Keras 1.1.3** (if you have an older version, please upgrade). There are only three methods you need to implement:
+Here is the skeleton of a Keras layer, **as of Keras 1.2.0** (if you have an older version, please upgrade). There are only three methods you need to implement:
 
 - `build(input_shape)`: this is where you will define your weights. This method must set `self.built = True`, which can be done by calling `super([Layer], self).build()`.
 - `call(x)`: this is where the layer's logic lives. Unless you want your layer to support masking, you only have to care about the first argument passed to `call`: the input tensor.
@@ -32,4 +32,4 @@ class MyLayer(Layer):
         return (input_shape[0], self.output_dim)
 ```
 
-The existing Keras layers provide ample examples of how to implement almost anything. Never hesitate to read the source code!
+The existing Keras layers provide examples of how to implement almost anything. Never hesitate to read the source code!
