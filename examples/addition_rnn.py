@@ -120,7 +120,7 @@ X = X[indices]
 y = y[indices]
 
 # Explicitly set apart 10% for validation data that we never train over
-split_at = len(X) - int(len(X) / 10)
+split_at = len(X) - len(X) // 10
 (X_train, X_val) = (slice_X(X, 0, split_at), slice_X(X, split_at))
 (y_train, y_val) = (y[:split_at], y[split_at:])
 
